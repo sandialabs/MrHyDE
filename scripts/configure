@@ -1,0 +1,20 @@
+EXTRA_ARGS=$@
+
+rm CMakeCache.txt
+
+TRILINOS_HOME='/home/tmwilde/Trilinos'
+
+TRILINOS_INSTALL='/home/tmwilde/Trilinos/INSTALL-MPNome'
+
+CODE_HOME='/home/tmwilde/Codes/xcar/code/MILO'
+
+CODE_INSTALL='/home/tmwilde/Codes/xcar/code/MILO/install'
+
+cmake \
+-D Trilinos_SRC_DIR=${TRILINOS_HOME} \
+-D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
+-D CMAKE_VERBOSE_CONFIGURE:BOOL=OFF \
+-D CMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+-D CMAKE_INSTALL_PREFIX:PATH=${CODE_INSTALL} \
+${EXTRA-ARGS} \
+${CODE_HOME}

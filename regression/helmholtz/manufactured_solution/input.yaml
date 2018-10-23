@@ -1,0 +1,69 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh: 
+    dim: 2
+    shape: quad
+    xmin: 0.00000000000000000e+00
+    xmax: 1.00000000000000000e+00
+    ymin: 0.00000000000000000e+00
+    ymax: 1.00000000000000000e+00
+    NX: 100
+    NY: 100
+    blocknames: eblock-0_0
+  Physics: 
+    eblock-0_0: 
+      solve_helmholtz: true
+      Dirichlet conditions:
+        ureal:
+          left: '0.0'
+          top: '0.0'
+          bottom: '0.0'
+        uimag:
+          left: '0.0'
+          top: '0.0'
+          bottom: '0.0'
+      true solutions:
+        ureal: sin(2*pi*x)*sin(2*pi*y)
+        uimag: sin(2*pi*x)*sin(2*pi*y)
+    test: 4
+  Functions:
+    source_r_side: 2.0*pi*cos(2*pi*x)*sin(2*pi*y)
+    source_i_side: 2.0*pi*cos(2*pi*x)*sin(2*pi*y)
+    omega: '1.0'
+    scoeff: 8*pi*pi*(x*x-2*x-1)-1.0
+    scoeffi: 8*pi*pi*(x*x+2*x-1)-1.0
+    srcoeff: 2.0-2*x
+    sicoeff: -2.0-2*x
+    source_r: scoeff*sin(2*pi*x)*sin(2*pi*y) + srcoeff*2*pi*cos(2*pi*x)*sin(2*pi*y)
+    source_i: scoeffi*sin(2*pi*x)*sin(2*pi*y) + sicoeff*2*pi*cos(2*pi*x)*sin(2*pi*y)
+    c2r_x: x*x-1.0
+    c2i_x: 2.0*x
+    c2r_y: x*x-1.0
+    c2i_y: 2.0*x
+    omega2r: '1.0'
+    omega2i: '0.0'
+  Discretization:
+    eblock-0_0:
+      order:
+        ureal: 1
+        uimag: 1
+      quadrature: 2
+  Solver: 
+    Verbosity: 0
+    solver: steady-state
+    Workset size: 1
+    NLtol: 1.0e-8
+    finaltime: 1.00000000000000000e+00
+    numSteps: 1
+  Postprocess: 
+    Verbosity: 0
+    response type: global
+    compute response: false
+    compute objective: false
+    write solution: false
+    verification: true
+    Compute Difference in Objective: false
+  Parameters Settings File: input_params.yaml
+  Analysis Settings File: input_fwd.yaml
+...

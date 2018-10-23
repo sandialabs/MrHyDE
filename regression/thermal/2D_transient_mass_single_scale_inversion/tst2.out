@@ -1,0 +1,432 @@
+
+		*******************************************************
+		***** Problem: Epetra::CrsMatrix
+		***** Preconditioned GMRES solution
+		***** ML (L=1, ~/Amesos_KLU_0, )
+		***** No scaling
+		*******************************************************
+
+                iter:    0           residual = 0.000000e+00
+
+
+		Solution time: 0.000092 (sec.)
+		total iterations: 0
+***** Load Balancing Factor 1
+
+
+*******************************************************
+
+**** Beginning Time Step 0
+**** Current time is 0.333333
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+		*******************************************************
+		***** Problem: Epetra::CrsMatrix
+		***** Preconditioned GMRES solution
+		***** ML (L=1, ~/Amesos_KLU_0, )
+		***** No scaling
+		*******************************************************
+
+                iter:    0           residual = 1.000000e+00
+                iter:    1           residual = 3.236829e-16
+
+
+		Solution time: 0.000081 (sec.)
+		total iterations: 1
+
+*********************************************************
+***** Iteration: 1
+***** Scaled Norm of nonlinear residual: 0.0279425
+*********************************************************
+
+		*******************************************************
+		***** Problem: Epetra::CrsMatrix
+		***** Preconditioned GMRES solution
+		***** ML (L=1, ~/Amesos_KLU_0, )
+		***** No scaling
+		*******************************************************
+
+                iter:    0           residual = 1.000000e+00
+                iter:    1           residual = 1.665335e-16
+
+
+		Solution time: 0.000049 (sec.)
+		total iterations: 1
+
+*********************************************************
+***** Iteration: 2
+***** Scaled Norm of nonlinear residual: 5.52392e-05
+*********************************************************
+
+		*******************************************************
+		***** Problem: Epetra::CrsMatrix
+		***** Preconditioned GMRES solution
+		***** ML (L=1, ~/Amesos_KLU_0, )
+		***** No scaling
+		*******************************************************
+
+                iter:    0           residual = 1.000000e+00
+                iter:    1           residual = 9.205483e-17
+
+
+		Solution time: 0.000049 (sec.)
+		total iterations: 1
+
+*********************************************************
+***** Iteration: 3
+***** Scaled Norm of nonlinear residual: 2.13814e-10
+*********************************************************
+
+		*******************************************************
+		***** Problem: Epetra::CrsMatrix
+		***** Preconditioned GMRES solution
+		***** ML (L=1, ~/Amesos_KLU_0, )
+		***** No scaling
+		*******************************************************
+
+                iter:    0           residual = 1.000000e+00
+                iter:    1           residual = 2.605377e-16
+
+
+		Solution time: 0.000049 (sec.)
+		total iterations: 1
+
+
+********************
+
+SOLVER FAILED TO CONVERGE CONVERGED in 4 iterations with residual norm 2.77044e-10
+********************
+***** Load Balancing Factor 1
+
+
+*******************************************************
+
+**** Beginning Time Step 1
+**** Current time is 0.666667
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+		*******************************************************
+		***** Problem: Epetra::CrsMatrix
+		***** Preconditioned GMRES solution
+		***** ML (L=1, ~/Amesos_KLU_0, )
+		***** No scaling
+		*******************************************************
+
+                iter:    0           residual = 1.000000e+00
+                iter:    1           residual = 9.205483e-17
+
+
+		Solution time: 0.000056 (sec.)
+		total iterations: 1
+
+*********************************************************
+***** Iteration: 1
+***** Scaled Norm of nonlinear residual: 0.0037043
+*********************************************************
+
+		*******************************************************
+		***** Problem: Epetra::CrsMatrix
+		***** Preconditioned GMRES solution
+		***** ML (L=1, ~/Amesos_KLU_0, )
+		***** No scaling
+		*******************************************************
+
+                iter:    0           residual = 1.000000e+00
+                iter:    1           residual = 1.110223e-16
+
+
+		Solution time: 0.000049 (sec.)
+		total iterations: 1
+
+*********************************************************
+***** Iteration: 2
+***** Scaled Norm of nonlinear residual: 5.34202e-08
+*********************************************************
+
+		*******************************************************
+		***** Problem: Epetra::CrsMatrix
+		***** Preconditioned GMRES solution
+		***** ML (L=1, ~/Amesos_KLU_0, )
+		***** No scaling
+		*******************************************************
+
+                iter:    0           residual = 1.000000e+00
+                iter:    1           residual = 1.642013e-16
+
+
+		Solution time: 0.000051 (sec.)
+		total iterations: 1
+
+*********************************************************
+***** Iteration: 3
+***** Scaled Norm of nonlinear residual: 1.23646e-15
+*********************************************************
+***** Load Balancing Factor 1
+
+
+*******************************************************
+
+**** Beginning Time Step 2
+**** Current time is 1
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+		*******************************************************
+		***** Problem: Epetra::CrsMatrix
+		***** Preconditioned GMRES solution
+		***** ML (L=1, ~/Amesos_KLU_0, )
+		***** No scaling
+		*******************************************************
+
+                iter:    0           residual = 1.000000e+00
+                iter:    1           residual = 9.205483e-17
+
+
+		Solution time: 0.000048 (sec.)
+		total iterations: 1
+
+*********************************************************
+***** Iteration: 1
+***** Scaled Norm of nonlinear residual: 0.0292088
+*********************************************************
+
+		*******************************************************
+		***** Problem: Epetra::CrsMatrix
+		***** Preconditioned GMRES solution
+		***** ML (L=1, ~/Amesos_KLU_0, )
+		***** No scaling
+		*******************************************************
+
+                iter:    0           residual = 1.000000e+00
+                iter:    1           residual = 5.551115e-17
+
+
+		Solution time: 0.000048 (sec.)
+		total iterations: 1
+
+*********************************************************
+***** Iteration: 2
+***** Scaled Norm of nonlinear residual: 1.91396e-05
+*********************************************************
+
+		*******************************************************
+		***** Problem: Epetra::CrsMatrix
+		***** Preconditioned GMRES solution
+		***** ML (L=1, ~/Amesos_KLU_0, )
+		***** No scaling
+		*******************************************************
+
+                iter:    0           residual = 1.000000e+00
+                iter:    1           residual = 1.442222e-16
+
+
+		Solution time: 0.000048 (sec.)
+		total iterations: 1
+
+*********************************************************
+***** Iteration: 3
+***** Scaled Norm of nonlinear residual: 8.7804e-12
+*********************************************************
+
+*********************************************************
+***** Performing verification ******
+
+***** L2 norm of the error for e = 0  (time = 0)
+***** L2 norm of the error for e = 0.329283  (time = 0.333333)
+***** L2 norm of the error for e = 0.352017  (time = 0.666667)
+***** L2 norm of the error for e = 0.0196655  (time = 1)
+
+		*******************************************************
+		***** Problem: Epetra::CrsMatrix
+		***** Preconditioned GMRES solution
+		***** ML (L=1, ~/Amesos_KLU_0, )
+		***** No scaling
+		*******************************************************
+
+                iter:    0           residual = 0.000000e+00
+
+
+		Solution time: 0.000031 (sec.)
+		total iterations: 0
+***** Load Balancing Factor 1
+
+
+*******************************************************
+
+**** Beginning Time Step 0
+**** Current time is 1
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+		*******************************************************
+		***** Problem: Epetra::CrsMatrix
+		***** Preconditioned GMRES solution
+		***** ML (L=1, ~/Amesos_KLU_0, )
+		***** No scaling
+		*******************************************************
+
+                iter:    0           residual = 1.000000e+00
+                iter:    1           residual = 1.665120e-16
+
+
+		Solution time: 0.000050 (sec.)
+		total iterations: 1
+phi= Epetra::MultiVector     MyPID           GID               Value  
+         0             0                       0
+         0             1                       0
+         0             5                  0.6002
+         0             4                       0
+         0             2                       0
+         0             6                  0.6002
+         0             3                       0
+         0             7                       0
+         0             9                  0.6002
+         0             8                       0
+         0            10                  0.6002
+         0            11                       0
+         0            13                       0
+         0            12                       0
+         0            14                       0
+         0            15                       0
+
+
+*********************************************************
+***** Iteration: 1
+***** Scaled Norm of nonlinear residual: 2.17821e-16
+*********************************************************
+***** Load Balancing Factor 1
+
+
+*******************************************************
+
+**** Beginning Time Step 1
+**** Current time is 0.666667
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+		*******************************************************
+		***** Problem: Epetra::CrsMatrix
+		***** Preconditioned GMRES solution
+		***** ML (L=1, ~/Amesos_KLU_0, )
+		***** No scaling
+		*******************************************************
+
+                iter:    0           residual = 1.000000e+00
+                iter:    1           residual = 1.241372e-16
+
+
+		Solution time: 0.000049 (sec.)
+		total iterations: 1
+phi= Epetra::MultiVector     MyPID           GID               Value  
+         0             0                       0
+         0             1                       0
+         0             5                0.126216
+         0             4                       0
+         0             2                       0
+         0             6                0.126216
+         0             3                       0
+         0             7                       0
+         0             9                0.126216
+         0             8                       0
+         0            10                0.126216
+         0            11                       0
+         0            13                       0
+         0            12                       0
+         0            14                       0
+         0            15                       0
+
+
+*********************************************************
+***** Iteration: 1
+***** Scaled Norm of nonlinear residual: 3.92158e-16
+*********************************************************
+***** Load Balancing Factor 1
+
+
+*******************************************************
+
+**** Beginning Time Step 2
+**** Current time is 0.333333
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+		*******************************************************
+		***** Problem: Epetra::CrsMatrix
+		***** Preconditioned GMRES solution
+		***** ML (L=1, ~/Amesos_KLU_0, )
+		***** No scaling
+		*******************************************************
+
+                iter:    0           residual = 1.000000e+00
+                iter:    1           residual = 9.205483e-17
+
+
+		Solution time: 0.000050 (sec.)
+		total iterations: 1
+phi= Epetra::MultiVector     MyPID           GID               Value  
+         0             0                       0
+         0             1                       0
+         0             5               0.0289595
+         0             4                       0
+         0             2                       0
+         0             6               0.0289595
+         0             3                       0
+         0             7                       0
+         0             9               0.0289595
+         0             8                       0
+         0            10               0.0289595
+         0            11                       0
+         0            13                       0
+         0            12                       0
+         0            14                       0
+         0            15                       0
+
+
+*********************************************************
+***** Iteration: 1
+***** Scaled Norm of nonlinear residual: 1.62923e-16
+*********************************************************

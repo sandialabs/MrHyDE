@@ -1,0 +1,23 @@
+The files in this regression test folder show how to 
+extract data from a high-fidelity simulation, add noise to it, and 
+create a mesh for the inverse problem that contains the data and 
+a sparsity pattern. 
+
+The input files for the high-fidelity simulation are not present, but
+the exodus field containg the data is "clean_data.exo".
+
+The problem was solved on a unit square domain with a fixed bottom,
+traction-free sides, and a special traction BC on the top:
+t_x = -0.10*x
+t_y = -10*x*(1-x)
+The shear modulus field is a piecewise-constant ellipse-shaped inclusion,
+and can be visualized by looking at the target_le2 field.
+
+The save_sensor_data.py file is run with pvpython and is used to sample
+the data at the element centers of a 20x20 mesh.
+
+The create_mesh_2d.py file generates an exodus mesh for inversion. This
+mesh has element fields that contain sensor numbers, locations, and values.
+
+In the inversion, the vector traction BC on top and the shear modulus
+in the domain are solved for simultaneously.

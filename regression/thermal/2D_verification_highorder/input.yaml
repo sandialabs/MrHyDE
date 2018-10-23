@@ -1,0 +1,43 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh Settings File: input_mesh.yaml
+  Functions Settings File: input_functions.yaml
+  Physics: 
+    eblock-0_0: 
+      solve_thermal: true
+      Dirichlet conditions:
+        e:
+          all boundaries: '0.0'
+      initial conditions:
+        e: '0.0'
+      true solutions:
+        e: sin(2*pi*x)*sin(2*pi*y)
+  Discretization:
+    eblock-0_0:
+      order:
+        e: 4
+      quadrature: 8
+  Parameters Settings File: input_params.yaml
+  Solver: 
+    solver: steady-state
+    Workset size: 10
+    Verbosity: 0
+    NLtol: 9.99999999999999955e-11
+    MaxNLiter: 4
+    finaltime: 1.00000000000000000e+00
+    numSteps: 10
+    use strong DBCs: true
+  Analysis: 
+    analysis type: forward
+    Have Sensor Points: false
+    Have Sensor Data: false
+  Postprocess: 
+    response type: global
+    Verbosity: 0
+    verification: true
+    compute response: false
+    compute objective: false
+    compute sensitivities: false
+    write solution: false
+...

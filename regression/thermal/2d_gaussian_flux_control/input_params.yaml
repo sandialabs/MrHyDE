@@ -1,0 +1,17 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Parameters: 
+    thermal_diff: 
+      type: scalar
+      value: 1.00000000000000000e+00
+      usage: inactive
+    thermal_source: 
+      type: scalar
+      value: 0.00000000000000000e+00
+      usage: inactive
+    laser_intensity: 
+      type: vector
+      source: amplitudes.dat
+      usage: active
+...

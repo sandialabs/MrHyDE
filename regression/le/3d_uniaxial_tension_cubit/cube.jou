@@ -1,0 +1,32 @@
+brick x 1 y 1 z 1
+volume 1  size 0.2
+volume 1  size 0.25
+volume 1  size 0.25
+mesh volume 1 
+set duplicate block elements off
+block 1 add volume 1  
+block 1 name "eblock_0-0-0"
+block 1 element type hex
+Sideset 1 add surface 5  
+sideset 1 name "top"
+Sideset 2 add surface 6  
+sideset 2 name "right"
+Sideset 3 add surface 1  
+sideset 3 name "front"
+Sideset 4 add surface 4  
+sideset 4 name "left"
+Sideset 5 add surface 3  
+sideset 5 name "bottom"
+Sideset 6 add surface 2  
+sideset 6 name "back"
+locate node at 0 0 0 
+list node 112
+nodeset 1 add node 21 112 
+nodeset 1 name "xfix"
+nodeset 2 add node 21 94 112 
+nodeset 2 name "yfix"
+nodeset 3 add node 112 
+nodeset 3 name "zfix"
+set exodus netcdf4 off
+set large exodus file on
+export Genesis  "cube.g" dimension 3 block 1 overwrite 

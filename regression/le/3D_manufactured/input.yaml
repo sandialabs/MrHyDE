@@ -1,0 +1,71 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh Settings File: input_mesh.yaml
+  Physics:
+    eblock-0_0_0:
+      solve_linearelasticity: true
+      Dirichlet conditions:
+        dx:
+          all boundaries: '0.0'
+        dy:
+          all boundaries: '0.0'
+        dz:
+          all boundaries: '0.0'
+      initial conditions:
+        dx: '0.0'
+        dy: '0.0'
+        dz: '0.0'
+      true solutions:
+        dx: sin(A*pi*x)*sin(A*pi*y)*sin(A*pi*z)
+        dy: sin(B*pi*x)*sin(B*pi*y)*sin(B*pi*z)
+        dz: sin(C*pi*x)*sin(C*pi*y)*sin(C*pi*z)
+  Functions:
+    lambda: '1.0'
+    mu: '1.0'
+    A: '1.0'
+    B: '2.0'
+    C: '3.0'
+    dxxx: (A*pi)*(A*pi)*sin(A*pi*x)*sin(A*pi*y)*sin(A*pi*z)
+    dxxy: -1.0*(A*pi)*(A*pi)*cos(A*pi*x)*cos(A*pi*y)*sin(A*pi*z)
+    dxyy: (A*pi)*(A*pi)*sin(A*pi*x)*sin(A*pi*y)*sin(A*pi*z)
+    dxxz: -1.0*(A*pi)*(A*pi)*cos(A*pi*x)*sin(A*pi*y)*cos(A*pi*z)
+    dxyz: -1.0*(A*pi)*(A*pi)*sin(A*pi*x)*cos(A*pi*y)*cos(A*pi*z)
+    dxzz: (A*pi)*(A*pi)*sin(A*pi*x)*sin(A*pi*y)*sin(A*pi*z)
+    dyxx: (B*pi)*(B*pi)*sin(B*pi*x)*sin(B*pi*y)*sin(B*pi*z)
+    dyxy: -1.0*(B*pi)*(B*pi)*cos(B*pi*x)*cos(B*pi*y)*sin(B*pi*z)
+    dyyy: (B*pi)*(B*pi)*sin(B*pi*x)*sin(B*pi*y)*sin(B*pi*z)
+    dyxz: -1.0*(B*pi)*(B*pi)*cos(B*pi*x)*sin(B*pi*y)*cos(B*pi*z)
+    dyyz: -1.0*(B*pi)*(B*pi)*sin(B*pi*x)*cos(B*pi*y)*cos(B*pi*z)
+    dyzz: (B*pi)*(B*pi)*sin(B*pi*x)*sin(B*pi*y)*sin(B*pi*z)
+    dzxx: (C*pi)*(C*pi)*sin(C*pi*x)*sin(C*pi*y)*sin(C*pi*z)
+    dzxy: -1.0*(C*pi)*(C*pi)*cos(C*pi*x)*cos(C*pi*y)*sin(C*pi*z)
+    dzyy: (C*pi)*(C*pi)*sin(C*pi*x)*sin(C*pi*y)*sin(C*pi*z)
+    dzxz: -1.0*(C*pi)*(C*pi)*cos(C*pi*x)*sin(C*pi*y)*cos(C*pi*z)
+    dzyz: -1.0*(C*pi)*(C*pi)*sin(C*pi*x)*cos(C*pi*y)*cos(C*pi*z)
+    dzzz: (C*pi)*(C*pi)*sin(C*pi*x)*sin(C*pi*y)*sin(C*pi*z)
+    source dx: (lambda+2.0*mu)*dxxx + mu*(dxyy+dyxy+dxzz+dzxz) + lambda*(dyxy+dzxz)
+    source dy: (lambda+2.0*mu)*dyyy + mu*(dyxx+dxxy+dyzz+dzyz) + lambda*(dxxy+dzyz)
+    source dz: (lambda+2.0*mu)*dzzz + mu*(dzxx+dxxz+dzyy+dyyz) + lambda*(dxxz+dyyz)
+  Discretization:
+    eblock-0_0_0:
+      order:
+        dx: 1
+        dy: 1
+        dz: 1
+      quadrature: 2
+  Solver:
+    Verbosity: 0
+    solver: steady-state
+    NLtol: 9.99999999999999955e-07
+    finaltime: 1.00000000000000000e+00
+    numSteps: 100
+  Postprocess: 
+    response type: pointwise
+    Verbosity: 0
+    compute response: false
+    verification: true
+    write solution: false
+  Parameters Settings File: input_params.yaml
+  Analysis Settings File: input_fwd.yaml
+...

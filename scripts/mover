@@ -1,0 +1,11 @@
+#!/bin/bash
+
+i="0"
+
+while [ $i -lt 16 ]
+do
+  cp "sensor."$i".dat" "sensor_backup."$i".dat"
+  mv "noisy_sensor."$i".dat" "sensor."$i".dat"
+  i=$((i + 1))
+done
+

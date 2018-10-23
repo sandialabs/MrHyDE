@@ -1,0 +1,92 @@
+----------------------------------------------------------------------
+A step-by-step guide to building Trilinos and MILO.
+
+10/6/2105
+----------------------------------------------------------------------
+
+A complete list of the required and optional third party libraries
+(TPLs) for Trilinos can be found at MILO only requires a small subset
+of these.  First, make sure you have BLAS and LAPACK installed on your
+system.
+
+Below, we provide a few details on how to install the other TPLs.
+
+1. Any MPI library should work, but we use OpenMPI.
+
+2. Trilinos and MILO require the cmake build system.  Download the
+latest from Kitware's website.  Must be at least the version required
+by Trilinos.  
+
+3. Panzer and MILO should require the Boost headers only
+(Boost TPL in Trilinos).  However due to recent changes to STK, you
+may also need the Boost libraries (BoostLib TPL in Trilinos).
+Specifically the Boost "system" library is required to use the
+boost/pool library.  STK currently requires Boost version 1.49 or
+greater.  The following steps will guide you through the boost
+installation: 
+
+  a. Download library:
+     http://sourceforge.net/projects/boost/files/boost/1.49.0/
+
+  b. Untar repository: tar xjf boost_1_49_0.tar.bz2 
+
+  c. Compile the libraries from boost (TPL is called BoostLib), build
+     and install the libraries: 
+
+     i)  ./bootstrap.sh --with-libraries=system,program_options --prefix=<INSTALL DIR>/boost
+
+     ii) ./b2 install
+
+4. If you run small meshes (under 250M elements) then you only need to
+build netcdf but must disable netcdf-4 support.  You must use netcdf
+version 4.2 or higher.  The following steps will guide you through the
+netcdf installation:
+
+  a. Download and install netcdf 4.2 or 4.3 (c only version, do not need
+     fortran/c++ support):
+     http://www.unidata.ucar.edu/downloads/netcdf/netcdf-4_2/index.jsp
+
+  b. Now we need to build and install netcdf.  As of version 4.2 the c
+     support is separate.  If using 4.1.x, you can disable the f90 and cxx
+     support as shown below.  
+
+     i)./configure --disable-netcdf-4
+       --enable-option-checking --disable-shared --enable-static
+       --disable-f90 --disable-cxx --prefix=<INSTALL DIR>/netcdf 
+     ii) make install -j10 For larger meshes, 
+
+     iii) look at the file
+     Trilinos/packages/seacas/libraries/exodus/README for a discussion
+     about the patch required for the netcdf include header.  Even if all
+     of the above TPLs are installed properly, Trilinos and MILO will
+     compile properly unless the correct flags are provided to cmake.
+     Proper configure scripts are included in MILO/scripts.
+
+5.  If Trilinos is not already installed on your system, you can clone the
+public git repository following the instructions provided at
+http://trilinos.sandia.gov/publicRepo/index.html Alternatively, you
+can download the latest version at http://trilinos.sandia.gov
+
+6. Create a build directory and copy the Trilinos build script into the
+directory. Run the configure script.  If everything runs properly, you can now
+build Trilinos using cmake: make -j12
+
+7. The build process for Trilinos can take a while (20-30 minutes)
+depending on the number of cores used.  If a problem is encountered,
+please refer to http://trilinos.sandia.gov/TrilinosBuildQuickRef.html
+or email tmwilde@sandia.gov or the Trilinos team for help.
+
+8. If Trilinos has been built successfully, run: make install
+to install the Trilinos libraries into the location provided in the
+configure script.
+
+9. Next, untar MILO and modify the configure script provided in the
+scripts directory to point to the appropriate directories.  Create a build
+a build directory, move the script into the build directory, and execute
+the script.  Then build MILO: make -j12
+
+10.  A milo executable will be installed in ../milo/build_directory/src.
+To run an example: 
+   a. cd milo/examples/linearelasticity/2d_fwd
+   b. ln -s ../../../milo/build_directory/src/milo .
+   c. mpirun -np 2 ./milo 

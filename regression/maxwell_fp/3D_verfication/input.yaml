@@ -1,0 +1,82 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh: 
+    dim: 3
+    shape: hex
+    xmin: 0.00000000000000000e+00
+    xmax: 1.00000000000000000e+00
+    ymin: 0.00000000000000000e+00
+    ymax: 1.00000000000000000e+00
+    zmin: 0.00000000000000000e+00
+    zmax: 1.00000000000000000e+00
+    NX: 5
+    NY: 5
+    NZ: 5
+    blocknames: eblock-0_0_0
+    Periodic Boundaries: ''
+  Physics: 
+    eblock-0_0_0: 
+      solve_maxwells_freq_pot: true
+      Dirichlet conditions:
+        Arx:
+          all boundaries: '0.0'
+        Aix:
+          all boundaries: '0.0'
+        Ary:
+          all boundaries: '0.0'
+        Aiy:
+          all boundaries: '0.0'
+        Arz:
+          all boundaries: '0.0'
+        Aiz:
+          all boundaries: '0.0'
+        phir:
+          all boundaries: '0.0'
+        phii:
+          all boundaries: '0.0'
+      true solutions:
+        Arx: sin(pi*x)*sin(pi*y)*sin(pi*z)
+        Aix: sin(pi*x)*sin(pi*y)*sin(pi*z)
+        Ary: -1.0*sin(pi*x)*sin(pi*y)*sin(pi*z)
+        Aiy: -1.0*sin(pi*x)*sin(pi*y)*sin(pi*z)
+        Arz: 2.0*sin(pi*x)*sin(pi*y)*sin(pi*z)
+        Aiz: 2.0*sin(pi*x)*sin(pi*y)*sin(pi*z)
+        phir: sin(pi*x)*sin(pi*y)*sin(pi*z)
+        phii: sin(pi*x)*sin(pi*y)*sin(pi*z)
+    test: 2
+  Discretization:
+    eblock-0_0_0:
+      order:
+        Arx: 1
+        Aix: 1
+        Ary: 1
+        Aiy: 1
+        Arz: 1
+        Aiz: 1
+        phir: 1
+        phii: 1
+      quadrature: 2
+  Solver:
+    Verbosity: 0
+    solver: steady-state
+    NLtol: 9.99999999999999980e-13
+    finaltime: 1.00000000000000000e+00
+    numSteps: 1
+    MaxNLiter: 10
+    lintol: 9.99999999999999955e-08
+    liniter: 2500
+    krylov vectors: 2500
+    use dom decomp: true
+  Postprocess: 
+    response type: global
+    Verbosity: 0
+    compute response: false
+    compute objective: false
+    verification: true
+    Compute Difference in Objective: false
+    compute sensitivities: false
+    write solution: false
+  Parameters Settings File: input_params.yaml
+  Analysis Settings File: input_fwd.yaml
+...

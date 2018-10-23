@@ -1,0 +1,17 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Parameters: 
+    maxwells_fp_mu: 
+      type: scalar
+      value: 1.00000000000000000e+00
+      usage: inactive
+    maxwells_fp_epsilon: 
+      type: scalar
+      value: 1.00000000000000000e+00
+      usage: inactive
+    maxwells_fp_freq: 
+      type: scalar
+      value: 1.00000000000000000e+00
+      usage: inactive
+...

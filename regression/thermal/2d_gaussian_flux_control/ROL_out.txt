@@ -1,0 +1,9 @@
+
+Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
+  iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
+  0     0.000000e+00   0.000000e+00                  1.000000e+01   
+param 0 = 0.1
+param 1 = 0.2
+param 2 = 0.3
+param 3 = 0.2
+param 4 = 0.1

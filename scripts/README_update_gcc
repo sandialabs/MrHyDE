@@ -1,0 +1,24 @@
+Instructions for updating from gcc 4.1.2 to gcc 4.9.2
+
+1.  Download and untar gcc-4.9.2.tar.gz.  Throughout these notes we will refer to this directory as gcc-4.9.2
+
+2.  Download gmp-6.0.0a.tar.bz2, mpc-1.0.1.tar.gz, mpfr-3.1.2.tar.bz2
+
+3.  Untar each of these packages into gcc-4.9.2
+
+4.  Remove the numbers from each of these directories (gmp, mpc, mpfr).  gcc will build each of these packages
+    for you if they are in the gcc directory and named properly.
+
+5.  Create a build directory (e.g., gcc-4.9.2/build)
+
+6.  cd into build directory
+
+7.  Type "../configure"
+
+8.  Type "make"
+
+9.  Type "make install".  This will install the libraries into /usr/local/lib64
+
+10. Make sure /usr/local/lib64 is in the LD_LIBRARY_PATH (see ~/.bashrc file)
+
+

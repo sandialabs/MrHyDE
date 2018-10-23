@@ -1,0 +1,50 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh: 
+    blocknames: eblock-0_0
+    dim: 2
+    Source: Exodus
+    Mesh_File: input_mesh_dp1_n2.exo
+    Have Element Data: true
+    Have Nodal Data: false
+    Use Measurements as DBCs: false
+  Physics: 
+    incplanestress: true
+    use log E: false
+    solve_linearelasticity: true
+    Dirichlet conditions:
+      dx:
+        bottom: '0.0'
+      dy:
+        bottom: '0.0'
+    Responses:
+      rdx: 'dx'
+      rdy: 'dy'
+  Discretization:
+    order:
+      dx: 1
+      dy: 1
+    quadrature: 2
+  Solver:
+    Verbosity: 0
+    solver: steady-state
+    NLtol: 1.00000000000000002e-08
+    lintol: 9.99999999999999980e-13
+    finaltime: 1.00000000000000000e+00
+    numSteps: 1
+    use direct solver: false
+  Postprocess: 
+    response type: pointwise
+    Verbosity: 0
+    compute response: false
+    compute objective: true
+    write solution: false
+  Parameters Settings File: input_params.yaml
+  Analysis Settings File: input_rol2.yaml
+  Functions:
+    mu: mufield
+    Neumann source dx: xtrac*ny
+    Neumann source dy: ytrac*ny
+    source dx: '0.0'
+...

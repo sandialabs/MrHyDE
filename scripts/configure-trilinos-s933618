@@ -1,0 +1,64 @@
+#!/bin/bash
+rm -rf CMakeCache.txt
+
+EXTRA_ARGS=$@
+
+TRILINOS_HOME='/home/tmwilde/Trilinos'
+
+INSTALL_DIR='/home/tmwilde/Trilinos/INSTALL-MPNome'
+
+BOOST_DIR='=${HOME}/boost_1_45_0'
+
+NETCDF_INCLUDES='/home/tmwilde/Codes/xcar/code/TPL/install_netcdf/include'
+
+NETCDF_LIBS='/home/tmwilde/Codes/xcar/code/TPL/install_netcdf/lib'
+
+cmake \
+-D CMAKE_BUILD_TYPE:STRING=NONE \
+-D TPL_ENABLE_MPI:BOOL=ON \
+-D MPIEXEC_MAX_NUMPROCS:STRING=4 \
+-D MPI_BASE_DIR:PATH="/usr/lib64/openmpi/1.4-gcc/bin/" \
+-D CMAKE_CXX_COMPILER:FILEPATH="/usr/lib64/openmpi/1.4-gcc/bin/mpicxx" \
+-D CMAKE_C_COMPILER:FILEPATH="/usr/lib64/openmpi/1.4-gcc/bin/mpicc" \
+-D CMAKE_Fortran_COMPILER:FILEPATH="/usr/lib64/openmpi/1.4-gcc/bin/mpif90" \
+-D CMAKE_CXX_FLAGS:STRING="-g -O2 -ansi -pedantic -ftrapv -Wall -Wno-long-long -Wno-strict-aliasing -DBOOST_NO_HASH" \
+-D CMAKE_C_FLAGS:STRING="-g -O2" \
+-D CMAKE_Fortran_FLAGS:STRING="-g -O2" \
+-D Trilinos_EXTRA_LINK_FLAGS:STRING="-L/usr/lib64 -lgfortran" \
+-D Trilinos_ENABLE_CHECKED_STL:BOOL=OFF \
+-D TPL_BLAS_LIBRARIES:STRING=/usr/lib64/libblas.so.3 \
+-D TPL_LAPACK_LIBRARIES:STRING=/usr/lib64/liblapack.so.3 \
+-D Trilinos_ENABLE_EXPLICIT_INSTANTIATION:BOOL=ON \
+-D Trilinos_ENABLE_INSTALL_CMAKE_CONFIG_FILES:BOOL=ON \
+-D Trilinos_SKIP_FORTRANCINTERFACE_VERIFY_TEST:BOOL=ON \
+-D Trilinos_ENABLE_EXAMPLES:BOOL=OFF \
+-D Trilinos_ENABLE_TESTS:BOOL=OFF \
+-D Trilinos_ENABLE_ALL_PACKAGES:BOOL=OFF \
+-D Trilinos_ENABLE_ALL_OPTIONAL_PACKAGES:BOOL=OFF \
+-D Trilinos_ENABLE_AztecOO:BOOL=ON \
+-D Trilinos_ENABLE_Ifpack:BOOL=ON \
+-D Trilinos_ENABLE_Panzer:BOOL=ON \
+-D Trilinos_ENABLE_Shards:BOOL=ON \
+-D Trilinos_ENABLE_ML:BOOL=ON \
+-D Trilinos_ENABLE_Amesos:BOOL=ON \
+-D Trilinos_ENABLE_STK:BOOL=ON \
+-D STK_ENABLE_ThreadPool=ON \
+-D Panzer_ENABLE_TESTS:BOOL=OFF \
+-D Panzer_ENABLE_EXAMPLES:BOOL=OFF \
+-D Panzer_ENABLE_EXPLICIT_INSTANTIATION:BOOL=ON \
+-D Panzer_ENABLE_EXPLICIT_INSTANTIATION:BOOL=ON \
+-D SEACAS_ENABLE_EXODUS:BOOL=ON \
+-D SEACAS_ENABLE_APREPRO:BOOL=OFF \
+-D Intrepid_ENABLE_DEBUG_INF_CHECK=OFF \
+-D CMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+-D CMAKE_VERBOSE_CONFIGURE:BOOL=ON \
+$-D CMAKE_CXX_FLAGS:STRING="-O3 -ansi -pedantic -ftrapv -Wall -Wno-long-long -Wno-strict-aliasing -DBOOST_NO_HASH" \
+-D CMAKE_SKIP_RULE_DEPENDENCY=ON \
+-D CMAKE_INSTALL_PREFIX:PATH=${INSTALL_DIR} \
+-D TPL_ENABLE_Boost:BOOL=ON \
+-D TPL_Boost_INCLUDE_DIRS:FILEPATH=${BOOST_DIR} \
+-D TPL_ENABLE_Netcdf:BOOL=ON \
+-D Netcdf_INCLUDE_DIRS:FILEPATH=${NETCDF_INCLUDES} \
+-D Netcdf_LIBRARY_DIRS:FILEPATH=${NETCDF_LIBS} \
+${EXTRA-ARGS} \
+${TRILINOS_HOME}

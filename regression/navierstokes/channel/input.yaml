@@ -1,0 +1,48 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh Settings File: input_mesh.yaml
+  Physics: 
+    solve_navierstokes: true
+    Dirichlet conditions:
+      ux:
+        bottom: '0.0'
+        top: '0.0'
+      uy:
+        bottom: '0.0'
+        top: '0.0'
+    true solutions:
+      ux: '0.5*y*(1.0-y)'
+      uy: '0.0'
+      pr: '0.0'
+    usePSPG: true
+  Discretization:
+    order:
+      ux: 1
+      uy: 1
+      pr: 1
+    quadrature: 2
+  Parameters Settings File: input_params.yaml
+  Solver:
+    solver: steady-state
+    Workset Size: 1
+    Verbosity: 0
+    NLtol: 9.99999999999999955e-8
+    MaxNLiter: 4
+    finaltime: 1.00000000000000000e+00
+    numSteps: 10
+  Analysis: 
+    analysis type: forward
+    Have Sensor Points: false
+    Have Sensor Data: false
+  Postprocess: 
+    response type: global
+    Verbosity: 0
+    verification: true
+    write solution: false
+    compute response: false
+    compute objective: false
+    compute sensitivities: false
+  Functions:
+    source ux: '1.0'
+...

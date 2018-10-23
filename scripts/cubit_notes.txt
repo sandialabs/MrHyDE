@@ -1,0 +1,36 @@
+Cubit tips and tricks:
+
+(see {2d,3d}_uniaxial_tension examples in linearelasticity)
+
+1. Journal files (*.jou) execute cubit commands. They can be converted
+to python scripts.
+
+2. There are several useful command line utilities in the
+seacas module. Type "module load seacas" to make them available, or
+alternatively you canrun these commands from the bin
+folder of your trilinos installation directory.
+
+  - decomp: decomposes a mesh so that MILO can run in parallel
+
+    example usage:
+      > decomp -p 4 cube.g
+      > mpiexec -np 4 ./milo-ms
+
+  - ejoin: combines non-overlapping exodus files into a single file.
+    This is useful for combining subgrid data that was generated on 
+    multiple processors.
+
+    example usage: (assuming four processors were used)
+      > ejoin -output output.exo.4.0 subgrid.exo.0.*
+      > ejoin -output output.exo.4.1 subgrid.exo.1.*
+      > ejoin -output output.exo.4.2 subgrid.exo.2.*
+      > ejoin -output output.exo.4.3 subgrid.exo.3.*
+
+
+  - exotxt: converts an exodus file to a text file. Can be useful for 
+    sanity checks. The inverse of this commmand is txtexo.
+
+    example usage:
+      > exotxt tiny.g tiny.txt
+
+Help is available at gsjaardema.github.io/seacas

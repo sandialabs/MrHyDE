@@ -1,0 +1,24 @@
+create surface rectangle width 1 zplane 
+surface 1  size auto factor 10
+mesh surface 1 
+set duplicate block elements off
+block 1 add surface 1  
+block 1 name "eblock_0-0"
+block 1 element type quad
+Sideset 1 add curve 3  
+Sideset 2 add curve 4  
+Sideset 3 add curve 1  
+Sideset 4 add curve 2  
+sideset 1 name "bottom"
+sideset 2 name "right"
+sideset 3 name "top"
+sideset 4 name "left"
+nodeset 1 add node 9 7  
+nodeset 1 name "xfix"
+nodeset 2 name "yfix"
+nodeset 2 add node 9  
+nodeset 2 name "yfix"
+
+set exodus netcdf4 off
+set large exodus file on
+export Genesis  "tiny.g" dimension 2 block 1 overwrite 

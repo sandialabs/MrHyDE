@@ -1,0 +1,8 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Functions: 
+    thermal source: 2*pi*pi*sin(pi*x)*sin(pi*y)
+    lambda: '1.0'
+    mu: '1.0'
+...

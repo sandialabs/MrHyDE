@@ -1,0 +1,14 @@
+#!/bin/bash
+
+#SBATCH --account=FY160007
+#SBATCH --partition=ldrd
+#SBATCH --job-name milo-3d
+#SBATCH --time=00:30:00
+#SBATCH --nodes=8
+
+nodes=$SLURM_JOB_NUM_NODES           # Number of nodes - the number of nodes you have requested (for a list of SLURM environment variables see "man sbatch")
+cores=16                             # Number MPI processes to run on each node (a.k.a. PPN)
+omilo="/ascldap/users/${USER}/build/milo-opt/src-ms/milo-ms"
+
+mpiexec --bind-to core --npernode $cores --n $(($cores*$nodes)) $omilo
+

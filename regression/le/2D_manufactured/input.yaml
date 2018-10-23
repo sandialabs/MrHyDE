@@ -1,0 +1,49 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  Mesh Settings File: input_mesh.yaml
+  Physics:
+    solve_linearelasticity: true
+    Dirichlet conditions:
+      dx:
+        all boundaries: '0.0'
+      dy:
+        all boundaries: '0.0'
+    initial conditions:
+      dx: '0.0'
+      dy: '0.0'
+    true solutions:
+      dx: sin(A*pi*x)*sin(A*pi*y)
+      dy: sin(B*pi*x)*sin(B*pi*y)
+  Functions:
+    lambda: '1.0'
+    mu: '1.0'
+    A: '1.0'
+    B: '2.0'
+    dxxx: (A*pi)*(A*pi)*sin(A*pi*x)*sin(A*pi*y)
+    dxxy: -1.0*(A*pi)*(A*pi)*cos(A*pi*x)*cos(A*pi*y)
+    dxyy: (A*pi)*(A*pi)*sin(A*pi*x)*sin(A*pi*y)
+    dyxx: (B*pi)*(B*pi)*sin(B*pi*x)*sin(B*pi*y)
+    dyxy: -1.0*(B*pi)*(B*pi)*cos(B*pi*x)*cos(B*pi*y)
+    dyyy: (B*pi)*(B*pi)*sin(B*pi*x)*sin(B*pi*y)
+    source dx: (lambda+2.0*mu)*dxxx + mu*(dxyy+dyxy) + lambda*dyxy
+    source dy: (lambda+2.0*mu)*dyyy + mu*(dyxx+dxxy) + lambda*dxxy
+  Discretization:
+    order:
+      dx: 1
+      dy: 1
+    quadrature: 2
+  Solver:
+    solver: steady-state
+    NLtol: 9.99999999999999955e-07
+    finaltime: 1.00000000000000000e+00
+    numSteps: 100
+  Postprocess: 
+    response type: pointwise
+    compute response: false
+    verification: true
+    write solution: false
+  Parameters Settings File: input_params.yaml
+  Analysis Settings File: input_fwd.yaml
+...

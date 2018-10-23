@@ -1,0 +1,66 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Analysis: 
+    analysis type: ROL
+    Have Sensor Points: true
+    Have Sensor Data: true
+    Save Sensor Data: false
+    Move Sensors to IP: false
+    Sensor Prefix: sensor
+    ROL: 
+      Descent Type: Newton Krylov
+      Secant Type: Limited-Memory BFGS
+      Linesearch Type: Cubic Interpolation
+      Linesearch Curvature Condition: Strong Wolfe Conditions
+      Trust-Region Subproblem Solver Type: Truncated CG
+      Use Secant Preconditioning: false
+      Use Secant Hessian-Times-A-Vector: false
+      Maximum Secant Storage: 10
+      Barzilai-Borwein Type: 1
+      Use Inexact Objective Function: false
+      Use Inexact Gradient: false
+      Use Inexact Hessian-Times-A-Vector: true
+      Maximum Number of Function Evaluations: 200
+      Sufficient Decrease Parameter: 1.00000000000000005e-04
+      Curvature Conditions Parameter: 9.00000000000000022e-01
+      'Curvature Conditions Parameter: Generalized Wolfe': 5.99999999999999978e-01
+      Bracketing Tolerance: 1.00000000000000002e-08
+      Backtracking Rate: 5.00000000000000000e-01
+      Initial Linesearch Parameter: 1.00000000000000000e+00
+      User Defined Linesearch Parameter: false
+      Krylov Method: Conjugate Gradients
+      Absolute Krylov Tolerance: 1.00000000000000008e-15
+      Relative Krylov Tolerance: 9.99999999999999979e-17
+      Maximum Number of Krylov Iterations: 30
+      Initial Trust-Region Radius: 1.00000000000000000e+02
+      Minimum Trust-Region Radius: 1.00000000000000002e-02
+      Maximum Trust-Region Radius: 5.00000000000000000e+08
+      Step Acceptance Parameter: 5.00000000000000028e-02
+      Radius Shrinking Threshold: 5.00000000000000028e-02
+      Radius Growing Threshold: 9.00000000000000022e-01
+      Radius Shrinking Rate (Negative rho): 6.25000000000000000e-02
+      Radius Shrinking Rate (Positive rho): 2.50000000000000000e-01
+      Radius Growing Rate: 2.50000000000000000e+00
+      Trust-Region Safeguard: 1.00000000000000000e+08
+      Use Projected Gradient Criticality Measure: false
+      Gradient Tolerance: 9.99999999999999979e-17
+      Step Tolerance: 1.00000000000000004e-10
+      Maximum Number of Iterations: 1
+      Maximum Sparse Grid Level: 3
+      Turn On Constraints: true
+      Diffusivity Lower Bound: 1.00000000000000006e-01
+      Diffusivity Upper Bound: 1.00999999999999996e+01
+      Initial Guess for Diffusivity: 2.00000000000000000e+00
+      True Diffusivity: 1.00000000000000000e+00
+      Standard Deviation of Normal Additive Noise: 1.00000000000000002e-03
+      Number of Sensors: 36
+      Solve for Gradient Analytically: false
+      Use Analytical Solution: false
+      Use Hessian-Vector Implementation: false
+      Do grad+hessvec check: false
+      Use Scaling For Epsilon-Active Sets: true
+      Use Line Search: false
+      Generate Plot Data: false
+      Tikhonov regularization beta: 9.99999999999999955e-08
+...

@@ -1,0 +1,51 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh: 
+    dim: 3
+    shape: hex
+    xmin: 0.00000000000000000e+00
+    xmax: 1.00000000000000000e+00
+    ymin: 0.00000000000000000e+00
+    ymax: 1.00000000000000000e+00
+    zmin: 0.00000000000000000e+00
+    zmax: 1.00000000000000000e+00
+    NX: 4
+    NY: 4
+    NZ: 4
+    blocknames: eblock-0_0_0
+    Data file: mesh_data_rotations
+    Data points file: mesh_data_pts
+  Discretization:
+    order:
+      dx: 1
+      dy: 1
+      dz: 1
+    quadrature: 2
+  Physics:
+    Use Crystal Elasticity: true
+    solve_linearelasticity: true
+    Dirichlet conditions:
+      dx:
+        bottom: '0.0'
+      dy:
+        bottom: '0.0'
+      dz:
+        bottom: '0.0'
+  Solver: 
+    Verbosity: 0
+    solver: steady-state
+    NLtol: 9.99999999999999955e-07
+    finaltime: 1.00000000000000000e+00
+    numSteps: 100
+  Postprocess: 
+    Verbosity: 0
+    verification: true
+    response type: pointwise
+    compute response: false
+    write solution: false
+  Parameters Settings File: input_params.yaml
+  Analysis Settings File: input_fwd.yaml
+  Functions:
+    Neumann source dy: '1.0*ny'
+...

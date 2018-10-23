@@ -1,0 +1,38 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh Settings File: input_mesh.yaml
+  Physics: 
+    simulation_name: verification
+    eblock-0_0: 
+      solve_porousHDIV: true
+  Parameters Settings File: input_params.yaml
+  Solver: 
+    solver: steady-state
+    Workset Size: 1
+    Verbosity: 0
+    NLtol: 9.99999999999999955e-07
+    MaxNLiter: 2
+    finaltime: 1.00000000000000000e+00
+    numSteps: 10
+    Initial type: none
+    use direct solver: false
+  Discretization:
+    eblock-0_0:
+      order:
+        p: 0
+        u: 1
+      quadrature: 2
+  Analysis:
+    analysis type: forward
+    Have Sensor Points: false
+    Have Sensor Data: false
+  Postprocess: 
+    response type: global
+    Verbosity: 0
+    verification: true
+    compute response: false
+    write solution: false
+    compute objective: false
+    compute sensitivities: false
+...

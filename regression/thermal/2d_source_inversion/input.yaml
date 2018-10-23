@@ -1,0 +1,51 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  Mesh Settings File: input_mesh.yaml
+  Physics: 
+    solve_thermal: true
+    Dirichlet conditions:
+      e:
+        all boundaries: '0.0'
+    Responses:
+      re: 'e'
+    test: 9999
+  Subgrid: 
+    Mesh: 
+      shape: quad
+      refinements: 1
+      dim: 2
+      blocknames: eblock
+    Physics: 
+      solve_thermal: true
+      Responses:
+        res: 'e'
+    Solver: 
+      Verbosity: 0
+      solver: steady-state
+      NLtol: 9.99999999999999980e-13
+      MaxNLiter: 4
+  Discretization:
+    order:
+      e: 1
+    quadrature: 2
+  Parameters Settings File: input_paramsIG.yaml
+  Analysis Settings File: input_rol2.yaml
+  Solver: 
+    solver: steady-state
+    NLtol: 9.99999999999999955e-07
+    MaxNLiter: 4
+    finaltime: 1.00000000000000000e+00
+    numSteps: 10
+  Postprocess: 
+    response type: pointwise
+    verification: false
+    compute response: true
+    compute objective: true
+    compute sensitivities: true
+    write solution: false
+  Functions:
+    thermal source: source(0)
+    thermal diffusion: diff(0)
+...

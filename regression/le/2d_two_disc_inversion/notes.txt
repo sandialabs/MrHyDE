@@ -1,0 +1,4 @@
+This inversion has two discretized fields, the shear modulus
+and the y component of the traction.
+
+Be sure to edit linearelasticity.hpp so that local_param(1,nPt) is used!!

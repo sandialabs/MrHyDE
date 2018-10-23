@@ -1,0 +1,106 @@
+/***********************************************************************
+ Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ 
+ Copyright 2018 National Technology & Engineering Solutions of Sandia,
+ LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
+ U.S. Government retains certain rights in this software.”
+ 
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
+ Bart van Bloemen Waanders (bartv@sandia.gov)
+ ************************************************************************/
+
+#ifndef FUNCTION_INTERFACE_H
+#define FUNCTION_INTERFACE_H
+
+#include "trilinos.hpp"
+#include "preferences.hpp"
+#include "function.hpp"
+
+class FunctionInterface {
+  public:
+  
+  FunctionInterface();
+  
+  FunctionInterface(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Add a user defined function
+  //////////////////////////////////////////////////////////////////////////////////////
+  
+  //int addFunction(const string & fname, const string & expression,
+  //                const size_t & dim0, const size_t & dim1, const bool & onSide);
+  
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Add a user defined function
+  //////////////////////////////////////////////////////////////////////////////////////
+  
+  int addFunction(const string & fname, const string & expression,
+                  const size_t & dim0, const size_t & dim1, const string & location,
+                  const size_t & block);
+  
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Set the lists of variables, parameters and discretized parameters
+  //////////////////////////////////////////////////////////////////////////////////////
+  
+  void setupLists(const vector<string> & variables_, const vector<string> & parameters_,
+                  const vector<string> & disc_parameters_);
+  
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Validate all of the functions
+  //////////////////////////////////////////////////////////////////////////////////////
+  
+  void validateFunctions();
+  
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Decompose the functions into terms and set the evaluation tree
+  // Also sets up the Kokkos::Views (subviews) to the data for all of the terms
+  //////////////////////////////////////////////////////////////////////////////////////
+  
+  void decomposeFunctions();
+
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Determine if a term is a ScalarT or needs to be an AD type
+  //////////////////////////////////////////////////////////////////////////////////////
+  
+  bool isScalarTerm(const size_t & block, const int & findex, const int & tindex);
+    
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Evaluate a function (probably will be deprecated)
+  //////////////////////////////////////////////////////////////////////////////////////
+
+  FDATA evaluate(const string & fname, const string & location, const size_t & block);
+  
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Evaluate a function
+  //////////////////////////////////////////////////////////////////////////////////////
+  
+  void evaluate(const size_t & block, const size_t & findex, const size_t & tindex);
+
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Evaluate an operator
+  //////////////////////////////////////////////////////////////////////////////////////
+
+  template<class T1, class T2>
+  void evaluateOp(T1 data, T2 tdata, const string & op);
+
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Print out the function information (mostly for debugging)
+  //////////////////////////////////////////////////////////////////////////////////////
+  
+  void printFunctions();
+
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Public data members
+  //////////////////////////////////////////////////////////////////////////////////////
+
+  size_t numBlocks;
+  vector<vector<function_class> > functions;
+  vector<string> known_vars, known_ops, variables, parameters, disc_parameters;
+  Teuchos::RCP<workset> wkset;
+  Teuchos::RCP<Teuchos::Time> decomposeTimer = Teuchos::TimeMonitor::getNewCounter("MILO::function::decompose");
+  Teuchos::RCP<Teuchos::Time> evaluateTimer = Teuchos::TimeMonitor::getNewCounter("MILO::function::evaluate");
+  
+};
+#endif
+
+

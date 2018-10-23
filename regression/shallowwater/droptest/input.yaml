@@ -1,0 +1,58 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh Settings File: input_mesh.yaml
+  Physics: 
+    simulation_name: verification
+    eblock-0_0: 
+      solve_shallowwater: true
+      Dirichlet conditions:
+        Hu:
+          left: '0.0'
+          right: '0.0'
+        Hv:
+          top: '0.0'
+          bottom: '0.0'
+      initial conditions:
+        H: 1.0 + 0.1*exp(hump)
+        Hu: '0.0'
+        Hv: '0.0'
+      true solutions:
+        H: '0.0'
+        Hu: '0.0'
+        Hv: '0.0'
+    simulation_number: 1
+    test: 2
+  Discretization:
+    eblock-0_0:
+      order:
+        H: 1
+        Hu: 1
+        Hv: 1
+      quadrature: 2
+  Parameters Settings File: input_params.yaml
+  Solver: 
+    solver: transient
+    Workset Size: 1
+    Verbosity: 0
+    NLtol: 9.99999999999999955e-07
+    MaxNLiter: 4
+    finaltime: 5.0000000000000000e-3
+    numSteps: 5
+  Analysis: 
+    analysis type: forward
+    Verbosity: 0
+    Have Sensor Points: false
+    Have Sensor Data: false
+  Postprocess: 
+    Verbosity: 0
+    response type: global
+    verification: true
+    write solution: false
+    compute response: false
+    compute objective: false
+    compute sensitivities: false
+  Functions:
+    hump: -100.0*(x-0.5)*(x-0.5) - 100*(y-0.5)*(y-0.5)
+
+...

@@ -1,0 +1,45 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh Settings File: input_mesh.yaml
+  Physics: 
+    solve_thermal: true
+    Dirichlet conditions:
+      e:
+        all boundaries: '0.0'
+    initial conditions:
+      e: '0.0'
+    Responses:
+      resp: 'e'
+    Targets:
+      targ: '0.0'
+    Weights:
+      wt: '1.0'
+  Parameters Settings File: input_params.yaml
+  Discretization:
+    order:
+      e: 1
+    quadrature: 2
+  Solver:
+    solver: transient
+    Workset Size: 1
+    Verbosity: 0
+    NLtol: 9.99999999999999980e-13
+    lintol: 1.00000000000000003e-13
+    MaxNLiter: 4
+    finaltime: 5.00000000000000000e-01
+    numSteps: 4
+  Analysis Settings File: input_rol2.yaml
+  Postprocess: 
+    response type: global
+    Verbosity: 0
+    verification: true
+    write solution: true
+    compute response: false
+    compute objective: true
+    compute sensitivities: false
+  Functions:
+    tcoeff: 8*pi*pi*sin(2*pi*t)+2*pi*cos(2*pi*t)
+    thermal source: tcoeff*sin(2*pi*x)*sin(2*pi*y)
+    thermal diffusion: thermal_diff(0)
+...

@@ -1,0 +1,50 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh Settings File: input_mesh.yaml
+  Physics: 
+    number_phases: 3
+    numdisks: 1
+    disksize: 1.00000000000000000e+01
+    uniform: true
+    initialType: test
+    solve_msphasefield: true
+    e_DBCs: bottom
+    number_phases: 3
+    initial conditions:
+      phi1: '1.0*(rone<12.5)'
+      phi2: '1.0*(rtwo<12.5)'
+      phi3: '1.0*(rthree<12.5)'
+    true solutions:
+      phi1: sin(2*pi*x)*sin(2*pi*y)
+      phi2: sin(2*pi*x)*sin(2*pi*y)
+      phi3: sin(2*pi*x)*sin(2*pi*y)
+  Discretization:
+    order:
+      phi1: 1
+      phi2: 1
+      phi3: 1
+    quadrature: 2
+  Solver:
+    solver: transient
+    Workset Size: 1
+    Initial type: interpolation
+    Verbosity: 0
+    NLtol: 9.99999999999999955e-07
+    MaxNLiter: 10
+    finaltime: 5.00000000000000000e-01
+    numSteps: 1
+  Postprocess: 
+    Verbosity: 0
+    response type: global
+    compute response: false
+    verification: true
+    compute measurements: false
+    write solution: false
+  Parameters Settings File: input_params.yaml
+  Analysis Settings File: input_fwd.yaml
+  Functions:
+    rone: ((x-37.5)*(x-37.5) + (y-50.0)*(y-50.0))^(0.5)
+    rtwo: ((x-61.5)*(x-61.5) + (y-50.0)*(y-50.0))^(0.5)
+    rthree: ((x-50.0)*(x-50.0) + (y-75.0)*(y-75.0))^(0.5)
+...

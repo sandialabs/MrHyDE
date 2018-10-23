@@ -1,0 +1,23 @@
+This problem and its multiscale version are present for verification
+of the gradient computation in a steady-state thermal problem.
+
+The BCs for this problem are homogenous Dirichlet, and the target 
+temperature field is sin(pi*x)*sin(pi*y).
+
+Therefore, the optimal source term is 2*pi^2*sin(pi*x)*sin(pi*y).
+
+The optimization parameter is a coefficient p that multiplies
+the correct source term, thus the optimal solution is p = 1.0.
+
+With an initial guess of 0 for p, the temperature field is 0 everywhere
+and the adjoint field is 1/(2*pi^2)*sin(pi*x)*sin(pi*y).
+
+The exact values of the objective function and its gradient at this
+iteration are 0.125 and 0.25, respectively.
+
+The mortar solution finds a value of p that is closer to the optimal value,
+which suggests that the gradient is being computed correctly.
+
+However, the mortar version of the problem does not appear to pass the
+finite difference test as well as the non-ms version does. To observe this,
+turn on the FD check in input_rol2.xml and compare.

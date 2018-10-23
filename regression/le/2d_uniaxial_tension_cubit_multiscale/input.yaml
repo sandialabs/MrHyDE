@@ -1,0 +1,67 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh: 
+    blocknames: eblock_0-0
+    dim: 2
+    Source: Exodus
+    Mesh_File: tiny.g
+  Subgrid:
+    Mesh: 
+      shape: quad
+      refinements: 0
+      dim: 2
+      blocknames: eblock
+    Physics: 
+      solve_linearelasticity: true
+      form_param: 0.00000000000000000e+00
+      true solutions:
+        dx: '-0.5*x'
+        dy: 'y'
+    Discretization:
+      order:
+        dx: 1
+        dy: 1
+      quadrature: 2
+    Solver:
+      solver: steady-state
+      Verbosity: 0
+      NLtol: 9.99999999999999955e-07
+      MaxNLiter: 4
+    Parameters Settings File: input_params.yaml
+    Functions:
+      lambda: '1.0'
+      mu: '0.5'
+      Neumann source dy: '1.5*ny'
+  Physics:
+    solve_linearelasticity: true
+    dx_point_DBCs: xfix
+    dy_point_DBCs: yfix
+    true solutions:
+      dx: '-0.5*x'
+      dy: 'y'
+  Discretization:
+    order:
+      dx: 1
+      dy: 1
+    quadrature: 2
+  Solver:
+    Verbosity: 0
+    solver: steady-state
+    NLtol: 9.99999999999999955e-07
+    finaltime: 1.00000000000000000e+00
+    numSteps: 100
+  Postprocess: 
+    response type: pointwise
+    Verbosity: 0
+    compute response: false
+    write solution: false
+    verification: true
+    Subgrid Error: true
+  Parameters Settings File: input_params.yaml
+  Analysis Settings File: input_fwd.yaml
+  Functions:
+    lambda: '1.0'
+    mu: '0.5'
+    Neumann source dy: '1.5*ny'
+...

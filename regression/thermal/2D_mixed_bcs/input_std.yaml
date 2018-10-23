@@ -1,0 +1,43 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh: 
+    dim: 2
+    shape: quad
+    xmin: 0.00000000000000000e+00
+    xmax: 1.00000000000000000e+00
+    ymin: 0.00000000000000000e+00
+    ymax: 1.00000000000000000e+00
+    NX: 40
+    NY: 40
+    blocknames: eblock-0_0
+  Physics: 
+    eblock-0_0: 
+      solve_thermal: true
+      e_DBCs: 'left,right'
+    test: 1
+  Parameters: 
+    thermal_diff: 
+      type: scalar
+      value: 1.00000000000000000e+00
+      usage: active
+    thermal_source: 
+      type: vector
+      source: thermal_source.dat
+      usage: active
+  Solver: 
+    solver: 0
+    Workset Size: 1
+    Verbosity: 10
+    NLtol: 9.99999999999999955e-07
+    finaltime: 1.00000000000000000e+00
+    numSteps: 10
+  Analysis: 
+    analysis_type: forward
+    Verbosity: 10
+  Postprocess: 
+    response type: global
+    verification: true
+    compute response: true
+    compute sensitivities: false
+...

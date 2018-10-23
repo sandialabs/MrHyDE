@@ -1,0 +1,49 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh: 
+    blocknames: eblock_0-0-0
+    dim: 3
+    Source: Exodus
+    Mesh_File: cube.g
+    shape: hex
+  Physics: 
+    eblock_0-0-0: 
+      solve_linearelasticity: true
+      dx_point_DBCs: xfix
+      dy_point_DBCs: yfix
+      dz_point_DBCs: zfix
+      initial conditions:
+        dx: '0.0'
+        dy: '0.0'
+        dz: '0.0'
+      true solutions:
+        dx: '-0.25*x'
+        dy: 'y'
+        dz: '-0.25*z'
+  Discretization:
+    eblock_0-0-0:
+      order:
+        dx: 1
+        dy: 1
+        dz: 1
+      quadrature: 2
+  Solver:
+    Verbosity: 0
+    solver: steady-state
+    NLtol: 9.99999999999999955e-07
+    finaltime: 1.00000000000000000e+00
+    numSteps: 100
+  Postprocess: 
+    response type: pointwise
+    compute response: false
+    Verbosity: 0
+    verification: true
+    write solution: false
+  Parameters Settings File: input_params.yaml
+  Analysis Settings File: input_fwd.yaml
+  Functions:
+    lambda: '2.0'
+    mu: '2.0'
+    Neumann source dy: '5.0*ny'
+...

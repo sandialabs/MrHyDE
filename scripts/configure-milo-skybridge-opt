@@ -1,0 +1,20 @@
+#!/bin/bash
+EXTRA_ARGS=$@
+
+rm CMakeCache.txt
+
+TRILINOS_HOME="/ascldap/users/${USER}/src/trilinos"
+
+TRILINOS_INSTALL="/ascldap/users/${USER}/local/trilinos-opt"
+
+CODE_HOME="/ascldap/users/${USER}/src/milo-3d"
+
+CODE_INSTALL="/ascldap/users/${USER}/local/milo-install"
+
+/ascldap/users/${USER}/local/bin/cmake \
+-D Trilinos_SRC_DIR=${TRILINOS_HOME} \
+-D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
+-D CMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+-D CMAKE_INSTALL_PREFIX:PATH=${CODE_INSTALL} \
+${EXTRA-ARGS} \
+${CODE_HOME}

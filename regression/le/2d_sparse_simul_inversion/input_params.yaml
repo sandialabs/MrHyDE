@@ -1,0 +1,49 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Parameters: 
+    lambda1: 
+      type: scalar
+      value: 0.00000000000000000e+00
+      usage: inactive
+    source_x: 
+      type: scalar
+      value: 0.00000000000000000e+00
+      usage: inactive
+    source_y: 
+      type: scalar
+      value: 0.00000000000000000e+00
+      usage: inactive
+    mufield: 
+      type: HGRAD
+      order: 1
+      usage: discretized
+      initial_value: 1.00000000000000000e+00
+      lower_bound: 1.00000000000000000e+00
+      upper_bound: 1.00000000000000000e+01
+      reg_type: 2
+      reg_constant: 1.00000000000000002e-03
+      isDomainParam: true
+    xtrac: 
+      type: HGRAD
+      order: 1
+      usage: discretized
+      initial_value: 0.00000000000000000e+00
+      lower_bound: -1.00000000000000000e+02
+      upper_bound: 1.00000000000000000e+02
+      reg_type: 1
+      reg_constant: 1.00000000000000005e-04
+      isDomainParam: false
+      sides: top
+    ytrac: 
+      type: HGRAD
+      order: 1
+      usage: discretized
+      initial_value: 0.00000000000000000e+00
+      lower_bound: -1.00000000000000000e+02
+      upper_bound: 1.00000000000000000e+02
+      reg_type: 1
+      reg_constant: 1.00000000000000005e-04
+      isDomainParam: false
+      sides: top
+...
