@@ -23,7 +23,6 @@
 #include "solverInterface.hpp"
 #include "subgridTools.hpp"
 
-
 class SubGridFEM : public SubGridModel {
 public:
   

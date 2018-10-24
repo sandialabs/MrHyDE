@@ -11,7 +11,6 @@
 
 #include "meshInterface.hpp"
 
-
 meshInterface::meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_, const Teuchos::RCP<Epetra_MpiComm> & Commptr_) :
 settings(settings_), Commptr(Commptr_) {
   

@@ -17,6 +17,7 @@
 #include <vector>
 #include <set>
 #include <stdio.h>
+#include <random>
 
 // Teuchos includes
 #include "Teuchos_GlobalMPISession.hpp"
