@@ -64,18 +64,20 @@ Commptr(Comm_), functionManager(functionManager_) {
   
   for (size_t b=0; b<numBlocks; b++) {
     std::string currblock = blocknames[b];
+    
     Teuchos::ParameterList blocksettings;
-    if (settings->sublist("Physics").isSublist(currblock)) {
+    if (settings->sublist("Physics").isSublist(currblock)) { // adding block overwrites the default
       blocksettings = settings->sublist("Physics").sublist(currblock);
     }
-    else {
+    else { // default
       blocksettings = settings->sublist("Physics");
     }
+    
     Teuchos::ParameterList blockdiscsettings;
-    if (settings->sublist("Discretization").isSublist(currblock)) {
+    if (settings->sublist("Discretization").isSublist(currblock)) { // adding block overwrites default
       blockdiscsettings = settings->sublist("Discretization").sublist(currblock);
     }
-    else {
+    else { // default
       blockdiscsettings = settings->sublist("Discretization");
     }
     std::vector<bool> useScalarFunc;
@@ -253,6 +255,19 @@ Commptr(Comm_), functionManager(functionManager_) {
     }
   }
   
+  if (functions.isSublist("Side")) {
+    Teuchos::ParameterList side_functions = functions.sublist("Side");
+    
+    for (size_t b=0; b<numBlocks ;b++) {
+      Teuchos::ParameterList::ConstIterator fnc_itr = side_functions.begin();
+      while (fnc_itr != side_functions.end()) {
+        string entry = side_functions.get<string>(fnc_itr->first);
+        functionManager->addFunction(fnc_itr->first,entry,numElemPerCell,numip_side,"side ip",b);
+        fnc_itr++;
+      }
+    }
+    
+  }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -542,25 +557,8 @@ double physics::getInitialValue(const int & block, const double & x, const doubl
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 int physics::getNumResponses(const int & block, const string & var) {
-  
-  //int owner = getvarOwner(block, var);
-  //int numResponses = 0; //modules[block][owner]->getNumResponses();
   return response_list[block].size();
 }
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-/*
-double physics::trueSolution(const int & block, const string & var, const double & x,
-                             const double & y, const double & z, const double & time) {
-  
-  double val = 0.0;
-  int owner = getvarOwner(block, var);
-  val = modules[block][owner]->trueSolution(var, x, y, z, time);
-  return val;
-}
-*/
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -634,31 +632,6 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
   
   size_t numElem = u_ip.dimension(0);
   size_t numip = ip.dimension(1);
-  
-  /*
-  vector<Kokkos::View<AD***,AssemblyDevice> > response;
-  if (ip.rank() == 2) {
-    numip = ip.dimension(0);
-  }
-  else if (ip.rank() == 3) {
-    numip = ip.dimension(1);
-  }
-  else {
-    // output an error message
-  }
-  
-  size_t numresp = 0;
-  Kokkos::View<AD***,AssemblyDevice> cresponse;
-  
-  for (size_t i=0; i<modules[block].size(); i++) {
-    string label = modules[block][i]->label;
-    // needs to be updated
-    //cresponse = udfunc->response(label,u_ip, ugrad_ip, p_ip, pgrad_ip, ip, time);
-    
-    //response.push_back(cresponse);
-    //numresp += cresponse.dimension(1);
-  }
-  */
   size_t numResponses = response_list[block].size();
   
   Kokkos::View<AD***,AssemblyDevice> responsetotal("responses",numElem,numResponses,numip);
@@ -691,22 +664,6 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
       }
     }
   }
-  /*
-  int prog = 0;
-  for (size_t i=0; i<response.size(); i++) {
-    Kokkos::View<AD***,AssemblyDevice> cresp = response[i];
-    int numcres = cresp.dimension(1);
-    for (size_t r=0; r<numcres; r++) {
-      for (int e=0; e<numElem; e++) {
-        for (size_t k=0; k<numip; k++) {
-          responsetotal(e,prog,k) = cresp(e,r,k);
-        }
-      }
-      prog++;
-    }
-  }
-  */
-  
   return responsetotal;
 }
 
@@ -732,18 +689,8 @@ Kokkos::View<AD***,AssemblyDevice> physics::target(const int & block, const DRV 
                                                    Teuchos::RCP<workset> & wkset) {
   
   
-  //vector<Kokkos::View<AD***,AssemblyDevice> > targetvals;
-  //size_t numresp = 0;
   size_t numip = ip.dimension(1);
   size_t numElem = ip.dimension(0);
-  /*
-  for (size_t i=0; i<modules[block].size(); i++) {
-    // needs to be updated
-    //Kokkos::View<AD***,AssemblyDevice> ctvals = udfunc->target(modules[block][i]->label,ip,current_time);
-    //numresp += ctvals.dimension(1);
-    //targetvals.push_back(ctvals);
-  }
-  */
   
   Kokkos::View<AD***,AssemblyDevice> targettotal("target",numElem,target_list[block].size(),numip);
   
@@ -756,27 +703,10 @@ Kokkos::View<AD***,AssemblyDevice> physics::target(const int & block, const DRV 
         }
         
         FDATA tdata = functionManager->evaluate(target_list[block][t],"point",block);
-    //for (size_t e=0; e<numElem; e++) {
-    //  for (size_t i=0; i<numip; i++) {
         targettotal(e,t,k) = tdata(0,0);
       }
     }
   }
-  /*
-  int prog = 0;
-  for (size_t i=0; i<targetvals.size(); i++) {
-    Kokkos::View<AD***,AssemblyDevice> ctarg = targetvals[i];
-    int numcres = ctarg.dimension(1);
-    for (size_t r=0; r<numcres; r++) {
-      for (int e=0; e<numElem; e++) {
-        for (size_t k=0; k<numip; k++) {
-          targettotal(e,prog,k) = ctarg(e,r,k);
-        }
-      }
-      prog++;
-    }
-  }
-  */
   return targettotal;
 }
 
@@ -787,17 +717,8 @@ Kokkos::View<AD***,AssemblyDevice> physics::weight(const int & block, const DRV 
                                                    const double & current_time,
                                                    Teuchos::RCP<workset> & wkset) {
   
-  //vector<Kokkos::View<AD***,AssemblyDevice> > weightvals;
-  //size_t numresp = 0;
   size_t numip = ip.dimension(1);
   size_t numElem = ip.dimension(0);
-  
-  //for (size_t i=0; i<modules[block].size(); i++) {
-    // needs to be updated
-    //Kokkos::View<AD***,AssemblyDevice> cwvals = udfunc->weight(modules[block][i]->label,ip,current_time);
-    //numresp += cwvals.dimension(0);
-    //weightvals.push_back(cwvals);
-  //}
   
   Kokkos::View<AD***,AssemblyDevice> weighttotal("weight",numElem,weight_list[block].size(),numip);
   for (size_t t=0; t<weight_list[block].size(); t++) {
@@ -812,22 +733,6 @@ Kokkos::View<AD***,AssemblyDevice> physics::weight(const int & block, const DRV 
       }
     }
   }
-
-  /*
-  int prog = 0;
-  for (size_t i=0; i<weightvals.size(); i++) {
-    Kokkos::View<AD***,AssemblyDevice> cweight = weightvals[i];
-    int numcres = cweight.dimension(0);
-    for (size_t r=0; r<numcres; r++) {
-      for (int e=0; e<numElem; e++) {
-        for (size_t k=0; k<numip; k++) {
-          weighttotal(e,prog,k) = cweight(e,r,k);
-        }
-      }
-      prog++;
-    }
-  }
-  */
   return weighttotal;
 }
 
@@ -978,19 +883,6 @@ Kokkos::View<double***,AssemblyDevice> physics::getExtraFields(const int & block
       }
     }
   }
-  /*
-  vector<vector<Kokkos::View<double***,AssemblyDevice> > > vfields;
-  
-  for (size_t i=0; i<modules[block].size(); i++) {
-    vfields.push_back(udfunc->extraFields(modules[block][i]->label, ip, time, modules[block][i]->wkset));
-  }
-  
-  for (size_t i=0; i<vfields.size(); i++) {
-    for (size_t j=0; j<vfields[i].size(); j++) {
-      fields.push_back(vfields[i][j]);
-    }
-  }
-  */
   return fields;
 }
 
@@ -1024,20 +916,6 @@ Kokkos::View<double***,AssemblyDevice> physics::getExtraCellFields(const int & b
       }
     }
   }
-
-  
-  /*
-  vector<vector<Kokkos::View<double***,AssemblyDevice> > > vfields;
-  
-  for (size_t i=0; i<modules[block].size(); i++) {
-    vfields.push_back(udfunc->extraCellFields(modules[block][i]->label, modules[block][i]->wkset));
-  }
-  for (size_t i=0; i<vfields.size(); i++) {
-    for (size_t j=0; j<vfields[i].size(); j++) {
-      fields.push_back(vfields[i][j]);
-    }
-  }
-  */
   return fields;
 }
 
@@ -1113,9 +991,7 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
     }
     
     Teuchos::ParameterList dbc_settings = blocksettings.sublist("Dirichlet conditions");
-    // Set up the fields that need to use the DOF manager ordering
-    
-    //std::vector<int> numBasis(numVars[b]);
+    Teuchos::ParameterList nbc_settings = blocksettings.sublist("Neumann conditions");
     
     int maxcard = 0;
     for (size_t j=0; j<cards[b].size(); j++) {
@@ -1123,13 +999,9 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
       maxcard = cards[b][j];
     }
     
-    //FCint curroffsets(numVars[b], maxcard);
     vector<vector<int> > celloffsets;
     Kokkos::View<int****,HostDevice> currside_info("side info",numElem[b],numVars[b],numSidesPerElem,2);
     
-    //FCint curroffsets(maxvars, maxcard);
-    //vector<vector<int> > celloffsets;
-    //FCint currside_info(numElem[b],maxvars,numSidesPerElem,2);
     
     std::vector<std::vector<size_t> > block_SideIDs, block_GlobalSideIDs;
     std::vector<std::vector<size_t> > block_ElemIDs;
@@ -1162,9 +1034,14 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
           
           bool isDiri = false;
           bool isPeri = false;
+          bool isNeum = false;
           if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
             isDiri = true;
           }
+          if (nbc_settings.sublist(var).isParameter("all boundaries") || nbc_settings.sublist(var).isParameter(sideName)) {
+            isNeum = true;
+          }
+          
           //else if (pbc_settings.sublist(var).isParameter("all boundaries") || pbc_settings.sublist(var).isParameter(sideName)) {
           //  isPeri = true;
           //}
@@ -1193,14 +1070,14 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
               currside_info(localid, j, local_side_Ids[i], 0) = 1;
               currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
             }
-            else if (isPeri){
-              currside_info(localid, j, local_side_Ids[i], 0) = 3;
-              currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
-            }
-            else { //neither Dirichlet not periodic
+            else { // Neumann or Robin
               currside_info(localid, j, local_side_Ids[i], 0) = 2;
               currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
             }
+            //else if (isPeri) {
+            //  currside_info(localid, j, local_side_Ids[i], 0) = 3;
+            //  currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
+            //}
             /*
              if( isDiri ) {
              curr_SideIDs.push_back(local_side_Ids[j]);
@@ -1263,10 +1140,6 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
       }
     }
     
-    //for (int e=0; e<cells[b].size(); e++) {
-    //  cells[b][e]->setOffsets(celloffsets);
-    //}
-    //
     offsets.push_back(celloffsets);
     
     std::sort(block_dbc_dofs.begin(), block_dbc_dofs.end());
@@ -1354,13 +1227,6 @@ Kokkos::View<int****,HostDevice> physics::getSideInfo(const size_t & block,
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 vector<vector<int> > physics::getOffsets(const int & block, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF) {
-  /*vector<vector<int> > voffsets;
-  for (size_t j=0; j<varlist[block].size(); j++) {
-    string var = varlist[block][j];
-    int num = DOF->getFieldNum(var);
-    vector<int> var_offsets = DOF->getGIDFieldOffsets(blocknames[block],num);
-    voffsets.push_back(var_offsets);
-  }*/
   return offsets[block];
 }
 

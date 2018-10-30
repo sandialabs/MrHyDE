@@ -447,24 +447,6 @@ static int split(vector<term> & terms, const size_t & index) {
           currterm = "";
           currop = "lt";
         }
-        else if ( paren == 0 && s[i] == '<=') {
-          bool found = false;
-          for (size_t k=0; k<terms.size(); k++) {
-            if (terms[k].expression == currterm) {
-              found = true;
-              terms[index].dep_list.push_back(k);
-              terms[index].dep_ops.push_back(currop);
-            }
-          }
-          if (!found) {
-            term nterm = term(currterm);
-            terms.push_back(nterm);
-            terms[index].dep_list.push_back(terms.size()-1);
-            terms[index].dep_ops.push_back(currop);
-          }
-          currterm = "";
-          currop = "lte";
-        }
         else if ( paren == 0 && s[i] == '>') {
           bool found = false;
           for (size_t k=0; k<terms.size(); k++) {
@@ -482,24 +464,6 @@ static int split(vector<term> & terms, const size_t & index) {
           }
           currterm = "";
           currop = "gt";
-        }
-        else if ( paren == 0 && s[i] == '>=') {
-          bool found = false;
-          for (size_t k=0; k<terms.size(); k++) {
-            if (terms[k].expression == currterm) {
-              found = true;
-              terms[index].dep_list.push_back(k);
-              terms[index].dep_ops.push_back(currop);
-            }
-          }
-          if (!found) {
-            term nterm = term(currterm);
-            terms.push_back(nterm);
-            terms[index].dep_list.push_back(terms.size()-1);
-            terms[index].dep_ops.push_back(currop);
-          }
-          currterm = "";
-          currop = "gte";
         }
         else {
           currterm += s[i];

@@ -2,36 +2,4 @@
 ---
 ANONYMOUS:
   Parameters: 
-    lambda1: 
-      type: scalar
-      value: 4.25000000000000000e+03
-      usage: active
-    lambda2: 
-      type: scalar
-      value: 1.25000000000000000e+03
-      usage: active
-    mu: 
-      type: scalar
-      value: 5.50000000000000000e+02
-      usage: inactive
-    source_x: 
-      type: scalar
-      value: 1.00000000000000000e+00
-      usage: inactive
-    source_y: 
-      type: scalar
-      value: 0.00000000000000000e+00
-      usage: inactive
-    source_z: 
-      type: scalar
-      value: 0.00000000000000000e+00
-      usage: inactive
-    nbcx: 
-      type: vector
-      source: data/nbcx.dat
-      usage: inactive
-    nbcy: 
-      type: vector
-      source: data/nbcy.dat
-      usage: inactive
 ...

@@ -294,6 +294,9 @@ public:
     AD trac = 0.0; // dummy argument unless using discretized traction parameter
     time = wkset->time;
     
+    int cside = wkset->currentside;
+    string sname = wkset->sidename;
+    
     double sf = formparam;
     if (wkset->isAdjoint) {
       sf = 1.0;
@@ -328,8 +331,6 @@ public:
     
     Teuchos::TimeMonitor localtime(*boundaryResidualFill);
     
-    int cside = wkset->currentside;
-    string sname = wkset->sidename;
     
     this->computeStress(true);
     
@@ -1198,6 +1199,19 @@ public:
     return ef;
     
   }
+  
+  
+  // ========================================================================================
+  // TMW: needs to be deprecated
+  // ========================================================================================
+  
+  void updateParameters(const vector<Teuchos::RCP<vector<AD> > > & params,
+                        const vector<string> & paramnames) {
+    if (useCE) {
+      crystalelast->updateParams(wkset);
+    }
+  }
+  
   
 private:
   

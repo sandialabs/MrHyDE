@@ -111,9 +111,9 @@ public:
   //----------------------------------------------------------------------------
   
   void updateParams(Teuchos::RCP<workset> & wkset) {
-    /*
+    
     bool foundlam = false;
-    vector<AD> lvals = wkset->getParam("lambda1", foundlam);
+    vector<AD> lvals = wkset->getParam("lambda", foundlam);
     if (foundlam) {
       lambda = lvals[0].val();
     }
@@ -123,31 +123,33 @@ public:
     if (foundmu) {
       mu = muvals[0].val();
     }
-    */
     
-    /*
-    double E = 0.0;
-    bool foundym = false;
-    vector<AD> ymvals = wkset->getParam("youngs_mod", foundym);
-    if (foundym) {
-      E = ymvals[0].val();
+    if (!foundlam || !foundmu) {
+      double E = 0.0;
+      bool foundym = false;
+      vector<AD> ymvals = wkset->getParam("youngs_mod", foundym);
+      if (foundym) {
+        E = ymvals[0].val();
+      }
+      
+      double nu = 0.0;
+      bool foundpr = false;
+      vector<AD> prvals = wkset->getParam("poisson_ratio", foundpr);
+      if (foundpr) {
+        nu = prvals[0].val();
+      }
+      
+      if (foundym && foundpr) {
+        lambda = (E*nu)/((1.0+nu)*(1.0-2.0*nu));
+        mu = E/(2.0*(1.0+nu));
+      }
     }
-    
-    double nu = 0.0;
-    bool foundpr = false;
-    vector<AD> prvals = wkset->getParam("poisson_ratio", foundpr);
-    if (foundpr) {
-      nu = prvals[0].val();
-    }
-    
-    lambda = (E*nu)/((1.0+nu)*(1.0-2.0*nu));
-    mu = E/(2.0*(1.0+nu));
-    
     double c11 = 2.0*mu+lambda;
     double c12 = lambda;
     double c44 = 2.0*mu;
-    */
     
+    
+    /*
     double c11 = 0.0;
     bool foundc11 = false;
     vector<AD> c11vals = wkset->getParam("C11", foundc11);
@@ -168,6 +170,7 @@ public:
     if (foundc44) {
       c44 = c44vals[0].val();
     }
+    */
     
     // default to cubic symmetry
     c11_ = c11;
