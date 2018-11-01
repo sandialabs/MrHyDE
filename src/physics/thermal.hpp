@@ -55,7 +55,7 @@ public:
     functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),numElem,numip,"ip",blocknum);
     functionManager->addFunction("specific heat",fs.get<string>("specific heat","1.0"),numElem,numip,"ip",blocknum);
     functionManager->addFunction("density",fs.get<string>("density","1.0"),numElem,numip,"ip",blocknum);
-    functionManager->addFunction("thermal Neumann source",fs.get<string>("thermal Neumann source","0.0"),numElem,numip_side,"side ip",blocknum);
+    //functionManager->addFunction("thermal Neumann source",fs.get<string>("thermal Neumann source","0.0"),numElem,numip_side,"side ip",blocknum);
     functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),numElem,numip_side,"side ip",blocknum);
     functionManager->addFunction("robin alpha",fs.get<string>("robin alpha","0.0"),numElem,numip_side,"side ip",blocknum);
     
@@ -154,6 +154,10 @@ public:
     // NOTES:
     // 1. basis and basis_grad already include the integration weights
    
+    sideinfo = wkset->sideinfo;
+    
+    int cside = wkset->currentside;
+    int sidetype = wkset->sidetype;
     
     int e_basis_num = wkset->usebasis[e_num];
     numBasis = wkset->basis_side[e_basis_num].dimension(1);
@@ -161,7 +165,13 @@ public:
     {
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
       
-      nsource = functionManager->evaluate("thermal Neumann source","side ip",blocknum);
+      //nsource = functionManager->evaluate("thermal Neumann source","side ip",blocknum);
+      if (sidetype == 1 && sideinfo(0,e_num,cside,1) != -1) {
+        //nsource = functionManager->evaluate("Dirichlet e " + wkset->sidename,"side ip",blocknum);
+      }
+      else if (sidetype == 2) {
+        nsource = functionManager->evaluate("Neumann e " + wkset->sidename,"side ip",blocknum);
+      }
       diff_side = functionManager->evaluate("thermal diffusion","side ip",blocknum);
       robin_alpha = functionManager->evaluate("robin alpha","side ip",blocknum);
       
@@ -172,7 +182,7 @@ public:
       sf = 1.0;
     }
     
-    sideinfo = wkset->sideinfo;
+    
     sol = wkset->local_soln_side;
     sol_grad = wkset->local_soln_grad_side;
     ebasis = wkset->basis_side[e_basis_num];
@@ -186,7 +196,7 @@ public:
     
     Teuchos::TimeMonitor localtime(*boundaryResidualFill);
     
-    int cside = wkset->currentside;
+    
     
     for (int e=0; e<sideinfo.dimension(0); e++) {
       if (sideinfo(e,e_num,cside,0) == 2) { // Element e is on the side
@@ -197,7 +207,7 @@ public:
           }
         }
       }
-      else if (sideinfo(e,e_num,cside,0) == 1){ // Weak Dirichlet
+      else if (sideinfo(e,e_num,cside,0) == 1) { //} && sideinfo(e,e_num,cside,1) == -1){ // Weak Dirichlet
         
         for (int k=0; k<ebasis.dimension(2); k++ ) {
           
@@ -215,7 +225,7 @@ public:
           if (sideinfo(e,e_num,cside,1) == -1)
             lambda = aux(e,e_num,k);
           else {
-            lambda = 0.0;
+            lambda = 0.0;//nsource(e,k);
             //udfunc->boundaryDirichletValue(label,"e",x,y,z,wkset->time,wkset->sidename,wkset->isAdjoint);
           //  lambda = this->getDirichletValue("e", x, y, z, wkset->time,
           //                                   wkset->sidename, wkset->isAdjoint);

@@ -235,7 +235,7 @@ public:
         vector<topo_RCP> sideTopo;
         sideTopo.push_back(DiscTools::getCellSideTopology(dimension, shape));
         physics_RCP = Teuchos::rcp( new physics(settings, LocalComm, cellTopo, sideTopo,
-                                                functionManager) );
+                                                functionManager, mesh) );
       }
       
       orders = physics_RCP->unique_orders;

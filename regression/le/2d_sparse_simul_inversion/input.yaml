@@ -18,6 +18,11 @@ ANONYMOUS:
         bottom: '0.0'
       dy:
         bottom: '0.0'
+    Neumann conditions:
+      dx:
+        top: 'xtrac'
+      dy:
+        top: 'ytrac'
     Responses:
       rdx: 'dx'
       rdy: 'dy'

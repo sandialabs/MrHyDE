@@ -1248,7 +1248,7 @@ class workset {
   DRV sidejacobDet, sidejacobInv, sideweightedMeasure;
   vector<DRV> param_basis_grad; // parameter basis function are never weighted
   // Dynamic data (changes multiple times per element)
-  // int sidetype;
+  int sidetype;
   Kokkos::View<int****,AssemblyDevice> sideinfo;
   string sidename, var;
   int currentside;

@@ -63,6 +63,8 @@ public:
     functionManager->addFunction("c2i_z",fs.get<string>("c2i_z","0.0"),numElem,numip,"ip",blocknum);
     functionManager->addFunction("omega2r",fs.get<string>("omega2r","0.0"),numElem,numip,"ip",blocknum);
     functionManager->addFunction("omega2i",fs.get<string>("omega2i","0.0"),numElem,numip,"ip",blocknum);
+    functionManager->addFunction("omega2r",fs.get<string>("omega2r","0.0"),numElem,numip_side,"side ip",blocknum);
+    functionManager->addFunction("omega2i",fs.get<string>("omega2i","0.0"),numElem,numip_side,"side ip",blocknum);
     functionManager->addFunction("omegar",fs.get<string>("omegar","0.0"),numElem,numip,"ip",blocknum);
     functionManager->addFunction("omegai",fs.get<string>("omegai","0.0"),numElem,numip,"ip",blocknum);
     functionManager->addFunction("source_r",fs.get<string>("source_r","0.0"),numElem,numip,"ip",blocknum);

@@ -2154,7 +2154,7 @@ void solver::updateResDBCsens(vector_RCP & resid, size_t & e, size_t & block, in
     z = I_elemNodes(0,basisIdMap[i],2);
     
     AD diri_FAD;
-    diri_FAD = phys->getDirichletValue(block, x, y, z, current_time, varlist[block][fieldNum], gside, false);
+    diri_FAD = phys->getDirichletValue(block, x, y, z, current_time, varlist[block][fieldNum], gside, false, wkset[block]);
     double r_val = 0.0;
     size_t numDerivs = diri_FAD.size();
     for( int j=0; j<numRes; j++ ) {
@@ -2220,7 +2220,7 @@ void solver::setDirichlet(vector_RCP & initial) {
               else {
                 // put the value into the soln vector
                 AD diri_FAD_tmp;
-                diri_FAD_tmp = phys->getDirichletValue(b, x, y, z, current_time, varlist[b][n], gside, useadjoint);
+                diri_FAD_tmp = phys->getDirichletValue(b, x, y, z, current_time, varlist[b][n], gside, useadjoint, wkset[b]);
                 
                 (*initial)[0][row] = diri_FAD_tmp.val();
               }

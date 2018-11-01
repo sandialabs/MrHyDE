@@ -22,6 +22,11 @@ ANONYMOUS:
         bottom: '0.0'
       dy:
         bottom: '0.0'
+    Neumann conditions:
+      dx:
+        top: '0.0'
+      dy:
+        top: 'nbcy'
     Responses:
       sxx: 4.0*mufield*dx_x + 2.0*mufield*dy_y
       sxy: mufield*(dx_y+dy_x)
@@ -50,5 +55,4 @@ ANONYMOUS:
   Analysis Settings File: input_rol2.yaml
   Functions:
     mu: mufield
-    Neumann source dy: nbcy*ny
 ...

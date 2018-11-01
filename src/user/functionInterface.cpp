@@ -577,12 +577,16 @@ FDATA FunctionInterface::evaluate(const string & fname, const string & location,
                                   const size_t & block) {
   Teuchos::TimeMonitor ttimer(*evaluateTimer);
   
-  int findex = 0;
+  int findex = -1;
   for (size_t i=0; i<functions[block].size(); i++) {
     if (fname == functions[block][i].function_name && functions[block][i].location == location) {
       evaluate(block,i,0);
       findex = i;
     }
+  }
+  
+  if (findex == -1) { // meaning that the requested function was not registered at this location
+    TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: function manager could not evaluate: " + fname + " at " + location);
   }
   
   if (!functions[block][findex].terms[0].isAD) {

@@ -3,22 +3,23 @@
 ANONYMOUS:
   Mesh Settings File: input_mesh.yaml
   Physics: 
-    simulation_name: verification
-    eblock-0_0: 
-      solve_thermal: true
-      Dirichlet conditions:
-        e:
-          left: '0.0'
-          right: '0.0'
-      initial conditions:
-        e: '0.0'
-      true solutions:
-        e: sin(2*pi*x)*sin(2*pi*y)
+    solve_thermal: true
+    Dirichlet conditions:
+      e:
+        left: '0.0'
+        right: '0.0'
+    Neumann conditions:
+      e:
+        top: 2*pi*sin(2*pi*x)*cos(2*pi*y)
+        bottom: -2*pi*sin(2*pi*x)*cos(2*pi*y)
+    initial conditions:
+      e: '0.0'
+    true solutions:
+      e: sin(2*pi*x)*sin(2*pi*y)
   Discretization:
-    eblock-0_0:
-      order:
-        e: 1
-      quadrature: 2
+    order:
+      e: 1
+    quadrature: 2
   Functions:
     thermal source: 8*pi*pi*sin(2*pi*x)*sin(2*pi*y)
     thermal Neumann source: ny*2*pi*sin(2*pi*x)*cos(2*pi*y)

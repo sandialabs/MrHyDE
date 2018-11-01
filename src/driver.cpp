@@ -106,7 +106,8 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<physics> phys = Teuchos::rcp( new physics(settings, tcomm_LA,
                                                            mesh->cellTopo,
                                                            mesh->sideTopo,
-                                                           functionManager) );
+                                                           functionManager,
+                                                           mesh->mesh) );
     mesh->finalize(phys);
     
     ////////////////////////////////////////////////////////////////////////////////

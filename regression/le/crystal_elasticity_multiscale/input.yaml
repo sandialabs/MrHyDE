@@ -41,6 +41,13 @@ ANONYMOUS:
       Use Crystal Elasticity: true
       solve_linearelasticity: true
       form_param: -1.00000000000000000e+00
+      Neumann conditions:
+        dy:
+          top: '1.0'
+        dx:
+          top: '0.0'
+        dz:
+          top: '0.0'
     Solver: 
       solver: steady-state
       Verbosity: 0
@@ -48,7 +55,6 @@ ANONYMOUS:
       MaxNLiter: 4
     Parameters Settings File: input_params.yaml
     Functions:
-      Neumann source dy: '1.0*ny'
   Physics:
     Use Crystal Elasticity: false
     solve_linearelasticity: true
@@ -59,6 +65,13 @@ ANONYMOUS:
         bottom: '0.0'
       dz:
         bottom: '0.0'
+    Neumann conditions:
+      dy:
+        top: '1.0'
+      dx:
+        top: '0.0'
+      dz:
+        top: '0.0'
   Solver:
     Verbosity: 0
     solver: steady-state
@@ -75,5 +88,4 @@ ANONYMOUS:
   Parameters Settings File: input_params.yaml
   Analysis Settings File: input_fwd.yaml
   Functions:
-    Neumann source dy: '1.0*ny'
 ...

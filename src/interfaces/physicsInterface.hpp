@@ -68,7 +68,8 @@ public:
   
   physics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<Epetra_MpiComm> & Comm_,
           vector<topo_RCP> & cellTopo, vector<topo_RCP> & sideTopo,
-          Teuchos::RCP<FunctionInterface> & functionManager_);
+          Teuchos::RCP<FunctionInterface> & functionManager_,
+          Teuchos::RCP<panzer_stk::STK_Interface> & mesh);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   // Add the requested physics modules, variables, discretization types 
@@ -97,7 +98,8 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////
   
   AD getDirichletValue(const int & block, const double & x, const double & y, const double & z,
-                       const double & t, const string & var, const string & gside, const bool & useadjoint);
+                       const double & t, const string & var, const string & gside,
+                       const bool & useadjoint, Teuchos::RCP<workset> & wkset);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////

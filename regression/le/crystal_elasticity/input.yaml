@@ -32,6 +32,13 @@ ANONYMOUS:
         bottom: '0.0'
       dz:
         bottom: '0.0'
+    Neumann conditions:
+      dy:
+        top: '1.0'
+      dx:
+        top: '0.0'
+      dz:
+        top: '0.0'
   Solver: 
     Verbosity: 0
     solver: steady-state
@@ -47,5 +54,4 @@ ANONYMOUS:
   Parameters Settings File: input_params.yaml
   Analysis Settings File: input_fwd.yaml
   Functions:
-    Neumann source dy: '1.0*ny'
 ...

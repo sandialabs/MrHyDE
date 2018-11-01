@@ -480,10 +480,12 @@ void cell::computeJacRes(const vector<vector<double> > & paramvals,
       for (int side=0; side<numSides; side++) {
         bool compute = false; // not going to work if Host!=Assembly
         string gsideid;
+        int sidetype = 0;
         for (int e=0; e<sideinfo.dimension(0); e++) {
           for (int n=0; n<sideinfo.dimension(1); n++) {
             if (sideinfo(e,n,side,0) > 0) {
               compute = true;
+              sidetype = sideinfo(e,n,side,0);
               if (sideinfo(e,n,side,1) >= 0) {
                 gsideid = sidenames[sideinfo(e,n,side,1)];
               }
@@ -497,6 +499,7 @@ void cell::computeJacRes(const vector<vector<double> > & paramvals,
           
           wkset->sideinfo = sideinfo;
           wkset->currentside = side;
+          wkset->sidetype = sidetype;
           // if (sideinfo[e](side,1) == -1) {
           //   wkset->sidename = "interior";
           //   wkset->sidetype = -1;

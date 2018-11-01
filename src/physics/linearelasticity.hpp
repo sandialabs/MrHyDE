@@ -94,9 +94,9 @@ public:
     functionManager->addFunction("source dz",fs.get<string>("source dz","0.0"),numElem,numip,"ip",blocknum);
     functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),numElem,numip_side,"side ip",blocknum);
     functionManager->addFunction("mu",fs.get<string>("mu","0.5"),numElem,numip_side,"side ip",blocknum);
-    functionManager->addFunction("Neumann source dx",fs.get<string>("Neumann source dx","0.0"),numElem,numip_side,"side ip",blocknum);
-    functionManager->addFunction("Neumann source dy",fs.get<string>("Neumann source dy","0.0"),numElem,numip_side,"side ip",blocknum);
-    functionManager->addFunction("Neumann source dz",fs.get<string>("Neumann source dz","0.0"),numElem,numip_side,"side ip",blocknum);
+    //functionManager->addFunction("Neumann source dx",fs.get<string>("Neumann source dx","0.0"),numElem,numip_side,"side ip",blocknum);
+    //functionManager->addFunction("Neumann source dy",fs.get<string>("Neumann source dy","0.0"),numElem,numip_side,"side ip",blocknum);
+    //functionManager->addFunction("Neumann source dz",fs.get<string>("Neumann source dz","0.0"),numElem,numip_side,"side ip",blocknum);
     
   }
   // ========================================================================================
@@ -296,6 +296,7 @@ public:
     
     int cside = wkset->currentside;
     string sname = wkset->sidename;
+    int sidetype = wkset->sidetype;
     
     double sf = formparam;
     if (wkset->isAdjoint) {
@@ -306,13 +307,14 @@ public:
     
     {
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
-      
-      sourceN_dx = functionManager->evaluate("Neumann source dx","side ip",blocknum);
-      if (spaceDim > 1) {
-        sourceN_dy = functionManager->evaluate("Neumann source dy","side ip",blocknum);
-      }
-      if (spaceDim > 2) {
-        sourceN_dz = functionManager->evaluate("Neumann source dz","side ip",blocknum);
+      if (sidetype == 2) {
+        sourceN_dx = functionManager->evaluate("Neumann dx " + sname,"side ip",blocknum);
+        if (spaceDim > 1) {
+          sourceN_dy = functionManager->evaluate("Neumann dy " + sname,"side ip",blocknum);
+        }
+        if (spaceDim > 2) {
+          sourceN_dz = functionManager->evaluate("Neumann dz " + sname,"side ip",blocknum);
+        }
       }
       lambda_side = functionManager->evaluate("lambda","side ip",blocknum);
       mu_side = functionManager->evaluate("mu","side ip",blocknum);

@@ -19,6 +19,11 @@ ANONYMOUS:
         bottom: '0.0'
       dy:
         bottom: '0.0'
+    Neumann conditions:
+      dx:
+        top: '0.0'
+      dy:
+        top: 'disc_trac'
     Responses:
       rdx: 'dx'
       rdy: 'dy'
@@ -45,7 +50,6 @@ ANONYMOUS:
   Parameters Settings File: input_paramsIG.yaml
   Analysis Settings File: input_rol2.yaml
   Functions:
-    Neumann source dy: disc_trac*ny
     mu: mufield
     lambda: '1.0'
 ...

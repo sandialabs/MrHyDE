@@ -43,7 +43,8 @@
 
 physics::physics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<Epetra_MpiComm> & Comm_,
                  vector<topo_RCP> & cellTopo, vector<topo_RCP> & sideTopo,
-                 Teuchos::RCP<FunctionInterface> & functionManager_) :
+                 Teuchos::RCP<FunctionInterface> & functionManager_,
+                 Teuchos::RCP<panzer_stk::STK_Interface> & mesh) :
 Commptr(Comm_), functionManager(functionManager_) {
   
   numElemPerCell = settings->sublist("Solver").get<int>("Workset size",1);
@@ -157,8 +158,6 @@ Commptr(Comm_), functionManager(functionManager_) {
     // Add true solutions to the function manager for verification studies
     // True solutions for verification studies
     Teuchos::ParameterList true_solns = blocksettings.sublist("true solutions");
-    
-    
     for (size_t j=0; j<currvarlist.size(); j++) {
       
       string expression = true_solns.get<string>(currvarlist[j],"0.0");
@@ -173,6 +172,8 @@ Commptr(Comm_), functionManager(functionManager_) {
       expression = true_solns.get<string>(currvarlist[j]+"_z","0.0");
       functionManager->addFunction("true "+currvarlist[j]+"_z",expression,numElemPerCell,numip,"ip",b);
     }
+    
+    // Add initial conditions
     initial_type = settings->sublist("Solver").get<string>("Initial type","L2-projection");
     Teuchos::ParameterList initial_conds = blocksettings.sublist("initial conditions");
     for (size_t j=0; j<currvarlist.size(); j++) {
@@ -182,6 +183,70 @@ Commptr(Comm_), functionManager(functionManager_) {
       }
       else {
         functionManager->addFunction("initial "+currvarlist[j],expression,1,1,"point",b);
+      }
+    }
+    
+    // Dirichlet conditions
+    Teuchos::ParameterList dbcs = blocksettings.sublist("Dirichlet conditions");
+    bool weak_dbcs = dbcs.get<bool>("enforce weakly",false);
+    for (size_t j=0; j<currvarlist.size(); j++) {
+      if (dbcs.isSublist(currvarlist[j])) {
+        if (dbcs.sublist(currvarlist[j]).isParameter("all boundaries")) {
+          vector<string> sideNames;
+          mesh->getSidesetNames(sideNames);
+          string entry = dbcs.sublist(currvarlist[j]).get<string>("all boundaries");
+          for (size_t s=0; s<sideNames.size(); s++) {
+            string label = "Dirichlet " + currvarlist[j] + " " + sideNames[s];
+            //if (weak_dbcs) {
+              functionManager->addFunction(label,entry,numElemPerCell,numip_side,"side ip",b);
+            //}
+            //else {
+              functionManager->addFunction(label,entry,1,1,"point",b);
+            //}
+          }
+          
+        }
+        else {
+          Teuchos::ParameterList currdbcs = dbcs.sublist(currvarlist[j]);
+          Teuchos::ParameterList::ConstIterator d_itr = currdbcs.begin();
+          while (d_itr != currdbcs.end()) {
+            string entry = currdbcs.get<string>(d_itr->first);
+            string label = "Dirichlet " + currvarlist[j] + " " + d_itr->first;
+            //if (weak_dbcs) {
+              functionManager->addFunction(label,entry,numElemPerCell,numip_side,"side ip",b);
+            //}
+            //else {
+              functionManager->addFunction(label,entry,1,1,"point",b);
+            //}
+            d_itr++;
+          }
+        }
+      }
+    }
+    
+    // Neumann/robin conditions
+    Teuchos::ParameterList nbcs = blocksettings.sublist("Neumann conditions");
+    for (size_t j=0; j<currvarlist.size(); j++) {
+      if (nbcs.isSublist(currvarlist[j])) {
+        if (nbcs.sublist(currvarlist[j]).isParameter("all boundaries")) {
+          vector<string> sideNames;
+          mesh->getSidesetNames(sideNames);
+          string entry = nbcs.sublist(currvarlist[j]).get<string>("all boundaries");
+          for (size_t s=0; s<sideNames.size(); s++) {
+            string label = "Neumann " + currvarlist[j] + " " + sideNames[s];
+            functionManager->addFunction(label,entry,numElemPerCell,numip_side,"side ip",b);
+          }
+        }
+        else {
+          Teuchos::ParameterList currnbcs = nbcs.sublist(currvarlist[j]);
+          Teuchos::ParameterList::ConstIterator n_itr = currnbcs.begin();
+          while (n_itr != currnbcs.end()) {
+            string entry = currnbcs.get<string>(n_itr->first);
+            string label = "Neumann " + currvarlist[j] + " " + n_itr->first;
+            functionManager->addFunction(label,entry,numElemPerCell,numip_side,"side ip",b);
+            n_itr++;
+          }
+        }
       }
     }
     
@@ -266,8 +331,10 @@ Commptr(Comm_), functionManager(functionManager_) {
         fnc_itr++;
       }
     }
-    
   }
+  
+  
+  
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -520,15 +587,19 @@ int physics::getvarOwner(const int & block, const string & var) {
 
 AD physics::getDirichletValue(const int & block, const double & x, const double & y,
                               const double & z, const double & t, const string & var,
-                              const string & gside, const bool & useadjoint) {
+                              const string & gside, const bool & useadjoint,
+                              Teuchos::RCP<workset> & wkset) {
   
+  // update point in wkset
+  wkset->point_KV(0,0,0) = x;
+  wkset->point_KV(0,0,1) = y;
+  wkset->point_KV(0,0,2) = z;
+  wkset->time_KV(0) = t;
+  
+  // evaluate the response
+  FDATA ddata = functionManager->evaluate("Dirichlet " + var + " " + gside,"point",block);
   AD val = 0.0;
-  int owner = getvarOwner(block, var);
-  string label = modules[block][owner]->label;
-  return val;
-  // needs to be updated
-  //return udfunc->boundaryDirichletValue(label,var,x,y,z,t,gside,useadjoint);
-  //val = modules[block][owner]->getDirichletValue(var, x, y, z, t, gside, useadjoint);
+  return ddata(0,0);
   
 }
 
@@ -538,18 +609,17 @@ AD physics::getDirichletValue(const int & block, const double & x, const double 
 double physics::getInitialValue(const int & block, const double & x, const double & y,
                                 const double & z, const string & var, const bool & useadjoint) {
   
-  double val = 0.0;
-  int owner = getvarOwner(block, var);
+  /*
+  // update point in wkset
+  wkset->point_KV(0,0,0) = x;
+  wkset->point_KV(0,0,1) = y;
+  wkset->point_KV(0,0,2) = z;
   
-  DRV ip("ip_initial",1,3);
-  ip(0,0) = x;    ip(0,1) = y;    ip(0,2) = z;
-  string label = modules[block][owner]->label;
-  // needs to be updated
-  //Kokkos::View<double**,AssemblyDevice> vals = udfunc->getInitial(label,ip,var,0.0,useadjoint);
-  return val;
-  
-  //val = modules[block][owner]->getInitialValue(var, x, y, z, useadjoint);
-  //return val;
+  // evaluate the response
+  FDATA idata = functionManager->evaluate("initial " + var,"point",block);
+  return idata(0,0).val();
+  */
+  return 0.0;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1070,7 +1140,7 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
               currside_info(localid, j, local_side_Ids[i], 0) = 1;
               currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
             }
-            else { // Neumann or Robin
+            else if (isNeum) { // Neumann or Robin
               currside_info(localid, j, local_side_Ids[i], 0) = 2;
               currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
             }

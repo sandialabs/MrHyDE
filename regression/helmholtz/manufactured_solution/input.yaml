@@ -23,6 +23,11 @@ ANONYMOUS:
           left: '0.0'
           top: '0.0'
           bottom: '0.0'
+      Neumann conditions:
+        ureal:
+          right: '0.0'
+        uimag:
+          right: '0.0'
       true solutions:
         ureal: sin(2*pi*x)*sin(2*pi*y)
         uimag: sin(2*pi*x)*sin(2*pi*y)

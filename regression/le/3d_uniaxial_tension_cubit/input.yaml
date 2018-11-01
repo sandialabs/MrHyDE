@@ -8,19 +8,28 @@ ANONYMOUS:
     Mesh_File: cube.g
     shape: hex
   Physics: 
-    eblock_0-0-0: 
-      solve_linearelasticity: true
-      dx_point_DBCs: xfix
-      dy_point_DBCs: yfix
-      dz_point_DBCs: zfix
-      initial conditions:
-        dx: '0.0'
-        dy: '0.0'
-        dz: '0.0'
-      true solutions:
-        dx: '-0.25*x'
-        dy: 'y'
-        dz: '-0.25*z'
+    solve_linearelasticity: true
+    dx_point_DBCs: xfix
+    dy_point_DBCs: yfix
+    dz_point_DBCs: zfix
+    initial conditions:
+      dx: '0.0'
+      dy: '0.0'
+      dz: '0.0'
+    true solutions:
+      dx: '-0.25*x'
+      dy: 'y'
+      dz: '-0.25*z'
+    Neumann conditions:
+      dx:
+        top: '0.0'
+        bottom: '0.0'
+      dy:
+        top: '5.0'
+        bottom: '-5.0'
+      dz:
+        top: '0.0'
+        bottom: '0.0'
   Discretization:
     eblock_0-0-0:
       order:
@@ -45,5 +54,4 @@ ANONYMOUS:
   Functions:
     lambda: '2.0'
     mu: '2.0'
-    Neumann source dy: '5.0*ny'
 ...
