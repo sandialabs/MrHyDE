@@ -166,8 +166,8 @@ public:
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
       
       //nsource = functionManager->evaluate("thermal Neumann source","side ip",blocknum);
-      if (sidetype == 1 && sideinfo(0,e_num,cside,1) != -1) {
-        //nsource = functionManager->evaluate("Dirichlet e " + wkset->sidename,"side ip",blocknum);
+      if (sidetype == 4 && sideinfo(0,e_num,cside,1) != -1) {
+        nsource = functionManager->evaluate("Dirichlet e " + wkset->sidename,"side ip",blocknum);
       }
       else if (sidetype == 2) {
         nsource = functionManager->evaluate("Neumann e " + wkset->sidename,"side ip",blocknum);
@@ -207,7 +207,7 @@ public:
           }
         }
       }
-      else if (sideinfo(e,e_num,cside,0) == 1) { //} && sideinfo(e,e_num,cside,1) == -1){ // Weak Dirichlet
+      else if (sideinfo(e,e_num,cside,0) == 4) { //} && sideinfo(e,e_num,cside,1) == -1){ // Weak Dirichlet
         
         for (int k=0; k<ebasis.dimension(2); k++ ) {
           
@@ -225,7 +225,7 @@ public:
           if (sideinfo(e,e_num,cside,1) == -1)
             lambda = aux(e,e_num,k);
           else {
-            lambda = 0.0;//nsource(e,k);
+            lambda = nsource(e,k);
             //udfunc->boundaryDirichletValue(label,"e",x,y,z,wkset->time,wkset->sidename,wkset->isAdjoint);
           //  lambda = this->getDirichletValue("e", x, y, z, wkset->time,
           //                                   wkset->sidename, wkset->isAdjoint);

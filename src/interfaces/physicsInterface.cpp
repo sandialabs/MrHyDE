@@ -188,7 +188,7 @@ Commptr(Comm_), functionManager(functionManager_) {
     
     // Dirichlet conditions
     Teuchos::ParameterList dbcs = blocksettings.sublist("Dirichlet conditions");
-    bool weak_dbcs = dbcs.get<bool>("enforce weakly",false);
+    bool weak_dbcs = dbcs.get<bool>("use weak Dirichlet",false);
     for (size_t j=0; j<currvarlist.size(); j++) {
       if (dbcs.isSublist(currvarlist[j])) {
         if (dbcs.sublist(currvarlist[j]).isParameter("all boundaries")) {
@@ -1062,7 +1062,7 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
     
     Teuchos::ParameterList dbc_settings = blocksettings.sublist("Dirichlet conditions");
     Teuchos::ParameterList nbc_settings = blocksettings.sublist("Neumann conditions");
-    
+    bool use_weak_dbcs = dbc_settings.get<bool>("use weak Dirichlet",false);
     int maxcard = 0;
     for (size_t j=0; j<cards[b].size(); j++) {
       if (cards[b][j] > maxcard)
@@ -1137,7 +1137,12 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
               curr_SideIDs.push_back(local_side_Ids[i]);
               curr_GlobalSideIDs.push_back(side);
               curr_ElemIDs.push_back(localid);
-              currside_info(localid, j, local_side_Ids[i], 0) = 1;
+              if (use_weak_dbcs) {
+                currside_info(localid, j, local_side_Ids[i], 0) = 4;
+              }
+              else {
+                currside_info(localid, j, local_side_Ids[i], 0) = 1;
+              }
               currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
             }
             else if (isNeum) { // Neumann or Robin

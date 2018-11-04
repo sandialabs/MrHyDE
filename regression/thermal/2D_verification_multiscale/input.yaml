@@ -24,6 +24,13 @@ ANONYMOUS:
       solve_thermal: true
       true solutions:
         e: sin(2*pi*x)*sin(2*pi*y)
+      Dirichlet conditions:
+        use weak Dirichlet: true
+        e:
+          bottom: '0.0'
+          top: '0.0'
+          left: '0.0'
+          right: '0.0'
     Solver:
       solver: steady-state
       Verbosity: 0

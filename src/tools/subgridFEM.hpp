@@ -300,6 +300,10 @@ public:
             for (size_t k=0; k<sideinfo.dimension(3); k++) {
               subsideinfo(0,i,j,k) = sideinfo(e,i,j,k);
             }
+            if (subsideinfo(0,i,j,0) == 1) {
+              subsideinfo(0,i,j,0) = 4;
+              subsideinfo(0,i,j,1) = -1;
+            }
           }
         }
         //KokkosTools::print(subsideinfo);

@@ -351,7 +351,7 @@ public:
             }
           }
         }
-        else if (sideinfo(e,dx_num,cside,0) == 1){ // Weak Dirichlet
+        else if (sideinfo(e,dx_num,cside,0) == 4){ // Weak Dirichlet
           for (int k=0; k<basis.dimension(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
@@ -394,7 +394,7 @@ public:
             }
           }
         }
-        else if (sideinfo(e,dx_num,cside,0) == 1){ // Weak Dirichlet
+        else if (sideinfo(e,dx_num,cside,0) == 4){ // Weak Dirichlet
           for (int k=0; k<basis.dimension(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
@@ -441,7 +441,7 @@ public:
             }
           }
         }
-        else if (sideinfo(e,dy_num,cside,0) == 1){ // Weak Dirichlet
+        else if (sideinfo(e,dy_num,cside,0) == 4){ // Weak Dirichlet
           for (int k=0; k<basis.dimension(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
@@ -494,7 +494,7 @@ public:
           }
         }
         
-        else if (sideinfo(e,dx_num,cside,0) == 1){ // Weak Dirichlet
+        else if (sideinfo(e,dx_num,cside,0) == 4){ // Weak Dirichlet
           for (int k=0; k<basis.dimension(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
@@ -556,7 +556,7 @@ public:
           }
         }
         
-        else if (sideinfo(e,dy_num,cside,0) == 1){ // Weak Dirichlet
+        else if (sideinfo(e,dy_num,cside,0) == 4){ // Weak Dirichlet
           for (int k=0; k<basis.dimension(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
@@ -618,7 +618,7 @@ public:
           }
         }
         
-        else if (sideinfo(e,dz_num,cside,0) == 1){ // Weak Dirichlet
+        else if (sideinfo(e,dz_num,cside,0) == 4){ // Weak Dirichlet
           for (int k=0; k<basis.dimension(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);

@@ -483,7 +483,7 @@ void cell::computeJacRes(const vector<vector<double> > & paramvals,
         int sidetype = 0;
         for (int e=0; e<sideinfo.dimension(0); e++) {
           for (int n=0; n<sideinfo.dimension(1); n++) {
-            if (sideinfo(e,n,side,0) > 0) {
+            if (sideinfo(e,n,side,0) > 1) {
               compute = true;
               sidetype = sideinfo(e,n,side,0);
               if (sideinfo(e,n,side,1) >= 0) {
