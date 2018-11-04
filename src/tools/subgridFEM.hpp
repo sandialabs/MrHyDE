@@ -83,52 +83,11 @@ public:
       if (fn.good()) {
         Teuchos::RCP<Teuchos::ParameterList> functions_parlist = Teuchos::rcp( new Teuchos::ParameterList() );
         Teuchos::updateParametersFromYamlFile( filename, Teuchos::Ptr<Teuchos::ParameterList>(&*functions_parlist) );
-        //Teuchos::updateParametersFromXmlFile( filename, Teuchos::Ptr<Teuchos::ParameterList>(&*functions_parlist) );
         settings->setParameters( *functions_parlist );
       }
       else // this sublist is not required, but if you specify a file then an exception will be thrown if it cannot be found
         TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the functions settings file: " + filename);
     }
-    
-    //vector<topo_RCP> cellTopo;
-    //cellTopo.push_back(DiscTools::getCellTopology(dimension, shape));
-    
-    //vector<topo_RCP> sideTopo;
-    //sideTopo.push_back(DiscTools::getCellSideTopology(dimension, shape));
-    
-    //physics_RCP = Teuchos::rcp( new physics(settings, LocalComm, cellTopo, sideTopo) );
-    //
-    //physics_RCP->setUserDefined(udfunc);
-    
-    ///////////////////////////////////////////////////////////////////////////////////
-    // Subgrid UQ
-    ///////////////////////////////////////////////////////////////////////////////////
-    /*
-     Teuchos::ParameterList uqsettings = settings->sublist("UQ");
-     uqmanager uq(*LocalComm, uqsettings, stoch_param_types, stoch_param_means, stoch_param_vars,
-     stoch_param_mins, stoch_param_maxs);
-     
-     // Generate the samples for the UQ
-     bool stochastic = settings->sublist("Solver").get<bool>("Stochastic",false);
-     double mxy = 0.0;
-     for (int i=0; i<macronodes.dimension(1); i++) {
-     mxy = std::max(mxy, macronodes(0,i,1));
-     }
-     
-     int numstochparams = stoch_param_types.size();
-     int numsamples = uqsettings.get<int>("Samples",1);
-     int seed = uqsettings.get<int>("Seed",macrowkset.globalEID);
-     FC samplepts, samplewts;
-     
-     uq.generateSamples(numsamples, seed, samplepts, samplewts);
-     if (!stochastic) {
-     samplewts(0) = 1.0;
-     }
-     int numEvals = 1;
-     if (stochastic) {
-     numEvals = samplewts.dimension(0);
-     }
-     */
     
     ////////////////////////////////////////////////////////////////////////////////
     // Read-in any mesh-dependent data (from file)
@@ -172,8 +131,6 @@ public:
     // Define the sub-grid mesh
     /////////////////////////////////////////////////////////////////////////////////////
     
-    //stringstream ss;
-    //ss << cells.size();
     string blockID = "eblock";
     Teuchos::TimeMonitor localmeshtimer(*sgfemTotalAddMacroTimer);
     
@@ -198,19 +155,15 @@ public:
       connectivity = sgt.getSubConnectivity();
       sideinfo = sgt.getSubSideinfo();
     
-    //if (cells.size() == 0) {
       panzer_stk::SubGridMeshFactory meshFactory(shape, nodes, connectivity, blockID);
     
-    //  Teuchos::RCP<panzer_stk::STK_Interface> mesh = meshFactory.buildMesh(LocalComm->Comm());
       mesh = meshFactory.buildMesh(LocalComm->Comm());
       
-      // Add sub-grid solution fields to mesh (for postprocessing)
       mesh->getElementBlockNames(eBlocks);
     
       meshFactory.completeMeshConstruction(*mesh,LocalComm->Comm());
     }
     
-    //KokkosTools::print(sideinfo);
     /////////////////////////////////////////////////////////////////////////////////////
     // Set up the sub-cells
     /////////////////////////////////////////////////////////////////////////////////////
@@ -259,28 +212,6 @@ public:
         newcells.push_back(Teuchos::rcp(new cell(settings, LocalComm, cellTopo, physics_RCP,
                                                  currnodes, 0, eIndex, 0, false)));
       }
-      
-      /*
-      // The convention will be that each subgrid model uses only 1 cell
-      // with multiple elements - this will help expose subgrid/local parallelism
-      DRV currnodes("currnodes",numSubElem,numNodesPerElem,dimension);
-      Kokkos::View<int*> eIndex("element indices",numSubElem);
-      
-      vector<Teuchos::RCP<cell> > newcells;
-      
-      for (size_t e=0; e<connectivity.size(); e++) {
-        for (int n=0; n<numNodesPerElem; n++) {
-          for (int m=0; m<dimension; m++) {
-            currnodes(e,n,m) = nodes[connectivity[e][n]][m];
-          }
-        }
-        eIndex(e) = e;
-      }
-      newcells.push_back(Teuchos::rcp(new cell(settings, LocalComm, cellTopo, physics_RCP,
-                                               currnodes, 0, eIndex, 0, false)));
-
-      */
-      
       currcells.push_back(newcells);
     }
     
@@ -290,26 +221,21 @@ public:
       
       
       for (size_t e=0; e<currcells[0].size(); e++) {
-        //vector<FCint> subsideinfo;
         // Redefine the sideinfo for the subcells
-        Kokkos::View<int****,HostDevice> subsideinfo("subcell side info",1,sideinfo.dimension(1),sideinfo.dimension(2),sideinfo.dimension(3));
+        Kokkos::View<int****,HostDevice> subsideinfo("subcell side info", 1, sideinfo.dimension(1),
+                                                     sideinfo.dimension(2), sideinfo.dimension(3));
         
-        int numElem = 1;// currcells[b][e]->numElem;
         for (size_t i=0; i<sideinfo.dimension(1); i++) {
           for (size_t j=0; j<sideinfo.dimension(2); j++) {
             for (size_t k=0; k<sideinfo.dimension(3); k++) {
               subsideinfo(0,i,j,k) = sideinfo(e,i,j,k);
             }
-            if (subsideinfo(0,i,j,0) == 1) {
+            if (subsideinfo(0,i,j,0) == 1) { // redefine for weak Dirichlet conditions
               subsideinfo(0,i,j,0) = 4;
               subsideinfo(0,i,j,1) = -1;
             }
           }
         }
-        //KokkosTools::print(subsideinfo);
-        //for (int p=0; p<numElem; p++) {
-        //  subsideinfo.push_back(sideinfo[eprog+p]);
-        //}
         currcells[0][e]->sideinfo = subsideinfo;
         currcells[0][e]->sidenames = macrosidenames;
       }
@@ -347,25 +273,11 @@ public:
             vector<vector<int> > currGids;
             for (int p=0; p<numElem; p++) {
               vector<int> GIDs;
-              //cout << disc->myElements[b].size() << endl;
-              size_t elemID = e;//disc->myElements[b][eprog+p];
-              
-              //size_t elemID = p;//disc->myElements[b][eprog+p];
+              size_t elemID = e;
               DOF->getElementGIDs(elemID, GIDs, blocknames[b]);
               currGids.push_back(GIDs);
             }
             currcells[b][e]->GIDs = currGids;
-            
-            //vector<FCint> cellSideInfo;
-            //for (int i=0; i<numElem; i++) {
-            //  FCint sideinfo = physics_RCP->getSideInfo(b,eprog+i);
-            //  cellSideInfo.push_back(sideinfo);
-            //}
-            //Kokkos::View<int*> globalEID = cells[b][e]->globalElemID;
-            //Kokkos::View<int****,HostDevice> currsideinfo = physics_RCP->getSideInfo(b,globalEID);
-            
-            //currcells[b][e]->sideinfo = currsideinfo;
-            
             vector<vector<int> > offsets = physics_RCP->getOffsets(b, DOF);
             currcells[b][e]->sidenames = physics_RCP->sideSets;
             eprog += numElem;
@@ -377,21 +289,6 @@ public:
           currcells[0][e]->setIP(disc->ref_ip[0]);
           currcells[0][e]->setSideIP(disc->ref_side_ip[0], disc->ref_side_wts[0]);
         }
-        
-        // Redefine the sideinfo for the subcells
-        //for (size_t b=0; b<currcells.size(); b++) {
-        //  int eprog = 0;
-        //  for (size_t e=0; e<currcells[b].size(); e++) {
-        //vector<FCint> subsideinfo;
-        //int numElem = currcells[b][e]->numElem;
-        //for (int p=0; p<numElem; p++) {
-        //  subsideinfo.push_back(sideinfo[eprog+p]);
-        //}
-        //    currcells[b][e]->sideinfo = sideinfo;
-        //    currcells[b][e]->sidenames = macrosidenames;
-        //  }
-        //  eprog++;
-        //}
       }
       else {
         
@@ -399,43 +296,9 @@ public:
           currcells[0][e]->setIP(disc->ref_ip[0]);
           currcells[0][e]->setSideIP(disc->ref_side_ip[0], disc->ref_side_wts[0]);
           currcells[0][e]->GIDs = cells[0][e]->GIDs;
-          //currcells[0][e]->sidenames = physics_RCP->sideSets;
-          
-          //currcells[0][e]->sideinfo = sideinfo;
-          //currcells[0][e]->sidenames = macrosidenames;
-          
         }
       }
     }
-    
-    /*
-    {
-      Teuchos::TimeMonitor localtimer(*sgfemSubSideinfoTimer);
-      
-      // Redefine the sideinfo for the subcells
-      Kokkos::View<int****,HostDevice> subsideinfo("subcell side info",1,sideinfo.dimension(1),sideinfo.dimension(2),sideinfo.dimension(3));
-      
-      KokkosTools::print(sideinfo);
-      for (size_t e=0; e<currcells[0].size(); e++) {
-        //vector<FCint> subsideinfo;
-        int numElem = 1;// currcells[b][e]->numElem;
-        for (size_t i=0; i<sideinfo.dimension(1); i++) {
-          for (size_t j=0; j<sideinfo.dimension(2); j++) {
-            for (size_t k=0; k<sideinfo.dimension(3); k++) {
-              subsideinfo(0,i,j,k) = sideinfo(e,i,j,k);
-            }
-          }
-        }
-        //KokkosTools::print(subsideinfo);
-        //for (int p=0; p<numElem; p++) {
-        //  subsideinfo.push_back(sideinfo[eprog+p]);
-        //}
-        currcells[0][e]->sideinfo = subsideinfo;
-        currcells[0][e]->sidenames = macrosidenames;
-      }
-    }
-
-     */
     
     // Set up the linear algebra objects
     {
@@ -459,14 +322,9 @@ public:
     }
     
     if (first_time) { // first time through
-      //subsolver = Teuchos::rcp( new solver(LocalComm, settings, mesh,
-      //                                                          disc, physics_RCP, DOF, currcells) );
       
       Teuchos::TimeMonitor localtimer(*sgfemLinearAlgebraSetupTimer);
       
-      //functionManager->setupLists(physics_RCP->varlist[0], subsolver->paramnames,
-      //                            subsolver->discretized_param_names);
-
       functionManager->setupLists(physics_RCP->varlist[0], macro_paramnames,
                                   macro_disc_paramnames);
       subsolver->wkset[0]->params_AD = paramvals_KVAD;
@@ -556,7 +414,6 @@ public:
       soln.push_back(initvec);
       
       vector_RCP inita = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),1));
-      //this->setInitial(phi, block, true);
       vector<pair<double, vector_RCP> > initadjvec;
       pair<double, vector_RCP> initadjsol(final_time, inita);
       initadjvec.push_back(initadjsol);
@@ -577,7 +434,7 @@ public:
       for(size_t e=0; e<cells[block].size(); e++) {
         
         
-        int numElem = 1;//cells[block][e]->numElem;
+        int numElem = 1;
         
         // Volumetric ip (not used for mortar-ms)
         
@@ -601,15 +458,10 @@ public:
           }
         }
         
-        // Side ip (really only need boundary ip)
         vector<vector<DRV> > currcell_side_basis, currcell_side_basisGrad;
-        //FCint ssi = cells[block][e]->sideinfo;
-        
-        
         for (size_t s=0; s<sideinfo.dimension(2); s++) { // number of sides
           
-          //  for (size_t s=0; s<ssi.dimension(0); s++) {
-          vector<DRV> currside_basis;//, currside_basisGrad;
+          vector<DRV> currside_basis;
           bool compute = false;
           for (size_t n=0; n<sideinfo.dimension(1); n++) {
             if (cells[block][e]->sideinfo(0,n,s,0) > 0) {
@@ -618,58 +470,39 @@ public:
           }
           
           if (compute) {
-            //if (ssi(s,0) > 0) {
-            //wkset[0]->updateSide(cells[block][e]->nodes, cells[block][e]->sideip[s],
-            //                     cells[block][e]->sideijac[s], s);
-            DRV sside_ip = cells[block][e]->sideip[s];//wkset[b]->ip_side;
+            DRV sside_ip = cells[block][e]->sideip[s];
             for (size_t i=0; i<macro_basis_pointers.size(); i++) {
               DRV tmp_basis = DRV("basis values",numElem,macro_basis_pointers[i]->getCardinality(),sside_ip.dimension(1));
               currside_basis.push_back(tmp_basis);
-              //DRV tmp_basis_grad = DRV("basis grad values",numElem,macro_basis_pointers[i]->getCardinality(),sside_ip.dimension(1),sside_ip.dimension(2));
-              //currside_basisGrad.push_back(tmp_basis_grad);
             }
             
-            //for (int e2=0; e2<numElem; e2++) {
-              DRV side_ip_e("side_ip_e",1, sside_ip.dimension(1), sside_ip.dimension(2));
-              for (int i=0; i<sside_ip.dimension(1); i++) {
-                for (int j=0; j<sside_ip.dimension(2); j++) {
-                  side_ip_e(0,i,j) = sside_ip(0,i,j);
+            DRV side_ip_e("side_ip_e",1, sside_ip.dimension(1), sside_ip.dimension(2));
+            for (int i=0; i<sside_ip.dimension(1); i++) {
+              for (int j=0; j<sside_ip.dimension(2); j++) {
+                side_ip_e(0,i,j) = sside_ip(0,i,j);
+              }
+            }
+            DRV sref_side_ip_tmp("sref_side_ip_tmp",1, sside_ip.dimension(1), sside_ip.dimension(2));
+            DRV sref_side_ip("sref_side_ip",sside_ip.dimension(1), sside_ip.dimension(2));
+            
+            CellTools<AssemblyDevice>::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, macronodes[block], *macro_cellTopo);
+            for (size_t i=0; i<sside_ip.dimension(1); i++) {
+              for (size_t j=0; j<sside_ip.dimension(2); j++) {
+                sref_side_ip(i,j) = sref_side_ip_tmp(0,i,j);
+              }
+            }
+            
+            for (size_t i=0; i<macro_basis_pointers.size(); i++) {
+              DRV tmp_basis = DiscTools::evaluateBasis(macro_basis_pointers[i], sref_side_ip);
+              for (int k=0; k<tmp_basis.dimension(1); k++) {
+                for (int j=0; j<tmp_basis.dimension(2); j++) {
+                  currside_basis[i](0,k,j) = tmp_basis(0,k,j);
                 }
               }
-              DRV sref_side_ip_tmp("sref_side_ip_tmp",1, sside_ip.dimension(1), sside_ip.dimension(2));
-              DRV sref_side_ip("sref_side_ip",sside_ip.dimension(1), sside_ip.dimension(2));
               
-              CellTools<AssemblyDevice>::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, macronodes[block], *macro_cellTopo);
-              for (size_t i=0; i<sside_ip.dimension(1); i++) {
-                for (size_t j=0; j<sside_ip.dimension(2); j++) {
-                  sref_side_ip(i,j) = sref_side_ip_tmp(0,i,j);
-                }
-              }
-              
-              for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-                DRV tmp_basis = DiscTools::evaluateBasis(macro_basis_pointers[i], sref_side_ip);
-                //DRV tmp_basis_grad = DiscTools::evaluateBasisGrads(macro_basis_pointers[i], macronodes[block],
-                //                                                   sref_side_ip, macro_cellTopo);
-                for (int k=0; k<tmp_basis.dimension(1); k++) {
-                  for (int j=0; j<tmp_basis.dimension(2); j++) {
-                    currside_basis[i](0,k,j) = tmp_basis(0,k,j);
-                    //for (int m=0; m<tmp_basis_grad.dimension(2); m++) {
-                    //  currside_basisGrad[i](e,k,j,m) = tmp_basis_grad(0,k,j,m);
-                    //}
-                  }
-                }
-                
-                //currside_basis.push_back(DiscTools::evaluateBasis(macro_basis_pointers[i], sref_side_ip));
-                //currside_basisGrad.push_back(DiscTools::evaluateBasisGrads(macro_basis_pointers[i], macronodes[block],
-                //                                                           sref_side_ip, macro_cellTopo));
-              }
-            //}
-          
-          //}
+            }
           }
           currcell_side_basis.push_back(currside_basis);
-          
-          //currcell_side_basisGrad.push_back(currside_basisGrad);
         }
         
         cells[block][e]->addAuxDiscretization(macro_basis_pointers, currcell_basis, currcell_basisGrad,
@@ -690,39 +523,6 @@ public:
       }
     }
     physics_RCP->setWorkset(wkset);
-    
-    /*
-     if (block == 0) { // first time through
-     vector<vector<int> > index = cells[0][0]->index;
-     vector<vector<int> > paramindex = cells[0][0]->paramindex;
-     vector<vector<int> > auxindex = cells[0][0]->auxindex;
-     
-     for (int n=0; n<index.size(); n++) {
-     u_AD.push_back(vector<AD>(index[n].size()));
-     u_dot_AD.push_back(vector<AD>(index[n].size()));
-     }
-     for (int n=0; n<paramindex.size(); n++) {
-     param_AD.push_back(vector<AD>(paramindex[n].size()));
-     }
-     for (int n=0; n<auxindex.size(); n++) {
-     lambda_AD.push_back(vector<AD>(auxindex[n].size()));
-     }
-     
-     int snumDOF = cells[0][0]->GIDs.size();
-     
-     local_res = FC(snumDOF,1);
-     local_J = FC(snumDOF,snumDOF);
-     local_Jdot = FC(snumDOF,snumDOF);
-     
-     int snumAuxDOF = cells[0][0]->auxGIDs.size();
-     
-     local_Ja = FC(snumDOF,snumAuxDOF);
-     local_Jdota = FC(snumDOF,snumAuxDOF);
-     
-     wkset[0]->flux = FCAD(cells[block][0]->index.size(),wkset[0]->numsideip);
-     
-     }
-     */
     
     return block;
     
@@ -1056,32 +856,8 @@ public:
             
           }
         }
-        
       }
-      
     }
-    /*
-     if (have_mesh_data) {
-     for (size_t b=0; b<newcells.size(); b++) {
-     FC nodes = newcells[b]->nodes;
-     FC center(1,3);
-     int numnodes = nodes.dimension(1);
-     for (size_t i=0; i<numnodes; i++) {
-     for (size_t j=0; j<dimension; j++) {
-     center(0,j) += nodes(0,i,j)/(double)numnodes;
-     }
-     }
-     int cnode = mesh_data->findClosestNode(center(0,0), center(0,1), center(0,2));
-     FC cdata = mesh_data->getdata(cnode);
-     newcells[b]->cell_data = cdata;
-     if (have_rotation_phi)
-     newcells[b]->have_cell_phi = true;
-     if (have_rotations)
-     newcells[b]->have_cell_rotation = true;
-     
-     newcells[b]->cell_data_seed = cnode;
-     }
-     }*/
   }
   
   ////////////////////////////////////////////////////////////////////////////////
@@ -1145,17 +921,11 @@ public:
       }
     }
     
-    //vector_RCP lambda_dot = gl_u_dot;
     Kokkos::View<double***,AssemblyDevice> lambda = cg_u;
     if (isAdjoint) {
       lambda = cg_phi;
       //lambda_dot = gl_phi_dot;
-      //KokkosTools::print(lambda);
     }
-    
-    //macrowkset.res = FCAD(macroDOF);
-    //macrowkset.resetResidual();
-    
     
     // remove seeding on active params for now
     if (compute_sens) {
@@ -1227,11 +997,6 @@ public:
     //////////////////////////////////////////////////////////////
     // Use the coarse scale solution to solve local transient/nonlinear problem
     //////////////////////////////////////////////////////////////
-    
-    //int numDerivs = macroDOF;
-    //if (compute_sens) {
-    //  numDerivs = num_active_params;
-    //}
     
     vector_RCP d_u = d_um;
     if (compute_sens) {
@@ -1383,44 +1148,28 @@ public:
   void sacadoizeParams(const bool & seed_active, const int & num_active_params,
                        const vector<int> & paramtypes, const vector<string> & paramnames,
                        const vector<vector<double> > & paramvals) {
-    
-    // TMW: remove this function ... it will not be necessary once user-defined is rewritten
-    
-    //paramvals_AD = vector<Teuchos::RCP<vector<AD> > >(paramvals.size());
-    //cout << "updating prams ..." << endl;
-    //cout << paramvals_AD.size() << endl;
-    //cout << paramvals.size() << endl;
-    
-    
     if (seed_active) {
       size_t pprog = 0;
       for (size_t i=0; i<paramvals_KVAD.dimension(0); i++) {
-        //vector<AD> currparams;
         if (paramtypes[i] == 1) { // active parameters
           for (size_t j=0; j<paramvals_KVAD.dimension(1); j++) {
-            //currparams.push_back(AD(maxDerivs,pprog,paramvals[i][j]));
             paramvals_KVAD(i,j) = AD(maxDerivs,pprog,paramvals_KVAD(i,j).val());
             pprog++;
           }
         }
         else { // inactive, stochastic, or discrete parameters
           for (size_t j=0; j<paramvals_KVAD.dimension(1); j++) {
-            //currparams.push_back(AD(paramvals[i][j]));
             paramvals_KVAD(i,j) = AD(paramvals_KVAD(i,j).val());
           }
         }
-        //*(paramvals_AD[i]) = currparams;
       }
     }
     else {
       size_t pprog = 0;
       for (size_t i=0; i<paramvals_KVAD.dimension(0); i++) {
-        //vector<AD> currparams;
         for (size_t j=0; j<paramvals_KVAD.dimension(1); j++) {
           paramvals_KVAD(i,j) = AD(paramvals_KVAD(i,j).val());
-          //currparams.push_back(AD(paramvals[i][j]));
         }
-        //*(paramvals_AD[i]) = currparams;
       }
     }
     
@@ -1457,7 +1206,7 @@ public:
       wkset[0]->isTransient = isTransient;
       wkset[0]->isAdjoint = isAdjoint;
       
-      int numElem = 1;//cells[usernum].size();//[0]->numElem;
+      int numElem = 1;
       int numDOF = cells[usernum][0]->GIDs[0].size();
       
       Kokkos::View<double***,AssemblyDevice> local_res, local_J, local_Jdot;
@@ -1478,8 +1227,6 @@ public:
             cells[usernum][e]->setLocalSoln(sub_phi_dot,3,0);
           }
           cells[usernum][e]->setLocalSoln(sub_params,4,0);
-          
-          //cells[usernum][e]->setLocalSolns(sub_u,sub_u_dot,sub_phi,sub_phi_dot,sub_params,isAdjoint);
           cells[usernum][e]->aux = lambda;
         }
       }
@@ -1521,9 +1268,6 @@ public:
                                            local_res, local_J, local_Jdot);
         
         }
-        //KokkosTools::print(local_J);
-        //KokkosTools::print(local_res);
-        
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverInsertTimer);
           vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
@@ -1545,14 +1289,6 @@ public:
             }
           }
         }
-        /*
-         if (isTransient && isAdjoint) {
-         if (iter == 0)
-         cells[usernum][e]->adjPrev = aPrev;
-         else if (!store_adjPrev)
-         cells[usernum][e]->adjPrev = aPrev;
-         }*/
-        
       }
       
       
@@ -1590,7 +1326,6 @@ public:
       }
       if (!useDirect && !have_preconditioner) {
         this->buildPreconditioner();
-        //have_preconditioner = true;
       }
       res->PutScalar(0.0);
       res->Export(*res_over, *(exporter), Add);
@@ -1654,8 +1389,6 @@ public:
       iter++;
       
     }
-    //cout << *sub_u << endl;
-    
   }
   
   //////////////////////////////////////////////////////////////
@@ -1753,12 +1486,10 @@ public:
         cells[usernum][e]->setLocalSoln(sub_phi_dot,3,0);
       }
       cells[usernum][e]->setLocalSoln(sub_param,4,0);
-      
-      //cells[usernum][e]->setLocalSolns(sub_u,sub_u_dot,sub_phi,sub_phi_dot,sub_params,isAdjoint);
       cells[usernum][e]->aux = lambda;
     }
     
-    int numElem = 1;//cells[usernum].size();//[0]->numElem;
+    int numElem = 1;
     
     if (compute_sens) {
       
@@ -1775,16 +1506,6 @@ public:
       
       local_J = Kokkos::View<double***,AssemblyDevice>("local Jacobian",numElem,snumDOF,snumDOF);
       local_Jdot = Kokkos::View<double***,AssemblyDevice>("local Jacobian dot",numElem,snumDOF,snumDOF);
-      
-      //local_resp = FC(snumDOF,num_active_params);
-      
-      
-      //for (size_t e=0; e<cells[usernum].size(); e++) {
-      //  cells[usernum][e]->setLocalSolns(sub_u,sub_u_dot,sub_phi,sub_phi_dot,sub_param,isAdjoint);
-      //  cells[usernum][e]->aux = lambda;
-      //}
-      
-      // volume assembly
       
       for (size_t e=0; e<cells[usernum].size(); e++) {
         
@@ -1813,7 +1534,7 @@ public:
           for( size_t row=0; row<GIDs[i].size(); row++ ) {
             int rowIndex = GIDs[i][row];
             for( size_t col=0; col<num_active_params; col++ ) {
-              double val = local_res(i,row,col);//Jp(row,col) + alpha*local_Jpdot(row,col);
+              double val = local_res(i,row,col);
               d_sub_res_over->SumIntoGlobalValue(rowIndex,col, 1.0*val);
             }
           }
@@ -1859,15 +1580,10 @@ public:
           }
         }
         
-        //local_res.initialize(0.0);
-        //local_Ja.initialize(0.0);
-        //local_Jdota.initialize(0.0);
-        
         cells[usernum][e]->computeJacRes(paramvals, paramtypes, paramnames,
                                          time, isTransient, isAdjoint,
                                          true, false, num_active_params, false, true, false,
                                          local_res, local_J, local_Jdot);
-        //u_AD, u_dot_AD, param_AD, lambda_AD,0);
         vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
         vector<int> aGIDs = cells[usernum][e]->auxGIDs;
         vector<vector<int> > aoffsets = cells[usernum][e]->auxoffsets;
@@ -1876,7 +1592,7 @@ public:
           for( size_t row=0; row<GIDs[i].size(); row++ ) {
             int rowIndex = GIDs[i][row];
             for( size_t col=0; col<aGIDs.size(); col++ ) {
-              double val = local_J(i,row,col);// + alpha*local_Jdot(row,col);
+              double val = local_J(i,row,col);
               d_sub_res_over->SumIntoGlobalValue(rowIndex,col, scale*val);
             }
           }
@@ -1924,13 +1640,7 @@ public:
         }
       }
       d_sub_u->PutScalar(0.0);
-      
       d_sub_u->Import(*d_sub_u_over, *(importer), Add);
-      
-      //cout << "usernum = " << usernum << endl;
-      //cout << "d_sub_u = " << *d_sub_u << endl;
-      //cout << "d_sub_res = " << *d_sub_res << endl;
-      //cout << "J = " << *J << endl;
     }
   }
   
@@ -2095,13 +1805,6 @@ public:
       }
     }
     
-    //if (tindex == -1) {
-    //  cout << usernum << endl;
-    //  cout << soln[usernum].size() << endl;
-    //  cout << time << endl;
-    //  cout << numrefine << endl;
-    //  cout << soln[usernum][0].first << endl;
-    //}
     Kokkos::View<double**,AssemblyDevice> errors("error",cells[usernum].size(), numVars);
     if (tindex != -1) {
       Kokkos::View<double**,AssemblyDevice> curr_errors;
@@ -2115,8 +1818,6 @@ public:
         }
       }
     }
-    
-    //KokkosTools::print(errors);
     return errors;
   }
   
@@ -2139,53 +1840,18 @@ public:
     performGather(usernum, soln[usernum][tindex].second, 0,0);
     performGather(usernum, Psol[0], 4, 0);
     
-    //if (response_type == "global") {
-      for (size_t e=0; e<cells[usernum].size(); e++) { // cells[usernum].size() == 1 now
-        Kokkos::View<AD**,AssemblyDevice> curr_obj = cells[usernum][e]->computeObjective(time, tindex, seedwhat);
-        if (!beensized && curr_obj.dimension(1)>0) {
-          objective = Kokkos::View<AD*,AssemblyDevice>("objective", curr_obj.dimension(1));
-          beensized = true;
-        }
-        for (int c=0; c<cells[usernum][e]->numElem; c++) {
-          for (size_t i=0; i<curr_obj.dimension(1); i++) {
-            objective(i) += curr_obj(c,i);
-          }
+    for (size_t e=0; e<cells[usernum].size(); e++) {
+      Kokkos::View<AD**,AssemblyDevice> curr_obj = cells[usernum][e]->computeObjective(time, tindex, seedwhat);
+      if (!beensized && curr_obj.dimension(1)>0) {
+        objective = Kokkos::View<AD*,AssemblyDevice>("objective", curr_obj.dimension(1));
+        beensized = true;
+      }
+      for (int c=0; c<cells[usernum][e]->numElem; c++) {
+        for (size_t i=0; i<curr_obj.dimension(1); i++) {
+          objective(i) += curr_obj(c,i);
         }
       }
-      
-    //}
-    //else if (response_type == "pointwise") {
-      /*
-       vector<AD> vobj;
-       for (size_t e=0; e<cells[usernum].size(); e++) {
-       FCAD curr_obj = cells[usernum][e]->computeObjective(time, tindex, seedwhat);
-       // do t = 0 to get size of sensors
-       for (size_t i=0; i<curr_obj.dimension(0); i++)
-       vobj.push_back(curr_obj(i));
-       }
-       int numSensors = vobj.size();
-       FCAD cobj(numSensors);
-       for (size_t j=0; j < numSensors; j++)
-       cobj(j) = vobj[j]; // convert from vector to FC
-       
-       objective = cobj;
-       */
-      /*
-       for (size_t tt=0; tt<solvet.size(); tt++) {
-       FCAD cobj(numSensors);
-       int sensIndex = 0;
-       for (size_t e=0; e<cells[usernum].size(); e++) {
-       curr_obj = cells[usernum][e]->computeObjective(soln[usernum][tindex].second, Psol[0],
-       solvet, seedwhat);
-       for (size_t i=0; i<curr_obj[tt].dimension(0); i++) {
-       cobj(sensIndex) = curr_obj[tt](i);
-       sensIndex++;
-       }
-       }
-       objective.push_back(cobj);
-       }*/
-    //}
-    
+    }
     return objective;
   }
   
@@ -2196,7 +1862,6 @@ public:
   void writeSolution(const string & filename, const int & usernum) {
     
     
-    //vector<FC> average_cell_fields;
     bool isTD = false;
     if (soln[usernum].size() > 1) {
       isTD = true;
@@ -2234,9 +1899,7 @@ public:
     for (size_t j=0; j<subextracellfields.size(); j++) {
       submesh->addCellField(subextracellfields[j], subeBlocks[0]);
     }
-    //if (cells[usernum][0]->have_cell_phi || cells[usernum][0]->have_cell_rotation) {
-      submesh->addCellField("mesh_data_seed", subeBlocks[0]);
-    //}
+    submesh->addCellField("mesh_data_seed", subeBlocks[0]);
     
     if (discparamnames.size() > 0) {
       for (size_t n=0; n<discparamnames.size(); n++) {
@@ -2256,15 +1919,12 @@ public:
     // Add fields to mesh
     //////////////////////////////////////////////////////////////
     
-    
-    if(isTD)
+    if(isTD) {
       submesh->setupExodusFile(filename);
-    
+    }
     int numSteps = soln[usernum].size();
     
     for (int m=0; m<numSteps; m++) {
-      
-      //for (size_t b=0; b<cells.size(); b++) {
       
       vector<size_t> myElements;
       size_t eprog = 0;
@@ -2279,7 +1939,6 @@ public:
       // Collect the subgrid solution
       for (int n = 0; n<varlist.size(); n++) { // change to subgrid numVars
         size_t numsb = cells[usernum][0]->index[0][n].size();
-        //Kokkos::View<double**,HostDevice> soln_computed("soln",cells[usernum][0]->numElem, numsb); // TMW temp. fix
         Kokkos::View<double**,HostDevice> soln_computed("soln",cells[usernum].size(), numsb); // TMW temp. fix
         string var = varlist[n];
         for( size_t e=0; e<cells[usernum].size(); e++ ) {
@@ -2463,7 +2122,6 @@ public:
   void writeSolution(const string & filename) {
     
     
-    //vector<FC> average_cell_fields;
     bool isTD = false;
     if (soln[0].size() > 1) {
       isTD = true;
@@ -2782,8 +2440,6 @@ public:
     // Compute the mass matrix on a reference element
     matrix_RCP mass = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *overlapped_map, -1) );
     matrix_RCP glmass = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *owned_map, -1) );
-    //Epetra_CrsMatrix glmass(Copy, *owned_map, -1); // reset Jacobian
-    
     int usernum = 0;
     for (size_t e=0; e<cells[usernum].size(); e++) {
       int numElem = cells[usernum][e]->numElem;
@@ -2830,7 +2486,7 @@ public:
       for (size_t c=0; c<numElem; c++) {
         for (size_t i=0; i<ip.dimension(1); i++) {
           for (size_t j=0; j<ip.dimension(2); j++) {
-            refip(0,prog,j) = ip(c,i,j);//sref_ip_tmp(0,i,j);
+            refip(0,prog,j) = ip(c,i,j);
           }
           prog++;
         }
@@ -2908,7 +2564,6 @@ public:
     }
     
     vector<DRV> ptsBasis;
-    //vector<vector<vector<double> > > ptsBasis;
     for (size_t i=0; i<numpts; i++) {
       vector<DRV> currBasis;
       DRV refpt_buffer("refpt_buffer",1,1,dimpts);
@@ -2929,23 +2584,15 @@ public:
       
       Kokkos::View<int**,AssemblyDevice> offsets = wkset[0]->offsets;
       vector<int> usebasis = wkset[0]->usebasis;
-      //FC basisvals(numGIDs);
       DRV basisvals("basisvals",offsets.dimension(0),numGIDs);
-      //vector<vector<double> > basisvals;
       for (size_t n=0; n<offsets.dimension(0); n++) {
         DRV bvals = DiscTools::evaluateBasis(basis_pointers[usebasis[n]], refpt);
-        //basisvals.push_back(vector<double>(offsets[n].size()));
         for (size_t m=0; m<offsets.dimension(1); m++) {
-          //basisvals(offsets[n][m]) = bvals(0,m,0);
-          //basisvals[n][m] = bvals(0,m,0);
           basisvals(n,offsets(n,m)) = bvals(0,m,0);
         }
       }
       ptsBasis.push_back(basisvals);
     }
-    
-    //pair<FCint, vector<vector<vector<double> > > > basisinfo(owners, ptsBasis);
-    
     pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > basisinfo(owners, ptsBasis);
     return basisinfo;
     
@@ -2953,6 +2600,7 @@ public:
   
   ////////////////////////////////////////////////////////////////////////////////
   // Evaluate the basis functions at a set of points
+  // TMW: what is this function for???
   ////////////////////////////////////////////////////////////////////////////////
   
   pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > evaluateBasis(const DRV & pts) {
@@ -3025,13 +2673,8 @@ public:
   }
   
   ////////////////////////////////////////////////////////////////////////////////
-  // Get an empty vector
+  // Get the subgrid cell GIDs
   ////////////////////////////////////////////////////////////////////////////////
-  
-  //Epetra_MultiVector getVector() {
-  //  Epetra_MultiVector newvec(*(owned_map),1);
-  //  return newvec;
-  //}
   
   vector<vector<int> > getCellGIDs(const int & cellnum) {
     return cells[0][cellnum]->GIDs;
@@ -3051,7 +2694,7 @@ public:
   }
   
   ////////////////////////////////////////////////////////////////////////////////
-  // Update the subgrid parameters (will be depracated)
+  // TMW: Is the following functions used/required ???
   ////////////////////////////////////////////////////////////////////////////////
   
   Kokkos::View<double**,AssemblyDevice> getCellFields(const int & usernum, const double & time) {
@@ -3174,7 +2817,6 @@ public:
   vector<string> stochclassic_param_names;
   
   Epetra_LinearProblem LinSys;
-  //vector<vector<AD> > u_AD, u_dot_AD, param_AD, lambda_AD;
   
   double sub_NLtol, lintol;
   int sub_maxNLiter, liniter;
@@ -3196,7 +2838,6 @@ public:
   Teuchos::RCP<FunctionInterface> functionManager;
   
   vector<vector_RCP> Psol;
-  //vector<double> solvetimes; // for convenience
   
   // Dynamic - depend on the macro-element
   vector<DRV> macronodes;
@@ -3208,10 +2849,7 @@ public:
   // Collection of users
   vector<vector<Teuchos::RCP<cell> > > cells;
   
-  //FC local_res, local_resp, local_J, local_Ja, local_Jdot, local_Jdota;
-  
   bool have_mesh_data, have_rotations, have_rotation_phi, compute_mesh_data;
-  //Teuchos::RCP<data> mesh_data;
   bool have_multiple_data_files;
   string mesh_data_tag, mesh_data_pts_tag;
   int number_mesh_data_files, numSeeds;
