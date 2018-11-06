@@ -200,9 +200,10 @@ void analysis::run() {
     // Generate the samples for the UQ
     int numstochparams = param_types.size();
     int numsamples = uqsettings.get<int>("Samples",100);
+    int maxsamples = uqsettings.get<int>("Max samples",numsamples); // needed for generating subsets of samples
     int seed = uqsettings.get<int>("Seed",1234);
-    Kokkos::View<double**,HostDevice> samplepts = uq.generateSamples(numsamples, seed);
-    Kokkos::View<int*,HostDevice> sampleints = uq.generateIntegerSamples(numsamples, seed);
+    Kokkos::View<double**,HostDevice> samplepts = uq.generateSamples(maxsamples, seed);
+    Kokkos::View<int*,HostDevice> sampleints = uq.generateIntegerSamples(maxsamples, seed);
     bool regenerate_meshdata = uqsettings.get<bool>("Regenerate mesh data",false);
     // Evaluate MILO or a surrogate at these samples
     vector<Kokkos::View<double***,HostDevice> > response_values;
