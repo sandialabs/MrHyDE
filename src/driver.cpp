@@ -191,7 +191,7 @@ int main(int argc,char * argv[]) {
     solve->finalizeMultiscale();
     solve->setupSensors(settings); // moved here so subcells can have sensors
     
-    if (verbosity >= 20) {
+    if (verbosity >= 20 && Comm.MyPID() == 0) {
       functionManager->printFunctions();
     }
     
