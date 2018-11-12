@@ -2051,7 +2051,19 @@ void cell::updateData() {
   }
   else if (have_cell_rotation) {
     wkset->have_rotation = true;
-    Kokkos::View<double***,AssemblyDevice> rotmat("rotation matrix",numElem,3,3);
+    //Kokkos::View<double***,AssemblyDevice> rotmat("rotation matrix",numElem,3,3);
+    for (int e=0; e<numElem; e++) {
+      wkset->rotation(e,0,0) = cell_data(e,0);
+      wkset->rotation(e,0,1) = cell_data(e,1);
+      wkset->rotation(e,0,2) = cell_data(e,2);
+      wkset->rotation(e,1,0) = cell_data(e,3);
+      wkset->rotation(e,1,1) = cell_data(e,4);
+      wkset->rotation(e,1,2) = cell_data(e,5);
+      wkset->rotation(e,2,0) = cell_data(e,6);
+      wkset->rotation(e,2,1) = cell_data(e,7);
+      wkset->rotation(e,2,2) = cell_data(e,8);
+    }
+    /*
     for (int e=0; e<numElem; e++) {
       rotmat(e,0,0) = cell_data(e,0);
       rotmat(e,0,1) = cell_data(e,1);
@@ -2062,7 +2074,7 @@ void cell::updateData() {
       rotmat(e,2,0) = cell_data(e,6);
       rotmat(e,2,1) = cell_data(e,7);
       rotmat(e,2,2) = cell_data(e,8);
-    }
-    wkset->rotation = rotmat;
+    }*/
+    //wkset->rotation = rotmat;
   }
 }
