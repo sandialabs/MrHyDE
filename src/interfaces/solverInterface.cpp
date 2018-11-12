@@ -1344,6 +1344,7 @@ void solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     if(Comm->MyPID() == 0 && verbosity > 1) {
       cout << endl << "*********************************************************" << endl;
       cout << "***** Iteration: " << NLiter << endl;
+      cout << "***** Norm of nonlinear residual: " << NLerr << endl;
       cout << "***** Scaled Norm of nonlinear residual: " << NLerr_scaled << endl;
       cout << "*********************************************************" << endl;
     }
@@ -2455,6 +2456,8 @@ void solver::computeJacRes(vector_RCP & u, vector_RCP & u_dot,
         
       }
       
+      //KokkosTools::print(local_J);
+      //KokkosTools::print(local_res);
       /*
       if (isTransient && useadjoint && !cells[0][0]->multiscale) {
         if (gNLiter == 0)
@@ -2786,6 +2789,7 @@ void solver::updateParams(const vector<double> & newparams, const std::string & 
 // ========================================================================================
 
 void solver::updateMeshData(const int & newrandseed) {
+  
   // Determine how many seeds there are
   int localnumSeeds = 0;
   int numSeeds = 0;
@@ -2800,6 +2804,8 @@ void solver::updateMeshData(const int & newrandseed) {
   }
   Comm->MaxAll(&localnumSeeds, &numSeeds, 1);
   
+  numSeeds += 1; //To properly allocate and iterate
+  
   // Create a random number generator
   std::default_random_engine generator(newrandseed);
   
@@ -2808,6 +2814,8 @@ void solver::updateMeshData(const int & newrandseed) {
   ////////////////////////////////////////////////////////////////////////////////
   
   int numdata = 9;
+  
+  //cout << "solver numSeeds = " << numSeeds << endl;
   
   std::normal_distribution<double> ndistribution(0.0,1.0);
   Kokkos::View<double**,HostDevice> rotation_data("cell_data",numSeeds,numdata);
@@ -2836,7 +2844,7 @@ void solver::updateMeshData(const int & newrandseed) {
     rotation_data(k,8) = w*w - x*x - y*y + z*z;
     
   }
-
+  
   ////////////////////////////////////////////////////////////////////////////////
   // Set cell data
   ////////////////////////////////////////////////////////////////////////////////
@@ -2857,7 +2865,7 @@ void solver::updateMeshData(const int & newrandseed) {
   // Update subgrid elements
   ////////////////////////////////////////////////////////////////////////////////
   
-  multiscale_manager->updateMeshData(rotation_data);
+  //multiscale_manager->updateMeshData(rotation_data);
   
 }
 
