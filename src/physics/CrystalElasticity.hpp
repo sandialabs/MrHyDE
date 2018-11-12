@@ -144,6 +144,7 @@ public:
         mu = E/(2.0*(1.0+nu));
       }
     }
+    
     double c11 = 2.0*mu+lambda;
     double c12 = lambda;
     double c44 = 2.0*mu;
@@ -257,8 +258,9 @@ public:
       have_energy = true;
     
     int numip = wkset->numip;
-    if (onside)
+    if (onside) {
       numip = wkset->numsideip;
+    }
     
     this->computeRotation(wkset);
     
@@ -384,22 +386,24 @@ public:
         }
       }
       else {
+        
         rl(0,0) = 1.0;
         rl(1,1) = 1.0;
         rl(2,2) = 1.0;
       }
       
+      
       // Form rotate elasticity tensor
-      for ( int i = 0; i < dimension; ++i ){
-        for ( int j = 0; j < dimension; ++j ){
-          for ( int k = 0; k < dimension; ++k ){
-            for ( int l = 0; l < dimension; ++l ){
+      for ( int i = 0; i < dimension; i++ ){
+        for ( int j = 0; j < dimension; j++ ){
+          for ( int k = 0; k < dimension; k++ ){
+            for ( int l = 0; l < dimension; l++ ){
               Cr(e,i,j,k,l) = 0.0;
-              for ( int i1 = 0; i1 < dimension; ++i1 ){
-                for ( int j1 = 0; j1 < dimension; ++j1 ){
-                  for ( int k1 = 0; k1 < dimension; ++k1 ){
-                    for ( int l1 = 0; l1 < dimension; ++l1 ){
-                      Cr(e,i,j,k,l) = Cr(e,i,j,k,l) + rl(i,i1)*rl(j,j1)*rl(k,k1)*rl(l,l1)*C(e,i1,j1,k1,l1);
+              for ( int i1 = 0; i1 < dimension; i1++ ){
+                for ( int j1 = 0; j1 < dimension; j1++ ){
+                  for ( int k1 = 0; k1 < dimension; k1++ ){
+                    for ( int l1 = 0; l1 < dimension; l1++ ){
+                      Cr(e,i,j,k,l) += rl(i,i1)*rl(j,j1)*rl(k,k1)*rl(l,l1)*C(e,i1,j1,k1,l1);
                     }
                   }
                 }
@@ -409,6 +413,7 @@ public:
         }
       }
     }
+    
   }
   
   // Public Data
