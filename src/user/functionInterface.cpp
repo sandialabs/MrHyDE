@@ -15,19 +15,14 @@
 FunctionInterface::FunctionInterface() {
   known_vars = {"x","y","z","t","nx","ny","nz","pi","h"};
   known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean"};
+  verbosity = 0;
 }
 
 
 FunctionInterface::FunctionInterface(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   known_vars = {"x","y","z","t","nx","ny","nz","pi","h"};
   known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean"};
-  
-  // Extra fields
-  
-  
-  // Extra cell fields
-  
-  
+  verbosity = settings->get<int>("verbosity",0);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -487,11 +482,11 @@ void FunctionInterface::decomposeFunctions() {
               if (functions[b][fiter].terms[k].expression == functions[b][j].function_name &&
                   functions[b][fiter].location == functions[b][j].location) {
                 functions[b][fiter].terms[k].isFunc = true;
-                functions[b][fiter].terms[k].isAD = functions[b][j].terms[0].isAD;
+                functions[b][fiter].terms[k].isAD = true;//functions[b][j].terms[0].isAD;
                 functions[b][fiter].terms[k].funcIndex = j;
                 functions[b][fiter].terms[k].beenDecomposed = true;
                 functions[b][fiter].terms[k].data = functions[b][j].terms[0].data;
-                functions[b][fiter].terms[k].ddata = functions[b][j].terms[0].ddata;
+                //functions[b][fiter].terms[k].ddata = functions[b][j].terms[0].ddata;
                 decompose = false;
               }
             }
@@ -526,7 +521,7 @@ void FunctionInterface::decomposeFunctions() {
       for (size_t j=0; j<functions[b][k].terms.size(); j++) {
         bool termcheck = isScalarTerm(b,k,j); // is this term a ScalarT
         if (termcheck) {
-          functions[b][k].terms[j].isAD = false;
+          //functions[b][k].terms[j].isAD = false;
           if (!functions[b][k].terms[j].isRoot) {
             Kokkos::View<double***,AssemblyDevice> tdata("data",functions[b][k].dim0,functions[b][k].dim1,1);
             functions[b][k].terms[j].ddata = Kokkos::subview(tdata, Kokkos::ALL(), Kokkos::ALL(), 0);
@@ -558,6 +553,9 @@ bool FunctionInterface::isScalarTerm(const size_t & block, const int & findex, c
       is_scalar = false;
     }
   }
+  else if (functions[block][findex].terms[tindex].isFunc) {
+    is_scalar = false;
+  }
   else {
     for (size_t k=0; k<functions[block][findex].terms[tindex].dep_list.size(); k++){
       bool depcheck = isScalarTerm(block, findex, functions[block][findex].terms[tindex].dep_list[k]);
@@ -577,6 +575,11 @@ FDATA FunctionInterface::evaluate(const string & fname, const string & location,
                                   const size_t & block) {
   Teuchos::TimeMonitor ttimer(*evaluateTimer);
   
+  if (verbosity > 10) {
+    cout << endl;
+    cout << "Evaluating: " << fname << " at " << location << endl;
+  }
+  
   int findex = -1;
   for (size_t i=0; i<functions[block].size(); i++) {
     if (fname == functions[block][i].function_name && functions[block][i].location == location) {
@@ -585,9 +588,14 @@ FDATA FunctionInterface::evaluate(const string & fname, const string & location,
     }
   }
   
+  if (verbosity > 10) {
+    cout << "Finished evaluating: " << fname << " at " << location << endl;
+  }
+  
   if (findex == -1) { // meaning that the requested function was not registered at this location
     TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: function manager could not evaluate: " + fname + " at " + location);
   }
+  
   
   if (!functions[block][findex].terms[0].isAD) {
     parallel_for(RangePolicy<AssemblyDevice>(0,functions[block][findex].dim0), KOKKOS_LAMBDA (const int e ) {
@@ -605,6 +613,10 @@ FDATA FunctionInterface::evaluate(const string & fname, const string & location,
 //////////////////////////////////////////////////////////////////////////////////////
 
 void FunctionInterface::evaluate(const size_t & block, const size_t & findex, const size_t & tindex) {
+  
+  if (verbosity > 10) {
+    cout << "------- Evaluating: " << functions[block][findex].terms[tindex].expression << endl;
+  }
   
   //functions[block][findex].terms[tindex].print();
   

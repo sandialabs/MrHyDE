@@ -94,6 +94,7 @@ class FunctionInterface {
   //////////////////////////////////////////////////////////////////////////////////////
 
   size_t numBlocks;
+  int verbosity;
   vector<vector<function_class> > functions;
   vector<string> known_vars, known_ops, variables, parameters, disc_parameters;
   Teuchos::RCP<workset> wkset;
