@@ -796,56 +796,6 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-/*
-vector<topo_RCP> meshInterface::getCellTopo() {
-  vector<topo_RCP> cellTopo;
-  vector<string> eBlocks;
-  mesh->getElementBlockNames(eBlocks);
-  for (size_t b=0; b<eBlocks.size(); b++) {
-    cellTopo.push_back(mesh->getCellTopology(eBlocks[b]));
-  }
-  return cellTopo;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-vector<topo_RCP> meshInterface::getSideTopo() {
-  vector<topo_RCP> sideTopo;
-  vector<string> eBlocks;
-  mesh->getElementBlockNames(eBlocks);
-  
-  for (size_t b=0; b<eBlocks.size(); b++) {
-    topo_RCP cellTopo = mesh->getCellTopology(eBlocks[b]);
-    string shape = cellTopo->getName();
-    if (spaceDim == 1) {
-      // nothing to do here?
-    }
-    if (spaceDim == 2) {
-      if (shape == "Quadrilateral_4") {
-        sideTopo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() )));
-      }
-      if (shape == "Triangle_3") {
-        sideTopo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() )));
-      }
-    }
-    if (spaceDim == 3) {
-      if (shape == "Hexahedron_8") {
-        sideTopo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() )));
-      }
-      if (shape == "Tetrahedron_4") {
-        sideTopo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Triangle<> >() )));
-      }
-    }
-    
-  }
-  return sideTopo;
-}
-*/
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
 DRV meshInterface::getElemNodes(const int & block, const int & elemID) {
   vector<size_t> localIds;
   DRV blocknodes;
