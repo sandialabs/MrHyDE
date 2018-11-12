@@ -97,6 +97,7 @@ class workset {
     
     have_rotation = false;
     have_rotation_phi = false;
+    rotation = Kokkos::View<double***,AssemblyDevice>("rotation matrix",numElem,3,3);
     
     // Local solution with grad, div, curl
     local_soln = Kokkos::View<AD****, AssemblyDevice>("local_soln",numElem, numVars, numip, dimension);
