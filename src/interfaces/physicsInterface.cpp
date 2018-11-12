@@ -706,26 +706,28 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
   
   Kokkos::View<AD***,AssemblyDevice> responsetotal("responses",numElem,numResponses,numip);
   
-  for (size_t r=0; r<numResponses; r++) {
-    for (size_t e=0; e<numElem; e++) {
-      for (size_t k=0; k<numip; k++) {
-        // update wkset->point_KV and point solutions
+  for (size_t e=0; e<numElem; e++) {
+    for (size_t k=0; k<numip; k++) {
+      
+      // update wkset->point_KV and point solutions
+      for (size_t s=0; s<spaceDim; s++) {
+        wkset->point_KV(0,0,s) = ip(e,k,s);
+      }
+      for (size_t v=0; v<u_ip.dimension(1); v++) {
+        wkset->local_soln_point(0,v,0,0) = u_ip(e,v,k,0);
         for (size_t s=0; s<spaceDim; s++) {
-          wkset->point_KV(0,0,s) = ip(e,k,s);
+          wkset->local_soln_grad_point(0,v,0,s) = ugrad_ip(e,v,k,s);
         }
-        for (size_t v=0; v<u_ip.dimension(1); v++) {
-          wkset->local_soln_point(0,v,0,0) = u_ip(e,v,k,0);
-          for (size_t s=0; s<spaceDim; s++) {
-            wkset->local_soln_grad_point(0,v,0,s) = ugrad_ip(e,v,k,s);
-          }
+      }
+      
+      for (size_t v=0; v<p_ip.dimension(1); v++) {
+        wkset->local_param_point(0,v,0,0) = p_ip(e,v,k,0);
+        for (size_t s=0; s<spaceDim; s++) {
+          wkset->local_param_grad_point(0,v,0,s) = pgrad_ip(e,v,k,s);
         }
-        
-        for (size_t v=0; v<p_ip.dimension(1); v++) {
-          wkset->local_param_point(0,v,0,0) = p_ip(e,v,k,0);
-          for (size_t s=0; s<spaceDim; s++) {
-            wkset->local_param_grad_point(0,v,0,s) = pgrad_ip(e,v,k,s);
-          }
-        }
+      }
+      
+      for (size_t r=0; r<numResponses; r++) {
         
         // evaluate the response
         FDATA rdata = functionManager->evaluate(response_list[block][r],"point",block);
@@ -734,6 +736,7 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
       }
     }
   }
+  
   return responsetotal;
 }
 
