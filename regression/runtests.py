@@ -292,8 +292,10 @@ class xml_document:
     self.root.setAttribute("time", str(time.time() - self.totalstarttime))
     xmlString = self.doc.toprettyxml()
     os.chdir(self.execDir)
-    #f = open('TEST-%s.xml' % (self.opts.package), 'w')
-    #f.write(xmlString)
+    # The next two lines handle writing of the TEST-<filename>.xml file
+    # don't comment these out because it will break the nightly regression.
+    f = open('TEST-%s.xml' % (self.opts.package), 'w')
+    f.write(xmlString)
 
   def testOutput(self,test,runtime):
     # Add results to XML
