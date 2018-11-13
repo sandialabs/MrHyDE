@@ -1,4 +1,9 @@
 #!/usr/bin/env groovy
+//
+// This pipeline driver script drives the additional tests using the
+// Jenkins Pipeline plugin + the SPiFI library.
+//
+//
 
 // Load the SPiFI library
 @Library('SPiFI') _
