@@ -210,12 +210,14 @@ fi
 ln -s ${milo_exe_path:?}/${milo_exe:?}
 
 # Run the milo tests
+set -x
 ./runtests.py \
       -s \
       -p Results \
       2>&1 | tee ${WORKSPACE}/TESTING/runtests.out
 # -d ${regression_path} 
 err=$?
+set +x
 
 # copy results to the right place(s).
 mv TEST-Results.xml ${WORKSPACE}/TESTING/.
