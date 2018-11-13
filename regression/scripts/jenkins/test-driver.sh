@@ -25,6 +25,7 @@ module load sems-cmake/3.10.3
 
 # Reset dir to known path.
 cd ${WORKSPACE:?}
+echo -e "pwd: `pwd`"
 
 # Set build directories
 trilinos_build_opt_path=${WORKSPACE}/trilinos/build-opt
@@ -61,18 +62,23 @@ fi
 
 cp ${WORKSPACE}/milo/regression/scripts/jenkins/config-trilinos.sh ${trilinos_build_opt_path}/.
 
-cd ${WORKSPACE}
+cd ${WORKSPACE:?}
+echo -e "pwd: `pwd`"
 
 echo "========================================"
 echo "= Configure Trilinos"
 echo "========================================"
-cd ${trilinos_build_opt_path}
+cd ${trilinos_build_opt_path:?}
+echo -e "pwd: `pwd`"
+
 ./config-trilinos.sh
 err=$?
 if [ ! $err -eq 0 ]; then
     exit $err
 fi
+
 cd -
+echo -e "pwd: `pwd`"
 echo "---------------------------"
 echo "- Done Configure Trilinos -"
 echo "---------------------------"
@@ -82,12 +88,15 @@ echo "========================================"
 echo "= Build Trilinos"
 echo "========================================"
 cd ${trilinos_build_opt_path}
+echo -e "pwd: `pwd`"
+
 make -j ${PARAM_NUM_CORES}
 err=$?
 if [ ! $err -eq 0 ]; then
     exit $err
 fi
 cd -
+echo -e "pwd: `pwd`"
 echo "-----------------------"
 echo "- Done Build Trilinos -"
 echo "-----------------------"
@@ -97,12 +106,14 @@ echo "========================================"
 echo "= Install Trilinos"
 echo "========================================"
 cd ${trilinos_build_opt_path}
+echo -e "pwd: `pwd`"
 make install
 err=$?
 if [ ! $err -eq 0 ]; then
     exit $err
 fi
 cd -
+echo -e "pwd: `pwd`"
 echo "-------------------------"
 echo "- Done Install Trilinos -"
 echo "-------------------------"
@@ -129,12 +140,14 @@ echo "========================================"
 echo "= Configure Milo"
 echo "========================================"
 cd ${milo_build_opt_path}
+echo -e "pwd: `pwd`"
 ./config-milo.sh
 err=$?
 if [ ! $err -eq 0 ]; then
     exit $err
 fi
 cd -
+echo -e "pwd: `pwd`"
 echo "-----------------------"
 echo "- Done Configure Milo -"
 echo "-----------------------"
@@ -144,12 +157,14 @@ echo "========================================"
 echo "= Build Milo"
 echo "========================================"
 cd ${milo_build_opt_path}
+echo -e "pwd: `pwd`"
 make -j ${PARAM_NUM_CORES}
 err=$?
 if [ ! $err -eq 0 ]; then
     exit $err
 fi
 cd -
+echo -e "pwd: `pwd`"
 echo "-------------------"
 echo "- Done Build Milo -"
 echo "-------------------"
@@ -169,7 +184,8 @@ if [ -d ${WORKSPACE}/TESTING ]; then
 fi
 mkdir -p ${WORKSPACE}/TESTING
 
-cd ${regression_path}
+cd ${regression_path:?}
+echo -e "pwd: `pwd`"
 
 # Reset the runtests.py link
 if [ -L runtests.py ]; then
@@ -207,7 +223,8 @@ if [ ! $err -eq 0 ]; then
 fi
 
 # Reset back to workspace root
-cd ${WORKSPACE}
+cd ${WORKSPACE:?}
+echo -e "pwd: `pwd`"
 
 echo "-------------------"
 echo "- Done Test Milo  -"
