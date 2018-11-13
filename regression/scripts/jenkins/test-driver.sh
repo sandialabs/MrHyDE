@@ -158,6 +158,10 @@ echo "-------------------"
 echo "========================================"
 echo "= Test Milo"
 echo "========================================"
+# Expected milo executable and path location
+milo_exe=milo
+milo_exe_path=${WORKSPACE}/milo/build-opt/src/
+
 regression_path=${WORKSPACE}/milo/regression
 
 if [ -d ${WORKSPACE}/TESTING ]; then
@@ -167,16 +171,26 @@ mkdir -p ${WORKSPACE}/TESTING
 
 cd ${regression_path}
 
+# Reset the runtests.py link
 if [ -L runtests.py ]; then
     rm runtests.py
 fi
 ln -s ${regression_path}/scripts/runtests.py runtests.py
 
-if [ -L milo-ms ]; then
-    rm milo-ms
+# Verify that the milo executable is there.
+if [ ! -e ${milo_exe_path:?}/${milo_exe:?} ]; then
+    echo -e "ERROR: MILO executable not found."
+    echo -e "       Expected: ${milo_exe_path:?}/${milo_exe:?}"
+    exit 16
 fi
-ln -s ${WORKSPACE}/milo/build-opt/src/milo-ms milo-ms
 
+# Reset the symlink to the milo executable 
+if [ -L ${milo_exe:?} ]; then
+    rm ${milo_exe:?}
+fi
+ln -s ${milo_exe_path:?}/${milo_exe:?}
+
+# Run the milo tests
 ./runtests.py \
       -s \
       -p Results \
@@ -184,6 +198,7 @@ ln -s ${WORKSPACE}/milo/build-opt/src/milo-ms milo-ms
 # -d ${regression_path} 
 err=$?
 
+# copy results to the right place(s).
 mv TEST-Results.xml ${WORKSPACE}/TESTING/.
 
 tr -d '\b\r' < ${WORKSPACE}/TESTING/runtests.out > ${WORKSPACE}/TESTING/runtests-opt.out
