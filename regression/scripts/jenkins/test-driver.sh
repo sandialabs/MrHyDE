@@ -66,13 +66,13 @@ cd ${WORKSPACE}
 echo "========================================"
 echo "= Configure Trilinos"
 echo "========================================"
-pushd ${trilinos_build_opt_path}
+cd ${trilinos_build_opt_path}
 ./config-trilinos.sh
 err=$?
 if [ ! $err -eq 0 ]; then
     exit $err
 fi
-popd
+cd -
 echo "---------------------------"
 echo "- Done Configure Trilinos -"
 echo "---------------------------"
@@ -81,13 +81,13 @@ echo "---------------------------"
 echo "========================================"
 echo "= Build Trilinos"
 echo "========================================"
-pushd ${trilinos_build_opt_path}
+cd ${trilinos_build_opt_path}
 make -j ${PARAM_NUM_CORES}
 err=$?
 if [ ! $err -eq 0 ]; then
     exit $err
 fi
-popd
+cd -
 echo "-----------------------"
 echo "- Done Build Trilinos -"
 echo "-----------------------"
@@ -96,13 +96,13 @@ echo "-----------------------"
 echo "========================================"
 echo "= Install Trilinos"
 echo "========================================"
-pushd ${trilinos_build_opt_path}
+cd ${trilinos_build_opt_path}
 make install
 err=$?
 if [ ! $err -eq 0 ]; then
     exit $err
 fi
-popd
+cd -
 echo "-------------------------"
 echo "- Done Install Trilinos -"
 echo "-------------------------"
@@ -128,13 +128,13 @@ cp ${WORKSPACE}/milo/regression/scripts/jenkins/config-milo.sh ${milo_build_opt_
 echo "========================================"
 echo "= Configure Milo"
 echo "========================================"
-pushd ${milo_build_opt_path}
+cd ${milo_build_opt_path}
 ./config-milo.sh
 err=$?
 if [ ! $err -eq 0 ]; then
     exit $err
 fi
-popd
+cd -
 echo "-----------------------"
 echo "- Done Configure Milo -"
 echo "-----------------------"
@@ -143,13 +143,13 @@ echo "-----------------------"
 echo "========================================"
 echo "= Build Milo"
 echo "========================================"
-pushd ${milo_build_opt_path}
+cd ${milo_build_opt_path}
 make -j ${PARAM_NUM_CORES}
 err=$?
 if [ ! $err -eq 0 ]; then
     exit $err
 fi
-popd
+cd -
 echo "-------------------"
 echo "- Done Build Milo -"
 echo "-------------------"
