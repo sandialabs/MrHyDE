@@ -101,7 +101,11 @@ node("RHEL6")
                 def launcher = new gov.sandia.sems.spifi.ParallelJobLauncher(this)
  
                 // Add some jobs to run
-                launcher.appendJob(label: "B&T-RHEL6", job_name: "milo_test_RHEL6_gcc6-1-0_omp1-10-0_boost1-63-0")
+                launcher.appendJob(label: "B&T-RHEL6", 
+                                   job_name: "milo_test_RHEL6_gcc6-1-0_omp1-10-0_boost1-63-0",
+                                   dry_run: do_dry_run,
+                                   dry_run_status: "SUCCESS",
+                                   dry_run_delay: 20)
             
                 // rhel7 is not stable -- there just aren't enough available build slaves to run this reliably.
                 //launcher.appendJob(label: "B&T-RHEL7", job_name: "milo_test_RHEL7_gcc6-1-0_omp1-10-0_boost1-63-0")
