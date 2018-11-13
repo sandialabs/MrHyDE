@@ -188,10 +188,13 @@ cd ${regression_path:?}
 echo -e "pwd: `pwd`"
 
 # Reset the runtests.py link
-if [ -L runtests.py ]; then
-    rm runtests.py
-fi
-ln -s ${regression_path}/scripts/runtests.py runtests.py
+# WARNING: The symlink thing may be no longer needed, but 
+#          there are two runtest.py files that are virtually
+#          identical in regression and regression/scripts
+#if [ -L runtests.py ]; then
+#    rm runtests.py
+#fi
+#ln -s ${regression_path}/scripts/runtests.py runtests.py
 
 # Verify that the milo executable is there.
 if [ ! -e ${milo_exe_path:?}/${milo_exe:?} ]; then
