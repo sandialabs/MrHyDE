@@ -114,12 +114,12 @@ class Test:
       hostname = hostname.rstrip('1234567890')
 
       if not os.path.exists(self.fullpath):
-        print '%s does not exist!' %(self.fullpath)
+        print('%s does not exist!') %(self.fullpath)
         self.status = 1
         self.statusStr = '!exist'
         self.skipped = 1
       elif not os.access(self.fullpath, os.X_OK):
-        print '%s not executable!' %(self.fullpath)
+        print('%s not executable!') %(self.fullpath)
         self.status = 1
         self.statusStr = '!exec'
         self.skipped = 1
@@ -245,7 +245,7 @@ class Test:
   def matchProcessorRange(self,inputRange):
     if inputRange == []: return
     if len(inputRange) != 2:
-      print 'Length of processor range should be 2: '
+      print('Length of processor range should be 2: ')
       print inputRange
       sys.exit(1)
     inRange = False
@@ -292,6 +292,8 @@ class xml_document:
     self.root.setAttribute("time", str(time.time() - self.totalstarttime))
     xmlString = self.doc.toprettyxml()
     os.chdir(self.execDir)
+    # The next two lines handle writing of the TEST-<filename>.xml file
+    # don't comment these out because it will break the nightly regression.
     f = open('TEST-%s.xml' % (self.opts.package), 'w')
     f.write(xmlString)
 
