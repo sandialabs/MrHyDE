@@ -20,38 +20,38 @@ SplitComm::SplitComm(Teuchos::RCP<Teuchos::ParameterList> & settings,
   
   string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
   bool ms_split_comm = settings->sublist("Analysis").get<bool>("multiscale split comm",false);
-  int numLA = Comm.NumProc();
+  int numLA = Comm.getSize();
   int numGroups = 1;
   int procsPerGroup = numLA;
   if (analysis_type == "SOL"){
     numLA = settings->sublist("Analysis").get<int>("Number of LA processors",numLA);
-    numGroups = Comm.NumProc()/numLA;
-    if (Comm.NumProc()%numLA != 0){
+    numGroups = Comm.getSize()/numLA;
+    if (Comm.getSize()%numLA != 0){
       cout << "\n NUMBER OF LINEAR ALGEBRA PROCESSORS NEEDS TO BE A FACTOR OF TOTAL NUMBER OF PROCESSORS..." << endl;
-      numLA = Comm.NumProc();
+      numLA = Comm.getSize();
     }
-    split_mpi_communicators(tcomm_LA, tcomm_S, Comm.MyPID(), numLA, numGroups);
+    split_mpi_communicators(tcomm_LA, tcomm_S, Comm.getRank(), numLA, numGroups);
   }
   else if (ms_split_comm) {
     numLA = settings->sublist("Analysis").get<int>("Number of macro processors",numLA);
     numGroups = numLA;
-    procsPerGroup = Comm.NumProc()/numLA;
-    if (Comm.NumProc()%numLA != 0){
+    procsPerGroup = Comm.getSize()/numLA;
+    if (Comm.getSize()%numLA != 0){
       cout << "\n NUMBER OF MACRO PROCESSORS NEEDS TO BE A FACTOR OF TOTAL NUMBER OF PROCESSORS..." << endl;
-      numLA = Comm.NumProc();
+      numLA = Comm.getSize();
       procsPerGroup = 1;
     }
     bool include_main = true;
-    this->split_mpi_communicators(Comm, tcomm_LA, tcomm_S, Comm.MyPID(), numLA, include_main);
+    this->split_mpi_communicators(Comm, tcomm_LA, tcomm_S, Comm.getRank(), numLA, include_main);
   }
   else {
-    this->split_mpi_communicators(tcomm_LA, tcomm_S, Comm.MyPID(), numLA, numGroups);
+    this->split_mpi_communicators(tcomm_LA, tcomm_S, Comm.getRank(), numLA, numGroups);
   }
-  Comm.Barrier();
+  Comm.barrier();
   if (analysis_type == "SOL"){ // TMW: Only printing this out if SOL is active
-    cout << "MPI WORLD RANK: " << Comm.MyPID()
-    << "  LINEAR ALGEBRA RANK: " << tcomm_LA->MyPID()
-    << "  SAMPLING RANK: " << tcomm_S->MyPID() << endl;
+    cout << "MPI WORLD RANK: " << Comm.getRank()
+    << "  LINEAR ALGEBRA RANK: " << tcomm_LA->getRank()
+    << "  SAMPLING RANK: " << tcomm_S->getRank() << endl;
   }
   
 }
@@ -95,7 +95,7 @@ void SplitComm::split_mpi_communicators(LA_MpiComm & Comm_orig,
   
   int procsPerGroup = 1;
   int numGroups = Nmain;
-  int numOrigProcs = Comm_orig.NumProc();
+  int numOrigProcs = Comm_orig.getSize();
   if (numOrigProcs%Nmain != 0){
     cout << "\n NUMBER OF MACRO PROCESSORS NEEDS TO BE A FACTOR OF TOTAL NUMBER OF PROCESSORS..." << endl;
     Nmain = numOrigProcs;
@@ -111,7 +111,7 @@ void SplitComm::split_mpi_communicators(LA_MpiComm & Comm_orig,
   
   // First, create main comm group
   MPI_Group world_comm;
-  MPI_Comm_group(Comm_orig.Comm(),&world_comm);
+  MPI_Comm_group(*(Comm_orig.getRawMpiComm()),&world_comm);
   MPI_Group main_group;
   
   Teuchos::Array<int> granks(Nmain);
@@ -124,7 +124,7 @@ void SplitComm::split_mpi_communicators(LA_MpiComm & Comm_orig,
   }
   MPI_Group_incl(world_comm,Nmain,&granks[0],&main_group);
   MPI_Comm main_comm;
-  MPI_Comm_create(Comm_orig.Comm(), main_group, &main_comm);
+  MPI_Comm_create(*(Comm_orig.getRawMpiComm()), main_group, &main_comm);
   Comm_main = Teuchos::rcp( new LA_MpiComm(main_comm) );
   
   cout << "got to here" << endl;

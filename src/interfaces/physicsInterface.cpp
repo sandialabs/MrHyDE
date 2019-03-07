@@ -41,7 +41,7 @@
 /* Constructor to set up the problem */
 // ========================================================================================
 
-physics::physics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<Epetra_MpiComm> & Comm_,
+physics::physics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<LA_MpiComm> & Comm_,
                  vector<topo_RCP> & cellTopo, vector<topo_RCP> & sideTopo,
                  Teuchos::RCP<FunctionInterface> & functionManager_,
                  Teuchos::RCP<panzer_stk::STK_Interface> & mesh) :
@@ -540,7 +540,7 @@ Teuchos::RCP<panzer::DOFManager<int,int> > physics::buildDOF(Teuchos::RCP<panzer
   
   Teuchos::RCP<panzer::DOFManager<int,int> > DOF = Teuchos::rcp(new panzer::DOFManager<int,int>());
   Teuchos::RCP<panzer::ConnManager<int,int> > conn = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
-  DOF->setConnManager(conn,Commptr->Comm());
+  DOF->setConnManager(conn,*(Commptr->getRawMpiComm()));
   DOF->setOrientationsRequired(true);
   
   int num;
@@ -1226,8 +1226,11 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
     
     int localsize = block_dbc_dofs.size();
     int globalsize = 0;
-    Commptr->SumAll(&localsize, &globalsize, 1);
-    int gathersize = Commptr->NumProc()*globalsize;
+    
+    //Teuchos::reduceAll<int, int>(*Commptr, Teuchos::REDUCE_SUM, localsize, Teuchos::outArg(globalsize));
+    Teuchos::reduceAll(*Commptr,Teuchos::REDUCE_SUM,1,&localsize,&globalsize);
+    //Commptr->SumAll(&localsize, &globalsize, 1);
+    int gathersize = Commptr->getSize()*globalsize;
     int *block_dbc_dofs_local = new int [globalsize];
     int *block_dbc_dofs_global = new int [gathersize];
     
@@ -1241,8 +1244,8 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
       }
     }
     
-    Commptr->GatherAll(block_dbc_dofs_local, block_dbc_dofs_global, globalsize);
-    
+    //Commptr->GatherAll(block_dbc_dofs_local, block_dbc_dofs_global, globalsize);
+    Teuchos::gatherAll(*Commptr, globalsize, &block_dbc_dofs_local[0], gathersize, &block_dbc_dofs_global[0]);
     vector<int> all_dbcs;
     
     for (int i = 0; i < gathersize; i++) {

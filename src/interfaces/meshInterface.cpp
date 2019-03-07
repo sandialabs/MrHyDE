@@ -11,7 +11,7 @@
 
 #include "meshInterface.hpp"
 
-meshInterface::meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_, const Teuchos::RCP<Epetra_MpiComm> & Commptr_) :
+meshInterface::meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_, const Teuchos::RCP<LA_MpiComm> & Commptr_) :
 settings(settings_), Commptr(Commptr_) {
   
   
@@ -101,7 +101,7 @@ settings(settings_), Commptr(Commptr_) {
     pl->set("X Elements",settings->sublist("Mesh").get("NX",20));
     pl->set("X0",settings->sublist("Mesh").get("xmin",0.0));
     pl->set("Xf",settings->sublist("Mesh").get("xmax",1.0));
-    pl->set("X Procs", settings->sublist("Mesh").get("Xprocs",Commptr->NumProc()));
+    pl->set("X Procs", settings->sublist("Mesh").get("Xprocs",Commptr->getSize()));
     if (spaceDim > 1) {
       pl->set("Y Blocks",settings->sublist("Mesh").get("Yblocks",1));
       pl->set("Y Elements",settings->sublist("Mesh").get("NY",20));
@@ -139,7 +139,8 @@ settings(settings_), Commptr(Commptr_) {
   mesh_factory->setParameterList(pl);
   
   // create the mesh
-  mesh = mesh_factory->buildUncommitedMesh(Commptr->Comm());
+  //mesh = mesh_factory->buildUncommitedMesh(Commptr->Comm());
+  mesh = mesh_factory->buildUncommitedMesh(*(Commptr->getRawMpiComm()));
   
   
   vector<string> eBlocks;
@@ -271,7 +272,8 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
     }
   }
   
-  mesh_factory->completeMeshConstruction(*mesh,Commptr->Comm());
+  //mesh_factory->completeMeshConstruction(*mesh,Commptr->Comm());
+  mesh_factory->completeMeshConstruction(*mesh,*(Commptr->getRawMpiComm()));
   
   //this->perturbMesh();
   
@@ -385,16 +387,17 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys, vector<vector<Teuc
   mesh->getElementBlockNames(eBlocks);
   
   MPI_Group world_comm; // Grab MPI_COMM_WORLD and place in world_comm
-  //MPI_Comm_group(MPI_COMM_WORLD,&world_comm);
-  MPI_Comm_group(Commptr->Comm(),&world_comm); //to work with stochastic collocation batching
+  
+  //MPI_Comm_group(Commptr->Comm(),&world_comm); //to work with stochastic collocation batching
+  MPI_Comm_group(*(Commptr->getRawMpiComm()),&world_comm); //to work with stochastic collocation batching
   MPI_Comm LocalMPIComm;
   MPI_Group group;
-  int mypid = Commptr->MyPID();
+  int mypid = Commptr->getRank();
   MPI_Group_incl(world_comm, 1, &mypid, &group);
   //MPI_Comm_create(MPI_COMM_WORLD, group, &LocalMPIComm);
-  MPI_Comm_create(Commptr->Comm(), group, &LocalMPIComm); //to work with stochastic collocation batching
-  Teuchos::RCP<Epetra_MpiComm> LocalComm;
-  LocalComm = Teuchos::rcp( new Epetra_MpiComm(LocalMPIComm) ); // Create Epetra_Comm
+  MPI_Comm_create(*(Commptr->getRawMpiComm()), group, &LocalMPIComm); //to work with stochastic collocation batching
+  Teuchos::RCP<LA_MpiComm> LocalComm;
+  LocalComm = Teuchos::rcp( new LA_MpiComm(LocalMPIComm) ); // Create Epetra_Comm
   for (size_t b=0; b<eBlocks.size(); b++) {
     vector<Teuchos::RCP<cell> > blockcells;
     vector<stk::mesh::Entity> stk_meshElems;
@@ -471,7 +474,7 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
   for (int p=0; p<number_mesh_data_files; p++) {
     
     if (verbosity>5) {
-      cout << Commptr->MyPID() << "  " << p << endl;
+      cout << Commptr->getRank() << "  " << p << endl;
     }
     
     Teuchos::RCP<data> mesh_data;
@@ -535,7 +538,7 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
   }
   
   meshimporttimer.stop();
-  if (verbosity>5 && Commptr->MyPID() == 0) {
+  if (verbosity>5 && Commptr->getRank() == 0) {
     cout << "mesh data import time: " << meshimporttimer.totalElapsedTime(false) << endl;
   }
   
@@ -787,7 +790,7 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
   }
   
   meshimporttimer.stop();
-  if (verbosity>5 && Commptr->MyPID() == 0) {
+  if (verbosity>5 && Commptr->getRank() == 0) {
     cout << "mesh data compute time: " << meshimporttimer.totalElapsedTime(false) << endl;
   }
   

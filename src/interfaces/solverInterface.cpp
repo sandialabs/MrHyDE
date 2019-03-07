@@ -140,7 +140,8 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), cells(cells_) {
   //}
   
   globalNumUnknowns = 0;
-  Comm->SumAll(&localNumUnknowns, &globalNumUnknowns, 1);
+  Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
+  //Comm->SumAll(&localNumUnknowns, &globalNumUnknowns, 1);
   
   // needed information from the disc interface
   vector<vector<int> > cards = disc->cards;
@@ -294,15 +295,20 @@ void solver::setupLinearAlgebra() {
   //bool sol_staggered = timeInt->sol_staggered;
   
   
-  LA_owned_map = Teuchos::rcp(new LA_Map(-1, (int)LA_owned.size(), &LA_owned[0], 0, *Comm));
-  LA_overlapped_map = Teuchos::rcp(new LA_Map(-1, (int)LA_ownedAndShared.size(), &LA_ownedAndShared[0], 0, *Comm));
-  
-  LA_owned_graph = Teuchos::rcp(new LA_CrsGraph(Copy, *LA_owned_map, 0));
-  LA_overlapped_graph = Teuchos::rcp(new LA_CrsGraph(Copy, *LA_overlapped_map, 0));
-  
-  exporter = Teuchos::rcp(new LA_Export(*LA_overlapped_map, *LA_owned_map));
-  importer = Teuchos::rcp(new LA_Import(*LA_overlapped_map, *LA_owned_map));
-  
+  if (USE_TPETRA) {
+    
+  }
+  else {
+    Epetra_MpiComm EP_Comm(*(Comm->getRawMpiComm()));
+    LA_owned_map = Teuchos::rcp(new LA_Map(-1, (int)LA_owned.size(), &LA_owned[0], 0, EP_Comm));
+    LA_overlapped_map = Teuchos::rcp(new LA_Map(-1, (int)LA_ownedAndShared.size(), &LA_ownedAndShared[0], 0, EP_Comm));
+    
+    LA_owned_graph = Teuchos::rcp(new LA_CrsGraph(Copy, *LA_owned_map, 0));
+    LA_overlapped_graph = Teuchos::rcp(new LA_CrsGraph(Copy, *LA_overlapped_map, 0));
+    
+    exporter = Teuchos::rcp(new LA_Export(*LA_overlapped_map, *LA_owned_map));
+    importer = Teuchos::rcp(new LA_Import(*LA_overlapped_map, *LA_owned_map));
+  }
   vector<vector<int> > gids;
   
   for (size_t b=0; b<cells.size(); b++) {
@@ -354,8 +360,14 @@ void solver::setupLinearAlgebra() {
   LA_overlapped_graph->FillComplete();
   
   if (num_discretized_params > 0) {
-    param_owned_map = Teuchos::rcp(new LA_Map(-1, numParamUnknowns, &paramOwned[0], 0, *Comm));
-    param_overlapped_map = Teuchos::rcp(new LA_Map(-1, (int)paramOwnedAndShared.size(), &paramOwnedAndShared[0], 0, *Comm));
+    if (USE_TPETRA) {
+      
+    }
+    else {
+      Epetra_MpiComm EP_Comm(*(Comm->getRawMpiComm()));
+      param_owned_map = Teuchos::rcp(new LA_Map(-1, numParamUnknowns, &paramOwned[0], 0, EP_Comm));
+      param_overlapped_map = Teuchos::rcp(new LA_Map(-1, (int)paramOwnedAndShared.size(), &paramOwnedAndShared[0], 0, EP_Comm));
+    }
     
     param_exporter = Teuchos::rcp(new LA_Export(*param_overlapped_map, *param_owned_map));
     param_importer = Teuchos::rcp(new LA_Import(*param_overlapped_map, *param_owned_map));
@@ -433,7 +445,13 @@ void solver::setupLinearAlgebra() {
   else {
     // set up a dummy parameter vector
     paramOwnedAndShared.push_back(0);
-    param_overlapped_map = Teuchos::rcp(new LA_Map(-1, 1, &paramOwnedAndShared[0], 0, *Comm));
+    if (USE_TPETRA) {
+      
+    }
+    else {
+      Epetra_MpiComm EP_Comm(*(Comm->getRawMpiComm()));
+      param_overlapped_map = Teuchos::rcp(new LA_Map(-1, 1, &paramOwnedAndShared[0], 0, EP_Comm));
+    }
     vector_RCP paramVec = this->setInitialParams(); // TMW: this will be deprecated soon
     Psol.push_back(paramVec);
   }
@@ -595,7 +613,7 @@ void solver::setupParameters(Teuchos::RCP<Teuchos::ParameterList> & settings) {
       
       paramDOF = Teuchos::rcp(new panzer::DOFManager<int,int>());
       Teuchos::RCP<panzer::ConnManager<int,int> > conn = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
-      paramDOF->setConnManager(conn,Comm->Comm());
+      paramDOF->setConnManager(conn,*(Comm->getRawMpiComm()));
       
       Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern;
       
@@ -614,7 +632,8 @@ void solver::setupParameters(Teuchos::RCP<Teuchos::ParameterList> & settings) {
       numParamUnknownsOS = (int)paramOwnedAndShared.size();
       int localParamUnknowns = numParamUnknowns;
       
-      Comm->SumAll(&localParamUnknowns, &globalParamUnknowns, 1);
+      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localParamUnknowns,&globalParamUnknowns);
+      //Comm->SumAll(&localParamUnknowns, &globalParamUnknowns, 1);
       
       for (size_t j=0; j<discretized_param_names.size(); j++) {
         int num = paramDOF->getFieldNum(discretized_param_names[j]);
@@ -679,10 +698,10 @@ void solver::readMeshData(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   exofile = settings->sublist("Mesh").get<std::string>("Mesh_File","mesh.exo");
   
-  if (Comm->NumProc() > 1) {
+  if (Comm->getSize() > 1) {
     stringstream ssProc, ssPID;
-    ssProc << Comm->NumProc();
-    ssPID << Comm->MyPID();
+    ssProc << Comm->getSize();
+    ssPID << Comm->getRank();
     string strProc = ssProc.str();
     string strPID = ssPID.str();
     // this section may need tweaking if the input exodus mesh is
@@ -952,7 +971,8 @@ vector<double> solver::getDiscretizedParamsVector() {
   for (size_t i = 0; i < numParams; i++) {
     double globalval = 0.0;
     double localval = discLocalParams[i];
-    Comm->SumAll(&localval, &globalval, 1);
+    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
+    //Comm->SumAll(&localval, &globalval, 1);
     discParams[i] = globalval;
   }
   return discParams;
@@ -1170,11 +1190,13 @@ void solver::transientSolver(vector_RCP & initial, vector_RCP & L_soln,
       msprojtimer->start();
       double my_cost = multiscale_manager->update();
       double gmin = 0.0;
-      Comm->MinAll(&my_cost, &gmin, 1);
+      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&my_cost,&gmin);
+      //Comm->MinAll(&my_cost, &gmin, 1);
       double gmax = 0.0;
-      Comm->MaxAll(&my_cost, &gmax, 1);
+      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&my_cost,&gmin);
+      //Comm->MaxAll(&my_cost, &gmax, 1);
       
-      if(Comm->MyPID() == 0 && verbosity>0) {
+      if(Comm->getRank() == 0 && verbosity>0) {
         cout << "***** Load Balancing Factor " << gmax/gmin <<  endl;
       }
     }
@@ -1183,7 +1205,7 @@ void solver::transientSolver(vector_RCP & initial, vector_RCP & L_soln,
       current_time += deltat;
     }
     
-    if(Comm->MyPID() == 0 && verbosity > 0) {
+    if(Comm->getRank() == 0 && verbosity > 0) {
       cout << endl << endl << "*******************************************************" << endl;
       cout << endl << "**** Beginning Time Step " << timeiter << endl;
       cout << "**** Current time is " << current_time << endl << endl;
@@ -1341,7 +1363,7 @@ void solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
       NLerr_scaled = NLerr/NLerr_first;
     }
     
-    if(Comm->MyPID() == 0 && verbosity > 1) {
+    if(Comm->getRank() == 0 && verbosity > 1) {
       cout << endl << "*********************************************************" << endl;
       cout << "***** Iteration: " << NLiter << endl;
       cout << "***** Norm of nonlinear residual: " << NLerr << endl;
@@ -1422,7 +1444,7 @@ void solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     NLiter++; // increment number of iterations
   } // while loop
   
-  if(Comm->MyPID() == 0) {
+  if(Comm->getRank() == 0) {
     if (!useadjoint) {
       if( (NLiter>MaxNLiter || NLerr_scaled>NLtol) && verbosity > 1) {
         cout << endl << endl << "********************" << endl;
@@ -1610,7 +1632,8 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const double & time, co
   
   //to gather contributions across processors
   double meep = 0.0;
-  Comm->SumAll(&totaldiff.val(), &meep, 1);
+  Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&totaldiff.val(),&meep);
+  //Comm->SumAll(&totaldiff.val(), &meep, 1);
   totaldiff.val() = meep;
   
   DFAD fullobj(numParams,meep);
@@ -1618,7 +1641,8 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const double & time, co
   for (size_t j=0; j< numParams; j++) {
     double dval;
     double ldval = dmGradient[j] + regGradient[j];
-    Comm->SumAll(&ldval,&dval,1);
+    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&ldval,&dval);
+    //Comm->SumAll(&ldval,&dval,1);
     fullobj.fastAccessDx(j) = dval;
   }
   
@@ -1631,7 +1655,7 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const double & time, co
 
 vector<double> solver::computeSensitivities(const vector_RCP & GF_soln,
                                     const vector_RCP & GA_soln) {
-  if(Comm->MyPID() == 0 && verbosity>0) {
+  if(Comm->getRank() == 0 && verbosity>0) {
     cout << endl << "*********************************************************" << endl;
     cout << "***** Computing Sensitivities ******" << endl << endl;
   }
@@ -1700,11 +1724,12 @@ vector<double> solver::computeSensitivities(const vector_RCP & GF_soln,
   double globalval = 0.0;
   for (size_t paramiter=0; paramiter < num_active_params; paramiter++) {
     localval = localsens[paramiter];
-    Comm->SumAll(&localval, &globalval, 1);
+    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
+    //Comm->SumAll(&localval, &globalval, 1);
     gradient[paramiter] = globalval;
   }
   
-  if(Comm->MyPID() == 0 && batchID == 0) {
+  if(Comm->getRank() == 0 && batchID == 0) {
     stringstream ss;
     std::string sname2 = "sens.dat";
     ofstream sensOUT(sname2.c_str());
@@ -1727,7 +1752,7 @@ vector<double> solver::computeSensitivities(const vector_RCP & GF_soln,
 vector<double> solver::computeDiscretizedSensitivities(const vector_RCP & F_soln,
                                                const vector_RCP & A_soln) {
   
-  if(Comm->MyPID() == 0 && verbosity>0) {
+  if(Comm->getRank() == 0 && verbosity>0) {
     cout << endl << "*********************************************************" << endl;
     cout << "***** Computing Discretized Sensitivities ******" << endl << endl;
   }
@@ -1810,7 +1835,8 @@ vector<double> solver::computeDiscretizedSensitivities(const vector_RCP & F_soln
   for (size_t i = 0; i < numParams; i++) {
     double globalval = 0.0;
     double localval = discLocalGradient[i];
-    Comm->SumAll(&localval, &globalval, 1);
+    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
+    //Comm->SumAll(&localval, &globalval, 1);
     discGradient[i] = globalval;
   }
   return discGradient;
@@ -1875,7 +1901,8 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
     double globalval = 0.0;
     for (size_t paramiter=0; paramiter < num_active_params; paramiter++) {
       localval = localsens[paramiter];
-      Comm->SumAll(&localval, &globalval, 1);
+      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
+      //Comm->SumAll(&localval, &globalval, 1);
       double cobj = 0.0;
       if (paramiter<obj_sens.size()) {
         cobj = obj_sens.fastAccessDx(paramiter);
@@ -1930,7 +1957,8 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
     for (size_t i = 0; i < numDiscParams; i++) {
       double globalval = 0.0;
       double localval = discLocalGradient[i];
-      Comm->SumAll(&localval, &globalval, 1);
+      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
+      //Comm->SumAll(&localval, &globalval, 1);
       double cobj = 0.0;
       if ((i+num_active_params)<obj_sens.size()) {
         cobj = obj_sens.fastAccessDx(i+num_active_params);
@@ -1953,7 +1981,7 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
 // ========================================================================================
 
 double solver::computeError(const vector_RCP & GF_soln, const vector_RCP & GA_soln) {
-  if(Comm->MyPID() == 0 && verbosity>0) {
+  if(Comm->getRank() == 0 && verbosity>0) {
     cout << endl << "*********************************************************" << endl;
     cout << "***** Computing Error Estimate ******" << endl << endl;
   }
@@ -2006,9 +2034,10 @@ double solver::computeError(const vector_RCP & GF_soln, const vector_RCP & GA_so
     }
     localerror += currerror;
   }
-  Comm->SumAll(&localerror, &errorest, 1);
+  Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localerror,&errorest);
+  //Comm->SumAll(&localerror, &errorest, 1);
   
-  if(Comm->MyPID() == 0 && verbosity>0) {
+  if(Comm->getRank() == 0 && verbosity>0) {
     cout << "Error estimate = " << errorest << endl;
   }
   return errorest;
@@ -2736,7 +2765,7 @@ void solver::updateParams(const vector<double> & newparams, const int & type) {
   for (size_t i=0; i<paramvals.size(); i++) {
     if (paramtypes[i] == type) {
       for (size_t j=0; j<paramvals[i].size(); j++) {
-        if (Comm->MyPID() == 0 && verbosity > 0) {
+        if (Comm->getRank() == 0 && verbosity > 0) {
           cout << "Updated Params: " << paramvals[i][j] << " (old value)   " << newparams[pprog] << " (new value)" << endl;
         }
         paramvals[i][j] = newparams[pprog];
@@ -2802,8 +2831,8 @@ void solver::updateMeshData(const int & newrandseed) {
       }
     }
   }
-  Comm->MaxAll(&localnumSeeds, &numSeeds, 1);
-  
+  //Comm->MaxAll(&localnumSeeds, &numSeeds, 1);
+  Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&localnumSeeds,&numSeeds);
   numSeeds += 1; //To properly allocate and iterate
   
   // Create a random number generator
@@ -2986,12 +3015,14 @@ vector<vector<double> > solver::getParamBounds(const std::string & stype) {
       
       double globalval = 0.0;
       double localval = rLocalLo[i];
-      Comm->SumAll(&localval, &globalval, 1);
+      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
+      //Comm->SumAll(&localval, &globalval, 1);
       rlo[i] = globalval;
       
       globalval = 0.0;
       localval = rLocalUp[i];
-      Comm->SumAll(&localval, &globalval, 1);
+      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
+      //Comm->SumAll(&localval, &globalval, 1);
       rup[i] = globalval;
     }
     
@@ -3016,7 +3047,7 @@ void solver::setBatchID(const int & bID){
 // ========================================================================================
 
 void solver::stashParams(){
-  if (batchID == 0 && Comm->MyPID() == 0){
+  if (batchID == 0 && Comm->getRank() == 0){
     string outname = "param_stash.dat";
     ofstream respOUT(outname);
     respOUT.precision(16);
@@ -3117,11 +3148,13 @@ void solver::finalizeMultiscale() {
     multiscale_manager->macro_wkset = wkset;
     double my_cost = multiscale_manager->initialize();
     double gmin = 0.0;
-    Comm->MinAll(&my_cost, &gmin, 1);
+    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&my_cost,&gmin);
+    //Comm->MinAll(&my_cost, &gmin, 1);
     double gmax = 0.0;
-    Comm->MaxAll(&my_cost, &gmax, 1);
+    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&my_cost,&gmin);
+    //Comm->MaxAll(&my_cost, &gmax, 1);
     
-    if(Comm->MyPID() == 0 && verbosity>0) {
+    if(Comm->getRank() == 0 && verbosity>0) {
       cout << "***** Load Balancing Factor " << gmax/gmin <<  endl;
     }
     

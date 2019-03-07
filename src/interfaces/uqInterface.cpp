@@ -15,7 +15,7 @@
 /* Constructor to set up the problem */
 // ========================================================================================
 
-uqmanager::uqmanager(const Epetra_MpiComm & Comm_, const Teuchos::ParameterList & uqsettings_,
+uqmanager::uqmanager(const LA_MpiComm & Comm_, const Teuchos::ParameterList & uqsettings_,
                      const std::vector<string> & param_types_,
                      const std::vector<double> & param_means_, const std::vector<double> & param_variances_,
                      const std::vector<double> & param_mins_, const std::vector<double> & param_maxs_) :
@@ -148,7 +148,7 @@ void uqmanager::computeStatistics(const std::vector<double> & values) {
       meanval += values[j];
     }
     meanval = meanval / numvals;
-    if (Comm.MyPID() == 0 )
+    if (Comm.getRank() == 0 )
     cout << "Mean value of the response: " << meanval << endl;
   }
   if (uqsettings.get<bool>("Compute variance",true)) {
@@ -162,7 +162,7 @@ void uqmanager::computeStatistics(const std::vector<double> & values) {
       variance += (values[j]-meanval)*(values[j]-meanval);
     }
     variance = variance / numvals;
-    if (Comm.MyPID() == 0 )
+    if (Comm.getRank() == 0 )
     cout << "Variance of the response: " << variance << endl;
   }
   if (uqsettings.isSublist("Probability levels")) {
@@ -176,7 +176,7 @@ void uqmanager::computeStatistics(const std::vector<double> & values) {
         count += 1;
       }
       double currprob = (double)count / (double)numvals;
-      if (Comm.MyPID() == 0 )
+      if (Comm.getRank() == 0 )
       cout << "Probability the response is less than " << currplevel << " = " << currprob << endl;
       pl_itr++;
     }
@@ -207,7 +207,7 @@ void uqmanager::computeStatistics(const vector<Kokkos::View<double**,HostDevice>
         }
       }
     }
-    if (Comm.MyPID() == 0 )
+    if (Comm.getRank() == 0 )
     cout << "Mean value of the response: " << endl;
     KokkosTools::print(meanval);
   }
@@ -222,7 +222,7 @@ void uqmanager::computeStatistics(const vector<Kokkos::View<double**,HostDevice>
    variance += (values[j]-meanval)*(values[j]-meanval);
    }
    variance = variance / numvals;
-   if (Comm.MyPID() == 0 )
+   if (Comm.getRank() == 0 )
    cout << "Variance of the response: " << variance << endl;
    }
    if (uqsettings.isSublist("Probability levels")) {
@@ -236,7 +236,7 @@ void uqmanager::computeStatistics(const vector<Kokkos::View<double**,HostDevice>
    count += 1;
    }
    double currprob = (double)count / (double)numvals;
-   if (Comm.MyPID() == 0 )
+   if (Comm.getRank() == 0 )
    cout << "Probability the response is less than " << currplevel << " = " << currprob << endl;
    pl_itr++;
    }

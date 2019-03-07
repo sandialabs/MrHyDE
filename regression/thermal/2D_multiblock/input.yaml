@@ -1,6 +1,7 @@
 %YAML 1.1
 ---
 ANONYMOUS:
+  verbosity: 0
   Mesh: 
     dim: 2
     shape: quad
@@ -31,16 +32,14 @@ ANONYMOUS:
     solver: steady-state
     finaltime: 1.00000000000000000e+00
     numSteps: 1
-    Verbosity: 0
     use strong DBCs: true
   Analysis: 
     analysis_type: forward
   Postprocess: 
-    Verbosity: 0
     compute response: false
     verification: true
     compute sensitivities: false
-    write solution: false
+    write solution: true
   Parameters Settings File: input_params.yaml
   Functions Settings File: input_functions.yaml
 ...

@@ -32,7 +32,7 @@ public:
   /* Constructor to set up the problem */
   // ========================================================================================
   
-  postprocess(const Teuchos::RCP<Epetra_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
+  postprocess(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
               Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
               Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
               Teuchos::RCP<solver> & solve_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
@@ -76,7 +76,7 @@ public:
   
 protected:
   
-  Teuchos::RCP<Epetra_MpiComm> Comm;
+  Teuchos::RCP<LA_MpiComm> Comm;
   Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
   Teuchos::RCP<discretization> disc;
   Teuchos::RCP<physics> phys;

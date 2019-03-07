@@ -21,28 +21,35 @@ using Kokkos::RangePolicy;
 
 typedef double ScalarT;
 typedef double RealType;
+typedef int LO;
+typedef int GO;
 
 #define maxDerivs 64 // adjust this to improve performance
 #define PI 3.141592653589793238463
 #define MILO_DEBUG false
+#define USE_TPETRA false
 
 // AD typedefs
-typedef Sacado::Fad::DFad<double> DFAD; // used only when absolutely necessary
-typedef Sacado::Fad::SFad<double,maxDerivs> AD;
+typedef Sacado::Fad::DFad<ScalarT> DFAD; // used only when absolutely necessary
+typedef Sacado::Fad::SFad<ScalarT,maxDerivs> AD;
 
 // Kokkos Device typedefs
 typedef Kokkos::Serial AssemblyDevice;
 typedef Kokkos::Serial HostDevice;
 typedef Kokkos::Serial SubgridDevice;
+typedef Kokkos::Compat::KokkosSerialWrapperNode HostNode;
+//typedef Kokkos::Compat::KokkosOpenMPWrapperNode HostNode;
+//typedef Kokkos::Compat::KokkosThreadsWrapperNode HostNode;
+//typedef Kokkos::Compat::KokkosCudaWrapperNode HostNode;
 
 // Kokkos object typedefs (preferable to use Kokkos::View<*,Device>)
-typedef Kokkos::DynRankView<double,AssemblyDevice> DRV;
+typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> DRV;
 typedef Kokkos::DynRankView<int,AssemblyDevice> DRVint;
 typedef Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> FDATA;
-typedef Kokkos::View<double**,Kokkos::LayoutStride,AssemblyDevice> FDATAd;
+typedef Kokkos::View<ScalarT**,Kokkos::LayoutStride,AssemblyDevice> FDATAd;
 
 // Intrepid and shards typedefs
-typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, double, double > > basis_RCP;
+typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
 
 // Linear algebra typedefs
@@ -52,16 +59,19 @@ typedef Epetra_Map           LA_Map;
 typedef Epetra_CrsGraph      LA_CrsGraph;
 typedef Epetra_Export        LA_Export;
 typedef Epetra_Import        LA_Import;
-typedef Epetra_MpiComm       LA_MpiComm;
+typedef Teuchos::MpiComm<GO>       LA_MpiComm;
+//typedef Epetra_MpiComm       LA_MpiComm;
 typedef Epetra_LinearProblem LA_LinearProblem;
 
-/* // Tpetra typedefs (not used yet)
-typedef Tpetra_MultiVector LA_vector;
-typedef Tpetra_CrsMatrix   LA_matrix;
-typedef Tpetra_MultiVector LA_vector;
-typedef Tpetra_Export      LA_export;
-typedef Tpetra_Import      LA_import;
-*/
+// Tpetra typedefs (not used yet)
+//typedef Tpetra_MultiVector LA_MultiVector;
+typedef Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>   test_CrsMatrix;
+typedef Tpetra::CrsGraph<LO,GO,HostNode> test_CrsGraph;
+typedef Tpetra::Vector<ScalarT,LO,GO,HostNode> test_vector;
+typedef Tpetra::Export<LO, GO, HostNode>      test_Export;
+typedef Tpetra::Import<LO, GO, HostNode>      test_Import;
+typedef Tpetra::Map<LO, GO, HostNode>      test_Map;
+
 
 // RCP to LA objects (may be removed in later version)
 typedef Teuchos::RCP<LA_MultiVector> vector_RCP;

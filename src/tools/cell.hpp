@@ -36,7 +36,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   
   cell(const Teuchos::RCP<Teuchos::ParameterList> & settings,
-       const Teuchos::RCP<Epetra_MpiComm> & LocalComm_, const topo_RCP & cellTopo_, 
+       const Teuchos::RCP<LA_MpiComm> & LocalComm_, const topo_RCP & cellTopo_,
        const Teuchos::RCP<physics> & physics_RCP_, const DRV & nodes_, const size_t & myBlock_,
        const Kokkos::View<int*> & globalID_, const size_t & myLevel_, const bool & memeff_) :
   //settings(settings_),
@@ -551,7 +551,7 @@ public:
 
   // Public and necessary
   //Teuchos::RCP<Teuchos::ParameterList> settings;
-  Teuchos::RCP<Epetra_MpiComm> LocalComm;
+  Teuchos::RCP<LA_MpiComm> LocalComm;
   bool active, memory_efficient;
   size_t myBlock, myLevel;
   Kokkos::View<int*> globalElemID;

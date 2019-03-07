@@ -33,7 +33,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  SubGridFEM(const Teuchos::RCP<Epetra_MpiComm> & LocalComm_,
+  SubGridFEM(const Teuchos::RCP<LA_MpiComm> & LocalComm_,
              Teuchos::RCP<Teuchos::ParameterList> & settings_,
              topo_RCP & macro_cellTopo_, int & num_macro_time_steps_,
              double & macro_deltat_) :
@@ -157,11 +157,13 @@ public:
     
       panzer_stk::SubGridMeshFactory meshFactory(shape, nodes, connectivity, blockID);
     
-      mesh = meshFactory.buildMesh(LocalComm->Comm());
+      mesh = meshFactory.buildMesh(*(LocalComm->getRawMpiComm()));
+      //mesh = meshFactory.buildMesh(LocalComm->Comm());
       
       mesh->getElementBlockNames(eBlocks);
     
-      meshFactory.completeMeshConstruction(*mesh,LocalComm->Comm());
+      //meshFactory.completeMeshConstruction(*mesh,LocalComm->Comm());
+      meshFactory.completeMeshConstruction(*mesh,*(LocalComm->getRawMpiComm()));
     }
     
     /////////////////////////////////////////////////////////////////////////////////////
@@ -1341,8 +1343,7 @@ public:
         res->NormInf(&resnorm);
         resnorm_scaled = resnorm/resnorm_initial;
       }
-      
-      if(LocalComm->MyPID() == 0 && subgridverbose>5) {
+      if(LocalComm->getRank() == 0 && subgridverbose>5) {
         cout << endl << "*********************************************************" << endl;
         cout << "***** Subgrid Nonlinear Iteration: " << iter << endl;
         cout << "***** Scaled Norm of nonlinear residual: " << resnorm_scaled << endl;
@@ -1880,7 +1881,8 @@ public:
     Kokkos::View<int****,HostDevice> sideinfo = sgt.getSubSideinfo();
     
     panzer_stk::SubGridMeshFactory submeshFactory(shape, nodes, connectivity, blockID);
-    Teuchos::RCP<panzer_stk::STK_Interface> submesh = submeshFactory.buildMesh(LocalComm->Comm());
+    Teuchos::RCP<panzer_stk::STK_Interface> submesh = submeshFactory.buildMesh(*(LocalComm->getRawMpiComm()));
+    
     
     //////////////////////////////////////////////////////////////
     // Add in the necessary fields for plotting
@@ -1913,7 +1915,7 @@ public:
       }
     }
     
-    submeshFactory.completeMeshConstruction(*submesh,LocalComm->Comm());
+    submeshFactory.completeMeshConstruction(*submesh,*(LocalComm->getRawMpiComm()));
     
     //////////////////////////////////////////////////////////////
     // Add fields to mesh
@@ -2145,7 +2147,7 @@ public:
       submeshFactory.addElems(nodes, connectivity);
     }
     
-    Teuchos::RCP<panzer_stk::STK_Interface> submesh = submeshFactory.buildMesh(LocalComm->Comm());
+    Teuchos::RCP<panzer_stk::STK_Interface> submesh = submeshFactory.buildMesh(*(LocalComm->getRawMpiComm()));
     
     //////////////////////////////////////////////////////////////
     // Add in the necessary fields for plotting
@@ -2182,7 +2184,7 @@ public:
         }
       }
     }
-    submeshFactory.completeMeshConstruction(*submesh,LocalComm->Comm());
+    submeshFactory.completeMeshConstruction(*submesh,*(LocalComm->getRawMpiComm()));
     
     //////////////////////////////////////////////////////////////
     // Add fields to mesh
@@ -2789,7 +2791,7 @@ public:
   // Static - do not depend on macro-element
   int dimension, time_steps;
   double initial_time, final_time;
-  Teuchos::RCP<Epetra_MpiComm> LocalComm;
+  Teuchos::RCP<LA_MpiComm> LocalComm;
   Teuchos::RCP<Teuchos::ParameterList> settings;
   string macroshape, shape, multiscale_method, error_type;
   int nummacroVars, subgridverbose, numrefine;

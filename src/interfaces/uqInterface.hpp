@@ -28,7 +28,7 @@ class uqmanager {
   /* Constructor to set up the problem */
   // ========================================================================================
   
-  uqmanager(const Epetra_MpiComm & Comm_, const Teuchos::ParameterList & uqsettings_,
+  uqmanager(const LA_MpiComm & Comm_, const Teuchos::ParameterList & uqsettings_,
             const std::vector<string> & param_types_,
             const std::vector<double> & param_means_, const std::vector<double> & param_variances_,
             const std::vector<double> & param_mins_, const std::vector<double> & param_maxs_);
@@ -80,7 +80,7 @@ class uqmanager {
   
   protected:
   
-  Epetra_MpiComm Comm;
+  LA_MpiComm Comm;
   std::string surrogate;
   std::vector<std::vector<double> > points;
   int evalprog, numstochparams;

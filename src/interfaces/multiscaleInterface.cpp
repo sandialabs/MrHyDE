@@ -15,7 +15,7 @@
 /* Constructor to set up the problem */
 // ========================================================================================
 
-MultiScale::MultiScale(const Teuchos::RCP<Epetra_MpiComm> & Comm_,
+MultiScale::MultiScale(const Teuchos::RCP<LA_MpiComm> & Comm_,
                        Teuchos::RCP<Teuchos::ParameterList> & settings_,
                        vector<vector<Teuchos::RCP<cell> > > & cells_,
                        vector<Teuchos::RCP<SubGridModel> > subgridModels_,

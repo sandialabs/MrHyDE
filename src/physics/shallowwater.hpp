@@ -67,11 +67,21 @@ public:
     
     
     Teuchos::ParameterList fs = settings->sublist("Functions");
+    functionManager->addFunction("bathymetry",fs.get<string>("bathymetry","1.0"),numElem,numip,"ip",blocknum);
+    functionManager->addFunction("bathymetry_x",fs.get<string>("bathymetry_x","0.0"),numElem,numip,"ip",blocknum);
+    functionManager->addFunction("bathymetry_y",fs.get<string>("bathymetry_y","0.0"),numElem,numip,"ip",blocknum);
+    functionManager->addFunction("bottom friction",fs.get<string>("bottom friction","1.0"),numElem,numip,"ip",blocknum);
+    functionManager->addFunction("viscosity",fs.get<string>("viscosity","0.0"),numElem,numip,"ip",blocknum);
+    functionManager->addFunction("Coriolis",fs.get<string>("Coriolis","0.0"),numElem,numip,"ip",blocknum);
     functionManager->addFunction("source Hu",fs.get<string>("source Hu","0.0"),numElem,numip,"ip",blocknum);
     functionManager->addFunction("source Hv",fs.get<string>("source Hv","0.0"),numElem,numip,"ip",blocknum);
-    functionManager->addFunction("Neumann source H",fs.get<string>("Neumann source H","0.0"),numElem,numip_side,"side ip",blocknum);
+    functionManager->addFunction("flux left",fs.get<string>("flux left","0.0"),numElem,numip_side,"side ip",blocknum);
+    functionManager->addFunction("flux right",fs.get<string>("flux right","0.0"),numElem,numip_side,"side ip",blocknum);
+    functionManager->addFunction("flux top",fs.get<string>("flux top","0.0"),numElem,numip_side,"side ip",blocknum);
+    functionManager->addFunction("flux bottom",fs.get<string>("flux bottom","0.0"),numElem,numip_side,"side ip",blocknum);
     functionManager->addFunction("Neumann source Hu",fs.get<string>("Neumann source Hu","0.0"),numElem,numip_side,"side ip",blocknum);
     functionManager->addFunction("Neumann source Hv",fs.get<string>("Neumann source Hv","0.0"),numElem,numip_side,"side ip",blocknum);
+    functionManager->addFunction("bathymetry side",fs.get<string>("bathymetry","1.0"),numElem,numip_side,"side_ip",blocknum);
     
   }
   
@@ -86,6 +96,11 @@ public:
     
     {
       Teuchos::TimeMonitor funceval(*volumeResidualFunc);
+      bath = functionManager->evaluate("bathymetry","ip",blocknum);
+      bath_x = functionManager->evaluate("bathymetry_x","ip",blocknum);
+      bath_y = functionManager->evaluate("bathymetry_y","ip",blocknum);
+      visc = functionManager->evaluate("viscosity","ip",blocknum);
+      cor = functionManager->evaluate("Coriolis","ip",blocknum);
       source_Hu = functionManager->evaluate("source Hu","ip",blocknum);
       source_Hv = functionManager->evaluate("source Hv","ip",blocknum);
     }
@@ -110,15 +125,17 @@ public:
     Hvbasis = wkset->basis[Hv_basis_num];
     Hvbasis_grad = wkset->basis_grad[Hv_basis_num];
     
+    //KokkosTools::print(bath);
+    
     parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
       double v = 0.0;
       double dvdx = 0.0;
       double dvdy = 0.0;
       for (int k=0; k<sol.dimension(2); k++ ) {
       
-        AD H = sol(e,H_num,k,0);
-        AD H_dot = sol_dot(e,H_num,k,0);
-        
+        AD xi = sol(e,H_num,k,0);
+        AD xi_dot = sol_dot(e,H_num,k,0);
+        AD H = xi + bath(e,k);
         AD Hu = sol(e,Hu_num,k,0);
         AD Hu_dot = sol_dot(e,Hu_num,k,0);
         
@@ -134,7 +151,7 @@ public:
           dvdx = Hbasis_grad(e,i,k,0);
           dvdy = Hbasis_grad(e,i,k,1);
           
-          res(e,resindex) += H_dot*v - Hu*dvdx - Hv*dvdy;
+          res(e,resindex) += xi_dot*v - Hu*dvdx - Hv*dvdy;
           
         }
         
@@ -146,7 +163,7 @@ public:
           dvdx = Hubasis_grad(e,i,k,0);
           dvdy = Hubasis_grad(e,i,k,1);
           
-          res(e,resindex) += Hu_dot*v - (Hu*Hu/H + 0.5*gravity*H*H)*dvdx - Hv*Hu/H*dvdy + gravity*source_Hu(e,i)*v;
+          res(e,resindex) += Hu_dot*v - (Hu*Hu/H + 0.5*gravity*(H*H-bath(e,k)*bath(e,k)))*dvdx - Hv*Hu/H*dvdy + gravity*xi*bath_x(e,k)*v;
           
         }
         
@@ -158,7 +175,7 @@ public:
           dvdx = Hvbasis_grad(e,i,k,0);
           dvdy = Hvbasis_grad(e,i,k,1);
           
-          res(e,resindex) += Hv_dot*v - (Hu*Hu/H)*dvdx - (Hv*Hu/H + 0.5*gravity*H*H)*dvdy + gravity*source_Hv(e,i)*v;
+          res(e,resindex) += Hv_dot*v - (Hu*Hu/H)*dvdx - (Hv*Hu/H + 0.5*gravity*(H*H - bath(e,k)*bath(e,k)))*dvdy + gravity*xi*bath_y(e,k)*v;
           
         }
         
@@ -177,12 +194,26 @@ public:
     // NOTES:
     // 1. basis and basis_grad already include the integration weights
     
+    string sidename = wkset->sidename;
     
     {
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
-      nsource_H = functionManager->evaluate("Neumann source H","side ip",blocknum);
-      nsource_Hu = functionManager->evaluate("Neumann source Hu","side ip",blocknum);
-      nsource_Hv = functionManager->evaluate("Neumann source Hv","side ip",blocknum);
+      if (sidename == "left") {
+        nsource = functionManager->evaluate("flux left","side ip",blocknum);
+      }
+      else if (sidename == "right") {
+        nsource = functionManager->evaluate("flux right","side ip",blocknum);
+      }
+      else if (sidename == "top") {
+        nsource = functionManager->evaluate("flux top","side ip",blocknum);
+      }
+      else if (sidename == "bottom") {
+        nsource = functionManager->evaluate("flux bottom","side ip",blocknum);
+      }
+      //nsource_H = functionManager->evaluate("Neumann source H","side ip",blocknum);
+      //nsource_Hu = functionManager->evaluate("Neumann source Hu","side ip",blocknum);
+      //nsource_Hv = functionManager->evaluate("Neumann source Hv","side ip",blocknum);
+      //bath_side = functionManager->evaluate("bathymetry side","side ip",blocknum);
     }
     
     sideinfo = wkset->sideinfo;
@@ -203,34 +234,56 @@ public:
     Hvbasis = wkset->basis_side[Hv_basis_num];
     Hvbasis_grad = wkset->basis_grad_side[Hv_basis_num];
     
+    normals = wkset->normals;
+    
+    //KokkosTools::print(nsource);
+    
     Teuchos::TimeMonitor localtime(*boundaryResidualFill);
-
+    double bb = 1.0;
     int cside = wkset->currentside;
     for (int e=0; e<sideinfo.dimension(0); e++) {
       if (sideinfo(e,H_num,cside,0) == 2) { // Element e is on the side
         for (int k=0; k<Hbasis.dimension(2); k++ ) {
+          AD xi = sol(e,H_num,k,0);
+          AD H = xi + bb;//bath_side(e,k);
+          AD Hu = sol(e,Hu_num,k,0);
+          AD Hv = sol(e,Hv_num,k,0);
+          
           for (int i=0; i<Hbasis.dimension(1); i++ ) {
             int resindex = offsets(H_num,i);
             double v = Hbasis(e,i,k);
-            res(e,resindex) += -nsource_H(e,k)*v;
+            //res(e,resindex) += (Hu*normals(e,k,0)+Hv*normals(e,k,1))*v;
+            res(e,resindex) += nsource(e,k)*H*v;
           }
         }
       }
       if (sideinfo(e,Hu_num,cside,0) == 2) { // Element e is on the side
         for (int k=0; k<Hubasis.dimension(2); k++ ) {
+          AD xi = sol(e,H_num,k,0);
+          AD H = xi + bb;//bath_side(e,k);
+          AD Hu = sol(e,Hu_num,k,0);
+          AD Hv = sol(e,Hv_num,k,0);
+          
           for (int i=0; i<Hubasis.dimension(1); i++ ) {
             int resindex = offsets(Hu_num,i);
             double v = Hubasis(e,i,k);
-            res(e,resindex) += -nsource_Hu(e,k)*v;
+            //res(e,resindex) += (((Hu*Hu/H + 0.5*gravity*(H*H-bb*bb)))*normals(e,k,0) + Hv*Hu/H*normals(e,k,1))*v;
+            res(e,resindex) += (nsource(e,k)*Hu + 0.0*gravity*(H*H-bb*bb)*normals(e,k,0))*v;
           }
         }
       }
       if (sideinfo(e,Hv_num,cside,0) == 2) { // Element e is on the side
         for (int k=0; k<Hvbasis.dimension(2); k++ ) {
+          AD xi = sol(e,H_num,k,0);
+          AD H = xi + bb;//bath_side(e,k);
+          AD Hu = sol(e,Hu_num,k,0);
+          AD Hv = sol(e,Hv_num,k,0);
+          
           for (int i=0; i<Hvbasis.dimension(1); i++ ) {
             int resindex = offsets(Hv_num,i);
             double v = Hvbasis(e,i,k);
-            res(e,resindex) += -nsource_Hv(e,k)*v;
+            //res(e,resindex) += (((Hu*Hu/H))*normals(e,k,0) + (Hv*Hu/H + 0.5*gravity*(H*H - bb*bb))*normals(e,k,1))*v;
+            res(e,resindex) += (nsource(e,k)*Hv + 0.0*gravity*(H*H - bb*bb)*normals(e,k,1))*v;
           }
         }
       }
@@ -283,13 +336,13 @@ private:
   //int test, simNum;
   //string simName;
   
-  FDATA source_Hu, source_Hv, nsource_H, nsource_Hu, nsource_Hv;
+  FDATA bath, bath_x, bath_y, visc, cor, bfric, source_Hu, source_Hv, nsource, nsource_Hu, nsource_Hv, bath_side;
   Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad;
   Kokkos::View<AD***,AssemblyDevice> aux;
   Kokkos::View<AD**,AssemblyDevice> res;
   Kokkos::View<int**,AssemblyDevice> offsets;
   Kokkos::View<int****,AssemblyDevice> sideinfo;
-  DRV Hbasis, Hbasis_grad, Hubasis, Hubasis_grad, Hvbasis, Hvbasis_grad;
+  DRV Hbasis, Hbasis_grad, Hubasis, Hubasis_grad, Hvbasis, Hvbasis_grad, normals;
   
   
   string analysis_type; //to know when parameter is a sample that needs to be transformed

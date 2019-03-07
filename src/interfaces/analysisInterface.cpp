@@ -23,8 +23,8 @@
 /* Constructor to set up the problem */
 // ========================================================================================
 
-analysis::analysis(const Teuchos::RCP<Epetra_MpiComm> & LA_Comm_,
-                   const Teuchos::RCP<Epetra_MpiComm> & S_Comm_,
+analysis::analysis(const Teuchos::RCP<LA_MpiComm> & LA_Comm_,
+                   const Teuchos::RCP<LA_MpiComm> & S_Comm_,
                    Teuchos::RCP<Teuchos::ParameterList> & settings_,
                    Teuchos::RCP<solver> & solver_, Teuchos::RCP<postprocess> & postproc_) :
 LA_Comm(LA_Comm_), S_Comm(S_Comm_), settings(settings_), solve(solver_), postproc(postproc_){
@@ -141,7 +141,7 @@ void analysis::run() {
     sdataOUT.precision(16);
     
     
-    if(S_Comm->MyPID() == 0)
+    if(S_Comm->getRank() == 0)
     cout << "Evaluating samples ..." << endl;
     
     for (int j=0; j<numsamples; j++) {
@@ -150,7 +150,7 @@ void analysis::run() {
       for (int i=0; i<ptsdim; i++)  {
         currparams.push_back(samples(j,i));
       }
-      if(S_Comm->MyPID() == 0) {
+      if(S_Comm->getRank() == 0) {
         for (int i=0; i<ptsdim; i++)  {
           sdataOUT << samples(j,i) << "  ";
         }
@@ -159,21 +159,21 @@ void analysis::run() {
       vector_RCP F_soln = solve->forwardModel(objfun);
       AD currresponse = postproc->computeObjective(F_soln);
       response_values.push_back(currresponse.val());
-      if(S_Comm->MyPID() == 0) {
+      if(S_Comm->getRank() == 0) {
         sdataOUT << response_values[j] << "  ";
       }
       vector<double> currgradient;
       vector_RCP A_soln = solve->adjointModel(F_soln, currgradient);
       //vector<double> currgradient = postproc->computeSensitivities(F_soln, A_soln);
       gradient_values.push_back(currgradient);
-      if(S_Comm->MyPID() == 0) {
+      if(S_Comm->getRank() == 0) {
         for (size_t paramiter=0; paramiter < ptsdim; paramiter++) {
           sdataOUT << gradient_values[j][paramiter] << "  ";
         }
         sdataOUT << endl;
       }
       
-      if(S_Comm->MyPID() == 0)
+      if(S_Comm->getRank() == 0)
       cout << "Finished evaluating sample number: " << j+1 << " out of " << numsamples << endl;
     }
     
@@ -207,6 +207,7 @@ void analysis::run() {
     bool regenerate_meshdata = uqsettings.get<bool>("Regenerate mesh data",false);
     // Evaluate MILO or a surrogate at these samples
     vector<Kokkos::View<double***,HostDevice> > response_values;
+    vector<Kokkos::View<double****,HostDevice> > response_grads;
     Teuchos::RCP<Epetra_Map> emap = solve->LA_overlapped_map;
     vector_RCP avgsoln = Teuchos::rcp(new Epetra_MultiVector(*emap, 2));
     int output_freq = uqsettings.get<int>("Output Frequency",1);
@@ -226,6 +227,7 @@ void analysis::run() {
           solve->updateMeshData(sampleints(j));
         }
         vector_RCP F_soln = solve->forwardModel(objfun);
+        //vector_RCP A_soln = solve->adjointModel(F_soln, gradient);
         avgsoln->Update(1.0/(double)numsamples, *F_soln, 1.0);
         /*if (settings->sublist("Postprocess").get("write solution",true)) {
          stringstream ss;
@@ -240,22 +242,53 @@ void analysis::run() {
               for (size_t k=0; k<currresponse.dimension(2); k++) {
                 double myval = currresponse(i,j,k);
                 double gval = 0.0;
-                LA_Comm->SumAll(&myval, &gval, 1);
+                Teuchos::reduceAll(*LA_Comm,Teuchos::REDUCE_SUM,1,&myval,&gval);
+                //LA_Comm->SumAll(&myval, &gval, 1);
                 currresponse(i,j,k) = gval;
               }
             }
           }
           
           response_values.push_back(currresponse);
+          if (settings->sublist("Postprocess").get<bool>("compute response forward gradient",false)) {
+            Kokkos::View<double****,HostDevice> currgrad("current gradient",numstochparams,currresponse.dimension(0),
+                                                         currresponse.dimension(1),currresponse.dimension(2));
+            for (int i=0; i<numstochparams; i++) {
+              double oldval = currparams[i];
+              double pert = 1.0e-6;
+              currparams[i] += pert;
+              solve->updateParams(currparams,2);
+              DFAD objfun2 = 0.0;
+              vector_RCP F_soln2 = solve->forwardModel(objfun2);
+              Kokkos::View<double***,HostDevice> currresponse2 = postproc->computeResponse(F_soln2,0);
+              for (size_t i2=0; i2<currresponse2.dimension(0); i2++) {
+                for (size_t j=0; j<currresponse2.dimension(1); j++) {
+                  for (size_t k=0; k<currresponse2.dimension(2); k++) {
+                    double myval = currresponse2(i2,j,k);
+                    double gval = 0.0;
+                    Teuchos::reduceAll(*LA_Comm,Teuchos::REDUCE_SUM,1,&myval,&gval);
+                    //LA_Comm->SumAll(&myval, &gval, 1);
+                    currgrad(i,i2,j,k) = (gval-currresponse(i2,j,k))/pert;
+                  }
+                }
+              }
+              //if (LA_Comm->getRank() == 0) {
+              //  cout << "Estimated derivative wrt stoch. param: " << i << endl;
+              //  cout << "                                     : " << (currresponse2(0,0,0)-currresponse(0,0,0))/1.0e-6 << endl;
+              //}
+              currparams[i] = oldval;
+            }
+            response_grads.push_back(currgrad);
+          }
         }
-        if (LA_Comm->MyPID() == 0 && j%output_freq == 0) {
+        if (LA_Comm->getRank() == 0 && j%output_freq == 0) {
           cout << "Finished evaluating sample number: " << j+1 << " out of " << numsamples << endl;
         }
       }
       
     }
     
-    if (LA_Comm->MyPID() == 0) {
+    if (LA_Comm->getRank() == 0) {
       string sptname = "sample_points.dat";
       ofstream sampOUT(sptname.c_str());
       sampOUT.precision(6);
@@ -281,6 +314,26 @@ void analysis::run() {
         respOUT << endl;
       }
       respOUT.close();
+      
+      if (settings->sublist("Postprocess").get<bool>("compute response forward gradient",false)) {
+        string sname = "sample_grads.dat";
+        ofstream gradOUT(sname.c_str());
+        gradOUT.precision(6);
+        for (int r=0; r<response_grads.size(); r++) {
+          for (int s=0; s<response_grads[r].dimension(0); s++) { // sensor index
+            for (int t=0; t<response_grads[r].dimension(2); t++) { // time index
+              for (int d=0; d<response_grads[r].dimension(1); d++) { // data index
+                for (int p=0; d<response_grads[r].dimension(1); d++) { // data index
+                  gradOUT << response_grads[r](s,d,t,p) << "  ";
+                }
+              }
+            }
+          }
+          gradOUT << endl;
+        }
+        gradOUT.close();
+      }
+      
     }
     
     if (settings->sublist("Postprocess").get("write solution",true)) {
@@ -479,7 +532,7 @@ void analysis::run() {
       }
       ROL::StdVector<RealT> d(d_rcp);
       // check gradient and Hessian-vector computation using finite differences
-      (*obj).checkGradient(x, d, (LA_Comm->MyPID() == 0 && S_Comm->MyPID() == 0));
+      (*obj).checkGradient(x, d, (LA_Comm->getRank() == 0 && S_Comm->getRank() == 0));
       //(*obj).checkHessVec(x, d, true); //Hessian-vector is already done with FD.
       
     }
@@ -489,12 +542,12 @@ void analysis::run() {
     // Run algorithm.
     vector<std::string> output;
     if(bound_vars)
-    output = algo.run(x, *obj, *con, (LA_Comm->MyPID() == 0 && S_Comm->MyPID() == 0)); //only processor of rank 0 print outs
+    output = algo.run(x, *obj, *con, (LA_Comm->getRank() == 0 && S_Comm->getRank() == 0)); //only processor of rank 0 print outs
     else
-    output = algo.run(x, *obj, (LA_Comm->MyPID() == 0 && S_Comm->MyPID() == 0)); //only processor of rank 0 prints out
+    output = algo.run(x, *obj, (LA_Comm->getRank() == 0 && S_Comm->getRank() == 0)); //only processor of rank 0 prints out
     
     double optTime = timer.stop();
-    if (LA_Comm->MyPID() == 0 && S_Comm->MyPID() == 0) {
+    if (LA_Comm->getRank() == 0 && S_Comm->getRank() == 0) {
       string outname = ROLsettings.get("Output File Name","ROL_out.txt");
       ofstream respOUT(outname);
       respOUT.precision(16);
@@ -522,7 +575,7 @@ void analysis::run() {
     }
     
     if (settings->sublist("Postprocess").get("Write Hessian",false)){
-      obj->printHess(settings->sublist("Postprocess").get("Hessian Output File","hess.dat"),x,LA_Comm->MyPID());
+      obj->printHess(settings->sublist("Postprocess").get("Hessian Output File","hess.dat"),x,LA_Comm->getRank());
     }
     if (settings->sublist("Analysis").get("Write Output",false)) {
       DFAD val = 0.0;
@@ -681,7 +734,7 @@ void analysis::run() {
       }
       ROL::StdVector<RealT> d(d_rcp);
       // check gradient and Hessian-vector computation using finite differences
-      (*obj).checkGradient(x, d, (LA_Comm->MyPID() == 0 && S_Comm->MyPID() == 0));
+      (*obj).checkGradient(x, d, (LA_Comm->getRank() == 0 && S_Comm->getRank() == 0));
       //(*obj).checkHessVec(x, d, true); //Hessian-vector is already done with FD.
       
     }
@@ -691,12 +744,12 @@ void analysis::run() {
     // Run algorithm.
     vector<std::string> output;
     if(bound_vars)
-    output = algo.run(x, *obj, *con, (LA_Comm->MyPID() == 0 && S_Comm->MyPID() == 0)); //only processor of rank 0 print outs
+    output = algo.run(x, *obj, *con, (LA_Comm->getRank() == 0 && S_Comm->getRank() == 0)); //only processor of rank 0 print outs
     else
-    output = algo.run(x, *obj, (LA_Comm->MyPID() == 0 && S_Comm->MyPID() == 0)); //only processor of rank 0 prints out
+    output = algo.run(x, *obj, (LA_Comm->getRank() == 0 && S_Comm->getRank() == 0)); //only processor of rank 0 prints out
     
     double optTime = timer.stop();
-    if (LA_Comm->MyPID() == 0 && S_Comm->MyPID() == 0) {
+    if (LA_Comm->getRank() == 0 && S_Comm->getRank() == 0) {
       string outname = ROLsettings.get("Output File Name","ROL_out.txt");
       ofstream respOUT(outname);
       respOUT.precision(16);
@@ -724,7 +777,7 @@ void analysis::run() {
     }
     
     if (settings->sublist("Postprocess").get("Write Hessian",false)){
-      obj->printHess(settings->sublist("Postprocess").get("Hessian Output File","hess.dat"),x,LA_Comm->MyPID());
+      obj->printHess(settings->sublist("Postprocess").get("Hessian Output File","hess.dat"),x,LA_Comm->getRank());
     }
     if (settings->sublist("Analysis").get("Write Output",false)) {
       DFAD val = 0.0;

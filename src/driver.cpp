@@ -158,7 +158,7 @@ int main(int argc,char * argv[]) {
     
     solve->multiscale_manager = multiscale_manager;
     //solve->finalizeMultiscale();
-    solve->setBatchID(tcomm_S->MyPID());
+    solve->setBatchID(tcomm_S->getRank());
     
     ////////////////////////////////////////////////////////////////////////////////
     // Finalize the functions
@@ -191,7 +191,7 @@ int main(int argc,char * argv[]) {
     solve->finalizeMultiscale();
     solve->setupSensors(settings); // moved here so subcells can have sensors
     
-    if (verbosity >= 20 && Comm.MyPID() == 0) {
+    if (verbosity >= 20 && Comm.getRank() == 0) {
       functionManager->printFunctions();
     }
     

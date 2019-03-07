@@ -66,7 +66,7 @@ public:
   
   physics() {} ;
   
-  physics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<Epetra_MpiComm> & Comm_,
+  physics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<LA_MpiComm> & Comm_,
           vector<topo_RCP> & cellTopo, vector<topo_RCP> & sideTopo,
           Teuchos::RCP<FunctionInterface> & functionManager_,
           Teuchos::RCP<panzer_stk::STK_Interface> & mesh);
@@ -298,7 +298,7 @@ public:
   vector<vector<Teuchos::RCP<physicsbase> > > modules;
   vector<vector<bool> > module_useScalarRespFunc;
   Teuchos::RCP<FunctionInterface> functionManager;
-  Teuchos::RCP<Epetra_MpiComm> Commptr;
+  Teuchos::RCP<LA_MpiComm> Commptr;
   
   vector<string> blocknames;
   int spaceDim, numElemPerCell;

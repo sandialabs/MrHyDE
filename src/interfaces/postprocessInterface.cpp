@@ -15,7 +15,7 @@
 /* Constructor to set up the problem */
 // ========================================================================================
 
-postprocess::postprocess(const Teuchos::RCP<Epetra_MpiComm> & Comm_,
+postprocess::postprocess(const Teuchos::RCP<LA_MpiComm> & Comm_,
                          Teuchos::RCP<Teuchos::ParameterList> & settings,
                          Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
                          Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
@@ -137,7 +137,7 @@ DOF(DOF_), cells(cells_) {
 void postprocess::computeError(const vector_RCP & F_soln) {
   
   
-  if(Comm->MyPID() == 0) {
+  if(Comm->getRank() == 0) {
     cout << endl << "*********************************************************" << endl;
     cout << "***** Performing verification ******" << endl << endl;
   }
@@ -166,8 +166,9 @@ void postprocess::computeError(const vector_RCP & F_soln) {
       for (int n=0; n<numVars[b]; n++) {
         double lerr = localerror(t,n);
         double gerr = 0.0;
-        Comm->SumAll(&lerr, &gerr, 1);
-        if(Comm->MyPID() == 0) {
+        Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lerr,&gerr);
+        //Comm->SumAll(&lerr, &gerr, 1);
+        if(Comm->getRank() == 0) {
           cout << "***** " << error_type << " norm of the error for " << varlist[b][n] << " = " << sqrt(gerr) << "  (time = " << solvetimes[t] << ")" <<  endl;
         }
       }
@@ -181,7 +182,7 @@ void postprocess::computeError(const vector_RCP & F_soln) {
 
 AD postprocess::computeObjective(const vector_RCP & F_soln) {
   
-  if(Comm->MyPID() == 0 ) {
+  if(Comm->getRank() == 0 ) {
     if (verbosity > 0) {
       cout << endl << "*********************************************************" << endl;
       cout << "***** Computing Objective Function ******" << endl << endl;
@@ -317,25 +318,27 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
   
   //to gather contributions across processors
   double meep = 0.0;
-  Comm->SumAll(&totaldiff.val(), &meep, 1);
+  Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&totaldiff.val(),&meep);
+  //Comm->SumAll(&totaldiff.val(), &meep, 1);
   totaldiff.val() = meep;
   AD fullobj(numParams,meep);
   
   for (size_t j=0; j< numParams; j++) {
     double dval;
     double ldval = dmGradient[j] + regGradient[j];
-    Comm->SumAll(&ldval,&dval,1);
+    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&ldval,&dval);
+    //Comm->SumAll(&ldval,&dval,1);
     fullobj.fastAccessDx(j) = dval;
   }
   
-  if(Comm->MyPID() == 0 ) {
+  if(Comm->getRank() == 0 ) {
     if (verbosity > 0) {
       cout << "********** Value of Objective Function = " << std::setprecision(16) << fullobj.val() << endl;
       cout << "*********************************************************" << endl;
     }
   }
   
-  if(Comm->MyPID() == 0) {
+  if(Comm->getRank() == 0) {
     std::string sname2 = "obj.dat";
     ofstream objOUT(sname2.c_str());
     objOUT.precision(16);
@@ -410,7 +413,7 @@ Kokkos::View<double***,HostDevice> postprocess::computeResponse(const vector_RCP
 void postprocess::computeResponse(const vector_RCP & F_soln) {
   
   
-  if(Comm->MyPID() == 0 ) {
+  if(Comm->getRank() == 0 ) {
     if (verbosity > 0) {
       cout << endl << "*********************************************************" << endl;
       cout << "***** Computing Responses ******" << endl;
@@ -446,19 +449,20 @@ void postprocess::computeResponse(const vector_RCP & F_soln) {
         ofstream respOUT(sname2.c_str());
         respOUT.precision(16);
         for (size_t tt=0; tt<solvetimes.size(); tt++) { // skip the initial condition
-          if(Comm->MyPID() == 0){
+          if(Comm->getRank() == 0){
             respOUT << solvetimes[tt] << "  ";
           }
           for (int n=0; n<responses.dimension(1); n++) {
             double tmp1 = responses(k,n,tt);
             double tmp2 = 0.0;//globalresp(k,n,tt);
-            Comm->SumAll(&tmp1, &tmp2, 1);
+            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&tmp1,&tmp2);
+            //Comm->SumAll(&tmp1, &tmp2, 1);
             err = this->makeSomeNoise(stddev);
-            if(Comm->MyPID() == 0) {
+            if(Comm->getRank() == 0) {
               respOUT << tmp2+err << "  ";
             }
           }
-          if(Comm->MyPID() == 0){
+          if(Comm->getRank() == 0){
             respOUT << endl;
           }
         }
@@ -477,14 +481,15 @@ void postprocess::computeResponse(const vector_RCP & F_soln) {
           for (int m=0; m<responses.dimension(2); m++) {
             double tmp1 = responses(k,n,m);
             double tmp2 = 0.0;//globalresp(k,n,tt);
-            Comm->SumAll(&tmp1, &tmp2, 1);
-            if(Comm->MyPID() == 0) {
+            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&tmp1,&tmp2);
+            //Comm->SumAll(&tmp1, &tmp2, 1);
+            if(Comm->getRank() == 0) {
               respOUT << tmp2 << "  ";
             }
           }
         }
       }
-      if(Comm->MyPID() == 0){
+      if(Comm->getRank() == 0){
         respOUT << endl;
       }
       respOUT.close();
@@ -540,7 +545,7 @@ vector<double> postprocess::computeSensitivities(const vector_RCP & F_soln, cons
   
   sensitivitytimer->stop();
   
-  if(Comm->MyPID() == 0 ) {
+  if(Comm->getRank() == 0 ) {
     if (verbosity > 0) {
       int pprog = 0;
       for (size_t p=0; p < active_paramnames.size(); p++) {
@@ -565,7 +570,7 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
   
   string filename = filelabel+".exo";
   
-  if(Comm->MyPID() == 0) {
+  if(Comm->getRank() == 0) {
     cout << endl << "*********************************************************" << endl;
     cout << "***** Writing the solution to " << filename << endl;
     cout << "*********************************************************" << endl;
@@ -948,17 +953,17 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
     hOUT.close();
   }
   
-  solve->multiscale_manager->writeSolution(filelabel, solvetimes, Comm->MyPID());
+  solve->multiscale_manager->writeSolution(filelabel, solvetimes, Comm->getRank());
   
   //for (size_t b=0; b<cells.size(); b++) {
   //  for (size_t e=0; e<cells[b].size(); e++) {
   //    stringstream ss;
-  //    ss << Comm->MyPID() << "." << e;
+  //    ss << Comm->getRank() << "." << e;
   //    string blockname = "subgrid_data/subgrid.exo." + ss.str();// + ".exo";
   //    cells[b][e]->writeSubgridSolution(blockname);
   //  }
   //}
-  if(Comm->MyPID() == 0) {
+  if(Comm->getRank() == 0) {
     cout << endl << "*********************************************************" << endl;
     cout << "***** Finished Writing the solution to " << filename << endl;
     cout << "*********************************************************" << endl;
