@@ -78,7 +78,8 @@ status += its.call('./run.sh')
 
   # Test 2
   #
-status += its.call('diff -q %s.log ./ref/%s.ocs' % (root, root))
+status += its.call('diff -y %s.log ./ref/%s.ocs' % (root, root))
+  #status += its.call('diff -y %s.log ./ref/%s.ocs' % (root, root))
   #status += its.call("awk 'NR==1 {print substr($0,0,38)} NR>1 {print substr($0,0,41);}' < %s.ocs | diff - ref/%s.ocs" % (root, root))
 
   # Test 3

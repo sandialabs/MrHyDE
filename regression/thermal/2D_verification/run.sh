@@ -4,5 +4,5 @@
 #module list >& env.out
 . ~/.bashrc
 
-mpiexec -n 4 ../../milo-ms >& milo.log
+mpiexec -n 4 ../../milo >& milo.log
 exit
