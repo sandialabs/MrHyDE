@@ -128,7 +128,7 @@ void cell::setAuxUseBasis(vector<int> & ausebasis_) {
 // Set one of the local solution
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::setLocalSoln(const vector_RCP & gl_vec, const int & type,
+void cell::setLocalSoln(const Teuchos::RCP<Epetra_MultiVector> & gl_vec, const int & type,
                         const size_t & entry){ //, const int & nstages) {
   
   // Here, nstages refers to the number of stages in gl_vec
@@ -190,6 +190,81 @@ void cell::setLocalSoln(const vector_RCP & gl_vec, const int & type,
         for (size_t n=0; n<auxindex.size(); n++) {
           for(size_t i=0; i<auxindex[n].size(); i++ ) {
             aux(e,n,i) = (*gl_vec)[entry][auxindex[n][i]];
+          }
+        }
+      }
+      break;
+    default :
+      cout << "ERROR - NOTHING WAS GATHERED" << endl;
+      
+  }
+  
+}
+
+void cell::setLocalSoln(const vector_RCP & gl_vec, const int & type,
+                        const size_t & entry){ //, const int & nstages) {
+  
+  // Here, nstages refers to the number of stages in gl_vec
+  // which may be different from num_stages, but always nstages <= num_stages
+  
+  // In general, gl_vec will reside in host memory
+  // We may want to thread this gather on host
+  
+  auto vec_kv = gl_vec->getLocalView<HostDevice>();
+  
+  switch(type) {
+    case 0 :
+      for (int e=0; e<numElem; e++) {
+        for (size_t n=0; n<index[e].size(); n++) {
+          for(size_t i=0; i<index[e][n].size(); i++ ) {
+            u(e,n,i) = vec_kv(index[e][n][i],entry);
+          }
+        }
+      }
+      break;
+    case 1 :
+      for (int e=0; e<numElem; e++) {
+        for (size_t n=0; n<index[e].size(); n++) {
+          for(size_t i=0; i<index[e][n].size(); i++ ) {
+            u_dot(e,n,i) = vec_kv(index[e][n][i],entry);
+          }
+        }
+      }
+      break;
+    case 2 :
+      for (int e=0; e<numElem; e++) {
+        for (size_t n=0; n<index[e].size(); n++) {
+          for(size_t i=0; i<index[e][n].size(); i++ ) {
+            phi(e,n,i) = vec_kv(index[e][n][i],entry);
+          }
+        }
+      }
+      break;
+    case 3 :
+      for (int e=0; e<numElem; e++) {
+        for (size_t n=0; n<index[e].size(); n++) {
+          for(size_t i=0; i<index[e][n].size(); i++ ) {
+            phi_dot(e,n,i) = vec_kv(index[e][n][i],entry);
+          }
+        }
+      }
+      break;
+    case 4 :
+      for (int e=0; e<numElem; e++) {
+        if (paramindex.size()>e) {
+          for (size_t n=0; n<paramindex[e].size(); n++) {
+            for(size_t i=0; i<paramindex[e][n].size(); i++ ) {
+              param(e,n,i) = vec_kv(paramindex[e][n][i],entry);
+            }
+          }
+        }
+      }
+      break;
+    case 5 :
+      for (int e=0; e<numElem; e++) {
+        for (size_t n=0; n<auxindex.size(); n++) {
+          for(size_t i=0; i<auxindex[n].size(); i++ ) {
+            aux(e,n,i) = vec_kv(auxindex[n][i],entry);
           }
         }
       }
@@ -291,12 +366,31 @@ void cell::computeSolnSideIP(const int & side,
 // Update the solution variables in the workset
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateSolnWorkset(const vector_RCP & gl_u, int tindex) {
+void cell::updateSolnWorkset(const Teuchos::RCP<Epetra_MultiVector> & gl_u, int tindex) {
   Kokkos::View<double***,AssemblyDevice> ulocal("tempory u", numElem,u.dimension(1),u.dimension(2));
   for (int e=0; e<numElem; e++) {
     for (size_t n=0; n<index[e].size(); n++) {
       for(size_t i=0; i<index[e][n].size(); i++ ) {
         ulocal(e,n,i) = (*gl_u)[tindex][index[e][n][i]];
+      }
+    }
+  }
+  wkset->update(ip,ijac,orientation);
+  wkset->computeSolnVolIP(ulocal);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Update the solution variables in the workset
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::updateSolnWorkset(const vector_RCP & gl_u, int tindex) {
+  Kokkos::View<double***,AssemblyDevice> ulocal("tempory u", numElem,u.dimension(1),u.dimension(2));
+  auto u_kv = gl_u->getLocalView<HostDevice>();
+  
+  for (int e=0; e<numElem; e++) {
+    for (size_t n=0; n<index[e].size(); n++) {
+      for(size_t i=0; i<index[e][n].size(); i++ ) {
+        ulocal(e,n,i) = u_kv(index[e][n][i],tindex);
       }
     }
   }
@@ -529,6 +623,7 @@ void cell::computeJacRes(const vector<vector<double> > & paramvals,
         }
       }
     }
+    
     
     // Edge contribution
     //for (int side=0; side<numSides; side++) {
@@ -1924,10 +2019,9 @@ void cell::writeSubgridSolution(const std::string & filename) {
 // Compute flux and sensitivity wrt params
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::computeFlux(//vector<vector<AD> > & u_AD, vector<vector<AD> > & u_dot_AD,
-                       //vector<vector<AD> > & param_AD, vector<vector<AD> > & lambda_AD,
-                       const vector_RCP & gl_u, const vector_RCP & gl_du,
-                       const vector_RCP & params,
+template<class T>
+void cell::computeFlux(const Teuchos::RCP<T> & gl_u, const Teuchos::RCP<T> & gl_du,
+                       const Teuchos::RCP<T> & params,
                        Kokkos::View<double***,AssemblyDevice> lambda,
                        const double & time, const int & side, const double & coarse_h,
                        const bool & compute_sens) {

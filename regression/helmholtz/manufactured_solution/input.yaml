@@ -1,6 +1,7 @@
 %YAML 1.1
 ---
 ANONYMOUS:
+  verbosity: 0
   Mesh: 
     dim: 2
     shape: quad
@@ -57,6 +58,8 @@ ANONYMOUS:
   Solver: 
     Verbosity: 0
     solver: steady-state
+    Multigrid type: sa
+    Smoother type: ILUT
     Workset size: 1
     NLtol: 1.0e-8
     finaltime: 1.00000000000000000e+00

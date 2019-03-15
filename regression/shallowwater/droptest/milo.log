@@ -3,13 +3,13 @@
 ***** Performing verification ******
 
 ***** L2 norm of the error for H = 1.00321  (time = 0)
-***** L2 norm of the error for Hu = 0  (time = 0)
-***** L2 norm of the error for Hv = 0  (time = 0)
+***** L2 norm of the error for Hu = 5.91732e-10  (time = 0)
+***** L2 norm of the error for Hv = 5.91732e-10  (time = 0)
 ***** L2 norm of the error for H = 1.00321  (time = 0.001)
 ***** L2 norm of the error for Hu = 0.0024899  (time = 0.001)
 ***** L2 norm of the error for Hv = 0.00248997  (time = 0.001)
 ***** L2 norm of the error for H = 1.00321  (time = 0.002)
-***** L2 norm of the error for Hu = 0.00493953  (time = 0.002)
+***** L2 norm of the error for Hu = 0.00493952  (time = 0.002)
 ***** L2 norm of the error for Hv = 0.00493988  (time = 0.002)
 ***** L2 norm of the error for H = 1.00321  (time = 0.003)
 ***** L2 norm of the error for Hu = 0.0073301  (time = 0.003)

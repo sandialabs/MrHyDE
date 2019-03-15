@@ -20,10 +20,10 @@ ANONYMOUS:
   Parameters Settings File: input_params.yaml
   Solver: 
     solver: steady-state
-    Workset size: 10
+    Workset size: 1
     Verbosity: 0
     NLtol: 9.99999999999999955e-07
-    MaxNLiter: 4
+    MaxNLiter: 2
     finaltime: 1.00000000000000000e+00
     numSteps: 10
     use strong DBCs: true

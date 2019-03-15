@@ -138,6 +138,17 @@
 // Exodus includes
 #include "exodusII.h"
 
+// Belos
+#include <BelosConfigDefs.hpp>
+#include <BelosLinearProblem.hpp>
+#include <BelosTpetraAdapter.hpp>
+
+// MueLu
+#include <MueLu.hpp>
+#include <MueLu_TpetraOperator.hpp>
+#include <MueLu_CreateTpetraPreconditioner.hpp>
+#include <MueLu_Utilities.hpp>
+
 #ifdef HAVE_MPI
 #include "Epetra_MpiComm.h"
 #include "mpi.h"

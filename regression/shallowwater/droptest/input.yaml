@@ -1,6 +1,7 @@
 %YAML 1.1
 ---
 ANONYMOUS:
+  verbosity: 0
   Mesh Settings File: input_mesh.yaml
   Physics: 
     simulation_name: verification
@@ -34,7 +35,6 @@ ANONYMOUS:
   Solver: 
     solver: transient
     Workset Size: 1
-    Verbosity: 0
     NLtol: 9.99999999999999955e-07
     MaxNLiter: 4
     finaltime: 5.0000000000000000e-3

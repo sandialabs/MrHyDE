@@ -121,7 +121,6 @@ public:
                vector<string> & macrosidenames,
                vector<int> & macroGIDs, vector<vector<int> > & macroindex) {
     
-    
     bool first_time = false;
     if (cells.size() == 0) {
       first_time = true;
@@ -340,15 +339,25 @@ public:
       basis_pointers = disc->basis_pointers[0];
       useBasis = subsolver->useBasis;
       
-      owned_map = subsolver->LA_owned_map;
-      overlapped_map = subsolver->LA_overlapped_map;
-      exporter = subsolver->exporter;
-      importer = subsolver->importer;
-      overlapped_graph = subsolver->LA_overlapped_graph;
+      // Need to create Epetra versions of these maps (should be easy)
+      
+      Epetra_MpiComm EP_Comm(*(LocalComm->getRawMpiComm()));
+      owned_map = Teuchos::rcp(new Epetra_Map(-1, subsolver->LA_owned.size(), &(subsolver->LA_owned[0]), 0, EP_Comm));
+      overlapped_map = Teuchos::rcp(new Epetra_Map(-1, subsolver->LA_ownedAndShared.size(), &(subsolver->LA_ownedAndShared[0]), 0, EP_Comm));
+      
+      exporter = Teuchos::rcp(new Epetra_Export(*overlapped_map, *owned_map));
+      importer = Teuchos::rcp(new Epetra_Import(*overlapped_map, *owned_map));
+      overlapped_graph = subsolver->buildEpetraGraph(EP_Comm);// Teuchos::rcp(new Epetra_CrsGraph(Copy, *overlapped_map, 0));
+      
+      //owned_map = subsolver->LA_owned_map;
+      //overlapped_map = subsolver->LA_overlapped_map;
+      //exporter = subsolver->exporter;
+      //importer = subsolver->importer;
+      //overlapped_graph = subsolver->LA_overlapped_graph;
       
       res = Teuchos::rcp( new Epetra_MultiVector(*(owned_map),1)); // reset residual
-      J = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *(owned_map), -1)); // reset Jacobian
-      M = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *(owned_map), -1)); // reset Mass
+      J = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *overlapped_graph)); // reset Jacobian
+      M = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *overlapped_graph)); // reset Mass
       res_over = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1)); // reset residual
       sub_J_over = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *(overlapped_graph))); // reset Jacobian
       sub_M_over = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *(overlapped_graph))); // reset Jacobian
@@ -366,23 +375,36 @@ public:
       du_glob = Teuchos::rcp(new Epetra_MultiVector(*(owned_map),1));
       du = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),1));
       
+      
       filledJ = false;
       filledM = false;
       
       wkset = subsolver->wkset;
       //paramvals_AD = subsolver->paramvals_AD;
       
-      param_owned_map = subsolver->param_owned_map;
-      param_overlapped_map = subsolver->param_overlapped_map;
-      param_exporter = subsolver->param_exporter;
-      param_importer = subsolver->param_importer;
+      // Need to create Epetra versions of these maps
       
-      if (subsolver->getNumParams(4) > 0) {
-        Psol.push_back(subsolver->Psol[0]);
+      vector<int> params;
+      if (subsolver->paramOwnedAndShared.size() == 0) {
+        params.push_back(0);
       }
       else {
-        Psol.push_back(Teuchos::rcp(new Epetra_MultiVector(*param_overlapped_map,1)));
+        params = subsolver->paramOwnedAndShared;
       }
+      
+      
+      //param_owned_map = Teuchos::rcp(new Epetra_Map(-1, subsolver->numParamUnknowns, &(subsolver->paramOwned[0]), 0, EP_Comm));
+      param_overlapped_map = Teuchos::rcp(new Epetra_Map(-1, params.size(), &params[0], 0, EP_Comm));
+      //param_exporter = Teuchos::rcp(new Epetra_Export(*param_overlapped_map, *param_owned_map));
+      //param_importer = Teuchos::rcp(new Epetra_Import(*param_overlapped_map, *param_owned_map));
+    
+      //param_owned_map = subsolver->param_owned_map;
+      //param_overlapped_map = subsolver->param_overlapped_map;
+      //param_exporter = subsolver->param_exporter;
+      //param_importer = subsolver->param_importer;
+      
+      //TMW: this may not initialize properly
+      //Psol.push_back(Teuchos::rcp(new Epetra_MultiVector(*param_overlapped_map,1)));
       
       num_active_params = subsolver->getNumParams(1);
       num_stochclassic_params = subsolver->getNumParams(2);
@@ -408,16 +430,16 @@ public:
     {
       Teuchos::TimeMonitor localtimer(*sgfemSubICTimer);
       
-      vector_RCP init = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),1));
+      Teuchos::RCP<Epetra_MultiVector> init = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),1));
       this->setInitial(init, block, false);
-      vector<pair<double, vector_RCP> > initvec;
-      pair<double, vector_RCP> initsol(initial_time, init);
+      vector<pair<double, Teuchos::RCP<Epetra_MultiVector> > > initvec;
+      pair<double, Teuchos::RCP<Epetra_MultiVector> > initsol(initial_time, init);
       initvec.push_back(initsol);
       soln.push_back(initvec);
       
-      vector_RCP inita = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),1));
-      vector<pair<double, vector_RCP> > initadjvec;
-      pair<double, vector_RCP> initadjsol(final_time, inita);
+      Teuchos::RCP<Epetra_MultiVector> inita = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),1));
+      vector<pair<double, Teuchos::RCP<Epetra_MultiVector> > > initadjvec;
+      pair<double, Teuchos::RCP<Epetra_MultiVector> > initadjsol(final_time, inita);
       initadjvec.push_back(initadjsol);
       adjsoln.push_back(initadjvec);
       
@@ -1000,7 +1022,7 @@ public:
     // Use the coarse scale solution to solve local transient/nonlinear problem
     //////////////////////////////////////////////////////////////
     
-    vector_RCP d_u = d_um;
+    Teuchos::RCP<Epetra_MultiVector> d_u = d_um;
     if (compute_sens) {
       d_u = Teuchos::rcp( new Epetra_MultiVector(*(owned_map), num_active_params)); // reset residual
     }
@@ -1014,17 +1036,17 @@ public:
     
     if (isTransient) {
       double sgtime = prev_time;
-      vector_RCP prev_u = u;
-      vector<vector_RCP> curr_fsol;
-      vector<vector_RCP> curr_fsol_dot;
+      Teuchos::RCP<Epetra_MultiVector> prev_u = u;
+      vector<Teuchos::RCP<Epetra_MultiVector> > curr_fsol;
+      vector<Teuchos::RCP<Epetra_MultiVector> > curr_fsol_dot;
       vector<double> subsolvetimes;
       subsolvetimes.push_back(sgtime);
       if (isAdjoint) {
         // First, we need to resolve the forward problem
         
         for (int tstep=0; tstep<time_steps; tstep++) {
-          vector_RCP recu = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1)); // reset residual
-          vector_RCP recu_dot = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1)); // reset residual
+          Teuchos::RCP<Epetra_MultiVector> recu = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1)); // reset residual
+          Teuchos::RCP<Epetra_MultiVector> recu_dot = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1)); // reset residual
           
           *recu = *u;
           sgtime += macro_deltat/(double)time_steps;
@@ -1181,14 +1203,15 @@ public:
   // Subgrid Nonlinear Solver
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void subGridNonlinearSolver(vector_RCP & sub_u, vector_RCP & sub_u_dot,
-                              vector_RCP & sub_phi, vector_RCP & sub_phi_dot,
-                              vector_RCP & sub_params, Kokkos::View<double***,AssemblyDevice> lambda,
+  void subGridNonlinearSolver(Teuchos::RCP<Epetra_MultiVector> & sub_u, Teuchos::RCP<Epetra_MultiVector> & sub_u_dot,
+                              Teuchos::RCP<Epetra_MultiVector> & sub_phi, Teuchos::RCP<Epetra_MultiVector> & sub_phi_dot,
+                              Teuchos::RCP<Epetra_MultiVector> & sub_params, Kokkos::View<double***,AssemblyDevice> lambda,
                               const vector<vector<double> > & paramvals,
                               const vector<int> & paramtypes, const vector<string> & paramnames,
                               const double & time, const bool & isTransient, const bool & isAdjoint,
                               const int & num_active_params, const double & alpha, const int & usernum,
                               const bool & store_adjPrev) {
+    
     
     Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverTimer);
     
@@ -1390,19 +1413,20 @@ public:
       iter++;
       
     }
+    
   }
   
   //////////////////////////////////////////////////////////////
   // Decide if we need to save the current solution
   //////////////////////////////////////////////////////////////
   
-  void solutionStorage(vector_RCP & newvec,
+  void solutionStorage(Teuchos::RCP<Epetra_MultiVector> & newvec,
                        const double & time, const bool & isAdjoint,
                        const int & usernum) {
     
     Teuchos::TimeMonitor localtimer(*sgfemSolnStorageTimer);
     
-    vector_RCP vectostore = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1));
+    Teuchos::RCP<Epetra_MultiVector> vectostore = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1));
     *vectostore = *newvec;
     if (isAdjoint) {
       size_t findex;
@@ -1414,7 +1438,7 @@ public:
           findex = j;
         }
       }
-      pair<double, vector_RCP> time_u(adjtime,vectostore);
+      pair<double, Teuchos::RCP<Epetra_MultiVector> > time_u(adjtime,vectostore);
       if (foundtime) {
         adjsoln[usernum][findex] = time_u;
       }
@@ -1432,7 +1456,7 @@ public:
           findex = j;
         }
       }
-      pair<double, vector_RCP> time_u(time,vectostore);
+      pair<double, Teuchos::RCP<Epetra_MultiVector> > time_u(time,vectostore);
       if (foundtime) {
         soln[usernum][findex] = time_u;
       }
@@ -1447,10 +1471,10 @@ public:
   // solution or w.r.t parameters
   //////////////////////////////////////////////////////////////
   
-  void computeSubGridSolnSens(vector_RCP & d_sub_u, const bool & compute_sens,
-                              vector_RCP & sub_u, vector_RCP & sub_u_dot,
-                              vector_RCP & sub_phi, vector_RCP & sub_phi_dot,
-                              vector_RCP & sub_param, Kokkos::View<double***,AssemblyDevice> lambda,
+  void computeSubGridSolnSens(Teuchos::RCP<Epetra_MultiVector> & d_sub_u, const bool & compute_sens,
+                              Teuchos::RCP<Epetra_MultiVector> & sub_u, Teuchos::RCP<Epetra_MultiVector> & sub_u_dot,
+                              Teuchos::RCP<Epetra_MultiVector> & sub_phi, Teuchos::RCP<Epetra_MultiVector> & sub_phi_dot,
+                              Teuchos::RCP<Epetra_MultiVector> & sub_param, Kokkos::View<double***,AssemblyDevice> lambda,
                               const vector<vector<double> > & paramvals,
                               const vector<int> & paramtypes, const vector<string> & paramnames, const double & time,
                               const bool & isTransient, const bool & isAdjoint, const int & num_active_params, const double & alpha,
@@ -1459,10 +1483,10 @@ public:
     
     Teuchos::TimeMonitor localtimer(*sgfemSolnSensTimer);
     
-    vector_RCP d_sub_res_over = d_sub_res_overm;
-    vector_RCP d_sub_res = d_sub_resm;
-    vector_RCP d_sub_u_prev = d_sub_u_prevm;
-    vector_RCP d_sub_u_over = d_sub_u_overm;
+    Teuchos::RCP<Epetra_MultiVector> d_sub_res_over = d_sub_res_overm;
+    Teuchos::RCP<Epetra_MultiVector> d_sub_res = d_sub_resm;
+    Teuchos::RCP<Epetra_MultiVector> d_sub_u_prev = d_sub_u_prevm;
+    Teuchos::RCP<Epetra_MultiVector> d_sub_u_over = d_sub_u_overm;
     
     if (compute_sens) {
       int numsubDerivs = d_sub_u->NumVectors();
@@ -1620,8 +1644,8 @@ public:
         }
       }
       else {
-        vector_RCP cd_sub_res = Teuchos::rcp(new Epetra_MultiVector(*(owned_map),1));
-        vector_RCP cd_sub_u_over = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),1));
+        Teuchos::RCP<Epetra_MultiVector> cd_sub_res = Teuchos::rcp(new Epetra_MultiVector(*(owned_map),1));
+        Teuchos::RCP<Epetra_MultiVector> cd_sub_u_over = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),1));
         
         for (size_t i=0; i<d_sub_u->NumVectors(); i++) {
           for (int j=0; j<d_sub_u->MyLength(); j++) {
@@ -1649,7 +1673,7 @@ public:
   // Update the flux
   //////////////////////////////////////////////////////////////
   
-  void updateFlux(const vector_RCP & u, const vector_RCP & d_u,
+  void updateFlux(const Teuchos::RCP<Epetra_MultiVector> & u, const Teuchos::RCP<Epetra_MultiVector> & d_u,
                   Kokkos::View<double***,AssemblyDevice> lambda,
                   const bool & compute_sens, const int macroelemindex,
                   const double & time, workset & macrowkset,
@@ -1700,7 +1724,7 @@ public:
   // Compute the initial values for the subgrid solution
   //////////////////////////////////////////////////////////////
   
-  void setInitial(vector_RCP & initial, const int & usernum, const bool & useadjoint) {
+  void setInitial(Teuchos::RCP<Epetra_MultiVector> & initial, const int & usernum, const bool & useadjoint) {
     
     initial->PutScalar(0.0);
      // TMW: uncomment if you need a nonzero initial condition
@@ -1712,10 +1736,10 @@ public:
     if (useL2proj) {
       
       // Compute the L2 projection of the initial data into the discrete space
-      vector_RCP rhs = Teuchos::rcp(new Epetra_MultiVector(*overlapped_map,1)); // reset residual
-      matrix_RCP mass = Teuchos::rcp(new Epetra_CrsMatrix(Copy, *overlapped_map, -1)); // reset Jacobian
-      vector_RCP glrhs = Teuchos::rcp(new Epetra_MultiVector(*owned_map,1)); // reset residual
-      matrix_RCP glmass = Teuchos::rcp(new Epetra_CrsMatrix(Copy, *owned_map, -1)); // reset Jacobian
+      Teuchos::RCP<Epetra_MultiVector> rhs = Teuchos::rcp(new Epetra_MultiVector(*overlapped_map,1)); // reset residual
+      Teuchos::RCP<Epetra_CrsMatrix>  mass = Teuchos::rcp(new Epetra_CrsMatrix(Copy, *overlapped_map, -1)); // reset Jacobian
+      Teuchos::RCP<Epetra_MultiVector> glrhs = Teuchos::rcp(new Epetra_MultiVector(*owned_map,1)); // reset residual
+      Teuchos::RCP<Epetra_CrsMatrix>  glmass = Teuchos::rcp(new Epetra_CrsMatrix(Copy, *owned_map, -1)); // reset Jacobian
       
       
       //for (size_t b=0; b<cells.size(); b++) {
@@ -1751,7 +1775,7 @@ public:
       
       glmass->FillComplete();
       
-      vector_RCP glinitial = Teuchos::rcp(new Epetra_MultiVector(*overlapped_map,1)); // reset residual
+      Teuchos::RCP<Epetra_MultiVector> glinitial = Teuchos::rcp(new Epetra_MultiVector(*overlapped_map,1)); // reset residual
       
       this->linearSolver(glmass, glrhs, glinitial);
       
@@ -1781,7 +1805,7 @@ public:
   // Subgrid Linear Solver
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void linearSolver(matrix_RCP & M, vector_RCP & r, vector_RCP & sol) {
+  void linearSolver(Teuchos::RCP<Epetra_CrsMatrix>  & M, Teuchos::RCP<Epetra_MultiVector> & r, Teuchos::RCP<Epetra_MultiVector> & sol) {
     Epetra_LinearProblem cLinSys(M.get(), sol.get(), r.get());
     Amesos_BaseSolver * AmSolverT;
     Amesos AmFactoryT;
@@ -2437,11 +2461,11 @@ public:
   // Assemble the projection (mass) matrix
   ////////////////////////////////////////////////////////////////////////////////
   
-  matrix_RCP getProjectionMatrix() {
+  Teuchos::RCP<Epetra_CrsMatrix>  getProjectionMatrix() {
     
     // Compute the mass matrix on a reference element
-    matrix_RCP mass = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *overlapped_map, -1) );
-    matrix_RCP glmass = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *owned_map, -1) );
+    Teuchos::RCP<Epetra_CrsMatrix>  mass = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *overlapped_map, -1) );
+    Teuchos::RCP<Epetra_CrsMatrix>  glmass = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *owned_map, -1) );
     int usernum = 0;
     for (size_t e=0; e<cells[usernum].size(); e++) {
       int numElem = cells[usernum][e]->numElem;
@@ -2664,9 +2688,9 @@ public:
   // Get the matrix mapping the DOFs to a set of integration points on a reference macro-element
   ////////////////////////////////////////////////////////////////////////////////
   
-  matrix_RCP getEvaluationMatrix(const DRV & newip, Teuchos::RCP<Epetra_Map> & ip_map) {
-    matrix_RCP map_over = Teuchos::rcp(new Epetra_CrsMatrix(Copy, *overlapped_map, -1));
-    matrix_RCP map = Teuchos::rcp(new Epetra_CrsMatrix(Copy, *owned_map, -1));
+  Teuchos::RCP<Epetra_CrsMatrix>  getEvaluationMatrix(const DRV & newip, Teuchos::RCP<Epetra_Map> & ip_map) {
+    Teuchos::RCP<Epetra_CrsMatrix>  map_over = Teuchos::rcp(new Epetra_CrsMatrix(Copy, *overlapped_map, -1));
+    Teuchos::RCP<Epetra_CrsMatrix>  map = Teuchos::rcp(new Epetra_CrsMatrix(Copy, *owned_map, -1));
     
     map->PutScalar(0.0);
     map->Export(*map_over, *exporter, Add);
@@ -2758,7 +2782,7 @@ public:
   //
   // ========================================================================================
   
-  void performGather(const size_t & block, const vector_RCP & vec, const size_t & type,
+  void performGather(const size_t & block, const Teuchos::RCP<Epetra_MultiVector> & vec, const size_t & type,
                      const size_t & index) const {
     
     for (size_t e=0; e < cells[block].size(); e++) {
@@ -2805,12 +2829,12 @@ public:
   Teuchos::RCP<Epetra_Export> param_exporter;
   Teuchos::RCP<Epetra_Import> param_importer;
   
-  vector_RCP res, res_over, d_um, du, du_glob;//, d_up;//,
-  vector_RCP u, u_dot, phi, phi_dot;
-  vector_RCP d_sub_res_overm, d_sub_resm, d_sub_u_prevm, d_sub_u_overm;
+  Teuchos::RCP<Epetra_MultiVector> res, res_over, d_um, du, du_glob;//, d_up;//,
+  Teuchos::RCP<Epetra_MultiVector> u, u_dot, phi, phi_dot;
+  Teuchos::RCP<Epetra_MultiVector> d_sub_res_overm, d_sub_resm, d_sub_u_prevm, d_sub_u_overm;
   
   Teuchos::RCP<Epetra_CrsGraph> overlapped_graph;
-  matrix_RCP J, sub_J_over, M, sub_M_over;
+  Teuchos::RCP<Epetra_CrsMatrix>  J, sub_J_over, M, sub_M_over;
   
   bool filledJ, filledM, useDirect;
   vector<string> stoch_param_types;
@@ -2839,7 +2863,7 @@ public:
   Teuchos::RCP<discretization> disc;
   Teuchos::RCP<FunctionInterface> functionManager;
   
-  vector<vector_RCP> Psol;
+  vector<Teuchos::RCP<Epetra_MultiVector> > Psol;
   
   // Dynamic - depend on the macro-element
   vector<DRV> macronodes;

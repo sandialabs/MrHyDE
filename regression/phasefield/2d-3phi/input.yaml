@@ -1,6 +1,7 @@
 %YAML 1.1
 ---
 ANONYMOUS:
+  verbosity: 0
   Mesh Settings File: input_mesh.yaml
   Physics: 
     number_phases: 3
@@ -29,7 +30,6 @@ ANONYMOUS:
     solver: transient
     Workset Size: 1
     Initial type: interpolation
-    Verbosity: 0
     NLtol: 9.99999999999999955e-07
     MaxNLiter: 10
     finaltime: 5.00000000000000000e-01

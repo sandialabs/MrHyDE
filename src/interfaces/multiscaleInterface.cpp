@@ -190,8 +190,8 @@ double MultiScale::initialize() {
       vector<Teuchos::RCP<Epetra_CrsMatrix> > currmaps;
       for (size_t j=0; j<subgridModels.size(); j++) {
         pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > basisinfo_j = subgridModels[j]->evaluateBasis2(ip);
-        matrix_RCP map_over = Teuchos::rcp(new Epetra_CrsMatrix(Copy, *(subgridModels[i]->overlapped_map), -1)); // reset Jacobian
-        matrix_RCP map = Teuchos::rcp(new Epetra_CrsMatrix(Copy, *(subgridModels[i]->owned_map), -1)); // reset Jacobian
+        Teuchos::RCP<Epetra_CrsMatrix> map_over = Teuchos::rcp(new Epetra_CrsMatrix(Copy, *(subgridModels[i]->overlapped_map), -1)); // reset Jacobian
+        Teuchos::RCP<Epetra_CrsMatrix> map = Teuchos::rcp(new Epetra_CrsMatrix(Copy, *(subgridModels[i]->owned_map), -1)); // reset Jacobian
         
         for (size_t k=0; k<ip.dimension(1); k++) {
           int icell = basisinfo_i.first(k,0);
@@ -322,12 +322,12 @@ double MultiScale::update() {
               int usernum = cells[b][e]->subgrid_usernum[c];
               // get the time/solution from old subgrid model at last time step
               int lastindex = subgridModels[oldmodel]->soln[usernum].size()-1;
-              pair<double, vector_RCP> lastsol = subgridModels[oldmodel]->soln[usernum][lastindex];
+              pair<double, Teuchos::RCP<Epetra_MultiVector> > lastsol = subgridModels[oldmodel]->soln[usernum][lastindex];
               
-              vector_RCP projvec = Teuchos::rcp(new Epetra_MultiVector(*(subgridModels[newmodel[c]]->owned_map),1));
+              Teuchos::RCP<Epetra_MultiVector> projvec = Teuchos::rcp(new Epetra_MultiVector(*(subgridModels[newmodel[c]]->owned_map),1));
               subgrid_projection_maps[newmodel[c]][oldmodel]->Apply(*(lastsol.second), *projvec);
               
-              vector_RCP newvec = Teuchos::rcp(new Epetra_MultiVector(*(subgridModels[newmodel[c]]->owned_map),1));
+              Teuchos::RCP<Epetra_MultiVector> newvec = Teuchos::rcp(new Epetra_MultiVector(*(subgridModels[newmodel[c]]->owned_map),1));
               subgrid_projection_linsys[newmodel[c]]->SetRHS(projvec.get());
               subgrid_projection_linsys[newmodel[c]]->SetLHS(newvec.get());
               

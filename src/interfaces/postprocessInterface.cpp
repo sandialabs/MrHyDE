@@ -27,7 +27,7 @@ DOF(DOF_), cells(cells_) {
   
   verbosity = settings->sublist("Postprocess").get<int>("Verbosity",1);
   
-  E_overlapped_map = solve->LA_overlapped_map;
+  overlapped_map = solve->LA_overlapped_map;
   param_overlapped_map = solve->param_overlapped_map;
   mesh->getElementBlockNames(blocknames);
   
@@ -142,7 +142,7 @@ void postprocess::computeError(const vector_RCP & F_soln) {
     cout << "***** Performing verification ******" << endl << endl;
   }
   
-  int numSteps = F_soln->NumVectors();
+  int numSteps = F_soln->getNumVectors();
   vector<double> solvetimes = solve->solvetimes;
   
   
@@ -576,6 +576,7 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
     cout << "*********************************************************" << endl;
   }
   
+  auto E_kv = E_soln->getLocalView<HostDevice>();
   
   //vector<stk_classic::mesh::Entity*> stk_meshElems;
   //mesh->getMyElements(blockID, stk_meshElems);
@@ -584,7 +585,7 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
     mesh->setupExodusFile(filename);
   }
   
-  int numSteps = E_soln->NumVectors();
+  int numSteps = E_soln->getNumVectors();
   vector<double> solvetimes = solve->solvetimes;
   
   Kokkos::View<double**,HostDevice> dispz("dispz",cells[0].size(), numNodesPerElem);
@@ -608,14 +609,14 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
           for (int p=0; p<numElem; p++) {
             vector<int> GIDs = cells[b][e]->GIDs[p];
             for( int i=0; i<numBasis[b][n]; i++ ) {
-              int pindex = E_overlapped_map->LID(GIDs[curroffsets[n][i]]);
+              int pindex = overlapped_map->getLocalElement(GIDs[curroffsets[n][i]]);
               if (numBasis[b][n] == 1) {
                 for( int j=0; j<numNodesPerElem; j++ ) {
-                  soln_computed(eprog,j) = (*E_soln)[m][pindex];
+                  soln_computed(eprog,j) = E_kv(pindex,m);
                 }
               }
               else {
-                soln_computed(eprog,i) = (*E_soln)[m][pindex];
+                soln_computed(eprog,i) = E_kv(pindex,m);
               }
               if (use_sol_mod_mesh && sol_to_mod_mesh == n) {
                 if (abs(soln_computed(e,i)) >= meshmod_TOL) {
@@ -658,6 +659,8 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
       vector<int> numParamBasis = solve->paramNumBasis;
       if (dpnames.size() > 0) {
         vector_RCP P_soln = solve->Psol[0];
+        auto P_kv = P_soln->getLocalView<HostDevice>();
+        
         for (size_t n=0; n<dpnames.size(); n++) {
           Kokkos::View<double**,HostDevice> soln_computed;
           if (numParamBasis[n]>1) {
@@ -673,14 +676,14 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
               vector<int> paramGIDs = cells[b][e]->paramGIDs[p];
               vector<vector<int> > paramoffsets = solve->paramoffsets;
               for( int i=0; i<numParamBasis[n]; i++ ) {
-                int pindex = param_overlapped_map->LID(paramGIDs[paramoffsets[n][i]]);
+                int pindex = param_overlapped_map->getLocalElement(paramGIDs[paramoffsets[n][i]]);
                 if (numParamBasis[n] == 1) {
                   for( int j=0; j<numNodesPerElem; j++ ) {
-                    soln_computed(e,j) = (*P_soln)[0][pindex];
+                    soln_computed(e,j) = P_kv(pindex,0);
                   }
                 }
                 else {
-                  soln_computed(e,i) = (*P_soln)[0][pindex];
+                  soln_computed(e,i) = P_kv(pindex,0);
                 }
               }
               eprog++;
@@ -691,6 +694,8 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
         bool have_dRdP = solve->have_dRdP;
         if (have_dRdP) {
           vector_RCP P_soln = solve->dRdP[0];
+          auto P_kv = P_soln->getLocalView<HostDevice>();
+          
           for (size_t n=0; n<dpnames.size(); n++) {
             Kokkos::View<double**,HostDevice> soln_computed;
             if (numParamBasis[n]>1) {
@@ -707,14 +712,14 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
                 vector<int> paramGIDs = cells[b][e]->paramGIDs[p];
                 vector<vector<int> > paramoffsets = solve->paramoffsets;
                 for( int i=0; i<numParamBasis[n]; i++ ) {
-                  int pindex = param_overlapped_map->LID(paramGIDs[paramoffsets[n][i]]);
+                  int pindex = param_overlapped_map->getLocalElement(paramGIDs[paramoffsets[n][i]]);
                   if (numParamBasis[n] == 1) {
                     for( int j=0; j<numNodesPerElem; j++ ) {
-                      soln_computed(eprog,j) = (*P_soln)[0][pindex];
+                      soln_computed(eprog,j) = P_kv(pindex,0);
                     }
                   }
                   else {
-                    soln_computed(eprog,i) = (*P_soln)[0][pindex];
+                    soln_computed(eprog,i) = P_kv(pindex,0);
                   }
                 }
                 eprog++;
@@ -931,7 +936,7 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
   if (save_height_file) {
     ofstream hOUT("meshpert.dat");
     hOUT.precision(10);
-    int numsteps = E_soln->NumVectors();
+    int numsteps = E_soln->getNumVectors();
     for (size_t b=0; b<numBlocks; b++) {
       std::string blockID = blocknames[b];
       vector<vector<int> > curroffsets = phys->offsets[b];
@@ -942,8 +947,8 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
           for (int p=0; p<cells[b][e]->numElem; p++) {
             vector<int> GIDs = cells[b][e]->GIDs[p];
             for( int i=0; i<numBasis[b][n]; i++ ) {
-              int pindex = E_overlapped_map->LID(GIDs[curroffsets[n][i]]);
-              double soln = (*E_soln)[numsteps-1][pindex];
+              int pindex = overlapped_map->getLocalElement(GIDs[curroffsets[n][i]]);
+              double soln = E_kv(pindex,numsteps-1);
               hOUT << nodes(p,i,0) << "  " << nodes(p,i,1) << "  " << soln << endl;
             }
           }

@@ -43,6 +43,8 @@ public:
   
   void setupLinearAlgebra();
   
+  Teuchos::RCP<Epetra_CrsGraph> buildEpetraGraph(Epetra_MpiComm & EP_Comm);
+    
   // ========================================================================================
   // Set up the parameters (inactive, active, stochastic, discrete)
   // Communicate these parameters back to the physics interface and the enabled modules
@@ -204,16 +206,31 @@ public:
   
   
   // ========================================================================================
+  // Linear solver for Tpetra stack
   // ========================================================================================
   
   void linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
   
   
   // ========================================================================================
+  // Linear solver for Epetra stack
   // ========================================================================================
   
-  ML_Epetra::MultiLevelPreconditioner* buildPreconditioner(const matrix_RCP & J);
+  void linearSolver(Teuchos::RCP<Epetra_CrsMatrix> & J,
+                    Teuchos::RCP<Epetra_MultiVector> & r,
+                    Teuchos::RCP<Epetra_MultiVector> & soln);
   
+  // ========================================================================================
+  // Preconditioner for Tpetra stack
+  // ========================================================================================
+  
+  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > buildPreconditioner(const matrix_RCP & J);
+  
+  // ========================================================================================
+  // Preconditioner for Epetra stack
+  // ========================================================================================
+  
+  ML_Epetra::MultiLevelPreconditioner* buildPreconditioner(const Teuchos::RCP<Epetra_CrsMatrix> & J);
   
   // ========================================================================================
   // ========================================================================================
@@ -308,8 +325,8 @@ public:
   
   vector<Teuchos::RCP<workset> > wkset;
   
-  Teuchos::RCP<LA_Map> LA_owned_map;
-  Teuchos::RCP<LA_Map> LA_overlapped_map, sol_overlapped_map;
+  Teuchos::RCP<const LA_Map> LA_owned_map;
+  Teuchos::RCP<const LA_Map> LA_overlapped_map, sol_overlapped_map;
   
   Teuchos::RCP<LA_CrsGraph> LA_owned_graph;
   Teuchos::RCP<LA_CrsGraph> LA_overlapped_graph;
@@ -317,8 +334,8 @@ public:
   Teuchos::RCP<LA_Export> exporter;
   Teuchos::RCP<LA_Import> importer;
   
-  Teuchos::RCP<LA_Map> param_owned_map;
-  Teuchos::RCP<LA_Map> param_overlapped_map;
+  Teuchos::RCP<const LA_Map> param_owned_map;
+  Teuchos::RCP<const LA_Map> param_overlapped_map;
   
   Teuchos::RCP<LA_Export> param_exporter;
   Teuchos::RCP<LA_Import> param_importer;
@@ -381,7 +398,7 @@ public:
   vector<string> boundaryRegSides;
   vector<int> domainRegTypes, domainRegIndices, boundaryRegTypes, boundaryRegIndices;
   int verbosity;
-  string response_type;
+  string response_type, multigrid_type, smoother_type;
   bool discretized_stochastic;
   
   vector<string> stochastic_distribution, discparam_distribution;

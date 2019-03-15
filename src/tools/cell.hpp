@@ -282,6 +282,9 @@ public:
   // Set the local solutions
   ///////////////////////////////////////////////////////////////////////////////////////
   
+  void setLocalSoln(const Teuchos::RCP<Epetra_MultiVector> & gl_u, const int & type,
+                    const size_t & entry);
+
   void setLocalSoln(const vector_RCP & gl_u, const int & type,
                     const size_t & entry);
 
@@ -318,6 +321,8 @@ public:
   // Update the solution variables in the workset
   ///////////////////////////////////////////////////////////////////////////////////////
  
+  void updateSolnWorkset(const Teuchos::RCP<Epetra_MultiVector> & gl_u, const int tindex);
+  
   void updateSolnWorkset(const vector_RCP & gl_u, const int tindex);
   
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -463,10 +468,9 @@ public:
   // Compute flux and sensitivity wrt params
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  void computeFlux(//vector<vector<AD> > & u_AD, vector<vector<AD> > & u_dot_AD,
-                   //vector<vector<AD> > & param_AD, vector<vector<AD> > & lambda_AD,
-                   const vector_RCP & u, const vector_RCP & du,
-                   const vector_RCP & sub_param,
+  template<class T>
+  void computeFlux(const Teuchos::RCP<T> & u, const Teuchos::RCP<T> & du,
+                   const Teuchos::RCP<T> & sub_param,
                    Kokkos::View<double***,AssemblyDevice> lambda,
                    const double & time, const int & s, const double & coarse_h,
                    const bool & compute_sens);

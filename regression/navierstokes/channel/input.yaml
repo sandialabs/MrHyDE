@@ -1,6 +1,7 @@
 %YAML 1.1
 ---
 ANONYMOUS:
+  verbosity: 0
   Mesh Settings File: input_mesh.yaml
   Physics: 
     solve_navierstokes: true
@@ -25,9 +26,11 @@ ANONYMOUS:
   Parameters Settings File: input_params.yaml
   Solver:
     solver: steady-state
+    Multigrid type: sa
+    Smoother type: RELAXATION
     Workset Size: 1
-    Verbosity: 0
-    NLtol: 9.99999999999999955e-8
+    NLtol: 9.99999999999999955e-7
+    lintol: 1.0e-9
     MaxNLiter: 4
     finaltime: 1.00000000000000000e+00
     numSteps: 10

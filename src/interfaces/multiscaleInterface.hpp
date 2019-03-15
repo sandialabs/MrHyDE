@@ -101,7 +101,7 @@ class MultiScale {
   //vector<vector<vector<vector<FC> > > > subgrid_projection_basis;
   //vector<FC> subgrid_projection_ip;
   //vector<FC> subgrid_projection_wts;
-  vector<vector<matrix_RCP> > subgrid_projection_maps;
+  vector<vector<Teuchos::RCP<Epetra_CrsMatrix> > > subgrid_projection_maps;
   vector<Amesos_BaseSolver*> subgrid_projection_solvers;
   vector<Teuchos::RCP<Epetra_LinearProblem> > subgrid_projection_linsys;
   Teuchos::RCP<FunctionInterface> macro_functionManager;

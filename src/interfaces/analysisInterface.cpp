@@ -75,7 +75,7 @@ void analysis::run() {
       double y = k*ell;
       //	vector_RCP F_soln_inter = solve->forwardModel(objfun);
       vector_RCP F_soln_inter = solve->forwardModel_fr(objfun,y,s);
-      F_soln->Update(1.0,*F_soln_inter, 1.0);
+      F_soln->update(1.0,*F_soln_inter, 1.0);
     }
     if (settings->sublist("Postprocess").get("compute response",false))
     postproc->computeResponse(F_soln);
@@ -208,8 +208,8 @@ void analysis::run() {
     // Evaluate MILO or a surrogate at these samples
     vector<Kokkos::View<double***,HostDevice> > response_values;
     vector<Kokkos::View<double****,HostDevice> > response_grads;
-    Teuchos::RCP<Epetra_Map> emap = solve->LA_overlapped_map;
-    vector_RCP avgsoln = Teuchos::rcp(new Epetra_MultiVector(*emap, 2));
+    Teuchos::RCP<const LA_Map> emap = solve->LA_overlapped_map;
+    vector_RCP avgsoln = Teuchos::rcp(new LA_MultiVector(emap, 2));
     int output_freq = uqsettings.get<int>("Output Frequency",1);
     if (uqsettings.get<bool>("Use Surrogate",false)) {
       
@@ -228,7 +228,7 @@ void analysis::run() {
         }
         vector_RCP F_soln = solve->forwardModel(objfun);
         //vector_RCP A_soln = solve->adjointModel(F_soln, gradient);
-        avgsoln->Update(1.0/(double)numsamples, *F_soln, 1.0);
+        avgsoln->update(1.0/(double)numsamples, *F_soln, 1.0);
         /*if (settings->sublist("Postprocess").get("write solution",true)) {
          stringstream ss;
          ss << j;

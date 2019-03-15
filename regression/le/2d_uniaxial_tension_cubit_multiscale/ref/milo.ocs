@@ -2,5 +2,5 @@
 *********************************************************
 ***** Performing verification ******
 
-***** L2 norm of the error for dx = 1.36544e-13  (time = 0)
-***** L2 norm of the error for dy = 1.15339e-13  (time = 0)
+***** L2 norm of the error for dx = 4.71867e-16  (time = 0)
+***** L2 norm of the error for dy = 7.1383e-16  (time = 0)

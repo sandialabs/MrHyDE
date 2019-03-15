@@ -112,8 +112,8 @@ protected:
   
   
   
-  Teuchos::RCP<Epetra_Map> E_overlapped_map;
-  Teuchos::RCP<Epetra_Map> param_overlapped_map;
+  Teuchos::RCP<const LA_Map> overlapped_map;
+  Teuchos::RCP<const LA_Map> param_overlapped_map;
   string response_type, error_type;
   
   vector<vector<Teuchos::RCP<cell> > > cells;

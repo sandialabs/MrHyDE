@@ -60,6 +60,49 @@ public:
     
   }
   
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  static void print(Teuchos::RCP<LA_MpiComm> & Comm, vector_RCP & V) {
+    auto V_kv = V->getLocalView<HostDevice>();
+    
+    cout << endl;
+    cout << "Printing data for View: " << V_kv.label() << endl;
+    
+    cout << " PID " << "  i  " << "  j  " << "  value  " << endl;
+    cout << "------------------------------------------" << endl;
+    
+    for (int i=0; i<V_kv.dimension(0); i++) {
+      for (int j=0; j<V_kv.dimension(1); j++) {
+        cout << "  " << Comm->getRank() <<  "  " << i << "  " << "  " << j << "  " <<
+        "  " << "  " << V_kv(i,j) << "  " << endl;
+      }
+    }
+    cout << "------------------------------------------" << endl;
+    
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  static void print(const vector_RCP & V) {
+    auto V_kv = V->getLocalView<HostDevice>();
+    
+    cout << endl;
+    cout << "Printing data for View: " << V_kv.label() << endl;
+    
+    cout << "  i  " << "  j  " << "  value  " << endl;
+    cout << "-------------------------------" << endl;
+    
+    for (int i=0; i<V_kv.dimension(0); i++) {
+      for (int j=0; j<V_kv.dimension(1); j++) {
+        cout << "  " << i << "  " << "  " << j << "  " <<
+        "  " << "  " << V_kv(i,j) << "  " << endl;
+      }
+    }
+    cout << "-------------------------------" << endl;
+    
+  }
   ///Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice>
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////

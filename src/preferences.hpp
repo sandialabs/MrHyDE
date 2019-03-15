@@ -27,7 +27,7 @@ typedef int GO;
 #define maxDerivs 64 // adjust this to improve performance
 #define PI 3.141592653589793238463
 #define MILO_DEBUG false
-#define USE_TPETRA false
+typedef Teuchos::MpiComm<GO> LA_MpiComm;
 
 // AD typedefs
 typedef Sacado::Fad::DFad<ScalarT> DFAD; // used only when absolutely necessary
@@ -52,25 +52,27 @@ typedef Kokkos::View<ScalarT**,Kokkos::LayoutStride,AssemblyDevice> FDATAd;
 typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
 
-// Linear algebra typedefs
+// Epetra linear algebra typedefs (deprecated)
+/*
 typedef Epetra_MultiVector   LA_MultiVector;
 typedef Epetra_CrsMatrix     LA_CrsMatrix;
 typedef Epetra_Map           LA_Map;
 typedef Epetra_CrsGraph      LA_CrsGraph;
 typedef Epetra_Export        LA_Export;
 typedef Epetra_Import        LA_Import;
-typedef Teuchos::MpiComm<GO>       LA_MpiComm;
-//typedef Epetra_MpiComm       LA_MpiComm;
 typedef Epetra_LinearProblem LA_LinearProblem;
+*/
 
-// Tpetra typedefs (not used yet)
+// Tpetra linear algebra typedefs
 //typedef Tpetra_MultiVector LA_MultiVector;
-typedef Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>   test_CrsMatrix;
-typedef Tpetra::CrsGraph<LO,GO,HostNode> test_CrsGraph;
-typedef Tpetra::Vector<ScalarT,LO,GO,HostNode> test_vector;
-typedef Tpetra::Export<LO, GO, HostNode>      test_Export;
-typedef Tpetra::Import<LO, GO, HostNode>      test_Import;
-typedef Tpetra::Map<LO, GO, HostNode>      test_Map;
+typedef Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>   LA_CrsMatrix;
+typedef Tpetra::CrsGraph<LO,GO,HostNode>            LA_CrsGraph;
+typedef Tpetra::Export<LO, GO, HostNode>            LA_Export;
+typedef Tpetra::Import<LO, GO, HostNode>            LA_Import;
+typedef Tpetra::Map<LO, GO, HostNode>               LA_Map;
+typedef Tpetra::Operator<ScalarT,LO,GO,HostNode>    LA_Operator;
+typedef Tpetra::MultiVector<ScalarT,LO,GO,HostNode> LA_MultiVector;
+typedef Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator> LA_LinearProblem;
 
 
 // RCP to LA objects (may be removed in later version)

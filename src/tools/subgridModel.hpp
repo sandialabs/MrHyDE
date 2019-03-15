@@ -62,7 +62,7 @@ public:
                           const bool & have_sensor_data,
                           const vector<basis_RCP> & basisTypes, const int & usernum) = 0;
   
-  virtual matrix_RCP getProjectionMatrix() = 0;
+  virtual Teuchos::RCP<Epetra_CrsMatrix> getProjectionMatrix() = 0;
   
   virtual DRV getIP() = 0;
   
@@ -72,11 +72,11 @@ public:
 
   virtual pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > evaluateBasis2(const DRV & ip) = 0;
   
-  virtual matrix_RCP getEvaluationMatrix(const DRV & newip, Teuchos::RCP<Epetra_Map> & ip_map) = 0;
+  virtual Teuchos::RCP<Epetra_CrsMatrix> getEvaluationMatrix(const DRV & newip, Teuchos::RCP<Epetra_Map> & ip_map) = 0;
   
   virtual vector<vector<int> > getCellGIDs(const int & cellnum) = 0;
   
-  virtual void solutionStorage(vector_RCP & newvec,
+  virtual void solutionStorage(Teuchos::RCP<Epetra_MultiVector> & newvec,
                                const double & time, const bool & isAdjoint,
                                const int & usernum)= 0;
   
@@ -105,9 +105,9 @@ public:
   Teuchos::RCP<Epetra_Export> exporter;
   Teuchos::RCP<Epetra_Import> importer;
   
-  vector<vector<pair<double, vector_RCP> > > soln;
-  vector<vector<pair<double, vector_RCP> > > solndot;
-  vector<vector<pair<double, vector_RCP> > > adjsoln;
+  vector<vector<pair<double, Teuchos::RCP<Epetra_MultiVector> > > > soln;
+  vector<vector<pair<double, Teuchos::RCP<Epetra_MultiVector> > > > solndot;
+  vector<vector<pair<double, Teuchos::RCP<Epetra_MultiVector> > > > adjsoln;
   
   vector<Teuchos::RCP<vector<AD> > > paramvals_AD;
 
