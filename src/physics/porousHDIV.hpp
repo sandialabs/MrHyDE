@@ -75,10 +75,10 @@ public:
     // (K^-1 u,v) - (p,div v) - src*v (src not added yet)
     parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
       
-      double vx = 0.0;
-      double vy = 0.0;
-      double vz = 0.0;
-      double divv = 0.0;
+      ScalarT vx = 0.0;
+      ScalarT vy = 0.0;
+      ScalarT vz = 0.0;
+      ScalarT divv = 0.0;
       
       for (int k=0; k<sol.dimension(2); k++ ) {
         for (int i=0; i<basis.dimension(1); i++ ) {
@@ -116,7 +116,7 @@ public:
       
       for (int k=0; k<sol.dimension(2); k++ ) {
         for (int i=0; i<basis.dimension(1); i++ ) {
-          double v = basis(e,i,k);
+          ScalarT v = basis(e,i,k);
           AD divu = sol_div(e,unum,k);
           int resindex = offsets(pnum,i);
           res(e,resindex) += -divu*v + 1.0*v;
@@ -182,7 +182,7 @@ private:
   int pnum, unum;
   int dxnum,dynum,dznum;
   bool isTD, addBiot;
-  double biot_alpha;
+  ScalarT biot_alpha;
   
   vector<string> varlist;
   

@@ -44,8 +44,8 @@ DOF(DOF_), cells(cells_) {
   
   use_sol_mod_mesh = settings->sublist("Postprocess").get<bool>("Solution Based Mesh Mod",false);
   sol_to_mod_mesh = settings->sublist("Postprocess").get<int>("Solution For Mesh Mod",0);
-  meshmod_TOL = settings->sublist("Postprocess").get<double>("Solution Based Mesh Mod TOL",1.0);
-  layer_size = settings->sublist("Postprocess").get<double>("Solution Based Mesh Mod Layer Thickness",0.1);
+  meshmod_TOL = settings->sublist("Postprocess").get<ScalarT>("Solution Based Mesh Mod TOL",1.0);
+  layer_size = settings->sublist("Postprocess").get<ScalarT>("Solution Based Mesh Mod Layer Thickness",0.1);
   compute_subgrid_error = settings->sublist("Postprocess").get<bool>("Subgrid Error",false);
   error_type = settings->sublist("Postprocess").get<string>("Error type","L2"); // or "H1"
   use_sol_mod_height = settings->sublist("Postprocess").get<bool>("Solution Based Height Mod",false);
@@ -143,16 +143,16 @@ void postprocess::computeError(const vector_RCP & F_soln) {
   }
   
   int numSteps = F_soln->getNumVectors();
-  vector<double> solvetimes = solve->solvetimes;
+  vector<ScalarT> solvetimes = solve->solvetimes;
   
   
   for (size_t b=0; b<cells.size(); b++) {
-    Kokkos::View<double**,AssemblyDevice> localerror("error",numSteps,numVars[b]);
+    Kokkos::View<ScalarT**,AssemblyDevice> localerror("error",numSteps,numVars[b]);
     for (size_t t=0; t<solvetimes.size(); t++) {
       solve->performGather(b,F_soln,0,t);
       for (size_t e=0; e<cells[b].size(); e++) {
         int numElem = cells[b][e]->numElem;
-        Kokkos::View<double**,AssemblyDevice> localerrs = cells[b][e]->computeError(solvetimes[t], t, compute_subgrid_error, error_type);
+        Kokkos::View<ScalarT**,AssemblyDevice> localerrs = cells[b][e]->computeError(solvetimes[t], t, compute_subgrid_error, error_type);
         
         for (int p=0; p<numElem; p++) {
           for (int n=0; n<numVars[b]; n++) {
@@ -164,8 +164,8 @@ void postprocess::computeError(const vector_RCP & F_soln) {
     
     for (size_t t=0; t<solvetimes.size(); t++) {
       for (int n=0; n<numVars[b]; n++) {
-        double lerr = localerror(t,n);
-        double gerr = 0.0;
+        ScalarT lerr = localerror(t,n);
+        ScalarT gerr = 0.0;
         Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lerr,&gerr);
         //Comm->SumAll(&lerr, &gerr, 1);
         if(Comm->getRank() == 0) {
@@ -193,13 +193,13 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
   AD regDomain = 0.0;
   AD regBoundary = 0.0;
   //bvbw    AD classicParamPenalty = 0.0;
-  vector<double> solvetimes = solve->solvetimes;
+  vector<ScalarT> solvetimes = solve->solvetimes;
   vector<int> domainRegTypes = solve->domainRegTypes;
-  vector<double> domainRegConstants = solve->domainRegConstants;
+  vector<ScalarT> domainRegConstants = solve->domainRegConstants;
   vector<int> domainRegIndices = solve->domainRegIndices;
   int numDomainParams = domainRegIndices.size();
   vector<int> boundaryRegTypes = solve->boundaryRegTypes;
-  vector<double> boundaryRegConstants = solve->boundaryRegConstants;
+  vector<ScalarT> boundaryRegConstants = solve->boundaryRegConstants;
   vector<int> boundaryRegIndices = solve->boundaryRegIndices;
   int numBoundaryParams = boundaryRegIndices.size();
   vector<string> boundaryRegSides = solve->boundaryRegSides;
@@ -213,8 +213,8 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
   int numClassicParams = solve->getNumParams(1);
   int numDiscParams = solve->getNumParams(4);
   int numParams = numClassicParams + numDiscParams;
-  vector<double> regGradient(numParams);
-  vector<double> dmGradient(numParams);
+  vector<ScalarT> regGradient(numParams);
+  vector<ScalarT> dmGradient(numParams);
   vector_RCP P_soln = solve->Psol[0];
   
   //cout << solvetimes.size() << endl;
@@ -242,7 +242,7 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
               totaldiff += obj(c,i);
               if (numClassicParams > 0) {
                 if (obj(c,i).size() > 0) {
-                  double val;
+                  ScalarT val;
                   val = obj(c,i).fastAccessDx(0);
                   dmGradient[0] += val;
                 }
@@ -253,7 +253,7 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
                 for (int row=0; row<paramoffsets[0].size(); row++) {
                   int rowIndex = paramGIDs[paramoffsets[0][row]];
                   int poffset = paramoffsets[0][row];
-                  double val;
+                  ScalarT val;
                   if (obj(c,i).size() > numClassicParams) {
                     val = obj(c,i).fastAccessDx(poffset+numClassicParams);
                     dmGradient[rowIndex+numClassicParams] += val;
@@ -271,7 +271,7 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
             
             if (numDomainParams > 0) {
               int paramIndex, rowIndex, poffset;
-              double val;
+              ScalarT val;
               regDomain = cells[b][e]->computeDomainRegularization(domainRegConstants,
                                                                    domainRegTypes, domainRegIndices);
               
@@ -291,7 +291,7 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
           
             if (numBoundaryParams > 0) {
               int paramIndex, rowIndex, poffset;
-              double val;
+              ScalarT val;
               regBoundary = cells[b][e]->computeBoundaryRegularization(boundaryRegConstants,
                                                                        boundaryRegTypes, boundaryRegIndices,
                                                                        boundaryRegSides);
@@ -317,15 +317,15 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
   }
   
   //to gather contributions across processors
-  double meep = 0.0;
+  ScalarT meep = 0.0;
   Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&totaldiff.val(),&meep);
   //Comm->SumAll(&totaldiff.val(), &meep, 1);
   totaldiff.val() = meep;
   AD fullobj(numParams,meep);
   
   for (size_t j=0; j< numParams; j++) {
-    double dval;
-    double ldval = dmGradient[j] + regGradient[j];
+    ScalarT dval;
+    ScalarT ldval = dmGradient[j] + regGradient[j];
     Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&ldval,&dval);
     //Comm->SumAll(&ldval,&dval,1);
     fullobj.fastAccessDx(j) = dval;
@@ -352,10 +352,10 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
 // ========================================================================================
 // ========================================================================================
 
-Kokkos::View<double***,HostDevice> postprocess::computeResponse(const vector_RCP & F_soln, const int & b) {
+Kokkos::View<ScalarT***,HostDevice> postprocess::computeResponse(const vector_RCP & F_soln, const int & b) {
   
   solve->sacadoizeParams(false);
-  vector<double> solvetimes = solve->solvetimes;
+  vector<ScalarT> solvetimes = solve->solvetimes;
   
   //FC responses = this->computeResponse(F_soln);
   
@@ -365,7 +365,7 @@ Kokkos::View<double***,HostDevice> postprocess::computeResponse(const vector_RCP
     numSensors = solve->numSensors;
   }
   
-  Kokkos::View<double***,HostDevice> responses("responses",numSensors, numresponses, solvetimes.size());
+  Kokkos::View<ScalarT***,HostDevice> responses("responses",numSensors, numresponses, solvetimes.size());
   vector_RCP P_soln = solve->Psol[0];
   
   for (size_t tt=0; tt<solvetimes.size(); tt++) {
@@ -422,10 +422,10 @@ void postprocess::computeResponse(const vector_RCP & F_soln) {
   }
   
   solve->sacadoizeParams(false);
-  vector<double> solvetimes = solve->solvetimes;
+  vector<ScalarT> solvetimes = solve->solvetimes;
   for (size_t b=0; b<cells.size(); b++) {
     
-    Kokkos::View<double***,HostDevice> responses = this->computeResponse(F_soln, b);
+    Kokkos::View<ScalarT***,HostDevice> responses = this->computeResponse(F_soln, b);
     
     int numresponses = phys->getNumResponses(b);
     int numSensors = 1;
@@ -438,7 +438,7 @@ void postprocess::computeResponse(const vector_RCP & F_soln) {
       
       srand(time(0)); //use current time as seed for random generator for noise
       
-      double err = 0.0;
+      ScalarT err = 0.0;
       
       
       for (int k=0; k<numSensors; k++) {
@@ -453,8 +453,8 @@ void postprocess::computeResponse(const vector_RCP & F_soln) {
             respOUT << solvetimes[tt] << "  ";
           }
           for (int n=0; n<responses.dimension(1); n++) {
-            double tmp1 = responses(k,n,tt);
-            double tmp2 = 0.0;//globalresp(k,n,tt);
+            ScalarT tmp1 = responses(k,n,tt);
+            ScalarT tmp2 = 0.0;//globalresp(k,n,tt);
             Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&tmp1,&tmp2);
             //Comm->SumAll(&tmp1, &tmp2, 1);
             err = this->makeSomeNoise(stddev);
@@ -479,8 +479,8 @@ void postprocess::computeResponse(const vector_RCP & F_soln) {
       for (int k=0; k<responses.dimension(0); k++) {
         for (int n=0; n<responses.dimension(1); n++) {
           for (int m=0; m<responses.dimension(2); m++) {
-            double tmp1 = responses(k,n,m);
-            double tmp2 = 0.0;//globalresp(k,n,tt);
+            ScalarT tmp1 = responses(k,n,m);
+            ScalarT tmp2 = 0.0;//globalresp(k,n,tt);
             Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&tmp1,&tmp2);
             //Comm->SumAll(&tmp1, &tmp2, 1);
             if(Comm->getRank() == 0) {
@@ -501,7 +501,7 @@ void postprocess::computeResponse(const vector_RCP & F_soln) {
 // ========================================================================================
 // ========================================================================================
 
-vector<double> postprocess::computeSensitivities(const vector_RCP & F_soln, const vector_RCP & A_soln) {
+vector<ScalarT> postprocess::computeSensitivities(const vector_RCP & F_soln, const vector_RCP & A_soln) {
   
   Teuchos::RCP<Teuchos::Time> sensitivitytimer = Teuchos::rcp(new Teuchos::Time("sensitivity",false));
   sensitivitytimer->start();
@@ -509,14 +509,14 @@ vector<double> postprocess::computeSensitivities(const vector_RCP & F_soln, cons
   vector<string> active_paramnames = solve->getParamsNames(1);
   vector<size_t> active_paramlengths = solve->getParamsLengths(1);
   
-  vector<double> dwr_sens;
-  vector<double> disc_sens;
+  vector<ScalarT> dwr_sens;
+  vector<ScalarT> disc_sens;
   
   int numClassicParams = solve->getNumParams(1);
   int numDiscParams = solve->getNumParams(4);
   int numParams = numClassicParams + numDiscParams;
   
-  vector<double> gradient(numParams);
+  vector<ScalarT> gradient(numParams);
   
   AD obj_sens = this->computeObjective(F_soln);
   
@@ -527,7 +527,7 @@ vector<double> postprocess::computeSensitivities(const vector_RCP & F_soln, cons
   
   size_t pprog  = 0;
   for (size_t i=0; i<numClassicParams; i++) {
-    double cobj = 0.0;
+    ScalarT cobj = 0.0;
     if (i<obj_sens.size()) {
       cobj = obj_sens.fastAccessDx(i);
     }
@@ -535,7 +535,7 @@ vector<double> postprocess::computeSensitivities(const vector_RCP & F_soln, cons
     pprog++;
   }
   for (size_t i=0; i<numDiscParams; i++) {
-    double cobj = 0.0;
+    ScalarT cobj = 0.0;
     if (i<obj_sens.size()) {
       cobj = obj_sens.fastAccessDx(i+numClassicParams);
     }
@@ -586,21 +586,21 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
   }
   
   int numSteps = E_soln->getNumVectors();
-  vector<double> solvetimes = solve->solvetimes;
+  vector<ScalarT> solvetimes = solve->solvetimes;
   
-  Kokkos::View<double**,HostDevice> dispz("dispz",cells[0].size(), numNodesPerElem);
+  Kokkos::View<ScalarT**,HostDevice> dispz("dispz",cells[0].size(), numNodesPerElem);
   for(int m=0; m<numSteps; m++) {
     for (size_t b=0; b<cells.size(); b++) {
       std::string blockID = blocknames[b];
       vector<vector<int> > curroffsets = phys->offsets[b];
       vector<size_t> myElements = disc->myElements[b];
       for (int n = 0; n<numVars[b]; n++) {
-        Kokkos::View<double**,HostDevice> soln_computed;
+        Kokkos::View<ScalarT**,HostDevice> soln_computed;
         if (numBasis[b][n]>1) {
-          soln_computed = Kokkos::View<double**,HostDevice>("solution",myElements.size(), numBasis[b][n]);
+          soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numBasis[b][n]);
         }
         else {
-          soln_computed = Kokkos::View<double**,HostDevice>("solution",myElements.size(), numNodesPerElem);
+          soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
         }
         std::string var = varlist[b][n];
         size_t eprog = 0;
@@ -662,12 +662,12 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
         auto P_kv = P_soln->getLocalView<HostDevice>();
         
         for (size_t n=0; n<dpnames.size(); n++) {
-          Kokkos::View<double**,HostDevice> soln_computed;
+          Kokkos::View<ScalarT**,HostDevice> soln_computed;
           if (numParamBasis[n]>1) {
-            soln_computed = Kokkos::View<double**,HostDevice>("solution",myElements.size(), numParamBasis[n]);
+            soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numParamBasis[n]);
           }
           else {
-            soln_computed = Kokkos::View<double**,HostDevice>("solution",myElements.size(), numNodesPerElem);
+            soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
           }
           size_t eprog = 0;
           for( size_t e=0; e<cells[b].size(); e++ ) {
@@ -697,12 +697,12 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
           auto P_kv = P_soln->getLocalView<HostDevice>();
           
           for (size_t n=0; n<dpnames.size(); n++) {
-            Kokkos::View<double**,HostDevice> soln_computed;
+            Kokkos::View<ScalarT**,HostDevice> soln_computed;
             if (numParamBasis[n]>1) {
-              soln_computed = Kokkos::View<double**,HostDevice>("solution",myElements.size(), numParamBasis[n]);
+              soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numParamBasis[n]);
             }
             else {
-              soln_computed = Kokkos::View<double**,HostDevice>("solution",myElements.size(), numNodesPerElem);
+              soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
             }
             size_t eprog = 0;
 
@@ -737,9 +737,9 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
       
       bool meshpert = false;
       if (meshpert) {
-        Kokkos::View<double**,HostDevice> dispx("dispx",myElements.size(), numNodesPerElem);
-        Kokkos::View<double**,HostDevice> dispy("dispy",myElements.size(), numNodesPerElem);
-        Kokkos::View<double**,HostDevice> dispz("dispz",myElements.size(), numNodesPerElem);
+        Kokkos::View<ScalarT**,HostDevice> dispx("dispx",myElements.size(), numNodesPerElem);
+        Kokkos::View<ScalarT**,HostDevice> dispy("dispy",myElements.size(), numNodesPerElem);
+        Kokkos::View<ScalarT**,HostDevice> dispz("dispz",myElements.size(), numNodesPerElem);
         size_t eprog = 0;
         for( size_t e=0; e<cells[b].size(); e++ ) {
           DRV nodePert = cells[b][e]->nodepert;
@@ -767,9 +767,9 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
       if (plot_response) {
         vector_RCP P_soln = solve->Psol[0];
         vector<string> responsefieldnames = phys->getResponseFieldNames(b);
-        vector<Kokkos::View<double**,HostDevice> > responsefields;
+        vector<Kokkos::View<ScalarT**,HostDevice> > responsefields;
         for (size_t j=0; j<responsefieldnames.size(); j++) {
-          Kokkos::View<double**,HostDevice> rfdata("response data",myElements.size(), numNodesPerElem);
+          Kokkos::View<ScalarT**,HostDevice> rfdata("response data",myElements.size(), numNodesPerElem);
           responsefields.push_back(rfdata);
         }
         Kokkos::View<AD***,AssemblyDevice> rfields; // response for each cell
@@ -798,13 +798,13 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
       
       
       vector<string> extrafieldnames = phys->getExtraFieldNames(b);
-      vector<Kokkos::View<double**,HostDevice> > extrafields;
+      vector<Kokkos::View<ScalarT**,HostDevice> > extrafields;
       for (size_t j=0; j<extrafieldnames.size(); j++) {
-        Kokkos::View<double**,HostDevice> efdata("field data",myElements.size(), numNodesPerElem);
+        Kokkos::View<ScalarT**,HostDevice> efdata("field data",myElements.size(), numNodesPerElem);
         extrafields.push_back(efdata);
       }
       
-      Kokkos::View<double***,AssemblyDevice> cfields;
+      Kokkos::View<ScalarT***,AssemblyDevice> cfields;
       size_t eprog = 0;
       for (size_t k=0; k<cells[b].size(); k++) {
         DRV nodes = cells[b][k]->nodes;
@@ -832,15 +832,15 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
       
       vector<string> extracellfieldnames = phys->getExtraCellFieldNames(b);
       
-      vector<Kokkos::View<double**,HostDevice> > extracellfields;
+      vector<Kokkos::View<ScalarT**,HostDevice> > extracellfields;
       for (size_t j=0; j<extracellfieldnames.size(); j++) {
-        Kokkos::View<double**,HostDevice> efdata("cell data",myElements.size(), 1);
+        Kokkos::View<ScalarT**,HostDevice> efdata("cell data",myElements.size(), 1);
         extracellfields.push_back(efdata);
       }
       eprog = 0;
       for (size_t k=0; k<cells[b].size(); k++) {
         DRV nodes = cells[b][k]->nodes;
-        Kokkos::View<double***,HostDevice> center("center",nodes.dimension(0),1,spaceDim);
+        Kokkos::View<ScalarT***,HostDevice> center("center",nodes.dimension(0),1,spaceDim);
         int numnodes = nodes.dimension(1);
         for (int p=0; p<cells[b][k]->numElem; p++) {
           for (int i=0; i<numnodes; i++) {
@@ -852,7 +852,7 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
         cells[b][k]->updateSolnWorkset(E_soln, m); // also updates ip, ijac
         cells[b][k]->updateData();
         wkset[b]->time = solvetimes[m];
-        Kokkos::View<double***,HostDevice> cfields = phys->getExtraCellFields(b, cells[b][k]->numElem);
+        Kokkos::View<ScalarT***,HostDevice> cfields = phys->getExtraCellFields(b, cells[b][k]->numElem);
         for (int p=0; p<cells[b][k]->numElem; p++) {
           size_t j = 0;
           for (size_t h=0; h<cfields.dimension(1); h++) {
@@ -868,12 +868,12 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
       
       
       if (cells[b][0]->have_cell_phi || cells[b][0]->have_cell_rotation) {
-        Kokkos::View<double**,HostDevice> cdata("cell data",myElements.size(), 1);
+        Kokkos::View<ScalarT**,HostDevice> cdata("cell data",myElements.size(), 1);
         int eprog = 0;
         for (size_t k=0; k<cells[b].size(); k++) {
           vector<size_t> cell_data_seed = cells[b][k]->cell_data_seed;
           vector<size_t> cell_data_seedindex = cells[b][k]->cell_data_seedindex;
-          Kokkos::View<double**> cell_data = cells[b][k]->cell_data;
+          Kokkos::View<ScalarT**> cell_data = cells[b][k]->cell_data;
           for (int p=0; p<cells[b][k]->numElem; p++) {
             /*
             if (cell_data.dimension(1) == 3) {
@@ -891,7 +891,7 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
       }
       
       if (have_subgrids) {
-        Kokkos::View<double**,HostDevice> cdata("cell data",myElements.size(), 1);
+        Kokkos::View<ScalarT**,HostDevice> cdata("cell data",myElements.size(), 1);
         int eprog = 0;
         for (size_t k=0; k<cells[b].size(); k++) {
           vector<vector<size_t> > subgrid_model_index = cells[b][k]->subgrid_model_index;
@@ -905,10 +905,10 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
       }
       /*
       if (have_subgrids) {
-        Kokkos::View<double**,HostDevice> subgrid_mean_fields = solve->multiscale_manager->getMeanCellFields(b, m,
+        Kokkos::View<ScalarT**,HostDevice> subgrid_mean_fields = solve->multiscale_manager->getMeanCellFields(b, m,
                                                                                                              solvetimes[m],
                                                                                                              extracellfieldnames.size());
-        Kokkos::View<double**,HostDevice> csf("csf",myElements.size(),1);
+        Kokkos::View<ScalarT**,HostDevice> csf("csf",myElements.size(),1);
         int eprog = 0;
         for (size_t j=0; j<extracellfieldnames.size(); j++) {
           for (size_t e=0; e<cells[b].size(); e++) {
@@ -948,7 +948,7 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
             vector<int> GIDs = cells[b][e]->GIDs[p];
             for( int i=0; i<numBasis[b][n]; i++ ) {
               int pindex = overlapped_map->getLocalElement(GIDs[curroffsets[n][i]]);
-              double soln = E_kv(pindex,numsteps-1);
+              ScalarT soln = E_kv(pindex,numsteps-1);
               hOUT << nodes(p,i,0) << "  " << nodes(p,i,1) << "  " << soln << endl;
             }
           }
@@ -979,12 +979,12 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
 // ========================================================================================
 // ========================================================================================
 
-double postprocess::makeSomeNoise(double stdev) {
+ScalarT postprocess::makeSomeNoise(ScalarT stdev) {
   //generate sample from 0-centered normal with stdev
   //Box-Muller method
   //srand(time(0)); //doing this more frequently than once-per-second results in getting the same numbers...
-  double U1 = rand()/double(RAND_MAX);
-  double U2 = rand()/double(RAND_MAX);
+  ScalarT U1 = rand()/ScalarT(RAND_MAX);
+  ScalarT U2 = rand()/ScalarT(RAND_MAX);
   
   return stdev*sqrt(-2*log(U1))*cos(2*PI*U2);
 }

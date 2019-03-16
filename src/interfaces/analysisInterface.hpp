@@ -42,15 +42,14 @@ public:
   
 protected:
   
-  //Epetra_MpiComm Comm;
   Teuchos::RCP<LA_MpiComm> LA_Comm;
   Teuchos::RCP<LA_MpiComm> S_Comm;
   Teuchos::RCP<Teuchos::ParameterList> settings;
   Teuchos::RCP<solver> solve;
   Teuchos::RCP<postprocess> postproc;
   
-  double response;
-  vector<double> gradient;
+  ScalarT response;
+  vector<ScalarT> gradient;
   int verbosity;
   
   bool sensIC;

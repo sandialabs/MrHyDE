@@ -39,7 +39,7 @@ public:
       isTD = false;
     
     if (isTD) {
-      double finalT = settings->sublist("Solver").get<double>("finaltime",0.0);
+      ScalarT finalT = settings->sublist("Solver").get<ScalarT>("finaltime",0.0);
       numSteps = settings->sublist("Solver").get<int>("numSteps",1);
       dt = finalT / numSteps;
     }
@@ -53,7 +53,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void volumeResidual(const double & h, const double & current_time, const FCAD & local_soln, 
+  void volumeResidual(const ScalarT & h, const ScalarT & current_time, const FCAD & local_soln,
                       const FCAD & local_solngrad, const FCAD & local_soln_dot, 
                       const FCAD & local_param, const FCAD & local_param_grad, 
                       const FCAD & local_aux, const FCAD & local_aux_grad, 
@@ -66,14 +66,14 @@ public:
     
     int numCubPoints = ip.dimension(1);
     
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
     AD T, dTdx, dTdy, dTdz, T_dot;
     AD tau, source, sres;
     AD evisc;
-    double v, dvdx, dvdy, dvdz;
+    ScalarT v, dvdx, dvdy, dvdz;
     
     int T_basis = usebasis[T_num];
     int resindex;
@@ -170,7 +170,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void boundaryResidual(const double & h, const double & current_time, const FCAD & local_soln, 
+  void boundaryResidual(const ScalarT & h, const ScalarT & current_time, const FCAD & local_soln,
                         const FCAD & local_solngrad, const FCAD & local_soln_dot, 
                         const FCAD & local_param, const FCAD & local_param_grad, 
                         const FCAD & local_aux_grad, const FCAD & local_aux_grad, 
@@ -188,13 +188,13 @@ public:
     int numSideCubPoints = ip.dimension(1);
     
     // Set the parameters
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
-    double v, source, robin_alpha;
+    ScalarT v, source, robin_alpha;
     AD T, dTdx, dTdy, dTdz, tau, T_dot;
-    double dvdx, dvdy, dvdz;
+    ScalarT dvdx, dvdy, dvdz;
     
     int resindex;
     
@@ -254,7 +254,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void edgeResidual(const double & h, const double & current_time, const FCAD & local_soln, 
+  void edgeResidual(const ScalarT & h, const ScalarT & current_time, const FCAD & local_soln,
                     const FCAD & local_solngrad, const FCAD & local_soln_dot, 
                     const FCAD & local_param, const FCAD & local_param_grad, 
                     const FCAD & local_aux, const FCAD & local_aux_grad, 
@@ -269,7 +269,7 @@ public:
   // The boundary/edge flux
   // ========================================================================================
   
-  void computeFlux(const FC & ip, const double & h, const double & current_time, 
+  void computeFlux(const FC & ip, const ScalarT & h, const ScalarT & current_time,
                    const FCAD & local_soln, const FCAD & local_solngrad, 
                    const FCAD & local_soln_dot, const FCAD local_param, const FCAD local_aux, 
                    const FC & normals, FCAD & flux) {
@@ -279,8 +279,8 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  AD getDirichletValue(const string & var, const double & x, const double & y, const double & z, 
-                       const double & t, const string & gside, const bool & useadjoint) const {
+  AD getDirichletValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
+                       const ScalarT & t, const string & gside, const bool & useadjoint) const {
     
     AD val = 0.0;
     
@@ -303,9 +303,9 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  double getInitialValue(const string & var, const double & x, const double & y, const double & z, 
+  ScalarT getInitialValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
                          const bool & useadjoint) const {
-    double val = 0.0;
+    ScalarT val = 0.0;
     if (x<0.5 && y>=0.5)
       val = -0.2;
     else if (x>=0.5 && y>=0.5)
@@ -338,9 +338,9 @@ public:
   // error calculation
   // ========================================================================================
   
-  double trueSolution(const string & var, const double & x, const double & y, const double & z, 
-                      const double & time) const {
-    double T = 0.0;
+  ScalarT trueSolution(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
+                      const ScalarT & time) const {
+    ScalarT T = 0.0;
     if (x<(1.0/2.0-3.0*time/5.0)) {
       if (y>=(1.0/2.0+3.0*time/20.0)) 
         T = -0.2;
@@ -380,14 +380,14 @@ public:
   // ========================================================================================
   
   FCAD response(const FCAD & local_soln, const FCAD & local_soln_grad,
-                              const DRV & ip, const double & time) const {
+                              const DRV & ip, const ScalarT & time) const {
     int numCC = ip.dimension(0);
     int numip = ip.dimension(1);
     FCAD resp(numCC,1,numip);
     for (int i=0; i<numCC; i++) {
       for (int j=0; j<numip; j++) {
-        double x = ip(i,j,0);
-        double y = ip(i,j,1);
+        ScalarT x = ip(i,j,0);
+        ScalarT y = ip(i,j,1);
         //if (abs(time - 0.5) < 1.0e-10) {
         //  if (x>=0.25 && x<=0.5 && y>=0.25 && y<=0.5)
         resp(i,0,j) = local_soln(i,T_num,j);
@@ -401,7 +401,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  FCAD target(const FC & ip, const double & time) const {
+  FCAD target(const FC & ip, const ScalarT & time) const {
     int numCC = ip.dimension(0);
     int numip = ip.dimension(1);
     FCAD targ(numCC,1,numip);
@@ -453,11 +453,11 @@ public:
   // ========================================================================================
   
   template<class T>  
-  T computeTau(const T & xvl, const T & yvl, const T & zvl, const double & h) const {
+  T computeTau(const T & xvl, const T & yvl, const T & zvl, const ScalarT & h) const {
     
-    //double C = 2.0;
-    //double C1 = 1.0;
-    //double C2 = 2.0;
+    //ScalarT C = 2.0;
+    //ScalarT C1 = 1.0;
+    //ScalarT C2 = 2.0;
     
     T nvel, tau;
     if (spaceDim == 1)
@@ -485,9 +485,9 @@ public:
   
   template<class T>  
   T entropyViscosity(const T & sol, const T & solx, const T & soly, const T & solz, const T & solt, 
-                     const double & h) const {
+                     const ScalarT & h) const {
     
-    double maxevisc = 0.1;
+    ScalarT maxevisc = 0.1;
     
     T entres;
     if (spaceDim == 1)
@@ -513,7 +513,7 @@ public:
   // ========================================================================================
   
   template<class T>
-  T sourceTerm(const double & x, const double & y, const double & z, const double & t, 
+  T sourceTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
                const std::vector<T> & smag, const std::vector<T> & xloc, const std::vector<T> & yloc, 
                const std::vector<T> & zloc) const {
     T val = 0.0;
@@ -524,35 +524,35 @@ public:
   // return the diffusion at a point 
   // ========================================================================================
   
-  double getDiff(const double & x, const double & y, const double & z) const {
+  ScalarT getDiff(const ScalarT & x, const ScalarT & y, const ScalarT & z) const {
     return diff;
   }
   
   // ========================================================================================
   // ========================================================================================
   
-  double constant_diff(const double & x, const double & y, const double & z) {
+  ScalarT constant_diff(const ScalarT & x, const ScalarT & y, const ScalarT & z) {
     return 1.0;
   }
   
   // ========================================================================================
   // ========================================================================================
   
-  double analytical_diff(const double & x, const double & y, const double & z) {
+  ScalarT analytical_diff(const ScalarT & x, const ScalarT & y, const ScalarT & z) {
     return 1.0;
   }
   
   // ========================================================================================
   // ========================================================================================
   
-  double constant_concentration_source(const double & x, const double & y, const double & z) {
+  ScalarT constant_concentration_source(const ScalarT & x, const ScalarT & y, const ScalarT & z) {
     return 1.0;
   }
   
   // ========================================================================================
   // ========================================================================================
   
-  double analytical_concentration_source(const double & x, const double & y, const double & z) {
+  ScalarT analytical_concentration_source(const ScalarT & x, const ScalarT & y, const ScalarT & z) {
     return 1.0;
   }
   
@@ -642,7 +642,7 @@ private:
   int T_num;
   
   int test;
-  double diff, smag, dt;
+  ScalarT diff, smag, dt;
   
   vector<string> sideSets;
   FC entropy_viscosity;

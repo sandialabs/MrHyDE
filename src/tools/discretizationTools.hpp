@@ -95,12 +95,12 @@ public:
     DRV jacobDet("jacobDet", numCells, numpts);
     CellTools<AssemblyDevice>::setJacobian(jacobian, evalpts, nodes, *cellTopo);
     CellTools<AssemblyDevice>::setJacobianDet(jacobDet, jacobian);
-    FunctionSpaceTools<AssemblyDevice>::computeCellMeasure<double>(weightedMeasure, jacobDet, evalwts);
+    FunctionSpaceTools<AssemblyDevice>::computeCellMeasure<ScalarT>(weightedMeasure, jacobDet, evalwts);
     
     DRV basisvals_Transformed("basisvals_Transformed", numCells, numBasis, numpts);
     DRV basisvals_TransformedWeighted("basisvals_TransformedWeighted", numCells, numBasis, numpts);
     FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_Transformed, basisvals);
-    FunctionSpaceTools<AssemblyDevice>::multiplyMeasure<double>(basisvals_TransformedWeighted, weightedMeasure, basisvals_Transformed);
+    FunctionSpaceTools<AssemblyDevice>::multiplyMeasure<ScalarT>(basisvals_TransformedWeighted, weightedMeasure, basisvals_Transformed);
     
     return basisvals_TransformedWeighted;
   }
@@ -121,12 +121,12 @@ public:
     DRV jacobDet("jacobDet", numCells, numpts);
     CellTools<AssemblyDevice>::setJacobian(jacobian, evalpts, nodes, *cellTopo);
     CellTools<AssemblyDevice>::setJacobianDet(jacobDet, jacobian);
-    FunctionSpaceTools<AssemblyDevice>::computeCellMeasure<double>(weightedMeasure, jacobDet, evalwts);
+    FunctionSpaceTools<AssemblyDevice>::computeCellMeasure<ScalarT>(weightedMeasure, jacobDet, evalwts);
     
     DRV basisvals_Transformed("basisvals_Transformed", numCells, numBasis, numpts);
     Teuchos::RCP<DRV> basisvals_TransformedWeighted = Teuchos::rcp(new DRV("basisvals_TransformedWeighted", numCells, numBasis, numpts));
     FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_Transformed, basisvals);
-    FunctionSpaceTools<AssemblyDevice>::multiplyMeasure<double>(*basisvals_TransformedWeighted, weightedMeasure, basisvals_Transformed);
+    FunctionSpaceTools<AssemblyDevice>::multiplyMeasure<ScalarT>(*basisvals_TransformedWeighted, weightedMeasure, basisvals_Transformed);
     
     return basisvals_TransformedWeighted;
   }
@@ -165,12 +165,12 @@ public:
     if (spaceDim == 2) 
       FunctionSpaceTools<AssemblyDevice>::computeEdgeMeasure(sideweightedMeasure, sideJacobian, evalwts, side, *cellTopo, temporary_buffer);
     if (spaceDim == 3) 
-      FunctionSpaceTools<AssemblyDevice>::computeFaceMeasure<double>(sideweightedMeasure, sideJacobian, evalwts, side, *cellTopo, temporary_buffer);
+      FunctionSpaceTools<AssemblyDevice>::computeFaceMeasure<ScalarT>(sideweightedMeasure, sideJacobian, evalwts, side, *cellTopo, temporary_buffer);
     
     DRV basisvals_Transformed("basisvals_Transformed", numCells, numBasis, numpts);
     DRV basisvals_TransformedWeighted("basisvals_TransformedWeighted", numCells, numBasis, numpts);
     FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_Transformed, basisvals);
-    FunctionSpaceTools<AssemblyDevice>::multiplyMeasure<double>(basisvals_TransformedWeighted, sideweightedMeasure, basisvals_Transformed);
+    FunctionSpaceTools<AssemblyDevice>::multiplyMeasure<ScalarT>(basisvals_TransformedWeighted, sideweightedMeasure, basisvals_Transformed);
     
     return basisvals_TransformedWeighted;
   }
@@ -276,9 +276,9 @@ public:
     CellTools<AssemblyDevice>::setJacobianDet(jacobDet, jacobian);
     DRV weightedMeasure("weightedMeasure", numCells, numpts);
     
-    FunctionSpaceTools<AssemblyDevice>::computeCellMeasure<double>(weightedMeasure, jacobDet, evalwts);
+    FunctionSpaceTools<AssemblyDevice>::computeCellMeasure<ScalarT>(weightedMeasure, jacobDet, evalwts);
     FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(basisgrads_Transformed, jacobInv, basisgrads);
-    FunctionSpaceTools<AssemblyDevice>::multiplyMeasure<double>(basisgrads_TransformedWeighted, weightedMeasure, basisgrads_Transformed);
+    FunctionSpaceTools<AssemblyDevice>::multiplyMeasure<ScalarT>(basisgrads_TransformedWeighted, weightedMeasure, basisgrads_Transformed);
     
     return basisgrads_TransformedWeighted;
   }
@@ -304,9 +304,9 @@ public:
     CellTools<AssemblyDevice>::setJacobianDet(jacobDet, jacobian);
     DRV weightedMeasure("weightedMeasure", numCells, numpts);
     
-    FunctionSpaceTools<AssemblyDevice>::computeCellMeasure<double>(weightedMeasure, jacobDet, evalwts);
+    FunctionSpaceTools<AssemblyDevice>::computeCellMeasure<ScalarT>(weightedMeasure, jacobDet, evalwts);
     FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(basisgrads_Transformed, jacobInv, basisgrads);
-    FunctionSpaceTools<AssemblyDevice>::multiplyMeasure<double>(*basisgrads_TransformedWeighted, weightedMeasure, basisgrads_Transformed);
+    FunctionSpaceTools<AssemblyDevice>::multiplyMeasure<ScalarT>(*basisgrads_TransformedWeighted, weightedMeasure, basisgrads_Transformed);
     
     return basisgrads_TransformedWeighted;
   }
@@ -342,11 +342,11 @@ public:
     
     FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(basisgrads_Transformed, jacobInv, basisgrads);
     if (spaceDim == 2) 
-      FunctionSpaceTools<AssemblyDevice>::computeEdgeMeasure<double>(sideweightedMeasure, jacobian, evalwts, side, *cellTopo, temporary_buffer);
+      FunctionSpaceTools<AssemblyDevice>::computeEdgeMeasure<ScalarT>(sideweightedMeasure, jacobian, evalwts, side, *cellTopo, temporary_buffer);
     if (spaceDim == 3) 
-      FunctionSpaceTools<AssemblyDevice>::computeFaceMeasure<double>(sideweightedMeasure, jacobian, evalwts, side, *cellTopo, temporary_buffer);
+      FunctionSpaceTools<AssemblyDevice>::computeFaceMeasure<ScalarT>(sideweightedMeasure, jacobian, evalwts, side, *cellTopo, temporary_buffer);
 
-    FunctionSpaceTools<AssemblyDevice>::multiplyMeasure<double>(basisgrads_TransformedWeighted, sideweightedMeasure, basisgrads_Transformed);
+    FunctionSpaceTools<AssemblyDevice>::multiplyMeasure<ScalarT>(basisgrads_TransformedWeighted, sideweightedMeasure, basisgrads_Transformed);
     
     return basisgrads_TransformedWeighted;
   }
@@ -372,7 +372,7 @@ public:
     
     // scale the normal vector (we need unit normal...)
     for( int j=0; j<numpts; j++ ) {
-      double normalLength = 0.0;
+      ScalarT normalLength = 0.0;
       for (int sd=0; sd<spaceDim; sd++) {
         normalLength += normal(0,j,sd)*normal(0,j,sd);
       }
@@ -405,7 +405,7 @@ public:
     CellTools<AssemblyDevice>::setJacobianDet(jacobDet, jacobian);
     
     // compute weighted measure
-    FunctionSpaceTools<AssemblyDevice>::computeCellMeasure<double>(wts, jacobDet, evalwts);
+    FunctionSpaceTools<AssemblyDevice>::computeCellMeasure<ScalarT>(wts, jacobDet, evalwts);
     return wts;      
   }
   
@@ -459,9 +459,9 @@ public:
     DRV temporary_buffer("temporary_buffer",numCells*numpts*spaceDim*spaceDim);
 
     if (spaceDim == 2)
-      FunctionSpaceTools<AssemblyDevice>::computeEdgeMeasure<double>(wts, jacobian, evalwts, s, *cellTopo, temporary_buffer);
+      FunctionSpaceTools<AssemblyDevice>::computeEdgeMeasure<ScalarT>(wts, jacobian, evalwts, s, *cellTopo, temporary_buffer);
     else if (spaceDim ==3)
-      FunctionSpaceTools<AssemblyDevice>::computeFaceMeasure<double>(wts, jacobian, evalwts, s, *cellTopo, temporary_buffer);
+      FunctionSpaceTools<AssemblyDevice>::computeFaceMeasure<ScalarT>(wts, jacobian, evalwts, s, *cellTopo, temporary_buffer);
 
     return wts;      
   }
@@ -469,7 +469,7 @@ public:
   //////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////
   
-  static double getElementSize(const DRV & nodes, const DRV & ip, const DRV & wts, 
+  static ScalarT getElementSize(const DRV & nodes, const DRV & ip, const DRV & wts,
                                const topo_RCP & cellTopo) {
     
     int numip = ip.dimension(0);
@@ -479,10 +479,10 @@ public:
     DRV weightedMeasure("weightedMeasure", 1, numip);
     CellTools<AssemblyDevice>::setJacobian(jacobian, ip, nodes, *cellTopo);
     CellTools<AssemblyDevice>::setJacobianDet(jacobDet, jacobian);
-    FunctionSpaceTools<AssemblyDevice>::computeCellMeasure<double>(weightedMeasure, jacobDet, wts);
+    FunctionSpaceTools<AssemblyDevice>::computeCellMeasure<ScalarT>(weightedMeasure, jacobDet, wts);
     
-    double vol = 0.0;
-    double h;
+    ScalarT vol = 0.0;
+    ScalarT h;
     for(int i=0; i<numip; i++) {
       vol += weightedMeasure(0,i);
     }
@@ -502,7 +502,7 @@ public:
   static void getQuadrature(const topo_RCP & cellTopo, const int & order, DRV & ip, DRV & wts) {
     
     DefaultCubatureFactory cubFactory;
-    Teuchos::RCP<Cubature<AssemblyDevice> > basisCub  = cubFactory.create<AssemblyDevice, double, double>(*cellTopo, order); // TMW: the mesh sublist is not the correct place
+    Teuchos::RCP<Cubature<AssemblyDevice> > basisCub  = cubFactory.create<AssemblyDevice, ScalarT, ScalarT>(*cellTopo, order); // TMW: the mesh sublist is not the correct place
     int cubDim  = basisCub->getDimension();
     int numCubPoints = basisCub->getNumPoints();
     ip = DRV("ip", numCubPoints, cubDim);

@@ -20,7 +20,6 @@ using Kokkos::RangePolicy;
 #define MILO_VERSION "1.0"
 
 typedef double ScalarT;
-typedef double RealType;
 typedef int LO;
 typedef int GO;
 

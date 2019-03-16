@@ -75,10 +75,10 @@ void cell::setUseBasis(vector<int> & usebasis_, const int & nstages_) {
     }
   }
   //maxnbasis *= nstages;
-  u = Kokkos::View<double***,AssemblyDevice>("u",numElem,numDOF.size(),maxnbasis);
-  u_dot = Kokkos::View<double***,AssemblyDevice>("u_dot",numElem,numDOF.size(),maxnbasis);
-  phi = Kokkos::View<double***,AssemblyDevice>("phi",numElem,numDOF.size(),maxnbasis);
-  phi_dot = Kokkos::View<double***,AssemblyDevice>("phi_dot",numElem,numDOF.size(),maxnbasis);
+  u = Kokkos::View<ScalarT***,AssemblyDevice>("u",numElem,numDOF.size(),maxnbasis);
+  u_dot = Kokkos::View<ScalarT***,AssemblyDevice>("u_dot",numElem,numDOF.size(),maxnbasis);
+  phi = Kokkos::View<ScalarT***,AssemblyDevice>("phi",numElem,numDOF.size(),maxnbasis);
+  phi_dot = Kokkos::View<ScalarT***,AssemblyDevice>("phi_dot",numElem,numDOF.size(),maxnbasis);
   
 }
 
@@ -103,7 +103,7 @@ void cell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasi
       maxnbasis = numParamDOF(i);
     }
   }
-  param = Kokkos::View<double***,AssemblyDevice>("param",numElem,numParamDOF.size(),maxnbasis);
+  param = Kokkos::View<ScalarT***,AssemblyDevice>("param",numElem,numParamDOF.size(),maxnbasis);
   
 }
 
@@ -119,7 +119,7 @@ void cell::setAuxUseBasis(vector<int> & ausebasis_) {
       maxnbasis = numAuxDOF(i);
     }
   }
-  aux = Kokkos::View<double***,AssemblyDevice>("aux",numElem,numAuxDOF.size(),maxnbasis);
+  aux = Kokkos::View<ScalarT***,AssemblyDevice>("aux",numElem,numAuxDOF.size(),maxnbasis);
   
 }
 
@@ -367,7 +367,7 @@ void cell::computeSolnSideIP(const int & side,
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void cell::updateSolnWorkset(const Teuchos::RCP<Epetra_MultiVector> & gl_u, int tindex) {
-  Kokkos::View<double***,AssemblyDevice> ulocal("tempory u", numElem,u.dimension(1),u.dimension(2));
+  Kokkos::View<ScalarT***,AssemblyDevice> ulocal("tempory u", numElem,u.dimension(1),u.dimension(2));
   for (int e=0; e<numElem; e++) {
     for (size_t n=0; n<index[e].size(); n++) {
       for(size_t i=0; i<index[e][n].size(); i++ ) {
@@ -384,7 +384,7 @@ void cell::updateSolnWorkset(const Teuchos::RCP<Epetra_MultiVector> & gl_u, int 
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void cell::updateSolnWorkset(const vector_RCP & gl_u, int tindex) {
-  Kokkos::View<double***,AssemblyDevice> ulocal("tempory u", numElem,u.dimension(1),u.dimension(2));
+  Kokkos::View<ScalarT***,AssemblyDevice> ulocal("tempory u", numElem,u.dimension(1),u.dimension(2));
   auto u_kv = gl_u->getLocalView<HostDevice>();
   
   for (int e=0; e<numElem; e++) {
@@ -402,15 +402,15 @@ void cell::updateSolnWorkset(const vector_RCP & gl_u, int tindex) {
 // Compute the contribution from this cell to the global res, J, Jdot
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::computeJacRes(const vector<vector<double> > & paramvals,
+void cell::computeJacRes(const vector<vector<ScalarT> > & paramvals,
                          const vector<int> & paramtypes, const vector<string> & paramnames,
-                         const double & time, const bool & isTransient, const bool & isAdjoint,
+                         const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                          const bool & compute_jacobian, const bool & compute_sens,
                          const int & num_active_params, const bool & compute_disc_sens,
                          const bool & compute_aux_sens, const bool & store_adjPrev,
-                         Kokkos::View<double***,AssemblyDevice> local_res,
-                         Kokkos::View<double***,AssemblyDevice> local_J,
-                         Kokkos::View<double***,AssemblyDevice> local_Jdot) {
+                         Kokkos::View<ScalarT***,AssemblyDevice> local_res,
+                         Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                         Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
   current_time = time;
   
   /////////////////////////////////////////////////////////////////////////////////////
@@ -451,7 +451,7 @@ void cell::computeJacRes(const vector<vector<double> > & paramvals,
     if (compute_jacobian) {
       bool fixJacDiag = true;
       if (fixJacDiag) {
-        double JTOL = 1.0E-8;
+        ScalarT JTOL = 1.0E-8;
         
         for (int e=0; e<numElem; e++) {
           for (size_t n=0; n<wkset->offsets.dimension(0); n++) {
@@ -461,7 +461,7 @@ void cell::computeJacRes(const vector<vector<double> > & paramvals,
                 
                 
                 for (size_t j=0; j<wkset->offsets.dimension(0); j++) {
-                  double scale = 1.0/((double)wkset->offsets.dimension(1)-1.0);
+                  ScalarT scale = 1.0/((ScalarT)wkset->offsets.dimension(1)-1.0);
                   local_J(e,wkset->offsets(n,i),wkset->offsets(n,j)) = -scale;
                   //local_J(wkset->offsets[n][j],wkset->offsets[n][i]) = 0.0;
                   
@@ -776,7 +776,7 @@ void cell::computeJacRes(const vector<vector<double> > & paramvals,
             for (int e=0; e<numElem; e++) {
               for (int n=0; n<index[e].size(); n++) {
                 for (int j=0; j<index[e][n].size(); j++) {
-                  double aPrev = 0.0;
+                  ScalarT aPrev = 0.0;
                   for (int m=0; m<index[e].size(); m++) {
                     for (int k=0; k<index[e][m].size(); k++) {
                       local_res(e,wkset->offsets(n,j),0) += -wkset->alpha*local_Jdot(e,wkset->offsets(n,j),wkset->offsets(m,k))*phi(e,m,k);
@@ -847,7 +847,7 @@ void cell::computeJacRes(const vector<vector<double> > & paramvals,
 // Use the AD res to update the scalarT res
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateRes(const bool & compute_sens, Kokkos::View<double***,AssemblyDevice> local_res) {
+void cell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   if (compute_sens) {
@@ -876,7 +876,7 @@ void cell::updateRes(const bool & compute_sens, Kokkos::View<double***,AssemblyD
 // Use the AD res to update the scalarT res
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<double***,AssemblyDevice> local_res) {
+void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->adjrhs;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   if (compute_sens) {
@@ -906,7 +906,7 @@ void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<double***,As
 // Use the AD res to update the scalarT J
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateJac(const bool & useadjoint, Kokkos::View<double***,AssemblyDevice> local_J) {
+void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
@@ -943,7 +943,7 @@ void cell::updateJac(const bool & useadjoint, Kokkos::View<double***,AssemblyDev
 // Use the AD res to update the scalarT Jdot
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateJacDot(const bool & useadjoint, Kokkos::View<double***,AssemblyDevice> local_Jdot) {
+void cell::updateJacDot(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
   
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
@@ -994,7 +994,7 @@ void cell::updateJacDot(const bool & useadjoint, Kokkos::View<double***,Assembly
 // Use the AD res to update the scalarT Jparam
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateParamJac(Kokkos::View<double***,AssemblyDevice> local_J) {
+void cell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
@@ -1017,7 +1017,7 @@ void cell::updateParamJac(Kokkos::View<double***,AssemblyDevice> local_J) {
 // Use the AD res to update the scalarT Jparamdot
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateParamJacDot(Kokkos::View<double***,AssemblyDevice> local_Jdot) {
+void cell::updateParamJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
   
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
@@ -1040,7 +1040,7 @@ void cell::updateParamJacDot(Kokkos::View<double***,AssemblyDevice> local_Jdot) 
 // Use the AD res to update the scalarT Jaux
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateAuxJac(Kokkos::View<double***,AssemblyDevice> local_J) {
+void cell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
@@ -1062,7 +1062,7 @@ void cell::updateAuxJac(Kokkos::View<double***,AssemblyDevice> local_J) {
 // Use the AD res to update the scalarT Jparamdot
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateAuxJacDot(Kokkos::View<double***,AssemblyDevice> local_Jdot) {
+void cell::updateAuxJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
   
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
@@ -1084,12 +1084,12 @@ void cell::updateAuxJacDot(Kokkos::View<double***,AssemblyDevice> local_Jdot) {
 // Get the initial condition
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<double**,AssemblyDevice> cell::getInitial(const bool & project, const bool & isAdjoint) {
-  Kokkos::View<double**,AssemblyDevice> initialvals("initial values",numElem,GIDs[0].size());
+Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, const bool & isAdjoint) {
+  Kokkos::View<ScalarT**,AssemblyDevice> initialvals("initial values",numElem,GIDs[0].size());
   wkset->update(ip,ijac,orientation);
   if (project) { // works for any basis
     for (int n=0; n<wkset->varlist.size(); n++) {
-      Kokkos::View<double**,AssemblyDevice> initialip = physics_RCP->getInitial(wkset->ip,
+      Kokkos::View<ScalarT**,AssemblyDevice> initialip = physics_RCP->getInitial(wkset->ip,
                                                                                 wkset->varlist[n],
                                                                                 current_time,
                                                                                 isAdjoint,
@@ -1106,7 +1106,7 @@ Kokkos::View<double**,AssemblyDevice> cell::getInitial(const bool & project, con
   else { // only works if using HGRAD linear basis
     for (int e=0; e<numElem; e++) {
       for (int n=0; n<index[e].size(); n++) {
-        Kokkos::View<double**,AssemblyDevice> initialnodes = physics_RCP->getInitial(nodes,
+        Kokkos::View<ScalarT**,AssemblyDevice> initialnodes = physics_RCP->getInitial(nodes,
                                                                                      wkset->varlist[n],
                                                                                      current_time,
                                                                                      isAdjoint,
@@ -1124,8 +1124,8 @@ Kokkos::View<double**,AssemblyDevice> cell::getInitial(const bool & project, con
 // Get the mass matrix
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<double***,AssemblyDevice> cell::getMass() {
-  Kokkos::View<double***,AssemblyDevice> mass("local mass",numElem,GIDs[0].size(), GIDs[0].size());
+Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
+  Kokkos::View<ScalarT***,AssemblyDevice> mass("local mass",numElem,GIDs[0].size(), GIDs[0].size());
   wkset->update(ip,ijac,orientation);
   vector<string> basis_types = wkset->basis_types;
   
@@ -1151,7 +1151,7 @@ Kokkos::View<double***,AssemblyDevice> cell::getMass() {
 // Compute the error at the integration points given the solution and solve times
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<double**,AssemblyDevice> cell::computeError(const double & solvetime,
+Kokkos::View<ScalarT**,AssemblyDevice> cell::computeError(const ScalarT & solvetime,
                                                          const size_t & tindex,
                                                          const bool compute_subgrid,
                                                          const string & error_type) {
@@ -1160,7 +1160,7 @@ Kokkos::View<double**,AssemblyDevice> cell::computeError(const double & solvetim
   wkset->time = solvetime;
   wkset->time_KV(0) = solvetime;
   
-  Kokkos::View<double**,AssemblyDevice> errors("errors",numElem,index[0].size());
+  Kokkos::View<ScalarT**,AssemblyDevice> errors("errors",numElem,index[0].size());
   if (!compute_subgrid) {
     wkset->update(ip,ijac,orientation);
     wkset->computeSolnVolIP(u, u_dot, false, false);
@@ -1168,7 +1168,7 @@ Kokkos::View<double**,AssemblyDevice> cell::computeError(const double & solvetim
     
     /*
      size_t numip = wkset->numip;
-     Kokkos::View<double***,AssemblyDevice> u_ip("u_ip",numElem,index[0].size(),numip);
+     Kokkos::View<ScalarT***,AssemblyDevice> u_ip("u_ip",numElem,index[0].size(),numip);
      for (int e=0; e<numElem; e++) {
      for (int n=0; n<index[e].size(); n++) {
      for( int i=0; i<index[e][n].size(); i++ ) {
@@ -1181,26 +1181,26 @@ Kokkos::View<double**,AssemblyDevice> cell::computeError(const double & solvetim
      */
     
     if (error_type == "L2") {
-      Kokkos::View<double***,AssemblyDevice> truesol("true solution",numElem,index[0].size(),numip);
+      Kokkos::View<ScalarT***,AssemblyDevice> truesol("true solution",numElem,index[0].size(),numip);
       physics_RCP->trueSolution(myBlock, solvetime, truesol);
       //KokkosTools::print(wkset->local_soln);
       for (int e=0; e<numElem; e++) {
         for (int n=0; n<index[e].size(); n++) {
           for( size_t j=0; j<numip; j++ ) {
-            double diff = wkset->local_soln(e,n,j,0).val() - truesol(e,n,j);
+            ScalarT diff = wkset->local_soln(e,n,j,0).val() - truesol(e,n,j);
             errors(e,n) += diff*diff*wkset->wts(e,j);
           }
         }
       }
     }
     if (error_type == "H1") {
-      Kokkos::View<double****,AssemblyDevice> truesol("true solution",numElem,index[0].size(),numip,dimension);
+      Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index[0].size(),numip,dimension);
       physics_RCP->trueSolutionGrad(myBlock, solvetime, truesol);
       for (int e=0; e<numElem; e++) {
         for (int n=0; n<index[e].size(); n++) {
           for( size_t j=0; j<numip; j++ ) {
             for (int s=0; s<dimension; s++) {
-              double diff = wkset->local_soln_grad(e,n,j,s).val() - truesol(e,n,j,s);
+              ScalarT diff = wkset->local_soln_grad(e,n,j,s).val() - truesol(e,n,j,s);
               errors(e,n) += diff*diff*wkset->wts(e,j);
             }
           }
@@ -1212,16 +1212,16 @@ Kokkos::View<double**,AssemblyDevice> cell::computeError(const double & solvetim
      for (int e=0; e<numElem; e++) {
      for (int n=0; n<index[e].size(); n++) {
      for( size_t j=0; j<numip; j++ ) {
-     double x = wkset->ip(e,j,0);
-     double y = 0.0;
+     ScalarT x = wkset->ip(e,j,0);
+     ScalarT y = 0.0;
      if (dimension > 1) {
      y = wkset->ip(e,j,1);
      }
-     double z = 0.0;
+     ScalarT z = 0.0;
      if (dimension > 2) {
      z = wkset->ip(e,j,2);
      }
-     double truesol = physics_RCP->trueSolution(myBlock, wkset->varlist[n], x, y, z, solvetime, error_type);
+     ScalarT truesol = physics_RCP->trueSolution(myBlock, wkset->varlist[n], x, y, z, solvetime, error_type);
      errors(e,n) += (u_ip(e,n,j)-truesol)*(u_ip(e,n,j)-truesol)*wkset->wts(e,j);
      }
      }
@@ -1233,7 +1233,7 @@ Kokkos::View<double**,AssemblyDevice> cell::computeError(const double & solvetim
     
     for (int e=0; e<numElem; e++) {
       
-      Kokkos::View<double**,AssemblyDevice> currerrors = subgridModels[subgrid_model_index[e][tindex]]->computeError(solvetime, subgrid_usernum[e]);
+      Kokkos::View<ScalarT**,AssemblyDevice> currerrors = subgridModels[subgrid_model_index[e][tindex]]->computeError(solvetime, subgrid_usernum[e]);
       
       for (int c=0; c<currerrors.dimension(0); c++) { // loop over subgrid elements
         for (int n=0; n<index[e].size(); n++) {
@@ -1252,7 +1252,7 @@ Kokkos::View<double**,AssemblyDevice> cell::computeError(const double & solvetim
 ///////////////////////////////////////////////////////////////////////////////////////
 Kokkos::View<AD***,AssemblyDevice> cell::computeResponseAtNodes(const DRV & nodes,
                                                                 const int tindex,
-                                                                const double & time) {
+                                                                const ScalarT & time) {
   
   
   // TMW: this whole function needs to be rewritten to use worksets properly
@@ -1297,7 +1297,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponseAtNodes(const DRV & node
 // Compute the response at the integration points given the solution and solve time
 ///////////////////////////////////////////////////////////////////////////////////////
 //
-Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const double & solvetime,
+Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const ScalarT & solvetime,
                                                          const size_t & tindex,
                                                          const int & seedwhat) {
   
@@ -1405,7 +1405,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const double & solvetim
           for( size_t j=0; j<numip; j++ ) {
             for (int s=0; s<dimension; s++) {
               if ((seedwhat-2) == s) {
-                double tmp = ugrad_ip(e,n,j,s).val();
+                ScalarT tmp = ugrad_ip(e,n,j,s).val();
                 ugrad_ip(e,n,j,s) = u_ip(e,n,j,0);
                 ugrad_ip(e,n,j,s) += -u_ip(e,n,j,0).val() + tmp;
               }
@@ -1530,7 +1530,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const double & solvetim
 // Compute the objective function given the solution and solve times
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<AD**,AssemblyDevice> cell::computeObjective(const double & solvetime,
+Kokkos::View<AD**,AssemblyDevice> cell::computeObjective(const ScalarT & solvetime,
                                                          const size_t & tindex,
                                                          const int & seedwhat) {
   
@@ -1543,7 +1543,7 @@ Kokkos::View<AD**,AssemblyDevice> cell::computeObjective(const double & solvetim
     
     if (response_type == "pointwise") { // uses sensor data
       
-      double TOL = 1.0e-6; // tolerance for comparing sensor times and simulation times
+      ScalarT TOL = 1.0e-6; // tolerance for comparing sensor times and simulation times
       objective = Kokkos::View<AD**,AssemblyDevice>("objective",numElem,numSensors);
       
       if (numSensors > 0) { // if this element has any sensors
@@ -1552,7 +1552,7 @@ Kokkos::View<AD**,AssemblyDevice> cell::computeObjective(const double & solvetim
           size_t ftime;
           
           for (size_t t2=0; t2<sensorData[s].dimension(0); t2++) {
-            double stime = sensorData[s](t2,0);
+            ScalarT stime = sensorData[s](t2,0);
             if (abs(stime-solvetime) < TOL) {
               foundtime = true;
               ftime = t2;
@@ -1563,7 +1563,7 @@ Kokkos::View<AD**,AssemblyDevice> cell::computeObjective(const double & solvetim
             int ee = sensorElem[s];
             for (size_t r=0; r<responsevals.dimension(1); r++) {
               AD rval = responsevals(ee,r,s);
-              double sval = sensorData[s](ftime,r+1);
+              ScalarT sval = sensorData[s](ftime,r+1);
               if(compute_diff) {
                 objective(ee,s) += 0.5*wkset->deltat*(rval-sval) * (rval-sval);
               }
@@ -1622,7 +1622,7 @@ Kokkos::View<AD**,AssemblyDevice> cell::computeObjective(const double & solvetim
 ///////////////////////////////////////////////////////////////////////////////////////
 // Compute boundary regularization given the boundary discretized parameters
 ///////////////////////////////////////////////////////////////////////////////////////
-AD cell::computeBoundaryRegularization(const vector<double> reg_constants, const vector<int> reg_types,
+AD cell::computeBoundaryRegularization(const vector<ScalarT> reg_constants, const vector<int> reg_types,
                                        const vector<int> reg_indices, const vector<string> reg_sides) {
   
   AD reg;
@@ -1656,7 +1656,7 @@ AD cell::computeBoundaryRegularization(const vector<double> reg_constants, const
       
       DRV side_weights = wkset->wts_side;
       int paramIndex, reg_type;
-      double reg_constant;
+      ScalarT reg_constant;
       string reg_side;
       size_t found;
       
@@ -1671,7 +1671,7 @@ AD cell::computeBoundaryRegularization(const vector<double> reg_constants, const
           wkset->computeParamSideIP(side, param, seedParams);
           
           AD p, dpdx, dpdy, dpdz; // parameters
-          double offset = 1.0e-5;
+          ScalarT offset = 1.0e-5;
           for (int e=0; e<numElem; e++) {
             if (sideinfo(e,0,side,0) > 0) {
               for (int k = 0; k < numip; k++) {
@@ -1732,7 +1732,7 @@ AD cell::computeBoundaryRegularization(const vector<double> reg_constants, const
 ///////////////////////////////////////////////////////////////////////////////////////
 // Compute the regularization over the domain given the domain discretized parameters
 ///////////////////////////////////////////////////////////////////////////////////////
-AD cell::computeDomainRegularization(const vector<double> reg_constants, const vector<int> reg_types,
+AD cell::computeDomainRegularization(const vector<ScalarT> reg_constants, const vector<int> reg_types,
                                      const vector<int> reg_indices) {
   
   AD reg;
@@ -1748,10 +1748,10 @@ AD cell::computeDomainRegularization(const vector<double> reg_constants, const v
   wkset->computeParamVolIP(param, seedParams);
   
   AD p, dpdx, dpdy, dpdz; // parameters
-  double regoffset = 1.0e-5;
+  ScalarT regoffset = 1.0e-5;
   int numParams = reg_indices.size();
   int paramIndex, reg_type;
-  double reg_constant;
+  ScalarT reg_constant;
   for (int i = 0; i < numParams; i++) {
     reg_constant = reg_constants[i];
     reg_type = reg_types[i];
@@ -1789,7 +1789,7 @@ AD cell::computeDomainRegularization(const vector<double> reg_constants, const v
 // Compute the target at the integration points given the solve times
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<AD***,AssemblyDevice> cell::computeTarget(const double & solvetime) {
+Kokkos::View<AD***,AssemblyDevice> cell::computeTarget(const ScalarT & solvetime) {
   return physics_RCP->target(myBlock, wkset->ip, solvetime, wkset);
 }
 
@@ -1797,7 +1797,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeTarget(const double & solvetime)
 // Compute the weighting function at the integration points given the solve times
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<AD***,AssemblyDevice> cell::computeWeight(const double & solvetime) {
+Kokkos::View<AD***,AssemblyDevice> cell::computeWeight(const ScalarT & solvetime) {
   return physics_RCP->weight(myBlock, wkset->ip, solvetime, wkset);
 }
 
@@ -1805,8 +1805,8 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeWeight(const double & solvetime)
 // Compute the response at the integration points given the solution and solve times
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::addSensors(const Kokkos::View<double**,HostDevice> sensor_points, const double & sensor_loc_tol,
-                      const vector<Kokkos::View<double**,HostDevice> > & sensor_data, const bool & have_sensor_data,
+void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, const ScalarT & sensor_loc_tol,
+                      const vector<Kokkos::View<ScalarT**,HostDevice> > & sensor_data, const bool & have_sensor_data,
                       const vector<basis_RCP> & basis_pointers,
                       const vector<basis_RCP> & param_basis_pointers) {
   
@@ -1896,7 +1896,7 @@ void cell::addSensors(const Kokkos::View<double**,HostDevice> sensor_points, con
           for (size_t i=0; i<sensor_points.dimension(0); i++) {
             if (inRefCell(0,i) == 1) {
               
-              Kokkos::View<double**,HostDevice> newsenspt("new sensor point",1,dimension);
+              Kokkos::View<ScalarT**,HostDevice> newsenspt("new sensor point",1,dimension);
               for (int j=0; j<dimension; j++) {
                 newsenspt(0,j) = sensor_points(i,j);
               }
@@ -1932,15 +1932,15 @@ void cell::addSensors(const Kokkos::View<double**,HostDevice> sensor_points, con
           ifstream sfile;
           sfile.open("sensorLocations/sdat." + str + ".dat");
           int cID;
-          //double l1, l2, t1, d1, d2;
-          double l1, l2;
+          //ScalarT l1, l2, t1, d1, d2;
+          ScalarT l1, l2;
           sfile >> cID;
           sfile >> l1;
           sfile >> l2;
           
           sfile.close();
           
-          Kokkos::View<double**,HostDevice> newsenspt("sensor point",1,dimension);
+          Kokkos::View<ScalarT**,HostDevice> newsenspt("sensor point",1,dimension);
           //FC newsensdat(1,3);
           newsenspt(0,0) = l1;
           newsenspt(0,1) = l2;
@@ -2022,8 +2022,8 @@ void cell::writeSubgridSolution(const std::string & filename) {
 template<class T>
 void cell::computeFlux(const Teuchos::RCP<T> & gl_u, const Teuchos::RCP<T> & gl_du,
                        const Teuchos::RCP<T> & params,
-                       Kokkos::View<double***,AssemblyDevice> lambda,
-                       const double & time, const int & side, const double & coarse_h,
+                       Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+                       const ScalarT & time, const int & side, const ScalarT & coarse_h,
                        const bool & compute_sens) {
   
   wkset->time = time;
@@ -2145,7 +2145,7 @@ void cell::updateData() {
   }
   else if (have_cell_rotation) {
     wkset->have_rotation = true;
-    //Kokkos::View<double***,AssemblyDevice> rotmat("rotation matrix",numElem,3,3);
+    //Kokkos::View<ScalarT***,AssemblyDevice> rotmat("rotation matrix",numElem,3,3);
     for (int e=0; e<numElem; e++) {
       wkset->rotation(e,0,0) = cell_data(e,0);
       wkset->rotation(e,0,1) = cell_data(e,1);

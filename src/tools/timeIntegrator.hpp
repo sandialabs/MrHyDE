@@ -38,15 +38,15 @@ public:
   // Compute the stage time
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  virtual double computeTime(const double & prevtime, const size_t snum, const double & deltat);
+  virtual ScalarT computeTime(const ScalarT & prevtime, const size_t snum, const ScalarT & deltat);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Public data
   ///////////////////////////////////////////////////////////////////////////////////////
   
   // Butcher tableau information (btab_bs for embedded methods)
-  Kokkos::View<double*,HostDevice> btab_b, btab_bs, btab_c;
-  Kokkos::View<double**,HostDevice> btab_a;
+  Kokkos::View<ScalarT*,HostDevice> btab_b, btab_bs, btab_c;
+  Kokkos::View<ScalarT**,HostDevice> btab_a;
   
   size_t num_stages;
   bool sol_staggered = true; // determines how solution is layed out for LA objects (staggered or blocked)

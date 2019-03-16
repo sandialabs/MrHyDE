@@ -152,18 +152,18 @@ public:
       
         //TMW: this residual makes no sense to me
         for (int i=0; i<urbasis.dimension(1); i++ ) { // what if ui uses a different basis?
-          double vr = urbasis(e,i,k);
-          double vi = uibasis(e,i,k);  //bvbw check to make sure first index  = 0
-          double dvrdx = urbasis_grad(e,i,k,0);
-          double dvidx = uibasis_grad(e,i,k,0);
-          double dvrdy = 0.0;
-          double dvidy = 0.0;
+          ScalarT vr = urbasis(e,i,k);
+          ScalarT vi = uibasis(e,i,k);  //bvbw check to make sure first index  = 0
+          ScalarT dvrdx = urbasis_grad(e,i,k,0);
+          ScalarT dvidx = uibasis_grad(e,i,k,0);
+          ScalarT dvrdy = 0.0;
+          ScalarT dvidy = 0.0;
           if (spaceDim > 1) {
             dvrdy = urbasis_grad(e,i,k,1);
             dvidy = uibasis_grad(e,i,k,1);
           }
-          double dvrdz = 0.0;
-          double dvidz = 0.0;
+          ScalarT dvrdz = 0.0;
+          ScalarT dvidz = 0.0;
           if (spaceDim > 2) {
             dvrdz = urbasis_grad(e,i,k,2);
             dvidz = uibasis_grad(e,i,k,2);
@@ -222,8 +222,8 @@ public:
                + c2i_z(e,k)*(durdz*dvrdz + duidz*dvidz))
             - (source_i(e,k)*vr - source_r(e,k)*vi);
             
-            // double c = 1.0; // bvbw need to move c and omega to input_params
-            // double omega = 1.0;
+            // ScalarT c = 1.0; // bvbw need to move c and omega to input_params
+            // ScalarT omega = 1.0;
             // wkset->res(resindex) +=
             //   -c*c*(durdx*dvrdx - duidx*dvidx) +
             //   -c*c*(durdy*dvrdy - duidy*dvidy) +
@@ -334,8 +334,8 @@ public:
         if(!fractional) {       // fractional exponent on time operator or i_omega in frequency mode
           for (int i=0; i<urbasis.dimension(1); i++ ) {
             int resindex = offsets(ur_num,i);
-            double vr = urbasis(e,i,k);
-            double vi = uibasis(e,i,k);
+            ScalarT vr = urbasis(e,i,k);
+            ScalarT vi = uibasis(e,i,k);
             
             res(e,resindex) += ((robin_alpha_r(e,k)*(ur*vr + ui*vi) - robin_alpha_i(e,k)*(ui*vr - ur*vi))
                                 + (durdn*vr + duidn*vi)
@@ -357,8 +357,8 @@ public:
           
           for (int i=0; i<urbasis.dimension(1); i++ ) {
             int resindex = offsets(ur_num,i);
-            double vr = urbasis(e,i,k);
-            double vi = uibasis(e,i,k);
+            ScalarT vr = urbasis(e,i,k);
+            ScalarT vi = uibasis(e,i,k);
             
             res(e,resindex) +=  alphaTr(e,k)*pow(omegar,freqExp(e,k))*(-ur*vr - ui*vi)
             +  alphaTi(e,k)*pow(omegai,freqExp(e,k))*( ui*vr - ur*vi)
@@ -376,7 +376,7 @@ public:
           }
           
         }
-        // double c = 1.0; // bvbw need to move c and omega to input_params
+        // ScalarT c = 1.0; // bvbw need to move c and omega to input_params
         // omega(k) = sqrt(omega2r(k));
         // for (int i=0; i<numBasis; i++ ) {
         //   resindex = wkset->offsets[ur_num][i];
@@ -450,8 +450,8 @@ private:
   
   AD ur, durdx, durdy, durdz, durdn, c2durdn;
   AD ui, duidx, duidy, duidz, duidn, c2duidn;
-  double vr, dvrdx, dvrdy, dvrdz;
-  double vi, dvidx, dvidy, dvidz;
+  ScalarT vr, dvrdx, dvrdy, dvrdz;
+  ScalarT vi, dvidx, dvidy, dvidz;
   
   FDATA source_r, source_i, source_r_side, source_i_side;
   FDATA omega2r, omega2i, omegar, omegai;

@@ -97,14 +97,14 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
-  AD getDirichletValue(const int & block, const double & x, const double & y, const double & z,
-                       const double & t, const string & var, const string & gside,
+  AD getDirichletValue(const int & block, const ScalarT & x, const ScalarT & y, const ScalarT & z,
+                       const ScalarT & t, const string & var, const string & gside,
                        const bool & useadjoint, Teuchos::RCP<workset> & wkset);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
-  double getInitialValue(const int & block, const double & x, const double & y, const double & z,
+  ScalarT getInitialValue(const int & block, const ScalarT & x, const ScalarT & y, const ScalarT & z,
                          const string & var, const bool & useadjoint);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
@@ -116,21 +116,21 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////
   
   /*
-  double trueSolution(const int & block, const string & var, const double & x, const double & y,
-                      const double & z, const double & time);
+  ScalarT trueSolution(const int & block, const string & var, const ScalarT & x, const ScalarT & y,
+                      const ScalarT & z, const ScalarT & time);
   */
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
-  void trueSolution(const int & block, const double & time,
-                        Kokkos::View<double***,AssemblyDevice> truesol);
+  void trueSolution(const int & block, const ScalarT & time,
+                        Kokkos::View<ScalarT***,AssemblyDevice> truesol);
 
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
-  void trueSolutionGrad(const int & block, const double & time,
-                    Kokkos::View<double****,AssemblyDevice> truesol);
+  void trueSolutionGrad(const int & block, const ScalarT & time,
+                    Kokkos::View<ScalarT****,AssemblyDevice> truesol);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
@@ -145,7 +145,7 @@ public:
                                                  Kokkos::View<AD****,AssemblyDevice> ugrad_ip,
                                                  Kokkos::View<AD****,AssemblyDevice> p_ip,
                                                  Kokkos::View<AD****,AssemblyDevice> pgrad_ip,
-                                                 const DRV & ip, const double & time,
+                                                 const DRV & ip, const ScalarT & time,
                                                  Teuchos::RCP<workset> & wkset);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
@@ -169,21 +169,21 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////
   
   Kokkos::View<AD***,AssemblyDevice> target(const int & block, const DRV & ip,
-                                            const double & current_time,
+                                            const ScalarT & current_time,
                                             Teuchos::RCP<workset> & wkset);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
   Kokkos::View<AD***,AssemblyDevice> weight(const int & block, const DRV & ip,
-                                            const double & current_time,
+                                            const ScalarT & current_time,
                                             Teuchos::RCP<workset> & wkset);
 
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
 
-  Kokkos::View<double**,AssemblyDevice> getInitial(const DRV & ip, const string var,
-                                                   const double & current_time,
+  Kokkos::View<ScalarT**,AssemblyDevice> getInitial(const DRV & ip, const string var,
+                                                   const ScalarT & current_time,
                                                    const bool & isAdjoint,
                                                    Teuchos::RCP<workset> & wkset);
   
@@ -215,19 +215,19 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
-  vector<Kokkos::View<double***,AssemblyDevice> > getExtraFields(const int & block);
+  vector<Kokkos::View<ScalarT***,AssemblyDevice> > getExtraFields(const int & block);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
-  Kokkos::View<double***,AssemblyDevice> getExtraFields(const int & block, const DRV & ip,
-                                                        const double & time,
+  Kokkos::View<ScalarT***,AssemblyDevice> getExtraFields(const int & block, const DRV & ip,
+                                                        const ScalarT & time,
                                                         Teuchos::RCP<workset> & wkset);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
-  Kokkos::View<double***,AssemblyDevice> getExtraCellFields(const int & block,
+  Kokkos::View<ScalarT***,AssemblyDevice> getExtraCellFields(const int & block,
                                                             const size_t & numElem);
   
   /////////////////////////////////////////////////////////////////////////////////////////////

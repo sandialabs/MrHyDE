@@ -12,18 +12,18 @@
 class rectPeriodicMatcher{
 
 private:
-    double tol_;
+    ScalarT tol_;
     
 public:
     rectPeriodicMatcher(): tol_(1.e-8) {};
-    rectPeriodicMatcher(const double & tol): tol_(tol) {};
+    rectPeriodicMatcher(const ScalarT & tol): tol_(tol) {};
     
-    bool operator()(const Teuchos::Tuple<double,3> & a,
-                    const Teuchos::Tuple<double,3> & b) const { 
+    bool operator()(const Teuchos::Tuple<ScalarT,3> & a,
+                    const Teuchos::Tuple<ScalarT,3> & b) const {
         return ((std::fabs(a[1]-b[1])<tol_) || (std::fabs(a[0]-b[0])<tol_));
     }
     
-    void setTol(double const & tol){
+    void setTol(ScalarT const & tol){
         tol_ = tol;
     }
 

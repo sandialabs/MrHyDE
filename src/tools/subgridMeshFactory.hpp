@@ -14,6 +14,7 @@
 
 #include <Panzer_STK_MeshFactory.hpp>
 #include <Panzer_STK_Interface.hpp>
+typedef double ScalarT;
 
 namespace panzer_stk {
   
@@ -28,7 +29,7 @@ namespace panzer_stk {
     }
     
     SubGridMeshFactory(const std::string & shape_, //const shards::CellTopology & cellTopo_,
-                       std::vector<std::vector<double> > & nodes_,
+                       std::vector<std::vector<ScalarT> > & nodes_,
                        std::vector<std::vector<int> > & conn_, std::string & blockname_)
     {
       shape = shape_;
@@ -43,7 +44,7 @@ namespace panzer_stk {
     virtual ~SubGridMeshFactory();
     
     // Add block
-    void addElems(std::vector<std::vector<double> > & newnodes, std::vector<std::vector<int> > & newconn);
+    void addElems(std::vector<std::vector<ScalarT> > & newnodes, std::vector<std::vector<int> > & newconn);
     
     //! Build the mesh object
     Teuchos::RCP<STK_Interface> buildMesh(stk::ParallelMachine parallelMach) const;
@@ -65,7 +66,7 @@ namespace panzer_stk {
     
     std::string shape;
     std::string blockname;
-    std::vector<std::vector<std::vector<double> > > nodes;
+    std::vector<std::vector<std::vector<ScalarT> > > nodes;
     std::vector<std::vector<std::vector<int> > > conn;
     int dimension;
     

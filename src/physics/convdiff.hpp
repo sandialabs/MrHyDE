@@ -63,22 +63,22 @@ public:
       for (std::string line; std::getline(fin, line); ){
         std::replace(line.begin(), line.end(), ',', ' ');
         std::istringstream in(line);
-        postCovChol.push_back(std::vector<double>(std::istream_iterator<double>(in),std::istream_iterator<double>()));
+        postCovChol.push_back(std::vector<ScalarT>(std::istream_iterator<ScalarT>(in),std::istream_iterator<ScalarT>()));
       }
       
       std::string meanfile = 
       settings->sublist("Parameters").sublist("source_mag_xtra_stoch").get<string>("source","c1_source_mag_xtra_stoch.dat");
       std::ifstream fin2(meanfile.c_str());
-      std::istream_iterator<double> start(fin2), end;
-      vector<double> meep(start, end);
+      std::istream_iterator<ScalarT> start(fin2), end;
+      vector<ScalarT> meep(start, end);
       for(int i=0; i<meep.size(); i++){
         postMeanSource.push_back(meep[i]);
       }
     }
     
-    regParam = settings->sublist("Analysis").sublist("ROL").get<double>("regularization parameter",1.e-6);
+    regParam = settings->sublist("Analysis").sublist("ROL").get<ScalarT>("regularization parameter",1.e-6);
     moveVort = settings->sublist("Physics").get<bool>("moving vortices",true);
-    finTime = settings->sublist("Solver").get<double>("finaltime",1.0);
+    finTime = settings->sublist("Solver").get<ScalarT>("finaltime",1.0);
     data_noise_std = settings->sublist("Analysis").get("Additive Normal Noise Standard Dev",0.0);
   }
   
@@ -94,13 +94,13 @@ public:
     int numBasis = wkset->basis[c_basis].dimension(1);
     int numCubPoints = wkset->ip.dimension(1);
     
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
-    double current_time = wkset->time;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
+    ScalarT current_time = wkset->time;
     AD c, dcdx, dcdy, dcdz, c_dot;
     AD tau, source, diff, xconv, yconv, zconv, reaction;
-    double v, dvdx, dvdy, dvdz;
+    ScalarT v, dvdx, dvdy, dvdz;
     int resindex;
     AD wx,wy,wz;
     
@@ -222,12 +222,12 @@ public:
     int numSideCubPoints = wkset->ip_side.dimension(1);
     
     // Set the parameters
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
-    double current_time = wkset->time;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
+    ScalarT current_time = wkset->time;
     
-    double v, dvdx, dvdy, dvdz;
+    ScalarT v, dvdx, dvdy, dvdz;
     AD source, robin_alpha;
     AD c, dcdx, dcdy, dcdz;
     AD diff;
@@ -237,7 +237,7 @@ public:
     AD wx,wy,wz;
     
     int resindex;
-    double nx,ny,nz;
+    ScalarT nx,ny,nz;
     
     if (wkset->sidetype > 1) {
     
@@ -317,7 +317,7 @@ public:
         else
           lambda = this->boundarySource(x, y, z, current_time, wkset->sidename);
           
-        double sf = 1.0;
+        ScalarT sf = 1.0;
         if (wkset->isAdjoint) {
           sf = 1.0;
         }
@@ -388,12 +388,12 @@ public:
 
   void computeFlux() {
 
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
  
-    double current_time = wkset->time;
-    double sf = 1.0;
+    ScalarT current_time = wkset->time;
+    ScalarT sf = 1.0;
     if (wkset->isAdjoint) {
       sf = 1.0;
     }
@@ -428,7 +428,7 @@ public:
       }
 
       AD diff = getDiff(x,y,z);
-      double convscale = 0.0;
+      ScalarT convscale = 0.0;
       if (spaceDim == 1) {
         convscale = abs(xconv.val()*wkset->normals(0,i,0));
       }
@@ -462,7 +462,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  AD getDirichletValue(const string & var, const double & x, const double & y, const double & z, const double & t, const string & gside, 
+  AD getDirichletValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t, const string & gside,
                        const bool & useadjoint) const {
     
     AD val = 0.0;
@@ -478,8 +478,8 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  double getInitialValue(const string & var, const double & x, const double & y, const double & z, const bool & useadjoint) const {
-    double val = 0.0;
+  ScalarT getInitialValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const bool & useadjoint) const {
+    ScalarT val = 0.0;
     
     if(init_params.size() > 0 && !useadjoint){
       val = init_params[0].val();
@@ -500,14 +500,14 @@ public:
   // Get the initial value
   // ========================================================================================
   
-  FC getInitial(const DRV & ip, const string & var, const double & time, const bool & isAdjoint) const {
+  FC getInitial(const DRV & ip, const string & var, const ScalarT & time, const bool & isAdjoint) const {
     int numip = ip.dimension(1);
     FC initial(1,numip);
     
     if (test == 2) {
       for (int i=0; i<numip; i++) {
-        double x = ip(0,i,0);
-        double val = 0.0;
+        ScalarT x = ip(0,i,0);
+        ScalarT val = 0.0;
         if (x>=-1.0) {
           if (x<=0.0)
             val = x+1.0;
@@ -524,7 +524,7 @@ public:
   /* return alpha for Robin boundary condition */
   // ========================================================================================
   
-  AD robinAlpha(const double & x, const double & y, const double & z, const double & t, const string & side, 
+  AD robinAlpha(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t, const string & side,
                 const AD & xconv, const AD & yconv, const AD & zconv, const AD & diff) const {
     
     AD val = 0.0;
@@ -552,8 +552,8 @@ public:
   // return the boundary source term  
   // ========================================================================================
   
-  AD boundarySource(const double & x, const double & y, const double & z, const double & t, const string & side) const {
-    double val = 0.0;
+  AD boundarySource(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t, const string & side) const {
+    ScalarT val = 0.0;
     
     return val;
   }
@@ -562,9 +562,9 @@ public:
   // error calculation
   // ========================================================================================
   
-  double trueSolution(const string & var, const double & x, const double & y, const double & z, const double & time) const {
+  ScalarT trueSolution(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const {
     
-    double c = 0.0;
+    ScalarT c = 0.0;
     
     if(verbosity > 0)
       cout << "No known true solution...'truth' defaults to zero..." << endl;
@@ -577,13 +577,13 @@ public:
   // ========================================================================================
 
   FCAD response(const FCAD & local_soln, const FCAD & local_soln_grad, const FCAD & local_psoln,
-                const FCAD & local_psoln_grad, const DRV & ip, const double & time) {
+                const FCAD & local_psoln_grad, const DRV & ip, const ScalarT & time) {
     int numip = ip.dimension(1);
     
     FCAD resp(numResponses,numip);
     
-    double x = 0.0;
-    double y = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
     
     AD regPenalty = 0.0;
     if (test == 102 && abs(time-finTime)<1.e-8){
@@ -643,7 +643,7 @@ public:
       
       if(!justDeriv){
         //prior on source mags
-        double priorvar = 1.0; //prior covariance = I
+        ScalarT priorvar = 1.0; //prior covariance = I
         for (int k=0; k<smag_params.size(); k++)
           resp(0) += 0.5*(1./priorvar)*smag_params[k]*smag_params[k]; 
       }
@@ -663,7 +663,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  FCAD target(const FC & ip, const double & time) {
+  FCAD target(const FC & ip, const ScalarT & time) {
     int numip = ip.dimension(1);
     FCAD targ(numResponses,numip);
     for (int j=0; j<numip; j++) {
@@ -703,10 +703,10 @@ public:
   // ========================================================================================
   
   template<class T>  
-  T computeTau(const T & localdiff, const T & xvl, const T & yvl, const T & zvl, const double & h) const {
+  T computeTau(const T & localdiff, const T & xvl, const T & yvl, const T & zvl, const ScalarT & h) const {
     
-    double C1 = 4.0;
-    double C2 = 2.0;
+    ScalarT C1 = 4.0;
+    ScalarT C2 = 2.0;
     
     T nvel;
     if (spaceDim == 1)
@@ -727,12 +727,12 @@ public:
   // return the source term  
   // ========================================================================================
   
-  AD sourceTerm(const double & x, const double & y, const double & z, const double & time) const { 
+  AD sourceTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const {
     
     AD val = 0.0;
     
     if(test == 102){
-      double ctrlStartTime = 2.0;
+      ScalarT ctrlStartTime = 2.0;
       int numTimeBlocks = 3;
       int num_source = smag_params.size();
       int timeBlock;
@@ -763,7 +763,7 @@ public:
              + (-2.0*source_xy_cov_xtra[i].val())*(x-source_xloc_xtra[i].val())*(y-source_yloc_xtra[i].val()) ));
       }
       for (int i=0; i<smagxtra_stoch.size(); i++){ //vegetation sources/sinks
-        double xform_mag = 0.0;
+        ScalarT xform_mag = 0.0;
         if(analysis_type == "SOL"){
           for (int j=0; j<postCovChol[i].size(); j++)
             xform_mag += smagxtra_stoch[j].val()*postCovChol[i][j];
@@ -800,12 +800,12 @@ public:
       val = 0.0;
     }
     else if (test == 20) {
-      double xlocs[3] = { 52.275, 104.7, 157.125 };
-      double ylocs[3] = { 52.275, 104.7, 157.125 };
-      double zlocs[1] = { 100.5 };
-      double x,y,z;
-      //double width_factor = 2*pow(0.01,2);
-      double width_factor = 10000.0;
+      ScalarT xlocs[3] = { 52.275, 104.7, 157.125 };
+      ScalarT ylocs[3] = { 52.275, 104.7, 157.125 };
+      ScalarT zlocs[1] = { 100.5 };
+      ScalarT x,y,z;
+      //ScalarT width_factor = 2*pow(0.01,2);
+      ScalarT width_factor = 10000.0;
       int numip = wkset->ip.dimension(1);
       for (int k=0; k<numip; k++) {
 	x = wkset->ip(0,k,0);
@@ -839,11 +839,11 @@ public:
   // return the convection term  
   // ========================================================================================
   
-  AD convectionTerm(const double & x, const double & y, const double & z, const double & t, const int & dir) const {
+  AD convectionTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t, const int & dir) const {
     AD vel = 0.0;
     
     if((test == 100 || test == 102) && dir < 3){
-      double vort_NAx, vort_NAy, vort_SAx, vort_SAy, vort_NPlx, vort_NPly, vort_NPrx, vort_NPry, vort_SPx, vort_SPy, vort_Ix, vort_Iy;
+      ScalarT vort_NAx, vort_NAy, vort_SAx, vort_SAy, vort_NPlx, vort_NPly, vort_NPrx, vort_NPry, vort_SPx, vort_SPy, vort_Ix, vort_Iy;
       if(moveVort){
         vort_NAx = 0.8 + 0.05*sin(3.0*t*PI); vort_NAy = 0.65 + 0.05*sin(3.0*t*PI); //north atlantic
         vort_SAx = 0.95 + 0.05*sin(2.0*t*PI); vort_SAy = 0.35 + 0.05*sin(2.0*t*PI); //south atlantic
@@ -860,19 +860,19 @@ public:
         vort_Ix = 1.45; vort_Iy = 0.4; //indian
       }
       
-      double r0 = 0.1; //cutoff radius, below which velocity no longer obeys vortex (too fast near center)
+      ScalarT r0 = 0.1; //cutoff radius, below which velocity no longer obeys vortex (too fast near center)
       
-      double xNA = x - vort_NAx; double yNA = y - vort_NAy; double rNA = sqrt(xNA*xNA+yNA*yNA); 
+      ScalarT xNA = x - vort_NAx; ScalarT yNA = y - vort_NAy; ScalarT rNA = sqrt(xNA*xNA+yNA*yNA);
       xNA = std::max(r0/rNA,1.0)*xNA; yNA = std::max(r0/rNA,1.0)*yNA;
-      double xSA = x - vort_SAx; double ySA = y - vort_SAy; double rSA = sqrt(xSA*xSA+ySA*ySA); 
+      ScalarT xSA = x - vort_SAx; ScalarT ySA = y - vort_SAy; ScalarT rSA = sqrt(xSA*xSA+ySA*ySA);
       xSA = std::max(r0/rSA,1.0)*xSA; ySA = std::max(r0/rSA,1.0)*ySA;
-      double xNPl = x - vort_NPlx; double yNPl = y - vort_NPly; double rNPl = sqrt(xNPl*xNPl+yNPl*yNPl); 
+      ScalarT xNPl = x - vort_NPlx; ScalarT yNPl = y - vort_NPly; ScalarT rNPl = sqrt(xNPl*xNPl+yNPl*yNPl);
       xNPl = std::max(r0/rNPl,1.0)*xNPl; yNPl = std::max(r0/rNPl,1.0)*yNPl;
-      double xNPr = x - vort_NPrx; double yNPr = y - vort_NPry; double rNPr = sqrt(xNPr*xNPr+yNPr*yNPr); 
+      ScalarT xNPr = x - vort_NPrx; ScalarT yNPr = y - vort_NPry; ScalarT rNPr = sqrt(xNPr*xNPr+yNPr*yNPr);
       xNPr = std::max(r0/rNPr,1.0)*xNPr; yNPr = std::max(r0/rNPr,1.0)*yNPr;
-      double xSP = x - vort_SPx; double ySP = y - vort_SPy; double rSP = sqrt(xSP*xSP+ySP*ySP); 
+      ScalarT xSP = x - vort_SPx; ScalarT ySP = y - vort_SPy; ScalarT rSP = sqrt(xSP*xSP+ySP*ySP);
       xSP = std::max(r0/rSP,1.0)*xSP; ySP = std::max(r0/rSP,1.0)*ySP;
-      double xI = x - vort_Ix; double yI = y - vort_Iy; double rI = sqrt(xI*xI+yI*yI); 
+      ScalarT xI = x - vort_Ix; ScalarT yI = y - vort_Iy; ScalarT rI = sqrt(xI*xI+yI*yI);
       xI = std::max(r0/rI,1.0)*xI; yI = std::max(r0/rI,1.0)*yI;
       
       if (dir == 1){
@@ -918,7 +918,7 @@ public:
   // ========================================================================================
   
   
-  AD reactionTerm(const double & x, const double & y, const double & z, const double & t, const AD & c) const { 
+  AD reactionTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t, const AD & c) const {
     AD r = reaction_params[0]*c*c;
     return r;
   }
@@ -927,7 +927,7 @@ public:
   // return the diffusion at a point 
   // ========================================================================================
   
-  AD getDiff(const double & x, const double & y, const double & z) const {
+  AD getDiff(const ScalarT & x, const ScalarT & y, const ScalarT & z) const {
     AD diff = diff_params[0];
     return diff;
   }
@@ -973,7 +973,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  vector<FC> extraFields(const FC & ip, const double & time) {
+  vector<FC> extraFields(const FC & ip, const ScalarT & time) {
     vector<FC> ef;
     return ef;
   }
@@ -981,7 +981,7 @@ public:
   // ========================================================================================
   // ========================================================================================
 
-  vector<FC> extraCellFields(const FC & ip, const double & time) const {
+  vector<FC> extraCellFields(const FC & ip, const ScalarT & time) const {
     vector<FC> ef;
     return ef;
   }
@@ -1086,23 +1086,23 @@ private:
   
   std::string analysis_type; //to know when parameter is a sample that needs to be transformed
   
-  double finTime; //for response function
-  double regParam; //regularization parameter 
+  ScalarT finTime; //for response function
+  ScalarT regParam; //regularization parameter
   bool moveVort; //to test effect of moving vortices
   
   bool noFlux; //whether non-Dirichlet boundary defaults to homo Neumann or no-flux boundary condition 
   int verbosity;
   
   bool velFromNS; //whether to get velocity from navierstokes
-  double ux_num, uy_num, uz_num; //in case getting velocity from navierstokes
+  ScalarT ux_num, uy_num, uz_num; //in case getting velocity from navierstokes
   
-  double data_noise_std; //standard devation of additive 0-centered Gaussian noise
-  vector<vector<double> > postCovChol; //to transform standard normal samples to samples from posterior of (approximation of) linear-Gauss inference
-  vector<double> postMeanSource; //to transform standard normal samples to samples from posterior of (approximation of) linear-Gauss inference
+  ScalarT data_noise_std; //standard devation of additive 0-centered Gaussian noise
+  vector<vector<ScalarT> > postCovChol; //to transform standard normal samples to samples from posterior of (approximation of) linear-Gauss inference
+  vector<ScalarT> postMeanSource; //to transform standard normal samples to samples from posterior of (approximation of) linear-Gauss inference
   
   bool useScalarRespFx;
   
-  double PI;
+  ScalarT PI;
 };
 
 #endif

@@ -45,17 +45,17 @@ public:
     
     int numip = wkset->ip.dimension(1);
     
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
     AD p, dpdx, dpdy, dpdz;
     AD s, dsdx, dsdy, dsdz;
     
-    double v = 0.0; 
-    double dvdx = 0.0; 
-    double dvdy = 0.0; 
-    double dvdz = 0.0; 
+    ScalarT v = 0.0;
+    ScalarT dvdx = 0.0;
+    ScalarT dvdy = 0.0;
+    ScalarT dvdz = 0.0; 
     
     int resindex;
     int p_basis = wkset->usebasis[pw_num];

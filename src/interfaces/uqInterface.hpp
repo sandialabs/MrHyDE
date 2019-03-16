@@ -30,28 +30,28 @@ class uqmanager {
   
   uqmanager(const LA_MpiComm & Comm_, const Teuchos::ParameterList & uqsettings_,
             const std::vector<string> & param_types_,
-            const std::vector<double> & param_means_, const std::vector<double> & param_variances_,
-            const std::vector<double> & param_mins_, const std::vector<double> & param_maxs_);
+            const std::vector<ScalarT> & param_means_, const std::vector<ScalarT> & param_variances_,
+            const std::vector<ScalarT> & param_mins_, const std::vector<ScalarT> & param_maxs_);
   
   // ========================================================================================
   // ========================================================================================
   
-  std::vector<std::vector<double> > getNewPoints();
+  std::vector<std::vector<ScalarT> > getNewPoints();
   
   // ========================================================================================
   // ========================================================================================
   
-  std::vector<std::vector<double> > getAllPoints();
+  std::vector<std::vector<ScalarT> > getAllPoints();
   
   // ========================================================================================
   // ========================================================================================
   
-  std::vector<double> evaluateSurrogate(Kokkos::View<double**,HostDevice> samplepts);
+  std::vector<ScalarT> evaluateSurrogate(Kokkos::View<ScalarT**,HostDevice> samplepts);
   
   // ========================================================================================
   // ========================================================================================
   
-  Kokkos::View<double**,HostDevice> generateSamples(const int & numsamples, int & seed);
+  Kokkos::View<ScalarT**,HostDevice> generateSamples(const int & numsamples, int & seed);
   
   // ========================================================================================
   // ========================================================================================
@@ -62,18 +62,18 @@ class uqmanager {
   // ========================================================================================
   
   void generateSamples(const int & numsamples, int & seed,
-                       Kokkos::View<double**,HostDevice> samplepts,
-                       Kokkos::View<double*,HostDevice> samplewts);
+                       Kokkos::View<ScalarT**,HostDevice> samplepts,
+                       Kokkos::View<ScalarT*,HostDevice> samplewts);
   
   // ========================================================================================
   // ========================================================================================
   
-  void computeStatistics(const std::vector<double> & values);
+  void computeStatistics(const std::vector<ScalarT> & values);
   
   // ========================================================================================
   // ========================================================================================
   
-  void computeStatistics(const vector<Kokkos::View<double**,HostDevice> > & values);
+  void computeStatistics(const vector<Kokkos::View<ScalarT**,HostDevice> > & values);
   
   // ========================================================================================
   // ========================================================================================
@@ -82,11 +82,11 @@ class uqmanager {
   
   LA_MpiComm Comm;
   std::string surrogate;
-  std::vector<std::vector<double> > points;
+  std::vector<std::vector<ScalarT> > points;
   int evalprog, numstochparams;
   Teuchos::ParameterList uqsettings;
   std::vector<string> param_types;
-  std::vector<double> param_means, param_variances, param_mins, param_maxs;
+  std::vector<ScalarT> param_means, param_variances, param_mins, param_maxs;
 };
 
 #endif

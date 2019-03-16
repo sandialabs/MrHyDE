@@ -41,11 +41,11 @@ public:
   }
   
   void scale( Real alpha )  {
-    epetra_vec_->Scale( (double)alpha );
+    epetra_vec_->Scale( (ScalarT)alpha );
   }
 
   Real dot( const ROL::Vector<Real> & x ) const {
-    double val[1];
+    ScalarT val[1];
     Epetra_MultiVector tmp(*(this->epetra_vec_)); 
     tmp.PutScalar(0.0);
     (this->M_)->Multiply(false,*(this->epetra_vec_),tmp);
@@ -56,7 +56,7 @@ public:
   }
 
   Real norm() const {
-    double val[1];
+    ScalarT val[1];
     Epetra_MultiVector tmp(*(this->epetra_vec_)); 
     tmp.PutScalar(0.0);
     (this->M_)->Multiply(false,*(this->epetra_vec_),tmp);

@@ -50,8 +50,8 @@ public:
     // test == 27; additive manufacturing thermal example
     //simNum = settings->sublist("Physics").get<int>("simulation_number",0);
     //simName = settings->sublist("Physics").get<string>("simulation_name","mySim");
-    formparam = settings->sublist("Physics").get<double>("form_param",1.0);
-    s_param = settings->sublist("Physics").get<double>("s_param",1.0);
+    formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
+    s_param = settings->sublist("Physics").get<ScalarT>("s_param",1.0);
     
     x = 0.0;
     y = 0.0;
@@ -87,8 +87,8 @@ public:
     // NOTES:
     // 1. basis and basis_grad already include the integration weights
     
-    double s =0.2;
-    double y = wkset->y;
+    ScalarT s =0.2;
+    ScalarT y = wkset->y;
 
     e_basis = wkset->usebasis[e_num];
     numBasis = wkset->basis[e_basis].dimension(1);
@@ -168,7 +168,7 @@ public:
       lvals = udfunc->boundaryNeumannSource(label,"e",wkset);
       udfunc->coefficient("robinAlpha", wkset,true,robin_alpha);
       
-      double sf = formparam;
+      ScalarT sf = formparam;
       if (wkset->isAdjoint) {
         sf = 1.0;
       }
@@ -229,7 +229,7 @@ public:
   
   void computeFlux() {
 
-    double sf = 1.0;
+    ScalarT sf = 1.0;
     if (wkset->isAdjoint) {
       sf = formparam;
     }
@@ -286,7 +286,7 @@ public:
   // ========================================================================================
   
   // TMW: could not find where this was used. NEEDS TO BE MOVED TO UDFUNC
-  /*AD robinAlpha(const double & x, const double & y, const double & z, const double & t,
+  /*AD robinAlpha(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
                 const string & side, const AD & weakDiriScale) const {
     AD val = 0.0;
     if((test == 41) && ((side == "left") && (abs(y-0.5) < 0.5*sinkwidth)))
@@ -342,13 +342,13 @@ private:
   int spaceDim, numElem, numParams, numResponses;
   vector<string> varlist;
   int e_num, e_basis, numBasis, ux_num, uy_num, uz_num;
-  double alpha;
+  ScalarT alpha;
   bool isTD;
 
   //int test, simNum;
   //string simName;
   
-  double v, dvdx, dvdy, dvdz, x, y, z;
+  ScalarT v, dvdx, dvdy, dvdz, x, y, z;
   AD e, e_dot, dedx, dedy, dedz, reax, weakDiriScale, lambda, penalty;
   AD ux, uy, uz;
   
@@ -360,8 +360,8 @@ private:
   
   bool useScalarRespFx;
   bool multiscale, have_nsvel;
-  double formparam;
-  double s_param;      //fractional exponent
+  ScalarT formparam;
+  ScalarT s_param;      //fractional exponent
   Teuchos::RCP<Teuchos::Time> dbgtimer1;
   Teuchos::RCP<Teuchos::Time> dbgtimer2;
   Teuchos::RCP<Teuchos::Time> dbgtimer3;

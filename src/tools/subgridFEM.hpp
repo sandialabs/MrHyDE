@@ -36,7 +36,7 @@ public:
   SubGridFEM(const Teuchos::RCP<LA_MpiComm> & LocalComm_,
              Teuchos::RCP<Teuchos::ParameterList> & settings_,
              topo_RCP & macro_cellTopo_, int & num_macro_time_steps_,
-             double & macro_deltat_) :
+             ScalarT & macro_deltat_) :
   LocalComm(LocalComm_), settings(settings_), macro_cellTopo(macro_cellTopo_),
   num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
     
@@ -48,8 +48,8 @@ public:
     shape = settings->sublist("Mesh").get<string>("shape","quad");
     macroshape = settings->sublist("Mesh").get<string>("macro-shape","quad");
     time_steps = settings->sublist("Solver").get<int>("numSteps",1);
-    initial_time = settings->sublist("Solver").get<double>("Initial time",0.0);
-    final_time = settings->sublist("Solver").get<double>("finaltime",1.0);
+    initial_time = settings->sublist("Solver").get<ScalarT>("Initial time",0.0);
+    final_time = settings->sublist("Solver").get<ScalarT>("finaltime",1.0);
     write_subgrid_state = settings->sublist("Solver").get<bool>("write subgrid state",true);
     error_type = settings->sublist("Postprocess").get<string>("Error type","L2"); // or "H1"
     
@@ -62,7 +62,7 @@ public:
     useDirect = settings->sublist("Solver").get<bool>("use direct solver",true);
     use_amesos2 = settings->sublist("Solver").get<bool>("use amesos2",false);
     
-    lintol = settings->sublist("Solver").get<double>("lintol",1.0E-7);
+    lintol = settings->sublist("Solver").get<ScalarT>("lintol",1.0E-7);
     liniter = settings->sublist("Solver").get<int>("liniter",100);
     
     Amesos AmFactory;
@@ -70,7 +70,7 @@ public:
     AmSolver = AmFactory.Create(SolverType, LinSys);
     have_sym_factor = false;
     have_preconditioner = false;
-    sub_NLtol = settings->sublist("Solver").get<double>("NLtol",1.0E-12);
+    sub_NLtol = settings->sublist("Solver").get<ScalarT>("NLtol",1.0E-12);
     sub_maxNLiter = settings->sublist("Solver").get<int>("MaxNLiter",10);
     
     /////////////////////////////////////////////////////////////////////////////////////
@@ -137,7 +137,7 @@ public:
     macronodes.push_back(macronodes_);
     macrosideinfo.push_back(macrosideinfo_);
     
-    vector<vector<double> > nodes;
+    vector<vector<ScalarT> > nodes;
     vector<vector<int> > connectivity;
     Kokkos::View<int****,HostDevice> sideinfo;
     
@@ -432,14 +432,14 @@ public:
       
       Teuchos::RCP<Epetra_MultiVector> init = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),1));
       this->setInitial(init, block, false);
-      vector<pair<double, Teuchos::RCP<Epetra_MultiVector> > > initvec;
-      pair<double, Teuchos::RCP<Epetra_MultiVector> > initsol(initial_time, init);
+      vector<pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > > initvec;
+      pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > initsol(initial_time, init);
       initvec.push_back(initsol);
       soln.push_back(initvec);
       
       Teuchos::RCP<Epetra_MultiVector> inita = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),1));
-      vector<pair<double, Teuchos::RCP<Epetra_MultiVector> > > initadjvec;
-      pair<double, Teuchos::RCP<Epetra_MultiVector> > initadjsol(final_time, inita);
+      vector<pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > > initadjvec;
+      pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > initadjsol(final_time, inita);
       initadjvec.push_back(initadjsol);
       adjsoln.push_back(initadjvec);
       
@@ -571,9 +571,9 @@ public:
       for (size_t b=0; b<cells.size(); b++) {
         for (size_t e=0; e<cells[b].size(); e++) {
           int numElem = cells[b][e]->numElem;
-          Kokkos::View<double**,HostDevice> cell_data("cell_data",numElem,numdata);
+          Kokkos::View<ScalarT**,HostDevice> cell_data("cell_data",numElem,numdata);
           cells[b][e]->cell_data = cell_data;
-          cells[b][e]->cell_data_distance = vector<double>(numElem);
+          cells[b][e]->cell_data_distance = vector<ScalarT>(numElem);
           cells[b][e]->cell_data_seed = vector<size_t>(numElem);
           cells[b][e]->cell_data_seedindex = vector<size_t>(numElem);
         }
@@ -605,14 +605,14 @@ public:
             int numElem = cells[b][e]->numElem;
             DRV nodes = cells[b][e]->nodes;
             for (int c=0; c<numElem; c++) {
-              Kokkos::View<double**,AssemblyDevice> center("center",1,3);
+              Kokkos::View<ScalarT**,AssemblyDevice> center("center",1,3);
               int numnodes = nodes.dimension(1);
               for (size_t i=0; i<numnodes; i++) {
                 for (size_t j=0; j<dimension; j++) {
-                  center(0,j) += nodes(c,i,j)/(double)numnodes;
+                  center(0,j) += nodes(c,i,j)/(ScalarT)numnodes;
                 }
               }
-              double distance = 0.0;
+              ScalarT distance = 0.0;
               
               int cnode = mesh_data->findClosestNode(center(0,0), center(0,1), center(0,2), distance);
               
@@ -623,7 +623,7 @@ public:
                 }
               }
               if (iscloser) {
-                Kokkos::View<double**,HostDevice> cdata = mesh_data->getdata(cnode);
+                Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
                 
                 for (int i=0; i<cdata.dimension(1); i++) {
                   cells[b][e]->cell_data(c,i) = cdata(0,i);
@@ -647,7 +647,7 @@ public:
       have_rotations = true;
       have_rotation_phi = false;
       
-      Kokkos::View<double**,HostDevice> seeds;
+      Kokkos::View<ScalarT**,HostDevice> seeds;
       int randSeed = settings->sublist("Mesh").get<int>("Random seed",1234);
       randomSeeds.push_back(randSeed);
       
@@ -665,22 +665,22 @@ public:
         int numySeeds = settings->sublist("Mesh").get<int>("Number of yseeds",10);
         int numzSeeds = settings->sublist("Mesh").get<int>("Number of zseeds",10);
         
-        double xmin = settings->sublist("Mesh").get<double>("x min",0.0);
-        double ymin = settings->sublist("Mesh").get<double>("y min",0.0);
-        double zmin = settings->sublist("Mesh").get<double>("z min",0.0);
-        double xmax = settings->sublist("Mesh").get<double>("x max",1.0);
-        double ymax = settings->sublist("Mesh").get<double>("y max",1.0);
-        double zmax = settings->sublist("Mesh").get<double>("z max",1.0);
+        ScalarT xmin = settings->sublist("Mesh").get<ScalarT>("x min",0.0);
+        ScalarT ymin = settings->sublist("Mesh").get<ScalarT>("y min",0.0);
+        ScalarT zmin = settings->sublist("Mesh").get<ScalarT>("z min",0.0);
+        ScalarT xmax = settings->sublist("Mesh").get<ScalarT>("x max",1.0);
+        ScalarT ymax = settings->sublist("Mesh").get<ScalarT>("y max",1.0);
+        ScalarT zmax = settings->sublist("Mesh").get<ScalarT>("z max",1.0);
         
-        double dx = (xmax-xmin)/(double)(numxSeeds+1);
-        double dy = (ymax-ymin)/(double)(numySeeds+1);
-        double dz = (zmax-zmin)/(double)(numzSeeds+1);
+        ScalarT dx = (xmax-xmin)/(ScalarT)(numxSeeds+1);
+        ScalarT dy = (ymax-ymin)/(ScalarT)(numySeeds+1);
+        ScalarT dz = (zmax-zmin)/(ScalarT)(numzSeeds+1);
         
-        double maxpert = 0.2;
+        ScalarT maxpert = 0.2;
         
-        Kokkos::View<double*,HostDevice> xseeds("xseeds",numxSeeds);
-        Kokkos::View<double*,HostDevice> yseeds("yseeds",numySeeds);
-        Kokkos::View<double*,HostDevice> zseeds("zseeds",numzSeeds);
+        Kokkos::View<ScalarT*,HostDevice> xseeds("xseeds",numxSeeds);
+        Kokkos::View<ScalarT*,HostDevice> yseeds("yseeds",numySeeds);
+        Kokkos::View<ScalarT*,HostDevice> zseeds("zseeds",numzSeeds);
         
         for (int k=0; k<numxSeeds; k++) {
           xseeds(k) = xmin + (k+1)*dx;
@@ -692,16 +692,16 @@ public:
           zseeds(k) = zmin + (k+1)*dz;
         }
         
-        std::uniform_real_distribution<double> pdistribution(-maxpert,maxpert);
+        std::uniform_real_distribution<ScalarT> pdistribution(-maxpert,maxpert);
         numSeeds = numxSeeds*numySeeds*numzSeeds;
-        seeds = Kokkos::View<double**,HostDevice>("seeds",numSeeds,3);
+        seeds = Kokkos::View<ScalarT**,HostDevice>("seeds",numSeeds,3);
         int prog = 0;
         for (int i=0; i<numxSeeds; i++) {
           for (int j=0; j<numySeeds; j++) {
             for (int k=0; k<numzSeeds; k++) {
-              double xp = pdistribution(generator);
-              double yp = pdistribution(generator);
-              double zp = pdistribution(generator);
+              ScalarT xp = pdistribution(generator);
+              ScalarT yp = pdistribution(generator);
+              ScalarT zp = pdistribution(generator);
               seeds(prog,0) = xseeds(i) + xp*dx;
               seeds(prog,1) = yseeds(j) + yp*dy;
               seeds(prog,2) = zseeds(k) + zp*dz;
@@ -712,53 +712,53 @@ public:
       }
       else {
         numSeeds = settings->sublist("Mesh").get<int>("Number of seeds",1000);
-        seeds = Kokkos::View<double**,HostDevice>("seeds",numSeeds,3);
+        seeds = Kokkos::View<ScalarT**,HostDevice>("seeds",numSeeds,3);
         
-        double xwt = settings->sublist("Mesh").get<double>("x weight",1.0);
-        double ywt = settings->sublist("Mesh").get<double>("y weight",1.0);
-        double zwt = settings->sublist("Mesh").get<double>("z weight",1.0);
-        double nwt = sqrt(xwt*xwt+ywt*ywt+zwt*zwt);
+        ScalarT xwt = settings->sublist("Mesh").get<ScalarT>("x weight",1.0);
+        ScalarT ywt = settings->sublist("Mesh").get<ScalarT>("y weight",1.0);
+        ScalarT zwt = settings->sublist("Mesh").get<ScalarT>("z weight",1.0);
+        ScalarT nwt = sqrt(xwt*xwt+ywt*ywt+zwt*zwt);
         xwt *= 3.0/nwt;
         ywt *= 3.0/nwt;
         zwt *= 3.0/nwt;
         
-        double xmin = settings->sublist("Mesh").get<double>("x min",0.0);
-        double ymin = settings->sublist("Mesh").get<double>("y min",0.0);
-        double zmin = settings->sublist("Mesh").get<double>("z min",0.0);
-        double xmax = settings->sublist("Mesh").get<double>("x max",1.0);
-        double ymax = settings->sublist("Mesh").get<double>("y max",1.0);
-        double zmax = settings->sublist("Mesh").get<double>("z max",1.0);
+        ScalarT xmin = settings->sublist("Mesh").get<ScalarT>("x min",0.0);
+        ScalarT ymin = settings->sublist("Mesh").get<ScalarT>("y min",0.0);
+        ScalarT zmin = settings->sublist("Mesh").get<ScalarT>("z min",0.0);
+        ScalarT xmax = settings->sublist("Mesh").get<ScalarT>("x max",1.0);
+        ScalarT ymax = settings->sublist("Mesh").get<ScalarT>("y max",1.0);
+        ScalarT zmax = settings->sublist("Mesh").get<ScalarT>("z max",1.0);
         
-        std::uniform_real_distribution<double> xdistribution(xmin,xmax);
-        std::uniform_real_distribution<double> ydistribution(ymin,ymax);
-        std::uniform_real_distribution<double> zdistribution(zmin,zmax);
+        std::uniform_real_distribution<ScalarT> xdistribution(xmin,xmax);
+        std::uniform_real_distribution<ScalarT> ydistribution(ymin,ymax);
+        std::uniform_real_distribution<ScalarT> zdistribution(zmin,zmax);
         
         
         // we use a relatively crude algorithm to obtain well-spaced points
         int batch_size = 10;
         size_t prog = 0;
-        Kokkos::View<double**,HostDevice> cseeds("cand seeds",batch_size,3);
+        Kokkos::View<ScalarT**,HostDevice> cseeds("cand seeds",batch_size,3);
         
         while (prog<numSeeds) {
           // fill in the candidate seeds
           for (int k=0; k<batch_size; k++) {
-            double x = xdistribution(generator);
+            ScalarT x = xdistribution(generator);
             cseeds(k,0) = x;
-            double y = ydistribution(generator);
+            ScalarT y = ydistribution(generator);
             cseeds(k,1) = y;
-            double z = zdistribution(generator);
+            ScalarT z = zdistribution(generator);
             cseeds(k,2) = z;
           }
           int bestpt = 0;
           if (prog > 0) { // for prog = 0, just take the first one
-            double mindist = 1.0e6;
+            ScalarT mindist = 1.0e6;
             for (int k=0; k<batch_size; k++) {
-              double cmindist = 1.0e6;
+              ScalarT cmindist = 1.0e6;
               for (int j=0; j<prog; j++) {
-                double dx = cseeds(k,0)-seeds(j,0);
-                double dy = cseeds(k,1)-seeds(j,1);
-                double dz = cseeds(k,2)-seeds(j,2);
-                double cval = sqrt(xwt*dx*dx + ywt*dy*dy + zwt*dz*dz);
+                ScalarT dx = cseeds(k,0)-seeds(j,0);
+                ScalarT dy = cseeds(k,1)-seeds(j,1);
+                ScalarT dz = cseeds(k,2)-seeds(j,2);
+                ScalarT cval = sqrt(xwt*dx*dx + ywt*dy*dy + zwt*dz*dz);
                 if (cval < cmindist) {
                   cmindist = cval;
                 }
@@ -792,15 +792,15 @@ public:
       
       int numdata = 9;
       
-      std::normal_distribution<double> ndistribution(0.0,1.0);
-      Kokkos::View<double**,HostDevice> rotation_data("cell_data",numSeeds,numdata);
+      std::normal_distribution<ScalarT> ndistribution(0.0,1.0);
+      Kokkos::View<ScalarT**,HostDevice> rotation_data("cell_data",numSeeds,numdata);
       for (int k=0; k<numSeeds; k++) {
-        double x = ndistribution(generator);
-        double y = ndistribution(generator);
-        double z = ndistribution(generator);
-        double w = ndistribution(generator);
+        ScalarT x = ndistribution(generator);
+        ScalarT y = ndistribution(generator);
+        ScalarT z = ndistribution(generator);
+        ScalarT w = ndistribution(generator);
         
-        double r = sqrt(x*x + y*y + z*z + w*w);
+        ScalarT r = sqrt(x*x + y*y + z*z + w*w);
         x *= 1.0/r;
         y *= 1.0/r;
         z *= 1.0/r;
@@ -830,9 +830,9 @@ public:
       for (size_t b=0; b<cells.size(); b++) {
         for (size_t e=0; e<cells[b].size(); e++) {
           int numElem = cells[b][e]->numElem;
-          Kokkos::View<double**,HostDevice> cell_data("cell_data",numElem,numdata);
+          Kokkos::View<ScalarT**,HostDevice> cell_data("cell_data",numElem,numdata);
           cells[b][e]->cell_data = cell_data;
-          cells[b][e]->cell_data_distance = vector<double>(numElem);
+          cells[b][e]->cell_data_distance = vector<ScalarT>(numElem);
           cells[b][e]->cell_data_seed = vector<size_t>(numElem);
           cells[b][e]->cell_data_seedindex = vector<size_t>(numElem);
         }
@@ -848,19 +848,19 @@ public:
           
           int numElem = cells[b][e]->numElem;
           for (int c=0; c<numElem; c++) {
-            Kokkos::View<double[1][3],HostDevice> center("center");
+            Kokkos::View<ScalarT[1][3],HostDevice> center("center");
             for (size_t i=0; i<nodes.dimension(1); i++) {
               for (size_t j=0; j<nodes.dimension(2); j++) {
-                center(0,j) += nodes(c,i,j)/(double)nodes.dimension(1);
+                center(0,j) += nodes(c,i,j)/(ScalarT)nodes.dimension(1);
               }
             }
-            double distance = 1.0e6;
+            ScalarT distance = 1.0e6;
             int cnode = 0;
             for (int k=0; k<numSeeds; k++) {
-              double dx = center(0,0)-seeds(k,0);
-              double dy = center(0,1)-seeds(k,1);
-              double dz = center(0,2)-seeds(k,2);
-              double cdist = sqrt(dx*dx + dy*dy + dz*dz);
+              ScalarT dx = center(0,0)-seeds(k,0);
+              ScalarT dy = center(0,1)-seeds(k,1);
+              ScalarT dz = center(0,2)-seeds(k,2);
+              ScalarT cdist = sqrt(dx*dx + dy*dy + dz*dz);
               if (cdist<distance) {
                 cnode = k;
                 distance = cdist;
@@ -887,21 +887,21 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  void subgridSolver(Kokkos::View<double***,AssemblyDevice> gl_u,
-                     Kokkos::View<double***,AssemblyDevice> gl_phi,
-                     const vector<vector<double> > & paramvals,
+  void subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
+                     Kokkos::View<ScalarT***,AssemblyDevice> gl_phi,
+                     const vector<vector<ScalarT> > & paramvals,
                      const vector<int> & paramtypes, const vector<string> & paramnames,
-                     const double & time, const bool & isTransient, const bool & isAdjoint,
+                     const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                      const bool & compute_jacobian, const bool & compute_sens,
                      const int & num_active_params,
                      const bool & compute_disc_sens, const bool & compute_aux_sens,
                      workset & macrowkset,
                      const int & usernum, const int & macroelemindex,
-                     Kokkos::View<double**,AssemblyDevice> subgradient, const bool & store_adjPrev) {
+                     Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev) {
     
     Teuchos::TimeMonitor totalsolvertimer(*sgfemSolverTimer);
     
-    double current_time = time;
+    ScalarT current_time = time;
     int macroDOF = macrowkset.numDOF;
     bool usesubadjoint = false;
     for (int i=0; i<subgradient.dimension(0); i++) {
@@ -919,15 +919,15 @@ public:
     // Subgrid transient
     ///////////////////////////////////////////////////////////////////////////////////
     
-    double alpha = 0.0;
+    ScalarT alpha = 0.0;
     
     ///////////////////////////////////////////////////////////////////////////////////
     // Solve the subgrid problem(s)
     ///////////////////////////////////////////////////////////////////////////////////
     int cnumElem = 1;//cells[usernum].size();//[0]->numElem;
-    Kokkos::View<double***,AssemblyDevice> cg_u("local u",cnumElem,
+    Kokkos::View<ScalarT***,AssemblyDevice> cg_u("local u",cnumElem,
                                                 gl_u.dimension(1),gl_u.dimension(2));
-    Kokkos::View<double***,AssemblyDevice> cg_phi("local phi",cnumElem,
+    Kokkos::View<ScalarT***,AssemblyDevice> cg_phi("local phi",cnumElem,
                                                   gl_phi.dimension(1),gl_phi.dimension(2));
     
     for (int e=0; e<cnumElem; e++) {
@@ -945,7 +945,7 @@ public:
       }
     }
     
-    Kokkos::View<double***,AssemblyDevice> lambda = cg_u;
+    Kokkos::View<ScalarT***,AssemblyDevice> lambda = cg_u;
     if (isAdjoint) {
       lambda = cg_phi;
       //lambda_dot = gl_phi_dot;
@@ -960,7 +960,7 @@ public:
     // Set the initial conditions
     //////////////////////////////////////////////////////////////
     
-    double prev_time = 0.0;
+    ScalarT prev_time = 0.0;
     
     {
       Teuchos::TimeMonitor localtimer(*sgfemInitialTimer);
@@ -1031,15 +1031,15 @@ public:
     res->PutScalar(0.0);
     J->PutScalar(0.0);
     
-    double h = 0.0;
+    ScalarT h = 0.0;
     wkset[0]->resetFlux();
     
     if (isTransient) {
-      double sgtime = prev_time;
+      ScalarT sgtime = prev_time;
       Teuchos::RCP<Epetra_MultiVector> prev_u = u;
       vector<Teuchos::RCP<Epetra_MultiVector> > curr_fsol;
       vector<Teuchos::RCP<Epetra_MultiVector> > curr_fsol_dot;
-      vector<double> subsolvetimes;
+      vector<ScalarT> subsolvetimes;
       subsolvetimes.push_back(sgtime);
       if (isAdjoint) {
         // First, we need to resolve the forward problem
@@ -1049,17 +1049,17 @@ public:
           Teuchos::RCP<Epetra_MultiVector> recu_dot = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1)); // reset residual
           
           *recu = *u;
-          sgtime += macro_deltat/(double)time_steps;
+          sgtime += macro_deltat/(ScalarT)time_steps;
           subsolvetimes.push_back(sgtime);
           
           // set du/dt and \lambda
-          alpha = (double)time_steps/macro_deltat;
+          alpha = (ScalarT)time_steps/macro_deltat;
           wkset[0]->alpha = alpha;
           wkset[0]->deltat= 1.0/alpha;
           
-          Kokkos::View<double***,AssemblyDevice> currlambda = cg_u;
+          Kokkos::View<ScalarT***,AssemblyDevice> currlambda = cg_u;
           
-          double lambda_scale = 1.0;//-(current_time-sgtime)/deltat;
+          ScalarT lambda_scale = 1.0;//-(current_time-sgtime)/deltat;
           
           recu_dot->PutScalar(0.0);
           
@@ -1078,13 +1078,13 @@ public:
           size_t tindex = numsubtimes-1-tstep;
           sgtime = subsolvetimes[tindex];
           // set du/dt and \lambda
-          alpha = (double)time_steps/macro_deltat;
+          alpha = (ScalarT)time_steps/macro_deltat;
           wkset[0]->alpha = alpha;
           wkset[0]->deltat= 1.0/alpha;
           
-          Kokkos::View<double***,AssemblyDevice> currlambda = lambda;
+          Kokkos::View<ScalarT***,AssemblyDevice> currlambda = lambda;
           
-          double lambda_scale = 1.0;//-(current_time-sgtime)/deltat;
+          ScalarT lambda_scale = 1.0;//-(current_time-sgtime)/deltat;
           
           if (isAdjoint) {
             phi_dot->PutScalar(0.0);
@@ -1099,21 +1099,21 @@ public:
                                        paramvals, paramtypes, paramnames, sgtime,
                                        isTransient, isAdjoint, num_active_params, alpha, lambda_scale, usernum, subgradient);
           
-          this->updateFlux(phi, d_u, lambda, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0/(double)time_steps);
+          this->updateFlux(phi, d_u, lambda, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0/(ScalarT)time_steps);
           
         }
       }
       else {
         for (int tstep=0; tstep<time_steps; tstep++) {
-          sgtime += macro_deltat/(double)time_steps;
+          sgtime += macro_deltat/(ScalarT)time_steps;
           // set du/dt and \lambda
-          alpha = (double)time_steps/macro_deltat;
+          alpha = (ScalarT)time_steps/macro_deltat;
           wkset[0]->alpha = alpha;
           wkset[0]->deltat= 1.0/alpha;
           
-          Kokkos::View<double***,AssemblyDevice> currlambda = lambda;
+          Kokkos::View<ScalarT***,AssemblyDevice> currlambda = lambda;
           
-          double lambda_scale = 1.0;//-(current_time-sgtime)/deltat;
+          ScalarT lambda_scale = 1.0;//-(current_time-sgtime)/deltat;
           
           u_dot->PutScalar(0.0);
           if (isAdjoint) {
@@ -1129,7 +1129,7 @@ public:
                                        paramvals, paramtypes, paramnames, sgtime,
                                        isTransient, isAdjoint, num_active_params, alpha, lambda_scale, usernum, subgradient);
           
-          this->updateFlux(u, d_u, lambda, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0/(double)time_steps);
+          this->updateFlux(u, d_u, lambda, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0/(ScalarT)time_steps);
         }
       }
       
@@ -1171,7 +1171,7 @@ public:
   
   void sacadoizeParams(const bool & seed_active, const int & num_active_params,
                        const vector<int> & paramtypes, const vector<string> & paramnames,
-                       const vector<vector<double> > & paramvals) {
+                       const vector<vector<ScalarT> > & paramvals) {
     if (seed_active) {
       size_t pprog = 0;
       for (size_t i=0; i<paramvals_KVAD.dimension(0); i++) {
@@ -1205,21 +1205,21 @@ public:
   
   void subGridNonlinearSolver(Teuchos::RCP<Epetra_MultiVector> & sub_u, Teuchos::RCP<Epetra_MultiVector> & sub_u_dot,
                               Teuchos::RCP<Epetra_MultiVector> & sub_phi, Teuchos::RCP<Epetra_MultiVector> & sub_phi_dot,
-                              Teuchos::RCP<Epetra_MultiVector> & sub_params, Kokkos::View<double***,AssemblyDevice> lambda,
-                              const vector<vector<double> > & paramvals,
+                              Teuchos::RCP<Epetra_MultiVector> & sub_params, Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+                              const vector<vector<ScalarT> > & paramvals,
                               const vector<int> & paramtypes, const vector<string> & paramnames,
-                              const double & time, const bool & isTransient, const bool & isAdjoint,
-                              const int & num_active_params, const double & alpha, const int & usernum,
+                              const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
+                              const int & num_active_params, const ScalarT & alpha, const int & usernum,
                               const bool & store_adjPrev) {
     
     
     Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverTimer);
     
-    double resnorm = 10.0*sub_NLtol;
-    double resnorm_initial = resnorm;
-    double resnorm_scaled = resnorm;
+    ScalarT resnorm = 10.0*sub_NLtol;
+    ScalarT resnorm_initial = resnorm;
+    ScalarT resnorm_scaled = resnorm;
     int iter = 0;
-    Kokkos::View<double**,AssemblyDevice> aPrev;
+    Kokkos::View<ScalarT**,AssemblyDevice> aPrev;
     
     while (iter < sub_maxNLiter && resnorm_scaled > sub_NLtol) {
       
@@ -1234,13 +1234,13 @@ public:
       int numElem = 1;
       int numDOF = cells[usernum][0]->GIDs[0].size();
       
-      Kokkos::View<double***,AssemblyDevice> local_res, local_J, local_Jdot;
+      Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
       
       {
         Teuchos::TimeMonitor localtimer2(*sgfemNonlinearSolverAllocateTimer);
-        local_res = Kokkos::View<double***,AssemblyDevice>("local residual",numElem,numDOF,1);
-        local_J = Kokkos::View<double***,AssemblyDevice>("local Jacobian",numElem,numDOF,numDOF);
-        local_Jdot = Kokkos::View<double***,AssemblyDevice>("local Jacobian dot",numElem,numDOF,numDOF);
+        local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,1);
+        local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numDOF);
+        local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,numDOF,numDOF);
       }
       {
         Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverSetSolnTimer);
@@ -1297,10 +1297,10 @@ public:
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverInsertTimer);
           vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
           for (int i=0; i<GIDs.size(); i++) {
-            vector<double> vals(GIDs[i].size());
+            vector<ScalarT> vals(GIDs[i].size());
             for( size_t row=0; row<GIDs[i].size(); row++ ) {
               int rowIndex = GIDs[i][row];
-              double val = local_res(i,row,0);
+              ScalarT val = local_res(i,row,0);
               res_over->SumIntoGlobalValue(rowIndex,0, val);
               for( size_t col=0; col<GIDs[i].size(); col++ ) {
                 vals[col] = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
@@ -1421,7 +1421,7 @@ public:
   //////////////////////////////////////////////////////////////
   
   void solutionStorage(Teuchos::RCP<Epetra_MultiVector> & newvec,
-                       const double & time, const bool & isAdjoint,
+                       const ScalarT & time, const bool & isAdjoint,
                        const int & usernum) {
     
     Teuchos::TimeMonitor localtimer(*sgfemSolnStorageTimer);
@@ -1431,14 +1431,14 @@ public:
     if (isAdjoint) {
       size_t findex;
       bool foundtime = false;
-      double adjtime = time - macro_deltat;
+      ScalarT adjtime = time - macro_deltat;
       for (size_t j=0; j<adjsoln[usernum].size(); j++) {
         if (abs(adjsoln[usernum][j].first - adjtime) < 1.0e-13) {
           foundtime = true;
           findex = j;
         }
       }
-      pair<double, Teuchos::RCP<Epetra_MultiVector> > time_u(adjtime,vectostore);
+      pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > time_u(adjtime,vectostore);
       if (foundtime) {
         adjsoln[usernum][findex] = time_u;
       }
@@ -1456,7 +1456,7 @@ public:
           findex = j;
         }
       }
-      pair<double, Teuchos::RCP<Epetra_MultiVector> > time_u(time,vectostore);
+      pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > time_u(time,vectostore);
       if (foundtime) {
         soln[usernum][findex] = time_u;
       }
@@ -1474,12 +1474,12 @@ public:
   void computeSubGridSolnSens(Teuchos::RCP<Epetra_MultiVector> & d_sub_u, const bool & compute_sens,
                               Teuchos::RCP<Epetra_MultiVector> & sub_u, Teuchos::RCP<Epetra_MultiVector> & sub_u_dot,
                               Teuchos::RCP<Epetra_MultiVector> & sub_phi, Teuchos::RCP<Epetra_MultiVector> & sub_phi_dot,
-                              Teuchos::RCP<Epetra_MultiVector> & sub_param, Kokkos::View<double***,AssemblyDevice> lambda,
-                              const vector<vector<double> > & paramvals,
-                              const vector<int> & paramtypes, const vector<string> & paramnames, const double & time,
-                              const bool & isTransient, const bool & isAdjoint, const int & num_active_params, const double & alpha,
-                              const double & lambda_scale, const int & usernum,
-                              Kokkos::View<double**,AssemblyDevice> subgradient) {
+                              Teuchos::RCP<Epetra_MultiVector> & sub_param, Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+                              const vector<vector<ScalarT> > & paramvals,
+                              const vector<int> & paramtypes, const vector<string> & paramnames, const ScalarT & time,
+                              const bool & isTransient, const bool & isAdjoint, const int & num_active_params, const ScalarT & alpha,
+                              const ScalarT & lambda_scale, const int & usernum,
+                              Kokkos::View<ScalarT**,AssemblyDevice> subgradient) {
     
     Teuchos::TimeMonitor localtimer(*sgfemSolnSensTimer);
     
@@ -1501,7 +1501,7 @@ public:
     d_sub_u_prev->PutScalar(0.0);
     d_sub_u_over->PutScalar(0.0);
     
-    double scale = -1.0*lambda_scale;
+    ScalarT scale = -1.0*lambda_scale;
     
     for (size_t e=0; e < cells[usernum].size(); e++) {
       cells[usernum][e]->setLocalSoln(sub_u,0,0);
@@ -1525,12 +1525,12 @@ public:
       
       int snumDOF = cells[usernum][0]->GIDs[0].size();
       
-      Kokkos::View<double***,AssemblyDevice> local_res, local_J, local_Jdot;
+      Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
       
-      local_res = Kokkos::View<double***,AssemblyDevice>("local residual",numElem,snumDOF,num_active_params);
+      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,snumDOF,num_active_params);
       
-      local_J = Kokkos::View<double***,AssemblyDevice>("local Jacobian",numElem,snumDOF,snumDOF);
-      local_Jdot = Kokkos::View<double***,AssemblyDevice>("local Jacobian dot",numElem,snumDOF,snumDOF);
+      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,snumDOF,snumDOF);
+      local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,snumDOF,snumDOF);
       
       for (size_t e=0; e<cells[usernum].size(); e++) {
         
@@ -1559,7 +1559,7 @@ public:
           for( size_t row=0; row<GIDs[i].size(); row++ ) {
             int rowIndex = GIDs[i][row];
             for( size_t col=0; col<num_active_params; col++ ) {
-              double val = local_res(i,row,col);
+              ScalarT val = local_res(i,row,col);
               d_sub_res_over->SumIntoGlobalValue(rowIndex,col, 1.0*val);
             }
           }
@@ -1577,14 +1577,14 @@ public:
       wkset[0]->isTransient = isTransient;
       wkset[0]->isAdjoint = isAdjoint;
       
-      Kokkos::View<double***,AssemblyDevice> local_res, local_J, local_Jdot;
+      Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
       
       int snumDOF = cells[usernum][0]->GIDs[0].size();
       int anumDOF = cells[usernum][0]->auxGIDs.size();
       
-      local_res = Kokkos::View<double***,AssemblyDevice>("local residual",numElem,snumDOF,1);
-      local_J = Kokkos::View<double***,AssemblyDevice>("local Jacobian",numElem,snumDOF,anumDOF);
-      local_Jdot = Kokkos::View<double***,AssemblyDevice>("local Jacobian dot",numElem,snumDOF,anumDOF);
+      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,snumDOF,1);
+      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,snumDOF,anumDOF);
+      local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,snumDOF,anumDOF);
       
       //volume assembly
       
@@ -1617,7 +1617,7 @@ public:
           for( size_t row=0; row<GIDs[i].size(); row++ ) {
             int rowIndex = GIDs[i][row];
             for( size_t col=0; col<aGIDs.size(); col++ ) {
-              double val = local_J(i,row,col);
+              ScalarT val = local_J(i,row,col);
               d_sub_res_over->SumIntoGlobalValue(rowIndex,col, scale*val);
             }
           }
@@ -1674,10 +1674,10 @@ public:
   //////////////////////////////////////////////////////////////
   
   void updateFlux(const Teuchos::RCP<Epetra_MultiVector> & u, const Teuchos::RCP<Epetra_MultiVector> & d_u,
-                  Kokkos::View<double***,AssemblyDevice> lambda,
+                  Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                   const bool & compute_sens, const int macroelemindex,
-                  const double & time, workset & macrowkset,
-                  const int & usernum, const double & fwt) {
+                  const ScalarT & time, workset & macrowkset,
+                  const int & usernum, const ScalarT & fwt) {
     
     Teuchos::TimeMonitor localtimer(*sgfemFluxTimer);
     
@@ -1694,7 +1694,7 @@ public:
                                  cells[usernum][e]->sideijac[s], s);
           }
           DRV cwts = wkset[0]->wts_side;
-          double h = 0.0;
+          ScalarT h = 0.0;
           wkset[0]->sidename = "interior";
           {
             Teuchos::TimeMonitor localcelltimer(*sgfemFluxCellTimer);
@@ -1746,18 +1746,18 @@ public:
       for (size_t e=0; e<cells[usernum].size(); e++) {
         int numElem = cells[usernum][e]->numElem;
         vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
-        Kokkos::View<double**,AssemblyDevice> localrhs = cells[usernum][e]->getInitial(true, useadjoint);
-        Kokkos::View<double***,AssemblyDevice> localmass = cells[usernum][e]->getMass();
+        Kokkos::View<ScalarT**,AssemblyDevice> localrhs = cells[usernum][e]->getInitial(true, useadjoint);
+        Kokkos::View<ScalarT***,AssemblyDevice> localmass = cells[usernum][e]->getMass();
         
         // assemble into global matrix
         for (int c=0; c<numElem; c++) {
           for( size_t row=0; row<GIDs[c].size(); row++ ) {
             int rowIndex = GIDs[c][row];
-            double val = localrhs(c,row);
+            ScalarT val = localrhs(c,row);
             rhs->SumIntoGlobalValue(rowIndex,0, val);
             for( size_t col=0; col<GIDs[c].size(); col++ ) {
               int colIndex = GIDs[c][col];
-              double val = localmass(c,row,col);
+              ScalarT val = localmass(c,row,col);
               mass->InsertGlobalValues(rowIndex, 1, &val, &colIndex);
             }
           }
@@ -1787,11 +1787,11 @@ public:
       for (size_t e=0; e<cells[usernum].size(); e++) {
         int numElem = cells[usernum][e]->numElem;
         vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
-        Kokkos::View<double**,AssemblyDevice> localinit = cells[usernum][e]->getInitial(false, useadjoint);
+        Kokkos::View<ScalarT**,AssemblyDevice> localinit = cells[usernum][e]->getInitial(false, useadjoint);
         for (int c=0; c<numElem; c++) {
           for( size_t row=0; row<GIDs[c].size(); row++ ) {
             int rowIndex = GIDs[c][row];
-            double val = localinit(c,row);
+            ScalarT val = localinit(c,row);
             initial->SumIntoGlobalValue(rowIndex,0, val);
           }
         }
@@ -1820,7 +1820,7 @@ public:
   // Compute the error for verification
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  Kokkos::View<double**,AssemblyDevice> computeError(const double & time, const int & usernum) {
+  Kokkos::View<ScalarT**,AssemblyDevice> computeError(const ScalarT & time, const int & usernum) {
     
     size_t numVars = varlist.size();
     int tindex = -1;
@@ -1830,9 +1830,9 @@ public:
       }
     }
     
-    Kokkos::View<double**,AssemblyDevice> errors("error",cells[usernum].size(), numVars);
+    Kokkos::View<ScalarT**,AssemblyDevice> errors("error",cells[usernum].size(), numVars);
     if (tindex != -1) {
-      Kokkos::View<double**,AssemblyDevice> curr_errors;
+      Kokkos::View<ScalarT**,AssemblyDevice> curr_errors;
       performGather(usernum, soln[usernum][tindex].second, 0, 0);
       for (size_t e=0; e<cells[usernum].size(); e++) {
         curr_errors = cells[usernum][e]->computeError(time,tindex,false,error_type);
@@ -1851,7 +1851,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   
   Kokkos::View<AD*,AssemblyDevice> computeObjective(const string & response_type, const int & seedwhat,
-                                                    const double & time, const int & usernum) {
+                                                    const ScalarT & time, const int & usernum) {
     
     int tindex = -1;
     for (int tt=0; tt<soln[usernum].size(); tt++) {
@@ -1900,7 +1900,7 @@ public:
     
     SubGridTools sgt(LocalComm, macroshape, shape, macronodes[usernum], macrosideinfo[usernum]);
     sgt.createSubMesh(numrefine);
-    vector<vector<double> > nodes = sgt.getSubNodes();
+    vector<vector<ScalarT> > nodes = sgt.getSubNodes();
     vector<vector<int> > connectivity = sgt.getSubConnectivity();
     Kokkos::View<int****,HostDevice> sideinfo = sgt.getSubSideinfo();
     
@@ -1965,7 +1965,7 @@ public:
       // Collect the subgrid solution
       for (int n = 0; n<varlist.size(); n++) { // change to subgrid numVars
         size_t numsb = cells[usernum][0]->index[0][n].size();
-        Kokkos::View<double**,HostDevice> soln_computed("soln",cells[usernum].size(), numsb); // TMW temp. fix
+        Kokkos::View<ScalarT**,HostDevice> soln_computed("soln",cells[usernum].size(), numsb); // TMW temp. fix
         string var = varlist[n];
         for( size_t e=0; e<cells[usernum].size(); e++ ) {
           int numElem = cells[usernum][e]->numElem;
@@ -2102,14 +2102,14 @@ public:
        */
     
     
-      //Kokkos::View<double**,HostDevice> cdata("cell data",cells[usernum][0]->numElem, 1);
-      Kokkos::View<double**,HostDevice> cdata("cell data",cells[usernum].size(), 1);
+      //Kokkos::View<ScalarT**,HostDevice> cdata("cell data",cells[usernum][0]->numElem, 1);
+      Kokkos::View<ScalarT**,HostDevice> cdata("cell data",cells[usernum].size(), 1);
       if (cells[usernum][0]->have_cell_phi || cells[usernum][0]->have_cell_rotation) {
         int eprog = 0;
         for (size_t k=0; k<cells[usernum].size(); k++) {
           vector<size_t> cell_data_seed = cells[usernum][k]->cell_data_seed;
           vector<size_t> cell_data_seedindex = cells[usernum][k]->cell_data_seedindex;
-          Kokkos::View<double**> cell_data = cells[usernum][k]->cell_data;
+          Kokkos::View<ScalarT**> cell_data = cells[usernum][k]->cell_data;
           for (int p=0; p<cells[usernum][k]->numElem; p++) {
             /*
             if (cell_data.dimension(1) == 3) {
@@ -2164,7 +2164,7 @@ public:
     for (size_t e=0; e<macronodes.size(); e++) {
       SubGridTools sgt(LocalComm, macroshape, shape, macronodes[e], macrosideinfo[e]);
       sgt.createSubMesh(numrefine);
-      vector<vector<double> > nodes = sgt.getSubNodes();
+      vector<vector<ScalarT> > nodes = sgt.getSubNodes();
       vector<vector<int> > connectivity = sgt.getSubConnectivity();
       Kokkos::View<int****,HostDevice> sideinfo = sgt.getSubSideinfo();
       
@@ -2240,7 +2240,7 @@ public:
       // Collect the subgrid solution
       for (int n = 0; n<varlist.size(); n++) { // change to subgrid numVars
         size_t numsb = cells[0][0]->index[0][n].size();
-        Kokkos::View<double**,HostDevice> soln_computed("soln",myElements.size(), numsb); // TMW temp. fix
+        Kokkos::View<ScalarT**,HostDevice> soln_computed("soln",myElements.size(), numsb); // TMW temp. fix
         string var = varlist[n];
         size_t eprog = 0;
         for (size_t b=0; b<cells.size(); b++) {
@@ -2265,7 +2265,7 @@ public:
       }
       
       if (cells[0][0]->have_cell_phi || cells[0][0]->have_cell_rotation) {
-        Kokkos::View<double**,HostDevice> cdata("cell data",myElements.size(), 1);
+        Kokkos::View<ScalarT**,HostDevice> cdata("cell data",myElements.size(), 1);
         int eprog = 0;
         for (size_t b=0; b<cells.size(); b++) {
           for (size_t k=0; k<cells[b].size(); k++) {
@@ -2306,7 +2306,7 @@ public:
      
      SubGridTools sgt(LocalComm, macroshape, shape, macronodes[usernum], macrosideinfo[usernum]);
      sgt.createSubMesh(numrefine);
-     vector<vector<double> > nodes = sgt.getSubNodes();
+     vector<vector<ScalarT> > nodes = sgt.getSubNodes();
      vector<vector<int> > connectivity = sgt.getSubConnectivity();
      vector<FCint> sideinfo = sgt.getSubSideinfo();
      
@@ -2448,8 +2448,8 @@ public:
   // Add in the sensor data
   ////////////////////////////////////////////////////////////////////////////////
   
-  void addSensors(const Kokkos::View<double**,HostDevice> sensor_points, const double & sensor_loc_tol,
-                  const vector<Kokkos::View<double**,HostDevice> > & sensor_data, const bool & have_sensor_data,
+  void addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, const ScalarT & sensor_loc_tol,
+                  const vector<Kokkos::View<ScalarT**,HostDevice> > & sensor_data, const bool & have_sensor_data,
                   const vector<basis_RCP> & basisTypes, const int & usernum) {
     for (size_t e=0; e<cells[usernum].size(); e++) {
       cells[usernum][e]->addSensors(sensor_points,sensor_loc_tol,sensor_data,
@@ -2470,13 +2470,13 @@ public:
     for (size_t e=0; e<cells[usernum].size(); e++) {
       int numElem = cells[usernum][e]->numElem;
       vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
-      Kokkos::View<double***,AssemblyDevice> localmass = cells[usernum][e]->getMass();
+      Kokkos::View<ScalarT***,AssemblyDevice> localmass = cells[usernum][e]->getMass();
       for (int c=0; c<numElem; c++) {
         for( size_t row=0; row<GIDs[c].size(); row++ ) {
           int rowIndex = GIDs[c][row];
           for( size_t col=0; col<GIDs[c].size(); col++ ) {
             int colIndex = GIDs[c][col];
-            double val = localmass(c,row,col);
+            ScalarT val = localmass(c,row,col);
             mass->InsertGlobalValues(rowIndex, 1, &val, &colIndex);
           }
         }
@@ -2723,7 +2723,7 @@ public:
   // TMW: Is the following functions used/required ???
   ////////////////////////////////////////////////////////////////////////////////
   
-  Kokkos::View<double**,AssemblyDevice> getCellFields(const int & usernum, const double & time) {
+  Kokkos::View<ScalarT**,AssemblyDevice> getCellFields(const int & usernum, const ScalarT & time) {
     
     /*
      vector<string> extracellfieldnames = physics_RCP->getExtraCellFieldNames(0);
@@ -2795,7 +2795,7 @@ public:
   //
   // ========================================================================================
   
-  void updateMeshData(Kokkos::View<double**,HostDevice> & rotation_data) {
+  void updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data) {
     for (size_t b=0; b<cells.size(); b++) {
       for (size_t e=0; e<cells[b].size(); e++) {
         int numElem = cells[b][e]->numElem;
@@ -2814,7 +2814,7 @@ public:
   
   // Static - do not depend on macro-element
   int dimension, time_steps;
-  double initial_time, final_time;
+  ScalarT initial_time, final_time;
   Teuchos::RCP<LA_MpiComm> LocalComm;
   Teuchos::RCP<Teuchos::ParameterList> settings;
   string macroshape, shape, multiscale_method, error_type;
@@ -2838,13 +2838,13 @@ public:
   
   bool filledJ, filledM, useDirect;
   vector<string> stoch_param_types;
-  vector<double> stoch_param_means, stoch_param_vars, stoch_param_mins, stoch_param_maxs;
+  vector<ScalarT> stoch_param_means, stoch_param_vars, stoch_param_mins, stoch_param_maxs;
   int num_stochclassic_params, num_active_params;
   vector<string> stochclassic_param_names;
   
   Epetra_LinearProblem LinSys;
   
-  double sub_NLtol, lintol;
+  ScalarT sub_NLtol, lintol;
   int sub_maxNLiter, liniter;
   
   Amesos_BaseSolver * AmSolver;
@@ -2869,7 +2869,7 @@ public:
   vector<DRV> macronodes;
   vector<Kokkos::View<int****,HostDevice> > macrosideinfo;
   int num_macro_time_steps;
-  double macro_deltat;
+  ScalarT macro_deltat;
   bool write_subgrid_state;
   
   // Collection of users

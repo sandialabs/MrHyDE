@@ -45,7 +45,7 @@ public:
     mybasistypes.push_back("HGRAD");
     
     // Extra data
-    formparam = settings->sublist("Physics").get<double>("form_param",1.0);
+    formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
     have_nsvel = false;
     
     // Functions
@@ -177,7 +177,7 @@ public:
       
     }
     
-    double sf = formparam;
+    ScalarT sf = formparam;
     if (wkset->isAdjoint) {
       sf = 1.0;
     }
@@ -270,7 +270,7 @@ public:
   
   void computeFlux() {
     
-    double sf = 1.0;
+    ScalarT sf = 1.0;
     if (wkset->isAdjoint) {
       sf = formparam;
     }
@@ -339,12 +339,12 @@ private:
   int spaceDim, numElem, numParams, numResponses;
   vector<string> varlist;
   int e_num, e_basis, numBasis, ux_num, uy_num, uz_num;
-  double alpha;
+  ScalarT alpha;
   bool isTD;
   //int test, simNum;
   //string simName;
   
-  double v, dvdx, dvdy, dvdz, x, y, z;
+  ScalarT v, dvdx, dvdy, dvdz, x, y, z;
   AD e, e_dot, dedx, dedy, dedz, reax, weakDiriScale, lambda, penalty;
   AD ux, uy, uz;
   
@@ -362,7 +362,7 @@ private:
   
   bool useScalarRespFx;
   bool multiscale, have_nsvel;
-  double formparam;
+  ScalarT formparam;
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::thermal::volumeResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::thermal::volumeResidual() - evaluation of residual");
   Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::thermal::boundaryResidual() - function evaluation");

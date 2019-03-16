@@ -299,7 +299,7 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
     DRV blocknodePert("blocknodePert",blocknodes.dimension(0),numNodesPerElem,spaceDim);
     
     if (settings->sublist("Mesh").get("Modify Mesh Height",false)) {
-      vector<vector<double> > values;
+      vector<vector<ScalarT> > values;
       
       string ptsfile = settings->sublist("Mesh").get("Mesh Pert File","meshpert.dat");
       ifstream fin(ptsfile.c_str());
@@ -308,8 +308,8 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
       {
         replace(line.begin(), line.end(), ',', ' ');
         istringstream in(line);
-        values.push_back(vector<double>(istream_iterator<double>(in),
-                                        istream_iterator<double>()));
+        values.push_back(vector<ScalarT>(istream_iterator<ScalarT>(in),
+                                        istream_iterator<ScalarT>()));
       }
       
       DRV pertdata("pertdata",values.size(),3);
@@ -319,25 +319,25 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
         }
       }
       int Nz = settings->sublist("Mesh").get<int>("NZ",1);
-      double zmin = settings->sublist("Mesh").get<double>("zmin",0.0);
-      double zmax = settings->sublist("Mesh").get<double>("zmax",1.0);
+      ScalarT zmin = settings->sublist("Mesh").get<ScalarT>("zmin",0.0);
+      ScalarT zmax = settings->sublist("Mesh").get<ScalarT>("zmax",1.0);
       for (int k=0; k<blocknodes.dimension(0); k++) {
         for (int i=0; i<numNodesPerElem; i++){
-          double x = blocknodes(k,i,0);
-          double y = blocknodes(k,i,1);
-          double z = blocknodes(k,i,2);
+          ScalarT x = blocknodes(k,i,0);
+          ScalarT y = blocknodes(k,i,1);
+          ScalarT z = blocknodes(k,i,2);
           int node;
-          double dist = (double)RAND_MAX;
+          ScalarT dist = (ScalarT)RAND_MAX;
           for( size_t j=0; j<pertdata.dimension(0); j++ ) {
-            double xhat = pertdata(j,0);
-            double yhat = pertdata(j,1);
-            double d = sqrt((x-xhat)*(x-xhat) + (y-yhat)*(y-yhat));
+            ScalarT xhat = pertdata(j,0);
+            ScalarT yhat = pertdata(j,1);
+            ScalarT d = sqrt((x-xhat)*(x-xhat) + (y-yhat)*(y-yhat));
             if( d<dist ) {
               node = j;
               dist = d;
             }
           }
-          double ch = pertdata(node,2);
+          ScalarT ch = pertdata(node,2);
           blocknodePert(k,i,0) = 0.0;
           blocknodePert(k,i,1) = 0.0;
           blocknodePert(k,i,2) = (ch)*(z-zmin)/(zmax-zmin);
@@ -463,9 +463,9 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       int numElem = cells[b][e]->numElem;
-      Kokkos::View<double**,HostDevice> cell_data("cell_data",numElem,numdata);
+      Kokkos::View<ScalarT**,HostDevice> cell_data("cell_data",numElem,numdata);
       cells[b][e]->cell_data = cell_data;
-      cells[b][e]->cell_data_distance = vector<double>(numElem);
+      cells[b][e]->cell_data_distance = vector<ScalarT>(numElem);
       cells[b][e]->cell_data_seed = vector<size_t>(numElem);
       cells[b][e]->cell_data_seedindex = vector<size_t>(numElem);
     }
@@ -502,13 +502,13 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
         int numElem = cells[b][e]->numElem;
         
         for (int c=0; c<numElem; c++) {
-          Kokkos::View<double[1][3],HostDevice> center("center");
+          Kokkos::View<ScalarT[1][3],HostDevice> center("center");
           for (size_t i=0; i<nodes.dimension(1); i++) {
             for (size_t j=0; j<spaceDim; j++) {
-              center(0,j) += nodes(c,i,j)/(double)nodes.dimension(1);
+              center(0,j) += nodes(c,i,j)/(ScalarT)nodes.dimension(1);
             }
           }
-          double distance = 0.0;
+          ScalarT distance = 0.0;
           
           int cnode = mesh_data->findClosestNode(center(0,0), center(0,1), center(0,2), distance);
           bool iscloser = true;
@@ -518,7 +518,7 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
             }
           }
           if (iscloser) {
-            Kokkos::View<double**,HostDevice> cdata = mesh_data->getdata(cnode);
+            Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
             for (int i=0; i<cdata.dimension(1); i++) {
               cells[b][e]->cell_data(c,i) = cdata(0,i);
             }
@@ -555,7 +555,7 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
   have_rotations = true;
   have_rotation_phi = false;
   
-  Kokkos::View<double**,HostDevice> seeds;
+  Kokkos::View<ScalarT**,HostDevice> seeds;
   int randSeed = settings->sublist("Mesh").get<int>("Random seed",1234);
   randomSeeds.push_back(randSeed);
   std::default_random_engine generator(randSeed);
@@ -572,22 +572,22 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
     int numySeeds = settings->sublist("Mesh").get<int>("Number of yseeds",10);
     int numzSeeds = settings->sublist("Mesh").get<int>("Number of zseeds",10);
     
-    double xmin = settings->sublist("Mesh").get<double>("x min",0.0);
-    double ymin = settings->sublist("Mesh").get<double>("y min",0.0);
-    double zmin = settings->sublist("Mesh").get<double>("z min",0.0);
-    double xmax = settings->sublist("Mesh").get<double>("x max",1.0);
-    double ymax = settings->sublist("Mesh").get<double>("y max",1.0);
-    double zmax = settings->sublist("Mesh").get<double>("z max",1.0);
+    ScalarT xmin = settings->sublist("Mesh").get<ScalarT>("x min",0.0);
+    ScalarT ymin = settings->sublist("Mesh").get<ScalarT>("y min",0.0);
+    ScalarT zmin = settings->sublist("Mesh").get<ScalarT>("z min",0.0);
+    ScalarT xmax = settings->sublist("Mesh").get<ScalarT>("x max",1.0);
+    ScalarT ymax = settings->sublist("Mesh").get<ScalarT>("y max",1.0);
+    ScalarT zmax = settings->sublist("Mesh").get<ScalarT>("z max",1.0);
     
-    double dx = (xmax-xmin)/(double)(numxSeeds+1);
-    double dy = (ymax-ymin)/(double)(numySeeds+1);
-    double dz = (zmax-zmin)/(double)(numzSeeds+1);
+    ScalarT dx = (xmax-xmin)/(ScalarT)(numxSeeds+1);
+    ScalarT dy = (ymax-ymin)/(ScalarT)(numySeeds+1);
+    ScalarT dz = (zmax-zmin)/(ScalarT)(numzSeeds+1);
     
-    double maxpert = 0.25;
+    ScalarT maxpert = 0.25;
     
-    Kokkos::View<double*,HostDevice> xseeds("xseeds",numxSeeds);
-    Kokkos::View<double*,HostDevice> yseeds("yseeds",numySeeds);
-    Kokkos::View<double*,HostDevice> zseeds("zseeds",numzSeeds);
+    Kokkos::View<ScalarT*,HostDevice> xseeds("xseeds",numxSeeds);
+    Kokkos::View<ScalarT*,HostDevice> yseeds("yseeds",numySeeds);
+    Kokkos::View<ScalarT*,HostDevice> zseeds("zseeds",numzSeeds);
     
     for (int k=0; k<numxSeeds; k++) {
       xseeds(k) = xmin + (k+1)*dx;
@@ -599,16 +599,16 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
       zseeds(k) = zmin + (k+1)*dz;
     }
     
-    std::uniform_real_distribution<double> pdistribution(-maxpert,maxpert);
+    std::uniform_real_distribution<ScalarT> pdistribution(-maxpert,maxpert);
     numSeeds = numxSeeds*numySeeds*numzSeeds;
-    seeds = Kokkos::View<double**,HostDevice>("seeds",numSeeds,3);
+    seeds = Kokkos::View<ScalarT**,HostDevice>("seeds",numSeeds,3);
     int prog = 0;
     for (int i=0; i<numxSeeds; i++) {
       for (int j=0; j<numySeeds; j++) {
         for (int k=0; k<numzSeeds; k++) {
-          double xp = pdistribution(generator);
-          double yp = pdistribution(generator);
-          double zp = pdistribution(generator);
+          ScalarT xp = pdistribution(generator);
+          ScalarT yp = pdistribution(generator);
+          ScalarT zp = pdistribution(generator);
           seeds(prog,0) = xseeds(i) + xp*dx;
           seeds(prog,1) = yseeds(j) + yp*dy;
           seeds(prog,2) = zseeds(k) + zp*dz;
@@ -619,53 +619,53 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
   }
   else {
     numSeeds = settings->sublist("Mesh").get<int>("Number of seeds",1000);
-    seeds = Kokkos::View<double**,HostDevice>("seeds",numSeeds,3);
+    seeds = Kokkos::View<ScalarT**,HostDevice>("seeds",numSeeds,3);
     
-    double xwt = settings->sublist("Mesh").get<double>("x weight",1.0);
-    double ywt = settings->sublist("Mesh").get<double>("y weight",1.0);
-    double zwt = settings->sublist("Mesh").get<double>("z weight",1.0);
-    double nwt = sqrt(xwt*xwt+ywt*ywt+zwt*zwt);
+    ScalarT xwt = settings->sublist("Mesh").get<ScalarT>("x weight",1.0);
+    ScalarT ywt = settings->sublist("Mesh").get<ScalarT>("y weight",1.0);
+    ScalarT zwt = settings->sublist("Mesh").get<ScalarT>("z weight",1.0);
+    ScalarT nwt = sqrt(xwt*xwt+ywt*ywt+zwt*zwt);
     xwt *= 3.0/nwt;
     ywt *= 3.0/nwt;
     zwt *= 3.0/nwt;
     
-    double xmin = settings->sublist("Mesh").get<double>("x min",0.0);
-    double ymin = settings->sublist("Mesh").get<double>("y min",0.0);
-    double zmin = settings->sublist("Mesh").get<double>("z min",0.0);
-    double xmax = settings->sublist("Mesh").get<double>("x max",1.0);
-    double ymax = settings->sublist("Mesh").get<double>("y max",1.0);
-    double zmax = settings->sublist("Mesh").get<double>("z max",1.0);
+    ScalarT xmin = settings->sublist("Mesh").get<ScalarT>("x min",0.0);
+    ScalarT ymin = settings->sublist("Mesh").get<ScalarT>("y min",0.0);
+    ScalarT zmin = settings->sublist("Mesh").get<ScalarT>("z min",0.0);
+    ScalarT xmax = settings->sublist("Mesh").get<ScalarT>("x max",1.0);
+    ScalarT ymax = settings->sublist("Mesh").get<ScalarT>("y max",1.0);
+    ScalarT zmax = settings->sublist("Mesh").get<ScalarT>("z max",1.0);
     
-    std::uniform_real_distribution<double> xdistribution(xmin,xmax);
-    std::uniform_real_distribution<double> ydistribution(ymin,ymax);
-    std::uniform_real_distribution<double> zdistribution(zmin,zmax);
+    std::uniform_real_distribution<ScalarT> xdistribution(xmin,xmax);
+    std::uniform_real_distribution<ScalarT> ydistribution(ymin,ymax);
+    std::uniform_real_distribution<ScalarT> zdistribution(zmin,zmax);
     
     
     // we use a relatively crude algorithm to obtain well-spaced points
     int batch_size = 10;
     size_t prog = 0;
-    Kokkos::View<double**,HostDevice> cseeds("cand seeds",batch_size,3);
+    Kokkos::View<ScalarT**,HostDevice> cseeds("cand seeds",batch_size,3);
     
     while (prog<numSeeds) {
       // fill in the candidate seeds
       for (int k=0; k<batch_size; k++) {
-        double x = xdistribution(generator);
+        ScalarT x = xdistribution(generator);
         cseeds(k,0) = x;
-        double y = ydistribution(generator);
+        ScalarT y = ydistribution(generator);
         cseeds(k,1) = y;
-        double z = zdistribution(generator);
+        ScalarT z = zdistribution(generator);
         cseeds(k,2) = z;
       }
       int bestpt = 0;
       if (prog > 0) { // for prog = 0, just take the first one
-        double mindist = 1.0e6;
+        ScalarT mindist = 1.0e6;
         for (int k=0; k<batch_size; k++) {
-          double cmindist = 1.0e6;
+          ScalarT cmindist = 1.0e6;
           for (int j=0; j<prog; j++) {
-            double dx = cseeds(k,0)-seeds(j,0);
-            double dy = cseeds(k,1)-seeds(j,1);
-            double dz = cseeds(k,2)-seeds(j,2);
-            double cval = sqrt(xwt*dx*dx + ywt*dy*dy + zwt*dz*dz);
+            ScalarT dx = cseeds(k,0)-seeds(j,0);
+            ScalarT dy = cseeds(k,1)-seeds(j,1);
+            ScalarT dz = cseeds(k,2)-seeds(j,2);
+            ScalarT cval = sqrt(xwt*dx*dx + ywt*dy*dy + zwt*dz*dz);
             if (cval < cmindist) {
               cmindist = cval;
             }
@@ -699,15 +699,15 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
   
   int numdata = 9;
   
-  std::normal_distribution<double> ndistribution(0.0,1.0);
-  Kokkos::View<double**,HostDevice> rotation_data("cell_data",numSeeds,numdata);
+  std::normal_distribution<ScalarT> ndistribution(0.0,1.0);
+  Kokkos::View<ScalarT**,HostDevice> rotation_data("cell_data",numSeeds,numdata);
   for (int k=0; k<numSeeds; k++) {
-    double x = ndistribution(generator);
-    double y = ndistribution(generator);
-    double z = ndistribution(generator);
-    double w = ndistribution(generator);
+    ScalarT x = ndistribution(generator);
+    ScalarT y = ndistribution(generator);
+    ScalarT z = ndistribution(generator);
+    ScalarT w = ndistribution(generator);
     
-    double r = sqrt(x*x + y*y + z*z + w*w);
+    ScalarT r = sqrt(x*x + y*y + z*z + w*w);
     x *= 1.0/r;
     y *= 1.0/r;
     z *= 1.0/r;
@@ -737,9 +737,9 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       int numElem = cells[b][e]->numElem;
-      Kokkos::View<double**,HostDevice> cell_data("cell_data",numElem,numdata);
+      Kokkos::View<ScalarT**,HostDevice> cell_data("cell_data",numElem,numdata);
       cells[b][e]->cell_data = cell_data;
-      cells[b][e]->cell_data_distance = vector<double>(numElem);
+      cells[b][e]->cell_data_distance = vector<ScalarT>(numElem);
       cells[b][e]->cell_data_seed = vector<size_t>(numElem);
       cells[b][e]->cell_data_seedindex = vector<size_t>(numElem);
     }
@@ -754,19 +754,19 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
       DRV nodes = cells[b][e]->nodes;
       int numElem = cells[b][e]->numElem;
       for (int c=0; c<numElem; c++) {
-        Kokkos::View<double[1][3],HostDevice> center("center");
+        Kokkos::View<ScalarT[1][3],HostDevice> center("center");
         for (size_t i=0; i<nodes.dimension(1); i++) {
           for (size_t j=0; j<spaceDim; j++) {
-            center(0,j) += nodes(c,i,j)/(double)nodes.dimension(1);
+            center(0,j) += nodes(c,i,j)/(ScalarT)nodes.dimension(1);
           }
         }
-        double distance = 1.0e6;
+        ScalarT distance = 1.0e6;
         int cnode = 0;
         for (int k=0; k<numSeeds; k++) {
-          double dx = center(0,0)-seeds(k,0);
-          double dy = center(0,1)-seeds(k,1);
-          double dz = center(0,2)-seeds(k,2);
-          double cdist = sqrt(dx*dx + dy*dy + dz*dz);
+          ScalarT dx = center(0,0)-seeds(k,0);
+          ScalarT dy = center(0,1)-seeds(k,1);
+          ScalarT dz = center(0,2)-seeds(k,2);
+          ScalarT cdist = sqrt(dx*dx + dy*dy + dz*dz);
           if (cdist<distance) {
             cnode = k;
             distance = cdist;

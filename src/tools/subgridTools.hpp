@@ -40,7 +40,7 @@ public:
     if (subshape == shape) {
       vector<int> newconn;
       for (int i=0; i<nodes.dimension(1); i++) {
-        vector<double> newnode;
+        vector<ScalarT> newnode;
         for (int s=0; s<dimension; s++) {
           newnode.push_back(nodes(0,i,s));
         }
@@ -73,13 +73,13 @@ public:
         if (shape == "quad" && subshape == "tri") {
           vector<int> newconn0, newconn1, newconn2, newconn3;
           for (int i=0; i<nodes.dimension(1); i++) {
-            vector<double> newnode;
+            vector<ScalarT> newnode;
             for (int s=0; s<dimension; s++) {
               newnode.push_back(nodes(0,i,s));
             }
             subnodes.push_back(newnode);
           }
-          vector<double> midnode;
+          vector<ScalarT> midnode;
           midnode.push_back(0.25*(nodes(0,0,0)+nodes(0,1,0)+nodes(0,2,0)+nodes(0,3,0)));
           midnode.push_back(0.25*(nodes(0,0,1)+nodes(0,1,1)+nodes(0,2,1)+nodes(0,3,1)));
           subnodes.push_back(midnode);
@@ -143,14 +143,14 @@ public:
         else if (shape == "tri" && subshape == "quad") {
           vector<int> newconn0, newconn1, newconn2;
           for (int i=0; i<nodes.dimension(1); i++) {
-            vector<double> newnode;
+            vector<ScalarT> newnode;
             
             for (int s=0; s<dimension; s++) {
               newnode.push_back(nodes(0,i,s));
             }
             subnodes.push_back(newnode);
           }
-          vector<double> center, mid01, mid12, mid02;
+          vector<ScalarT> center, mid01, mid12, mid02;
           center.push_back(1.0/3.0*(nodes(0,0,0)+nodes(0,1,0)+nodes(0,2,0)));
           center.push_back(1.0/3.0*(nodes(0,0,1)+nodes(0,1,1)+nodes(0,2,1)));
           mid01.push_back(0.5*(nodes(0,0,0)+nodes(0,1,0)));
@@ -257,11 +257,11 @@ public:
   void refineSubCell(const int & e) {
     
     if (dimension == 1) {
-      vector<double> node0 = subnodes[subconnectivity[e][0]];
-      vector<double> node1 = subnodes[subconnectivity[e][1]];
+      vector<ScalarT> node0 = subnodes[subconnectivity[e][0]];
+      vector<ScalarT> node1 = subnodes[subconnectivity[e][1]];
       
-      double midx = 0.5*(node0[0]+node1[0]);
-      vector<double> mid(1,midx);
+      ScalarT midx = 0.5*(node0[0]+node1[0]);
+      vector<ScalarT> mid(1,midx);
       
       subnodes.push_back(mid);
       
@@ -294,12 +294,12 @@ public:
     if (dimension == 2) {
       if (subshape == "tri") {
         // Extract the existing nodes
-        vector<double> node0 = subnodes[subconnectivity[e][0]];
-        vector<double> node1 = subnodes[subconnectivity[e][1]];
-        vector<double> node2 = subnodes[subconnectivity[e][2]];
+        vector<ScalarT> node0 = subnodes[subconnectivity[e][0]];
+        vector<ScalarT> node1 = subnodes[subconnectivity[e][1]];
+        vector<ScalarT> node2 = subnodes[subconnectivity[e][2]];
         
         // Compute the candidate new nodes
-        vector<double> mid01, mid12, mid02;
+        vector<ScalarT> mid01, mid12, mid02;
         mid01.push_back(0.5*(node0[0]+node1[0]));
         mid01.push_back(0.5*(node0[1]+node1[1]));
         mid12.push_back(0.5*(node1[0]+node2[0]));
@@ -308,9 +308,9 @@ public:
         mid02.push_back(0.5*(node0[1]+node2[1]));
         
         // Check if these nodes have been added and add if not
-        double tol=1.0e-10;
+        ScalarT tol=1.0e-10;
         int mid01_ind, mid12_ind, mid02_ind;
-        double check;
+        ScalarT check;
         bool found;
         
         found = checkExistingSubNodes(mid01,tol,mid01_ind);
@@ -388,13 +388,13 @@ public:
       }
       else if (subshape == "quad") {
         // Extract the existing nodes
-        vector<double> node0 = subnodes[subconnectivity[e][0]];
-        vector<double> node1 = subnodes[subconnectivity[e][1]];
-        vector<double> node2 = subnodes[subconnectivity[e][2]];
-        vector<double> node3 = subnodes[subconnectivity[e][3]];
+        vector<ScalarT> node0 = subnodes[subconnectivity[e][0]];
+        vector<ScalarT> node1 = subnodes[subconnectivity[e][1]];
+        vector<ScalarT> node2 = subnodes[subconnectivity[e][2]];
+        vector<ScalarT> node3 = subnodes[subconnectivity[e][3]];
         
         // Compute the candidate new nodes
-        vector<double> center, mid01, mid12, mid23, mid03;
+        vector<ScalarT> center, mid01, mid12, mid23, mid03;
         center.push_back(0.25*(node0[0]+node1[0]+node2[0]+node3[0]));
         center.push_back(0.25*(node0[1]+node1[1]+node2[1]+node3[1]));
         mid01.push_back(0.5*(node0[0]+node1[0]));
@@ -407,9 +407,9 @@ public:
         mid03.push_back(0.5*(node0[1]+node3[1]));
         
         // Check if these nodes have been added and add if not
-        double tol=1.0e-6;
+        ScalarT tol=1.0e-6;
         int center_ind, mid01_ind, mid12_ind, mid23_ind, mid03_ind;
-        double check;
+        ScalarT check;
         bool found;
         
         found = checkExistingSubNodes(center,tol,center_ind);
@@ -514,13 +514,13 @@ public:
     if (dimension == 3) {
       if (subshape == "tet") {
         // Extract the existing nodes
-        vector<double> node0 = subnodes[subconnectivity[e][0]];
-        vector<double> node1 = subnodes[subconnectivity[e][1]];
-        vector<double> node2 = subnodes[subconnectivity[e][2]];
-        vector<double> node3 = subnodes[subconnectivity[e][3]];
+        vector<ScalarT> node0 = subnodes[subconnectivity[e][0]];
+        vector<ScalarT> node1 = subnodes[subconnectivity[e][1]];
+        vector<ScalarT> node2 = subnodes[subconnectivity[e][2]];
+        vector<ScalarT> node3 = subnodes[subconnectivity[e][3]];
         
         // Compute the candidate new nodes
-        vector<double> mid01, mid12, mid02, mid03, mid13, mid23;
+        vector<ScalarT> mid01, mid12, mid02, mid03, mid13, mid23;
         mid01.push_back(0.5*(node0[0]+node1[0]));
         mid01.push_back(0.5*(node0[1]+node1[1]));
         mid01.push_back(0.5*(node0[2]+node1[2]));
@@ -541,10 +541,10 @@ public:
         mid23.push_back(0.5*(node2[2]+node3[2]));
         
         // Check if these nodes have been added and add if not
-        double tol=1.0e-10;
+        ScalarT tol=1.0e-10;
         int mid01_ind, mid12_ind, mid02_ind;
         int mid03_ind, mid13_ind, mid23_ind;
-        double check;
+        ScalarT check;
         bool found;
         
         found = checkExistingSubNodes(mid01,tol,mid01_ind);
@@ -684,19 +684,19 @@ public:
       }
       else if (subshape == "hex") {
         // Extract the existing nodes
-        vector<double> node0 = subnodes[subconnectivity[e][0]];
-        vector<double> node1 = subnodes[subconnectivity[e][1]];
-        vector<double> node2 = subnodes[subconnectivity[e][2]];
-        vector<double> node3 = subnodes[subconnectivity[e][3]];
-        vector<double> node4 = subnodes[subconnectivity[e][4]];
-        vector<double> node5 = subnodes[subconnectivity[e][5]];
-        vector<double> node6 = subnodes[subconnectivity[e][6]];
-        vector<double> node7 = subnodes[subconnectivity[e][7]];
+        vector<ScalarT> node0 = subnodes[subconnectivity[e][0]];
+        vector<ScalarT> node1 = subnodes[subconnectivity[e][1]];
+        vector<ScalarT> node2 = subnodes[subconnectivity[e][2]];
+        vector<ScalarT> node3 = subnodes[subconnectivity[e][3]];
+        vector<ScalarT> node4 = subnodes[subconnectivity[e][4]];
+        vector<ScalarT> node5 = subnodes[subconnectivity[e][5]];
+        vector<ScalarT> node6 = subnodes[subconnectivity[e][6]];
+        vector<ScalarT> node7 = subnodes[subconnectivity[e][7]];
         
         // Compute the candidate new nodes
-        vector<double> mid0123, mid01, mid12, mid23, mid03;
-        vector<double> center, mid04, mid15, mid26, mid37, mid0145, mid1256, mid2367, mid0347;
-        vector<double> mid4567, mid45, mid56, mid67, mid47;
+        vector<ScalarT> mid0123, mid01, mid12, mid23, mid03;
+        vector<ScalarT> center, mid04, mid15, mid26, mid37, mid0145, mid1256, mid2367, mid0347;
+        vector<ScalarT> mid4567, mid45, mid56, mid67, mid47;
         
         center.push_back(0.125*(node0[0]+node1[0]+node2[0]+node3[0]+node4[0]+node5[0]+node6[0]+node7[0]));
         center.push_back(0.125*(node0[1]+node1[1]+node2[1]+node3[1]+node4[1]+node5[1]+node6[1]+node7[1]));
@@ -760,13 +760,13 @@ public:
         mid4567.push_back(0.25*(node4[2]+node5[2]+node6[2]+node7[2]));
         
         // Check if these nodes have been added and add if not
-        double tol=1.0e-6;
+        ScalarT tol=1.0e-6;
         
         int mid0123_ind, mid01_ind, mid12_ind, mid23_ind, mid03_ind;
         int center_ind, mid04_ind, mid15_ind, mid26_ind, mid37_ind;
         int mid0145_ind, mid1256_ind, mid2367_ind, mid0347_ind;
         int mid4567_ind, mid45_ind, mid56_ind, mid67_ind, mid47_ind;
-        double check;
+        ScalarT check;
         bool found;
         
         found = checkExistingSubNodes(mid0123,tol,mid0123_ind);
@@ -1072,13 +1072,13 @@ public:
   // Check if a sub-grid nodes has already been added to the list
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  bool checkExistingSubNodes(const vector<double> & newpt,
-                             const double & tol, int & index) {
+  bool checkExistingSubNodes(const vector<ScalarT> & newpt,
+                             const ScalarT & tol, int & index) {
     bool found = false;
     int dimension = newpt.size();
     for (int i=0; i<subnodes.size(); i++) {
       if (!found) {
-        double val = 0.0;
+        ScalarT val = 0.0;
         for (int j=0; j<dimension; j++) {
           val += (subnodes[i][j]-newpt[j])*(subnodes[i][j]-newpt[j]);
         }
@@ -1095,7 +1095,7 @@ public:
   // Get the sub-grid nodes
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  vector<vector<double> > getSubNodes() {
+  vector<vector<ScalarT> > getSubNodes() {
     return subnodes;
   }
   
@@ -1133,7 +1133,7 @@ protected:
   string shape, subshape;
   DRV nodes;
   Kokkos::View<int****,HostDevice> sideinfo;
-  vector<vector<double> > subnodes;
+  vector<vector<ScalarT> > subnodes;
   vector<vector<int> > subconnectivity;
   vector<Kokkos::View<int****,AssemblyDevice> > subsideinfo;
   

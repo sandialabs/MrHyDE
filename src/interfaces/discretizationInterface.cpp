@@ -205,9 +205,9 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
       Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,globalEID);
       cells[b][e]->sideinfo = sideinfo;
       cells[b][e]->sidenames = phys->sideSets;
-      vector<vector<double> > cellOrient;
+      vector<vector<ScalarT> > cellOrient;
       for (int i=0; i<numElem; i++) {
-        vector<double> orient;
+        vector<ScalarT> orient;
         size_t elemID = this->myElements[b][eprog+i];
         DOF->getElementOrientation(elemID, orient);
         cellOrient.push_back(orient);

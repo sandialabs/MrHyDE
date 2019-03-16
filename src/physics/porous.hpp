@@ -43,7 +43,7 @@ public:
       numSteps = 1;
     
     addBiot = settings->sublist("Physics").get<bool>("Biot",false);
-    biot_alpha = settings->sublist("Physics").get<double>("Biot alpha",0.0);
+    biot_alpha = settings->sublist("Physics").get<ScalarT>("Biot alpha",0.0);
     numResponses = 1;
     
   }
@@ -58,17 +58,17 @@ public:
     
     int numip = wkset->ip.dimension(1);
     
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
     AD p, dpdx, dpdy, dpdz, p_dot;
     AD ddx_dx_dot, ddy_dy_dot, ddz_dz_dot;
     
-    double v = 0.0;
-    double dvdx = 0.0;
-    double dvdy = 0.0;
-    double dvdz = 0.0;
+    ScalarT v = 0.0;
+    ScalarT dvdx = 0.0;
+    ScalarT dvdy = 0.0;
+    ScalarT dvdz = 0.0;
     
     int resindex;
     int p_basis = wkset->usebasis[pnum];
@@ -209,7 +209,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  vector<FC> extraFields(const FC & ip, const double & time) {
+  vector<FC> extraFields(const FC & ip, const ScalarT & time) {
     vector<FC> ef;
     /*
     FCAD targ_AD = this->target(ip, time);
@@ -226,7 +226,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  vector<FC> extraCellFields(const FC & ip, const double & time) const {
+  vector<FC> extraCellFields(const FC & ip, const ScalarT & time) const {
     vector<FC> ef;
     return ef;
   }
@@ -255,7 +255,7 @@ private:
   int pnum;
   int dxnum,dynum,dznum;
   bool isTD, addBiot;
-  double biot_alpha;
+  ScalarT biot_alpha;
   
   vector<string> varlist;
   

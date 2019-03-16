@@ -58,21 +58,21 @@ void analysis::run() {
     
   }
   else if (analysis_type == "forward_fr") {
-    double s = settings->sublist("Physics").get<double>("frac_exp",0.2);
-    //      double s = 0.2;
+    ScalarT s = settings->sublist("Physics").get<ScalarT>("frac_exp",0.2);
+    //      ScalarT s = 0.2;
     
-    //      double s = 0.2;
-    double N = 100;
-    double h = 1/(sqrt(N));
-    double k = 1/(log(1/h));
-    double pi = 3.14159265359;
+    //      ScalarT s = 0.2;
+    ScalarT N = 100;
+    ScalarT h = 1/(sqrt(N));
+    ScalarT k = 1/(log(1/h));
+    ScalarT pi = 3.14159265359;
     
     int Nplus = (int) ceil(pi*pi/(4*s*k*k));
     int Nminus = (int) ceil(pi*pi/(4*(1-s)*k*k));
     
     vector_RCP F_soln = solve->forwardModel(objfun);
     for (int ell = -Nminus; ell < Nplus; ell++) {
-      double y = k*ell;
+      ScalarT y = k*ell;
       //	vector_RCP F_soln_inter = solve->forwardModel(objfun);
       vector_RCP F_soln_inter = solve->forwardModel_fr(objfun,y,s);
       F_soln->update(1.0,*F_soln_inter, 1.0);
@@ -102,7 +102,7 @@ void analysis::run() {
     //if (settings->sublist("Postprocess").get<bool>("compute sensitivities",false))
     //  gradient = postproc->computeSensitivities(F_soln, A_soln);
     if (settings->sublist("Postprocess").get<bool>("error estimate",false))
-      double errorest = solve->computeError(F_soln, A_soln);
+      ScalarT errorest = solve->computeError(F_soln, A_soln);
     
     if (settings->sublist("Postprocess").get("write solution",true)) {
       postproc->writeSolution(F_soln, settings->sublist("Postprocess").get<string>("Output File","output"));
@@ -128,12 +128,12 @@ void analysis::run() {
     // Read in the samples
     int ptsdim = sampsettings.get<int>("dimension");
     data sdata("Sample Points", ptsdim, sampsettings.get("source","samples.dat"));
-    Kokkos::View<double**,HostDevice> samples = sdata.getpoints();
+    Kokkos::View<ScalarT**,HostDevice> samples = sdata.getpoints();
     int numsamples = samples.dimension(0);
     
     // Evaluate MILO or a surrogate at these samples
-    vector<double> response_values;
-    vector<vector<double> > gradient_values;
+    vector<ScalarT> response_values;
+    vector<vector<ScalarT> > gradient_values;
     
     stringstream ss;
     std::string sname2 = "sampledata.dat";
@@ -145,7 +145,7 @@ void analysis::run() {
     cout << "Evaluating samples ..." << endl;
     
     for (int j=0; j<numsamples; j++) {
-      vector<double> currparams;
+      vector<ScalarT> currparams;
       DFAD objfun = 0.0;
       for (int i=0; i<ptsdim; i++)  {
         currparams.push_back(samples(j,i));
@@ -162,9 +162,9 @@ void analysis::run() {
       if(S_Comm->getRank() == 0) {
         sdataOUT << response_values[j] << "  ";
       }
-      vector<double> currgradient;
+      vector<ScalarT> currgradient;
       vector_RCP A_soln = solve->adjointModel(F_soln, currgradient);
-      //vector<double> currgradient = postproc->computeSensitivities(F_soln, A_soln);
+      //vector<ScalarT> currgradient = postproc->computeSensitivities(F_soln, A_soln);
       gradient_values.push_back(currgradient);
       if(S_Comm->getRank() == 0) {
         for (size_t paramiter=0; paramiter < ptsdim; paramiter++) {
@@ -191,10 +191,10 @@ void analysis::run() {
     // Build the uq manager
     Teuchos::ParameterList uqsettings = settings->sublist("Analysis").sublist("UQ");
     vector<string> param_types = solve->stochastic_distribution;
-    vector<double> param_means = solve->getStochasticParams("mean");
-    vector<double> param_vars = solve->getStochasticParams("variance");
-    vector<double> param_mins = solve->getStochasticParams("min");
-    vector<double> param_maxs = solve->getStochasticParams("max");
+    vector<ScalarT> param_means = solve->getStochasticParams("mean");
+    vector<ScalarT> param_vars = solve->getStochasticParams("variance");
+    vector<ScalarT> param_mins = solve->getStochasticParams("min");
+    vector<ScalarT> param_maxs = solve->getStochasticParams("max");
     uqmanager uq(*LA_Comm, uqsettings, param_types, param_means, param_vars, param_mins, param_maxs);
     
     // Generate the samples for the UQ
@@ -202,12 +202,12 @@ void analysis::run() {
     int numsamples = uqsettings.get<int>("Samples",100);
     int maxsamples = uqsettings.get<int>("Max samples",numsamples); // needed for generating subsets of samples
     int seed = uqsettings.get<int>("Seed",1234);
-    Kokkos::View<double**,HostDevice> samplepts = uq.generateSamples(maxsamples, seed);
+    Kokkos::View<ScalarT**,HostDevice> samplepts = uq.generateSamples(maxsamples, seed);
     Kokkos::View<int*,HostDevice> sampleints = uq.generateIntegerSamples(maxsamples, seed);
     bool regenerate_meshdata = uqsettings.get<bool>("Regenerate mesh data",false);
     // Evaluate MILO or a surrogate at these samples
-    vector<Kokkos::View<double***,HostDevice> > response_values;
-    vector<Kokkos::View<double****,HostDevice> > response_grads;
+    vector<Kokkos::View<ScalarT***,HostDevice> > response_values;
+    vector<Kokkos::View<ScalarT****,HostDevice> > response_grads;
     Teuchos::RCP<const LA_Map> emap = solve->LA_overlapped_map;
     vector_RCP avgsoln = Teuchos::rcp(new LA_MultiVector(emap, 2));
     int output_freq = uqsettings.get<int>("Output Frequency",1);
@@ -217,7 +217,7 @@ void analysis::run() {
     else {
       cout << "Running Monte Carlo sampling ..." << endl;
       for (int j=0; j<numsamples; j++) {
-        vector<double> currparams;
+        vector<ScalarT> currparams;
         for (int i=0; i<numstochparams; i++) {
           currparams.push_back(samplepts(j,i));
         }
@@ -228,7 +228,7 @@ void analysis::run() {
         }
         vector_RCP F_soln = solve->forwardModel(objfun);
         //vector_RCP A_soln = solve->adjointModel(F_soln, gradient);
-        avgsoln->update(1.0/(double)numsamples, *F_soln, 1.0);
+        avgsoln->update(1.0/(ScalarT)numsamples, *F_soln, 1.0);
         /*if (settings->sublist("Postprocess").get("write solution",true)) {
          stringstream ss;
          ss << j;
@@ -236,12 +236,12 @@ void analysis::run() {
          postproc->writeSolution(F_soln, "sampling_data/outputMC_" + str + "_.exo");
          }*/
         if (settings->sublist("Postprocess").get<bool>("compute response",false)) {
-          Kokkos::View<double***,HostDevice> currresponse = postproc->computeResponse(F_soln,0);
+          Kokkos::View<ScalarT***,HostDevice> currresponse = postproc->computeResponse(F_soln,0);
           for (size_t i=0; i<currresponse.dimension(0); i++) {
             for (size_t j=0; j<currresponse.dimension(1); j++) {
               for (size_t k=0; k<currresponse.dimension(2); k++) {
-                double myval = currresponse(i,j,k);
-                double gval = 0.0;
+                ScalarT myval = currresponse(i,j,k);
+                ScalarT gval = 0.0;
                 Teuchos::reduceAll(*LA_Comm,Teuchos::REDUCE_SUM,1,&myval,&gval);
                 //LA_Comm->SumAll(&myval, &gval, 1);
                 currresponse(i,j,k) = gval;
@@ -251,21 +251,21 @@ void analysis::run() {
           
           response_values.push_back(currresponse);
           if (settings->sublist("Postprocess").get<bool>("compute response forward gradient",false)) {
-            Kokkos::View<double****,HostDevice> currgrad("current gradient",numstochparams,currresponse.dimension(0),
+            Kokkos::View<ScalarT****,HostDevice> currgrad("current gradient",numstochparams,currresponse.dimension(0),
                                                          currresponse.dimension(1),currresponse.dimension(2));
             for (int i=0; i<numstochparams; i++) {
-              double oldval = currparams[i];
-              double pert = 1.0e-6;
+              ScalarT oldval = currparams[i];
+              ScalarT pert = 1.0e-6;
               currparams[i] += pert;
               solve->updateParams(currparams,2);
               DFAD objfun2 = 0.0;
               vector_RCP F_soln2 = solve->forwardModel(objfun2);
-              Kokkos::View<double***,HostDevice> currresponse2 = postproc->computeResponse(F_soln2,0);
+              Kokkos::View<ScalarT***,HostDevice> currresponse2 = postproc->computeResponse(F_soln2,0);
               for (size_t i2=0; i2<currresponse2.dimension(0); i2++) {
                 for (size_t j=0; j<currresponse2.dimension(1); j++) {
                   for (size_t k=0; k<currresponse2.dimension(2); k++) {
-                    double myval = currresponse2(i2,j,k);
-                    double gval = 0.0;
+                    ScalarT myval = currresponse2(i2,j,k);
+                    ScalarT gval = 0.0;
                     Teuchos::reduceAll(*LA_Comm,Teuchos::REDUCE_SUM,1,&myval,&gval);
                     //LA_Comm->SumAll(&myval, &gval, 1);
                     currgrad(i,i2,j,k) = (gval-currresponse(i2,j,k))/pert;
@@ -347,7 +347,7 @@ void analysis::run() {
      int numParams = solve.getNumParams("stochastic");
      bool adaptive = uqsettings.get<bool>("Adaptive",false);
      std::string adaptive_criteria = uqsettings.get<std::string>("Adaptive Criteria","");
-     vector<vector<double> > params = uq.getNewPoints();
+     vector<vector<ScalarT> > params = uq.getNewPoints();
      size_t numpts = params.size();
      bool done = false;
      if (numpts == 0)
@@ -355,18 +355,18 @@ void analysis::run() {
      
      vector<Epetra_MultiVector> fwdsols;
      vector<Epetra_MultiVector> adjsols;
-     vector<double> responsevals;
-     vector<double> errorvals;
-     //array<double> newpoints;
+     vector<ScalarT> responsevals;
+     vector<ScalarT> errorvals;
+     //array<ScalarT> newpoints;
      
      while (!done) {
      for (int j=0; j++; j<numpts) {
-     vector<double> currparams = params[j];
+     vector<ScalarT> currparams = params[j];
      solve.updateParams(currparams,"stochastic");
      Epetra_MultiVector F_soln = solve.forwardModel();
      fwdsols.push_back(F_soln);
      if (settings->sublist("Postprocess").get<bool>("compute response",false)) {
-     double currresponse = postproc.computeResponse(F_soln);
+     ScalarT currresponse = postproc.computeResponse(F_soln);
      responsevals.push_back(currresponse);
      }
      //Epetra_MultiVector A_soln = solve.adjointModel(F_soln);
@@ -382,7 +382,7 @@ void analysis::run() {
     
   }
   else if (analysis_type == "ROL") {
-    typedef double RealT;
+    typedef ScalarT RealT;
     typedef ROL::Vector<RealT> V;
     typedef ROL::StdVector<RealT> SV;
     
@@ -429,13 +429,13 @@ void analysis::run() {
     //ROL::Algorithm<RealT> algo(*step,status,false);
     
     //int numParams = solve->getNumParams(1);
-    //vector<double> params = solve->getParams(1);
+    //vector<ScalarT> params = solve->getParams(1);
     
     int numClassicParams = solve->getNumParams(1);
     int numDiscParams = solve->getNumParams(4);
     int numParams = numClassicParams + numDiscParams;
-    vector<double> classic_params;
-    vector<double> disc_params;
+    vector<ScalarT> classic_params;
+    vector<ScalarT> disc_params;
     if (numClassicParams > 0)
     classic_params = solve->getParams(1);
     if (numDiscParams > 0)
@@ -478,8 +478,8 @@ void analysis::run() {
       Teuchos::RCP<vector<RealT> > maxvec = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
       
       //read in bounds for parameters...
-      vector<vector<double> > classicBnds = solve->getParamBounds("active");
-      vector<vector<double> > discBnds = solve->getParamBounds("discretized");
+      vector<vector<ScalarT> > classicBnds = solve->getParamBounds("active");
+      vector<vector<ScalarT> > discBnds = solve->getParamBounds("discretized");
       
       pprog = 0;
       
@@ -527,7 +527,7 @@ void analysis::run() {
       }
       else {
         for ( unsigned i = 0; i < numParams; i++ ) {
-          (*d_rcp)[i] = 10.0*(double)rand()/(double)RAND_MAX - 5.0;
+          (*d_rcp)[i] = 10.0*(ScalarT)rand()/(ScalarT)RAND_MAX - 5.0;
         }
       }
       ROL::StdVector<RealT> d(d_rcp);
@@ -546,7 +546,7 @@ void analysis::run() {
     else
     output = algo.run(x, *obj, (LA_Comm->getRank() == 0 && S_Comm->getRank() == 0)); //only processor of rank 0 prints out
     
-    double optTime = timer.stop();
+    ScalarT optTime = timer.stop();
     if (LA_Comm->getRank() == 0 && S_Comm->getRank() == 0) {
       string outname = ROLsettings.get("Output File Name","ROL_out.txt");
       ofstream respOUT(outname);
@@ -584,7 +584,7 @@ void analysis::run() {
     }
   } //ROL
   else if (analysis_type == "ROL_SIMOPT") {
-    typedef double RealT;
+    typedef ScalarT RealT;
     typedef ROL::Vector<RealT> V;
     typedef ROL::StdVector<RealT> SV;
     
@@ -631,13 +631,13 @@ void analysis::run() {
     //ROL::Algorithm<RealT> algo(*step,status,false);
     
     //int numParams = solve->getNumParams(1);
-    //vector<double> params = solve->getParams(1);
+    //vector<ScalarT> params = solve->getParams(1);
     
     int numClassicParams = solve->getNumParams(1);
     int numDiscParams = solve->getNumParams(4);
     int numParams = numClassicParams + numDiscParams;
-    vector<double> classic_params;
-    vector<double> disc_params;
+    vector<ScalarT> classic_params;
+    vector<ScalarT> disc_params;
     if (numClassicParams > 0)
     classic_params = solve->getParams(1);
     if (numDiscParams > 0)
@@ -680,8 +680,8 @@ void analysis::run() {
       Teuchos::RCP<vector<RealT> > maxvec = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
       
       //read in bounds for parameters...
-      vector<vector<double> > classicBnds = solve->getParamBounds("active");
-      vector<vector<double> > discBnds = solve->getParamBounds("discretized");
+      vector<vector<ScalarT> > classicBnds = solve->getParamBounds("active");
+      vector<vector<ScalarT> > discBnds = solve->getParamBounds("discretized");
       
       pprog = 0;
       
@@ -729,7 +729,7 @@ void analysis::run() {
       }
       else {
         for ( unsigned i = 0; i < numParams; i++ ) {
-          (*d_rcp)[i] = 10.0*(double)rand()/(double)RAND_MAX - 5.0;
+          (*d_rcp)[i] = 10.0*(ScalarT)rand()/(ScalarT)RAND_MAX - 5.0;
         }
       }
       ROL::StdVector<RealT> d(d_rcp);
@@ -748,7 +748,7 @@ void analysis::run() {
     else
     output = algo.run(x, *obj, (LA_Comm->getRank() == 0 && S_Comm->getRank() == 0)); //only processor of rank 0 prints out
     
-    double optTime = timer.stop();
+    ScalarT optTime = timer.stop();
     if (LA_Comm->getRank() == 0 && S_Comm->getRank() == 0) {
       string outname = ROLsettings.get("Output File Name","ROL_out.txt");
       ofstream respOUT(outname);

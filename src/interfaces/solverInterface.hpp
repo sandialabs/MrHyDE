@@ -77,7 +77,7 @@ public:
   // return the discretized parameters as vector for use with ROL
   // ========================================================================================
   
-  vector<double> getDiscretizedParamsVector();
+  vector<ScalarT> getDiscretizedParamsVector();
   
   // ========================================================================================
   /* given the parameters, solve the forward  problem */
@@ -89,12 +89,12 @@ public:
   /* given the parameters, solve the fractional forward  problem */
   // ========================================================================================
   
-  vector_RCP forwardModel_fr(DFAD & obj, double yt, double st);
+  vector_RCP forwardModel_fr(DFAD & obj, ScalarT yt, ScalarT st);
   
   // ========================================================================================
   // ========================================================================================
   
-  vector_RCP adjointModel(vector_RCP & F_soln, vector<double> & gradient);
+  vector_RCP adjointModel(vector_RCP & F_soln, vector<ScalarT> & gradient);
   
   
   // ========================================================================================
@@ -102,7 +102,7 @@ public:
   // ========================================================================================
   
   void transientSolver(vector_RCP & initial, vector_RCP & L_soln,
-                       vector_RCP & SolMat, DFAD & obj, vector<double> & gradient);
+                       vector_RCP & SolMat, DFAD & obj, vector<ScalarT> & gradient);
   
   // ========================================================================================
   // ========================================================================================
@@ -110,7 +110,7 @@ public:
   
   void nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
                        vector_RCP & phi, vector_RCP & phi_dot,
-                       const double & alpha, const double & beta);
+                       const ScalarT & alpha, const ScalarT & beta);
   
   // ========================================================================================
   // ========================================================================================
@@ -120,27 +120,27 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  DFAD computeObjective(const vector_RCP & F_soln, const double & time, const size_t & tindex);
+  DFAD computeObjective(const vector_RCP & F_soln, const ScalarT & time, const size_t & tindex);
   
   // ========================================================================================
   // ========================================================================================
   
-  vector<double> computeSensitivities(const vector_RCP & GF_soln,
+  vector<ScalarT> computeSensitivities(const vector_RCP & GF_soln,
                                       const vector_RCP & GA_soln);
   
   // ========================================================================================
   // Compute the sensitivity of the objective with respect to discretized parameters
   // ========================================================================================
   
-  vector<double> computeDiscretizedSensitivities(const vector_RCP & F_soln,
+  vector<ScalarT> computeDiscretizedSensitivities(const vector_RCP & F_soln,
                                                  const vector_RCP & A_soln);
   
   // ========================================================================================
   // ========================================================================================
   
   void computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
-                            vector_RCP & a2, vector<double> & gradient,
-                            const double & alpha, const double & beta);
+                            vector_RCP & a2, vector<ScalarT> & gradient,
+                            const ScalarT & alpha, const ScalarT & beta);
   
   // ========================================================================================
   // The following function is the adjoint-based error estimate
@@ -148,7 +148,7 @@ public:
   //   solution to perform verification studies
   // ========================================================================================
   
-  double computeError(const vector_RCP & GF_soln, const vector_RCP & GA_soln);
+  ScalarT computeError(const vector_RCP & GF_soln, const vector_RCP & GA_soln);
   
   // ========================================================================================
   // ========================================================================================
@@ -177,7 +177,7 @@ public:
   // ========================================================================================
   
   void updateResDBCsens(vector_RCP & resid, size_t & e, size_t & block, int & fieldNum, size_t & localSideId,
-                        const std::string & gside, const double & current_time);
+                        const std::string & gside, const ScalarT & current_time);
   
   // ========================================================================================
   // ========================================================================================
@@ -199,7 +199,7 @@ public:
   
   void computeJacRes(vector_RCP & u, vector_RCP & u_dot,
                      vector_RCP & phi, vector_RCP & phi_dot,
-                     const double & alpha, const double & beta,
+                     const ScalarT & alpha, const ScalarT & beta,
                      const bool & compute_jacobian, const bool & compute_sens,
                      const bool & compute_disc_sens,
                      vector_RCP & res, matrix_RCP & J);
@@ -240,12 +240,12 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void updateParams(const vector<double> & newparams, const int & type);
+  void updateParams(const vector<ScalarT> & newparams, const int & type);
   
   // ========================================================================================
   // ========================================================================================
   
-  void updateParams(const vector<double> & newparams, const std::string & stype);
+  void updateParams(const vector<ScalarT> & newparams, const std::string & stype);
   
   // ========================================================================================
   // ========================================================================================
@@ -255,7 +255,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  vector<double> getParams(const int & type);
+  vector<ScalarT> getParams(const int & type);
   
   // ========================================================================================
   // ========================================================================================
@@ -270,12 +270,12 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  vector<double> getParams(const std::string & stype);
+  vector<ScalarT> getParams(const std::string & stype);
   
   // ========================================================================================
   // ========================================================================================
   
-  vector<vector<double> > getParamBounds(const std::string & stype);
+  vector<vector<ScalarT> > getParamBounds(const std::string & stype);
   
   // ========================================================================================
   // ========================================================================================
@@ -290,12 +290,12 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  vector<double> getStochasticParams(const std::string & whichparam);
+  vector<ScalarT> getStochasticParams(const std::string & whichparam);
 
   // ========================================================================================
   // ========================================================================================
   
-  vector<double> getFractionalParams(const std::string & whichparam);
+  vector<ScalarT> getFractionalParams(const std::string & whichparam);
   
   // ========================================================================================
   // ========================================================================================
@@ -351,21 +351,21 @@ public:
   vector<int> LA_ownedAndShared;				 // GIDs that live or are shared on the local processor.
   
   int allow_remesh, MaxNLiter, meshmod_xvar, meshmod_yvar, meshmod_zvar, time_order;
-  double NLtol, meshmod_TOL, meshmod_center, meshmod_layer_size, finaltime;
+  ScalarT NLtol, meshmod_TOL, meshmod_center, meshmod_layer_size, finaltime;
   string solver_type, NLsolver, initial_type;
   bool line_search, meshmod_usesmoother, useL2proj;
   
-  double lintol, dropTol, fillParam;
+  ScalarT lintol, dropTol, fillParam;
   int liniter, kspace;
   bool useDomDecomp, useDirect, usePrec;
   
-  vector<Kokkos::View<double**,HostDevice> > sensor_data;
-  Kokkos::View<double**,HostDevice> sensor_points;
+  vector<Kokkos::View<ScalarT**,HostDevice> > sensor_data;
+  Kokkos::View<ScalarT**,HostDevice> sensor_points;
   //FCint sensor_locations;
   int numSensors;
 
   vector<string> paramnames;
-  vector<vector<double> > paramvals;
+  vector<vector<ScalarT> > paramvals;
   vector<Teuchos::RCP<vector<AD> > > paramvals_AD;
   Kokkos::View<AD**,AssemblyDevice> paramvals_KVAD;
   
@@ -374,8 +374,8 @@ public:
   vector<vector_RCP> dRdP;
   bool have_dRdP;
   Teuchos::RCP<const panzer::DOFManager<int,int> > discparamDOF;
-  vector<vector<double> > paramLowerBounds;
-  vector<vector<double> > paramUpperBounds;
+  vector<vector<ScalarT> > paramLowerBounds;
+  vector<vector<ScalarT> > paramUpperBounds;
   vector<string> discretized_param_basis_types;
   vector<int> discretized_param_basis_orders, discretized_param_usebasis;
   vector<string> discretized_param_names;
@@ -393,8 +393,8 @@ public:
   vector<vector<int>> paramNodes;  // for distinguishing between parameter fields when setting initial
   vector<vector<int>> paramNodesOS;// values and bounds
   int num_inactive_params, num_active_params, num_stochastic_params, num_discrete_params, num_discretized_params;
-  vector<double> initialParamValues, lowerParamBounds, upperParamBounds, discparamVariance;
-  vector<double> domainRegConstants, boundaryRegConstants;
+  vector<ScalarT> initialParamValues, lowerParamBounds, upperParamBounds, discparamVariance;
+  vector<ScalarT> domainRegConstants, boundaryRegConstants;
   vector<string> boundaryRegSides;
   vector<int> domainRegTypes, domainRegIndices, boundaryRegTypes, boundaryRegIndices;
   int verbosity;
@@ -402,21 +402,21 @@ public:
   bool discretized_stochastic;
   
   vector<string> stochastic_distribution, discparam_distribution;
-  vector<double> stochastic_mean, stochastic_variance, stochastic_min, stochastic_max;
+  vector<ScalarT> stochastic_mean, stochastic_variance, stochastic_min, stochastic_max;
   
 
   //fractional parameters
-  vector<double> s_exp;
-  vector<double> h_mesh;
+  vector<ScalarT> s_exp;
+  vector<ScalarT> h_mesh;
 
   int batchID; //which stochastic collocation batch; to avoid multiple processors trying to stash at once to same file
   
   vector<vector<Teuchos::RCP<cell> > > cells;
   
-  double current_time;
+  ScalarT current_time;
   
   
-  vector<double> solvetimes;
+  vector<ScalarT> solvetimes;
   
   vector<vector_RCP> fwdsol;
   vector<vector_RCP> adjsol;
@@ -448,7 +448,7 @@ public:
 
   // variables read in from an exodus mesh
   vector_RCP meas;
-  vector<vector<double> > nfield_vals, efield_vals;
+  vector<vector<ScalarT> > nfield_vals, efield_vals;
   vector<string> nfield_names, efield_names;
   int numResponses;
   bool use_meas_as_dbcs;

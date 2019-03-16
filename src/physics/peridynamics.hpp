@@ -39,7 +39,7 @@ public:
   // The volumetric contributions to the residual
   // ========================================================================================
   
-  void volumeResidual(const double & h, const double & current_time, const FCAD & local_soln, 
+  void volumeResidual(const ScalarT & h, const ScalarT & current_time, const FCAD & local_soln,
                       const FCAD & local_solngrad, const FCAD & local_soln_dot, 
                       const FCAD & local_param, const FCAD & local_param_grad, 
                       const FCAD & local_aux, const FCAD & local_aux_grad, 
@@ -56,7 +56,7 @@ public:
   // The boundary contributions to the residual
   // ========================================================================================
   
-  void boundaryResidual(const double & h, const double & current_time, const FCAD & local_soln, 
+  void boundaryResidual(const ScalarT & h, const ScalarT & current_time, const FCAD & local_soln,
                         const FCAD & local_solngrad, const FCAD & local_soln_dot, 
                         const FCAD & local_param, const FCAD & local_param_grad, 
                         const FCAD & local_aux, const FCAD & local_aux_grad, 
@@ -72,7 +72,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void edgeResidual(const double & h, const double & current_time, const FCAD & local_soln, 
+  void edgeResidual(const ScalarT & h, const ScalarT & current_time, const FCAD & local_soln,
                     const FCAD & local_solngrad, const FCAD & local_soln_dot, 
                     const FCAD & local_param, const FCAD & local_param_grad, 
                     const FCAD & local_aux, const FCAD & local_aux_grad, 
@@ -87,7 +87,7 @@ public:
   // The boundary/edge flux
   // ========================================================================================
   
-  void computeFlux(const FC & ip, const double & h, const double & current_time, 
+  void computeFlux(const FC & ip, const ScalarT & h, const ScalarT & current_time,
                    const FCAD & local_soln, const FCAD & local_solngrad, 
                    const FCAD & local_soln_dot, const FCAD local_param, const FCAD local_aux, 
                    const FC & normals, FCAD & flux) {
@@ -98,8 +98,8 @@ public:
   // Get the value for the Dirichlet boundary data on a given side
   // ========================================================================================
   
-  AD getDirichletValue(const string & var, const double & x, const double & y, const double & z, 
-                       const double & t, const string & gside, 
+  AD getDirichletValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
+                       const ScalarT & t, const string & gside,
                        const std::vector<std::vector<AD > > currparams,  
                        const bool & useadjoint) const {
     AD val = 0.0; 
@@ -110,9 +110,9 @@ public:
   // Get the initial value
   // ========================================================================================
   
-  double getInitialValue(const string & var, const double & x, const double & y, 
-                         const double & z, const bool & useadjoint) const {
-    double val = 0.0;
+  ScalarT getInitialValue(const string & var, const ScalarT & x, const ScalarT & y,
+                         const ScalarT & z, const bool & useadjoint) const {
+    ScalarT val = 0.0;
     return val;
   }
   
@@ -120,9 +120,9 @@ public:
   // error calculation
   // ========================================================================================
   
-  double trueSolution(const string & var, const double & x, const double & y, const double & z, 
-                      const double & time) const {
-    double val = 0.0;
+  ScalarT trueSolution(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
+                      const ScalarT & time) const {
+    ScalarT val = 0.0;
     if (var == "pdx")
       val = 1.0;
     if (var == "pdy")
@@ -136,7 +136,7 @@ public:
   
   FCAD response(const FCAD & local_soln, 
                                const FCAD & local_soln_grad,
-                               const DRV & ip, const double & time, 
+                               const DRV & ip, const ScalarT & time,
                                const std::vector<std::vector<AD > > paramvals) const {
     int numCC = ip.dimension(0);
     int numip = ip.dimension(1);
@@ -157,7 +157,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  FCAD target(const FC & ip, const double & time, 
+  FCAD target(const FC & ip, const ScalarT & time,
                              const std::vector<std::vector<AD > > paramvals) const {
     int numCC = ip.dimension(0);
     int numip = ip.dimension(1);
@@ -203,8 +203,8 @@ public:
   // return the source term (to be multiplied by test_function) 
   // ========================================================================================
   
-  double SourceTerm(const double & x, const double & y, const double & z) const {
-    double val = 0.0;
+  ScalarT SourceTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z) const {
+    ScalarT val = 0.0;
     return val;
   }
   
@@ -212,9 +212,9 @@ public:
   // return the boundary source term (to be multiplied by test_function) 
   // ========================================================================================
   
-  double boundarySource(const double & x, const double & y, const double & z, const double & t, 
+  ScalarT boundarySource(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
                         const string & side) const {
-    double val = 0.0;
+    ScalarT val = 0.0;
     return val;
   }
   
@@ -222,7 +222,7 @@ public:
   // return the robin coefficient 
   // ========================================================================================
   
-  double robinAlpha(const double & x, const double & y, const double & z, const double & t, 
+  ScalarT robinAlpha(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
                     const string & side) const {
     return 0.0;
   }
@@ -273,7 +273,7 @@ private:
   
   // Variable numbers for all of the variables this module requires
   int pdx_num, pdy_num, pdz_num;
-  //double PI;
+  //ScalarT PI;
   
 };
 

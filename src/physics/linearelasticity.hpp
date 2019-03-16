@@ -58,8 +58,8 @@ public:
     
     incplanestress = settings->sublist("Physics").get<bool>("incplanestress",false);
     
-    formparam = settings->sublist("Physics").get<double>("form_param",1.0);
-    epen = settings->sublist("Physics").get<double>("penalty",10.0);
+    formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
+    epen = settings->sublist("Physics").get<ScalarT>("penalty",10.0);
     cell_num = 0;
     
     multiscale = settings->isSublist("Subgrid");
@@ -70,9 +70,9 @@ public:
     
     // TMW: we might move biot_alpha to udfunc
     // TS: e_ref and alpha_T too?
-    biot_alpha = settings->sublist("Physics").get<double>("Biot alpha",0.0);
-    e_ref = settings->sublist("Physics").get<double>("T_ambient",0.0);
-    alpha_T = settings->sublist("Physics").get<double>("alpha_T",1.0e-6);
+    biot_alpha = settings->sublist("Physics").get<ScalarT>("Biot alpha",0.0);
+    e_ref = settings->sublist("Physics").get<ScalarT>("T_ambient",0.0);
+    alpha_T = settings->sublist("Physics").get<ScalarT>("alpha_T",1.0e-6);
     
     x = 0.0;    y = 0.0;    z = 0.0;
     dx = 0.0;    ddx_dx = 0.0;    ddx_dy = 0.0;    ddx_dz = 0.0;
@@ -298,7 +298,7 @@ public:
     string sname = wkset->sidename;
     int sidetype = wkset->sidetype;
     
-    double sf = formparam;
+    ScalarT sf = formparam;
     if (wkset->isAdjoint) {
       sf = 1.0;
     }
@@ -672,7 +672,7 @@ public:
       udfunc->coefficient("mu",wkset,true,mu_side);
       this->computeStress(true);
       
-      double sf = formparam;
+      ScalarT sf = formparam;
       if (wkset->isAdjoint) {
         sf = 1.0;
       }
@@ -785,9 +785,9 @@ public:
     eval = 0.0;
     delta_e = 0.0;
     AD penalty;
-    double current_time = wkset->time;
+    ScalarT current_time = wkset->time;
     
-    double sf = 1.0;
+    ScalarT sf = 1.0;
     if (wkset->isAdjoint) {
       sf = formparam;
     }
@@ -1117,30 +1117,30 @@ public:
   // TMW: this has been deprecated ... capability will be replaced
   // ========================================================================================
   
-  vector<Kokkos::View<double***,AssemblyDevice>> extraCellFields() {
-    vector<Kokkos::View<double***,AssemblyDevice>> ef;// = udfunc->extraCellFields(label,wkset);
+  vector<Kokkos::View<ScalarT***,AssemblyDevice>> extraCellFields() {
+    vector<Kokkos::View<ScalarT***,AssemblyDevice>> ef;// = udfunc->extraCellFields(label,wkset);
     /*
     DRV wts = wkset->wts;
     udfunc->coefficient("lambda",wkset,false,lambda);
     udfunc->coefficient("mu",wkset,false,mu);
     this->computeStress(false);
     
-    Kokkos::View<double***,AssemblyDevice> svals;
+    Kokkos::View<ScalarT***,AssemblyDevice> svals;
     int numElem = wts.dimension(0);
     if (spaceDim == 2) {
-      svals = Kokkos::View<double***,AssemblyDevice>("svals",numElem,3,1);
+      svals = Kokkos::View<ScalarT***,AssemblyDevice>("svals",numElem,3,1);
     }
     else if (spaceDim == 3) {
-      svals = Kokkos::View<double***,AssemblyDevice>("svals",numElem,6,1);
+      svals = Kokkos::View<ScalarT***,AssemblyDevice>("svals",numElem,6,1);
     }
     
     for (int e=0; e<numElem; e++) {
-      double vol = 0.0;
+      ScalarT vol = 0.0;
       for (size_t k=0; k<numip; k++) {
         vol += wts(e,k);
       }
       for (int j=0; j<numip; j++) {
-        double cwt = wts(e,j)/vol;
+        ScalarT cwt = wts(e,j)/vol;
         if (spaceDim == 2) {
           svals(e,0,0) += (stress(e,j,0,0).val())*cwt;
           svals(e,1,0) += (stress(e,j,0,1).val())*cwt;
@@ -1159,21 +1159,21 @@ public:
     ef.push_back(svals);
     
     
-    Kokkos::View<double***,AssemblyDevice> vms("von mises stress",numElem,1,1);
+    Kokkos::View<ScalarT***,AssemblyDevice> vms("von mises stress",numElem,1,1);
     
     if (spaceDim == 2) {
       for (int e=0; e<numElem; e++) {
-        double vol = 0.0;
+        ScalarT vol = 0.0;
         for (size_t k=0; k<numip; k++) {
           vol += wts(e,k);
         }
         for (int j=0; j<numip; j++) {
-          double cwt = wts(e,j)/vol;
-          double pratio = lambda(e,j).val() / (2.0*(lambda(e,j).val() + mu(e,j).val()));
-          double s11 = stress(e,j,0,0).val();
-          double s22 = stress(e,j,1,1).val();
-          double s33 = pratio*(s11 + s22);
-          double s12 = stress(e,j,0,1).val();
+          ScalarT cwt = wts(e,j)/vol;
+          ScalarT pratio = lambda(e,j).val() / (2.0*(lambda(e,j).val() + mu(e,j).val()));
+          ScalarT s11 = stress(e,j,0,0).val();
+          ScalarT s22 = stress(e,j,1,1).val();
+          ScalarT s33 = pratio*(s11 + s22);
+          ScalarT s12 = stress(e,j,0,1).val();
           
           vms(e,0,0) += sqrt(0.5*( pow(s11 - s22,2.0) + pow(s22 - s33,2.0)
                                 + pow(s33 - s11,2.0) + 6.0*s12*s12))*cwt;
@@ -1182,12 +1182,12 @@ public:
     }
     else if (spaceDim == 3) {
       for (int e=0; e<numElem; e++) {
-        double vol = 0.0;
+        ScalarT vol = 0.0;
         for (size_t k=0; k<numip; k++) {
           vol += wts(e,k);
         }
         for (int j=0; j<numip; j++) {
-          double cwt = wts(e,j)/vol;
+          ScalarT cwt = wts(e,j)/vol;
           vms(e,0,0) += sqrt(0.5*( pow(stress(e,j,0,0).val() - stress(e,j,1,1).val(),2.0) +
                                 pow(stress(e,j,1,1).val() - stress(e,j,2,2).val(),2.0) +
                                 pow(stress(e,j,2,2).val() - stress(e,j,0,0).val(),2.0) +
@@ -1228,12 +1228,12 @@ private:
   int test, simNum, cell_num;
   string response_type;
   // Parameters
-  //    double lambda, mu;
+  //    ScalarT lambda, mu;
   
-  double v, dvdx, dvdy, dvdz;
+  ScalarT v, dvdx, dvdy, dvdz;
   int resindex, dx_basis, dy_basis, dz_basis;
-  double time;
-  double x,y,z;
+  ScalarT time;
+  ScalarT x,y,z;
   
   // The notation here is a little unfortunate for the derivatives
   // Attempting to make it clearer by using dvar_dx where var = {dx,dy,dz}
@@ -1264,7 +1264,7 @@ private:
   bool multiscale, useLame, addBiot, useCE;
   bool incplanestress;
   bool disp_response_type;
-  double formparam, biot_alpha, e_ref, alpha_T, epen;
+  ScalarT formparam, biot_alpha, e_ref, alpha_T, epen;
   
   Teuchos::RCP<CrystalElastic> crystalelast;
   

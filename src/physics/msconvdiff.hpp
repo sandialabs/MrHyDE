@@ -51,18 +51,18 @@ public:
     useScalarRespFx = settings->sublist("Physics").get<bool>("use scalar response function (msconvdiff)",false);
     
     test = settings->sublist("Physics").get<int>("test",0);
-    //test == 30: global control (threshold) of c2 and c1, velocities from navier-stokes double-lid
+    //test == 30: global control (threshold) of c2 and c1, velocities from navier-stokes ScalarT-lid
     
     //specific to particular test case(s)
-    regParam = settings->sublist("Analysis").sublist("ROL").get<double>("regularization parameter",1.e-6);
-    finTime = settings->sublist("Solver").get<double>("finaltime",1.0);
+    regParam = settings->sublist("Analysis").sublist("ROL").get<ScalarT>("regularization parameter",1.e-6);
+    finTime = settings->sublist("Solver").get<ScalarT>("finaltime",1.0);
     
   }
   
   // ========================================================================================
   // ========================================================================================
   
-  void volumeResidual(const double & h, const double & current_time, const FCAD & local_soln, 
+  void volumeResidual(const ScalarT & h, const ScalarT & current_time, const FCAD & local_soln,
                       const FCAD & local_solngrad, const FCAD & local_soln_dot, 
                       const FCAD & local_param, const FCAD & local_param_grad, 
                       const FCAD & local_aux, const FCAD & local_aux_grad, 
@@ -75,16 +75,16 @@ public:
     
     int numCubPoints = ip.dimension(1);
     
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
     AD c1, dc1dx, dc1dy, dc1dz, c1_dot;
     AD c2, dc2dx, dc2dy, dc2dz, c2_dot;
     AD tau, c1_source, c2_source, r1, r2;
     AD xconv, yconv, zconv, diff;
     
-    double v1, dv1dx, dv1dy, dv1dz, v2, dv2dx, dv2dy, dv2dz, cprev;
+    ScalarT v1, dv1dx, dv1dy, dv1dz, v2, dv2dx, dv2dy, dv2dz, cprev;
     
     int resindex;
     int c1_basis = usebasis[c1num];
@@ -237,7 +237,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void boundaryResidual(const double & h, const double & current_time, const FCAD & local_soln, 
+  void boundaryResidual(const ScalarT & h, const ScalarT & current_time, const FCAD & local_soln,
                         const FCAD & local_solngrad, const FCAD & local_soln_dot, 
                         const FCAD & local_param, const FCAD & local_param_grad, 
                         const FCAD & local_aux, const FCAD & local_aux_grad, 
@@ -255,11 +255,11 @@ public:
     FCAD local_resid(numSpecies, numBasis);
     
     // Set the parameters
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
-    double v1, v2;
+    ScalarT v1, v2;
     AD source1, source2, robin_alpha1, robin_alpha2;
     AD c1, dc1dx, dc1dy, dc1dz;
     AD c2, dc2dx, dc2dy, dc2dz;
@@ -328,7 +328,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void edgeResidual(const double & h, const double & current_time, const FCAD & local_soln, 
+  void edgeResidual(const ScalarT & h, const ScalarT & current_time, const FCAD & local_soln,
                     const FCAD & local_solngrad, const FCAD & local_soln_dot, 
                     const FCAD & local_param, const FCAD & local_param_grad, 
                     const FCAD & local_aux, const FCAD & local_aux_grad, 
@@ -343,7 +343,7 @@ public:
   // The boundary/edge flux
   // ========================================================================================
   
-  void computeFlux(const FC & ip, const double & h, const double & current_time, 
+  void computeFlux(const FC & ip, const ScalarT & h, const ScalarT & current_time,
                    const FCAD & local_soln, const FCAD & local_solngrad, 
                    const FCAD & local_soln_dot, const FCAD local_param, const FCAD local_aux, 
                    const FC & normals, FCAD & flux) {
@@ -353,7 +353,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  AD getDirichletValue(const string & var, const double & x, const double & y, const double & z, const double & t, 
+  AD getDirichletValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
                        const string & gside, const bool & useadjoint) const {
     
     AD val = 0.0;
@@ -378,7 +378,7 @@ public:
   /* return alpha for Robin boundary condition */
   // ========================================================================================
   
-  AD robinAlpha(const double & x, const double & y, const double & z, const double & t, const string & side, const int & var,
+  AD robinAlpha(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t, const string & side, const int & var,
                 const AD & xconv, const AD & yconv, const AD & zconv, const AD & diff) const {
     
     AD val = 0.0;
@@ -406,8 +406,8 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  double getInitialValue(const string & var, const double & x, const double & y, const double & z, const bool & useadjoint) const {
-    double val = 0.0;
+  ScalarT getInitialValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const bool & useadjoint) const {
+    ScalarT val = 0.0;
     
     if(init_params.size() > 0 && !useadjoint){
       if(var == "c1")
@@ -424,8 +424,8 @@ public:
   // error calculation
   // ========================================================================================
   
-  double trueSolution(const string & var, const double & x, const double & y, const double & z, const double & time) const {
-    double c = 0.0;
+  ScalarT trueSolution(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const {
+    ScalarT c = 0.0;
     
     if(verbosity > 0)
       cout << "No known true solution...'truth' defaults to zero..." << endl;
@@ -439,21 +439,21 @@ public:
   
   FCAD response(const FCAD & local_soln, 
                                const FCAD & local_soln_grad,
-                               const DRV & ip, const double & time) const {
+                               const DRV & ip, const ScalarT & time) const {
     int numCC = ip.dimension(0);
     int numip = ip.dimension(1);
     
     FCAD resp(numCC,numResponses,numip);
     
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
     for (int i=0; i<numCC; i++) {
       for (int j=0; j<numip; j++) {
         if (test == 30){
-          double x = ip(i,j,0) - 0.5;
-          double y = ip(i,j,1) - 0.5;
+          ScalarT x = ip(i,j,0) - 0.5;
+          ScalarT y = ip(i,j,1) - 0.5;
           AD thresh1_loc = c1_threshold_params[0]*(1.0+sqrt(x*x+y*y)); 
           AD thresh2_loc = c2_threshold_params[0]*(1.0+sqrt(x*x+y*y));
           resp(i,0,j) = 0.5*max(local_soln(i,c1num,j)-thresh1_loc, 0.0)*max(local_soln(i,c1num,j)-thresh1_loc, 0.0);
@@ -492,7 +492,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  FCAD target(const FC & ip, const double & time) const {
+  FCAD target(const FC & ip, const ScalarT & time) const {
     int numCC = ip.dimension(0);
     int numip = ip.dimension(1);
     FCAD targ(numCC,numResponses,numip);
@@ -538,10 +538,10 @@ public:
   // ========================================================================================
   
   template<class T>  
-  T computeTau(const T & localdiff, const T & xvl, const T & yvl, const T & zvl, const double & h) const {
+  T computeTau(const T & localdiff, const T & xvl, const T & yvl, const T & zvl, const ScalarT & h) const {
     
-    double C1 = 4.0;
-    double C2 = 2.0;
+    ScalarT C1 = 4.0;
+    ScalarT C2 = 2.0;
     
     T nvel;
     if (spaceDim == 1)
@@ -562,7 +562,7 @@ public:
   // return the interior source term  
   // ========================================================================================
   
-  AD sourceTerm(const double & x, const double & y, const double & z, const double & t, const int & comp) const{
+  AD sourceTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t, const int & comp) const{
     
     AD val = 0.0;
     
@@ -650,7 +650,7 @@ public:
   // return the boundary source term  
   // ========================================================================================
   
-  AD boundarySource(const double & x, const double & y, const double & z, const double & t, const string & side, const int & var) const {
+  AD boundarySource(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t, const string & side, const int & var) const {
     
     AD val = 0.0;
     
@@ -661,7 +661,7 @@ public:
   // return the convection term (well, just the velocity...)
   // ========================================================================================
   
-  AD convectionTerm(const double & x, const double & y, const double & z, const double & t, const int & dir) const{
+  AD convectionTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t, const int & dir) const{
     AD vel = 0.0;
     
     //"default"
@@ -679,7 +679,7 @@ public:
   // return the reaction term  
   // ========================================================================================
   
-  AD reactionTerm(const double & x, const double & y, const double & z, const double & t, const int & comp, const AD & c1, const AD & c2) const {
+  AD reactionTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t, const int & comp, const AD & c1, const AD & c2) const {
     AD r = 0.0;
     if(test == 30){
       if (comp == 1)
@@ -699,7 +699,7 @@ public:
   // return the diffusion at a point 
   // ========================================================================================
   
-  AD getDiff(const double & x, const double & y, const double & z) const { 
+  AD getDiff(const ScalarT & x, const ScalarT & y, const ScalarT & z) const {
     return diffusion_params[0];
   }
   
@@ -874,13 +874,13 @@ private:
   bool velFromNS;
   int ux_num, uy_num, uz_num; //if getting velocity from ns
   
-  double PI;
+  ScalarT PI;
   bool noFlux;
   int verbosity;
   bool useScalarRespFx;
   
-  double finTime; //for response function
-  double regParam; //regularization parameter
+  ScalarT finTime; //for response function
+  ScalarT regParam; //regularization parameter
 };
 
 #endif

@@ -52,7 +52,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  Kokkos::View<double***,HostDevice> computeResponse(const vector_RCP & F_soln, const int & b);
+  Kokkos::View<ScalarT***,HostDevice> computeResponse(const vector_RCP & F_soln, const int & b);
   
   // ========================================================================================
   // ========================================================================================
@@ -62,7 +62,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  vector<double> computeSensitivities(const vector_RCP & F_soln, const vector_RCP & A_soln);
+  vector<ScalarT> computeSensitivities(const vector_RCP & F_soln, const vector_RCP & A_soln);
   
   // ========================================================================================
   // ========================================================================================
@@ -72,7 +72,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  double makeSomeNoise(double stdev);
+  ScalarT makeSomeNoise(ScalarT stdev);
   
 protected:
   
@@ -96,7 +96,7 @@ protected:
   bool have_sensor_data, save_sensor_data, write_dakota_output, isTD;
   bool plot_response, save_height_file;
   string sname;
-  double stddev;
+  ScalarT stddev;
   
   vector<string> blocknames;
   
@@ -107,7 +107,7 @@ protected:
   
   bool use_sol_mod_mesh, use_sol_mod_height;
   int sol_to_mod_mesh, sol_to_mod_height;
-  double meshmod_TOL, layer_size;
+  ScalarT meshmod_TOL, layer_size;
   bool compute_subgrid_error, have_subgrids;
   
   

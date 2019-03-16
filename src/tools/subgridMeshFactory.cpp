@@ -17,7 +17,7 @@ namespace panzer_stk{
   SubGridMeshFactory::~SubGridMeshFactory() {};
   
   // Add block
-  void SubGridMeshFactory::addElems(std::vector<std::vector<double> > & newnodes,
+  void SubGridMeshFactory::addElems(std::vector<std::vector<ScalarT> > & newnodes,
                 std::vector<std::vector<int> > & newconn) {
     nodes.push_back(newnodes);
     conn.push_back(newconn);

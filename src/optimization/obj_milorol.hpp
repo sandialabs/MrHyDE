@@ -113,13 +113,13 @@ namespace ROL {
       //fwdtimer->stop(); //DEBUG
       //Teuchos::RCP<Teuchos::Time> adjtimer = Teuchos::rcp(new Teuchos::Time("adj",false)); //DEBUG
       //adjtimer->start(); //DEBUG
-      std::vector<double> sens;
+      std::vector<ScalarT> sens;
       
       vector_RCP A_soln = solver_MILO->adjointModel(F_soln, sens);
       //adjtimer->stop(); //DEBUG
       //Teuchos::RCP<Teuchos::Time> senstimer = Teuchos::rcp(new Teuchos::Time("sens",false)); //DEBUG
       //senstimer->start(); //DEBUG
-      //std::vector<double> sens2 = postproc_MILO->computeSensitivities(F_soln, A_soln);
+      //std::vector<ScalarT> sens2 = postproc_MILO->computeSensitivities(F_soln, A_soln);
       //for (size_t i=0; i<sens.size(); i++)
       //  cout << i << "  " << abs(sens[i]-sens2[i]) << endl;
       
@@ -146,11 +146,11 @@ namespace ROL {
       int paramDim = x.getVector()->size();
       
       Teuchos::RCP<StdVector<Real> > g = Teuchos::rcp(new StdVector<Real>(Teuchos::rcp(new vector<Real>(paramDim,0.0))));
-      double gtol = sqrt(ROL_EPSILON<Real>());
+      ScalarT gtol = sqrt(ROL_EPSILON<Real>());
       this->gradient(*g,x,gtol);
       Teuchos::RCP<StdVector<Real> > gnew = Teuchos::rcp(new StdVector<Real>(Teuchos::rcp(new vector<Real>(paramDim,0.0))));
       
-      vector<vector<double> > hessStash(paramDim);
+      vector<vector<ScalarT> > hessStash(paramDim);
       
       //Real h = 1.e-3*x.norm(); //step length
       Real h = std::max(1.0,x.norm())*sqrt(ROL_EPSILON<Real>()); ///step length...more like what ROL has...
@@ -169,9 +169,9 @@ namespace ROL {
         //i-th column (or row...) of Hessian
         gnew->axpy(-1.0,*g);
         gnew->scale(1.0/h);
-        Teuchos::RCP<vector<double> > gnewv = gnew->getVector();
+        Teuchos::RCP<vector<ScalarT> > gnewv = gnew->getVector();
         
-        vector<double> row(paramDim);
+        vector<ScalarT> row(paramDim);
         for(int j=0; j<paramDim; j++)
           row[j] = (*gnewv)[j];
         hessStash[i] = row;
@@ -194,8 +194,8 @@ namespace ROL {
      */
     void generate_plot(Real difflo, Real diffup, Real diffstep){
       
-      Teuchos::RCP<std::vector<double> > Params_rcp = Teuchos::rcp(new std::vector<double>(1,0.0) );
-      ROL::StdVector<double> Params(Params_rcp);
+      Teuchos::RCP<std::vector<ScalarT> > Params_rcp = Teuchos::rcp(new std::vector<ScalarT>(1,0.0) );
+      ROL::StdVector<ScalarT> Params(Params_rcp);
       std::ofstream output ("Objective.dat");
       
       Real diff = 0.0;
@@ -218,8 +218,8 @@ namespace ROL {
      */
     void generate_plot(Real alo, Real aup, Real astep, Real blo, Real bup, Real bstep){
       
-      Teuchos::RCP<std::vector<double> > Params_rcp = Teuchos::rcp(new std::vector<double>(2,0.0) );
-      ROL::StdVector<double> Params(Params_rcp);
+      Teuchos::RCP<std::vector<ScalarT> > Params_rcp = Teuchos::rcp(new std::vector<ScalarT>(2,0.0) );
+      ROL::StdVector<ScalarT> Params(Params_rcp);
       std::ofstream output ("Objective.dat");
       
       Real a = 0.0;

@@ -43,11 +43,11 @@ public:
       
     numwavenum = settings->sublist("Physics").get<int>("number_wavenumbers",1);
       
-    regParam = settings->sublist("Analysis").sublist("ROL").get<double>("regularization parameter",1.e-4);
-    cMY = settings->sublist("Physics").get<double>("cMY",1.0);
+    regParam = settings->sublist("Analysis").sublist("ROL").get<ScalarT>("regularization parameter",1.e-4);
+    cMY = settings->sublist("Physics").get<ScalarT>("cMY",1.0);
     pixelate = settings->sublist("Physics").get<bool>("topo opt pixelate",false);
     linInterp = settings->sublist("Physics").get<bool>("topo opt linear interp",false);
-    binPenalty = settings->sublist("Physics").get<double>("topo opt binary penalty",0.0); 
+    binPenalty = settings->sublist("Physics").get<ScalarT>("topo opt binary penalty",0.0);
     
     test = settings->sublist("Physics").get<int>("test",0);
     //test == 4: for convergence study with manufactured solution (spatially varying c)
@@ -64,7 +64,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void volumeResidual(const double & h, const double & current_time, const FCAD & local_soln, 
+  void volumeResidual(const ScalarT & h, const ScalarT & current_time, const FCAD & local_soln,
                       const FCAD & local_solngrad, const FCAD & local_soln_dot, 
                       const FCAD & local_param, const FCAD & local_param_grad, 
                       const FCAD & local_aux, const FCAD & local_aux_grad, 
@@ -82,14 +82,14 @@ public:
     int numBasis = basis.dimension(2);
     int numCubPoints = ip.dimension(1);
     
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
     vector<AD> ur, ur_dot, durdx, durdy, durdz;
     vector<AD> ui, ui_dot, duidx, duidy, duidz;
-    double vr, dvrdx, dvrdy, dvrdz;
-    double vi, dvidx, dvidy, dvidz;
+    ScalarT vr, dvrdx, dvrdy, dvrdz;
+    ScalarT vi, dvidx, dvidy, dvidz;
     vector<AD> source_r, source_i; 
     vector<AD> omega2;
     vector<AD> c2r, c2i;
@@ -195,8 +195,8 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  FCAD boundaryResidual(const std::vector<double> & h, 
-                    const double & current_time, const double & deltat, const FCAD & local_soln, 
+  FCAD boundaryResidual(const std::vector<ScalarT> & h,
+                    const ScalarT & current_time, const ScalarT & deltat, const FCAD & local_soln,
                     const FCAD & local_solngrad, 
                     const FCAD & local_solndot, 
                                       const FCAD & local_aux, const FCAD & local_aux_grad, 
@@ -214,13 +214,13 @@ public:
     FCAD local_resid(numCC, 2*numwavenum, numBasis);
     
     // Set the parameters
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
     vector<AD> ur, durdn;
     vector<AD> ui, duidn;
-    double vr, vi;
+    ScalarT vr, vi;
     vector<AD> source_r, source_i;
     vector<AD> robin_alpha_r, robin_alpha_i;
     vector<AD> c2r, c2i;
@@ -291,8 +291,8 @@ public:
   // error calculation
   // ========================================================================================
   
-  double trueSolution(const string & var, const double & x, const double & y, const double & z, const double & time) const {
-    double e = 0.0;
+  ScalarT trueSolution(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const {
+    ScalarT e = 0.0;
     
     if(test == 4){
       e = sin(2*PI*x);
@@ -310,7 +310,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  AD getDirichletValue(const string & var, const double & x, const double & y, const double & z, const double & t, const string & gside, const bool & useadjoint) const {
+  AD getDirichletValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t, const string & gside, const bool & useadjoint) const {
     AD val = 0.0;
     
     if(!useadjoint){
@@ -324,7 +324,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  AD getInitialValue(const string & var, const double & x, const double & y, const double & z, const bool & useadjoint) const {
+  AD getInitialValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const bool & useadjoint) const {
     AD val = 0.0;
     return val;
   }
@@ -334,13 +334,13 @@ public:
   // ========================================================================================
   
   FCAD response(const FCAD & local_soln, const FCAD & local_soln_grad,
-                 const DRV & ip, const double & time) const {
+                 const DRV & ip, const ScalarT & time) const {
     int numCC = ip.dimension(0);
     int numip = ip.dimension(1);
     FCAD resp(numCC,numResponses,numip);
     
-    double x = 0.0;
-    double y = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
     
     for (int i=0; i<numCC; i++) {
       for (int j=0; j<numip; j++) {
@@ -379,11 +379,11 @@ public:
       if(!justDeriv){
         if(pixelate){
           AD volFrac = 0.0;
-          double cVF = 0.1;
+          ScalarT cVF = 0.1;
           AD binPen = 0.0;
           int n = round(sqrt(vel_params.size()));    
-          double dx = 1.0/n;
-          double dy = 1.0/n;
+          ScalarT dx = 1.0/n;
+          ScalarT dy = 1.0/n;
           
           for(int i=0; i<vel_params.size(); i++){
             volFrac += vel_params[i]*dx*dy;
@@ -393,10 +393,10 @@ public:
           resp(0) += (cMY/3.0)*pow(max(volFrac-cVF,0.0),3.0) + binPen;
         }else{
           AD volFrac = 0.0;
-          double cVF = 0.1; //desired max volume fraction
+          ScalarT cVF = 0.1; //desired max volume fraction
           int n = round(sqrt(vel_params.size()));    
-          double dx = 1.0/(n-1);
-          double dy = 1.0/(n-1);
+          ScalarT dx = 1.0/(n-1);
+          ScalarT dy = 1.0/(n-1);
           
           for(int i=0; i<vel_params.size(); i++){
             if((i == 0) || (i == n-1) || (i == n*n-1) || (i == n*n-n)) //corner points
@@ -427,7 +427,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  FCAD target(const FC & ip, const double & time) const {
+  FCAD target(const FC & ip, const ScalarT & time) const {
     int numCC = ip.dimension(0);
     int numip = ip.dimension(1);
     FCAD targ(numCC,numResponses,numip);
@@ -469,7 +469,7 @@ public:
   /* return the source term (to be multiplied by test_function) */
   // ========================================================================================  
   
-  vector<vector<AD> > sourceTerm(const double & x, const double & y, const double & z, const double & time) const {
+  vector<vector<AD> > sourceTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const {
     vector<vector<AD> > source(2,vector<AD>(numwavenum,0.0));
     
     if(test == 4){
@@ -491,8 +491,8 @@ public:
         }
       }
     }else if(test == 7){
-      double source_size = 0.2;
-      double source_shift = -1.0;
+      ScalarT source_size = 0.2;
+      ScalarT source_shift = -1.0;
       for(int j=0; j<numwavenum; j++){
         source[0][j] = source_params[0]*max(pow(source_size,2.0)-y*y-pow(x-source_shift,2.0),0.0);
         source[1][j] = 0.0;
@@ -505,7 +505,7 @@ public:
   /* return the (nominal) squared velocity */
   // ========================================================================================
   
-  vector<vector<AD> > velSquared(const double & x, const double & y, const double & z, const double & time) const {
+  vector<vector<AD> > velSquared(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const {
   
     vector<vector<AD> > c2(2,vector<AD>(numwavenum,0.0));
     
@@ -521,19 +521,19 @@ public:
           if(n*n != vel_params.size())
             cout << "AAAHHH need square number of parameters...number of parameters: " << vel_params.size() << endl;
             
-          double dx = 1.0/n;
-          double dy = 1.0/n;
+          ScalarT dx = 1.0/n;
+          ScalarT dy = 1.0/n;
           
           //shift x and y
-          double xs = x + 0.5;
-          double ys = y + 0.5;
+          ScalarT xs = x + 0.5;
+          ScalarT ys = y + 0.5;
           
           int ind = floor(ys/dy) + floor(xs/dx)*n;
           AD q = vel_params[ind];
           
           //cubic-y interpolation (like with thermal topo opt)
-          double c2minr = 1.0;
-          double c2mini = 0.0;
+          ScalarT c2minr = 1.0;
+          ScalarT c2mini = 0.0;
           if(!linInterp){
             for(int j=0; j<numwavenum; j++){
               c2[0][j] = c2minr + (-5./25.04 - c2minr)*(3.0*q*q - 2.0*q*q*q);
@@ -551,12 +551,12 @@ public:
           if(n*n != vel_params.size())
             cout << "AAAHHH need square number of parameters...number of parameters: " << vel_params.size() << endl;
             
-          double dx = 1.0/(n-1);
-          double dy = 1.0/(n-1);
+          ScalarT dx = 1.0/(n-1);
+          ScalarT dy = 1.0/(n-1);
           
           //shift x and y
-          double xs = x + 0.5;
-          double ys = y + 0.5;
+          ScalarT xs = x + 0.5;
+          ScalarT ys = y + 0.5;
           
           //[0,1]x[0,1]
           int indTopRight = max(ceil(xs/dx),1.0)*n + max(ceil(ys/dy),1.0);
@@ -564,8 +564,8 @@ public:
           int indBotRight = indTopRight - 1;
           int indBotLeft = indBotRight - n;
           
-          double xi = (xs-floor(xs/dx)*dx)/dx;
-          double eta = (ys-floor(ys/dy)*dy)/dy;
+          ScalarT xi = (xs-floor(xs/dx)*dx)/dx;
+          ScalarT eta = (ys-floor(ys/dy)*dy)/dy;
           
           AD q = vel_params[indBotLeft]*(1-xi-eta+xi*eta)
               + vel_params[indTopLeft]*(eta-xi*eta)
@@ -573,8 +573,8 @@ public:
               + vel_params[indBotRight]*(xi-xi*eta);
           
           //cubic-y interpolation (like with thermal topo opt)
-          double c2minr = 1.0;
-          double c2mini = 0.0;
+          ScalarT c2minr = 1.0;
+          ScalarT c2mini = 0.0;
           if(!linInterp){
             for(int j=0; j<numwavenum; j++){
               c2[0][j] = c2minr + (-5./25.04 - c2minr)*(3.0*q*q - 2.0*q*q*q);
@@ -604,7 +604,7 @@ public:
   /* return the (nominal) frequency squared */
   // ========================================================================================
   
-  vector<AD> freqSquared(const double & x, const double & y, const double & z, const double & time) const {
+  vector<AD> freqSquared(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const {
   
     vector<AD> omega2(numwavenum,0.0);
     if( test == 4 || test == 7){
@@ -619,7 +619,7 @@ public:
   /* return the boundary source term */
   // ========================================================================================
   
-  vector<vector<AD> > boundarySource(const double & x, const double & y, const double & z, const double & t, const string & side) const {
+  vector<vector<AD> > boundarySource(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t, const string & side) const {
   
     vector<vector<AD> > bsource(2,vector<AD>(numwavenum,0.0));
     
@@ -652,7 +652,7 @@ public:
   /* return the coefficient for Robin/Neumann boundary conditions*/
   // ========================================================================================
   
-  vector<vector<AD> > robinAlpha(const double & x, const double & y, const double & z, const double & t, const string & side) const {
+  vector<vector<AD> > robinAlpha(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t, const string & side) const {
     vector<vector<AD> > alpha(2,vector<AD>(numwavenum,0.0));
     
     if(test == 4){
@@ -745,18 +745,18 @@ private:
   int spaceDim, numElem, numResponses;
   vector<string> varlist;
   vector<int> ur_num, ui_num;
-  double PI;
+  ScalarT PI;
   bool isTD;
   int test;
   int verbosity;
   
   int numwavenum; //number of different wavenumbers
   
-  double regParam; //regularization/control penalty parameter
-  double cMY; //scaling for how strictly to enforce volume fraction limit
+  ScalarT regParam; //regularization/control penalty parameter
+  ScalarT cMY; //scaling for how strictly to enforce volume fraction limit
   bool pixelate; //whether optimizing field or actual pixels
   bool linInterp; //whether to use linear or cubic interpolation
-  double binPenalty; //penalize non-binary-ness; only with pixelated version
+  ScalarT binPenalty; //penalize non-binary-ness; only with pixelated version
 };
 
 #endif

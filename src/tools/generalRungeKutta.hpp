@@ -39,18 +39,18 @@ public:
     if (method == "Explicit") {
       if (order == 1) { // Forward Euler
         num_stages = 1;
-        btab_a = Kokkos::View<double**,HostDevice>("butcher tableau a",num_stages,num_stages);
-        btab_b = Kokkos::View<double*,HostDevice>("butcher tableau b",num_stages);
-        btab_c = Kokkos::View<double*,HostDevice>("butcher tableau c",num_stages);
+        btab_a = Kokkos::View<ScalarT**,HostDevice>("butcher tableau a",num_stages,num_stages);
+        btab_b = Kokkos::View<ScalarT*,HostDevice>("butcher tableau b",num_stages);
+        btab_c = Kokkos::View<ScalarT*,HostDevice>("butcher tableau c",num_stages);
         btab_a(0,0) = 0.0;
         btab_b(0) = 1.0;
         btab_c(0) = 0.0;
       }
       else if (order == 4) { // Classical RK4
         num_stages = 4;
-        btab_a = Kokkos::View<double**,HostDevice>("butcher tableau a",num_stages,num_stages);
-        btab_b = Kokkos::View<double*,HostDevice>("butcher tableau b",num_stages);
-        btab_c = Kokkos::View<double*,HostDevice>("butcher tableau c",num_stages);
+        btab_a = Kokkos::View<ScalarT**,HostDevice>("butcher tableau a",num_stages,num_stages);
+        btab_b = Kokkos::View<ScalarT*,HostDevice>("butcher tableau b",num_stages);
+        btab_c = Kokkos::View<ScalarT*,HostDevice>("butcher tableau c",num_stages);
         btab_a(0,0) = 0.0; btab_a(0,1) = 0.0; btab_a(0,2) = 0.0; btab_a(0,3) = 0.0;
         btab_a(1,0) = 0.5; btab_a(1,1) = 0.0; btab_a(1,2) = 0.0; btab_a(1,3) = 0.0;
         btab_a(2,0) = 0.0; btab_a(2,1) = 0.5; btab_a(2,2) = 0.0; btab_a(2,3) = 0.0;
@@ -62,9 +62,9 @@ public:
     else if (method == "Embedded") {
       if (order == 5) { // RK45
         num_stages = 6;
-        btab_a = Kokkos::View<double**,HostDevice>("butcher tableau a",num_stages,num_stages);
-        btab_b = Kokkos::View<double*,HostDevice>("butcher tableau b",num_stages);
-        btab_c = Kokkos::View<double*,HostDevice>("butcher tableau c",num_stages);
+        btab_a = Kokkos::View<ScalarT**,HostDevice>("butcher tableau a",num_stages,num_stages);
+        btab_b = Kokkos::View<ScalarT*,HostDevice>("butcher tableau b",num_stages);
+        btab_c = Kokkos::View<ScalarT*,HostDevice>("butcher tableau c",num_stages);
         btab_a(0,0) = 0.0;           btab_a(0,1) = 0.0;            btab_a(0,2) = 0.0;            btab_a(0,3) = 0.0;           btab_a(0,4) = 0.0;        btab_a(0,5) = 0.0;
         btab_a(1,0) = 0.25;          btab_a(1,1) = 0.0;            btab_a(1,2) = 0.0;            btab_a(1,3) = 0.0;           btab_a(1,4) = 0.0;        btab_a(1,5) = 0.0;
         btab_a(2,0) = 3.0/32.0;      btab_a(2,1) = 9.0/32.0;       btab_a(2,2) = 0.0;            btab_a(2,3) = 0.0;           btab_a(2,4) = 0.0;        btab_a(2,5) = 0.0;
@@ -85,19 +85,19 @@ public:
     else if (method == "DIRK") { // Diagonally Implicit RK
       if (order == 1) { // Backward Euler
         num_stages = 1;
-        btab_a = Kokkos::View<double**,HostDevice>("butcher tableau a",num_stages,num_stages);
-        btab_b = Kokkos::View<double*,HostDevice>("butcher tableau b",num_stages);
-        btab_c = Kokkos::View<double*,HostDevice>("butcher tableau c",num_stages);
+        btab_a = Kokkos::View<ScalarT**,HostDevice>("butcher tableau a",num_stages,num_stages);
+        btab_b = Kokkos::View<ScalarT*,HostDevice>("butcher tableau b",num_stages);
+        btab_c = Kokkos::View<ScalarT*,HostDevice>("butcher tableau c",num_stages);
         btab_a(0,0) = 1.0;
         btab_b(0) = 1.0;
         btab_c(0) = 1.0;
       }
       else if (order == 2) {
         num_stages = 2;
-        btab_a = Kokkos::View<double**,HostDevice>("butcher tableau a",num_stages,num_stages);
-        btab_b = Kokkos::View<double*,HostDevice>("butcher tableau b",num_stages);
-        btab_c = Kokkos::View<double*,HostDevice>("butcher tableau c",num_stages);
-        double gamma = (3.0+sqrt(3))/6.0;
+        btab_a = Kokkos::View<ScalarT**,HostDevice>("butcher tableau a",num_stages,num_stages);
+        btab_b = Kokkos::View<ScalarT*,HostDevice>("butcher tableau b",num_stages);
+        btab_c = Kokkos::View<ScalarT*,HostDevice>("butcher tableau c",num_stages);
+        ScalarT gamma = (3.0+sqrt(3))/6.0;
         btab_a(0,0) = gamma;     btab_a(0,1) = 0.0;
         btab_a(1,0) = 1.0-gamma; btab_a(1,1) = gamma;
         btab_b(0) = 1.0-gamma; btab_b(1) = gamma;
@@ -110,27 +110,27 @@ public:
     else if (method == "Implicit") { // General, dense btab_a (experimental)
       if (order == 1) { // Backward Euler
         num_stages = 1;
-        btab_a = Kokkos::View<double**,HostDevice>("butcher tableau a",num_stages,num_stages);
-        btab_b = Kokkos::View<double*,HostDevice>("butcher tableau b",num_stages);
-        btab_c = Kokkos::View<double*,HostDevice>("butcher tableau c",num_stages);
+        btab_a = Kokkos::View<ScalarT**,HostDevice>("butcher tableau a",num_stages,num_stages);
+        btab_b = Kokkos::View<ScalarT*,HostDevice>("butcher tableau b",num_stages);
+        btab_c = Kokkos::View<ScalarT*,HostDevice>("butcher tableau c",num_stages);
         btab_a(0,0) = 1.0;
         btab_b(0) = 1.0;
         btab_c(0) = 1.0;
       }
       if (order == 2) { // Midpoint rule
         num_stages = 1;
-        btab_a = Kokkos::View<double**,HostDevice>("butcher tableau a",num_stages,num_stages);
-        btab_b = Kokkos::View<double*,HostDevice>("butcher tableau b",num_stages);
-        btab_c = Kokkos::View<double*,HostDevice>("butcher tableau c",num_stages);
+        btab_a = Kokkos::View<ScalarT**,HostDevice>("butcher tableau a",num_stages,num_stages);
+        btab_b = Kokkos::View<ScalarT*,HostDevice>("butcher tableau b",num_stages);
+        btab_c = Kokkos::View<ScalarT*,HostDevice>("butcher tableau c",num_stages);
         btab_a(0,0) = 0.5;
         btab_b(0) = 0.5;
         btab_c(0) = 1.0;
       }
       else if (order == 4) {
         num_stages = 2;
-        btab_a = Kokkos::View<double**,HostDevice>("butcher tableau a",num_stages,num_stages);
-        btab_b = Kokkos::View<double*,HostDevice>("butcher tableau b",num_stages);
-        btab_c = Kokkos::View<double*,HostDevice>("butcher tableau c",num_stages);
+        btab_a = Kokkos::View<ScalarT**,HostDevice>("butcher tableau a",num_stages,num_stages);
+        btab_b = Kokkos::View<ScalarT*,HostDevice>("butcher tableau b",num_stages);
+        btab_c = Kokkos::View<ScalarT*,HostDevice>("butcher tableau c",num_stages);
         btab_a(0,0) = 0.25;               btab_a(0,1) = 0.25-sqrt(3.0)/6.0;
         btab_a(1,0) = 0.25+sqrt(3.0)/6.0; btab_a(1,1) = 0.25;
         btab_b(0) = 0.5; btab_b(1) = 0.5;
@@ -138,9 +138,9 @@ public:
       }
       else if (order == 6) {
         num_stages = 3;
-        btab_a = Kokkos::View<double**,HostDevice>("butcher tableau a",num_stages,num_stages);
-        btab_b = Kokkos::View<double*,HostDevice>("butcher tableau b",num_stages);
-        btab_c = Kokkos::View<double*,HostDevice>("butcher tableau c",num_stages);
+        btab_a = Kokkos::View<ScalarT**,HostDevice>("butcher tableau a",num_stages,num_stages);
+        btab_b = Kokkos::View<ScalarT*,HostDevice>("butcher tableau b",num_stages);
+        btab_c = Kokkos::View<ScalarT*,HostDevice>("butcher tableau c",num_stages);
         btab_a(0,0) = 5.0/36.0;                 btab_a(0,1) = 2.0/9.0-sqrt(15.0)/15.0; btab_a(0,2) = 5.0/36.0-sqrt(15.0)/30.0;
         btab_a(1,0) = 5.0/36.0+sqrt(15.0)/24.0; btab_a(1,1) = 2.0/9.0;                 btab_a(1,2) = 5.0/36.0-sqrt(15.0)/24.0;
         btab_a(2,0) = 5.0/36.0+sqrt(15.0)/30.0; btab_a(2,1) = 2.0/9.0+sqrt(15.0)/15.0; btab_a(2,2) = 5.0/36.0;
@@ -177,7 +177,7 @@ public:
   // Compute the stage time
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  double computeTime(const double & prevtime, const size_t snum, const double & deltat) {
+  ScalarT computeTime(const ScalarT & prevtime, const size_t snum, const ScalarT & deltat) {
     return prevtime + btab_c(snum)*deltat;
   }
   

@@ -58,7 +58,7 @@ public:
     numResponses = settings->sublist("Physics").get<int>("numResp_thermal",2); 
     useScalarRespFx = settings->sublist("Physics").get<bool>("use scalar response function (thermal)",false);
     
-    formparam = settings->sublist("Physics").get<double>("form_param",1.0);
+    formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
     
     have_nsvel = false;
     
@@ -110,10 +110,10 @@ public:
     
     parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
       
-      double v = 0.0;
-      double dvdx = 0.0;
-      double dvdy = 0.0;
-      double dvdz = 0.0;
+      ScalarT v = 0.0;
+      ScalarT dvdx = 0.0;
+      ScalarT dvdy = 0.0;
+      ScalarT dvdz = 0.0;
       
       for (int k=0; k<sol.dimension(2); k++ ) {
         AD T = sol(e,e_num,k,0);
@@ -166,10 +166,10 @@ public:
     
     parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
       
-      double v = 0.0;
-      double dvdx = 0.0;
-      double dvdy = 0.0;
-      double dvdz = 0.0;
+      ScalarT v = 0.0;
+      ScalarT dvdx = 0.0;
+      ScalarT dvdy = 0.0;
+      ScalarT dvdz = 0.0;
       
       for (int k=0; k<sol.dimension(2); k++ ) {
         AD T = sol(e,e_num,k,0);
@@ -222,7 +222,7 @@ public:
       robin_alpha = functionManager->evaluate("robin alpha","side ip",blocknum);
     }
     
-    double sf = formparam;
+    ScalarT sf = formparam;
     if (wkset->isAdjoint) {
       sf = 1.0;
     }
@@ -255,9 +255,9 @@ public:
         for (int k=0; k<basis.dimension(2); k++ ) {
           AD eval = sol(e,e_num,k,0);
           dedx = sol_grad(e,e_num,k,0);
-          double x = ip(e,k,0);
-          double y = 0.0;
-          double z = 0.0;
+          ScalarT x = ip(e,k,0);
+          ScalarT y = 0.0;
+          ScalarT z = 0.0;
           if (spaceDim > 1) {
             dedy = sol_grad(e,e_num,k,1);
             y = ip(e,k,1);
@@ -319,7 +319,7 @@ public:
   
   void computeFlux() {
 
-    double sf = 1.0;
+    ScalarT sf = 1.0;
     if (wkset->isAdjoint) {
       sf = formparam;
     }
@@ -387,16 +387,16 @@ private:
   vector<string> varlist;
   int e_num, e_basis, numBasis, ux_num, uy_num, uz_num;
   int H_num, H_basis; // for melt fraction variable
-  double alpha;
+  ScalarT alpha;
   bool isTD;
   //int test, simNum;
   //string simName;
   
-  double v, dvdx, dvdy, dvdz, x, y, z;
+  ScalarT v, dvdx, dvdy, dvdz, x, y, z;
   AD e, e_dot, dedx, dedy, dedz, reax, weakDiriScale, lambda, penalty;
   AD H, H_dot, dHdx, dHdy, dHdz; // spatial derivatives of g are not explicity needed atm
   AD ux, uy, uz;
-  double latent_heat = 2.7e5;
+  ScalarT latent_heat = 2.7e5;
   
   int resindex;
   
@@ -413,7 +413,7 @@ private:
   
   bool useScalarRespFx;
   bool multiscale, have_nsvel;
-  double formparam;
+  ScalarT formparam;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::thermal_enthalpy::volumeResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::thermal_enthalpy::volumeResidual() - evaluation of residual");

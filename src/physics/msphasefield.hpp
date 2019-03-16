@@ -45,7 +45,7 @@ public:
     spaceDim = settings->sublist("Mesh").get<int>("dim",2);
     numphases = settings->sublist("Physics").get<int>("number_phases",1);
     numdisks = settings->sublist("Physics").get<int>("numdisks",3);
-    disksize = settings->sublist("Physics").get<double>("disksize",10.0);
+    disksize = settings->sublist("Physics").get<ScalarT>("disksize",10.0);
     initialType = settings->sublist("Physics").get<string>("initialType","default");
     uniform = settings->sublist("Physics").get<bool>("uniform",true);
     variableMobility = settings->sublist("Physics").get<bool>("variableMobility",false);
@@ -67,24 +67,24 @@ public:
     
     // generation of disks for initial condition
     
-    double tolerance = 2*disksize+5.0;  // 2 times the disk radius
-    double xpos;
-    double ypos;
-    double zpos;
+    ScalarT tolerance = 2*disksize+5.0;  // 2 times the disk radius
+    ScalarT xpos;
+    ScalarT ypos;
+    ScalarT zpos;
     
     
     if(initialType=="systematic") {       // extend to 3d
-      xmax = settings->sublist("Mesh").get<double>("xmax",2);
-      xmin = settings->sublist("Mesh").get<double>("xmin",2);
-      ymax = settings->sublist("Mesh").get<double>("ymax",2);
-      ymin = settings->sublist("Mesh").get<double>("ymin",2);
+      xmax = settings->sublist("Mesh").get<ScalarT>("xmax",2);
+      xmin = settings->sublist("Mesh").get<ScalarT>("xmin",2);
+      ymax = settings->sublist("Mesh").get<ScalarT>("ymax",2);
+      ymin = settings->sublist("Mesh").get<ScalarT>("ymin",2);
       
       // works only for power of 2
       int deldisks = pow(numdisks,0.5);
-      double delx = xmax/deldisks;
-      double dely = ymax/deldisks;
-      double intvx = xmax/(deldisks*2);
-      double intvy = ymax/(deldisks*2);
+      ScalarT delx = xmax/deldisks;
+      ScalarT dely = ymax/deldisks;
+      ScalarT intvx = xmax/(deldisks*2);
+      ScalarT intvy = ymax/(deldisks*2);
       
       for (int i=0; i<deldisks; i++) {
         for (int j=0; j<deldisks; j++) {
@@ -100,7 +100,7 @@ public:
       //	std::mt19937 gen(rd());
       std::mt19937 gen(time(0));
       //std::default_random_engine gen;
-      std::uniform_real_distribution<double> dis(9, 89);
+      std::uniform_real_distribution<ScalarT> dis(9, 89);
       xpos = dis(gen);
       ypos = dis(gen);
       disk.push_back(xpos);
@@ -154,8 +154,8 @@ public:
     
     // if (spaceDim == 2) {
     // 	for (int j=0; j < disk.size() ; j=j+2) {
-    // 	  double tempdist = (xpos-disk[j])*(xpos-disk[j])+(ypos-disk[j+1])*(ypos-disk[j+1]);
-    // 	  double distance = pow(tempdist,0.5);
+    // 	  ScalarT tempdist = (xpos-disk[j])*(xpos-disk[j])+(ypos-disk[j+1])*(ypos-disk[j+1]);
+    // 	  ScalarT distance = pow(tempdist,0.5);
     // 	  if(distance > tolerance) {
     // 	    test = true;
     // 	    break;
@@ -170,9 +170,9 @@ public:
     //   }
     //   if (spaceDim == 3) {
     // 	for (int j=0; j < disk.size() ; j=j+3) {
-    // 	  double tempdist = (xpos-disk[j])*(xpos-disk[j])+(ypos-disk[j+1])*(ypos-disk[j+1])
+    // 	  ScalarT tempdist = (xpos-disk[j])*(xpos-disk[j])+(ypos-disk[j+1])*(ypos-disk[j+1])
     // 	    + (zpos-disk[j+2])*(zpos-disk[j+2]);
-    // 	  double distance = pow(tempdist,0.5);
+    // 	  ScalarT distance = pow(tempdist,0.5);
     // 	  if(distance > tolerance) {
     // 	    test = true;
     // 	    break;
@@ -209,13 +209,13 @@ public:
     
     // FCAD local_resid(numphases, numBasis);
     
-    //double diff_FAD = diff;
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
-    //    double current_time = wkset->time;
+    //ScalarT diff_FAD = diff;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
+    //    ScalarT current_time = wkset->time;
     
-    double v, dvdx, dvdy, dvdz;
+    ScalarT v, dvdx, dvdy, dvdz;
     
     std::vector<AD>  phi;
     //    std::vector<AD>  phiInterface;
@@ -261,11 +261,11 @@ public:
         AD Lden;
         AD mobility;
         //      std::mt19937 gen(time(0));
-        //      std::uniform_real_distribution<double> dis(-0.1, 0.1);
+        //      std::uniform_real_distribution<ScalarT> dis(-0.1, 0.1);
         if(variableMobility) {
           for(int i=0; i<numphases; i++) {
             for(int j=0; j<numphases; j++) {
-              //	    double Lij = dis(gen);
+              //	    ScalarT Lij = dis(gen);
               Lnum += L[i*numphases+j] * phi[i] * phi[i] * phi[j] * phi[j];
               Lden +=           phi[i] * phi[i] * phi[j] * phi[j];
             }
@@ -333,16 +333,16 @@ public:
     //    FCAD local_resid(numphases, numBasis);
     
     // Set the parameters
-    // double x = 0.0;
-    // double y = 0.0;
-    // double z = 0.0;
+    // ScalarT x = 0.0;
+    // ScalarT y = 0.0;
+    // ScalarT z = 0.0;
     
-    // double v, source, robin_alpha;
+    // ScalarT v, source, robin_alpha;
     // AD phi, dphidx, dphidy, dphidz;
     // std::string pname = myparams[0];
     // std::vector<AD > diff_FAD = getParameters(params, pname);
     
-    // double dvdx;
+    // ScalarT dvdx;
     
     // for (size_t ee=0; ee<numCC; ee++) {
     //    for( int i=0; i<numBasis; i++ ) {
@@ -391,9 +391,9 @@ public:
   
   void computeFlux() {
     
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
     for (size_t e=0; e<numElem; e++) {
       for (size_t i=0; i<wkset->ip_side.dimension(1); i++) {
@@ -419,8 +419,8 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  AD getDirichletValue(const string & var, const double & x, const double & y, const double & z,
-                       const double & t, const string & gside, const bool & useadjoint) const {
+  AD getDirichletValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
+                       const ScalarT & t, const string & gside, const bool & useadjoint) const {
     AD val = 0.0;
     return val;
   }
@@ -428,9 +428,9 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  double getInitialValue(const string & var, const double & x, const double & y, const double & z,
+  ScalarT getInitialValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
                          const bool & useadjoint) const {
-    double val = 0.0;
+    ScalarT val = 0.0;
     //    bool test = false;
     //bool test1 = false;
     //bool random = false;
@@ -438,12 +438,12 @@ public:
     if(initialType == "test") {
       //      the settings of these radii require that the
       //      delta x and y values are set to 0 to 100.
-      double r0 = 0.0;
-      double r1 = 12.5;
-      double r2 = 0.0;
-      double r3 = 12.5;
-      double r4 = 0.0;
-      double r5 = 12.5;
+      ScalarT r0 = 0.0;
+      ScalarT r1 = 12.5;
+      ScalarT r2 = 0.0;
+      ScalarT r3 = 12.5;
+      ScalarT r4 = 0.0;
+      ScalarT r5 = 12.5;
       
       r0 = pow((x-37.5)*(x-37.5) + (y-50.0)*(y-50.0),0.5);
       r2 = pow((x-61.5)*(x-61.5) + (y-50.0)*(y-50.0),0.5);
@@ -464,11 +464,11 @@ public:
       }
     } else if (initialType == "systematic") {
       //bvbw this is not efficient and may want to consider just passing a pre-defined phi assigment
-      // vector<double> posx;
-      // vector<double> posy;
-      double ri;
-      double epsilon = 0.1;   // epsilon is an arbritrary fraction to make sure the radii are small enough
-      double rad = xmax/(numdisks*2) - epsilon* xmax/numdisks;
+      // vector<ScalarT> posx;
+      // vector<ScalarT> posy;
+      ScalarT ri;
+      ScalarT epsilon = 0.1;   // epsilon is an arbritrary fraction to make sure the radii are small enough
+      ScalarT rad = xmax/(numdisks*2) - epsilon* xmax/numdisks;
       int count=0;
       for(int i=0;i<numdisks;i++) {  //assumes diks==numphases
         // posx.push_back(disk[count]);
@@ -489,12 +489,12 @@ public:
       
       //      the settings of these radii require that the
       //      delta x and y values are set to 0 to 100.
-      // double r0 = 0.0;
-      // double r1 = 12.5;
-      // double r2 = 0.0;
-      // double r3 = 12.5;
-      // double r4 = 0.0;
-      // double r5 = 12.5;
+      // ScalarT r0 = 0.0;
+      // ScalarT r1 = 12.5;
+      // ScalarT r2 = 0.0;
+      // ScalarT r3 = 12.5;
+      // ScalarT r4 = 0.0;
+      // ScalarT r5 = 12.5;
       
       // r0 = pow((x-37.5)*(x-37.5) + (y-50.0)*(y-50.0),0.5);
       // r2 = pow((x-61.5)*(x-61.5) + (y-50.0)*(y-50.0),0.5);
@@ -514,8 +514,8 @@ public:
       //   val = 0.0;
       // }
     } else if (initialType == "singledisk") {
-      double r0 = 0.0;
-      double r1 = 30.0;
+      ScalarT r0 = 0.0;
+      ScalarT r1 = 30.0;
       
       r0 = pow((x-50.0)*(x-50.0) + (y-50.0)*(y-50.0),0.5);
       if(r0>r1) {
@@ -525,10 +525,10 @@ public:
       }
     } else if (initialType == "twodisk") {  //two disks, two phis
       
-      double r0 = 0.0;
-      double r1 = 12.5;
-      double r2 = 0.0;
-      double r3 = 12.5;
+      ScalarT r0 = 0.0;
+      ScalarT r1 = 12.5;
+      ScalarT r2 = 0.0;
+      ScalarT r3 = 12.5;
       
       r0 = pow((x-30.0)*(x-30.0) + (y-30.0)*(y-30.0),0.5);
       r2 = pow((x-70.0)*(x-70.0) + (y-70.0)*(y-70.0),0.5);
@@ -544,10 +544,10 @@ public:
       }
     } else if (initialType == "test1") {
       //      Original code for two disks and three order parameters
-      double r0 = 0.0;
-      double r1 = 12.5;
-      double r2 = 0.0;
-      double r3 = 12.5;
+      ScalarT r0 = 0.0;
+      ScalarT r1 = 12.5;
+      ScalarT r2 = 0.0;
+      ScalarT r3 = 12.5;
       
       r0 = pow((x-37.5)*(x-37.5) + (y-50.0)*(y-50.0),0.5);
       r2 = pow((x-61.5)*(x-61.5) + (y-50.0)*(y-50.0),0.5);
@@ -570,8 +570,8 @@ public:
       }
     } else if (initialType == "test2") {  // two phis, one disk
       
-      double r0 = 0.0;
-      double r1 = 25.0;
+      ScalarT r0 = 0.0;
+      ScalarT r1 = 25.0;
       
       r0 = pow((x-50.0)*(x-50.0) + (y-50.0)*(y-50.0),0.5);
       
@@ -583,7 +583,7 @@ public:
       }
     } else if (initialType == "random") {
       //   srand(time(NULL)); //initialize random seed
-      //      val =  (double)rand()/(double)RAND_MAX
+      //      val =  (ScalarT)rand()/(ScalarT)RAND_MAX
       if(uniform) {
         std::random_device rd;
         std::mt19937 gen(rd());
@@ -591,11 +591,11 @@ public:
         val = dis(gen);
       } else {
         srand(time(NULL));
-        double xpos = rand() % 100;
-        double ypos = rand() % 100;
+        ScalarT xpos = rand() % 100;
+        ScalarT ypos = rand() % 100;
       }
     } else if (initialType == "default") {
-      double rad;
+      ScalarT rad;
       val = 0.0;
       if (spaceDim==2) {
         for (int i=0; i < numdisks ; i++) {
@@ -648,16 +648,16 @@ public:
   // Get the initial value
   // ========================================================================================
   
-  Kokkos::View<double**,AssemblyDevice> getInitial(const DRV & ip, const string & var,
-                                                     const double & time, const bool & isAdjoint) const {
+  Kokkos::View<ScalarT**,AssemblyDevice> getInitial(const DRV & ip, const string & var,
+                                                     const ScalarT & time, const bool & isAdjoint) const {
       
     int numip = ip.dimension(1);
-    Kokkos::View<double**,AssemblyDevice> initial("initial",numElem,numip);
+    Kokkos::View<ScalarT**,AssemblyDevice> initial("initial",numElem,numip);
     
     string dummy ("dummy");
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
     for (size_t e=0; e<numElem; e++) {
       for (int i=0; i<numip; i++) {
@@ -705,9 +705,9 @@ public:
   // error calculation
   // ========================================================================================
   
-  double trueSolution(const string & var, const double & x, const double & y, const double & z,
-                      const double & time) const {
-    double e = sin(2*PI*x);
+  ScalarT trueSolution(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
+                      const ScalarT & time) const {
+    ScalarT e = sin(2*PI*x);
     if (spaceDim > 1)
       e *= sin(2*PI*y);
     if (spaceDim > 2)
@@ -724,7 +724,7 @@ public:
                                               Kokkos::View<AD****,AssemblyDevice> local_soln_grad,
                                               Kokkos::View<AD***,AssemblyDevice> local_psoln,
                                               Kokkos::View<AD****,AssemblyDevice> local_psoln_grad,
-                                              const DRV & ip, const double & time) {
+                                              const DRV & ip, const ScalarT & time) {
     int numip = ip.dimension(1);
     Kokkos::View<AD***,AssemblyDevice> resp("response",numElem,1,numip);
     
@@ -740,7 +740,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  Kokkos::View<AD***,AssemblyDevice> target(const DRV & ip, const double & time) {
+  Kokkos::View<AD***,AssemblyDevice> target(const DRV & ip, const ScalarT & time) {
     int numip = ip.dimension(1);
     Kokkos::View<AD***,AssemblyDevice> targ("target",numElem,1,numip);
     for (size_t e=0; e<numElem; e++) {
@@ -771,7 +771,7 @@ public:
   /* return the source term (to be multiplied by test_function) */
   // ========================================================================================
   
-  AD SourceTerm(const double & x, const double & y, const double & z,
+  AD SourceTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z,
                 const std::vector<AD > & tsource) const {
     if(spaceDim == 1) {
       return tsource[0]*12*PI*PI*sin(2*PI*x);
@@ -787,10 +787,10 @@ public:
   /* return the source term (to be multiplied by test_function) */
   // ========================================================================================
   
-  double boundarySource(const double & x, const double & y, const double & z, const double & t,
+  ScalarT boundarySource(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
                         const string & side) const {
     
-    double val = 0.0;
+    ScalarT val = 0.0;
     
     if (side == "top")
       val = 2*PI*sin(2*PI*x)*cos(2*PI*y);
@@ -805,7 +805,7 @@ public:
   /* return the diffusivity coefficient */
   // ========================================================================================
   
-  AD DiffusionCoeff(const double & x, const double & y, const double & z) const {
+  AD DiffusionCoeff(const ScalarT & x, const ScalarT & y, const ScalarT & z) const {
     AD diff = 0.0;
     diff = diff_FAD[0];
     return diff;
@@ -815,7 +815,7 @@ public:
   /* return the source term (to be multiplied by test_function) */
   // ========================================================================================
   
-  double robinAlpha(const double & x, const double & y, const double & z, const double & t,
+  ScalarT robinAlpha(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
                     const string & side) const {
     return 0.0;
   }
@@ -827,14 +827,14 @@ public:
     return ef;
   }
   
-  vector<Kokkos::View<double***,AssemblyDevice> > extraFields(const DRV & ip, const double & time) const {
-    std::vector<Kokkos::View<double***,AssemblyDevice> > ef;
+  vector<Kokkos::View<ScalarT***,AssemblyDevice> > extraFields(const DRV & ip, const ScalarT & time) const {
+    std::vector<Kokkos::View<ScalarT***,AssemblyDevice> > ef;
     std::vector<AD>  phi;
     AD dval;
     AD phiInterface;
     int numip = ip.dimension(1);
     
-    Kokkos::View<double***,AssemblyDevice> dvals("dvals",numElem,1,numip);
+    Kokkos::View<ScalarT***,AssemblyDevice> dvals("dvals",numElem,1,numip);
     for (size_t e=0; e<numElem; e++) {
       for (size_t i=0; i<numip; i++) {
         for(int j=0; j<numphases; j++){
@@ -853,14 +853,14 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  vector<Kokkos::View<double***,AssemblyDevice> > extraCellFields(const DRV ip, const double & time) const {
-    std::vector<Kokkos::View<double***,AssemblyDevice> > ef;
+  vector<Kokkos::View<ScalarT***,AssemblyDevice> > extraCellFields(const DRV ip, const ScalarT & time) const {
+    std::vector<Kokkos::View<ScalarT***,AssemblyDevice> > ef;
     std::vector<AD>  phi;
     AD dval;
     AD phiInterface;
     int numip = ip.dimension(1);
     
-    Kokkos::View<double***,AssemblyDevice> dvals("dvals",numElem,1,numip);
+    Kokkos::View<ScalarT***,AssemblyDevice> dvals("dvals",numElem,1,numip);
     for (size_t e=0; e<numElem; e++) {
       for (size_t i=0; i<numip; i++) {
         for(int j=0; j<numphases; j++){
@@ -911,12 +911,12 @@ private:
   int spaceDim, numParams, numResponses, numphases, numdisks;
   vector<string> varlist;
   std::vector<int> phi_num;
-  double diff, alpha;
-  double disksize;
-  double xmax, xmin, ymax, ymin;
+  ScalarT diff, alpha;
+  ScalarT disksize;
+  ScalarT xmax, xmin, ymax, ymin;
   bool isTD;
   bool uniform, systematic, variableMobility;
-  std::vector<double> disk;
+  std::vector<ScalarT> disk;
   string initialType; 
   string analysis_type; //to know when parameter is a sample that needs to be transformed
   bool multiscale;

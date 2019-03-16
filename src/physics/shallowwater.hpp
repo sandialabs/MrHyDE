@@ -61,9 +61,9 @@ public:
     numResponses = settings->sublist("Physics").get<int>("numResp_thermal",1);
     useScalarRespFx = settings->sublist("Physics").get<bool>("use scalar response function (thermal)",false);
     
-    gravity = settings->sublist("Physics").get<double>("gravity",9.8);
+    gravity = settings->sublist("Physics").get<ScalarT>("gravity",9.8);
     
-    formparam = settings->sublist("Physics").get<double>("form_param",1.0);
+    formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
     
     
     Teuchos::ParameterList fs = settings->sublist("Functions");
@@ -128,9 +128,9 @@ public:
     //KokkosTools::print(bath);
     
     parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      double v = 0.0;
-      double dvdx = 0.0;
-      double dvdy = 0.0;
+      ScalarT v = 0.0;
+      ScalarT dvdx = 0.0;
+      ScalarT dvdy = 0.0;
       for (int k=0; k<sol.dimension(2); k++ ) {
       
         AD xi = sol(e,H_num,k,0);
@@ -239,7 +239,7 @@ public:
     //KokkosTools::print(nsource);
     
     Teuchos::TimeMonitor localtime(*boundaryResidualFill);
-    double bb = 1.0;
+    ScalarT bb = 1.0;
     int cside = wkset->currentside;
     for (int e=0; e<sideinfo.dimension(0); e++) {
       if (sideinfo(e,H_num,cside,0) == 2) { // Element e is on the side
@@ -251,7 +251,7 @@ public:
           
           for (int i=0; i<Hbasis.dimension(1); i++ ) {
             int resindex = offsets(H_num,i);
-            double v = Hbasis(e,i,k);
+            ScalarT v = Hbasis(e,i,k);
             //res(e,resindex) += (Hu*normals(e,k,0)+Hv*normals(e,k,1))*v;
             res(e,resindex) += nsource(e,k)*H*v;
           }
@@ -266,7 +266,7 @@ public:
           
           for (int i=0; i<Hubasis.dimension(1); i++ ) {
             int resindex = offsets(Hu_num,i);
-            double v = Hubasis(e,i,k);
+            ScalarT v = Hubasis(e,i,k);
             //res(e,resindex) += (((Hu*Hu/H + 0.5*gravity*(H*H-bb*bb)))*normals(e,k,0) + Hv*Hu/H*normals(e,k,1))*v;
             res(e,resindex) += (nsource(e,k)*Hu + 0.0*gravity*(H*H-bb*bb)*normals(e,k,0))*v;
           }
@@ -281,7 +281,7 @@ public:
           
           for (int i=0; i<Hvbasis.dimension(1); i++ ) {
             int resindex = offsets(Hv_num,i);
-            double v = Hvbasis(e,i,k);
+            ScalarT v = Hvbasis(e,i,k);
             //res(e,resindex) += (((Hu*Hu/H))*normals(e,k,0) + (Hv*Hu/H + 0.5*gravity*(H*H - bb*bb))*normals(e,k,1))*v;
             res(e,resindex) += (nsource(e,k)*Hv + 0.0*gravity*(H*H - bb*bb)*normals(e,k,1))*v;
           }
@@ -330,8 +330,8 @@ private:
   int spaceDim, numElem, numParams, numResponses;
   vector<string> varlist;
   int H_num, Hu_num, Hv_num;
-  double alpha;
-  double gravity;
+  ScalarT alpha;
+  ScalarT gravity;
   bool isTD;
   //int test, simNum;
   //string simName;
@@ -349,7 +349,7 @@ private:
   
   bool useScalarRespFx;
   bool multiscale;
-  double formparam;
+  ScalarT formparam;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::shallowwater::volumeResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::shallowwater::volumeResidual() - evaluation of residual");

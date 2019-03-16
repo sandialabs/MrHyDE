@@ -43,7 +43,7 @@ class workset {
     
     /*
     num_stages = 1;//timeInt->num_stages;
-    Kokkos::View<double**> newip("ip for stages",ref_ip.dimension(0)*num_stages, ref_ip.dimension(1));
+    Kokkos::View<ScalarT**> newip("ip for stages",ref_ip.dimension(0)*num_stages, ref_ip.dimension(1));
     for (int i=0; i<ref_ip.dimension(0); i++) {
       for (int s=0; s<num_stages; s++) {
         for (int d=0; d<ref_ip.dimension(1); d++) {
@@ -52,7 +52,7 @@ class workset {
       }
     }
     ref_ip = newip;
-    Kokkos::View<double**> newsideip("ip for stages",ref_side_ip.dimension(0)*num_stages, ref_side_ip.dimension(1));
+    Kokkos::View<ScalarT**> newsideip("ip for stages",ref_side_ip.dimension(0)*num_stages, ref_side_ip.dimension(1));
     for (int i=0; i<ref_side_ip.dimension(0); i++) {
       for (int s=0; s<num_stages; s++) {
         for (int d=0; d<ref_side_ip.dimension(1); d++) {
@@ -68,7 +68,7 @@ class workset {
     numsideip = ref_side_ip.dimension(0);
     numsides = celltopo->getSideCount();
     
-    time_KV = Kokkos::View<double*,AssemblyDevice>("time",1);
+    time_KV = Kokkos::View<ScalarT*,AssemblyDevice>("time",1);
     //sidetype = Kokkos::View<int*,AssemblyDevice>("side types",numElem);
     ip = DRV("ip", numElem,numip, dimension);
     wts = DRV("wts", numElem, numip);
@@ -76,12 +76,12 @@ class workset {
     wts_side = DRV("wts_side", numElem,numsideip);
     normals = DRV("normals", numElem,numsideip,dimension);
     
-    ip_KV = Kokkos::View<double***,AssemblyDevice>("ip stored in KV",numElem,numip,dimension);
-    ip_side_KV = Kokkos::View<double***,AssemblyDevice>("side ip stored in KV",numElem,numsideip,dimension);
-    normals_KV = Kokkos::View<double***,AssemblyDevice>("side normals stored in normals KV",numElem,numsideip,dimension);
-    point_KV = Kokkos::View<double***,AssemblyDevice>("ip stored in point KV",1,1,dimension);
+    ip_KV = Kokkos::View<ScalarT***,AssemblyDevice>("ip stored in KV",numElem,numip,dimension);
+    ip_side_KV = Kokkos::View<ScalarT***,AssemblyDevice>("side ip stored in KV",numElem,numsideip,dimension);
+    normals_KV = Kokkos::View<ScalarT***,AssemblyDevice>("side normals stored in normals KV",numElem,numsideip,dimension);
+    point_KV = Kokkos::View<ScalarT***,AssemblyDevice>("ip stored in point KV",1,1,dimension);
     
-    h = Kokkos::View<double*,AssemblyDevice>("h",numElem);
+    h = Kokkos::View<ScalarT*,AssemblyDevice>("h",numElem);
     res = Kokkos::View<AD**,AssemblyDevice>("residual",numElem,numDOF);
     adjrhs = Kokkos::View<AD**,AssemblyDevice>("adjoint RHS",numElem,numDOF);
     
@@ -97,7 +97,7 @@ class workset {
     
     have_rotation = false;
     have_rotation_phi = false;
-    rotation = Kokkos::View<double***,AssemblyDevice>("rotation matrix",numElem,3,3);
+    rotation = Kokkos::View<ScalarT***,AssemblyDevice>("rotation matrix",numElem,3,3);
     
     // Local solution with grad, div, curl
     local_soln = Kokkos::View<AD****, AssemblyDevice>("local_soln",numElem, numVars, numip, dimension);
@@ -358,7 +358,7 @@ class workset {
   // Update the nodes and the basis functions at the volumetric ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void update(const DRV & ip_, const DRV & jacobian, const vector<vector<double> > & orientation) {
+  void update(const DRV & ip_, const DRV & jacobian, const vector<vector<ScalarT> > & orientation) {
     
     {
       Teuchos::TimeMonitor updatetimer(*worksetUpdateIPTimer);
@@ -378,11 +378,11 @@ class workset {
       FunctionSpaceTools<AssemblyDevice>::computeCellMeasure(wts, jacobDet, ref_wts);
       
       for (int e=0; e<numElem; e++) {
-        double vol = 0.0;
+        ScalarT vol = 0.0;
         for (int i=0; i<numip; i++) {
           vol += wts(e,i);
         }
-        h(e) = pow(vol,1.0/(double)dimension);
+        h(e) = pow(vol,1.0/(ScalarT)dimension);
       }
     }
     
@@ -409,7 +409,7 @@ class workset {
           FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis[i], wts, basis_uw[i]);
           FunctionSpaceTools<AssemblyDevice>::HDIVtransformDIV(basis_div_uw[i], jacobDet, ref_basis_div[i]);
           FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_div[i], wts, basis_div_uw[i]);
-          vector<double> orient = {-1.0, -1.0, 1.0, 1.0};
+          vector<ScalarT> orient = {-1.0, -1.0, 1.0, 1.0};
           for (int e=0; e<numElem; e++) {
             for (size_t j=0; j<orient.size(); j++) {
               for (size_t k=0; k<numip; k++) {
@@ -574,7 +574,7 @@ class workset {
   // Compute the solutions at the volumetric ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void computeSolnVolIP(Kokkos::View<double***,AssemblyDevice> u) {
+  void computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
     
     // Reset the values
     {
@@ -656,8 +656,8 @@ class workset {
   // Compute the solutions at the volumetric ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void computeSolnVolIP(Kokkos::View<double***,AssemblyDevice> u,
-                        Kokkos::View<double***,AssemblyDevice> u_dot,
+  void computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
+                        Kokkos::View<ScalarT***,AssemblyDevice> u_dot,
                         const bool & seedu, const bool & seedudot) {
     
     // Reset the values (may combine with next loop when parallelized)
@@ -786,7 +786,7 @@ class workset {
   // Compute the discretized parameters at the volumetric ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void computeParamVolIP(Kokkos::View<double***,AssemblyDevice> param, const bool & seedparams) {
+  void computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param, const bool & seedparams) {
     
     {
       Teuchos::TimeMonitor resettimer(*worksetResetTimer);
@@ -841,8 +841,8 @@ class workset {
   // Compute the solutions at the side ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void computeSolnSideIP(const int & side, Kokkos::View<double***,AssemblyDevice> u,
-                         Kokkos::View<double***,AssemblyDevice> u_dot,
+  void computeSolnSideIP(const int & side, Kokkos::View<ScalarT***,AssemblyDevice> u,
+                         Kokkos::View<ScalarT***,AssemblyDevice> u_dot,
                          const bool & seedu, const bool& seedudot) {
     
     {
@@ -968,7 +968,7 @@ class workset {
   // Compute the discretized parameters at the side ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void computeParamSideIP(const int & side, Kokkos::View<double***,AssemblyDevice> param,
+  void computeParamSideIP(const int & side, Kokkos::View<ScalarT***,AssemblyDevice> param,
                           const bool & seedparams) {
     
     {
@@ -1216,12 +1216,12 @@ class workset {
   vector<vector<DRV> > param_basis_side_ref, param_basis_grad_side_ref;
   
   // Data recomputed often (depends on physical element and time)
-  double time, alpha, deltat;
-  Kokkos::View<double*,AssemblyDevice> time_KV;
-  Kokkos::View<double*,AssemblyDevice> h;
+  ScalarT time, alpha, deltat;
+  Kokkos::View<ScalarT*,AssemblyDevice> time_KV;
+  Kokkos::View<ScalarT*,AssemblyDevice> h;
   size_t block, localEID, globalEID;
   DRV ip, ip_side, wts, wts_side, normals;
-  Kokkos::View<double***,AssemblyDevice> ip_KV, ip_side_KV, normals_KV, point_KV;
+  Kokkos::View<ScalarT***,AssemblyDevice> ip_KV, ip_side_KV, normals_KV, point_KV;
   
   vector<DRV> basis; // weighted by volumetric integration weights
   vector<DRV> basis_uw; // un-weighted
@@ -1258,11 +1258,11 @@ class workset {
   //FCAD scratch, sidescratch;
   
   bool have_rotation, have_rotation_phi;
-  Kokkos::View<double***,AssemblyDevice> rotation;
-  Kokkos::View<double**,AssemblyDevice> rotation_phi;
+  Kokkos::View<ScalarT***,AssemblyDevice> rotation;
+  Kokkos::View<ScalarT**,AssemblyDevice> rotation_phi;
   
-  double y; // index parameter for fractional operators
-  double s; // fractional exponent
+  ScalarT y; // index parameter for fractional operators
+  ScalarT s; // fractional exponent
   
   // Profile timers
   Teuchos::RCP<Teuchos::Time> worksetUpdateIPTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::update - integration data");

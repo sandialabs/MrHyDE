@@ -36,7 +36,7 @@ public:
     spaceDim = settings->sublist("Mesh").get<int>("dim",2);
     numphases = settings->sublist("Physics").get<int>("number_phases",1);             
     numdisks = settings->sublist("Physics").get<int>("numdisks",3);             
-    disksize = settings->sublist("Physics").get<double>("disksize",10.0);             
+    disksize = settings->sublist("Physics").get<ScalarT>("disksize",10.0);
     uniform = settings->sublist("Physics").get<bool>("uniform",true);             
     
     for (size_t i=0; i<numphases; i++) {
@@ -52,10 +52,10 @@ public:
     
     // generation of disks for initial condition
     
-    double tolerance = 2*disksize+5.0;  // 2 times the disk radius
-    double xpos;
-    double ypos;
-    double zpos;
+    ScalarT tolerance = 2*disksize+5.0;  // 2 times the disk radius
+    ScalarT xpos;
+    ScalarT ypos;
+    ScalarT zpos;
     
     // generate random position
     /* 
@@ -64,7 +64,7 @@ public:
      //	std::mt19937 gen(rd());
      std::mt19937 gen(time(0));
      //std::default_random_engine gen;
-     std::uniform_real_distribution<double> dis(9, 89);
+     std::uniform_real_distribution<ScalarT> dis(9, 89);
      xpos = dis(gen);
      ypos = dis(gen);
      if (spaceDim > 2) {
@@ -114,8 +114,8 @@ public:
      
      if (spaceDim == 2) {
      for (int j=0; j < disk.size() ; j=j+2) {
-     double tempdist = (xpos-disk[j])*(xpos-disk[j])+(ypos-disk[j+1])*(ypos-disk[j+1]);
-     double distance = pow(tempdist,0.5);
+     ScalarT tempdist = (xpos-disk[j])*(xpos-disk[j])+(ypos-disk[j+1])*(ypos-disk[j+1]);
+     ScalarT distance = pow(tempdist,0.5);
      if(distance > tolerance) {
      test = true;
      break;
@@ -130,9 +130,9 @@ public:
      }
      if (spaceDim == 3) {
      for (int j=0; j < disk.size() ; j=j+3) {
-     double tempdist = (xpos-disk[j])*(xpos-disk[j])+(ypos-disk[j+1])*(ypos-disk[j+1])
+     ScalarT tempdist = (xpos-disk[j])*(xpos-disk[j])+(ypos-disk[j+1])*(ypos-disk[j+1])
      + (zpos-disk[j+2])*(zpos-disk[j+2]);
-     double distance = pow(tempdist,0.5);
+     ScalarT distance = pow(tempdist,0.5);
      if(distance > tolerance) {
      test = true;
      break;
@@ -165,13 +165,13 @@ public:
     
     //    FCAD local_resid(numphases, numBasis);
     
-    //double diff_FAD = diff;
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
-    double current_time = wkset->time;
+    //ScalarT diff_FAD = diff;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
+    ScalarT current_time = wkset->time;
     
-    double v, dvdx, dvdy, dvdz;
+    ScalarT v, dvdx, dvdy, dvdz;
     
     for( int i=0; i<numBasis; i++ ) {
       for( int nPt=0; nPt<numCubPoints; nPt++ ) {
@@ -237,16 +237,16 @@ public:
     // FCAD local_resid(numphases, numBasis);
     
     // Set the parameters
-    // double x = 0.0;
-    // double y = 0.0;
-    // double z = 0.0;
+    // ScalarT x = 0.0;
+    // ScalarT y = 0.0;
+    // ScalarT z = 0.0;
     
-    // double v, source, robin_alpha;
+    // ScalarT v, source, robin_alpha;
     // AD phi, dphidx, dphidy, dphidz;
     // std::string pname = myparams[0];
     // std::vector<AD > diff_FAD = getParameters(params, pname);
     
-    // double dvdx;
+    // ScalarT dvdx;
     
     // for (size_t ee=0; ee<numCC; ee++) {
     //    for( int i=0; i<numBasis; i++ ) {
@@ -295,10 +295,10 @@ public:
   
   void computeFlux() {
     
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
-    double current_time = wkset->time;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
+    ScalarT current_time = wkset->time;
     
     for (size_t i=0; i<wkset->ip_side.dimension(1); i++) {
       x = wkset->ip_side(0,i,0);
@@ -321,8 +321,8 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  AD getDirichletValue(const string & var, const double & x, const double & y, const double & z, 
-                       const double & t, const string & gside, const bool & useadjoint) const {
+  AD getDirichletValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
+                       const ScalarT & t, const string & gside, const bool & useadjoint) const {
     AD val = 0.0; 
     return val;
   }
@@ -330,21 +330,21 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  double getInitialValue(const string & var, const double & x, const double & y, const double & z, 
+  ScalarT getInitialValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
                          const bool & useadjoint) const {
-    double val = 0.0;
+    ScalarT val = 0.0;
     bool test = false;
     bool test1 = false;
     bool random = false;
     
     if(test) {
       //      the settings of these radii require that the delta x and y values are set to 0 to 100.
-      double r0 = 0.0;
-      double r1 = 12.5;
-      double r2 = 0.0;
-      double r3 = 12.5;
-      double r4 = 0.0;
-      double r5 = 12.5;
+      ScalarT r0 = 0.0;
+      ScalarT r1 = 12.5;
+      ScalarT r2 = 0.0;
+      ScalarT r3 = 12.5;
+      ScalarT r4 = 0.0;
+      ScalarT r5 = 12.5;
       
       r0 = pow((x-37.5)*(x-37.5) + (y-50.0)*(y-50.0),0.5);
       r2 = pow((x-61.5)*(x-61.5) + (y-50.0)*(y-50.0),0.5);
@@ -365,10 +365,10 @@ public:
       }
     } else if (test1) {
       //      Original code for two disks and three order parameters
-      double r0 = 0.0;
-      double r1 = 12.5;
-      double r2 = 0.0;
-      double r3 = 12.5;
+      ScalarT r0 = 0.0;
+      ScalarT r1 = 12.5;
+      ScalarT r2 = 0.0;
+      ScalarT r3 = 12.5;
       
       r0 = pow((x-37.5)*(x-37.5) + (y-50.0)*(y-50.0),0.5);
       r2 = pow((x-61.5)*(x-61.5) + (y-50.0)*(y-50.0),0.5);
@@ -391,7 +391,7 @@ public:
       }
     } else if (random) {
       //   srand(time(NULL)); //initialize random seed
-      //      val =  (double)rand()/(double)RAND_MAX
+      //      val =  (ScalarT)rand()/(ScalarT)RAND_MAX
       if(uniform) {
         std::random_device rd;
         std::mt19937 gen(rd());
@@ -399,11 +399,11 @@ public:
         val = dis(gen);
       } else {
         srand(time(NULL));
-        double xpos = rand() % 100;
-        double ypos = rand() % 100;
+        ScalarT xpos = rand() % 100;
+        ScalarT ypos = rand() % 100;
       }
     } else {
-      double rad;
+      ScalarT rad;
       val = 0.0;
       if (spaceDim==2) {
         for (int i=0; i < numdisks ; i++) {
@@ -454,7 +454,7 @@ public:
   // Get the initial value
   // ========================================================================================
   
-  FC getInitial(const DRV & ip, const string & var, const double & time, const bool & isAdjoint) const {
+  FC getInitial(const DRV & ip, const string & var, const ScalarT & time, const bool & isAdjoint) const {
     int numip = ip.dimension(1);
     FC initial(1,numip);
     return initial;
@@ -464,9 +464,9 @@ public:
   // error calculation
   // ========================================================================================
   
-  double trueSolution(const string & var, const double & x, const double & y, const double & z, 
-                      const double & time) const {
-    double e = sin(2*PI*x);
+  ScalarT trueSolution(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
+                      const ScalarT & time) const {
+    ScalarT e = sin(2*PI*x);
     if (spaceDim > 1)
       e *= sin(2*PI*y);
     if (spaceDim > 2)
@@ -483,7 +483,7 @@ public:
                                const FCAD & local_soln_grad,
                                const FCAD & local_psoln,
                                const FCAD & local_psoln_grad,
-                               const DRV & ip, const double & time) const {
+                               const DRV & ip, const ScalarT & time) const {
     int numip = ip.dimension(1);
     FCAD resp(1,numip);
     for (int j=0; j<numip; j++) {
@@ -496,8 +496,8 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  //  FCAD target(const FC & ip, const double & time) const {
-  FCAD target(const FC & ip, const double & time) {
+  //  FCAD target(const FC & ip, const ScalarT & time) const {
+  FCAD target(const FC & ip, const ScalarT & time) {
     int numCC = ip.dimension(0);
     int numip = ip.dimension(1);
     FCAD targ(numCC,1,numip);
@@ -541,7 +541,7 @@ public:
   /* return the source term (to be multiplied by test_function) */
   // ========================================================================================
   
-  AD SourceTerm(const double & x, const double & y, const double & z, 
+  AD SourceTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z,
                 const std::vector<AD > & tsource) const {
     if(spaceDim == 1) {
       return tsource[0]*12*PI*PI*sin(2*PI*x);
@@ -557,10 +557,10 @@ public:
   /* return the source term (to be multiplied by test_function) */
   // ========================================================================================
   
-  double boundarySource(const double & x, const double & y, const double & z, const double & t, 
+  ScalarT boundarySource(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
                         const string & side) const {
     
-    double val = 0.0;
+    ScalarT val = 0.0;
     
     if (side == "top")
       val = 2*PI*sin(2*PI*x)*cos(2*PI*y);
@@ -575,7 +575,7 @@ public:
   /* return the diffusivity coefficient */
   // ========================================================================================
   
-  AD DiffusionCoeff(const double & x, const double & y, const double & z) const {
+  AD DiffusionCoeff(const ScalarT & x, const ScalarT & y, const ScalarT & z) const {
     AD diff = 0.0;
     diff = diff_FAD[0];
     return diff;
@@ -587,7 +587,7 @@ public:
   /* return the source term (to be multiplied by test_function) */
   // ========================================================================================
   
-  double robinAlpha(const double & x, const double & y, const double & z, const double & t, 
+  ScalarT robinAlpha(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
                     const string & side) const {
     return 0.0;
   }
@@ -631,7 +631,7 @@ public:
     return ef;
   }
   
-  vector<FC> extraFields(const FC & ip, const double & time) {
+  vector<FC> extraFields(const FC & ip, const ScalarT & time) {
     std::vector<FC > ef;
     return ef;
   }
@@ -639,7 +639,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  vector<FC> extraCellFields(const FC & ip, const double & time) const {
+  vector<FC> extraCellFields(const FC & ip, const ScalarT & time) const {
     std::vector<FC > ef;
     return ef;
   }
@@ -690,12 +690,12 @@ private:
   int spaceDim, numElem, numParams, numResponses, numphases, numdisks;
   vector<string> varlist;
   std::vector<int> e_num;
-  double PI;
-  double diff, alpha;
-  double disksize;
+  ScalarT PI;
+  ScalarT diff, alpha;
+  ScalarT disksize;
   bool isTD;
   bool uniform;
-  std::vector<double> disk;
+  std::vector<ScalarT> disk;
   string analysis_type; //to know when parameter is a sample that needs to be transformed
   bool multiscale;      
 };

@@ -93,11 +93,11 @@ namespace ROL {
       solver_MILO->updateParams(*Paramsp, 4);
 
       AD val = 0.0;
-      std::vector<double> sens;
+      std::vector<ScalarT> sens;
       vector_RCP F_soln = solver_MILO->forwardModel(val);
       vector_RCP A_soln = solver_MILO->adjointModel(F_soln, sens);
 
-      //std::vector<double> sens = postproc_MILO->computeSensitivities(F_soln, A_soln);
+      //std::vector<ScalarT> sens = postproc_MILO->computeSensitivities(F_soln, A_soln);
 
       for (size_t i=0; i<sens.size(); i++)
         (*gp)[i] = sens[i];
@@ -113,8 +113,8 @@ namespace ROL {
      */
     void generate_plot(Real difflo, Real diffup, Real diffstep){
       
-      Teuchos::RCP<std::vector<double> > Params_rcp = Teuchos::rcp(new std::vector<double>(1,0.0) );
-      ROL::StdVector<double> Params(Params_rcp);
+      Teuchos::RCP<std::vector<ScalarT> > Params_rcp = Teuchos::rcp(new std::vector<ScalarT>(1,0.0) );
+      ROL::StdVector<ScalarT> Params(Params_rcp);
       std::ofstream output ("Objective.dat");
       
       Real diff = 0.0;
@@ -137,8 +137,8 @@ namespace ROL {
      */
     void generate_plot(Real alo, Real aup, Real astep, Real blo, Real bup, Real bstep){
       
-      Teuchos::RCP<std::vector<double> > Params_rcp = Teuchos::rcp(new std::vector<double>(2,0.0) );
-      ROL::StdVector<double> Params(Params_rcp);
+      Teuchos::RCP<std::vector<ScalarT> > Params_rcp = Teuchos::rcp(new std::vector<ScalarT>(2,0.0) );
+      ROL::StdVector<ScalarT> Params(Params_rcp);
       std::ofstream output ("Objective.dat");
       
       Real a = 0.0;

@@ -71,8 +71,8 @@ public:
     
     useSUPG = settings->sublist("Physics").get<bool>("useSUPG",false);
     usePSPG = settings->sublist("Physics").get<bool>("usePSPG",false);
-    T_ambient = settings->sublist("Physics").get<double>("T_ambient",0.0);
-    beta = settings->sublist("Physics").get<double>("beta",1.0);
+    T_ambient = settings->sublist("Physics").get<ScalarT>("T_ambient",0.0);
+    beta = settings->sublist("Physics").get<ScalarT>("beta",1.0);
     
     have_energy = false;
     
@@ -142,10 +142,10 @@ public:
       
     parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
     
-      double v = 0.0;
-      double dvdx = 0.0;
-      double dvdy = 0.0;
-      double dvdz = 0.0;
+      ScalarT v = 0.0;
+      ScalarT dvdx = 0.0;
+      ScalarT dvdy = 0.0;
+      ScalarT dvdz = 0.0;
       
       for (int k=0; k<sol.dimension(2); k++ ) {
         
@@ -215,10 +215,10 @@ public:
     
     parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
       
-      double v = 0.0;
-      double dvdx = 0.0;
-      double dvdy = 0.0;
-      double dvdz = 0.0;
+      ScalarT v = 0.0;
+      ScalarT dvdx = 0.0;
+      ScalarT dvdy = 0.0;
+      ScalarT dvdz = 0.0;
       
       for( int k=0; k<sol.dimension(2); k++ ) {
         AD ux = sol(e,ux_num,k,0);
@@ -310,10 +310,10 @@ public:
       
       parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
         
-        double v = 0.0;
-        double dvdx = 0.0;
-        double dvdy = 0.0;
-        double dvdz = 0.0;
+        ScalarT v = 0.0;
+        ScalarT dvdx = 0.0;
+        ScalarT dvdy = 0.0;
+        ScalarT dvdz = 0.0;
         
         for( int k=0; k<sol.dimension(2); k++ ) {
           
@@ -382,10 +382,10 @@ public:
       
       parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
         
-        double v = 0.0;
-        double dvdx = 0.0;
-        double dvdy = 0.0;
-        double dvdz = 0.0;
+        ScalarT v = 0.0;
+        ScalarT dvdx = 0.0;
+        ScalarT dvdy = 0.0;
+        ScalarT dvdz = 0.0;
         
         for( int k=0; k<sol.dimension(2); k++ ) {
           
@@ -483,10 +483,10 @@ public:
   // return the value of the stabilization parameter 
   // ========================================================================================
   
-  AD computeTau(const AD & localdiff, const AD & xvl, const AD & yvl, const AD & zvl, const double & h) const {
+  AD computeTau(const AD & localdiff, const AD & xvl, const AD & yvl, const AD & zvl, const ScalarT & h) const {
     
-    double C1 = 4.0;
-    double C2 = 2.0;
+    ScalarT C1 = 4.0;
+    ScalarT C2 = 2.0;
     
     AD nvel;
     if (spaceDim == 1)
@@ -516,8 +516,8 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  vector<Kokkos::View<double***,AssemblyDevice>> extraCellFields() {
-    vector<Kokkos::View<double***,AssemblyDevice>> ef;// = udfunc->extraCellFields(label,wkset);
+  vector<Kokkos::View<ScalarT***,AssemblyDevice>> extraCellFields() {
+    vector<Kokkos::View<ScalarT***,AssemblyDevice>> ef;// = udfunc->extraCellFields(label,wkset);
     /*
     DRV wts = wkset->wts;
     
@@ -525,18 +525,18 @@ public:
     if (spaceDim == 2) {
       numvort = 1;
     }
-    Kokkos::View<double***,AssemblyDevice> vort("vorticity",numElem,numvort,1);
+    Kokkos::View<ScalarT***,AssemblyDevice> vort("vorticity",numElem,numvort,1);
     
     if (spaceDim == 2) {
       for (int e=0; e<numElem; e++) {
-        double vol = 0.0;
+        ScalarT vol = 0.0;
         for (size_t k=0; k<numip; k++) {
           vol += wts(e,k);
         }
         for (int j=0; j<numip; j++) {
-          double cwt = wts(e,j)/vol;
-          double duxdy = wkset->local_soln_grad(e,ux_num,j,1).val();
-          double duydx = wkset->local_soln_grad(e,uy_num,j,0).val();
+          ScalarT cwt = wts(e,j)/vol;
+          ScalarT duxdy = wkset->local_soln_grad(e,ux_num,j,1).val();
+          ScalarT duydx = wkset->local_soln_grad(e,uy_num,j,0).val();
           
           vort(e,0,0) += (duydx-duxdy)*(duydx-duxdy)*cwt;
         }
@@ -568,9 +568,9 @@ private:
   
   std::string analysis_type; //to know when parameter is a sample that needs to be transformed
   
-  vector<double> pik;
+  vector<ScalarT> pik;
   bool pin_pr, have_energy;
-  double pin_tol, pin_scale, T_ambient, beta;
+  ScalarT pin_tol, pin_scale, T_ambient, beta;
   
   int verbosity;
   bool useScalarRespFx;

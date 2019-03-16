@@ -24,7 +24,7 @@ public:
   //  transient, stochastic, etc.)
   /////////////////////////////////////////////////////////////////////////////
   
-  klexpansion(const int & N_, const double & L_, const double & sigma_, const double & eta_) :
+  klexpansion(const int & N_, const ScalarT & L_, const ScalarT & sigma_, const ScalarT & eta_) :
     N(N_), L(L_), sigma(sigma_), eta(eta_) {
     
     this->computeRoots();
@@ -35,14 +35,14 @@ public:
   /////////////////////////////////////////////////////////////////////////////
 
   void computeRoots() {
-    double ig = 1.0;
-    double step = 1.0;
-    double ctol = 1.0e-6;
-    double nltol = 1.0e-10;
+    ScalarT ig = 1.0;
+    ScalarT step = 1.0;
+    ScalarT ctol = 1.0e-6;
+    ScalarT nltol = 1.0e-10;
     int maxiter = 1000;
     int iter = 0;
-    double om = ig;
-    double f, df;
+    ScalarT om = ig;
+    ScalarT f, df;
     while (omega.size() < N && iter < maxiter) {
       iter++;
       ig += step;
@@ -68,32 +68,32 @@ public:
   /////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////
 
-  double chareqn(const double & om) {
-    double f = (eta*eta*om*om - 1.0)*sin(om*L) - 2.0*eta*om*cos(om*L);
+  ScalarT chareqn(const ScalarT & om) {
+    ScalarT f = (eta*eta*om*om - 1.0)*sin(om*L) - 2.0*eta*om*cos(om*L);
     return f;
   }
 
   /////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////
 
-  double dchareqn(const double & om) {
-    double df = 2.0*om*eta*eta*sin(om*L)+(eta*eta*om*om - 1.0)*L*cos(om*L) - 2.0*eta*cos(om*L) + 2.0*eta*om*L*sin(om*L);
+  ScalarT dchareqn(const ScalarT & om) {
+    ScalarT df = 2.0*om*eta*eta*sin(om*L)+(eta*eta*om*om - 1.0)*L*cos(om*L) - 2.0*eta*cos(om*L) + 2.0*eta*om*L*sin(om*L);
     return df;
   }
 
   /////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////
   
-  double getEval(const int & i) const {
-    double lam = (2.0*eta*sigma*sigma) / (eta*eta*omega[i]*omega[i]+1.0);
+  ScalarT getEval(const int & i) const {
+    ScalarT lam = (2.0*eta*sigma*sigma) / (eta*eta*omega[i]*omega[i]+1.0);
     return lam; 
   }
   
   /////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////
   
-  double getEvec(const int & i, const double & x) const {
-    double f = 1.0/(sqrt((eta*eta*omega[i]*omega[i]+1.0)*L/2.0 + eta))*(eta*omega[i]*cos(omega[i]*x) + sin(omega[i]*x));
+  ScalarT getEvec(const int & i, const ScalarT & x) const {
+    ScalarT f = 1.0/(sqrt((eta*eta*omega[i]*omega[i]+1.0)*L/2.0 + eta))*(eta*omega[i]*cos(omega[i]*x) + sin(omega[i]*x));
     return f; 
   }
   
@@ -102,10 +102,10 @@ public:
   
 protected:
   
-  double eta, L, sigma;
+  ScalarT eta, L, sigma;
   int N;
 
-  vector<double> omega;
+  vector<ScalarT> omega;
  
 };
 

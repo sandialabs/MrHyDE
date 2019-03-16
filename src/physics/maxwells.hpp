@@ -56,11 +56,11 @@ public:
     int numip = wkset->ip.dimension(1);
     int numBasis;
     
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
-    double v, dvdx, dvdy, dvdz; 
+    ScalarT v, dvdx, dvdy, dvdz;
     AD Hx, dHxdx, dHxdy, dHxdz, Hx_dot;
     AD Hy, dHydx, dHydy, dHydz, Hy_dot;
     AD Hz, dHzdx, dHzdy, dHzdz, Hz_dot;
@@ -297,10 +297,10 @@ public:
   // return the value of the stabilization parameter 
   // ========================================================================================
   
-  AD computeTau(const AD & localdiff, const AD & xvl, const AD & yvl, const AD & zvl, const double & h) const {
+  AD computeTau(const AD & localdiff, const AD & xvl, const AD & yvl, const AD & zvl, const ScalarT & h) const {
     
-    double C1 = 4.0;
-    double C2 = 2.0;
+    ScalarT C1 = 4.0;
+    ScalarT C2 = 2.0;
     
     AD nvel;
     if (spaceDim == 1)

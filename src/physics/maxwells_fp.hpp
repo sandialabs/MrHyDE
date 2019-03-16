@@ -87,7 +87,7 @@ public:
     
     numResponses = 2*(spaceDim+1);
     
-    essScale = settings->sublist("Physics").get<double>("weak ess BC scaling",100.0);
+    essScale = settings->sublist("Physics").get<ScalarT>("weak ess BC scaling",100.0);
     calcE = settings->sublist("Physics").get<bool>("Calculate electric field",false);
   }
   
@@ -101,12 +101,12 @@ public:
     int phir_basis_num = wkset->usebasis[phir_num];
     int phii_basis_num = wkset->usebasis[phii_num];
     
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
     //test functions
-    double vr = 0.0, dvrdx = 0.0, dvrdy = 0.0, dvrdz = 0.0,
+    ScalarT vr = 0.0, dvrdx = 0.0, dvrdy = 0.0, dvrdz = 0.0,
     vi = 0.0, dvidx = 0.0, dvidy = 0.0, dvidz = 0.0;
     
     //states and their gradients
@@ -129,14 +129,14 @@ public:
     
     //    for( size_t e=0; e<numCC; e++ ) {
     //      for( int i=0; i<numBasis; i++ ) {
-    double avgErx = 0.0;
-    double avgEry = 0.0;
-    double avgErz = 0.0;
-    double avgEix = 0.0;
-    double avgEiy = 0.0;
-    double avgEiz = 0.0;
+    ScalarT avgErx = 0.0;
+    ScalarT avgEry = 0.0;
+    ScalarT avgErz = 0.0;
+    ScalarT avgEix = 0.0;
+    ScalarT avgEiy = 0.0;
+    ScalarT avgEiz = 0.0;
     
-    double current_time = wkset->time;
+    ScalarT current_time = wkset->time;
     
     sol = wkset->local_soln;
     sol_dot = wkset->local_soln_dot;
@@ -445,12 +445,12 @@ public:
     
     //    FCAD local_resid(numCC, 2*(spaceDim+1), numBasis);
     
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
     //test functions
-    double vr = 0.0, vi = 0.0;
+    ScalarT vr = 0.0, vi = 0.0;
     
     //boundary sources
     AD Jsxr, Jsyr, Jszr,
@@ -473,15 +473,15 @@ public:
     AD phir, dphirdx, dphirdy, dphirdz,
     phii, dphiidx, dphiidy, dphiidz;
     
-    double nx = 0.0, ny = 0.0, nz = 0.0; //components of normal
+    ScalarT nx = 0.0, ny = 0.0, nz = 0.0; //components of normal
     
     
     int boundary_type = getBoundaryType(wkset->sidename);
     
     
-    double weakEssScale;
+    ScalarT weakEssScale;
     
-    double current_time = wkset->time;
+    ScalarT current_time = wkset->time;
     
     sideinfo = wkset->sideinfo;
     sol = wkset->local_soln_side;
@@ -727,8 +727,8 @@ public:
     
   }
   
-  double trueSolution(const string & var, const double & x, const double & y, const double & z, const double & time) const {
-    double val = 0.0;
+  ScalarT trueSolution(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const {
+    ScalarT val = 0.0;
     if(test == 1 || test == 2){
       if(var == "Arx" || var == "Aix")
         val = sin(PI*x)*sin(PI*y)*sin(PI*z);
@@ -758,7 +758,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  AD getDirichletValue(const string & var, const double & x, const double & y, const double & z, const double & t,
+  AD getDirichletValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
                        const string & gside, const bool & useadjoint) {
     AD val = 0.0;
     if(!useadjoint){
@@ -771,7 +771,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  //AD getInitialValue(const string & var, const double & x, const double & y, const double & z, const bool & useadjoint) const {
+  //AD getInitialValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const bool & useadjoint) const {
   //  AD val = 0.0;
   //  return val;
   //}
@@ -780,7 +780,7 @@ public:
   // Get the initial value
   // ========================================================================================
   
-  //FC getInitial(const DRV & ip, const string & var, const double & time, const bool & isAdjoint) const {
+  //FC getInitial(const DRV & ip, const string & var, const ScalarT & time, const bool & isAdjoint) const {
   //  int numip = ip.dimension(1);
   //  //    FC initial(1,numip);
   //  FC initial(spaceDim,numip);  // initial to zero?
@@ -796,13 +796,13 @@ public:
                                               Kokkos::View<AD****,AssemblyDevice> local_soln_grad,
                                               Kokkos::View<AD***,AssemblyDevice> local_psoln,
                                               Kokkos::View<AD****,AssemblyDevice> local_psoln_grad,
-                                              const DRV & ip, const double & time) const {
+                                              const DRV & ip, const ScalarT & time) const {
     
     int numip = ip.dimension(1);
     Kokkos::View<AD***,AssemblyDevice> resp("response",numElem,numResponses,numip);
     
-    double x = 0.0;
-    double y = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
     
     for (int e=0; e<numElem; e++) {
       for (int j=0; j<numip; j++) {
@@ -827,7 +827,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  Kokkos::View<AD***,AssemblyDevice> target(const DRV & ip, const double & time) const {
+  Kokkos::View<AD***,AssemblyDevice> target(const DRV & ip, const ScalarT & time) const {
     int numip = ip.dimension(1);
     Kokkos::View<AD***,AssemblyDevice> targ("target",numElem,numResponses,numip);
     
@@ -865,7 +865,7 @@ public:
   // return frequency
   // ======================================================================================
   
-  AD getFreq(const double & x, const double & y, const double & z, const double & time) const{
+  AD getFreq(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
     AD omega = freq_params[0];
     
     return omega;
@@ -875,7 +875,7 @@ public:
   // return magnetic permeability
   // ========================================================================================
   
-  vector<AD> getPermeability(const double & x, const double & y, const double & z, const double & time) const{
+  vector<AD> getPermeability(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
     
     vector<AD> mu;
     if(test == 1){
@@ -900,7 +900,7 @@ public:
   // return inverse of magnetic permeability
   // ========================================================================================
   
-  vector<AD> getInvPermeability(const double & x, const double & y, const double & z, const double & time) const {
+  vector<AD> getInvPermeability(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const {
     
     vector<AD> invmu;
     if(test == 1){
@@ -925,7 +925,7 @@ public:
   // return electric permittivity
   // ========================================================================================
   
-  vector<AD> getPermittivity(const double & x, const double & y, const double & z, const double & time) const{
+  vector<AD> getPermittivity(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
     
     vector<AD> permit;
     if(test == 1){
@@ -958,7 +958,7 @@ public:
   // return current density in interior of domain
   // ========================================================================================
   
-  vector<vector<AD> > getInteriorCurrent(const double & x, const double & y, const double & z, const double & time) const{
+  vector<vector<AD> > getInteriorCurrent(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
     
     vector<vector<AD> > J(2,vector<AD>(3,0.0));
     
@@ -1013,7 +1013,7 @@ public:
   // return charge density in interior of domain
   // ========================================================================================
   
-  vector<AD> getInteriorCharge(const double & x, const double & y, const double & z, const double & time) const{
+  vector<AD> getInteriorCharge(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
     
     vector<AD> rho(2,0.0);
     
@@ -1039,7 +1039,7 @@ public:
   // return electric current on boundary of domain
   // =======================================================================================
   
-  vector<vector<AD> > getBoundaryCurrent(const double & x, const double & y, const double & z, const double & time,
+  vector<vector<AD> > getBoundaryCurrent(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time,
                                          const string & side_name, const int & boundary_type) const{
     
     vector<vector<AD> > Js(2,vector<AD>(3,0.0));
@@ -1070,8 +1070,8 @@ public:
         Js[1][2] = 0.0;
       }
     }else if(test == 4){ //J_s = nhat x H, H = <0,0,1>
-      double nx = x/sqrt(x*x+y*y);
-      double ny = y/sqrt(x*x+y*y);
+      ScalarT nx = x/sqrt(x*x+y*y);
+      ScalarT ny = y/sqrt(x*x+y*y);
       Js[0][0] = ny;
       Js[0][1] = -nx                                            ;
     }
@@ -1084,7 +1084,7 @@ public:
   // return charge density on boundary of domain (should be surface divergence of boundary current divided by i*omega
   // ========================================================================================
   
-  vector<AD> getBoundaryCharge(const double & x, const double & y, const double & z, const double & time) const{
+  vector<AD> getBoundaryCharge(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
     vector<AD> rhos(2,0.0);
     return rhos;
   }
@@ -1133,8 +1133,8 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  std::vector<Kokkos::View<double***,AssemblyDevice> > extraFields() const {
-    std::vector<Kokkos::View<double***,AssemblyDevice> > ef;
+  std::vector<Kokkos::View<ScalarT***,AssemblyDevice> > extraFields() const {
+    std::vector<Kokkos::View<ScalarT***,AssemblyDevice> > ef;
     if(calcE){
       ef.push_back(Erx);
       ef.push_back(Ery);
@@ -1152,12 +1152,12 @@ public:
   void setExtraFields(const size_t & numGlobalElem_) {
     //numElem = numElem_;
     if(calcE){
-      Erx = Kokkos::View<double***,AssemblyDevice>("Erx",numGlobalElem_,1,1);
-      Ery = Kokkos::View<double***,AssemblyDevice>("Ery",numGlobalElem_,1,1);
-      Erz = Kokkos::View<double***,AssemblyDevice>("Erz",numGlobalElem_,1,1);
-      Eix = Kokkos::View<double***,AssemblyDevice>("Eix",numGlobalElem_,1,1);
-      Eiy = Kokkos::View<double***,AssemblyDevice>("Eiy",numGlobalElem_,1,1);
-      Eiz = Kokkos::View<double***,AssemblyDevice>("Eiz",numGlobalElem_,1,1);
+      Erx = Kokkos::View<ScalarT***,AssemblyDevice>("Erx",numGlobalElem_,1,1);
+      Ery = Kokkos::View<ScalarT***,AssemblyDevice>("Ery",numGlobalElem_,1,1);
+      Erz = Kokkos::View<ScalarT***,AssemblyDevice>("Erz",numGlobalElem_,1,1);
+      Eix = Kokkos::View<ScalarT***,AssemblyDevice>("Eix",numGlobalElem_,1,1);
+      Eiy = Kokkos::View<ScalarT***,AssemblyDevice>("Eiy",numGlobalElem_,1,1);
+      Eiz = Kokkos::View<ScalarT***,AssemblyDevice>("Eiz",numGlobalElem_,1,1);
     }
   }
   
@@ -1206,10 +1206,10 @@ private:
   int test;
   int verbosity;
   
-  Kokkos::View<double***,AssemblyDevice> Erx, Ery, Erz, Eix, Eiy, Eiz; //corresponding electric field
+  Kokkos::View<ScalarT***,AssemblyDevice> Erx, Ery, Erz, Eix, Eiy, Eiz; //corresponding electric field
   bool calcE; //whether to calculate E field here (does not give smooth result like Paraview does; cause unknown)
   
-  double essScale;
+  ScalarT essScale;
   
   Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad;
   Kokkos::View<AD**,AssemblyDevice> res;

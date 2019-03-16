@@ -34,8 +34,8 @@ vector<Teuchos::RCP<SubGridModel> > subgridGenerator(const Teuchos::RCP<LA_MpiCo
     
     int nummodels = settings->sublist("Subgrid").get<int>("Number of Models",1);
     int  num_macro_time_steps = settings->sublist("Solver").get("numSteps",1);
-    double finaltime = settings->sublist("Solver").get<double>("finaltime",1.0);
-    double macro_deltat = finaltime/num_macro_time_steps;
+    ScalarT finaltime = settings->sublist("Solver").get<ScalarT>("finaltime",1.0);
+    ScalarT macro_deltat = finaltime/num_macro_time_steps;
     if (nummodels == 1) { 
       Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = rcp(new Teuchos::ParameterList("Subgrid"));
       subgrid_pl->setParameters(settings->sublist("Subgrid"));

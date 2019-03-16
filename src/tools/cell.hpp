@@ -161,7 +161,7 @@ public:
         
         for (int e=0; e<numElem; e++) {
           for( int j=0; j<ref_side_ip.dimension(0); j++ ) {
-            double normalLength = 0.0;
+            ScalarT normalLength = 0.0;
             for (int sd=0; sd<dimension; sd++) {
               normalLength += cnormals(e,j,sd)*cnormals(e,j,sd);
             }
@@ -307,15 +307,15 @@ public:
   // Compute the contribution from this cell to the global res, J, Jdot
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void computeJacRes(const vector<vector<double > > & paramvals,
+  void computeJacRes(const vector<vector<ScalarT > > & paramvals,
                      const vector<int> & paramtypes, const vector<string> & paramnames,
-                     const double & time, const bool & isTransient, const bool & isAdjoint,
+                     const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                      const bool & compute_jacobian, const bool & compute_sens,
                      const int & num_active_params, const bool & compute_disc_sens,
                      const bool & compute_aux_sens, const bool & store_adjPrev,
-                     Kokkos::View<double***,AssemblyDevice> res,
-                     Kokkos::View<double***,AssemblyDevice> local_J,
-                     Kokkos::View<double***,AssemblyDevice> local_Jdot);
+                     Kokkos::View<ScalarT***,AssemblyDevice> res,
+                     Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                     Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Update the solution variables in the workset
@@ -329,67 +329,67 @@ public:
   // Use the AD res to update the scalarT res
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateRes(const bool & compute_sens, Kokkos::View<double***,AssemblyDevice> local_res);
+  void updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res);
 
   ///////////////////////////////////////////////////////////////////////////////////////
   // Update the adjoint res
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateAdjointRes(const bool & compute_sens, Kokkos::View<double***,AssemblyDevice> local_res);
+  void updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT J
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateJac(const bool & useadjoint, Kokkos::View<double***,AssemblyDevice> local_J);
+  void updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT Jdot
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateJacDot(const bool & useadjoint, Kokkos::View<double***,AssemblyDevice> local_Jdot);
+  void updateJacDot(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot);
 
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT Jparam
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateParamJac(Kokkos::View<double***,AssemblyDevice> local_J);
+  void updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT Jdot
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateParamJacDot(Kokkos::View<double***,AssemblyDevice> local_Jdot);
+  void updateParamJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT Jaux
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateAuxJac(Kokkos::View<double***,AssemblyDevice> local_J);
+  void updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT Jdot
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateAuxJacDot(Kokkos::View<double***,AssemblyDevice> local_Jdot);
+  void updateAuxJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Get the initial condition 
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  Kokkos::View<double**,AssemblyDevice> getInitial(const bool & project, const bool & isAdjoint);
+  Kokkos::View<ScalarT**,AssemblyDevice> getInitial(const bool & project, const bool & isAdjoint);
 
   ///////////////////////////////////////////////////////////////////////////////////////
   // Get the mass matrix 
   ///////////////////////////////////////////////////////////////////////////////////////
     
-  Kokkos::View<double***,AssemblyDevice> getMass();
+  Kokkos::View<ScalarT***,AssemblyDevice> getMass();
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the error at the integration points given the solution and solve times
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  Kokkos::View<double**,AssemblyDevice> computeError(const double & solvetime, const size_t & tindex,
+  Kokkos::View<ScalarT**,AssemblyDevice> computeError(const ScalarT & solvetime, const size_t & tindex,
                                                      const bool compute_subgrid, const string & error_type);
 
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -398,13 +398,13 @@ public:
 
   Kokkos::View<AD***,AssemblyDevice> computeResponseAtNodes(const DRV & nodes,
                                                             const int tindex,
-                                                            const double & time);
+                                                            const ScalarT & time);
 
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the response at the integration points given the solution and solve times
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  Kokkos::View<AD***,AssemblyDevice> computeResponse(const double & solvetime,
+  Kokkos::View<AD***,AssemblyDevice> computeResponse(const ScalarT & solvetime,
                                                      const size_t & tindex,
                                                      const int & seedwhat);
   
@@ -412,21 +412,21 @@ public:
   // Compute volumetric contribution to the regularization
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  AD computeDomainRegularization(const vector<double> reg_constants, const vector<int> reg_types,
+  AD computeDomainRegularization(const vector<ScalarT> reg_constants, const vector<int> reg_types,
                                  const vector<int> reg_indices);
 
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute boundary contribution to the regularization and nodes located on the boundary
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  AD computeBoundaryRegularization(const vector<double> reg_constants, const vector<int> reg_types,
+  AD computeBoundaryRegularization(const vector<ScalarT> reg_constants, const vector<int> reg_types,
                                    const vector<int> reg_indices, const vector<string> reg_sides);
 
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the objective function given the solution and solve times
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  Kokkos::View<AD**,AssemblyDevice> computeObjective(const double & solvetime,
+  Kokkos::View<AD**,AssemblyDevice> computeObjective(const ScalarT & solvetime,
                                                      const size_t & tindex,
                                                      const int & seedwhat);
   
@@ -434,20 +434,20 @@ public:
   // Compute the target function given the solve times
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  Kokkos::View<AD***,AssemblyDevice> computeTarget(const double & solvetime);
+  Kokkos::View<AD***,AssemblyDevice> computeTarget(const ScalarT & solvetime);
 
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the weight functino given the solve times
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  Kokkos::View<AD***,AssemblyDevice> computeWeight(const double & solvetime);
+  Kokkos::View<AD***,AssemblyDevice> computeWeight(const ScalarT & solvetime);
 
   ///////////////////////////////////////////////////////////////////////////////////////
   // Add sensor information
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void addSensors(const Kokkos::View<double**,HostDevice> sensor_points, const double & sensor_loc_tol,
-                  const vector<Kokkos::View<double**,HostDevice> > & sensor_data, const bool & have_sensor_data,
+  void addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, const ScalarT & sensor_loc_tol,
+                  const vector<Kokkos::View<ScalarT**,HostDevice> > & sensor_data, const bool & have_sensor_data,
                   const vector<basis_RCP> & basis_pointers,
                   const vector<basis_RCP> & param_basis_pointers);
   
@@ -471,8 +471,8 @@ public:
   template<class T>
   void computeFlux(const Teuchos::RCP<T> & u, const Teuchos::RCP<T> & du,
                    const Teuchos::RCP<T> & sub_param,
-                   Kokkos::View<double***,AssemblyDevice> lambda,
-                   const double & time, const int & s, const double & coarse_h,
+                   Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+                   const ScalarT & time, const int & s, const ScalarT & coarse_h,
                    const bool & compute_sens);
 
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -481,7 +481,7 @@ public:
   /*
   void sacadoizeParams(const bool & seed_active, const int & num_active_params,
                        const vector<int> & paramtypes, const vector<string> & paramnames,
-                       const vector<vector<double> > & paramvals);
+                       const vector<vector<ScalarT> > & paramvals);
     
   */
   
@@ -508,14 +508,14 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
 
   void setUpAdjointPrev(const int & numDOF) {
-    adjPrev = Kokkos::View<double**,AssemblyDevice>("previous adjoint",numElem,numDOF);
+    adjPrev = Kokkos::View<ScalarT**,AssemblyDevice>("previous adjoint",numElem,numDOF);
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
 
   void setUpSubGradient(const int & numParams) {
-    subgradient = Kokkos::View<double**,AssemblyDevice>("subgrid gradient",numElem,numParams);
+    subgradient = Kokkos::View<ScalarT**,AssemblyDevice>("subgrid gradient",numElem,numParams);
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -575,22 +575,22 @@ public:
   vector<string> sidenames;
   vector<vector<int> > GIDs;
   vector<vector<vector<int> > > index;
-  vector<vector<double> > orientation;
+  vector<vector<ScalarT> > orientation;
   Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
   
-  Kokkos::View<double***,AssemblyDevice> u, u_dot, phi, phi_dot;
-  double current_time;
+  Kokkos::View<ScalarT***,AssemblyDevice> u, u_dot, phi, phi_dot;
+  ScalarT current_time;
   int num_stages;
   
   // Discretized Parameter Information
-  Kokkos::View<double***,AssemblyDevice> param;
+  Kokkos::View<ScalarT***,AssemblyDevice> param;
   vector<vector<int> > paramGIDs;
   vector<vector<vector<int> > > paramindex;
   
   // Auxiliary Parameter Information
   // aux variables are handled slightly differently from others
   
-  Kokkos::View<double***,AssemblyDevice> aux;
+  Kokkos::View<ScalarT***,AssemblyDevice> aux;
   vector<string> auxlist;
   vector<int> auxGIDs;
   vector<vector<int> > auxoffsets;
@@ -606,16 +606,16 @@ public:
   bool useSensors;
   string response_type;
   size_t numSensors;
-  vector<Kokkos::View<double**,HostDevice> > sensorLocations;
+  vector<Kokkos::View<ScalarT**,HostDevice> > sensorLocations;
   DRV sensorPoints;
   vector<int> sensorElem;
-  vector<Kokkos::View<double**,HostDevice> > sensorData;
+  vector<Kokkos::View<ScalarT**,HostDevice> > sensorData;
   vector<vector<DRV> > sensorBasis, param_sensorBasis;
   vector<vector<DRV> > sensorBasisGrad, param_sensorBasisGrad;
   vector<int> mySensorIDs;
-  Kokkos::View<double**,AssemblyDevice> adjPrev, subgradient;
-  Kokkos::View<double**,AssemblyDevice> cell_data;
-  vector<double> cell_data_distance;
+  Kokkos::View<ScalarT**,AssemblyDevice> adjPrev, subgradient;
+  Kokkos::View<ScalarT**,AssemblyDevice> cell_data;
+  vector<ScalarT> cell_data_distance;
   bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles;
   bool mortar_objective;
   bool exodus_sensors = false;

@@ -37,7 +37,7 @@ public:
       isTD = false;
     
     if (isTD) {
-      double finalT = settings->sublist("Solver").get<double>("finaltime",0.0);
+      ScalarT finalT = settings->sublist("Solver").get<ScalarT>("finaltime",0.0);
       numSteps = settings->sublist("Solver").get<int>("numSteps",1);
       dt = finalT / numSteps;
     }
@@ -49,7 +49,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void volumeResidual(const double & h, const double & current_time, const FCAD & local_soln, 
+  void volumeResidual(const ScalarT & h, const ScalarT & current_time, const FCAD & local_soln,
                       const FCAD & local_solngrad, const FCAD & local_soln_dot, 
                       const FCAD & local_param, const FCAD & local_param_grad, 
                       const FCAD & local_aux, const FCAD & local_aux_grad, 
@@ -67,13 +67,13 @@ public:
     
     // Set the parameters
     
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
-    double v, dvdx, dvdy, dvdz; 
-    double source_rho, source_rhou, source_rhov, source_rhow, source_rhoe;
-    //double ux_prev, uy_prev, uz_prev;
+    ScalarT v, dvdx, dvdy, dvdz;
+    ScalarT source_rho, source_rhou, source_rhov, source_rhow, source_rhoe;
+    //ScalarT ux_prev, uy_prev, uz_prev;
     AD p, rho, drhodx, drhody, drhodz, rho_dot;
     AD rhou, drhoudx, drhoudy, drhoudz, rhou_dot;
     AD rhov, drhovdx, drhovdy, drhovdz, rhov_dot;
@@ -86,8 +86,8 @@ public:
     // they are similar to the local residual
     AD tau, res, res1, res2, res3;
     
-    double gamma = 1.4;
-    double Pe = 0.5, Prho = 0.5;
+    ScalarT gamma = 1.4;
+    ScalarT Pe = 0.5, Prho = 0.5;
     
     for( int i=0; i<numBasis; i++ ) {
       for( int nPt=0; nPt<numCubPoints; nPt++ ) {
@@ -219,7 +219,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void boundaryResidual(const double & h, const double & current_time, const FCAD & local_soln, 
+  void boundaryResidual(const ScalarT & h, const ScalarT & current_time, const FCAD & local_soln,
                         const FCAD & local_solngrad, const FCAD & local_soln_dot, 
                         const FCAD & local_param, const FCAD & local_param_grad, 
                         const FCAD & local_aux, const FCAD & local_aux_grad, 
@@ -237,18 +237,18 @@ public:
     int numSideCubPoints = ip.dimension(1);
     
     // Set the parameters
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
-    double v, dvdx, dvdy, dvdz;
+    ScalarT v, dvdx, dvdy, dvdz;
     AD p, rho, drhodx, drhody, drhodz, rho_dot;
     AD rhou, drhoudx, drhoudy, drhoudz, rhou_dot;
     AD rhov, drhovdx, drhovdy, drhovdz, rhov_dot;
     AD rhow, drhowdx, drhowdy, drhowdz, rhow_dot;
     AD rhoe, drhoedx, drhoedy, drhoedz, rhoe_dot;
     
-    double gamma = 1.4;
+    ScalarT gamma = 1.4;
     
     for( int i=0; i<numBasis; i++ ) {
       for( int nPt=0; nPt<numSideCubPoints; nPt++ ) {
@@ -360,7 +360,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void edgeResidual(const double & h, const double & current_time, const FCAD & local_soln, 
+  void edgeResidual(const ScalarT & h, const ScalarT & current_time, const FCAD & local_soln,
                     const FCAD & local_solngrad, const FCAD & local_soln_dot, 
                     const FCAD & local_param, const FCAD & local_param_grad, 
                     const FCAD & local_aux, const FCAD & local_aux_grad, 
@@ -375,7 +375,7 @@ public:
   // The boundary/edge flux
   // ========================================================================================
   
-  void computeFlux(const FC & ip, const double & h, const double & current_time, 
+  void computeFlux(const FC & ip, const ScalarT & h, const ScalarT & current_time,
                    const FCAD & local_soln, const FCAD & local_solngrad, 
                    const FCAD & local_soln_dot, const FCAD local_param, , const FCAD local_aux, 
                    const FC & normals, FCAD & flux) {
@@ -385,8 +385,8 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  AD getDirichletValue(const string & var, const double & x, const double & y, const double & z, 
-                       const double & t, const string & gside, const std::vector<std::vector<AD > > currparams,  
+  AD getDirichletValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
+                       const ScalarT & t, const string & gside, const std::vector<std::vector<AD > > currparams,
                        const bool & useadjoint) const {
     
     AD val = 0.0;
@@ -435,9 +435,9 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  double getInitialValue(const string & var, const double & x, const double & y, const double & z, 
+  ScalarT getInitialValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
                          const bool & useadjoint) const {
-    double val = 0.0;
+    ScalarT val = 0.0;
     if (test == "Sod") {
       if (var == "rho") {
         if (x<=0.5)
@@ -481,9 +481,9 @@ public:
   // error calculation
   // ========================================================================================
   
-  double trueSolution(const string & var, const double & x, const double & y, const double & z, 
-                      const double & time) const {
-    double c = 0.0;
+  ScalarT trueSolution(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
+                      const ScalarT & time) const {
+    ScalarT c = 0.0;
     return c;
   }
   
@@ -493,7 +493,7 @@ public:
   
   FCAD response(const FCAD & local_soln, 
                                const FCAD & local_soln_grad,
-                               const DRV & ip, const double & time, 
+                               const DRV & ip, const ScalarT & time,
                                const std::vector<std::vector<AD > > paramvals) const {
     int numCC = ip.dimension(0);
     int numip = ip.dimension(1);
@@ -517,7 +517,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  FCAD target(const FC & ip, const double & time, 
+  FCAD target(const FC & ip, const ScalarT & time,
                              const std::vector<std::vector<AD > > paramvals) const {
     int numCC = ip.dimension(0);
     int numip = ip.dimension(1);
@@ -546,7 +546,7 @@ public:
     int numbasis = soln.dimension(2);
     FCAD auxvars(numCC,3,numbasis);
     
-    double gamma = 1.4;
+    ScalarT gamma = 1.4;
     AD S, ux, uy, uz, rho, p;
     for (int i=0; i<numCC; i++) {
       for (int j=0; j<numbasis; j++) {
@@ -602,10 +602,10 @@ public:
   
   template<class T1, class T2>
   AD computeTau(const T2 & localdiff, const T1 & xvl, const T1 & yvl, const T1 & zvl, 
-                const double & h) const {
+                const ScalarT & h) const {
     
-    double C1 = 4.0;
-    double C2 = 2.0;
+    ScalarT C1 = 4.0;
+    ScalarT C2 = 2.0;
     
     T1 nvel;
     if (spaceDim == 1)
@@ -633,12 +633,12 @@ public:
                      const T & rhov, const T & rhovx, const T & rhovy, const T & rhovz, const T & rhovt,
                      const T & rhow, const T & rhowx, const T & rhowy, const T & rhowz, const T & rhowt,
                      const T & rhoe, const T & rhoex, const T & rhoey, const T & rhoez, const T & rhoet,
-                     const double & h, std::vector<std::vector<AD > > params) const {
+                     const ScalarT & h, std::vector<std::vector<AD > > params) const {
     
-    double C1 = 1.0;
-    double C2 = 0.25;
-    double maxevisc = 0.4;
-    double gamma = 1.4;
+    ScalarT C1 = 1.0;
+    ScalarT C2 = 0.25;
+    ScalarT maxevisc = 0.4;
+    ScalarT gamma = 1.4;
     
     T S, p, entres;
     T dSdrho, dSdp, dSdt, dSdx, dSdy, dSdz;
@@ -696,8 +696,8 @@ public:
   /* return the source term (to be multiplied by test_function) */
   // ========================================================================================
   
-  double SourceTerm(const string & var, const double & x, const double & y, const double & z) const {
-    double val = 0.0;
+  ScalarT SourceTerm(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z) const {
+    ScalarT val = 0.0;
     
     return val;
   }
@@ -757,9 +757,9 @@ private:
   int spaceDim, numElem, numParams, numResponses, numSteps;
   vector<string> varlist;
   int rho_num, rhou_num, rhov_num, rhow_num, rhoe_num;
-  //double density, viscosity;
+  //ScalarT density, viscosity;
   bool isTD, useSUPG, usePSPG;
-  double dt;
+  ScalarT dt;
   
   string test;
   

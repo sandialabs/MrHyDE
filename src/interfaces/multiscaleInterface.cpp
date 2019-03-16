@@ -75,8 +75,8 @@ void MultiScale::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
 // Initial assignment of subgrid models to cells
 ////////////////////////////////////////////////////////////////////////////////
 
-double MultiScale::initialize() {
-  double my_cost = 0.0;
+ScalarT MultiScale::initialize() {
+  ScalarT my_cost = 0.0;
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       // needs to be updated
@@ -203,7 +203,7 @@ double MultiScale::initialize() {
                 for (size_t q=0; q<basisinfo_j.second[k].dimension(1);q++) {
                   int jgid = basisinfo_j.first(k,q+1);
                   if (r == s) {
-                    double val = basisinfo_i.second[k](r,p) * basisinfo_j.second[k](s,q) * wts(0,k);
+                    ScalarT val = basisinfo_i.second[k](r,p) * basisinfo_j.second[k](s,q) * wts(0,k);
                     map_over->InsertGlobalValues(igid, 1, &val, &jgid);
                   }
                 }
@@ -266,8 +266,8 @@ double MultiScale::initialize() {
 // Re-assignment of subgrid models to cells
 ////////////////////////////////////////////////////////////////////////////////
 
-double MultiScale::update() {
-  double my_cost = 1.0;
+ScalarT MultiScale::update() {
+  ScalarT my_cost = 1.0;
   
   if (subgrid_static) {
     for (size_t b=0; b<cells.size(); b++) {
@@ -322,7 +322,7 @@ double MultiScale::update() {
               int usernum = cells[b][e]->subgrid_usernum[c];
               // get the time/solution from old subgrid model at last time step
               int lastindex = subgridModels[oldmodel]->soln[usernum].size()-1;
-              pair<double, Teuchos::RCP<Epetra_MultiVector> > lastsol = subgridModels[oldmodel]->soln[usernum][lastindex];
+              pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > lastsol = subgridModels[oldmodel]->soln[usernum][lastindex];
               
               Teuchos::RCP<Epetra_MultiVector> projvec = Teuchos::rcp(new Epetra_MultiVector(*(subgridModels[newmodel[c]]->owned_map),1));
               subgrid_projection_maps[newmodel[c]][oldmodel]->Apply(*(lastsol.second), *projvec);
@@ -354,7 +354,7 @@ double MultiScale::update() {
 // Post-processing
 ////////////////////////////////////////////////////////////////////////////////
 
-void MultiScale::writeSolution(const string & macrofilename, const vector<double> & solvetimes,
+void MultiScale::writeSolution(const string & macrofilename, const vector<ScalarT> & solvetimes,
                                const int & globalPID) {
   
   
@@ -434,10 +434,10 @@ void MultiScale::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params,
 ////////////////////////////////////////////////////////////////////////////////
 
 
-Kokkos::View<double**,HostDevice> MultiScale::getMeanCellFields(const size_t & block, const int & timeindex,
-                                                                const double & time, const int & numfields) {
+Kokkos::View<ScalarT**,HostDevice> MultiScale::getMeanCellFields(const size_t & block, const int & timeindex,
+                                                                const ScalarT & time, const int & numfields) {
   
-  Kokkos::View<double**,HostDevice> subgrid_cell_fields("subgrid cell fields",cells[block].size(),numfields);
+  Kokkos::View<ScalarT**,HostDevice> subgrid_cell_fields("subgrid cell fields",cells[block].size(),numfields);
   /*
   if (subgridModels.size() > 0) {
     for (size_t e=0; e<cells[block].size(); e++) {
@@ -445,9 +445,9 @@ Kokkos::View<double**,HostDevice> MultiScale::getMeanCellFields(const size_t & b
       FC cfields = subgridModels[sgmodelnum]->getCellFields(cells[block][e]->subgrid_usernum, time);
       size_t nsgc = cfields.dimension(0);
       for (size_t k=0; k<cfields.dimension(1); k++) {
-        double cval = 0.0;
+        ScalarT cval = 0.0;
         for (size_t j=0; j<nsgc; j++) {
-          cval += cfields(j,k)/(double)nsgc;
+          cval += cfields(j,k)/(ScalarT)nsgc;
         }
         subgrid_cell_fields(e,k) = cval;
       }
@@ -458,7 +458,7 @@ Kokkos::View<double**,HostDevice> MultiScale::getMeanCellFields(const size_t & b
   return subgrid_cell_fields;
 }
 
-void MultiScale::updateMeshData(Kokkos::View<double**,HostDevice> & rotation_data) {
+void MultiScale::updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data) {
   for (size_t i=0; i<subgridModels.size(); i++) {
     subgridModels[i]->updateMeshData(rotation_data);
   }

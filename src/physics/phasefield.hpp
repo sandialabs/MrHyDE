@@ -61,13 +61,13 @@ class phasefield : public physicsbase {
     //    int numBasis = basis.dimension(2);
     // int numCubPoints = ip.dimension(1);
     
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
-    double v, dvdx, dvdy, dvdz;
+    ScalarT v, dvdx, dvdy, dvdz;
     AD  phi, dphidx, dphidy, dphidz, phi_dot;
-    double current_time = wkset->time;
+    ScalarT current_time = wkset->time;
     
     
     for( int nPt=0; nPt<numCubPoints; nPt++ ) {
@@ -125,16 +125,16 @@ class phasefield : public physicsbase {
     //    FCAD local_resid(1, numBasis);
     
     // Set the parameters
-    // double x = 0.0;
-    // double y = 0.0;
-    // double z = 0.0;
+    // ScalarT x = 0.0;
+    // ScalarT y = 0.0;
+    // ScalarT z = 0.0;
     
-    // double v, source, robin_alpha;
+    // ScalarT v, source, robin_alpha;
     // AD phi, dphidx, dphidy, dphidz;
     // std::string pname = myparams[0];
     // std::vector<AD > diff_FAD = getParameters(params, pname);
     
-    // double dvdx;
+    // ScalarT dvdx;
     
     // for (size_t ee=0; ee<numCC; ee++) {
     //    for( int i=0; i<numBasis; i++ ) {
@@ -182,9 +182,9 @@ class phasefield : public physicsbase {
   
   void computeFlux() {
     
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
     for (size_t i=0; i<wkset->ip_side.dimension(1); i++) {
       x = wkset->ip_side(0,i,0);
@@ -208,8 +208,8 @@ class phasefield : public physicsbase {
   // ========================================================================================
   // ========================================================================================
   
-  AD getDirichletValue(const string & var, const double & x, const double & y, const double & z,
-                       const double & t, const string & gside, const bool & useadjoint) const {
+  AD getDirichletValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
+                       const ScalarT & t, const string & gside, const bool & useadjoint) const {
     AD val = 0.0;
     return val;
   }
@@ -217,12 +217,12 @@ class phasefield : public physicsbase {
   // ========================================================================================
   // ========================================================================================
   
-  double getInitialValue(const string & var, const double & x, const double & y, const double & z,
+  ScalarT getInitialValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
                          const bool & useadjoint) const {
-    double val = 0.0;
+    ScalarT val = 0.0;
     
-    double r0 = 0.0;
-    double r1 = 30.0;
+    ScalarT r0 = 0.0;
+    ScalarT r1 = 30.0;
     
     r0 = pow((x-50.0)*(x-50.0) + (y-50.0)*(y-50.0),0.5);
     if(r0>r1) {
@@ -238,14 +238,14 @@ class phasefield : public physicsbase {
   // Get the initial value
   // ========================================================================================
   
-  FC getInitial(const DRV & ip, const string & var, const double & time, const bool & isAdjoint) const {
+  FC getInitial(const DRV & ip, const string & var, const ScalarT & time, const bool & isAdjoint) const {
     int numip = ip.dimension(1);
     FC initial(1,numip);
     
     string dummy ("dummy");
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+    ScalarT x = 0.0;
+    ScalarT y = 0.0;
+    ScalarT z = 0.0;
     
     for (int i=0; i<numip; i++) {
       x = ip(0,i,0);
@@ -263,9 +263,9 @@ class phasefield : public physicsbase {
   // error calculation
   // ========================================================================================
   
-  double trueSolution(const string & var, const double & x, const double & y, const double & z,
-                      const double & time) const {
-    double e = sin(2*PI*x);
+  ScalarT trueSolution(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
+                      const ScalarT & time) const {
+    ScalarT e = sin(2*PI*x);
     if (spaceDim > 1)
     e *= sin(2*PI*y);
     if (spaceDim > 2)
@@ -282,7 +282,7 @@ class phasefield : public physicsbase {
                 const FCAD & local_soln_grad,
                 const FCAD & local_psoln,
                 const FCAD & local_psoln_grad,
-                const DRV & ip, const double & time) const {
+                const DRV & ip, const ScalarT & time) const {
     int numip = ip.dimension(1);
     FCAD resp(1,numip);
     for (int j=0; j<numip; j++) {
@@ -295,8 +295,8 @@ class phasefield : public physicsbase {
   // ========================================================================================
   // ========================================================================================
   
-  //  FCAD target(const FC & ip, const double & time) const {
-  FCAD target(const FC & ip, const double & time) {
+  //  FCAD target(const FC & ip, const ScalarT & time) const {
+  FCAD target(const FC & ip, const ScalarT & time) {
     int numip = ip.dimension(1);
     FCAD targ(1,numip);
     for (int j=0; j<numip; j++) {
@@ -329,7 +329,7 @@ class phasefield : public physicsbase {
   /* return the source term (to be multiplied by test_function) */
   // ========================================================================================
   
-  AD SourceTerm(const double & x, const double & y, const double & z,
+  AD SourceTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z,
                 const std::vector<AD > & tsource) const {
     if(spaceDim == 1) {
       return tsource[0]*12*PI*PI*sin(2*PI*x);
@@ -344,10 +344,10 @@ class phasefield : public physicsbase {
   /* return the source term (to be multiplied by test_function) */
   // ========================================================================================
   
-  double boundarySource(const double & x, const double & y, const double & z, const double & t,
+  ScalarT boundarySource(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
                         const string & side) const {
     
-    double val = 0.0;
+    ScalarT val = 0.0;
     
     if (side == "top")
     val = 2*PI*sin(2*PI*x)*cos(2*PI*y);
@@ -362,7 +362,7 @@ class phasefield : public physicsbase {
   /* return the diffusivity coefficient */
   // ========================================================================================
   
-  AD DiffusionCoeff(const double & x, const double & y, const double & z) const {
+  AD DiffusionCoeff(const ScalarT & x, const ScalarT & y, const ScalarT & z) const {
     AD diff = 0.0;
     diff = diff_FAD[0];
     return diff;
@@ -372,7 +372,7 @@ class phasefield : public physicsbase {
   /* return the source term (to be multiplied by test_function) */
   // ========================================================================================
   
-  double robinAlpha(const double & x, const double & y, const double & z, const double & t,
+  ScalarT robinAlpha(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
                     const string & side) const {
     return 0.0;
   }
@@ -418,7 +418,7 @@ class phasefield : public physicsbase {
     return ef;
   }
   
-  vector<FC> extraFields(const FC & ip, const double & time) {
+  vector<FC> extraFields(const FC & ip, const ScalarT & time) {
     std::vector<FC > ef;
     return ef;
   }
@@ -426,10 +426,10 @@ class phasefield : public physicsbase {
   // ========================================================================================
   // ========================================================================================
   
-  vector<FC> extraCellFields(const FC & ip, const double & time) const {
+  vector<FC> extraCellFields(const FC & ip, const ScalarT & time) const {
     vector<FC> ef;
     AD dval;
-    double x,y,z;
+    ScalarT x,y,z;
     int numip;
     if (ip.rank() == 2)
     numip = ip.dimension(0);
@@ -497,8 +497,8 @@ class phasefield : public physicsbase {
   int spaceDim, numElem, numParams, numResponses;
   vector<string> varlist;
   int e_num;
-  double PI;
-  double diff, alpha;
+  ScalarT PI;
+  ScalarT diff, alpha;
   bool isTD;
   string analysis_type; //to know when parameter is a sample that needs to be transformed
   bool multiscale;
