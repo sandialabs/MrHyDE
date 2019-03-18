@@ -90,6 +90,7 @@ public:
 
   //virtual Epetra_MultiVector getVector() = 0;
   
+  Teuchos::RCP<LA_MpiComm> LocalComm;
   vector<Teuchos::RCP<workset> > wkset;
   vector<basis_RCP> macro_basis_pointers;
   vector<string> macro_basis_types;

@@ -458,11 +458,43 @@ void solver::setupLinearAlgebra() {
 // Set up the Epetra overlapped CrsGraph (for bwds compat.)
 // ========================================================================================
 
-Teuchos::RCP<Epetra_CrsGraph> solver::buildEpetraGraph(Epetra_MpiComm & EP_Comm) {
+Teuchos::RCP<Epetra_CrsGraph> solver::buildEpetraOverlappedGraph(Epetra_MpiComm & EP_Comm) {
   
   //Epetra_MpiComm EP_Comm(*(Comm->getRawMpiComm()));
   Teuchos::RCP<Epetra_Map> Ep_map = Teuchos::rcp(new Epetra_Map(-1, (int)LA_ownedAndShared.size(), &LA_ownedAndShared[0], 0, EP_Comm));
    
+  Teuchos::RCP<Epetra_CrsGraph> Ep_graph = Teuchos::rcp(new Epetra_CrsGraph(Copy, *Ep_map, 0));
+  
+  vector<vector<int> > gids;
+  
+  for (size_t b=0; b<cells.size(); b++) {
+    vector<vector<int> > curroffsets = phys->offsets[b];
+    for(size_t e=0; e<cells[b].size(); e++) {
+      gids = cells[b][e]->GIDs;
+      for (int p=0; p<cells[b][e]->numElem; p++) {
+        for (size_t i=0; i<gids[p].size(); i++) {
+          int ind1 = gids[p][i];
+          for (size_t j=0; j<gids[p].size(); j++) {
+            int ind2 = gids[p][j];
+            int err = Ep_graph->InsertGlobalIndices(ind1,1,&ind2);
+          }
+        }
+      }
+    }
+  }
+  Ep_graph->FillComplete();
+  return Ep_graph;
+}
+
+// ========================================================================================
+// Set up the Epetra owned CrsGraph (for bwds compat.)
+// ========================================================================================
+
+Teuchos::RCP<Epetra_CrsGraph> solver::buildEpetraOwnedGraph(Epetra_MpiComm & EP_Comm) {
+  
+  //Epetra_MpiComm EP_Comm(*(Comm->getRawMpiComm()));
+  Teuchos::RCP<Epetra_Map> Ep_map = Teuchos::rcp(new Epetra_Map(-1, (int)LA_owned.size(), &LA_owned[0], 0, EP_Comm));
+  
   Teuchos::RCP<Epetra_CrsGraph> Ep_graph = Teuchos::rcp(new Epetra_CrsGraph(Copy, *Ep_map, 0));
   
   vector<vector<int> > gids;

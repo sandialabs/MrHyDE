@@ -214,17 +214,16 @@ ScalarT MultiScale::initialize() {
         
         map_over->FillComplete(*(subgridModels[j]->overlapped_map), *(subgridModels[i]->overlapped_map));
         
-        map->PutScalar(0.0);
-        map->Export(*map_over, *(subgridModels[i]->exporter), Add);
-        map->FillComplete(*(subgridModels[j]->owned_map), *(subgridModels[i]->owned_map));
-        /*
-         if (i == j) {
-         cout << "i is " << i << endl;
-         cout << *map << endl;
-         }
-         */
-        
+        if (subgridModels[i]->LocalComm->getSize() > 1) {
+          map->PutScalar(0.0);
+          map->Export(*map_over, *(subgridModels[i]->exporter), Add);
+          map->FillComplete(*(subgridModels[j]->owned_map), *(subgridModels[i]->owned_map));
+        }
+        else {
+          map = map_over;
+        }
         currmaps.push_back(map);
+        
       }
       subgrid_projection_maps.push_back(currmaps);
     }

@@ -37,10 +37,10 @@ public:
              Teuchos::RCP<Teuchos::ParameterList> & settings_,
              topo_RCP & macro_cellTopo_, int & num_macro_time_steps_,
              ScalarT & macro_deltat_) :
-  LocalComm(LocalComm_), settings(settings_), macro_cellTopo(macro_cellTopo_),
+  settings(settings_), macro_cellTopo(macro_cellTopo_),
   num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
     
-    
+    LocalComm = LocalComm_;
     dimension = settings->sublist("Mesh").get<int>("dim",2);
     subgridverbose = settings->sublist("Solver").get<int>("Verbosity",10);
     multiscale_method = settings->get<string>("Multiscale Method","mortar");
@@ -343,11 +343,23 @@ public:
       
       Epetra_MpiComm EP_Comm(*(LocalComm->getRawMpiComm()));
       owned_map = Teuchos::rcp(new Epetra_Map(-1, subsolver->LA_owned.size(), &(subsolver->LA_owned[0]), 0, EP_Comm));
-      overlapped_map = Teuchos::rcp(new Epetra_Map(-1, subsolver->LA_ownedAndShared.size(), &(subsolver->LA_ownedAndShared[0]), 0, EP_Comm));
+      if (LocalComm->getSize() > 1) {
+        overlapped_map = Teuchos::rcp(new Epetra_Map(-1, subsolver->LA_ownedAndShared.size(), &(subsolver->LA_ownedAndShared[0]), 0, EP_Comm));
+      }
+      else {
+        overlapped_map = owned_map;
+      }
       
-      exporter = Teuchos::rcp(new Epetra_Export(*overlapped_map, *owned_map));
-      importer = Teuchos::rcp(new Epetra_Import(*overlapped_map, *owned_map));
-      overlapped_graph = subsolver->buildEpetraGraph(EP_Comm);// Teuchos::rcp(new Epetra_CrsGraph(Copy, *overlapped_map, 0));
+      owned_graph = subsolver->buildEpetraOwnedGraph(EP_Comm);
+      if (LocalComm->getSize() > 1) {
+        exporter = Teuchos::rcp(new Epetra_Export(*overlapped_map, *owned_map));
+        importer = Teuchos::rcp(new Epetra_Import(*overlapped_map, *owned_map));
+        overlapped_graph = subsolver->buildEpetraOverlappedGraph(EP_Comm);
+      }
+      else {
+        overlapped_graph = owned_graph;
+      }
+      
       
       //owned_map = subsolver->LA_owned_map;
       //overlapped_map = subsolver->LA_overlapped_map;
@@ -356,16 +368,24 @@ public:
       //overlapped_graph = subsolver->LA_overlapped_graph;
       
       res = Teuchos::rcp( new Epetra_MultiVector(*(owned_map),1)); // reset residual
-      J = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *overlapped_graph)); // reset Jacobian
-      M = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *overlapped_graph)); // reset Mass
-      res_over = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1)); // reset residual
-      sub_J_over = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *(overlapped_graph))); // reset Jacobian
-      sub_M_over = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *(overlapped_graph))); // reset Jacobian
+      J = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *owned_graph)); // reset Jacobian
+      M = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *owned_graph)); // reset Mass
       
+      if (LocalComm->getSize() > 1) {
+        res_over = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1)); // reset residual
+        sub_J_over = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *(overlapped_graph))); // reset Jacobian
+        sub_M_over = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *(overlapped_graph))); // reset Jacobian
+      }
+      else {
+        res_over = res;
+        sub_J_over = J;
+        sub_M_over = M;
+      }
       u = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1)); // reset residual
       u_dot = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1)); // reset residual
       phi = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1)); // reset residual
       phi_dot = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1)); // reset residual
+      
       d_um = Teuchos::rcp( new Epetra_MultiVector(*(owned_map),macroGIDs.size())); // reset residual
       d_sub_res_overm = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),macroGIDs.size()));
       d_sub_resm = Teuchos::rcp(new Epetra_MultiVector(*(owned_map),macroGIDs.size()));
@@ -373,8 +393,12 @@ public:
       d_sub_u_overm = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),macroGIDs.size()));
       
       du_glob = Teuchos::rcp(new Epetra_MultiVector(*(owned_map),1));
-      du = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),1));
-      
+      if (LocalComm->getSize() > 1) {
+        du = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),1));
+      }
+      else {
+        du = du_glob;
+      }
       
       filledJ = false;
       filledM = false;
@@ -1321,17 +1345,23 @@ public:
       sub_J_over->FillComplete();
       sub_M_over->FillComplete();
       
-      J->PutScalar(0.0);
-      J->Export(*sub_J_over, *(exporter), Add);
-      M->PutScalar(0.0);
-      M->Export(*sub_M_over, *(exporter), Add);
-      if (!filledJ) {
-        J->FillComplete();
-        filledJ = true;
+      if (LocalComm->getSize() > 1) {
+        J->PutScalar(0.0);
+        J->Export(*sub_J_over, *(exporter), Add);
+        M->PutScalar(0.0);
+        M->Export(*sub_M_over, *(exporter), Add);
+        if (!filledJ) {
+          J->FillComplete();
+          filledJ = true;
+        }
+        if (!filledM) {
+          M->FillComplete();
+          filledM = true;
+        }
       }
-      if (!filledM) {
-        M->FillComplete();
-        filledM = true;
+      else {
+        J = sub_J_over;
+        M = sub_M_over;
       }
       LinSys.SetOperator(J.get());
       
@@ -1352,9 +1382,13 @@ public:
       if (!useDirect && !have_preconditioner) {
         this->buildPreconditioner();
       }
-      res->PutScalar(0.0);
-      res->Export(*res_over, *(exporter), Add);
-      
+      if (LocalComm->getSize() > 1) {
+        res->PutScalar(0.0);
+        res->Export(*res_over, *(exporter), Add);
+      }
+      else {
+        res = res_over;
+      }
       if (iter == 0) {
         res->NormInf(&resnorm_initial);
         if (resnorm_initial > 0.0)
@@ -1378,7 +1412,6 @@ public:
         Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverSolveTimer);
         
         du_glob->PutScalar(0.0);
-        du->PutScalar(0.0);
         
         LinSys.SetRHS(res.get());
         LinSys.SetLHS(du_glob.get());
@@ -1397,7 +1430,13 @@ public:
           itersolver.SetPrecOperator(MLPrec);
           itersolver.Iterate(liniter,lintol);
         }
-        du->Import(*du_glob, *(importer), Add);
+        if (LocalComm->getSize() > 1) {
+          du->PutScalar(0.0);
+          du->Import(*du_glob, *(importer), Add);
+        }
+        else {
+          du = du_glob;
+        }
         
         if (isAdjoint) {
           
@@ -1413,7 +1452,6 @@ public:
       iter++;
       
     }
-    
   }
   
   //////////////////////////////////////////////////////////////
@@ -1625,7 +1663,12 @@ public:
       }
       
       M->Apply(*d_sub_u,*d_sub_u_prev);
-      d_sub_res->Export(*d_sub_res_over, *(exporter), Add);
+      if (LocalComm->getSize() > 1) {
+        d_sub_res->Export(*d_sub_res_over, *(exporter), Add);
+      }
+      else {
+        d_sub_res = d_sub_res_over;
+      }
       d_sub_res->Update(1.0*alpha, *d_sub_u_prev, 1.0);
       
       LinSys.SetOperator(J.get());
@@ -1664,8 +1707,13 @@ public:
           }
         }
       }
-      d_sub_u->PutScalar(0.0);
-      d_sub_u->Import(*d_sub_u_over, *(importer), Add);
+      if (LocalComm->getSize() > 1) {
+        d_sub_u->PutScalar(0.0);
+        d_sub_u->Import(*d_sub_u_over, *(importer), Add);
+      }
+      else {
+        d_sub_u = d_sub_u_over;
+      }
     }
   }
   
@@ -2465,7 +2513,7 @@ public:
     
     // Compute the mass matrix on a reference element
     Teuchos::RCP<Epetra_CrsMatrix>  mass = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *overlapped_map, -1) );
-    Teuchos::RCP<Epetra_CrsMatrix>  glmass = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *owned_map, -1) );
+    
     int usernum = 0;
     for (size_t e=0; e<cells[usernum].size(); e++) {
       int numElem = cells[usernum][e]->numElem;
@@ -2484,11 +2532,17 @@ public:
     }
     
     mass->FillComplete();
-    glmass->PutScalar(0.0);
-    glmass->Export(*mass, *exporter, Add);
     
-    glmass->FillComplete();
-    
+    Teuchos::RCP<Epetra_CrsMatrix>  glmass;
+    if (LocalComm->getSize() > 1) {
+      glmass = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *owned_map, -1) );
+      glmass->PutScalar(0.0);
+      glmass->Export(*mass, *exporter, Add);
+      glmass->FillComplete();
+    }
+    else {
+      glmass = mass;
+    }
     return glmass;
   }
   
@@ -2690,12 +2744,18 @@ public:
   
   Teuchos::RCP<Epetra_CrsMatrix>  getEvaluationMatrix(const DRV & newip, Teuchos::RCP<Epetra_Map> & ip_map) {
     Teuchos::RCP<Epetra_CrsMatrix>  map_over = Teuchos::rcp(new Epetra_CrsMatrix(Copy, *overlapped_map, -1));
-    Teuchos::RCP<Epetra_CrsMatrix>  map = Teuchos::rcp(new Epetra_CrsMatrix(Copy, *owned_map, -1));
+    Teuchos::RCP<Epetra_CrsMatrix>  map;
+    if (LocalComm->getSize() > 1) {
+      map = Teuchos::rcp(new Epetra_CrsMatrix(Copy, *owned_map, -1));
     
-    map->PutScalar(0.0);
-    map->Export(*map_over, *exporter, Add);
-    map->FillComplete(*owned_map, *owned_map);
-    
+      map->PutScalar(0.0);
+      map->Export(*map_over, *exporter, Add);
+      map->FillComplete(*owned_map, *owned_map);
+    }
+    else {
+      map = map_over;
+    }
+    return map;
   }
   
   ////////////////////////////////////////////////////////////////////////////////
@@ -2815,7 +2875,7 @@ public:
   // Static - do not depend on macro-element
   int dimension, time_steps;
   ScalarT initial_time, final_time;
-  Teuchos::RCP<LA_MpiComm> LocalComm;
+  //Teuchos::RCP<LA_MpiComm> LocalComm;
   Teuchos::RCP<Teuchos::ParameterList> settings;
   string macroshape, shape, multiscale_method, error_type;
   int nummacroVars, subgridverbose, numrefine;
@@ -2833,7 +2893,7 @@ public:
   Teuchos::RCP<Epetra_MultiVector> u, u_dot, phi, phi_dot;
   Teuchos::RCP<Epetra_MultiVector> d_sub_res_overm, d_sub_resm, d_sub_u_prevm, d_sub_u_overm;
   
-  Teuchos::RCP<Epetra_CrsGraph> overlapped_graph;
+  Teuchos::RCP<Epetra_CrsGraph> owned_graph, overlapped_graph;
   Teuchos::RCP<Epetra_CrsMatrix>  J, sub_J_over, M, sub_M_over;
   
   bool filledJ, filledM, useDirect;

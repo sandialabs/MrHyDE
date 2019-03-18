@@ -43,57 +43,68 @@ public:
   
   void setupLinearAlgebra();
   
-  Teuchos::RCP<Epetra_CrsGraph> buildEpetraGraph(Epetra_MpiComm & EP_Comm);
-    
+  Teuchos::RCP<Epetra_CrsGraph> buildEpetraOverlappedGraph(Epetra_MpiComm & EP_Comm);
+  
+  Teuchos::RCP<Epetra_CrsGraph> buildEpetraOwnedGraph(Epetra_MpiComm & EP_Comm);
+  
   // ========================================================================================
   // Set up the parameters (inactive, active, stochastic, discrete)
   // Communicate these parameters back to the physics interface and the enabled modules
   // ========================================================================================
   
+  // move to parameter manager
   void setupParameters(Teuchos::RCP<Teuchos::ParameterList> & settings);
   
   /////////////////////////////////////////////////////////////////////////////
   // Read in discretized data from an exodus mesh
   /////////////////////////////////////////////////////////////////////////////
 
+  // move ??
   void readMeshData(Teuchos::RCP<Teuchos::ParameterList> & settings);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
+  // move to sensor/particle manager
   void setupSensors(Teuchos::RCP<Teuchos::ParameterList> & settings);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
+  // move to parameter manager
   int getNumParams(const int & type);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
+  // move to parameter manager
   int getNumParams(const std::string & type);
   
   // ========================================================================================
   // return the discretized parameters as vector for use with ROL
   // ========================================================================================
   
+  // move to parameter manager
   vector<ScalarT> getDiscretizedParamsVector();
   
   // ========================================================================================
   /* given the parameters, solve the forward  problem */
   // ========================================================================================
   
+  // keep here
   vector_RCP forwardModel(DFAD & obj);
   
   // ========================================================================================
   /* given the parameters, solve the fractional forward  problem */
   // ========================================================================================
   
+  // keep here
   vector_RCP forwardModel_fr(DFAD & obj, ScalarT yt, ScalarT st);
   
   // ========================================================================================
   // ========================================================================================
   
+  // keep here
   vector_RCP adjointModel(vector_RCP & F_soln, vector<ScalarT> & gradient);
   
   
@@ -101,13 +112,14 @@ public:
   /* solve the problem */
   // ========================================================================================
   
+  // keep here
   void transientSolver(vector_RCP & initial, vector_RCP & L_soln,
                        vector_RCP & SolMat, DFAD & obj, vector<ScalarT> & gradient);
   
   // ========================================================================================
   // ========================================================================================
   
-  
+  // keep here
   void nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
                        vector_RCP & phi, vector_RCP & phi_dot,
                        const ScalarT & alpha, const ScalarT & beta);
@@ -115,16 +127,19 @@ public:
   // ========================================================================================
   // ========================================================================================
   
+  // move to mesh interface
   void remesh(const vector_RCP & u);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to postprocess
   DFAD computeObjective(const vector_RCP & F_soln, const ScalarT & time, const size_t & tindex);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to postprocess
   vector<ScalarT> computeSensitivities(const vector_RCP & GF_soln,
                                       const vector_RCP & GA_soln);
   
@@ -132,12 +147,14 @@ public:
   // Compute the sensitivity of the objective with respect to discretized parameters
   // ========================================================================================
   
+  // move to postprocess
   vector<ScalarT> computeDiscretizedSensitivities(const vector_RCP & F_soln,
                                                  const vector_RCP & A_soln);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to postprocess
   void computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
                             vector_RCP & a2, vector<ScalarT> & gradient,
                             const ScalarT & alpha, const ScalarT & beta);
@@ -148,55 +165,65 @@ public:
   //   solution to perform verification studies
   // ========================================================================================
   
+  // move to postprocess
   ScalarT computeError(const vector_RCP & GF_soln, const vector_RCP & GA_soln);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to assembly manager
   void updateJacDBC(matrix_RCP & J, size_t & e, size_t & block, int & fieldNum,
                     size_t & localSideId, const bool & compute_disc_sens);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to assembly manager
   void updateJacDBC(matrix_RCP & J, const vector<int> & dofs, const bool & compute_disc_sens);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to assembly manager
   void updateResDBC(vector_RCP & resid, size_t & e, size_t & block, int & fieldNum,
                     size_t & localSideId);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to assembly manager
   void updateResDBC(vector_RCP & resid, const vector<int> & dofs);
   
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to assembly manager
   void updateResDBCsens(vector_RCP & resid, size_t & e, size_t & block, int & fieldNum, size_t & localSideId,
                         const std::string & gside, const ScalarT & current_time);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to assembly manager
   void setDirichlet(vector_RCP & initial);
   
   // ========================================================================================
   // ========================================================================================
   
+  // keep here
   vector_RCP setInitialParams();
   
   // ========================================================================================
   // ========================================================================================
   
+  // keep here
   vector_RCP setInitial();
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to assembly manager
   void computeJacRes(vector_RCP & u, vector_RCP & u_dot,
                      vector_RCP & phi, vector_RCP & phi_dot,
                      const ScalarT & alpha, const ScalarT & beta,
@@ -209,6 +236,7 @@ public:
   // Linear solver for Tpetra stack
   // ========================================================================================
   
+  // keep here
   void linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
   
   
@@ -216,6 +244,7 @@ public:
   // Linear solver for Epetra stack
   // ========================================================================================
   
+  // keep here
   void linearSolver(Teuchos::RCP<Epetra_CrsMatrix> & J,
                     Teuchos::RCP<Epetra_MultiVector> & r,
                     Teuchos::RCP<Epetra_MultiVector> & soln);
@@ -224,99 +253,118 @@ public:
   // Preconditioner for Tpetra stack
   // ========================================================================================
   
+  // keep here
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > buildPreconditioner(const matrix_RCP & J);
   
   // ========================================================================================
   // Preconditioner for Epetra stack
   // ========================================================================================
   
+  // keep here
   ML_Epetra::MultiLevelPreconditioner* buildPreconditioner(const Teuchos::RCP<Epetra_CrsMatrix> & J);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to parameter manager
   void sacadoizeParams(const bool & seed_active);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to parameter manager
   void updateParams(const vector<ScalarT> & newparams, const int & type);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to parameter manager
   void updateParams(const vector<ScalarT> & newparams, const std::string & stype);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to mesh interface
   void updateMeshData(const int & newseed);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to parameter manager
   vector<ScalarT> getParams(const int & type);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to parameter manager
   vector<string> getParamsNames(const int & type);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to parameter manager
   vector<size_t> getParamsLengths(const int & type);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to parameter manager
   vector<ScalarT> getParams(const std::string & stype);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to parameter manager
   vector<vector<ScalarT> > getParamBounds(const std::string & stype);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move???
   void setBatchID(const int & bID);
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to parameter manager
   void stashParams();
   
   // ========================================================================================
   // ========================================================================================
   
+  // move to parameter manager
   vector<ScalarT> getStochasticParams(const std::string & whichparam);
 
   // ========================================================================================
   // ========================================================================================
   
+  // move to parameter manager
   vector<ScalarT> getFractionalParams(const std::string & whichparam);
   
   // ========================================================================================
   // ========================================================================================
   
+  // keep here
   vector_RCP blankState();
   
   // ========================================================================================
   //
   // ========================================================================================
   
+  // move to assembly manager???
   void performGather(const size_t & block, const vector_RCP & vec, const int & type,
                      const size_t & index);
   
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
+  // move to meash interface
   DRV getElemNodes(const int & block, const int & elemID) ;
   
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
+  // keep???
   void finalizeMultiscale() ;
   
   ///////////////////////////////////////////////////////////////////////////////////////////
