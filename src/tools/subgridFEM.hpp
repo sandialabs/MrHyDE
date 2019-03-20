@@ -20,6 +20,7 @@
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
 #include "discretizationTools.hpp"
+#include "assemblyManager.hpp"
 #include "solverInterface.hpp"
 #include "subgridTools.hpp"
 
@@ -305,7 +306,9 @@ public:
     {
       Teuchos::TimeMonitor localtimer(*sgfemSubSolverTimer);
       if (first_time) {
-        subsolver = Teuchos::rcp( new solver(LocalComm, settings, mesh, disc, physics_RCP, DOF, currcells) );
+        sub_assembler = Teuchos::rcp( new AssemblyManager(LocalComm, settings, mesh,
+                                                          disc, physics_RCP, DOF, currcells));
+        subsolver = Teuchos::rcp( new solver(LocalComm, settings, mesh, disc, physics_RCP, DOF, sub_assembler) );
       }
       else { // perform updates to currcells from solver interface
         for (size_t e=0; e<cells[0].size(); e++) {
@@ -328,9 +331,9 @@ public:
       
       functionManager->setupLists(physics_RCP->varlist[0], macro_paramnames,
                                   macro_disc_paramnames);
-      subsolver->wkset[0]->params_AD = paramvals_KVAD;
+      sub_assembler->wkset[0]->params_AD = paramvals_KVAD;
       
-      functionManager->wkset = subsolver->wkset[0];
+      functionManager->wkset = sub_assembler->wkset[0];
       
       functionManager->validateFunctions();
       functionManager->decomposeFunctions();
@@ -403,7 +406,7 @@ public:
       filledJ = false;
       filledM = false;
       
-      wkset = subsolver->wkset;
+      wkset = sub_assembler->wkset;
       //paramvals_AD = subsolver->paramvals_AD;
       
       // Need to create Epetra versions of these maps
@@ -913,8 +916,6 @@ public:
   
   void subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
                      Kokkos::View<ScalarT***,AssemblyDevice> gl_phi,
-                     const vector<vector<ScalarT> > & paramvals,
-                     const vector<int> & paramtypes, const vector<string> & paramnames,
                      const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                      const bool & compute_jacobian, const bool & compute_sens,
                      const int & num_active_params,
@@ -977,7 +978,7 @@ public:
     
     // remove seeding on active params for now
     if (compute_sens) {
-      this->sacadoizeParams(false, num_active_params, paramtypes, paramnames, paramvals);
+      this->sacadoizeParams(false, num_active_params);
     }
     
     //////////////////////////////////////////////////////////////
@@ -1088,8 +1089,7 @@ public:
           recu_dot->PutScalar(0.0);
           
           this->subGridNonlinearSolver(recu, recu_dot, phi, phi_dot, Psol[0], currlambda,
-                                       paramvals, paramtypes, paramnames, sgtime,
-                                       isTransient, false, num_active_params, alpha, usernum, false);
+                                       sgtime, isTransient, false, num_active_params, alpha, usernum, false);
           
           curr_fsol.push_back(recu);
           curr_fsol_dot.push_back(recu_dot);
@@ -1115,13 +1115,11 @@ public:
           }
           
           this->subGridNonlinearSolver(curr_fsol[tindex-1], curr_fsol_dot[tindex-1], phi, phi_dot, Psol[0], currlambda,
-                                       paramvals, paramtypes, paramnames, sgtime,
-                                       isTransient, isAdjoint, num_active_params, alpha, usernum, store_adjPrev);
+                                       sgtime, isTransient, isAdjoint, num_active_params, alpha, usernum, store_adjPrev);
           
           this->computeSubGridSolnSens(d_u, compute_sens, curr_fsol[tindex-1],
                                        curr_fsol_dot[tindex-1], phi, phi_dot, Psol[0], currlambda,
-                                       paramvals, paramtypes, paramnames, sgtime,
-                                       isTransient, isAdjoint, num_active_params, alpha, lambda_scale, usernum, subgradient);
+                                       sgtime, isTransient, isAdjoint, num_active_params, alpha, lambda_scale, usernum, subgradient);
           
           this->updateFlux(phi, d_u, lambda, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0/(ScalarT)time_steps);
           
@@ -1145,13 +1143,11 @@ public:
           }
           
           this->subGridNonlinearSolver(u, u_dot, phi, phi_dot, Psol[0], currlambda,
-                                       paramvals, paramtypes, paramnames, sgtime,
-                                       isTransient, isAdjoint, num_active_params, alpha, usernum, false);
+                                       sgtime, isTransient, isAdjoint, num_active_params, alpha, usernum, false);
           
           this->computeSubGridSolnSens(d_u, compute_sens, u,
                                        u_dot, phi, phi_dot, Psol[0], currlambda,
-                                       paramvals, paramtypes, paramnames, sgtime,
-                                       isTransient, isAdjoint, num_active_params, alpha, lambda_scale, usernum, subgradient);
+                                       sgtime, isTransient, isAdjoint, num_active_params, alpha, lambda_scale, usernum, subgradient);
           
           this->updateFlux(u, d_u, lambda, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0/(ScalarT)time_steps);
         }
@@ -1162,13 +1158,11 @@ public:
       
       wkset[0]->deltat = 1.0;
       this->subGridNonlinearSolver(u, u_dot, phi, phi_dot, Psol[0], lambda,
-                                   paramvals, paramtypes, paramnames, current_time,
-                                   isTransient, isAdjoint, num_active_params, alpha, usernum, false);
+                                   current_time, isTransient, isAdjoint, num_active_params, alpha, usernum, false);
       
       this->computeSubGridSolnSens(d_u, compute_sens, u,
                                    u_dot, phi, phi_dot, Psol[0], lambda,
-                                   paramvals, paramtypes, paramnames, current_time,
-                                   isTransient, isAdjoint, num_active_params, alpha, 1.0, usernum, subgradient);
+                                   current_time, isTransient, isAdjoint, num_active_params, alpha, 1.0, usernum, subgradient);
       
       if (isAdjoint) {
         this->updateFlux(phi, d_u, lambda, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0);
@@ -1193,9 +1187,9 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   
   
-  void sacadoizeParams(const bool & seed_active, const int & num_active_params,
-                       const vector<int> & paramtypes, const vector<string> & paramnames,
-                       const vector<vector<ScalarT> > & paramvals) {
+  void sacadoizeParams(const bool & seed_active, const int & num_active_params) {
+    
+    /*
     if (seed_active) {
       size_t pprog = 0;
       for (size_t i=0; i<paramvals_KVAD.dimension(0); i++) {
@@ -1220,6 +1214,7 @@ public:
         }
       }
     }
+     */
     
   }
   
@@ -1230,8 +1225,6 @@ public:
   void subGridNonlinearSolver(Teuchos::RCP<Epetra_MultiVector> & sub_u, Teuchos::RCP<Epetra_MultiVector> & sub_u_dot,
                               Teuchos::RCP<Epetra_MultiVector> & sub_phi, Teuchos::RCP<Epetra_MultiVector> & sub_phi_dot,
                               Teuchos::RCP<Epetra_MultiVector> & sub_params, Kokkos::View<ScalarT***,AssemblyDevice> lambda,
-                              const vector<vector<ScalarT> > & paramvals,
-                              const vector<int> & paramtypes, const vector<string> & paramnames,
                               const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                               const int & num_active_params, const ScalarT & alpha, const int & usernum,
                               const bool & store_adjPrev) {
@@ -1311,8 +1304,7 @@ public:
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverJacResTimer);
         
-          cells[usernum][e]->computeJacRes(paramvals, paramtypes, paramnames,
-                                           time, isTransient, isAdjoint,
+          cells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
                                            true, false, num_active_params, false, false, false,
                                            local_res, local_J, local_Jdot);
         
@@ -1513,8 +1505,7 @@ public:
                               Teuchos::RCP<Epetra_MultiVector> & sub_u, Teuchos::RCP<Epetra_MultiVector> & sub_u_dot,
                               Teuchos::RCP<Epetra_MultiVector> & sub_phi, Teuchos::RCP<Epetra_MultiVector> & sub_phi_dot,
                               Teuchos::RCP<Epetra_MultiVector> & sub_param, Kokkos::View<ScalarT***,AssemblyDevice> lambda,
-                              const vector<vector<ScalarT> > & paramvals,
-                              const vector<int> & paramtypes, const vector<string> & paramnames, const ScalarT & time,
+                              const ScalarT & time,
                               const bool & isTransient, const bool & isAdjoint, const int & num_active_params, const ScalarT & alpha,
                               const ScalarT & lambda_scale, const int & usernum,
                               Kokkos::View<ScalarT**,AssemblyDevice> subgradient) {
@@ -1556,7 +1547,7 @@ public:
     
     if (compute_sens) {
       
-      this->sacadoizeParams(true, num_active_params, paramtypes, paramnames, paramvals);
+      this->sacadoizeParams(true, num_active_params);
       wkset[0]->time = time;
       wkset[0]->isTransient = isTransient;
       wkset[0]->isAdjoint = isAdjoint;
@@ -1587,8 +1578,7 @@ public:
           }
         }
         
-        cells[usernum][e]->computeJacRes(paramvals, paramtypes, paramnames,
-                                         time, isTransient, isAdjoint,
+        cells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
                                          false, true, num_active_params, false, false, false,
                                          local_res, local_J, local_Jdot);
         
@@ -1643,8 +1633,7 @@ public:
           }
         }
         
-        cells[usernum][e]->computeJacRes(paramvals, paramtypes, paramnames,
-                                         time, isTransient, isAdjoint,
+        cells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
                                          true, false, num_active_params, false, true, false,
                                          local_res, local_J, local_Jdot);
         vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
@@ -2918,6 +2907,7 @@ public:
   vector<string> discparamnames;
   Teuchos::RCP<physics> physics_RCP;
   Teuchos::RCP<panzer::DOFManager<int,int> > DOF;
+  Teuchos::RCP<AssemblyManager> sub_assembler;
   Teuchos::RCP<solver> subsolver;
   Teuchos::RCP<panzer_stk::STK_Interface> mesh;
   Teuchos::RCP<discretization> disc;

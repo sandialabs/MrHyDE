@@ -19,6 +19,7 @@
 #include "discretizationInterface.hpp"
 #include "discretizationTools.hpp"
 #include "cell.hpp"
+#include "assemblyManager.hpp"
 
 void static solverHelp(const string & details) {
   cout << "********** Help and Documentation for the Solver Interface **********" << endl;
@@ -34,7 +35,8 @@ public:
   solver(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
          Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
          Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
-         vector<vector<Teuchos::RCP<cell> > > & cells_);
+         Teuchos::RCP<AssemblyManager> & assembler_);
+         //vector<vector<Teuchos::RCP<cell> > > & cells_);
   
   // ========================================================================================
   // Set up the Epetra objects (maps, importers, exporters and graphs)
@@ -172,35 +174,35 @@ public:
   // ========================================================================================
   
   // move to assembly manager
-  void updateJacDBC(matrix_RCP & J, size_t & e, size_t & block, int & fieldNum,
-                    size_t & localSideId, const bool & compute_disc_sens);
+  //void updateJacDBC(matrix_RCP & J, size_t & e, size_t & block, int & fieldNum,
+  //                  size_t & localSideId, const bool & compute_disc_sens);
   
   // ========================================================================================
   // ========================================================================================
   
   // move to assembly manager
-  void updateJacDBC(matrix_RCP & J, const vector<int> & dofs, const bool & compute_disc_sens);
+  //void updateJacDBC(matrix_RCP & J, const vector<int> & dofs, const bool & compute_disc_sens);
   
   // ========================================================================================
   // ========================================================================================
   
   // move to assembly manager
-  void updateResDBC(vector_RCP & resid, size_t & e, size_t & block, int & fieldNum,
-                    size_t & localSideId);
+  //void updateResDBC(vector_RCP & resid, size_t & e, size_t & block, int & fieldNum,
+  //                  size_t & localSideId);
   
   // ========================================================================================
   // ========================================================================================
   
   // move to assembly manager
-  void updateResDBC(vector_RCP & resid, const vector<int> & dofs);
+  //void updateResDBC(vector_RCP & resid, const vector<int> & dofs);
   
   
   // ========================================================================================
   // ========================================================================================
   
   // move to assembly manager
-  void updateResDBCsens(vector_RCP & resid, size_t & e, size_t & block, int & fieldNum, size_t & localSideId,
-                        const std::string & gside, const ScalarT & current_time);
+  //void updateResDBCsens(vector_RCP & resid, size_t & e, size_t & block, int & fieldNum, size_t & localSideId,
+  //                      const std::string & gside, const ScalarT & current_time);
   
   // ========================================================================================
   // ========================================================================================
@@ -211,7 +213,6 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  // keep here
   vector_RCP setInitialParams();
   
   // ========================================================================================
@@ -224,7 +225,8 @@ public:
   // ========================================================================================
   
   // move to assembly manager
-  void computeJacRes(vector_RCP & u, vector_RCP & u_dot,
+  
+   void computeJacRes(vector_RCP & u, vector_RCP & u_dot,
                      vector_RCP & phi, vector_RCP & phi_dot,
                      const ScalarT & alpha, const ScalarT & beta,
                      const bool & compute_jacobian, const bool & compute_sens,
@@ -352,13 +354,13 @@ public:
   // ========================================================================================
   
   // move to assembly manager???
-  void performGather(const size_t & block, const vector_RCP & vec, const int & type,
-                     const size_t & index);
+  //void performGather(const size_t & block, const vector_RCP & vec, const int & type,
+  //                   const size_t & index);
   
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  // move to meash interface
+  // move to mesh interface
   DRV getElemNodes(const int & block, const int & elemID) ;
   
   ////////////////////////////////////////////////////////////////////////////////
@@ -371,7 +373,8 @@ public:
   // Public data members
   ///////////////////////////////////////////////////////////////////////////////////////////
   
-  vector<Teuchos::RCP<workset> > wkset;
+  Teuchos::RCP<AssemblyManager> assembler;
+  //vector<Teuchos::RCP<workset> > wkset;
   
   Teuchos::RCP<const LA_Map> LA_owned_map;
   Teuchos::RCP<const LA_Map> LA_overlapped_map, sol_overlapped_map;
@@ -382,11 +385,13 @@ public:
   Teuchos::RCP<LA_Export> exporter;
   Teuchos::RCP<LA_Import> importer;
   
+  
   Teuchos::RCP<const LA_Map> param_owned_map;
   Teuchos::RCP<const LA_Map> param_overlapped_map;
   
   Teuchos::RCP<LA_Export> param_exporter;
   Teuchos::RCP<LA_Import> param_importer;
+  
   
   vector<DRV> elemnodes;
   
@@ -412,6 +417,7 @@ public:
   //FCint sensor_locations;
   int numSensors;
 
+  
   vector<string> paramnames;
   vector<vector<ScalarT> > paramvals;
   vector<Teuchos::RCP<vector<AD> > > paramvals_AD;
@@ -445,9 +451,12 @@ public:
   vector<ScalarT> domainRegConstants, boundaryRegConstants;
   vector<string> boundaryRegSides;
   vector<int> domainRegTypes, domainRegIndices, boundaryRegTypes, boundaryRegIndices;
+  
+  
   int verbosity;
   string response_type, multigrid_type, smoother_type;
   bool discretized_stochastic;
+  
   
   vector<string> stochastic_distribution, discparam_distribution;
   vector<ScalarT> stochastic_mean, stochastic_variance, stochastic_min, stochastic_max;
@@ -459,7 +468,7 @@ public:
 
   int batchID; //which stochastic collocation batch; to avoid multiple processors trying to stash at once to same file
   
-  vector<vector<Teuchos::RCP<cell> > > cells;
+  //vector<vector<Teuchos::RCP<cell> > > cells;
   
   ScalarT current_time;
   

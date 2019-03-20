@@ -28,7 +28,7 @@ class workset {
   workset(const vector<int> & cellinfo, const DRV & ref_ip_, const DRV & ref_wts_, const DRV & ref_side_ip_,
           const DRV & ref_side_wts_, const vector<string> & basis_types_,
           const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
-          const topo_RCP & topo): //, const Teuchos::RCP<TimeIntegrator> & timeInt_) :
+          const topo_RCP & topo) : //, const Teuchos::RCP<TimeIntegrator> & timeInt_) :
   ref_ip(ref_ip_), ref_wts(ref_wts_), ref_side_ip(ref_side_ip_), ref_side_wts(ref_side_wts_),
   basis_types(basis_types_), basis_pointers(basis_pointers_), param_basis_pointers(param_basis_),
   celltopo(topo){ //, timeInt(timeInt_) {
@@ -136,6 +136,16 @@ class workset {
      maxb = max(maxb, numb);
      }
      */
+    
+    this->setupBasis();
+    this->setupParamBasis();
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////////
+  // Public functions
+  ////////////////////////////////////////////////////////////////////////////////////
+  
+  void setupBasis() {
     
     for (size_t i=0; i<basis_pointers.size(); i++) {
       
@@ -297,6 +307,12 @@ class workset {
       ref_basis_side.push_back(csbasis);
       ref_basis_grad_side.push_back(csbasisgrad);
     }
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////////
+  
+  void setupParamBasis() {
     
     // Compute the discretized parameter basis value and basis grad values on reference element
     // at volumetric ip
@@ -345,14 +361,7 @@ class workset {
       param_basis_grad_side_ref.push_back(csbasisgrad);
     }
     
-    
-    
-    
   }
-  
-  ////////////////////////////////////////////////////////////////////////////////////
-  // Public functions
-  ////////////////////////////////////////////////////////////////////////////////////
   
   ////////////////////////////////////////////////////////////////////////////////////
   // Update the nodes and the basis functions at the volumetric ip

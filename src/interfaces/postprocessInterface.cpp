@@ -21,9 +21,10 @@ postprocess::postprocess(const Teuchos::RCP<LA_MpiComm> & Comm_,
                          Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                          Teuchos::RCP<solver> & solve_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
                          vector<vector<Teuchos::RCP<cell> > > cells_,
-                         Teuchos::RCP<FunctionInterface> & functionManager) :
+                         Teuchos::RCP<FunctionInterface> & functionManager,
+                         Teuchos::RCP<AssemblyManager> & assembler_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), solve(solve_),
-DOF(DOF_), cells(cells_) {
+DOF(DOF_), cells(cells_), assembler(assembler_) {
   
   verbosity = settings->sublist("Postprocess").get<int>("Verbosity",1);
   
@@ -126,9 +127,6 @@ DOF(DOF_), cells(cells_) {
       }
     }
   }
-  
-  wkset = solve->wkset;
-  
 }
 
 // ========================================================================================
@@ -149,7 +147,7 @@ void postprocess::computeError(const vector_RCP & F_soln) {
   for (size_t b=0; b<cells.size(); b++) {
     Kokkos::View<ScalarT**,AssemblyDevice> localerror("error",numSteps,numVars[b]);
     for (size_t t=0; t<solvetimes.size(); t++) {
-      solve->performGather(b,F_soln,0,t);
+      assembler->performGather(b,F_soln,0,t);
       for (size_t e=0; e<cells[b].size(); e++) {
         int numElem = cells[b][e]->numElem;
         Kokkos::View<ScalarT**,AssemblyDevice> localerrs = cells[b][e]->computeError(solvetimes[t], t, compute_subgrid_error, error_type);
@@ -224,8 +222,8 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
   for (size_t tt=0; tt<solvetimes.size(); tt++) {
     for (size_t b=0; b<cells.size(); b++) {
       
-      solve->performGather(b,F_soln,0,tt);
-      solve->performGather(b,P_soln,4,0);
+      assembler->performGather(b,F_soln,0,tt);
+      assembler->performGather(b,P_soln,4,0);
       
       for (size_t e=0; e<cells[b].size(); e++) {
         //cout << e << endl;
@@ -370,18 +368,18 @@ Kokkos::View<ScalarT***,HostDevice> postprocess::computeResponse(const vector_RC
   
   for (size_t tt=0; tt<solvetimes.size(); tt++) {
     
-    solve->performGather(b,F_soln,0,tt);
-    solve->performGather(b,P_soln,4,0);
+    assembler->performGather(b,F_soln,0,tt);
+    assembler->performGather(b,P_soln,4,0);
     
     for (size_t e=0; e<cells[b].size(); e++) {
-      wkset[b]->update(cells[b][e]->ip, cells[b][e]->ijac, cells[b][e]->orientation);
+      assembler->wkset[b]->update(cells[b][e]->ip, cells[b][e]->ijac, cells[b][e]->orientation);
       
       Kokkos::View<AD***,AssemblyDevice> responsevals = cells[b][e]->computeResponse(solvetimes[tt], tt, 0);
       
       int numElem = cells[b][e]->numElem;
       for (int r=0; r<numresponses; r++) {
         if (response_type == "global" ) {
-          DRV wts = wkset[b]->wts;
+          DRV wts = assembler->wkset[b]->wts;
           for (int p=0; p<numElem; p++) {
             for (size_t j=0; j<wts.dimension(1); j++) {
               responses(0,r,tt) += responsevals(p,r,j).val() * wts(p,j);
@@ -808,7 +806,7 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
       size_t eprog = 0;
       for (size_t k=0; k<cells[b].size(); k++) {
         DRV nodes = cells[b][k]->nodes;
-        cfields = phys->getExtraFields(b, nodes, solvetimes[m], wkset[b]);
+        cfields = phys->getExtraFields(b, nodes, solvetimes[m], assembler->wkset[b]);
         for (int p=0; p<cells[b][k]->numElem; p++) {
           size_t j = 0;
           for (size_t h=0; h<cfields.dimension(1); h++) {
@@ -851,7 +849,7 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
         }
         cells[b][k]->updateSolnWorkset(E_soln, m); // also updates ip, ijac
         cells[b][k]->updateData();
-        wkset[b]->time = solvetimes[m];
+        assembler->wkset[b]->time = solvetimes[m];
         Kokkos::View<ScalarT***,HostDevice> cfields = phys->getExtraCellFields(b, cells[b][k]->numElem);
         for (int p=0; p<cells[b][k]->numElem; p++) {
           size_t j = 0;

@@ -307,9 +307,7 @@ public:
   // Compute the contribution from this cell to the global res, J, Jdot
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void computeJacRes(const vector<vector<ScalarT > > & paramvals,
-                     const vector<int> & paramtypes, const vector<string> & paramnames,
-                     const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
+  void computeJacRes(const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                      const bool & compute_jacobian, const bool & compute_sens,
                      const int & num_active_params, const bool & compute_disc_sens,
                      const bool & compute_aux_sens, const bool & store_adjPrev,

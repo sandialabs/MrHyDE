@@ -1,0 +1,150 @@
+/***********************************************************************
+ Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ 
+ Copyright 2018 National Technology & Engineering Solutions of Sandia,
+ LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
+ U.S. Government retains certain rights in this software.”
+ 
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
+ Bart van Bloemen Waanders (bartv@sandia.gov)
+ ************************************************************************/
+
+#ifndef ASSEMBLY_H
+#define ASSEMBLY_H
+
+#include "trilinos.hpp"
+#include "preferences.hpp"
+#include "cell.hpp"
+#include "workset.hpp"
+#include "physicsInterface.hpp"
+#include "discretizationInterface.hpp"
+
+
+void static assemblyHelp(const string & details) {
+  cout << "********** Help and Documentation for the Assembly Manager **********" << endl;
+}
+
+class AssemblyManager {
+public:
+  
+  // ========================================================================================
+  /* Constructor to set up the problem */
+  // ========================================================================================
+  
+  AssemblyManager(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
+         Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
+         Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
+         vector<vector<Teuchos::RCP<cell> > > & cells_);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void createWorkset(const vector<basis_RCP> & param_basis);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void updateJacDBC(matrix_RCP & J, size_t & e, size_t & block, int & fieldNum,
+                    size_t & localSideId, const bool & compute_disc_sens);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void updateJacDBC(matrix_RCP & J, const vector<int> & dofs, const bool & compute_disc_sens);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void updateResDBC(vector_RCP & resid, size_t & e, size_t & block, int & fieldNum,
+                    size_t & localSideId);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void updateResDBC(vector_RCP & resid, const vector<int> & dofs);
+  
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void updateResDBCsens(vector_RCP & resid, size_t & e, size_t & block, int & fieldNum, size_t & localSideId,
+                        const std::string & gside, const ScalarT & current_time);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  //void setDirichlet(vector_RCP & initial);
+
+  // ========================================================================================
+  // ========================================================================================
+
+  void setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint);
+
+  void setInitial(vector_RCP & initial, const bool & useadjoint);
+
+  // ========================================================================================
+  // ========================================================================================
+  
+  void assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
+                      vector_RCP & phi, vector_RCP & phi_dot,
+                      const ScalarT & alpha, const ScalarT & beta,
+                      const bool & compute_jacobian, const bool & compute_sens,
+                      const bool & compute_disc_sens,
+                      vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                      const ScalarT & current_time, const bool & useadjoint,
+                      const bool & store_adjPrev,
+                      const int & num_active_params, vector_RCP & Psol,
+                      const bool & is_final_time);
+  
+  
+  // ========================================================================================
+  //
+  // ========================================================================================
+  
+  void performGather(const size_t & block, const vector_RCP & vec, const int & type,
+                     const size_t & index);
+  
+  // ========================================================================================
+  //
+  // ========================================================================================
+  
+  DRV getElemNodes(const int & block, const int & elemID);
+  
+  ///////////////////////////////////////////////////////////////////////////////////////////
+  // Public data members
+  ///////////////////////////////////////////////////////////////////////////////////////////
+  
+  // Need
+  vector<string> blocknames;
+  vector<vector<string> > varlist;
+  vector<LO> numVars;
+  vector<DRV> elemnodes;
+  
+  Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
+  Teuchos::RCP<discretization> disc;
+  Teuchos::RCP<physics> phys;
+  
+  size_t globalParamUnknowns;
+  int verbosity;
+  vector<vector<Teuchos::RCP<cell> > > cells;
+  vector<Teuchos::RCP<workset> > wkset;
+  
+  bool usestrongDBCs, use_meas_as_dbcs;
+  Teuchos::RCP<const panzer::DOFManager<LO, GO> > DOF, paramDOF;
+  
+private:
+  
+  Teuchos::RCP<LA_MpiComm> Comm;
+  
+  Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - total assembly");
+  Teuchos::RCP<Teuchos::Time> gathertimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - gather");
+  Teuchos::RCP<Teuchos::Time> phystimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - physics evaluation");
+  Teuchos::RCP<Teuchos::Time> boundarytimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - boundary evaluation");
+  Teuchos::RCP<Teuchos::Time> inserttimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - insert");
+  Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - strong Dirichlet BCs");
+  Teuchos::RCP<Teuchos::Time> completetimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - fill complete");
+  Teuchos::RCP<Teuchos::Time> msprojtimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - multiscale projection");
+  
+};
+
+#endif

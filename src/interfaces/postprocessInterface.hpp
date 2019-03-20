@@ -16,6 +16,7 @@
 #include "preferences.hpp"
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
+#include "assemblyManager.hpp"
 #include "solverInterface.hpp"
 
 using namespace std;
@@ -37,7 +38,8 @@ public:
               Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
               Teuchos::RCP<solver> & solve_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
               vector<vector<Teuchos::RCP<cell> > > cells_,
-              Teuchos::RCP<FunctionInterface> & functionManager);
+              Teuchos::RCP<FunctionInterface> & functionManager,
+              Teuchos::RCP<AssemblyManager> & assembler_);
   
   // ========================================================================================
   // ========================================================================================
@@ -82,7 +84,7 @@ protected:
   Teuchos::RCP<physics> phys;
   Teuchos::RCP<const panzer::DOFManager<int,int> > DOF;
   Teuchos::RCP<solver> solve;
-  vector<Teuchos::RCP<workset> > wkset;
+  Teuchos::RCP<AssemblyManager> assembler;
   
   int spaceDim;                                                // spatial dimension
   //int numNodes;                                              // total number of nodes in the mesh

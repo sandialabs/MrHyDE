@@ -402,9 +402,7 @@ void cell::updateSolnWorkset(const vector_RCP & gl_u, int tindex) {
 // Compute the contribution from this cell to the global res, J, Jdot
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::computeJacRes(const vector<vector<ScalarT> > & paramvals,
-                         const vector<int> & paramtypes, const vector<string> & paramnames,
-                         const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
+void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                          const bool & compute_jacobian, const bool & compute_sens,
                          const int & num_active_params, const bool & compute_disc_sens,
                          const bool & compute_aux_sens, const bool & store_adjPrev,
@@ -425,7 +423,7 @@ void cell::computeJacRes(const vector<vector<ScalarT> > & paramvals,
       int sgindex = subgrid_model_index[e][subgrid_model_index.size()-1];
       
       subgridModels[sgindex]->subgridSolver(u, phi,
-                                            paramvals, paramtypes, paramnames,time, isTransient, isAdjoint,
+                                            time, isTransient, isAdjoint,
                                             compute_jacobian, compute_sens,num_active_params,
                                             compute_disc_sens, compute_aux_sens,
                                             *wkset, //local_res, local_J, local_Jdot,

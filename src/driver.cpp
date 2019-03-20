@@ -14,6 +14,7 @@ Bart van Bloemen Waanders (bartv@sandia.gov)
 #include "meshInterface.hpp"
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
+#include "assemblyManager.hpp"
 #include "solverInterface.hpp"
 #include "postprocessInterface.hpp"
 #include "analysisInterface.hpp"
@@ -153,8 +154,11 @@ int main(int argc,char * argv[]) {
     // Create the solver object
     ////////////////////////////////////////////////////////////////////////////////
     
+    Teuchos::RCP<AssemblyManager> assembler = Teuchos::rcp( new AssemblyManager(tcomm_LA, settings, mesh->mesh,
+                                                                                disc, phys, DOF, cells));
+    
     Teuchos::RCP<solver> solve = Teuchos::rcp( new solver(tcomm_LA, settings, mesh->mesh,
-                                                          disc, phys, DOF, cells) );
+                                                          disc, phys, DOF, assembler) );
     
     solve->multiscale_manager = multiscale_manager;
     //solve->finalizeMultiscale();
@@ -167,7 +171,7 @@ int main(int argc,char * argv[]) {
     functionManager->setupLists(phys->varlist[0], solve->paramnames,
                                 solve->discretized_param_names);
     
-    functionManager->wkset = solve->wkset[0];
+    functionManager->wkset = assembler->wkset[0];
     
     ////////////////////////////////////////////////////////////////////////////////
     // Create the postprocessing object
@@ -176,7 +180,8 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<postprocess> postproc = Teuchos::rcp( new postprocess(tcomm_LA, settings,
                                                                        mesh->mesh, disc, phys,
                                                                        solve, DOF, cells,
-                                                                       functionManager) );
+                                                                       functionManager,
+                                                                       assembler) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // Perform the requested analysis (fwd solve, adj solve, dakota run, etc.)
