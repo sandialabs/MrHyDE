@@ -18,6 +18,7 @@
 #include "workset.hpp"
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
+#include "parameterManager.hpp"
 
 
 void static assemblyHelp(const string & details) {
@@ -32,14 +33,15 @@ public:
   // ========================================================================================
   
   AssemblyManager(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
-         Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
-         Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
-         vector<vector<Teuchos::RCP<cell> > > & cells_);
+                  Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
+                  Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
+                  vector<vector<Teuchos::RCP<cell> > > & cells_,
+                  Teuchos::RCP<ParameterManager> & params_);
   
   // ========================================================================================
   // ========================================================================================
   
-  void createWorkset(const vector<basis_RCP> & param_basis);
+  void createWorkset();
   
   // ========================================================================================
   // ========================================================================================
@@ -130,11 +132,12 @@ public:
   vector<Teuchos::RCP<workset> > wkset;
   
   bool usestrongDBCs, use_meas_as_dbcs;
-  Teuchos::RCP<const panzer::DOFManager<LO, GO> > DOF, paramDOF;
+  Teuchos::RCP<const panzer::DOFManager<LO, GO> > DOF;
   
 private:
   
   Teuchos::RCP<LA_MpiComm> Comm;
+  Teuchos::RCP<ParameterManager> params;
   
   Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - total assembly");
   Teuchos::RCP<Teuchos::Time> gathertimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - gather");

@@ -22,7 +22,8 @@
 ParameterManager::ParameterManager(const Teuchos::RCP<LA_MpiComm> & Comm_,
                                    Teuchos::RCP<Teuchos::ParameterList> & settings,
                                    Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
-                                   Teuchos::RCP<physics> & phys_) :
+                                   Teuchos::RCP<physics> & phys_,
+                                   vector<vector<Teuchos::RCP<cell> > > & cells) :
 Comm(Comm_), mesh(mesh_), phys(phys_) {
   
   
@@ -46,6 +47,7 @@ Comm(Comm_), mesh(mesh_), phys(phys_) {
   use_custom_initial_param_guess = settings->sublist("Physics").get<bool>("use custom initial param guess",false);
   
   this->setupParameters(settings);
+  this->setupDiscretizedParameters(cells);
   
 }
 

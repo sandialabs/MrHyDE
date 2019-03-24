@@ -18,10 +18,11 @@
 // ========================================================================================
 
 AssemblyManager::AssemblyManager(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
-               Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
-               Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
-               vector<vector<Teuchos::RCP<cell> > > & cells_) :
-Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), cells(cells_) {
+                                 Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
+                                 Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
+                                 vector<vector<Teuchos::RCP<cell> > > & cells_,
+                                 Teuchos::RCP<ParameterManager> & params_) :
+Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), cells(cells_), params(params_) {
   
   // Get the required information from the settings
   verbosity = settings->get<int>("verbosity",0);
@@ -44,20 +45,23 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), cells(cells_) {
     elemnodes.push_back(blocknodes);
     
   }
+  
+  //this->createWorkset();
+  
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // Worksets
 /////////////////////////////////////////////////////////////////////////////
 
-void AssemblyManager::createWorkset(const vector<basis_RCP> & param_basis) {
+void AssemblyManager::createWorkset() {
   
   for (size_t b=0; b<cells.size(); b++) {
     wkset.push_back(Teuchos::rcp( new workset(cells[b][0]->getInfo(), disc->ref_ip[b],
                                               disc->ref_wts[b], disc->ref_side_ip[b],
                                               disc->ref_side_wts[b], disc->basis_types[b],
                                               disc->basis_pointers[b],
-                                              param_basis,
+                                              params->discretized_param_basis,
                                               mesh->getCellTopology(blocknames[b])) ) );
     
     wkset[b]->isInitialized = true;
@@ -65,7 +69,7 @@ void AssemblyManager::createWorkset(const vector<basis_RCP> & param_basis) {
   }
   
   phys->setWorkset(wkset);
-  
+  params->wkset = wkset;
   
 }
 
@@ -94,7 +98,7 @@ void AssemblyManager::updateJacDBC(matrix_RCP & J, size_t & e, size_t & block, i
     int row = GIDs[elmtOffset[i]]; // global row
     if (compute_disc_sens) {
       vector<int> paramGIDs;// = cells[block][e]->paramGIDs;
-      paramDOF->getElementGIDs(e, paramGIDs, blockID);
+      params->paramDOF->getElementGIDs(e, paramGIDs, blockID);
       for( size_t col=0; col<paramGIDs.size(); col++ ) {
         int ind = paramGIDs[col];
         ScalarT m_val = 0.0; // set ALL of the entries to 0 in the Jacobian

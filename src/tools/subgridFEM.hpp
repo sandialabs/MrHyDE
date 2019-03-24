@@ -307,20 +307,16 @@ public:
     {
       Teuchos::TimeMonitor localtimer(*sgfemSubSolverTimer);
       if (first_time) {
-        sub_params = Teuchos::rcp( new ParameterManager(LocalComm, settings, mesh, physics_RCP));
+        
+        sub_params = Teuchos::rcp( new ParameterManager(LocalComm, settings, mesh,
+                                                        physics_RCP, currcells));
         
         sub_assembler = Teuchos::rcp( new AssemblyManager(LocalComm, settings, mesh,
-                                                          disc, physics_RCP, DOF, currcells));
-        
-        sub_params->setupDiscretizedParameters(currcells);
+                                                          disc, physics_RCP, DOF,
+                                                          currcells, sub_params));
         
         subsolver = Teuchos::rcp( new solver(LocalComm, settings, mesh, disc, physics_RCP,
                                              DOF, sub_assembler, sub_params) );
-        
-        sub_assembler->createWorkset(sub_params->discretized_param_basis);
-        subsolver->finalizeWorkset();
-        sub_params->wkset = sub_assembler->wkset;
-        sub_assembler->paramDOF = sub_params->paramDOF;
         
       }
       else { // perform updates to currcells from solver interface

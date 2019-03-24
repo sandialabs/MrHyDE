@@ -155,24 +155,17 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<ParameterManager> params = Teuchos::rcp( new ParameterManager(tcomm_LA, settings,
-                                                                               mesh->mesh, phys));
+                                                                               mesh->mesh, phys, cells));
     
     Teuchos::RCP<AssemblyManager> assembler = Teuchos::rcp( new AssemblyManager(tcomm_LA, settings, mesh->mesh,
-                                                                                disc, phys, DOF, cells));
-    
-    params->setupDiscretizedParameters(cells);
+                                                                                disc, phys, DOF, cells,
+                                                                                params));
     
     Teuchos::RCP<solver> solve = Teuchos::rcp( new solver(tcomm_LA, settings, mesh->mesh,
                                                           disc, phys, DOF, assembler, params) );
     
     solve->multiscale_manager = multiscale_manager;
     solve->setBatchID(tcomm_S->getRank());
-    
-    assembler->createWorkset(params->discretized_param_basis);
-    solve->finalizeWorkset();
-    
-    params->wkset = assembler->wkset;
-    assembler->paramDOF = params->paramDOF;
     
     ////////////////////////////////////////////////////////////////////////////////
     // Finalize the functions
