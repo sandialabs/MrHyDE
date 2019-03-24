@@ -154,14 +154,13 @@ int main(int argc,char * argv[]) {
     // Create the solver object
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<ParameterManager> params = Teuchos::rcp( new ParameterManager(tcomm_LA, settings, mesh->mesh));
+    Teuchos::RCP<ParameterManager> params = Teuchos::rcp( new ParameterManager(tcomm_LA, settings,
+                                                                               mesh->mesh, phys));
     
     Teuchos::RCP<AssemblyManager> assembler = Teuchos::rcp( new AssemblyManager(tcomm_LA, settings, mesh->mesh,
                                                                                 disc, phys, DOF, cells));
     
     params->setupDiscretizedParameters(cells);
-    params->phys = phys;
-    params->multiscale_manager = multiscale_manager;
     
     Teuchos::RCP<solver> solve = Teuchos::rcp( new solver(tcomm_LA, settings, mesh->mesh,
                                                           disc, phys, DOF, assembler, params) );

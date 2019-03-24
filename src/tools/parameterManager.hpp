@@ -16,7 +16,6 @@
 #include "preferences.hpp"
 #include "cell.hpp"
 #include "physicsInterface.hpp"
-#include "multiscaleInterface.hpp"
 
 
 void static parameterHelp(const string & details) {
@@ -30,8 +29,10 @@ public:
   /* Constructor to set up the problem */
   // ========================================================================================
   
-  ParameterManager(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
-           Teuchos::RCP<panzer_stk::STK_Interface> & mesh_);
+  ParameterManager(const Teuchos::RCP<LA_MpiComm> & Comm_,
+                   Teuchos::RCP<Teuchos::ParameterList> & settings,
+                   Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                   Teuchos::RCP<physics> & phys_);
   
   // ========================================================================================
   // Set up the parameters (inactive, active, stochastic, discrete)
@@ -179,14 +180,12 @@ public:
   vector<ScalarT> s_exp;
   vector<ScalarT> h_mesh;
   
-  Teuchos::RCP<MultiScale> multiscale_manager;
-  Teuchos::RCP<physics> phys;
-  
 private:
   
   Teuchos::RCP<LA_MpiComm> Comm;
   Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
   Teuchos::RCP<discretization> disc;
+  Teuchos::RCP<physics> phys;
   
   /* // Timers
   Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MILO::ParameterManager::timer _1 - description");

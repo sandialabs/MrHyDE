@@ -21,8 +21,9 @@
 
 ParameterManager::ParameterManager(const Teuchos::RCP<LA_MpiComm> & Comm_,
                                    Teuchos::RCP<Teuchos::ParameterList> & settings,
-                                   Teuchos::RCP<panzer_stk::STK_Interface> & mesh_) :
-Comm(Comm_), mesh(mesh_){
+                                   Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                                   Teuchos::RCP<physics> & phys_) :
+Comm(Comm_), mesh(mesh_), phys(phys_) {
   
   
   /////////////////////////////////////////////////////////////////////////////
@@ -483,7 +484,6 @@ void ParameterManager::sacadoizeParams(const bool & seed_active) {
   
   // TMW: these need to be depracated and removed
   phys->updateParameters(paramvals_AD, paramnames);
-  multiscale_manager->updateParameters(paramvals_AD, paramnames);
   
 }
 
