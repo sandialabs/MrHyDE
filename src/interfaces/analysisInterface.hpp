@@ -16,6 +16,7 @@
 #include "preferences.hpp"
 #include "solverInterface.hpp"
 #include "postprocessInterface.hpp"
+#include "parameterManager.hpp"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -32,7 +33,8 @@ public:
   // ========================================================================================
   
   analysis(const Teuchos::RCP<LA_MpiComm> & LA_Comm_, const Teuchos::RCP<LA_MpiComm> & S_Comm_,
-           Teuchos::RCP<Teuchos::ParameterList> & settings_, Teuchos::RCP<solver> & solver_, Teuchos::RCP<postprocess> & postproc_);
+           Teuchos::RCP<Teuchos::ParameterList> & settings_, Teuchos::RCP<solver> & solver_,
+           Teuchos::RCP<postprocess> & postproc_, Teuchos::RCP<ParameterManager> & params_);
   
   // ========================================================================================
   /* given the parameters, solve the forward  problem */
@@ -47,6 +49,7 @@ protected:
   Teuchos::RCP<Teuchos::ParameterList> settings;
   Teuchos::RCP<solver> solve;
   Teuchos::RCP<postprocess> postproc;
+  Teuchos::RCP<ParameterManager> params;
   
   ScalarT response;
   vector<ScalarT> gradient;

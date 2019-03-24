@@ -20,6 +20,7 @@
 
 #include "solverInterface.hpp"
 #include "postprocessInterface.hpp"
+#include "parameterManager.hpp"
 
 //#include "ROL_RiskVector.hpp"
 
@@ -39,14 +40,15 @@ namespace ROL {
     Real noise_;                                            //standard deviation of normal additive noise to add to data (0 for now)
     Teuchos::RCP<solver> solver_MILO;                                     // Solver object for MILO (solves FWD, ADJ, computes gradient, etc.)
     Teuchos::RCP<postprocess> postproc_MILO;                              // Postprocessing object for MILO (write solution, computes response, etc.)
-    
+    Teuchos::RCP<ParameterManager> params;
   public:
     
     /*!
      \brief A constructor generating data
      */
-    Objective_MILO(Teuchos::RCP<solver> solver_MILO_, Teuchos::RCP<postprocess> postproc_MILO_) :
-    solver_MILO(solver_MILO_), postproc_MILO(postproc_MILO_) {
+    Objective_MILO(Teuchos::RCP<solver> solver_MILO_, Teuchos::RCP<postprocess> postproc_MILO_,
+                   Teuchos::RCP<ParameterManager> & params_) :
+    solver_MILO(solver_MILO_), postproc_MILO(postproc_MILO_), params(params_) {
       
     } //end constructor
     
@@ -62,8 +64,8 @@ namespace ROL {
       (Teuchos::dyn_cast<StdVector<Real> >(const_cast<Vector<Real> &>(Params))).getVector();
       //Teuchos::RCP<Teuchos::Time> paramtimer = Teuchos::rcp(new Teuchos::Time("param",false)); //DEBUG
       //paramtimer->start(); //DEBUG
-      solver_MILO->updateParams(*Paramsp, 1);
-      solver_MILO->updateParams(*Paramsp, 4);
+      params->updateParams(*Paramsp, 1);
+      params->updateParams(*Paramsp, 4);
       //paramtimer->stop(); //DEBUG
       //Teuchos::RCP<Teuchos::Time> fwdtimer = Teuchos::rcp(new Teuchos::Time("fwd",false)); //DEBUG
       //fwdtimer->start(); //DEBUG
@@ -79,7 +81,7 @@ namespace ROL {
       //posttimer->stop(); //DEBUG
       //Teuchos::RCP<Teuchos::Time> stashtimer = Teuchos::rcp(new Teuchos::Time("stash",false)); //DEBUG
       //stashtimer->start(); //DEBUG
-      solver_MILO->stashParams(); //dumping to file, for long runs...
+      params->stashParams(); //dumping to file, for long runs...
       //stashtimer->stop(); //DEBUG
       //valtimer->stop(); //DEBUG
       //cout << "obj fx - set: " << paramtimer->totalElapsedTime()
@@ -103,8 +105,8 @@ namespace ROL {
       (Teuchos::dyn_cast<StdVector<Real> >(const_cast<Vector<Real> &>(Params))).getVector();
       //Teuchos::RCP<Teuchos::Time> paramtimer = Teuchos::rcp(new Teuchos::Time("param",false)); //DEBUG
       //paramtimer->start(); //DEBUG
-      solver_MILO->updateParams(*Paramsp, 1);
-      solver_MILO->updateParams(*Paramsp, 4);
+      params->updateParams(*Paramsp, 1);
+      params->updateParams(*Paramsp, 4);
       //paramtimer->stop(); //DEBUG
       //Teuchos::RCP<Teuchos::Time> fwdtimer = Teuchos::rcp(new Teuchos::Time("fwd",false)); //DEBUG
       //fwdtimer->start(); //DEBUG

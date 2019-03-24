@@ -496,9 +496,11 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
           }
         }
         
+        
         cells[b][e]->computeJacRes(current_time, isTransient, useadjoint, compute_jacobian, compute_sens,
                                    num_active_params, compute_disc_sens, false, store_adjPrev,
                                    local_res, local_J, local_Jdot);
+        
         
       }
       

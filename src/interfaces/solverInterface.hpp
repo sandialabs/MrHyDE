@@ -20,6 +20,7 @@
 #include "discretizationTools.hpp"
 #include "cell.hpp"
 #include "assemblyManager.hpp"
+#include "parameterManager.hpp"
 
 void static solverHelp(const string & details) {
   cout << "********** Help and Documentation for the Solver Interface **********" << endl;
@@ -35,8 +36,9 @@ public:
   solver(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
          Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
          Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
-         Teuchos::RCP<AssemblyManager> & assembler_);
-         //vector<vector<Teuchos::RCP<cell> > > & cells_);
+         Teuchos::RCP<AssemblyManager> & assembler_,
+         Teuchos::RCP<ParameterManager> & params_);
+  
   
   // ========================================================================================
   // Set up the Epetra objects (maps, importers, exporters and graphs)
@@ -49,13 +51,15 @@ public:
   
   Teuchos::RCP<Epetra_CrsGraph> buildEpetraOwnedGraph(Epetra_MpiComm & EP_Comm);
   
+  void finalizeWorkset();
+  
   // ========================================================================================
   // Set up the parameters (inactive, active, stochastic, discrete)
   // Communicate these parameters back to the physics interface and the enabled modules
   // ========================================================================================
   
   // move to parameter manager
-  void setupParameters(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  //void setupParameters(Teuchos::RCP<Teuchos::ParameterList> & settings);
   
   /////////////////////////////////////////////////////////////////////////////
   // Read in discretized data from an exodus mesh
@@ -74,20 +78,20 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////
   
   // move to parameter manager
-  int getNumParams(const int & type);
+  //int getNumParams(const int & type);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
   // move to parameter manager
-  int getNumParams(const std::string & type);
+  //int getNumParams(const std::string & type);
   
   // ========================================================================================
   // return the discretized parameters as vector for use with ROL
   // ========================================================================================
   
   // move to parameter manager
-  vector<ScalarT> getDiscretizedParamsVector();
+  //vector<ScalarT> getDiscretizedParamsVector();
   
   // ========================================================================================
   /* given the parameters, solve the forward  problem */
@@ -222,19 +226,6 @@ public:
   vector_RCP setInitial();
   
   // ========================================================================================
-  // ========================================================================================
-  
-  // move to assembly manager
-  
-   void computeJacRes(vector_RCP & u, vector_RCP & u_dot,
-                     vector_RCP & phi, vector_RCP & phi_dot,
-                     const ScalarT & alpha, const ScalarT & beta,
-                     const bool & compute_jacobian, const bool & compute_sens,
-                     const bool & compute_disc_sens,
-                     vector_RCP & res, matrix_RCP & J);
-  
-  
-  // ========================================================================================
   // Linear solver for Tpetra stack
   // ========================================================================================
   
@@ -269,19 +260,19 @@ public:
   // ========================================================================================
   
   // move to parameter manager
-  void sacadoizeParams(const bool & seed_active);
+  //void sacadoizeParams(const bool & seed_active);
   
   // ========================================================================================
   // ========================================================================================
   
   // move to parameter manager
-  void updateParams(const vector<ScalarT> & newparams, const int & type);
+  //void updateParams(const vector<ScalarT> & newparams, const int & type);
   
   // ========================================================================================
   // ========================================================================================
   
   // move to parameter manager
-  void updateParams(const vector<ScalarT> & newparams, const std::string & stype);
+  //void updateParams(const vector<ScalarT> & newparams, const std::string & stype);
   
   // ========================================================================================
   // ========================================================================================
@@ -293,31 +284,31 @@ public:
   // ========================================================================================
   
   // move to parameter manager
-  vector<ScalarT> getParams(const int & type);
+  //vector<ScalarT> getParams(const int & type);
   
   // ========================================================================================
   // ========================================================================================
   
   // move to parameter manager
-  vector<string> getParamsNames(const int & type);
+  //vector<string> getParamsNames(const int & type);
   
   // ========================================================================================
   // ========================================================================================
   
   // move to parameter manager
-  vector<size_t> getParamsLengths(const int & type);
+  //vector<size_t> getParamsLengths(const int & type);
   
   // ========================================================================================
   // ========================================================================================
   
   // move to parameter manager
-  vector<ScalarT> getParams(const std::string & stype);
+  //vector<ScalarT> getParams(const std::string & stype);
   
   // ========================================================================================
   // ========================================================================================
   
   // move to parameter manager
-  vector<vector<ScalarT> > getParamBounds(const std::string & stype);
+  //vector<vector<ScalarT> > getParamBounds(const std::string & stype);
   
   // ========================================================================================
   // ========================================================================================
@@ -329,19 +320,19 @@ public:
   // ========================================================================================
   
   // move to parameter manager
-  void stashParams();
+  //void stashParams();
   
   // ========================================================================================
   // ========================================================================================
   
   // move to parameter manager
-  vector<ScalarT> getStochasticParams(const std::string & whichparam);
+  //vector<ScalarT> getStochasticParams(const std::string & whichparam);
 
   // ========================================================================================
   // ========================================================================================
   
   // move to parameter manager
-  vector<ScalarT> getFractionalParams(const std::string & whichparam);
+  //vector<ScalarT> getFractionalParams(const std::string & whichparam);
   
   // ========================================================================================
   // ========================================================================================
@@ -374,6 +365,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////////
   
   Teuchos::RCP<AssemblyManager> assembler;
+  Teuchos::RCP<ParameterManager> params;
   //vector<Teuchos::RCP<workset> > wkset;
   
   Teuchos::RCP<const LA_Map> LA_owned_map;
@@ -386,11 +378,11 @@ public:
   Teuchos::RCP<LA_Import> importer;
   
   
-  Teuchos::RCP<const LA_Map> param_owned_map;
-  Teuchos::RCP<const LA_Map> param_overlapped_map;
+  //Teuchos::RCP<const LA_Map> param_owned_map;
+  //Teuchos::RCP<const LA_Map> param_overlapped_map;
   
-  Teuchos::RCP<LA_Export> param_exporter;
-  Teuchos::RCP<LA_Import> param_importer;
+  //Teuchos::RCP<LA_Export> param_exporter;
+  //Teuchos::RCP<LA_Import> param_importer;
   
   
   vector<DRV> elemnodes;
@@ -418,53 +410,12 @@ public:
   int numSensors;
 
   
-  vector<string> paramnames;
-  vector<vector<ScalarT> > paramvals;
-  vector<Teuchos::RCP<vector<AD> > > paramvals_AD;
-  Kokkos::View<AD**,AssemblyDevice> paramvals_KVAD;
-  
-  vector<vector_RCP> Psol;
-  vector<vector_RCP> auxsol;
-  vector<vector_RCP> dRdP;
-  bool have_dRdP;
-  Teuchos::RCP<const panzer::DOFManager<int,int> > discparamDOF;
-  vector<vector<ScalarT> > paramLowerBounds;
-  vector<vector<ScalarT> > paramUpperBounds;
-  vector<string> discretized_param_basis_types;
-  vector<int> discretized_param_basis_orders, discretized_param_usebasis;
-  vector<string> discretized_param_names;
-  vector<basis_RCP> discretized_param_basis;
-  Teuchos::RCP<panzer::DOFManager<int,int> > paramDOF;
-  vector<vector<int> > paramoffsets;
-  vector<int> paramNumBasis;
-  int numParamUnknowns;     					 // total number of unknowns
-  int numParamUnknownsOS;     					 // total number of unknowns
-  int globalParamUnknowns; // total number of unknowns across all processors
-  vector<int> paramOwned;					 // GIDs that live on the local processor.
-  vector<int> paramOwnedAndShared;				 // GIDs that live or are shared on the local processor.
-  
-  vector<int> paramtypes;
-  vector<vector<int>> paramNodes;  // for distinguishing between parameter fields when setting initial
-  vector<vector<int>> paramNodesOS;// values and bounds
-  int num_inactive_params, num_active_params, num_stochastic_params, num_discrete_params, num_discretized_params;
-  vector<ScalarT> initialParamValues, lowerParamBounds, upperParamBounds, discparamVariance;
-  vector<ScalarT> domainRegConstants, boundaryRegConstants;
-  vector<string> boundaryRegSides;
-  vector<int> domainRegTypes, domainRegIndices, boundaryRegTypes, boundaryRegIndices;
-  
-  
   int verbosity;
   string response_type, multigrid_type, smoother_type;
   bool discretized_stochastic;
   
-  
-  vector<string> stochastic_distribution, discparam_distribution;
-  vector<ScalarT> stochastic_mean, stochastic_variance, stochastic_min, stochastic_max;
-  
 
-  //fractional parameters
-  vector<ScalarT> s_exp;
-  vector<ScalarT> h_mesh;
+  
 
   int batchID; //which stochastic collocation batch; to avoid multiple processors trying to stash at once to same file
   

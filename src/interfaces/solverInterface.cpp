@@ -23,9 +23,10 @@
 solver::solver(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
                Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
                Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
-               Teuchos::RCP<AssemblyManager> & assembler_) :
+               Teuchos::RCP<AssemblyManager> & assembler_,
+               Teuchos::RCP<ParameterManager> & params_) :
                //vector<vector<Teuchos::RCP<cell> > > & cells_) :
-Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembler_) { //cells(assembler->cells_) {
+Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembler_), params(params_) { //cells(assembler->cells_) {
   
   // Get the required information from the settings
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
@@ -87,8 +88,6 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   usePrec = settings->sublist("Solver").get<bool>("use preconditioner",true);
   dropTol = settings->sublist("Solver").get<ScalarT>("ILU drop tol",0.0); //defaults to AztecOO default
   fillParam = settings->sublist("Solver").get<ScalarT>("ILU fill param",3.0); //defaults to AztecOO default
-  
-  use_custom_initial_param_guess= settings->sublist("Physics").get<bool>("use custom initial param guess",false);
   
   // needed information from the mesh
   mesh->getElementBlockNames(blocknames);
@@ -183,21 +182,6 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   }
   
   /////////////////////////////////////////////////////////////////////////////
-  // Parameters
-  /////////////////////////////////////////////////////////////////////////////
-  
-  num_inactive_params = 0;
-  num_active_params = 0;
-  num_stochastic_params = 0;
-  num_discrete_params = 0;
-  num_discretized_params = 0;
-  globalParamUnknowns = 0;
-  have_dRdP = false;
-  discretized_stochastic = false;
-  
-  this->setupParameters(settings);
-  
-  /////////////////////////////////////////////////////////////////////////////
   // Epetra maps
   /////////////////////////////////////////////////////////////////////////////
   
@@ -207,7 +191,19 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   // Worksets
   /////////////////////////////////////////////////////////////////////////////
   
-  assembler->createWorkset(discretized_param_basis);
+  
+  if (settings->sublist("Mesh").get<bool>("Have Element Data", false) ||
+      settings->sublist("Mesh").get<bool>("Have Nodal Data", false)) {
+    this->readMeshData(settings);
+  }
+  
+  /////////////////////////////////////////////////////////////////////////////
+  
+}
+
+void solver::finalizeWorkset() {
+  
+  int nstages = 1;//timeInt->num_stages;
   
   for (size_t b=0; b<assembler->cells.size(); b++) {
     /*
@@ -240,23 +236,23 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
     assembler->wkset[b]->offsets = offsets_device;//phys->voffsets[b];
     
     size_t maxpoff = 0;
-    for (size_t i=0; i<paramoffsets.size(); i++) {
-      if (paramoffsets[i].size() > maxpoff) {
-        maxpoff = paramoffsets[i].size();
+    for (size_t i=0; i<params->paramoffsets.size(); i++) {
+      if (params->paramoffsets[i].size() > maxpoff) {
+        maxpoff = params->paramoffsets[i].size();
       }
       //maxpoff = max(maxpoff,paramoffsets[i].size());
     }
-    Kokkos::View<int**,HostDevice> poffsets_host("param offsets on host device",paramoffsets.size(),maxpoff);
-    for (size_t i=0; i<paramoffsets.size(); i++) {
-      for (size_t j=0; j<paramoffsets[i].size(); j++) {
-        poffsets_host(i,j) = paramoffsets[i][j];
+    Kokkos::View<int**,HostDevice> poffsets_host("param offsets on host device",params->paramoffsets.size(),maxpoff);
+    for (size_t i=0; i<params->paramoffsets.size(); i++) {
+      for (size_t j=0; j<params->paramoffsets[i].size(); j++) {
+        poffsets_host(i,j) = params->paramoffsets[i][j];
       }
     }
     Kokkos::View<int**,AssemblyDevice>::HostMirror poffsets_device = Kokkos::create_mirror_view(poffsets_host);
     Kokkos::deep_copy(poffsets_host, poffsets_device);
     
     assembler->wkset[b]->usebasis = useBasis[b];
-    assembler->wkset[b]->paramusebasis = discretized_param_usebasis;
+    assembler->wkset[b]->paramusebasis = params->discretized_param_usebasis;
     assembler->wkset[b]->paramoffsets = poffsets_device;//paramoffsets;
     assembler->wkset[b]->varlist = varlist[b];
     int numDOF = assembler->cells[b][0]->GIDs[0].size();
@@ -264,23 +260,15 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
       assembler->cells[b][e]->wkset = assembler->wkset[b];
       assembler->cells[b][e]->setUseBasis(useBasis[b],nstages);
       assembler->cells[b][e]->setUpAdjointPrev(numDOF);
-      assembler->cells[b][e]->setUpSubGradient(num_active_params);
+      assembler->cells[b][e]->setUpSubGradient(params->num_active_params);
     }
     
-    assembler->wkset[b]->params = paramvals_AD;
-    assembler->wkset[b]->params_AD = paramvals_KVAD;
-    assembler->wkset[b]->paramnames = paramnames;
+    assembler->wkset[b]->params = params->paramvals_AD;
+    assembler->wkset[b]->params_AD = params->paramvals_KVAD;
+    assembler->wkset[b]->paramnames = params->paramnames;
     //assembler->wkset[b]->setupParamBasis(discretized_param_basis);
   }
   //phys->setWorkset(wkset);
-  
-  
-  if (settings->sublist("Mesh").get<bool>("Have Element Data", false) ||
-      settings->sublist("Mesh").get<bool>("Have Nodal Data", false)) {
-    this->readMeshData(settings);
-  }
-  
-  /////////////////////////////////////////////////////////////////////////////
   
 }
 
@@ -373,6 +361,7 @@ void solver::setupLinearAlgebra() {
   //sol_overlapped_graph->FillComplete();
   LA_overlapped_graph->fillComplete();
   
+  /*
   if (num_discretized_params > 0) {
     param_owned_map = Teuchos::rcp(new LA_Map(INVALID, paramOwned, 0, Comm));
     param_overlapped_map = Teuchos::rcp(new LA_Map(INVALID, paramOwnedAndShared, 0, Comm));
@@ -414,19 +403,7 @@ void solver::setupLinearAlgebra() {
           cellindices.push_back(indices);
         }
         assembler->cells[b][e]->setParamIndex(cellindices);
-        /* // needs to be updated
-        if (use_custom_initial_param_guess) {
-          nodes = assembler->cells[b][e]->nodes;
-          param_initial_vals = phys->udfunc->setInitialParams(nodes,cellindices);
-          for (int p=0; p<numElem; p++) {
-            for (int n = 0; n < num_discretized_params; n++) {
-              for (int i = 0; i < cellindices[p][n].size(); i++) {
-                paramVec->ReplaceGlobalValue(paramOwnedAndShared[cellindices[p][n][i]]
-                                             ,0,param_initial_vals[p][n][i]);
-              }
-            }
-          }
-        }*/
+        
       }
     }
     for (int n=0; n<num_discretized_params; n++) {
@@ -457,7 +434,8 @@ void solver::setupLinearAlgebra() {
     
     vector_RCP paramVec = this->setInitialParams(); // TMW: this will be deprecated soon
     Psol.push_back(paramVec);
-  }
+  }*/
+  
 }
 
 // ========================================================================================
@@ -528,7 +506,7 @@ Teuchos::RCP<Epetra_CrsGraph> solver::buildEpetraOwnedGraph(Epetra_MpiComm & EP_
 // Set up the parameters (inactive, active, stochastic, discrete)
 // Communicate these parameters back to the physics interface and the enabled modules
 // ========================================================================================
-
+/*
 void solver::setupParameters(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   Teuchos::ParameterList parameters;
@@ -755,7 +733,7 @@ void solver::setupParameters(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   // phys->setParameters(paramnames);
   
 }
-
+*/
 /////////////////////////////////////////////////////////////////////////////
 // Read in discretized data from an exodus mesh
 /////////////////////////////////////////////////////////////////////////////
@@ -960,7 +938,7 @@ void solver::setupSensors(Teuchos::RCP<Teuchos::ParameterList> & settings) {
     ScalarT sensor_loc_tol = 1.0;
     // only needed for passing of basis pointers
     for (size_t j=0; j<assembler->cells[0].size(); j++) {
-      assembler->cells[0][j]->addSensors(sensor_points, sensor_loc_tol, sensor_data, have_sensor_data, disc->basis_pointers[0], discretized_param_basis);
+      assembler->cells[0][j]->addSensors(sensor_points, sensor_loc_tol, sensor_data, have_sensor_data, disc->basis_pointers[0], params->discretized_param_basis);
     }
   }
   else {
@@ -985,7 +963,7 @@ void solver::setupSensors(Teuchos::RCP<Teuchos::ParameterList> & settings) {
       ScalarT sensor_loc_tol = settings->sublist("Analysis").get("Sensor location tol",1.0E-6);
       for (size_t b=0; b<assembler->cells.size(); b++) {
         for (size_t j=0; j<assembler->cells[b].size(); j++) {
-          assembler->cells[b][j]->addSensors(sensor_points, sensor_loc_tol, sensor_data, have_sensor_data, disc->basis_pointers[b], discretized_param_basis);
+          assembler->cells[b][j]->addSensors(sensor_points, sensor_loc_tol, sensor_data, have_sensor_data, disc->basis_pointers[b], params->discretized_param_basis);
         }
       }
     }
@@ -994,7 +972,7 @@ void solver::setupSensors(Teuchos::RCP<Teuchos::ParameterList> & settings) {
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
-
+/*
 int solver::getNumParams(const int & type) {
   int np = 0;
   if (type == 0)
@@ -1010,10 +988,10 @@ int solver::getNumParams(const int & type) {
   
   return np;
 }
-
+*/
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
-
+/*
 int solver::getNumParams(const std::string & type) {
   int np = 0;
   if (type == "inactive")
@@ -1029,11 +1007,11 @@ int solver::getNumParams(const std::string & type) {
   
   return np;
 }
-
+*/
 // ========================================================================================
 // return the discretized parameters as vector for use with ROL
 // ========================================================================================
-
+/*
 vector<ScalarT> solver::getDiscretizedParamsVector() {
   int numParams = this->getNumParams(4);
   vector<ScalarT> discLocalParams(numParams);
@@ -1053,7 +1031,7 @@ vector<ScalarT> solver::getDiscretizedParamsVector() {
   }
   return discParams;
 }
-
+*/
 // ========================================================================================
 /* given the parameters, solve the forward  problem */
 // ========================================================================================
@@ -1061,7 +1039,7 @@ vector<ScalarT> solver::getDiscretizedParamsVector() {
 vector_RCP solver::forwardModel(DFAD & obj) {
   useadjoint = false;
   
-  this->sacadoizeParams(false);
+  params->sacadoizeParams(false);
   
   // Set the initial condition
   //isInitial = true;
@@ -1111,7 +1089,7 @@ vector_RCP solver::forwardModel_fr(DFAD & obj, ScalarT yt, ScalarT st) {
   useadjoint = false;
   assembler->wkset[0]->y = yt;
   assembler->wkset[0]->s = st;
-  this->sacadoizeParams(false);
+  params->sacadoizeParams(false);
   
   // Set the initial condition
   //isInitial = true;
@@ -1171,7 +1149,7 @@ vector_RCP solver::forwardModel_fr(DFAD & obj, ScalarT yt, ScalarT st) {
 vector_RCP solver::adjointModel(vector_RCP & F_soln, vector<ScalarT> & gradient) {
   useadjoint = true;
   
-  this->sacadoizeParams(false);
+  params->sacadoizeParams(false);
   
   //isInitial = true;
   vector_RCP initial = setInitial(); // does this need
@@ -1362,12 +1340,12 @@ void solver::transientSolver(vector_RCP & initial, vector_RCP & L_soln,
     
     if (useadjoint) { // fill in the gradient
       this->computeSensitivities(u,u_dot,phi,gradient,alpha,beta);
-      this->sacadoizeParams(false);
+      params->sacadoizeParams(false);
     }
     else if (compute_objective) { // fill in the objective function
       DFAD cobj = this->computeObjective(u, current_time, timeiter);
       obj += cobj;
-      this->sacadoizeParams(false);
+      params->sacadoizeParams(false);
     }
     
     if (useadjoint) {
@@ -1442,7 +1420,7 @@ void solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     //this->computeJacRes(u, u_dot, phi, phi_dot, alpha, beta, build_jacobian, false, false, res_over, J_over);
     assembler->assembleJacRes(u, u_dot, phi, phi_dot, alpha, beta, build_jacobian, false, false,
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
-                              num_active_params, Psol[0], is_final_time);
+                              params->num_active_params, params->Psol[0], is_final_time);
     J_over->fillComplete();
     
     J->setAllToScalar(0.0);
@@ -1642,19 +1620,19 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
   DFAD totaldiff = 0.0;
   AD regDomain = 0.0;
   AD regBoundary = 0.0;
-  int numDomainParams = domainRegIndices.size();
-  int numBoundaryParams = boundaryRegIndices.size();
+  int numDomainParams = params->domainRegIndices.size();
+  int numBoundaryParams = params->boundaryRegIndices.size();
   
-  this->sacadoizeParams(true);
+  params->sacadoizeParams(true);
   
-  int numParams = num_active_params + globalParamUnknowns;
+  int numParams = params->num_active_params + params->globalParamUnknowns;
   vector<ScalarT> regGradient(numParams);
   vector<ScalarT> dmGradient(numParams);
   
   for (size_t b=0; b<assembler->cells.size(); b++) {
     
     assembler->performGather(b, F_soln, 0, 0);
-    assembler->performGather(b, Psol[0], 4, 0);
+    assembler->performGather(b, params->Psol[0], 4, 0);
     
     for (size_t e=0; e<assembler->cells[b].size(); e++) {
       
@@ -1666,7 +1644,7 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
         for (int c=0; c<numElem; c++) {
           for (size_t i=0; i<obj.dimension(1); i++) {
             totaldiff += obj(c,i);
-            if (num_active_params > 0) {
+            if (params->num_active_params > 0) {
               if (obj(c,i).size() > 0) {
                 ScalarT val;
                 val = obj(c,i).fastAccessDx(0);
@@ -1674,14 +1652,14 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
               }
             }
             
-            if (globalParamUnknowns > 0) {
-              for (int row=0; row<paramoffsets[0].size(); row++) {
-                int rowIndex = paramGIDs[c][paramoffsets[0][row]];
-                int poffset = paramoffsets[0][row];
+            if (params->globalParamUnknowns > 0) {
+              for (int row=0; row<params->paramoffsets[0].size(); row++) {
+                int rowIndex = paramGIDs[c][params->paramoffsets[0][row]];
+                int poffset = params->paramoffsets[0][row];
                 ScalarT val;
-                if (obj(c,i).size() > num_active_params) {
-                  val = obj(c,i).fastAccessDx(poffset+num_active_params);
-                  dmGradient[rowIndex+num_active_params] += val;
+                if (obj(c,i).size() > params->num_active_params) {
+                  val = obj(c,i).fastAccessDx(poffset+params->num_active_params);
+                  dmGradient[rowIndex+params->num_active_params] += val;
                 }
               }
             }
@@ -1696,18 +1674,19 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
         if (numDomainParams > 0) {
           int paramIndex, rowIndex, poffset;
           ScalarT val;
-          regDomain = assembler->cells[b][e]->computeDomainRegularization(domainRegConstants,
-                                                               domainRegTypes, domainRegIndices);
+          regDomain = assembler->cells[b][e]->computeDomainRegularization(params->domainRegConstants,
+                                                                          params->domainRegTypes,
+                                                                          params->domainRegIndices);
           
           for (int c=0; c<numElem; c++) {
             for (size_t p = 0; p < numDomainParams; p++) {
-              paramIndex = domainRegIndices[p];
-              for( size_t row=0; row<paramoffsets[paramIndex].size(); row++ ) {
+              paramIndex = params->domainRegIndices[p];
+              for( size_t row=0; row<params->paramoffsets[paramIndex].size(); row++ ) {
                 if (regDomain.size() > 0) {
-                  rowIndex = paramGIDs[c][paramoffsets[paramIndex][row]];
-                  poffset = paramoffsets[paramIndex][row];
+                  rowIndex = paramGIDs[c][params->paramoffsets[paramIndex][row]];
+                  poffset = params->paramoffsets[paramIndex][row];
                   val = regDomain.fastAccessDx(poffset);
-                  regGradient[rowIndex+num_active_params] += val;
+                  regGradient[rowIndex+params->num_active_params] += val;
                 }
               }
             }
@@ -1719,18 +1698,19 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
           int paramIndex, rowIndex, poffset;
           ScalarT val;
           
-          regBoundary = assembler->cells[b][e]->computeBoundaryRegularization(boundaryRegConstants,
-                                                                   boundaryRegTypes, boundaryRegIndices,
-                                                                   boundaryRegSides);
+          regBoundary = assembler->cells[b][e]->computeBoundaryRegularization(params->boundaryRegConstants,
+                                                                              params->boundaryRegTypes,
+                                                                              params->boundaryRegIndices,
+                                                                              params->boundaryRegSides);
           for (int c=0; c<numElem; c++) {
             for (size_t p = 0; p < numBoundaryParams; p++) {
-              paramIndex = boundaryRegIndices[p];
-              for( size_t row=0; row<paramoffsets[paramIndex].size(); row++ ) {
+              paramIndex = params->boundaryRegIndices[p];
+              for( size_t row=0; row<params->paramoffsets[paramIndex].size(); row++ ) {
                 if (regBoundary.size() > 0) {
-                  rowIndex = paramGIDs[c][paramoffsets[paramIndex][row]];
-                  poffset = paramoffsets[paramIndex][row];
+                  rowIndex = paramGIDs[c][params->paramoffsets[paramIndex][row]];
+                  poffset = params->paramoffsets[paramIndex][row];
                   val = regBoundary.fastAccessDx(poffset);
-                  regGradient[rowIndex+num_active_params] += val;
+                  regGradient[rowIndex+params->num_active_params] += val;
                 }
               }
             }
@@ -1789,11 +1769,11 @@ vector<ScalarT> solver::computeSensitivities(const vector_RCP & GF_soln,
   ScalarT alpha = 0.0;
   ScalarT beta = 1.0;
   
-  vector<ScalarT> gradient(num_active_params);
+  vector<ScalarT> gradient(params->num_active_params);
   
-  this->sacadoizeParams(true);
+  params->sacadoizeParams(true);
   
-  vector<ScalarT> localsens(num_active_params);
+  vector<ScalarT> localsens(params->num_active_params);
   ScalarT globalsens = 0.0;
   int nsteps = 1;
   if (isTransient)
@@ -1822,23 +1802,23 @@ vector<ScalarT> solver::computeSensitivities(const vector_RCP & GF_soln,
     }
     
     
-    vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,num_active_params)); // reset residual
+    vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,params->num_active_params)); // reset residual
     matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
-    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,num_active_params)); // reset residual
+    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,params->num_active_params)); // reset residual
     matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
     res_over->putScalar(0.0);
     
     //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, false, true, false, res_over, J_over);
     assembler->assembleJacRes(u, u_dot, u, u_dot, alpha, beta, false, true, false,
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
-                              num_active_params, Psol[0], is_final_time);
+                              params->num_active_params, params->Psol[0], is_final_time);
     
     res->putScalar(0.0);
     res->doExport(*res_over, *exporter, Tpetra::ADD);
     
     auto res_kv = res->getLocalView<HostDevice>();
     
-    for (size_t paramiter=0; paramiter < num_active_params; paramiter++) {
+    for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
       ScalarT currsens = 0.0;
       for( size_t i=0; i<LA_owned.size(); i++ ) {
         currsens += a2_kv(i,0) * res_kv(i,paramiter);
@@ -1849,7 +1829,7 @@ vector<ScalarT> solver::computeSensitivities(const vector_RCP & GF_soln,
   
   ScalarT localval = 0.0;
   ScalarT globalval = 0.0;
-  for (size_t paramiter=0; paramiter < num_active_params; paramiter++) {
+  for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
     localval = localsens[paramiter];
     Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
     //Comm->SumAll(&localval, &globalval, 1);
@@ -1861,7 +1841,7 @@ vector<ScalarT> solver::computeSensitivities(const vector_RCP & GF_soln,
     std::string sname2 = "sens.dat";
     ofstream sensOUT(sname2.c_str());
     sensOUT.precision(16);
-    for (size_t paramiter=0; paramiter < num_active_params; paramiter++) {
+    for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
       sensOUT << gradient[paramiter] << "  ";
     }
     sensOUT << endl;
@@ -1897,14 +1877,14 @@ vector<ScalarT> solver::computeDiscretizedSensitivities(const vector_RCP & F_sol
   ScalarT alpha = 0.0;
   ScalarT beta = 1.0;
   
-  this->sacadoizeParams(false);
+  params->sacadoizeParams(false);
   
   int nsteps = 1;
   if (isTransient) {
     nsteps = solvetimes.size()-1;
   }
   
-  vector_RCP totalsens = Teuchos::rcp(new LA_MultiVector(param_owned_map,1));
+  vector_RCP totalsens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1));
   auto tsens_kv = totalsens->getLocalView<HostDevice>();
   
   
@@ -1941,34 +1921,34 @@ vector<ScalarT> solver::computeDiscretizedSensitivities(const vector_RCP & F_sol
      */
     
     vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // reset residual
-    matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(param_overlapped_map); // reset Jacobian
-    matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(param_owned_map); // reset Jacobian
+    matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(params->param_overlapped_map); // reset Jacobian
+    matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(params->param_owned_map); // reset Jacobian
     //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, true, false, true, res_over, J_over);
     assembler->assembleJacRes(u, u_dot, u, u_dot, alpha, beta, true, false, true,
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
-                              num_active_params, Psol[0], is_final_time);
+                              params->num_active_params, params->Psol[0], is_final_time);
     
-    J_over->fillComplete(LA_owned_map, param_owned_map);
-    vector_RCP sens_over = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1)); // reset residual
-    vector_RCP sens = Teuchos::rcp(new LA_MultiVector(param_owned_map,1)); // reset residual
+    J_over->fillComplete(LA_owned_map, params->param_owned_map);
+    vector_RCP sens_over = Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1)); // reset residual
+    vector_RCP sens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1)); // reset residual
     
     J->setAllToScalar(0.0);
-    J->doExport(*J_over, *param_exporter, Tpetra::ADD);
-    J->fillComplete(LA_owned_map, param_owned_map);
+    J->doExport(*J_over, *(params->param_exporter), Tpetra::ADD);
+    J->fillComplete(LA_owned_map, params->param_owned_map);
     
     J->apply(*a2,*sens);
     
     totalsens->update(1.0, *sens, 1.0);
   }
   
-  dRdP.push_back(totalsens);
-  have_dRdP = true;
+  params->dRdP.push_back(totalsens);
+  params->have_dRdP = true;
   
-  int numParams = this->getNumParams(4);
+  int numParams = params->getNumParams(4);
   vector<ScalarT> discLocalGradient(numParams);
   vector<ScalarT> discGradient(numParams);
-  for (size_t i = 0; i < paramOwned.size(); i++) {
-    int gid = paramOwned[i];
+  for (size_t i = 0; i < params->paramOwned.size(); i++) {
+    int gid = params->paramOwned[i];
     discLocalGradient[gid] = tsens_kv(i,0);
   }
   for (size_t i = 0; i < numParams; i++) {
@@ -1995,16 +1975,16 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
   auto u_dot_kv = u_dot->getLocalView<HostDevice>();
   auto a2_kv = a2->getLocalView<HostDevice>();
   
-  if (num_active_params > 0) {
+  if (params->num_active_params > 0) {
   
-    this->sacadoizeParams(true);
+    params->sacadoizeParams(true);
     
-    vector<ScalarT> localsens(num_active_params);
+    vector<ScalarT> localsens(params->num_active_params);
     ScalarT globalsens = 0.0;
     
-    vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,num_active_params)); // reset residual
+    vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,params->num_active_params)); // reset residual
     matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
-    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,num_active_params)); // reset residual
+    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,params->num_active_params)); // reset residual
     matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
     
     auto res_kv = res->getLocalView<HostDevice>();
@@ -2017,13 +1997,13 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
     //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, false, true, false, res_over, J_over);
     assembler->assembleJacRes(u, u_dot, u, u_dot, alpha, beta, false, true, false,
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
-                              num_active_params, Psol[0], is_final_time);
+                              params->num_active_params, params->Psol[0], is_final_time);
     useadjoint = curradjstatus;
     
     res->putScalar(0.0);
     res->doExport(*res_over, *exporter, Tpetra::ADD);
   
-    for (size_t paramiter=0; paramiter < num_active_params; paramiter++) {
+    for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
       // fine-scale
       if (assembler->cells[0][0]->multiscale) {
         ScalarT subsens = 0.0;
@@ -2048,7 +2028,7 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
     
     ScalarT localval = 0.0;
     ScalarT globalval = 0.0;
-    for (size_t paramiter=0; paramiter < num_active_params; paramiter++) {
+    for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
       localval = localsens[paramiter];
       Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
       //Comm->SumAll(&localval, &globalval, 1);
@@ -2066,10 +2046,10 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
     }
   }
   
-  int numDiscParams = this->getNumParams(4);
+  int numDiscParams = params->getNumParams(4);
   
   if (numDiscParams > 0) {
-    this->sacadoizeParams(false);
+    params->sacadoizeParams(false);
     
     
     vector_RCP a_owned = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // adjoint solution
@@ -2080,8 +2060,8 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
     }
     
     vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // reset residual
-    matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(param_overlapped_map); // reset Jacobian
-    matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(param_owned_map); // reset Jacobian
+    matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(params->param_overlapped_map); // reset Jacobian
+    matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(params->param_owned_map); // reset Jacobian
     
     res_over->putScalar(0.0);
     J->setAllToScalar(0.0);
@@ -2090,23 +2070,23 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
     //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, true, false, true, res_over, J_over);
     assembler->assembleJacRes(u, u_dot, u, u_dot, alpha, beta, true, false, true,
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
-                              num_active_params, Psol[0], is_final_time);
-    J_over->fillComplete(LA_owned_map, param_owned_map);
+                              params->num_active_params, params->Psol[0], is_final_time);
+    J_over->fillComplete(LA_owned_map, params->param_owned_map);
     
-    vector_RCP sens_over = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1)); // reset residual
-    vector_RCP sens = Teuchos::rcp(new LA_MultiVector(param_owned_map,1)); // reset residual
+    vector_RCP sens_over = Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1)); // reset residual
+    vector_RCP sens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1)); // reset residual
     auto sens_kv = sens->getLocalView<HostDevice>();
     
     J->setAllToScalar(0.0);
-    J->doExport(*J_over, *param_exporter, Tpetra::ADD);
-    J->fillComplete(LA_owned_map, param_owned_map);
+    J->doExport(*J_over, *(params->param_exporter), Tpetra::ADD);
+    J->fillComplete(LA_owned_map, params->param_owned_map);
     
     J->apply(*a_owned,*sens);
     
     vector<ScalarT> discLocalGradient(numDiscParams);
     vector<ScalarT> discGradient(numDiscParams);
-    for (size_t i = 0; i < paramOwned.size(); i++) {
-      int gid = paramOwned[i];
+    for (size_t i = 0; i < params->paramOwned.size(); i++) {
+      int gid = params->paramOwned[i];
       discLocalGradient[gid] = sens_kv(i,0);
     }
     for (size_t i = 0; i < numDiscParams; i++) {
@@ -2115,15 +2095,15 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
       Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
       //Comm->SumAll(&localval, &globalval, 1);
       ScalarT cobj = 0.0;
-      if ((i+num_active_params)<obj_sens.size()) {
-        cobj = obj_sens.fastAccessDx(i+num_active_params);
+      if ((i+params->num_active_params)<obj_sens.size()) {
+        cobj = obj_sens.fastAccessDx(i+params->num_active_params);
       }
       globalval += cobj;
-      if (gradient.size()<=num_active_params+i) {
+      if (gradient.size()<=params->num_active_params+i) {
         gradient.push_back(globalval);
       }
       else {
-        gradient[num_active_params+i] += globalval;
+        gradient[params->num_active_params+i] += globalval;
       }
     }
   }
@@ -2165,7 +2145,7 @@ ScalarT solver::computeError(const vector_RCP & GF_soln, const vector_RCP & GA_s
   }
   
   ScalarT errorest = 0.0;
-  this->sacadoizeParams(false);
+  params->sacadoizeParams(false);
   
   // ******************* ITERATE ON THE Parameters **********************
   
@@ -2183,14 +2163,14 @@ ScalarT solver::computeError(const vector_RCP & GF_soln, const vector_RCP & GA_s
       a2_kv(i,0) = GA_kv(i,numsteps-timeiter);
     }
     
-    vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,num_active_params)); // reset residual
-    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,num_active_params)); // reset residual
+    vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,params->num_active_params)); // reset residual
+    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,params->num_active_params)); // reset residual
     matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
     res_over->putScalar(0.0);
     //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, false, false, false, res_over, J_over);
     assembler->assembleJacRes(u, u_dot, u, u_dot, alpha, beta, false, false, false,
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
-                              num_active_params, Psol[0], is_final_time);
+                              params->num_active_params, params->Psol[0], is_final_time);
     res->putScalar(0.0);
     res->doExport(*res_over, *exporter, Tpetra::ADD);
     auto res_kv = res->getLocalView<HostDevice>();
@@ -2210,166 +2190,6 @@ ScalarT solver::computeError(const vector_RCP & GF_soln, const vector_RCP & GA_s
   return errorest;
 }
 
-// ========================================================================================
-// ========================================================================================
-/*
-void solver::updateJacDBC(matrix_RCP & J, size_t & e, size_t & block, int & fieldNum,
-                  size_t & localSideId, const bool & compute_disc_sens) {
-  
-  // given a "block" and the unknown field update jacobian to enforce Dirichlet BCs
-  
-  string blockID = blocknames[block];
-  vector<int> GIDs;// = assembler->cells[block][e]->GIDs;
-  DOF->getElementGIDs(e, GIDs, blockID);
-  
-  const pair<vector<int>,vector<int> > SideIndex = DOF->getGIDFieldOffsets_closure(blockID, fieldNum, spaceDim-1, localSideId);
-  
-  const vector<int> elmtOffset = SideIndex.first; // local nodes on that side
-  const vector<int> basisIdMap = SideIndex.second;
-  
-  Teuchos::Array<ScalarT> vals(1);
-  Teuchos::Array<GO> cols(1);
-  
-  for( size_t i=0; i<elmtOffset.size(); i++ ) { // for each node
-    int row = GIDs[elmtOffset[i]]; // global row
-    if (compute_disc_sens) {
-      vector<int> paramGIDs;// = assembler->cells[block][e]->paramGIDs;
-      paramDOF->getElementGIDs(e, paramGIDs, blockID);
-      for( size_t col=0; col<paramGIDs.size(); col++ ) {
-        int ind = paramGIDs[col];
-        ScalarT m_val = 0.0; // set ALL of the entries to 0 in the Jacobian
-        //J.ReplaceGlobalValues(row, 1, &m_val, &ind);
-        J->replaceGlobalValues(ind, 1, &m_val, &row);
-      }
-    }
-    else {
-      for( size_t col=0; col<GIDs.size(); col++ ) {
-        cols[0] = GIDs[col];
-        vals[0] = 0.0; // set ALL of the entries to 0 in the Jacobian
-        //J->replaceGlobalValues(row, 1, &m_val, &ind);
-        J->replaceGlobalValues(row, cols, vals);
-      }
-      cols[0] = row;
-      vals[0] = 1.0; // set diagonal entry to 1
-      //J->replaceGlobalValues(row, 1, &val, &row);
-      J->replaceGlobalValues(row, cols, vals);
-      //cout << Comm->getRank() << "  " << row << "  " << vals[0] << endl;
-    }
-  }
-}
-*/
-// ========================================================================================
-// ========================================================================================
-/*
-void solver::updateJacDBC(matrix_RCP & J, const vector<int> & dofs, const bool & compute_disc_sens) {
-  
-  // given a "block" and the unknown field update jacobian to enforce Dirichlet BCs
-  
-  for( int i=0; i<dofs.size(); i++ ) { // for each node
-    if (compute_disc_sens) {
-      for( int col=0; col<globalParamUnknowns; col++ ) {
-        ScalarT m_val = 0.0; // set ALL of the entries to 0 in the Jacobian
-        //J.ReplaceGlobalValues(row, 1, &m_val, &ind);
-        J->replaceGlobalValues(col, 1, &m_val, &dofs[i]);
-      }
-    }
-    else {
-      for( int col=0; col<globalNumUnknowns; col++ ) {
-        ScalarT m_val = 0.0; // set ALL of the entries to 0 in the Jacobian
-        J->replaceGlobalValues(dofs[i], 1, &m_val, &col);
-      }
-      ScalarT val = 1.0; // set diagonal entry to 1
-      J->replaceGlobalValues(dofs[i], 1, &val, &dofs[i]);
-    }
-  }
-}
-*/
-// ========================================================================================
-// ========================================================================================
-/*
-void solver::updateResDBC(vector_RCP & resid, size_t & e, size_t & block, int & fieldNum,
-                  size_t & localSideId) {
-  // given a "block" and the unknown field update resid to enforce Dirichlet BCs
-  
-  string blockID = blocknames[block];
-  vector<int> elemGIDs;
-  DOF->getElementGIDs(e, elemGIDs, blockID); // compute element global IDs
-  
-  int numRes = resid->getNumVectors();
-  const pair<vector<int>,vector<int> > SideIndex = DOF->getGIDFieldOffsets_closure(blockID, fieldNum, spaceDim-1, localSideId);
-  const vector<int> elmtOffset = SideIndex.first; // local nodes on that side
-  const vector<int> basisIdMap = SideIndex.second;
-  
-  for( size_t i=0; i<elmtOffset.size(); i++ ) { // for each node
-    int row = elemGIDs[elmtOffset[i]]; // global row
-    ScalarT r_val = 0.0; // set residual to 0
-    for( int j=0; j<numRes; j++ ) {
-      resid->replaceGlobalValue(row, j, r_val); // replace the value
-    }
-  }
-}
-*/
-// ========================================================================================
-// ========================================================================================
-/*
-void solver::updateResDBC(vector_RCP & resid, const vector<int> & dofs) {
-  // given a "block" and the unknown field update resid to enforce Dirichlet BCs
-  
-  int numRes = resid->getNumVectors();
-  
-  for( size_t i=0; i<dofs.size(); i++ ) { // for each node
-    ScalarT r_val = 0.0; // set residual to 0
-    for( int j=0; j<numRes; j++ ) {
-      resid->replaceGlobalValue(dofs[i], j, r_val); // replace the value
-    }
-  }
-}
-
-*/
-// ========================================================================================
-// ========================================================================================
-/*
-void solver::updateResDBCsens(vector_RCP & resid, size_t & e, size_t & block, int & fieldNum, size_t & localSideId,
-                      const std::string & gside, const ScalarT & current_time) {
-  
-  //DOES NOT WORK FOR SENSITIVITIES...even in theory...and e is probably not used correctly either...though that only affects x,y,z...
-  // given a "block" and the unknown field update resid derivatives with respect to parameters to account for parameter-dependent DBCs
-  
-  int fnum = DOF->getFieldNum(varlist[block][fieldNum]);
-  string blockID = blocknames[block];
-  vector<int> elemGIDs;// = assembler->cells[block][e]->GIDs[p];
-  DOF->getElementGIDs(e, elemGIDs, blockID);
-  
-  int numRes = resid->getNumVectors();
-  const pair<vector<int>,vector<int> > SideIndex = DOF->getGIDFieldOffsets_closure(blockID, fnum, spaceDim-1, localSideId);
-  const vector<int> elmtOffset = SideIndex.first; // local nodes on that side
-  const vector<int> basisIdMap = SideIndex.second;
-  
-  DRV I_elemNodes = this->getElemNodes(block,e);//assembler->cells[block][e]->nodes;
-  
-  for( size_t i=0; i<elmtOffset.size(); i++ ) { // for each node
-    int row = elemGIDs[elmtOffset[i]]; // global row
-    ScalarT x = I_elemNodes(0,basisIdMap[i],0);
-    ScalarT y = 0.0;
-    if (spaceDim > 1)
-      y = I_elemNodes(0,basisIdMap[i],1);
-    ScalarT z = 0.0;
-    if (spaceDim > 2)
-      z = I_elemNodes(0,basisIdMap[i],2);
-    
-    AD diri_FAD;
-    diri_FAD = phys->getDirichletValue(block, x, y, z, current_time, varlist[block][fieldNum], gside, false, wkset[block]);
-    ScalarT r_val = 0.0;
-    size_t numDerivs = diri_FAD.size();
-    for( int j=0; j<numRes; j++ ) {
-      if (numDerivs > j)
-      r_val = diri_FAD.fastAccessDx(j);
-      //cout << "resDBC: " << row << j << r_val << endl;
-      resid->replaceGlobalValue(row, j, r_val); // replace the value
-    }
-  }
-}
-*/
 // ========================================================================================
 // ========================================================================================
 
@@ -2452,7 +2272,7 @@ void solver::setDirichlet(vector_RCP & initial) {
 // ========================================================================================
 
 vector_RCP solver::setInitialParams() {
-  vector_RCP initial = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1));
+  vector_RCP initial = Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1));
   ScalarT value = 2.0;
   initial->putScalar(value);
   return initial;
@@ -2542,255 +2362,6 @@ vector_RCP solver::setInitial() {
   
   return initial;
 }
-
-// ========================================================================================
-// ========================================================================================
-
-void solver::computeJacRes(vector_RCP & u, vector_RCP & u_dot,
-                   vector_RCP & phi, vector_RCP & phi_dot,
-                   const ScalarT & alpha, const ScalarT & beta,
-                   const bool & compute_jacobian, const bool & compute_sens,
-                   const bool & compute_disc_sens,
-                   vector_RCP & res, matrix_RCP & J) {
-  
-  int numRes = res->getNumVectors();
-  
-  Teuchos::TimeMonitor localassemblytimer(*assemblytimer);
-  
-  for (size_t b=0; b<assembler->cells.size(); b++) {
-    
-    //////////////////////////////////////////////////////////////////////////////////////
-    // Set up the worksets and allocate the local residual and Jacobians
-    //////////////////////////////////////////////////////////////////////////////////////
-    
-    assembler->wkset[b]->time = current_time;
-    assembler->wkset[b]->time_KV(0) = current_time;
-    assembler->wkset[b]->isTransient = isTransient;
-    assembler->wkset[b]->isAdjoint = useadjoint;
-    assembler->wkset[b]->alpha = alpha;
-    if (isTransient)
-    assembler->wkset[b]->deltat = 1.0/alpha;
-    else
-    assembler->wkset[b]->deltat = 1.0;
-    
-    int numElem = assembler->cells[b][0]->numElem;
-    int numDOF = assembler->cells[b][0]->GIDs[0].size();
-    
-    int numParamDOF = 0;
-    if (compute_disc_sens) {
-      numParamDOF = assembler->cells[b][0]->paramGIDs[0].size();
-    }
-    
-    Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
-    
-    if (compute_sens) {
-      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,num_active_params);
-    }
-    else {
-      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,1);
-    }
-    
-    if (compute_disc_sens) {
-      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numParamDOF);
-      local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,numDOF,numParamDOF);
-    }
-    else {
-      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numDOF);
-      local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,numDOF,numDOF);
-    }
-    
-    //Kokkos::View<ScalarT**,AssemblyDevice> aPrev;
-    
-    /////////////////////////////////////////////////////////////////////////////
-    // Loop over assembler->cells
-    /////////////////////////////////////////////////////////////////////////////
-    
-    {
-      Teuchos::TimeMonitor localtimer(*gathertimer);
-    
-      // Local gather of solutions (should be a better way to do this)
-      assembler->performGather(b,u,0,0);
-      assembler->performGather(b,u_dot,1,0);
-      assembler->performGather(b,Psol[0],4,0);
-      if (useadjoint) {
-        assembler->performGather(b,phi,2,0);
-        assembler->performGather(b,phi_dot,3,0);
-      }
-    }
-    
-    /////////////////////////////////////////////////////////////////////////////
-    // Volume contribution
-    /////////////////////////////////////////////////////////////////////////////
-    
-    for (size_t e=0; e < assembler->cells[b].size(); e++) {
-      
-      assembler->wkset[b]->localEID = e;
-      assembler->cells[b][e]->updateData();
-      
-      
-      if (isTransient && useadjoint && !assembler->cells[0][0]->multiscale) {
-        //aPrev = assembler->cells[b][e]->adjPrev;
-        //KokkosTools::print(aPrev);
-        if (is_final_time) {
-          for (int i=0; i<assembler->cells[b][e]->adjPrev.dimension(0); i++) {
-            for (int j=0; j<assembler->cells[b][e]->adjPrev.dimension(1); j++) {
-              assembler->cells[b][e]->adjPrev(i,j) = 0.0;
-            }
-          }
-          //(assembler->cells[b][e]->adjPrev).initialize(0.0);
-        }
-      }
-      
-      
-      /////////////////////////////////////////////////////////////////////////////
-      // Compute the local residual and Jacobian on this cell
-      /////////////////////////////////////////////////////////////////////////////
-      
-      {
-        Teuchos::TimeMonitor localtimer(*phystimer);
-        
-        for (int p=0; p<numElem; p++) {
-          for (int n=0; n<numDOF; n++) {
-            for (int s=0; s<local_res.dimension(2); s++) {
-              local_res(p,n,s) = 0.0;
-            }
-            for (int s=0; s<local_J.dimension(2); s++) {
-              local_J(p,n,s) = 0.0;
-              local_Jdot(p,n,s) = 0.0;
-            }
-          }
-        }
-        
-        assembler->cells[b][e]->computeJacRes(current_time, isTransient, useadjoint, compute_jacobian, compute_sens,
-                                   num_active_params, compute_disc_sens, false, store_adjPrev,
-                                   local_res, local_J, local_Jdot);
-        
-      }
-      
-      //KokkosTools::print(local_J);
-      //KokkosTools::print(local_res);
-      /*
-      if (isTransient && useadjoint && !assembler->cells[0][0]->multiscale) {
-        if (gNLiter == 0)
-        assembler->cells[b][e]->adjPrev = aPrev;
-        else if (!store_adjPrev)
-        assembler->cells[b][e]->adjPrev = aPrev;
-      }
-      */
-      
-      ///////////////////////////////////////////////////////////////////////////
-      // Insert into global matrix/vector
-      ///////////////////////////////////////////////////////////////////////////
-      
-      {
-        Teuchos::TimeMonitor localtimer(*inserttimer);
-        vector<vector<int> > GIDs = assembler->cells[b][e]->GIDs;
-        
-        vector<vector<int> > paramGIDs = assembler->cells[b][e]->paramGIDs;
-        
-        for (int i=0; i<GIDs.size(); i++) {
-          Teuchos::Array<ScalarT> vals(GIDs[i].size());
-          Teuchos::Array<LO> cols(GIDs[i].size());
-          
-          for( size_t row=0; row<GIDs[i].size(); row++ ) {
-            int rowIndex = GIDs[i][row];
-            for (int g=0; g<numRes; g++) {
-              ScalarT val = local_res(i,row,g);
-              res->sumIntoGlobalValue(rowIndex,g, val);
-            }
-            if (compute_jacobian) {
-              if (compute_disc_sens) {
-                for( size_t col=0; col<paramGIDs[i].size(); col++ ) {
-                  int colIndex = paramGIDs[i][col];
-                  ScalarT val = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
-                  J->insertGlobalValues(colIndex, 1, &val, &rowIndex);
-                }
-              }
-              else {
-                for( size_t col=0; col<GIDs[i].size(); col++ ) {
-                  vals[col] = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
-                  cols[col] = GIDs[i][col];
-                }
-                //J->sumIntoGlobalValues(rowIndex, GIDs[i].size(), &vals[0], &GIDs[i][0]);
-                J->sumIntoGlobalValues(rowIndex, cols, vals);
-                
-              }
-            }
-          }
-        }
-      }
-      
-    } // element loop
-    
-  } // block loop
-  
-  /*
-  if (compute_jacobian) {
-    if (compute_disc_sens) {
-      J->fillComplete(LA_owned_map, param_owned_map);
-      J->resumeFill();
-    }
-    else {
-      J->fillComplete();
-      J->resumeFill();
-    }
-  }
-  */
-  
-  // ************************** STRONGLY ENFORCE DIRICHLET BCs *******************************************
-  
-  if (usestrongDBCs) {
-    Teuchos::TimeMonitor localtimer(*dbctimer);
-    vector<vector<int> > fixedDOFs = phys->dbc_dofs;
-    for (size_t b=0; b<assembler->cells.size(); b++) {
-      vector<size_t> boundDirichletElemIDs;   // list of elements on the Dirichlet boundary
-      vector<size_t> localDirichletSideIDs;   // local side numbers for Dirichlet boundary sides
-      vector<size_t> globalDirichletSideIDs;   // local side numbers for Dirichlet boundary sides
-      for (int n=0; n<numVars[b]; n++) {
-        int fnum = DOF->getFieldNum(varlist[b][n]);
-        boundDirichletElemIDs = phys->boundDirichletElemIDs[b][n];
-        localDirichletSideIDs = phys->localDirichletSideIDs[b][n];
-        globalDirichletSideIDs = phys->globalDirichletSideIDs[b][n];
-        
-        size_t numDBC = boundDirichletElemIDs.size();
-        for (size_t e=0; e<numDBC; e++) {
-          size_t eindex = boundDirichletElemIDs[e];
-          size_t sindex = localDirichletSideIDs[e];
-          size_t gside_index = globalDirichletSideIDs[e];
-          
-          if (compute_jacobian) {
-            assembler->updateJacDBC(J, eindex, b, fnum, sindex, compute_disc_sens);
-          }
-          std::string gside = phys->sideSets[gside_index];
-          assembler->updateResDBCsens(res, eindex, b, n, sindex, gside, current_time);
-        }
-      }
-      
-      assembler->updateJacDBC(J,fixedDOFs[b],compute_disc_sens);
-      assembler->updateResDBC(res,fixedDOFs[b]);
-    }
-  }
-  
-  //updateResPin(res_over); //pinning attempt
-  //if (compute_jacobian) {
-  //    updateJacPin(J_over); //pinning attempt
-  //}
-  
-  //auto out = Teuchos::getFancyOStream (Teuchos::rcpFromRef (std::cout));
-  
-  //res->describe(*out, Teuchos::VERB_EXTREME);
-  //KokkosTools::print(Comm,res);
-  
-  if (compute_jacobian) {
-    if (compute_disc_sens) {
-      J->fillComplete(LA_owned_map, param_owned_map);
-    }
-    else {
-      J->fillComplete();
-    }
-  }
-}
-
 
 // ========================================================================================
 // Linear Solver for Tpetra stack
@@ -3018,7 +2589,7 @@ ML_Epetra::MultiLevelPreconditioner* solver::buildPreconditioner(const Teuchos::
 
 // ========================================================================================
 // ========================================================================================
-
+/*
 void solver::sacadoizeParams(const bool & seed_active) {
   
   //vector<vector<AD> > paramvals_AD;
@@ -3061,10 +2632,10 @@ void solver::sacadoizeParams(const bool & seed_active) {
   multiscale_manager->updateParameters(paramvals_AD, paramnames);
   
 }
-
+*/
 // ========================================================================================
 // ========================================================================================
-
+/*
 void solver::updateParams(const vector<ScalarT> & newparams, const int & type) {
   size_t pprog = 0;
   // perhaps add a check that the size of newparams equals the number of parameters of the
@@ -3096,10 +2667,10 @@ void solver::updateParams(const vector<ScalarT> & newparams, const int & type) {
     }
   }
 }
-
+*/
 // ========================================================================================
 // ========================================================================================
-
+/*
 void solver::updateParams(const vector<ScalarT> & newparams, const std::string & stype) {
   size_t pprog = 0;
   int type;
@@ -3121,7 +2692,7 @@ void solver::updateParams(const vector<ScalarT> & newparams, const std::string &
     }
   }
 }
-
+*/
 // ========================================================================================
 // ========================================================================================
 
@@ -3208,7 +2779,7 @@ void solver::updateMeshData(const int & newrandseed) {
 
 // ========================================================================================
 // ========================================================================================
-
+/*
 vector<ScalarT> solver::getParams(const int & type) {
   vector<ScalarT> reqparams;
   for (size_t i=0; i<paramvals.size(); i++) {
@@ -3220,10 +2791,10 @@ vector<ScalarT> solver::getParams(const int & type) {
   }
   return reqparams;
 }
-
+*/
 // ========================================================================================
 // ========================================================================================
-
+/*
 vector<string> solver::getParamsNames(const int & type) {
   vector<string> reqparams;
   for (size_t i=0; i<paramvals.size(); i++) {
@@ -3233,10 +2804,10 @@ vector<string> solver::getParamsNames(const int & type) {
   }
   return reqparams;
 }
-
+*/
 // ========================================================================================
 // ========================================================================================
-
+/*
 vector<size_t> solver::getParamsLengths(const int & type) {
   vector<size_t> reqparams;
   for (size_t i=0; i<paramvals.size(); i++) {
@@ -3246,10 +2817,10 @@ vector<size_t> solver::getParamsLengths(const int & type) {
   }
   return reqparams;
 }
-
+*/
 // ========================================================================================
 // ========================================================================================
-
+/*
 vector<ScalarT> solver::getParams(const std::string & stype) {
   vector<ScalarT> reqparams;
   int type;
@@ -3273,10 +2844,10 @@ vector<ScalarT> solver::getParams(const std::string & stype) {
   }
   return reqparams;
 }
-
+*/
 // ========================================================================================
 // ========================================================================================
-
+/*
 vector<vector<ScalarT> > solver::getParamBounds(const std::string & stype) {
   vector<vector<ScalarT> > reqbnds;
   vector<ScalarT> reqlo;
@@ -3343,17 +2914,18 @@ vector<vector<ScalarT> > solver::getParamBounds(const std::string & stype) {
   reqbnds.push_back(requp);
   return reqbnds;
 }
-
+*/
 // ========================================================================================
 // ========================================================================================
 
 void solver::setBatchID(const int & bID){
   batchID = bID;
+  params->batchID = bID;
 }
 
 // ========================================================================================
 // ========================================================================================
-
+/*
 void solver::stashParams(){
   if (batchID == 0 && Comm->getRank() == 0){
     string outname = "param_stash.dat";
@@ -3369,10 +2941,10 @@ void solver::stashParams(){
     respOUT.close();
   }
 }
-
+*/
 // ========================================================================================
 // ========================================================================================
-
+/*
 vector<ScalarT> solver::getStochasticParams(const std::string & whichparam) {
   if (whichparam == "mean")
     return stochastic_mean;
@@ -3387,10 +2959,10 @@ vector<ScalarT> solver::getStochasticParams(const std::string & whichparam) {
     return emptyvec;
   }
 }
-
+*/
 // ========================================================================================
 // ========================================================================================
-
+/*
 vector<ScalarT> solver::getFractionalParams(const std::string & whichparam) {
   if (whichparam == "s-exponent")
     return s_exp;
@@ -3401,7 +2973,7 @@ vector<ScalarT> solver::getFractionalParams(const std::string & whichparam) {
     return emptyvec;
   }
 }
-
+*/
 // ========================================================================================
 // ========================================================================================
 
@@ -3411,20 +2983,7 @@ vector_RCP solver::blankState(){
 }
 
 // ========================================================================================
-//
 // ========================================================================================
-/*
-void solver::performGather(const size_t & block, const vector_RCP & vec, const int & type,
-                   const size_t & index) {
-  
-  for (size_t e=0; e < assembler->cells[block].size(); e++) {
-    assembler->cells[block][e]->setLocalSoln(vec, type, index);
-  }
-  
-}
-*/
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
 
 DRV solver::getElemNodes(const int & block, const int & elemID) {
   int nnodes = elemnodes[block].dimension(1);
@@ -3444,13 +3003,13 @@ DRV solver::getElemNodes(const int & block, const int & elemID) {
 void solver::finalizeMultiscale() {
   if (multiscale_manager->subgridModels.size() > 0 ) {
     for (size_t k=0; k<multiscale_manager->subgridModels.size(); k++) {
-      multiscale_manager->subgridModels[k]->paramvals_KVAD = paramvals_KVAD;
+      multiscale_manager->subgridModels[k]->paramvals_KVAD = params->paramvals_KVAD;
     //  multiscale_manager->subgridModels[k]->wkset[0]->paramnames = paramnames;
     }
     
     multiscale_manager->setMacroInfo(disc->basis_pointers, disc->basis_types,
                                      phys->varlist, useBasis, phys->offsets,
-                                     paramnames, discretized_param_names);
+                                     params->paramnames, params->discretized_param_names);
     
     multiscale_manager->macro_wkset = assembler->wkset;
     ScalarT my_cost = multiscale_manager->initialize();

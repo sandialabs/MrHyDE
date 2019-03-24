@@ -22,14 +22,15 @@ postprocess::postprocess(const Teuchos::RCP<LA_MpiComm> & Comm_,
                          Teuchos::RCP<solver> & solve_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
                          vector<vector<Teuchos::RCP<cell> > > cells_,
                          Teuchos::RCP<FunctionInterface> & functionManager,
-                         Teuchos::RCP<AssemblyManager> & assembler_) :
+                         Teuchos::RCP<AssemblyManager> & assembler_,
+                         Teuchos::RCP<ParameterManager> & params_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), solve(solve_),
-DOF(DOF_), cells(cells_), assembler(assembler_) {
+DOF(DOF_), cells(cells_), assembler(assembler_), params(params_) {
   
   verbosity = settings->sublist("Postprocess").get<int>("Verbosity",1);
   
   overlapped_map = solve->LA_overlapped_map;
-  param_overlapped_map = solve->param_overlapped_map;
+  param_overlapped_map = params->param_overlapped_map;
   mesh->getElementBlockNames(blocknames);
   
   numNodesPerElem = settings->sublist("Mesh").get<int>("numNodesPerElem",4);
@@ -192,28 +193,28 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
   AD regBoundary = 0.0;
   //bvbw    AD classicParamPenalty = 0.0;
   vector<ScalarT> solvetimes = solve->solvetimes;
-  vector<int> domainRegTypes = solve->domainRegTypes;
-  vector<ScalarT> domainRegConstants = solve->domainRegConstants;
-  vector<int> domainRegIndices = solve->domainRegIndices;
+  vector<int> domainRegTypes = params->domainRegTypes;
+  vector<ScalarT> domainRegConstants = params->domainRegConstants;
+  vector<int> domainRegIndices = params->domainRegIndices;
   int numDomainParams = domainRegIndices.size();
-  vector<int> boundaryRegTypes = solve->boundaryRegTypes;
-  vector<ScalarT> boundaryRegConstants = solve->boundaryRegConstants;
-  vector<int> boundaryRegIndices = solve->boundaryRegIndices;
+  vector<int> boundaryRegTypes = params->boundaryRegTypes;
+  vector<ScalarT> boundaryRegConstants = params->boundaryRegConstants;
+  vector<int> boundaryRegIndices = params->boundaryRegIndices;
   int numBoundaryParams = boundaryRegIndices.size();
-  vector<string> boundaryRegSides = solve->boundaryRegSides;
+  vector<string> boundaryRegSides = params->boundaryRegSides;
   
   
   int numSensors = 1;
   if (response_type == "pointwise") {
     numSensors = solve->numSensors;
   }
-  solve->sacadoizeParams(true);
-  int numClassicParams = solve->getNumParams(1);
-  int numDiscParams = solve->getNumParams(4);
+  params->sacadoizeParams(true);
+  int numClassicParams = params->getNumParams(1);
+  int numDiscParams = params->getNumParams(4);
   int numParams = numClassicParams + numDiscParams;
   vector<ScalarT> regGradient(numParams);
   vector<ScalarT> dmGradient(numParams);
-  vector_RCP P_soln = solve->Psol[0];
+  vector_RCP P_soln = params->Psol[0];
   
   //cout << solvetimes.size() << endl;
   //for (int i=0; i<solvetimes.size(); i++) {
@@ -232,7 +233,7 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
         
         int numElem = cells[b][e]->numElem;
         
-        vector<vector<int> > paramoffsets = solve->paramoffsets;
+        vector<vector<int> > paramoffsets = params->paramoffsets;
         //for (size_t tt=0; tt<solvetimes.size(); tt++) { // skip initial condition in 0th position
         if (obj.dimension(1) > 0) {
           for (int c=0; c<numElem; c++) {
@@ -265,7 +266,7 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
         if ((numDomainParams > 0) || (numBoundaryParams > 0)) {
           for (int c=0; c<numElem; c++) {
             vector<int> paramGIDs = cells[b][e]->paramGIDs[c];
-            vector<vector<int> > paramoffsets = solve->paramoffsets;
+            vector<vector<int> > paramoffsets = params->paramoffsets;
             
             if (numDomainParams > 0) {
               int paramIndex, rowIndex, poffset;
@@ -352,7 +353,7 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
 
 Kokkos::View<ScalarT***,HostDevice> postprocess::computeResponse(const vector_RCP & F_soln, const int & b) {
   
-  solve->sacadoizeParams(false);
+  params->sacadoizeParams(false);
   vector<ScalarT> solvetimes = solve->solvetimes;
   
   //FC responses = this->computeResponse(F_soln);
@@ -364,7 +365,7 @@ Kokkos::View<ScalarT***,HostDevice> postprocess::computeResponse(const vector_RC
   }
   
   Kokkos::View<ScalarT***,HostDevice> responses("responses",numSensors, numresponses, solvetimes.size());
-  vector_RCP P_soln = solve->Psol[0];
+  vector_RCP P_soln = params->Psol[0];
   
   for (size_t tt=0; tt<solvetimes.size(); tt++) {
     
@@ -419,7 +420,7 @@ void postprocess::computeResponse(const vector_RCP & F_soln) {
     }
   }
   
-  solve->sacadoizeParams(false);
+  params->sacadoizeParams(false);
   vector<ScalarT> solvetimes = solve->solvetimes;
   for (size_t b=0; b<cells.size(); b++) {
     
@@ -504,14 +505,14 @@ vector<ScalarT> postprocess::computeSensitivities(const vector_RCP & F_soln, con
   Teuchos::RCP<Teuchos::Time> sensitivitytimer = Teuchos::rcp(new Teuchos::Time("sensitivity",false));
   sensitivitytimer->start();
   
-  vector<string> active_paramnames = solve->getParamsNames(1);
-  vector<size_t> active_paramlengths = solve->getParamsLengths(1);
+  vector<string> active_paramnames = params->getParamsNames(1);
+  vector<size_t> active_paramlengths = params->getParamsLengths(1);
   
   vector<ScalarT> dwr_sens;
   vector<ScalarT> disc_sens;
   
-  int numClassicParams = solve->getNumParams(1);
-  int numDiscParams = solve->getNumParams(4);
+  int numClassicParams = params->getNumParams(1);
+  int numDiscParams = params->getNumParams(4);
   int numParams = numClassicParams + numDiscParams;
   
   vector<ScalarT> gradient(numParams);
@@ -653,10 +654,10 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
       // Discretized Parameters
       ////////////////////////////////////////////////////////////////
       
-      vector<string> dpnames = solve->discretized_param_names;
-      vector<int> numParamBasis = solve->paramNumBasis;
+      vector<string> dpnames = params->discretized_param_names;
+      vector<int> numParamBasis = params->paramNumBasis;
       if (dpnames.size() > 0) {
-        vector_RCP P_soln = solve->Psol[0];
+        vector_RCP P_soln = params->Psol[0];
         auto P_kv = P_soln->getLocalView<HostDevice>();
         
         for (size_t n=0; n<dpnames.size(); n++) {
@@ -672,7 +673,7 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
             int numElem = cells[b][e]->numElem;
             for (int p=0; p<numElem; p++) {
               vector<int> paramGIDs = cells[b][e]->paramGIDs[p];
-              vector<vector<int> > paramoffsets = solve->paramoffsets;
+              vector<vector<int> > paramoffsets = params->paramoffsets;
               for( int i=0; i<numParamBasis[n]; i++ ) {
                 int pindex = param_overlapped_map->getLocalElement(paramGIDs[paramoffsets[n][i]]);
                 if (numParamBasis[n] == 1) {
@@ -689,9 +690,9 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
           }
           mesh->setSolutionFieldData(dpnames[n], blockID, myElements, soln_computed);
         }
-        bool have_dRdP = solve->have_dRdP;
+        bool have_dRdP = params->have_dRdP;
         if (have_dRdP) {
-          vector_RCP P_soln = solve->dRdP[0];
+          vector_RCP P_soln = params->dRdP[0];
           auto P_kv = P_soln->getLocalView<HostDevice>();
           
           for (size_t n=0; n<dpnames.size(); n++) {
@@ -708,7 +709,7 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
               int numElem = cells[b][e]->numElem;
               for (int p=0; p<numElem; p++) {
                 vector<int> paramGIDs = cells[b][e]->paramGIDs[p];
-                vector<vector<int> > paramoffsets = solve->paramoffsets;
+                vector<vector<int> > paramoffsets = params->paramoffsets;
                 for( int i=0; i<numParamBasis[n]; i++ ) {
                   int pindex = param_overlapped_map->getLocalElement(paramGIDs[paramoffsets[n][i]]);
                   if (numParamBasis[n] == 1) {
@@ -763,7 +764,7 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
       
       
       if (plot_response) {
-        vector_RCP P_soln = solve->Psol[0];
+        vector_RCP P_soln = params->Psol[0];
         vector<string> responsefieldnames = phys->getResponseFieldNames(b);
         vector<Kokkos::View<ScalarT**,HostDevice> > responsefields;
         for (size_t j=0; j<responsefieldnames.size(); j++) {

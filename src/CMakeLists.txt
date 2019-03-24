@@ -23,6 +23,7 @@ interfaces/analysisInterface.cpp
 interfaces/uqInterface.cpp 
 interfaces/multiscaleInterface.cpp 
 tools/assemblyManager.cpp
+tools/parameterManager.cpp
 tools/subgridMeshFactory.cpp 
 tools/cell.cpp
 tools/split_mpi_communicators.cpp 

@@ -23,6 +23,7 @@
 #include "assemblyManager.hpp"
 #include "solverInterface.hpp"
 #include "subgridTools.hpp"
+#include "parameterManager.hpp"
 
 class SubGridFEM : public SubGridModel {
 public:
@@ -306,21 +307,34 @@ public:
     {
       Teuchos::TimeMonitor localtimer(*sgfemSubSolverTimer);
       if (first_time) {
+        sub_params = Teuchos::rcp( new ParameterManager(LocalComm, settings, mesh));
+        
         sub_assembler = Teuchos::rcp( new AssemblyManager(LocalComm, settings, mesh,
                                                           disc, physics_RCP, DOF, currcells));
-        subsolver = Teuchos::rcp( new solver(LocalComm, settings, mesh, disc, physics_RCP, DOF, sub_assembler) );
+        
+        sub_params->setupDiscretizedParameters(currcells);
+        sub_params->phys = physics_RCP;
+        
+        subsolver = Teuchos::rcp( new solver(LocalComm, settings, mesh, disc, physics_RCP,
+                                             DOF, sub_assembler, sub_params) );
+        
+        sub_assembler->createWorkset(sub_params->discretized_param_basis);
+        subsolver->finalizeWorkset();
+        sub_params->wkset = sub_assembler->wkset;
+        sub_assembler->paramDOF = sub_params->paramDOF;
+        
       }
       else { // perform updates to currcells from solver interface
         for (size_t e=0; e<cells[0].size(); e++) {
           currcells[0][e]->setIndex(cells[0][e]->index);
           currcells[0][e]->setParamIndex(cells[0][e]->paramindex);
           currcells[0][e]->paramGIDs = cells[0][e]->paramGIDs;
-          currcells[0][e]->setParamUseBasis(wkset[0]->paramusebasis, subsolver->paramNumBasis);
+          currcells[0][e]->setParamUseBasis(wkset[0]->paramusebasis, sub_params->paramNumBasis);
           int numDOF = currcells[0][0]->GIDs[0].size();
           currcells[0][e]->wkset = wkset[0];
           currcells[0][e]->setUseBasis(subsolver->useBasis[0],1);
           currcells[0][e]->setUpAdjointPrev(numDOF);
-          currcells[0][e]->setUpSubGradient(subsolver->num_active_params);
+          currcells[0][e]->setUpSubGradient(sub_params->num_active_params);
         }
       }
     }
@@ -412,11 +426,11 @@ public:
       // Need to create Epetra versions of these maps
       
       vector<int> params;
-      if (subsolver->paramOwnedAndShared.size() == 0) {
+      if (sub_params->paramOwnedAndShared.size() == 0) {
         params.push_back(0);
       }
       else {
-        params = subsolver->paramOwnedAndShared;
+        params = sub_params->paramOwnedAndShared;
       }
       
       
@@ -433,16 +447,16 @@ public:
       //TMW: this may not initialize properly
       //Psol.push_back(Teuchos::rcp(new Epetra_MultiVector(*param_overlapped_map,1)));
       
-      num_active_params = subsolver->getNumParams(1);
-      num_stochclassic_params = subsolver->getNumParams(2);
-      stochclassic_param_names = subsolver->getParamsNames(2);
+      num_active_params = sub_params->getNumParams(1);
+      num_stochclassic_params = sub_params->getNumParams(2);
+      stochclassic_param_names = sub_params->getParamsNames(2);
       
-      stoch_param_types = subsolver->stochastic_distribution;
-      stoch_param_means = subsolver->getStochasticParams("mean");
-      stoch_param_vars = subsolver->getStochasticParams("variance");
-      stoch_param_mins = subsolver->getStochasticParams("min");
-      stoch_param_maxs = subsolver->getStochasticParams("max");
-      discparamnames = subsolver->discretized_param_names;
+      stoch_param_types = sub_params->stochastic_distribution;
+      stoch_param_means = sub_params->getStochasticParams("mean");
+      stoch_param_vars = sub_params->getStochasticParams("variance");
+      stoch_param_mins = sub_params->getStochasticParams("min");
+      stoch_param_maxs = sub_params->getStochasticParams("max");
+      discparamnames = sub_params->discretized_param_names;
       
     }
     
@@ -2908,6 +2922,7 @@ public:
   Teuchos::RCP<physics> physics_RCP;
   Teuchos::RCP<panzer::DOFManager<int,int> > DOF;
   Teuchos::RCP<AssemblyManager> sub_assembler;
+  Teuchos::RCP<ParameterManager> sub_params;
   Teuchos::RCP<solver> subsolver;
   Teuchos::RCP<panzer_stk::STK_Interface> mesh;
   Teuchos::RCP<discretization> disc;

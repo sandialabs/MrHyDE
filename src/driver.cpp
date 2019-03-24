@@ -154,22 +154,33 @@ int main(int argc,char * argv[]) {
     // Create the solver object
     ////////////////////////////////////////////////////////////////////////////////
     
+    Teuchos::RCP<ParameterManager> params = Teuchos::rcp( new ParameterManager(tcomm_LA, settings, mesh->mesh));
+    
     Teuchos::RCP<AssemblyManager> assembler = Teuchos::rcp( new AssemblyManager(tcomm_LA, settings, mesh->mesh,
                                                                                 disc, phys, DOF, cells));
     
+    params->setupDiscretizedParameters(cells);
+    params->phys = phys;
+    params->multiscale_manager = multiscale_manager;
+    
     Teuchos::RCP<solver> solve = Teuchos::rcp( new solver(tcomm_LA, settings, mesh->mesh,
-                                                          disc, phys, DOF, assembler) );
+                                                          disc, phys, DOF, assembler, params) );
     
     solve->multiscale_manager = multiscale_manager;
-    //solve->finalizeMultiscale();
     solve->setBatchID(tcomm_S->getRank());
+    
+    assembler->createWorkset(params->discretized_param_basis);
+    solve->finalizeWorkset();
+    
+    params->wkset = assembler->wkset;
+    assembler->paramDOF = params->paramDOF;
     
     ////////////////////////////////////////////////////////////////////////////////
     // Finalize the functions
     ////////////////////////////////////////////////////////////////////////////////
     
-    functionManager->setupLists(phys->varlist[0], solve->paramnames,
-                                solve->discretized_param_names);
+    functionManager->setupLists(phys->varlist[0], params->paramnames,
+                                params->discretized_param_names);
     
     functionManager->wkset = assembler->wkset[0];
     
@@ -181,14 +192,16 @@ int main(int argc,char * argv[]) {
                                                                        mesh->mesh, disc, phys,
                                                                        solve, DOF, cells,
                                                                        functionManager,
-                                                                       assembler) );
+                                                                       assembler,
+                                                                       params) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // Perform the requested analysis (fwd solve, adj solve, dakota run, etc.)
     // stored in settings->get<string>("analysis_type")
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<analysis> analys = Teuchos::rcp( new analysis(tcomm_LA, tcomm_S, settings, solve, postproc) );
+    Teuchos::RCP<analysis> analys = Teuchos::rcp( new analysis(tcomm_LA, tcomm_S, settings,
+                                                               solve, postproc, params) );
     
     functionManager->validateFunctions();
     functionManager->decomposeFunctions();

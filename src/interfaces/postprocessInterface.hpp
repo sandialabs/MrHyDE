@@ -39,7 +39,8 @@ public:
               Teuchos::RCP<solver> & solve_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
               vector<vector<Teuchos::RCP<cell> > > cells_,
               Teuchos::RCP<FunctionInterface> & functionManager,
-              Teuchos::RCP<AssemblyManager> & assembler_);
+              Teuchos::RCP<AssemblyManager> & assembler_,
+              Teuchos::RCP<ParameterManager> & params_);
   
   // ========================================================================================
   // ========================================================================================
@@ -85,7 +86,7 @@ protected:
   Teuchos::RCP<const panzer::DOFManager<int,int> > DOF;
   Teuchos::RCP<solver> solve;
   Teuchos::RCP<AssemblyManager> assembler;
-  
+  Teuchos::RCP<ParameterManager> params;
   int spaceDim;                                                // spatial dimension
   //int numNodes;                                              // total number of nodes in the mesh
   int numNodesPerElem;                                         // nodes on each element

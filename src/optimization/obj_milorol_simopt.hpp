@@ -25,6 +25,7 @@
 
 #include "solverInterface.hpp"
 #include "postprocessInterface.hpp"
+#include "parameterManager.hpp"
 
 //#include "ROL_CVaRVector.hpp"
 
@@ -44,14 +45,17 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
   Real noise_;                                            //standard deviation of normal additive noise to add to data (0 for now)
   Teuchos::RCP<solver> solver_MILO;                                     // Solver object for MILO (solves FWD, ADJ, computes gradient, etc.)
   Teuchos::RCP<postprocess> postproc_MILO;                              // Postprocessing object for MILO (write solution, computes response, etc.)
+  Teuchos::RCP<ParameterManager> params;
   
   public:
   
   /*!
    \brief A constructor generating data
    */
-  Objective_MILO_SimOpt(Teuchos::RCP<solver> solver_MILO_, Teuchos::RCP<postprocess> postproc_MILO_) :
-  solver_MILO(solver_MILO_), postproc_MILO(postproc_MILO_) {
+  Objective_MILO_SimOpt(Teuchos::RCP<solver> solver_MILO_,
+                        Teuchos::RCP<postprocess> postproc_MILO_,
+                        Teuchos::RCP<ParameterManager> & params_) :
+  solver_MILO(solver_MILO_), postproc_MILO(postproc_MILO_), params(params_) {
     
   } //end constructor
   
@@ -63,23 +67,23 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
     // Teuchos::RCP<const std::vector<Real> > Paramsp =
     // (Teuchos::dyn_cast<StdVector<Real> >(const_cast<Vector<Real> &>(Params))).getVector();
     
-    // solver_MILO->updateParams(*Paramsp, 1);
+    // params->updateParams(*Paramsp, 1);
     // AD val = 0.0;
     // vector_RCP F_soln = solver_MILO->forwardModel(val);
     
     // //AD val = postproc_MILO->computeObjective(F_soln);
     
-    // solver_MILO->stashParams(); //dumping to file, for long runs...
+    // params->stashParams(); //dumping to file, for long runs...
     
     // return val.val();
     
     Teuchos::RCP<const std::vector<Real> > Paramsp =
     (Teuchos::dyn_cast<ROL::StdVector<Real> >(const_cast<ROL::Vector<Real> &>(Params))).getVector();
-    solver_MILO->updateParams(*Paramsp, 1);
-    solver_MILO->updateParams(*Paramsp, 4);
+    params->updateParams(*Paramsp, 1);
+    params->updateParams(*Paramsp, 4);
     DFAD val= 0.0;
     vector_RCP F_soln = solver_MILO->forwardModel(val);
-    solver_MILO->stashParams(); //dumping to file, for long runs...
+    params->stashParams(); //dumping to file, for long runs...
     return val.val();
   }
   

@@ -26,8 +26,11 @@
 analysis::analysis(const Teuchos::RCP<LA_MpiComm> & LA_Comm_,
                    const Teuchos::RCP<LA_MpiComm> & S_Comm_,
                    Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                   Teuchos::RCP<solver> & solver_, Teuchos::RCP<postprocess> & postproc_) :
-LA_Comm(LA_Comm_), S_Comm(S_Comm_), settings(settings_), solve(solver_), postproc(postproc_){
+                   Teuchos::RCP<solver> & solver_,
+                   Teuchos::RCP<postprocess> & postproc_,
+                   Teuchos::RCP<ParameterManager> & params_) :
+LA_Comm(LA_Comm_), S_Comm(S_Comm_), settings(settings_), solve(solver_),
+postproc(postproc_), params(params_) {
   verbosity = settings->get<int>("verbosity",0);
 }
 
@@ -155,7 +158,7 @@ void analysis::run() {
           sdataOUT << samples(j,i) << "  ";
         }
       }
-      solve->updateParams(currparams,1);
+      params->updateParams(currparams,1);
       vector_RCP F_soln = solve->forwardModel(objfun);
       AD currresponse = postproc->computeObjective(F_soln);
       response_values.push_back(currresponse.val());
@@ -190,11 +193,11 @@ void analysis::run() {
     
     // Build the uq manager
     Teuchos::ParameterList uqsettings = settings->sublist("Analysis").sublist("UQ");
-    vector<string> param_types = solve->stochastic_distribution;
-    vector<ScalarT> param_means = solve->getStochasticParams("mean");
-    vector<ScalarT> param_vars = solve->getStochasticParams("variance");
-    vector<ScalarT> param_mins = solve->getStochasticParams("min");
-    vector<ScalarT> param_maxs = solve->getStochasticParams("max");
+    vector<string> param_types = params->stochastic_distribution;
+    vector<ScalarT> param_means = params->getStochasticParams("mean");
+    vector<ScalarT> param_vars = params->getStochasticParams("variance");
+    vector<ScalarT> param_mins = params->getStochasticParams("min");
+    vector<ScalarT> param_maxs = params->getStochasticParams("max");
     uqmanager uq(*LA_Comm, uqsettings, param_types, param_means, param_vars, param_mins, param_maxs);
     
     // Generate the samples for the UQ
@@ -222,7 +225,7 @@ void analysis::run() {
           currparams.push_back(samplepts(j,i));
         }
         DFAD objfun = 0.0;
-        solve->updateParams(currparams,2);
+        params->updateParams(currparams,2);
         if (regenerate_meshdata) {
           solve->updateMeshData(sampleints(j));
         }
@@ -257,7 +260,7 @@ void analysis::run() {
               ScalarT oldval = currparams[i];
               ScalarT pert = 1.0e-6;
               currparams[i] += pert;
-              solve->updateParams(currparams,2);
+              params->updateParams(currparams,2);
               DFAD objfun2 = 0.0;
               vector_RCP F_soln2 = solve->forwardModel(objfun2);
               Kokkos::View<ScalarT***,HostDevice> currresponse2 = postproc->computeResponse(F_soln2,0);
@@ -413,7 +416,7 @@ void analysis::run() {
     Teuchos::RCP<std::ostream> outStream;
     outStream = Teuchos::rcp(&std::cout, false);
     // Generate data and get objective
-    obj = Teuchos::rcp( new ROL::Objective_MILO<RealT> (solve, postproc));
+    obj = Teuchos::rcp( new ROL::Objective_MILO<RealT> (solve, postproc, params));
     
     Teuchos::RCP< ROL::Step<RealT> > step;
     
@@ -431,15 +434,15 @@ void analysis::run() {
     //int numParams = solve->getNumParams(1);
     //vector<ScalarT> params = solve->getParams(1);
     
-    int numClassicParams = solve->getNumParams(1);
-    int numDiscParams = solve->getNumParams(4);
+    int numClassicParams = params->getNumParams(1);
+    int numDiscParams = params->getNumParams(4);
     int numParams = numClassicParams + numDiscParams;
     vector<ScalarT> classic_params;
     vector<ScalarT> disc_params;
     if (numClassicParams > 0)
-    classic_params = solve->getParams(1);
+    classic_params = params->getParams(1);
     if (numDiscParams > 0)
-    disc_params = solve->getDiscretizedParamsVector();
+    disc_params = params->getDiscretizedParamsVector();
     
     // Iteration vector.
     Teuchos::RCP<vector<RealT> > x_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
@@ -478,8 +481,8 @@ void analysis::run() {
       Teuchos::RCP<vector<RealT> > maxvec = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
       
       //read in bounds for parameters...
-      vector<vector<ScalarT> > classicBnds = solve->getParamBounds("active");
-      vector<vector<ScalarT> > discBnds = solve->getParamBounds("discretized");
+      vector<vector<ScalarT> > classicBnds = params->getParamBounds("active");
+      vector<vector<ScalarT> > discBnds = params->getParamBounds("discretized");
       
       pprog = 0;
       
@@ -615,7 +618,7 @@ void analysis::run() {
     Teuchos::RCP<std::ostream> outStream;
     outStream = Teuchos::rcp(&std::cout, false);
     // Generate data and get objective
-    obj = Teuchos::rcp( new Objective_MILO_SimOpt<RealT> (solve, postproc));
+    obj = Teuchos::rcp( new Objective_MILO_SimOpt<RealT> (solve, postproc, params));
     
     Teuchos::RCP< ROL::Step<RealT> > step;
     
@@ -633,15 +636,15 @@ void analysis::run() {
     //int numParams = solve->getNumParams(1);
     //vector<ScalarT> params = solve->getParams(1);
     
-    int numClassicParams = solve->getNumParams(1);
-    int numDiscParams = solve->getNumParams(4);
+    int numClassicParams = params->getNumParams(1);
+    int numDiscParams = params->getNumParams(4);
     int numParams = numClassicParams + numDiscParams;
     vector<ScalarT> classic_params;
     vector<ScalarT> disc_params;
     if (numClassicParams > 0)
-    classic_params = solve->getParams(1);
+    classic_params = params->getParams(1);
     if (numDiscParams > 0)
-    disc_params = solve->getDiscretizedParamsVector();
+    disc_params = params->getDiscretizedParamsVector();
     
     // Iteration vector.
     Teuchos::RCP<vector<RealT> > x_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
@@ -680,8 +683,8 @@ void analysis::run() {
       Teuchos::RCP<vector<RealT> > maxvec = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
       
       //read in bounds for parameters...
-      vector<vector<ScalarT> > classicBnds = solve->getParamBounds("active");
-      vector<vector<ScalarT> > discBnds = solve->getParamBounds("discretized");
+      vector<vector<ScalarT> > classicBnds = params->getParamBounds("active");
+      vector<vector<ScalarT> > discBnds = params->getParamBounds("discretized");
       
       pprog = 0;
       

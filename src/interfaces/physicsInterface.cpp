@@ -49,14 +49,7 @@ Commptr(Comm_), functionManager(functionManager_) {
   
   numElemPerCell = settings->sublist("Solver").get<int>("Workset size",1);
   
-  string bns = settings->sublist("Mesh").get<string>("blocknames","eblock");
-  istringstream iss(bns);
-  while (iss) {
-    std::string subs;
-    iss >> subs;
-    if (subs != "")
-    blocknames.push_back(subs);
-  }
+  mesh->getElementBlockNames(blocknames);
   
   numBlocks = blocknames.size();
   spaceDim = settings->sublist("Mesh").get<int>("dim");

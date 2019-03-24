@@ -27,6 +27,7 @@
 //#include "CDBatchManager.hpp"
 #include "solverInterface.hpp"
 #include "postprocessInterface.hpp"
+#include "parameterManager.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -44,14 +45,17 @@ namespace ROL {
     Real noise_;                                 //standard deviation of normal additive noise to add to data (0 for now)
     Teuchos::RCP<solver> solver_MILO;            // Solver object for MILO (solves FWD, ADJ, computes gradient, etc.)
     Teuchos::RCP<postprocess> postproc_MILO;     // Solver object for MILO (solves FWD, ADJ, computes gradient, etc.)
+    Teuchos::RCP<ParameterManager> params;
     
   public:
     
     /*!
      \brief A constructor generating data
      */
-    PObjective_MILO(Teuchos::RCP<solver> solver_MILO_, Teuchos::RCP<postprocess> postproc_MILO_) : 
-    solver_MILO(solver_MILO_), postproc_MILO(postproc_MILO_) {      
+    PObjective_MILO(Teuchos::RCP<solver> solver_MILO_,
+                    Teuchos::RCP<postprocess> postproc_MILO_,
+                    Teuchos::RCP<ParameterManager> & params_) :
+    solver_MILO(solver_MILO_), postproc_MILO(postproc_MILO_), params(params_) {
       int dim = solver_MILO->getNumParams(2);
       std::vector<Real> param(dim,0.0); 
       this->setParameter(param);
@@ -64,9 +68,9 @@ namespace ROL {
       Teuchos::RCP<const std::vector<Real> > Paramsp =
       (Teuchos::dyn_cast<StdVector<Real> >(const_cast<Vector<Real> &>(Params))).getVector();
 
-      solver_MILO->updateParams(*Paramsp, 1);
-      solver_MILO->updateParams(this->getParameter(), 2);
-      solver_MILO->updateParams(*Paramsp, 4);
+      params->updateParams(*Paramsp, 1);
+      params->updateParams(this->getParameter(), 2);
+      params->updateParams(*Paramsp, 4);
 
       AD val = 0.0;
       vector_RCP F_soln = solver_MILO->forwardModel(val);
@@ -75,7 +79,7 @@ namespace ROL {
 
       //AD val = postproc_MILO->computeObjective(F_soln);
 
-      solver_MILO->stashParams();
+      params->stashParams();
       
       return val.val();
     }
@@ -88,9 +92,9 @@ namespace ROL {
       Teuchos::RCP<const std::vector<Real> > Paramsp =
       (Teuchos::dyn_cast<StdVector<Real> >(const_cast<Vector<Real> &>(Params))).getVector();
 
-      solver_MILO->updateParams(*Paramsp, 1);
-	    solver_MILO->updateParams(this->getParameter(), 2);
-      solver_MILO->updateParams(*Paramsp, 4);
+      params->updateParams(*Paramsp, 1);
+	    params->updateParams(this->getParameter(), 2);
+      params->updateParams(*Paramsp, 4);
 
       AD val = 0.0;
       std::vector<ScalarT> sens;
