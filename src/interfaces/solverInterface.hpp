@@ -201,11 +201,6 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  DRV getElemNodes(const int & block, const int & elemID) ;
-  
-  ////////////////////////////////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////////////////////
-  
   void finalizeMultiscale() ;
   
   ///////////////////////////////////////////////////////////////////////////////////////////
@@ -214,26 +209,11 @@ public:
   
   Teuchos::RCP<AssemblyManager> assembler;
   Teuchos::RCP<ParameterManager> params;
-  //vector<Teuchos::RCP<workset> > wkset;
   
-  Teuchos::RCP<const LA_Map> LA_owned_map;
-  Teuchos::RCP<const LA_Map> LA_overlapped_map, sol_overlapped_map;
-  
-  Teuchos::RCP<LA_CrsGraph> LA_owned_graph;
-  Teuchos::RCP<LA_CrsGraph> LA_overlapped_graph;
-  
+  Teuchos::RCP<const LA_Map> LA_owned_map, LA_overlapped_map;
+  Teuchos::RCP<LA_CrsGraph> LA_owned_graph, LA_overlapped_graph;
   Teuchos::RCP<LA_Export> exporter;
   Teuchos::RCP<LA_Import> importer;
-  
-  
-  //Teuchos::RCP<const LA_Map> param_owned_map;
-  //Teuchos::RCP<const LA_Map> param_overlapped_map;
-  
-  //Teuchos::RCP<LA_Export> param_exporter;
-  //Teuchos::RCP<LA_Import> param_importer;
-  
-  
-  vector<DRV> elemnodes;
   
   int numUnknowns;     					 // total number of unknowns
   int numUnknownsOS;     					 // total number of unknowns

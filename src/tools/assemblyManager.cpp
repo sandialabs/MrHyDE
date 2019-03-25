@@ -36,18 +36,6 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), cells(cells_), pa
   numVars = phys->numVars; //
   varlist = phys->varlist;
   
-  // needed information from the disc interface
-  
-  for (size_t b=0; b<cells.size(); b++) {
-    vector<size_t> localIds;
-    DRV blocknodes;
-    panzer_stk::workset_utils::getIdsAndVertices(*mesh, blocknames[b], localIds, blocknodes);
-    elemnodes.push_back(blocknodes);
-    
-  }
-  
-  //this->createWorkset();
-  
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -214,7 +202,10 @@ void AssemblyManager::updateResDBCsens(vector_RCP & resid, size_t & e, size_t & 
   const vector<int> elmtOffset = SideIndex.first; // local nodes on that side
   const vector<int> basisIdMap = SideIndex.second;
   
-  DRV I_elemNodes = this->getElemNodes(block,e);//cells[block][e]->nodes;
+  DRV I_elemNodes;
+  vector<size_t> elist(1);
+  elist[0] = e;
+  mesh->getElementVertices(elist,I_elemNodes);
   
   for( size_t i=0; i<elmtOffset.size(); i++ ) { // for each node
     int row = elemGIDs[elmtOffset[i]]; // global row
@@ -238,87 +229,6 @@ void AssemblyManager::updateResDBCsens(vector_RCP & resid, size_t & e, size_t & 
     }
   }
 }
-
-// ========================================================================================
-// ========================================================================================
-
-/*
-void AssemblyManager::setDirichlet(vector_RCP & initial) {
-  
-  auto init_kv = initial->getLocalView<HostDevice>();
-  //auto meas_kv = meas->getLocalView<HostDevice>();
-  
-  // TMW: this function needs to be fixed
-  vector<vector<int> > fixedDOFs = phys->dbc_dofs;
-  
-  for (size_t b=0; b<cells.size(); b++) {
-    string blockID = blocknames[b];
-    Kokkos::View<int**,HostDevice> side_info;
-    
-    for (int n=0; n<numVars[b]; n++) {
-      
-      vector<size_t> localDirichletSideIDs = phys->localDirichletSideIDs[b][n];
-      vector<size_t> boundDirichletElemIDs = phys->boundDirichletElemIDs[b][n];
-      int fnum = DOF->getFieldNum(varlist[b][n]);
-      for( size_t e=0; e<disc->myElements[b].size(); e++ ) { // loop through all the elements
-        side_info = phys->getSideInfo(b,n,e);
-        int numSides = side_info.dimension(0);
-        DRV I_elemNodes = this->getElemNodes(b,e);//cells[b][e]->nodes;
-        // enforce the boundary conditions if the element is on the given boundary
-        
-        for( int i=0; i<numSides; i++ ) {
-          if( side_info(i,0)==1 ) {
-            vector<int> elemGIDs;
-            int gside_index = side_info(i,1);
-            string gside = phys->sideSets[gside_index];
-            size_t elemID = disc->myElements[b][e];
-            DOF->getElementGIDs(elemID, elemGIDs, blockID); // global index of each node
-            // get the side index and the node->global mapping for the side that is on the boundary
-            const pair<vector<int>,vector<int> > SideIndex = DOF->getGIDFieldOffsets_closure(blockID, fnum,
-                                                                                             (phys->spaceDim)-1, i);
-            const vector<int> elmtOffset = SideIndex.first;
-            const vector<int> basisIdMap = SideIndex.second;
-            // for each node that is on the boundary side
-            for( size_t j=0; j<elmtOffset.size(); j++ ) {
-              // get the global row and coordinate
-              int row =  LA_overlapped_map->getLocalElement(elemGIDs[elmtOffset[j]]);
-              ScalarT x = I_elemNodes(0,basisIdMap[j],0);
-              ScalarT y = 0.0;
-              if (phys->spaceDim > 1) {
-                y = I_elemNodes(0,basisIdMap[j],1);
-              }
-              ScalarT z = 0.0;
-              if (phys->spaceDim > 2) {
-                z = I_elemNodes(0,basisIdMap[j],2);
-              }
-              
-              if (use_meas_as_dbcs) {
-                //init_kv(row,0) = meas_kv(row,0);
-              }
-              else {
-                // put the value into the soln vector
-                AD diri_FAD_tmp;
-                diri_FAD_tmp = phys->getDirichletValue(b, x, y, z, current_time, varlist[b][n], gside, useadjoint, wkset[b]);
-                
-                init_kv(row,0) = diri_FAD_tmp.val();
-              }
-            }
-          }
-        }
-      }
-    }
-    // set point dbcs
-    vector<int> dbc_dofs = fixedDOFs[b];
-    
-    for (int i = 0; i < dbc_dofs.size(); i++) {
-      int row = LA_overlapped_map->getLocalElement(dbc_dofs[i]);
-      init_kv(row,0) = 0.0; // fix to zero for now
-    }
-    
-  }
-  
-}
-*/
 
 // ========================================================================================
 // ========================================================================================
@@ -467,16 +377,12 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
       
       
       if (isTransient && useadjoint && !cells[0][0]->multiscale) {
-        //aPrev = cells[b][e]->adjPrev;
-        //KokkosTools::print(aPrev);
-        // TMW: commented for now
         if (is_final_time) {
           for (int i=0; i<cells[b][e]->adjPrev.dimension(0); i++) {
             for (int j=0; j<cells[b][e]->adjPrev.dimension(1); j++) {
               cells[b][e]->adjPrev(i,j) = 0.0;
             }
           }
-          //(cells[b][e]->adjPrev).initialize(0.0);
         }
       }
       
@@ -488,7 +394,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
       {
         Teuchos::TimeMonitor localtimer(*phystimer);
         
-        for (int p=0; p<numElem; p++) {
+        parallel_for(RangePolicy<AssemblyDevice>(0,local_res.dimension(0)), KOKKOS_LAMBDA (const int p ) {
           for (int n=0; n<numDOF; n++) {
             for (int s=0; s<local_res.dimension(2); s++) {
               local_res(p,n,s) = 0.0;
@@ -498,7 +404,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
               local_Jdot(p,n,s) = 0.0;
             }
           }
-        }
+        });
         
         
         cells[b][e]->computeJacRes(current_time, isTransient, useadjoint, compute_jacobian, compute_sens,
@@ -650,19 +556,3 @@ void AssemblyManager::performGather(const size_t & block, const vector_RCP & vec
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-DRV AssemblyManager::getElemNodes(const int & block, const int & elemID) {
-  int nnodes = elemnodes[block].dimension(1);
-  
-  DRV cnodes("element nodes",1,nnodes,phys->spaceDim);
-  for (int i=0; i<nnodes; i++) {
-    for (int j=0; j<phys->spaceDim; j++) {
-      cnodes(0,i,j) = elemnodes[block](elemID,i,j);
-    }
-  }
-  return cnodes;
-}
-

@@ -174,11 +174,6 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
     numBasis.push_back(currnumBasis);
     maxbasis.push_back(currmaxbasis);
     
-    vector<size_t> localIds;
-    DRV blocknodes;
-    panzer_stk::workset_utils::getIdsAndVertices(*mesh, blocknames[b], localIds, blocknodes);
-    elemnodes.push_back(blocknodes);
-    
   }
   
   /////////////////////////////////////////////////////////////////////////////
@@ -1921,7 +1916,11 @@ void solver::setDirichlet(vector_RCP & initial) {
       for( size_t e=0; e<disc->myElements[b].size(); e++ ) { // loop through all the elements
         side_info = phys->getSideInfo(b,n,e);
         int numSides = side_info.dimension(0);
-        DRV I_elemNodes = this->getElemNodes(b,e);//assembler->cells[b][e]->nodes;
+        DRV I_elemNodes;
+        vector<size_t> elist(1);
+        elist[0] = e;
+        mesh->getElementVertices(elist,I_elemNodes);
+        
         // enforce the boundary conditions if the element is on the given boundary
         
         for( int i=0; i<numSides; i++ ) {
@@ -2392,21 +2391,6 @@ void solver::setBatchID(const int & bID){
 vector_RCP solver::blankState(){
   vector_RCP F_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,numsteps+1)); // empty solution
   return F_soln;
-}
-
-// ========================================================================================
-// ========================================================================================
-
-DRV solver::getElemNodes(const int & block, const int & elemID) {
-  int nnodes = elemnodes[block].dimension(1);
-  
-  DRV cnodes("element nodes",1,nnodes,spaceDim);
-  for (int i=0; i<nnodes; i++) {
-    for (int j=0; j<spaceDim; j++) {
-      cnodes(0,i,j) = elemnodes[block](elemID,i,j);
-    }
-  }
-  return cnodes;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -106,12 +106,6 @@ public:
   void performGather(const size_t & block, const vector_RCP & vec, const int & type,
                      const size_t & index);
   
-  // ========================================================================================
-  //
-  // ========================================================================================
-  
-  DRV getElemNodes(const int & block, const int & elemID);
-  
   ///////////////////////////////////////////////////////////////////////////////////////////
   // Public data members
   ///////////////////////////////////////////////////////////////////////////////////////////
@@ -120,7 +114,6 @@ public:
   vector<string> blocknames;
   vector<vector<string> > varlist;
   vector<LO> numVars;
-  vector<DRV> elemnodes;
   
   Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
   Teuchos::RCP<discretization> disc;
