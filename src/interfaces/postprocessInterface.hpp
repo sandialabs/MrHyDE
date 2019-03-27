@@ -17,6 +17,8 @@
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
 #include "assemblyManager.hpp"
+#include "parameterManager.hpp"
+#include "sensorManager.hpp"
 #include "solverInterface.hpp"
 
 using namespace std;
@@ -40,7 +42,8 @@ public:
               vector<vector<Teuchos::RCP<cell> > > cells_,
               Teuchos::RCP<FunctionInterface> & functionManager,
               Teuchos::RCP<AssemblyManager> & assembler_,
-              Teuchos::RCP<ParameterManager> & params_);
+              Teuchos::RCP<ParameterManager> & params_,
+              Teuchos::RCP<SensorManager> & sensors_);
   
   // ========================================================================================
   // ========================================================================================
@@ -87,6 +90,8 @@ protected:
   Teuchos::RCP<solver> solve;
   Teuchos::RCP<AssemblyManager> assembler;
   Teuchos::RCP<ParameterManager> params;
+  Teuchos::RCP<SensorManager> sensors;
+  
   int spaceDim;                                                // spatial dimension
   //int numNodes;                                              // total number of nodes in the mesh
   int numNodesPerElem;                                         // nodes on each element

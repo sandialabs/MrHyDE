@@ -74,7 +74,7 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
-  void setupSensors(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  //void setupSensors(Teuchos::RCP<Teuchos::ParameterList> & settings);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
@@ -230,40 +230,26 @@ public:
   int liniter, kspace;
   bool useDomDecomp, useDirect, usePrec;
   
-  vector<Kokkos::View<ScalarT**,HostDevice> > sensor_data;
-  Kokkos::View<ScalarT**,HostDevice> sensor_points;
-  //FCint sensor_locations;
-  int numSensors;
-
-  
   int verbosity;
   string response_type, multigrid_type, smoother_type;
   bool discretized_stochastic;
   
-
-  
-
   int batchID; //which stochastic collocation batch; to avoid multiple processors trying to stash at once to same file
   
-  //vector<vector<Teuchos::RCP<cell> > > cells;
-  
   ScalarT current_time;
-  
   
   vector<ScalarT> solvetimes;
   
   vector<vector_RCP> fwdsol;
   vector<vector_RCP> adjsol;
 
-  
-  
   int spaceDim;
   vector<string> blocknames;
   bool isInitial;
   vector<vector<int> > numBasis;
   vector<vector<int> > useBasis;
   vector<int> maxBasis;
-  bool isTransient, useadjoint, have_sensor_data, have_sensor_points;
+  bool isTransient, useadjoint;
   bool is_final_time, usestrongDBCs;
   
   //vector<FCint> offsets;
@@ -277,15 +263,8 @@ public:
   bool use_custom_initial_param_guess;
   bool store_adjPrev;
   int gNLiter;
-  
-  //vector<Teuchos::RCP<SubGridModel> > subgridModels;
-
-  // variables read in from an exodus mesh
-  vector_RCP meas;
-  vector<vector<ScalarT> > nfield_vals, efield_vals;
-  vector<string> nfield_names, efield_names;
-  int numResponses;
   bool use_meas_as_dbcs;
+  
   
 private:
   

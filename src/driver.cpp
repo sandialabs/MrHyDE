@@ -15,6 +15,8 @@ Bart van Bloemen Waanders (bartv@sandia.gov)
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
 #include "assemblyManager.hpp"
+#include "parameterManager.hpp"
+#include "sensorManager.hpp"
 #include "solverInterface.hpp"
 #include "postprocessInterface.hpp"
 #include "analysisInterface.hpp"
@@ -176,6 +178,14 @@ int main(int argc,char * argv[]) {
     
     functionManager->wkset = assembler->wkset[0];
     
+    functionManager->validateFunctions();
+    functionManager->decomposeFunctions();
+    
+    solve->finalizeMultiscale();
+    
+    Teuchos::RCP<SensorManager> sensors = Teuchos::rcp( new SensorManager(settings, mesh, disc,
+                                                                          assembler, params) );
+    
     ////////////////////////////////////////////////////////////////////////////////
     // Create the postprocessing object
     ////////////////////////////////////////////////////////////////////////////////
@@ -185,7 +195,8 @@ int main(int argc,char * argv[]) {
                                                                        solve, DOF, cells,
                                                                        functionManager,
                                                                        assembler,
-                                                                       params) );
+                                                                       params,
+                                                                       sensors) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // Perform the requested analysis (fwd solve, adj solve, dakota run, etc.)
@@ -195,11 +206,16 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<analysis> analys = Teuchos::rcp( new analysis(tcomm_LA, tcomm_S, settings,
                                                                solve, postproc, params) );
     
+    /*
     functionManager->validateFunctions();
     functionManager->decomposeFunctions();
     
     solve->finalizeMultiscale();
-    solve->setupSensors(settings); // moved here so subcells can have sensors
+    
+    Teuchos::RCP<SensorManager> sensors = Teuchos::rcp( new SensorManager(settings, mesh, disc,
+                                                                          assembler, params) );
+    */
+    //solve->setupSensors(settings); // moved here so subcells can have sensors
     
     if (verbosity >= 20 && Comm.getRank() == 0) {
       functionManager->printFunctions();

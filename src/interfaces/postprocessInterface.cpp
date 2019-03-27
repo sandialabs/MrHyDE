@@ -23,9 +23,10 @@ postprocess::postprocess(const Teuchos::RCP<LA_MpiComm> & Comm_,
                          vector<vector<Teuchos::RCP<cell> > > cells_,
                          Teuchos::RCP<FunctionInterface> & functionManager,
                          Teuchos::RCP<AssemblyManager> & assembler_,
-                         Teuchos::RCP<ParameterManager> & params_) :
+                         Teuchos::RCP<ParameterManager> & params_,
+                         Teuchos::RCP<SensorManager> & sensors_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), solve(solve_),
-DOF(DOF_), cells(cells_), assembler(assembler_), params(params_) {
+DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensors_) {
   
   verbosity = settings->sublist("Postprocess").get<int>("Verbosity",1);
   
@@ -206,7 +207,7 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
   
   int numSensors = 1;
   if (response_type == "pointwise") {
-    numSensors = solve->numSensors;
+    numSensors = sensors->numSensors;
   }
   params->sacadoizeParams(true);
   int numClassicParams = params->getNumParams(1);
@@ -361,7 +362,7 @@ Kokkos::View<ScalarT***,HostDevice> postprocess::computeResponse(const vector_RC
   int numresponses = phys->getNumResponses(b);
   int numSensors = 1;
   if (response_type == "pointwise" ) {
-    numSensors = solve->numSensors;
+    numSensors = sensors->numSensors;
   }
   
   Kokkos::View<ScalarT***,HostDevice> responses("responses",numSensors, numresponses, solvetimes.size());
@@ -429,7 +430,7 @@ void postprocess::computeResponse(const vector_RCP & F_soln) {
     int numresponses = phys->getNumResponses(b);
     int numSensors = 1;
     if (response_type == "pointwise" ) {
-      numSensors = solve->numSensors;
+      numSensors = sensors->numSensors;
     }
     
     

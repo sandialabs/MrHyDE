@@ -68,6 +68,12 @@ class meshInterface {
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
+  void readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
+                    vector<vector<Teuchos::RCP<cell> > > & cells);
+
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  
   // Public data members
   Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory;
   Teuchos::RCP<panzer_stk::STK_Interface> mesh;
@@ -82,5 +88,12 @@ class meshInterface {
   int meshmod_xvar, meshmod_yvar, meshmod_zvar;
   bool meshmod_usesmoother;
   ScalarT meshmod_TOL, meshmod_center, meshmod_layer_size;
+  
+  // variables read in from an exodus mesh
+  vector_RCP meas;
+  vector<vector<ScalarT> > nfield_vals, efield_vals;
+  vector<string> nfield_names, efield_names;
+  int numResponses;
+  
 };
 #endif
