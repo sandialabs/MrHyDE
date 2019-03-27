@@ -16,7 +16,7 @@
 #include "preferences.hpp"
 #include "cell.hpp"
 #include "subgridMeshFactory.hpp"
-
+#include "meshInterface.hpp"
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
 #include "discretizationTools.hpp"
@@ -293,6 +293,7 @@ public:
   Teuchos::RCP<AssemblyManager> sub_assembler;
   Teuchos::RCP<ParameterManager> sub_params;
   Teuchos::RCP<solver> subsolver;
+  Teuchos::RCP<meshInterface> mesh_interface;
   Teuchos::RCP<panzer_stk::STK_Interface> mesh;
   Teuchos::RCP<discretization> disc;
   Teuchos::RCP<FunctionInterface> functionManager;

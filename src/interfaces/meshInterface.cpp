@@ -43,6 +43,14 @@ settings(settings_), Commptr(Commptr_) {
     
   }
   
+  meshmod_xvar = settings->sublist("Solver").get<int>("Solution For x-Mesh Mod",-1);
+  meshmod_yvar = settings->sublist("Solver").get<int>("Solution For y-Mesh Mod",-1);
+  meshmod_zvar = settings->sublist("Solver").get<int>("Solution For z-Mesh Mod",-1);
+  meshmod_TOL = settings->sublist("Solver").get<ScalarT>("Solution Based Mesh Mod TOL",1.0);
+  meshmod_usesmoother = settings->sublist("Solver").get<bool>("Solution Based Mesh Mod Smoother",false);
+  meshmod_center = settings->sublist("Solver").get<ScalarT>("Solution Based Mesh Mod Param",0.1);
+  meshmod_layer_size = settings->sublist("Solver").get<ScalarT>("Solution Based Mesh Mod Layer Thickness",0.1);
+  
   shards::CellTopology cTopo;
   shards::CellTopology sTopo;
   
@@ -815,4 +823,67 @@ DRV meshInterface::getElemNodes(const int & block, const int & elemID) {
     }
   }
   return cnodes;
+}
+
+
+// ========================================================================================
+// ========================================================================================
+
+void meshInterface::remesh(const vector_RCP & u, vector<vector<Teuchos::RCP<cell> > > & cells) {
+  
+  
+  auto u_kv = u->getLocalView<HostDevice>();
+  
+  for (size_t b=0; b<cells.size(); b++) {
+    for( size_t e=0; e<cells[b].size(); e++ ) {
+      Kokkos::View<LO***,HostDevice> index = cells[b][e]->index;
+      DRV nodes = cells[b][e]->nodes;
+      bool changed = false;
+      for (int p=0; p<cells[b][e]->numElem; p++) {
+        
+        for( int i=0; i<nodes.dimension(1); i++ ) {
+          if (meshmod_xvar >= 0) {
+            int pindex = index(p,meshmod_xvar,i);
+            ScalarT xval = u_kv(pindex,0);
+            ScalarT xpert = xval;
+            if (meshmod_usesmoother)
+              xpert = meshmod_layer_size*(1.0/3.14159*atan(100.0*(xval-meshmod_center)+0.5));
+            
+            if (xpert > meshmod_TOL) {
+              nodes(p,i,0) += xpert;
+              changed = true;
+            }
+          }
+          if (meshmod_yvar >= 0) {
+            int pindex = index(p,meshmod_yvar,i);
+            ScalarT yval = u_kv(pindex,0);
+            ScalarT ypert = yval;
+            if (meshmod_usesmoother)
+              ypert = meshmod_layer_size*(1.0/3.14159*atan(100.0*(yval-meshmod_center)+0.5));
+            
+            if (ypert > meshmod_TOL) {
+              nodes(p,i,1) += ypert;
+              changed = true;
+            }
+          }
+          if (meshmod_zvar >= 0) {
+            int pindex = index(p,meshmod_zvar,i);
+            ScalarT zval = u_kv(pindex,0);
+            ScalarT zpert = zval;
+            if (meshmod_usesmoother)
+              zpert = meshmod_layer_size*(1.0/3.14159*atan(100.0*(zval-meshmod_center)+0.5));
+            
+            if (zpert > meshmod_TOL) {
+              nodes(p,i,2) += zpert;
+              changed = true;
+            }
+          }
+          if (changed) {
+            cells[b][e]->nodes = nodes;
+          }
+        }
+        
+      }
+    }
+  }
 }

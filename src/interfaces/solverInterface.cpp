@@ -21,7 +21,9 @@
 // ========================================================================================
 
 solver::solver(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
-               Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
+               Teuchos::RCP<meshInterface> & mesh_,
+               //Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+               Teuchos::RCP<discretization> & disc_,
                Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
                Teuchos::RCP<AssemblyManager> & assembler_,
                Teuchos::RCP<ParameterManager> & params_) :
@@ -69,14 +71,6 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   compute_objective = settings->sublist("Postprocess").get("compute objective",false);
   compute_sensitivity = settings->sublist("Postprocess").get("compute sensitivities",false);
   
-  meshmod_xvar = settings->sublist("Solver").get<int>("Solution For x-Mesh Mod",-1);
-  meshmod_yvar = settings->sublist("Solver").get<int>("Solution For y-Mesh Mod",-1);
-  meshmod_zvar = settings->sublist("Solver").get<int>("Solution For z-Mesh Mod",-1);
-  meshmod_TOL = settings->sublist("Solver").get<ScalarT>("Solution Based Mesh Mod TOL",1.0);
-  meshmod_usesmoother = settings->sublist("Solver").get<bool>("Solution Based Mesh Mod Smoother",false);
-  meshmod_center = settings->sublist("Solver").get<ScalarT>("Solution Based Mesh Mod Param",0.1);
-  meshmod_layer_size = settings->sublist("Solver").get<ScalarT>("Solution Based Mesh Mod Layer Thickness",0.1);
-  
   initial_type = settings->sublist("Solver").get<string>("Initial type","L2-projection");
   multigrid_type = settings->sublist("Solver").get<string>("Multigrid type","sa");
   smoother_type = settings->sublist("Solver").get<string>("Smoother type","CHEBYSHEV"); // or RELAXATION
@@ -90,7 +84,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   fillParam = settings->sublist("Solver").get<ScalarT>("ILU fill param",3.0); //defaults to AztecOO default
   
   // needed information from the mesh
-  mesh->getElementBlockNames(blocknames);
+  mesh->mesh->getElementBlockNames(blocknames);
   
   // needed information from the physics interface
   numVars = phys->numVars; //
@@ -942,7 +936,7 @@ void solver::transientSolver(vector_RCP & initial, vector_RCP & L_soln,
     //solvetimes.push_back(current_time); - This was causing a bug
     
     if (allow_remesh && !useadjoint) {
-      this->remesh(u);
+      mesh->remesh(u, assembler->cells);
     }
     
     if (useadjoint) { // fill in the gradient
@@ -1150,70 +1144,6 @@ void solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     }
   }
   
-}
-
-
-// ========================================================================================
-// ========================================================================================
-
-void solver::remesh(const vector_RCP & u) {
-  
-  
-  auto u_kv = u->getLocalView<HostDevice>();
-  
-  for (size_t b=0; b<assembler->cells.size(); b++) {
-    for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-      Kokkos::View<GO**,HostDevice> GIDs = assembler->cells[b][e]->GIDs;
-      DRV nodes = assembler->cells[b][e]->nodes;
-      vector<vector<int> > offsets = phys->offsets[b];
-      bool changed = false;
-      for (int p=0; p<assembler->cells[b][e]->numElem; p++) {
-        
-        for( int i=0; i<nodes.dimension(1); i++ ) {
-          if (meshmod_xvar >= 0) {
-            int pindex = LA_overlapped_map->getLocalElement(GIDs(p,offsets[meshmod_xvar][i]));
-            ScalarT xval = u_kv(pindex,0);
-            ScalarT xpert = xval;
-            if (meshmod_usesmoother)
-            xpert = meshmod_layer_size*(1.0/3.14159*atan(100.0*(xval-meshmod_center)+0.5));
-            
-            if (xpert > meshmod_TOL) {
-              nodes(p,i,0) += xpert;
-              changed = true;
-            }
-          }
-          if (meshmod_yvar >= 0) {
-            int pindex = LA_overlapped_map->getLocalElement(GIDs(p,offsets[meshmod_yvar][i]));
-            ScalarT yval = u_kv(pindex,0);
-            ScalarT ypert = yval;
-            if (meshmod_usesmoother)
-            ypert = meshmod_layer_size*(1.0/3.14159*atan(100.0*(yval-meshmod_center)+0.5));
-            
-            if (ypert > meshmod_TOL) {
-              nodes(p,i,1) += ypert;
-              changed = true;
-            }
-          }
-          if (meshmod_zvar >= 0) {
-            int pindex = LA_overlapped_map->getLocalElement(GIDs(p,offsets[meshmod_zvar][i]));
-            ScalarT zval = u_kv(pindex,0);
-            ScalarT zpert = zval;
-            if (meshmod_usesmoother)
-            zpert = meshmod_layer_size*(1.0/3.14159*atan(100.0*(zval-meshmod_center)+0.5));
-            
-            if (zpert > meshmod_TOL) {
-              nodes(p,i,2) += zpert;
-              changed = true;
-            }
-          }
-          if (changed) {
-            assembler->cells[b][e]->nodes = nodes;
-          }
-        }
-        
-      }
-    }
-  }
 }
 
 // ========================================================================================
@@ -1819,7 +1749,7 @@ void solver::setDirichlet(vector_RCP & initial) {
         DRV I_elemNodes;
         vector<size_t> elist(1);
         elist[0] = e;
-        mesh->getElementVertices(elist,I_elemNodes);
+        mesh->mesh->getElementVertices(elist,I_elemNodes);
         
         // enforce the boundary conditions if the element is on the given boundary
         

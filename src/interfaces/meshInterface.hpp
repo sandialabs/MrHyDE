@@ -63,6 +63,11 @@ class meshInterface {
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
+  void remesh(const vector_RCP & u, vector<vector<Teuchos::RCP<cell> > > & cells);
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  
   // Public data members
   Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory;
   Teuchos::RCP<panzer_stk::STK_Interface> mesh;
@@ -74,5 +79,8 @@ class meshInterface {
   int numNodesPerElem, sideDim, numSides, numFaces, numSeeds;
   vector<int> randomSeeds;
   vector<topo_RCP> cellTopo, sideTopo;
+  int meshmod_xvar, meshmod_yvar, meshmod_zvar;
+  bool meshmod_usesmoother;
+  ScalarT meshmod_TOL, meshmod_center, meshmod_layer_size;
 };
 #endif

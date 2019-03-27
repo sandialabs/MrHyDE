@@ -161,7 +161,7 @@ int main(int argc,char * argv[]) {
                                                                                 disc, phys, DOF, cells,
                                                                                 params));
     
-    Teuchos::RCP<solver> solve = Teuchos::rcp( new solver(tcomm_LA, settings, mesh->mesh,
+    Teuchos::RCP<solver> solve = Teuchos::rcp( new solver(tcomm_LA, settings, mesh,
                                                           disc, phys, DOF, assembler, params) );
     
     solve->multiscale_manager = multiscale_manager;

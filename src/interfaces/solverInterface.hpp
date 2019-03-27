@@ -14,6 +14,7 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
+#include "meshInterface.hpp"
 #include "physicsInterface.hpp"
 #include "multiscaleInterface.hpp"
 #include "discretizationInterface.hpp"
@@ -34,7 +35,9 @@ public:
   // ========================================================================================
   
   solver(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
-         Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
+         Teuchos::RCP<meshInterface> & mesh_,
+         //Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+         Teuchos::RCP<discretization> & disc_,
          Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
          Teuchos::RCP<AssemblyManager> & assembler_,
          Teuchos::RCP<ParameterManager> & params_);
@@ -103,11 +106,6 @@ public:
   void nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
                        vector_RCP & phi, vector_RCP & phi_dot,
                        const ScalarT & alpha, const ScalarT & beta);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void remesh(const vector_RCP & u);
   
   // ========================================================================================
   // ========================================================================================
@@ -223,10 +221,10 @@ public:
   vector<int> LA_owned;					 // GIDs that live on the local processor.
   vector<int> LA_ownedAndShared;				 // GIDs that live or are shared on the local processor.
   
-  int allow_remesh, MaxNLiter, meshmod_xvar, meshmod_yvar, meshmod_zvar, time_order;
-  ScalarT NLtol, meshmod_TOL, meshmod_center, meshmod_layer_size, finaltime;
+  int allow_remesh, MaxNLiter, time_order;
+  ScalarT NLtol, finaltime;
   string solver_type, NLsolver, initial_type;
-  bool line_search, meshmod_usesmoother, useL2proj;
+  bool line_search, useL2proj;
   
   ScalarT lintol, dropTol, fillParam;
   int liniter, kspace;
@@ -293,7 +291,8 @@ private:
   
   Teuchos::RCP<LA_MpiComm> Comm;
   //Teuchos::RCP<Teuchos::ParameterList> settings;
-  Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
+  //Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
+  Teuchos::RCP<meshInterface>  mesh;
   Teuchos::RCP<discretization> disc;
   Teuchos::RCP<physics> phys;
   Teuchos::RCP<const panzer::DOFManager<int,int> > DOF;
