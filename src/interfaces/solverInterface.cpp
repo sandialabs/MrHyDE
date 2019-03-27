@@ -21,13 +21,11 @@
 
 solver::solver(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
                Teuchos::RCP<meshInterface> & mesh_,
-               //Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
                Teuchos::RCP<discretization> & disc_,
                Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
                Teuchos::RCP<AssemblyManager> & assembler_,
                Teuchos::RCP<ParameterManager> & params_) :
-               //vector<vector<Teuchos::RCP<cell> > > & cells_) :
-Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembler_), params(params_) { //cells(assembler->cells_) {
+Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembler_), params(params_) { 
   
   // Get the required information from the settings
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
@@ -394,103 +392,6 @@ Teuchos::RCP<Epetra_CrsGraph> solver::buildEpetraOwnedGraph(Epetra_MpiComm & EP_
   Ep_graph->FillComplete();
   return Ep_graph;
 }
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-/*
-void solver::setupSensors(Teuchos::RCP<Teuchos::ParameterList> & settings) {
-  
-  
-  have_sensor_data = false;
-  have_sensor_points = false;
-  numSensors = 0;
-  
-  if (settings->sublist("Mesh").get<bool>("Have Element Data", false)) {
-    
-    for (size_t i=0; i<assembler->cells[0].size(); i++) {
-      vector<Kokkos::View<ScalarT**,HostDevice> > sensorLocations;
-      vector<Kokkos::View<ScalarT**,HostDevice> > sensorData;
-      int numSensorsInCell = efield_vals[0][i];
-      if (numSensorsInCell > 0) {
-        assembler->cells[0][i]->mySensorIDs.push_back(numSensors); // hack for dakota
-        for (size_t j=0; j<numSensorsInCell; j++) {
-          // sensorLocation
-          Kokkos::View<ScalarT**,HostDevice> sensor_loc("sensor location",1,spaceDim);
-          stringstream ssSensorNum;
-          ssSensorNum << j+1;
-          string sensorNum = ssSensorNum.str();
-          string fieldLocx = "sensor_" + sensorNum + "_Loc_x";
-          ptrdiff_t ind_Locx = std::distance(efield_names.begin(), std::find(efield_names.begin(), efield_names.end(), fieldLocx));
-          string fieldLocy = "sensor_" + sensorNum + "_Loc_y";
-          ptrdiff_t ind_Locy = std::distance(efield_names.begin(), std::find(efield_names.begin(), efield_names.end(), fieldLocy));
-          sensor_loc(0,0) = efield_vals[ind_Locx][i];
-          sensor_loc(0,1) = efield_vals[ind_Locy][i];
-          if (spaceDim > 2) {
-            string fieldLocz = "sensor_" + sensorNum + "_Loc_z";
-            ptrdiff_t ind_Locz = std::distance(efield_names.begin(), std::find(efield_names.begin(), efield_names.end(), fieldLocz));
-            sensor_loc(0,2) = efield_vals[ind_Locz][i];
-          }
-          // sensorData
-          Kokkos::View<ScalarT**,HostDevice> sensor_data("sensor data",1,numResponses+1);
-          sensor_data(0,0) = 0.0; // time index
-          for (size_t k=1; k<numResponses+1; k++) {
-            stringstream ssRespNum;
-            ssRespNum << k;
-            string respNum = ssRespNum.str();
-            string fieldResp = "sensor_" + sensorNum + "_Val_" + respNum;
-            ptrdiff_t ind_Resp = std::distance(efield_names.begin(), std::find(efield_names.begin(), efield_names.end(), fieldResp));
-            sensor_data(0,k) = efield_vals[ind_Resp][i];
-          }
-          sensorLocations.push_back(sensor_loc);
-          sensorData.push_back(sensor_data);
-          numSensors += 1; // solver variable (total number of sensors)
-        }
-      }
-      assembler->cells[0][i]->exodus_sensors = true;
-      assembler->cells[0][i]->numSensors = numSensorsInCell;
-      assembler->cells[0][i]->sensorLocations = sensorLocations;
-      assembler->cells[0][i]->sensorData = sensorData;
-    }
-    
-    Kokkos::View<ScalarT**,HostDevice> tmp_sensor_points;
-    vector<Kokkos::View<ScalarT**,HostDevice> > tmp_sensor_data;
-    bool have_sensor_data = true;
-    ScalarT sensor_loc_tol = 1.0;
-    // only needed for passing of basis pointers
-    for (size_t j=0; j<assembler->cells[0].size(); j++) {
-      assembler->cells[0][j]->addSensors(sensor_points, sensor_loc_tol, sensor_data, have_sensor_data, disc->basis_pointers[0], params->discretized_param_basis);
-    }
-  }
-  else {
-    if (settings->sublist("Analysis").get("Have Sensor Data",false)) {
-      data sdata("Sensor Measurements", spaceDim, settings->sublist("Analysis").get("Sensor Location File","sensor_points.dat"), settings->sublist("Analysis").get("Sensor Prefix","sensor"));
-      sensor_data = sdata.getdata();
-      sensor_points = sdata.getpoints();
-      numSensors = sensor_points.dimension(0);
-      have_sensor_data = true;
-      have_sensor_points = true;
-    }
-    else if (settings->sublist("Analysis").get("Have Sensor Points",false)) {
-      data sdata("Sensor Points", spaceDim, settings->sublist("Analysis").get("Sensor Location File","sensor_points.dat"));
-      sensor_points = sdata.getpoints();
-      numSensors = sensor_points.dimension(0);
-      have_sensor_data = false;
-      have_sensor_points = true;
-    }
-    
-    if (settings->sublist("Analysis").get("Have Sensor Points",false)) {
-      //sensor_locations = FCint(sensor_points.dimension(0),2);
-      ScalarT sensor_loc_tol = settings->sublist("Analysis").get("Sensor location tol",1.0E-6);
-      for (size_t b=0; b<assembler->cells.size(); b++) {
-        for (size_t j=0; j<assembler->cells[b].size(); j++) {
-          assembler->cells[b][j]->addSensors(sensor_points, sensor_loc_tol, sensor_data, have_sensor_data, disc->basis_pointers[b], params->discretized_param_basis);
-        }
-      }
-    }
-  }  
-}
-*/
 
 // ========================================================================================
 /* given the parameters, solve the forward  problem */
