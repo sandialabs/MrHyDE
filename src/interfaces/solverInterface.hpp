@@ -213,69 +213,38 @@ public:
   Teuchos::RCP<LA_Export> exporter;
   Teuchos::RCP<LA_Import> importer;
   
-  int numUnknowns;     					 // total number of unknowns
-  int numUnknownsOS;     					 // total number of unknowns
-  int globalNumUnknowns;
-  vector<int> owned;					 // GIDs that live on the local processor.
-  vector<int> ownedAndShared;				 // GIDs that live or are shared on the local processor.
-  vector<int> LA_owned;					 // GIDs that live on the local processor.
-  vector<int> LA_ownedAndShared;				 // GIDs that live or are shared on the local processor.
+  int numUnknowns, numUnknownsOS, globalNumUnknowns, MaxNLiter, time_order, liniter, kspace;
+  int verbosity, batchID, spaceDim, numsteps, gNLiter;
   
-  int allow_remesh, MaxNLiter, time_order;
-  ScalarT NLtol, finaltime;
-  string solver_type, NLsolver, initial_type;
-  bool line_search, useL2proj;
+  vector<LO> owned, ownedAndShared, LA_owned, LA_ownedAndShared;
   
-  ScalarT lintol, dropTol, fillParam;
-  int liniter, kspace;
-  bool useDomDecomp, useDirect, usePrec;
+  ScalarT NLtol, finaltime, lintol, dropTol, fillParam, current_time;
   
-  int verbosity;
-  string response_type, multigrid_type, smoother_type;
-  bool discretized_stochastic;
+  string solver_type, NLsolver, initial_type, response_type, multigrid_type, smoother_type;
   
-  int batchID; //which stochastic collocation batch; to avoid multiple processors trying to stash at once to same file
-  
-  ScalarT current_time;
+  bool line_search, useL2proj, allow_remesh, useDomDecomp, useDirect, usePrec, discretized_stochastic;
+  bool isInitial, isTransient, useadjoint, is_final_time, usestrongDBCs;
+  bool compute_objective, compute_sensitivity, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
   
   vector<ScalarT> solvetimes;
   
   vector<vector_RCP> fwdsol;
   vector<vector_RCP> adjsol;
-
-  int spaceDim;
   vector<string> blocknames;
-  bool isInitial;
-  vector<vector<int> > numBasis;
-  vector<vector<int> > useBasis;
-  vector<int> maxBasis;
-  bool isTransient, useadjoint;
-  bool is_final_time, usestrongDBCs;
-  
-  //vector<FCint> offsets;
-  vector<int> numVars;        				 // Number of variables used by the application (may not be used yet)
-  int numsteps;
   vector<vector<string> > varlist;
   
+  vector<vector<int> > numBasis, useBasis;
+  vector<int> maxBasis, numVars;
+  
   Teuchos::RCP<MultiScale> multiscale_manager;
-  
-  bool compute_objective, compute_sensitivity;
-  bool use_custom_initial_param_guess;
-  bool store_adjPrev;
-  int gNLiter;
-  bool use_meas_as_dbcs;
-  
   
 private:
   
   Teuchos::RCP<LA_MpiComm> Comm;
-  //Teuchos::RCP<Teuchos::ParameterList> settings;
-  //Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
   Teuchos::RCP<meshInterface>  mesh;
   Teuchos::RCP<discretization> disc;
   Teuchos::RCP<physics> phys;
   Teuchos::RCP<const panzer::DOFManager<int,int> > DOF;
-  //Teuchos::RCP<TimeIntegrator> timeInt;
   
   Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - total assembly");
   Teuchos::RCP<Teuchos::Time> linearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::linearSolver()");
