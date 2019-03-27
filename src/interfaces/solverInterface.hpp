@@ -64,12 +64,6 @@ public:
   
   void finalizeWorkset();
   
-  /////////////////////////////////////////////////////////////////////////////
-  // Read in discretized data from an exodus mesh
-  /////////////////////////////////////////////////////////////////////////////
-
-  void readMeshData(Teuchos::RCP<Teuchos::ParameterList> & settings);
-  
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
@@ -100,6 +94,11 @@ public:
   void nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
                        vector_RCP & phi, vector_RCP & phi_dot,
                        const ScalarT & alpha, const ScalarT & beta);
+  
+  
+  
+  
+  
   
   // ========================================================================================
   // ========================================================================================
@@ -133,6 +132,12 @@ public:
   // ========================================================================================
   
   ScalarT computeError(const vector_RCP & GF_soln, const vector_RCP & GA_soln);
+  
+  
+  
+  
+  
+  
   
   // ========================================================================================
   // ========================================================================================
@@ -178,11 +183,6 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void updateMeshData(const int & newseed);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
   void setBatchID(const int & bID);
   
   // ========================================================================================
@@ -201,7 +201,8 @@ public:
   
   Teuchos::RCP<AssemblyManager> assembler;
   Teuchos::RCP<ParameterManager> params;
-  
+  Teuchos::RCP<meshInterface>  mesh;
+    
   Teuchos::RCP<const LA_Map> LA_owned_map, LA_overlapped_map;
   Teuchos::RCP<LA_CrsGraph> LA_owned_graph, LA_overlapped_graph;
   Teuchos::RCP<LA_Export> exporter;
@@ -235,7 +236,6 @@ public:
 private:
   
   Teuchos::RCP<LA_MpiComm> Comm;
-  Teuchos::RCP<meshInterface>  mesh;
   Teuchos::RCP<discretization> disc;
   Teuchos::RCP<physics> phys;
   Teuchos::RCP<const panzer::DOFManager<int,int> > DOF;

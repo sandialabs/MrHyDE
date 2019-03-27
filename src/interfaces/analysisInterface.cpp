@@ -227,7 +227,7 @@ void analysis::run() {
         DFAD objfun = 0.0;
         params->updateParams(currparams,2);
         if (regenerate_meshdata) {
-          solve->updateMeshData(sampleints(j));
+          solve->mesh->updateMeshData(sampleints(j),solve->assembler->cells);
         }
         vector_RCP F_soln = solve->forwardModel(objfun);
         //vector_RCP A_soln = solve->adjointModel(F_soln, gradient);
