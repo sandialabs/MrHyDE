@@ -264,7 +264,7 @@ public:
   bool isInitial;
   vector<vector<int> > numBasis;
   vector<vector<int> > useBasis;
-  vector<int> maxbasis;
+  vector<int> maxBasis;
   bool isTransient, useadjoint, have_sensor_data, have_sensor_points;
   bool is_final_time, usestrongDBCs;
   

@@ -111,38 +111,16 @@ ScalarT MultiScale::initialize() {
       if (subgrid_static) { // only add each cell to one subgrid model
         DRV cellnodes = cells[b][e]->nodes;
         Kokkos::View<int****,HostDevice> cellsideinfo = cells[b][e]->sideinfo;
+        Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
+        Kokkos::View<LO***,HostDevice> index = cells[b][e]->index;
+        
         for (int c=0; c<numElem; c++) {
           DRV cnodes("cnodes",1,cellnodes.dimension(1),cellnodes.dimension(2));
           Kokkos::View<int****,HostDevice> csideinfo("csideinfo",1,cellsideinfo.dimension(1),
                                                      cellsideinfo.dimension(2),
                                                      cellsideinfo.dimension(3));
-          for (int i=0; i<cellnodes.dimension(1); i++) {
-            for (int j=0; j<cellnodes.dimension(2); j++) {
-              cnodes(0,i,j) = cellnodes(c,i,j);
-            }
-          }
-          for (int i=0; i<cellsideinfo.dimension(1); i++) {
-            for (int j=0; j<cellsideinfo.dimension(2); j++) {
-              for (int k=0; k<cellsideinfo.dimension(3); k++) {
-                csideinfo(0,i,j,k) = cellsideinfo(c,i,j,k);
-              }
-            }
-          }
-          // needs to be updated
-          int cnum = subgridModels[sgnum[c]]->addMacro(cnodes, csideinfo, cells[b][e]->sidenames,
-                                                       cells[b][e]->GIDs[c], cells[b][e]->index[c]);
-          usernum.push_back(cnum);
-        }
-      }
-      else {
-        // usernum is the same for all subgrid models
-        DRV cellnodes = cells[b][e]->nodes;
-        Kokkos::View<int****,HostDevice> cellsideinfo = cells[b][e]->sideinfo;
-        for (int c=0; c<numElem; c++) {
-          DRV cnodes("cnodes",1,cellnodes.dimension(1),cellnodes.dimension(2));
-          Kokkos::View<int****,HostDevice> csideinfo("csideinfo",1,cellsideinfo.dimension(1),
-                                                     cellsideinfo.dimension(2),
-                                                     cellsideinfo.dimension(3));
+          Kokkos::View<GO**,HostDevice> cGIDs("GIDs",1,GIDs.dimension(1));
+          Kokkos::View<LO***,HostDevice> cindex("index",1,index.dimension(1), index.dimension(2));
           
           for (int i=0; i<cellnodes.dimension(1); i++) {
             for (int j=0; j<cellnodes.dimension(2); j++) {
@@ -156,10 +134,59 @@ ScalarT MultiScale::initialize() {
               }
             }
           }
+          for (int i=0; i<GIDs.dimension(1); i++) {
+            cGIDs(0,i) = GIDs(c,i);
+          }
+          for (int i=0; i<index.dimension(1); i++) {
+            for (int j=0; j<index.dimension(2); j++) {
+              cindex(0,i,j) = index(c,i,j);
+            }
+          }
+          // needs to be updated
+          int cnum = subgridModels[sgnum[c]]->addMacro(cnodes, csideinfo, cells[b][e]->sidenames,
+                                                       cGIDs, cindex);
+          usernum.push_back(cnum);
+        }
+      }
+      else {
+        // usernum is the same for all subgrid models
+        DRV cellnodes = cells[b][e]->nodes;
+        Kokkos::View<int****,HostDevice> cellsideinfo = cells[b][e]->sideinfo;
+        Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
+        Kokkos::View<LO***,HostDevice> index = cells[b][e]->index;
+        
+        for (int c=0; c<numElem; c++) {
+          DRV cnodes("cnodes",1,cellnodes.dimension(1),cellnodes.dimension(2));
+          Kokkos::View<int****,HostDevice> csideinfo("csideinfo",1,cellsideinfo.dimension(1),
+                                                     cellsideinfo.dimension(2),
+                                                     cellsideinfo.dimension(3));
+          Kokkos::View<GO**,HostDevice> cGIDs("GIDs",1,GIDs.dimension(1));
+          Kokkos::View<LO***,HostDevice> cindex("index",1,index.dimension(1), index.dimension(2));
+          
+          for (int i=0; i<cellnodes.dimension(1); i++) {
+            for (int j=0; j<cellnodes.dimension(2); j++) {
+              cnodes(0,i,j) = cellnodes(c,i,j);
+            }
+          }
+          for (int i=0; i<cellsideinfo.dimension(1); i++) {
+            for (int j=0; j<cellsideinfo.dimension(2); j++) {
+              for (int k=0; k<cellsideinfo.dimension(3); k++) {
+                csideinfo(0,i,j,k) = cellsideinfo(c,i,j,k);
+              }
+            }
+          }
+          for (int i=0; i<GIDs.dimension(1); i++) {
+            cGIDs(0,i) = GIDs(c,i);
+          }
+          for (int i=0; i<index.dimension(1); i++) {
+            for (int j=0; j<index.dimension(2); j++) {
+              cindex(0,i,j) = index(c,i,j);
+            }
+          }
           for (size_t s=0; s<subgridModels.size(); s++) {
             int cnum = subgridModels[s]->addMacro(cnodes, csideinfo,
                                                   cells[b][e]->sidenames,
-                                                  cells[b][e]->GIDs[c], cells[b][e]->index[c]);
+                                                  cGIDs, cindex);
             usernum.push_back(cnum);
           }
         }

@@ -182,23 +182,63 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void setIndex(const vector<vector<vector<int> > > & index_) {
-    index = index_;
+  //void setIndex(const vector<vector<vector<int> > > & index_) {
+  void setIndex(Kokkos::View<LO***,AssemblyDevice> & index_, Kokkos::View<LO*,AssemblyDevice> & numDOF_) {
     
-    Kokkos::View<int*,HostDevice> numDOF_host("numDOF on host",index[0].size());
-    for (int i=0; i<index[0].size(); i++) {
+    index = Kokkos::View<LO***,AssemblyDevice>("local index",index_.dimension(0),
+                                               index_.dimension(1), index_.dimension(2));
+    
+    // Need to copy the data since index_ is rewritten for each cell
+    parallel_for(RangePolicy<AssemblyDevice>(0,index_.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int j=0; j<index_.dimension(1); j++) {
+        for (int k=0; k<index_.dimension(2); k++) {
+          index(e,j,k) = index_(e,j,k);
+        }
+      }
+    });
+    
+    // This is common to all cells (within the same block), so a view copy will do
+    numDOF = numDOF_;
+    
+    /*
+    for (int i=0; i<index.dimension(1); i++) {
       numDOF_host(i) = index[0][i].size();
+    }
+    
+    Kokkos::View<int*,HostDevice> numDOF_host("numDOF on host",index.dimension(1));
+    for (int i=0; i<index.dimension(1); i++) {
+      numDOF_host(i) = numDOF_(i));
     }
     numDOF = Kokkos::create_mirror_view(numDOF_host);
     Kokkos::deep_copy(numDOF_host, numDOF);
-    
+    */
   }
   
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void setParamIndex(const vector<vector<vector<int> > > & pindex_) {
-    paramindex = pindex_;
+  //void setParamIndex(const vector<vector<vector<int> > > & pindex_) {
+  void setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_,
+                     Kokkos::View<LO*,AssemblyDevice> & pnumDOF_) {
+    
+    paramindex = Kokkos::View<LO***,AssemblyDevice>("local param index",pindex_.dimension(0),
+                                                    pindex_.dimension(1), pindex_.dimension(2));
+    
+    // Need to copy the data since index_ is rewritten for each cell
+    parallel_for(RangePolicy<AssemblyDevice>(0,pindex_.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int j=0; j<pindex_.dimension(1); j++) {
+        for (int k=0; k<pindex_.dimension(2); k++) {
+          paramindex(e,j,k) = pindex_(e,j,k);
+        }
+      }
+    });
+    
+    // This is common to all cells, so a view copy will do
+    // This is excessive storage, please remove
+    numParamDOF = pnumDOF_;
+    
+    
+    //paramindex = pindex_;
     
     /*
     Kokkos::View<int*,HostDevice> numParamDOF_host("numParamDOF on host",paramindex[0].size());
@@ -216,7 +256,32 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void setAuxIndex(const vector<vector<int> > & aindex_) {
+  //void setAuxIndex(const vector<vector<int> > & aindex_) {
+  void setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_) { //}, Kokkos::View<LO*,AssemblyDevice> & anumDOF_) {
+    
+    auxindex = Kokkos::View<LO***,AssemblyDevice>("local aux index",1,aindex_.dimension(1),
+                                                  aindex_.dimension(2));
+    
+    // Need to copy the data since index_ is rewritten for each cell
+    parallel_for(RangePolicy<AssemblyDevice>(0,aindex_.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int j=0; j<aindex_.dimension(1); j++) {
+        for (int k=0; k<aindex_.dimension(2); k++) {
+          auxindex(e,j,k) = aindex_(e,j,k);
+        }
+      }
+    });
+    
+    // This is common to all cells, so a view copy will do
+    // This is excessive storage, please remove
+    //numAuxDOF = anumDOF_;
+    // Temp. fix
+    numAuxDOF = Kokkos::View<int*,HostDevice>("numAuxDOF",auxindex.dimension(1));
+    for (int i=0; i<auxindex.dimension(1); i++) {
+      numAuxDOF(i) = auxindex.dimension(2);
+    }
+    
+    
+    /*
     auxindex = aindex_;
     
     Kokkos::View<int*,HostDevice> numAuxDOF_host("numAuxDOF on host",auxindex.size());
@@ -225,7 +290,7 @@ public:
     }
     numAuxDOF = Kokkos::create_mirror_view(numAuxDOF_host);
     Kokkos::deep_copy(numAuxDOF_host, numAuxDOF);
-    
+    */
     
   }
   
@@ -490,14 +555,14 @@ public:
   vector<int> getInfo() {
     vector<int> info;
     int nparams = 0;
-    if (paramindex.size()>0) {
-      nparams = paramindex[0].size();
+    if (paramindex.dimension(0)>0) {
+      nparams = paramindex.dimension(1);
     }
     info.push_back(dimension);
-    info.push_back(index[0].size());
+    info.push_back(numDOF.dimension(0));
     info.push_back(nparams);
-    info.push_back(auxindex.size());
-    info.push_back(GIDs[0].size());
+    info.push_back(auxindex.dimension(1));
+    info.push_back(GIDs.dimension(1));
     info.push_back(numElem);
     return info;
   }
@@ -551,6 +616,11 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
 
+  void resetAdjPrev(const ScalarT & val);
+
+  ///////////////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////////
+
   // Public and necessary
   //Teuchos::RCP<Teuchos::ParameterList> settings;
   Teuchos::RCP<LA_MpiComm> LocalComm;
@@ -571,29 +641,32 @@ public:
   topo_RCP cellTopo;
   Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
   vector<string> sidenames;
-  vector<vector<int> > GIDs;
-  vector<vector<vector<int> > > index;
+  
+  Kokkos::View<GO**,HostDevice> GIDs, paramGIDs, auxGIDs;
+  Kokkos::View<LO***,AssemblyDevice> index, paramindex, auxindex;
+  
+  //vector<vector<int> > GIDs;
+  //vector<vector<vector<int> > > index;
   vector<vector<ScalarT> > orientation;
   Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
   
-  Kokkos::View<ScalarT***,AssemblyDevice> u, u_dot, phi, phi_dot;
+  Kokkos::View<ScalarT***,AssemblyDevice> u, u_dot, phi, phi_dot, aux;
   ScalarT current_time;
   int num_stages;
   
   // Discretized Parameter Information
   Kokkos::View<ScalarT***,AssemblyDevice> param;
-  vector<vector<int> > paramGIDs;
-  vector<vector<vector<int> > > paramindex;
+  //vector<vector<int> > paramGIDs;
+  //vector<vector<vector<int> > > paramindex;
   
   // Auxiliary Parameter Information
   // aux variables are handled slightly differently from others
   
-  Kokkos::View<ScalarT***,AssemblyDevice> aux;
   vector<string> auxlist;
-  vector<int> auxGIDs;
+  //vector<int> auxGIDs;
   vector<vector<int> > auxoffsets;
   vector<int> auxusebasis;
-  vector<vector<int> > auxindex;
+  //vector<vector<int> > auxindex;
   vector<basis_RCP> auxbasisPointers;
   vector<DRV> auxbasis;
   vector<DRV> auxbasisGrad;

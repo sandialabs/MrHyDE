@@ -27,8 +27,8 @@ public:
   
   virtual int addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice> macrosideinfo_,
                        vector<string> & macrosidenames,
-                       vector<int> & macroGIDs,
-                       vector<vector<int> > & macroindex) = 0;
+                       Kokkos::View<GO**,HostDevice> & macroGIDs,
+                       Kokkos::View<LO***,HostDevice> & macroindex) = 0;
 
   virtual void subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
                              Kokkos::View<ScalarT***,AssemblyDevice> gl_phi,
@@ -72,7 +72,7 @@ public:
   
   virtual Teuchos::RCP<Epetra_CrsMatrix> getEvaluationMatrix(const DRV & newip, Teuchos::RCP<Epetra_Map> & ip_map) = 0;
   
-  virtual vector<vector<int> > getCellGIDs(const int & cellnum) = 0;
+  virtual Kokkos::View<GO**,HostDevice> getCellGIDs(const int & cellnum) = 0;
   
   virtual void solutionStorage(Teuchos::RCP<Epetra_MultiVector> & newvec,
                                const ScalarT & time, const bool & isAdjoint,

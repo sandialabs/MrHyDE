@@ -194,13 +194,21 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
     for (size_t e=0; e<cells[b].size(); e++) {
       int numElem = cells[b][e]->numElem;
       vector<vector<int> > cellGIDs;
+      int numLocalDOF = 0;
       for (int i=0; i<numElem; i++) {
         vector<int> GIDs;
         size_t elemID = this->myElements[b][eprog+i];
         DOF->getElementGIDs(elemID, GIDs, phys->blocknames[b]);
         cellGIDs.push_back(GIDs);
+        numLocalDOF = GIDs.size(); // should be the same for all elements
       }
-      cells[b][e]->GIDs = cellGIDs;
+      Kokkos::View<GO**,HostDevice> hostGIDs("GIDs on host device",numElem,numLocalDOF);
+      for (int i=0; i<numElem; i++) {
+        for (int j=0; j<numLocalDOF; j++) {
+          hostGIDs(i,j) = cellGIDs[i][j];
+        }
+      }
+      cells[b][e]->GIDs = hostGIDs;
       Kokkos::View<int*> globalEID = cells[b][e]->globalElemID;
       Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,globalEID);
       cells[b][e]->sideinfo = sideinfo;

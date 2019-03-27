@@ -1,6 +1,7 @@
 %YAML 1.1
 ---
 ANONYMOUS:
+  verbosity: 0
   Mesh Settings File: input_mesh.yaml
   Physics: 
     eblock-0_0: 

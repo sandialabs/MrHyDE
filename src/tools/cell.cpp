@@ -139,47 +139,48 @@ void cell::setLocalSoln(const Teuchos::RCP<Epetra_MultiVector> & gl_vec, const i
   
   switch(type) {
     case 0 :
-      for (int e=0; e<numElem; e++) {
-        for (size_t n=0; n<index[e].size(); n++) {
-          for(size_t i=0; i<index[e][n].size(); i++ ) {
-            u(e,n,i) = (*gl_vec)[entry][index[e][n][i]];
+      for (int e=0; e<index.dimension(0); e++) {
+        for (size_t n=0; n<index.dimension(1); n++) {
+          for(size_t i=0; i<numDOF(n); i++ ) {
+            u(e,n,i) = (*gl_vec)[entry][index(e,n,i)];
           }
         }
       }
       break;
     case 1 :
-      for (int e=0; e<numElem; e++) {
-        for (size_t n=0; n<index[e].size(); n++) {
-          for(size_t i=0; i<index[e][n].size(); i++ ) {
-            u_dot(e,n,i) = (*gl_vec)[entry][index[e][n][i]];
+      for (int e=0; e<index.dimension(0); e++) {
+        for (size_t n=0; n<index.dimension(1); n++) {
+          for(size_t i=0; i<numDOF(n); i++ ) {
+            u_dot(e,n,i) = (*gl_vec)[entry][index(e,n,i)];
           }
         }
       }
       break;
     case 2 :
-      for (int e=0; e<numElem; e++) {
-        for (size_t n=0; n<index[e].size(); n++) {
-          for(size_t i=0; i<index[e][n].size(); i++ ) {
-            phi(e,n,i) = (*gl_vec)[entry][index[e][n][i]];
+      for (int e=0; e<index.dimension(0); e++) {
+        for (size_t n=0; n<index.dimension(1); n++) {
+          for(size_t i=0; i<numDOF(n); i++ ) {
+            phi(e,n,i) = (*gl_vec)[entry][index(e,n,i)];
           }
         }
       }
       break;
     case 3 :
-      for (int e=0; e<numElem; e++) {
-        for (size_t n=0; n<index[e].size(); n++) {
-          for(size_t i=0; i<index[e][n].size(); i++ ) {
-            phi_dot(e,n,i) = (*gl_vec)[entry][index[e][n][i]];
+      for (int e=0; e<index.dimension(0); e++) {
+        for (size_t n=0; n<index.dimension(1); n++) {
+          for(size_t i=0; i<numDOF(n); i++ ) {
+            phi_dot(e,n,i) = (*gl_vec)[entry][index(e,n,i)];
           }
         }
       }
       break;
     case 4 :
-      for (int e=0; e<numElem; e++) {
-        if (paramindex.size()>e) {
-          for (size_t n=0; n<paramindex[e].size(); n++) {
-            for(size_t i=0; i<paramindex[e][n].size(); i++ ) {
-              param(e,n,i) = (*gl_vec)[entry][paramindex[e][n][i]];
+      
+      for (int e=0; e<paramindex.dimension(0); e++) {
+        if (paramindex.dimension(0)>e) {
+          for (size_t n=0; n<paramindex.dimension(1); n++) {
+            for(size_t i=0; i<numParamDOF(n); i++ ) {
+              param(e,n,i) = (*gl_vec)[entry][paramindex(e,n,i)];
             }
           }
         }
@@ -187,9 +188,9 @@ void cell::setLocalSoln(const Teuchos::RCP<Epetra_MultiVector> & gl_vec, const i
       break;
     case 5 :
       for (int e=0; e<numElem; e++) {
-        for (size_t n=0; n<auxindex.size(); n++) {
-          for(size_t i=0; i<auxindex[n].size(); i++ ) {
-            aux(e,n,i) = (*gl_vec)[entry][auxindex[n][i]];
+        for (size_t n=0; n<auxindex.dimension(1); n++) {
+          for(size_t i=0; i<numAuxDOF(n); i++ ) {
+            aux(e,n,i) = (*gl_vec)[entry][auxindex(0,n,i)];
           }
         }
       }
@@ -214,47 +215,47 @@ void cell::setLocalSoln(const vector_RCP & gl_vec, const int & type,
   
   switch(type) {
     case 0 :
-      for (int e=0; e<numElem; e++) {
-        for (size_t n=0; n<index[e].size(); n++) {
-          for(size_t i=0; i<index[e][n].size(); i++ ) {
-            u(e,n,i) = vec_kv(index[e][n][i],entry);
+      for (int e=0; e<index.dimension(0); e++) {
+        for (size_t n=0; n<index.dimension(1); n++) {
+          for(size_t i=0; i<numDOF(n); i++ ) {
+            u(e,n,i) = vec_kv(index(e,n,i),entry);
           }
         }
       }
       break;
     case 1 :
-      for (int e=0; e<numElem; e++) {
-        for (size_t n=0; n<index[e].size(); n++) {
-          for(size_t i=0; i<index[e][n].size(); i++ ) {
-            u_dot(e,n,i) = vec_kv(index[e][n][i],entry);
+      for (int e=0; e<index.dimension(0); e++) {
+        for (size_t n=0; n<index.dimension(1); n++) {
+          for(size_t i=0; i<numDOF(n); i++ ) {
+            u_dot(e,n,i) = vec_kv(index(e,n,i),entry);
           }
         }
       }
       break;
     case 2 :
-      for (int e=0; e<numElem; e++) {
-        for (size_t n=0; n<index[e].size(); n++) {
-          for(size_t i=0; i<index[e][n].size(); i++ ) {
-            phi(e,n,i) = vec_kv(index[e][n][i],entry);
+      for (int e=0; e<index.dimension(0); e++) {
+        for (size_t n=0; n<index.dimension(1); n++) {
+          for(size_t i=0; i<numDOF(n); i++ ) {
+            phi(e,n,i) = vec_kv(index(e,n,i),entry);
           }
         }
       }
       break;
     case 3 :
-      for (int e=0; e<numElem; e++) {
-        for (size_t n=0; n<index[e].size(); n++) {
-          for(size_t i=0; i<index[e][n].size(); i++ ) {
-            phi_dot(e,n,i) = vec_kv(index[e][n][i],entry);
+      for (int e=0; e<index.dimension(0); e++) {
+        for (size_t n=0; n<index.dimension(1); n++) {
+          for(size_t i=0; i<numDOF(n); i++ ) {
+            phi_dot(e,n,i) = vec_kv(index(e,n,i),entry);
           }
         }
       }
       break;
     case 4 :
       for (int e=0; e<numElem; e++) {
-        if (paramindex.size()>e) {
-          for (size_t n=0; n<paramindex[e].size(); n++) {
-            for(size_t i=0; i<paramindex[e][n].size(); i++ ) {
-              param(e,n,i) = vec_kv(paramindex[e][n][i],entry);
+        if (paramindex.dimension(0)>e) {
+          for (size_t n=0; n<paramindex.dimension(1); n++) {
+            for(size_t i=0; i<numParamDOF(n); i++ ) {
+              param(e,n,i) = vec_kv(paramindex(e,n,i),entry);
             }
           }
         }
@@ -262,9 +263,9 @@ void cell::setLocalSoln(const vector_RCP & gl_vec, const int & type,
       break;
     case 5 :
       for (int e=0; e<numElem; e++) {
-        for (size_t n=0; n<auxindex.size(); n++) {
-          for(size_t i=0; i<auxindex[n].size(); i++ ) {
-            aux(e,n,i) = vec_kv(auxindex[n][i],entry);
+        for (size_t n=0; n<auxindex.dimension(1); n++) {
+          for(size_t i=0; i<numAuxDOF(n); i++ ) {
+            aux(e,n,i) = vec_kv(auxindex(0,n,i),entry);
           }
         }
       }
@@ -295,9 +296,9 @@ void cell::computeSolnVolIP(const bool & seedu, const bool & seedudot, const boo
     AD auxval;
     for (int e=0; e<numElem; e++) {
       if (auxindex.size() > e ) {
-        for (size_t k=0; k<auxindex.size(); k++) {
+        for (size_t k=0; k<auxindex.dimension(1); k++) {
           if (auxusebasis[k] < auxbasis.size()) {
-            for( int i=0; i<auxindex[k].size(); i++ ) {
+            for( int i=0; i<numAuxDOF(k); i++ ) {
               
               if (seedaux) {
                 auxval = AD(maxDerivs,auxoffsets[k][i],aux(e,k,i));
@@ -342,8 +343,8 @@ void cell::computeSolnSideIP(const int & side,
     AD auxval;
     
     for (int e=0; e<numElem; e++) {
-      for (size_t k=0; k<auxindex.size(); k++) {
-        for(size_t i=0; i<auxindex[k].size(); i++ ) {
+      for (size_t k=0; k<auxindex.dimension(1); k++) {
+        for(size_t i=0; i<numAuxDOF(k); i++ ) {
           if (seedaux) {
             auxval = AD(maxDerivs,auxoffsets[k][i],aux(e,k,i));
           }
@@ -369,9 +370,9 @@ void cell::computeSolnSideIP(const int & side,
 void cell::updateSolnWorkset(const Teuchos::RCP<Epetra_MultiVector> & gl_u, int tindex) {
   Kokkos::View<ScalarT***,AssemblyDevice> ulocal("tempory u", numElem,u.dimension(1),u.dimension(2));
   for (int e=0; e<numElem; e++) {
-    for (size_t n=0; n<index[e].size(); n++) {
-      for(size_t i=0; i<index[e][n].size(); i++ ) {
-        ulocal(e,n,i) = (*gl_u)[tindex][index[e][n][i]];
+    for (size_t n=0; n<index.dimension(1); n++) {
+      for(size_t i=0; i<numDOF(n); i++ ) {
+        ulocal(e,n,i) = (*gl_u)[tindex][index(e,n,i)];
       }
     }
   }
@@ -388,9 +389,9 @@ void cell::updateSolnWorkset(const vector_RCP & gl_u, int tindex) {
   auto u_kv = gl_u->getLocalView<HostDevice>();
   
   for (int e=0; e<numElem; e++) {
-    for (size_t n=0; n<index[e].size(); n++) {
-      for(size_t i=0; i<index[e][n].size(); i++ ) {
-        ulocal(e,n,i) = u_kv(index[e][n][i],tindex);
+    for (size_t n=0; n<index.dimension(1); n++) {
+      for(size_t i=0; i<numDOF(n); i++ ) {
+        ulocal(e,n,i) = u_kv(index(e,n,i),tindex);
       }
     }
   }
@@ -426,8 +427,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
                                             time, isTransient, isAdjoint,
                                             compute_jacobian, compute_sens,num_active_params,
                                             compute_disc_sens, compute_aux_sens,
-                                            *wkset, //local_res, local_J, local_Jdot,
-                                            subgrid_usernum[e], e,
+                                            *wkset, subgrid_usernum[e], e,
                                             subgradient, store_adjPrev);
       
     }
@@ -723,9 +723,9 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
                 //for (int e=0; e<numSensors; e++) {
                 for (int s=0; s<numSensors; s++) {
                   int e = sensorElem[s];
-                  for (int n=0; n<index[e].size(); n++) {
-                    for (int j=0; j<index[e][n].size(); j++) {
-                      for (int i=0; i<index[e][n].size(); i++) {
+                  for (int n=0; n<index.dimension(1); n++) {
+                    for (int j=0; j<numDOF(n); j++) {
+                      for (int i=0; i<numDOF(n); i++) {
                         if (w == 1) {
                           local_res(e,wkset->offsets(n,j),0) += -obj(e,s).fastAccessDx(wkset->offsets(n,i))*sensorBasis[s][wkset->usebasis[n]](0,j,s);
                         }
@@ -740,9 +740,9 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
             }
             else {
               for (int e=0; e<numElem; e++) {
-                for (int n=0; n<index[e].size(); n++) {
-                  for (int j=0; j<index[e][n].size(); j++) {
-                    for (int i=0; i<index[e][n].size(); i++) {
+                for (int n=0; n<index.dimension(1); n++) {
+                  for (int j=0; j<numDOF(n); j++) {
+                    for (int i=0; i<numDOF(n); i++) {
                       for (int s=0; s<wkset->numip; s++) {
                         if (w == 1) {
                           local_res(e,wkset->offsets(n,j),0) += -obj(e,s).fastAccessDx(wkset->offsets(n,i))*wkset->ref_basis[wkset->usebasis[n]](e,j,s);
@@ -760,10 +760,10 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
         }
         if (compute_jacobian) {
           for (int e=0; e<numElem; e++) {
-            for (int n=0; n<index[e].size(); n++) {
-              for (int j=0; j<index[e][n].size(); j++) {
-                for (int m=0; m<index[e].size(); m++) {
-                  for (int k=0; k<index[e][m].size(); k++) {
+            for (int n=0; n<index.dimension(1); n++) {
+              for (int j=0; j<numDOF(n); j++) {
+                for (int m=0; m<index.dimension(1); m++) {
+                  for (int k=0; k<numDOF(m); k++) {
                     local_res(e,wkset->offsets(n,j),0) += -local_J(e,wkset->offsets(n,j),wkset->offsets(m,k))*phi(e,m,k);
                   }
                 }
@@ -772,11 +772,11 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
           }
           if (isTransient) {
             for (int e=0; e<numElem; e++) {
-              for (int n=0; n<index[e].size(); n++) {
-                for (int j=0; j<index[e][n].size(); j++) {
+              for (int n=0; n<index.dimension(1); n++) {
+                for (int j=0; j<numDOF(n); j++) {
                   ScalarT aPrev = 0.0;
-                  for (int m=0; m<index[e].size(); m++) {
-                    for (int k=0; k<index[e][m].size(); k++) {
+                  for (int m=0; m<index.dimension(1); m++) {
+                    for (int k=0; k<numDOF(m); k++) {
                       local_res(e,wkset->offsets(n,j),0) += -wkset->alpha*local_Jdot(e,wkset->offsets(n,j),wkset->offsets(m,k))*phi(e,m,k);
                       aPrev += wkset->alpha*local_Jdot(e,wkset->offsets(n,j),wkset->offsets(m,k))*phi(e,m,k);
                     }
@@ -851,8 +851,8 @@ void cell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,Assembly
   if (compute_sens) {
     for (int e=0; e<numElem; e++) {
       for (int r=0; r<local_res.dimension(2); r++) {
-        for (int n=0; n<index[e].size(); n++) {
-          for (int j=0; j<index[e][n].size(); j++) {
+        for (int n=0; n<index.dimension(1); n++) {
+          for (int j=0; j<numDOF(n); j++) {
             local_res(e,offsets(n,j),r) -= res_AD(e,offsets(n,j)).fastAccessDx(r);
           }
         }
@@ -861,8 +861,8 @@ void cell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,Assembly
   }
   else {
     for (int e=0; e<numElem; e++) {
-      for (int n=0; n<index[e].size(); n++) {
-        for (int j=0; j<index[e][n].size(); j++) {
+      for (int n=0; n<index.dimension(1); n++) {
+        for (int j=0; j<numDOF(n); j++) {
           local_res(e,offsets(n,j),0) -= res_AD(e,offsets(n,j)).val();
         }
       }
@@ -880,8 +880,8 @@ void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,A
   if (compute_sens) {
     for (int e=0; e<numElem; e++) {
       for (int r=0; r<maxDerivs; r++) {
-        for (int n=0; n<index[e].size(); n++) {
-          for (int j=0; j<index[e][n].size(); j++) {
+        for (int n=0; n<index.dimension(1); n++) {
+          for (int j=0; j<numDOF(n); j++) {
             local_res(e,offsets(n,j),r) -= res_AD(e,offsets(n,j)).fastAccessDx(r);
           }
         }
@@ -890,8 +890,8 @@ void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,A
   }
   else {
     for (int e=0; e<numElem; e++) {
-      for (int n=0; n<index[e].size(); n++) {
-        for (int j=0; j<index[e][n].size(); j++) {
+      for (int n=0; n<index.dimension(1); n++) {
+        for (int j=0; j<numDOF(n); j++) {
           local_res(e,offsets(n,j),0) -= res_AD(e,offsets(n,j)).val();
         }
       }
@@ -911,10 +911,10 @@ void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDe
   
   if (useadjoint) {
     for (int e=0; e<numElem; e++) {
-      for (int n=0; n<index[e].size(); n++) {
-        for (int j=0; j<index[e][n].size(); j++) {
-          for (int m=0; m<index[e].size(); m++) {
-            for (int k=0; k<index[e][m].size(); k++) {
+      for (int n=0; n<index.dimension(1); n++) {
+        for (int j=0; j<numDOF(n); j++) {
+          for (int m=0; m<index.dimension(1); m++) {
+            for (int k=0; k<numDOF(m); k++) {
               local_J(e,offsets(m,k),offsets(n,j)) += res_AD(e,offsets(n,j)).fastAccessDx(offsets(m,k));
             }
           }
@@ -924,10 +924,10 @@ void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDe
   }
   else {
     for (int e=0; e<numElem; e++) {
-      for (int n=0; n<index[e].size(); n++) {
-        for (int j=0; j<index[e][n].size(); j++) {
-          for (int m=0; m<index[e].size(); m++) {
-            for (int k=0; k<index[e][m].size(); k++) {
+      for (int n=0; n<index.dimension(1); n++) {
+        for (int j=0; j<numDOF(n); j++) {
+          for (int m=0; m<index.dimension(1); m++) {
+            for (int k=0; k<numDOF(m); k++) {
               local_J(e,offsets(n,j),offsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(offsets(m,k));
             }
           }
@@ -948,10 +948,10 @@ void cell::updateJacDot(const bool & useadjoint, Kokkos::View<ScalarT***,Assembl
   
   if (useadjoint) {
     for (int e=0; e<numElem; e++) {
-      for (int n=0; n<index[e].size(); n++) {
-        for (int j=0; j<index[e][n].size(); j++) {
-          for (int m=0; m<index[e].size(); m++) {
-            for (int k=0; k<index[e][m].size(); k++) {
+      for (int n=0; n<index.dimension(1); n++) {
+        for (int j=0; j<numDOF(n); j++) {
+          for (int m=0; m<index.dimension(1); m++) {
+            for (int k=0; k<numDOF(m); k++) {
               local_Jdot(e,offsets(m,k),offsets(n,j)) += res_AD(e,offsets(n,j)).fastAccessDx(offsets(m,k));
             }
           }
@@ -961,10 +961,10 @@ void cell::updateJacDot(const bool & useadjoint, Kokkos::View<ScalarT***,Assembl
   }
   else {
     for (int e=0; e<numElem; e++) {
-      for (int n=0; n<index[e].size(); n++) {
-        for (int j=0; j<index[e][n].size(); j++) {
-          for (int m=0; m<index[e].size(); m++) {
-            for (int k=0; k<index[e][m].size(); k++) {
+      for (int n=0; n<index.dimension(1); n++) {
+        for (int j=0; j<numDOF(n); j++) {
+          for (int m=0; m<index.dimension(1); m++) {
+            for (int k=0; k<numDOF(m); k++) {
               local_Jdot(e,offsets(n,j),offsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(offsets(m,k));
             }
           }
@@ -999,10 +999,10 @@ void cell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   Kokkos::View<int**,AssemblyDevice> paramoffsets = wkset->paramoffsets;
   
   for (int e=0; e<numElem; e++) {
-    for (int n=0; n<index[e].size(); n++) {
-      for (int j=0; j<index[e][n].size(); j++) {
-        for (int m=0; m<paramindex[e].size(); m++) {
-          for (int k=0; k<paramindex[e][m].size(); k++) {
+    for (int n=0; n<index.dimension(1); n++) {
+      for (int j=0; j<numDOF(n); j++) {
+        for (int m=0; m<paramindex.dimension(1); m++) {
+          for (int k=0; k<numParamDOF(m); k++) {
             local_J(e,offsets(n,j),paramoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(paramoffsets(m,k));
           }
         }
@@ -1022,10 +1022,10 @@ void cell::updateParamJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot)
   Kokkos::View<int**,AssemblyDevice> paramoffsets = wkset->paramoffsets;
   
   for (int e=0; e<numElem; e++) {
-    for (int n=0; n<index[e].size(); n++) {
-      for (int j=0; j<index[e][n].size(); j++) {
-        for (int m=0; m<paramindex[e].size(); m++) {
-          for (int k=0; k<paramindex[e][m].size(); k++) {
+    for (int n=0; n<index.dimension(1); n++) {
+      for (int j=0; j<numDOF(n); j++) {
+        for (int m=0; m<paramindex.dimension(1); m++) {
+          for (int k=0; k<numParamDOF(m); k++) {
             local_Jdot(e,offsets(n,j),paramoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(paramoffsets(m,k));
           }
         }
@@ -1044,10 +1044,10 @@ void cell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   
   for (int e=0; e<numElem; e++) {
-    for (int n=0; n<index[e].size(); n++) {
-      for (int j=0; j<index[e][n].size(); j++) {
-        for (int m=0; m<auxindex.size(); m++) {
-          for (int k=0; k<auxindex[m].size(); k++) {
+    for (int n=0; n<index.dimension(1); n++) {
+      for (int j=0; j<numDOF(n); j++) {
+        for (int m=0; m<auxindex.dimension(1); m++) {
+          for (int k=0; k<numAuxDOF(m); k++) {
             local_J(e,offsets(n,j),auxoffsets[m][k]) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets[m][k]);
           }
         }
@@ -1066,10 +1066,10 @@ void cell::updateAuxJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   
   for (int e=0; e<numElem; e++) {
-    for (int n=0; n<index[e].size(); n++) {
-      for (int j=0; j<index[e][n].size(); j++) {
-        for (int m=0; m<auxindex.size(); m++) {
-          for (int k=0; k<auxindex[m].size(); k++) {
+    for (int n=0; n<index.dimension(1); n++) {
+      for (int j=0; j<numDOF(n); j++) {
+        for (int m=0; m<auxindex.dimension(1); m++) {
+          for (int k=0; k<numAuxDOF(m); k++) {
             local_Jdot(e,offsets(n,j),auxoffsets[m][k]) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets[m][k]);
           }
         }
@@ -1083,7 +1083,7 @@ void cell::updateAuxJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, const bool & isAdjoint) {
-  Kokkos::View<ScalarT**,AssemblyDevice> initialvals("initial values",numElem,GIDs[0].size());
+  Kokkos::View<ScalarT**,AssemblyDevice> initialvals("initial values",numElem,GIDs.dimension(1));
   wkset->update(ip,ijac,orientation);
   if (project) { // works for any basis
     for (int n=0; n<wkset->varlist.size(); n++) {
@@ -1093,7 +1093,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, co
                                                                                 isAdjoint,
                                                                                 wkset);
       for (int e=0; e<numElem; e++) {
-        for( int i=0; i<index[e][n].size(); i++ ) {
+        for( int i=0; i<numDOF(n); i++ ) {
           for( size_t j=0; j<wkset->numip; j++ ) {
             initialvals(e,wkset->offsets(n,i)) += initialip(e,j)*wkset->basis[wkset->usebasis[n]](e,i,j);
           }
@@ -1103,13 +1103,13 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, co
   }
   else { // only works if using HGRAD linear basis
     for (int e=0; e<numElem; e++) {
-      for (int n=0; n<index[e].size(); n++) {
+      for (int n=0; n<index.dimension(1); n++) {
         Kokkos::View<ScalarT**,AssemblyDevice> initialnodes = physics_RCP->getInitial(nodes,
                                                                                      wkset->varlist[n],
                                                                                      current_time,
                                                                                      isAdjoint,
                                                                                      wkset);
-        for( int i=0; i<index[e][n].size(); i++ ) {
+        for( int i=0; i<numDOF(n); i++ ) {
           initialvals(e,wkset->offsets(n,i)) = initialnodes(e,i);
         }
       }
@@ -1123,16 +1123,16 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, co
 ///////////////////////////////////////////////////////////////////////////////////////
 
 Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
-  Kokkos::View<ScalarT***,AssemblyDevice> mass("local mass",numElem,GIDs[0].size(), GIDs[0].size());
+  Kokkos::View<ScalarT***,AssemblyDevice> mass("local mass",numElem,GIDs.dimension(1), GIDs.dimension(1));
   wkset->update(ip,ijac,orientation);
   vector<string> basis_types = wkset->basis_types;
   
   for (int e=0; e<numElem; e++) {
-    for (int n=0; n<index[e].size(); n++) {
-      for( int i=0; i<index[e][n].size(); i++ ) {
-        for (int m=0; m<index[e].size(); m++) {
+    for (int n=0; n<index.dimension(1); n++) {
+      for( int i=0; i<numDOF(n); i++ ) {
+        for (int m=0; m<index.dimension(1); m++) {
           if (n == m) {
-            for( int j=0; j<index[e][m].size(); j++ ) {
+            for( int j=0; j<numDOF(m); j++ ) {
               for( size_t k=0; k<wkset->numip; k++ ) {
                 mass(e,wkset->offsets(n,i),wkset->offsets(m,j)) += wkset->basis_uw[wkset->usebasis[n]](e,i,k)*wkset->basis[wkset->usebasis[m]](e,j,k);
               }
@@ -1158,7 +1158,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::computeError(const ScalarT & solvet
   wkset->time = solvetime;
   wkset->time_KV(0) = solvetime;
   
-  Kokkos::View<ScalarT**,AssemblyDevice> errors("errors",numElem,index[0].size());
+  Kokkos::View<ScalarT**,AssemblyDevice> errors("errors",numElem,index.dimension(1));
   if (!compute_subgrid) {
     wkset->update(ip,ijac,orientation);
     wkset->computeSolnVolIP(u, u_dot, false, false);
@@ -1168,8 +1168,8 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::computeError(const ScalarT & solvet
      size_t numip = wkset->numip;
      Kokkos::View<ScalarT***,AssemblyDevice> u_ip("u_ip",numElem,index[0].size(),numip);
      for (int e=0; e<numElem; e++) {
-     for (int n=0; n<index[e].size(); n++) {
-     for( int i=0; i<index[e][n].size(); i++ ) {
+     for (int n=0; n<index.dimension(1); n++) {
+     for( int i=0; i<index.dimension(2); i++ ) {
      for( size_t j=0; j<numip; j++ ) {
      u_ip(e,n,j) += u(e,n,i)*wkset->ref_basis[wkset->usebasis[n]](e,i,j);
      }
@@ -1179,11 +1179,11 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::computeError(const ScalarT & solvet
      */
     
     if (error_type == "L2") {
-      Kokkos::View<ScalarT***,AssemblyDevice> truesol("true solution",numElem,index[0].size(),numip);
+      Kokkos::View<ScalarT***,AssemblyDevice> truesol("true solution",numElem,index.dimension(1),numip);
       physics_RCP->trueSolution(myBlock, solvetime, truesol);
       //KokkosTools::print(wkset->local_soln);
       for (int e=0; e<numElem; e++) {
-        for (int n=0; n<index[e].size(); n++) {
+        for (int n=0; n<index.dimension(1); n++) {
           for( size_t j=0; j<numip; j++ ) {
             ScalarT diff = wkset->local_soln(e,n,j,0).val() - truesol(e,n,j);
             errors(e,n) += diff*diff*wkset->wts(e,j);
@@ -1192,10 +1192,10 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::computeError(const ScalarT & solvet
       }
     }
     if (error_type == "H1") {
-      Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index[0].size(),numip,dimension);
+      Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index.dimension(1),numip,dimension);
       physics_RCP->trueSolutionGrad(myBlock, solvetime, truesol);
       for (int e=0; e<numElem; e++) {
-        for (int n=0; n<index[e].size(); n++) {
+        for (int n=0; n<index.dimension(1); n++) {
           for( size_t j=0; j<numip; j++ ) {
             for (int s=0; s<dimension; s++) {
               ScalarT diff = wkset->local_soln_grad(e,n,j,s).val() - truesol(e,n,j,s);
@@ -1208,7 +1208,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::computeError(const ScalarT & solvet
     
     /*
      for (int e=0; e<numElem; e++) {
-     for (int n=0; n<index[e].size(); n++) {
+     for (int n=0; n<index.dimension(1); n++) {
      for( size_t j=0; j<numip; j++ ) {
      ScalarT x = wkset->ip(e,j,0);
      ScalarT y = 0.0;
@@ -1234,7 +1234,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::computeError(const ScalarT & solvet
       Kokkos::View<ScalarT**,AssemblyDevice> currerrors = subgridModels[subgrid_model_index[e][tindex]]->computeError(solvetime, subgrid_usernum[e]);
       
       for (int c=0; c<currerrors.dimension(0); c++) { // loop over subgrid elements
-        for (int n=0; n<index[e].size(); n++) {
+        for (int n=0; n<index.dimension(1); n++) {
           errors(e,n) += currerrors(c,n);
         }
       }
@@ -1262,8 +1262,8 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponseAtNodes(const DRV & node
    FCAD u_ip(numElem,index[0].size(),numip);
    FCAD ugrad_ip(numElem,index[0].size(),numip,dimension);
    for (int e=0; e<numElem; e++) {
-   for (int n=0; n<index[e].size(); n++) {
-   for( int i=0; i<index[e][n].size(); i++ ) {
+   for (int n=0; n<index.dimension(1); n++) {
+   for( int i=0; i<index.dimension(2); i++ ) {
    for( size_t j=0; j<numip; j++ ) {
    u_ip(e,n,j) += u[e][n][i]*wkset->ref_basis[wkset->usebasis[n]](e,i,j);
    for (int s=0; s<dimension; s++) {
@@ -1280,8 +1280,8 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponseAtNodes(const DRV & node
    //  param_AD.push_back(vector<AD>(paramindex[n].size()));
    //}
    //this->setLocalADParams(param_AD,seedParams);//, wkset);
-   //FCAD p_ip(numElem,paramindex[e].size(), numip);
-   //FCAD pgrad_ip(numElem,paramindex[e].size(), numip, dimension);
+   //FCAD p_ip(numElem,paramindex.dimension(1), numip);
+   //FCAD pgrad_ip(numElem,paramindex.dimension(1), numip, dimension);
    wkset->computeParamVolIP(param,seedParams);
    
    FCAD response = physics_RCP->getResponse(myBlock, u_ip, ugrad_ip, wkset->local_param,
@@ -1324,21 +1324,21 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const ScalarT & solveti
   if (numip > 0) {
     // Extract the local solution at this time
     // We automatically seed the AD and adjust it below
-    Kokkos::View<AD***,AssemblyDevice> u_dof("u_dof",numElem,index[0].size(),GIDs[0].size());
+    Kokkos::View<AD***,AssemblyDevice> u_dof("u_dof",numElem,index.dimension(1),GIDs.dimension(1));
     for (int e=0; e<numElem; e++) {
-      for (int n=0; n<index[e].size(); n++) {
-        for( int i=0; i<index[e][n].size(); i++ ) {
+      for (int n=0; n<index.dimension(1); n++) {
+        for( int i=0; i<numDOF(n); i++ ) {
           u_dof(e,n,i) = AD(maxDerivs,wkset->offsets(n,i),u(e,n,i));
         }
       }
     }
     
     // Map the local solution to the solution and gradient at ip
-    Kokkos::View<AD****,AssemblyDevice> u_ip("u_ip",numElem,index[0].size(),numip,dimension);
-    Kokkos::View<AD****,AssemblyDevice> ugrad_ip("ugrad_ip",numElem,index[0].size(),numip,dimension);
+    Kokkos::View<AD****,AssemblyDevice> u_ip("u_ip",numElem,index.dimension(1),numip,dimension);
+    Kokkos::View<AD****,AssemblyDevice> ugrad_ip("ugrad_ip",numElem,index.dimension(1),numip,dimension);
     for (int e=0; e<numElem; e++) {
-      for (int n=0; n<index[e].size(); n++) {
-        for( int i=0; i<index[e][n].size(); i++ ) {
+      for (int n=0; n<index.dimension(1); n++) {
+        for( int i=0; i<numDOF(n); i++ ) {
           if (useSensors) {
             for (int ee=0; ee<numSensors; ee++) {
               int eind = sensorElem[ee];
@@ -1374,7 +1374,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const ScalarT & solveti
     // Adjust the AD based on seedwhat
     if (seedwhat == 0) { // remove all seeding
       for (int e=0; e<numElem; e++) {
-        for (int n=0; n<index[e].size(); n++) {
+        for (int n=0; n<index.dimension(1); n++) {
           for( size_t j=0; j<numip; j++ ) {
             u_ip(e,n,j,0) = u_ip(e,n,j,0).val();
             for (int s=0; s<dimension; s++) {
@@ -1386,7 +1386,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const ScalarT & solveti
     }
     else if (seedwhat == 1) { // remove seeding on gradient
       for (int e=0; e<numElem; e++) {
-        for (int n=0; n<index[e].size(); n++) {
+        for (int n=0; n<index.dimension(1); n++) {
           for( size_t j=0; j<numip; j++ ) {
             for (int s=0; s<dimension; s++) {
               ugrad_ip(e,n,j,s) = ugrad_ip(e,n,j,s).val();
@@ -1399,7 +1399,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const ScalarT & solveti
     }
     else {
       for (int e=0; e<numElem; e++) {
-        for (int n=0; n<index[e].size(); n++) {
+        for (int n=0; n<index.dimension(1); n++) {
           for( size_t j=0; j<numip; j++ ) {
             for (int s=0; s<dimension; s++) {
               if ((seedwhat-2) == s) {
@@ -1425,24 +1425,24 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const ScalarT & solveti
     Kokkos::View<AD****,AssemblyDevice> param_ip;
     Kokkos::View<AD****,AssemblyDevice> paramgrad_ip;
     
-    if (paramindex.size() > 0) {
+    if (paramindex.dimension(0) > 0) {
       // Extract the local solution at this time
       // We automatically seed the AD and adjust it below
-      Kokkos::View<AD***,AssemblyDevice> param_dof("param dof",numElem,paramindex[0].size(),paramGIDs[0].size());
+      Kokkos::View<AD***,AssemblyDevice> param_dof("param dof",numElem,paramindex.dimension(1),paramGIDs.dimension(1));
       for (int e=0; e<numElem; e++) {
-        for (int n=0; n<paramindex[e].size(); n++) {
-          for( int i=0; i<paramindex[e][n].size(); i++ ) {
+        for (int n=0; n<paramindex.dimension(1); n++) {
+          for( int i=0; i<numParamDOF(n); i++ ) {
             param_dof(e,n,i) = AD(maxDerivs,wkset->paramoffsets(n,i),param(e,n,i));
           }
         }
       }
       
       // Map the local solution to the solution and gradient at ip
-      param_ip = Kokkos::View<AD****,AssemblyDevice>("u_ip",numElem,paramindex[0].size(),numip,dimension);
-      paramgrad_ip = Kokkos::View<AD****,AssemblyDevice>("ugrad_ip",numElem,paramindex[0].size(),numip,dimension);
+      param_ip = Kokkos::View<AD****,AssemblyDevice>("u_ip",numElem,paramindex.dimension(1),numip,dimension);
+      paramgrad_ip = Kokkos::View<AD****,AssemblyDevice>("ugrad_ip",numElem,paramindex.dimension(1),numip,dimension);
       for (int e=0; e<numElem; e++) {
-        for (int n=0; n<paramindex[e].size(); n++) {
-          for( int i=0; i<paramindex[e][n].size(); i++ ) {
+        for (int n=0; n<paramindex.dimension(1); n++) {
+          for( int i=0; i<numParamDOF(n); i++ ) {
             if (useSensors) {
               for (int ee=0; ee<numSensors; ee++) {
                 int eind = sensorElem[ee];
@@ -1478,7 +1478,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const ScalarT & solveti
       // Adjust the AD based on seedwhat
       if (seedwhat == 0) { // remove seeding on grad
         for (int e=0; e<numElem; e++) {
-          for (int n=0; n<paramindex[e].size(); n++) {
+          for (int n=0; n<paramindex.dimension(1); n++) {
             for( size_t j=0; j<numip; j++ ) {
               for (int s=0; s<dimension; s++) {
                 paramgrad_ip(e,n,j,s) = paramgrad_ip(e,n,j,s).val();
@@ -1489,7 +1489,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const ScalarT & solveti
       }
       else {
         for (int e=0; e<numElem; e++) {
-          for (int n=0; n<paramindex[e].size(); n++) {
+          for (int n=0; n<paramindex.dimension(1); n++) {
             for( size_t j=0; j<numip; j++ ) {
               param_ip(e,n,j,0) = param_ip(e,n,j,0).val();
               for (int s=0; s<dimension; s++) {
@@ -2036,9 +2036,9 @@ void cell::computeFlux(const Teuchos::RCP<T> & gl_u, const Teuchos::RCP<T> & gl_
     
     if (compute_sens) {
       for (int e=0; e<numElem; e++) {
-        for (size_t n=0; n<index[e].size(); n++) {
-          for( size_t i=0; i<index[e][n].size(); i++ ) {
-            u_AD(e,n,i) = AD((*gl_u)[0][index[e][n][i]]);
+        for (size_t n=0; n<index.dimension(1); n++) {
+          for( size_t i=0; i<numDOF(n); i++ ) {
+            u_AD(e,n,i) = AD((*gl_u)[0][index(e,n,i)]);
           }
         }
       }
@@ -2046,20 +2046,20 @@ void cell::computeFlux(const Teuchos::RCP<T> & gl_u, const Teuchos::RCP<T> & gl_
     else {
       size_t numDerivs = gl_du->NumVectors();
       for (int e=0; e<numElem; e++) {
-        for (size_t n=0; n<index[e].size(); n++) {
-          for( size_t i=0; i<index[e][n].size(); i++ ) {
-            u_AD(e,n,i) = AD(maxDerivs, 0, (*gl_u)[0][index[e][n][i]]);
+        for (size_t n=0; n<index.dimension(1); n++) {
+          for( size_t i=0; i<numDOF(n); i++ ) {
+            u_AD(e,n,i) = AD(maxDerivs, 0, (*gl_u)[0][index(e,n,i)]);
             for( size_t p=0; p<numDerivs; p++ ) {
-              u_AD(e,n,i).fastAccessDx(p) = (*gl_du)[p][index[e][n][i]];
+              u_AD(e,n,i).fastAccessDx(p) = (*gl_du)[p][index(e,n,i)];
             }
           }
         }
       }
     }
     for (int e=0; e<paramindex.size(); e++) {
-      for (size_t n=0; n<paramindex[e].size(); n++) {
-        for( size_t i=0; i<paramindex[e][n].size(); i++ ) {
-          param_AD(e,n,i) = AD((*params)[0][paramindex[e][n][i]]);
+      for (size_t n=0; n<paramindex.dimension(1); n++) {
+        for( size_t i=0; i<numParamDOF(n); i++ ) {
+          param_AD(e,n,i) = AD((*params)[0][paramindex(e,n,i)]);
         }
       }
     }
@@ -2080,8 +2080,8 @@ void cell::computeFlux(const Teuchos::RCP<T> & gl_u, const Teuchos::RCP<T> & gl_
     AD auxval;
     
     for (int e=0; e<numElem; e++) {
-      for (size_t k=0; k<auxindex.size(); k++) {
-        for(size_t i=0; i<auxindex[k].size(); i++ ) {
+      for (size_t k=0; k<auxindex.dimension(1); k++) {
+        for(size_t i=0; i<numAuxDOF(k); i++ ) {
           auxval = AD(maxDerivs, auxoffsets[k][i], lambda(0,k,i));
           for( size_t j=0; j<numip; j++ ) {
             wkset->local_aux_side(e,k,j) += auxval*auxside_basis[side][auxusebasis[k]](e,i,j);
@@ -2169,4 +2169,16 @@ void cell::updateData() {
     }*/
     //wkset->rotation = rotmat;
   }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Pass the cell data to the wkset
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::resetAdjPrev(const ScalarT & val) {
+  parallel_for(RangePolicy<AssemblyDevice>(0,adjPrev.dimension(0)), KOKKOS_LAMBDA (const int i ) {
+    for (int j=0; j<adjPrev.dimension(1); j++) {
+      adjPrev(i,j) = val;
+    }
+  });
 }

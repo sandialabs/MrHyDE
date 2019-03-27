@@ -256,13 +256,21 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
       for (size_t e=0; e<cells[b].size(); e++) {
         vector<vector<int> > GIDs;
         int numElem = cells[b][e]->numElem;
+        int numLocalDOF = 0;
         for (int p=0; p<numElem; p++) {
           size_t elemID = cells[b][e]->globalElemID(p);//disc->myElements[b][eprog+p];
           vector<int> localGIDs;
           paramDOF->getElementGIDs(elemID, localGIDs, blocknames[b]);
           GIDs.push_back(localGIDs);
+          numLocalDOF = localGIDs.size(); // should be the same for all elements
         }
-        cells[b][e]->paramGIDs = GIDs;
+        Kokkos::View<GO**,HostDevice> hostGIDs("GIDs on host device",numElem,numLocalDOF);
+        for (int i=0; i<numElem; i++) {
+          for (int j=0; j<numLocalDOF; j++) {
+            hostGIDs(i,j) = GIDs[i][j];
+          }
+        }
+        cells[b][e]->paramGIDs = hostGIDs;
         cells[b][e]->setParamUseBasis(disc_usebasis, paramNumBasis);
       }
     }
@@ -291,40 +299,58 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
     param_exporter = Teuchos::rcp(new LA_Export(param_overlapped_map, param_owned_map));
     param_importer = Teuchos::rcp(new LA_Import(param_overlapped_map, param_owned_map));
     
-    vector<vector<int> > gids;
+    Kokkos::View<GO**,HostDevice> gids;
     vector< vector<int> > param_nodesOS(numParamUnknownsOS); // should be overlapped
     vector< vector<int> > param_nodes(numParamUnknowns); // not overlapped -- for bounds
     vector< vector< vector<ScalarT> > > param_initial_vals; // custom initial guess set by assembler->cells
     DRV nodes;
     vector_RCP paramVec = this->setInitialParams(); // TMW: this will be deprecated soon
     
+    int max_param_basis = 0;
+    Kokkos::View<LO*,HostDevice> numDOF_KVhost("number of param DOF per variable",num_discretized_params);
+    for (int k=0; k<num_discretized_params; k++) {
+      numDOF_KVhost(k) = paramNumBasis[k];
+      if (paramNumBasis[k]>max_param_basis){
+        max_param_basis = paramNumBasis[k];
+      }
+    }
+    Kokkos::View<LO*,AssemblyDevice> numDOF_KV = Kokkos::create_mirror_view(numDOF_KVhost);
+    Kokkos::deep_copy(numDOF_KVhost, numDOF_KV);
+    
     for (size_t b=0; b<cells.size(); b++) {
       //vector<vector<int> > curroffsets = phys->offsets[b];
+      
       for(size_t e=0; e<cells[b].size(); e++) {
         gids = cells[b][e]->paramGIDs;
         // this should fail on the first iteration through if maxDerivs is not large enough
-        TEUCHOS_TEST_FOR_EXCEPTION(gids[0].size() > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of parameter degrees of freedom per element.");
+        TEUCHOS_TEST_FOR_EXCEPTION(gids.dimension(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of parameter degrees of freedom per element.");
         
-        vector<vector<vector<int> > > cellindices;
         int numElem = cells[b][e]->numElem;
+        
+        //vector<vector<vector<int> > > cellindices;
+        Kokkos::View<LO***,AssemblyDevice> cellindices("Local DOF indices", numElem,
+                                                       num_discretized_params, max_param_basis);
+        
         for (int p=0; p<numElem; p++) {
           
-          vector<vector<int> > indices;
+          //vector<vector<int> > indices;
           
           for (int n=0; n<num_discretized_params; n++) {
-            vector<int> cindex;
+            //vector<int> cindex;
             for( int i=0; i<paramNumBasis[n]; i++ ) {
-              int globalIndexOS = param_overlapped_map->getLocalElement(gids[p][paramoffsets[n][i]]);
-              cindex.push_back(globalIndexOS);
+              int globalIndexOS = param_overlapped_map->getLocalElement(gids(p,paramoffsets[n][i]));
+              //cindex.push_back(globalIndexOS);
+              cellindices(p,n,i) = globalIndexOS;
               param_nodesOS[n].push_back(globalIndexOS);
-              int globalIndex_owned = param_owned_map->getLocalElement(gids[p][paramoffsets[n][i]]);
+              int globalIndex_owned = param_owned_map->getLocalElement(gids(p,paramoffsets[n][i]));
               param_nodes[n].push_back(globalIndex_owned);
+              
             }
-            indices.push_back(cindex);
+            //indices.push_back(cindex);
           }
-          cellindices.push_back(indices);
+          //cellindices.push_back(indices);
         }
-        cells[b][e]->setParamIndex(cellindices);
+        cells[b][e]->setParamIndex(cellindices, numDOF_KV);
         /* // needs to be updated
          if (use_custom_initial_param_guess) {
          nodes = assembler->cells[b][e]->nodes;

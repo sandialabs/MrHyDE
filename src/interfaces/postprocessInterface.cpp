@@ -247,10 +247,10 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
                 }
               }
               if (numDiscParams > 0) {
-                vector<int> paramGIDs = cells[b][e]->paramGIDs[c];
+                Kokkos::View<GO**,HostDevice> paramGIDs = cells[b][e]->paramGIDs;
                 
                 for (int row=0; row<paramoffsets[0].size(); row++) {
-                  int rowIndex = paramGIDs[paramoffsets[0][row]];
+                  int rowIndex = paramGIDs(c,paramoffsets[0][row]);
                   int poffset = paramoffsets[0][row];
                   ScalarT val;
                   if (obj(c,i).size() > numClassicParams) {
@@ -265,7 +265,7 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
         //}
         if ((numDomainParams > 0) || (numBoundaryParams > 0)) {
           for (int c=0; c<numElem; c++) {
-            vector<int> paramGIDs = cells[b][e]->paramGIDs[c];
+            Kokkos::View<GO**,HostDevice> paramGIDs = cells[b][e]->paramGIDs;
             vector<vector<int> > paramoffsets = params->paramoffsets;
             
             if (numDomainParams > 0) {
@@ -278,7 +278,7 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
                 paramIndex = domainRegIndices[p];
                 for( size_t row=0; row<paramoffsets[paramIndex].size(); row++ ) {
                   if (regDomain.size() > 0) {
-                    rowIndex = paramGIDs[paramoffsets[paramIndex][row]];
+                    rowIndex = paramGIDs(c,paramoffsets[paramIndex][row]);
                     poffset = paramoffsets[paramIndex][row];
                     val = regDomain.fastAccessDx(poffset);
                     regGradient[rowIndex+numClassicParams] += val;
@@ -298,7 +298,7 @@ AD postprocess::computeObjective(const vector_RCP & F_soln) {
                 paramIndex = boundaryRegIndices[p];
                 for( size_t row=0; row<paramoffsets[paramIndex].size(); row++ ) {
                   if (regBoundary.size() > 0) {
-                    rowIndex = paramGIDs[paramoffsets[paramIndex][row]];
+                    rowIndex = paramGIDs(c,paramoffsets[paramIndex][row]);
                     poffset = paramoffsets[paramIndex][row];
                     val = regBoundary.fastAccessDx(poffset);
                     regGradient[rowIndex+numClassicParams] += val;
@@ -605,10 +605,10 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
         size_t eprog = 0;
         for( size_t e=0; e<cells[b].size(); e++ ) {
           int numElem = cells[b][e]->numElem;
+          Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
           for (int p=0; p<numElem; p++) {
-            vector<int> GIDs = cells[b][e]->GIDs[p];
             for( int i=0; i<numBasis[b][n]; i++ ) {
-              int pindex = overlapped_map->getLocalElement(GIDs[curroffsets[n][i]]);
+              int pindex = overlapped_map->getLocalElement(GIDs(p,curroffsets[n][i]));
               if (numBasis[b][n] == 1) {
                 for( int j=0; j<numNodesPerElem; j++ ) {
                   soln_computed(eprog,j) = E_kv(pindex,m);
@@ -671,11 +671,12 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
           size_t eprog = 0;
           for( size_t e=0; e<cells[b].size(); e++ ) {
             int numElem = cells[b][e]->numElem;
+            Kokkos::View<GO**,HostDevice> paramGIDs = cells[b][e]->paramGIDs;
+            
             for (int p=0; p<numElem; p++) {
-              vector<int> paramGIDs = cells[b][e]->paramGIDs[p];
               vector<vector<int> > paramoffsets = params->paramoffsets;
               for( int i=0; i<numParamBasis[n]; i++ ) {
-                int pindex = param_overlapped_map->getLocalElement(paramGIDs[paramoffsets[n][i]]);
+                int pindex = param_overlapped_map->getLocalElement(paramGIDs(p,paramoffsets[n][i]));
                 if (numParamBasis[n] == 1) {
                   for( int j=0; j<numNodesPerElem; j++ ) {
                     soln_computed(e,j) = P_kv(pindex,0);
@@ -707,11 +708,11 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
 
             for( size_t e=0; e<cells[b].size(); e++ ) {
               int numElem = cells[b][e]->numElem;
+              Kokkos::View<GO**,HostDevice> paramGIDs = cells[b][e]->paramGIDs;
               for (int p=0; p<numElem; p++) {
-                vector<int> paramGIDs = cells[b][e]->paramGIDs[p];
                 vector<vector<int> > paramoffsets = params->paramoffsets;
                 for( int i=0; i<numParamBasis[n]; i++ ) {
-                  int pindex = param_overlapped_map->getLocalElement(paramGIDs[paramoffsets[n][i]]);
+                  int pindex = param_overlapped_map->getLocalElement(paramGIDs(p,paramoffsets[n][i]));
                   if (numParamBasis[n] == 1) {
                     for( int j=0; j<numNodesPerElem; j++ ) {
                       soln_computed(eprog,j) = P_kv(pindex,0);
@@ -943,10 +944,10 @@ void postprocess::writeSolution(const vector_RCP & E_soln, const std::string & f
       for (int n = 0; n<numVars[b]; n++) {
         for( size_t e=0; e<cells[b].size(); e++ ) {
           DRV nodes = cells[b][e]->nodes;
+          Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
           for (int p=0; p<cells[b][e]->numElem; p++) {
-            vector<int> GIDs = cells[b][e]->GIDs[p];
             for( int i=0; i<numBasis[b][n]; i++ ) {
-              int pindex = overlapped_map->getLocalElement(GIDs[curroffsets[n][i]]);
+              int pindex = overlapped_map->getLocalElement(GIDs(p,curroffsets[n][i]));
               ScalarT soln = E_kv(pindex,numsteps-1);
               hOUT << nodes(p,i,0) << "  " << nodes(p,i,1) << "  " << soln << endl;
             }

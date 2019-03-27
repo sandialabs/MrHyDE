@@ -121,7 +121,7 @@ public:
   
   int addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice> macrosideinfo_,
                vector<string> & macrosidenames,
-               vector<int> & macroGIDs, vector<vector<int> > & macroindex) {
+               Kokkos::View<GO**,HostDevice> & macroGIDs, Kokkos::View<LO***,HostDevice> & macroindex) {
     
     bool first_time = false;
     if (cells.size() == 0) {
@@ -273,14 +273,22 @@ public:
           int eprog = 0;
           for (size_t e=0; e<currcells[b].size(); e++) {
             int numElem = currcells[b][e]->numElem;
+            int nDOF = 0;
             vector<vector<int> > currGids;
             for (int p=0; p<numElem; p++) {
               vector<int> GIDs;
               size_t elemID = e;
               DOF->getElementGIDs(elemID, GIDs, blocknames[b]);
               currGids.push_back(GIDs);
+              nDOF = GIDs.size();
             }
-            currcells[b][e]->GIDs = currGids;
+            Kokkos::View<GO**,HostDevice> currGids_KV("GIDs",numElem,nDOF);
+            for (int p=0; p<numElem; p++) {
+              for (int n=0; n<nDOF; n++) {
+                currGids_KV(p,n) = currGids[p][n];
+              }
+            }
+            currcells[b][e]->GIDs = currGids_KV;
             vector<vector<int> > offsets = physics_RCP->getOffsets(b, DOF);
             currcells[b][e]->sidenames = physics_RCP->sideSets;
             eprog += numElem;
@@ -321,11 +329,11 @@ public:
       }
       else { // perform updates to currcells from solver interface
         for (size_t e=0; e<cells[0].size(); e++) {
-          currcells[0][e]->setIndex(cells[0][e]->index);
-          currcells[0][e]->setParamIndex(cells[0][e]->paramindex);
+          currcells[0][e]->setIndex(cells[0][e]->index, cells[0][e]->numDOF);
+          currcells[0][e]->setParamIndex(cells[0][e]->paramindex, cells[0][e]->numParamDOF);
           currcells[0][e]->paramGIDs = cells[0][e]->paramGIDs;
           currcells[0][e]->setParamUseBasis(wkset[0]->paramusebasis, sub_params->paramNumBasis);
-          int numDOF = currcells[0][0]->GIDs[0].size();
+          int numDOF = currcells[0][0]->GIDs.dimension(1);
           currcells[0][e]->wkset = wkset[0];
           currcells[0][e]->setUseBasis(subsolver->useBasis[0],1);
           currcells[0][e]->setUpAdjointPrev(numDOF);
@@ -398,11 +406,12 @@ public:
       phi = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1)); // reset residual
       phi_dot = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1)); // reset residual
       
-      d_um = Teuchos::rcp( new Epetra_MultiVector(*(owned_map),macroGIDs.size())); // reset residual
-      d_sub_res_overm = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),macroGIDs.size()));
-      d_sub_resm = Teuchos::rcp(new Epetra_MultiVector(*(owned_map),macroGIDs.size()));
-      d_sub_u_prevm = Teuchos::rcp(new Epetra_MultiVector(*(owned_map),macroGIDs.size()));
-      d_sub_u_overm = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),macroGIDs.size()));
+      int nmacroDOF = macroGIDs.dimension(1);
+      d_um = Teuchos::rcp( new Epetra_MultiVector(*(owned_map),nmacroDOF)); // reset residual
+      d_sub_res_overm = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),nmacroDOF));
+      d_sub_resm = Teuchos::rcp(new Epetra_MultiVector(*(owned_map),nmacroDOF));
+      d_sub_u_prevm = Teuchos::rcp(new Epetra_MultiVector(*(owned_map),nmacroDOF));
+      d_sub_u_overm = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),nmacroDOF));
       
       du_glob = Teuchos::rcp(new Epetra_MultiVector(*(owned_map),1));
       if (LocalComm->getSize() > 1) {
@@ -1258,7 +1267,7 @@ public:
       wkset[0]->isAdjoint = isAdjoint;
       
       int numElem = 1;
-      int numDOF = cells[usernum][0]->GIDs[0].size();
+      int numDOF = cells[usernum][0]->GIDs.dimension(1);
       
       Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
       
@@ -1320,21 +1329,23 @@ public:
         }
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverInsertTimer);
-          vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
-          for (int i=0; i<GIDs.size(); i++) {
-            vector<ScalarT> vals(GIDs[i].size());
-            for( size_t row=0; row<GIDs[i].size(); row++ ) {
-              int rowIndex = GIDs[i][row];
+          Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;
+          for (int i=0; i<GIDs.dimension(0); i++) {
+            vector<ScalarT> vals(GIDs.dimension(1));
+            vector<int> cols(GIDs.dimension(1));
+            for( size_t row=0; row<GIDs.dimension(1); row++ ) {
+              int rowIndex = GIDs(i,row);
               ScalarT val = local_res(i,row,0);
               res_over->SumIntoGlobalValue(rowIndex,0, val);
-              for( size_t col=0; col<GIDs[i].size(); col++ ) {
+              for( size_t col=0; col<GIDs.dimension(1); col++ ) {
                 vals[col] = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
+                cols[col] = GIDs(i,col);
               }
-              sub_J_over->SumIntoGlobalValues(rowIndex, GIDs[i].size(), &vals[0], &GIDs[i][0]);
-              for( size_t col=0; col<GIDs[i].size(); col++ ) {
+              sub_J_over->SumIntoGlobalValues(rowIndex, GIDs.dimension(1), &vals[0], &cols[0]);
+              for( size_t col=0; col<GIDs.dimension(1); col++ ) {
                 vals[col] = local_Jdot(i,row,col);
               }
-              sub_M_over->SumIntoGlobalValues(rowIndex, GIDs[i].size(), &vals[0], &GIDs[i][0]);
+              sub_M_over->SumIntoGlobalValues(rowIndex, GIDs.dimension(1), &vals[0], &cols[0]);
               
             }
           }
@@ -1561,7 +1572,7 @@ public:
       wkset[0]->isTransient = isTransient;
       wkset[0]->isAdjoint = isAdjoint;
       
-      int snumDOF = cells[usernum][0]->GIDs[0].size();
+      int snumDOF = cells[usernum][0]->GIDs.dimension(1);
       
       Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
       
@@ -1591,10 +1602,10 @@ public:
                                          false, true, num_active_params, false, false, false,
                                          local_res, local_J, local_Jdot);
         
-        vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
-        for (int i=0; i<GIDs.size(); i++) {
-          for( size_t row=0; row<GIDs[i].size(); row++ ) {
-            int rowIndex = GIDs[i][row];
+        Kokkos::View<GO**,HostDevice>  GIDs = cells[usernum][e]->GIDs;
+        for (int i=0; i<GIDs.dimension(0); i++) {
+          for( size_t row=0; row<GIDs.dimension(1); row++ ) {
+            int rowIndex = GIDs(i,row);
             for( size_t col=0; col<num_active_params; col++ ) {
               ScalarT val = local_res(i,row,col);
               d_sub_res_over->SumIntoGlobalValue(rowIndex,col, 1.0*val);
@@ -1616,8 +1627,8 @@ public:
       
       Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
       
-      int snumDOF = cells[usernum][0]->GIDs[0].size();
-      int anumDOF = cells[usernum][0]->auxGIDs.size();
+      int snumDOF = cells[usernum][0]->GIDs.dimension(1);
+      int anumDOF = cells[usernum][0]->auxGIDs.dimension(1);
       
       local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,snumDOF,1);
       local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,snumDOF,anumDOF);
@@ -1645,14 +1656,14 @@ public:
         cells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
                                          true, false, num_active_params, false, true, false,
                                          local_res, local_J, local_Jdot);
-        vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
-        vector<int> aGIDs = cells[usernum][e]->auxGIDs;
+        Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;
+        Kokkos::View<GO**,HostDevice> aGIDs = cells[usernum][e]->auxGIDs;
         vector<vector<int> > aoffsets = cells[usernum][e]->auxoffsets;
         
-        for (int i=0; i<GIDs.size(); i++) {
-          for( size_t row=0; row<GIDs[i].size(); row++ ) {
-            int rowIndex = GIDs[i][row];
-            for( size_t col=0; col<aGIDs.size(); col++ ) {
+        for (int i=0; i<GIDs.dimension(0); i++) {
+          for( size_t row=0; row<GIDs.dimension(1); row++ ) {
+            int rowIndex = GIDs(i,row);
+            for( size_t col=0; col<aGIDs.dimension(1); col++ ) {
               ScalarT val = local_J(i,row,col);
               d_sub_res_over->SumIntoGlobalValue(rowIndex,col, scale*val);
             }
@@ -1923,6 +1934,7 @@ public:
         }
       }
     }
+    
     return objective;
   }
   
@@ -1975,7 +1987,7 @@ public:
     
     if (discparamnames.size() > 0) {
       for (size_t n=0; n<discparamnames.size(); n++) {
-        int paramnumbasis = cells[0][0]->paramindex[n].size();
+        int paramnumbasis = cells[0][0]->paramindex.dimension(1);
         if (paramnumbasis==1) {
           submesh->addCellField(discparamnames[n], subeBlocks[0]);
         }
@@ -2010,16 +2022,16 @@ public:
       vector<vector<int> > suboffsets = physics_RCP->offsets[0];
       // Collect the subgrid solution
       for (int n = 0; n<varlist.size(); n++) { // change to subgrid numVars
-        size_t numsb = cells[usernum][0]->index[0][n].size();
+        size_t numsb = cells[usernum][0]->numDOF(n);//index[0][n].size();
         Kokkos::View<ScalarT**,HostDevice> soln_computed("soln",cells[usernum].size(), numsb); // TMW temp. fix
         string var = varlist[n];
         for( size_t e=0; e<cells[usernum].size(); e++ ) {
           int numElem = cells[usernum][e]->numElem;
+          Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;
           for (int p=0; p<numElem; p++) {
-            vector<int> GIDs = cells[usernum][e]->GIDs[p];
             
             for( int i=0; i<numsb; i++ ) {
-              int pindex = overlapped_map->LID(GIDs[suboffsets[n][i]]);
+              int pindex = overlapped_map->LID(GIDs(p,suboffsets[n][i]));
               if (write_subgrid_state)
                 soln_computed(p,i) = (*(soln[usernum][m].second))[0][pindex];
               else
@@ -2244,7 +2256,7 @@ public:
       
       if (discparamnames.size() > 0) {
         for (size_t n=0; n<discparamnames.size(); n++) {
-          int paramnumbasis = cells[0][0]->paramindex[n].size();
+          int paramnumbasis = cells[0][0]->numParamDOF(n);//paramindex[n].size();
           if (paramnumbasis==1) {
             submesh->addCellField(discparamnames[n], subeBlocks[b]);
           }
@@ -2285,7 +2297,7 @@ public:
       vector<vector<int> > suboffsets = physics_RCP->offsets[0];
       // Collect the subgrid solution
       for (int n = 0; n<varlist.size(); n++) { // change to subgrid numVars
-        size_t numsb = cells[0][0]->index[0][n].size();
+        size_t numsb = cells[0][0]->numDOF(n);//index[0][n].size();
         Kokkos::View<ScalarT**,HostDevice> soln_computed("soln",myElements.size(), numsb); // TMW temp. fix
         string var = varlist[n];
         size_t eprog = 0;
@@ -2293,11 +2305,11 @@ public:
           
           for( size_t e=0; e<cells[b].size(); e++ ) {
             int numElem = cells[b][e]->numElem;
+            Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
             for (int p=0; p<numElem; p++) {
-              vector<int> GIDs = cells[b][e]->GIDs[p];
               
               for( int i=0; i<numsb; i++ ) {
-                int pindex = overlapped_map->LID(GIDs[suboffsets[n][i]]);
+                int pindex = overlapped_map->LID(GIDs(p,suboffsets[n][i]));
                 if (write_subgrid_state)
                   soln_computed(eprog,i) = (*(soln[b][m].second))[0][pindex];
                 else
@@ -2515,13 +2527,13 @@ public:
     int usernum = 0;
     for (size_t e=0; e<cells[usernum].size(); e++) {
       int numElem = cells[usernum][e]->numElem;
-      vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
+      Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;
       Kokkos::View<ScalarT***,AssemblyDevice> localmass = cells[usernum][e]->getMass();
       for (int c=0; c<numElem; c++) {
-        for( size_t row=0; row<GIDs[c].size(); row++ ) {
-          int rowIndex = GIDs[c][row];
-          for( size_t col=0; col<GIDs[c].size(); col++ ) {
-            int colIndex = GIDs[c][col];
+        for( size_t row=0; row<GIDs.dimension(1); row++ ) {
+          int rowIndex = GIDs(c,row);
+          for( size_t col=0; col<GIDs.dimension(1); col++ ) {
+            int colIndex = GIDs(c,col);
             ScalarT val = localmass(c,row,col);
             mass->InsertGlobalValues(rowIndex, 1, &val, &colIndex);
           }
@@ -2610,7 +2622,7 @@ public:
     
     size_t numpts = pts.dimension(1);
     size_t dimpts = pts.dimension(2);
-    size_t numGIDs = cells[0][0]->GIDs[0].size();
+    size_t numGIDs = cells[0][0]->GIDs.dimension(1);
     Kokkos::View<int**,AssemblyDevice> owners("owners",numpts,1+numGIDs);
     
     for (size_t e=0; e<cells[0].size(); e++) {
@@ -2632,9 +2644,9 @@ public:
         for (size_t i=0; i<numpts; i++) {
           if (inRefCell(0,i) == 1) {
             owners(i,0) = c;//cells[0][e]->globalElemID[c];
-            vector<int> GIDs = cells[0][e]->GIDs[c];
+            Kokkos::View<GO**,HostDevice> GIDs = cells[0][e]->GIDs;
             for (size_t j=0; j<numGIDs; j++) {
-              owners(i,j+1) = GIDs[j];
+              owners(i,j+1) = GIDs(c,j);
             }
           }
         }
@@ -2760,7 +2772,7 @@ public:
   // Get the subgrid cell GIDs
   ////////////////////////////////////////////////////////////////////////////////
   
-  vector<vector<int> > getCellGIDs(const int & cellnum) {
+  Kokkos::View<GO**,HostDevice> getCellGIDs(const int & cellnum) {
     return cells[0][cellnum]->GIDs;
   }
   
