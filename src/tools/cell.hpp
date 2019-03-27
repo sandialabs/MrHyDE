@@ -350,9 +350,6 @@ public:
   void setLocalSoln(const Teuchos::RCP<Epetra_MultiVector> & gl_u, const int & type,
                     const size_t & entry);
 
-  void setLocalSoln(const vector_RCP & gl_u, const int & type,
-                    const size_t & entry);
-
   ///////////////////////////////////////////////////////////////////////////////////////
   // Map the coarse grid solution to the fine grid integration points
   ///////////////////////////////////////////////////////////////////////////////////////

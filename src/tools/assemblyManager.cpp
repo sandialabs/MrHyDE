@@ -475,12 +475,67 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
 //
 // ========================================================================================
 
-void AssemblyManager::performGather(const size_t & block, const vector_RCP & vec,
-                                    const int & type, const size_t & index) {
+void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
+                                    const int & type, const size_t & entry) {
   
-  for (size_t e=0; e < cells[block].size(); e++) {
-    cells[block][e]->setLocalSoln(vec, type, index);
+  // Get a view of the vector on the HostDevice
+  auto vec_kv = vec->getLocalView<HostDevice>();
+  
+  // Get a corresponding view on the AssemblyDevice
+  
+  Kokkos::View<LO***,AssemblyDevice> index;
+  Kokkos::View<LO*,AssemblyDevice> numDOF;
+  Kokkos::View<ScalarT***,AssemblyDevice> data;
+  
+  for (size_t c=0; c < cells[b].size(); c++) {
+    switch(type) {
+      case 0 :
+        index = cells[b][c]->index;
+        numDOF = cells[b][c]->numDOF;
+        data = cells[b][c]->u;
+        break;
+      case 1 :
+        index = cells[b][c]->index;
+        numDOF = cells[b][c]->numDOF;
+        data = cells[b][c]->u_dot;
+        break;
+      case 2 :
+        index = cells[b][c]->index;
+        numDOF = cells[b][c]->numDOF;
+        data = cells[b][c]->phi;
+        break;
+      case 3 :
+        index = cells[b][c]->index;
+        numDOF = cells[b][c]->numDOF;
+        data = cells[b][c]->phi_dot;
+        break;
+      case 4:
+        index = cells[b][c]->paramindex;
+        numDOF = cells[b][c]->numParamDOF;
+        data = cells[b][c]->param;
+        break;
+      case 5 :
+        index = cells[b][c]->auxindex;
+        numDOF = cells[b][c]->numAuxDOF;
+        data = cells[b][c]->aux;
+        break;
+      default :
+        cout << "ERROR - NOTHING WAS GATHERED" << endl;
+    }
+    
+    parallel_for(RangePolicy<AssemblyDevice>(0,index.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+      for (size_t n=0; n<index.dimension(1); n++) {
+        for(size_t i=0; i<numDOF(n); i++ ) {
+          data(e,n,i) = vec_kv(index(e,n,i),entry);
+        }
+      }
+    });
   }
+        
+      
+  //for (size_t e=0; e < cells[block].size(); e++) {
+  //  cells[block][e]->setLocalSoln(vec, type, index);
+  //}
   
 }
 
