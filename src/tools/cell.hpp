@@ -528,9 +528,9 @@ public:
   // Compute flux and sensitivity wrt params
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  template<class T>
-  void computeFlux(const Teuchos::RCP<T> & u, const Teuchos::RCP<T> & du,
-                   const Teuchos::RCP<T> & sub_param,
+  void computeFlux(const Teuchos::RCP<Epetra_MultiVector> & u,
+                   const Teuchos::RCP<Epetra_MultiVector> & du,
+                   const Teuchos::RCP<Epetra_MultiVector> & sub_param,
                    Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                    const ScalarT & time, const int & s, const ScalarT & coarse_h,
                    const bool & compute_sens);

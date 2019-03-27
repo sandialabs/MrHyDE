@@ -1942,9 +1942,9 @@ void cell::writeSubgridSolution(const std::string & filename) {
 // Compute flux and sensitivity wrt params
 ///////////////////////////////////////////////////////////////////////////////////////
 
-template<class T>
-void cell::computeFlux(const Teuchos::RCP<T> & gl_u, const Teuchos::RCP<T> & gl_du,
-                       const Teuchos::RCP<T> & params,
+void cell::computeFlux(const Teuchos::RCP<Epetra_MultiVector> & gl_u,
+                       const Teuchos::RCP<Epetra_MultiVector> & gl_du,
+                       const Teuchos::RCP<Epetra_MultiVector> & params,
                        Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                        const ScalarT & time, const int & side, const ScalarT & coarse_h,
                        const bool & compute_sens) {
