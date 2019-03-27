@@ -18,7 +18,7 @@ Bart van Bloemen Waanders (bartv@sandia.gov)
 #include "parameterManager.hpp"
 #include "sensorManager.hpp"
 #include "solverInterface.hpp"
-#include "postprocessInterface.hpp"
+#include "postprocessManager.hpp"
 #include "analysisInterface.hpp"
 #include "trilinos.hpp"
 #include "preferences.hpp"
@@ -190,13 +190,10 @@ int main(int argc,char * argv[]) {
     // Create the postprocessing object
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<postprocess> postproc = Teuchos::rcp( new postprocess(tcomm_LA, settings,
-                                                                       mesh->mesh, disc, phys,
-                                                                       solve, DOF, cells,
-                                                                       functionManager,
-                                                                       assembler,
-                                                                       params,
-                                                                       sensors) );
+    Teuchos::RCP<PostprocessManager>
+    postproc = Teuchos::rcp( new PostprocessManager(tcomm_LA, settings, mesh->mesh, disc, phys,
+                                                    solve, DOF, cells, functionManager,
+                                                    assembler, params, sensors) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // Perform the requested analysis (fwd solve, adj solve, dakota run, etc.)

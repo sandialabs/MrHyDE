@@ -26,7 +26,7 @@
 
 //#include "CDBatchManager.hpp"
 #include "solverInterface.hpp"
-#include "postprocessInterface.hpp"
+#include "postprocessManager.hpp"
 #include "parameterManager.hpp"
 
 #include <iostream>
@@ -44,7 +44,7 @@ namespace ROL {
     
     Real noise_;                                 //standard deviation of normal additive noise to add to data (0 for now)
     Teuchos::RCP<solver> solver_MILO;            // Solver object for MILO (solves FWD, ADJ, computes gradient, etc.)
-    Teuchos::RCP<postprocess> postproc_MILO;     // Solver object for MILO (solves FWD, ADJ, computes gradient, etc.)
+    Teuchos::RCP<PostprocessManager> postproc_MILO;     // Solver object for MILO (solves FWD, ADJ, computes gradient, etc.)
     Teuchos::RCP<ParameterManager> params;
     
   public:
@@ -53,7 +53,7 @@ namespace ROL {
      \brief A constructor generating data
      */
     PObjective_MILO(Teuchos::RCP<solver> solver_MILO_,
-                    Teuchos::RCP<postprocess> postproc_MILO_,
+                    Teuchos::RCP<PostprocessManager> postproc_MILO_,
                     Teuchos::RCP<ParameterManager> & params_) :
     solver_MILO(solver_MILO_), postproc_MILO(postproc_MILO_), params(params_) {
       int dim = solver_MILO->getNumParams(2);

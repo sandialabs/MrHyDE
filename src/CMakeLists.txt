@@ -18,10 +18,10 @@ interfaces/meshInterface.cpp
 interfaces/discretizationInterface.cpp 
 interfaces/physicsInterface.cpp 
 interfaces/solverInterface.cpp 
-interfaces/postprocessInterface.cpp 
 interfaces/analysisInterface.cpp 
 interfaces/uqInterface.cpp 
 interfaces/multiscaleInterface.cpp 
+tools/postprocessManager.cpp 
 tools/assemblyManager.cpp
 tools/parameterManager.cpp
 tools/subgridMeshFactory.cpp 

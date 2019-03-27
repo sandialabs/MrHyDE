@@ -21,7 +21,7 @@
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
 #include "solverInterface.hpp"
-#include "postprocessInterface.hpp"
+#include "postprocessManager.hpp"
 #include "analysisInterface.hpp"
 #include "multiscaleInterface.hpp"
 #include "uqInterface.hpp"

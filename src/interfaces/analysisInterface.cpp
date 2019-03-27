@@ -27,7 +27,7 @@ analysis::analysis(const Teuchos::RCP<LA_MpiComm> & LA_Comm_,
                    const Teuchos::RCP<LA_MpiComm> & S_Comm_,
                    Teuchos::RCP<Teuchos::ParameterList> & settings_,
                    Teuchos::RCP<solver> & solver_,
-                   Teuchos::RCP<postprocess> & postproc_,
+                   Teuchos::RCP<PostprocessManager> & postproc_,
                    Teuchos::RCP<ParameterManager> & params_) :
 LA_Comm(LA_Comm_), S_Comm(S_Comm_), settings(settings_), solve(solver_),
 postproc(postproc_), params(params_) {
