@@ -354,6 +354,11 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
                             vector<bool> & useScalarFunc, const size_t & numip, const size_t & numip_side,
                             const size_t & blocknum) {
   
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting physics::importPhysics ..." << endl;
+    }
+  }
   
   vector<Teuchos::RCP<physicsbase> > currmodules;
   std::string var;
@@ -535,6 +540,12 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
     }
   }
   
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished physics::importPhysics ..." << endl;
+    }
+  }
+  
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -543,6 +554,12 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 Teuchos::RCP<panzer::DOFManager<int,int> > physics::buildDOF(Teuchos::RCP<panzer_stk::STK_Interface> & mesh) {
+  
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting physics::buildDOF ..." << endl;
+    }
+  }
   
   Teuchos::RCP<panzer::DOFManager<int,int> > DOF = Teuchos::rcp(new panzer::DOFManager<int,int>());
   Teuchos::RCP<panzer::ConnManager<int,int> > conn = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
@@ -568,6 +585,12 @@ Teuchos::RCP<panzer::DOFManager<int,int> > physics::buildDOF(Teuchos::RCP<panzer
   }
   
   DOF->buildGlobalUnknowns();
+  
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished physics::buildDOF" << endl;
+    }
+  }
   
   return DOF;
   
@@ -1018,6 +1041,12 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
                         Teuchos::RCP<panzer::DOFManager<int,int> > & DOF,
                         std::vector<std::vector<int> > cards) {
   
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting physics::setBCData ..." << endl;
+    }
+  }
+  
   int maxvars = 0;
   for (size_t b=0; b<blocknames.size(); b++) {
     for (size_t j=0; j<varlist[b].size(); j++) {
@@ -1280,6 +1309,11 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
     
   }
   
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished physics::setBCData" << endl;
+    }
+  }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

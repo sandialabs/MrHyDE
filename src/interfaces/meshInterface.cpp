@@ -29,6 +29,7 @@ settings(settings_), Commptr(Commptr_) {
       cout << "**** Starting mesh interface constructor ..." << endl;
     }
   }
+  
   shape = settings->sublist("Mesh").get<string>("shape","quad");
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   verbosity = settings->sublist("Postprocess").get<int>("Verbosity",1);
@@ -406,6 +407,12 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys, vector<vector<Teuc
   // Create the cells
   ////////////////////////////////////////////////////////////////////////////////
   
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting mesh::creatCells ..." << endl;
+    }
+  }
+  
   int numElem = settings->sublist("Solver").get<int>("Workset size",1);
   vector<string> eBlocks;
   mesh->getElementBlockNames(eBlocks);
@@ -467,12 +474,24 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys, vector<vector<Teuc
   else if (compute_mesh_data) {
     this->computeMeshData(cells);
   }
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished mesh::createCells" << endl;
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells) {
+  
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting mesh::importMeshData ..." << endl;
+    }
+  }
+  
   Teuchos::Time meshimporttimer("mesh import", false);
   meshimporttimer.start();
   
@@ -566,6 +585,11 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
     cout << "mesh data import time: " << meshimporttimer.totalElapsedTime(false) << endl;
   }
   
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished mesh::meshDataImport" << endl;
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -573,6 +597,11 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
 
 void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells) {
   
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting mesh::computeMeshData ..." << endl;
+    }
+  }
   Teuchos::Time meshimporttimer("mesh import", false);
   meshimporttimer.start();
   
@@ -818,6 +847,12 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
     cout << "mesh data compute time: " << meshimporttimer.totalElapsedTime(false) << endl;
   }
   
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished mesh:computeMeshData" << endl;
+    }
+  }
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -910,6 +945,13 @@ void meshInterface::remesh(const vector_RCP & u, vector<vector<Teuchos::RCP<cell
 
 void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
                                  vector<vector<Teuchos::RCP<cell> > > & cells) {
+  
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting mesh::readMeshData ..." << endl;
+    }
+  }
+  
   string exofile;
   string fname;
   
@@ -1046,6 +1088,12 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
     
   }
   exo_error = ex_close(exoid);
+  
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished mesh::readMeshData" << endl;
+    }
+  }
   
 }
 
