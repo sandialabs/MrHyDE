@@ -47,6 +47,14 @@ physics::physics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<L
                  Teuchos::RCP<panzer_stk::STK_Interface> & mesh) :
 Commptr(Comm_), functionManager(functionManager_) {
   
+  milo_debug_level = settings->get<int>("debug level",0);
+  
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting physics constructor ..." << endl;
+    }
+  }
+  
   numElemPerCell = settings->sublist("Solver").get<int>("Workset size",1);
   
   mesh->getElementBlockNames(blocknames);
@@ -326,6 +334,11 @@ Commptr(Comm_), functionManager(functionManager_) {
     }
   }
   
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished physics constructor" << endl;
+    }
+  }
   
   
 }

@@ -2,6 +2,7 @@
 ---
 ANONYMOUS:
   verbosity: 0
+  debug level: 0
   Mesh Settings File: input_mesh.yaml
   Functions Settings File: input_functions.yaml
   Physics: 

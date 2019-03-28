@@ -239,7 +239,8 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
     
     if (first_time) {
       
-      disc = Teuchos::rcp( new discretization(settings, mesh, orders, types, currcells) );
+      disc = Teuchos::rcp( new discretization(settings, LocalComm, mesh, orders,
+                                              types, currcells) );
       
       vector<vector<int> > cards = disc->cards;
       vector<vector<int> > varowned = physics_RCP->varowned;

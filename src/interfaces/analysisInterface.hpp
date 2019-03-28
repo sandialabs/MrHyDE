@@ -53,7 +53,7 @@ protected:
   
   ScalarT response;
   vector<ScalarT> gradient;
-  int verbosity;
+  int verbosity, milo_debug_level;
   
   bool sensIC;
 };

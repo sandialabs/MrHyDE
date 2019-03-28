@@ -31,7 +31,8 @@ class MultiScale {
   /* Constructor to set up the problem */
   // ========================================================================================
   
-  MultiScale(const Teuchos::RCP<LA_MpiComm> & Comm_,
+  MultiScale(const Teuchos::RCP<LA_MpiComm> & MacroComm_,
+             const Teuchos::RCP<LA_MpiComm> & Comm_,
              Teuchos::RCP<Teuchos::ParameterList> & settings_,
              vector<vector<Teuchos::RCP<cell> > > & cells_,
              vector<Teuchos::RCP<SubGridModel> > subgridModels_,
@@ -93,8 +94,9 @@ class MultiScale {
   ////////////////////////////////////////////////////////////////////////////////
   
   bool subgrid_static;
+  int milo_debug_level;
   vector<Teuchos::RCP<SubGridModel> > subgridModels;
-  Teuchos::RCP<LA_MpiComm> Comm;
+  Teuchos::RCP<LA_MpiComm> Comm, MacroComm;
   Teuchos::RCP<Teuchos::ParameterList> settings;
   vector<vector<Teuchos::RCP<cell> > > cells;
   vector<Teuchos::RCP<workset> > macro_wkset;

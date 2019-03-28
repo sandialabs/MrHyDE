@@ -15,14 +15,21 @@
 /* Constructor to set up the problem */
 // ========================================================================================
 
-MultiScale::MultiScale(const Teuchos::RCP<LA_MpiComm> & Comm_,
+MultiScale::MultiScale(const Teuchos::RCP<LA_MpiComm> & MacroComm_,
+                       const Teuchos::RCP<LA_MpiComm> & Comm_,
                        Teuchos::RCP<Teuchos::ParameterList> & settings_,
                        vector<vector<Teuchos::RCP<cell> > > & cells_,
                        vector<Teuchos::RCP<SubGridModel> > subgridModels_,
                        Teuchos::RCP<FunctionInterface> macro_functionManager_ ) :
-Comm(Comm_), settings(settings_), cells(cells_), subgridModels(subgridModels_),
+MacroComm(MacroComm_), Comm(Comm_), settings(settings_), cells(cells_), subgridModels(subgridModels_),
 macro_functionManager(macro_functionManager_) {
   
+  milo_debug_level = settings->get<int>("debug level",0);
+  if (milo_debug_level > 0) {
+    if (MacroComm->getRank() == 0) {
+      cout << "**** Starting multiscale manager constructor ..." << endl;
+    }
+  }
   if (settings->isSublist("Subgrid")) {
     
     ////////////////////////////////////////////////////////////////////////////////
@@ -43,6 +50,12 @@ macro_functionManager(macro_functionManager_) {
   }
   else {
     subgrid_static = true;
+  }
+  
+  if (milo_debug_level > 0) {
+    if (MacroComm->getRank() == 0) {
+      cout << "**** Finished multiscale manager constructor" << endl;
+    }
   }
 }
 

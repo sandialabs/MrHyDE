@@ -86,7 +86,7 @@ class meshInterface {
   Teuchos::RCP<LA_MpiComm> Commptr;
   bool have_mesh_data, compute_mesh_data, have_rotations, have_rotation_phi, have_multiple_data_files;
   string shape, mesh_data_file_tag, mesh_data_pts_tag, mesh_data_tag;
-  int spaceDim, verbosity, number_mesh_data_files;
+  int spaceDim, verbosity, number_mesh_data_files, milo_debug_level;
   int numNodesPerElem, sideDim, numSides, numFaces, numSeeds;
   vector<int> randomSeeds;
   vector<topo_RCP> cellTopo, sideTopo;

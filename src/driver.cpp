@@ -125,7 +125,8 @@ int main(int argc,char * argv[]) {
     // Define the discretization(s)
     ////////////////////////////////////////////////////////////////////////////////
         
-    Teuchos::RCP<discretization> disc = Teuchos::rcp( new discretization(settings, mesh->mesh,
+    Teuchos::RCP<discretization> disc = Teuchos::rcp( new discretization(settings, tcomm_LA,
+                                                                         mesh->mesh,
                                                                          phys->unique_orders,
                                                                          phys->unique_types,
                                                                          cells) );
@@ -148,7 +149,7 @@ int main(int argc,char * argv[]) {
     
     vector<Teuchos::RCP<SubGridModel> > subgridModels = subgridGenerator(tcomm_S, settings, mesh->mesh);
     
-    Teuchos::RCP<MultiScale> multiscale_manager = Teuchos::rcp( new MultiScale(tcomm_S, settings,
+    Teuchos::RCP<MultiScale> multiscale_manager = Teuchos::rcp( new MultiScale(tcomm_LA, tcomm_S, settings,
                                                                                cells, subgridModels,
                                                                                functionManager) );
     

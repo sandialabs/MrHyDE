@@ -27,6 +27,14 @@ solver::solver(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::Par
                Teuchos::RCP<ParameterManager> & params_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembler_), params(params_) { 
   
+  milo_debug_level = settings->get<int>("debug level",0);
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting solver constructor ..." << endl;
+    }
+  }
+  
   // Get the required information from the settings
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   numsteps = settings->sublist("Solver").get("numSteps",1);
@@ -187,25 +195,29 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   
   /////////////////////////////////////////////////////////////////////////////
   
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished solver constructor" << endl;
+    }
+  }
+  
 }
 
+/////////////////////////////////////////////////////////////////////////////
+// Worksets
+/////////////////////////////////////////////////////////////////////////////
+
 void solver::finalizeWorkset() {
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting solver::finalizeWorkset ..." << endl;
+    }
+  }
   
   int nstages = 1;//timeInt->num_stages;
   
   for (size_t b=0; b<assembler->cells.size(); b++) {
-    /*
-    wkset.push_back(Teuchos::rcp( new workset(assembler->cells[b][0]->getInfo(), disc->ref_ip[b],
-                                              disc->ref_wts[b], disc->ref_side_ip[b],
-                                              disc->ref_side_wts[b], disc->basis_types[b],
-                                              disc->basis_pointers[b],
-                                              discretized_param_basis,
-                                              mesh->getCellTopology(blocknames[b])) ) );
-    
-    wkset[b]->isInitialized = true;
-    wkset[b]->block = b;
-     */
-    //wkset[b]->num_stages = nstages;
     vector<vector<int> > voffsets = phys->offsets[b];
     size_t maxoff = 0;
     for (size_t i=0; i<voffsets.size(); i++) {
@@ -256,7 +268,12 @@ void solver::finalizeWorkset() {
     assembler->wkset[b]->paramnames = params->paramnames;
     //assembler->wkset[b]->setupParamBasis(discretized_param_basis);
   }
-  //phys->setWorkset(wkset);
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished solver::finalizeWorsket" << endl;
+    }
+  }
   
 }
 
@@ -266,6 +283,12 @@ void solver::finalizeWorkset() {
 // ========================================================================================
 
 void solver::setupLinearAlgebra() {
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting solver::setupLinearAlgebra..." << endl;
+    }
+  }
   
   const Tpetra::global_size_t INVALID = Teuchos::OrdinalTraits<Tpetra::global_size_t>::invalid ();
   
@@ -326,6 +349,12 @@ void solver::setupLinearAlgebra() {
   }
   
   LA_overlapped_graph->fillComplete();
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished solver::setupLinearAlgebra" << endl;
+    }
+  }
   
 }
 
@@ -398,6 +427,13 @@ Teuchos::RCP<Epetra_CrsGraph> solver::buildEpetraOwnedGraph(Epetra_MpiComm & EP_
 // ========================================================================================
 
 vector_RCP solver::forwardModel(DFAD & obj) {
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting solver::forwardModel ..." << endl;
+    }
+  }
+  
   useadjoint = false;
   
   params->sacadoizeParams(false);
@@ -437,6 +473,12 @@ vector_RCP solver::forwardModel(DFAD & obj) {
   }
   else {
     // print out an error message
+  }
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished solver::forwardModel" << endl;
+    }
   }
   
   return F_soln;
@@ -508,6 +550,13 @@ vector_RCP solver::forwardModel_fr(DFAD & obj, ScalarT yt, ScalarT st) {
 // ========================================================================================
 
 vector_RCP solver::adjointModel(vector_RCP & F_soln, vector<ScalarT> & gradient) {
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting solver::adjointModel ..." << endl;
+    }
+  }
+  
   useadjoint = true;
   
   params->sacadoizeParams(false);
@@ -560,6 +609,13 @@ vector_RCP solver::adjointModel(vector_RCP & F_soln, vector<ScalarT> & gradient)
   }
   
   useadjoint = false;
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished solver::adjointModel" << endl;
+    }
+  }
+  
   return A_soln;
 }
 
@@ -570,6 +626,13 @@ vector_RCP solver::adjointModel(vector_RCP & F_soln, vector<ScalarT> & gradient)
 
 void solver::transientSolver(vector_RCP & initial, vector_RCP & L_soln,
                      vector_RCP & SolMat, DFAD & obj, vector<ScalarT> & gradient) {
+  
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "******** Starting solver::transientSolver ..." << endl;
+    }
+  }
+  
   vector_RCP u = initial;
   vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
   vector_RCP phi = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
@@ -725,6 +788,13 @@ void solver::transientSolver(vector_RCP & initial, vector_RCP & L_soln,
     //}
     //isInitial = false; // only true on first time step
   }
+  
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "******** Finished solver::transientSolver" << endl;
+    }
+  }
+  
 }
 
 // ========================================================================================
@@ -734,6 +804,12 @@ void solver::transientSolver(vector_RCP & initial, vector_RCP & L_soln,
 void solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
                      vector_RCP & phi, vector_RCP & phi_dot,
                      const ScalarT & alpha, const ScalarT & beta) {
+  
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "******** Starting solver::nonlinearSolver ..." << endl;
+    }
+  }
   
   int NLiter = 0;
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> NLerr_first(1);
@@ -902,6 +978,11 @@ void solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
         << " iterations with residual norm " << NLerr[0] << endl;
         cout << "********************" << endl;
       }
+    }
+  }
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "******** Finished solver::nonlinearSolver" << endl;
     }
   }
   

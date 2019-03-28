@@ -20,10 +20,15 @@ meshInterface::meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                              const Teuchos::RCP<LA_MpiComm> & Commptr_) :
 settings(settings_), Commptr(Commptr_) {
   
-  
   using Teuchos::RCP;
   using Teuchos::rcp;
   
+  milo_debug_level = settings->get<int>("debug level",0);
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting mesh interface constructor ..." << endl;
+    }
+  }
   shape = settings->sublist("Mesh").get<string>("shape","quad");
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   verbosity = settings->sublist("Postprocess").get<int>("Verbosity",1);
@@ -189,6 +194,11 @@ settings(settings_), Commptr(Commptr_) {
     
   }
 
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished mesh interface constructor" << endl;
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

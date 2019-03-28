@@ -13,10 +13,19 @@
 #include "discretizationTools.hpp"
 
 discretization::discretization(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                               Teuchos::RCP<LA_MpiComm> & Comm_,
                                Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
                                vector<vector<int> > & orders, vector<vector<string> > & types,
-                               vector<vector<Teuchos::RCP<cell> > > & cells) {
+                               vector<vector<Teuchos::RCP<cell> > > & cells) :
+Commptr(Comm_) {
   
+  milo_debug_level = settings->get<int>("debug level",0);
+  
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting discretization constructor..." << endl;
+    }
+  }
   
   ////////////////////////////////////////////////////////////////////////////////
   // Collect some information
@@ -184,6 +193,11 @@ discretization::discretization(Teuchos::RCP<Teuchos::ParameterList> & settings,
     
   } // block loop
   
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished discretization constructor" << endl;
+    }
+  }
 }
 
 void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & cells,

@@ -25,6 +25,14 @@ AssemblyManager::AssemblyManager(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), cells(cells_), params(params_) {
   
   // Get the required information from the settings
+  milo_debug_level = settings->get<int>("debug level",0);
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting assembly manager constructor ..." << endl;
+    }
+  }
+  
   verbosity = settings->get<int>("verbosity",0);
   usestrongDBCs = settings->sublist("Solver").get<bool>("use strong DBCs",true);
   use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("Use Measurements as DBCs", false);
@@ -36,6 +44,12 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), cells(cells_), pa
   numVars = phys->numVars; //
   varlist = phys->varlist;
   
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished assembly manager constructor" << endl;
+    }
+  }
+  
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -43,6 +57,12 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), cells(cells_), pa
 /////////////////////////////////////////////////////////////////////////////
 
 void AssemblyManager::createWorkset() {
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting AssemblyManager::createWorkset ..." << endl;
+    }
+  }
   
   for (size_t b=0; b<cells.size(); b++) {
     wkset.push_back(Teuchos::rcp( new workset(cells[b][0]->getInfo(), disc->ref_ip[b],
@@ -58,6 +78,12 @@ void AssemblyManager::createWorkset() {
   
   phys->setWorkset(wkset);
   params->wkset = wkset;
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished AssemblyManager::createWorkset" << endl;
+    }
+  }
   
 }
 
@@ -281,6 +307,12 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
                                      const int & num_active_params,
                                      vector_RCP & Psol, const bool & is_final_time) {
   
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "******** Starting AssemblyManager::assembleJacRes ..." << endl;
+    }
+  }
+  
   int numRes = res->getNumVectors();
   
   Teuchos::TimeMonitor localassemblytimer(*assemblytimer);
@@ -388,6 +420,15 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
         
       }
       
+      if (milo_debug_level > 2) {
+        if (Comm->getRank() == 0) {
+          cout << "in here" << endl;
+          KokkosTools::print(local_res);
+          KokkosTools::print(local_J);
+          KokkosTools::print(local_Jdot);
+        }
+      }
+      
       ///////////////////////////////////////////////////////////////////////////
       // Insert into global matrix/vector
       ///////////////////////////////////////////////////////////////////////////
@@ -468,6 +509,12 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
       this->updateResDBC(res,fixedDOFs[b]);
     }
   }
+  
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "******** Finished AssemblyManager::assembleJacRes" << endl;
+    }
+  }
 }
 
 
@@ -523,6 +570,13 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
         cout << "ERROR - NOTHING WAS GATHERED" << endl;
     }
     
+    if (milo_debug_level > 2) {
+      if (Comm->getRank() == 0) {
+        KokkosTools::print(index);
+        KokkosTools::print(numDOF);
+        KokkosTools::print(data);
+      }
+    }
     parallel_for(RangePolicy<AssemblyDevice>(0,index.dimension(0)), KOKKOS_LAMBDA (const int e ) {
       for (size_t n=0; n<index.dimension(1); n++) {
         for(size_t i=0; i<numDOF(n); i++ ) {

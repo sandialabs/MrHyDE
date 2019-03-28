@@ -120,7 +120,7 @@ public:
   Teuchos::RCP<physics> phys;
   
   size_t globalParamUnknowns;
-  int verbosity;
+  int verbosity, milo_debug_level;
   vector<vector<Teuchos::RCP<cell> > > cells;
   vector<Teuchos::RCP<workset> > wkset;
   

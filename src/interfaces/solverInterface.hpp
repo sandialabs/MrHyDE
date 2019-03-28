@@ -94,12 +94,7 @@ public:
   void nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
                        vector_RCP & phi, vector_RCP & phi_dot,
                        const ScalarT & alpha, const ScalarT & beta);
-  
-  
-  
-  
-  
-  
+    
   // ========================================================================================
   // ========================================================================================
   
@@ -132,12 +127,6 @@ public:
   // ========================================================================================
   
   ScalarT computeError(const vector_RCP & GF_soln, const vector_RCP & GA_soln);
-  
-  
-  
-  
-  
-  
   
   // ========================================================================================
   // ========================================================================================
@@ -202,14 +191,14 @@ public:
   Teuchos::RCP<AssemblyManager> assembler;
   Teuchos::RCP<ParameterManager> params;
   Teuchos::RCP<meshInterface>  mesh;
-    
+  
   Teuchos::RCP<const LA_Map> LA_owned_map, LA_overlapped_map;
   Teuchos::RCP<LA_CrsGraph> LA_owned_graph, LA_overlapped_graph;
   Teuchos::RCP<LA_Export> exporter;
   Teuchos::RCP<LA_Import> importer;
   
   int numUnknowns, numUnknownsOS, globalNumUnknowns, MaxNLiter, time_order, liniter, kspace;
-  int verbosity, batchID, spaceDim, numsteps, gNLiter;
+  int verbosity, batchID, spaceDim, numsteps, gNLiter, milo_debug_level;
   
   vector<LO> owned, ownedAndShared, LA_owned, LA_ownedAndShared;
   

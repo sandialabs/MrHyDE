@@ -32,6 +32,8 @@ analysis::analysis(const Teuchos::RCP<LA_MpiComm> & LA_Comm_,
 LA_Comm(LA_Comm_), S_Comm(S_Comm_), settings(settings_), solve(solver_),
 postproc(postproc_), params(params_) {
   verbosity = settings->get<int>("verbosity",0);
+  milo_debug_level = settings->get<int>("debug level",0);
+  // No debug output on this constructor
 }
 
 
@@ -40,6 +42,12 @@ postproc(postproc_), params(params_) {
 // ========================================================================================
 
 void analysis::run() {
+  
+  if (milo_debug_level > 0) {
+    if (LA_Comm->getRank() == 0) {
+      cout << "**** Starting analysis::run ..." << endl;
+    }
+  }
   
   std::string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
   DFAD objfun = 0.0;
@@ -794,4 +802,11 @@ void analysis::run() {
     postproc->writeSolution(zero_sol, settings->sublist("Postprocess").get<string>("Output File","output"));
     
   }
+  
+  if (milo_debug_level > 0) {
+    if (LA_Comm->getRank() == 0) {
+      cout << "**** FInished analysis::run" << endl;
+    }
+  }
+  
 }

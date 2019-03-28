@@ -301,7 +301,7 @@ public:
   Teuchos::RCP<LA_MpiComm> Commptr;
   
   vector<string> blocknames;
-  int spaceDim, numElemPerCell;
+  int spaceDim, numElemPerCell, milo_debug_level;
   size_t numBlocks;
   
   vector<int> numVars;
