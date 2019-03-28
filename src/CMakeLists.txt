@@ -26,6 +26,7 @@ tools/assemblyManager.cpp
 tools/parameterManager.cpp
 tools/subgridMeshFactory.cpp 
 tools/cell.cpp
+tools/workset.cpp
 tools/split_mpi_communicators.cpp 
 tools/subgridFEM.cpp 
 user/functionInterface.cpp)
@@ -41,5 +42,6 @@ TARGET_LINK_LIBRARIES(test_interpreter ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBR
 
 ADD_EXECUTABLE(test_functions
 test/test_functions.cpp
+tools/workset.cpp
 user/functionInterface.cpp)
 TARGET_LINK_LIBRARIES(test_functions ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
