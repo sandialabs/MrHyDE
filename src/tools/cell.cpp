@@ -135,7 +135,7 @@ void cell::setLocalSoln(const Teuchos::RCP<Epetra_MultiVector> & gl_vec, const i
   // which may be different from num_stages, but always nstages <= num_stages
   
   // In general, gl_vec will reside in host memory
-  // We may want to thread this gather on host
+  // This function will not work properly on a GPU and will soon be deprecated
   
   switch(type) {
     case 0 :
@@ -774,7 +774,7 @@ void cell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,Assembly
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   if (compute_sens) {
-    for (int e=0; e<numElem; e++) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,local_res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
       for (int r=0; r<local_res.dimension(2); r++) {
         for (int n=0; n<index.dimension(1); n++) {
           for (int j=0; j<numDOF(n); j++) {
@@ -782,16 +782,16 @@ void cell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,Assembly
           }
         }
       }
-    }
+    });
   }
   else {
-    for (int e=0; e<numElem; e++) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,local_res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
       for (int n=0; n<index.dimension(1); n++) {
         for (int j=0; j<numDOF(n); j++) {
           local_res(e,offsets(n,j),0) -= res_AD(e,offsets(n,j)).val();
         }
       }
-    }
+    });
   }
 }
 
@@ -803,7 +803,7 @@ void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,A
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->adjrhs;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   if (compute_sens) {
-    for (int e=0; e<numElem; e++) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,local_res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
       for (int r=0; r<maxDerivs; r++) {
         for (int n=0; n<index.dimension(1); n++) {
           for (int j=0; j<numDOF(n); j++) {
@@ -811,16 +811,16 @@ void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,A
           }
         }
       }
-    }
+    });
   }
   else {
-    for (int e=0; e<numElem; e++) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,local_res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
       for (int n=0; n<index.dimension(1); n++) {
         for (int j=0; j<numDOF(n); j++) {
           local_res(e,offsets(n,j),0) -= res_AD(e,offsets(n,j)).val();
         }
       }
-    }
+    });
   }
 }
 
@@ -835,7 +835,7 @@ void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDe
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   
   if (useadjoint) {
-    for (int e=0; e<numElem; e++) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,local_J.dimension(0)), KOKKOS_LAMBDA (const int e ) {
       for (int n=0; n<index.dimension(1); n++) {
         for (int j=0; j<numDOF(n); j++) {
           for (int m=0; m<index.dimension(1); m++) {
@@ -845,10 +845,10 @@ void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDe
           }
         }
       }
-    }
+    });
   }
   else {
-    for (int e=0; e<numElem; e++) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,local_J.dimension(0)), KOKKOS_LAMBDA (const int e ) {
       for (int n=0; n<index.dimension(1); n++) {
         for (int j=0; j<numDOF(n); j++) {
           for (int m=0; m<index.dimension(1); m++) {
@@ -858,7 +858,7 @@ void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDe
           }
         }
       }
-    }
+    });
   }
 }
 
@@ -872,7 +872,7 @@ void cell::updateJacDot(const bool & useadjoint, Kokkos::View<ScalarT***,Assembl
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   
   if (useadjoint) {
-    for (int e=0; e<numElem; e++) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,local_Jdot.dimension(0)), KOKKOS_LAMBDA (const int e ) {
       for (int n=0; n<index.dimension(1); n++) {
         for (int j=0; j<numDOF(n); j++) {
           for (int m=0; m<index.dimension(1); m++) {
@@ -882,10 +882,10 @@ void cell::updateJacDot(const bool & useadjoint, Kokkos::View<ScalarT***,Assembl
           }
         }
       }
-    }
+    });
   }
   else {
-    for (int e=0; e<numElem; e++) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,local_Jdot.dimension(0)), KOKKOS_LAMBDA (const int e ) {
       for (int n=0; n<index.dimension(1); n++) {
         for (int j=0; j<numDOF(n); j++) {
           for (int m=0; m<index.dimension(1); m++) {
@@ -895,7 +895,7 @@ void cell::updateJacDot(const bool & useadjoint, Kokkos::View<ScalarT***,Assembl
           }
         }
       }
-    }
+    });
   }
   bool lumpmass = false;
   /* // TMW: Commented this out since have it hard-coded to false
@@ -923,7 +923,7 @@ void cell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   Kokkos::View<int**,AssemblyDevice> paramoffsets = wkset->paramoffsets;
   
-  for (int e=0; e<numElem; e++) {
+  parallel_for(RangePolicy<AssemblyDevice>(0,local_J.dimension(0)), KOKKOS_LAMBDA (const int e ) {
     for (int n=0; n<index.dimension(1); n++) {
       for (int j=0; j<numDOF(n); j++) {
         for (int m=0; m<paramindex.dimension(1); m++) {
@@ -933,7 +933,7 @@ void cell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
         }
       }
     }
-  }
+  });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -946,7 +946,7 @@ void cell::updateParamJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot)
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   Kokkos::View<int**,AssemblyDevice> paramoffsets = wkset->paramoffsets;
   
-  for (int e=0; e<numElem; e++) {
+  parallel_for(RangePolicy<AssemblyDevice>(0,local_Jdot.dimension(0)), KOKKOS_LAMBDA (const int e ) {
     for (int n=0; n<index.dimension(1); n++) {
       for (int j=0; j<numDOF(n); j++) {
         for (int m=0; m<paramindex.dimension(1); m++) {
@@ -956,7 +956,7 @@ void cell::updateParamJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot)
         }
       }
     }
-  }
+  });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -968,7 +968,7 @@ void cell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   
-  for (int e=0; e<numElem; e++) {
+  parallel_for(RangePolicy<AssemblyDevice>(0,local_J.dimension(0)), KOKKOS_LAMBDA (const int e ) {
     for (int n=0; n<index.dimension(1); n++) {
       for (int j=0; j<numDOF(n); j++) {
         for (int m=0; m<auxindex.dimension(1); m++) {
@@ -978,7 +978,7 @@ void cell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
         }
       }
     }
-  }
+  });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -990,7 +990,7 @@ void cell::updateAuxJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   
-  for (int e=0; e<numElem; e++) {
+  parallel_for(RangePolicy<AssemblyDevice>(0,local_Jdot.dimension(0)), KOKKOS_LAMBDA (const int e ) {
     for (int n=0; n<index.dimension(1); n++) {
       for (int j=0; j<numDOF(n); j++) {
         for (int m=0; m<auxindex.dimension(1); m++) {
@@ -1000,7 +1000,7 @@ void cell::updateAuxJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
         }
       }
     }
-  }
+  });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -1052,7 +1052,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
   wkset->update(ip,ijac,orientation);
   vector<string> basis_types = wkset->basis_types;
   
-  for (int e=0; e<numElem; e++) {
+  parallel_for(RangePolicy<AssemblyDevice>(0,mass.dimension(0)), KOKKOS_LAMBDA (const int e ) {
     for (int n=0; n<index.dimension(1); n++) {
       for( int i=0; i<numDOF(n); i++ ) {
         for (int m=0; m<index.dimension(1); m++) {
@@ -1066,7 +1066,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
         }
       }
     }
-  }
+  });
   return mass;
 }
 

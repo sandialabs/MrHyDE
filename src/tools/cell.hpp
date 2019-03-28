@@ -336,16 +336,6 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   // Set the local solutions
   ///////////////////////////////////////////////////////////////////////////////////////
-  /*
-  void setLocalSolns(const vector_RCP & gl_u, const vector_RCP & gl_u_dot,
-                     const vector_RCP & gl_phi, const vector_RCP & gl_phi_dot,
-                     const vector_RCP & gl_param, //const vector_RCP & gl_aux,
-                     const bool & isAdjoint);
-  */
-  
-  ///////////////////////////////////////////////////////////////////////////////////////
-  // Set the local solutions
-  ///////////////////////////////////////////////////////////////////////////////////////
   
   void setLocalSoln(const Teuchos::RCP<Epetra_MultiVector> & gl_u, const int & type,
                     const size_t & entry);
@@ -577,25 +567,6 @@ public:
   void setUpSubGradient(const int & numParams) {
     subgradient = Kokkos::View<ScalarT**,AssemblyDevice>("subgrid gradient",numElem,numParams);
   }
-
-  ///////////////////////////////////////////////////////////////////////////////////////
-  // Get the subgrid timers
-  ///////////////////////////////////////////////////////////////////////////////////////
-
-  /*
-  vector<Teuchos::RCP<Teuchos::Time> > getSubgridTimers() {
-    vector<Teuchos::RCP<Teuchos::Time> > subtimers;
-    vector<Teuchos::RCP<Teuchos::Time> > subwksettimers;
-    if (multiscale) {
-      subtimers = subgridModel->timers;
-      subwksettimers = subgridModel->wkset[0]->timers;
-      for (size_t i=0; i<subwksettimers.size(); i++) {
-        subtimers.push_back(subwksettimers[i]);
-      }
-    }
-    return subtimers;
-  }
-  */
    
   ///////////////////////////////////////////////////////////////////////////////////////
   // Update the subgrid model
