@@ -29,6 +29,9 @@
 #include "Teuchos_Time.hpp"
 #include "Teuchos_TimeMonitor.hpp"
 
+// Kokkos include
+#include "Kokkos_Core.hpp"
+
 //Epetra includes
 #include "Epetra_Map.h"
 #include "Epetra_LinearProblem.h"
