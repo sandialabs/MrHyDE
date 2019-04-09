@@ -80,6 +80,27 @@ public:
   
   ScalarT makeSomeNoise(ScalarT stdev);
   
+  // ========================================================================================
+  // The following function is the adjoint-based error estimate
+  // Not to be confused with the postprocess::computeError function which uses a true
+  //   solution to perform verification studies
+  // ========================================================================================
+  
+  ScalarT computeError(const vector_RCP & GF_soln, const vector_RCP & GA_soln);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  vector<ScalarT> computeParameterSensitivities(const vector_RCP & GF_soln,
+                                       const vector_RCP & GA_soln);
+  
+  // ========================================================================================
+  // Compute the sensitivity of the objective with respect to discretized parameters
+  // ========================================================================================
+  
+  vector<ScalarT> computeDiscretizedSensitivities(const vector_RCP & F_soln,
+                                                  const vector_RCP & A_soln);
+  
 protected:
   
   Teuchos::RCP<LA_MpiComm> Comm;

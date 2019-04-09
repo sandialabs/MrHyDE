@@ -37,7 +37,7 @@ public:
   solver(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
          Teuchos::RCP<meshInterface> & mesh_,
          Teuchos::RCP<discretization> & disc_,
-         Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
+         Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<LO,GO> > & DOF_,
          Teuchos::RCP<AssemblyManager> & assembler_,
          Teuchos::RCP<ParameterManager> & params_);
   
@@ -103,30 +103,10 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  vector<ScalarT> computeSensitivities(const vector_RCP & GF_soln,
-                                      const vector_RCP & GA_soln);
-  
-  // ========================================================================================
-  // Compute the sensitivity of the objective with respect to discretized parameters
-  // ========================================================================================
-  
-  vector<ScalarT> computeDiscretizedSensitivities(const vector_RCP & F_soln,
-                                                 const vector_RCP & A_soln);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
   void computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
                             vector_RCP & a2, vector<ScalarT> & gradient,
                             const ScalarT & alpha, const ScalarT & beta);
   
-  // ========================================================================================
-  // The following function is the adjoint-based error estimate
-  // Not to be confused with the postprocess::computeError function which uses a true
-  //   solution to perform verification studies
-  // ========================================================================================
-  
-  ScalarT computeError(const vector_RCP & GF_soln, const vector_RCP & GA_soln);
   
   // ========================================================================================
   // ========================================================================================
@@ -172,7 +152,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void setBatchID(const int & bID);
+  void setBatchID(const LO & bID);
   
   // ========================================================================================
   // ========================================================================================
@@ -197,8 +177,9 @@ public:
   Teuchos::RCP<LA_Export> exporter;
   Teuchos::RCP<LA_Import> importer;
   
-  int numUnknowns, numUnknownsOS, globalNumUnknowns, MaxNLiter, time_order, liniter, kspace;
-  int verbosity, batchID, spaceDim, numsteps, gNLiter, milo_debug_level;
+  LO numUnknowns, numUnknownsOS;
+  GO globalNumUnknowns;
+  int verbosity, batchID, spaceDim, numsteps, gNLiter, milo_debug_level, MaxNLiter, time_order, liniter, kspace;
   
   vector<LO> owned, ownedAndShared, LA_owned, LA_ownedAndShared;
   
@@ -217,8 +198,8 @@ public:
   vector<string> blocknames;
   vector<vector<string> > varlist;
   
-  vector<vector<int> > numBasis, useBasis;
-  vector<int> maxBasis, numVars;
+  vector<vector<LO> > numBasis, useBasis;
+  vector<LO> maxBasis, numVars;
   
   Teuchos::RCP<MultiScale> multiscale_manager;
   
@@ -227,7 +208,7 @@ private:
   Teuchos::RCP<LA_MpiComm> Comm;
   Teuchos::RCP<discretization> disc;
   Teuchos::RCP<physics> phys;
-  Teuchos::RCP<const panzer::DOFManager<int,int> > DOF;
+  Teuchos::RCP<const panzer::DOFManager<LO,GO> > DOF;
   
   Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - total assembly");
   Teuchos::RCP<Teuchos::Time> linearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::linearSolver()");

@@ -22,7 +22,7 @@
 solver::solver(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
                Teuchos::RCP<meshInterface> & mesh_,
                Teuchos::RCP<discretization> & disc_,
-               Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
+               Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<LO,GO> > & DOF_,
                Teuchos::RCP<AssemblyManager> & assembler_,
                Teuchos::RCP<ParameterManager> & params_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembler_), params(params_) { 
@@ -108,10 +108,10 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   
   // needed information from the DOF manager
   DOF->getOwnedIndices(LA_owned);
-  numUnknowns = (int)LA_owned.size();
+  numUnknowns = (LO)LA_owned.size();
   DOF->getOwnedAndGhostedIndices(LA_ownedAndShared);
-  numUnknownsOS = (int)LA_ownedAndShared.size();
-  int localNumUnknowns = numUnknowns;
+  numUnknownsOS = (LO)LA_ownedAndShared.size();
+  LO localNumUnknowns = numUnknowns;
   
   DOF->getOwnedIndices(owned);
   DOF->getOwnedAndGhostedIndices(ownedAndShared);
@@ -338,7 +338,7 @@ void solver::setupLinearAlgebra() {
           ind2[i] = gids(p,i);
         }
         for (size_t i=0; i<gids.dimension(1); i++) {
-          int ind1 = gids(p,i);
+          GO ind1 = gids(p,i);
           LA_overlapped_graph->insertGlobalIndices(ind1,ind2);
         }
         //cellindices.push_back(indices);
@@ -365,7 +365,7 @@ void solver::setupLinearAlgebra() {
 Teuchos::RCP<Epetra_CrsGraph> solver::buildEpetraOverlappedGraph(Epetra_MpiComm & EP_Comm) {
   
   //Epetra_MpiComm EP_Comm(*(Comm->getRawMpiComm()));
-  Teuchos::RCP<Epetra_Map> Ep_map = Teuchos::rcp(new Epetra_Map(-1, (int)LA_ownedAndShared.size(), &LA_ownedAndShared[0], 0, EP_Comm));
+  Teuchos::RCP<Epetra_Map> Ep_map = Teuchos::rcp(new Epetra_Map(-1, (LO)LA_ownedAndShared.size(), &LA_ownedAndShared[0], 0, EP_Comm));
    
   Teuchos::RCP<Epetra_CrsGraph> Ep_graph = Teuchos::rcp(new Epetra_CrsGraph(Copy, *Ep_map, 0));
   
@@ -377,9 +377,9 @@ Teuchos::RCP<Epetra_CrsGraph> solver::buildEpetraOverlappedGraph(Epetra_MpiComm 
       gids = assembler->cells[b][e]->GIDs;
       for (int p=0; p<gids.dimension(0); p++) {
         for (size_t i=0; i<gids.dimension(1); i++) {
-          int ind1 = gids(p,i);
+          GO ind1 = gids(p,i);
           for (size_t j=0; j<gids.dimension(1); j++) {
-            int ind2 = gids(p,j);
+            GO ind2 = gids(p,j);
             int err = Ep_graph->InsertGlobalIndices(ind1,1,&ind2);
           }
         }
@@ -397,7 +397,7 @@ Teuchos::RCP<Epetra_CrsGraph> solver::buildEpetraOverlappedGraph(Epetra_MpiComm 
 Teuchos::RCP<Epetra_CrsGraph> solver::buildEpetraOwnedGraph(Epetra_MpiComm & EP_Comm) {
   
   //Epetra_MpiComm EP_Comm(*(Comm->getRawMpiComm()));
-  Teuchos::RCP<Epetra_Map> Ep_map = Teuchos::rcp(new Epetra_Map(-1, (int)LA_owned.size(), &LA_owned[0], 0, EP_Comm));
+  Teuchos::RCP<Epetra_Map> Ep_map = Teuchos::rcp(new Epetra_Map(-1, (LO)LA_owned.size(), &LA_owned[0], 0, EP_Comm));
   
   Teuchos::RCP<Epetra_CrsGraph> Ep_graph = Teuchos::rcp(new Epetra_CrsGraph(Copy, *Ep_map, 0));
   
@@ -409,9 +409,9 @@ Teuchos::RCP<Epetra_CrsGraph> solver::buildEpetraOwnedGraph(Epetra_MpiComm & EP_
       gids = assembler->cells[b][e]->GIDs;
       for (int p=0; p<gids.dimension(0); p++) {
         for (size_t i=0; i<gids.dimension(1); i++) {
-          int ind1 = gids(p,i);
+          GO ind1 = gids(p,i);
           for (size_t j=0; j<gids.dimension(1); j++) {
-            int ind2 = gids(p,j);
+            GO ind2 = gids(p,j);
             int err = Ep_graph->InsertGlobalIndices(ind1,1,&ind2);
           }
         }
@@ -746,12 +746,12 @@ void solver::transientSolver(vector_RCP & initial, vector_RCP & L_soln,
     this->nonlinearSolver(u, u_dot, phi, phi_dot, alpha, beta);
     
     if (!useadjoint) {
-      for( int i=0; i<LA_ownedAndShared.size(); i++ ) {
+      for( LO i=0; i<LA_ownedAndShared.size(); i++ ) {
         solmat_kv(i,timeiter+1) = u_kv(i,0);
       }
     }
     else {
-      for( int i=0; i<LA_ownedAndShared.size(); i++ ) {
+      for( LO i=0; i<LA_ownedAndShared.size(); i++ ) {
         solmat_kv(i,timeiter+1) = phi_kv(i,0);
       }
     }
@@ -1030,7 +1030,7 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
             
             if (params->globalParamUnknowns > 0) {
               for (int row=0; row<params->paramoffsets[0].size(); row++) {
-                int rowIndex = paramGIDs(c,params->paramoffsets[0][row]);
+                GO rowIndex = paramGIDs(c,params->paramoffsets[0][row]);
                 int poffset = params->paramoffsets[0][row];
                 ScalarT val;
                 if (obj(c,i).size() > params->num_active_params) {
@@ -1121,222 +1121,6 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
   return fullobj;
   
 }
-
-// ========================================================================================
-// ========================================================================================
-
-vector<ScalarT> solver::computeSensitivities(const vector_RCP & GF_soln,
-                                    const vector_RCP & GA_soln) {
-  if(Comm->getRank() == 0 && verbosity>0) {
-    cout << endl << "*********************************************************" << endl;
-    cout << "***** Computing Sensitivities ******" << endl << endl;
-  }
-  
-  vector_RCP u = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // forward solution
-  vector_RCP a2 = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // adjoint solution
-  vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // previous solution (can be either fwd or adj)
-  
-  auto u_kv = u->getLocalView<HostDevice>();
-  auto a2_kv = a2->getLocalView<HostDevice>();
-  auto u_dot_kv = u_dot->getLocalView<HostDevice>();
-  auto GF_kv = GF_soln->getLocalView<HostDevice>();
-  auto GA_kv = GA_soln->getLocalView<HostDevice>();
-  
-  ScalarT alpha = 0.0;
-  ScalarT beta = 1.0;
-  
-  vector<ScalarT> gradient(params->num_active_params);
-  
-  params->sacadoizeParams(true);
-  
-  vector<ScalarT> localsens(params->num_active_params);
-  ScalarT globalsens = 0.0;
-  int nsteps = 1;
-  if (isTransient)
-  nsteps = solvetimes.size()-1;
-  
-  for (int timeiter = 0; timeiter<nsteps; timeiter++) {
-    
-    if (isTransient) {
-      current_time = solvetimes[timeiter+1];
-      for( size_t i=0; i<LA_ownedAndShared.size(); i++ ) {
-        u_dot_kv(i,0) = alpha*(GF_kv(i,timeiter+1) - GF_kv(i,timeiter));
-        u_kv(i,0) = GF_kv(i,timeiter+1);
-      }
-      for( size_t i=0; i<LA_owned.size(); i++ ) {
-        a2_kv(i,0) = GA_kv(i,nsteps-timeiter);
-      }
-    }
-    else {
-      current_time = solvetimes[timeiter];
-      for( size_t i=0; i<LA_ownedAndShared.size(); i++ ) {
-        u_kv(i,0) = GF_kv(i,timeiter);
-      }
-      for( size_t i=0; i<LA_owned.size(); i++ ) {
-        a2_kv(i,0) = GA_kv(i,nsteps-timeiter-1);
-      }
-    }
-    
-    
-    vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,params->num_active_params)); // reset residual
-    matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
-    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,params->num_active_params)); // reset residual
-    matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
-    res_over->putScalar(0.0);
-    
-    //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, false, true, false, res_over, J_over);
-    assembler->assembleJacRes(u, u_dot, u, u_dot, alpha, beta, false, true, false,
-                              res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
-                              params->num_active_params, params->Psol[0], is_final_time);
-    
-    res->putScalar(0.0);
-    res->doExport(*res_over, *exporter, Tpetra::ADD);
-    
-    auto res_kv = res->getLocalView<HostDevice>();
-    
-    for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
-      ScalarT currsens = 0.0;
-      for( size_t i=0; i<LA_owned.size(); i++ ) {
-        currsens += a2_kv(i,0) * res_kv(i,paramiter);
-      }
-      localsens[paramiter] -= currsens;
-    }
-  }
-  
-  ScalarT localval = 0.0;
-  ScalarT globalval = 0.0;
-  for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
-    localval = localsens[paramiter];
-    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
-    //Comm->SumAll(&localval, &globalval, 1);
-    gradient[paramiter] = globalval;
-  }
-  
-  if(Comm->getRank() == 0 && batchID == 0) {
-    stringstream ss;
-    std::string sname2 = "sens.dat";
-    ofstream sensOUT(sname2.c_str());
-    sensOUT.precision(16);
-    for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
-      sensOUT << gradient[paramiter] << "  ";
-    }
-    sensOUT << endl;
-    sensOUT.close();
-  }
-  
-  return gradient;
-}
-
-
-// ========================================================================================
-// Compute the sensitivity of the objective with respect to discretized parameters
-// ========================================================================================
-
-vector<ScalarT> solver::computeDiscretizedSensitivities(const vector_RCP & F_soln,
-                                               const vector_RCP & A_soln) {
-  
-  if(Comm->getRank() == 0 && verbosity>0) {
-    cout << endl << "*********************************************************" << endl;
-    cout << "***** Computing Discretized Sensitivities ******" << endl << endl;
-  }
-  auto F_kv = F_soln->getLocalView<HostDevice>();
-  auto A_kv = A_soln->getLocalView<HostDevice>();
-  
-  vector_RCP u = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // forward solution
-  vector_RCP a2 = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // adjoint solution
-  vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // previous solution (can be either fwd or adj)
-  
-  auto u_kv = u->getLocalView<HostDevice>();
-  auto a2_kv = a2->getLocalView<HostDevice>();
-  auto u_dot_kv = u_dot->getLocalView<HostDevice>();
-  
-  ScalarT alpha = 0.0;
-  ScalarT beta = 1.0;
-  
-  params->sacadoizeParams(false);
-  
-  int nsteps = 1;
-  if (isTransient) {
-    nsteps = solvetimes.size()-1;
-  }
-  
-  vector_RCP totalsens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1));
-  auto tsens_kv = totalsens->getLocalView<HostDevice>();
-  
-  
-  for (int timeiter = 0; timeiter<nsteps; timeiter++) {
-    
-    if (isTransient) {
-      current_time = solvetimes[timeiter+1];
-      for( size_t i=0; i<LA_ownedAndShared.size(); i++ ) {
-        u_dot_kv(i,0) = alpha*(F_kv(i,timeiter+1) - F_kv(i,timeiter));
-        u_kv(i,0) = F_kv(i,timeiter+1);
-      }
-      for( size_t i=0; i<LA_owned.size(); i++ ) {
-        a2_kv(i,0) = A_kv(i,nsteps-timeiter);
-      }
-    }
-    else {
-      current_time = solvetimes[timeiter];
-      for( size_t i=0; i<LA_ownedAndShared.size(); i++ ) {
-        u_kv(i,0) = F_kv(i,timeiter);
-      }
-      for( size_t i=0; i<LA_owned.size(); i++ ) {
-        a2_kv(i,0) = A_kv(i,nsteps-timeiter-1);
-      }
-    }
-    /*
-     current_time = solvetimes[timeiter+1];
-     for( size_t i=0; i<ownedAndShared.size(); i++ ) {
-     u[0][i] = F_soln[timeiter+1][i];
-     u_dot[0][i] = alpha*(F_soln[timeiter+1][i] - F_soln[timeiter][i]);
-     }
-     for( size_t i=0; i<owned.size(); i++ ) {
-     a2[0][i] = A_soln[nsteps-timeiter][i];
-     }
-     */
-    
-    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // reset residual
-    matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(params->param_overlapped_map); // reset Jacobian
-    matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(params->param_owned_map); // reset Jacobian
-    //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, true, false, true, res_over, J_over);
-    assembler->assembleJacRes(u, u_dot, u, u_dot, alpha, beta, true, false, true,
-                              res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
-                              params->num_active_params, params->Psol[0], is_final_time);
-    
-    J_over->fillComplete(LA_owned_map, params->param_owned_map);
-    vector_RCP sens_over = Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1)); // reset residual
-    vector_RCP sens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1)); // reset residual
-    
-    J->setAllToScalar(0.0);
-    J->doExport(*J_over, *(params->param_exporter), Tpetra::ADD);
-    J->fillComplete(LA_owned_map, params->param_owned_map);
-    
-    J->apply(*a2,*sens);
-    
-    totalsens->update(1.0, *sens, 1.0);
-  }
-  
-  params->dRdP.push_back(totalsens);
-  params->have_dRdP = true;
-  
-  int numParams = params->getNumParams(4);
-  vector<ScalarT> discLocalGradient(numParams);
-  vector<ScalarT> discGradient(numParams);
-  for (size_t i = 0; i < params->paramOwned.size(); i++) {
-    int gid = params->paramOwned[i];
-    discLocalGradient[gid] = tsens_kv(i,0);
-  }
-  for (size_t i = 0; i < numParams; i++) {
-    ScalarT globalval = 0.0;
-    ScalarT localval = discLocalGradient[i];
-    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
-    //Comm->SumAll(&localval, &globalval, 1);
-    discGradient[i] = globalval;
-  }
-  return discGradient;
-}
-
 
 // ========================================================================================
 // ========================================================================================
@@ -1461,7 +1245,7 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
     vector<ScalarT> discLocalGradient(numDiscParams);
     vector<ScalarT> discGradient(numDiscParams);
     for (size_t i = 0; i < params->paramOwned.size(); i++) {
-      int gid = params->paramOwned[i];
+      LO gid = params->paramOwned[i];
       discLocalGradient[gid] = sens_kv(i,0);
     }
     for (size_t i = 0; i < numDiscParams; i++) {
@@ -1482,87 +1266,6 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
       }
     }
   }
-}
-
-// ========================================================================================
-// The following function is the adjoint-based error estimate
-// Not to be confused with the postprocess::computeError function which uses a true
-//   solution to perform verification studies
-// ========================================================================================
-
-ScalarT solver::computeError(const vector_RCP & GF_soln, const vector_RCP & GA_soln) {
-  if(Comm->getRank() == 0 && verbosity>0) {
-    cout << endl << "*********************************************************" << endl;
-    cout << "***** Computing Error Estimate ******" << endl << endl;
-  }
-  
-  auto GF_kv = GF_soln->getLocalView<HostDevice>();
-  auto GA_kv = GA_soln->getLocalView<HostDevice>();
-  
-  vector_RCP u = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // forward solution
-  //LA_MultiVector A_soln(*LA_overlapped_map,1); // adjoint solution
-  vector_RCP a = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // adjoint solution
-  vector_RCP a2 = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // adjoint solution
-  vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // previous solution (can be either fwd or adj)
-  
-  auto u_kv = u->getLocalView<HostDevice>();
-  auto a_kv = a->getLocalView<HostDevice>();
-  auto a2_kv = a2->getLocalView<HostDevice>();
-  auto u_dot_kv = u_dot->getLocalView<HostDevice>();
-  
-  
-  ScalarT deltat = 0.0;
-  ScalarT alpha = 0.0;
-  ScalarT beta = 1.0;
-  if (isTransient) {
-    deltat = finaltime / numsteps;
-    alpha = 1./deltat;
-  }
-  
-  ScalarT errorest = 0.0;
-  params->sacadoizeParams(false);
-  
-  // ******************* ITERATE ON THE Parameters **********************
-  
-  current_time = 0.0;
-  ScalarT localerror = 0.0;
-  for (int timeiter = 0; timeiter<numsteps; timeiter++) {
-    
-    current_time += deltat;
-    
-    for( size_t i=0; i<LA_ownedAndShared.size(); i++ ) {
-      u_kv(i,0) = GF_kv(i,timeiter+1);
-      u_dot_kv(i,0) = alpha*(GF_kv(i,timeiter+1) - GF_kv(i,timeiter));
-    }
-    for( size_t i=0; i<LA_owned.size(); i++ ) {
-      a2_kv(i,0) = GA_kv(i,numsteps-timeiter);
-    }
-    
-    vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,params->num_active_params)); // reset residual
-    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,params->num_active_params)); // reset residual
-    matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
-    res_over->putScalar(0.0);
-    //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, false, false, false, res_over, J_over);
-    assembler->assembleJacRes(u, u_dot, u, u_dot, alpha, beta, false, false, false,
-                              res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
-                              params->num_active_params, params->Psol[0], is_final_time);
-    res->putScalar(0.0);
-    res->doExport(*res_over, *exporter, Tpetra::ADD);
-    auto res_kv = res->getLocalView<HostDevice>();
-    
-    ScalarT currerror = 0.0;
-    for( size_t i=0; i<LA_owned.size(); i++ ) {
-      currerror += a2_kv(i,0) * res_kv(i,0);
-    }
-    localerror += currerror;
-  }
-  Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localerror,&errorest);
-  //Comm->SumAll(&localerror, &errorest, 1);
-  
-  if(Comm->getRank() == 0 && verbosity>0) {
-    cout << "Error estimate = " << errorest << endl;
-  }
-  return errorest;
 }
 
 // ========================================================================================
@@ -1597,7 +1300,7 @@ void solver::setDirichlet(vector_RCP & initial) {
         
         for( int i=0; i<numSides; i++ ) {
           if( side_info(i,0)==1 ) {
-            vector<int> elemGIDs;
+            vector<GO> elemGIDs;
             int gside_index = side_info(i,1);
             string gside = phys->sideSets[gside_index];
             size_t elemID = disc->myElements[b][e];
@@ -1609,7 +1312,7 @@ void solver::setDirichlet(vector_RCP & initial) {
             // for each node that is on the boundary side
             for( size_t j=0; j<elmtOffset.size(); j++ ) {
               // get the global row and coordinate
-              int row =  LA_overlapped_map->getLocalElement(elemGIDs[elmtOffset[j]]);
+              LO row =  LA_overlapped_map->getLocalElement(elemGIDs[elmtOffset[j]]);
               ScalarT x = I_elemNodes(0,basisIdMap[j],0);
               ScalarT y = 0.0;
               if (spaceDim > 1) {
@@ -1636,10 +1339,10 @@ void solver::setDirichlet(vector_RCP & initial) {
       }
     }
     // set point dbcs
-    vector<int> dbc_dofs = fixedDOFs[b];
+    vector<LO> dbc_dofs = fixedDOFs[b];
     
     for (int i = 0; i < dbc_dofs.size(); i++) {
-      int row = LA_overlapped_map->getLocalElement(dbc_dofs[i]);
+      LO row = LA_overlapped_map->getLocalElement(dbc_dofs[i]);
       init_kv(row,0) = 0.0; // fix to zero for now
     }
     

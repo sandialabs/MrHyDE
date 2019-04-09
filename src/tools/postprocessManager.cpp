@@ -520,11 +520,12 @@ vector<ScalarT> PostprocessManager::computeSensitivities(const vector_RCP & F_so
   
   AD obj_sens = this->computeObjective(F_soln);
   
-  if (numClassicParams > 0 )
-  dwr_sens = solve->computeSensitivities(F_soln, A_soln);
-  if (numDiscParams > 0)
-  disc_sens = solve->computeDiscretizedSensitivities(F_soln, A_soln);
-  
+  if (numClassicParams > 0 ) {
+    dwr_sens = this->computeParameterSensitivities(F_soln, A_soln);
+  }
+  if (numDiscParams > 0) {
+    disc_sens = this->computeDiscretizedSensitivities(F_soln, A_soln);
+  }
   size_t pprog  = 0;
   for (size_t i=0; i<numClassicParams; i++) {
     ScalarT cobj = 0.0;
@@ -989,3 +990,305 @@ ScalarT PostprocessManager::makeSomeNoise(ScalarT stdev) {
   
   return stdev*sqrt(-2*log(U1))*cos(2*PI*U2);
 }
+
+
+// ========================================================================================
+// The following function is the adjoint-based error estimate
+// Not to be confused with the postprocess::computeError function which uses a true
+//   solution to perform verification studies
+// ========================================================================================
+
+ScalarT PostprocessManager::computeError(const vector_RCP & GF_soln, const vector_RCP & GA_soln) {
+  if(Comm->getRank() == 0 && verbosity>0) {
+    cout << endl << "*********************************************************" << endl;
+    cout << "***** Computing Error Estimate ******" << endl << endl;
+  }
+  
+  auto GF_kv = GF_soln->getLocalView<HostDevice>();
+  auto GA_kv = GA_soln->getLocalView<HostDevice>();
+  
+  vector_RCP u = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
+  //LA_MultiVector A_soln(*LA_overlapped_map,1); // adjoint solution
+  vector_RCP a = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // adjoint solution
+  vector_RCP a2 = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,1)); // adjoint solution
+  vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // previous solution (can be either fwd or adj)
+  
+  auto u_kv = u->getLocalView<HostDevice>();
+  auto a_kv = a->getLocalView<HostDevice>();
+  auto a2_kv = a2->getLocalView<HostDevice>();
+  auto u_dot_kv = u_dot->getLocalView<HostDevice>();
+  
+  
+  ScalarT deltat = 0.0;
+  ScalarT alpha = 0.0;
+  ScalarT beta = 1.0;
+  if (solve->isTransient) {
+    deltat = solve->finaltime / solve->numsteps;
+    alpha = 1./deltat;
+  }
+  
+  ScalarT errorest = 0.0;
+  params->sacadoizeParams(false);
+  
+  // ******************* ITERATE ON THE Parameters **********************
+  
+  double current_time = 0.0;
+  ScalarT localerror = 0.0;
+  for (int timeiter = 0; timeiter<solve->numsteps; timeiter++) {
+    
+    current_time += deltat;
+    
+    for( size_t i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
+      u_kv(i,0) = GF_kv(i,timeiter+1);
+      u_dot_kv(i,0) = alpha*(GF_kv(i,timeiter+1) - GF_kv(i,timeiter));
+    }
+    for( size_t i=0; i<solve->LA_owned.size(); i++ ) {
+      a2_kv(i,0) = GA_kv(i,numsteps-timeiter);
+    }
+    
+    vector_RCP res = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,params->num_active_params)); // reset residual
+    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,params->num_active_params)); // reset residual
+    matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(solve->LA_overlapped_map); // reset Jacobian
+    res_over->putScalar(0.0);
+    //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, false, false, false, res_over, J_over);
+    assembler->assembleJacRes(u, u_dot, u, u_dot, alpha, beta, false, false, false,
+                              res_over, J_over, solve->isTransient, current_time, false, false,
+                              params->num_active_params, params->Psol[0], false);
+    res->putScalar(0.0);
+    res->doExport(*res_over, *(solve->exporter), Tpetra::ADD);
+    auto res_kv = res->getLocalView<HostDevice>();
+    
+    ScalarT currerror = 0.0;
+    for( size_t i=0; i<solve->LA_owned.size(); i++ ) {
+      currerror += a2_kv(i,0) * res_kv(i,0);
+    }
+    localerror += currerror;
+  }
+  Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localerror,&errorest);
+  //Comm->SumAll(&localerror, &errorest, 1);
+  
+  if(Comm->getRank() == 0 && verbosity>0) {
+    cout << "Error estimate = " << errorest << endl;
+  }
+  return errorest;
+}
+
+
+// ========================================================================================
+// ========================================================================================
+
+vector<ScalarT> PostprocessManager::computeParameterSensitivities(const vector_RCP & GF_soln,
+                                                                  const vector_RCP & GA_soln) {
+  if(Comm->getRank() == 0 && verbosity>0) {
+    cout << endl << "*********************************************************" << endl;
+    cout << "***** Computing Sensitivities ******" << endl << endl;
+  }
+  
+  vector_RCP u = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
+  vector_RCP a2 = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,1)); // adjoint solution
+  vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // previous solution (can be either fwd or adj)
+  
+  auto u_kv = u->getLocalView<HostDevice>();
+  auto a2_kv = a2->getLocalView<HostDevice>();
+  auto u_dot_kv = u_dot->getLocalView<HostDevice>();
+  auto GF_kv = GF_soln->getLocalView<HostDevice>();
+  auto GA_kv = GA_soln->getLocalView<HostDevice>();
+  
+  ScalarT alpha = 0.0;
+  ScalarT beta = 1.0;
+  
+  vector<ScalarT> gradient(params->num_active_params);
+  
+  params->sacadoizeParams(true);
+  
+  vector<ScalarT> localsens(params->num_active_params);
+  ScalarT globalsens = 0.0;
+  int nsteps = 1;
+  if (solve->isTransient) {
+    nsteps = solve->solvetimes.size()-1;
+  }
+  double current_time = 0.0;
+  
+  for (int timeiter = 0; timeiter<nsteps; timeiter++) {
+    if (solve->isTransient) {
+      current_time = solve->solvetimes[timeiter+1];
+      for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
+        u_dot_kv(i,0) = alpha*(GF_kv(i,timeiter+1) - GF_kv(i,timeiter));
+        u_kv(i,0) = GF_kv(i,timeiter+1);
+      }
+      for( LO i=0; i<solve->LA_owned.size(); i++ ) {
+        a2_kv(i,0) = GA_kv(i,nsteps-timeiter);
+      }
+    }
+    else {
+      current_time = solve->solvetimes[timeiter];
+      for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
+        u_kv(i,0) = GF_kv(i,timeiter);
+      }
+      for( LO i=0; i<solve->LA_owned.size(); i++ ) {
+        a2_kv(i,0) = GA_kv(i,nsteps-timeiter-1);
+      }
+    }
+    
+    
+    vector_RCP res = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,params->num_active_params)); // reset residual
+    matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(solve->LA_owned_map); // reset Jacobian
+    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,params->num_active_params)); // reset residual
+    matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(solve->LA_overlapped_map); // reset Jacobian
+    res_over->putScalar(0.0);
+    
+    //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, false, true, false, res_over, J_over);
+    assembler->assembleJacRes(u, u_dot, u, u_dot, alpha, beta, false, true, false,
+                              res_over, J_over, solve->isTransient, current_time, false, false,
+                              params->num_active_params, params->Psol[0], false);
+    
+    res->putScalar(0.0);
+    res->doExport(*res_over, *(solve->exporter), Tpetra::ADD);
+    
+    auto res_kv = res->getLocalView<HostDevice>();
+    
+    for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
+      ScalarT currsens = 0.0;
+      for( LO i=0; i<solve->LA_owned.size(); i++ ) {
+        currsens += a2_kv(i,0) * res_kv(i,paramiter);
+      }
+      localsens[paramiter] -= currsens;
+    }
+  }
+  
+  ScalarT localval = 0.0;
+  ScalarT globalval = 0.0;
+  for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
+    localval = localsens[paramiter];
+    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
+    //Comm->SumAll(&localval, &globalval, 1);
+    gradient[paramiter] = globalval;
+  }
+  
+  if(Comm->getRank() == 0 && solve->batchID == 0) {
+    stringstream ss;
+    std::string sname2 = "sens.dat";
+    ofstream sensOUT(sname2.c_str());
+    sensOUT.precision(16);
+    for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
+      sensOUT << gradient[paramiter] << "  ";
+    }
+    sensOUT << endl;
+    sensOUT.close();
+  }
+  
+  return gradient;
+}
+
+
+// ========================================================================================
+// Compute the sensitivity of the objective with respect to discretized parameters
+// ========================================================================================
+
+vector<ScalarT> PostprocessManager::computeDiscretizedSensitivities(const vector_RCP & F_soln,
+                                                                    const vector_RCP & A_soln) {
+  
+  if(Comm->getRank() == 0 && verbosity>0) {
+    cout << endl << "*********************************************************" << endl;
+    cout << "***** Computing Discretized Sensitivities ******" << endl << endl;
+  }
+  auto F_kv = F_soln->getLocalView<HostDevice>();
+  auto A_kv = A_soln->getLocalView<HostDevice>();
+  
+  vector_RCP u = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
+  vector_RCP a2 = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,1)); // adjoint solution
+  vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // previous solution (can be either fwd or adj)
+  
+  auto u_kv = u->getLocalView<HostDevice>();
+  auto a2_kv = a2->getLocalView<HostDevice>();
+  auto u_dot_kv = u_dot->getLocalView<HostDevice>();
+  
+  ScalarT alpha = 0.0;
+  ScalarT beta = 1.0;
+  
+  params->sacadoizeParams(false);
+  
+  int nsteps = 1;
+  if (solve->isTransient) {
+    nsteps = solve->solvetimes.size()-1;
+  }
+  
+  vector_RCP totalsens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1));
+  auto tsens_kv = totalsens->getLocalView<HostDevice>();
+  
+  double current_time =0.0;
+  
+  for (int timeiter = 0; timeiter<nsteps; timeiter++) {
+    
+    if (solve->isTransient) {
+      current_time = solve->solvetimes[timeiter+1];
+      for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
+        u_dot_kv(i,0) = alpha*(F_kv(i,timeiter+1) - F_kv(i,timeiter));
+        u_kv(i,0) = F_kv(i,timeiter+1);
+      }
+      for( LO i=0; i<solve->LA_owned.size(); i++ ) {
+        a2_kv(i,0) = A_kv(i,nsteps-timeiter);
+      }
+    }
+    else {
+      current_time = solve->solvetimes[timeiter];
+      for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
+        u_kv(i,0) = F_kv(i,timeiter);
+      }
+      for( LO i=0; i<solve->LA_owned.size(); i++ ) {
+        a2_kv(i,0) = A_kv(i,nsteps-timeiter-1);
+      }
+    }
+    /*
+     current_time = solvetimes[timeiter+1];
+     for( size_t i=0; i<ownedAndShared.size(); i++ ) {
+     u[0][i] = F_soln[timeiter+1][i];
+     u_dot[0][i] = alpha*(F_soln[timeiter+1][i] - F_soln[timeiter][i]);
+     }
+     for( size_t i=0; i<owned.size(); i++ ) {
+     a2[0][i] = A_soln[nsteps-timeiter][i];
+     }
+     */
+    
+    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // reset residual
+    matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(params->param_overlapped_map); // reset Jacobian
+    matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(params->param_owned_map); // reset Jacobian
+    //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, true, false, true, res_over, J_over);
+    assembler->assembleJacRes(u, u_dot, u, u_dot, alpha, beta, true, false, true,
+                              res_over, J_over, solve->isTransient, current_time, false, false,
+                              params->num_active_params, params->Psol[0], false);
+    
+    J_over->fillComplete(solve->LA_owned_map, params->param_owned_map);
+    vector_RCP sens_over = Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1)); // reset residual
+    vector_RCP sens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1)); // reset residual
+    
+    J->setAllToScalar(0.0);
+    J->doExport(*J_over, *(params->param_exporter), Tpetra::ADD);
+    J->fillComplete(solve->LA_owned_map, params->param_owned_map);
+    
+    J->apply(*a2,*sens);
+    
+    totalsens->update(1.0, *sens, 1.0);
+  }
+  
+  params->dRdP.push_back(totalsens);
+  params->have_dRdP = true;
+  
+  int numParams = params->getNumParams(4);
+  vector<ScalarT> discLocalGradient(numParams);
+  vector<ScalarT> discGradient(numParams);
+  for (size_t i = 0; i < params->paramOwned.size(); i++) {
+    GO gid = params->paramOwned[i];
+    discLocalGradient[gid] = tsens_kv(i,0);
+  }
+  for (size_t i = 0; i < numParams; i++) {
+    ScalarT globalval = 0.0;
+    ScalarT localval = discLocalGradient[i];
+    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
+    //Comm->SumAll(&localval, &globalval, 1);
+    discGradient[i] = globalval;
+  }
+  return discGradient;
+}
+
+

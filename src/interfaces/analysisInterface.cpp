@@ -113,7 +113,7 @@ void analysis::run() {
     //if (settings->sublist("Postprocess").get<bool>("compute sensitivities",false))
     //  gradient = postproc->computeSensitivities(F_soln, A_soln);
     if (settings->sublist("Postprocess").get<bool>("error estimate",false))
-      ScalarT errorest = solve->computeError(F_soln, A_soln);
+      ScalarT errorest = postproc->computeError(F_soln, A_soln);
     
     if (settings->sublist("Postprocess").get("write solution",true)) {
       postproc->writeSolution(F_soln, settings->sublist("Postprocess").get<string>("Output File","output"));
