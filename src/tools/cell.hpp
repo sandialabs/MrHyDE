@@ -19,6 +19,7 @@
 #include "physicsInterface.hpp"
 #include "workset.hpp"
 #include "subgridModel.hpp"
+#include "cellMetaData.hpp"
 
 #include <iostream>     
 #include <iterator>     
@@ -35,65 +36,14 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  cell(const Teuchos::RCP<Teuchos::ParameterList> & settings,
-       const Teuchos::RCP<LA_MpiComm> & LocalComm_, const topo_RCP & cellTopo_,
-       const Teuchos::RCP<physics> & physics_RCP_, const DRV & nodes_, const size_t & myBlock_,
-       const Kokkos::View<int*> & globalID_, const size_t & myLevel_, const bool & memeff_) :
-  //settings(settings_),
-  LocalComm(LocalComm_), cellTopo(cellTopo_),
-  physics_RCP(physics_RCP_), myBlock(myBlock_), 
-  globalElemID(globalID_), myLevel(myLevel_), memory_efficient(memeff_), nodes(nodes_){
+  cell(const Teuchos::RCP<CellMetaData> & cellData_,
+       const DRV & nodes_,
+       const Kokkos::View<int*> & globalID_) :
+  cellData(cellData_), globalElemID(globalID_), nodes(nodes_){
   
-    
-    compute_diff = settings->sublist("Postprocess").get<bool>("Compute Difference in Objective", true);
-    useFineScale = settings->sublist("Postprocess").get<bool>("Use fine scale sensors",true);
-    loadSensorFiles = settings->sublist("Analysis").get<bool>("Load Sensor Files",false);
-    writeSensorFiles = settings->sublist("Analysis").get<bool>("Write Sensor Files",false);
-    mortar_objective = settings->sublist("Solver").get<bool>("Use Mortar Objective",false);
-    
+    numElem = nodes.dimension(0);
     active = true;
-    multiscale = false;
-    numElem = nodes_.dimension(0);
-    numnodes = nodes_.dimension(1);
-    dimension = nodes_.dimension(2);
-    //nodes = DRV("nodes", 1,numnodes,dimension);
-    //for (int j=0; j<numnodes; j++) {
-    //  for (int k=0; k<dimension; k++) {
-    //    nodes(0,j,k) = nodes_(j,k);
-    //  }
-    //}
-
-    if (dimension == 1) {
-      shape = "interval";
-    }
-    if (dimension == 2) {
-      if (numnodes == 3) {
-        shape = "tri";
-      }
-      else if (numnodes == 4) {
-        shape = "quad";
-      }
-      else {
-        shape = "unknown";
-      }
-    }
-    if (dimension == 3) {
-      if (numnodes == 4) {
-        shape = "tet";
-      }
-      else if (numnodes == 8) {
-        shape = "hex";
-      }
-      else {
-        shape = "unknown";
-      }
-    }
-    numSides = cellTopo->getSideCount();
-    response_type = "global";
     useSensors = false;
-    
-    have_cell_phi = false;
-    have_cell_rotation = false;
     
   }
   
@@ -102,11 +52,11 @@ public:
   
   void setIP(const DRV & ref_ip) {
     // ip and ref_ip will live on the assembly device
-    ip = DRV("ip", numElem, ref_ip.dimension(0), dimension);
-    CellTools<AssemblyDevice>::mapToPhysicalFrame(ip, ref_ip, nodes, *cellTopo);
+    ip = DRV("ip", numElem, ref_ip.dimension(0), cellData->dimension);
+    CellTools<AssemblyDevice>::mapToPhysicalFrame(ip, ref_ip, nodes, *(cellData->cellTopo));
     
-    ijac = DRV("ijac", numElem, ref_ip.dimension(0), dimension, dimension);
-    CellTools<AssemblyDevice>::setJacobian(ijac, ref_ip, nodes, *cellTopo);
+    ijac = DRV("ijac", numElem, ref_ip.dimension(0), cellData->dimension, cellData->dimension);
+    CellTools<AssemblyDevice>::setJacobian(ijac, ref_ip, nodes, *(cellData->cellTopo));
     
   }
   
@@ -115,7 +65,7 @@ public:
   
   void setSideIP(const DRV & ref_side_ip, const DRV & ref_side_wts) {
     // side ip and ref_side_ip will live on the assembly device
-    for (size_t s=0; s<numSides; s++) {
+    for (size_t s=0; s<cellData->numSides; s++) {
       bool compute = false; // may not need the integration info on this side
       for (size_t e=0; e<sideinfo.dimension(0); e++) { //numElem
         for (size_t n=0; n<sideinfo.dimension(1); n++) { //numVars
@@ -131,42 +81,45 @@ public:
       
       if (compute) {
         
-        sip = DRV("sip", numElem, ref_side_ip.dimension(0), dimension);
-        sijac = DRV("sijac", numElem, ref_side_ip.dimension(0), dimension, dimension);
+        sip = DRV("sip", numElem, ref_side_ip.dimension(0), cellData->dimension);
+        sijac = DRV("sijac", numElem, ref_side_ip.dimension(0), cellData->dimension, cellData->dimension);
         wts_side = DRV("wts_side", numElem, ref_side_ip.dimension(0));
-        cnormals = DRV("normals", numElem, ref_side_ip.dimension(0),dimension);
+        cnormals = DRV("normals", numElem, ref_side_ip.dimension(0), cellData->dimension);
         
-        DRV refSidePoints("refSidePoints", ref_side_ip.dimension(0), dimension);
-        CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, ref_side_ip, dimension-1, s, *cellTopo);
+        DRV refSidePoints("refSidePoints", ref_side_ip.dimension(0), cellData->dimension);
+        CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, ref_side_ip,
+                                                         cellData->dimension-1, s, *(cellData->cellTopo));
         
-        CellTools<AssemblyDevice>::mapToPhysicalFrame(sip, refSidePoints, nodes, *cellTopo);
+        CellTools<AssemblyDevice>::mapToPhysicalFrame(sip, refSidePoints, nodes, *(cellData->cellTopo));
         
-        CellTools<AssemblyDevice>::setJacobian(sijac, refSidePoints, nodes, *cellTopo);
+        CellTools<AssemblyDevice>::setJacobian(sijac, refSidePoints, nodes, *(cellData->cellTopo));
         
-        DRV sijacInv("sidejacobInv",numElem, ref_side_ip.dimension(0), dimension, dimension);
+        DRV sijacInv("sidejacobInv",numElem, ref_side_ip.dimension(0), cellData->dimension, cellData->dimension);
         
         CellTools<AssemblyDevice>::setJacobianInv(sijacInv, sijac);
         
-        DRV temporary_buffer("temporary_buffer",numElem,ref_side_ip.dimension(0)*dimension*dimension);
+        DRV temporary_buffer("temporary_buffer",numElem,ref_side_ip.dimension(0)*cellData->dimension*cellData->dimension);
         
-        if (dimension == 2) {
-          FunctionSpaceTools<AssemblyDevice>::computeEdgeMeasure(wts_side, sijac, ref_side_wts, s, *cellTopo, temporary_buffer);
+        if (cellData->dimension == 2) {
+          FunctionSpaceTools<AssemblyDevice>::computeEdgeMeasure(wts_side, sijac, ref_side_wts, s,
+                                                                 *(cellData->cellTopo), temporary_buffer);
         }
-        if (dimension == 3) {
-          FunctionSpaceTools<AssemblyDevice>::computeFaceMeasure(wts_side, sijac, ref_side_wts, s, *cellTopo, temporary_buffer);
+        if (cellData->dimension == 3) {
+          FunctionSpaceTools<AssemblyDevice>::computeFaceMeasure(wts_side, sijac, ref_side_wts, s,
+                                                                 *(cellData->cellTopo), temporary_buffer);
         }
-        CellTools<AssemblyDevice>::getPhysicalSideNormals(cnormals, sijac, s, *cellTopo);
+        CellTools<AssemblyDevice>::getPhysicalSideNormals(cnormals, sijac, s, *(cellData->cellTopo));
         
         // scale the normal vector (we need unit normal...)
         
         for (int e=0; e<numElem; e++) {
           for( int j=0; j<ref_side_ip.dimension(0); j++ ) {
             ScalarT normalLength = 0.0;
-            for (int sd=0; sd<dimension; sd++) {
+            for (int sd=0; sd<cellData->dimension; sd++) {
               normalLength += cnormals(e,j,sd)*cnormals(e,j,sd);
             }
             normalLength = sqrt(normalLength);
-            for (int sd=0; sd<dimension; sd++) {
+            for (int sd=0; sd<cellData->dimension; sd++) {
               cnormals(e,j,sd) = cnormals(e,j,sd) / normalLength;
             }
           }
@@ -200,18 +153,6 @@ public:
     // This is common to all cells (within the same block), so a view copy will do
     numDOF = numDOF_;
     
-    /*
-    for (int i=0; i<index.dimension(1); i++) {
-      numDOF_host(i) = index[0][i].size();
-    }
-    
-    Kokkos::View<int*,HostDevice> numDOF_host("numDOF on host",index.dimension(1));
-    for (int i=0; i<index.dimension(1); i++) {
-      numDOF_host(i) = numDOF_(i));
-    }
-    numDOF = Kokkos::create_mirror_view(numDOF_host);
-    Kokkos::deep_copy(numDOF_host, numDOF);
-    */
   }
   
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -234,30 +175,14 @@ public:
     });
     
     // This is common to all cells, so a view copy will do
-    // This is excessive storage, please remove
     numParamDOF = pnumDOF_;
-    
-    
-    //paramindex = pindex_;
-    
-    /*
-    Kokkos::View<int*,HostDevice> numParamDOF_host("numParamDOF on host",paramindex[0].size());
-    for (int i=0; i<paramindex[0].size(); i++) {
-      numParamDOF_host(i) = paramindex[0][i].size();
-      cout << "npdof(i) = " << numParamDOF_host(i) << endl;
-      
-    }
-    numParamDOF = Kokkos::create_mirror_view(numParamDOF_host);
-    Kokkos::deep_copy(numParamDOF_host, numParamDOF);
-    */
     
   }
   
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  //void setAuxIndex(const vector<vector<int> > & aindex_) {
-  void setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_) { //}, Kokkos::View<LO*,AssemblyDevice> & anumDOF_) {
+  void setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_) {
     
     auxindex = Kokkos::View<LO***,AssemblyDevice>("local aux index",1,aindex_.dimension(1),
                                                   aindex_.dimension(2));
@@ -279,18 +204,6 @@ public:
     for (int i=0; i<auxindex.dimension(1); i++) {
       numAuxDOF(i) = auxindex.dimension(2);
     }
-    
-    
-    /*
-    auxindex = aindex_;
-    
-    Kokkos::View<int*,HostDevice> numAuxDOF_host("numAuxDOF on host",auxindex.size());
-    for (int i=0; i<auxindex.size(); i++) {
-      numAuxDOF_host(i) = auxindex[i].size();
-    }
-    numAuxDOF = Kokkos::create_mirror_view(numAuxDOF_host);
-    Kokkos::deep_copy(numAuxDOF_host, numAuxDOF);
-    */
     
   }
   
@@ -545,7 +458,7 @@ public:
     if (paramindex.dimension(0)>0) {
       nparams = paramindex.dimension(1);
     }
-    info.push_back(dimension);
+    info.push_back(cellData->dimension);
     info.push_back(numDOF.dimension(0));
     info.push_back(nparams);
     info.push_back(auxindex.dimension(1));
@@ -589,75 +502,52 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  // Public and necessary
-  //Teuchos::RCP<Teuchos::ParameterList> settings;
-  Teuchos::RCP<LA_MpiComm> LocalComm;
-  bool active, memory_efficient;
-  size_t myBlock, myLevel;
-  Kokkos::View<int*> globalElemID;
-  //size_t globalElemID;
-  Teuchos::RCP<physics> physics_RCP;
+  // Public data 
+  Teuchos::RCP<CellMetaData> cellData;
+  Teuchos::RCP<workset> wkset;
+  
+  bool active;
+  Kokkos::View<LO*> globalElemID;
   
   // Geometry Information
-  int numnodes, numSides, dimension, numElem;
-  string shape;
-  DRV nodes;
-  DRV ip, ijac;
+  int numElem;
+  DRV nodes, ip, ijac;
   vector<DRV> sideip, sideijac, normals, sidewts;
-  
-  DRV nodepert; // perturbation of the nodes from their original location
-  topo_RCP cellTopo;
   Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
   vector<string> sidenames;
   
+  // DOF information
   Kokkos::View<GO**,HostDevice> GIDs, paramGIDs, auxGIDs;
   Kokkos::View<LO***,AssemblyDevice> index, paramindex, auxindex;
-  
-  //vector<vector<int> > GIDs;
-  //vector<vector<vector<int> > > index;
   vector<vector<ScalarT> > orientation;
   Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
-  
   Kokkos::View<ScalarT***,AssemblyDevice> u, u_dot, phi, phi_dot, aux;
-  ScalarT current_time;
-  int num_stages;
+  
+  // Subgrid information
+  vector<Teuchos::RCP<SubGridModel> > subgridModels;
+  vector<size_t> subgrid_usernum, cell_data_seed, cell_data_seedindex;
+  vector<vector<size_t> > subgrid_model_index;
   
   // Discretized Parameter Information
   Kokkos::View<ScalarT***,AssemblyDevice> param;
-  //vector<vector<int> > paramGIDs;
-  //vector<vector<vector<int> > > paramindex;
   
-  // Auxiliary Parameter Information
-  // aux variables are handled slightly differently from others
-  
+  // Aux variable Information
   vector<string> auxlist;
-  //vector<int> auxGIDs;
   vector<vector<int> > auxoffsets;
   vector<int> auxusebasis;
-  //vector<vector<int> > auxindex;
   vector<basis_RCP> auxbasisPointers;
-  vector<DRV> auxbasis;
-  vector<DRV> auxbasisGrad;
-  vector<vector<DRV> > auxside_basis;
-  vector<vector<DRV> > auxside_basisGrad;
+  vector<DRV> auxbasis, auxbasisGrad;
+  vector<vector<DRV> > auxside_basis, auxside_basisGrad;
   
   // Sensor information
   bool useSensors;
-  string response_type;
   size_t numSensors;
-  vector<Kokkos::View<ScalarT**,HostDevice> > sensorLocations;
+  vector<Kokkos::View<ScalarT**,HostDevice> > sensorLocations, sensorData;
   DRV sensorPoints;
-  vector<int> sensorElem;
-  vector<Kokkos::View<ScalarT**,HostDevice> > sensorData;
-  vector<vector<DRV> > sensorBasis, param_sensorBasis;
-  vector<vector<DRV> > sensorBasisGrad, param_sensorBasisGrad;
-  vector<int> mySensorIDs;
-  Kokkos::View<ScalarT**,AssemblyDevice> adjPrev, subgradient;
-  Kokkos::View<ScalarT**,AssemblyDevice> cell_data;
+  vector<int> sensorElem, mySensorIDs;
+  vector<vector<DRV> > sensorBasis, param_sensorBasis, sensorBasisGrad, param_sensorBasisGrad;
+  Kokkos::View<ScalarT**,AssemblyDevice> adjPrev, subgradient, cell_data;
   vector<ScalarT> cell_data_distance;
-  bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles;
-  bool mortar_objective;
-  bool exodus_sensors = false;
   
   // Profile timers
   Teuchos::RCP<Teuchos::Time> computeSolnVolTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeSolnVolIP()");
@@ -673,12 +563,6 @@ public:
   Teuchos::RCP<Teuchos::Time> cellFluxAuxTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeFlux - compute aux solution");
   Teuchos::RCP<Teuchos::Time> cellFluxEvalTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeFlux - physics evaluation");
   
-  vector<Teuchos::RCP<SubGridModel> > subgridModels;
-  bool multiscale, have_cell_phi, have_cell_rotation;
-  vector<size_t> subgrid_usernum, cell_data_seed, cell_data_seedindex;
-  vector<vector<size_t> > subgrid_model_index;
-  
-  Teuchos::RCP<workset> wkset;
   
 };
 

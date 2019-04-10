@@ -200,6 +200,9 @@ Commptr(Comm_) {
   }
 }
 
+///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+
 void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & cells,
                                         Teuchos::RCP<panzer::DOFManager<int,int> > & DOF,
                                         Teuchos::RCP<physics> & phys) {

@@ -207,7 +207,7 @@ ScalarT MultiScale::initialize() {
       cells[b][e]->subgridModels = subgridModels;
       cells[b][e]->subgrid_model_index.push_back(sgnum);
       cells[b][e]->subgrid_usernum = usernum;
-      cells[b][e]->multiscale = true;
+      cells[b][e]->cellData->multiscale = true;
       for (int c=0; c<numElem; c++) {
         my_cost += subgridModels[sgnum[c]]->cost_estimate;
       }
@@ -311,7 +311,7 @@ ScalarT MultiScale::update() {
   if (subgrid_static) {
     for (size_t b=0; b<cells.size(); b++) {
       for (size_t e=0; e<cells[b].size(); e++) {
-        if (cells[b][e]->multiscale) {
+        if (cells[b][e]->cellData->multiscale) {
           int numElem = cells[b][e]->numElem;
           for (int c=0;c<numElem; c++) {
             int nummod = cells[b][e]->subgrid_model_index[c].size();
@@ -326,7 +326,7 @@ ScalarT MultiScale::update() {
   else {
     for (size_t b=0; b<cells.size(); b++) {
       for (size_t e=0; e<cells[b].size(); e++) {
-        if (cells[b][e]->multiscale) {
+        if (cells[b][e]->cellData->multiscale) {
           // needs to be updated
           //vector<size_t> newmodel = udfunc->getSubgridModel(cells[b][e]->nodes, macro_wkset[0],
           //                                               cells[b][e]->u, subgridModels.size());

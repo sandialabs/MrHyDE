@@ -387,7 +387,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
       wkset[b]->localEID = e;
       cells[b][e]->updateData();
       
-      if (isTransient && useadjoint && !cells[0][0]->multiscale) {
+      if (isTransient && useadjoint && !cells[0][0]->cellData->multiscale) {
         if (is_final_time) {
           cells[b][e]->resetAdjPrev(0.0);
         }

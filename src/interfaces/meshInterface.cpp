@@ -10,6 +10,8 @@
  ************************************************************************/
 
 #include "meshInterface.hpp"
+#include "cellMetaData.hpp"
+
 #include <boost/algorithm/string.hpp>
 
 // ========================================================================================
@@ -444,6 +446,10 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys, vector<vector<Teuc
     int elemPerCell = settings->sublist("Solver").get<int>("Workset size",1);
     bool memeff = settings->sublist("Solver").get<bool>("Memory Efficient",false);
     int prog = 0;
+    
+    Teuchos::RCP<CellMetaData> cellData = Teuchos::rcp( new CellMetaData(settings, cellTopo,
+                                                                         phys, b, 0, memeff));
+    
     while (prog < numElem) {
     //for (size_t e=0; e<numElem; e++) {
       int currElem = elemPerCell;  // Avoid faults in last iteration
@@ -462,8 +468,9 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys, vector<vector<Teuc
         }
         eIndex(e) = prog+e;
       }
-      blockcells.push_back(Teuchos::rcp(new cell(settings, LocalComm, cellTopo, phys, currnodes, b, eIndex, 0, memeff)));
-      blockcells[blockcells.size()-1]->nodepert = currnodepert;
+      //blockcells.push_back(Teuchos::rcp(new cell(settings, LocalComm, cellTopo, phys, currnodes, b, eIndex, 0, memeff)));
+      blockcells.push_back(Teuchos::rcp(new cell(cellData, currnodes, eIndex)));
+      //blockcells[blockcells.size()-1]->nodepert = currnodepert;
       prog += elemPerCell;
     }
     cells.push_back(blockcells);
@@ -566,9 +573,9 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
               cells[b][e]->cell_data(c,i) = cdata(0,i);
             }
             if (have_rotations)
-              cells[b][e]->have_cell_rotation = true;
+              cells[b][e]->cellData->have_cell_rotation = true;
             if (have_rotation_phi)
-              cells[b][e]->have_cell_phi = true;
+              cells[b][e]->cellData->have_cell_phi = true;
             
             cells[b][e]->cell_data_seed[c] = cnode;
             cells[b][e]->cell_data_seedindex[c] = cnode % 50;
@@ -830,8 +837,8 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
           cells[b][e]->cell_data(c,i) = rotation_data(cnode,i);
         }
         
-        cells[b][e]->have_cell_rotation = true;
-        cells[b][e]->have_cell_phi = false;
+        cells[b][e]->cellData->have_cell_rotation = true;
+        cells[b][e]->cellData->have_cell_phi = false;
         
         cells[b][e]->cell_data_seed[c] = cnode;
         cells[b][e]->cell_data_seedindex[c] = seedIndex(cnode);

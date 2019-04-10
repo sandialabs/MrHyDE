@@ -1164,7 +1164,7 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
     
     for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
       // fine-scale
-      if (assembler->cells[0][0]->multiscale) {
+      if (assembler->cells[0][0]->cellData->multiscale) {
         ScalarT subsens = 0.0;
         for (size_t b=0; b<assembler->cells.size(); b++) {
           for (size_t e=0; e<assembler->cells[b].size(); e++) {

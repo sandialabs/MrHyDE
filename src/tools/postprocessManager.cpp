@@ -742,6 +742,7 @@ void PostprocessManager::writeSolution(const vector_RCP & E_soln, const std::str
         Kokkos::View<ScalarT**,HostDevice> dispx("dispx",myElements.size(), numNodesPerElem);
         Kokkos::View<ScalarT**,HostDevice> dispy("dispy",myElements.size(), numNodesPerElem);
         Kokkos::View<ScalarT**,HostDevice> dispz("dispz",myElements.size(), numNodesPerElem);
+        /* // TMW: commented out for now.  Need a better way to store this data
         size_t eprog = 0;
         for( size_t e=0; e<cells[b].size(); e++ ) {
           DRV nodePert = cells[b][e]->nodepert;
@@ -755,7 +756,7 @@ void PostprocessManager::writeSolution(const vector_RCP & E_soln, const std::str
             }
             eprog++;
           }
-        }
+        }*/
         mesh->setSolutionFieldData("dispx", blockID, myElements, dispx);
         mesh->setSolutionFieldData("dispy", blockID, myElements, dispy);
         mesh->setSolutionFieldData("dispz", blockID, myElements, dispz);
@@ -869,7 +870,7 @@ void PostprocessManager::writeSolution(const vector_RCP & E_soln, const std::str
       }
       
       
-      if (cells[b][0]->have_cell_phi || cells[b][0]->have_cell_rotation) {
+      if (cells[b][0]->cellData->have_cell_phi || cells[b][0]->cellData->have_cell_rotation) {
         Kokkos::View<ScalarT**,HostDevice> cdata("cell data",myElements.size(), 1);
         int eprog = 0;
         for (size_t k=0; k<cells[b].size(); k++) {

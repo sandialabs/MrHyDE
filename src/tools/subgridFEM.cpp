@@ -186,6 +186,9 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
     // The convention will be that each subgrid model uses only 1 cell
     // with multiple elements - this will help expose subgrid/local parallelism
     
+    Teuchos::RCP<CellMetaData> cellData = Teuchos::rcp( new CellMetaData(settings, cellTopo,
+                                                                         physics_RCP, 0, 0, false));
+    
     vector<Teuchos::RCP<cell> > newcells;
     
     for (size_t e=0; e<connectivity.size(); e++) {
@@ -197,8 +200,9 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
         }
       }
       eIndex(0) = e;
-      newcells.push_back(Teuchos::rcp(new cell(settings, LocalComm, cellTopo, physics_RCP,
-                                               currnodes, 0, eIndex, 0, false)));
+      //newcells.push_back(Teuchos::rcp(new cell(settings, LocalComm, cellTopo, physics_RCP,
+      //                                         currnodes, 0, eIndex, 0, false)));
+      newcells.push_back(Teuchos::rcp(new cell(cellData, currnodes, eIndex)));
     }
     currcells.push_back(newcells);
   }
@@ -661,9 +665,9 @@ void SubGridFEM::addMeshData() {
               }
               
               if (have_rotations)
-                cells[b][e]->have_cell_rotation = true;
+                cells[b][e]->cellData->have_cell_rotation = true;
               if (have_rotation_phi)
-                cells[b][e]->have_cell_phi = true;
+                cells[b][e]->cellData->have_cell_phi = true;
               
               cells[b][e]->cell_data_seed[c] = cnode % 50;
               cells[b][e]->cell_data_distance[c] = distance;
@@ -902,8 +906,8 @@ void SubGridFEM::addMeshData() {
             cells[b][e]->cell_data(c,i) = rotation_data(cnode,i);
           }
           
-          cells[b][e]->have_cell_rotation = true;
-          cells[b][e]->have_cell_phi = false;
+          cells[b][e]->cellData->have_cell_rotation = true;
+          cells[b][e]->cellData->have_cell_phi = false;
           
           cells[b][e]->cell_data_seed[c] = cnode;
           cells[b][e]->cell_data_seedindex[c] = seedIndex(cnode);
@@ -2159,7 +2163,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
     
     //Kokkos::View<ScalarT**,HostDevice> cdata("cell data",cells[usernum][0]->numElem, 1);
     Kokkos::View<ScalarT**,HostDevice> cdata("cell data",cells[usernum].size(), 1);
-    if (cells[usernum][0]->have_cell_phi || cells[usernum][0]->have_cell_rotation) {
+    if (cells[usernum][0]->cellData->have_cell_phi || cells[usernum][0]->cellData->have_cell_rotation) {
       int eprog = 0;
       for (size_t k=0; k<cells[usernum].size(); k++) {
         vector<size_t> cell_data_seed = cells[usernum][k]->cell_data_seed;
@@ -2247,7 +2251,7 @@ void SubGridFEM::writeSolution(const string & filename) {
     for (size_t j=0; j<subextracellfields.size(); j++) {
       submesh->addCellField(subextracellfields[j], subeBlocks[b]);
     }
-    if (cells[b][0]->have_cell_phi || cells[b][0]->have_cell_rotation) {
+    if (cells[b][0]->cellData->have_cell_phi || cells[b][0]->cellData->have_cell_rotation) {
       submesh->addCellField("mesh_data_seed", subeBlocks[b]);
     }
     
@@ -2319,7 +2323,7 @@ void SubGridFEM::writeSolution(const string & filename) {
       submesh->setSolutionFieldData(var, blockID, myElements, soln_computed);
     }
     
-    if (cells[0][0]->have_cell_phi || cells[0][0]->have_cell_rotation) {
+    if (cells[0][0]->cellData->have_cell_phi || cells[0][0]->cellData->have_cell_rotation) {
       Kokkos::View<ScalarT**,HostDevice> cdata("cell data",myElements.size(), 1);
       int eprog = 0;
       for (size_t b=0; b<cells.size(); b++) {

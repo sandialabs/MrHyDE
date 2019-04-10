@@ -80,7 +80,7 @@ public:
             numSensors += 1; // solver variable (total number of sensors)
           }
         }
-        assembler->cells[0][i]->exodus_sensors = true;
+        assembler->cells[0][i]->cellData->exodus_sensors = true;
         assembler->cells[0][i]->numSensors = numSensorsInCell;
         assembler->cells[0][i]->sensorLocations = sensorLocations;
         assembler->cells[0][i]->sensorData = sensorData;
