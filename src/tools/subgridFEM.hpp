@@ -222,12 +222,7 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   
   Kokkos::View<ScalarT**,AssemblyDevice> getCellFields(const int & usernum, const ScalarT & time);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void buildPreconditioner();
-  
+    
   // ========================================================================================
   //
   // ========================================================================================
@@ -247,7 +242,6 @@ public:
   // Static - do not depend on macro-element
   int dimension, time_steps;
   ScalarT initial_time, final_time;
-  //Teuchos::RCP<LA_MpiComm> LocalComm;
   Teuchos::RCP<Teuchos::ParameterList> settings;
   string macroshape, shape, multiscale_method, error_type;
   int nummacroVars, subgridverbose, numrefine;
@@ -256,6 +250,7 @@ public:
   
   vector<vector<int> > useBasis;
   
+  // Linear algebra / solver objects
   Teuchos::RCP<Epetra_Map> param_owned_map;
   Teuchos::RCP<Epetra_Map> param_overlapped_map;
   Teuchos::RCP<Epetra_Export> param_exporter;
@@ -268,23 +263,24 @@ public:
   Teuchos::RCP<Epetra_CrsGraph> owned_graph, overlapped_graph;
   Teuchos::RCP<Epetra_CrsMatrix>  J, sub_J_over, M, sub_M_over;
   
+  Epetra_LinearProblem LinSys;
+  
+  Amesos_BaseSolver * AmSolver;
+  Teuchos::RCP<Amesos2::Solver<Epetra_CrsMatrix,Epetra_MultiVector> > Am2Solver;
+  Teuchos::RCP<Epetra_MultiVector> LA_rhs, LA_lhs;
+  
   bool filledJ, filledM, useDirect;
   vector<string> stoch_param_types;
   vector<ScalarT> stoch_param_means, stoch_param_vars, stoch_param_mins, stoch_param_maxs;
   int num_stochclassic_params, num_active_params;
   vector<string> stochclassic_param_names;
   
-  Epetra_LinearProblem LinSys;
   
   ScalarT sub_NLtol, lintol;
   int sub_maxNLiter, liniter;
   
-  Amesos_BaseSolver * AmSolver;
-  Teuchos::RCP<Amesos2::Solver<Epetra_CrsMatrix,Epetra_MultiVector> > Am2Solver;
-  Teuchos::RCP<Epetra_MultiVector> LA_rhs, LA_lhs;
   
   bool have_sym_factor, have_preconditioner, use_amesos2;
-  ML_Epetra::MultiLevelPreconditioner * MLPrec;
   
   vector<string> varlist;
   vector<string> discparamnames;

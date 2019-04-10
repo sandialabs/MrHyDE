@@ -1384,9 +1384,9 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<Epetra_MultiVector> & sub_u
       Am2Solver->setX(du_glob);
       Am2Solver->setB(res);
     }
-    if (!useDirect && !have_preconditioner) {
-      this->buildPreconditioner();
-    }
+    //if (!useDirect && !have_preconditioner) {
+    //  this->buildPreconditioner();
+    //}
     if (LocalComm->getSize() > 1) {
       res->PutScalar(0.0);
       res->Export(*res_over, *(exporter), Add);
@@ -1430,10 +1430,10 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<Epetra_MultiVector> & sub_u
         }
       }
       else {
-        AztecOO itersolver(LinSys);
-        itersolver.SetAztecOption(AZ_output,0);
-        itersolver.SetPrecOperator(MLPrec);
-        itersolver.Iterate(liniter,lintol);
+        //AztecOO itersolver(LinSys);
+        //itersolver.SetAztecOption(AZ_output,0);
+        //itersolver.SetPrecOperator(MLPrec);
+        //itersolver.Iterate(liniter,lintol);
       }
       if (LocalComm->getSize() > 1) {
         du->PutScalar(0.0);
@@ -1694,6 +1694,7 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<Epetra_MultiVector> & d_sub
       }
     }
     else {
+      /*
       Teuchos::RCP<Epetra_MultiVector> cd_sub_res = Teuchos::rcp(new Epetra_MultiVector(*(owned_map),1));
       Teuchos::RCP<Epetra_MultiVector> cd_sub_u_over = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),1));
       
@@ -1712,7 +1713,7 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<Epetra_MultiVector> & d_sub
         for (int j=0; j<d_sub_u_over->MyLength(); j++) {
           (*d_sub_u_over)[i][j] = (*cd_sub_u_over)[0][j];
         }
-      }
+      }*/
     }
     if (LocalComm->getSize() > 1) {
       d_sub_u->PutScalar(0.0);
@@ -2824,30 +2825,6 @@ Kokkos::View<ScalarT**,AssemblyDevice> SubGridFEM::getCellFields(const int & use
    return extracellfields;
    */
 }
-
-// ========================================================================================
-// ========================================================================================
-
-void SubGridFEM::buildPreconditioner() {
-  Teuchos::ParameterList MLList;
-  ML_Epetra::SetDefaults("SA",MLList);
-  MLList.set("ML output", 0);
-  MLList.set("max levels",5);
-  MLList.set("increasing or decreasing","increasing");
-  int numEqns = varlist.size();
-  
-  MLList.set("PDE equations",numEqns);
-  MLList.set("aggregation: type", "Uncoupled");
-  MLList.set("smoother: type","IFPACK");
-  MLList.set("smoother: sweeps",1);
-  MLList.set("smoother: ifpack type","ILU");
-  MLList.set("smoother: ifpack overlap",1);
-  MLList.set("smoother: pre or post", "both");
-  MLList.set("coarse: type","Amesos-KLU");
-  MLPrec = new ML_Epetra::MultiLevelPreconditioner(*J, MLList);
-  
-}
-
 
 // ========================================================================================
 //
