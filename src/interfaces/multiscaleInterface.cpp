@@ -360,11 +360,11 @@ ScalarT MultiScale::update() {
               
               int usernum = cells[b][e]->subgrid_usernum[c];
               // get the time/solution from old subgrid model at last time step
-              int lastindex = subgridModels[oldmodel]->soln[usernum].size()-1;
-              pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > lastsol = subgridModels[oldmodel]->soln[usernum][lastindex];
-              
+              int lastindex = subgridModels[oldmodel]->soln->times[usernum].size()-1;
+              Teuchos::RCP<Epetra_MultiVector> lastsol = subgridModels[oldmodel]->soln->data[usernum][lastindex];
+              ScalarT lasttime = subgridModels[oldmodel]->soln->times[usernum][lastindex];
               Teuchos::RCP<Epetra_MultiVector> projvec = Teuchos::rcp(new Epetra_MultiVector(*(subgridModels[newmodel[c]]->owned_map),1));
-              subgrid_projection_maps[newmodel[c]][oldmodel]->Apply(*(lastsol.second), *projvec);
+              subgrid_projection_maps[newmodel[c]][oldmodel]->Apply(*lastsol, *projvec);
               
               Teuchos::RCP<Epetra_MultiVector> newvec = Teuchos::rcp(new Epetra_MultiVector(*(subgridModels[newmodel[c]]->owned_map),1));
               subgrid_projection_linsys[newmodel[c]]->SetRHS(projvec.get());
@@ -372,7 +372,8 @@ ScalarT MultiScale::update() {
               
               subgrid_projection_solvers[newmodel[c]]->Solve();
               
-              subgridModels[newmodel[c]]->solutionStorage(newvec, lastsol.first, false, usernum);
+              subgridModels[newmodel[c]]->soln->store(newvec, lasttime, usernum);
+              //subgridModels[newmodel[c]]->solutionStorage(newvec, lastsol.first, false, usernum);
               
               // update the cell
               //cells[b][e]->subgridModel = subgridModels[newmodel];

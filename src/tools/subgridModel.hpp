@@ -14,6 +14,7 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
+#include "solutionStorage.hpp"
 
 class SubGridModel {
 public:
@@ -89,6 +90,10 @@ public:
   //virtual Epetra_MultiVector getVector() = 0;
   
   Teuchos::RCP<LA_MpiComm> LocalComm;
+  Teuchos::RCP<SolutionStorage> soln, solndot, adjsoln;
+  
+  bool useMachineLearning = false;
+  
   vector<Teuchos::RCP<workset> > wkset;
   vector<basis_RCP> macro_basis_pointers;
   vector<string> macro_basis_types;
@@ -104,9 +109,9 @@ public:
   Teuchos::RCP<Epetra_Export> exporter;
   Teuchos::RCP<Epetra_Import> importer;
   
-  vector<vector<pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > > > soln;
-  vector<vector<pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > > > solndot;
-  vector<vector<pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > > > adjsoln;
+  //vector<vector<pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > > > soln;
+  //vector<vector<pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > > > solndot;
+  //vector<vector<pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > > > adjsoln;
   
   vector<Teuchos::RCP<vector<AD> > > paramvals_AD;
 

@@ -40,6 +40,10 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
     final_time = 0.0;
   }
   
+  soln = Teuchos::rcp(new SolutionStorage(settings));
+  adjsoln = Teuchos::rcp(new SolutionStorage(settings));
+  solndot = Teuchos::rcp(new SolutionStorage(settings));
+  
   // Solver settings
   useDirect = settings->sublist("Solver").get<bool>("use direct solver",true);
   use_amesos2 = settings->sublist("Solver").get<bool>("use amesos2",false);
@@ -467,18 +471,21 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
     
     Teuchos::RCP<Epetra_MultiVector> init = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),1));
     this->setInitial(init, block, false);
-    vector<pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > > initvec;
-    pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > initsol(initial_time, init);
-    initvec.push_back(initsol);
-    soln.push_back(initvec);
+    //vector<pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > > initvec;
+    //pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > initsol(initial_time, init);
+    //initvec.push_back(initsol);
+    //soln.push_back(initvec);
+    
+    soln->store(init,initial_time,block);
     
     Teuchos::RCP<Epetra_MultiVector> inita = Teuchos::rcp(new Epetra_MultiVector(*(overlapped_map),1));
-    vector<pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > > initadjvec;
-    pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > initadjsol(final_time, inita);
-    initadjvec.push_back(initadjsol);
-    adjsoln.push_back(initadjvec);
-    
+    //vector<pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > > initadjvec;
+    //pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > initadjsol(final_time, inita);
+    //initadjvec.push_back(initadjsol);
+    //adjsoln.push_back(initadjvec);
+    adjsoln->store(inita,final_time,block);
   }
+  
   ////////////////////////////////////////////////////////////////////////////////
   // The current macro-element will store the values of its own basis functions
   // at the sub-grid integration points
@@ -998,9 +1005,12 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
   {
     Teuchos::TimeMonitor localtimer(*sgfemInitialTimer);
     
-    size_t numtimes = soln[usernum].size();
+    size_t numtimes = soln->times[usernum].size();
     if (isAdjoint) {
       if (isTransient) {
+        bool foundfwd = soln->extractPrevious(u, usernum, current_time, prev_time);
+        bool foundadj = adjsoln->extract(phi, usernum, current_time);
+        /*
         for (size_t i=0; i<soln[usernum].size(); i++) {
           if (abs(current_time - soln[usernum][i].first) < 1.0e-12) {
             *u = *(soln[usernum][i-1].second);
@@ -1012,17 +1022,22 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
             *phi = *(adjsoln[usernum][i].second);
           }
         }
+         */
       }
       else {
-        numtimes = soln[usernum].size();
-        *u = *(soln[usernum][numtimes-1].second);
-        prev_time = soln[usernum][numtimes-1].first;
-        numtimes = adjsoln[usernum].size();
-        *phi = *(adjsoln[usernum][numtimes-1].second);
+        bool foundfwd = soln->extract(u, usernum, current_time);
+        bool foundadj = adjsoln->extract(phi, usernum, current_time);
+        //numtimes = soln[usernum].size();
+        //*u = *(soln[usernum][numtimes-1].second);
+        //prev_time = soln[usernum][numtimes-1].first;
+        //numtimes = adjsoln[usernum].size();
+        //*phi = *(adjsoln[usernum][numtimes-1].second);
       }
     }
     else { // forward or compute sens
       if (isTransient) {
+        bool foundfwd = soln->extractPrevious(u, usernum, current_time, prev_time);
+        /*
         bool found_time = false;
         for (size_t i=0; i<soln[usernum].size(); i++) {
           if (abs(current_time - soln[usernum][i].first) < 1.0e-12) {
@@ -1034,18 +1049,21 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
         if (!found_time) {
           *u = *(soln[usernum][numtimes-1].second);
           prev_time = soln[usernum][numtimes-1].first;
-        }
+        }*/
       }
       else {
-        *u = *(soln[usernum][numtimes-1].second);
-        prev_time = soln[usernum][numtimes-1].first;
+        bool foundfwd = soln->extractLast(u,usernum,prev_time);
+        //*u = *(soln[usernum][numtimes-1].second);
+        //prev_time = soln[usernum][numtimes-1].first;
       }
       if (compute_sens) {
-        for (size_t i=0; i<adjsoln[usernum].size(); i++) {
-          if (abs(current_time - adjsoln[usernum][i].first) < 1.0e-12) {
-            *phi = *(adjsoln[usernum][i+1].second);
-          }
-        }
+        double nexttime = 0.0;
+        bool foundadj = adjsoln->extractNext(phi,usernum,current_time,nexttime);
+        //for (size_t i=0; i<adjsoln[usernum].size(); i++) {
+        //  if (abs(current_time - adjsoln[usernum][i].first) < 1.0e-12) {
+        //    *phi = *(adjsoln[usernum][i+1].second);
+        //  }
+        //}
       }
     }
   }
@@ -1182,10 +1200,12 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
   }
   
   if (isAdjoint) {
-    this->solutionStorage(phi, current_time, isAdjoint, usernum);
+    adjsoln->store(phi,current_time,usernum);
+    //this->solutionStorage(phi, current_time, isAdjoint, usernum);
   }
   else if (!compute_sens) {
-    this->solutionStorage(u, current_time, isAdjoint, usernum);
+    soln->store(u,current_time,usernum);
+    //this->solutionStorage(u, current_time, isAdjoint, usernum);
   }
   
 }
@@ -1467,6 +1487,7 @@ void SubGridFEM::solutionStorage(Teuchos::RCP<Epetra_MultiVector> & newvec,
                                  const ScalarT & time, const bool & isAdjoint,
                                  const int & usernum) {
   
+  /*
   Teuchos::TimeMonitor localtimer(*sgfemSolnStorageTimer);
   
   Teuchos::RCP<Epetra_MultiVector> vectostore = Teuchos::rcp( new Epetra_MultiVector(*(overlapped_map),1));
@@ -1507,6 +1528,7 @@ void SubGridFEM::solutionStorage(Teuchos::RCP<Epetra_MultiVector> & newvec,
       soln[usernum].push_back(time_u);
     }
   }
+   */
 }
 
 //////////////////////////////////////////////////////////////
@@ -1883,16 +1905,18 @@ Kokkos::View<ScalarT**,AssemblyDevice> SubGridFEM::computeError(const ScalarT & 
   
   size_t numVars = varlist.size();
   int tindex = -1;
-  for (int tt=0; tt<soln[usernum].size(); tt++) {
-    if (abs(soln[usernum][tt].first - time)<1.0e-10) {
-      tindex = tt;
-    }
-  }
+  //for (int tt=0; tt<soln[usernum].size(); tt++) {
+  //  if (abs(soln[usernum][tt].first - time)<1.0e-10) {
+  //    tindex = tt;
+  //  }
+  //}
+  Teuchos::RCP<Epetra_MultiVector> currsol;
+  bool found = soln->extract(currsol, usernum, time, tindex);
   
   Kokkos::View<ScalarT**,AssemblyDevice> errors("error",cells[usernum].size(), numVars);
-  if (tindex != -1) {
+  if (found) {
     Kokkos::View<ScalarT**,AssemblyDevice> curr_errors;
-    performGather(usernum, soln[usernum][tindex].second, 0, 0);
+    this->performGather(usernum, currsol, 0, 0);
     for (size_t e=0; e<cells[usernum].size(); e++) {
       curr_errors = cells[usernum][e]->computeError(time,tindex,false,error_type);
       for (int c=0; c<curr_errors.dimension(0); c++) {
@@ -1913,26 +1937,31 @@ Kokkos::View<AD*,AssemblyDevice> SubGridFEM::computeObjective(const string & res
                                                               const ScalarT & time, const int & usernum) {
   
   int tindex = -1;
-  for (int tt=0; tt<soln[usernum].size(); tt++) {
-    if (abs(soln[usernum][tt].first - time)<1.0e-10) {
-      tindex = tt;
-    }
-  }
+  //for (int tt=0; tt<soln[usernum].size(); tt++) {
+  //  if (abs(soln[usernum][tt].first - time)<1.0e-10) {
+  //    tindex = tt;
+  //  }
+  //}
+  
+  Teuchos::RCP<Epetra_MultiVector> currsol;
+  bool found = soln->extract(currsol,usernum,time,tindex);
   
   Kokkos::View<AD*,AssemblyDevice> objective;
-  bool beensized = false;
-  performGather(usernum, soln[usernum][tindex].second, 0,0);
-  performGather(usernum, Psol[0], 4, 0);
-  
-  for (size_t e=0; e<cells[usernum].size(); e++) {
-    Kokkos::View<AD**,AssemblyDevice> curr_obj = cells[usernum][e]->computeObjective(time, tindex, seedwhat);
-    if (!beensized && curr_obj.dimension(1)>0) {
-      objective = Kokkos::View<AD*,AssemblyDevice>("objective", curr_obj.dimension(1));
-      beensized = true;
-    }
-    for (int c=0; c<cells[usernum][e]->numElem; c++) {
-      for (size_t i=0; i<curr_obj.dimension(1); i++) {
-        objective(i) += curr_obj(c,i);
+  if (found) {
+    bool beensized = false;
+    this->performGather(usernum, currsol, 0,0);
+    this->performGather(usernum, Psol[0], 4, 0);
+    
+    for (size_t e=0; e<cells[usernum].size(); e++) {
+      Kokkos::View<AD**,AssemblyDevice> curr_obj = cells[usernum][e]->computeObjective(time, tindex, seedwhat);
+      if (!beensized && curr_obj.dimension(1)>0) {
+        objective = Kokkos::View<AD*,AssemblyDevice>("objective", curr_obj.dimension(1));
+        beensized = true;
+      }
+      for (int c=0; c<cells[usernum][e]->numElem; c++) {
+        for (size_t i=0; i<curr_obj.dimension(1); i++) {
+          objective(i) += curr_obj(c,i);
+        }
       }
     }
   }
@@ -1948,7 +1977,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
   
   
   bool isTD = false;
-  if (soln[usernum].size() > 1) {
+  if (soln->times[usernum].size() > 1) {
     isTD = true;
   }
   
@@ -2008,7 +2037,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
   if(isTD) {
     submesh->setupExodusFile(filename);
   }
-  int numSteps = soln[usernum].size();
+  int numSteps = soln->times[usernum].size();
   
   for (int m=0; m<numSteps; m++) {
     
@@ -2035,9 +2064,9 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
           for( int i=0; i<numsb; i++ ) {
             int pindex = overlapped_map->LID(GIDs(p,suboffsets[n][i]));
             if (write_subgrid_state)
-              soln_computed(p,i) = (*(soln[usernum][m].second))[0][pindex];
+              soln_computed(p,i) = (*(soln->data[usernum][m]))[0][pindex];
             else
-              soln_computed(p,i) = (*(adjsoln[usernum][m].second))[0][pindex];
+              soln_computed(p,i) = (*(adjsoln->data[usernum][m]))[0][pindex];
           }
         }
       }
@@ -2191,7 +2220,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
     submesh->setCellFieldData("mesh_data_seed", blockID, myElements, cdata);
     
     if(isTD) {
-      submesh->writeToExodus(soln[usernum][m].first);
+      submesh->writeToExodus(soln->times[usernum][m]);
     }
     else {
       submesh->writeToExodus(filename);
@@ -2209,7 +2238,7 @@ void SubGridFEM::writeSolution(const string & filename) {
   
   
   bool isTD = false;
-  if (soln[0].size() > 1) {
+  if (soln->times[0].size() > 1) {
     isTD = true;
   }
   
@@ -2278,7 +2307,7 @@ void SubGridFEM::writeSolution(const string & filename) {
   if(isTD)
     submesh->setupExodusFile(filename);
   
-  int numSteps = soln[0].size();
+  int numSteps = soln->times[0].size();
   
   vector<size_t> myElements;
   size_t eprog = 0;
@@ -2313,9 +2342,9 @@ void SubGridFEM::writeSolution(const string & filename) {
             for( int i=0; i<numsb; i++ ) {
               int pindex = overlapped_map->LID(GIDs(p,suboffsets[n][i]));
               if (write_subgrid_state)
-                soln_computed(eprog,i) = (*(soln[b][m].second))[0][pindex];
+                soln_computed(eprog,i) = (*(soln->data[b][m]))[0][pindex];
               else
-                soln_computed(eprog,i) = (*(adjsoln[b][m].second))[0][pindex];
+                soln_computed(eprog,i) = (*(adjsoln->data[b][m]))[0][pindex];
             }
             eprog++;
           }
@@ -2341,7 +2370,7 @@ void SubGridFEM::writeSolution(const string & filename) {
     
     
     if(isTD) {
-      submesh->writeToExodus(soln[0][m].first);
+      submesh->writeToExodus(soln->times[0][m]);
     }
     else {
       submesh->writeToExodus(filename);

@@ -1,13 +1,16 @@
 %YAML 1.1
 ---
 ANONYMOUS:
+  debug level: 0
+  verbosity: 0
   Mesh Settings File: input_mesh.yaml
   Physics: 
     solve_thermal: true
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
-    test: 12
+    true solutions:
+      e: sin(2.0*pi*x)*sin(2.0*pi*y)
   Subgrid:
     Static Subgrids: false
     Number of Models: 3
