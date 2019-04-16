@@ -11,7 +11,6 @@ ANONYMOUS:
     initialType: test
     solve_msphasefield: true
     e_DBCs: bottom
-    number_phases: 3
     initial conditions:
       phi1: '1.0*(rone<12.5)'
       phi2: '1.0*(rtwo<12.5)'
