@@ -63,28 +63,6 @@ Commptr(Comm_) {
     myElements.push_back(blockmyElements);
     
     ///////////////////////////////////////////////////////////////////////////
-    // Assemble nodes and vertices on this block
-    ///////////////////////////////////////////////////////////////////////////
-    
-    /*
-     vector<size_t> localIds;
-     FC blocknodeVert;
-     panzer_stk::workset_utils::getIdsAndVertices(*mesh, blockID, localIds, blocknodeVert);
-     vector<FC > blocknodeVert_vec(blocknodeVert.dimension(0));
-     
-     int numNodesPerElem = blocknodeVert.dimension(1);
-     for (size_t i=0; i<blocknodeVert.dimension(0); i++) {
-     FC currnodes(numNodesPerElem, spaceDim);
-     for (int n=0; n<numNodesPerElem; n++) {
-     for (int m=0; m<spaceDim; m++) {
-     currnodes(n,m) = blocknodeVert(i,n,m);
-     }
-     }
-     blocknodeVert_vec[i] = currnodes;
-     }
-     */
-    
-    ///////////////////////////////////////////////////////////////////////////
     // Modify the mesh (if requested)
     ///////////////////////////////////////////////////////////////////////////
     
@@ -181,16 +159,6 @@ Commptr(Comm_) {
     numip.push_back(qpts.dimension(0));
     numip_side.push_back(side_qpts.dimension(0));
     
-    ///////////////////////////////////////////////////////////////////////////
-    // Add Quadrature and Discretizations to the cells
-    ///////////////////////////////////////////////////////////////////////////
-    
-    //for (size_t e=0; e<cells[b].size(); e++) {
-    //  cells[b][e]->setIP(qpts);
-    //  cells[b][e]->setSideIP(side_qpts, side_qwts);
-    //}
-    
-    
   } // block loop
   
   if (milo_debug_level > 0) {
@@ -204,12 +172,15 @@ Commptr(Comm_) {
 ///////////////////////////////////////////////////////////////////////////
 
 void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & cells,
+                                        vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells,
                                         Teuchos::RCP<panzer::DOFManager<int,int> > & DOF,
                                         Teuchos::RCP<physics> & phys) {
   for (size_t b=0; b<cells.size(); b++) {
     int eprog = 0;
     for (size_t e=0; e<cells[b].size(); e++) {
       int numElem = cells[b][e]->numElem;
+      
+      // Build the Kokkos View of the cell GIDs ------
       vector<vector<int> > cellGIDs;
       int numLocalDOF = 0;
       for (int i=0; i<numElem; i++) {
@@ -226,10 +197,17 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
         }
       }
       cells[b][e]->GIDs = hostGIDs;
-      Kokkos::View<int*> globalEID = cells[b][e]->globalElemID;
-      Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,globalEID);
+      //-----------------------------------------------
+      
+      Kokkos::View<int*> localEID = cells[b][e]->localElemID;
+      
+      // Set the side information (soon to be removed)-
+      Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,localEID);
       cells[b][e]->sideinfo = sideinfo;
       cells[b][e]->sidenames = phys->sideSets;
+      //-----------------------------------------------
+      
+      // Set the cell orientation (not really used) ---
       vector<vector<ScalarT> > cellOrient;
       for (int i=0; i<numElem; i++) {
         vector<ScalarT> orient;
@@ -238,17 +216,56 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
         cellOrient.push_back(orient);
       }
       cells[b][e]->orientation = cellOrient;
+      //-----------------------------------------------
+      
       eprog += numElem;
       
     }
   }
   
+  for (size_t b=0; b<boundaryCells.size(); b++) {
+    for (size_t e=0; e<boundaryCells[b].size(); e++) {
+      int numElem = boundaryCells[b][e]->numElem;
+      
+      // Build the Kokkos View of the cell GIDs ------
+      vector<vector<int> > cellGIDs;
+      int numLocalDOF = 0;
+      for (int i=0; i<numElem; i++) {
+        vector<int> GIDs;
+        size_t elemID = boundaryCells[b][e]->localElemID(i);
+        DOF->getElementGIDs(elemID, GIDs, phys->blocknames[b]);
+        cellGIDs.push_back(GIDs);
+        numLocalDOF = GIDs.size(); // should be the same for all elements
+      }
+      Kokkos::View<GO**,HostDevice> hostGIDs("GIDs on host device",numElem,numLocalDOF);
+      for (int i=0; i<numElem; i++) {
+        for (int j=0; j<numLocalDOF; j++) {
+          hostGIDs(i,j) = cellGIDs[i][j];
+        }
+      }
+      boundaryCells[b][e]->GIDs = hostGIDs;
+      //-----------------------------------------------
+    }
+  }
+  // Set the cell integration points/wts-----------
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       cells[b][e]->setIP(ref_ip[b]);
       cells[b][e]->setSideIP(ref_side_ip[b], ref_side_wts[b]);
     }
   }
+  //-----------------------------------------------
+  
+  // Set the boundary cell integration points/wts -
+  for (size_t b=0; b<boundaryCells.size(); b++) {
+    for (size_t e=0; e<boundaryCells[b].size(); e++) {
+      int s = boundaryCells[b][e]->sidenum;
+      //boundaryCells[b][e]->setIP(ref_side_ip[b], ref_side_wts[b]);
+      //cells[b][e]->setSideIP(ref_side_ip[b], ref_side_wts[b]);
+    }
+  }
+  //-----------------------------------------------
+  
   
 }
 

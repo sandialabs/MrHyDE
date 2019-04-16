@@ -17,6 +17,7 @@
 #include "data.hpp"
 #include "klexpansion.hpp"
 #include "workset.hpp"
+#include "boundaryWorkset.hpp"
 #include "functionInterface.hpp"
 
 class physicsbase {
@@ -69,6 +70,7 @@ public:
   string label;
   
   Teuchos::RCP<workset> wkset;
+  vector<Teuchos::RCP<BoundaryWorkset> > boundaryWkset;
   Teuchos::RCP<FunctionInterface> functionManager;
   int spaceDim;
   vector<string> myvars, mybasistypes;

@@ -162,6 +162,8 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
   
   cellTopo = mesh->getCellTopology(eBlocks[0]);
   vector<vector<Teuchos::RCP<cell> > > currcells;
+  vector<vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
+  
   vector<vector<int> > orders;
   vector<vector<string> > types;
   
@@ -311,11 +313,11 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
     if (first_time) {
       
       sub_params = Teuchos::rcp( new ParameterManager(LocalComm, settings, mesh,
-                                                      physics_RCP, currcells));
+                                                      physics_RCP, currcells, boundaryCells));
       
       sub_assembler = Teuchos::rcp( new AssemblyManager(LocalComm, settings, mesh,
                                                         disc, physics_RCP, DOF,
-                                                        currcells, sub_params));
+                                                        currcells, boundaryCells, sub_params));
       
       subsolver = Teuchos::rcp( new solver(LocalComm, settings, mesh_interface, disc, physics_RCP,
                                            DOF, sub_assembler, sub_params) );
@@ -2674,7 +2676,7 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
       
       for (size_t i=0; i<numpts; i++) {
         if (inRefCell(0,i) == 1) {
-          owners(i,0) = c;//cells[0][e]->globalElemID[c];
+          owners(i,0) = c;//cells[0][e]->localElemID[c];
           Kokkos::View<GO**,HostDevice> GIDs = cells[0][e]->GIDs;
           for (size_t j=0; j<numGIDs; j++) {
             owners(i,j+1) = GIDs(c,j);

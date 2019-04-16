@@ -15,6 +15,7 @@
 #include "trilinos.hpp"
 #include "preferences.hpp"
 #include "cell.hpp"
+#include "boundaryCell.hpp"
 
 void static discretizationHelp(const string & details) {
   cout << "********** Help and Documentation for the Discretization Interface **********" << endl;
@@ -32,6 +33,7 @@ public:
                  vector<vector<Teuchos::RCP<cell> > > & cells);
   
   void setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & cells,
+                          vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells,
                           Teuchos::RCP<panzer::DOFManager<int,int> > & DOF,
                           Teuchos::RCP<physics> & phys);
   

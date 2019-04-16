@@ -403,7 +403,9 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void meshInterface::createCells(Teuchos::RCP<physics> & phys, vector<vector<Teuchos::RCP<cell> > > & cells) {
+void meshInterface::createCells(Teuchos::RCP<physics> & phys,
+                                vector<vector<Teuchos::RCP<cell> > > & cells,
+                                vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells) {
   
   ////////////////////////////////////////////////////////////////////////////////
   // Create the cells
@@ -474,6 +476,57 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys, vector<vector<Teuc
       prog += elemPerCell;
     }
     cells.push_back(blockcells);
+    
+    int currElem = elemPerCell;  // Avoid faults in last iteration
+    if (prog+currElem > numElem){
+      currElem = numElem-prog;
+    }
+    Kokkos::View<int*> eIndex("element indices",currElem);
+    DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
+    DRV currnodepert("currnodepert", currElem, numNodesPerElem, spaceDim);
+    for (int e=0; e<currElem; e++) {
+      for (int n=0; n<numNodesPerElem; n++) {
+        for (int m=0; m<spaceDim; m++) {
+          currnodes(e,n,m) = blocknodes(prog+e,n,m) + blocknodepert(prog+e,n,m);
+          currnodepert(e,n,m) = blocknodepert(prog+e,n,m);
+        }
+      }
+      eIndex(e) = prog+e;
+    }
+    
+    // Next, create the boundary cells
+    
+    vector<Teuchos::RCP<BoundaryCell> > bcells;
+    vector<string> sideSets;
+    mesh->getSidesetNames(sideSets);
+    
+    for( size_t side=0; side<sideSets.size(); side++ ) {
+      string sideName = sideSets[side];
+      
+      vector<stk::mesh::Entity> sideEntities;
+      mesh->getMySides(sideName, eBlocks[b], sideEntities);
+      vector<size_t>             local_side_Ids;
+      vector<stk::mesh::Entity> side_output;
+      vector<size_t>             local_elem_Ids;
+      panzer_stk::workset_utils::getSideElements(*mesh, eBlocks[b], sideEntities, local_side_Ids, side_output);
+      int numSideElem = local_side_Ids.size();
+      DRV currnodes("currnodes", numSideElem, numNodesPerElem, spaceDim);
+      Kokkos::View<int*> eIndex("element indices",numSideElem);
+      
+      for( size_t i=0; i<numSideElem; i++ ) {
+        local_elem_Ids.push_back(mesh->elementLocalId(side_output[i]));
+        eIndex(i) = local_elem_Ids[i];
+        for (size_t j=0; j<numNodesPerElem; j++) {
+          for (size_t k=0; k<spaceDim; k++) {
+            currnodes(i,j,k) = blocknodes(local_elem_Ids[i],j,k);
+          }
+        }
+      }
+      bcells.push_back(Teuchos::rcp(new BoundaryCell(cellData,currnodes,eIndex,
+                                                     side,sideName)));
+    }
+    boundaryCells.push_back(bcells);
+    
   }
   if (have_mesh_data) {
     this->importMeshData(cells);

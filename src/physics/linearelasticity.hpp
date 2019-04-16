@@ -36,12 +36,13 @@ public:
   linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
                    const size_t & numip_side_, const int & numElem_,
                    Teuchos::RCP<FunctionInterface> & functionManager_, const size_t & blocknum_) :
-  numip(numip_), numip_side(numip_side_), numElem(numElem_), functionManager(functionManager_),
+  numip(numip_), numip_side(numip_side_), numElem(numElem_),
   blocknum(blocknum_) {
     
     label = "linearelasticity";
     
     spaceDim = settings->sublist("Mesh").get<int>("dim",2);
+    functionManager = functionManager_;
     
     if (spaceDim == 1) {
       myvars = {"dx"};
@@ -1216,9 +1217,7 @@ public:
   
   
 private:
-  
-  Teuchos::RCP<FunctionInterface> functionManager;
-
+    
   size_t numip, numip_side, blocknum;
   
   int spaceDim, numElem, numParams, numResponses;

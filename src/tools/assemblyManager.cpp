@@ -19,10 +19,11 @@
 
 AssemblyManager::AssemblyManager(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
                                  Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
-                                 Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
+                                 Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<LO,GO> > & DOF_,
                                  vector<vector<Teuchos::RCP<cell> > > & cells_,
+                                 vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells_,
                                  Teuchos::RCP<ParameterManager> & params_) :
-Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), cells(cells_), params(params_) {
+Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), cells(cells_), boundaryCells(boundaryCells_), params(params_) {
   
   // Get the required information from the settings
   milo_debug_level = settings->get<int>("debug level",0);

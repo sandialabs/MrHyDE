@@ -38,8 +38,8 @@ public:
   
   cell(const Teuchos::RCP<CellMetaData> & cellData_,
        const DRV & nodes_,
-       const Kokkos::View<int*> & globalID_) :
-  cellData(cellData_), globalElemID(globalID_), nodes(nodes_){
+       const Kokkos::View<int*> & localID_) :
+  cellData(cellData_), localElemID(localID_), nodes(nodes_){
   
     numElem = nodes.dimension(0);
     active = true;
@@ -507,7 +507,7 @@ public:
   Teuchos::RCP<workset> wkset;
   
   bool active;
-  Kokkos::View<LO*> globalElemID;
+  Kokkos::View<LO*> localElemID;
   
   // Geometry Information
   int numElem;

@@ -16,6 +16,7 @@
 #include "preferences.hpp"
 #include "physicsInterface.hpp"
 #include "cell.hpp"
+#include "boundaryCell.hpp"
 
 void static meshHelp(const string & details) {
   cout << "********** Help and Documentation for the Mesh Interface **********" << endl;
@@ -43,7 +44,8 @@ class meshInterface {
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  void createCells(Teuchos::RCP<physics> & phys, vector<vector<Teuchos::RCP<cell> > > & cells);
+  void createCells(Teuchos::RCP<physics> & phys, vector<vector<Teuchos::RCP<cell> > > & cells,
+                   vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells);
   
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////

@@ -11,6 +11,7 @@ Bart van Bloemen Waanders (bartv@sandia.gov)
 
 #include "userInterface.hpp"
 #include "cell.hpp"
+#include "boundaryCell.hpp"
 #include "meshInterface.hpp"
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
@@ -118,7 +119,8 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     vector<vector<Teuchos::RCP<cell> > > cells;
-    mesh->createCells(phys,cells);
+    vector<vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
+    mesh->createCells(phys,cells,boundaryCells);
     phys->setPeriBCs(settings, mesh->mesh);
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -137,15 +139,16 @@ int main(int argc,char * argv[]) {
     // The DOF-manager needs to be aware of the physics and the discretization(s)
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<panzer::DOFManager<int,int> > DOF = phys->buildDOF(mesh->mesh);
+    Teuchos::RCP<panzer::DOFManager<LO,GO> > DOF = phys->buildDOF(mesh->mesh);
     phys->setBCData(settings, mesh->mesh, DOF, disc->cards);
     
     
-    disc->setIntegrationInfo(cells, DOF, phys);
+    disc->setIntegrationInfo(cells, boundaryCells, DOF, phys);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Set up the subgrid discretizations/models if using multiscale method
     ////////////////////////////////////////////////////////////////////////////////
+    
     
     vector<Teuchos::RCP<SubGridModel> > subgridModels = subgridGenerator(tcomm_S, settings, mesh->mesh);
     
@@ -158,10 +161,12 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<ParameterManager> params = Teuchos::rcp( new ParameterManager(tcomm_LA, settings,
-                                                                               mesh->mesh, phys, cells));
+                                                                               mesh->mesh, phys, cells,
+                                                                               boundaryCells));
     
     Teuchos::RCP<AssemblyManager> assembler = Teuchos::rcp( new AssemblyManager(tcomm_LA, settings, mesh->mesh,
                                                                                 disc, phys, DOF, cells,
+                                                                                boundaryCells,
                                                                                 params));
     
     Teuchos::RCP<solver> solve = Teuchos::rcp( new solver(tcomm_LA, settings, mesh,
@@ -203,17 +208,6 @@ int main(int argc,char * argv[]) {
     
     Teuchos::RCP<analysis> analys = Teuchos::rcp( new analysis(tcomm_LA, tcomm_S, settings,
                                                                solve, postproc, params) );
-    
-    /*
-    functionManager->validateFunctions();
-    functionManager->decomposeFunctions();
-    
-    solve->finalizeMultiscale();
-    
-    Teuchos::RCP<SensorManager> sensors = Teuchos::rcp( new SensorManager(settings, mesh, disc,
-                                                                          assembler, params) );
-    */
-    //solve->setupSensors(settings); // moved here so subcells can have sensors
     
     if (verbosity >= 20 && Comm.getRank() == 0) {
       functionManager->printFunctions();

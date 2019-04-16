@@ -1836,7 +1836,7 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
               }
               if (cellData->writeSensorFiles) {
                 stringstream ss;
-                ss << globalElemID(e);
+                ss << localElemID(e);
                 string str = ss.str();
                 string fname = "sdat." + str + ".dat";
                 ofstream outfile(fname.c_str());
@@ -1855,7 +1855,7 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
       if (cellData->loadSensorFiles) {
         for (int e=0; e<numElem; e++) {
           stringstream ss;
-          ss << globalElemID(e);
+          ss << localElemID(e);
           string str = ss.str();
           ifstream sfile;
           sfile.open("sensorLocations/sdat." + str + ".dat");

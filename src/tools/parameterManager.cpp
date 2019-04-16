@@ -23,7 +23,8 @@ ParameterManager::ParameterManager(const Teuchos::RCP<LA_MpiComm> & Comm_,
                                    Teuchos::RCP<Teuchos::ParameterList> & settings,
                                    Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
                                    Teuchos::RCP<physics> & phys_,
-                                   vector<vector<Teuchos::RCP<cell> > > & cells) :
+                                   vector<vector<Teuchos::RCP<cell> > > & cells,
+                                   vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells) :
 Comm(Comm_), mesh(mesh_), phys(phys_) {
   
   
@@ -47,7 +48,7 @@ Comm(Comm_), mesh(mesh_), phys(phys_) {
   use_custom_initial_param_guess = settings->sublist("Physics").get<bool>("use custom initial param guess",false);
   
   this->setupParameters(settings);
-  this->setupDiscretizedParameters(cells);
+  this->setupDiscretizedParameters(cells,boundaryCells);
   
 }
 
@@ -182,10 +183,15 @@ void ParameterManager::setupParameters(Teuchos::RCP<Teuchos::ParameterList> & se
     
   }
 }
-  
-  // Set up the discretized parameter DOF manager
-  
-void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cell> > > & cells) {
+
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+// Set up the discretized parameter DOF manager
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+
+void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cell> > > & cells,
+                                                  vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells) {
   
   if (num_discretized_params > 0) {
     // determine the unique list of basis'
@@ -258,7 +264,7 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
         int numElem = cells[b][e]->numElem;
         int numLocalDOF = 0;
         for (int p=0; p<numElem; p++) {
-          size_t elemID = cells[b][e]->globalElemID(p);//disc->myElements[b][eprog+p];
+          size_t elemID = cells[b][e]->localElemID(p);//disc->myElements[b][eprog+p];
           vector<int> localGIDs;
           paramDOF->getElementGIDs(elemID, localGIDs, blocknames[b]);
           GIDs.push_back(localGIDs);

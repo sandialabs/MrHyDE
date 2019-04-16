@@ -15,6 +15,7 @@
 #include "trilinos.hpp"
 #include "preferences.hpp"
 #include "cell.hpp"
+#include "boundaryCell.hpp"
 #include "workset.hpp"
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
@@ -36,6 +37,7 @@ public:
                   Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
                   Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
                   vector<vector<Teuchos::RCP<cell> > > & cells_,
+                  vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells_,
                   Teuchos::RCP<ParameterManager> & params_);
   
   // ========================================================================================
@@ -122,6 +124,7 @@ public:
   size_t globalParamUnknowns;
   int verbosity, milo_debug_level;
   vector<vector<Teuchos::RCP<cell> > > cells;
+  vector<vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
   vector<Teuchos::RCP<workset> > wkset;
   
   bool usestrongDBCs, use_meas_as_dbcs;
