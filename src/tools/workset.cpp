@@ -18,10 +18,10 @@
 workset::workset(const vector<int> & cellinfo, const DRV & ref_ip_, const DRV & ref_wts_, const DRV & ref_side_ip_,
                  const DRV & ref_side_wts_, const vector<string> & basis_types_,
                  const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
-                 const topo_RCP & topo) : //, const Teuchos::RCP<TimeIntegrator> & timeInt_) :
+                 const topo_RCP & topo, Kokkos::View<int**,AssemblyDevice> & var_bcs_) : //, const Teuchos::RCP<TimeIntegrator> & timeInt_) :
 ref_ip(ref_ip_), ref_wts(ref_wts_), ref_side_ip(ref_side_ip_), ref_side_wts(ref_side_wts_),
 basis_types(basis_types_), basis_pointers(basis_pointers_), param_basis_pointers(param_basis_),
-celltopo(topo){ //, timeInt(timeInt_) {
+celltopo(topo), var_bcs(var_bcs_)  { //, timeInt(timeInt_) {
   
   // Settings that should not change
   dimension = cellinfo[0];
@@ -30,6 +30,7 @@ celltopo(topo){ //, timeInt(timeInt_) {
   numAux = cellinfo[3];
   numDOF = cellinfo[4];
   numElem = cellinfo[5];
+  usebcs = true;
   
   /*
    num_stages = 1;//timeInt->num_stages;
@@ -70,6 +71,10 @@ celltopo(topo){ //, timeInt(timeInt_) {
   ip_side_KV = Kokkos::View<ScalarT***,AssemblyDevice>("side ip stored in KV",numElem,numsideip,dimension);
   normals_KV = Kokkos::View<ScalarT***,AssemblyDevice>("side normals stored in normals KV",numElem,numsideip,dimension);
   point_KV = Kokkos::View<ScalarT***,AssemblyDevice>("ip stored in point KV",1,1,dimension);
+  
+  //ip_side_vec = vector<DRV>(numBound);
+  //wts_side_vec = vector<DRV>(numBound);
+  //normals_side_vec = vector<DRV>(numBound);
   
   h = Kokkos::View<ScalarT*,AssemblyDevice>("h",numElem);
   res = Kokkos::View<AD**,AssemblyDevice>("residual",numElem,numDOF);
@@ -298,6 +303,12 @@ void workset::setupBasis() {
     ref_basis_side.push_back(csbasis);
     ref_basis_grad_side.push_back(csbasisgrad);
   }
+  
+  //basis_side_vec = vector<vector<DRV> >(numBound);
+  //basis_grad_side_vec = vector<vector<DRV> >(numBound);
+  //basis_side_uw_vec = vector<vector<DRV> >(numBound);
+  //basis_grad_side_uw_vec = vector<vector<DRV> >(numBound);
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -352,6 +363,8 @@ void workset::setupParamBasis() {
     param_basis_grad_side_ref.push_back(csbasisgrad);
   }
   
+  //param_basis_side_vec = vector<vector<DRV> >(numBound);
+  //param_basis_grad_side_vec = vector<vector<DRV> >(numBound);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -443,6 +456,193 @@ void workset::update(const DRV & ip_, const DRV & jacobian, const vector<vector<
 // Update the nodes and the basis functions at the side ip
 ////////////////////////////////////////////////////////////////////////////////////
 
+void workset::addSide(const DRV & nodes, const int & sidenum,
+                      Kokkos::View<int*> & localSideID, const int & cnum) {
+  
+  Teuchos::TimeMonitor updatetimer(*worksetAddSideTimer);
+  
+  
+  // check that all localSideIDs are the same
+  for (size_t i=0; i<localSideID.size(); i++) {
+    TEUCHOS_TEST_FOR_EXCEPTION(localSideID(i) != localSideID(0),
+                               std::runtime_error,
+                               "Workset Error: all elements do not share the same local side ID");
+  }
+  
+  // ----------------------------------------------------------
+  // Need to store ip, normals, basis, basis_uw, basis_grad, basis_grad_uw, param_basis, param_basis_grad
+  // ----------------------------------------------------------
+  int numBElem = nodes.dimension(0);
+  
+  DRV bip("sip", numBElem, ref_side_ip.dimension(0), dimension);
+  DRV bijac("sijac", numBElem, ref_side_ip.dimension(0), dimension, dimension);
+  DRV bwts("wts_side", numBElem, ref_side_ip.dimension(0));
+  DRV bnormals("normals", numBElem, ref_side_ip.dimension(0), dimension);
+  
+  vector<DRV> cbasis, cbasis_uw, cbasis_grad, cbasis_grad_uw;
+  
+  for (size_t i=0; i<basis_pointers.size(); i++) {
+    int numb = basis_pointers[i]->getCardinality();
+    cbasis.push_back(DRV("basis_side",numBElem,numb,numsideip));
+    cbasis_uw.push_back(DRV("basis_side",numBElem,numb,numsideip));
+    cbasis_grad.push_back(DRV("basis_grad_side",numBElem,numb,numsideip,dimension));
+    cbasis_grad_uw.push_back(DRV("basis_grad_side_uw",numBElem,numb,numsideip,dimension));
+  }
+  
+  
+  DRV refSidePoints("refSidePoints", ref_side_ip.dimension(0), dimension);
+  
+  CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, ref_side_ip,
+                                                   dimension-1, localSideID(0), *celltopo);
+  
+    
+  CellTools<AssemblyDevice>::mapToPhysicalFrame(bip, refSidePoints, nodes, *celltopo);
+  CellTools<AssemblyDevice>::setJacobian(bijac, refSidePoints, nodes, *celltopo);
+  //CellTools<AssemblyDevice>::setJacobianInv(bijacInv, bijac);
+  DRV temporary_buffer("temporary_buffer",numBElem,ref_side_ip.dimension(0)*dimension*dimension);
+  
+  if (dimension == 2) {
+    FunctionSpaceTools<AssemblyDevice>::computeEdgeMeasure(bwts, bijac, ref_side_wts, localSideID(0),
+                                                           *celltopo, temporary_buffer);
+  }
+  else if (dimension == 3) {
+    FunctionSpaceTools<AssemblyDevice>::computeFaceMeasure(bwts, bijac, ref_side_wts, localSideID(0),
+                                                           *celltopo, temporary_buffer);
+  }
+  CellTools<AssemblyDevice>::getPhysicalSideNormals(bnormals, bijac, localSideID(0), *celltopo);
+  
+  
+  // ----------------------------------------------------------
+  // store ip
+  if (ip_side_vec.size() < cnum+1) {
+    ip_side_vec.resize(cnum+1);
+  }
+  ip_side_vec[cnum] = bip;
+  // ----------------------------------------------------------
+  
+  // ----------------------------------------------------------
+  // store wts
+  if (wts_side_vec.size() < cnum+1) {
+    wts_side_vec.resize(cnum+1);
+  }
+  wts_side_vec[cnum] = bwts;
+  
+  // ----------------------------------------------------------
+  
+  // scale the normal vector (we need unit normal...)
+  for (int e=0; e<bnormals.dimension(0); e++) {
+    for( int j=0; j<bnormals.dimension(1); j++ ) {
+      ScalarT normalLength = 0.0;
+      for (int sd=0; sd<dimension; sd++) {
+        normalLength += bnormals(e,j,sd)*bnormals(e,j,sd);
+      }
+      normalLength = sqrt(normalLength);
+      for (int sd=0; sd<dimension; sd++) {
+        bnormals(e,j,sd) = bnormals(e,j,sd) / normalLength;
+      }
+    }
+  }
+  
+  // ----------------------------------------------------------
+  // store normals
+  if (normals_side_vec.size() < cnum+1) {
+    normals_side_vec.resize(cnum+1);
+  }
+  normals_side_vec[cnum] = bnormals;
+  // ----------------------------------------------------------
+  
+  // ----------------------------------------------------------
+  // evaluate basis vectors
+  for (size_t i=0; i<basis_pointers.size(); i++) {
+    if (basis_types[i] == "HGRAD"){
+      int numb = basis_pointers[i]->getCardinality();
+      
+      DRV basisvals("basisvals",numb, numsideip);
+      basis_pointers[i]->getValues(basisvals, refSidePoints, OPERATOR_VALUE);
+      
+      DRV basisvals_trans("basisvals_Transformed",numBElem, numb, numsideip);
+      FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(cbasis_uw[i], basisvals);
+      
+      DRV basisgrad("basisgrad",numb, numsideip, dimension);
+      basis_pointers[i]->getValues(basisgrad, refSidePoints, OPERATOR_GRAD);
+      
+      FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(cbasis[i], bwts, cbasis_uw[i]);
+      FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(cbasis_grad_uw[i], bijac, basisgrad);
+      FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(cbasis_grad[i], bwts, cbasis_grad_uw[i]);
+    }
+    else if (basis_types[i] == "HDIV"){
+      //FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_side[i], wts_side, ref_basis_side[s][i]);
+    }
+    else if (basis_types[i] == "HCURL"){
+      //FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_side[i], wts_side, ref_basis_side[s][i]);
+    }
+  }
+  // ----------------------------------------------------------
+  
+  // ----------------------------------------------------------
+  // store basis values
+  if (basis_side_vec.size() < cnum+1) {
+    basis_side_vec.resize(cnum+1);
+  }
+  basis_side_vec[cnum] = cbasis;
+  
+  if (basis_side_uw_vec.size() < cnum+1) {
+    basis_side_uw_vec.resize(cnum+1);
+  }
+  basis_side_uw_vec[cnum] = cbasis_uw;
+  
+  if (basis_grad_side_vec.size() < cnum+1) {
+    basis_grad_side_vec.resize(cnum+1);
+  }
+  basis_grad_side_vec[cnum] = cbasis_grad;
+  
+  if (basis_grad_side_uw_vec.size() < cnum+1) {
+    basis_grad_side_uw_vec.resize(cnum+1);
+  }
+  basis_grad_side_uw_vec[cnum] = cbasis_grad_uw;
+  // ----------------------------------------------------------
+  
+  // ----------------------------------------------------------
+  // evaluate param basis vectors
+  
+  vector<DRV> cpbasis, cpbasis_grad;
+  
+  for (size_t i=0; i<param_basis_pointers.size(); i++) {
+    int numb = param_basis_pointers[i]->getCardinality();
+    cpbasis.push_back(DRV("basis_side",numBElem,numb,numsideip));
+    cpbasis_grad.push_back(DRV("basis_grad_side",numBElem,numb,numsideip,dimension));
+  }
+  for (size_t i=0; i<param_basis_pointers.size(); i++) {
+    int numb = param_basis_pointers[i]->getCardinality();
+    DRV basisvals("basisvals",numb, numsideip);
+    param_basis_pointers[i]->getValues(basisvals, refSidePoints, OPERATOR_VALUE);
+    FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(cpbasis[i], basisvals);
+    DRV basisgrad("basisgrad",numb, numsideip, dimension);
+    basis_pointers[i]->getValues(basisgrad, refSidePoints, OPERATOR_GRAD);
+    FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(cpbasis_grad[i], bijac, basisgrad);
+  }
+  // ----------------------------------------------------------
+  
+  // ----------------------------------------------------------
+  // store param basis values
+  if (param_basis_side_vec.size() < cnum+1) {
+    param_basis_side_vec.resize(cnum+1);
+  }
+  param_basis_side_vec[cnum] = cpbasis;
+  
+  if (param_basis_grad_side_vec.size() < cnum+1) {
+    param_basis_grad_side_vec.resize(cnum+1);
+  }
+  param_basis_grad_side_vec[cnum] = cpbasis_grad;
+  // ----------------------------------------------------------
+  
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////
+// Update the nodes and the basis functions at the side ip
+////////////////////////////////////////////////////////////////////////////////////
+
 void workset::updateSide(const DRV & nodes, const DRV & ip_side_, const DRV & wts_side_,
                          const DRV & normals_, const DRV & sidejacobian, const int & s) {
   
@@ -472,6 +672,7 @@ void workset::updateSide(const DRV & nodes, const DRV & ip_side_, const DRV & wt
     
     for (size_t i=0; i<basis_pointers.size(); i++) {
       if (basis_types[i] == "HGRAD"){
+        basis_side_uw[i] = ref_basis_side[s][i];
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_side[i], wts_side, ref_basis_side[s][i]);
         FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(basis_grad_side_uw[i], sidejacobInv, ref_basis_grad_side[s][i]);
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_grad_side[i], wts_side, basis_grad_side_uw[i]);
@@ -492,6 +693,48 @@ void workset::updateSide(const DRV & nodes, const DRV & ip_side_, const DRV & wt
   
 }
 
+////////////////////////////////////////////////////////////////////////////////////
+// Update the nodes and the basis functions at the side ip
+////////////////////////////////////////////////////////////////////////////////////
+
+void workset::updateSide(const int & sidenum, const int & cnum) {
+  
+  currentside = sidenum;
+  
+  
+  {
+    Teuchos::TimeMonitor updatetimer(*worksetSideUpdateIPTimer);
+  
+    ip_side = ip_side_vec[cnum];
+    wts_side = wts_side_vec[cnum];
+    normals = normals_side_vec[cnum];
+    
+    parallel_for(RangePolicy<AssemblyDevice>(0,normals.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+      for (size_t j=0; j<numsideip; j++) {
+        for (size_t k=0; k<dimension; k++) {
+          ip_side_KV(e,j,k) = ip_side(e,j,k);
+          normals_KV(e,j,k) = normals(e,j,k);
+        }
+      }
+    });
+  }
+  
+  {
+    Teuchos::TimeMonitor updatetimer(*worksetSideUpdateBasisTimer);
+    
+    basis_side = basis_side_vec[cnum];
+    basis_side_uw = basis_side_uw_vec[cnum];
+    basis_grad_side_uw = basis_grad_side_uw_vec[cnum];
+    basis_grad_side = basis_grad_side_vec[cnum];
+    
+    param_basis_side = param_basis_side_vec[cnum];
+    param_basis_grad_side = param_basis_grad_side_vec[cnum];
+    
+  }
+  
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Reset solution to zero
@@ -499,6 +742,20 @@ void workset::updateSide(const DRV & nodes, const DRV & ip_side_, const DRV & wt
 
 void workset::resetResidual() {
   Teuchos::TimeMonitor resettimer(*worksetResetTimer);
+  parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+    for (int n=0; n<res.dimension(1); n++) {
+      res(e,n) = 0.0;
+    }
+  });
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+// Reset solution to zero
+////////////////////////////////////////////////////////////////////////////////////
+
+void workset::resetResidual(const int & numE) {
+  Teuchos::TimeMonitor resettimer(*worksetResetTimer);
+  
   parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
     for (int n=0; n<res.dimension(1); n++) {
       res(e,n) = 0.0;
@@ -871,9 +1128,8 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<ScalarT***,Assemb
       string kutype = basis_types[kubasis];
       
       if (kutype == "HGRAD") {
-        DRV kbasis_uw = ref_basis_side[side][kubasis];
+        DRV kbasis_uw = basis_side_uw[kubasis];
         DRV kbasis_grad_uw = basis_grad_side_uw[kubasis];
-        
         for( int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             
@@ -996,8 +1252,8 @@ void workset::computeParamSideIP(const int & side, Kokkos::View<ScalarT***,Assem
       int kpbasis = paramusebasis[k];
       int knpbasis = numparambasis[kpbasis];
       
-      DRV pbasis = param_basis_side_ref[side][kpbasis];
-      DRV pbasis_grad = param_basis_grad_side_ref[side][kpbasis];
+      DRV pbasis = param_basis_side[kpbasis];
+      DRV pbasis_grad = param_basis_grad_side[kpbasis];
       
       for( int i=0; i<knpbasis; i++ ) {
         for (int e=0; e<numElem; e++) {
@@ -1052,7 +1308,7 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
       string kutype = basis_types[kubasis];
       
       if (kutype == "HGRAD") {
-        DRV kbasis_uw = ref_basis_side[side][kubasis];
+        DRV kbasis_uw = basis_side_uw[kubasis];
         DRV kbasis_grad_uw = basis_grad_side_uw[kubasis];
         
         for( int i=0; i<knbasis; i++ ) {

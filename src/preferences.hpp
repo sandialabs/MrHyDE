@@ -63,7 +63,6 @@ typedef Epetra_LinearProblem LA_LinearProblem;
 */
 
 // Tpetra linear algebra typedefs
-//typedef Tpetra_MultiVector LA_MultiVector;
 typedef Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>   LA_CrsMatrix;
 typedef Tpetra::CrsGraph<LO,GO,HostNode>            LA_CrsGraph;
 typedef Tpetra::Export<LO, GO, HostNode>            LA_Export;

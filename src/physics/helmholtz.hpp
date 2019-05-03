@@ -254,8 +254,9 @@ public:
     // NOTES:
     // 1. basis and basis_grad already include the integration weights
     
+    Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
+    int cside = wkset->currentside;
     
-     
     int ur_basis_num = wkset->usebasis[ur_num];
     int ui_basis_num = wkset->usebasis[ui_num];
     
@@ -294,104 +295,107 @@ public:
     
     //Robin boundary condition of form alpha*u + dudn - source = 0, where u is the state and dudn is its normal derivative
     
-    // Will not work with numElem > 1 because this does not look at sideinfo stored in workset 
-    for (int e=0; e<numElem; e++) { // not parallelized yet
-      for( int k=0; k<urbasis.dimension(2); k++ ) {
-        
-        AD ur = sol(e,ur_num,k,0);
-        AD ui = sol(e,ui_num,k,0);
-        AD durdx = sol_grad(e,ur_num,k,0);
-        AD duidx = sol_grad(e,ui_num,k,0);
-        AD durdn = durdx*normals(e,k,0);
-        AD duidn = duidx*normals(e,k,0);
-        
-        AD durdy, duidy;
-        if (spaceDim > 1){
-          durdy = sol_grad(e,ur_num,k,1);
-          duidy = sol_grad(e,ui_num,k,1);
-          durdn += durdy*normals(e,k,1);
-          duidn += duidy*normals(e,k,1);
-        }
-        AD durdz, duidz;
-        if (spaceDim > 2) {
-          durdz = sol_grad(e,ur_num,k,2);
-          duidz = sol_grad(e,ui_num,k,2);
-          durdn += durdz*normals(e,k,2);
-          duidn += duidz*normals(e,k,2);
-        }
-        
-        AD c2durdn = (c2r_side_x(e,k)*durdx - c2i_side_x(e,k)*duidx)*normals(e,k,0)
-        + (c2r_side_y(e,k)*durdy - c2i_side_y(e,k)*duidy)*normals(e,k,1);
-        
-        AD c2duidn = (c2r_side_x(e,k)*duidx + c2i_side_x(e,k)*durdx)*normals(e,k,0)
-        + (c2r_side_y(e,k)*duidy + c2i_side_y(e,k)*durdy)*normals(e,k,1);
-        
-        if (spaceDim > 2) {
-          c2durdn +=(c2r_side_z(e,k)*durdz - c2i_side_z(e,k)*duidz)*normals(e,k,2);
-          c2duidn +=(c2r_side_z(e,k)*duidz + c2i_side_z(e,k)*durdz)*normals(e,k,2);
-        }
-        
-        if(!fractional) {       // fractional exponent on time operator or i_omega in frequency mode
-          for (int i=0; i<urbasis.dimension(1); i++ ) {
-            int resindex = offsets(ur_num,i);
-            ScalarT vr = urbasis(e,i,k);
-            ScalarT vi = uibasis(e,i,k);
-            
-            res(e,resindex) += ((robin_alpha_r(e,k)*(ur*vr + ui*vi) - robin_alpha_i(e,k)*(ui*vr - ur*vi))
-                                + (durdn*vr + duidn*vi)
-                                - (source_r_side(e,k)*vr + source_i_side(e,k)*vi))
-            - (c2durdn*vr + c2duidn*vi);
-            
-            resindex = offsets(ui_num,i);
-            
-            res(e,resindex) += ((robin_alpha_r(e,k)*(ui*vr - ur*vi) + robin_alpha_i(e,k)*(ur*vr + ui*vi))
-                                + (duidn*vr - durdn*vi)
-                                - (source_i_side(e,k)*vr - source_r_side(e,k)*vi))
-            - (c2duidn*vr - c2durdn*vi);
+    // Will not work with numElem > 1 because this does not look at sideinfo stored in workset
+    
+    //if (bcs(ur_num,cside) == 2) {
+      for (int e=0; e<urbasis.dimension(0); e++) { // not parallelized yet
+        for( int k=0; k<urbasis.dimension(2); k++ ) {
+          
+          
+          AD ur = sol(e,ur_num,k,0);
+          AD ui = sol(e,ui_num,k,0);
+          AD durdx = sol_grad(e,ur_num,k,0);
+          AD duidx = sol_grad(e,ui_num,k,0);
+          AD durdn = durdx*normals(e,k,0);
+          AD duidn = duidx*normals(e,k,0);
+          
+          AD durdy, duidy;
+          if (spaceDim > 1){
+            durdy = sol_grad(e,ur_num,k,1);
+            duidy = sol_grad(e,ui_num,k,1);
+            durdn += durdy*normals(e,k,1);
+            duidn += duidy*normals(e,k,1);
           }
-        }
-        else {
-          
-          AD omegar = sqrt(omega2r(e,k));
-          AD omegai = sqrt(omega2i(e,k));
-          
-          for (int i=0; i<urbasis.dimension(1); i++ ) {
-            int resindex = offsets(ur_num,i);
-            ScalarT vr = urbasis(e,i,k);
-            ScalarT vi = uibasis(e,i,k);
-            
-            res(e,resindex) +=  alphaTr(e,k)*pow(omegar,freqExp(e,k))*(-ur*vr - ui*vi)
-            +  alphaTi(e,k)*pow(omegai,freqExp(e,k))*( ui*vr - ur*vi)
-            + (durdn*vr + duidn*vi)
-            - (source_r_side(e,k)*vr + source_i_side(e,k)*vi)
-            - (c2durdn*vr + c2duidn*vi);
-            
-            resindex = offsets(ui_num,i);
-            
-            res(e,resindex) +=  alphaTr(e,k)*pow(omegar,freqExp(e,k))*(-ui*vr + ur*vi)
-            +  alphaTi(e,k)*pow(omegai,freqExp(e,k))*(-ui*vr - ur*vi)
-            + (duidn*vr - durdn*vi)
-            - (source_i_side(e,k)*vr - source_r_side(e,k)*vi)
-            - (c2duidn*vr - c2durdn*vi);
+          AD durdz, duidz;
+          if (spaceDim > 2) {
+            durdz = sol_grad(e,ur_num,k,2);
+            duidz = sol_grad(e,ui_num,k,2);
+            durdn += durdz*normals(e,k,2);
+            duidn += duidz*normals(e,k,2);
           }
           
+          AD c2durdn = (c2r_side_x(e,k)*durdx - c2i_side_x(e,k)*duidx)*normals(e,k,0)
+          + (c2r_side_y(e,k)*durdy - c2i_side_y(e,k)*duidy)*normals(e,k,1);
+          
+          AD c2duidn = (c2r_side_x(e,k)*duidx + c2i_side_x(e,k)*durdx)*normals(e,k,0)
+          + (c2r_side_y(e,k)*duidy + c2i_side_y(e,k)*durdy)*normals(e,k,1);
+          
+          if (spaceDim > 2) {
+            c2durdn +=(c2r_side_z(e,k)*durdz - c2i_side_z(e,k)*duidz)*normals(e,k,2);
+            c2duidn +=(c2r_side_z(e,k)*duidz + c2i_side_z(e,k)*durdz)*normals(e,k,2);
+          }
+          
+          if(!fractional) {       // fractional exponent on time operator or i_omega in frequency mode
+            for (int i=0; i<urbasis.dimension(1); i++ ) {
+              int resindex = offsets(ur_num,i);
+              ScalarT vr = urbasis(e,i,k);
+              ScalarT vi = uibasis(e,i,k);
+              
+              res(e,resindex) += ((robin_alpha_r(e,k)*(ur*vr + ui*vi) - robin_alpha_i(e,k)*(ui*vr - ur*vi))
+                                  + (durdn*vr + duidn*vi)
+                                  - (source_r_side(e,k)*vr + source_i_side(e,k)*vi))
+              - (c2durdn*vr + c2duidn*vi);
+              
+              resindex = offsets(ui_num,i);
+              
+              res(e,resindex) += ((robin_alpha_r(e,k)*(ui*vr - ur*vi) + robin_alpha_i(e,k)*(ur*vr + ui*vi))
+                                  + (duidn*vr - durdn*vi)
+                                  - (source_i_side(e,k)*vr - source_r_side(e,k)*vi))
+              - (c2duidn*vr - c2durdn*vi);
+            }
+          }
+          else {
+            
+            AD omegar = sqrt(omega2r(e,k));
+            AD omegai = sqrt(omega2i(e,k));
+            
+            for (int i=0; i<urbasis.dimension(1); i++ ) {
+              int resindex = offsets(ur_num,i);
+              ScalarT vr = urbasis(e,i,k);
+              ScalarT vi = uibasis(e,i,k);
+              
+              res(e,resindex) +=  alphaTr(e,k)*pow(omegar,freqExp(e,k))*(-ur*vr - ui*vi)
+              +  alphaTi(e,k)*pow(omegai,freqExp(e,k))*( ui*vr - ur*vi)
+              + (durdn*vr + duidn*vi)
+              - (source_r_side(e,k)*vr + source_i_side(e,k)*vi)
+              - (c2durdn*vr + c2duidn*vi);
+              
+              resindex = offsets(ui_num,i);
+              
+              res(e,resindex) +=  alphaTr(e,k)*pow(omegar,freqExp(e,k))*(-ui*vr + ur*vi)
+              +  alphaTi(e,k)*pow(omegai,freqExp(e,k))*(-ui*vr - ur*vi)
+              + (duidn*vr - durdn*vi)
+              - (source_i_side(e,k)*vr - source_r_side(e,k)*vi)
+              - (c2duidn*vr - c2durdn*vi);
+            }
+            
+          }
+          // ScalarT c = 1.0; // bvbw need to move c and omega to input_params
+          // omega(k) = sqrt(omega2r(k));
+          // for (int i=0; i<numBasis; i++ ) {
+          //   resindex = wkset->offsets[ur_num][i];
+          //   wkset->res(resindex) += -1.0*(alphar(k)*omega(k)*(ur*vr - ui*vi) + alphai(k)*omega(k)*(k)*(ui*vr + ur*vi))
+          //     + (c*durdn*vr - c*duidn*vi);
+          
+          //   // cout << alpha_r << "  " << omega << "  " << ur << "  " << alpha_i << "  " << ui << "  "<< c << endl;
+          
+          //   resindex = wkset->offsets[ui_num][i];
+          //   wkset->res(resindex) += -1.0*(alphar(k)*omega(k)*(ur*vr - ui*vi) + alphai(k)*omega(k)*(k)*(ui*vr + ur*vi))
+          //     + (c*durdn*vr - c*duidn*vi);
+          // }
         }
-        // ScalarT c = 1.0; // bvbw need to move c and omega to input_params
-        // omega(k) = sqrt(omega2r(k));
-        // for (int i=0; i<numBasis; i++ ) {
-        //   resindex = wkset->offsets[ur_num][i];
-        //   wkset->res(resindex) += -1.0*(alphar(k)*omega(k)*(ur*vr - ui*vi) + alphai(k)*omega(k)*(k)*(ui*vr + ur*vi))
-        //     + (c*durdn*vr - c*duidn*vi);
-        
-        //   // cout << alpha_r << "  " << omega << "  " << ur << "  " << alpha_i << "  " << ui << "  "<< c << endl;
-        
-        //   resindex = wkset->offsets[ui_num][i];
-        //   wkset->res(resindex) += -1.0*(alphar(k)*omega(k)*(ur*vr - ui*vi) + alphai(k)*omega(k)*(k)*(ui*vr + ur*vi))
-        //     + (c*durdn*vr - c*duidn*vi);
-        // }
       }
-      
-    }
+  //  }
     
   }
   

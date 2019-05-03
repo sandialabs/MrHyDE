@@ -26,9 +26,8 @@ tools/assemblyManager.cpp
 tools/parameterManager.cpp
 tools/subgridMeshFactory.cpp 
 tools/cell.cpp
-tools/workset.cpp
 tools/boundaryCell.cpp
-tools/boundaryWorkset.cpp
+tools/workset.cpp
 tools/split_mpi_communicators.cpp 
 tools/subgridFEM.cpp 
 user/functionInterface.cpp)

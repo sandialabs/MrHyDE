@@ -286,6 +286,10 @@ public:
     // NOTES:
     // 1. basis and basis_grad already include the integration weights
     
+    sideinfo = wkset->sideinfo;
+    Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
+    
+    bool usebcs = wkset->usebcs;
     
     //AD lambda, mu;
     AD basisVec;
@@ -297,32 +301,50 @@ public:
     
     int cside = wkset->currentside;
     string sname = wkset->sidename;
-    int sidetype = wkset->sidetype;
     
     ScalarT sf = formparam;
     if (wkset->isAdjoint) {
       sf = 1.0;
     }
-    //AD penalty = 10.0*(1.25E5 + 2.0*7.25E4)/h;
-    //AD penalty = 10.0*(2.0 + 2.0*1.0)/h;
     
+    int dx_sidetype = 0;
+    int dy_sidetype = 0;
+    int dz_sidetype = 0;
+    if (usebcs) {
+      dx_sidetype = bcs(dx_num,cside);
+      if (spaceDim > 1) {
+        dy_sidetype = bcs(dy_num,cside);
+      }
+      if (spaceDim > 2) {
+        dz_sidetype = bcs(dz_num,cside);
+      }
+    }
+    else {
+      dx_sidetype = sideinfo(0,dx_num,cside,0);//wkset->sidetype;//
+      if (spaceDim>1) {
+        dy_sidetype = sideinfo(0,dy_num,cside,0);//wkset->sidetype;//sideinfo(0,dy_num,cside,1);
+      }
+      if (spaceDim>2) {
+        dz_sidetype = sideinfo(0,dz_num,cside,0);//wkset->sidetype;//sideinfo(0,dz_num,cside,1);
+      }
+    }
     {
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
-      if (sidetype == 2) {
+      if (dx_sidetype == 2) {
         sourceN_dx = functionManager->evaluate("Neumann dx " + sname,"side ip",blocknum);
-        if (spaceDim > 1) {
-          sourceN_dy = functionManager->evaluate("Neumann dy " + sname,"side ip",blocknum);
-        }
-        if (spaceDim > 2) {
-          sourceN_dz = functionManager->evaluate("Neumann dz " + sname,"side ip",blocknum);
-        }
       }
+      if (dy_sidetype == 2) {
+        sourceN_dy = functionManager->evaluate("Neumann dy " + sname,"side ip",blocknum);
+      }
+      if (dz_sidetype == 2) {
+        sourceN_dz = functionManager->evaluate("Neumann dz " + sname,"side ip",blocknum);
+      }
+      
       lambda_side = functionManager->evaluate("lambda","side ip",blocknum);
       mu_side = functionManager->evaluate("mu","side ip",blocknum);
       
     }
     
-    sideinfo = wkset->sideinfo;
     sol = wkset->local_soln_side;
     sol_grad = wkset->local_soln_grad_side;
     offsets = wkset->offsets;
@@ -342,8 +364,26 @@ public:
       basis = wkset->basis_side[dx_basis];
       basis_grad = wkset->basis_grad_side[dx_basis];
       
-      for (int e=0; e<sideinfo.dimension(0); e++) {
-        if (sideinfo(e,dx_num,cside,0) == 2) { // Neumann
+      for (int e=0; e<basis.dimension(0); e++) {
+        bool computeN = false;
+        bool computeWD = false;
+        if (usebcs) {
+          if (bcs(dx_num,cside) == 2) {
+            computeN = true;
+          }
+          else if (bcs(dx_num,cside) == 4) {
+            computeWD = true;
+          }
+        }
+        else {
+          if (sideinfo(e,dx_num,cside,0) == 2) {
+            computeN = true;
+          }
+          else if (sideinfo(e,dx_num,cside,0) == 4) {
+            computeWD = true;
+          }
+        }
+        if (computeN) { //}(sideinfo(e,dx_num,cside,0) == 2) { // Neumann
           for (size_t k=0; k<basis.dimension(2); k++ ) {
             for (int i=0; i<basis.dimension(1); i++ ) {
               v = basis(e,i,k);
@@ -352,17 +392,15 @@ public:
             }
           }
         }
-        else if (sideinfo(e,dx_num,cside,0) == 4){ // Weak Dirichlet
+        else if (computeWD) {//}(sideinfo(e,dx_num,cside,0) == 4){ // Weak Dirichlet
           for (int k=0; k<basis.dimension(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
-            if (sideinfo(e,dx_num,cside,1) == -1) {
-              plambdax = aux(e,dx_num,k);
-            }
-            else {
-              plambdax = 0.0;
-              //udfunc->boundaryDirichletValue(label,"dx",x, y, z, time,
-               //                                         wkset->sidename, wkset->isAdjoint);
+            plambdax = 0.0;
+            if (!usebcs) {
+              if (sideinfo(e,dx_num,cside,1) == -1) {
+                plambdax = aux(e,dx_num,k);
+              }
             }
             
             for (int i=0; i<basis.dimension(1); i++ ) {
@@ -377,7 +415,6 @@ public:
         }
       }
     }
-    
     else if (spaceDim == 2) {
       
       // dx equation boundary residual
@@ -385,8 +422,27 @@ public:
       basis = wkset->basis_side[dx_basis];
       basis_grad = wkset->basis_grad_side[dx_basis];
       
-      for (int e=0; e<sideinfo.dimension(0); e++) {
-        if (sideinfo(e,dx_num,cside,0) == 2) { // Neumann
+      for (int e=0; e<basis.dimension(0); e++) {
+        bool computeN = false;
+        bool computeWD = false;
+        if (usebcs) {
+          if (bcs(dx_num,cside) == 2) {
+            computeN = true;
+          }
+          else if (bcs(dx_num,cside) == 4) {
+            computeWD = true;
+          }
+        }
+        else {
+          if (sideinfo(e,dx_num,cside,0) == 2) {
+            computeN = true;
+          }
+          else if (sideinfo(e,dx_num,cside,0) == 4) {
+            computeWD = true;
+          }
+        }
+        
+        if (computeN) { //}(sideinfo(e,dx_num,cside,0) == 2) { // Neumann
           for (size_t k=0; k<basis.dimension(2); k++ ) {
             for (int i=0; i<basis.dimension(1); i++ ) {
               v = basis(e,i,k);
@@ -395,23 +451,18 @@ public:
             }
           }
         }
-        else if (sideinfo(e,dx_num,cside,0) == 4){ // Weak Dirichlet
+        else if (computeWD) { //}(sideinfo(e,dx_num,cside,0) == 4){ // Weak Dirichlet
           for (int k=0; k<basis.dimension(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
-            if (sideinfo(e,dx_num,cside,1) == -1) {
-              plambdax = aux(e,dx_num,k);
-              plambday = aux(e,dy_num,k);
+            plambdax = 0.0;
+            plambday = 0.0;
+            if (!usebcs) {
+              if (sideinfo(e,dx_num,cside,1) == -1) {
+                plambdax = aux(e,dx_num,k);
+                plambday = aux(e,dy_num,k);
+              }
             }
-            else {
-              plambdax = 0.0;
-              //udfunc->boundaryDirichletValue(label,"dx",x, y, z, time,
-              //                                          wkset->sidename, wkset->isAdjoint);
-              plambday = 0.0;
-              //udfunc->boundaryDirichletValue(label,"dy",x, y, z, time,
-              //                                          wkset->sidename, wkset->isAdjoint);
-            }
-            
             for (int i=0; i<basis.dimension(1); i++ ) {
               v = basis(e,i,k);
               basisVec = computeBasisVec(dx-plambdax, dy-plambday, dz-plambdaz,
@@ -432,8 +483,26 @@ public:
       basis = wkset->basis_side[dy_basis];
       basis_grad = wkset->basis_grad_side[dy_basis];
       
-      for (int e=0; e<sideinfo.dimension(0); e++) {
-        if (sideinfo(e,dy_num,cside,0) == 2) { // Element e is on the side
+      for (int e=0; e<basis.dimension(0); e++) {
+        bool computeN = false;
+        bool computeWD = false;
+        if (usebcs) {
+          if (bcs(dy_num,cside) == 2) {
+            computeN = true;
+          }
+          else if (bcs(dy_num,cside) == 4) {
+            computeWD = true;
+          }
+        }
+        else {
+          if (sideinfo(e,dy_num,cside,0) == 2) {
+            computeN = true;
+          }
+          else if (sideinfo(e,dy_num,cside,0) == 4) {
+            computeWD = true;
+          }
+        }
+        if (computeN) { //}(sideinfo(e,dy_num,cside,0) == 2) { // Element e is on the side
           for (size_t k=0; k<basis.dimension(2); k++ ) {
             for (int i=0; i<basis.dimension(1); i++ ) {
               v = basis(e,i,k);
@@ -442,21 +511,17 @@ public:
             }
           }
         }
-        else if (sideinfo(e,dy_num,cside,0) == 4){ // Weak Dirichlet
+        else if (computeWD) {//}(sideinfo(e,dy_num,cside,0) == 4){ // Weak Dirichlet
           for (int k=0; k<basis.dimension(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
-            if (sideinfo(e,dy_num,cside,1) == -1) {
-              plambdax = aux(e,dx_num,k);
-              plambday = aux(e,dy_num,k);
-            }
-            else {
-              plambdax = 0.0;
-              //udfunc->boundaryDirichletValue(label,"dx",x, y, z, time,
-              //                                          wkset->sidename, wkset->isAdjoint);
-              plambday = 0.0;
-              //udfunc->boundaryDirichletValue(label,"dy",x, y, z, time,
-              //                                          wkset->sidename, wkset->isAdjoint);
+            plambdax = 0.0;
+            plambday = 0.0;
+            if (!usebcs) {
+              if (sideinfo(e,dy_num,cside,1) == -1) {
+                plambdax = aux(e,dx_num,k);
+                plambday = aux(e,dy_num,k);
+              }
             }
             
             for (int i=0; i<basis.dimension(1); i++ ) {
@@ -484,8 +549,26 @@ public:
       
       AD deltax, deltay, deltaz;
       
-      for (int e=0; e<sideinfo.dimension(0); e++) {
-        if (sideinfo(e,dx_num,cside,0) == 2) { // Element e is on the side
+      for (int e=0; e<basis.dimension(0); e++) {
+        bool computeN = false;
+        bool computeWD = false;
+        if (usebcs) {
+          if (bcs(dx_num,cside) == 2) {
+            computeN = true;
+          }
+          else if (bcs(dx_num,cside) == 4) {
+            computeWD = true;
+          }
+        }
+        else {
+          if (sideinfo(e,dx_num,cside,0) == 2) {
+            computeN = true;
+          }
+          else if (sideinfo(e,dx_num,cside,0) == 4) {
+            computeWD = true;
+          }
+        }
+        if (computeN) {//}(sideinfo(e,dx_num,cside,0) == 2) { // Element e is on the side
           for (size_t k=0; k<basis.dimension(2); k++ ) {
             for (int i=0; i<basis.dimension(1); i++ ) {
               v = basis(e,i,k);
@@ -494,26 +577,19 @@ public:
             }
           }
         }
-        
-        else if (sideinfo(e,dx_num,cside,0) == 4){ // Weak Dirichlet
+        else if (computeWD) {//}(sideinfo(e,dx_num,cside,0) == 4){ // Weak Dirichlet
           for (int k=0; k<basis.dimension(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
-            if (sideinfo(e,dx_num,cside,1) == -1) {
-              plambdax = aux(e,dx_num,k);
-              plambday = aux(e,dy_num,k);
-              plambdaz = aux(e,dz_num,k);
-            }
-            else {
-              plambdax = 0.0;
-              //udfunc->boundaryDirichletValue(label,"dx",x, y, z, time,
-              //                                          wkset->sidename, wkset->isAdjoint);
-              plambday = 0.0;
-              //udfunc->boundaryDirichletValue(label,"dy",x, y, z, time,
-              //                                          wkset->sidename, wkset->isAdjoint);
-              plambdaz = 0.0;
-              //udfunc->boundaryDirichletValue(label,"dz",x, y, z, time,
-              //                                          wkset->sidename, wkset->isAdjoint);
+            plambdax = 0.0;
+            plambday = 0.0;
+            plambdaz = 0.0;
+            if (!usebcs) {
+              if (sideinfo(e,dx_num,cside,1) == -1) {
+                plambdax = aux(e,dx_num,k);
+                plambday = aux(e,dy_num,k);
+                plambdaz = aux(e,dz_num,k);
+              }
             }
             
             for (int i=0; i<basis.dimension(1); i++ ) {
@@ -526,10 +602,6 @@ public:
                         2.0*mu_side(e,k)*basis_grad(e,i,k,0)*deltax*normals(e,k,0) +
                         mu_side(e,k)*basis_grad(e,i,k,1)*(deltax*normals(e,k,1) + deltay*normals(e,k,0)) +
                         mu_side(e,k)*basis_grad(e,i,k,2)*(deltax*normals(e,k,2) + deltaz*normals(e,k,0));
-              
-              //basisVec = computeBasisVec(dx-plambdax, dy-plambday, dz-plambdaz,
-              //                           mu_side(e,k), lambda_side(e,k), normals, basis_grad,
-              //                           dx_basis, e, i, k, 0);
               
               resindex = offsets(dx_num,i);
               res(e,resindex) += (-stress(e,k,0,0)*normals(e,k,0) - stress(e,k,0,1)*normals(e,k,1) - stress(e,k,0,2)*normals(e,k,2))*v -
@@ -546,8 +618,26 @@ public:
       basis = wkset->basis_side[dy_basis];
       basis_grad = wkset->basis_grad_side[dy_basis];
       
-      for (int e=0; e<sideinfo.dimension(0); e++) {
-        if (sideinfo(e,dy_num,cside,0) == 2) { // Element e is on the side
+      for (int e=0; e<basis.dimension(0); e++) {
+        bool computeN = false;
+        bool computeWD = false;
+        if (usebcs) {
+          if (bcs(dy_num,cside) == 2) {
+            computeN = true;
+          }
+          else if (bcs(dy_num,cside) == 4) {
+            computeWD = true;
+          }
+        }
+        else {
+          if (sideinfo(e,dy_num,cside,0) == 2) {
+            computeN = true;
+          }
+          else if (sideinfo(e,dy_num,cside,0) == 4) {
+            computeWD = true;
+          }
+        }
+        if (computeN) { //}(sideinfo(e,dy_num,cside,0) == 2) { // Element e is on the side
           for (size_t k=0; k<basis.dimension(2); k++ ) {
             for (int i=0; i<basis.dimension(1); i++ ) {
               v = basis(e,i,k);
@@ -556,26 +646,19 @@ public:
             }
           }
         }
-        
-        else if (sideinfo(e,dy_num,cside,0) == 4){ // Weak Dirichlet
+        else if (computeWD) {//}(sideinfo(e,dy_num,cside,0) == 4){ // Weak Dirichlet
           for (int k=0; k<basis.dimension(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
-            if (sideinfo(e,dy_num,cside,1) == -1) {
-              plambdax = aux(e,dx_num,k);
-              plambday = aux(e,dy_num,k);
-              plambdaz = aux(e,dz_num,k);
-            }
-            else {
-              plambdax = 0.0;
-              //udfunc->boundaryDirichletValue(label,"dx",x, y, z, time,
-              //                                          wkset->sidename, wkset->isAdjoint);
-              plambday = 0.0;
-              //udfunc->boundaryDirichletValue(label,"dy",x, y, z, time,
-              //                                          wkset->sidename, wkset->isAdjoint);
-              plambdaz = 0.0;
-              //udfunc->boundaryDirichletValue(label,"dz",x, y, z, time,
-              //                                          wkset->sidename, wkset->isAdjoint);
+            plambdax = 0.0;
+            plambday = 0.0;
+            plambdaz = 0.0;
+            if (!usebcs) {
+              if (sideinfo(e,dy_num,cside,1) == -1) {
+                plambdax = aux(e,dx_num,k);
+                plambday = aux(e,dy_num,k);
+                plambdaz = aux(e,dz_num,k);
+              }
             }
             
             for (int i=0; i<basis.dimension(1); i++ ) {
@@ -588,10 +671,6 @@ public:
                         2.0*mu_side(e,k)*basis_grad(e,i,k,1)*deltay*normals(e,k,1) +
                         mu_side(e,k)*basis_grad(e,i,k,0)*(deltay*normals(e,k,0) + deltax*normals(e,k,1)) +
                         mu_side(e,k)*basis_grad(e,i,k,2)*(deltay*normals(e,k,2) + deltaz*normals(e,k,1));
-              
-              //basisVec = computeBasisVec(dx-plambdax, dy-plambday, dz-plambdaz,
-              //                           mu_side(e,k), lambda_side(e,k), normals, basis_grad,
-              //                           dy_basis, e, i, k, 1);
               
               resindex = offsets(dy_num,i);
               res(e,resindex) += (-stress(e,k,1,0)*normals(e,k,0) - stress(e,k,1,1)*normals(e,k,1) - stress(e,k,1,2)*normals(e,k,2))*v -
@@ -608,8 +687,26 @@ public:
       basis = wkset->basis_side[dz_basis];
       basis_grad = wkset->basis_grad_side[dz_basis];
       
-      for (int e=0; e<sideinfo.dimension(0); e++) {
-        if (sideinfo(e,dz_num,cside,0) == 2) { // Element e is on the side
+      for (int e=0; e<basis.dimension(0); e++) {
+        bool computeN = false;
+        bool computeWD = false;
+        if (usebcs) {
+          if (bcs(dz_num,cside) == 2) {
+            computeN = true;
+          }
+          else if (bcs(dz_num,cside) == 4) {
+            computeWD = true;
+          }
+        }
+        else {
+          if (sideinfo(e,dz_num,cside,0) == 2) {
+            computeN = true;
+          }
+          else if (sideinfo(e,dz_num,cside,0) == 4) {
+            computeWD = true;
+          }
+        }
+        if (computeN) {//}(sideinfo(e,dz_num,cside,0) == 2) { // Element e is on the side
           for (size_t k=0; k<basis.dimension(2); k++ ) {
             for (int i=0; i<basis.dimension(1); i++ ) {
               v = basis(e,i,k);
@@ -618,26 +715,19 @@ public:
             }
           }
         }
-        
-        else if (sideinfo(e,dz_num,cside,0) == 4){ // Weak Dirichlet
+        else if (computeWD) {//}(sideinfo(e,dz_num,cside,0) == 4){ // Weak Dirichlet
           for (int k=0; k<basis.dimension(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
-            if (sideinfo(e,dz_num,cside,1) == -1) {
-              plambdax = aux(e,dx_num,k);
-              plambday = aux(e,dy_num,k);
-              plambdaz = aux(e,dz_num,k);
-            }
-            else {
-              plambdax = 0.0;
-              //udfunc->boundaryDirichletValue(label,"dx",x, y, z, time,
-              //                                          wkset->sidename, wkset->isAdjoint);
-              plambday = 0.0;
-              //udfunc->boundaryDirichletValue(label,"dy",x, y, z, time,
-              //                                          wkset->sidename, wkset->isAdjoint);
-              plambdaz = 0.0;
-              //udfunc->boundaryDirichletValue(label,"dz",x, y, z, time,
-              //                                          wkset->sidename, wkset->isAdjoint);
+            plambdax = 0.0;
+            plambday = 0.0;
+            plambdaz = 0.0;
+            if (!usebcs) {
+              if (sideinfo(e,dz_num,cside,1) == -1) {
+                plambdax = aux(e,dx_num,k);
+                plambday = aux(e,dy_num,k);
+                plambdaz = aux(e,dz_num,k);
+              }
             }
             
             for (int i=0; i<basis.dimension(1); i++ ) {
@@ -651,10 +741,6 @@ public:
                         mu_side(e,k)*basis_grad(e,i,k,0)*(deltaz*normals(e,k,0) + deltax*normals(e,k,2)) +
                         mu_side(e,k)*basis_grad(e,i,k,1)*(deltaz*normals(e,k,1) + deltay*normals(e,k,2));
               
-              //basisVec = computeBasisVec(dx-plambdax, dy-plambday, dz-plambdaz,
-              //                           mu_side(e,k), lambda_side(e,k), normals, basis_grad,
-              //                           dz_basis, e, i, k, 2);
-              
               resindex = offsets(dz_num,i);
               res(e,resindex) += (-stress(e,k,2,0)*normals(e,k,0) - stress(e,k,2,1)*normals(e,k,1) - stress(e,k,2,2)*normals(e,k,2))*v -
               sf*basisVec + penalty*(dz-plambdaz)*v;
@@ -665,115 +751,6 @@ public:
       }
     }
     
-    
-    /*
-    else if (wkset->sidetype == 1 || wkset->sidetype == -1) {
-      
-      udfunc->coefficient("lambda",wkset,true,lambda_side);
-      udfunc->coefficient("mu",wkset,true,mu_side);
-      this->computeStress(true);
-      
-      ScalarT sf = formparam;
-      if (wkset->isAdjoint) {
-        sf = 1.0;
-      }
-      if (spaceDim == 1) {
-        dx_basis = wkset->usebasis[dx_num];
-        for (size_t k=0; k<numip_side; k++ ) {
-          this->setLocalSoln(k,true);
-          penalty = epen*(lambda_side(k) + 2.0*mu_side(k))/wkset->h;
-          if (wkset->sidetype == -1)
-            plambdax = wkset->local_aux_side(dx_num,k);
-          else
-            plambdax = udfunc->boundaryDirichletValue(label,"dx",x, y, z, time, wkset->sidename, wkset->isAdjoint);
-          
-          for (int i=0; i<wkset->basis_side[dx_basis].dimension(1); i++ ) {
-            v = wkset->basis_side[dx_basis](0,i,k);
-            basisVec = computeBasisVec(dx-plambdax, dy-plambday, dz-plambdaz,
-                                       mu_side(k), lambda_side(k), wkset->normals, wkset->basis_grad_side, dx_basis, i, k, 0);
-            resindex = wkset->offsets[dx_num][i];
-            wkset->res(resindex) += (-stress(k,0,0)*wkset->normals(0,k,0))*v + penalty*(dx-plambdax)*v -
-            sf*basisVec;
-          }
-        }
-      }
-      else if (spaceDim == 2) {
-        
-        int dx_basis = wkset->usebasis[dx_num];
-        int dy_basis = wkset->usebasis[dy_num];
-        
-        for (size_t k=0; k<numip_side; k++ ) {
-          this->setLocalSoln(k,true);
-          penalty = epen*(lambda_side(k) + 2.0*mu_side(k))/wkset->h;
-          if (wkset->sidetype == -1) {
-            plambdax = wkset->local_aux_side(dx_num,k);
-            plambday = wkset->local_aux_side(dy_num,k);
-          }
-          else {
-            plambdax = udfunc->boundaryDirichletValue(label,"dx", x, y, z, time, wkset->sidename, wkset->isAdjoint);
-            plambday = udfunc->boundaryDirichletValue(label,"dy", x, y, z, time, wkset->sidename, wkset->isAdjoint);
-          }
-          
-          for (int i=0; i<wkset->basis_side[dx_basis].dimension(1); i++ ) {
-            v = wkset->basis_side[dx_basis](0,i,k);
-            basisVec = computeBasisVec(dx-plambdax, dy-plambday, dz-plambdaz,
-                                       mu_side(k), lambda_side(k), wkset->normals, wkset->basis_grad_side, dx_basis, i, k, 0);
-            resindex = wkset->offsets[dx_num][i];
-            wkset->res(resindex) += (-stress(k,0,0)*wkset->normals(0,k,0) - stress(k,0,1)*wkset->normals(0,k,1))*v -
-            sf*basisVec + penalty*(dx-plambdax)*v;
-          }
-          for (int i=0; i<wkset->basis_side[dy_basis].dimension(1); i++ ) {
-            v = wkset->basis_side[dy_basis](0,i,k);
-            basisVec = computeBasisVec(dx-plambdax, dy-plambday, dz-plambdaz,
-                                       mu_side(k), lambda_side(k), wkset->normals, wkset->basis_grad_side, dy_basis, i, k, 1);
-            resindex = wkset->offsets[dy_num][i];
-            wkset->res(resindex) += (-stress(k,1,0)*wkset->normals(0,k,0) - stress(k,1,1)*wkset->normals(0,k,1))*v -
-            sf*basisVec + penalty*(dy-plambday)*v;
-          }
-        }
-      }
-      else if (spaceDim == 3) {
-        dx_basis = wkset->usebasis[dx_num];
-        dy_basis = wkset->usebasis[dy_num];
-        dz_basis = wkset->usebasis[dz_num];
-        for (size_t k=0; k<numip_side; k++ ) {
-          this->setLocalSoln(k,true);
-          penalty = epen*(lambda_side(k) + 2.0*mu_side(k))/wkset->h;
-          if (wkset->sidetype == -1) {
-            plambdax = wkset->local_aux_side(dx_num,k);
-            plambday = wkset->local_aux_side(dy_num,k);
-            plambdaz = wkset->local_aux_side(dz_num,k);
-          }
-          else {
-            plambdax = udfunc->boundaryDirichletValue(label,"dx", x, y, z, time, wkset->sidename, wkset->isAdjoint);
-            plambday = udfunc->boundaryDirichletValue(label,"dy", x, y, z, time, wkset->sidename, wkset->isAdjoint);
-            plambdaz = udfunc->boundaryDirichletValue(label,"dz", x, y, z, time, wkset->sidename, wkset->isAdjoint);
-          }
-          for (int i=0; i<wkset->basis_side[dx_basis].dimension(1); i++ ) {
-            v = wkset->basis_side[dx_basis](0,i,k);
-            basisVec = computeBasisVec(dx-plambdax, dy-plambday, dz-plambdaz,
-                                       mu_side(k), lambda_side(k), wkset->normals, wkset->basis_grad_side, dx_basis, i, k, 0);
-            resindex = wkset->offsets[dx_num][i];
-            wkset->res(resindex) += (-stress(k,0,0)*wkset->normals(0,k,0) - stress(k,0,1)*wkset->normals(0,k,1) - stress(k,0,2)*wkset->normals(0,k,2))*v -
-            sf*basisVec + penalty*(dx-plambdax)*v;
-          }
-          for (int i=0; i<wkset->basis_side[dy_basis].dimension(1); i++ ) {
-            v = wkset->basis_side[dy_basis](0,i,k);
-            basisVec = computeBasisVec(dx-plambdax, dy-plambday, dz-plambdaz,
-                                       mu_side(k), lambda_side(k), wkset->normals, wkset->basis_grad_side, dy_basis, i, k, 1);
-            resindex = wkset->offsets[dy_num][i];
-            wkset->res(resindex) += (-stress(k,1,0)*wkset->normals(0,k,0) - stress(k,1,1)*wkset->normals(0,k,1) - stress(k,1,2)*wkset->normals(0,k,2))*v -
-            sf*basisVec + penalty*(dy-plambday)*v;
-          }
-          for (int i=0; i<wkset->basis_side[dz_basis].dimension(1); i++ ) {
-            v = wkset->basis_side[dz_basis](0,i,k);
-            basisVec = computeBasisVec(dx-plambdax, dy-plambday, dz-plambdaz,
-                                       mu_side(k), lambda_side(k), wkset->normals, wkset->basis_grad_side, dz_basis, i, k, 2);
-            resindex = wkset->offsets[dz_num][i];
-            wkset->res(resindex) += (-stress(k,2,0)*wkset->normals(0,k,0) - stress(k,2,1)*wkset->normals(0,k,1) - stress(k,2,2)*wkset->normals(0,k,2))*v -
-            sf*basisVec + penalty*(dz-plambdaz)*v;
-          }
-        }*/
   }
   
   
@@ -792,14 +769,6 @@ public:
     if (wkset->isAdjoint) {
       sf = formparam;
     }
-    
-    /*
-    {
-      Teuchos::TimeMonitor localtime(*fluxFunc);
-      udfunc->coefficient("lambda",wkset,true,lambda_side);
-      udfunc->coefficient("mu",wkset,true,mu_side);
-    }
-    */
     
     {
       Teuchos::TimeMonitor localtime(*fluxFunc);

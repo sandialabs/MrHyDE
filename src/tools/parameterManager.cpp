@@ -280,7 +280,28 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
         cells[b][e]->setParamUseBasis(disc_usebasis, paramNumBasis);
       }
     }
-    
+    for (size_t b=0; b<boundaryCells.size(); b++) {
+      for (size_t e=0; e<boundaryCells[b].size(); e++) {
+        vector<vector<int> > GIDs;
+        int numElem = boundaryCells[b][e]->numElem;
+        int numLocalDOF = 0;
+        for (int p=0; p<numElem; p++) {
+          size_t elemID = boundaryCells[b][e]->localElemID(p);//disc->myElements[b][eprog+p];
+          vector<int> localGIDs;
+          paramDOF->getElementGIDs(elemID, localGIDs, blocknames[b]);
+          GIDs.push_back(localGIDs);
+          numLocalDOF = localGIDs.size(); // should be the same for all elements
+        }
+        Kokkos::View<GO**,HostDevice> hostGIDs("GIDs on host device",numElem,numLocalDOF);
+        for (int i=0; i<numElem; i++) {
+          for (int j=0; j<numLocalDOF; j++) {
+            hostGIDs(i,j) = GIDs[i][j];
+          }
+        }
+        boundaryCells[b][e]->paramGIDs = hostGIDs;
+        boundaryCells[b][e]->setParamUseBasis(disc_usebasis, paramNumBasis);
+      }
+    }
     if (discretized_stochastic) { // add the param DOFs as indep. rv's
       for (size_t j=0; j<numParamUnknownsOS; j++) {
         // hard coding for one disc param just to get something working
@@ -324,37 +345,25 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
     Kokkos::deep_copy(numDOF_KVhost, numDOF_KV);
     
     for (size_t b=0; b<cells.size(); b++) {
-      //vector<vector<int> > curroffsets = phys->offsets[b];
-      
       for(size_t e=0; e<cells[b].size(); e++) {
         gids = cells[b][e]->paramGIDs;
         // this should fail on the first iteration through if maxDerivs is not large enough
         TEUCHOS_TEST_FOR_EXCEPTION(gids.dimension(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of parameter degrees of freedom per element.");
         
         int numElem = cells[b][e]->numElem;
-        
-        //vector<vector<vector<int> > > cellindices;
         Kokkos::View<LO***,AssemblyDevice> cellindices("Local DOF indices", numElem,
                                                        num_discretized_params, max_param_basis);
-        
         for (int p=0; p<numElem; p++) {
-          
-          //vector<vector<int> > indices;
-          
           for (int n=0; n<num_discretized_params; n++) {
-            //vector<int> cindex;
             for( int i=0; i<paramNumBasis[n]; i++ ) {
               int globalIndexOS = param_overlapped_map->getLocalElement(gids(p,paramoffsets[n][i]));
-              //cindex.push_back(globalIndexOS);
               cellindices(p,n,i) = globalIndexOS;
               param_nodesOS[n].push_back(globalIndexOS);
               int globalIndex_owned = param_owned_map->getLocalElement(gids(p,paramoffsets[n][i]));
               param_nodes[n].push_back(globalIndex_owned);
               
             }
-            //indices.push_back(cindex);
           }
-          //cellindices.push_back(indices);
         }
         cells[b][e]->setParamIndex(cellindices, numDOF_KV);
         /* // needs to be updated
@@ -370,6 +379,27 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
          }
          }
          }*/
+      }
+    }
+    for (size_t b=0; b<boundaryCells.size(); b++) {
+      for(size_t e=0; e<boundaryCells[b].size(); e++) {
+        gids = boundaryCells[b][e]->paramGIDs;
+        // this should fail on the first iteration through if maxDerivs is not large enough
+        TEUCHOS_TEST_FOR_EXCEPTION(gids.dimension(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of parameter degrees of freedom per element.");
+        
+        int numElem = boundaryCells[b][e]->numElem;
+        Kokkos::View<LO***,AssemblyDevice> cellindices("Local DOF indices", numElem,
+                                                       num_discretized_params, max_param_basis);
+        for (int p=0; p<numElem; p++) {
+          for (int n=0; n<num_discretized_params; n++) {
+            for( int i=0; i<paramNumBasis[n]; i++ ) {
+              int globalIndexOS = param_overlapped_map->getLocalElement(gids(p,paramoffsets[n][i]));
+              cellindices(p,n,i) = globalIndexOS;
+              
+            }
+          }
+        }
+        boundaryCells[b][e]->setParamIndex(cellindices, numDOF_KV);
       }
     }
     for (int n=0; n<num_discretized_params; n++) {

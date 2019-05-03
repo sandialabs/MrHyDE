@@ -318,6 +318,7 @@ public:
   vector<vector<vector<size_t> > > localDirichletSideIDs, globalDirichletSideIDs;
   vector<vector<vector<size_t> > > boundDirichletElemIDs;
   vector<vector<int> > dbc_dofs;
+  vector<Kokkos::View<int**,AssemblyDevice> > var_bcs;
   
   //vector<FCint> offsets;
   vector<vector<vector<int> > > offsets;

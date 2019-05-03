@@ -267,6 +267,19 @@ void solver::finalizeWorkset() {
     assembler->wkset[b]->params_AD = params->paramvals_KVAD;
     assembler->wkset[b]->paramnames = params->paramnames;
     //assembler->wkset[b]->setupParamBasis(discretized_param_basis);
+    
+    if (assembler->boundaryCells.size() > b) { // avoid seg faults
+      for (size_t e=0; e<assembler->boundaryCells[b].size(); e++) {
+        if (assembler->boundaryCells[b][e]->numElem > 0) {
+          assembler->boundaryCells[b][e]->wkset = assembler->wkset[b];
+          assembler->boundaryCells[b][e]->setUseBasis(useBasis[b],nstages);
+          
+          assembler->wkset[b]->addSide(assembler->boundaryCells[b][e]->nodes,
+                                       assembler->boundaryCells[b][e]->sidenum,
+                                       assembler->boundaryCells[b][e]->localSideID,e);
+        }
+      }
+    }
   }
   
   if (milo_debug_level > 0) {
@@ -345,6 +358,42 @@ void solver::setupLinearAlgebra() {
         
       }
       assembler->cells[b][e]->setIndex(cellindices, numDOF_KV);
+    }
+    
+    if (assembler->boundaryCells.size() > b) {
+      for(size_t e=0; e<assembler->boundaryCells[b].size(); e++) {
+        gids = assembler->boundaryCells[b][e]->GIDs;
+        
+        int numElem = assembler->boundaryCells[b][e]->numElem;
+        
+        // this should fail on the first iteration through if maxDerivs is not large enough
+        TEUCHOS_TEST_FOR_EXCEPTION(gids.dimension(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element times the number of time stages.");
+        //vector<vector<vector<int> > > cellindices;
+        Kokkos::View<LO***,AssemblyDevice> cellindices("Local DOF indices", numElem, numVars[b], maxBasis[b]);
+        for (int p=0; p<numElem; p++) {
+          //vector<vector<int> > indices;
+          for (int n=0; n<numVars[b]; n++) {
+            //vector<int> cindex;
+            for( int i=0; i<numBasis[b][n]; i++ ) {
+              GO cgid = gids(p,curroffsets[n][i]);
+              cellindices(p,n,i) = LA_overlapped_map->getLocalElement(cgid);
+              //cindex.push_back(LA_overlapped_map->getLocalElement(cgid));
+            }
+            //indices.push_back(cindex);
+          }
+          Teuchos::Array<GO> ind2(gids.dimension(1));
+          for (size_t i=0; i<gids.dimension(1); i++) {
+            ind2[i] = gids(p,i);
+          }
+          for (size_t i=0; i<gids.dimension(1); i++) {
+            GO ind1 = gids(p,i);
+            LA_overlapped_graph->insertGlobalIndices(ind1,ind2);
+          }
+          //cellindices.push_back(indices);
+          
+        }
+        assembler->boundaryCells[b][e]->setIndex(cellindices, numDOF_KV);
+      }
     }
   }
   
@@ -1010,6 +1059,9 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
     assembler->performGather(b, F_soln, 0, 0);
     assembler->performGather(b, params->Psol[0], 4, 0);
     
+    assembler->performBoundaryGather(b, F_soln, 0, 0);
+    assembler->performBoundaryGather(b, params->Psol[0], 4, 0);
+    
     for (size_t e=0; e<assembler->cells[b].size(); e++) {
       
       Kokkos::View<AD**,AssemblyDevice> obj = assembler->cells[b][e]->computeObjective(time, tindex, 0);
@@ -1043,7 +1095,7 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
         }
       }
       
-      if ((numDomainParams > 0) || (numBoundaryParams > 0)) {
+      if ((numDomainParams > 0)){// || (numBoundaryParams > 0)) {
         
         Kokkos::View<GO**,HostDevice> paramGIDs = assembler->cells[b][e]->paramGIDs;
         
@@ -1068,17 +1120,25 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
             }
           }
         }
-        
-      
+      }
+    }
+    bool usenewbcs = true;
+    if (usenewbcs) {
+      for (size_t e=0; e<assembler->boundaryCells[b].size(); e++) {
         if (numBoundaryParams > 0) {
+          
+          
+          Kokkos::View<GO**,HostDevice> paramGIDs = assembler->boundaryCells[b][e]->paramGIDs;
+          
           int paramIndex, rowIndex, poffset;
           ScalarT val;
           
-          regBoundary = assembler->cells[b][e]->computeBoundaryRegularization(params->boundaryRegConstants,
-                                                                              params->boundaryRegTypes,
-                                                                              params->boundaryRegIndices,
-                                                                              params->boundaryRegSides);
-          for (int c=0; c<numElem; c++) {
+          regBoundary = assembler->boundaryCells[b][e]->computeBoundaryRegularization(params->boundaryRegConstants,
+                                                                                      params->boundaryRegTypes,
+                                                                                      params->boundaryRegIndices,
+                                                                                      params->boundaryRegSides);
+          
+          for (int c=0; c<assembler->boundaryCells[b][e]->numElem; c++) {
             for (size_t p = 0; p < numBoundaryParams; p++) {
               paramIndex = params->boundaryRegIndices[p];
               for( size_t row=0; row<params->paramoffsets[paramIndex].size(); row++ ) {
@@ -1092,13 +1152,40 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
             }
           }
         }
-        
-        
-        totaldiff += (regDomain + regBoundary);
-        
       }
-      
     }
+    else {
+      for (size_t e=0; e<assembler->cells[b].size(); e++) {
+        if (numBoundaryParams > 0) {
+          
+          Kokkos::View<GO**,HostDevice> paramGIDs = assembler->cells[b][e]->paramGIDs;
+          
+          int paramIndex, rowIndex, poffset;
+          ScalarT val;
+          
+          regBoundary = assembler->cells[b][e]->computeBoundaryRegularization(params->boundaryRegConstants,
+                                                                                      params->boundaryRegTypes,
+                                                                                      params->boundaryRegIndices,
+                                                                                      params->boundaryRegSides);
+          
+          for (int c=0; c<assembler->cells[b][e]->numElem; c++) {
+            for (size_t p = 0; p < numBoundaryParams; p++) {
+              paramIndex = params->boundaryRegIndices[p];
+              for( size_t row=0; row<params->paramoffsets[paramIndex].size(); row++ ) {
+                if (regBoundary.size() > 0) {
+                  rowIndex = paramGIDs(c,params->paramoffsets[paramIndex][row]);
+                  poffset = params->paramoffsets[paramIndex][row];
+                  val = regBoundary.fastAccessDx(poffset);
+                  regGradient[rowIndex+params->num_active_params] += val;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    totaldiff += (regDomain + regBoundary);
     //totaldiff += phys->computeTopoResp(b);
   }
   

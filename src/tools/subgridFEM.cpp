@@ -539,6 +539,7 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
         
         if (compute) {
           DRV sside_ip = cells[block][e]->sideip[s];
+          
           for (size_t i=0; i<macro_basis_pointers.size(); i++) {
             DRV tmp_basis = DRV("basis values",numElem,macro_basis_pointers[i]->getCardinality(),sside_ip.dimension(1));
             currside_basis.push_back(tmp_basis);
@@ -1339,7 +1340,7 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<Epetra_MultiVector> & sub_u
         
         cells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
                                          true, false, num_active_params, false, false, false,
-                                         local_res, local_J, local_Jdot);
+                                         local_res, local_J, local_Jdot,true);
         
       }
       {
@@ -1366,7 +1367,6 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<Epetra_MultiVector> & sub_u
         }
       }
     }
-    
     
     
     sub_J_over->FillComplete();
@@ -1479,6 +1479,7 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<Epetra_MultiVector> & sub_u
     iter++;
     
   }
+  
 }
 
 //////////////////////////////////////////////////////////////
@@ -1622,7 +1623,7 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<Epetra_MultiVector> & d_sub
       
       cells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
                                        false, true, num_active_params, false, false, false,
-                                       local_res, local_J, local_Jdot);
+                                       local_res, local_J, local_Jdot,true);
       
       Kokkos::View<GO**,HostDevice>  GIDs = cells[usernum][e]->GIDs;
       for (int i=0; i<GIDs.dimension(0); i++) {
@@ -1677,7 +1678,7 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<Epetra_MultiVector> & d_sub
       
       cells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
                                        true, false, num_active_params, false, true, false,
-                                       local_res, local_J, local_Jdot);
+                                       local_res, local_J, local_Jdot,true);
       Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;
       Kokkos::View<GO**,HostDevice> aGIDs = cells[usernum][e]->auxGIDs;
       vector<vector<int> > aoffsets = cells[usernum][e]->auxoffsets;

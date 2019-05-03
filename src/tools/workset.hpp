@@ -28,7 +28,7 @@ class workset {
   workset(const vector<int> & cellinfo, const DRV & ref_ip_, const DRV & ref_wts_, const DRV & ref_side_ip_,
           const DRV & ref_side_wts_, const vector<string> & basis_types_,
           const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
-          const topo_RCP & topo);
+          const topo_RCP & topo, Kokkos::View<int**,AssemblyDevice> & var_bcs_);
   
   ////////////////////////////////////////////////////////////////////////////////////
   // Public functions
@@ -48,6 +48,13 @@ class workset {
   void update(const DRV & ip_, const DRV & jacobian, const vector<vector<ScalarT> > & orientation);
   
   ////////////////////////////////////////////////////////////////////////////////////
+  // Add a side information
+  ////////////////////////////////////////////////////////////////////////////////////
+  
+  void addSide(const DRV & nodes, const int & sidenum, Kokkos::View<int*> & localSideID,
+               const int & cnum);
+
+  ////////////////////////////////////////////////////////////////////////////////////
   // Update the nodes and the basis functions at the side ip
   ////////////////////////////////////////////////////////////////////////////////////
   
@@ -55,10 +62,22 @@ class workset {
                   const DRV & normals_, const DRV & sidejacobian, const int & s);
   
   ////////////////////////////////////////////////////////////////////////////////////
+  // Update the nodes and the basis functions at the side ip
+  ////////////////////////////////////////////////////////////////////////////////////
+  
+  void updateSide(const int & sidenum, const int & cnum);
+
+  ////////////////////////////////////////////////////////////////////////////////////
   // Reset solution to zero
   ////////////////////////////////////////////////////////////////////////////////////
   
   void resetResidual();
+  
+  ////////////////////////////////////////////////////////////////////////////////////
+  // Reset solution to zero
+  ////////////////////////////////////////////////////////////////////////////////////
+  
+  void resetResidual(const int & numE);
   
   ////////////////////////////////////////////////////////////////////////////////////
   // Reset solution to zero
@@ -151,7 +170,7 @@ class workset {
   
   vector<int> usebasis, paramusebasis;
   bool isAdjoint, onlyTransient, isTransient;
-  bool isInitialized;
+  bool isInitialized, usebcs;
   topo_RCP celltopo;
   size_t numsides, numip, numsideip, numVars, numParams, numAux, numDOF;
   int dimension, numElem;//, num_stages;
@@ -182,6 +201,12 @@ class workset {
   size_t block, localEID, globalEID;
   DRV ip, ip_side, wts, wts_side, normals;
   Kokkos::View<ScalarT***,AssemblyDevice> ip_KV, ip_side_KV, normals_KV, point_KV;
+  
+  // experimental data structures
+  vector<DRV> ip_side_vec, wts_side_vec, normals_side_vec;
+  vector<vector<DRV> > param_basis_grad_side_vec, param_basis_side_vec;
+  vector<vector<DRV> > basis_side_vec, basis_side_uw_vec, basis_grad_side_vec, basis_grad_side_uw_vec;
+  Kokkos::View<int**,AssemblyDevice> var_bcs;
   
   vector<DRV> basis; // weighted by volumetric integration weights
   vector<DRV> basis_uw; // un-weighted
@@ -228,6 +253,7 @@ class workset {
   Teuchos::RCP<Teuchos::Time> worksetUpdateIPTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::update - integration data");
   Teuchos::RCP<Teuchos::Time> worksetUpdateBasisMMTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::update::multiplyMeasure");
   Teuchos::RCP<Teuchos::Time> worksetUpdateBasisHGTGTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::update::HGRADTransformGrad");
+  Teuchos::RCP<Teuchos::Time> worksetAddSideTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::addSide");
   Teuchos::RCP<Teuchos::Time> worksetSideUpdateIPTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::updateSide - integration data");
   Teuchos::RCP<Teuchos::Time> worksetSideUpdateBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::updateSide - basis data");
   Teuchos::RCP<Teuchos::Time> worksetResetTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::reset*");

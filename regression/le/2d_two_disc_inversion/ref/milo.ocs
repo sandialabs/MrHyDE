@@ -2,14 +2,14 @@
 Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
 Trust-Region Model: Kelley-Sachs
   iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
-  0     2.067722e+00   5.285699e-01                  1.000000e+01   
-  1     1.565149e+00   4.573001e-01   5.285699e-01   2.500000e+01   3         3         0         1         0         
+  0     2.067720e+00   5.285692e-01                  1.000000e+01   
+  1     1.565148e+00   4.572995e-01   5.285692e-01   2.500000e+01   3         3         0         1         0         
 
 Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
 Trust-Region Model: Kelley-Sachs
   iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
-  0     2.067722e+00   5.285699e-01                  1.000000e+01   
-  1     1.565149e+00   4.573001e-01   5.285699e-01   2.500000e+01   3         3         0         1         0         
+  0     2.067720e+00   5.285692e-01                  1.000000e+01   
+  1     1.565148e+00   4.572995e-01   5.285692e-01   2.500000e+01   3         3         0         1         0         
 param 0 = 3.00403
 param 1 = 1
 param 2 = 3.00693

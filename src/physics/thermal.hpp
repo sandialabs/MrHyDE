@@ -153,12 +153,23 @@ public:
     
     // NOTES:
     // 1. basis and basis_grad already include the integration weights
-   
+    
     sideinfo = wkset->sideinfo;
+    Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
+    
+    bool usebcs = wkset->usebcs;
+    //if (bcs.dimension(0)>0) {
+    //  usebcs = false;
+    //}
     
     int cside = wkset->currentside;
-    int sidetype = wkset->sidetype;
-    
+    int sidetype;
+    if (usebcs) {
+      sidetype = bcs(e_num,cside);
+    }
+    else {
+      sidetype = sideinfo(0,e_num,cside,1);
+    }
     int e_basis_num = wkset->usebasis[e_num];
     numBasis = wkset->basis_side[e_basis_num].dimension(1);
     
@@ -166,7 +177,7 @@ public:
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
       
       //nsource = functionManager->evaluate("thermal Neumann source","side ip",blocknum);
-      if (sidetype == 4 && sideinfo(0,e_num,cside,1) != -1) {
+      if (sidetype == 4){ //} && sideinfo(0,e_num,cside,1) != -1) {
         nsource = functionManager->evaluate("Dirichlet e " + wkset->sidename,"side ip",blocknum);
       }
       else if (sidetype == 2) {
@@ -182,7 +193,6 @@ public:
       sf = 1.0;
     }
     
-    
     sol = wkset->local_soln_side;
     sol_grad = wkset->local_soln_grad_side;
     ebasis = wkset->basis_side[e_basis_num];
@@ -196,10 +206,19 @@ public:
     
     Teuchos::TimeMonitor localtime(*boundaryResidualFill);
     
-    
-    
-    for (int e=0; e<sideinfo.dimension(0); e++) {
-      if (sideinfo(e,e_num,cside,0) == 2) { // Element e is on the side
+    for (int e=0; e<ebasis.dimension(0); e++) {
+      bool computeN = false;
+      if (usebcs) {
+        if (bcs(e_num,cside) == 2) {
+          computeN = true;
+        }
+      }
+      else {
+        if (sideinfo(e,e_num,cside,0) == 2) { // Element e is on the side
+          computeN = true;
+        }
+      }
+      if (computeN) {
         for (int k=0; k<ebasis.dimension(2); k++ ) {
           for (int i=0; i<ebasis.dimension(1); i++ ) {
             resindex = offsets(e_num,i);
@@ -207,7 +226,23 @@ public:
           }
         }
       }
-      else if (sideinfo(e,e_num,cside,0) == 4) { //} && sideinfo(e,e_num,cside,1) == -1){ // Weak Dirichlet
+      
+      bool computeWD = false;
+      if (usebcs) {
+        if (bcs(e_num,cside) == 4) {
+          computeWD = true;
+        }
+      }
+      else {
+        if (sideinfo(e,e_num,cside,0) == 4) { // Element e is on the side
+          computeWD = true;
+        }
+      }
+      
+      if (computeWD) {
+        
+      //else if (bcs(e_num,cside) == 4) {
+      //else if (sideinfo(e,e_num,cside,0) == 4) { //} && sideinfo(e,e_num,cside,1) == -1){ // Weak Dirichlet
         
         for (int k=0; k<ebasis.dimension(2); k++ ) {
           
@@ -222,15 +257,20 @@ public:
           }
           
           AD lambda;
-          if (sideinfo(e,e_num,cside,1) == -1)
-            lambda = aux(e,e_num,k);
+          
+          if (!usebcs) {
+            if (sideinfo(e,e_num,cside,1) == -1)
+              lambda = aux(e,e_num,k);
+            else {
+              lambda = nsource(e,k);
+              //udfunc->boundaryDirichletValue(label,"e",x,y,z,wkset->time,wkset->sidename,wkset->isAdjoint);
+              //  lambda = this->getDirichletValue("e", x, y, z, wkset->time,
+              //                                   wkset->sidename, wkset->isAdjoint);
+            }
+          }
           else {
             lambda = nsource(e,k);
-            //udfunc->boundaryDirichletValue(label,"e",x,y,z,wkset->time,wkset->sidename,wkset->isAdjoint);
-          //  lambda = this->getDirichletValue("e", x, y, z, wkset->time,
-          //                                   wkset->sidename, wkset->isAdjoint);
           }
-          
           for (int i=0; i<ebasis.dimension(1); i++ ) {
             resindex = offsets(e_num,i);
             v = ebasis(e,i,k);

@@ -453,7 +453,6 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
                                                                          phys, b, 0, memeff));
     
     while (prog < numElem) {
-    //for (size_t e=0; e<numElem; e++) {
       int currElem = elemPerCell;  // Avoid faults in last iteration
       if (prog+currElem > numElem){
         currElem = numElem-prog;
@@ -470,13 +469,13 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
         }
         eIndex(e) = prog+e;
       }
-      //blockcells.push_back(Teuchos::rcp(new cell(settings, LocalComm, cellTopo, phys, currnodes, b, eIndex, 0, memeff)));
       blockcells.push_back(Teuchos::rcp(new cell(cellData, currnodes, eIndex)));
-      //blockcells[blockcells.size()-1]->nodepert = currnodepert;
       prog += elemPerCell;
     }
     cells.push_back(blockcells);
     
+    
+    /*
     int currElem = elemPerCell;  // Avoid faults in last iteration
     if (prog+currElem > numElem){
       currElem = numElem-prog;
@@ -487,21 +486,34 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
     for (int e=0; e<currElem; e++) {
       for (int n=0; n<numNodesPerElem; n++) {
         for (int m=0; m<spaceDim; m++) {
-          currnodes(e,n,m) = blocknodes(prog+e,n,m) + blocknodepert(prog+e,n,m);
+          currnodes(e ,n,m) = blocknodes(prog+e,n,m) + blocknodepert(prog+e,n,m);
           currnodepert(e,n,m) = blocknodepert(prog+e,n,m);
         }
       }
       eIndex(e) = prog+e;
     }
+    */
     
     // Next, create the boundary cells
     
     vector<Teuchos::RCP<BoundaryCell> > bcells;
     vector<string> sideSets;
     mesh->getSidesetNames(sideSets);
+    // TMW: this is just for ease of use
+    int numBoundaryElem = settings->sublist("Solver").get<int>("Workset size",1);
+    
+    ///////////////////////////////////////////////////////////////////////////////////
+    // Rules for grouping elements into boundary cells
+    //
+    // 1.  All elements must be on the same processor
+    // 2.  All elements must be on the same physical side
+    // 3.  Each edge/face on the side must have the same local ID.
+    // 4.  No more than numBoundaryElem in a group
+    ///////////////////////////////////////////////////////////////////////////////////
     
     for( size_t side=0; side<sideSets.size(); side++ ) {
       string sideName = sideSets[side];
+      
       
       vector<stk::mesh::Entity> sideEntities;
       mesh->getMySides(sideName, eBlocks[b], sideEntities);
@@ -509,22 +521,59 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
       vector<stk::mesh::Entity> side_output;
       vector<size_t>             local_elem_Ids;
       panzer_stk::workset_utils::getSideElements(*mesh, eBlocks[b], sideEntities, local_side_Ids, side_output);
-      int numSideElem = local_side_Ids.size();
-      DRV currnodes("currnodes", numSideElem, numNodesPerElem, spaceDim);
-      Kokkos::View<int*> eIndex("element indices",numSideElem);
       
-      for( size_t i=0; i<numSideElem; i++ ) {
-        local_elem_Ids.push_back(mesh->elementLocalId(side_output[i]));
-        eIndex(i) = local_elem_Ids[i];
-        for (size_t j=0; j<numNodesPerElem; j++) {
-          for (size_t k=0; k<spaceDim; k++) {
-            currnodes(i,j,k) = blocknodes(local_elem_Ids[i],j,k);
+      int numSideElem = local_side_Ids.size();
+      
+      if (numSideElem > 0) {
+        vector<size_t> unique_sides;
+        unique_sides.push_back(local_side_Ids[0]);
+        for (size_t e=0; e<numSideElem; e++) {
+          bool found = false;
+          for (size_t j=0; j<unique_sides.size(); j++) {
+            if (unique_sides[j] == local_side_Ids[e]) {
+              found = true;
+            }
+          }
+          if (!found) {
+            unique_sides.push_back(local_side_Ids[e]);
+          }
+        }
+        
+        for (size_t j=0; j<unique_sides.size(); j++) {
+          vector<size_t> group;
+          for (size_t e=0; e<numSideElem; e++) {
+            if (local_side_Ids[e] == unique_sides[j]) {
+              group.push_back(e);
+            }
+          }
+          
+          int prog = 0;
+          while (prog < group.size()) {
+            int currElem = numBoundaryElem;  // Avoid faults in last iteration
+            if (prog+currElem > group.size()){
+              currElem = group.size()-prog;
+            }
+            Kokkos::View<int*> eIndex("element indices",currElem);
+            Kokkos::View<int*> sideIndex("local side indices",currElem);
+            DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
+            for (int e=0; e<currElem; e++) {
+              eIndex(e) = mesh->elementLocalId(side_output[group[e+prog]]);
+              sideIndex(e) = local_side_Ids[group[e+prog]];
+              for (int n=0; n<numNodesPerElem; n++) {
+                for (int m=0; m<spaceDim; m++) {
+                  currnodes(e,n,m) = blocknodes(eIndex(e),n,m);
+                }
+              }
+            }
+            
+            bcells.push_back(Teuchos::rcp(new BoundaryCell(cellData,currnodes,eIndex,sideIndex,
+                                                           side,sideName, bcells.size())));
+            prog += currElem;
           }
         }
       }
-      bcells.push_back(Teuchos::rcp(new BoundaryCell(cellData,currnodes,eIndex,
-                                                     side,sideName)));
     }
+    
     boundaryCells.push_back(bcells);
     
   }

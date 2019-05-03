@@ -265,6 +265,7 @@ void cell::computeSolnSideIP(const int & side,
     wkset->resetAuxSide();
     
     size_t numip = wkset->numsideip;
+    
     AD auxval;
     
     for (int e=0; e<numElem; e++) {
@@ -334,7 +335,8 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
                          const bool & compute_aux_sens, const bool & store_adjPrev,
                          Kokkos::View<ScalarT***,AssemblyDevice> local_res,
                          Kokkos::View<ScalarT***,AssemblyDevice> local_J,
-                         Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
+                         Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot,
+                         const bool & includeBoundary) {
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Compute the local contribution to the global residual and Jacobians
@@ -489,11 +491,11 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
     // Boundary contribution
     
     
-    {
+    if (includeBoundary) {
       Teuchos::TimeMonitor localtimer(*boundaryResidualTimer);
       
       
-      for (int side=0; side<cellData->numSides; side++) {
+      for (int side=0; side<sideinfo.dimension(2); side++) {
         bool compute = false; // not going to work if Host!=Assembly
         string gsideid;
         int sidetype = 0;
@@ -513,17 +515,6 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
         }
         if (compute) {
           
-          wkset->sideinfo = sideinfo;
-          wkset->currentside = side;
-          wkset->sidetype = sidetype;
-          // if (sideinfo[e](side,1) == -1) {
-          //   wkset->sidename = "interior";
-          //   wkset->sidetype = -1;
-          // }
-          // else {
-          wkset->sidename = gsideid;
-          //wkset->sidetype = sideinfo[e](side,0);
-          // }
           
           if (compute_jacobian) {
             if (compute_disc_sens) {
@@ -539,6 +530,19 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
           else {
             this->computeSolnSideIP(side,false,false,false,false);
           }
+          
+          wkset->sideinfo = sideinfo;
+          wkset->currentside = side;
+          wkset->sidetype = sidetype;
+          // if (sideinfo[e](side,1) == -1) {
+          //   wkset->sidename = "interior";
+          //   wkset->sidetype = -1;
+          // }
+          // else {
+          wkset->sidename = gsideid;
+          wkset->usebcs = false;
+          //wkset->sidetype = sideinfo[e](side,0);
+          // }
           
           cellData->physics_RCP->boundaryResidual(cellData->myBlock);
           

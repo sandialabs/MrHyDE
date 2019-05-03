@@ -245,6 +245,14 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
       }
       boundaryCells[b][e]->GIDs = hostGIDs;
       //-----------------------------------------------
+    
+      Kokkos::View<int*> localEID = boundaryCells[b][e]->localElemID;
+      
+      // Set the side information (soon to be removed)-
+      Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,localEID);
+      boundaryCells[b][e]->sideinfo = sideinfo;
+      //-----------------------------------------------
+      
     }
   }
   // Set the cell integration points/wts-----------

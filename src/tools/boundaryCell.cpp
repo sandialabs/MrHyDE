@@ -202,9 +202,8 @@ void BoundaryCell::computeSoln(const bool & seedu, const bool & seedudot, const 
   
   Teuchos::TimeMonitor localtimer(*computeSolnSideTimer);
   
-  //wkset->updateSide(nodes, sideip[side], sidewts[side],normals[side],sideijac[side], side);
-  wkset->computeSoln(u, u_dot, seedu, seedudot);
-  wkset->computeParam(param, seedparams);
+  wkset->computeSolnSideIP(sidenum, u, u_dot, seedu, seedudot);
+  wkset->computeParamSideIP(sidenum, param, seedparams);
   
   if (wkset->numAux > 0) {
     
@@ -281,6 +280,8 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
     else {
       this->computeSoln(false,false,false,false);
     }
+    
+    wkset->resetResidual(numElem);
     
     cellData->physics_RCP->boundaryResidual(cellData->myBlock);
     
@@ -558,22 +559,22 @@ void BoundaryCell::updateAuxJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local
 // Compute boundary regularization given the boundary discretized parameters
 ///////////////////////////////////////////////////////////////////////////////////////
 
-AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constants, const vector<int> reg_types,
-                                       const vector<int> reg_indices, const vector<string> reg_sides) {
+AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constants,
+                                               const vector<int> reg_types,
+                                               const vector<int> reg_indices,
+                                               const vector<string> reg_sides) {
   
   AD reg;
   
-  /*
   bool seedParams = true;
   //vector<vector<AD> > param_AD;
   //for (int n=0; n<paramindex.size(); n++) {
   //  param_AD.push_back(vector<AD>(paramindex[n].size()));
   //}
   //this->setLocalADParams(param_AD,seedParams);
-  int numip = wkset->numip;
+  //int numip = wkset->numip;
   int numParams = reg_indices.size();
-  bool onside = false;
-  string sname;
+  /*
   for (int side=0; side<cellData->numSides; side++) {
     for (int e=0; e<numElem; e++) {
       if (sideinfo(e,0,side,0) > 0) { // Just checking the first variable should be sufficient
@@ -582,12 +583,13 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
       }
     }
     
-    if (onside) {
+    if (onside) {*/
+  
       //int sidetype = sideinfo[e](side,0); // 0-not on bndry, 1-Dirichlet bndry, 2-Neumann bndry
       //if (sidetype > 0) {
       //wkset->updateSide(nodes, sideip[side], sideijac[side], side);
       
-      wkset->updateSide(nodes, sideip[side], sidewts[side],normals[side],sideijac[side], side);
+  //    wkset->updateSide(nodes, sideip[side], sidewts[side],normals[side],sideijac[side], side);
       
       int numip = wkset->numsideip;
       //int gside = sideinfo[e](side,1); // =-1 if is an interior edge
@@ -603,15 +605,16 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
         reg_constant = reg_constants[i];
         reg_type = reg_types[i];
         reg_side = reg_sides[i];
-        found = reg_side.find(sname);
+        found = reg_side.find(sidename);
         if (found != string::npos) {
           
-          wkset->computeParamSideIP(side, param, seedParams);
+          wkset->updateSide(sidenum, cellID);
+          wkset->computeParamSideIP(sidenum, param, seedParams);
           
           AD p, dpdx, dpdy, dpdz; // parameters
           ScalarT offset = 1.0e-5;
           for (int e=0; e<numElem; e++) {
-            if (sideinfo(e,0,side,0) > 0) {
+            //if (sideinfo(e,0,side,0) > 0) {
               for (int k = 0; k < numip; k++) {
                 p = wkset->local_param_side(e,paramIndex,k);
                 // L2
@@ -653,16 +656,16 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
                   }
                 }
               }
-            }
+            //}
           }
         }
       }
       //}
-    }
-  }
+    //}
+  //}
   
   //cout << "reg = " << reg << endl;
-  */
+  
   return reg;
   
 }

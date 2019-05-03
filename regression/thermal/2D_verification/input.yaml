@@ -21,7 +21,7 @@ ANONYMOUS:
   Parameters Settings File: input_params.yaml
   Solver: 
     solver: steady-state
-    Workset size: 1
+    Workset size: 40
     Verbosity: 0
     NLtol: 9.99999999999999955e-07
     MaxNLiter: 2

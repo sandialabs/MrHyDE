@@ -1061,6 +1061,7 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
     mesh->getSidesetNames(sideSets);
     mesh->getNodesetNames(nodeSets);
     
+    Kokkos::View<int**,AssemblyDevice> currbcs("boundary conditions",varlist[b].size(),sideSets.size());
     topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
     if (spaceDim == 1) {
       numSidesPerElem = 2;
@@ -1145,9 +1146,16 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
           bool isNeum = false;
           if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
             isDiri = true;
+            if (use_weak_dbcs) {
+              currbcs(j,side) = 4;
+            }
+            else {
+              currbcs(j,side) = 1;
+            }
           }
           if (nbc_settings.sublist(var).isParameter("all boundaries") || nbc_settings.sublist(var).isParameter(sideName)) {
             isNeum = true;
+            currbcs(j,side) = 2;
           }
           
           //else if (pbc_settings.sublist(var).isParameter("all boundaries") || pbc_settings.sublist(var).isParameter(sideName)) {
@@ -1254,6 +1262,7 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
     }
     
     offsets.push_back(celloffsets);
+    var_bcs.push_back(currbcs);
     
     std::sort(block_dbc_dofs.begin(), block_dbc_dofs.end());
     block_dbc_dofs.erase(std::unique(block_dbc_dofs.begin(),

@@ -108,6 +108,21 @@ public:
   void performGather(const size_t & block, const vector_RCP & vec, const int & type,
                      const size_t & index);
   
+  // ========================================================================================
+  //
+  // ========================================================================================
+  
+  void performBoundaryGather(const size_t & block, const vector_RCP & vec, const int & type,
+                             const size_t & index);
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  void insert(matrix_RCP & J, vector_RCP & res, Kokkos::View<ScalarT***,AssemblyDevice> & local_res,
+              Kokkos::View<ScalarT***,AssemblyDevice> & local_J, Kokkos::View<ScalarT***,AssemblyDevice> & local_Jdot,
+              Kokkos::View<GO**,HostDevice> & GIDs, Kokkos::View<GO**,HostDevice> & paramGIDs,
+              const bool & compute_jacobian, const bool & compute_disc_sens, const ScalarT & alpha);
+    
   ///////////////////////////////////////////////////////////////////////////////////////////
   // Public data members
   ///////////////////////////////////////////////////////////////////////////////////////////
@@ -127,7 +142,7 @@ public:
   vector<vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
   vector<Teuchos::RCP<workset> > wkset;
   
-  bool usestrongDBCs, use_meas_as_dbcs;
+  bool usestrongDBCs, use_meas_as_dbcs, multiscale, useNewBCs;
   Teuchos::RCP<const panzer::DOFManager<LO, GO> > DOF;
   
 private:

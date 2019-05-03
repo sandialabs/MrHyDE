@@ -15,7 +15,7 @@
 #include "trilinos.hpp"
 #include "preferences.hpp"
 #include "discretizationTools.hpp"
-#include "boundaryWorkset.hpp"
+#include "workset.hpp"
 #include "cellMetaData.hpp"
 
 #include <iostream>     
@@ -36,9 +36,11 @@ public:
   BoundaryCell(const Teuchos::RCP<CellMetaData> & cellData_,
                const DRV & nodes_,
                const Kokkos::View<int*> & localID_,
-               const int & sidenum_, const string & sidename_) :
-  cellData(cellData_), localElemID(localID_), nodes(nodes_),
-  sidenum(sidenum_), sidename(sidename_) {
+               const Kokkos::View<int*> & sideID_,
+               const int & sidenum_, const string & sidename_,
+               const int & cellID_) :
+  cellData(cellData_), localElemID(localID_), localSideID(sideID_), nodes(nodes_),
+  sidenum(sidenum_), sidename(sidename_), cellID(cellID_) {
   
     numElem = nodes.dimension(0);
     
@@ -47,57 +49,6 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void setIP(const DRV & ref_side_ip, const DRV & ref_side_wts) {
-    
-    ip = DRV("sip", numElem, ref_side_ip.dimension(0), cellData->dimension);
-    ijac = DRV("sijac", numElem, ref_side_ip.dimension(0), cellData->dimension, cellData->dimension);
-    wts = DRV("wts_side", numElem, ref_side_ip.dimension(0));
-    normals = DRV("normals", numElem, ref_side_ip.dimension(0), cellData->dimension);
-    
-    DRV refSidePoints("refSidePoints", ref_side_ip.dimension(0), cellData->dimension);
-    CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, ref_side_ip,
-                                                     cellData->dimension-1, sidenum, *(cellData->cellTopo));
-    
-    CellTools<AssemblyDevice>::mapToPhysicalFrame(ip, refSidePoints, nodes, *(cellData->cellTopo));
-    
-    CellTools<AssemblyDevice>::setJacobian(ijac, refSidePoints, nodes, *(cellData->cellTopo));
-    
-    DRV ijacInv("sidejacobInv",numElem, ref_side_ip.dimension(0), cellData->dimension, cellData->dimension);
-    
-    CellTools<AssemblyDevice>::setJacobianInv(ijacInv, ijac);
-    
-    DRV temporary_buffer("temporary_buffer",numElem,ref_side_ip.dimension(0)*cellData->dimension*cellData->dimension);
-    
-    if (cellData->dimension == 2) {
-      FunctionSpaceTools<AssemblyDevice>::computeEdgeMeasure(wts, ijac, ref_side_wts, sidenum,
-                                                             *(cellData->cellTopo), temporary_buffer);
-    }
-    if (cellData->dimension == 3) {
-      FunctionSpaceTools<AssemblyDevice>::computeFaceMeasure(wts, ijac, ref_side_wts, sidenum,
-                                                             *(cellData->cellTopo), temporary_buffer);
-    }
-    CellTools<AssemblyDevice>::getPhysicalSideNormals(normals, ijac, sidenum, *(cellData->cellTopo));
-    
-    // scale the normal vector (we need unit normal...)
-    
-    for (int e=0; e<numElem; e++) {
-      for( int j=0; j<ref_side_ip.dimension(0); j++ ) {
-        ScalarT normalLength = 0.0;
-        for (int sd=0; sd<cellData->dimension; sd++) {
-          normalLength += normals(e,j,sd)*normals(e,j,sd);
-        }
-        normalLength = sqrt(normalLength);
-        for (int sd=0; sd<cellData->dimension; sd++) {
-          normals(e,j,sd) = normals(e,j,sd) / normalLength;
-        }
-      }
-    }
-  }
-  
-  ///////////////////////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////////////////////
-  
-  //void setIndex(const vector<vector<vector<int> > > & index_) {
   void setIndex(Kokkos::View<LO***,AssemblyDevice> & index_, Kokkos::View<LO*,AssemblyDevice> & numDOF_) {
     
     index = Kokkos::View<LO***,AssemblyDevice>("local index",index_.dimension(0),
@@ -120,7 +71,6 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  //void setParamIndex(const vector<vector<vector<int> > > & pindex_) {
   void setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_,
                      Kokkos::View<LO*,AssemblyDevice> & pnumDOF_) {
     
@@ -318,12 +268,13 @@ public:
 
   // Public data 
   Teuchos::RCP<CellMetaData> cellData;
-  Teuchos::RCP<BoundaryWorkset> wkset;
+  Teuchos::RCP<workset> wkset;
   
-  Kokkos::View<LO*> localElemID;
+  Kokkos::View<LO*> localElemID, localSideID;
   
   // Geometry Information
-  int numElem, sidenum;
+  int numElem = 0; // default value ... used to check if proc. has elements on boundary
+  int sidenum, cellID;
   DRV nodes, ip, wts, ijac, normals;
   Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
   string sidename;

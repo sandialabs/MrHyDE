@@ -1,6 +1,8 @@
 %YAML 1.1
 ---
 ANONYMOUS:
+  debug level: 0
+  verbosity: 0
   Mesh Settings File: input_mesh.yaml
   Physics: 
     eblock-0_0: 
@@ -21,8 +23,7 @@ ANONYMOUS:
   Functions Settings File: input_functions.yaml
   Solver: 
     solver: steady-state
-    Workset Size: 1
-    Verbosity: 0
+    Workset size: 10
     NLtol: 9.99999999999999955e-07
     MaxNLiter: 4
     finaltime: 1.00000000000000000e+00

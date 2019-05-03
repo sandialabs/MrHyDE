@@ -36,6 +36,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), cells(cells_), bo
   
   verbosity = settings->get<int>("verbosity",0);
   usestrongDBCs = settings->sublist("Solver").get<bool>("use strong DBCs",true);
+  useNewBCs = settings->sublist("Solver").get<bool>("use new BCs",true);
   use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("Use Measurements as DBCs", false);
   
   // needed information from the mesh
@@ -71,7 +72,8 @@ void AssemblyManager::createWorkset() {
                                               disc->ref_side_wts[b], disc->basis_types[b],
                                               disc->basis_pointers[b],
                                               params->discretized_param_basis,
-                                              mesh->getCellTopology(blocknames[b])) ) );
+                                              mesh->getCellTopology(blocknames[b]),
+                                              phys->var_bcs[b]) ) );
     
     wkset[b]->isInitialized = true;
     wkset[b]->block = b;
@@ -318,6 +320,10 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
   
   Teuchos::TimeMonitor localassemblytimer(*assemblytimer);
   
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Volumetric terms
+  //////////////////////////////////////////////////////////////////////////////////////
+  
   for (size_t b=0; b<cells.size(); b++) {
     
     //////////////////////////////////////////////////////////////////////////////////////
@@ -369,7 +375,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
     {
       Teuchos::TimeMonitor localtimer(*gathertimer);
     
-      // Local gather of solutions (should be a better way to do this)
+      // Local gather of solutions
       this->performGather(b,u,0,0);
       this->performGather(b,u_dot,1,0);
       this->performGather(b,Psol,4,0);
@@ -413,17 +419,15 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
           }
         });
         
-        
         cells[b][e]->computeJacRes(current_time, isTransient, useadjoint, compute_jacobian, compute_sens,
                                    num_active_params, compute_disc_sens, false, store_adjPrev,
-                                   local_res, local_J, local_Jdot);
+                                   local_res, local_J, local_Jdot, !useNewBCs);
         
         
       }
       
       if (milo_debug_level > 2) {
         if (Comm->getRank() == 0) {
-          cout << "in here" << endl;
           KokkosTools::print(local_res);
           KokkosTools::print(local_J);
           KokkosTools::print(local_Jdot);
@@ -434,47 +438,118 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
       // Insert into global matrix/vector
       ///////////////////////////////////////////////////////////////////////////
       
-      {
-        Teuchos::TimeMonitor localtimer(*inserttimer);
-        Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
-        
-        Kokkos::View<GO**,HostDevice> paramGIDs = cells[b][e]->paramGIDs;
-        
-        for (int i=0; i<GIDs.dimension(0); i++) {
-          Teuchos::Array<ScalarT> vals(GIDs.dimension(1));
-          Teuchos::Array<LO> cols(GIDs.dimension(1));
-          
-          for( size_t row=0; row<GIDs.dimension(1); row++ ) {
-            int rowIndex = GIDs(i,row);
-            for (int g=0; g<numRes; g++) {
-              ScalarT val = local_res(i,row,g);
-              res->sumIntoGlobalValue(rowIndex,g, val);
-            }
-            if (compute_jacobian) {
-              if (compute_disc_sens) {
-                for( size_t col=0; col<paramGIDs.dimension(1); col++ ) {
-                  int colIndex = paramGIDs(i,col);
-                  ScalarT val = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
-                  J->insertGlobalValues(colIndex, 1, &val, &rowIndex);
-                }
-              }
-              else {
-                for( size_t col=0; col<GIDs.dimension(1); col++ ) {
-                  vals[col] = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
-                  cols[col] = GIDs(i,col);
-                }
-                //J->sumIntoGlobalValues(rowIndex, GIDs[i].size(), &vals[0], &GIDs[i][0]);
-                J->sumIntoGlobalValues(rowIndex, cols, vals);
-                
-              }
-            }
-          }
-        }
-      }
+      this->insert(J, res, local_res, local_J, local_Jdot,
+                   cells[b][e]->GIDs, cells[b][e]->paramGIDs,
+                   compute_jacobian, compute_disc_sens, alpha);
+      
       
     } // element loop
     
   } // block loop
+  
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Boundary terms
+  //////////////////////////////////////////////////////////////////////////////////////
+  
+  if (!cells[0][0]->cellData->multiscale && useNewBCs) {
+    for (size_t b=0; b<boundaryCells.size(); b++) {
+      
+      {
+        Teuchos::TimeMonitor localtimer(*gathertimer);
+        
+        // Local gather of solutions
+        // Do not need to gather u_dot or phi_dot on boundaries (for now)
+        this->performBoundaryGather(b,u,0,0);
+        this->performBoundaryGather(b,Psol,4,0);
+        if (useadjoint) {
+          this->performBoundaryGather(b,phi,2,0);
+        }
+      }
+      
+      for (size_t e=0; e < boundaryCells[b].size(); e++) {
+        
+        if (boundaryCells[b][e]->numElem > 0) {
+          wkset[b]->localEID = e;
+          
+          //////////////////////////////////////////////////////////////////////////////////////
+          // Set up the worksets and allocate the local residual and Jacobians
+          //////////////////////////////////////////////////////////////////////////////////////
+          
+          int numElem = boundaryCells[b][e]->numElem;
+          int numDOF = boundaryCells[b][e]->GIDs.dimension(1);
+          
+          int numParamDOF = 0;
+          if (compute_disc_sens) {
+            numParamDOF = boundaryCells[b][e]->paramGIDs.dimension(1);
+          }
+          
+          Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
+          
+          if (compute_sens) {
+            local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,num_active_params);
+          }
+          else {
+            local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,1);
+          }
+          
+          if (compute_disc_sens) {
+            local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numParamDOF);
+            local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,numDOF,numParamDOF);
+          }
+          else {
+            local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numDOF);
+            local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,numDOF,numDOF);
+          }
+          
+          /////////////////////////////////////////////////////////////////////////////
+          // Compute the local residual and Jacobian on this cell
+          /////////////////////////////////////////////////////////////////////////////
+          
+          {
+            Teuchos::TimeMonitor localtimer(*phystimer);
+            
+            parallel_for(RangePolicy<AssemblyDevice>(0,local_res.dimension(0)), KOKKOS_LAMBDA (const int p ) {
+              for (int n=0; n<numDOF; n++) {
+                for (int s=0; s<local_res.dimension(2); s++) {
+                  local_res(p,n,s) = 0.0;
+                }
+                for (int s=0; s<local_J.dimension(2); s++) {
+                  local_J(p,n,s) = 0.0;
+                  local_Jdot(p,n,s) = 0.0;
+                }
+              }
+            });
+            
+            wkset[b]->updateSide(boundaryCells[b][e]->sidenum, e);
+            wkset[b]->sidename = boundaryCells[b][e]->sidename;
+            wkset[b]->currentside = boundaryCells[b][e]->sidenum;
+            
+            boundaryCells[b][e]->computeJacRes(current_time, isTransient, useadjoint, compute_jacobian, compute_sens,
+                                               num_active_params, compute_disc_sens, false, store_adjPrev,
+                                               local_res, local_J, local_Jdot);
+          }
+          
+          if (milo_debug_level > 2) {
+            if (Comm->getRank() == 0) {
+              KokkosTools::print(local_res);
+              KokkosTools::print(local_J);
+              KokkosTools::print(local_Jdot);
+            }
+          }
+          
+          ///////////////////////////////////////////////////////////////////////////
+          // Insert into global matrix/vector
+          ///////////////////////////////////////////////////////////////////////////
+          
+          this->insert(J, res, local_res, local_J, local_Jdot,
+                       boundaryCells[b][e]->GIDs, boundaryCells[b][e]->paramGIDs,
+                       compute_jacobian, compute_disc_sens, alpha);
+          
+        }
+      } // element loop
+      
+    } // block loop
+  }
   
   // ************************** STRONGLY ENFORCE DIRICHLET BCs *******************************************
   
@@ -586,13 +661,127 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
       }
     });
   }
-        
-      
-  //for (size_t e=0; e < cells[block].size(); e++) {
-  //  cells[block][e]->setLocalSoln(vec, type, index);
-  //}
+}
+
+// ========================================================================================
+//
+// ========================================================================================
+
+void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP & vec,
+                                            const int & type, const size_t & entry) {
   
+  if (boundaryCells.size() > b) {
+    
+    // Get a view of the vector on the HostDevice
+    auto vec_kv = vec->getLocalView<HostDevice>();
+    
+    // Get a corresponding view on the AssemblyDevice
+    
+    Kokkos::View<LO***,AssemblyDevice> index;
+    Kokkos::View<LO*,AssemblyDevice> numDOF;
+    Kokkos::View<ScalarT***,AssemblyDevice> data;
+    
+    for (size_t c=0; c < boundaryCells[b].size(); c++) {
+      if (boundaryCells[b][c]->numElem > 0) {
+        
+        switch(type) {
+          case 0 :
+            index = boundaryCells[b][c]->index;
+            numDOF = boundaryCells[b][c]->numDOF;
+            data = boundaryCells[b][c]->u;
+            break;
+          case 1 :
+            index = boundaryCells[b][c]->index;
+            numDOF = boundaryCells[b][c]->numDOF;
+            data = boundaryCells[b][c]->u_dot;
+            break;
+          case 2 :
+            index = boundaryCells[b][c]->index;
+            numDOF = boundaryCells[b][c]->numDOF;
+            data = boundaryCells[b][c]->phi;
+            break;
+          case 3 :
+            index = boundaryCells[b][c]->index;
+            numDOF = boundaryCells[b][c]->numDOF;
+            data = boundaryCells[b][c]->phi_dot;
+            break;
+          case 4:
+            index = boundaryCells[b][c]->paramindex;
+            numDOF = boundaryCells[b][c]->numParamDOF;
+            data = boundaryCells[b][c]->param;
+            break;
+          case 5 :
+            index = boundaryCells[b][c]->auxindex;
+            numDOF = boundaryCells[b][c]->numAuxDOF;
+            data = boundaryCells[b][c]->aux;
+            break;
+          default :
+            cout << "ERROR - NOTHING WAS GATHERED" << endl;
+        }
+        
+        if (milo_debug_level > 2) {
+          if (Comm->getRank() == 0) {
+            KokkosTools::print(index);
+            KokkosTools::print(numDOF);
+            KokkosTools::print(data);
+          }
+        }
+        parallel_for(RangePolicy<AssemblyDevice>(0,index.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+          for (size_t n=0; n<index.dimension(1); n++) {
+            for(size_t i=0; i<numDOF(n); i++ ) {
+              data(e,n,i) = vec_kv(index(e,n,i),entry);
+            }
+          }
+        });
+      }
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
+
+void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
+                             Kokkos::View<ScalarT***,AssemblyDevice> & local_res,
+                             Kokkos::View<ScalarT***,AssemblyDevice> & local_J,
+                             Kokkos::View<ScalarT***,AssemblyDevice> & local_Jdot,
+                             Kokkos::View<GO**,HostDevice> & GIDs,
+                             Kokkos::View<GO**,HostDevice> & paramGIDs,
+                             const bool & compute_jacobian,
+                             const bool & compute_disc_sens,
+                             const ScalarT & alpha) {
+
+  Teuchos::TimeMonitor localtimer(*inserttimer);
+  
+  for (int i=0; i<GIDs.dimension(0); i++) {
+    Teuchos::Array<ScalarT> vals(GIDs.dimension(1));
+    Teuchos::Array<LO> cols(GIDs.dimension(1));
+    
+    for( size_t row=0; row<GIDs.dimension(1); row++ ) {
+      int rowIndex = GIDs(i,row);
+      for (int g=0; g<local_res.dimension(2); g++) {
+        ScalarT val = local_res(i,row,g);
+        res->sumIntoGlobalValue(rowIndex,g, val);
+      }
+      if (compute_jacobian) {
+        if (compute_disc_sens) {
+          for( size_t col=0; col<paramGIDs.dimension(1); col++ ) {
+            int colIndex = paramGIDs(i,col);
+            ScalarT val = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
+            J->insertGlobalValues(colIndex, 1, &val, &rowIndex);
+          }
+        }
+        else {
+          for( size_t col=0; col<GIDs.dimension(1); col++ ) {
+            vals[col] = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
+            cols[col] = GIDs(i,col);
+          }
+          //J->sumIntoGlobalValues(rowIndex, GIDs[i].size(), &vals[0], &GIDs[i][0]);
+          J->sumIntoGlobalValues(rowIndex, cols, vals);
+          
+        }
+      }
+    }
+  }
+}
+

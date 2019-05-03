@@ -32,8 +32,8 @@ ANONYMOUS:
       dy: 1
     quadrature: 2
   Solver:
-    Verbosity: 0
     solver: steady-state
+    Workset size: 1
     NLtol: 1.00000000000000002e-08
     lintol: 9.99999999999999980e-13
     finaltime: 1.00000000000000000e+00
