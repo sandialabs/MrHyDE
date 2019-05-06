@@ -279,7 +279,7 @@ public:
     omega2i = functionManager->evaluate("omega2i","side ip",blocknum);
     freqExp = functionManager->evaluate("freqExp","side ip",blocknum);
     
-    sideinfo = wkset->sideinfo;
+    //sideinfo = wkset->sideinfo;
     sol = wkset->local_soln_side;
     sol_grad = wkset->local_soln_grad_side;
     offsets = wkset->offsets;
@@ -294,10 +294,7 @@ public:
     uibasis_grad = wkset->basis_grad_side[ui_basis_num];
     
     //Robin boundary condition of form alpha*u + dudn - source = 0, where u is the state and dudn is its normal derivative
-    
-    // Will not work with numElem > 1 because this does not look at sideinfo stored in workset
-    
-    //if (bcs(ur_num,cside) == 2) {
+    if (bcs(ur_num,cside) == 2) {
       for (int e=0; e<urbasis.dimension(0); e++) { // not parallelized yet
         for( int k=0; k<urbasis.dimension(2); k++ ) {
           
@@ -395,7 +392,7 @@ public:
           // }
         }
       }
-  //  }
+    }
     
   }
   

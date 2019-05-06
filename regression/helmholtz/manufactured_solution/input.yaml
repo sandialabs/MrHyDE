@@ -56,7 +56,7 @@ ANONYMOUS:
         uimag: 1
       quadrature: 2
   Solver: 
-    use new BCs: false
+    use new BCs: true
     solver: steady-state
     Multigrid type: sa
     Smoother type: ILUT

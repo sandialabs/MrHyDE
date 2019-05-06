@@ -476,6 +476,7 @@ void workset::addSide(const DRV & nodes, const int & sidenum,
   
   DRV bip("sip", numBElem, ref_side_ip.dimension(0), dimension);
   DRV bijac("sijac", numBElem, ref_side_ip.dimension(0), dimension, dimension);
+  DRV bijacInv("sijac", numBElem, ref_side_ip.dimension(0), dimension, dimension);
   DRV bwts("wts_side", numBElem, ref_side_ip.dimension(0));
   DRV bnormals("normals", numBElem, ref_side_ip.dimension(0), dimension);
   
@@ -498,7 +499,7 @@ void workset::addSide(const DRV & nodes, const int & sidenum,
     
   CellTools<AssemblyDevice>::mapToPhysicalFrame(bip, refSidePoints, nodes, *celltopo);
   CellTools<AssemblyDevice>::setJacobian(bijac, refSidePoints, nodes, *celltopo);
-  //CellTools<AssemblyDevice>::setJacobianInv(bijacInv, bijac);
+  CellTools<AssemblyDevice>::setJacobianInv(bijacInv, bijac);
   DRV temporary_buffer("temporary_buffer",numBElem,ref_side_ip.dimension(0)*dimension*dimension);
   
   if (dimension == 2) {
@@ -567,7 +568,7 @@ void workset::addSide(const DRV & nodes, const int & sidenum,
       basis_pointers[i]->getValues(basisgrad, refSidePoints, OPERATOR_GRAD);
       
       FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(cbasis[i], bwts, cbasis_uw[i]);
-      FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(cbasis_grad_uw[i], bijac, basisgrad);
+      FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(cbasis_grad_uw[i], bijacInv, basisgrad);
       FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(cbasis_grad[i], bwts, cbasis_grad_uw[i]);
     }
     else if (basis_types[i] == "HDIV"){
