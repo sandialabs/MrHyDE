@@ -620,7 +620,7 @@ void workset::addSide(const DRV & nodes, const int & sidenum,
     FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(cpbasis[i], basisvals);
     DRV basisgrad("basisgrad",numb, numsideip, dimension);
     basis_pointers[i]->getValues(basisgrad, refSidePoints, OPERATOR_GRAD);
-    FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(cpbasis_grad[i], bijac, basisgrad);
+    FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(cpbasis_grad[i], bijacInv, basisgrad);
   }
   // ----------------------------------------------------------
   

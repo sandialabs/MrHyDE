@@ -508,7 +508,7 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
     // 1.  All elements must be on the same processor
     // 2.  All elements must be on the same physical side
     // 3.  Each edge/face on the side must have the same local ID.
-    // 4.  No more than numBoundaryElem in a group
+    // 4.  No more than numBoundaryElem (= numElem) in a group
     ///////////////////////////////////////////////////////////////////////////////////
     
     for( size_t side=0; side<sideSets.size(); side++ ) {
