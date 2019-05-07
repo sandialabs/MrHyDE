@@ -73,7 +73,7 @@ namespace ROL {
       params->updateParams(*Paramsp, 4);
 
       AD val = 0.0;
-      vector_RCP F_soln = solver_MILO->forwardModel(val);
+      solver_MILO->forwardModel(val);
       // do we want to write the solution each time
       // if not, then when?
 
@@ -98,8 +98,8 @@ namespace ROL {
 
       AD val = 0.0;
       std::vector<ScalarT> sens;
-      vector_RCP F_soln = solver_MILO->forwardModel(val);
-      vector_RCP A_soln = solver_MILO->adjointModel(F_soln, sens);
+      solver_MILO->forwardModel(val);
+      solver_MILO->adjointModel(sens);
 
       //std::vector<ScalarT> sens = postproc_MILO->computeSensitivities(F_soln, A_soln);
 

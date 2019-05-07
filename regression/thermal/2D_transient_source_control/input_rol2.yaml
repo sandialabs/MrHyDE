@@ -16,7 +16,7 @@ ANONYMOUS:
         Use Scaling For Epsilon-Active Sets: false
         Do grad+hessvec check: false
         Bound Optimization Variables: false
-        FD Check Use Ones Vector: true
+        FD Check Use Ones Vector: false
         Inexact Objective Function: false
         Inexact Gradient: false
         Inexact Hessian-Times-A-Vector: false

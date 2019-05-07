@@ -82,7 +82,7 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
     params->updateParams(*Paramsp, 1);
     params->updateParams(*Paramsp, 4);
     DFAD val= 0.0;
-    vector_RCP F_soln = solver_MILO->forwardModel(val);
+    solver_MILO->forwardModel(val);
     params->stashParams(); //dumping to file, for long runs...
     return val.val();
   }

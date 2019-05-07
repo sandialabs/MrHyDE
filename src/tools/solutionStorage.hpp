@@ -16,6 +16,9 @@
 #include "preferences.hpp"
 // Add includes for PyTorch
 
+
+
+template<class V>
 class SolutionStorage {
 public:
   
@@ -34,8 +37,25 @@ public:
   
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
+  
+  bool extract(Teuchos::RCP<V> & vec, const size_t & timeindex) {
+    // defaults to index = 0
+    // most common use case
+    Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
+    bool found = false;
+    if (data.size()>0) {
+      if (data[0].size()>timeindex) {
+        vec = data[0][timeindex];
+        found = true;
+      }
+    }
+    return found;
+  }
+  
+  ///////////////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////////
 
-  bool extract(Teuchos::RCP<Epetra_MultiVector> & vec, const size_t & index, const ScalarT & currtime) {
+  bool extract(Teuchos::RCP<V> & vec, const size_t & index, const ScalarT & currtime) {
     Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
     bool found = false;
     for (size_t j=0; j<times[index].size(); j++) {
@@ -50,7 +70,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  bool extract(Teuchos::RCP<Epetra_MultiVector> & vec, const size_t & index, const ScalarT & currtime, int & timeindex) {
+  bool extract(Teuchos::RCP<V> & vec, const size_t & index, const ScalarT & currtime, int & timeindex) {
     Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
     bool found = false;
     for (size_t j=0; j<times[index].size(); j++) {
@@ -66,7 +86,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  bool extractPrevious(Teuchos::RCP<Epetra_MultiVector> & vec, const size_t & index, const ScalarT & currtime, ScalarT & prevtime) {
+  bool extractPrevious(Teuchos::RCP<V> & vec, const size_t & index, const ScalarT & currtime, ScalarT & prevtime) {
     Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
     bool found = false;
     for (size_t j=0; j<times[index].size(); j++) {
@@ -88,7 +108,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  bool extractNext(Teuchos::RCP<Epetra_MultiVector> & vec, const size_t & index, const ScalarT & currtime, ScalarT & nexttime) {
+  bool extractNext(Teuchos::RCP<V> & vec, const size_t & index, const ScalarT & currtime, ScalarT & nexttime) {
     Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
     bool found = false;
     for (size_t j=0; j<times[index].size(); j++) {
@@ -110,7 +130,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  bool extractLast(Teuchos::RCP<Epetra_MultiVector> & vec, const size_t & index, ScalarT & lasttime) {
+  bool extractLast(Teuchos::RCP<V> & vec, const size_t & index, ScalarT & lasttime) {
     Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
     bool found = true;
     vec = data[index][times[index].size()-1];
@@ -121,18 +141,17 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  void store(Teuchos::RCP<Epetra_MultiVector> & newvec, const ScalarT & currtime, const LO & index) {
+  void store(Teuchos::RCP<V> & newvec, const ScalarT & currtime, const LO & index) {
     
     Teuchos::TimeMonitor localtimer(*solnStorageStoreTimer);
     
-    Teuchos::RCP<Epetra_MultiVector> vecstore = Teuchos::rcp( new Epetra_MultiVector(*newvec));
-    
     // Deep copy of data
-    *vecstore = *newvec;
+    Teuchos::RCP<V> vecstore = copyData(newvec);
+    
     
     if (times.size() <= index) {
       vector<ScalarT> newtime = {currtime};
-      vector<Teuchos::RCP<Epetra_MultiVector> > newdata = {vecstore};
+      vector<Teuchos::RCP<V> > newdata = {vecstore};
       times.push_back(newtime);
       data.push_back(newdata);
     }
@@ -159,6 +178,33 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
+  Teuchos::RCP<Epetra_MultiVector> copyData(Teuchos::RCP<Epetra_MultiVector> & src) {
+    Teuchos::RCP<Epetra_MultiVector> dest = Teuchos::rcp(new Epetra_MultiVector(*src));
+    *dest = *src;
+    return dest;
+  }
+  
+  ///////////////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
+  vector_RCP copyData(vector_RCP & src) {
+    
+    vector_RCP dest = Teuchos::rcp( new LA_MultiVector(src->getMap(),1));
+    
+    auto src_kv = src->getLocalView<HostDevice>();
+    auto dest_kv = dest->getLocalView<HostDevice>();
+    
+    for (size_t i=0; i<src_kv.dimension(0); i++) {
+      for (size_t j=0; j<src_kv.dimension(1); j++) {
+        dest_kv(i,j) = src_kv(i,j);
+      }
+    }
+    return dest;
+  }
+  
+  ///////////////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
   void trainDNN() {
     Teuchos::TimeMonitor localtimer(*solnStorageTrainDNNTimer);
     
@@ -179,7 +225,7 @@ public:
   ScalarT timeTOL;
   
   vector<vector<ScalarT> > times;
-  vector<vector<Teuchos::RCP<Epetra_MultiVector> > > data;
+  vector<vector<Teuchos::RCP<V> > > data;
   
   // Additional data needed for ML
   vector<vector<Kokkos::View<ScalarT*,AssemblyDevice> > > inputs;

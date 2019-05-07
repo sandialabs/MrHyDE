@@ -22,6 +22,8 @@
 #include "cell.hpp"
 #include "assemblyManager.hpp"
 #include "parameterManager.hpp"
+#include "solutionStorage.hpp"
+
 
 void static solverHelp(const string & details) {
   cout << "********** Help and Documentation for the Solver Interface **********" << endl;
@@ -67,33 +69,31 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
-  vector_RCP forwardModel(DFAD & obj);
+  void forwardModel(DFAD & obj);
   
   // ========================================================================================
   /* given the parameters, solve the fractional forward  problem */
   // ========================================================================================
   
-  vector_RCP forwardModel_fr(DFAD & obj, ScalarT yt, ScalarT st);
+  void forwardModel_fr(DFAD & obj, ScalarT yt, ScalarT st);
   
   // ========================================================================================
   // ========================================================================================
   
-  vector_RCP adjointModel(vector_RCP & F_soln, vector<ScalarT> & gradient);
-  
-  
+  void adjointModel(vector<ScalarT> & gradient);
+    
   // ========================================================================================
   /* solve the problem */
   // ========================================================================================
   
-  void transientSolver(vector_RCP & initial, vector_RCP & L_soln,
-                       vector_RCP & SolMat, DFAD & obj, vector<ScalarT> & gradient);
+  void transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> & gradient);
   
   // ========================================================================================
   // ========================================================================================
   
-  void nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
-                       vector_RCP & phi, vector_RCP & phi_dot,
-                       const ScalarT & alpha, const ScalarT & beta);
+  int nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
+                      vector_RCP & phi, vector_RCP & phi_dot,
+                      const ScalarT & alpha, const ScalarT & beta);
     
   // ========================================================================================
   // ========================================================================================
@@ -183,7 +183,7 @@ public:
   
   vector<LO> owned, ownedAndShared, LA_owned, LA_ownedAndShared;
   
-  ScalarT NLtol, finaltime, lintol, dropTol, fillParam, current_time;
+  ScalarT NLtol, finaltime, lintol, dropTol, fillParam, current_time, initial_time;
   
   string solver_type, NLsolver, initial_type, response_type, multigrid_type, smoother_type;
   
@@ -191,10 +191,12 @@ public:
   bool isInitial, isTransient, useadjoint, is_final_time, usestrongDBCs;
   bool compute_objective, compute_sensitivity, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
   
-  vector<ScalarT> solvetimes;
+  //vector<ScalarT> solvetimes;
   
-  vector<vector_RCP> fwdsol;
-  vector<vector_RCP> adjsol;
+  Teuchos::RCP<SolutionStorage<LA_MultiVector> > soln, adj_soln, soln_dot;
+  
+  //vector<vector_RCP> fwdsol;
+  //vector<vector_RCP> adjsol;
   vector<string> blocknames;
   vector<vector<string> > varlist;
   

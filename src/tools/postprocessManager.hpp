@@ -48,32 +48,32 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void computeError(const vector_RCP & F_soln);
+  void computeError();
   
   // ========================================================================================
   // ========================================================================================
   
-  AD computeObjective(const vector_RCP & F_soln);
+  AD computeObjective();
   
   // ========================================================================================
   // ========================================================================================
   
-  Kokkos::View<ScalarT***,HostDevice> computeResponse(const vector_RCP & F_soln, const int & b);
+  Kokkos::View<ScalarT***,HostDevice> computeResponse(const int & b);
   
   // ========================================================================================
   // ========================================================================================
   
-  void computeResponse(const vector_RCP & F_soln);
+  void computeResponse();
   
   // ========================================================================================
   // ========================================================================================
   
-  vector<ScalarT> computeSensitivities(const vector_RCP & F_soln, const vector_RCP & A_soln);
+  vector<ScalarT> computeSensitivities();
   
   // ========================================================================================
   // ========================================================================================
   
-  void writeSolution(const vector_RCP & E_soln, const std::string & filelabel);
+  void writeSolution(const std::string & filelabel);
   
   // ========================================================================================
   // ========================================================================================
@@ -86,20 +86,18 @@ public:
   //   solution to perform verification studies
   // ========================================================================================
   
-  ScalarT computeError(const vector_RCP & GF_soln, const vector_RCP & GA_soln);
+  //ScalarT computeError();
   
   // ========================================================================================
   // ========================================================================================
   
-  vector<ScalarT> computeParameterSensitivities(const vector_RCP & GF_soln,
-                                       const vector_RCP & GA_soln);
+  vector<ScalarT> computeParameterSensitivities();
   
   // ========================================================================================
   // Compute the sensitivity of the objective with respect to discretized parameters
   // ========================================================================================
   
-  vector<ScalarT> computeDiscretizedSensitivities(const vector_RCP & F_soln,
-                                                  const vector_RCP & A_soln);
+  vector<ScalarT> computeDiscretizedSensitivities();
   
 protected:
   

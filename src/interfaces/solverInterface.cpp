@@ -35,6 +35,10 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
     }
   }
   
+  soln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
+  adj_soln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
+  soln_dot = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
+  
   // Get the required information from the settings
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   numsteps = settings->sublist("Solver").get("numSteps",1);
@@ -60,7 +64,10 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   }
   
   isInitial = false;
-  current_time = settings->sublist("Solver").get<ScalarT>("Initial Time",0.0);
+  initial_time = settings->sublist("Solver").get<ScalarT>("Initial Time",0.0);
+  current_time = initial_time;
+  
+  /*
   solvetimes.push_back(current_time);
   
   if (isTransient) {
@@ -71,6 +78,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
       solvetimes.push_back(ctime);
     }
   }
+  */
   
   response_type = settings->sublist("Postprocess").get("response type", "pointwise"); // or "global"
   compute_objective = settings->sublist("Postprocess").get("compute objective",false);
@@ -475,7 +483,9 @@ Teuchos::RCP<Epetra_CrsGraph> solver::buildEpetraOwnedGraph(Epetra_MpiComm & EP_
 /* given the parameters, solve the forward  problem */
 // ========================================================================================
 
-vector_RCP solver::forwardModel(DFAD & obj) {
+void solver::forwardModel(DFAD & obj) {
+  
+  current_time = initial_time;
   
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -484,41 +494,25 @@ vector_RCP solver::forwardModel(DFAD & obj) {
   }
   
   useadjoint = false;
-  
   params->sacadoizeParams(false);
   
-  // Set the initial condition
-  //isInitial = true;
-  
-  vector_RCP initial = this->setInitial(); // TMW: this will be deprecated soon
-  
-  vector_RCP I_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
-  int numsols = 1;
+  vector_RCP u = this->setInitial(); // TMW: this will be deprecated soon
   if (solver_type == "transient") {
-    numsols = numsteps+1;
+    soln->store(u, current_time, 0); // copies the data
   }
   
-  vector_RCP F_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,numsols)); // empty solution
   vector_RCP zero_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
-  auto initial_2d = initial->getLocalView<HostDevice>();
-  auto f_2d = F_soln->getLocalView<HostDevice>();
-  
-  if (solver_type == "transient") {
-    for( size_t i=0; i<LA_ownedAndShared.size(); i++ ) {
-      f_2d(i,0) = initial_2d(i,0);
-    }
-  }
   if (solver_type == "steady-state") {
     
-    this->nonlinearSolver(F_soln, zero_soln, zero_soln, zero_soln, 0.0, 1.0);
+    this->nonlinearSolver(u, zero_soln, zero_soln, zero_soln, 0.0, 1.0);
     if (compute_objective) {
-      obj = this->computeObjective(F_soln, 0.0, 0);
+      obj = this->computeObjective(u, 0.0, 0);
     }
-    
+    soln->store(u, current_time, 0);
   }
   else if (solver_type == "transient") {
     vector<ScalarT> gradient; // not really used here
-    this->transientSolver(initial, I_soln, F_soln, obj, gradient);
+    this->transientSolver(u, obj, gradient);
   }
   else {
     // print out an error message
@@ -530,14 +524,17 @@ vector_RCP solver::forwardModel(DFAD & obj) {
     }
   }
   
-  return F_soln;
+  //return F_soln;
 }
 
 // ========================================================================================
 /* given the parameters, solve the fractional forward  problem */
 // ========================================================================================
 
-vector_RCP solver::forwardModel_fr(DFAD & obj, ScalarT yt, ScalarT st) {
+void solver::forwardModel_fr(DFAD & obj, ScalarT yt, ScalarT st) {
+  
+  current_time = initial_time;
+  
   useadjoint = false;
   assembler->wkset[0]->y = yt;
   assembler->wkset[0]->s = st;
@@ -546,59 +543,43 @@ vector_RCP solver::forwardModel_fr(DFAD & obj, ScalarT yt, ScalarT st) {
   // Set the initial condition
   //isInitial = true;
   
-  vector_RCP initial = this->setInitial(); // TMW: this will be deprecated soon
-  
+  vector_RCP u = this->setInitial(); // TMW: this will be deprecated soon
+  if (solver_type == "transient") {
+    soln->store(u, current_time, 0);
+  }
   vector_RCP I_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
   int numsols = 1;
   if (solver_type == "transient") {
     numsols = numsteps+1;
   }
   
-  vector_RCP F_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,numsols)); // empty solution
+  //vector_RCP F_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,numsols)); // empty solution
+  //vector_RCP F_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
   vector_RCP zero_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
   
-  auto initial_2d = initial->getLocalView<HostDevice>();
-  auto f_2d = F_soln->getLocalView<HostDevice>();
-  
-  if (solver_type == "transient") {
-    for( size_t i=0; i<LA_ownedAndShared.size(); i++ ) {
-      f_2d(i,0) = initial_2d(i,0);
-    }
-  }
   if (solver_type == "steady-state") {
-    
-    vector_RCP SS_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
-    auto SS_2d = SS_soln->getLocalView<HostDevice>();
-    
-    for( size_t i=0; i<LA_ownedAndShared.size(); i++ ) {
-      SS_2d(i,0) = initial_2d(i,0);
-    }
-    
-    this->nonlinearSolver(SS_soln, zero_soln, zero_soln, zero_soln, 0.0, 1.0);
-    for( size_t i=0; i<LA_ownedAndShared.size(); i++ ) {
-      f_2d(i,0) = SS_2d(i,0);
-    }
-    
+    this->nonlinearSolver(u, zero_soln, zero_soln, zero_soln, 0.0, 1.0);
+    soln->store(u, current_time, 0);
     if (compute_objective) {
-      obj = this->computeObjective(F_soln, 0.0, 0);
+      obj = this->computeObjective(u, 0.0, 0);
     }
     
   }
   else if (solver_type == "transient") {
     vector<ScalarT> gradient; // not really used here
-    this->transientSolver(initial, I_soln, F_soln, obj, gradient);
+    this->transientSolver(u, obj, gradient);
   }
   else {
     // print out an error message
   }
   
-  return F_soln;
+  //return F_soln;
 }
 
 // ========================================================================================
 // ========================================================================================
 
-vector_RCP solver::adjointModel(vector_RCP & F_soln, vector<ScalarT> & gradient) {
+void solver::adjointModel(vector<ScalarT> & gradient) {
   
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -611,47 +592,46 @@ vector_RCP solver::adjointModel(vector_RCP & F_soln, vector<ScalarT> & gradient)
   params->sacadoizeParams(false);
   
   //isInitial = true;
-  vector_RCP initial = setInitial(); // does this need
+  vector_RCP phi = setInitial(); // does this need
   // to be updated for adjoint model?
   
   // Solve the forward problem
-  int numsols = 1;
-  if (solver_type == "transient") {
-    numsols = numsteps+1;
-  }
+  //int numsols = 1;
+  //if (solver_type == "transient") {
+  //  numsols = numsteps+1;
+  //}
   
   vector_RCP zero_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
-  vector_RCP A_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,numsols)); // empty solution
+  //vector_RCP A_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,numsols)); // empty solution
   
-  auto initial_2d = initial->getLocalView<HostDevice>();
-  auto asol_2d = A_soln->getLocalView<HostDevice>();
-  auto fsol_2d = F_soln->getLocalView<HostDevice>();
-  
-  for( size_t i=0; i<ownedAndShared.size(); i++ ) {
-    asol_2d(i,0) = initial_2d(i,0);
-  }
+  //auto initial_2d = initial->getLocalView<HostDevice>();
+  //auto asol_2d = A_soln->getLocalView<HostDevice>();
+  //auto fsol_2d = F_soln->getLocalView<HostDevice>();
+  //
+  //for( size_t i=0; i<ownedAndShared.size(); i++ ) {
+  //  asol_2d(i,0) = initial_2d(i,0);
+  //}
   
   if (solver_type == "steady-state") {
-    vector_RCP L_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
-    vector_RCP SS_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
-    auto lsol_2d = L_soln->getLocalView<HostDevice>();
-    auto SS_2d = SS_soln->getLocalView<HostDevice>();
+    //vector_RCP L_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
+    //vector_RCP SS_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
+    //auto lsol_2d = L_soln->getLocalView<HostDevice>();
+    //auto SS_2d = SS_soln->getLocalView<HostDevice>();
     
     
-    for( size_t i=0; i<ownedAndShared.size(); i++ ) {
-      lsol_2d(i,0) = fsol_2d(i,0);
-    }
-    this->nonlinearSolver(L_soln, zero_soln, SS_soln, zero_soln, 0.0, 1.0);
-    for( size_t i=0; i<ownedAndShared.size(); i++ ) {
-      asol_2d(i,0) = SS_2d(i,0);
-    }
+    //for( size_t i=0; i<ownedAndShared.size(); i++ ) {
+    //  lsol_2d(i,0) = fsol_2d(i,0);
+    //}
+    vector_RCP u;
+    bool fnd = soln->extract(u, current_time);
+    this->nonlinearSolver(u, zero_soln, phi, zero_soln, 0.0, 1.0);
     
-    this->computeSensitivities(F_soln, zero_soln, A_soln, gradient, 0.0, 1.0);
+    this->computeSensitivities(u, zero_soln, phi, gradient, 0.0, 1.0);
     
   }
   else if (solver_type == "transient") {
     DFAD obj = 0.0;
-    this->transientSolver(initial, F_soln, A_soln, obj, gradient);
+    this->transientSolver(phi, obj, gradient);
   }
   else {
     // print out an error message
@@ -665,7 +645,6 @@ vector_RCP solver::adjointModel(vector_RCP & F_soln, vector<ScalarT> & gradient)
     }
   }
   
-  return A_soln;
 }
 
 
@@ -673,8 +652,7 @@ vector_RCP solver::adjointModel(vector_RCP & F_soln, vector<ScalarT> & gradient)
 /* solve the problem */
 // ========================================================================================
 
-void solver::transientSolver(vector_RCP & initial, vector_RCP & L_soln,
-                     vector_RCP & SolMat, DFAD & obj, vector<ScalarT> & gradient) {
+void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> & gradient) {
   
   if (milo_debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -682,26 +660,9 @@ void solver::transientSolver(vector_RCP & initial, vector_RCP & L_soln,
     }
   }
   
-  vector_RCP u = initial;
-  vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-  vector_RCP phi = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-  vector_RCP phi_dot = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-  
-  auto u_kv = u->getLocalView<HostDevice>();
-  auto u_dot_kv = u_dot->getLocalView<HostDevice>();
-  auto phi_kv = phi->getLocalView<HostDevice>();
-  auto phi_dot_kv = phi_dot->getLocalView<HostDevice>();
-  
-  auto solmat_kv = SolMat->getLocalView<HostDevice>();
-  auto lsol_kv = L_soln->getLocalView<HostDevice>();
-  
-  //int numSteps = 1;
-  //ScalarT finaltime = 0.0;
   ScalarT deltat = 0.0;
-  
   ScalarT alpha = 0.0;
   ScalarT beta = 1.0;
-  
   deltat = finaltime / numsteps;
   if (time_order == 1){
     alpha = 1./deltat;
@@ -713,34 +674,150 @@ void solver::transientSolver(vector_RCP & initial, vector_RCP & L_soln,
     alpha = 0.0; // would be better to print out an error message
   }
   
-  int numivec = L_soln->getNumVectors();
   
-  //ScalarT current_time = 0.0;
-  if (useadjoint) {
+  if (!useadjoint) { // forward solve - adaptive time stepping
+    is_final_time = false;
+    vector_RCP u = initial;
+    vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    vector_RCP zero_vec = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    u_dot->putScalar(0.0);
+    zero_vec->putScalar(0.0);
+    
+    obj = 0.0;
+    int numCuts = 0;
+    int maxCuts = 5; // TMW: make this a user-defined input
+    while (abs(current_time - finaltime)>1.0e-12 && numCuts<=maxCuts) {
+      
+      current_time += deltat;
+      
+      u_dot->putScalar(0.0);
+      
+      ////////////////////////////////////////////////////////////////////////
+      // Allow the cells to change subgrid model
+      ////////////////////////////////////////////////////////////////////////
+      {
+        Teuchos::TimeMonitor localtimer(*msprojtimer);
+        ScalarT my_cost = multiscale_manager->update();
+        ScalarT gmin = 0.0;
+        Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&my_cost,&gmin);
+        ScalarT gmax = 0.0;
+        Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&my_cost,&gmin);
+        if(Comm->getRank() == 0 && verbosity>0) {
+          cout << "***** Load Balancing Factor " << gmax/gmin <<  endl;
+        }
+      }
+      
+      if(Comm->getRank() == 0 && verbosity > 0) {
+        cout << endl << endl << "*******************************************************" << endl;
+        cout << endl << "**** Beginning Time Step " << endl;
+        cout << "**** Current time is " << current_time << endl << endl;
+        cout << "*******************************************************" << endl << endl << endl;
+      }
+      
+      int status = this->nonlinearSolver(u, u_dot, zero_vec, zero_vec, alpha, beta);
+      
+      if (status == 0) { // NL solver converged
+        soln->store(u, current_time, 0);
+        soln_dot->store(u_dot, current_time, 0);
+        
+        if (allow_remesh) {
+          mesh->remesh(u, assembler->cells);
+        }
+        
+        if (compute_objective) { // fill in the objective function
+          DFAD cobj = this->computeObjective(u, current_time, soln->times[0].size()-1);
+          obj += cobj;
+        }
+      }
+      else { // something went wrong, cut time step and try again
+        current_time -= deltat;
+        deltat *= 0.5;
+        current_time += deltat;
+        numCuts += 1;
+        
+        bool fnd = soln->extract(u, current_time);
+        if(Comm->getRank() == 0 && verbosity > 0) {
+          cout << endl << endl << "*******************************************************" << endl;
+          cout << endl << "**** Cutting Time Step " << endl;
+          cout << "**** Current time is " << current_time << endl << endl;
+          cout << "*******************************************************" << endl << endl << endl;
+        }
+      }
+    }
+  }
+  else { // adjoint solve - fixed time stepping based on forward solve
     current_time = finaltime;
     is_final_time = true;
+    
+    vector_RCP u = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    vector_RCP u_prev = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    vector_RCP phi = initial;
+    vector_RCP phi_dot = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    phi_dot->putScalar(0.0);
+    
+    size_t numsteps = soln->times[0].size()-1;
+    
+    for (size_t timeiter = 0; timeiter<numsteps; timeiter++) {
+      size_t cindex = numsteps-timeiter;
+      phi_dot->putScalar(0.0);
+      current_time = soln->times[0][cindex];
+      
+      if(Comm->getRank() == 0 && verbosity > 0) {
+        cout << endl << endl << "*******************************************************" << endl;
+        cout << endl << "**** Beginning Adjoint Time Step " << timeiter << endl;
+        cout << "**** Current time is " << current_time << endl << endl;
+        cout << "*******************************************************" << endl << endl << endl;
+      }
+      
+      bool fndu = soln->extract(u, cindex);
+      bool fndup = soln->extract(u_prev, cindex-1);
+      //bool fndudot = soln->extract(u_dot, cindex);
+      auto u_kv = u->getLocalView<HostDevice>();
+      auto u_prev_kv = u_prev->getLocalView<HostDevice>();
+      auto u_dot_kv = u_dot->getLocalView<HostDevice>();
+      for( size_t i=0; i<LA_ownedAndShared.size(); i++ ) {
+        u_dot_kv(i,0) = alpha*u_kv(i,0) - alpha*u_prev_kv(i,0);
+      }
+      int status = this->nonlinearSolver(u, u_dot, phi, phi_dot, alpha, beta);
+      
+      adj_soln->store(phi,current_time,0);
+      
+      this->computeSensitivities(u,u_dot,phi,gradient,alpha,beta);
+      
+      //current_time -= deltat;
+      is_final_time = false;
+    }
   }
-  else {
-    current_time = solvetimes[0];
-    is_final_time = false;
-  }
+  
+  //auto u_kv = u->getLocalView<HostDevice>();
+  //auto u_dot_kv = u_dot->getLocalView<HostDevice>();
+  //auto phi_kv = phi->getLocalView<HostDevice>();
+  //auto phi_dot_kv = phi_dot->getLocalView<HostDevice>();
+  
+  //auto solmat_kv = SolMat->getLocalView<HostDevice>();
+  //auto lsol_kv = L_soln->getLocalView<HostDevice>();
+  
+  //int numSteps = 1;
+  //ScalarT finaltime = 0.0;
+  
+  
+  //int numivec = L_soln->getNumVectors();
+  
+  //ScalarT current_time = 0.0;
   
   // ******************* ITERATE ON THE TIME STEPS **********************
-  
+  /*
   obj = 0.0;
   for (int timeiter = 0; timeiter<numsteps; timeiter++) {
     
     {
       Teuchos::TimeMonitor localtimer(*msprojtimer);
-      msprojtimer->start();
       ScalarT my_cost = multiscale_manager->update();
       ScalarT gmin = 0.0;
       Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&my_cost,&gmin);
-      //Comm->MinAll(&my_cost, &gmin, 1);
       ScalarT gmax = 0.0;
       Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&my_cost,&gmin);
-      //Comm->MaxAll(&my_cost, &gmax, 1);
-      
       if(Comm->getRank() == 0 && verbosity>0) {
         cout << "***** Load Balancing Factor " << gmax/gmin <<  endl;
       }
@@ -836,7 +913,7 @@ void solver::transientSolver(vector_RCP & initial, vector_RCP & L_soln,
     //  }
     //}
     //isInitial = false; // only true on first time step
-  }
+  }*/
   
   if (milo_debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -850,9 +927,9 @@ void solver::transientSolver(vector_RCP & initial, vector_RCP & L_soln,
 // ========================================================================================
 
 
-void solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
-                     vector_RCP & phi, vector_RCP & phi_dot,
-                     const ScalarT & alpha, const ScalarT & beta) {
+int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
+                           vector_RCP & phi, vector_RCP & phi_dot,
+                           const ScalarT & alpha, const ScalarT & beta) {
   
   if (milo_debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -860,6 +937,7 @@ void solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     }
   }
   
+  int status = 0;
   int NLiter = 0;
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> NLerr_first(1);
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> NLerr_scaled(1);
@@ -1022,6 +1100,7 @@ void solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
   if(Comm->getRank() == 0) {
     if (!useadjoint) {
       if( (NLiter>MaxNLiter || NLerr_scaled[0]>NLtol) && verbosity > 1) {
+        status = 1;
         cout << endl << endl << "********************" << endl;
         cout << endl << "SOLVER FAILED TO CONVERGE CONVERGED in " << NLiter
         << " iterations with residual norm " << NLerr[0] << endl;
@@ -1034,7 +1113,7 @@ void solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
       cout << "******** Finished solver::nonlinearSolver" << endl;
     }
   }
-  
+  return status;
 }
 
 // ========================================================================================
@@ -1205,6 +1284,8 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
     fullobj.fastAccessDx(j) = dval;
   }
   
+  params->sacadoizeParams(false);
+  
   return fullobj;
   
 }
@@ -1290,14 +1371,13 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
         gradient[paramiter] += globalval;
       }
     }
+    params->sacadoizeParams(false);
   }
   
   int numDiscParams = params->getNumParams(4);
   
   if (numDiscParams > 0) {
-    params->sacadoizeParams(false);
-    
-    
+    //params->sacadoizeParams(false);
     vector_RCP a_owned = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // adjoint solution
     auto ao_kv = a_owned->getLocalView<HostDevice>();
     

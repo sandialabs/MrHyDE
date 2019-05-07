@@ -71,7 +71,7 @@ namespace ROL {
       //fwdtimer->start(); //DEBUG
       DFAD val= 0.0;
       
-      vector_RCP F_soln = solver_MILO->forwardModel(val);
+      solver_MILO->forwardModel(val);
       // do we want to write the solution each time
       // if not, then when?
       //fwdtimer->stop(); //DEBUG
@@ -111,13 +111,13 @@ namespace ROL {
       //Teuchos::RCP<Teuchos::Time> fwdtimer = Teuchos::rcp(new Teuchos::Time("fwd",false)); //DEBUG
       //fwdtimer->start(); //DEBUG
       DFAD obj = 0.0;
-      vector_RCP F_soln = solver_MILO->forwardModel(obj);
+      solver_MILO->forwardModel(obj);
       //fwdtimer->stop(); //DEBUG
       //Teuchos::RCP<Teuchos::Time> adjtimer = Teuchos::rcp(new Teuchos::Time("adj",false)); //DEBUG
       //adjtimer->start(); //DEBUG
       std::vector<ScalarT> sens;
       
-      vector_RCP A_soln = solver_MILO->adjointModel(F_soln, sens);
+      solver_MILO->adjointModel(sens);
       //adjtimer->stop(); //DEBUG
       //Teuchos::RCP<Teuchos::Time> senstimer = Teuchos::rcp(new Teuchos::Time("sens",false)); //DEBUG
       //senstimer->start(); //DEBUG

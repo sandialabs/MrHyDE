@@ -54,17 +54,17 @@ void analysis::run() {
   
   if (analysis_type == "forward") {
     
-    vector_RCP F_soln = solve->forwardModel(objfun);
+    solve->forwardModel(objfun);
     
     if (settings->sublist("Postprocess").get("compute response",false))
-    postproc->computeResponse(F_soln);
+    postproc->computeResponse();
     
     //if (settings->sublist("Postprocess").get("compute objective",false))
     //  AD objfun = postproc->computeObjective(F_soln);
     if (settings->sublist("Postprocess").get("verification",false))
-    postproc->computeError(F_soln);
+    postproc->computeError();
     if (settings->sublist("Postprocess").get("write solution",true))
-    postproc->writeSolution(F_soln, settings->sublist("Postprocess").get<string>("Output File","output"));
+    postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
     
     
   }
@@ -81,43 +81,45 @@ void analysis::run() {
     int Nplus = (int) ceil(pi*pi/(4*s*k*k));
     int Nminus = (int) ceil(pi*pi/(4*(1-s)*k*k));
     
-    vector_RCP F_soln = solve->forwardModel(objfun);
+    solve->forwardModel(objfun);
+    // TMW : this needs to be rewritten
+    /*
     for (int ell = -Nminus; ell < Nplus; ell++) {
       ScalarT y = k*ell;
       //	vector_RCP F_soln_inter = solve->forwardModel(objfun);
       vector_RCP F_soln_inter = solve->forwardModel_fr(objfun,y,s);
       F_soln->update(1.0,*F_soln_inter, 1.0);
     }
+     */
     if (settings->sublist("Postprocess").get("compute response",false))
-    postproc->computeResponse(F_soln);
+    postproc->computeResponse();
     
     //if (settings->sublist("Postprocess").get("compute objective",false))
     //  AD objfun = postproc->computeObjective(F_soln);
     if (settings->sublist("Postprocess").get("verification",false))
-    postproc->computeError(F_soln);
+    postproc->computeError();
     if (settings->sublist("Postprocess").get("write solution",true))
-    postproc->writeSolution(F_soln, settings->sublist("Postprocess").get<string>("Output File","output"));
+    postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
     
   }
   else if (analysis_type == "forward+adjoint") {
-    vector_RCP F_soln = solve->forwardModel(objfun);
+    solve->forwardModel(objfun);
     if (settings->sublist("Postprocess").get<bool>("compute response",false))
-      postproc->computeResponse(F_soln);
+      postproc->computeResponse();
     
     //if (settings->sublist("Postprocess").get("compute objective",false))
     //  AD objfun = postproc->computeObjective(F_soln);
     if (settings->sublist("Postprocess").get<bool>("verification",false))
-      postproc->computeError(F_soln);
+      postproc->computeError();
     
-    vector_RCP A_soln = solve->adjointModel(F_soln, gradient);
+    solve->adjointModel(gradient);
     //if (settings->sublist("Postprocess").get<bool>("compute sensitivities",false))
     //  gradient = postproc->computeSensitivities(F_soln, A_soln);
-    if (settings->sublist("Postprocess").get<bool>("error estimate",false))
-      ScalarT errorest = postproc->computeError(F_soln, A_soln);
     
     if (settings->sublist("Postprocess").get("write solution",true)) {
-      postproc->writeSolution(F_soln, settings->sublist("Postprocess").get<string>("Output File","output"));
-      postproc->writeSolution(A_soln, settings->sublist("Postprocess").get<string>("Adjoint Output File","adj_output"));
+      postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
+      // TMW: commented for now
+      //postproc->writeSolution(settings->sublist("Postprocess").get<string>("Adjoint Output File","adj_output"));
     }
   }
   else if (analysis_type == "dakota") {
@@ -167,14 +169,14 @@ void analysis::run() {
         }
       }
       params->updateParams(currparams,1);
-      vector_RCP F_soln = solve->forwardModel(objfun);
-      AD currresponse = postproc->computeObjective(F_soln);
+      solve->forwardModel(objfun);
+      AD currresponse = postproc->computeObjective();
       response_values.push_back(currresponse.val());
       if(S_Comm->getRank() == 0) {
         sdataOUT << response_values[j] << "  ";
       }
       vector<ScalarT> currgradient;
-      vector_RCP A_soln = solve->adjointModel(F_soln, currgradient);
+      solve->adjointModel(currgradient);
       //vector<ScalarT> currgradient = postproc->computeSensitivities(F_soln, A_soln);
       gradient_values.push_back(currgradient);
       if(S_Comm->getRank() == 0) {
@@ -237,9 +239,9 @@ void analysis::run() {
         if (regenerate_meshdata) {
           solve->mesh->updateMeshData(sampleints(j),solve->assembler->cells);
         }
-        vector_RCP F_soln = solve->forwardModel(objfun);
+        solve->forwardModel(objfun);
         //vector_RCP A_soln = solve->adjointModel(F_soln, gradient);
-        avgsoln->update(1.0/(ScalarT)numsamples, *F_soln, 1.0);
+        //avgsoln->update(1.0/(ScalarT)numsamples, *F_soln, 1.0);
         /*if (settings->sublist("Postprocess").get("write solution",true)) {
          stringstream ss;
          ss << j;
@@ -247,7 +249,7 @@ void analysis::run() {
          postproc->writeSolution(F_soln, "sampling_data/outputMC_" + str + "_.exo");
          }*/
         if (settings->sublist("Postprocess").get<bool>("compute response",false)) {
-          Kokkos::View<ScalarT***,HostDevice> currresponse = postproc->computeResponse(F_soln,0);
+          Kokkos::View<ScalarT***,HostDevice> currresponse = postproc->computeResponse(0);
           for (size_t i=0; i<currresponse.dimension(0); i++) {
             for (size_t j=0; j<currresponse.dimension(1); j++) {
               for (size_t k=0; k<currresponse.dimension(2); k++) {
@@ -270,8 +272,8 @@ void analysis::run() {
               currparams[i] += pert;
               params->updateParams(currparams,2);
               DFAD objfun2 = 0.0;
-              vector_RCP F_soln2 = solve->forwardModel(objfun2);
-              Kokkos::View<ScalarT***,HostDevice> currresponse2 = postproc->computeResponse(F_soln2,0);
+              solve->forwardModel(objfun2);
+              Kokkos::View<ScalarT***,HostDevice> currresponse2 = postproc->computeResponse(0);
               for (size_t i2=0; i2<currresponse2.dimension(0); i2++) {
                 for (size_t j=0; j<currresponse2.dimension(1); j++) {
                   for (size_t k=0; k<currresponse2.dimension(2); k++) {
@@ -348,7 +350,7 @@ void analysis::run() {
     }
     
     if (settings->sublist("Postprocess").get("write solution",true)) {
-      postproc->writeSolution(avgsoln, "output_avg");
+      //postproc->writeSolution(avgsoln, "output_avg");
     }
     // Compute the statistics (mean, variance, probability levels, etc.)
     //uq.computeStatistics(response_values);
@@ -590,8 +592,8 @@ void analysis::run() {
     }
     if (settings->sublist("Analysis").get("Write Output",false)) {
       DFAD val = 0.0;
-      vector_RCP F_soln = solve->forwardModel(val);
-      postproc->writeSolution(F_soln, settings->sublist("Postprocess").get<string>("Output File","output"));
+      solve->forwardModel(val);
+      postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
     }
   } //ROL
   else if (analysis_type == "ROL_SIMOPT") {
@@ -792,14 +794,13 @@ void analysis::run() {
     }
     if (settings->sublist("Analysis").get("Write Output",false)) {
       DFAD val = 0.0;
-      vector_RCP F_soln = solve->forwardModel(val);
-      postproc->writeSolution(F_soln, settings->sublist("Postprocess").get<string>("Output File","output"));
+      solve->forwardModel(val);
+      postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
     }
   } //ROL_SIMOPT
   else { // don't solve anything, but produce visualization
-    vector_RCP zero_sol = solve->blankState();
     if (settings->sublist("Postprocess").get("write solution",true))
-    postproc->writeSolution(zero_sol, settings->sublist("Postprocess").get<string>("Output File","output"));
+    postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
     
   }
   

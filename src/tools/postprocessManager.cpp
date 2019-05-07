@@ -134,7 +134,7 @@ DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensor
 // ========================================================================================
 // ========================================================================================
 
-void PostprocessManager::computeError(const vector_RCP & F_soln) {
+void PostprocessManager::computeError() {
   
   
   if(Comm->getRank() == 0) {
@@ -142,14 +142,14 @@ void PostprocessManager::computeError(const vector_RCP & F_soln) {
     cout << "***** Performing verification ******" << endl << endl;
   }
   
-  int numSteps = F_soln->getNumVectors();
-  vector<ScalarT> solvetimes = solve->solvetimes;
-  
+  vector<ScalarT> solvetimes = solve->soln->times[0];
+  vector_RCP u;
   
   for (size_t b=0; b<cells.size(); b++) {
-    Kokkos::View<ScalarT**,AssemblyDevice> localerror("error",numSteps,numVars[b]);
+    Kokkos::View<ScalarT**,AssemblyDevice> localerror("error",solvetimes.size(),numVars[b]);
     for (size_t t=0; t<solvetimes.size(); t++) {
-      assembler->performGather(b,F_soln,0,t);
+      bool fnd = solve->soln->extract(u,t);
+      assembler->performGather(b,u,0,0);
       for (size_t e=0; e<cells[b].size(); e++) {
         int numElem = cells[b][e]->numElem;
         Kokkos::View<ScalarT**,AssemblyDevice> localerrs = cells[b][e]->computeError(solvetimes[t], t, compute_subgrid_error, error_type);
@@ -167,7 +167,6 @@ void PostprocessManager::computeError(const vector_RCP & F_soln) {
         ScalarT lerr = localerror(t,n);
         ScalarT gerr = 0.0;
         Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lerr,&gerr);
-        //Comm->SumAll(&lerr, &gerr, 1);
         if(Comm->getRank() == 0) {
           cout << "***** " << error_type << " norm of the error for " << varlist[b][n] << " = " << sqrt(gerr) << "  (time = " << solvetimes[t] << ")" <<  endl;
         }
@@ -180,7 +179,7 @@ void PostprocessManager::computeError(const vector_RCP & F_soln) {
 // ========================================================================================
 // ========================================================================================
 
-AD PostprocessManager::computeObjective(const vector_RCP & F_soln) {
+AD PostprocessManager::computeObjective() {
   
   if(Comm->getRank() == 0 ) {
     if (verbosity > 0) {
@@ -193,7 +192,7 @@ AD PostprocessManager::computeObjective(const vector_RCP & F_soln) {
   AD regDomain = 0.0;
   AD regBoundary = 0.0;
   //bvbw    AD classicParamPenalty = 0.0;
-  vector<ScalarT> solvetimes = solve->solvetimes;
+  vector<ScalarT> solvetimes = solve->soln->times[0];
   vector<int> domainRegTypes = params->domainRegTypes;
   vector<ScalarT> domainRegConstants = params->domainRegConstants;
   vector<int> domainRegIndices = params->domainRegIndices;
@@ -216,7 +215,7 @@ AD PostprocessManager::computeObjective(const vector_RCP & F_soln) {
   vector<ScalarT> regGradient(numParams);
   vector<ScalarT> dmGradient(numParams);
   vector_RCP P_soln = params->Psol[0];
-  
+  vector_RCP u;
   //cout << solvetimes.size() << endl;
   //for (int i=0; i<solvetimes.size(); i++) {
   //  cout << solvetimes[i] << endl;
@@ -224,7 +223,8 @@ AD PostprocessManager::computeObjective(const vector_RCP & F_soln) {
   for (size_t tt=0; tt<solvetimes.size(); tt++) {
     for (size_t b=0; b<cells.size(); b++) {
       
-      assembler->performGather(b,F_soln,0,tt);
+      bool fnd = solve->soln->extract(u,tt);
+      assembler->performGather(b,u,0,0);
       assembler->performGather(b,P_soln,4,0);
       
       for (size_t e=0; e<cells[b].size(); e++) {
@@ -352,10 +352,10 @@ AD PostprocessManager::computeObjective(const vector_RCP & F_soln) {
 // ========================================================================================
 // ========================================================================================
 
-Kokkos::View<ScalarT***,HostDevice> PostprocessManager::computeResponse(const vector_RCP & F_soln, const int & b) {
+Kokkos::View<ScalarT***,HostDevice> PostprocessManager::computeResponse(const int & b) {
   
   params->sacadoizeParams(false);
-  vector<ScalarT> solvetimes = solve->solvetimes;
+  vector<ScalarT> solvetimes = solve->soln->times[0];
   
   //FC responses = this->computeResponse(F_soln);
   
@@ -367,10 +367,11 @@ Kokkos::View<ScalarT***,HostDevice> PostprocessManager::computeResponse(const ve
   
   Kokkos::View<ScalarT***,HostDevice> responses("responses",numSensors, numresponses, solvetimes.size());
   vector_RCP P_soln = params->Psol[0];
+  vector_RCP u;
   
   for (size_t tt=0; tt<solvetimes.size(); tt++) {
-    
-    assembler->performGather(b,F_soln,0,tt);
+    bool fnd = solve->soln->extract(u,tt);
+    assembler->performGather(b,u,0,0);
     assembler->performGather(b,P_soln,4,0);
     
     for (size_t e=0; e<cells[b].size(); e++) {
@@ -410,7 +411,7 @@ Kokkos::View<ScalarT***,HostDevice> PostprocessManager::computeResponse(const ve
 // ========================================================================================
 // ========================================================================================
 
-void PostprocessManager::computeResponse(const vector_RCP & F_soln) {
+void PostprocessManager::computeResponse() {
   
   
   if(Comm->getRank() == 0 ) {
@@ -422,10 +423,10 @@ void PostprocessManager::computeResponse(const vector_RCP & F_soln) {
   }
   
   params->sacadoizeParams(false);
-  vector<ScalarT> solvetimes = solve->solvetimes;
+  vector<ScalarT> solvetimes = solve->soln->times[0];
   for (size_t b=0; b<cells.size(); b++) {
     
-    Kokkos::View<ScalarT***,HostDevice> responses = this->computeResponse(F_soln, b);
+    Kokkos::View<ScalarT***,HostDevice> responses = this->computeResponse(b);
     
     int numresponses = phys->getNumResponses(b);
     int numSensors = 1;
@@ -501,7 +502,7 @@ void PostprocessManager::computeResponse(const vector_RCP & F_soln) {
 // ========================================================================================
 // ========================================================================================
 
-vector<ScalarT> PostprocessManager::computeSensitivities(const vector_RCP & F_soln, const vector_RCP & A_soln) {
+vector<ScalarT> PostprocessManager::computeSensitivities() {
   
   Teuchos::RCP<Teuchos::Time> sensitivitytimer = Teuchos::rcp(new Teuchos::Time("sensitivity",false));
   sensitivitytimer->start();
@@ -518,13 +519,13 @@ vector<ScalarT> PostprocessManager::computeSensitivities(const vector_RCP & F_so
   
   vector<ScalarT> gradient(numParams);
   
-  AD obj_sens = this->computeObjective(F_soln);
+  AD obj_sens = this->computeObjective();
   
   if (numClassicParams > 0 ) {
-    dwr_sens = this->computeParameterSensitivities(F_soln, A_soln);
+    dwr_sens = this->computeParameterSensitivities();
   }
   if (numDiscParams > 0) {
-    disc_sens = this->computeDiscretizedSensitivities(F_soln, A_soln);
+    disc_sens = this->computeDiscretizedSensitivities();
   }
   size_t pprog  = 0;
   for (size_t i=0; i<numClassicParams; i++) {
@@ -567,7 +568,7 @@ vector<ScalarT> PostprocessManager::computeSensitivities(const vector_RCP & F_so
 // ========================================================================================
 // ========================================================================================
 
-void PostprocessManager::writeSolution(const vector_RCP & E_soln, const std::string & filelabel) {
+void PostprocessManager::writeSolution(const std::string & filelabel) {
   
   string filename = filelabel+".exo";
   
@@ -577,7 +578,7 @@ void PostprocessManager::writeSolution(const vector_RCP & E_soln, const std::str
     cout << "*********************************************************" << endl;
   }
   
-  auto E_kv = E_soln->getLocalView<HostDevice>();
+  //auto E_kv = E_soln->getLocalView<HostDevice>();
   
   //vector<stk_classic::mesh::Entity*> stk_meshElems;
   //mesh->getMyElements(blockID, stk_meshElems);
@@ -586,11 +587,15 @@ void PostprocessManager::writeSolution(const vector_RCP & E_soln, const std::str
     mesh->setupExodusFile(filename);
   }
   
-  int numSteps = E_soln->getNumVectors();
-  vector<ScalarT> solvetimes = solve->solvetimes;
+  //int numSteps = E_soln->getNumVectors();
+  vector<ScalarT> solvetimes = solve->soln->times[0];
+  int numSteps = solvetimes.size();
+  vector_RCP u;
   
   Kokkos::View<ScalarT**,HostDevice> dispz("dispz",cells[0].size(), numNodesPerElem);
   for(int m=0; m<numSteps; m++) {
+    bool fnd = solve->soln->extract(u,m);
+    auto u_kv = u->getLocalView<HostDevice>();
     for (size_t b=0; b<cells.size(); b++) {
       std::string blockID = blocknames[b];
       vector<vector<int> > curroffsets = phys->offsets[b];
@@ -613,11 +618,11 @@ void PostprocessManager::writeSolution(const vector_RCP & E_soln, const std::str
               int pindex = overlapped_map->getLocalElement(GIDs(p,curroffsets[n][i]));
               if (numBasis[b][n] == 1) {
                 for( int j=0; j<numNodesPerElem; j++ ) {
-                  soln_computed(eprog,j) = E_kv(pindex,m);
+                  soln_computed(eprog,j) = u_kv(pindex,0);
                 }
               }
               else {
-                soln_computed(eprog,i) = E_kv(pindex,m);
+                soln_computed(eprog,i) = u_kv(pindex,0);
               }
               if (use_sol_mod_mesh && sol_to_mod_mesh == n) {
                 if (abs(soln_computed(e,i)) >= meshmod_TOL) {
@@ -852,7 +857,7 @@ void PostprocessManager::writeSolution(const vector_RCP & E_soln, const std::str
             }
           }
         }
-        cells[b][k]->updateSolnWorkset(E_soln, m); // also updates ip, ijac
+        cells[b][k]->updateSolnWorkset(u,0); // also updates ip, ijac
         cells[b][k]->updateData();
         assembler->wkset[b]->time = solvetimes[m];
         Kokkos::View<ScalarT***,HostDevice> cfields = phys->getExtraCellFields(b, cells[b][k]->numElem);
@@ -939,7 +944,10 @@ void PostprocessManager::writeSolution(const vector_RCP & E_soln, const std::str
   if (save_height_file) {
     ofstream hOUT("meshpert.dat");
     hOUT.precision(10);
-    int numsteps = E_soln->getNumVectors();
+    //int numsteps = E_soln->getNumVectors();
+    ScalarT finalt = 0.0;
+    bool fnd = solve->soln->extractLast(u,0,finalt);
+    auto u_kv = u->getLocalView<HostDevice>();
     for (size_t b=0; b<numBlocks; b++) {
       std::string blockID = blocknames[b];
       vector<vector<int> > curroffsets = phys->offsets[b];
@@ -951,7 +959,7 @@ void PostprocessManager::writeSolution(const vector_RCP & E_soln, const std::str
           for (int p=0; p<cells[b][e]->numElem; p++) {
             for( int i=0; i<numBasis[b][n]; i++ ) {
               int pindex = overlapped_map->getLocalElement(GIDs(p,curroffsets[n][i]));
-              ScalarT soln = E_kv(pindex,numsteps-1);
+              ScalarT soln = u_kv(pindex,0);
               hOUT << nodes(p,i,0) << "  " << nodes(p,i,1) << "  " << soln << endl;
             }
           }
@@ -999,7 +1007,10 @@ ScalarT PostprocessManager::makeSomeNoise(ScalarT stdev) {
 //   solution to perform verification studies
 // ========================================================================================
 
-ScalarT PostprocessManager::computeError(const vector_RCP & GF_soln, const vector_RCP & GA_soln) {
+// TMW Commented out due to lack of use
+/*
+ScalarT PostprocessManager::computeError() {
+  ScalarT errorest = 0.0;
   if(Comm->getRank() == 0 && verbosity>0) {
     cout << endl << "*********************************************************" << endl;
     cout << "***** Computing Error Estimate ******" << endl << endl;
@@ -1028,7 +1039,6 @@ ScalarT PostprocessManager::computeError(const vector_RCP & GF_soln, const vecto
     alpha = 1./deltat;
   }
   
-  ScalarT errorest = 0.0;
   params->sacadoizeParams(false);
   
   // ******************* ITERATE ON THE Parameters **********************
@@ -1073,27 +1083,25 @@ ScalarT PostprocessManager::computeError(const vector_RCP & GF_soln, const vecto
   }
   return errorest;
 }
-
+*/
 
 // ========================================================================================
 // ========================================================================================
 
-vector<ScalarT> PostprocessManager::computeParameterSensitivities(const vector_RCP & GF_soln,
-                                                                  const vector_RCP & GA_soln) {
+vector<ScalarT> PostprocessManager::computeParameterSensitivities() {
   if(Comm->getRank() == 0 && verbosity>0) {
     cout << endl << "*********************************************************" << endl;
     cout << "***** Computing Sensitivities ******" << endl << endl;
   }
   
   vector_RCP u = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
+  vector_RCP phi = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
   vector_RCP a2 = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,1)); // adjoint solution
   vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // previous solution (can be either fwd or adj)
   
-  auto u_kv = u->getLocalView<HostDevice>();
+  //auto u_kv = u->getLocalView<HostDevice>();
   auto a2_kv = a2->getLocalView<HostDevice>();
-  auto u_dot_kv = u_dot->getLocalView<HostDevice>();
-  auto GF_kv = GF_soln->getLocalView<HostDevice>();
-  auto GA_kv = GA_soln->getLocalView<HostDevice>();
+  //auto u_dot_kv = u_dot->getLocalView<HostDevice>();
   
   ScalarT alpha = 0.0;
   ScalarT beta = 1.0;
@@ -1106,28 +1114,37 @@ vector<ScalarT> PostprocessManager::computeParameterSensitivities(const vector_R
   ScalarT globalsens = 0.0;
   int nsteps = 1;
   if (solve->isTransient) {
-    nsteps = solve->solvetimes.size()-1;
+    nsteps = solve->soln->times[0].size()-1;
   }
   double current_time = 0.0;
   
   for (int timeiter = 0; timeiter<nsteps; timeiter++) {
     if (solve->isTransient) {
-      current_time = solve->solvetimes[timeiter+1];
-      for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
-        u_dot_kv(i,0) = alpha*(GF_kv(i,timeiter+1) - GF_kv(i,timeiter));
-        u_kv(i,0) = GF_kv(i,timeiter+1);
-      }
+      current_time = solve->soln->times[0][timeiter+1];
+      bool fnd = solve->soln->extract(u,timeiter+1);
+      bool fnddot = solve->soln_dot->extract(u_dot,timeiter+1);
+      bool fndadj = solve->adj_soln->extract(phi,nsteps-timeiter);
+      auto phi_kv = phi->getLocalView<HostDevice>();
+      
+      //for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
+      //  u_dot_kv(i,0) = alpha*(GF_kv(i,timeiter+1) - GF_kv(i,timeiter));
+      //  u_kv(i,0) = GF_kv(i,timeiter+1);
+      //}
       for( LO i=0; i<solve->LA_owned.size(); i++ ) {
-        a2_kv(i,0) = GA_kv(i,nsteps-timeiter);
+        a2_kv(i,0) = phi_kv(i,0);
       }
     }
     else {
-      current_time = solve->solvetimes[timeiter];
-      for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
-        u_kv(i,0) = GF_kv(i,timeiter);
-      }
+      current_time = solve->soln->times[0][timeiter];
+      bool fnd = solve->soln->extract(u,0);
+      bool fndadj = solve->adj_soln->extract(phi,0);
+      auto phi_kv = phi->getLocalView<HostDevice>();
+      
+      //for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
+      //  u_kv(i,0) = GF_kv(i,timeiter);
+      //}
       for( LO i=0; i<solve->LA_owned.size(); i++ ) {
-        a2_kv(i,0) = GA_kv(i,nsteps-timeiter-1);
+        a2_kv(i,0) = phi_kv(i,0);
       }
     }
     
@@ -1186,23 +1203,23 @@ vector<ScalarT> PostprocessManager::computeParameterSensitivities(const vector_R
 // Compute the sensitivity of the objective with respect to discretized parameters
 // ========================================================================================
 
-vector<ScalarT> PostprocessManager::computeDiscretizedSensitivities(const vector_RCP & F_soln,
-                                                                    const vector_RCP & A_soln) {
+vector<ScalarT> PostprocessManager::computeDiscretizedSensitivities() {
   
   if(Comm->getRank() == 0 && verbosity>0) {
     cout << endl << "*********************************************************" << endl;
     cout << "***** Computing Discretized Sensitivities ******" << endl << endl;
   }
-  auto F_kv = F_soln->getLocalView<HostDevice>();
-  auto A_kv = A_soln->getLocalView<HostDevice>();
+  //auto F_kv = F_soln->getLocalView<HostDevice>();
+  //auto A_kv = A_soln->getLocalView<HostDevice>();
   
   vector_RCP u = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
+  vector_RCP phi = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
   vector_RCP a2 = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,1)); // adjoint solution
   vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // previous solution (can be either fwd or adj)
   
-  auto u_kv = u->getLocalView<HostDevice>();
+  //auto u_kv = u->getLocalView<HostDevice>();
   auto a2_kv = a2->getLocalView<HostDevice>();
-  auto u_dot_kv = u_dot->getLocalView<HostDevice>();
+  //auto u_dot_kv = u_dot->getLocalView<HostDevice>();
   
   ScalarT alpha = 0.0;
   ScalarT beta = 1.0;
@@ -1211,7 +1228,7 @@ vector<ScalarT> PostprocessManager::computeDiscretizedSensitivities(const vector
   
   int nsteps = 1;
   if (solve->isTransient) {
-    nsteps = solve->solvetimes.size()-1;
+    nsteps = solve->soln->times[0].size()-1;
   }
   
   vector_RCP totalsens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1));
@@ -1222,22 +1239,31 @@ vector<ScalarT> PostprocessManager::computeDiscretizedSensitivities(const vector
   for (int timeiter = 0; timeiter<nsteps; timeiter++) {
     
     if (solve->isTransient) {
-      current_time = solve->solvetimes[timeiter+1];
-      for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
-        u_dot_kv(i,0) = alpha*(F_kv(i,timeiter+1) - F_kv(i,timeiter));
-        u_kv(i,0) = F_kv(i,timeiter+1);
-      }
+      current_time = solve->soln->times[0][timeiter+1];
+      bool fnd = solve->soln->extract(u,timeiter+1);
+      bool fnddot = solve->soln_dot->extract(u_dot,timeiter+1);
+      bool fndadj = solve->adj_soln->extract(phi,nsteps-timeiter);
+      auto phi_kv = phi->getLocalView<HostDevice>();
+      
+      //for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
+      //  u_dot_kv(i,0) = alpha*(F_kv(i,timeiter+1) - F_kv(i,timeiter));
+      //  u_kv(i,0) = F_kv(i,timeiter+1);
+      //}
       for( LO i=0; i<solve->LA_owned.size(); i++ ) {
-        a2_kv(i,0) = A_kv(i,nsteps-timeiter);
+        a2_kv(i,0) = phi_kv(i,0);
       }
     }
     else {
-      current_time = solve->solvetimes[timeiter];
-      for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
-        u_kv(i,0) = F_kv(i,timeiter);
-      }
+      current_time = solve->soln->times[0][timeiter];
+      bool fnd = solve->soln->extract(u,0);
+      bool fndadj = solve->adj_soln->extract(phi,0);
+      auto phi_kv = phi->getLocalView<HostDevice>();
+      
+      //for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
+      //  u_kv(i,0) = F_kv(i,timeiter);
+      //}
       for( LO i=0; i<solve->LA_owned.size(); i++ ) {
-        a2_kv(i,0) = A_kv(i,nsteps-timeiter-1);
+        a2_kv(i,0) = phi_kv(i,0);
       }
     }
     /*
