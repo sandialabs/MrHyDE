@@ -9,13 +9,13 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#include "subgridFEM.hpp"
+#include "subgridFEM2.hpp"
 #include "cell.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-SubGridFEM::SubGridFEM(const Teuchos::RCP<LA_MpiComm> & LocalComm_,
+SubGridFEM2::SubGridFEM2(const Teuchos::RCP<LA_MpiComm> & LocalComm_,
                        Teuchos::RCP<Teuchos::ParameterList> & settings_,
                        topo_RCP & macro_cellTopo_, int & num_macro_time_steps_,
                        ScalarT & macro_deltat_) :
@@ -103,7 +103,7 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice> macrosideinfo_,
+int SubGridFEM2::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice> macrosideinfo_,
                          vector<string> & macrosidenames,
                          Kokkos::View<GO**,HostDevice> & macroGIDs,
                          Kokkos::View<LO***,HostDevice> & macroindex) {
@@ -591,7 +591,7 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM::addMeshData() {
+void SubGridFEM2::addMeshData() {
   
   Teuchos::TimeMonitor localmeshtimer(*sgfemMeshDataTimer);
   
@@ -923,7 +923,7 @@ void SubGridFEM::addMeshData() {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
+void SubGridFEM2::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
                                Kokkos::View<ScalarT***,AssemblyDevice> gl_phi,
                                const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                                const bool & compute_jacobian, const bool & compute_sens,
@@ -1169,7 +1169,7 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
 ///////////////////////////////////////////////////////////////////////////////////////
 
 
-void SubGridFEM::sacadoizeParams(const bool & seed_active, const int & num_active_params) {
+void SubGridFEM2::sacadoizeParams(const bool & seed_active, const int & num_active_params) {
   
   /*
    if (seed_active) {
@@ -1204,7 +1204,7 @@ void SubGridFEM::sacadoizeParams(const bool & seed_active, const int & num_activ
 // Subgrid Nonlinear Solver
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<Epetra_MultiVector> & sub_u,
+void SubGridFEM2::subGridNonlinearSolver(Teuchos::RCP<Epetra_MultiVector> & sub_u,
                                         Teuchos::RCP<Epetra_MultiVector> & sub_u_dot,
                                         Teuchos::RCP<Epetra_MultiVector> & sub_phi,
                                         Teuchos::RCP<Epetra_MultiVector> & sub_phi_dot,
@@ -1437,7 +1437,7 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<Epetra_MultiVector> & sub_u
 // Decide if we need to save the current solution
 //////////////////////////////////////////////////////////////
 
-void SubGridFEM::solutionStorage(Teuchos::RCP<Epetra_MultiVector> & newvec,
+void SubGridFEM2::solutionStorage(Teuchos::RCP<Epetra_MultiVector> & newvec,
                                  const ScalarT & time, const bool & isAdjoint,
                                  const int & usernum) {
   
@@ -1490,7 +1490,7 @@ void SubGridFEM::solutionStorage(Teuchos::RCP<Epetra_MultiVector> & newvec,
 // solution or w.r.t parameters
 //////////////////////////////////////////////////////////////
 
-void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<Epetra_MultiVector> & d_sub_u,
+void SubGridFEM2::computeSubGridSolnSens(Teuchos::RCP<Epetra_MultiVector> & d_sub_u,
                                         const bool & compute_sens,
                                         Teuchos::RCP<Epetra_MultiVector> & sub_u,
                                         Teuchos::RCP<Epetra_MultiVector> & sub_u_dot,
@@ -1705,7 +1705,7 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<Epetra_MultiVector> & d_sub
 // Update the flux
 //////////////////////////////////////////////////////////////
 
-void SubGridFEM::updateFlux(const Teuchos::RCP<Epetra_MultiVector> & u,
+void SubGridFEM2::updateFlux(const Teuchos::RCP<Epetra_MultiVector> & u,
                             const Teuchos::RCP<Epetra_MultiVector> & d_u,
                             Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                             const bool & compute_sens, const int macroelemindex,
@@ -1757,7 +1757,7 @@ void SubGridFEM::updateFlux(const Teuchos::RCP<Epetra_MultiVector> & u,
 // Compute the initial values for the subgrid solution
 //////////////////////////////////////////////////////////////
 
-void SubGridFEM::setInitial(Teuchos::RCP<Epetra_MultiVector> & initial,
+void SubGridFEM2::setInitial(Teuchos::RCP<Epetra_MultiVector> & initial,
                             const int & usernum, const bool & useadjoint) {
   
   initial->PutScalar(0.0);
@@ -1839,7 +1839,7 @@ void SubGridFEM::setInitial(Teuchos::RCP<Epetra_MultiVector> & initial,
 // Subgrid Linear Solver
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM::linearSolver(Teuchos::RCP<Epetra_CrsMatrix>  & M, Teuchos::RCP<Epetra_MultiVector> & r,
+void SubGridFEM2::linearSolver(Teuchos::RCP<Epetra_CrsMatrix>  & M, Teuchos::RCP<Epetra_MultiVector> & r,
                               Teuchos::RCP<Epetra_MultiVector> & sol) {
   Epetra_LinearProblem cLinSys(M.get(), sol.get(), r.get());
   Amesos_BaseSolver * AmSolverT;
@@ -1855,7 +1855,7 @@ void SubGridFEM::linearSolver(Teuchos::RCP<Epetra_CrsMatrix>  & M, Teuchos::RCP<
 // Compute the error for verification
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT**,AssemblyDevice> SubGridFEM::computeError(const ScalarT & time, const int & usernum) {
+Kokkos::View<ScalarT**,AssemblyDevice> SubGridFEM2::computeError(const ScalarT & time, const int & usernum) {
   
   size_t numVars = varlist.size();
   int tindex = -1;
@@ -1887,7 +1887,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> SubGridFEM::computeError(const ScalarT & 
 // Compute the objective function
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<AD*,AssemblyDevice> SubGridFEM::computeObjective(const string & response_type, const int & seedwhat,
+Kokkos::View<AD*,AssemblyDevice> SubGridFEM2::computeObjective(const string & response_type, const int & seedwhat,
                                                               const ScalarT & time, const int & usernum) {
   
   int tindex = -1;
@@ -1927,7 +1927,7 @@ Kokkos::View<AD*,AssemblyDevice> SubGridFEM::computeObjective(const string & res
 // Write the solution to a file
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
+void SubGridFEM2::writeSolution(const string & filename, const int & usernum) {
   
   
   bool isTD = false;
@@ -2188,7 +2188,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
 // Write the solution to a file
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM::writeSolution(const string & filename) {
+void SubGridFEM2::writeSolution(const string & filename) {
   
   
   bool isTD = false;
@@ -2338,7 +2338,7 @@ void SubGridFEM::writeSolution(const string & filename) {
 // Write the solution to a file at a specific time
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM::writeSolution(const string & filename, const int & usernum, const int & timeindex) {
+void SubGridFEM2::writeSolution(const string & filename, const int & usernum, const int & timeindex) {
   
   /*
    string blockID = "eblock";
@@ -2491,7 +2491,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum, con
 // Add in the sensor data
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, const ScalarT & sensor_loc_tol,
+void SubGridFEM2::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, const ScalarT & sensor_loc_tol,
                             const vector<Kokkos::View<ScalarT**,HostDevice> > & sensor_data, const bool & have_sensor_data,
                             const vector<basis_RCP> & basisTypes, const int & usernum) {
   for (size_t e=0; e<cells[usernum].size(); e++) {
@@ -2504,7 +2504,7 @@ void SubGridFEM::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_poin
 // Assemble the projection (mass) matrix
 ////////////////////////////////////////////////////////////////////////////////
 
-Teuchos::RCP<Epetra_CrsMatrix>  SubGridFEM::getProjectionMatrix() {
+Teuchos::RCP<Epetra_CrsMatrix>  SubGridFEM2::getProjectionMatrix() {
   
   // Compute the mass matrix on a reference element
   Teuchos::RCP<Epetra_CrsMatrix>  mass = Teuchos::rcp( new Epetra_CrsMatrix(Copy, *overlapped_map, -1) );
@@ -2545,7 +2545,7 @@ Teuchos::RCP<Epetra_CrsMatrix>  SubGridFEM::getProjectionMatrix() {
 // Get the integration points
 ////////////////////////////////////////////////////////////////////////////////
 
-DRV SubGridFEM::getIP() {
+DRV SubGridFEM2::getIP() {
   int numip_per_cell = wkset[0]->numip;
   int usernum = 0; // doesn't really matter
   int totalip = 0;
@@ -2575,7 +2575,7 @@ DRV SubGridFEM::getIP() {
 // Get the integration weights
 ////////////////////////////////////////////////////////////////////////////////
 
-DRV SubGridFEM::getIPWts() {
+DRV SubGridFEM2::getIPWts() {
   int numip_per_cell = wkset[0]->numip;
   int usernum = 0; // doesn't really matter
   int totalip = 0;
@@ -2603,7 +2603,7 @@ DRV SubGridFEM::getIPWts() {
 // Evaluate the basis functions at a set of points
 ////////////////////////////////////////////////////////////////////////////////
 
-pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis2(const DRV & pts) {
+pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM2::evaluateBasis2(const DRV & pts) {
   
   size_t numpts = pts.dimension(1);
   size_t dimpts = pts.dimension(2);
@@ -2678,7 +2678,7 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
 // TMW: what is this function for???
 ////////////////////////////////////////////////////////////////////////////////
 
-pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis(const DRV & pts) {
+pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM2::evaluateBasis(const DRV & pts) {
   
   /*
    size_t numpts = pts.dimension(1);
@@ -2737,7 +2737,7 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
 // Get the matrix mapping the DOFs to a set of integration points on a reference macro-element
 ////////////////////////////////////////////////////////////////////////////////
 
-Teuchos::RCP<Epetra_CrsMatrix>  SubGridFEM::getEvaluationMatrix(const DRV & newip, Teuchos::RCP<Epetra_Map> & ip_map) {
+Teuchos::RCP<Epetra_CrsMatrix>  SubGridFEM2::getEvaluationMatrix(const DRV & newip, Teuchos::RCP<Epetra_Map> & ip_map) {
   Teuchos::RCP<Epetra_CrsMatrix>  map_over = Teuchos::rcp(new Epetra_CrsMatrix(Copy, *overlapped_map, -1));
   Teuchos::RCP<Epetra_CrsMatrix>  map;
   if (LocalComm->getSize() > 1) {
@@ -2757,7 +2757,7 @@ Teuchos::RCP<Epetra_CrsMatrix>  SubGridFEM::getEvaluationMatrix(const DRV & newi
 // Get the subgrid cell GIDs
 ////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<GO**,HostDevice> SubGridFEM::getCellGIDs(const int & cellnum) {
+Kokkos::View<GO**,HostDevice> SubGridFEM2::getCellGIDs(const int & cellnum) {
   return cells[0][cellnum]->GIDs;
 }
 
@@ -2765,7 +2765,7 @@ Kokkos::View<GO**,HostDevice> SubGridFEM::getCellGIDs(const int & cellnum) {
 // Update the subgrid parameters (will be depracated)
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames) {
+void SubGridFEM2::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames) {
   for (size_t b=0; b<wkset.size(); b++) {
     wkset[b]->params = params;
     wkset[b]->paramnames = paramnames;
@@ -2778,7 +2778,7 @@ void SubGridFEM::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, c
 // TMW: Is the following functions used/required ???
 ////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT**,AssemblyDevice> SubGridFEM::getCellFields(const int & usernum, const ScalarT & time) {
+Kokkos::View<ScalarT**,AssemblyDevice> SubGridFEM2::getCellFields(const int & usernum, const ScalarT & time) {
   
   /*
    vector<string> extracellfieldnames = physics_RCP->getExtraCellFieldNames(0);
@@ -2813,7 +2813,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> SubGridFEM::getCellFields(const int & use
 //
 // ========================================================================================
 
-void SubGridFEM::performGather(const size_t & block, const Teuchos::RCP<Epetra_MultiVector> & vec,
+void SubGridFEM2::performGather(const size_t & block, const Teuchos::RCP<Epetra_MultiVector> & vec,
                                const size_t & type, const size_t & index) const {
   
   for (size_t e=0; e < cells[block].size(); e++) {
@@ -2826,7 +2826,7 @@ void SubGridFEM::performGather(const size_t & block, const Teuchos::RCP<Epetra_M
 //
 // ========================================================================================
 
-void SubGridFEM::updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data) {
+void SubGridFEM2::updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data) {
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       int numElem = cells[b][e]->numElem;

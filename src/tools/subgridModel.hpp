@@ -90,7 +90,7 @@ public:
   //virtual Epetra_MultiVector getVector() = 0;
   
   Teuchos::RCP<LA_MpiComm> LocalComm;
-  Teuchos::RCP<SolutionStorage> soln, solndot, adjsoln;
+  Teuchos::RCP<SolutionStorage<Epetra_MultiVector> > soln, solndot, adjsoln;
   
   bool useMachineLearning = false;
   
