@@ -790,131 +790,6 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     }
   }
   
-  //auto u_kv = u->getLocalView<HostDevice>();
-  //auto u_dot_kv = u_dot->getLocalView<HostDevice>();
-  //auto phi_kv = phi->getLocalView<HostDevice>();
-  //auto phi_dot_kv = phi_dot->getLocalView<HostDevice>();
-  
-  //auto solmat_kv = SolMat->getLocalView<HostDevice>();
-  //auto lsol_kv = L_soln->getLocalView<HostDevice>();
-  
-  //int numSteps = 1;
-  //ScalarT finaltime = 0.0;
-  
-  
-  //int numivec = L_soln->getNumVectors();
-  
-  //ScalarT current_time = 0.0;
-  
-  // ******************* ITERATE ON THE TIME STEPS **********************
-  /*
-  obj = 0.0;
-  for (int timeiter = 0; timeiter<numsteps; timeiter++) {
-    
-    {
-      Teuchos::TimeMonitor localtimer(*msprojtimer);
-      ScalarT my_cost = multiscale_manager->update();
-      ScalarT gmin = 0.0;
-      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&my_cost,&gmin);
-      ScalarT gmax = 0.0;
-      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&my_cost,&gmin);
-      if(Comm->getRank() == 0 && verbosity>0) {
-        cout << "***** Load Balancing Factor " << gmax/gmin <<  endl;
-      }
-    }
-    
-    if (!useadjoint) {
-      current_time += deltat;
-    }
-    
-    if(Comm->getRank() == 0 && verbosity > 0) {
-      cout << endl << endl << "*******************************************************" << endl;
-      cout << endl << "**** Beginning Time Step " << timeiter << endl;
-      cout << "**** Current time is " << current_time << endl << endl;
-      cout << "*******************************************************" << endl << endl << endl;
-    }
-    
-    if (useadjoint) {
-      // phi is updated automatically
-      // need to update phi_dot, u, u_dot
-      for( size_t i=0; i<LA_ownedAndShared.size(); i++ ) {
-        u_kv(i,0) = lsol_kv(i,numivec-timeiter-1);
-      }
-      if (time_order == 1) {
-        for( size_t i=0; i<LA_ownedAndShared.size(); i++ ) {
-          u_dot_kv(i,0) = alpha*lsol_kv(i,numivec-timeiter-1) - alpha*lsol_kv(i,numivec-timeiter-2);
-          //phi_dot[0][i] = alpha*phi[0][i] - alpha*SolMat[timeiter][i];
-        }
-        phi_dot->putScalar(0.0);
-        
-      }
-      //else if (time_order == 2) { // TMW: not re-implemented yet
-      //  for( size_t i=0; i<ownedAndShared.size(); i++ ) {
-      //    u_dot[0][i] = alpha*L_soln[numivec-timeiter-1][i] - alpha*L_soln[numivec-timeiter-2][i];
-      //    phi_dot[0][i] = alpha*phi[0][i] - alpha*SolMat[timeiter][i];
-      //  }
-    }
-    else {
-      // u is updated automatically
-      // need to update u_dot (no need to update phi or phi_dot)
-      if (time_order == 1 || timeiter == 0) {
-        for( size_t i=0; i<LA_ownedAndShared.size(); i++ ) {
-          u_dot_kv(i,0) = alpha*u_kv(i,0) - alpha*solmat_kv(i,timeiter);
-        }
-      }
-      else if (time_order == 2) {
-        for( size_t i=0; i<LA_ownedAndShared.size(); i++ ) {
-          u_dot_kv(i,0) = alpha*u_kv(i,0) - alpha*4.0/3.0*solmat_kv(i,timeiter) + alpha*1.0/3.0*solmat_kv(i,timeiter-1);
-        }
-      }
-    }
-    
-    this->nonlinearSolver(u, u_dot, phi, phi_dot, alpha, beta);
-    
-    if (!useadjoint) {
-      for( LO i=0; i<LA_ownedAndShared.size(); i++ ) {
-        solmat_kv(i,timeiter+1) = u_kv(i,0);
-      }
-    }
-    else {
-      for( LO i=0; i<LA_ownedAndShared.size(); i++ ) {
-        solmat_kv(i,timeiter+1) = phi_kv(i,0);
-      }
-    }
-    
-    
-    //solvetimes.push_back(current_time); - This was causing a bug
-    
-    if (allow_remesh && !useadjoint) {
-      mesh->remesh(u, assembler->cells);
-    }
-    
-    if (useadjoint) { // fill in the gradient
-      this->computeSensitivities(u,u_dot,phi,gradient,alpha,beta);
-      params->sacadoizeParams(false);
-    }
-    else if (compute_objective) { // fill in the objective function
-      DFAD cobj = this->computeObjective(u, current_time, timeiter);
-      obj += cobj;
-      params->sacadoizeParams(false);
-    }
-    
-    if (useadjoint) {
-      current_time -= deltat;
-      is_final_time = false;
-    }
-    
-    //if (subgridModels.size() > 0) { // meaning we have multiscale turned on
-    //  // give the assembler->cells the opportunity to change subgrid models for the next time step
-    //  for (size_t b=0; b<assembler->cells.size(); b++) {
-    //    for (size_t e=0; e<assembler->cells[b].size(); e++) {
-    //      assembler->cells[b][e]->updateSubgridModel(subgridModels, phys->udfunc, *(wkset[b]));
-    //    }
-    //  }
-    //}
-    //isInitial = false; // only true on first time step
-  }*/
-  
   if (milo_debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "******** Finished solver::transientSolver" << endl;
@@ -962,9 +837,7 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     
     vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
     matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(LA_owned_map);
-    //matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_graph));
     vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    //matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map);
     matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
     vector_RCP du = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
     vector_RCP du_over = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
@@ -982,7 +855,6 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     else
       store_adjPrev = false;
     
-    //this->computeJacRes(u, u_dot, phi, phi_dot, alpha, beta, build_jacobian, false, false, res_over, J_over);
     assembler->assembleJacRes(u, u_dot, phi, phi_dot, alpha, beta, build_jacobian, false, false,
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
                               params->num_active_params, params->Psol[0], is_final_time);
@@ -992,14 +864,8 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     J->doExport(*J_over, *exporter, Tpetra::ADD);
     J->fillComplete();
     
-    //J_over->exportAndFillComplete(J, *exporter);
-    
     res->putScalar(0.0);
     res->doExport(*res_over, *exporter, Tpetra::ADD);
-    //KokkosTools::print(Comm,res);
-    
-    //auto out = Teuchos::getFancyOStream (Teuchos::rcpFromRef (std::cout));
-    //J->describe(*out, Teuchos::VERB_EXTREME);
     
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
     if (NLiter == 0) {
@@ -1028,7 +894,6 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
       
       this->linearSolver(J, res, du_over);
       
-      //du->doImport(*du_over, *importer, Tpetra::ADD);
       du->doImport(*du_over, *importer, Tpetra::ADD);
       
       if (useadjoint) {
@@ -1039,59 +904,6 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
         u->update(1.0, *du, 1.0);
         u_dot->update(alpha, *du, 1.0);
       }
-      
-      //KokkosTools::print(Comm,u);
-      /*
-       if (line_search) {
-       ScalarT err0 = NLerr;
-       res_over.PutScalar(0.0);
-       this->computeJacRes(u, u_dot, phi, phi_dot, alpha, beta, false, false, false, res_over, J_over);
-       res.PutScalar(0.0);
-       res.Export(res_over, *exporter, Add);
-       
-       ScalarT err1;
-       res.NormInf(&err1);
-       
-       if (useadjoint) {
-       phi.Update(-0.5, du, 1.0);
-       phi_dot.Update(-0.5*alpha, du, 1.0);
-       }
-       else {
-       u.Update(-0.5, du, 1.0);
-       u_dot.Update(-0.5*alpha, du, 1.0);
-       }
-       res_over.PutScalar(0.0);
-       this->computeJacRes(u, u_dot, phi, phi_dot, alpha, beta, false, false, false, res_over, J_over);
-       res.PutScalar(0.0);
-       res.Export(res_over, *exporter, Add);
-       
-       ScalarT errhalf;
-       res.NormInf(&errhalf);
-       
-       ScalarT opt_alpha = -(-3.0*err0+4.0*errhalf-err1) / (2.0*(2.0*err0-4.0*errhalf+2.9*err1));
-       if (opt_alpha > 1.0)
-       opt_alpha = 1.0;
-       else if (opt_alpha < 0.0)
-       opt_alpha = 0.1;
-       
-       if(Comm->MyPID() == 0 && verbosity > 10) {
-       cout << "Optimal step size: " << opt_alpha << endl;
-       cout << "err0 " << err0 << endl;
-       cout << "errhalf " << errhalf << endl;
-       cout << "err1 " << err1 << endl;
-       }
-       
-       if (useadjoint) {
-       phi.Update(opt_alpha-0.5, du, 1.0);
-       phi_dot.Update(alpha*(opt_alpha-0.5), du, 1.0);
-       }
-       else {
-       u.Update(opt_alpha-0.5, du, 1.0);
-       u_dot.Update(alpha*(opt_alpha-0.5), du, 1.0);
-       }
-       
-       }*/
-      
     }
     
     NLiter++; // increment number of iterations
