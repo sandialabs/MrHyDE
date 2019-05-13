@@ -8,7 +8,7 @@ ANONYMOUS:
     xmax: 1.00000000000000000e+00
     ymin: 0.00000000000000000e+00
     ymax: 1.00000000000000000e+00
-    NX: 20
-    NY: 20
+    NX: 4
+    NY: 4
     blocknames: eblock-0_0
 ...

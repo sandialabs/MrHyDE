@@ -37,6 +37,7 @@ typedef Kokkos::Serial AssemblyDevice;
 typedef Kokkos::Serial HostDevice;
 typedef Kokkos::Serial SubgridDevice;
 typedef Kokkos::Compat::KokkosSerialWrapperNode HostNode;
+typedef Kokkos::Compat::KokkosSerialWrapperNode SubgridNode;
 //typedef Kokkos::Compat::KokkosOpenMPWrapperNode HostNode;
 //typedef Kokkos::Compat::KokkosThreadsWrapperNode HostNode;
 //typedef Kokkos::Compat::KokkosCudaWrapperNode HostNode;

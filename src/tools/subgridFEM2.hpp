@@ -76,30 +76,22 @@ public:
   // Subgrid Nonlinear Solver
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void subGridNonlinearSolver(Teuchos::RCP<Epetra_MultiVector> & sub_u, Teuchos::RCP<Epetra_MultiVector> & sub_u_dot,
-                              Teuchos::RCP<Epetra_MultiVector> & sub_phi, Teuchos::RCP<Epetra_MultiVector> & sub_phi_dot,
-                              Teuchos::RCP<Epetra_MultiVector> & sub_params, Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+  void subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u, Teuchos::RCP<LA_MultiVector> & sub_u_dot,
+                              Teuchos::RCP<LA_MultiVector> & sub_phi, Teuchos::RCP<LA_MultiVector> & sub_phi_dot,
+                              Teuchos::RCP<LA_MultiVector> & sub_params, Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                               const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                               const int & num_active_params, const ScalarT & alpha, const int & usernum,
                               const bool & store_adjPrev);
-  
-  //////////////////////////////////////////////////////////////
-  // Decide if we need to save the current solution
-  //////////////////////////////////////////////////////////////
-  
-  void solutionStorage(Teuchos::RCP<Epetra_MultiVector> & newvec,
-                       const ScalarT & time, const bool & isAdjoint,
-                       const int & usernum);
   
   //////////////////////////////////////////////////////////////
   // Compute the derivative of the local solution w.r.t coarse
   // solution or w.r.t parameters
   //////////////////////////////////////////////////////////////
   
-  void computeSubGridSolnSens(Teuchos::RCP<Epetra_MultiVector> & d_sub_u, const bool & compute_sens,
-                              Teuchos::RCP<Epetra_MultiVector> & sub_u, Teuchos::RCP<Epetra_MultiVector> & sub_u_dot,
-                              Teuchos::RCP<Epetra_MultiVector> & sub_phi, Teuchos::RCP<Epetra_MultiVector> & sub_phi_dot,
-                              Teuchos::RCP<Epetra_MultiVector> & sub_param, Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+  void computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u, const bool & compute_sens,
+                              Teuchos::RCP<LA_MultiVector> & sub_u, Teuchos::RCP<LA_MultiVector> & sub_u_dot,
+                              Teuchos::RCP<LA_MultiVector> & sub_phi, Teuchos::RCP<LA_MultiVector> & sub_phi_dot,
+                              Teuchos::RCP<LA_MultiVector> & sub_param, Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                               const ScalarT & time,
                               const bool & isTransient, const bool & isAdjoint, const int & num_active_params, const ScalarT & alpha,
                               const ScalarT & lambda_scale, const int & usernum,
@@ -109,8 +101,8 @@ public:
   // Update the flux
   //////////////////////////////////////////////////////////////
   
-  void updateFlux(const Teuchos::RCP<Epetra_MultiVector> & u,
-                  const Teuchos::RCP<Epetra_MultiVector> & d_u,
+  void updateFlux(const Teuchos::RCP<LA_MultiVector> & u,
+                  const Teuchos::RCP<LA_MultiVector> & d_u,
                   Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                   const bool & compute_sens, const int macroelemindex,
                   const ScalarT & time, workset & macrowkset,
@@ -120,14 +112,7 @@ public:
   // Compute the initial values for the subgrid solution
   //////////////////////////////////////////////////////////////
   
-  void setInitial(Teuchos::RCP<Epetra_MultiVector> & initial, const int & usernum, const bool & useadjoint);
-  
-  ///////////////////////////////////////////////////////////////////////////////////////
-  // Subgrid Linear Solver
-  ///////////////////////////////////////////////////////////////////////////////////////
-  
-  void linearSolver(Teuchos::RCP<Epetra_CrsMatrix>  & M, Teuchos::RCP<Epetra_MultiVector> & r,
-                    Teuchos::RCP<Epetra_MultiVector> & sol);
+  void setInitial(Teuchos::RCP<LA_MultiVector> & initial, const int & usernum, const bool & useadjoint);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the error for verification
@@ -148,18 +133,6 @@ public:
   
   void writeSolution(const string & filename, const int & usernum);
   
-  ///////////////////////////////////////////////////////////////////////////////////////
-  // Write the solution to a file
-  ///////////////////////////////////////////////////////////////////////////////////////
-  
-  void writeSolution(const string & filename);
-  
-  ///////////////////////////////////////////////////////////////////////////////////////
-  // Write the solution to a file at a specific time
-  ///////////////////////////////////////////////////////////////////////////////////////
-  
-  void writeSolution(const string & filename, const int & usernum, const int & timeindex);
-  
   ////////////////////////////////////////////////////////////////////////////////
   // Add in the sensor data
   ////////////////////////////////////////////////////////////////////////////////
@@ -172,7 +145,7 @@ public:
   // Assemble the projection (mass) matrix
   ////////////////////////////////////////////////////////////////////////////////
   
-  Teuchos::RCP<Epetra_CrsMatrix>  getProjectionMatrix();
+  Teuchos::RCP<LA_CrsMatrix>  getProjectionMatrix();
   
   ////////////////////////////////////////////////////////////////////////////////
   // Get the integration points
@@ -203,7 +176,7 @@ public:
   // Get the matrix mapping the DOFs to a set of integration points on a reference macro-element
   ////////////////////////////////////////////////////////////////////////////////
   
-  Teuchos::RCP<Epetra_CrsMatrix>  getEvaluationMatrix(const DRV & newip, Teuchos::RCP<Epetra_Map> & ip_map);
+  Teuchos::RCP<LA_CrsMatrix>  getEvaluationMatrix(const DRV & newip, Teuchos::RCP<LA_Map> & ip_map);
   
   ////////////////////////////////////////////////////////////////////////////////
   // Get the subgrid cell GIDs
@@ -227,7 +200,7 @@ public:
   //
   // ========================================================================================
   
-  void performGather(const size_t & block, const Teuchos::RCP<Epetra_MultiVector> & vec, const size_t & type,
+  void performGather(const size_t & block, const Teuchos::RCP<LA_MultiVector> & vec, const size_t & type,
                      const size_t & index) const ;
   
   // ========================================================================================
@@ -251,25 +224,22 @@ public:
   vector<vector<int> > useBasis;
   
   // Linear algebra / solver objects
-  Teuchos::RCP<Epetra_Map> param_owned_map;
-  Teuchos::RCP<Epetra_Map> param_overlapped_map;
-  Teuchos::RCP<Epetra_Export> param_exporter;
-  Teuchos::RCP<Epetra_Import> param_importer;
+  Teuchos::RCP<LA_Map> param_owned_map;
+  Teuchos::RCP<LA_Map> param_overlapped_map;
+  Teuchos::RCP<LA_Export> param_exporter;
+  Teuchos::RCP<LA_Import> param_importer;
   
-  Teuchos::RCP<Epetra_MultiVector> res, res_over, d_um, du, du_glob;//, d_up;//,
-  Teuchos::RCP<Epetra_MultiVector> u, u_dot, phi, phi_dot;
-  Teuchos::RCP<Epetra_MultiVector> d_sub_res_overm, d_sub_resm, d_sub_u_prevm, d_sub_u_overm;
+  Teuchos::RCP<LA_MultiVector> res, res_over, d_um, du, du_glob;//, d_up;//,
+  Teuchos::RCP<LA_MultiVector> u, u_dot, phi, phi_dot;
+  Teuchos::RCP<LA_MultiVector> d_sub_res_overm, d_sub_resm, d_sub_u_prevm, d_sub_u_overm;
   
-  Teuchos::RCP<Epetra_CrsGraph> owned_graph, overlapped_graph;
-  Teuchos::RCP<Epetra_CrsMatrix>  J, sub_J_over, M, sub_M_over;
+  //Teuchos::RCP<LA_CrsGraph> owned_graph, overlapped_graph;
+  Teuchos::RCP<LA_CrsMatrix>  J, sub_J_over, M, sub_M_over;
   
-  Epetra_LinearProblem LinSys;
+  Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver;
+  Teuchos::RCP<LA_MultiVector> LA_rhs, LA_lhs;
   
-  Amesos_BaseSolver * AmSolver;
-  Teuchos::RCP<Amesos2::Solver<Epetra_CrsMatrix,Epetra_MultiVector> > Am2Solver;
-  Teuchos::RCP<Epetra_MultiVector> LA_rhs, LA_lhs;
-  
-  bool filledJ, filledM, useDirect;
+  bool filledJ, filledM;
   vector<string> stoch_param_types;
   vector<ScalarT> stoch_param_means, stoch_param_vars, stoch_param_mins, stoch_param_maxs;
   int num_stochclassic_params, num_active_params;
@@ -280,7 +250,7 @@ public:
   int sub_maxNLiter, liniter;
   
   
-  bool have_sym_factor, have_preconditioner, use_amesos2;
+  bool have_sym_factor;
   
   vector<string> varlist;
   vector<string> discparamnames;
@@ -294,7 +264,7 @@ public:
   Teuchos::RCP<discretization> disc;
   Teuchos::RCP<FunctionInterface> functionManager;
   
-  vector<Teuchos::RCP<Epetra_MultiVector> > Psol;
+  vector<Teuchos::RCP<LA_MultiVector> > Psol;
   
   // Dynamic - depend on the macro-element
   vector<DRV> macronodes;
@@ -314,28 +284,28 @@ public:
   vector<int> randomSeeds;
   
   // Timers
-  Teuchos::RCP<Teuchos::Time> sgfemSolverTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridSolver()");
-  Teuchos::RCP<Teuchos::Time> sgfemInitialTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridSolver - set initial conditions");
-  Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver()");
-  Teuchos::RCP<Teuchos::Time> sgfemSolnSensTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridSolnSens()");
-  Teuchos::RCP<Teuchos::Time> sgfemFluxTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::updateFlux()");
-  Teuchos::RCP<Teuchos::Time> sgfemFluxWksetTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::updateFlux - update workset");
-  Teuchos::RCP<Teuchos::Time> sgfemFluxCellTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::updateFlux - cell computation");
-  Teuchos::RCP<Teuchos::Time> sgfemComputeAuxBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::addMacro - compute aux basis functions");
-  Teuchos::RCP<Teuchos::Time> sgfemSubMeshTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::addMacro - create subgrid meshes");
-  Teuchos::RCP<Teuchos::Time> sgfemLinearAlgebraSetupTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::addMacro - setup linear algebra");
-  Teuchos::RCP<Teuchos::Time> sgfemTotalAddMacroTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::addMacro()");
-  Teuchos::RCP<Teuchos::Time> sgfemMeshDataTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::addMeshData()");
-  Teuchos::RCP<Teuchos::Time> sgfemSubCellTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::addMacro - create subcells");
-  Teuchos::RCP<Teuchos::Time> sgfemSubDiscTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::addMacro - create disc. interface");
-  Teuchos::RCP<Teuchos::Time> sgfemSubSolverTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::addMacro - create solver interface");
-  Teuchos::RCP<Teuchos::Time> sgfemSubICTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::addMacro - create vectors");
-  Teuchos::RCP<Teuchos::Time> sgfemSubSideinfoTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::addMacro - create side info");
-  Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverAllocateTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver - allocate objects");
-  Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverSetSolnTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver - set local soln");
-  Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverJacResTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver - Jacobian/residual");
-  Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverInsertTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver - insert");
-  Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverSolveTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver - solve");
+  Teuchos::RCP<Teuchos::Time> sgfemSolverTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::subgridSolver()");
+  Teuchos::RCP<Teuchos::Time> sgfemInitialTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::subgridSolver - set initial conditions");
+  Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::subgridNonlinearSolver()");
+  Teuchos::RCP<Teuchos::Time> sgfemSolnSensTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::subgridSolnSens()");
+  Teuchos::RCP<Teuchos::Time> sgfemFluxTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::updateFlux()");
+  Teuchos::RCP<Teuchos::Time> sgfemFluxWksetTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::updateFlux - update workset");
+  Teuchos::RCP<Teuchos::Time> sgfemFluxCellTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::updateFlux - cell computation");
+  Teuchos::RCP<Teuchos::Time> sgfemComputeAuxBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::addMacro - compute aux basis functions");
+  Teuchos::RCP<Teuchos::Time> sgfemSubMeshTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::addMacro - create subgrid meshes");
+  Teuchos::RCP<Teuchos::Time> sgfemLinearAlgebraSetupTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::addMacro - setup linear algebra");
+  Teuchos::RCP<Teuchos::Time> sgfemTotalAddMacroTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::addMacro()");
+  Teuchos::RCP<Teuchos::Time> sgfemMeshDataTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::addMeshData()");
+  Teuchos::RCP<Teuchos::Time> sgfemSubCellTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::addMacro - create subcells");
+  Teuchos::RCP<Teuchos::Time> sgfemSubDiscTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::addMacro - create disc. interface");
+  Teuchos::RCP<Teuchos::Time> sgfemSubSolverTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::addMacro - create solver interface");
+  Teuchos::RCP<Teuchos::Time> sgfemSubICTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::addMacro - create vectors");
+  Teuchos::RCP<Teuchos::Time> sgfemSubSideinfoTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::addMacro - create side info");
+  Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverAllocateTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::subgridNonlinearSolver - allocate objects");
+  Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverSetSolnTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::subgridNonlinearSolver - set local soln");
+  Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverJacResTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::subgridNonlinearSolver - Jacobian/residual");
+  Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverInsertTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::subgridNonlinearSolver - insert");
+  Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverSolveTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM2::subgridNonlinearSolver - solve");
   
   
   

@@ -51,17 +51,13 @@ public:
   
   virtual void writeSolution(const string & filename, const int & usernum) = 0;
 
-  virtual void writeSolution(const string & filename) = 0;
-
-  virtual void writeSolution(const string & filename, const int & usernum, const int & timeindex) = 0;
-
   virtual void addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points,
                           const ScalarT & sensor_loc_tol,
                           const vector<Kokkos::View<ScalarT**,HostDevice> > & sensor_data,
                           const bool & have_sensor_data,
                           const vector<basis_RCP> & basisTypes, const int & usernum) = 0;
   
-  virtual Teuchos::RCP<Epetra_CrsMatrix> getProjectionMatrix() = 0;
+  virtual matrix_RCP getProjectionMatrix() = 0;
   
   virtual DRV getIP() = 0;
   
@@ -71,13 +67,13 @@ public:
 
   virtual pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > evaluateBasis2(const DRV & ip) = 0;
   
-  virtual Teuchos::RCP<Epetra_CrsMatrix> getEvaluationMatrix(const DRV & newip, Teuchos::RCP<Epetra_Map> & ip_map) = 0;
+  virtual matrix_RCP getEvaluationMatrix(const DRV & newip, Teuchos::RCP<LA_Map> & ip_map) = 0;
   
   virtual Kokkos::View<GO**,HostDevice> getCellGIDs(const int & cellnum) = 0;
   
-  virtual void solutionStorage(Teuchos::RCP<Epetra_MultiVector> & newvec,
-                               const ScalarT & time, const bool & isAdjoint,
-                               const int & usernum)= 0;
+  //virtual void solutionStorage(Teuchos::RCP<Epetra_MultiVector> & newvec,
+  //                             const ScalarT & time, const bool & isAdjoint,
+  //                             const int & usernum)= 0;
   
   virtual void updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames) = 0;
   
@@ -90,7 +86,7 @@ public:
   //virtual Epetra_MultiVector getVector() = 0;
   
   Teuchos::RCP<LA_MpiComm> LocalComm;
-  Teuchos::RCP<SolutionStorage<Epetra_MultiVector> > soln, solndot, adjsoln;
+  Teuchos::RCP<SolutionStorage<LA_MultiVector> > soln, solndot, adjsoln;
   
   bool useMachineLearning = false;
   
@@ -104,14 +100,11 @@ public:
   int macro_block;
   ScalarT cost_estimate;
   
-  Teuchos::RCP<Epetra_Map> owned_map;
-  Teuchos::RCP<Epetra_Map> overlapped_map;
-  Teuchos::RCP<Epetra_Export> exporter;
-  Teuchos::RCP<Epetra_Import> importer;
+  Teuchos::RCP<const LA_Map> owned_map, overlapped_map;
+  Teuchos::RCP<LA_CrsGraph> owned_graph, overlapped_graph;
   
-  //vector<vector<pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > > > soln;
-  //vector<vector<pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > > > solndot;
-  //vector<vector<pair<ScalarT, Teuchos::RCP<Epetra_MultiVector> > > > adjsoln;
+  Teuchos::RCP<LA_Export> exporter;
+  Teuchos::RCP<LA_Import> importer;
   
   vector<Teuchos::RCP<vector<AD> > > paramvals_AD;
 

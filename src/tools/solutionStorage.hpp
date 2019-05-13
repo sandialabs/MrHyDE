@@ -54,6 +54,23 @@ public:
   
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
+  
+  bool extract(Teuchos::RCP<V> & vec, const size_t & timeindex, const size_t & index) {
+    // defaults to index = 0
+    // most common use case
+    Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
+    bool found = false;
+    if (data.size()>index) {
+      if (data[index].size()>timeindex) {
+        vec = data[index][timeindex];
+        found = true;
+      }
+    }
+    return found;
+  }
+  
+  ///////////////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////////
 
   bool extract(Teuchos::RCP<V> & vec, const size_t & index, const ScalarT & currtime) {
     Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);

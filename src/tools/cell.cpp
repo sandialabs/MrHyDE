@@ -1953,9 +1953,9 @@ void cell::writeSubgridSolution(const std::string & filename) {
 // Compute flux and sensitivity wrt params
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::computeFlux(const Teuchos::RCP<Epetra_MultiVector> & gl_u,
-                       const Teuchos::RCP<Epetra_MultiVector> & gl_du,
-                       const Teuchos::RCP<Epetra_MultiVector> & params,
+void cell::computeFlux(const vector_RCP & gl_u,
+                       const vector_RCP & gl_du,
+                       const vector_RCP & params,
                        Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                        const ScalarT & time, const int & side, const ScalarT & coarse_h,
                        const bool & compute_sens) {
@@ -1963,9 +1963,14 @@ void cell::computeFlux(const Teuchos::RCP<Epetra_MultiVector> & gl_u,
   wkset->time = time;
   wkset->time_KV(0) = time;
   
+  auto u_kv = gl_u->getLocalView<HostDevice>();
+  auto du_kv = gl_du->getLocalView<HostDevice>();
+  //auto params_kv = params->getLocalView<HostDevice>();
+  
   Kokkos::View<AD***,AssemblyDevice> u_AD("temp u AD",u.dimension(0),u.dimension(1),u.dimension(2));
   Kokkos::View<AD***,AssemblyDevice> u_dot_AD("temp u AD",u.dimension(0),u.dimension(1),u.dimension(2));
-  Kokkos::View<AD***,AssemblyDevice> param_AD("temp u AD",param.dimension(0),param.dimension(1),param.dimension(2));
+  //Kokkos::View<AD***,AssemblyDevice> param_AD("temp u AD",param.dimension(0),param.dimension(1),param.dimension(2));
+  Kokkos::View<AD***,AssemblyDevice> param_AD("temp u AD",1,1,1);
   
   {
     Teuchos::TimeMonitor localtimer(*cellFluxGatherTimer);
@@ -1974,31 +1979,32 @@ void cell::computeFlux(const Teuchos::RCP<Epetra_MultiVector> & gl_u,
       for (int e=0; e<numElem; e++) {
         for (size_t n=0; n<index.dimension(1); n++) {
           for( size_t i=0; i<numDOF(n); i++ ) {
-            u_AD(e,n,i) = AD((*gl_u)[0][index(e,n,i)]);
+            u_AD(e,n,i) = AD(u_kv(index(e,n,i),0));
           }
         }
       }
     }
     else {
-      size_t numDerivs = gl_du->NumVectors();
+      size_t numDerivs = gl_du->getNumVectors();
       for (int e=0; e<numElem; e++) {
         for (size_t n=0; n<index.dimension(1); n++) {
           for( size_t i=0; i<numDOF(n); i++ ) {
-            u_AD(e,n,i) = AD(maxDerivs, 0, (*gl_u)[0][index(e,n,i)]);
+            u_AD(e,n,i) = AD(maxDerivs, 0, u_kv(index(e,n,i),0));
             for( size_t p=0; p<numDerivs; p++ ) {
-              u_AD(e,n,i).fastAccessDx(p) = (*gl_du)[p][index(e,n,i)];
+              u_AD(e,n,i).fastAccessDx(p) = du_kv(index(e,n,i),p);
             }
           }
         }
       }
     }
+    /*
     for (int e=0; e<paramindex.size(); e++) {
       for (size_t n=0; n<paramindex.dimension(1); n++) {
         for( size_t i=0; i<numParamDOF(n); i++ ) {
-          param_AD(e,n,i) = AD((*params)[0][paramindex(e,n,i)]);
+          param_AD(e,n,i) = AD(params_kv(paramindex(e,n,i),0));
         }
       }
-    }
+    }*/
   }
   
   {

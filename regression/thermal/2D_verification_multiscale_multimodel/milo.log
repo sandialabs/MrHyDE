@@ -1,5 +1,43 @@
-
-*********************************************************
-***** Performing verification ******
-
-***** L2 norm of the error for e = 0.00040864  (time = 0)
+**** Starting mesh interface constructor ...
+**** Finished mesh interface constructor
+**** Starting physics constructor ...
+**** Starting physics::importPhysics ...
+**** Finished physics::importPhysics ...
+**** Finished physics constructor
+**** Starting mesh::creatCells ...
+**** Finished mesh::createCells
+**** Starting discretization constructor...
+**** Finished discretization constructor
+**** Starting physics::buildDOF ...
+**** Finished physics::buildDOF
+**** Starting physics::setBCData ...
+**** Finished physics::setBCData
+**** Starting multiscale manager constructor ...
+**** Finished multiscale manager constructor
+**** Starting assembly manager constructor ...
+**** Finished assembly manager constructor
+**** Starting solver constructor ...
+**** Starting solver::setupLinearAlgebra...
+**** Finished solver::setupLinearAlgebra
+**** Starting AssemblyManager::createWorkset ...
+**** Finished AssemblyManager::createWorkset
+**** Starting solver::finalizeWorkset ...
+**** Finished solver::finalizeWorsket
+**** Finished solver constructor
+[s998638:98885] *** Process received signal ***
+[s998638:98885] Signal: Segmentation fault: 11 (11)
+[s998638:98885] Signal code: Address not mapped (1)
+[s998638:98885] Failing at address: 0xc
+[s998638:98885] *** End of error message ***
+-------------------------------------------------------
+Primary job  terminated normally, but 1 process returned
+a non-zero exit code. Per user-direction, the job has been aborted.
+-------------------------------------------------------
+[s998638:98886] *** Process received signal ***
+[s998638:98886] Signal: Segmentation fault: 11 (11)
+[s998638:98886] Signal code: Address not mapped (1)
+[s998638:98886] Failing at address: 0xc
+[s998638:98886] *** End of error message ***
+--------------------------------------------------------------------------
+mpiexec noticed that process rank 1 with PID 0 on node s998638 exited on signal 11 (Segmentation fault: 11).
+--------------------------------------------------------------------------

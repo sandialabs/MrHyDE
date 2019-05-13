@@ -1,9 +1,22 @@
-
-*********************************************************
-***** Performing verification ******
-
-***** L2 norm of the error for e = 0.5  (time = 0)
-***** L2 norm of the error for e = 0.00887091  (time = 0.1)
-***** L2 norm of the error for e = 0.00270977  (time = 0.2)
-***** L2 norm of the error for e = 0.0026435  (time = 0.3)
-***** L2 norm of the error for e = 0.00264269  (time = 0.4)
+[s998638:98588] *** Process received signal ***
+[s998638:98588] Signal: Segmentation fault: 11 (11)
+[s998638:98588] Signal code: Address not mapped (1)
+[s998638:98588] Failing at address: 0xc
+[s998638:98588] *** End of error message ***
+-------------------------------------------------------
+Primary job  terminated normally, but 1 process returned
+a non-zero exit code. Per user-direction, the job has been aborted.
+-------------------------------------------------------
+[s998638:98587] *** Process received signal ***
+[s998638:98587] Signal: Segmentation fault: 11 (11)
+[s998638:98587] Signal code: Address not mapped (1)
+[s998638:98587] Failing at address: 0xc
+[s998638:98587] *** End of error message ***
+[s998638:98589] *** Process received signal ***
+[s998638:98589] Signal: Segmentation fault: 11 (11)
+[s998638:98589] Signal code: Address not mapped (1)
+[s998638:98589] Failing at address: 0xc
+[s998638:98589] *** End of error message ***
+--------------------------------------------------------------------------
+mpiexec noticed that process rank 2 with PID 0 on node s998638 exited on signal 11 (Segmentation fault: 11).
+--------------------------------------------------------------------------
