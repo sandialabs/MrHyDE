@@ -14,6 +14,7 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
+#include "Teuchos_FancyOStream.hpp"
 
 
 class KokkosTools {
@@ -80,6 +81,15 @@ public:
     }
     cout << "------------------------------------------" << endl;
     
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  static void print(matrix_RCP & M) {
+    Teuchos::EVerbosityLevel vl = Teuchos::VERB_EXTREME;
+    auto out = Teuchos::getFancyOStream (Teuchos::rcpFromRef (std::cout));
+    M->describe(*out,vl);
   }
   
   ////////////////////////////////////////////////////////////////////////////////

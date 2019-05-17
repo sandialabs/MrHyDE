@@ -82,10 +82,6 @@ public:
     // NOTES:
     // 1. basis and basis_grad already include the integration weights
     
-    e_basis = wkset->usebasis[e_num];
-    numBasis = wkset->basis[e_basis].dimension(1);
-    H_basis = wkset->usebasis[H_num];
-    
     {
       Teuchos::TimeMonitor funceval(*volumeResidualFunc);
       source = functionManager->evaluate("thermal source","ip",blocknum);
@@ -93,15 +89,6 @@ public:
       cp = functionManager->evaluate("specific heat","ip",blocknum);
       rho = functionManager->evaluate("density","ip",blocknum);
     }
-
-
-    sol = wkset->local_soln;
-    sol_dot = wkset->local_soln_dot;
-    sol_grad = wkset->local_soln_grad;
-    
-    offsets = wkset->offsets;
-    
-    res = wkset->res;
     
     Teuchos::TimeMonitor resideval(*volumeResidualFill);
     
@@ -228,16 +215,9 @@ public:
     }
     
     sideinfo = wkset->sideinfo;
-    sol = wkset->local_soln_side;
-    sol_grad = wkset->local_soln_grad_side;
     basis = wkset->basis_side[e_basis_num];
     basis_grad = wkset->basis_grad_side[e_basis_num];
-    offsets = wkset->offsets;
-    aux = wkset->local_aux_side;
     DRV ip = wkset->ip_side;
-    DRV normals = wkset->normals;
-    adjrhs = wkset->adjrhs;
-    res = wkset->res;
     
     Teuchos::TimeMonitor localtime(*boundaryResidualFill);
     
@@ -253,22 +233,22 @@ public:
       }
       else if (sideinfo(e,e_num,cside,0) == 1){ // Weak Dirichlet
         for (int k=0; k<basis.dimension(2); k++ ) {
-          AD eval = sol(e,e_num,k,0);
-          dedx = sol_grad(e,e_num,k,0);
+          AD eval = sol_side(e,e_num,k,0);
+          dedx = sol_grad_side(e,e_num,k,0);
           ScalarT x = ip(e,k,0);
           ScalarT y = 0.0;
           ScalarT z = 0.0;
           if (spaceDim > 1) {
-            dedy = sol_grad(e,e_num,k,1);
+            dedy = sol_grad_side(e,e_num,k,1);
             y = ip(e,k,1);
           }
           if (spaceDim > 2) {
-            dedz = sol_grad(e,e_num,k,2);
+            dedz = sol_grad_side(e,e_num,k,2);
             z = ip(e,k,2);
           }
           
           if (sideinfo(e,e_num,cside,1) == -1)
-            lambda = aux(e,e_num,k);
+            lambda = aux_side(e,e_num,k);
           else {
             lambda = 0.0; //udfunc->boundaryDirichletValue(label,"e",x,y,z,wkset->time,wkset->sidename,wkset->isAdjoint);
             
@@ -337,12 +317,13 @@ public:
         
         for (size_t i=0; i<wkset->ip_side.dimension(1); i++) {
           penalty = 10.0*diff_side(n,i)/wkset->h(n);
-          wkset->flux(n,e_num,i) += sf*diff_side(n,i)*wkset->local_soln_grad_side(n,e_num,i,0)*wkset->normals(n,i,0) + penalty*(wkset->local_aux_side(n,e_num,i)-wkset->local_soln_side(n,e_num,i,0));
-          if (spaceDim > 1)
-            wkset->flux(n,e_num,i) += sf*diff_side(n,i)*wkset->local_soln_grad_side(n,e_num,i,1)*wkset->normals(n,i,1);
-          if (spaceDim > 2)
-            wkset->flux(n,e_num,i) += sf*diff_side(n,i)*wkset->local_soln_grad_side(n,e_num,i,2)*wkset->normals(n,i,2);
-          
+          flux(n,e_num,i) += sf*diff_side(n,i)*sol_grad_side(n,e_num,i,0)*normals(n,i,0) + penalty*(aux_side(n,e_num,i)-sol_side(n,e_num,i,0));
+          if (spaceDim > 1) {
+            flux(n,e_num,i) += sf*diff_side(n,i)*sol_grad_side(n,e_num,i,1)*normals(n,i,1);
+          }
+          if (spaceDim > 2) {
+            flux(n,e_num,i) += sf*diff_side(n,i)*sol_grad_side(n,e_num,i,2)*normals(n,i,2);
+          }
         }
       }
     }
@@ -402,12 +383,7 @@ private:
   
   FDATA diff, rho, cp, source, nsource, diff_side, robin_alpha;
   
-  Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad;
-  Kokkos::View<AD***,AssemblyDevice> aux;
-  Kokkos::View<AD**,AssemblyDevice> res, adjrhs;
-  Kokkos::View<int**,AssemblyDevice> offsets;
   Kokkos::View<int****,AssemblyDevice> sideinfo;
-  DRV basis, basis_grad;
   
   string analysis_type; //to know when parameter is a sample that needs to be transformed
   

@@ -24,20 +24,190 @@
 **** Starting solver::finalizeWorkset ...
 **** Finished solver::finalizeWorsket
 **** Finished solver constructor
-[s998638:98885] *** Process received signal ***
-[s998638:98885] Signal: Segmentation fault: 11 (11)
-[s998638:98885] Signal code: Address not mapped (1)
-[s998638:98885] Failing at address: 0xc
-[s998638:98885] *** End of error message ***
+
+Printing data for DynRankView: refip
+  i    j    k    value  
+------------------------------------------
+  0    0    0    0.519717  
+  0    0    1    0.0197169  
+  0    1    0    0.505283  
+  0    1    1    0.0197169  
+  0    2    0    0.519717  
+  0    2    1    0.00528312  
+  0    3    0    0.505283  
+  0    3    1    0.00528312  
+------------------------------------------
+
+Printing data for DynRankView: refwts
+  i    j    value  
+-------------------------------
+  0    0      1  
+  0    1      1  
+  0    2      1  
+  0    3      1  
+-------------------------------
+
+Printing data for DynRankView: refip
+  i    j    k    value  
+------------------------------------------
+  0    0    0    0.509858  
+  0    0    1    0.00985844  
+  0    1    0    0.502642  
+  0    1    1    0.00985844  
+  0    2    0    0.509858  
+  0    2    1    0.00264156  
+  0    3    0    0.502642  
+  0    3    1    0.00264156  
+  0    4    0    0.522358  
+  0    4    1    0.00985844  
+  0    5    0    0.515142  
+  0    5    1    0.00985844  
+  0    6    0    0.522358  
+  0    6    1    0.00264156  
+  0    7    0    0.515142  
+  0    7    1    0.00264156  
+  0    8    0    0.522358  
+  0    8    1    0.0223584  
+  0    9    0    0.515142  
+  0    9    1    0.0223584  
+  0    10    0    0.522358  
+  0    10    1    0.0151416  
+  0    11    0    0.515142  
+  0    11    1    0.0151416  
+  0    12    0    0.509858  
+  0    12    1    0.0223584  
+  0    13    0    0.502642  
+  0    13    1    0.0223584  
+  0    14    0    0.509858  
+  0    14    1    0.0151416  
+  0    15    0    0.502642  
+  0    15    1    0.0151416  
+------------------------------------------
+
+Printing data for DynRankView: refwts
+  i    j    value  
+-------------------------------
+  0    0      1  
+  0    1      1  
+  0    2      1  
+  0    3      1  
+  0    4      1  
+  0    5      1  
+  0    6      1  
+  0    7      1  
+  0    8      1  
+  0    9      1  
+  0    10      1  
+  0    11      1  
+  0    12      1  
+  0    13      1  
+  0    14      1  
+  0    15      1  
+-------------------------------
+ Tpetra::CrsMatrix (Kokkos refactor):
+  Template parameters:
+   Scalar: double
+   LocalOrdinal: int
+   GlobalOrdinal: int
+   Node: Kokkos::Compat::KokkosDeviceWrapperNode<Kokkos::Serial, Kokkos::HostSpace>
+  isFillComplete: true
+  Global dimensions: [4, 4]
+  Global number of entries: 16
+  Global number of diagonal entries: 4
+  Global max number of entries in a row: 4
+  
+  Row Map:
+  
+   "Tpetra::Map":
+    Template parameters:
+     LocalOrdinal: int
+     GlobalOrdinal: int
+     Node: Kokkos::Compat::KokkosDeviceWrapperNode<Kokkos::Serial, Kokkos::HostSpace>
+    Global number of entries: 4
+    Minimum global index: 0
+    Maximum global index: 3
+    Index base: 0
+    Number of processes: 1
+    Uniform: false
+    Contiguous: false
+    Distributed: false
+    Process 0 of 1:
+     My number of entries: 4
+     My minimum global index: 0
+     My maximum global index: 3
+     My global indices: [0, 1, 2, 3]
+  Column Map: same as row Map
+  Domain Map: same as row Map
+  Range Map: same as domain Map
+  Process rank: 0
+   Number of allocated entries: 16
+   Number of entries: 16
+   Number of diagonal entries: 4
+   Max number of entries per row: 4
+      Proc Rank   Global Row  Num Entries(Index,Value)
+              0            0            4 (0, 0.444444)  (1, 0.222222)  (2, 0.111111)  (3, 0.222222) 
+              0            1            4 (0, 0.222222)  (1, 0.444444)  (2, 0.222222)  (3, 0.111111) 
+              0            2            4 (0, 0.111111)  (1, 0.222222)  (2, 0.444444)  (3, 0.222222) 
+              0            3            4 (0, 0.222222)  (1, 0.111111)  (2, 0.222222)  (3, 0.444444) 
+ Tpetra::CrsMatrix (Kokkos refactor):
+  Template parameters:
+   Scalar: double
+   LocalOrdinal: int
+   GlobalOrdinal: int
+   Node: Kokkos::Compat::KokkosDeviceWrapperNode<Kokkos::Serial, Kokkos::HostSpace>
+  isFillComplete: true
+  Global dimensions: [9, 9]
+  Global number of entries: 49
+  Global number of diagonal entries: 9
+  Global max number of entries in a row: 9
+  
+  Row Map:
+  
+   "Tpetra::Map":
+    Template parameters:
+     LocalOrdinal: int
+     GlobalOrdinal: int
+     Node: Kokkos::Compat::KokkosDeviceWrapperNode<Kokkos::Serial, Kokkos::HostSpace>
+    Global number of entries: 9
+    Minimum global index: 0
+    Maximum global index: 8
+    Index base: 0
+    Number of processes: 1
+    Uniform: false
+    Contiguous: false
+    Distributed: false
+    Process 0 of 1:
+     My number of entries: 9
+     My minimum global index: 0
+     My maximum global index: 8
+     My global indices: [0, 5, 4, 8, 1, 6, 2, 7, 3]
+  Column Map: same as row Map
+  Domain Map: same as row Map
+  Range Map: same as domain Map
+  Process rank: 0
+   Number of allocated entries: 49
+   Number of entries: 49
+   Number of diagonal entries: 9
+   Max number of entries per row: 9
+      Proc Rank   Global Row  Num Entries(Index,Value)
+              0            0            4 (0, 12.4444)  (5, 0.222222)  (4, 0.111111)  (8, 0.222222) 
+              0            5            6 (0, 0.222222)  (5, 0.444444)  (4, 0.222222)  (8, 0.111111)  (1, 0)  (6, 0) 
+              0            4            9 (0, 0.111111)  (5, 0.222222)  (4, 0.444444)  (8, 0.222222)  (1, 0)  (6, 0)  (2, 0)  (7, 0)  (3, 0) 
+              0            8            6 (0, 0.222222)  (5, 0.111111)  (4, 0.222222)  (8, 0.444444)  (7, 0)  (3, 0) 
+              0            1            4 (5, 0)  (4, 0)  (1, 0)  (6, 0) 
+              0            6            6 (5, 0)  (4, 0)  (1, 0)  (6, 0)  (2, 0)  (7, 0) 
+              0            2            4 (4, 0)  (6, 0)  (2, 0)  (7, 0) 
+              0            7            6 (4, 0)  (8, 0)  (6, 0)  (2, 0)  (7, 0)  (3, 0) 
+              0            3            4 (4, 0)  (8, 0)  (7, 0)  (3, 0) 
+[s998638:07875] *** Process received signal ***
+[s998638:07875] Signal: Segmentation fault: 11 (11)
+[s998638:07875] Signal code: Address not mapped (1)
+[s998638:07875] Failing at address: 0xc
+[s998638:07875] *** End of error message ***
 -------------------------------------------------------
 Primary job  terminated normally, but 1 process returned
 a non-zero exit code. Per user-direction, the job has been aborted.
 -------------------------------------------------------
-[s998638:98886] *** Process received signal ***
-[s998638:98886] Signal: Segmentation fault: 11 (11)
-[s998638:98886] Signal code: Address not mapped (1)
-[s998638:98886] Failing at address: 0xc
-[s998638:98886] *** End of error message ***
 --------------------------------------------------------------------------
-mpiexec noticed that process rank 1 with PID 0 on node s998638 exited on signal 11 (Segmentation fault: 11).
+mpiexec noticed that process rank 2 with PID 0 on node s998638 exited on signal 11 (Segmentation fault: 11).
 --------------------------------------------------------------------------

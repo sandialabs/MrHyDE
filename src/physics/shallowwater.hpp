@@ -105,12 +105,6 @@ public:
       source_Hv = functionManager->evaluate("source Hv","ip",blocknum);
     }
     
-    sol = wkset->local_soln;
-    sol_dot = wkset->local_soln_dot;
-    sol_grad = wkset->local_soln_grad;
-    offsets = wkset->offsets;
-    res = wkset->res;
-    
     Teuchos::TimeMonitor resideval(*volumeResidualFill);
     
     int H_basis_num = wkset->usebasis[H_num];
@@ -217,10 +211,6 @@ public:
     }
     
     sideinfo = wkset->sideinfo;
-    sol = wkset->local_soln_side;
-    sol_grad = wkset->local_soln_grad_side;
-    offsets = wkset->offsets;
-    res = wkset->res;
     
     int H_basis_num = wkset->usebasis[H_num];
     Hbasis = wkset->basis_side[H_basis_num];
@@ -234,8 +224,6 @@ public:
     Hvbasis = wkset->basis_side[Hv_basis_num];
     Hvbasis_grad = wkset->basis_grad_side[Hv_basis_num];
     
-    normals = wkset->normals;
-    
     //KokkosTools::print(nsource);
     
     Teuchos::TimeMonitor localtime(*boundaryResidualFill);
@@ -244,10 +232,10 @@ public:
     for (int e=0; e<sideinfo.dimension(0); e++) {
       if (sideinfo(e,H_num,cside,0) == 2) { // Element e is on the side
         for (int k=0; k<Hbasis.dimension(2); k++ ) {
-          AD xi = sol(e,H_num,k,0);
+          AD xi = sol_side(e,H_num,k,0);
           AD H = xi + bb;//bath_side(e,k);
-          AD Hu = sol(e,Hu_num,k,0);
-          AD Hv = sol(e,Hv_num,k,0);
+          AD Hu = sol_side(e,Hu_num,k,0);
+          AD Hv = sol_side(e,Hv_num,k,0);
           
           for (int i=0; i<Hbasis.dimension(1); i++ ) {
             int resindex = offsets(H_num,i);
@@ -259,10 +247,10 @@ public:
       }
       if (sideinfo(e,Hu_num,cside,0) == 2) { // Element e is on the side
         for (int k=0; k<Hubasis.dimension(2); k++ ) {
-          AD xi = sol(e,H_num,k,0);
+          AD xi = sol_side(e,H_num,k,0);
           AD H = xi + bb;//bath_side(e,k);
-          AD Hu = sol(e,Hu_num,k,0);
-          AD Hv = sol(e,Hv_num,k,0);
+          AD Hu = sol_side(e,Hu_num,k,0);
+          AD Hv = sol_side(e,Hv_num,k,0);
           
           for (int i=0; i<Hubasis.dimension(1); i++ ) {
             int resindex = offsets(Hu_num,i);
@@ -274,10 +262,10 @@ public:
       }
       if (sideinfo(e,Hv_num,cside,0) == 2) { // Element e is on the side
         for (int k=0; k<Hvbasis.dimension(2); k++ ) {
-          AD xi = sol(e,H_num,k,0);
+          AD xi = sol_side(e,H_num,k,0);
           AD H = xi + bb;//bath_side(e,k);
-          AD Hu = sol(e,Hu_num,k,0);
-          AD Hv = sol(e,Hv_num,k,0);
+          AD Hu = sol_side(e,Hu_num,k,0);
+          AD Hv = sol_side(e,Hv_num,k,0);
           
           for (int i=0; i<Hvbasis.dimension(1); i++ ) {
             int resindex = offsets(Hv_num,i);
@@ -337,12 +325,8 @@ private:
   //string simName;
   
   FDATA bath, bath_x, bath_y, visc, cor, bfric, source_Hu, source_Hv, nsource, nsource_Hu, nsource_Hv, bath_side;
-  Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad;
-  Kokkos::View<AD***,AssemblyDevice> aux;
-  Kokkos::View<AD**,AssemblyDevice> res;
-  Kokkos::View<int**,AssemblyDevice> offsets;
   Kokkos::View<int****,AssemblyDevice> sideinfo;
-  DRV Hbasis, Hbasis_grad, Hubasis, Hubasis_grad, Hvbasis, Hvbasis_grad, normals;
+  DRV Hbasis, Hbasis_grad, Hubasis, Hubasis_grad, Hvbasis, Hvbasis_grad;
   
   
   string analysis_type; //to know when parameter is a sample that needs to be transformed

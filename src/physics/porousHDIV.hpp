@@ -62,13 +62,6 @@ public:
     int p_basis = wkset->usebasis[pnum];
     int u_basis = wkset->usebasis[unum];
     
-    sol = wkset->local_soln;
-    sol_div = wkset->local_soln_div;
-    
-    offsets = wkset->offsets;
-    
-    res = wkset->res;
-    
     basis = wkset->basis[u_basis];
     basis_div = wkset->basis_div[u_basis];
     
@@ -172,12 +165,6 @@ private:
   
   int spaceDim, numElem, numParams, numResponses, numSteps;
   size_t numip, numip_side, blocknum;
-  
-  Kokkos::View<AD****,AssemblyDevice> sol;
-  Kokkos::View<AD***,AssemblyDevice> sol_div;
-  Kokkos::View<AD**,AssemblyDevice> res;
-  Kokkos::View<int**,AssemblyDevice> offsets;
-  DRV basis, basis_div;
   
   int pnum, unum;
   int dxnum,dynum,dznum;

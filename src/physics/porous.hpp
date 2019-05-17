@@ -25,27 +25,29 @@ public:
   
   ~porous() {};
   
-  porous(Teuchos::RCP<Teuchos::ParameterList> & settings, const size_t & numip_, const size_t & numip_side_) :
-  numip(numip_), numip_side(numip_side_) {
+  porous(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
+             const size_t & numip_side_, const int & numElem_,
+             Teuchos::RCP<FunctionInterface> & functionManager_,
+             const size_t & blocknum_) :
+  numip(numip_), numip_side(numip_side_), numElem(numElem_), functionManager(functionManager_),
+  blocknum(blocknum_) {
     
+    // Standard data
     label = "porous";
-    
     spaceDim = settings->sublist("Mesh").get<int>("dim",2);
+    myvars.push_back("p");
+    mybasistypes.push_back("HGRAD");
     
-    if (settings->sublist("Solver").get<int>("solver",0) == 1)
-      isTD = true;
-    else
-      isTD = false;
+    // Functions
+    Teuchos::ParameterList fs = settings->sublist("Functions");
     
-    if (isTD)
-      numSteps = 1; // hard-coded for steady state ... need to read in from input file
-    else
-      numSteps = 1;
-    
-    addBiot = settings->sublist("Physics").get<bool>("Biot",false);
-    biot_alpha = settings->sublist("Physics").get<ScalarT>("Biot alpha",0.0);
-    numResponses = 1;
-    
+    functionManager->addFunction("source",fs.get<string>("porous source","0.0"),numElem,numip,"ip",blocknum);
+    functionManager->addFunction("permeability",fs.get<string>("permeability","1.0"),numElem,numip,"ip",blocknum);
+    functionManager->addFunction("porosity",fs.get<string>("porosity","1.0"),numElem,numip,"ip",blocknum);
+    functionManager->addFunction("reference density",fs.get<string>("reference density","1.0"),numElem,numip,"ip",blocknum);
+    functionManager->addFunction("reference pressure",fs.get<string>("reference pressure","1.0"),numElem,numip,"ip",blocknum);
+    functionManager->addFunction("compressibility",fs.get<string>("compressibility","0.0"),numElem,numip,"ip",blocknum);
+    functionManager->addFunction("gravity",fs.get<string>("gravity","1.0"),numElem,numip,"ip",blocknum);
   }
   
   // ========================================================================================
@@ -56,71 +58,67 @@ public:
     // NOTES:
     // 1. basis and basis_grad already include the integration weights
     
-    int numip = wkset->ip.dimension(1);
+    int p_basis_num = wkset->usebasis[pnum];
+    basis = wkset->basis[p_basis_num];
+    basis_grad = wkset->basis_grad[p_basis_num];
     
-    ScalarT x = 0.0;
-    ScalarT y = 0.0;
-    ScalarT z = 0.0;
+    {
+      Teuchos::TimeMonitor funceval(*volumeResidualFunc);
+      source = functionManager->evaluate("source","ip",blocknum);
+      perm = functionManager->evaluate("permeability","ip",blocknum);
+      porosity = functionManager->evaluate("porosity","ip",blocknum);
+      viscosity = functionManager->evaluate("viscosity","ip",blocknum);
+      densref = functionManager->evaluate("reference density","ip",blocknum);
+      pref = functionManager->evaluate("reference pressure","ip",blocknum);
+      comp = functionManager->evaluate("compressibility","ip",blocknum);
+      gravity = functionManager->evaluate("gravity","ip",blocknum);
+    }
     
-    AD p, dpdx, dpdy, dpdz, p_dot;
-    AD ddx_dx_dot, ddy_dy_dot, ddz_dz_dot;
+    Teuchos::TimeMonitor resideval(*volumeResidualFill);
     
-    ScalarT v = 0.0;
-    ScalarT dvdx = 0.0;
-    ScalarT dvdy = 0.0;
-    ScalarT dvdz = 0.0;
-    
-    int resindex;
-    int p_basis = wkset->usebasis[pnum];
-    
-    FCAD source = udfunc->volumetricSource(label,"p",wkset);
-    FCAD perm = udfunc->coefficient("permeability",wkset,false);
-    FCAD poro = udfunc->coefficient("porosity",wkset,false);
-    
-    for( int k=0; k<numip; k++ ) {
-      x = wkset->ip(0,k,0);
-      p = wkset->local_soln(pnum,k,0);
-      p_dot = wkset->local_soln_dot(pnum,k,0);
-      dpdx = wkset->local_soln_grad(pnum,k,0);
-      if (spaceDim > 1) {
-        y = wkset->ip(0,k,1);
-        dpdy = wkset->local_soln_grad(pnum,k,1);
-      }
-      if (spaceDim > 2) {
-        z = wkset->ip(0,k,2);
-        dpdz = wkset->local_soln_grad(pnum,k,2);
-      }
-      
-      for( int i=0; i<wkset->basis[p_basis].dimension(1); i++ ) {
-        v = wkset->basis[p_basis](0,i,k);
-        dvdx = wkset->basis_grad[p_basis](0,i,k,0);
-        if (spaceDim > 1) {
-          dvdy = wkset->basis_grad[p_basis](0,i,k,1);
-        }
-        if (spaceDim > 2) {
-          dvdz = wkset->basis_grad[p_basis](0,i,k,2);
-        }
-        
-        resindex = wkset->offsets[pnum][i];
-        
-        wkset->res(resindex) += perm(k)*(dpdx*dvdx + dpdy*dvdy + dpdz*dvdz) - source(k)*v;
-        if (isTD) {
-          wkset->res(resindex) += poro(k)*p_dot*v;
-          if (addBiot) {
-            ddx_dx_dot = wkset->local_soln_dot_grad(dxnum,k,0);
+    if (spaceDim == 1) {
+      parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+        for (int k=0; k<sol.dimension(2); k++ ) {
+          for (int i=0; i<basis.dimension(1); i++ ) {
+            resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
+            AD dens = densref(e,k)*comp(e,k)*(sol(e,pnum,k,0) - pref(e,k));
             
-            wkset->res(resindex) += biot_alpha*ddx_dx_dot*v;
-            if (spaceDim > 1) {
-              ddy_dy_dot = wkset->local_soln_dot_grad(dynum,k,1);
-              wkset->res(resindex) += biot_alpha*ddy_dy_dot*v;
-            }
-            if (spaceDim > 2) {
-              ddz_dz_dot = wkset->local_soln_dot_grad(dznum,k,2);
-              wkset->res(resindex) += biot_alpha*ddz_dz_dot*v;
-            }
+            res(e,resindex) += porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
+            perm(e,k)/viscosity(e,k)*dens*(sol_grad(e,pnum,k,0)*basis_grad(e,i,k,0)); // diffusion terms
+            
           }
         }
-      }
+      });
+    }
+    else if (spaceDim == 2) {
+      parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+        for (int k=0; k<sol.dimension(2); k++ ) {
+          for (int i=0; i<basis.dimension(1); i++ ) {
+            resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
+            AD dens = densref(e,k)*comp(e,k)*(sol(e,pnum,k,0) - pref(e,k));
+            
+            res(e,resindex) += porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
+            perm(e,k)/viscosity(e,k)*dens*(sol_grad(e,pnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,pnum,k,1)*basis_grad(e,i,k,1)); // diffusion terms
+            
+          }
+        }
+      });
+    }
+    else if (spaceDim == 3) {
+      parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+        for (int k=0; k<sol.dimension(2); k++ ) {
+          for (int i=0; i<basis.dimension(1); i++ ) {
+            resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
+            
+            AD dens = densref(e,k)*comp(e,k)*(sol(e,pnum,k,0) - pref(e,k));
+            
+            res(e,resindex) += porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
+            perm(e,k)/viscosity(e,k)*dens*(sol_grad(e,pnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,pnum,k,1)*basis_grad(e,i,k,1) +
+                                           (sol_grad(e,pnum,k,2) - gravity(e,k)*dens*1.0)*basis_grad(e,i,k,2)); // diffusion terms
+            
+          }
+        }
+      });
     }
   }
   
@@ -155,109 +153,33 @@ public:
   void setVars(std::vector<string> & varlist_) {
     varlist = varlist_;
     for (size_t i=0; i<varlist.size(); i++) {
-      if (varlist[i] == "p")
+      if (varlist[i] == "p") {
         pnum = i;
-      if (varlist[i] == "dx")
-        dxnum = i;
-      if (varlist[i] == "dy")
-        dynum = i;
-      if (varlist[i] == "dz")
-        dznum = i;
-    }
-  }
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  int getNumResponses() {
-    return numResponses;
-  }
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  vector<string> ResponseFieldNames() const {
-    std::vector<string> rf;
-    return rf;
-  }
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  std::vector<string> extraFieldNames() const {
-    std::vector<string> ef;
-    ef.push_back("perm");
-    return ef;
-  }
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  vector<string> extraCellFieldNames() const {
-    vector<string> ef;
-    return ef;
-  }
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  vector<FC> extraFields() const {
-    vector<FC> ef;
-    return ef;
-  }
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  vector<FC> extraFields(const FC & ip, const ScalarT & time) {
-    vector<FC> ef;
-    /*
-    FCAD targ_AD = this->target(ip, time);
-    FC targ(targ_AD.dimension(0), targ_AD.dimension(1));
-    for (size_t i=0; i<targ_AD.dimension(0); i++) {
-      for (size_t j=0; j<targ_AD.dimension(1); j++) {
-        targ(i,j) = targ_AD(i,j).val();
       }
     }
-    ef.push_back(targ);*/
-    return ef;
   }
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  vector<FC> extraCellFields(const FC & ip, const ScalarT & time) const {
-    vector<FC> ef;
-    return ef;
-  }
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void setExtraFields(const size_t & numElem_) {
-    numElem = numElem_;
-  }
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  FCAD scalarRespFunc(const FCAD & integralResponses,
-                                    const bool & justDeriv) const {return integralResponses;}
-  bool useScalarRespFunc() const {return false;}
   
 private:
   
-  Teuchos::RCP<UserDefined> udfunc;
+  Teuchos::RCP<FunctionInterface> functionManager;
   
-  int spaceDim, numElem, numParams, numResponses, numSteps;
+  int spaceDim, numElem, blocknum;
   size_t numip, numip_side;
   
-  int pnum;
-  int dxnum,dynum,dznum;
+  int pnum, resindex;
   bool isTD, addBiot;
   ScalarT biot_alpha;
   
   vector<string> varlist;
+  
+  FDATA perm, porosity, viscosity, densref, pref, comp, gravity, source;
+  
+  Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porous::volumeResidual() - function evaluation");
+  Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porous::volumeResidual() - evaluation of residual");
+  Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porous::boundaryResidual() - function evaluation");
+  Teuchos::RCP<Teuchos::Time> boundaryResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porous::boundaryResidual() - evaluation of residual");
+  Teuchos::RCP<Teuchos::Time> fluxFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porous::computeFlux() - function evaluation");
+  Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MILO::porous::computeFlux() - evaluation of flux");
   
 };
 

@@ -10,14 +10,16 @@
  ************************************************************************/
 
 #include "physicsInterface.hpp"
-#include "rectPeriodicMatcher.hpp" //periodic BCs poke...
+#include "rectPeriodicMatcher.hpp"
 #include "discretizationTools.hpp"
 
 // Physics modules:
-//#include "porous.hpp"
+#include "porous.hpp"
 #include "porousHDIV.hpp"
-//#include "twophase.hpp"
-//#include "convdiff.hpp"
+//#include "twophasePwNo.hpp"
+#include "twophasePoNo.hpp"
+//#include "twophasePoPw.hpp"
+#include "cdr.hpp"
 //#include "msconvdiff.hpp"
 #include "thermal.hpp"
 
@@ -179,6 +181,7 @@ Commptr(Comm_), functionManager(functionManager_) {
     Teuchos::ParameterList initial_conds = blocksettings.sublist("initial conditions");
     for (size_t j=0; j<currvarlist.size(); j++) {
       string expression = initial_conds.get<string>(currvarlist[j],"0.0");
+      
       if (initial_type == "L2-projection") {
         functionManager->addFunction("initial "+currvarlist[j],expression,numElemPerCell,numip,"ip",b);
       }
@@ -366,13 +369,15 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   std::string default_type = "HGRAD";
   
   
-  /*
-  // Porous media
+  
+  // Porous media (single phase slightly compressible)
   if (currsettings.get<bool>("solve_porous",false)) {
-    Teuchos::RCP<porous> porous_RCP = Teuchos::rcp(new porous(settings, numip, numip_side) );
+    Teuchos::RCP<porous> porous_RCP = Teuchos::rcp(new porous(settings, numip, numip_side,
+                                                              numElemPerCell, functionManager,
+                                                              blocknum) );
     currmodules.push_back(porous_RCP);
   }
-  */
+  
   
   // Porous media with HDIV basis
   if (currsettings.get<bool>("solve_porousHDIV",false)) {
@@ -382,18 +387,36 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
     currmodules.push_back(porousHDIV_RCP);
   }
   
-  /*
   // Two phase porous media
   if (currsettings.get<bool>("solve_twophase",false)) {
-    Teuchos::RCP<twophase> twophase_RCP = Teuchos::rcp(new twophase(settings, numip, numip_side) );
-    currmodules.push_back(twophase_RCP);
+    string formulation = currsettings.get<string>("formulation","PoNo");
+    if (formulation == "PoPw"){
+      //Teuchos::RCP<twophasePoPw> twophase_RCP = Teuchos::rcp(new twophasePoPw(settings, numip, numip_side,
+      //                                                                        numElemPerCell, functionManager,
+      //                                                                        blocknum) );
+      //currmodules.push_back(twophase_RCP);
+    }
+    else if (formulation == "PoNo"){
+      Teuchos::RCP<twophasePoNo> twophase_RCP = Teuchos::rcp(new twophasePoNo(settings, numip, numip_side,
+                                                                              numElemPerCell, functionManager,
+                                                                              blocknum) );
+      currmodules.push_back(twophase_RCP);
+    }
+    else if (formulation == "PwNo"){
+      //Teuchos::RCP<twophasePwNo> twophase_RCP = Teuchos::rcp(new twophasePwNo(settings, numip, numip_side,
+      //                                                                        numElemPerCell, functionManager,
+      //                                                                        blocknum) );
+      //currmodules.push_back(twophase_RCP);
+    }
+  
   }
   
   // Convection diffusion
-  if (currsettings.get<bool>("solve_convdiff",false)) {
-    Teuchos::RCP<convdiff> convdiff_RCP = Teuchos::rcp(new convdiff(settings, numip, numip_side) );
-    currmodules.push_back(convdiff_RCP);
-  }*/
+  if (currsettings.get<bool>("solve_cdr",false)) {
+    Teuchos::RCP<cdr> cdr_RCP = Teuchos::rcp(new cdr(settings, numip, numip_side,
+                                                    numElemPerCell, functionManager, blocknum) );
+    currmodules.push_back(cdr_RCP);
+  }
   
   /* not setting up correctly
    // Multiple Species convection diffusion reaction
@@ -1460,7 +1483,7 @@ void physics::computeFlux(const size_t block) {
 void physics::setWorkset(vector<Teuchos::RCP<workset> > & wkset) {
   for (size_t block = 0; block<wkset.size(); block++){
     for (size_t i=0; i<modules[block].size(); i++) {
-      modules[block][i]->wkset = wkset[block];//setWorkset(wkset[block]);
+      modules[block][i]->setWorkset(wkset[block]);//setWorkset(wkset[block]);
     }
   }
 }

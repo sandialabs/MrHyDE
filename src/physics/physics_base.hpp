@@ -63,15 +63,50 @@ public:
   
   virtual void updateParameters(const vector<Teuchos::RCP<vector<AD> > > & params, const std::vector<string> & paramnames) {} ;
   
-    // ========================================================================================
-    // ========================================================================================
+  // ========================================================================================
+  // ========================================================================================
+  
+  void setWorkset(Teuchos::RCP<workset> & wkset_) {
+    wkset = wkset_;
     
+    sol = wkset->local_soln;
+    sol_dot = wkset->local_soln_dot;
+    sol_grad = wkset->local_soln_grad;
+    sol_div = wkset->local_soln_div;
+    sol_curl = wkset->local_soln_curl;
+    
+    sol_side = wkset->local_soln_side;
+    sol_grad_side = wkset->local_soln_grad_side;
+    
+    aux = wkset->local_aux;
+    aux_side = wkset->local_aux_side;
+    
+    offsets = wkset->offsets;
+    res = wkset->res;
+    adjrhs = wkset->adjrhs;
+    flux = wkset->flux;
+    
+  }
+  
+  // ========================================================================================
+  // ========================================================================================
+  
   string label;
   
   Teuchos::RCP<workset> wkset;
   Teuchos::RCP<FunctionInterface> functionManager;
   int spaceDim;
   vector<string> myvars, mybasistypes;
+  
+  // All of these point to specific information in the workset
+  Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad, sol_side, sol_grad_side, aux_grad_side, sol_curl;
+  Kokkos::View<AD***,AssemblyDevice> aux, aux_side, sol_div, flux;
+  Kokkos::View<AD**,AssemblyDevice> res, adjrhs;
+  Kokkos::View<int**,AssemblyDevice> offsets;
+  
+  // The basis functions change depending on the variable, so these cannot be set just once
+  DRV basis, basis_grad, basis_div, basis_curl, normals;
+  
   
 };
 

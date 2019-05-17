@@ -195,6 +195,8 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   
   assembler->createWorkset();
   this->finalizeWorkset();
+  phys->setWorkset(assembler->wkset);
+  params->wkset = assembler->wkset;
   
   if (settings->sublist("Mesh").get<bool>("Have Element Data", false) ||
       settings->sublist("Mesh").get<bool>("Have Nodal Data", false)) {

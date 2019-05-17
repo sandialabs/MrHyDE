@@ -127,11 +127,6 @@ public:
     
     Teuchos::TimeMonitor localtime(*volumeResidualFill);
     
-    offsets = wkset->offsets;
-    res = wkset->res;
-    sol = wkset->local_soln;
-    sol_grad = wkset->local_soln_grad;
-    
     if (spaceDim == 1) {
       dx_basis = wkset->usebasis[dx_num];
       basis = wkset->basis[dx_basis];
@@ -345,17 +340,14 @@ public:
       
     }
     
-    sol = wkset->local_soln_side;
-    sol_grad = wkset->local_soln_grad_side;
-    offsets = wkset->offsets;
-    aux = wkset->local_aux_side;
-    DRV ip = wkset->ip_side;
-    DRV normals = wkset->normals;
-    adjrhs = wkset->adjrhs;
-    res = wkset->res;
+    // Since normals get recomputed often, this needs to be reset
+    normals = wkset->normals;
+    //aux_side = wkset->local_aux_side;
+    //sol_side = wkset->local_soln_side;
+    //sol_grad_side = wkset->local_soln_grad_side;
+    //offsets = wkset->offsets;
     
     Teuchos::TimeMonitor localtime(*boundaryResidualFill);
-    
     
     this->computeStress(true);
     
@@ -399,7 +391,7 @@ public:
             plambdax = 0.0;
             if (!usebcs) {
               if (sideinfo(e,dx_num,cside,1) == -1) {
-                plambdax = aux(e,dx_num,k);
+                plambdax = aux_side(e,dx_num,k);
               }
             }
             
@@ -459,8 +451,8 @@ public:
             plambday = 0.0;
             if (!usebcs) {
               if (sideinfo(e,dx_num,cside,1) == -1) {
-                plambdax = aux(e,dx_num,k);
-                plambday = aux(e,dy_num,k);
+                plambdax = aux_side(e,dx_num,k);
+                plambday = aux_side(e,dy_num,k);
               }
             }
             for (int i=0; i<basis.dimension(1); i++ ) {
@@ -519,8 +511,8 @@ public:
             plambday = 0.0;
             if (!usebcs) {
               if (sideinfo(e,dy_num,cside,1) == -1) {
-                plambdax = aux(e,dx_num,k);
-                plambday = aux(e,dy_num,k);
+                plambdax = aux_side(e,dx_num,k);
+                plambday = aux_side(e,dy_num,k);
               }
             }
             
@@ -586,9 +578,9 @@ public:
             plambdaz = 0.0;
             if (!usebcs) {
               if (sideinfo(e,dx_num,cside,1) == -1) {
-                plambdax = aux(e,dx_num,k);
-                plambday = aux(e,dy_num,k);
-                plambdaz = aux(e,dz_num,k);
+                plambdax = aux_side(e,dx_num,k);
+                plambday = aux_side(e,dy_num,k);
+                plambdaz = aux_side(e,dz_num,k);
               }
             }
             
@@ -655,9 +647,9 @@ public:
             plambdaz = 0.0;
             if (!usebcs) {
               if (sideinfo(e,dy_num,cside,1) == -1) {
-                plambdax = aux(e,dx_num,k);
-                plambday = aux(e,dy_num,k);
-                plambdaz = aux(e,dz_num,k);
+                plambdax = aux_side(e,dx_num,k);
+                plambday = aux_side(e,dy_num,k);
+                plambdaz = aux_side(e,dz_num,k);
               }
             }
             
@@ -724,9 +716,9 @@ public:
             plambdaz = 0.0;
             if (!usebcs) {
               if (sideinfo(e,dz_num,cside,1) == -1) {
-                plambdax = aux(e,dx_num,k);
-                plambday = aux(e,dy_num,k);
-                plambdaz = aux(e,dz_num,k);
+                plambdax = aux_side(e,dx_num,k);
+                plambday = aux_side(e,dy_num,k);
+                plambdaz = aux_side(e,dz_num,k);
               }
             }
             
@@ -777,11 +769,13 @@ public:
       mu_side = functionManager->evaluate("mu","side ip",blocknum);
     }
     
-    Kokkos::View<AD***,AssemblyDevice> flux = wkset->flux;
-    sol = wkset->local_soln_side;
-    sol_grad = wkset->local_soln_grad_side;
-    DRV normals = wkset->normals;
-    aux = wkset->local_aux_side;
+    // Since normals get recomputed often, this needs to be reset
+    normals = wkset->normals;
+    //flux = wkset->flux;
+    //aux_side = wkset->local_aux_side;
+    //sol_side = wkset->local_soln_side;
+    //sol_grad_side = wkset->local_soln_grad_side;
+    //offsets = wkset->offsets;
     
     {
       Teuchos::TimeMonitor localtime(*fluxFill);
@@ -789,21 +783,21 @@ public:
       this->computeStress(true);
       
       if (spaceDim == 1) {
-        for (size_t e=0; e<sol.dimension(0); e++) {
-          for (size_t i=0; i<sol.dimension(2); i++) {
+        for (size_t e=0; e<sol_side.dimension(0); e++) {
+          for (size_t i=0; i<sol_side.dimension(2); i++) {
             this->setLocalSoln(e,i,true);
-            plambdax = aux(e,dx_num,i);
+            plambdax = aux_side(e,dx_num,i);
             penalty = epen*(lambda_side(e,i) + 2.0*mu_side(e,i))/wkset->h(e);
             flux(e,dx_num,i) += sf*stress(e,i,0,0)*normals(e,i,0) + penalty*(plambdax-dx);
           }
         }
       }
       else if (spaceDim == 2) {
-        for (size_t e=0; e<sol.dimension(0); e++) {
-          for (size_t i=0; i<sol.dimension(2); i++) {
+        for (size_t e=0; e<sol_side.dimension(0); e++) {
+          for (size_t i=0; i<sol_side.dimension(2); i++) {
             this->setLocalSoln(e,i,true);
-            plambdax = aux(e,dx_num,i);
-            plambday = aux(e,dy_num,i);
+            plambdax = aux_side(e,dx_num,i);
+            plambday = aux_side(e,dy_num,i);
             penalty = epen*(lambda_side(e,i) + 2.0*mu_side(e,i))/wkset->h(e);
             flux(e,dx_num,i) += sf*(stress(e,i,0,0)*normals(e,i,0) + stress(e,i,0,1)*normals(e,i,1)) + penalty*(plambdax-dx);
             flux(e,dy_num,i) += sf*(stress(e,i,1,0)*normals(e,i,0) + stress(e,i,1,1)*normals(e,i,1)) + penalty*(plambday-dy);
@@ -811,12 +805,12 @@ public:
         }
       }
       else if (spaceDim == 3) {
-        for (size_t e=0; e<sol.dimension(0); e++) {
-          for (size_t i=0; i<sol.dimension(2); i++) {
+        for (size_t e=0; e<sol_side.dimension(0); e++) {
+          for (size_t i=0; i<sol_side.dimension(2); i++) {
             this->setLocalSoln(e,i,true);
-            plambdax = aux(e,dx_num,i);
-            plambday = aux(e,dy_num,i);
-            plambdaz = aux(e,dz_num,i);
+            plambdax = aux_side(e,dx_num,i);
+            plambday = aux_side(e,dy_num,i);
+            plambdaz = aux_side(e,dz_num,i);
             penalty = epen*(lambda_side(e,i) + 2.0*mu_side(e,i))/wkset->h(e);
             
             flux(e,dx_num,i) += sf*(stress(e,i,0,0)*normals(e,i,0) + stress(e,i,0,1)*normals(e,i,1) + stress(e,i,0,2)*normals(e,i,2)) + penalty*(plambdax-dx);
@@ -838,65 +832,65 @@ public:
     
     if (onside) {
       if (spaceDim == 1) {
-        dx = wkset->local_soln_side(e,dx_num,ipindex,0);
-        ddx_dx = wkset->local_soln_grad_side(e,dx_num,ipindex,0);
+        dx = sol_side(e,dx_num,ipindex,0);
+        ddx_dx = sol_grad_side(e,dx_num,ipindex,0);
       }
       else if (spaceDim == 2) {
-        dx = wkset->local_soln_side(e,dx_num,ipindex,0);
-        dy = wkset->local_soln_side(e,dy_num,ipindex,0);
-        ddx_dx = wkset->local_soln_grad_side(e,dx_num,ipindex,0);
-        ddx_dy = wkset->local_soln_grad_side(e,dx_num,ipindex,1);
-        ddy_dx = wkset->local_soln_grad_side(e,dy_num,ipindex,0);
-        ddy_dy = wkset->local_soln_grad_side(e,dy_num,ipindex,1);
+        dx = sol_side(e,dx_num,ipindex,0);
+        dy = sol_side(e,dy_num,ipindex,0);
+        ddx_dx = sol_grad_side(e,dx_num,ipindex,0);
+        ddx_dy = sol_grad_side(e,dx_num,ipindex,1);
+        ddy_dx = sol_grad_side(e,dy_num,ipindex,0);
+        ddy_dy = sol_grad_side(e,dy_num,ipindex,1);
       }
       else if (spaceDim == 3) {
-        dx = wkset->local_soln_side(e,dx_num,ipindex,0);
-        dy = wkset->local_soln_side(e,dy_num,ipindex,0);
-        dz = wkset->local_soln_side(e,dz_num,ipindex,0);
-        ddx_dx = wkset->local_soln_grad_side(e,dx_num,ipindex,0);
-        ddx_dy = wkset->local_soln_grad_side(e,dx_num,ipindex,1);
-        ddx_dz = wkset->local_soln_grad_side(e,dx_num,ipindex,2);
-        ddy_dx = wkset->local_soln_grad_side(e,dy_num,ipindex,0);
-        ddy_dy = wkset->local_soln_grad_side(e,dy_num,ipindex,1);
-        ddy_dz = wkset->local_soln_grad_side(e,dy_num,ipindex,2);
-        ddz_dx = wkset->local_soln_grad_side(e,dz_num,ipindex,0);
-        ddz_dy = wkset->local_soln_grad_side(e,dz_num,ipindex,1);
-        ddz_dz = wkset->local_soln_grad_side(e,dz_num,ipindex,2);
+        dx = sol_side(e,dx_num,ipindex,0);
+        dy = sol_side(e,dy_num,ipindex,0);
+        dz = sol_side(e,dz_num,ipindex,0);
+        ddx_dx = sol_grad_side(e,dx_num,ipindex,0);
+        ddx_dy = sol_grad_side(e,dx_num,ipindex,1);
+        ddx_dz = sol_grad_side(e,dx_num,ipindex,2);
+        ddy_dx = sol_grad_side(e,dy_num,ipindex,0);
+        ddy_dy = sol_grad_side(e,dy_num,ipindex,1);
+        ddy_dz = sol_grad_side(e,dy_num,ipindex,2);
+        ddz_dx = sol_grad_side(e,dz_num,ipindex,0);
+        ddz_dy = sol_grad_side(e,dz_num,ipindex,1);
+        ddz_dz = sol_grad_side(e,dz_num,ipindex,2);
       }
       if (e_num >= 0) {
-        eval = wkset->local_soln_side(e,e_num,ipindex,0);
+        eval = sol_side(e,e_num,ipindex,0);
         delta_e = eval-e_ref;
       }
     }
     else {
       if (spaceDim == 1) {
-        dx = wkset->local_soln(e,dx_num,ipindex,0);
-        ddx_dx = wkset->local_soln_grad(e,dx_num,ipindex,0);
+        dx = sol(e,dx_num,ipindex,0);
+        ddx_dx = sol_grad(e,dx_num,ipindex,0);
       }
       else if (spaceDim == 2) {
-        dx = wkset->local_soln(e,dx_num,ipindex,0);
-        dy = wkset->local_soln(e,dy_num,ipindex,0);
-        ddx_dx = wkset->local_soln_grad(e,dx_num,ipindex,0);
-        ddx_dy = wkset->local_soln_grad(e,dx_num,ipindex,1);
-        ddy_dx = wkset->local_soln_grad(e,dy_num,ipindex,0);
-        ddy_dy = wkset->local_soln_grad(e,dy_num,ipindex,1);
+        dx = sol(e,dx_num,ipindex,0);
+        dy = sol(e,dy_num,ipindex,0);
+        ddx_dx = sol_grad(e,dx_num,ipindex,0);
+        ddx_dy = sol_grad(e,dx_num,ipindex,1);
+        ddy_dx = sol_grad(e,dy_num,ipindex,0);
+        ddy_dy = sol_grad(e,dy_num,ipindex,1);
       }
       else if (spaceDim == 3) {
-        dx = wkset->local_soln(e,dx_num,ipindex,0);
-        dy = wkset->local_soln(e,dy_num,ipindex,0);
-        dz = wkset->local_soln(e,dz_num,ipindex,0);
-        ddx_dx = wkset->local_soln_grad(e,dx_num,ipindex,0);
-        ddx_dy = wkset->local_soln_grad(e,dx_num,ipindex,1);
-        ddx_dz = wkset->local_soln_grad(e,dx_num,ipindex,2);
-        ddy_dx = wkset->local_soln_grad(e,dy_num,ipindex,0);
-        ddy_dy = wkset->local_soln_grad(e,dy_num,ipindex,1);
-        ddy_dz = wkset->local_soln_grad(e,dy_num,ipindex,2);
-        ddz_dx = wkset->local_soln_grad(e,dz_num,ipindex,0);
-        ddz_dy = wkset->local_soln_grad(e,dz_num,ipindex,1);
-        ddz_dz = wkset->local_soln_grad(e,dz_num,ipindex,2);
+        dx = sol(e,dx_num,ipindex,0);
+        dy = sol(e,dy_num,ipindex,0);
+        dz = sol(e,dz_num,ipindex,0);
+        ddx_dx = sol_grad(e,dx_num,ipindex,0);
+        ddx_dy = sol_grad(e,dx_num,ipindex,1);
+        ddx_dz = sol_grad(e,dx_num,ipindex,2);
+        ddy_dx = sol_grad(e,dy_num,ipindex,0);
+        ddy_dy = sol_grad(e,dy_num,ipindex,1);
+        ddy_dz = sol_grad(e,dy_num,ipindex,2);
+        ddz_dx = sol_grad(e,dz_num,ipindex,0);
+        ddz_dy = sol_grad(e,dz_num,ipindex,1);
+        ddz_dz = sol_grad(e,dz_num,ipindex,2);
       }
       if (e_num >= 0) {
-        eval = wkset->local_soln(e,e_num,ipindex,0);
+        eval = sol(e,e_num,ipindex,0);
         delta_e = eval-e_ref;
       }
       
@@ -1220,14 +1214,7 @@ private:
   
   Kokkos::View<AD****,AssemblyDevice> stress;
   
-  Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad;
-  Kokkos::View<AD**,AssemblyDevice> res, adjrhs;
-  Kokkos::View<AD***,AssemblyDevice> aux;
-  Kokkos::View<int**,AssemblyDevice> offsets;
   Kokkos::View<int****,AssemblyDevice> sideinfo;
-  
-  DRV basis, basis_grad;
-  
   
   bool multiscale, useLame, addBiot, useCE;
   bool incplanestress;

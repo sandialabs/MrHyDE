@@ -133,8 +133,6 @@ int main(int argc,char * argv[]) {
                                                                          phys->unique_types,
                                                                          cells) );
     
-    //udfunc->setVarlist(phys->varlist); // TMW: this assumes one block
-    
     ////////////////////////////////////////////////////////////////////////////////
     // The DOF-manager needs to be aware of the physics and the discretization(s)
     ////////////////////////////////////////////////////////////////////////////////

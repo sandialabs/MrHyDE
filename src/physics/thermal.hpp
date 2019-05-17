@@ -70,17 +70,9 @@ public:
     // 1. basis and basis_grad already include the integration weights
     
     int e_basis_num = wkset->usebasis[e_num];
-    
-    sol = wkset->local_soln;
-    sol_dot = wkset->local_soln_dot;
-    sol_grad = wkset->local_soln_grad;
-    
-    ebasis = wkset->basis[e_basis_num];
-    ebasis_grad = wkset->basis_grad[e_basis_num];
-    offsets = wkset->offsets;
-    
-    res = wkset->res;
-    
+    basis = wkset->basis[e_basis_num];
+    basis_grad = wkset->basis_grad[e_basis_num];
+    //offsets = wkset->offsets;
     {
       Teuchos::TimeMonitor funceval(*volumeResidualFunc);
       source = functionManager->evaluate("thermal source","ip",blocknum);
@@ -94,13 +86,13 @@ public:
     if (spaceDim ==1) {
       parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
         for (int k=0; k<sol.dimension(2); k++ ) {
-          for (int i=0; i<ebasis.dimension(1); i++ ) {
+          for (int i=0; i<basis.dimension(1); i++ ) {
             resindex = offsets(e_num,i); // TMW: e_num is not on the assembly device
-            res(e,resindex) += rho(e,k)*cp(e,k)*sol_dot(e,e_num,k,0)*ebasis(e,i,k) +
-                               diff(e,k)*(sol_grad(e,e_num,k,0)*ebasis_grad(e,i,k,0)) -
-                               source(e,k)*ebasis(e,i,k);
+            res(e,resindex) += rho(e,k)*cp(e,k)*sol_dot(e,e_num,k,0)*basis(e,i,k) +
+                               diff(e,k)*(sol_grad(e,e_num,k,0)*basis_grad(e,i,k,0)) -
+                               source(e,k)*basis(e,i,k);
             if (have_nsvel) { // TMW: have_nsvel is not on the assembly device
-              res(e,resindex) += (sol(e,ux_num,k,0)*sol_grad(e,e_num,k,0)*ebasis(e,i,k));
+              res(e,resindex) += (sol(e,ux_num,k,0)*sol_grad(e,e_num,k,0)*basis(e,i,k));
             }
           }
           
@@ -110,14 +102,14 @@ public:
     else if (spaceDim == 2) {
       parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
         for (int k=0; k<sol.dimension(2); k++ ) {
-          for (int i=0; i<ebasis.dimension(1); i++ ) {
+          for (int i=0; i<basis.dimension(1); i++ ) {
             resindex = offsets(e_num,i);
-            res(e,resindex) += rho(e,k)*cp(e,k)*sol_dot(e,e_num,k,0)*ebasis(e,i,k) +
-                               diff(e,k)*(sol_grad(e,e_num,k,0)*ebasis_grad(e,i,k,0) +
-                                          sol_grad(e,e_num,k,1)*ebasis_grad(e,i,k,1)) -
-                               source(e,k)*ebasis(e,i,k);
+            res(e,resindex) += rho(e,k)*cp(e,k)*sol_dot(e,e_num,k,0)*basis(e,i,k) +
+                               diff(e,k)*(sol_grad(e,e_num,k,0)*basis_grad(e,i,k,0) +
+                                          sol_grad(e,e_num,k,1)*basis_grad(e,i,k,1)) -
+                               source(e,k)*basis(e,i,k);
             if (have_nsvel) {
-              res(e,resindex) += (sol(e,ux_num,k,0)*sol_grad(e,e_num,k,0)*ebasis(e,i,k) + sol(e,uy_num,k,0)*sol_grad(e,e_num,k,1)*ebasis(e,i,k));
+              res(e,resindex) += (sol(e,ux_num,k,0)*sol_grad(e,e_num,k,0)*basis(e,i,k) + sol(e,uy_num,k,0)*sol_grad(e,e_num,k,1)*basis(e,i,k));
             }
           }
           
@@ -127,16 +119,16 @@ public:
     else {
       parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
         for (int k=0; k<sol.dimension(2); k++ ) {
-          for (int i=0; i<ebasis.dimension(1); i++ ) {
+          for (int i=0; i<basis.dimension(1); i++ ) {
             resindex = offsets(e_num,i);
-            res(e,resindex) += rho(e,k)*cp(e,k)*sol_dot(e,e_num,k,0)*ebasis(e,i,k) +
-                               diff(e,k)*(sol_grad(e,e_num,k,0)*ebasis_grad(e,i,k,0) +
-                                          sol_grad(e,e_num,k,1)*ebasis_grad(e,i,k,1) +
-                                          sol_grad(e,e_num,k,2)*ebasis_grad(e,i,k,2)) -
-                               source(e,k)*ebasis(e,i,k);
+            res(e,resindex) += rho(e,k)*cp(e,k)*sol_dot(e,e_num,k,0)*basis(e,i,k) +
+                               diff(e,k)*(sol_grad(e,e_num,k,0)*basis_grad(e,i,k,0) +
+                                          sol_grad(e,e_num,k,1)*basis_grad(e,i,k,1) +
+                                          sol_grad(e,e_num,k,2)*basis_grad(e,i,k,2)) -
+                               source(e,k)*basis(e,i,k);
             if (have_nsvel) {
-              res(e,resindex) += (sol_grad(e,ux_num,k,0)*ebasis_grad(e,i,k,0) + sol_grad(e,uy_num,k,1)*ebasis_grad(e,i,k,1)
-                                  + sol_grad(e,uz_num,k,0)*ebasis_grad(e,i,k,2));
+              res(e,resindex) += (sol_grad(e,ux_num,k,0)*basis_grad(e,i,k,0) + sol_grad(e,uy_num,k,1)*basis_grad(e,i,k,1)
+                                  + sol_grad(e,uz_num,k,0)*basis_grad(e,i,k,2));
             }
           }
         }
@@ -172,6 +164,8 @@ public:
     }
     int e_basis_num = wkset->usebasis[e_num];
     numBasis = wkset->basis_side[e_basis_num].dimension(1);
+    basis = wkset->basis_side[e_basis_num];
+    basis_grad = wkset->basis_grad_side[e_basis_num];
     
     {
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
@@ -191,22 +185,15 @@ public:
     ScalarT sf = formparam;
     if (wkset->isAdjoint) {
       sf = 1.0;
+      adjrhs = wkset->adjrhs;
     }
     
-    sol = wkset->local_soln_side;
-    sol_grad = wkset->local_soln_grad_side;
-    ebasis = wkset->basis_side[e_basis_num];
-    ebasis_grad = wkset->basis_grad_side[e_basis_num];
-    offsets = wkset->offsets;
-    aux = wkset->local_aux_side;
-    DRV ip = wkset->ip_side;
-    DRV normals = wkset->normals;
-    adjrhs = wkset->adjrhs;
-    res = wkset->res;
+    // Since normals get recomputed often, this needs to be reset
+    normals = wkset->normals;
     
     Teuchos::TimeMonitor localtime(*boundaryResidualFill);
     
-    for (int e=0; e<ebasis.dimension(0); e++) {
+    for (int e=0; e<basis.dimension(0); e++) {
       bool computeN = false;
       if (usebcs) {
         if (bcs(e_num,cside) == 2) {
@@ -219,10 +206,10 @@ public:
         }
       }
       if (computeN) {
-        for (int k=0; k<ebasis.dimension(2); k++ ) {
-          for (int i=0; i<ebasis.dimension(1); i++ ) {
+        for (int k=0; k<basis.dimension(2); k++ ) {
+          for (int i=0; i<basis.dimension(1); i++ ) {
             resindex = offsets(e_num,i);
-            res(e,resindex) += -nsource(e,k)*ebasis(e,i,k);
+            res(e,resindex) += -nsource(e,k)*basis(e,i,k);
           }
         }
       }
@@ -244,23 +231,23 @@ public:
       //else if (bcs(e_num,cside) == 4) {
       //else if (sideinfo(e,e_num,cside,0) == 4) { //} && sideinfo(e,e_num,cside,1) == -1){ // Weak Dirichlet
         
-        for (int k=0; k<ebasis.dimension(2); k++ ) {
+        for (int k=0; k<basis.dimension(2); k++ ) {
           
-          AD eval = sol(e,e_num,k,0);
-          AD dedx = sol_grad(e,e_num,k,0);
+          AD eval = sol_side(e,e_num,k,0);
+          AD dedx = sol_grad_side(e,e_num,k,0);
           AD dedy, dedz;
           if (spaceDim > 1) {
-            dedy = sol_grad(e,e_num,k,1);
+            dedy = sol_grad_side(e,e_num,k,1);
           }
           if (spaceDim > 2) {
-            dedz = sol_grad(e,e_num,k,2);
+            dedz = sol_grad_side(e,e_num,k,2);
           }
           
           AD lambda;
           
           if (!usebcs) {
             if (sideinfo(e,e_num,cside,1) == -1)
-              lambda = aux(e,e_num,k);
+              lambda = aux_side(e,e_num,k);
             else {
               lambda = nsource(e,k);
               //udfunc->boundaryDirichletValue(label,"e",x,y,z,wkset->time,wkset->sidename,wkset->isAdjoint);
@@ -271,14 +258,14 @@ public:
           else {
             lambda = nsource(e,k);
           }
-          for (int i=0; i<ebasis.dimension(1); i++ ) {
+          for (int i=0; i<basis.dimension(1); i++ ) {
             resindex = offsets(e_num,i);
-            v = ebasis(e,i,k);
-            dvdx = ebasis_grad(e,i,k,0);
+            v = basis(e,i,k);
+            dvdx = basis_grad(e,i,k,0);
             if (spaceDim > 1)
-              dvdy = ebasis_grad(e,i,k,1);
+              dvdy = basis_grad(e,i,k,1);
             if (spaceDim > 2)
-              dvdz = ebasis_grad(e,i,k,2);
+              dvdz = basis_grad(e,i,k,2);
             
             weakDiriScale = 10.0*diff_side(e,k)/wkset->h(e);
             res(e,resindex) += -diff_side(e,k)*dedx*normals(e,k,0)*v - sf*diff_side(e,k)*dvdx*normals(e,k,0)*(eval-lambda) + weakDiriScale*(eval-lambda)*v;
@@ -320,11 +307,9 @@ public:
       diff_side = functionManager->evaluate("thermal diffusion","side ip",blocknum);
     }
     
-    Kokkos::View<AD***,AssemblyDevice> flux = wkset->flux;
-    sol = wkset->local_soln_side;
-    sol_grad = wkset->local_soln_grad_side;
-    DRV normals = wkset->normals;
-    aux = wkset->local_aux_side;
+    // Since normals get recomputed often, this needs to be reset
+    normals = wkset->normals;
+    
     {
       Teuchos::TimeMonitor localtime(*fluxFill);
       
@@ -332,12 +317,13 @@ public:
         
         for (size_t i=0; i<wkset->ip_side.dimension(1); i++) {
           penalty = 10.0*diff_side(n,i)/wkset->h(n);
-          flux(n,e_num,i) += sf*diff_side(n,i)*sol_grad(n,e_num,i,0)*normals(n,i,0) + penalty*(aux(n,e_num,i)-sol(n,e_num,i,0));
+          flux(n,e_num,i) += sf*diff_side(n,i)*sol_grad_side(n,e_num,i,0)*normals(n,i,0) +
+                             penalty*(aux_side(n,e_num,i)-sol_side(n,e_num,i,0));
           if (spaceDim > 1) {
-            flux(n,e_num,i) += sf*diff_side(n,i)*sol_grad(n,e_num,i,1)*normals(n,i,1);
+            flux(n,e_num,i) += sf*diff_side(n,i)*sol_grad_side(n,e_num,i,1)*normals(n,i,1);
           }
           if (spaceDim > 2) {
-            flux(n,e_num,i) += sf*diff_side(n,i)*sol_grad(n,e_num,i,2)*normals(n,i,2);
+            flux(n,e_num,i) += sf*diff_side(n,i)*sol_grad_side(n,e_num,i,2)*normals(n,i,2);
           }
         }
       }
@@ -391,12 +377,7 @@ private:
   int resindex;
   
   FDATA diff, rho, cp, source, nsource, diff_side, robin_alpha;
-  Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad;
-  Kokkos::View<AD***,AssemblyDevice> aux;
-  Kokkos::View<AD**,AssemblyDevice> res, adjrhs;
-  Kokkos::View<int**,AssemblyDevice> offsets;
   Kokkos::View<int****,AssemblyDevice> sideinfo;
-  DRV ebasis, ebasis_grad;
   
   string analysis_type; //to know when parameter is a sample that needs to be transformed
   

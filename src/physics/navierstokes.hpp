@@ -123,13 +123,6 @@ public:
       visc = functionManager->evaluate("viscosity","ip",blocknum);
     }
     
-    sol = wkset->local_soln;
-    sol_dot = wkset->local_soln_dot;
-    sol_grad = wkset->local_soln_grad;
-    
-    offsets = wkset->offsets;
-    
-    res = wkset->res;
     Teuchos::TimeMonitor resideval(*volumeResidualFill);
 
     /////////////////////////////
@@ -577,13 +570,7 @@ private:
   
   FDATA dens, visc, source_ux, source_pr, source_uy, source_uz;
   
-  //Kokkos::View<AD**,AssemblyDevice> dens, visc, source_ux, source_pr, source_uy, source_uz;
-  Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad;
-  Kokkos::View<AD***,AssemblyDevice> aux;
-  Kokkos::View<AD**,AssemblyDevice> res, adjrhs;
-  Kokkos::View<int**,AssemblyDevice> offsets;
   Kokkos::View<int****,AssemblyDevice> sideinfo;
-  DRV basis, basis_grad;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::navierstokes::volumeResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::navierstokes::volumeResidual() - evaluation of residual");

@@ -79,8 +79,8 @@ void AssemblyManager::createWorkset() {
     wkset[b]->block = b;
   }
   
-  phys->setWorkset(wkset);
-  params->wkset = wkset;
+  //phys->setWorkset(wkset);
+  //params->wkset = wkset;
   
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {

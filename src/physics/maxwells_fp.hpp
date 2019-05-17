@@ -138,18 +138,11 @@ public:
     
     ScalarT current_time = wkset->time;
     
-    sol = wkset->local_soln;
-    sol_dot = wkset->local_soln_dot;
-    sol_grad = wkset->local_soln_grad;
-    
     phir_basis = wkset->basis[phir_basis_num];
     phir_basis_grad = wkset->basis_grad[phir_basis_num];
     phii_basis = wkset->basis[phii_basis_num];
     phii_basis_grad = wkset->basis_grad[phii_basis_num];
     
-    offsets = wkset->offsets;
-    
-    res = wkset->res;
     DRV ip = wkset->ip;
     
     Teuchos::TimeMonitor resideval(*volumeResidualFill);
@@ -484,12 +477,9 @@ public:
     ScalarT current_time = wkset->time;
     
     sideinfo = wkset->sideinfo;
-    sol = wkset->local_soln_side;
-    sol_grad = wkset->local_soln_grad_side;
-    offsets = wkset->offsets;
     DRV ip = wkset->ip_side;
-    DRV normals = wkset->normals;
-    res = wkset->res;
+    // Since normals get recomputed often, this needs to be reset
+    normals  = wkset->normals;
     
     phir_basis = wkset->basis_side[phir_basis_num];
     phir_basis_grad = wkset->basis_grad_side[phir_basis_num];
@@ -514,54 +504,54 @@ public:
         
         x = ip(e,k,0);
         
-        Axr = sol(e,Axr_num,k,0);
-        dAxrdx = sol_grad(e,Axr_num,k,0);
+        Axr = sol_side(e,Axr_num,k,0);
+        dAxrdx = sol_grad_side(e,Axr_num,k,0);
         Axi = sol(e,Axi_num,k,0);
-        dAxidx = sol_grad(e,Axi_num,k,0);
+        dAxidx = sol_grad_side(e,Axi_num,k,0);
         
-        phir = sol(e,phir_num,k,0);
-        phii = sol(e,phii_num,k,0);
-        dphirdx = sol_grad(e,phir_num,k,0);
-        dphiidx = sol_grad(e,phii_num,k,0);
+        phir = sol_side(e,phir_num,k,0);
+        phii = sol_side(e,phii_num,k,0);
+        dphirdx = sol_grad_side(e,phir_num,k,0);
+        dphiidx = sol_grad_side(e,phii_num,k,0);
         
         nx = normals(e,k,0);
         
         if(spaceDim > 1){
           y = ip(e,k,1);
           
-          dAxrdy = sol_grad(e,Axr_num,k,1);
-          dAxidy = sol_grad(e,Axi_num,k,1);
-          Ayr = sol(e,Ayr_num,k,0);
-          dAyrdx = sol_grad(e,Ayr_num,k,0);
-          dAyrdy = sol_grad(e,Ayr_num,k,1);
-          Ayi = sol(e,Ayi_num,k,0);
-          dAyidx = sol_grad(e,Ayi_num,k,0);
-          dAyidy = sol_grad(e,Ayi_num,k,1);
+          dAxrdy = sol_grad_side(e,Axr_num,k,1);
+          dAxidy = sol_grad_side(e,Axi_num,k,1);
+          Ayr = sol_side(e,Ayr_num,k,0);
+          dAyrdx = sol_grad_side(e,Ayr_num,k,0);
+          dAyrdy = sol_grad_side(e,Ayr_num,k,1);
+          Ayi = sol_side(e,Ayi_num,k,0);
+          dAyidx = sol_grad_side(e,Ayi_num,k,0);
+          dAyidy = sol_grad_side(e,Ayi_num,k,1);
           
-          dphirdy = sol_grad(e,phir_num,k,1);
-          dphiidy = sol_grad(e,phii_num,k,1);
+          dphirdy = sol_grad_side(e,phir_num,k,1);
+          dphiidy = sol_grad_side(e,phii_num,k,1);
           
           ny = normals(e,k,1);
         }
         if(spaceDim > 2){
           z = ip(e,k,2);
           
-          dAxrdz = sol_grad(e,Axr_num,k,2);
-          dAxidz = sol_grad(e,Axi_num,k,2);
-          dAyrdz = sol_grad(e,Ayr_num,k,2);
-          dAyidz = sol_grad(e,Ayi_num,k,2);
+          dAxrdz = sol_grad_side(e,Axr_num,k,2);
+          dAxidz = sol_grad_side(e,Axi_num,k,2);
+          dAyrdz = sol_grad_side(e,Ayr_num,k,2);
+          dAyidz = sol_grad_side(e,Ayi_num,k,2);
           
-          Azr = sol(e,Azr_num,k,0);
-          dAzrdx = sol_grad(e,Azr_num,k,0);
-          dAzrdy = sol_grad(e,Azr_num,k,1);
-          dAzrdz = sol_grad(e,Azr_num,k,2);
-          Azi = sol(e,Azi_num,k,0);
-          dAzidx = sol_grad(e,Azi_num,k,0);
-          dAzidy = sol_grad(e,Azi_num,k,1);
-          dAzidz = sol_grad(e,Azi_num,k,2);
+          Azr = sol_side(e,Azr_num,k,0);
+          dAzrdx = sol_grad_side(e,Azr_num,k,0);
+          dAzrdy = sol_grad_side(e,Azr_num,k,1);
+          dAzrdz = sol_grad_side(e,Azr_num,k,2);
+          Azi = sol_side(e,Azi_num,k,0);
+          dAzidx = sol_grad_side(e,Azi_num,k,0);
+          dAzidy = sol_grad_side(e,Azi_num,k,1);
+          dAzidz = sol_grad_side(e,Azi_num,k,2);
           
-          dphirdz = sol_grad(e,phir_num,k,2);
-          dphiidz = sol_grad(e,phii_num,k,2);
+          dphirdz = sol_grad_side(e,phir_num,k,2);
+          dphiidz = sol_grad_side(e,phii_num,k,2);
           
           nz = normals(e,k,2);
         }
@@ -1211,9 +1201,6 @@ private:
   
   ScalarT essScale;
   
-  Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad;
-  Kokkos::View<AD**,AssemblyDevice> res;
-  Kokkos::View<int**,AssemblyDevice> offsets;
   Kokkos::View<int****,AssemblyDevice> sideinfo;
   DRV phir_basis, phir_basis_grad;
   DRV phii_basis, phii_basis_grad;
