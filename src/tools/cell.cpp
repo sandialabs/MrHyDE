@@ -488,6 +488,8 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
       cellData->physics_RCP->volumeResidual(cellData->myBlock);
     }
     
+    //KokkosTools::print(wkset->res);
+    
     // Boundary contribution
     
     
@@ -550,6 +552,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
       }
     }
     
+    //KokkosTools::print(wkset->res);
     
     // Edge contribution
     //for (int side=0; side<numSides; side++) {

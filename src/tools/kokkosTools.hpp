@@ -96,6 +96,10 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   
   static void print(const vector_RCP & V) {
+    Teuchos::EVerbosityLevel vl = Teuchos::VERB_EXTREME;
+    auto out = Teuchos::getFancyOStream (Teuchos::rcpFromRef (std::cout));
+    V->describe(*out,vl);
+    /*
     auto V_kv = V->getLocalView<HostDevice>();
     
     cout << endl;
@@ -111,7 +115,7 @@ public:
       }
     }
     cout << "-------------------------------" << endl;
-    
+    */
   }
   ///Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice>
   ////////////////////////////////////////////////////////////////////////////////

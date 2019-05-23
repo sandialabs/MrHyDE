@@ -217,7 +217,7 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
           for (size_t k=0; k<sideinfo.dimension(3); k++) {
             subsideinfo(0,i,j,k) = sideinfo(e,i,j,k);
           }
-          if (subsideinfo(0,i,j,0) == 1) { // redefine for weak Dirichlet conditions
+          if (subsideinfo(0,i,j,0) == 1) {//} && subsideinfo(0,i,j,1) == -1) { // redefine for weak Dirichlet conditions
             subsideinfo(0,i,j,0) = 4;
             subsideinfo(0,i,j,1) = -1;
           }
@@ -1280,6 +1280,7 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
                                          local_res, local_J, local_Jdot,true);
         
       }
+      //KokkosTools::print(local_J);
       {
         Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverInsertTimer);
         Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;
@@ -1323,6 +1324,7 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
       J = sub_J_over;
       M = sub_M_over;
     }
+    //KokkosTools::print(J);
     
     if (have_sym_factor) {
       Am2Solver->setA(J, Amesos2::SYMBFACT);
@@ -1558,11 +1560,13 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
           int rowIndex = GIDs(i,row);
           for( size_t col=0; col<aGIDs.dimension(1); col++ ) {
             ScalarT val = local_J(i,row,col);
-            d_sub_res_over->sumIntoGlobalValue(rowIndex,col, scale*val);
+            int colIndex = col;
+            d_sub_res_over->sumIntoGlobalValue(rowIndex,colIndex, scale*val);
           }
         }
       }
     }
+    
     
     M->apply(*d_sub_u,*d_sub_u_prev);
     if (LocalComm->getSize() > 1) {
@@ -1573,9 +1577,46 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
     }
     d_sub_res->update(1.0*alpha, *d_sub_u_prev, 1.0);
     
-    Am2Solver->setX(d_sub_u_over);
-    Am2Solver->setB(d_sub_res);
-    Am2Solver->solve();
+    
+    //cout << "printing d_sub_res" << endl;
+    
+    //KokkosTools::print(d_sub_res);
+    
+    //cout << "printing J" << endl;
+    
+    //KokkosTools::print(J);
+    
+    //Am2Solver->setA(J);
+    //Am2Solver->setX(d_sub_u_over);
+    //Am2Solver->setB(d_sub_res);
+    //Am2Solver->symbolicFactorization();
+    //Am2Solver->numericFactorization();
+    
+    //Am2Solver->solve();
+    
+    
+    
+    int numsubDerivs = d_sub_u_over->getNumVectors();
+    
+    auto d_sub_u_over_kv = d_sub_u_over->getLocalView<HostDevice>();
+    auto d_sub_res_kv = d_sub_res->getLocalView<HostDevice>();
+    for (int c=0; c<numsubDerivs; c++) {
+      Teuchos::RCP<LA_MultiVector> x = Teuchos::rcp(new LA_MultiVector(overlapped_map,1));
+      Teuchos::RCP<LA_MultiVector> b = Teuchos::rcp(new LA_MultiVector(owned_map,1));
+      auto b_kv = b->getLocalView<HostDevice>();
+      auto x_kv = x->getLocalView<HostDevice>();
+      
+      for (int i=0; i<b->getGlobalLength(); i++) {
+        b_kv(i,0) += d_sub_res_kv(i,c);
+      }
+      Am2Solver->setX(x);
+      Am2Solver->setB(b);
+      Am2Solver->solve();
+      for (int i=0; i<x->getGlobalLength(); i++) {
+        d_sub_u_over_kv(i,c) += x_kv(i,0);
+      }
+      
+    }
     
     if (LocalComm->getSize() > 1) {
       d_sub_u->putScalar(0.0);
@@ -1584,6 +1625,11 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
     else {
       d_sub_u = d_sub_u_over;
     }
+    
+    //cout << "printing d_sub_u" << endl;
+    
+    //KokkosTools::print(d_sub_u);
+    
   }
 }
 
@@ -1599,6 +1645,10 @@ void SubGridFEM::updateFlux(const Teuchos::RCP<LA_MultiVector> & u,
                             const int & usernum, const ScalarT & fwt) {
   
   Teuchos::TimeMonitor localtimer(*sgfemFluxTimer);
+  
+  //KokkosTools::print(u);
+  //KokkosTools::print(d_u);
+  //KokkosTools::print(lambda);
   
   for (size_t e=0; e<cells[usernum].size(); e++) {
     
@@ -1622,10 +1672,12 @@ void SubGridFEM::updateFlux(const Teuchos::RCP<LA_MultiVector> & u,
           cells[usernum][e]->computeFlux(u, d_u, Psol[0], lambda, time,
                                          s, h, compute_sens);
         }
+        
         for (int c=0; c<cells[usernum][e]->numElem; c++) {
           for (int n=0; n<nummacroVars; n++) {
             if (cells[usernum][e]->sideinfo(c,n,s,1) == -1) {
               DRV mortarbasis_ip = cells[usernum][e]->auxside_basis[s][macrowkset.usebasis[n]];
+              
               for (int j=0; j<mortarbasis_ip.dimension(1); j++) {
                 for (int i=0; i<mortarbasis_ip.dimension(2); i++) {
                   macrowkset.res(macroelemindex,macrowkset.offsets(n,j)) += mortarbasis_ip(c,j,i)*(wkset[0]->flux(c,n,i))*cwts(c,i)*fwt;
@@ -2190,7 +2242,7 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
       DRV cnodes("current nodes",1,nodes.dimension(1), nodes.dimension(2));
       for (int i=0; i<nodes.dimension(1); i++) {
         for (int j=0; j<nodes.dimension(2); j++) {
-          cnodes(0,i,j) = nodes(e,i,j);
+          cnodes(0,i,j) = nodes(c,i,j);
         }
       }
       
@@ -2199,7 +2251,7 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
       
       for (size_t i=0; i<numpts; i++) {
         if (inRefCell(0,i) == 1) {
-          owners(i,0) = c;//cells[0][e]->localElemID[c];
+          owners(i,0) = e;//cells[0][e]->localElemID[c];
           Kokkos::View<GO**,HostDevice> GIDs = cells[0][e]->GIDs;
           for (size_t j=0; j<numGIDs; j++) {
             owners(i,j+1) = GIDs(c,j);
@@ -2208,6 +2260,7 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
       }
     }
   }
+  //KokkosTools::print(owners);
   
   vector<DRV> ptsBasis;
   for (size_t i=0; i<numpts; i++) {
@@ -2217,13 +2270,13 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
     for (size_t s=0; s<dimpts; s++) {
       cpt(0,0,s) = pts(0,i,s);
     }
-    DRV nodes = cells[0][0]->nodes;
-    DRV cnodes("current nodes",1,nodes.dimension(1), nodes.dimension(2));
-    for (int i=0; i<nodes.dimension(1); i++) {
-      for (int j=0; j<nodes.dimension(2); j++) {
-        cnodes(0,i,j) = nodes(owners(i,0),i,j);
-      }
-    }
+    DRV cnodes = cells[0][owners(i,0)]->nodes;
+    //DRV cnodes("current nodes",1,nodes.dimension(1), nodes.dimension(2));
+    //for (int i=0; i<nodes.dimension(1); i++) {
+    //  for (int j=0; j<nodes.dimension(2); j++) {
+    //    cnodes(0,i,j) = nodes(owners(i,0),i,j);
+    //  }
+    //}
     CellTools<AssemblyDevice>::mapToReferenceFrame(refpt_buffer, cpt, cnodes, *cellTopo);
     DRV refpt("refpt",1,dimpts);
     Kokkos::deep_copy(refpt,Kokkos::subdynrankview(refpt_buffer,0,Kokkos::ALL(),Kokkos::ALL()));
@@ -2238,6 +2291,7 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
       }
     }
     ptsBasis.push_back(basisvals);
+    
   }
   pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > basisinfo(owners, ptsBasis);
   return basisinfo;

@@ -19,7 +19,7 @@ ANONYMOUS:
   Subgrid:
     Mesh:
       shape: quad
-      refinements: 0
+      refinements: 2
       dim: 2
       blocknames: eblock
     Physics: 

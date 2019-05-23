@@ -1580,9 +1580,32 @@ void SubGridFEM2::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
     }
     d_sub_res->update(1.0*alpha, *d_sub_u_prev, 1.0);
     
-    Am2Solver->setX(d_sub_u_over);
-    Am2Solver->setB(d_sub_res);
-    Am2Solver->solve();
+    
+    //Am2Solver->setX(d_sub_u_over);
+    //Am2Solver->setB(d_sub_res);
+    //Am2Solver->solve();
+    
+    int numsubDerivs = d_sub_u_over->getNumVectors();
+    
+    auto d_sub_u_over_kv = d_sub_u_over->getLocalView<HostDevice>();
+    auto d_sub_res_kv = d_sub_res->getLocalView<HostDevice>();
+    for (int c=0; c<numsubDerivs; c++) {
+      Teuchos::RCP<LA_MultiVector> x = Teuchos::rcp(new LA_MultiVector(overlapped_map,1));
+      Teuchos::RCP<LA_MultiVector> b = Teuchos::rcp(new LA_MultiVector(owned_map,1));
+      auto b_kv = b->getLocalView<HostDevice>();
+      auto x_kv = x->getLocalView<HostDevice>();
+      
+      for (int i=0; i<b->getGlobalLength(); i++) {
+        b_kv(i,0) += d_sub_res_kv(i,c);
+      }
+      Am2Solver->setX(x);
+      Am2Solver->setB(b);
+      Am2Solver->solve();
+      for (int i=0; i<x->getGlobalLength(); i++) {
+        d_sub_u_over_kv(i,c) += x_kv(i,0);
+      }
+      
+    }
     
     if (LocalComm->getSize() > 1) {
       d_sub_u->putScalar(0.0);
@@ -1782,7 +1805,7 @@ Kokkos::View<AD*,AssemblyDevice> SubGridFEM2::computeObjective(const string & re
   if (found) {
     bool beensized = false;
     this->performGather(usernum, currsol, 0,0);
-    this->performGather(usernum, Psol[0], 4, 0);
+    //this->performGather(usernum, Psol[0], 4, 0);
     
     for (size_t e=0; e<cells[usernum].size(); e++) {
       Kokkos::View<AD**,AssemblyDevice> curr_obj = cells[usernum][e]->computeObjective(time, tindex, seedwhat);
@@ -2199,7 +2222,7 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM2::evaluateBasi
       DRV cnodes("current nodes",1,nodes.dimension(1), nodes.dimension(2));
       for (int i=0; i<nodes.dimension(1); i++) {
         for (int j=0; j<nodes.dimension(2); j++) {
-          cnodes(0,i,j) = nodes(e,i,j);
+          cnodes(0,i,j) = nodes(c,i,j);
         }
       }
       
@@ -2208,7 +2231,7 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM2::evaluateBasi
       
       for (size_t i=0; i<numpts; i++) {
         if (inRefCell(0,i) == 1) {
-          owners(i,0) = c;//cells[0][e]->localElemID[c];
+          owners(i,0) = e;//cells[0][e]->localElemID[c];
           Kokkos::View<GO**,HostDevice> GIDs = cells[0][e]->GIDs;
           for (size_t j=0; j<numGIDs; j++) {
             owners(i,j+1) = GIDs(c,j);
@@ -2226,13 +2249,13 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM2::evaluateBasi
     for (size_t s=0; s<dimpts; s++) {
       cpt(0,0,s) = pts(0,i,s);
     }
-    DRV nodes = cells[0][0]->nodes;
-    DRV cnodes("current nodes",1,nodes.dimension(1), nodes.dimension(2));
-    for (int i=0; i<nodes.dimension(1); i++) {
-      for (int j=0; j<nodes.dimension(2); j++) {
-        cnodes(0,i,j) = nodes(owners(i,0),i,j);
-      }
-    }
+    DRV cnodes = cells[0][0]->nodes;
+    //DRV cnodes("current nodes",1,nodes.dimension(1), nodes.dimension(2));
+    //for (int i=0; i<nodes.dimension(1); i++) {
+    //  for (int j=0; j<nodes.dimension(2); j++) {
+    //    cnodes(0,i,j) = nodes(owners(i,0),i,j);
+    //  }
+    //}
     CellTools<AssemblyDevice>::mapToReferenceFrame(refpt_buffer, cpt, cnodes, *cellTopo);
     DRV refpt("refpt",1,dimpts);
     Kokkos::deep_copy(refpt,Kokkos::subdynrankview(refpt_buffer,0,Kokkos::ALL(),Kokkos::ALL()));

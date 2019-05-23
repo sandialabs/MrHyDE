@@ -3,4 +3,5 @@
 ANONYMOUS:
   Functions: 
     thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y) 
+    tthermal source: '2*pi*pi*sin(pi*x)*sin(pi*y)'
 ...

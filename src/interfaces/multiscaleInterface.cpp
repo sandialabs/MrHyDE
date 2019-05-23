@@ -226,8 +226,8 @@ ScalarT MultiScale::initialize() {
       //vector<vector<vector<FC> > > curr_sg_basis;
       DRV ip = subgridModels[i]->getIP();
       DRV wts = subgridModels[i]->getIPWts();
-      KokkosTools::print(ip);
-      KokkosTools::print(wts);
+      //KokkosTools::print(ip);
+      //KokkosTools::print(wts);
       
       pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > basisinfo_i = subgridModels[i]->evaluateBasis2(ip);
       vector<Teuchos::RCP<LA_CrsMatrix> > currmaps;
@@ -285,32 +285,11 @@ ScalarT MultiScale::initialize() {
     
     for (size_t i=0; i<subgridModels.size(); i++) {
       
-      /*
-      Teuchos::RCP<LA_LinearProblem> SgLinSys = Teuchos::rcp(new LA_LinearProblem());
-      Amesos SgAmFactory;
-      char* SolverType = "Amesos_Klu";
-      Amesos_BaseSolver * SgAmSolver = SgAmFactory.Create(SolverType, *SgLinSys);
-      SgLinSys->SetOperator(subgrid_projection_maps[i][i].get());
-      SgAmSolver->SymbolicFactorization();
-      SgAmSolver->NumericFactorization();
-      */
-      KokkosTools::print(subgrid_projection_maps[i][i]);
-      
       vector_RCP dummy_vec = Teuchos::rcp(new LA_MultiVector(subgridModels[i]->overlapped_map,1));
       vector_RCP dummy_vec2 = Teuchos::rcp(new LA_MultiVector(subgridModels[i]->overlapped_map,1));
       Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>("KLU2",subgrid_projection_maps[i][i], dummy_vec, dummy_vec2);
-      //Am2Solver->setA(subgrid_projection_maps[i][i]);
       Am2Solver->symbolicFactorization();
       Am2Solver->numericFactorization();
-      
-      /*
-       LA_MultiVector newlhs(*(subgridModels[i]->owned_map),1);
-       LA_MultiVector newrhs(*(subgridModels[i]->owned_map),1);
-       SgLinSys->SetLHS(&newlhs);
-       SgLinSys->SetRHS(&newrhs);
-       SgAmSolver->Solve();
-       */
-      
       subgrid_projection_solvers.push_back(Am2Solver);
     }
   }

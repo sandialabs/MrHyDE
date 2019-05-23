@@ -160,7 +160,7 @@ public:
       sidetype = bcs(e_num,cside);
     }
     else {
-      sidetype = sideinfo(0,e_num,cside,1);
+      sidetype = sideinfo(0,e_num,cside,0);
     }
     int e_basis_num = wkset->usebasis[e_num];
     numBasis = wkset->basis_side[e_basis_num].dimension(1);
@@ -170,8 +170,7 @@ public:
     {
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
       
-      //nsource = functionManager->evaluate("thermal Neumann source","side ip",blocknum);
-      if (sidetype == 4){ //} && sideinfo(0,e_num,cside,1) != -1) {
+      if (sidetype == 4 && sideinfo(0,e_num,cside,1) != -1) {
         nsource = functionManager->evaluate("Dirichlet e " + wkset->sidename,"side ip",blocknum);
       }
       else if (sidetype == 2) {
@@ -221,7 +220,7 @@ public:
         }
       }
       else {
-        if (sideinfo(e,e_num,cside,0) == 4) { // Element e is on the side
+        if (sideinfo(e,e_num,cside,0) == 4){
           computeWD = true;
         }
       }
@@ -246,10 +245,12 @@ public:
           AD lambda;
           
           if (!usebcs) {
-            if (sideinfo(e,e_num,cside,1) == -1)
+            if (sideinfo(e,e_num,cside,1) == -1) {
               lambda = aux_side(e,e_num,k);
+            }
             else {
               lambda = nsource(e,k);
+              
               //udfunc->boundaryDirichletValue(label,"e",x,y,z,wkset->time,wkset->sidename,wkset->isAdjoint);
               //  lambda = this->getDirichletValue("e", x, y, z, wkset->time,
               //                                   wkset->sidename, wkset->isAdjoint);
@@ -258,6 +259,7 @@ public:
           else {
             lambda = nsource(e,k);
           }
+          
           for (int i=0; i<basis.dimension(1); i++ ) {
             resindex = offsets(e_num,i);
             v = basis(e,i,k);
@@ -288,6 +290,7 @@ public:
       }
       
     }
+    //KokkosTools::print(res);
     
   }
   
