@@ -145,6 +145,7 @@
 #include <BelosConfigDefs.hpp>
 #include <BelosLinearProblem.hpp>
 #include <BelosTpetraAdapter.hpp>
+#include <BelosBlockGmresSolMgr.hpp>
 
 // MueLu
 #include <MueLu.hpp>
