@@ -98,7 +98,7 @@ public:
         
         CellTools<AssemblyDevice>::setJacobianInv(sijacInv, sijac);
         
-        DRV temporary_buffer("temporary_buffer",numElem,ref_side_ip.dimension(0)*cellData->dimension*cellData->dimension);
+        DRV temporary_buffer("temporary_buffer",numElem*ref_side_ip.dimension(0)*cellData->dimension*cellData->dimension);
         
         if (cellData->dimension == 2) {
           FunctionSpaceTools<AssemblyDevice>::computeEdgeMeasure(wts_side, sijac, ref_side_wts, s,

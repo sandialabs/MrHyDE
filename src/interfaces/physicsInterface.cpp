@@ -645,7 +645,8 @@ AD physics::getDirichletValue(const int & block, const ScalarT & x, const Scalar
   // update point in wkset
   wkset->point_KV(0,0,0) = x;
   wkset->point_KV(0,0,1) = y;
-  wkset->point_KV(0,0,2) = z;
+  if(spaceDim == 3)
+    wkset->point_KV(0,0,2) = z;
   wkset->time_KV(0) = t;
   
   // evaluate the response

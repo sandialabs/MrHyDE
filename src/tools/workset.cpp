@@ -500,7 +500,7 @@ void workset::addSide(const DRV & nodes, const int & sidenum,
   CellTools<AssemblyDevice>::mapToPhysicalFrame(bip, refSidePoints, nodes, *celltopo);
   CellTools<AssemblyDevice>::setJacobian(bijac, refSidePoints, nodes, *celltopo);
   CellTools<AssemblyDevice>::setJacobianInv(bijacInv, bijac);
-  DRV temporary_buffer("temporary_buffer",numBElem,ref_side_ip.dimension(0)*dimension*dimension);
+  DRV temporary_buffer("temporary_buffer",numBElem*ref_side_ip.dimension(0)*dimension*dimension);
   
   if (dimension == 2) {
     FunctionSpaceTools<AssemblyDevice>::computeEdgeMeasure(bwts, bijac, ref_side_wts, localSideID(0),
