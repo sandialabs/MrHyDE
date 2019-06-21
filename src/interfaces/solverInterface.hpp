@@ -86,7 +86,8 @@ public:
   /* solve the problem */
   // ========================================================================================
   
-  void transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> & gradient);
+  void transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> & gradient,
+                       ScalarT & start_time, ScalarT & end_time);
   
   // ========================================================================================
   // ========================================================================================
@@ -183,15 +184,18 @@ public:
   
   vector<LO> owned, ownedAndShared, LA_owned, LA_ownedAndShared;
   
-  ScalarT NLtol, finaltime, lintol, dropTol, fillParam, current_time, initial_time;
+  ScalarT NLtol, final_time, lintol, dropTol, fillParam, current_time, initial_time, deltat;
   
   string solver_type, NLsolver, initial_type, response_type, multigrid_type, smoother_type;
   
   bool line_search, useL2proj, allow_remesh, useDomDecomp, useDirect, usePrec, discretized_stochastic;
-  bool isInitial, isTransient, useadjoint, is_final_time, usestrongDBCs;
-  bool compute_objective, compute_sensitivity, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
+  bool isInitial, isTransient, useadjoint, is_final_time, usestrongDBCs, compute_flux, useLinearSolver;
+  bool compute_objective, compute_sensitivity, compute_aux_sensitivity, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
   
   //vector<ScalarT> solvetimes;
+  
+  Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver;
+  bool have_symbolic_factor;
   
   Teuchos::RCP<SolutionStorage<LA_MultiVector> > soln, adj_soln, soln_dot;
   

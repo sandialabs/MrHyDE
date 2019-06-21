@@ -1,6 +1,7 @@
 %YAML 1.1
 ---
 ANONYMOUS:
+  verbosity: 0
   Mesh Settings File: input_mesh.yaml
   Physics:
     eblock-0_0_0:
@@ -58,8 +59,7 @@ ANONYMOUS:
     Verbosity: 0
     solver: steady-state
     NLtol: 9.99999999999999955e-07
-    finaltime: 1.00000000000000000e+00
-    numSteps: 100
+    use direct solver: true
   Postprocess: 
     response type: pointwise
     Verbosity: 0

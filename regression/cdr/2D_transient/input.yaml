@@ -25,8 +25,8 @@ ANONYMOUS:
     Verbosity: 0
     NLtol: 9.99999999999999955e-07
     MaxNLiter: 10
-    finaltime: 1.00000000000000000e-1
-    numSteps: 10
+    final time: 1.00000000000000000e-1
+    delta t: 1.00000000000000000e-2
     use strong DBCs: true
   Analysis: 
     analysis type: forward

@@ -41,6 +41,7 @@ int main(int argc,char * argv[]) {
   bool profile = false;
   
   Kokkos::initialize();
+  
   Teuchos::RCP<LA_MpiComm> tcomm_LA;
   Teuchos::RCP<LA_MpiComm> tcomm_S;
   

@@ -259,19 +259,19 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       cells[b][e]->setIP(ref_ip[b]);
-      cells[b][e]->setSideIP(ref_side_ip[b], ref_side_wts[b]);
+      //cells[b][e]->setSideIP(ref_side_ip[b], ref_side_wts[b]);
     }
   }
   //-----------------------------------------------
   
   // Set the boundary cell integration points/wts -
-  for (size_t b=0; b<boundaryCells.size(); b++) {
-    for (size_t e=0; e<boundaryCells[b].size(); e++) {
-      int s = boundaryCells[b][e]->sidenum;
+  //for (size_t b=0; b<boundaryCells.size(); b++) {
+  //  for (size_t e=0; e<boundaryCells[b].size(); e++) {
+  //    int s = boundaryCells[b][e]->sidenum;
       //boundaryCells[b][e]->setIP(ref_side_ip[b], ref_side_wts[b]);
       //cells[b][e]->setSideIP(ref_side_ip[b], ref_side_wts[b]);
-    }
-  }
+  //  }
+  //}
   //-----------------------------------------------
   
   

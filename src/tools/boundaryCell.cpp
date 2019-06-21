@@ -253,6 +253,10 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
   {
     Teuchos::TimeMonitor localtimer(*boundaryResidualTimer);
     
+    wkset->updateSide(sidenum, wksetBID);
+    wkset->sidename = sidename;
+    wkset->currentside = sidenum;
+    
     
     //    wkset->sideinfo = sideinfo;
     //    wkset->currentside = side;
@@ -674,6 +678,97 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
 // Compute flux and sensitivity wrt params
 ///////////////////////////////////////////////////////////////////////////////////////
 
+void BoundaryCell::computeFlux(const vector_RCP & gl_u,
+                               const vector_RCP & gl_du,
+                               const vector_RCP & params,
+                               Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+                               const ScalarT & time, const int & side, const ScalarT & coarse_h,
+                               const bool & compute_sens) {
+  
+  wkset->time = time;
+  wkset->time_KV(0) = time;
+  
+  auto u_kv = gl_u->getLocalView<HostDevice>();
+  auto du_kv = gl_du->getLocalView<HostDevice>();
+  //auto params_kv = params->getLocalView<HostDevice>();
+  
+  Kokkos::View<AD***,AssemblyDevice> u_AD("temp u AD",u.dimension(0),u.dimension(1),u.dimension(2));
+  Kokkos::View<AD***,AssemblyDevice> u_dot_AD("temp u AD",u.dimension(0),u.dimension(1),u.dimension(2));
+  //Kokkos::View<AD***,AssemblyDevice> param_AD("temp u AD",param.dimension(0),param.dimension(1),param.dimension(2));
+  Kokkos::View<AD***,AssemblyDevice> param_AD("temp u AD",1,1,1);
+  
+  {
+    Teuchos::TimeMonitor localtimer(*cellFluxGatherTimer);
+    
+    if (compute_sens) {
+      for (int e=0; e<numElem; e++) {
+        for (size_t n=0; n<index.dimension(1); n++) {
+          for( size_t i=0; i<numDOF(n); i++ ) {
+            u_AD(e,n,i) = AD(u_kv(index(e,n,i),0));
+          }
+        }
+      }
+    }
+    else {
+      size_t numDerivs = gl_du->getNumVectors();
+      for (int e=0; e<numElem; e++) {
+        for (size_t n=0; n<index.dimension(1); n++) {
+          for( size_t i=0; i<numDOF(n); i++ ) {
+            u_AD(e,n,i) = AD(maxDerivs, 0, u_kv(index(e,n,i),0));
+            for( size_t p=0; p<numDerivs; p++ ) {
+              u_AD(e,n,i).fastAccessDx(p) = du_kv(index(e,n,i),p);
+            }
+          }
+        }
+      }
+    }
+    /*
+     for (int e=0; e<paramindex.size(); e++) {
+     for (size_t n=0; n<paramindex.dimension(1); n++) {
+     for( size_t i=0; i<numParamDOF(n); i++ ) {
+     param_AD(e,n,i) = AD(params_kv(paramindex(e,n,i),0));
+     }
+     }
+     }*/
+  }
+  
+  {
+    Teuchos::TimeMonitor localtimer(*cellFluxWksetTimer);
+    
+    wkset->computeSolnSideIP(sidenum, u_AD, u_dot_AD, param_AD);
+  }
+  if (wkset->numAux > 0) {
+    
+    Teuchos::TimeMonitor localtimer(*cellFluxAuxTimer);
+    
+    wkset->resetAuxSide();
+    
+    size_t numip = wkset->numsideip;
+    AD auxval;
+    
+    for (int e=0; e<numElem; e++) {
+      for (size_t k=0; k<auxindex.dimension(1); k++) {
+        for(size_t i=0; i<numAuxDOF(k); i++ ) {
+          auxval = AD(maxDerivs, auxoffsets[k][i], lambda(0,k,i));
+          for( size_t j=0; j<numip; j++ ) {
+            wkset->local_aux_side(e,k,j) += auxval*auxside_basis[auxusebasis[k]](e,i,j);
+          }
+        }
+      }
+    }
+  }
+  
+  wkset->resetFlux();
+  {
+    Teuchos::TimeMonitor localtimer(*cellFluxEvalTimer);
+    
+    cellData->physics_RCP->computeFlux(cellData->myBlock);
+  }
+  
+}
+
+
+/*
 void BoundaryCell::computeFlux(const Teuchos::RCP<Epetra_MultiVector> & gl_u,
                        const Teuchos::RCP<Epetra_MultiVector> & gl_du,
                        const Teuchos::RCP<Epetra_MultiVector> & params,
@@ -756,4 +851,4 @@ void BoundaryCell::computeFlux(const Teuchos::RCP<Epetra_MultiVector> & gl_u,
   }
   
 }
-
+*/

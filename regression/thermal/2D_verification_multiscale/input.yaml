@@ -17,6 +17,7 @@ ANONYMOUS:
       e: 1
     quadrature: 2
   Subgrid:
+    Subgrid Model: FEM
     Mesh:
       shape: quad
       refinements: 2
@@ -31,12 +32,14 @@ ANONYMOUS:
       Verbosity: 0
       NLtol: 9.99999999999999955e-07
       MaxNLiter: 4
-      use amesos2: true
+      use direct solver: true
     Functions Settings File: input_functions.yaml
     Discretization:
       order:
         e: 1
       quadrature: 2
+    Postprocess: 
+      store aux and flux: true
   Parameters Settings File: input_params.yaml
   Solver: 
     solver: steady-state

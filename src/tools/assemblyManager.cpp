@@ -316,15 +316,39 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
     }
   }
   
+  for (size_t b=0; b<cells.size(); b++) {
+    this->assembleJacRes(u, u_dot, phi, phi_dot, alpha, beta, compute_jacobian,
+                         compute_sens, compute_disc_sens, res, J, isTransient,
+                         current_time, useadjoint, store_adjPrev, num_active_params,
+                         Psol, is_final_time, b);
+  }
+  
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "******** Finished AssemblyManager::assembleJacRes" << endl;
+    }
+  }
+}
+
+void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
+                                     vector_RCP & phi, vector_RCP & phi_dot,
+                                     const ScalarT & alpha, const ScalarT & beta,
+                                     const bool & compute_jacobian, const bool & compute_sens,
+                                     const bool & compute_disc_sens,
+                                     vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                                     const ScalarT & current_time,
+                                     const bool & useadjoint, const bool & store_adjPrev,
+                                     const int & num_active_params,
+                                     vector_RCP & Psol, const bool & is_final_time,
+                                     const int & b) {
+    
+  
+  
   int numRes = res->getNumVectors();
   
   Teuchos::TimeMonitor localassemblytimer(*assemblytimer);
   
-  //////////////////////////////////////////////////////////////////////////////////////
-  // Volumetric terms
-  //////////////////////////////////////////////////////////////////////////////////////
-  
-  for (size_t b=0; b<cells.size(); b++) {
+  //for (size_t b=0; b<cells.size(); b++) {
     
     //////////////////////////////////////////////////////////////////////////////////////
     // Set up the worksets and allocate the local residual and Jacobians
@@ -445,14 +469,14 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
       
     } // element loop
     
-  } // block loop
+  //} // block loop
   
   //////////////////////////////////////////////////////////////////////////////////////
   // Boundary terms
   //////////////////////////////////////////////////////////////////////////////////////
   
   if (!cells[0][0]->cellData->multiscale && useNewBCs) {
-    for (size_t b=0; b<boundaryCells.size(); b++) {
+    //for (size_t b=0; b<boundaryCells.size(); b++) {
       
       {
         Teuchos::TimeMonitor localtimer(*gathertimer);
@@ -520,10 +544,6 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
               }
             });
             
-            wkset[b]->updateSide(boundaryCells[b][e]->sidenum, e);
-            wkset[b]->sidename = boundaryCells[b][e]->sidename;
-            wkset[b]->currentside = boundaryCells[b][e]->sidenum;
-            
             boundaryCells[b][e]->computeJacRes(current_time, isTransient, useadjoint, compute_jacobian, compute_sens,
                                                num_active_params, compute_disc_sens, false, store_adjPrev,
                                                local_res, local_J, local_Jdot);
@@ -548,7 +568,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
         }
       } // element loop
       
-    } // block loop
+    //} // block loop
   }
   
   // ************************** STRONGLY ENFORCE DIRICHLET BCs *******************************************
@@ -586,11 +606,6 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
     }
   }
   
-  if (milo_debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "******** Finished AssemblyManager::assembleJacRes" << endl;
-    }
-  }
 }
 
 

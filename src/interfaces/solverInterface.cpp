@@ -41,13 +41,23 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   
   // Get the required information from the settings
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
-  numsteps = settings->sublist("Solver").get("numSteps",1);
+  isInitial = false;
+  initial_time = settings->sublist("Solver").get<ScalarT>("initial time",0.0);
+  current_time = initial_time;
+  final_time = settings->sublist("Solver").get<ScalarT>("final time",1.0);
+  if (settings->sublist("Solver").isParameter("delta t")) {
+    deltat = settings->sublist("Solver").get<ScalarT>("delta t");
+    numsteps = std::ceil((final_time - initial_time)/deltat);
+  }
+  else {
+    numsteps = settings->sublist("Solver").get<int>("numSteps",1);
+    deltat = (final_time - initial_time)/numsteps;
+  }
   verbosity = settings->get<int>("verbosity",0);
   usestrongDBCs = settings->sublist("Solver").get<bool>("use strong DBCs",true);
   use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("Use Measurements as DBCs", false);
   solver_type = settings->sublist("Solver").get<string>("solver","none"); // or "transient"
   allow_remesh = settings->sublist("Solver").get<bool>("Remesh",false);
-  finaltime = settings->sublist("Solver").get<ScalarT>("finaltime",1.0);
   time_order = settings->sublist("Solver").get<int>("time order",1);
   NLtol = settings->sublist("Solver").get<ScalarT>("NLtol",1.0E-6);
   MaxNLiter = settings->sublist("Solver").get<int>("MaxNLiter",10);
@@ -59,19 +69,12 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   if (solver_type == "transient") {
     isTransient = true;
   }
-  else {
-    numsteps = 1;
-  }
-  
-  isInitial = false;
-  initial_time = settings->sublist("Solver").get<ScalarT>("Initial Time",0.0);
-  current_time = initial_time;
   
   /*
   solvetimes.push_back(current_time);
   
   if (isTransient) {
-    ScalarT deltat = finaltime / numsteps;
+    ScalarT deltat = final_time / numsteps;
     ScalarT ctime = current_time; // local current time
     for (int timeiter = 0; timeiter < numsteps; timeiter++) {
       ctime += deltat;
@@ -83,10 +86,13 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   response_type = settings->sublist("Postprocess").get("response type", "pointwise"); // or "global"
   compute_objective = settings->sublist("Postprocess").get("compute objective",false);
   compute_sensitivity = settings->sublist("Postprocess").get("compute sensitivities",false);
+  compute_aux_sensitivity = settings->sublist("Solver").get("compute aux sensitivities",false);
+  compute_flux = settings->sublist("Solver").get("compute flux",false);
   
   initial_type = settings->sublist("Solver").get<string>("Initial type","L2-projection");
   multigrid_type = settings->sublist("Solver").get<string>("Multigrid type","sa");
   smoother_type = settings->sublist("Solver").get<string>("Smoother type","CHEBYSHEV"); // or RELAXATION
+  useLinearSolver = settings->sublist("Solver").get<bool>("use linear solver",true);
   lintol = settings->sublist("Solver").get<ScalarT>("lintol",1.0E-7);
   liniter = settings->sublist("Solver").get<int>("liniter",100);
   kspace = settings->sublist("Solver").get<int>("krylov vectors",100);
@@ -95,6 +101,8 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   usePrec = settings->sublist("Solver").get<bool>("use preconditioner",true);
   dropTol = settings->sublist("Solver").get<ScalarT>("ILU drop tol",0.0); //defaults to AztecOO default
   fillParam = settings->sublist("Solver").get<ScalarT>("ILU fill param",3.0); //defaults to AztecOO default
+  
+  have_symbolic_factor = false;
   
   // needed information from the mesh
   mesh->mesh->getElementBlockNames(blocknames);
@@ -284,9 +292,9 @@ void solver::finalizeWorkset() {
           assembler->boundaryCells[b][e]->wkset = assembler->wkset[b];
           assembler->boundaryCells[b][e]->setUseBasis(useBasis[b],nstages);
           
-          assembler->wkset[b]->addSide(assembler->boundaryCells[b][e]->nodes,
-                                       assembler->boundaryCells[b][e]->sidenum,
-                                       assembler->boundaryCells[b][e]->localSideID,e);
+          assembler->boundaryCells[b][e]->wksetBID = assembler->wkset[b]->addSide(assembler->boundaryCells[b][e]->nodes,
+                                                                                  assembler->boundaryCells[b][e]->sidenum,
+                                                                                  assembler->boundaryCells[b][e]->localSideID);
         }
       }
     }
@@ -498,7 +506,7 @@ void solver::forwardModel(DFAD & obj) {
   useadjoint = false;
   params->sacadoizeParams(false);
   
-  vector_RCP u = this->setInitial(); // TMW: this will be deprecated soon
+  vector_RCP u = this->setInitial();
   if (solver_type == "transient") {
     soln->store(u, current_time, 0); // copies the data
   }
@@ -511,10 +519,20 @@ void solver::forwardModel(DFAD & obj) {
       obj = this->computeObjective(u, 0.0, 0);
     }
     soln->store(u, current_time, 0);
+    /*
+    int numAuxDOF = 4;
+    vector_RCP d_u = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,numAuxDOF)); // empty solution
+    if () {
+      this->computeAuxSensitivity();
+    }
+    if () {
+      this->computeFlux(u,d_u,true);
+    }
+    */
   }
   else if (solver_type == "transient") {
     vector<ScalarT> gradient; // not really used here
-    this->transientSolver(u, obj, gradient);
+    this->transientSolver(u, obj, gradient, initial_time, final_time);
   }
   else {
     // print out an error message
@@ -525,8 +543,6 @@ void solver::forwardModel(DFAD & obj) {
       cout << "**** Finished solver::forwardModel" << endl;
     }
   }
-  
-  //return F_soln;
 }
 
 // ========================================================================================
@@ -569,13 +585,11 @@ void solver::forwardModel_fr(DFAD & obj, ScalarT yt, ScalarT st) {
   }
   else if (solver_type == "transient") {
     vector<ScalarT> gradient; // not really used here
-    this->transientSolver(u, obj, gradient);
+    this->transientSolver(u, obj, gradient, initial_time, final_time);
   }
   else {
     // print out an error message
   }
-  
-  //return F_soln;
 }
 
 // ========================================================================================
@@ -593,37 +607,11 @@ void solver::adjointModel(vector<ScalarT> & gradient) {
   
   params->sacadoizeParams(false);
   
-  //isInitial = true;
-  vector_RCP phi = setInitial(); // does this need
-  // to be updated for adjoint model?
-  
-  // Solve the forward problem
-  //int numsols = 1;
-  //if (solver_type == "transient") {
-  //  numsols = numsteps+1;
-  //}
+  vector_RCP phi = setInitial();
   
   vector_RCP zero_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
-  //vector_RCP A_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,numsols)); // empty solution
-  
-  //auto initial_2d = initial->getLocalView<HostDevice>();
-  //auto asol_2d = A_soln->getLocalView<HostDevice>();
-  //auto fsol_2d = F_soln->getLocalView<HostDevice>();
-  //
-  //for( size_t i=0; i<ownedAndShared.size(); i++ ) {
-  //  asol_2d(i,0) = initial_2d(i,0);
-  //}
   
   if (solver_type == "steady-state") {
-    //vector_RCP L_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
-    //vector_RCP SS_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
-    //auto lsol_2d = L_soln->getLocalView<HostDevice>();
-    //auto SS_2d = SS_soln->getLocalView<HostDevice>();
-    
-    
-    //for( size_t i=0; i<ownedAndShared.size(); i++ ) {
-    //  lsol_2d(i,0) = fsol_2d(i,0);
-    //}
     vector_RCP u;
     bool fnd = soln->extract(u, current_time);
     this->nonlinearSolver(u, zero_soln, phi, zero_soln, 0.0, 1.0);
@@ -633,7 +621,7 @@ void solver::adjointModel(vector<ScalarT> & gradient) {
   }
   else if (solver_type == "transient") {
     DFAD obj = 0.0;
-    this->transientSolver(phi, obj, gradient);
+    this->transientSolver(phi, obj, gradient, initial_time, final_time);
   }
   else {
     // print out an error message
@@ -654,18 +642,21 @@ void solver::adjointModel(vector<ScalarT> & gradient) {
 /* solve the problem */
 // ========================================================================================
 
-void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> & gradient) {
+void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> & gradient,
+                             ScalarT & start_time, ScalarT & end_time) {
   
   if (milo_debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "******** Starting solver::transientSolver ..." << endl;
+      cout << "******** Start time = " << start_time << endl;
+      cout << "******** End time = " << end_time << endl;
     }
   }
   
-  ScalarT deltat = 0.0;
+  //ScalarT deltat = 0.0;
   ScalarT alpha = 0.0;
   ScalarT beta = 1.0;
-  deltat = finaltime / numsteps;
+  //deltat = final_time / numsteps;
   if (time_order == 1){
     alpha = 1./deltat;
   }
@@ -676,7 +667,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     alpha = 0.0; // would be better to print out an error message
   }
   
-  
+  current_time = start_time;
   if (!useadjoint) { // forward solve - adaptive time stepping
     is_final_time = false;
     vector_RCP u = initial;
@@ -688,7 +679,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     obj = 0.0;
     int numCuts = 0;
     int maxCuts = 5; // TMW: make this a user-defined input
-    while (abs(current_time - finaltime)>1.0e-12 && numCuts<=maxCuts) {
+    while (abs(current_time - end_time)>1.0e-12 && numCuts<=maxCuts) {
       
       current_time += deltat;
       
@@ -719,6 +710,9 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
       int status = this->nonlinearSolver(u, u_dot, zero_vec, zero_vec, alpha, beta);
       
       if (status == 0) { // NL solver converged
+        
+        // TMW: currently allowing storage of all solutions
+        // Need to implement some form of checkpointing
         soln->store(u, current_time, 0);
         soln_dot->store(u_dot, current_time, 0);
         
@@ -729,6 +723,12 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         if (compute_objective) { // fill in the objective function
           DFAD cobj = this->computeObjective(u, current_time, soln->times[0].size()-1);
           obj += cobj;
+        }
+        if (compute_aux_sensitivity) {
+          
+        }
+        if (compute_flux) {
+          
         }
       }
       else { // something went wrong, cut time step and try again
@@ -748,7 +748,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     }
   }
   else { // adjoint solve - fixed time stepping based on forward solve
-    current_time = finaltime;
+    current_time = final_time;
     is_final_time = true;
     
     vector_RCP u = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
@@ -772,9 +772,11 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         cout << "*******************************************************" << endl << endl << endl;
       }
       
+      // TMW: this is specific to implicit Euler
+      // Needs to be generalized
+      // Also, need to implement checkpoint/recovery
       bool fndu = soln->extract(u, cindex);
       bool fndup = soln->extract(u_prev, cindex-1);
-      //bool fndudot = soln->extract(u_dot, cindex);
       auto u_kv = u->getLocalView<HostDevice>();
       auto u_prev_kv = u_prev->getLocalView<HostDevice>();
       auto u_dot_kv = u_dot->getLocalView<HostDevice>();
@@ -783,11 +785,12 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
       }
       int status = this->nonlinearSolver(u, u_dot, phi, phi_dot, alpha, beta);
       
+      // Storing the adjoint solution should be made optional
+      // We are computing the sensitivities as we go, so storage isn't always necessary
       adj_soln->store(phi,current_time,0);
       
       this->computeSensitivities(u,u_dot,phi,gradient,alpha,beta);
       
-      //current_time -= deltat;
       is_final_time = false;
     }
   }
@@ -805,8 +808,8 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
 
 
 int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
-                           vector_RCP & phi, vector_RCP & phi_dot,
-                           const ScalarT & alpha, const ScalarT & beta) {
+                            vector_RCP & phi, vector_RCP & phi_dot,
+                            const ScalarT & alpha, const ScalarT & beta) {
   
   if (milo_debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -835,6 +838,8 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
   
   while( NLerr_scaled[0]>NLtol && NLiter<maxiter ) { // while not converged
     
+    multiscale_manager->reset();
+    
     gNLiter = NLiter;
     
     vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
@@ -847,8 +852,6 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     // *********************** COMPUTE THE JACOBIAN AND THE RESIDUAL **************************
     
     bool build_jacobian = true;
-    if (NLsolver == "AA")
-    build_jacobian = false;
     
     res_over->putScalar(0.0);
     J_over->setAllToScalar(0.0);
@@ -869,6 +872,10 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     res->putScalar(0.0);
     res->doExport(*res_over, *exporter, Tpetra::ADD);
     
+    if (milo_debug_level>2) {
+      KokkosTools::print(J);
+      KokkosTools::print(res);
+    }
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
     if (NLiter == 0) {
       res->normInf(NLerr_first);
@@ -892,7 +899,7 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     
     // *********************** SOLVE THE LINEAR SYSTEM **************************
     
-    if (NLerr_scaled[0] > NLtol) {
+    if (NLerr_scaled[0] > NLtol && useLinearSolver) {
       
       this->linearSolver(J, res, du_over);
       
@@ -1048,6 +1055,7 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
       }
     }
     else {
+      /*
       for (size_t e=0; e<assembler->cells[b].size(); e++) {
         if (numBoundaryParams > 0) {
           
@@ -1075,7 +1083,7 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
             }
           }
         }
-      }
+      }*/
     }
     
     totaldiff += (regDomain + regBoundary);
@@ -1388,41 +1396,55 @@ vector_RCP solver::setInitial() {
 
 void solver::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   Teuchos::TimeMonitor localtimer(*linearsolvertimer);
-  //KokkosTools::print(r);
-  //LA_LinearProblem LinSys(J.get(), soln.get(), r.get());
-  Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
-  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > M = buildPreconditioner(J);
   
-  Problem->setLeftPrec(M);
-  Problem->setProblem();
-  
-  Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList());
-  belosList->set("Maximum Iterations",    kspace); // Maximum number of iterations allowed
-  belosList->set("Convergence Tolerance", lintol);    // Relative convergence tolerance requested
-  if (verbosity > 9) {
-    belosList->set("Verbosity", Belos::Errors + Belos::Warnings + Belos::StatusTestDetails);
+  if (useDirect) {
+    if (have_symbolic_factor) {
+      Am2Solver->setA(J, Amesos2::SYMBFACT);
+      Am2Solver->setX(soln);
+      Am2Solver->setB(r);
+    }
+    else {
+      Am2Solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>("KLU2", J, r, soln);
+      Am2Solver->symbolicFactorization();
+      have_symbolic_factor = true;
+    }
+    Am2Solver->numericFactorization().solve();
   }
   else {
-    belosList->set("Verbosity", Belos::Errors);
+    Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
+    Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > M = buildPreconditioner(J);
+    
+    Problem->setLeftPrec(M);
+    Problem->setProblem();
+    
+    Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList());
+    belosList->set("Maximum Iterations",    kspace); // Maximum number of iterations allowed
+    belosList->set("Convergence Tolerance", lintol);    // Relative convergence tolerance requested
+    if (verbosity > 9) {
+      belosList->set("Verbosity", Belos::Errors + Belos::Warnings + Belos::StatusTestDetails);
+    }
+    else {
+      belosList->set("Verbosity", Belos::Errors);
+    }
+    if (verbosity > 8) {
+      belosList->set("Output Frequency",10);
+    }
+    else {
+      belosList->set("Output Frequency",0);
+    }
+    int numEqns = 1;
+    if (assembler->cells.size() == 1) {
+      numEqns = numVars[0];
+    }
+    belosList->set("number of equations",numEqns);
+    
+    belosList->set("Output Style",          Belos::Brief);
+    belosList->set("Implicit Residual Scaling", "None");
+    
+    Teuchos::RCP<Belos::SolverManager<ScalarT, LA_MultiVector, LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT, LA_MultiVector, LA_Operator>(Problem, belosList));
+    
+    solver->solve();
   }
-  if (verbosity > 8) {
-    belosList->set("Output Frequency",10);
-  }
-  else {
-    belosList->set("Output Frequency",0);
-  }
-  int numEqns = 1;
-  if (assembler->cells.size() == 1) {
-    numEqns = numVars[0];
-  }
-  belosList->set("number of equations",numEqns);
-  
-  belosList->set("Output Style",          Belos::Brief);
-  belosList->set("Implicit Residual Scaling", "None");
-  
-  Teuchos::RCP<Belos::SolverManager<ScalarT, LA_MultiVector, LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT, LA_MultiVector, LA_Operator>(Problem, belosList));
-  
-  solver->solve();
 }
 
 // ========================================================================================

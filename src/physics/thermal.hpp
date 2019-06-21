@@ -143,25 +143,13 @@ public:
   
   void boundaryResidual() {
     
-    // NOTES:
-    // 1. basis and basis_grad already include the integration weights
-    
     sideinfo = wkset->sideinfo;
     Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
     
-    bool usebcs = wkset->usebcs;
-    //if (bcs.dimension(0)>0) {
-    //  usebcs = false;
-    //}
-    
     int cside = wkset->currentside;
     int sidetype;
-    if (usebcs) {
-      sidetype = bcs(e_num,cside);
-    }
-    else {
-      sidetype = sideinfo(0,e_num,cside,0);
-    }
+    sidetype = bcs(e_num,cside);
+    
     int e_basis_num = wkset->usebasis[e_num];
     numBasis = wkset->basis_side[e_basis_num].dimension(1);
     basis = wkset->basis_side[e_basis_num];
@@ -170,7 +158,7 @@ public:
     {
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
       
-      if (sidetype == 4 && sideinfo(0,e_num,cside,1) != -1) {
+      if (sidetype == 4 ) {
         nsource = functionManager->evaluate("Dirichlet e " + wkset->sidename,"side ip",blocknum);
       }
       else if (sidetype == 2) {
@@ -193,18 +181,7 @@ public:
     Teuchos::TimeMonitor localtime(*boundaryResidualFill);
     
     for (int e=0; e<basis.dimension(0); e++) {
-      bool computeN = false;
-      if (usebcs) {
-        if (bcs(e_num,cside) == 2) {
-          computeN = true;
-        }
-      }
-      else {
-        if (sideinfo(e,e_num,cside,0) == 2) { // Element e is on the side
-          computeN = true;
-        }
-      }
-      if (computeN) {
+      if (bcs(e_num,cside) == 2) {
         for (int k=0; k<basis.dimension(2); k++ ) {
           for (int i=0; i<basis.dimension(1); i++ ) {
             resindex = offsets(e_num,i);
@@ -213,22 +190,7 @@ public:
         }
       }
       
-      bool computeWD = false;
-      if (usebcs) {
-        if (bcs(e_num,cside) == 4) {
-          computeWD = true;
-        }
-      }
-      else {
-        if (sideinfo(e,e_num,cside,0) == 4){
-          computeWD = true;
-        }
-      }
-      
-      if (computeWD) {
-        
-      //else if (bcs(e_num,cside) == 4) {
-      //else if (sideinfo(e,e_num,cside,0) == 4) { //} && sideinfo(e,e_num,cside,1) == -1){ // Weak Dirichlet
+      if (bcs(e_num,cside) == 4 || bcs(e_num,cside) == 5) {
         
         for (int k=0; k<basis.dimension(2); k++ ) {
           
@@ -244,17 +206,8 @@ public:
           
           AD lambda;
           
-          if (!usebcs) {
-            if (sideinfo(e,e_num,cside,1) == -1) {
-              lambda = aux_side(e,e_num,k);
-            }
-            else {
-              lambda = nsource(e,k);
-              
-              //udfunc->boundaryDirichletValue(label,"e",x,y,z,wkset->time,wkset->sidename,wkset->isAdjoint);
-              //  lambda = this->getDirichletValue("e", x, y, z, wkset->time,
-              //                                   wkset->sidename, wkset->isAdjoint);
-            }
+          if (bcs(e_num,cside) == 5) {
+            lambda = aux_side(e,e_num,k);
           }
           else {
             lambda = nsource(e,k);
@@ -268,8 +221,9 @@ public:
               dvdy = basis_grad(e,i,k,1);
             if (spaceDim > 2)
               dvdz = basis_grad(e,i,k,2);
-            
+          
             weakDiriScale = 10.0*diff_side(e,k)/wkset->h(e);
+            
             res(e,resindex) += -diff_side(e,k)*dedx*normals(e,k,0)*v - sf*diff_side(e,k)*dvdx*normals(e,k,0)*(eval-lambda) + weakDiriScale*(eval-lambda)*v;
             if (spaceDim > 1) {
               res(e,resindex) += -diff_side(e,k)*dedy*normals(e,k,1)*v - sf*diff_side(e,k)*dvdy*normals(e,k,1)*(eval-lambda);
@@ -288,10 +242,7 @@ public:
           
         }
       }
-      
     }
-    //KokkosTools::print(res);
-    
   }
   
   // ========================================================================================

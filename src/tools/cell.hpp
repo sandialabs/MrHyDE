@@ -63,79 +63,6 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void setSideIP(const DRV & ref_side_ip, const DRV & ref_side_wts) {
-    // side ip and ref_side_ip will live on the assembly device
-    for (size_t s=0; s<cellData->numSides; s++) {
-      bool compute = false; // may not need the integration info on this side
-      for (size_t e=0; e<sideinfo.dimension(0); e++) { //numElem
-        for (size_t n=0; n<sideinfo.dimension(1); n++) { //numVars
-          //if (sideinfo(e,n,s,0)>0) {
-            compute = true;
-          //}
-        }
-      }
-      DRV sip, sijac, wts_side, cnormals;
-      //DRV sijac("sijac", numElem, ref_side_ip.dimension(0), dimension, dimension);
-      //DRV wts_side("wts_side", numElem, ref_side_ip.dimension(0));
-      //DRV cnormals = DRV("normals", numElem, ref_side_ip.dimension(0),dimension);
-      
-      if (compute) {
-        
-        sip = DRV("sip", numElem, ref_side_ip.dimension(0), cellData->dimension);
-        sijac = DRV("sijac", numElem, ref_side_ip.dimension(0), cellData->dimension, cellData->dimension);
-        wts_side = DRV("wts_side", numElem, ref_side_ip.dimension(0));
-        cnormals = DRV("normals", numElem, ref_side_ip.dimension(0), cellData->dimension);
-        
-        DRV refSidePoints("refSidePoints", ref_side_ip.dimension(0), cellData->dimension);
-        CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, ref_side_ip,
-                                                         cellData->dimension-1, s, *(cellData->cellTopo));
-        
-        CellTools<AssemblyDevice>::mapToPhysicalFrame(sip, refSidePoints, nodes, *(cellData->cellTopo));
-        
-        CellTools<AssemblyDevice>::setJacobian(sijac, refSidePoints, nodes, *(cellData->cellTopo));
-        
-        DRV sijacInv("sidejacobInv",numElem, ref_side_ip.dimension(0), cellData->dimension, cellData->dimension);
-        
-        CellTools<AssemblyDevice>::setJacobianInv(sijacInv, sijac);
-        
-        DRV temporary_buffer("temporary_buffer",numElem*ref_side_ip.dimension(0)*cellData->dimension*cellData->dimension);
-        
-        if (cellData->dimension == 2) {
-          FunctionSpaceTools<AssemblyDevice>::computeEdgeMeasure(wts_side, sijac, ref_side_wts, s,
-                                                                 *(cellData->cellTopo), temporary_buffer);
-        }
-        if (cellData->dimension == 3) {
-          FunctionSpaceTools<AssemblyDevice>::computeFaceMeasure(wts_side, sijac, ref_side_wts, s,
-                                                                 *(cellData->cellTopo), temporary_buffer);
-        }
-        CellTools<AssemblyDevice>::getPhysicalSideNormals(cnormals, sijac, s, *(cellData->cellTopo));
-        
-        // scale the normal vector (we need unit normal...)
-        
-        for (int e=0; e<numElem; e++) {
-          for( int j=0; j<ref_side_ip.dimension(0); j++ ) {
-            ScalarT normalLength = 0.0;
-            for (int sd=0; sd<cellData->dimension; sd++) {
-              normalLength += cnormals(e,j,sd)*cnormals(e,j,sd);
-            }
-            normalLength = sqrt(normalLength);
-            for (int sd=0; sd<cellData->dimension; sd++) {
-              cnormals(e,j,sd) = cnormals(e,j,sd) / normalLength;
-            }
-          }
-        }
-      }
-      sideip.push_back(sip);
-      sideijac.push_back(sijac);
-      normals.push_back(cnormals);
-      sidewts.push_back(wts_side);
-    }
-  }
-  
-  ///////////////////////////////////////////////////////////////////////////////////////
-  ///////////////////////////////////////////////////////////////////////////////////////
-  
-  //void setIndex(const vector<vector<vector<int> > > & index_) {
   void setIndex(Kokkos::View<LO***,AssemblyDevice> & index_, Kokkos::View<LO*,AssemblyDevice> & numDOF_) {
     
     index = Kokkos::View<LO***,AssemblyDevice>("local index",index_.dimension(0),
@@ -158,7 +85,6 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  //void setParamIndex(const vector<vector<vector<int> > > & pindex_) {
   void setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_,
                      Kokkos::View<LO*,AssemblyDevice> & pnumDOF_) {
     
@@ -259,14 +185,6 @@ public:
   
   void computeSolnVolIP(const bool & seedu, const bool & seedudot, const bool & seedparams,
                         const bool & seedaux);
-  
-  ///////////////////////////////////////////////////////////////////////////////////////
-  // Map the coarse grid solution to the fine grid integration points
-  ///////////////////////////////////////////////////////////////////////////////////////
-  
-  void computeSolnSideIP(const int & side,
-                         const bool & seedu, const bool & seedudot, const bool & seedparams,
-                         const bool & seedaux);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the contribution from this cell to the global res, J, Jdot
@@ -380,13 +298,6 @@ public:
                                  const vector<int> reg_indices);
 
   ///////////////////////////////////////////////////////////////////////////////////////
-  // Compute boundary contribution to the regularization and nodes located on the boundary
-  ///////////////////////////////////////////////////////////////////////////////////////
-  
-  AD computeBoundaryRegularization(const vector<ScalarT> reg_constants, const vector<int> reg_types,
-                                   const vector<int> reg_indices, const vector<string> reg_sides);
-
-  ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the objective function given the solution and solve times
   ///////////////////////////////////////////////////////////////////////////////////////
   
@@ -428,27 +339,6 @@ public:
   void writeSubgridSolution(Teuchos::RCP<panzer_stk::STK_Interface> & globalmesh,
                             string & subblockname, bool & isTD, int & offset);
 
-  ///////////////////////////////////////////////////////////////////////////////////////
-  // Compute flux and sensitivity wrt params
-  ///////////////////////////////////////////////////////////////////////////////////////
-
-  void computeFlux(const vector_RCP & u,
-                   const vector_RCP & du,
-                   const vector_RCP & sub_param,
-                   Kokkos::View<ScalarT***,AssemblyDevice> lambda,
-                   const ScalarT & time, const int & s, const ScalarT & coarse_h,
-                   const bool & compute_sens);
-
-  ///////////////////////////////////////////////////////////////////////////////////////
-  // Re-seed the global parameters 
-  ///////////////////////////////////////////////////////////////////////////////////////
-  /*
-  void sacadoizeParams(const bool & seed_active, const int & num_active_params,
-                       const vector<int> & paramtypes, const vector<string> & paramnames,
-                       const vector<vector<ScalarT> > & paramvals);
-    
-  */
-  
   ///////////////////////////////////////////////////////////////////////////////////////
   // Get the discretization/physics info (used for workset construction)
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -513,7 +403,7 @@ public:
   // Geometry Information
   int numElem;
   DRV nodes, ip, ijac;
-  vector<DRV> sideip, sideijac, normals, sidewts;
+  //vector<DRV> sideip, sideijac, normals, sidewts;
   Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
   vector<string> sidenames;
   

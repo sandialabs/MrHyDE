@@ -207,6 +207,96 @@ settings(settings_), Commptr(Commptr_) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+meshInterface::meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
+                             const Teuchos::RCP<LA_MpiComm> & Commptr_,
+                             Teuchos::RCP<panzer_stk::STK_MeshFactory> & mesh_factory_,
+                             Teuchos::RCP<panzer_stk::STK_Interface> & mesh_) :
+settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), mesh(mesh_) {
+  
+  using Teuchos::RCP;
+  using Teuchos::rcp;
+  
+  milo_debug_level = settings->get<int>("debug level",0);
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting mesh interface constructor ..." << endl;
+    }
+  }
+  
+  shape = settings->sublist("Mesh").get<string>("shape","quad");
+  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
+  
+  have_mesh_data = false;
+  compute_mesh_data = settings->sublist("Mesh").get<bool>("Compute mesh data",false);
+  have_rotations = false;
+  have_rotation_phi = false;
+  have_multiple_data_files = false;
+  mesh_data_file_tag = "none";
+  mesh_data_pts_tag = "mesh_data_pts";
+  number_mesh_data_files = 1;
+  
+  mesh_data_tag = settings->sublist("Mesh").get<string>("Data file","none");
+  if (mesh_data_tag != "none") {
+    mesh_data_pts_tag = settings->sublist("Mesh").get<string>("Data points file","mesh_data_pts");
+    
+    have_mesh_data = true;
+    have_rotation_phi = settings->sublist("Mesh").get<bool>("Have mesh data phi",false);
+    have_rotations = settings->sublist("Mesh").get<bool>("Have mesh data rotations",true);
+    have_multiple_data_files = settings->sublist("Mesh").get<bool>("Have multiple mesh data files",false);
+    number_mesh_data_files = settings->sublist("Mesh").get<int>("Number mesh data files",1);
+    
+  }
+  
+  meshmod_xvar = settings->sublist("Solver").get<int>("Solution For x-Mesh Mod",-1);
+  meshmod_yvar = settings->sublist("Solver").get<int>("Solution For y-Mesh Mod",-1);
+  meshmod_zvar = settings->sublist("Solver").get<int>("Solution For z-Mesh Mod",-1);
+  meshmod_TOL = settings->sublist("Solver").get<ScalarT>("Solution Based Mesh Mod TOL",1.0);
+  meshmod_usesmoother = settings->sublist("Solver").get<bool>("Solution Based Mesh Mod Smoother",false);
+  meshmod_center = settings->sublist("Solver").get<ScalarT>("Solution Based Mesh Mod Param",0.1);
+  meshmod_layer_size = settings->sublist("Solver").get<ScalarT>("Solution Based Mesh Mod Layer Thickness",0.1);
+  
+  vector<string> eBlocks;
+  mesh->getElementBlockNames(eBlocks);
+  
+  for (size_t b=0; b<eBlocks.size(); b++) {
+    cellTopo.push_back(mesh->getCellTopology(eBlocks[b]));
+  }
+  
+  for (size_t b=0; b<eBlocks.size(); b++) {
+    topo_RCP cellTopo = mesh->getCellTopology(eBlocks[b]);
+    string shape = cellTopo->getName();
+    if (spaceDim == 1) {
+      // nothing to do here?
+    }
+    if (spaceDim == 2) {
+      if (shape == "Quadrilateral_4") {
+        sideTopo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() )));
+      }
+      if (shape == "Triangle_3") {
+        sideTopo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() )));
+      }
+    }
+    if (spaceDim == 3) {
+      if (shape == "Hexahedron_8") {
+        sideTopo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() )));
+      }
+      if (shape == "Tetrahedron_4") {
+        sideTopo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Triangle<> >() )));
+      }
+    }
+    
+  }
+  
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished mesh interface constructor" << endl;
+    }
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
 void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
   
   ////////////////////////////////////////////////////////////////////////////////
@@ -1210,7 +1300,8 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
 // ========================================================================================
 
 void meshInterface::updateMeshData(const int & newrandseed,
-                                   vector<vector<Teuchos::RCP<cell> > > & cells) {
+                                   vector<vector<Teuchos::RCP<cell> > > & cells,
+                                   Teuchos::RCP<MultiScale> & multiscale_manager) {
   
   // Determine how many seeds there are
   int localnumSeeds = 0;
@@ -1282,4 +1373,6 @@ void meshInterface::updateMeshData(const int & newrandseed,
       }
     }
   }
+  
+  multiscale_manager->updateMeshData(rotation_data);
 }

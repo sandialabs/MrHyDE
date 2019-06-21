@@ -31,6 +31,9 @@ public:
                        Kokkos::View<GO**,HostDevice> & macroGIDs,
                        Kokkos::View<LO***,HostDevice> & macroindex) = 0;
 
+  
+  virtual void finalize() = 0;
+  
   virtual void subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
                              Kokkos::View<ScalarT***,AssemblyDevice> gl_phi,
                              const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
@@ -83,6 +86,8 @@ public:
 
   virtual void updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data) = 0;
 
+  //virtual void reset();
+  
   //virtual Epetra_MultiVector getVector() = 0;
   
   Teuchos::RCP<LA_MpiComm> LocalComm;

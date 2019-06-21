@@ -31,8 +31,8 @@ ANONYMOUS:
     Initial type: interpolation
     NLtol: 9.99999999999999955e-07
     MaxNLiter: 10
-    finaltime: 5.00000000000000000e-01
-    numSteps: 1
+    final time: 5.00000000000000000e-01
+    delta t: 5.00000000000000000e-01
   Postprocess: 
     Verbosity: 0
     response type: global

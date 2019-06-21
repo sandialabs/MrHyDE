@@ -16,7 +16,7 @@
 #include "preferences.hpp"
 #include "subgridModel.hpp"
 #include "subgridFEM.hpp"
-#include "subgridFEM2.hpp"
+//#include "subgridFEM2.hpp"
 
 using namespace std;
 using namespace Intrepid2;
@@ -49,7 +49,7 @@ vector<Teuchos::RCP<SubGridModel> > subgridGenerator(const Teuchos::RCP<LA_MpiCo
         subgridModels.push_back(Teuchos::rcp( new SubGridFEM(Comm, subgrid_pl, macro_topo, num_macro_time_steps, macro_deltat) ) );
       }
       else if (subgrid_model_type == "FEM2") {
-        subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo, num_macro_time_steps, macro_deltat) ) );
+        //subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo, num_macro_time_steps, macro_deltat) ) );
       }
       subgridModels[subgridModels.size()-1]->macro_block = macro_block;
       subgridModels[subgridModels.size()-1]->usage = "1.0";
@@ -71,7 +71,7 @@ vector<Teuchos::RCP<SubGridModel> > subgridGenerator(const Teuchos::RCP<LA_MpiCo
             subgridModels.push_back(Teuchos::rcp( new SubGridFEM(Comm, subgrid_pl, macro_topo, num_macro_time_steps, macro_deltat ) ) );
           }
           else if (subgrid_model_type == "FEM2") {
-            subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo, num_macro_time_steps, macro_deltat ) ) );
+            //subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo, num_macro_time_steps, macro_deltat ) ) );
           }
           subgridModels[subgridModels.size()-1]->macro_block = macro_block;
           string usage;

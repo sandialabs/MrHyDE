@@ -27,7 +27,7 @@ ANONYMOUS:
     NLtol: 9.99999999999999980e-13
     lintol: 1.00000000000000003e-13
     MaxNLiter: 4
-    finaltime: 5.00000000000000000e-01
+    final time: 5.00000000000000000e-01
     numSteps: 4
   Analysis Settings File: input_rol2.yaml
   Postprocess: 

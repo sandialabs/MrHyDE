@@ -51,8 +51,7 @@ class workset {
   // Add a side information
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void addSide(const DRV & nodes, const int & sidenum, Kokkos::View<int*> & localSideID,
-               const int & cnum);
+  int addSide(const DRV & nodes, const int & sidenum, Kokkos::View<int*> & localSideID);
 
   ////////////////////////////////////////////////////////////////////////////////////
   // Update the nodes and the basis functions at the side ip

@@ -237,13 +237,20 @@ public:
   // Compute flux and sensitivity wrt params
   ///////////////////////////////////////////////////////////////////////////////////////
 
+  /*
   void computeFlux(const Teuchos::RCP<Epetra_MultiVector> & u,
                    const Teuchos::RCP<Epetra_MultiVector> & du,
                    const Teuchos::RCP<Epetra_MultiVector> & sub_param,
                    Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                    const ScalarT & time, const int & s, const ScalarT & coarse_h,
                    const bool & compute_sens);
+  */
   
+  void computeFlux(const vector_RCP & gl_u, const vector_RCP & gl_du, const vector_RCP & params,
+                  Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+                  const ScalarT & time, const int & side, const ScalarT & coarse_h,
+                   const bool & compute_sens);
+
   ///////////////////////////////////////////////////////////////////////////////////////
   // Get the discretization/physics info (used for workset construction)
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -274,7 +281,7 @@ public:
   
   // Geometry Information
   int numElem = 0; // default value ... used to check if proc. has elements on boundary
-  int sidenum, cellID;
+  int sidenum, cellID, wksetBID;
   DRV nodes, ip, wts, ijac, normals;
   Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
   string sidename;

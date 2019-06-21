@@ -290,6 +290,7 @@ AD PostprocessManager::computeObjective() {
          
           
             if (numBoundaryParams > 0) {
+              /*
               int paramIndex, rowIndex, poffset;
               ScalarT val;
               regBoundary = cells[b][e]->computeBoundaryRegularization(boundaryRegConstants,
@@ -305,7 +306,7 @@ AD PostprocessManager::computeObjective() {
                     regGradient[rowIndex+numClassicParams] += val;
                   }
                 }
-              }
+              }*/
             }
             
             totaldiff += (regDomain + regBoundary);

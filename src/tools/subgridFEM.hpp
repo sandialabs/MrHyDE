@@ -15,6 +15,7 @@
 #include "trilinos.hpp"
 #include "preferences.hpp"
 #include "cell.hpp"
+#include "boundaryCell.hpp"
 #include "subgridMeshFactory.hpp"
 #include "meshInterface.hpp"
 #include "physicsInterface.hpp"
@@ -46,6 +47,11 @@ public:
   int addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice> macrosideinfo_,
                vector<string> & macrosidenames,
                Kokkos::View<GO**,HostDevice> & macroGIDs, Kokkos::View<LO***,HostDevice> & macroindex);
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  void finalize();
   
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
@@ -107,6 +113,12 @@ public:
                   const bool & compute_sens, const int macroelemindex,
                   const ScalarT & time, workset & macrowkset,
                   const int & usernum, const ScalarT & fwt);
+  
+  ///////////////////////////////////////////////////////////////////////////////////////
+  // Store macro-dofs and flux (for ML-based subgrid)
+  ///////////////////////////////////////////////////////////////////////////////////////
+
+  void storeFluxData(Kokkos::View<ScalarT***,AssemblyDevice> lambda, Kokkos::View<AD**,AssemblyDevice> flux);
   
   //////////////////////////////////////////////////////////////
   // Compute the initial values for the subgrid solution
@@ -207,6 +219,13 @@ public:
   //
   // ========================================================================================
   
+  void performBoundaryGather(const size_t & block, const Teuchos::RCP<LA_MultiVector> & vec, const size_t & type,
+                             const size_t & index) const ;
+  
+  // ========================================================================================
+  //
+  // ========================================================================================
+  
   void updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data);
   
   ////////////////////////////////////////////////////////////////////////////////
@@ -221,6 +240,7 @@ public:
   topo_RCP cellTopo, macro_cellTopo;
   vector<basis_RCP> basis_pointers;
   
+  vector<Kokkos::View<int**,AssemblyDevice> > subgridbcs;
   vector<vector<int> > useBasis;
   
   // Linear algebra / solver objects
@@ -242,6 +262,12 @@ public:
   Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver;
   Teuchos::RCP<LA_MultiVector> LA_rhs, LA_lhs;
   
+  Teuchos::RCP<LA_LinearProblem> belos_problem;
+  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > belos_M;
+  Teuchos::RCP<Teuchos::ParameterList> belosList;
+  Teuchos::RCP<Belos::SolverManager<ScalarT, LA_MultiVector, LA_Operator> > belos_solver;
+  bool have_belos = false;
+  
   bool filledJ, filledM;
   vector<string> stoch_param_types;
   vector<ScalarT> stoch_param_means, stoch_param_vars, stoch_param_mins, stoch_param_maxs;
@@ -253,7 +279,7 @@ public:
   int sub_maxNLiter;
   
   
-  bool have_sym_factor;
+  bool have_sym_factor, useDirect;
   
   vector<string> varlist;
   vector<string> discparamnames;
@@ -261,7 +287,7 @@ public:
   Teuchos::RCP<panzer::DOFManager<int,int> > DOF;
   Teuchos::RCP<AssemblyManager> sub_assembler;
   Teuchos::RCP<ParameterManager> sub_params;
-  Teuchos::RCP<solver> subsolver;
+  Teuchos::RCP<solver> sub_solver;
   Teuchos::RCP<meshInterface> mesh_interface;
   Teuchos::RCP<panzer_stk::STK_Interface> mesh;
   Teuchos::RCP<discretization> disc;
@@ -278,6 +304,7 @@ public:
   
   // Collection of users
   vector<vector<Teuchos::RCP<cell> > > cells;
+  vector<vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
   
   bool have_mesh_data, have_rotations, have_rotation_phi, compute_mesh_data;
   bool have_multiple_data_files;
@@ -286,11 +313,18 @@ public:
   bool is_final_time;
   vector<int> randomSeeds;
   
+  // Storage of macro solution and flux (with derivatives)
+  //Teuchos::RCP<SolutionStorage<LA_MultiVector> > fluxdata;
+  bool store_aux_and_flux = false;
+  vector<Kokkos::View<ScalarT***,AssemblyDevice> > auxdata;
+  vector<Kokkos::View<AD***,AssemblyDevice> > fluxdata;
+  
   // Timers
   Teuchos::RCP<Teuchos::Time> sgfemSolverTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridSolver()");
   Teuchos::RCP<Teuchos::Time> sgfemInitialTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridSolver - set initial conditions");
   Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver()");
   Teuchos::RCP<Teuchos::Time> sgfemSolnSensTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridSolnSens()");
+  Teuchos::RCP<Teuchos::Time> sgfemSolnSensLinearSolverTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridSolnSens - linear solver");
   Teuchos::RCP<Teuchos::Time> sgfemFluxTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::updateFlux()");
   Teuchos::RCP<Teuchos::Time> sgfemFluxWksetTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::updateFlux - update workset");
   Teuchos::RCP<Teuchos::Time> sgfemFluxCellTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::updateFlux - cell computation");

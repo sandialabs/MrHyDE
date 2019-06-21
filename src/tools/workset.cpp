@@ -456,11 +456,11 @@ void workset::update(const DRV & ip_, const DRV & jacobian, const vector<vector<
 // Update the nodes and the basis functions at the side ip
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::addSide(const DRV & nodes, const int & sidenum,
-                      Kokkos::View<int*> & localSideID, const int & cnum) {
+int workset::addSide(const DRV & nodes, const int & sidenum,
+                     Kokkos::View<int*> & localSideID) {
   
   Teuchos::TimeMonitor updatetimer(*worksetAddSideTimer);
-  
+  int BID = 0;
   
   // check that all localSideIDs are the same
   for (size_t i=0; i<localSideID.size(); i++) {
@@ -512,21 +512,21 @@ void workset::addSide(const DRV & nodes, const int & sidenum,
   }
   CellTools<AssemblyDevice>::getPhysicalSideNormals(bnormals, bijac, localSideID(0), *celltopo);
   
-  
+  BID = ip_side_vec.size();
   // ----------------------------------------------------------
   // store ip
-  if (ip_side_vec.size() < cnum+1) {
-    ip_side_vec.resize(cnum+1);
-  }
-  ip_side_vec[cnum] = bip;
+  //if (ip_side_vec.size() < cnum+1) {
+  //  ip_side_vec.resize(cnum+1);
+  //}
+  ip_side_vec.push_back(bip);
   // ----------------------------------------------------------
   
   // ----------------------------------------------------------
   // store wts
-  if (wts_side_vec.size() < cnum+1) {
-    wts_side_vec.resize(cnum+1);
-  }
-  wts_side_vec[cnum] = bwts;
+  //if (wts_side_vec.size() < cnum+1) {
+  //  wts_side_vec.resize(cnum+1);
+  //}
+  wts_side_vec.push_back(bwts);
   
   // ----------------------------------------------------------
   
@@ -546,10 +546,10 @@ void workset::addSide(const DRV & nodes, const int & sidenum,
   
   // ----------------------------------------------------------
   // store normals
-  if (normals_side_vec.size() < cnum+1) {
-    normals_side_vec.resize(cnum+1);
-  }
-  normals_side_vec[cnum] = bnormals;
+  //if (normals_side_vec.size() < cnum+1) {
+  //  normals_side_vec.resize(cnum+1);
+  //}
+  normals_side_vec.push_back(bnormals);
   // ----------------------------------------------------------
   
   // ----------------------------------------------------------
@@ -582,25 +582,25 @@ void workset::addSide(const DRV & nodes, const int & sidenum,
   
   // ----------------------------------------------------------
   // store basis values
-  if (basis_side_vec.size() < cnum+1) {
-    basis_side_vec.resize(cnum+1);
-  }
-  basis_side_vec[cnum] = cbasis;
+  //if (basis_side_vec.size() < cnum+1) {
+  //  basis_side_vec.resize(cnum+1);
+  //}
+  basis_side_vec.push_back(cbasis);
   
-  if (basis_side_uw_vec.size() < cnum+1) {
-    basis_side_uw_vec.resize(cnum+1);
-  }
-  basis_side_uw_vec[cnum] = cbasis_uw;
+  //if (basis_side_uw_vec.size() < cnum+1) {
+  //  basis_side_uw_vec.resize(cnum+1);
+  //}
+  basis_side_uw_vec.push_back(cbasis_uw);
   
-  if (basis_grad_side_vec.size() < cnum+1) {
-    basis_grad_side_vec.resize(cnum+1);
-  }
-  basis_grad_side_vec[cnum] = cbasis_grad;
+  //if (basis_grad_side_vec.size() < cnum+1) {
+  //  basis_grad_side_vec.resize(cnum+1);
+  //}
+  basis_grad_side_vec.push_back(cbasis_grad);
   
-  if (basis_grad_side_uw_vec.size() < cnum+1) {
-    basis_grad_side_uw_vec.resize(cnum+1);
-  }
-  basis_grad_side_uw_vec[cnum] = cbasis_grad_uw;
+  //if (basis_grad_side_uw_vec.size() < cnum+1) {
+  //  basis_grad_side_uw_vec.resize(cnum+1);
+  //}
+  basis_grad_side_uw_vec.push_back(cbasis_grad_uw);
   // ----------------------------------------------------------
   
   // ----------------------------------------------------------
@@ -626,17 +626,17 @@ void workset::addSide(const DRV & nodes, const int & sidenum,
   
   // ----------------------------------------------------------
   // store param basis values
-  if (param_basis_side_vec.size() < cnum+1) {
-    param_basis_side_vec.resize(cnum+1);
-  }
-  param_basis_side_vec[cnum] = cpbasis;
+  //if (param_basis_side_vec.size() < cnum+1) {
+  //  param_basis_side_vec.resize(cnum+1);
+  //}
+  param_basis_side_vec.push_back(cpbasis);
   
-  if (param_basis_grad_side_vec.size() < cnum+1) {
-    param_basis_grad_side_vec.resize(cnum+1);
-  }
-  param_basis_grad_side_vec[cnum] = cpbasis_grad;
+  //if (param_basis_grad_side_vec.size() < cnum+1) {
+  //  param_basis_grad_side_vec.resize(cnum+1);
+  //}
+  param_basis_grad_side_vec.push_back(cpbasis_grad);
   // ----------------------------------------------------------
-  
+  return BID;
 }
 
 

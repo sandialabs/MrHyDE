@@ -37,8 +37,8 @@ ANONYMOUS:
     Workset Size: 1
     NLtol: 9.99999999999999955e-07
     MaxNLiter: 4
-    finaltime: 5.0000000000000000e-3
-    numSteps: 5
+    final time: 5.0000000000000000e-3
+    delta t: 1.0000000000000000e-3
   Analysis: 
     analysis type: forward
     Verbosity: 0

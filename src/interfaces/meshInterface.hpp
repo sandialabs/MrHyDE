@@ -17,6 +17,7 @@
 #include "physicsInterface.hpp"
 #include "cell.hpp"
 #include "boundaryCell.hpp"
+#include "multiscaleInterface.hpp"
 
 void static meshHelp(const string & details) {
   cout << "********** Help and Documentation for the Mesh Interface **********" << endl;
@@ -30,6 +31,11 @@ class meshInterface {
   //~meshInterface();
   
   meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_, const Teuchos::RCP<LA_MpiComm> & Commptr_);
+  
+  meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
+                const Teuchos::RCP<LA_MpiComm> & Commptr_,
+                Teuchos::RCP<panzer_stk::STK_MeshFactory> & mesh_factory_,
+                Teuchos::RCP<panzer_stk::STK_Interface> & mesh_);
   
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
@@ -76,7 +82,8 @@ class meshInterface {
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  void updateMeshData(const int & newrandseed, vector<vector<Teuchos::RCP<cell> > > & cells);
+  void updateMeshData(const int & newrandseed, vector<vector<Teuchos::RCP<cell> > > & cells,
+                      Teuchos::RCP<MultiScale> & multiscale_manager);
   
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////

@@ -8,6 +8,7 @@ ANONYMOUS:
     Source: Exodus
     Mesh_File: tiny.g
   Subgrid:
+    Subgrid Model: 'FEM'
     Mesh: 
       shape: quad
       refinements: 0
@@ -23,9 +24,13 @@ ANONYMOUS:
         dx:
           top: '0.0'
           bottom: '0.0'
+          ileft: '0.0'
+          iright: '0.0'
         dy:
           top: '1.5'
           bottom: '-1.5'
+          ileft: '0.0'
+          iright: '0.0'
     Discretization:
       order:
         dx: 1
@@ -51,9 +56,13 @@ ANONYMOUS:
       dx:
         top: '0.0'
         bottom: '0.0'
+        ileft: '0.0'
+        iright: '0.0'
       dy:
         top: '1.5'
         bottom: '-1.5'
+        ileft: '0.0'
+        iright: '0.0'
   Discretization:
     order:
       dx: 1
