@@ -13,7 +13,56 @@
 #define DISCTOOLS_H
 
 #include "trilinos.hpp"
+#include "Intrepid2_HGRAD_QUAD_C1_FEM.hpp"
+#include "Intrepid2_HGRAD_QUAD_C2_FEM.hpp"
+#include "Intrepid2_HGRAD_QUAD_Cn_FEM.hpp"
+#include "Intrepid2_HGRAD_HEX_C1_FEM.hpp"
+#include "Intrepid2_HGRAD_HEX_C2_FEM.hpp"
+#include "Intrepid2_HGRAD_HEX_Cn_FEM.hpp"
+#include "Intrepid2_HGRAD_TRI_C1_FEM.hpp"
+#include "Intrepid2_HGRAD_TRI_C2_FEM.hpp"
+#include "Intrepid2_HGRAD_TRI_Cn_FEM.hpp"
+#include "Intrepid2_HGRAD_TET_C1_FEM.hpp"
+#include "Intrepid2_HGRAD_TET_C2_FEM.hpp"
+#include "Intrepid2_HGRAD_TET_Cn_FEM.hpp"
+#include "Intrepid2_HGRAD_LINE_C1_FEM.hpp"
+#include "Intrepid2_HGRAD_LINE_Cn_FEM.hpp"
+#include "Intrepid2_HVOL_C0_FEM.hpp"
+
+// HDIV functionality
+#include "Intrepid2_HDIV_QUAD_I1_FEM.hpp"
+#include "Intrepid2_HDIV_QUAD_In_FEM.hpp"
+#include "Intrepid2_HDIV_HEX_I1_FEM.hpp"
+#include "Intrepid2_HDIV_HEX_In_FEM.hpp"
+#include "Intrepid2_HDIV_TRI_I1_FEM.hpp"
+#include "Intrepid2_HDIV_TRI_In_FEM.hpp"
+#include "Intrepid2_HDIV_TET_I1_FEM.hpp"
+#include "Intrepid2_HDIV_TET_In_FEM.hpp"
+
+// HCURL functionality
+#include "Intrepid2_HCURL_QUAD_I1_FEM.hpp"
+#include "Intrepid2_HCURL_QUAD_In_FEM.hpp"
+#include "Intrepid2_HCURL_HEX_I1_FEM.hpp"
+#include "Intrepid2_HCURL_HEX_In_FEM.hpp"
+#include "Intrepid2_HCURL_TRI_I1_FEM.hpp"
+#include "Intrepid2_HCURL_TRI_In_FEM.hpp"
+#include "Intrepid2_HCURL_TET_I1_FEM.hpp"
+#include "Intrepid2_HCURL_TET_In_FEM.hpp"
+
+#include "Intrepid2_PointTools.hpp"
+#include "Intrepid2_FunctionSpaceTools.hpp"
+#include "Intrepid2_CellTools.hpp"
+#include "Intrepid2_ArrayTools.hpp"
+#include "Intrepid2_RealSpaceTools.hpp"
+#include "Intrepid2_DefaultCubatureFactory.hpp"
+#include "Intrepid2_Utils.hpp"
+
 #include "preferences.hpp"
+typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> DRV;
+typedef Kokkos::DynRankView<int,AssemblyDevice> DRVint;
+typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;
+
+using namespace Intrepid2;
 
 class DiscTools {
 public:

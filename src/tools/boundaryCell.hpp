@@ -153,13 +153,6 @@ public:
   void setAuxUseBasis(vector<int> & ausebasis_);
   
   ///////////////////////////////////////////////////////////////////////////////////////
-  // Set the local solutions
-  ///////////////////////////////////////////////////////////////////////////////////////
-  
-  void setLocalSoln(const Teuchos::RCP<Epetra_MultiVector> & gl_u, const int & type,
-                    const size_t & entry);
-
-  ///////////////////////////////////////////////////////////////////////////////////////
   // Map the coarse grid solution to the fine grid integration points
   ///////////////////////////////////////////////////////////////////////////////////////
   
@@ -237,15 +230,6 @@ public:
   // Compute flux and sensitivity wrt params
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  /*
-  void computeFlux(const Teuchos::RCP<Epetra_MultiVector> & u,
-                   const Teuchos::RCP<Epetra_MultiVector> & du,
-                   const Teuchos::RCP<Epetra_MultiVector> & sub_param,
-                   Kokkos::View<ScalarT***,AssemblyDevice> lambda,
-                   const ScalarT & time, const int & s, const ScalarT & coarse_h,
-                   const bool & compute_sens);
-  */
-  
   void computeFlux(const vector_RCP & gl_u, const vector_RCP & gl_du, const vector_RCP & params,
                   Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                   const ScalarT & time, const int & side, const ScalarT & coarse_h,

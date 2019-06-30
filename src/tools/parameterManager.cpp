@@ -13,7 +13,7 @@
 #include "discretizationTools.hpp"
 #include "workset.hpp"
 #include "parameterManager.hpp"
-
+#include "Panzer_IntrepidFieldPattern.hpp"
 
 // ========================================================================================
 /* Constructor to set up the problem */

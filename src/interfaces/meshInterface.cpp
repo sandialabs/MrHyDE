@@ -11,6 +11,7 @@
 
 #include "meshInterface.hpp"
 #include "cellMetaData.hpp"
+#include "exodusII.h"
 
 #include <boost/algorithm/string.hpp>
 
@@ -522,7 +523,7 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
   //MPI_Comm_create(MPI_COMM_WORLD, group, &LocalMPIComm);
   MPI_Comm_create(*(Commptr->getRawMpiComm()), group, &LocalMPIComm); //to work with stochastic collocation batching
   Teuchos::RCP<LA_MpiComm> LocalComm;
-  LocalComm = Teuchos::rcp( new LA_MpiComm(LocalMPIComm) ); // Create Epetra_Comm
+  LocalComm = Teuchos::rcp( new LA_MpiComm(LocalMPIComm) ); // Create MPI_Comm
   for (size_t b=0; b<eBlocks.size(); b++) {
     vector<Teuchos::RCP<cell> > blockcells;
     vector<stk::mesh::Entity> stk_meshElems;

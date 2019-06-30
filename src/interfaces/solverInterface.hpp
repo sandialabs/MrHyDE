@@ -13,6 +13,8 @@
 #define SOLVER_H
 
 #include "trilinos.hpp"
+#include "Panzer_DOFManager.hpp"
+
 #include "preferences.hpp"
 #include "meshInterface.hpp"
 #include "physicsInterface.hpp"
@@ -23,6 +25,21 @@
 #include "assemblyManager.hpp"
 #include "parameterManager.hpp"
 #include "solutionStorage.hpp"
+
+// Belos
+#include <BelosConfigDefs.hpp>
+#include <BelosLinearProblem.hpp>
+#include <BelosTpetraAdapter.hpp>
+#include <BelosBlockGmresSolMgr.hpp>
+
+// MueLu
+#include <MueLu.hpp>
+#include <MueLu_TpetraOperator.hpp>
+#include <MueLu_CreateTpetraPreconditioner.hpp>
+#include <MueLu_Utilities.hpp>
+
+// Amesos includes
+#include "Amesos2.hpp"
 
 
 void static solverHelp(const string & details) {
@@ -45,21 +62,11 @@ public:
   
   
   // ========================================================================================
-  // Set up the Epetra objects (maps, importers, exporters and graphs)
+  // Set up the Tpetra objects (maps, importers, exporters and graphs)
   // These do need to be recomputed whenever the mesh changes */
   // ========================================================================================
   
   void setupLinearAlgebra();
-  
-  /////////////////////////////////////////////////////////////////////////////////////////////
-  /////////////////////////////////////////////////////////////////////////////////////////////
-  
-  Teuchos::RCP<Epetra_CrsGraph> buildEpetraOverlappedGraph(Epetra_MpiComm & EP_Comm);
-  
-  /////////////////////////////////////////////////////////////////////////////////////////////
-  /////////////////////////////////////////////////////////////////////////////////////////////
-  
-  Teuchos::RCP<Epetra_CrsGraph> buildEpetraOwnedGraph(Epetra_MpiComm & EP_Comm);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
@@ -131,24 +138,10 @@ public:
   void linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
   
   // ========================================================================================
-  // Linear solver for Epetra stack
-  // ========================================================================================
-  
-  void linearSolver(Teuchos::RCP<Epetra_CrsMatrix> & J,
-                    Teuchos::RCP<Epetra_MultiVector> & r,
-                    Teuchos::RCP<Epetra_MultiVector> & soln);
-  
-  // ========================================================================================
   // Preconditioner for Tpetra stack
   // ========================================================================================
   
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > buildPreconditioner(const matrix_RCP & J);
-  
-  // ========================================================================================
-  // Preconditioner for Epetra stack
-  // ========================================================================================
-  
-  ML_Epetra::MultiLevelPreconditioner* buildPreconditioner(const Teuchos::RCP<Epetra_CrsMatrix> & J);
   
   // ========================================================================================
   // ========================================================================================

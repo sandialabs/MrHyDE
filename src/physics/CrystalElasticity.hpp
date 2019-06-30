@@ -319,6 +319,7 @@ public:
     
     Kokkos::View<AD****,AssemblyDevice> stress("CE-stress",numElem,numip,dimension,dimension);
     // compute S = Cr*E
+    
     for (int e=0; e<numElem; e++) {
       for (size_t q=0; q<numip; q++) {
         for ( int i = 0; i < dimension; ++i ) {

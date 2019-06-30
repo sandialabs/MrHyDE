@@ -13,9 +13,20 @@
 #define KKTOOLS_H
 
 #include "trilinos.hpp"
+#include "Teuchos_RCP.hpp"
+#include "Tpetra_MultiVector.hpp"
+#include "Tpetra_CrsMatrix.hpp"
+
+#include "Sacado.hpp"
+#include "Shards_CellTopology.hpp"
+#include "Intrepid2_Utils.hpp"
+
+#include "Kokkos_Core.hpp"
 #include "preferences.hpp"
 #include "Teuchos_FancyOStream.hpp"
 
+typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> DRV;
+typedef Kokkos::DynRankView<int,AssemblyDevice> DRVint;
 
 class KokkosTools {
 public:

@@ -13,6 +13,9 @@
 #define SUBGRIDFEM_H
 
 #include "trilinos.hpp"
+#include "Teuchos_XMLParameterListHelpers.hpp"
+#include "Teuchos_YamlParameterListCoreHelpers.hpp"
+
 #include "preferences.hpp"
 #include "cell.hpp"
 #include "boundaryCell.hpp"
@@ -25,6 +28,23 @@
 #include "solverInterface.hpp"
 #include "subgridTools.hpp"
 #include "parameterManager.hpp"
+
+// Belos
+#include <BelosConfigDefs.hpp>
+#include <BelosLinearProblem.hpp>
+#include <BelosTpetraAdapter.hpp>
+#include <BelosBlockGmresSolMgr.hpp>
+
+// MueLu
+#include <MueLu.hpp>
+#include <MueLu_TpetraOperator.hpp>
+#include <MueLu_CreateTpetraPreconditioner.hpp>
+#include <MueLu_Utilities.hpp>
+
+// Amesos includes
+#include "Amesos2.hpp"
+
+typedef Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator> LA_LinearProblem;
 
 class SubGridFEM : public SubGridModel {
 public:

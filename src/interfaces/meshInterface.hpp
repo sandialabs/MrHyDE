@@ -13,6 +13,17 @@
 #define MESHINTERFACE_H
 
 #include "trilinos.hpp"
+#include "Panzer_STK_MeshFactory.hpp"
+#include "Panzer_STK_LineMeshFactory.hpp"
+#include "Panzer_STK_SquareQuadMeshFactory.hpp"
+#include "Panzer_STK_SquareTriMeshFactory.hpp"
+#include "Panzer_STK_CubeHexMeshFactory.hpp"
+#include "Panzer_STK_CubeTetMeshFactory.hpp"
+#include "Panzer_STK_SetupUtilities.hpp"
+#include "Panzer_STK_Interface.hpp"
+#include "Panzer_STK_ExodusReaderFactory.hpp"
+#include "Panzer_STK_PamgenReaderFactory.hpp"
+
 #include "preferences.hpp"
 #include "physicsInterface.hpp"
 #include "cell.hpp"

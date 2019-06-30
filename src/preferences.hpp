@@ -13,7 +13,7 @@
 #define PREFERENCES_H
 
 using namespace std;
-using namespace Intrepid2;
+//using namespace Intrepid2;
 using Kokkos::parallel_for;
 using Kokkos::RangePolicy;
 
@@ -43,13 +43,13 @@ typedef Kokkos::Compat::KokkosSerialWrapperNode SubgridNode;
 //typedef Kokkos::Compat::KokkosCudaWrapperNode HostNode;
 
 // Kokkos object typedefs (preferable to use Kokkos::View<*,Device>)
-typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> DRV;
-typedef Kokkos::DynRankView<int,AssemblyDevice> DRVint;
+//typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> DRV;
+//typedef Kokkos::DynRankView<int,AssemblyDevice> DRVint;
 typedef Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> FDATA;
 typedef Kokkos::View<ScalarT**,Kokkos::LayoutStride,AssemblyDevice> FDATAd;
 
 // Intrepid and shards typedefs
-typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;
+//typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
 
 // Epetra linear algebra typedefs (deprecated)
@@ -71,7 +71,7 @@ typedef Tpetra::Import<LO, GO, HostNode>            LA_Import;
 typedef Tpetra::Map<LO, GO, HostNode>               LA_Map;
 typedef Tpetra::Operator<ScalarT,LO,GO,HostNode>    LA_Operator;
 typedef Tpetra::MultiVector<ScalarT,LO,GO,HostNode> LA_MultiVector;
-typedef Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator> LA_LinearProblem;
+//typedef Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator> LA_LinearProblem;
 
 
 // RCP to LA objects (may be removed in later version)
@@ -79,6 +79,6 @@ typedef Teuchos::RCP<LA_MultiVector> vector_RCP;
 typedef Teuchos::RCP<LA_CrsMatrix>   matrix_RCP;
 
 // Class for printing and working with Kokkos::View and DRV
-#include "kokkosTools.hpp"
+//#include "kokkosTools.hpp"
 
 #endif

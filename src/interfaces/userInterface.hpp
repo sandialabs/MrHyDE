@@ -13,6 +13,9 @@
 #define USERINTERFACE_H
 
 #include "trilinos.hpp"
+#include "Teuchos_XMLParameterListHelpers.hpp"
+#include "Teuchos_YamlParameterListCoreHelpers.hpp"
+
 #include "preferences.hpp"
 
 //////////////////////////////////////////////////////////////////////////////////////////////

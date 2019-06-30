@@ -123,85 +123,6 @@ void cell::setAuxUseBasis(vector<int> & ausebasis_) {
   
 }
 
-
-///////////////////////////////////////////////////////////////////////////////////////
-// Set one of the local solution
-///////////////////////////////////////////////////////////////////////////////////////
-
-void cell::setLocalSoln(const Teuchos::RCP<Epetra_MultiVector> & gl_vec, const int & type,
-                        const size_t & entry){ //, const int & nstages) {
-  
-  // Here, nstages refers to the number of stages in gl_vec
-  // which may be different from num_stages, but always nstages <= num_stages
-  
-  // In general, gl_vec will reside in host memory
-  // This function will not work properly on a GPU and will soon be deprecated
-  
-  switch(type) {
-    case 0 :
-      for (int e=0; e<index.dimension(0); e++) {
-        for (size_t n=0; n<index.dimension(1); n++) {
-          for(size_t i=0; i<numDOF(n); i++ ) {
-            u(e,n,i) = (*gl_vec)[entry][index(e,n,i)];
-          }
-        }
-      }
-      break;
-    case 1 :
-      for (int e=0; e<index.dimension(0); e++) {
-        for (size_t n=0; n<index.dimension(1); n++) {
-          for(size_t i=0; i<numDOF(n); i++ ) {
-            u_dot(e,n,i) = (*gl_vec)[entry][index(e,n,i)];
-          }
-        }
-      }
-      break;
-    case 2 :
-      for (int e=0; e<index.dimension(0); e++) {
-        for (size_t n=0; n<index.dimension(1); n++) {
-          for(size_t i=0; i<numDOF(n); i++ ) {
-            phi(e,n,i) = (*gl_vec)[entry][index(e,n,i)];
-          }
-        }
-      }
-      break;
-    case 3 :
-      for (int e=0; e<index.dimension(0); e++) {
-        for (size_t n=0; n<index.dimension(1); n++) {
-          for(size_t i=0; i<numDOF(n); i++ ) {
-            phi_dot(e,n,i) = (*gl_vec)[entry][index(e,n,i)];
-          }
-        }
-      }
-      break;
-    case 4 :
-      
-      for (int e=0; e<paramindex.dimension(0); e++) {
-        if (paramindex.dimension(0)>e) {
-          for (size_t n=0; n<paramindex.dimension(1); n++) {
-            for(size_t i=0; i<numParamDOF(n); i++ ) {
-              param(e,n,i) = (*gl_vec)[entry][paramindex(e,n,i)];
-            }
-          }
-        }
-      }
-      break;
-    case 5 :
-      for (int e=0; e<numElem; e++) {
-        for (size_t n=0; n<auxindex.dimension(1); n++) {
-          for(size_t i=0; i<numAuxDOF(n); i++ ) {
-            aux(e,n,i) = (*gl_vec)[entry][auxindex(0,n,i)];
-          }
-        }
-      }
-      break;
-    default :
-      cout << "ERROR - NOTHING WAS GATHERED" << endl;
-      
-  }
-  
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////
 // Map the AD degrees of freedom to integration points
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -244,23 +165,6 @@ void cell::computeSolnVolIP(const bool & seedu, const bool & seedudot, const boo
     }
   }
   
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
-// Update the solution variables in the workset
-///////////////////////////////////////////////////////////////////////////////////////
-
-void cell::updateSolnWorkset(const Teuchos::RCP<Epetra_MultiVector> & gl_u, int tindex) {
-  Kokkos::View<ScalarT***,AssemblyDevice> ulocal("tempory u", numElem,u.dimension(1),u.dimension(2));
-  for (int e=0; e<numElem; e++) {
-    for (size_t n=0; n<index.dimension(1); n++) {
-      for(size_t i=0; i<numDOF(n); i++ ) {
-        ulocal(e,n,i) = (*gl_u)[tindex][index(e,n,i)];
-      }
-    }
-  }
-  wkset->update(ip,ijac,orientation);
-  wkset->computeSolnVolIP(ulocal);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

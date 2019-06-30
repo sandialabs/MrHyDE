@@ -17,6 +17,10 @@
 #include "obj_milorol.hpp"
 #include "ROL_StdVector.hpp"
 #include "obj_milorol_simopt.hpp"
+#include "ROL_LineSearchStep.hpp"
+#include "ROL_Algorithm.hpp"
+#include "ROL_Bounds.hpp"
+#include "ROL_TrustRegionStep.hpp"
 
 
 // ========================================================================================

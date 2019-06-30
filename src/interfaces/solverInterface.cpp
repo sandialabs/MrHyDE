@@ -14,6 +14,7 @@
 #include "discretizationTools.hpp"
 #include "workset.hpp"
 
+typedef Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator> LA_LinearProblem;
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -192,7 +193,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   }
   
   /////////////////////////////////////////////////////////////////////////////
-  // Epetra maps
+  // Tpetra maps
   /////////////////////////////////////////////////////////////////////////////
   
   this->setupLinearAlgebra();
@@ -423,70 +424,6 @@ void solver::setupLinearAlgebra() {
     }
   }
   
-}
-
-// ========================================================================================
-// Set up the Epetra overlapped CrsGraph (for bwds compat.)
-// ========================================================================================
-
-Teuchos::RCP<Epetra_CrsGraph> solver::buildEpetraOverlappedGraph(Epetra_MpiComm & EP_Comm) {
-  
-  //Epetra_MpiComm EP_Comm(*(Comm->getRawMpiComm()));
-  Teuchos::RCP<Epetra_Map> Ep_map = Teuchos::rcp(new Epetra_Map(-1, (LO)LA_ownedAndShared.size(), &LA_ownedAndShared[0], 0, EP_Comm));
-   
-  Teuchos::RCP<Epetra_CrsGraph> Ep_graph = Teuchos::rcp(new Epetra_CrsGraph(Copy, *Ep_map, 0));
-  
-  Kokkos::View<GO**,HostDevice> gids;
-  
-  for (size_t b=0; b<assembler->cells.size(); b++) {
-    vector<vector<int> > curroffsets = phys->offsets[b];
-    for(size_t e=0; e<assembler->cells[b].size(); e++) {
-      gids = assembler->cells[b][e]->GIDs;
-      for (int p=0; p<gids.dimension(0); p++) {
-        for (size_t i=0; i<gids.dimension(1); i++) {
-          GO ind1 = gids(p,i);
-          for (size_t j=0; j<gids.dimension(1); j++) {
-            GO ind2 = gids(p,j);
-            int err = Ep_graph->InsertGlobalIndices(ind1,1,&ind2);
-          }
-        }
-      }
-    }
-  }
-  Ep_graph->FillComplete();
-  return Ep_graph;
-}
-
-// ========================================================================================
-// Set up the Epetra owned CrsGraph (for bwds compat.)
-// ========================================================================================
-
-Teuchos::RCP<Epetra_CrsGraph> solver::buildEpetraOwnedGraph(Epetra_MpiComm & EP_Comm) {
-  
-  //Epetra_MpiComm EP_Comm(*(Comm->getRawMpiComm()));
-  Teuchos::RCP<Epetra_Map> Ep_map = Teuchos::rcp(new Epetra_Map(-1, (LO)LA_owned.size(), &LA_owned[0], 0, EP_Comm));
-  
-  Teuchos::RCP<Epetra_CrsGraph> Ep_graph = Teuchos::rcp(new Epetra_CrsGraph(Copy, *Ep_map, 0));
-  
-  Kokkos::View<GO**,HostDevice> gids;
-  
-  for (size_t b=0; b<assembler->cells.size(); b++) {
-    vector<vector<int> > curroffsets = phys->offsets[b];
-    for(size_t e=0; e<assembler->cells[b].size(); e++) {
-      gids = assembler->cells[b][e]->GIDs;
-      for (int p=0; p<gids.dimension(0); p++) {
-        for (size_t i=0; i<gids.dimension(1); i++) {
-          GO ind1 = gids(p,i);
-          for (size_t j=0; j<gids.dimension(1); j++) {
-            GO ind2 = gids(p,j);
-            int err = Ep_graph->InsertGlobalIndices(ind1,1,&ind2);
-          }
-        }
-      }
-    }
-  }
-  Ep_graph->FillComplete();
-  return Ep_graph;
 }
 
 // ========================================================================================
@@ -1448,100 +1385,6 @@ void solver::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
 }
 
 // ========================================================================================
-// Linear solver for Epetra stack (mostly deprecated)
-// ========================================================================================
-
-void solver::linearSolver(Teuchos::RCP<Epetra_CrsMatrix> & J,
-                          Teuchos::RCP<Epetra_MultiVector> & r,
-                          Teuchos::RCP<Epetra_MultiVector> & soln)  {
-  
-  Teuchos::TimeMonitor localtimer(*linearsolvertimer);
-    
-  Epetra_LinearProblem LinSys(J.get(), soln.get(), r.get());
-
-  
-  // SOLVE ....
-  if (useDirect) {
-    Amesos AmFactory;
-    char* SolverType = "Amesos_Klu";
-    Amesos_BaseSolver * AmSolver = AmFactory.Create(SolverType, LinSys);
-    AmSolver->SymbolicFactorization();
-    AmSolver->NumericFactorization();
-    AmSolver->Solve();
-    delete AmSolver;
-  }
-  else {
-    AztecOO linsolver(LinSys);
-    
-    // Set up the preconditioner
-    ML_Epetra::MultiLevelPreconditioner* MLPrec;
-    
-    linsolver.SetAztecOption(AZ_solver,AZ_gmres);
-    if(useDomDecomp){ //domain decomposition preconditioner, specific to Helmholtz at high frequencies
-      linsolver.SetAztecOption(AZ_precond,AZ_dom_decomp);
-      linsolver.SetAztecOption(AZ_subdomain_solve,AZ_ilut);
-      linsolver.SetAztecParam(AZ_drop,dropTol);
-      linsolver.SetAztecParam(AZ_ilut_fill,fillParam);
-      
-      if(verbosity == 0)
-      linsolver.SetAztecOption(AZ_diagnostics,AZ_none);
-      
-      ScalarT condest = 0.0;
-      linsolver.ConstructPreconditioner(condest);
-      if(condest > 1.e13 || condest < 1.0){
-        linsolver.DestroyPreconditioner();
-        linsolver.SetAztecParam(AZ_athresh,1.e-5);
-        linsolver.SetAztecParam(AZ_rthresh,0.0);
-        linsolver.ConstructPreconditioner(condest);
-        if(condest > 1.e13 || condest < 1.0){
-          linsolver.DestroyPreconditioner();
-          linsolver.SetAztecParam(AZ_athresh,1.e-5);
-          linsolver.SetAztecParam(AZ_rthresh,0.01);
-          linsolver.ConstructPreconditioner(condest);
-          if(condest > 1.e13 || condest < 1.0){
-            linsolver.DestroyPreconditioner();
-            linsolver.SetAztecParam(AZ_athresh,1.e-2);
-            linsolver.SetAztecParam(AZ_rthresh,0.0);
-            linsolver.ConstructPreconditioner(condest);
-            if(condest > 1.e13 || condest < 1.0){
-              linsolver.DestroyPreconditioner();
-              linsolver.SetAztecParam(AZ_athresh,1.e-2);
-              linsolver.SetAztecParam(AZ_rthresh,0.01);
-              linsolver.ConstructPreconditioner(condest);
-              if(condest > 1.e13){
-                cout << "SAD PRECONDITIONER: condition number " << condest << endl;
-              }
-            }
-          }
-        }
-      }
-    }
-    else if (usePrec) { //multi-level preconditioner
-      MLPrec = buildPreconditioner(J);
-      linsolver.SetPrecOperator(MLPrec);
-    }
-    else {
-      linsolver.SetAztecOption(AZ_precond, AZ_none);
-    }
-    linsolver.SetAztecOption(AZ_kspace,kspace);
-   
-    if (verbosity > 8)
-    linsolver.SetAztecOption(AZ_output,10);
-    else
-    linsolver.SetAztecOption(AZ_output,0);
-    
-    linsolver.Iterate(liniter,lintol);
-    
-    if(!useDomDecomp && usePrec)
-    delete MLPrec;
-   
-  }
-  
-  //return soln;
-}
-
-
-// ========================================================================================
 // Preconditioner for Tpetra stack
 // ========================================================================================
 
@@ -1595,36 +1438,6 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > solver::buildPre
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > M = MueLu::CreateTpetraPreconditioner((Teuchos::RCP<LA_Operator>)J, mueluParams);
 
   return M;
-}
-
-// ========================================================================================
-// Preconditioner for Epetra stack
-// ========================================================================================
-
-ML_Epetra::MultiLevelPreconditioner* solver::buildPreconditioner(const Teuchos::RCP<Epetra_CrsMatrix> & J) {
-  Teuchos::ParameterList MLList;
-  ML_Epetra::SetDefaults("SA",MLList);
-  MLList.set("ML output", 0);
-  MLList.set("max levels",5);
-  MLList.set("increasing or decreasing","increasing");
-  int numEqns;
-  if (assembler->cells.size() == 1)
-  numEqns = numVars[0];
-  else
-  numEqns = 1;
-  
-  MLList.set("PDE equations",numEqns);
-  MLList.set("aggregation: type", "Uncoupled");
-  MLList.set("smoother: type","IFPACK");
-  MLList.set("smoother: sweeps",1);
-  MLList.set("smoother: ifpack type","ILU");
-  MLList.set("smoother: ifpack overlap",1);
-  MLList.set("smoother: pre or post", "both");
-  MLList.set("coarse: type","Amesos-KLU");
-  ML_Epetra::MultiLevelPreconditioner* MLPrec =
-  new ML_Epetra::MultiLevelPreconditioner(*J, MLList);
-  
-  return MLPrec;
 }
 
 // ========================================================================================

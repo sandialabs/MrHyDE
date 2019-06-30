@@ -16,6 +16,7 @@
 #include "preferences.hpp"
 #include "cell.hpp"
 #include "subgridModel.hpp"
+#include "Amesos2.hpp"
 
 using namespace std;
 using namespace Intrepid2;
@@ -102,12 +103,8 @@ class MultiScale {
   Teuchos::RCP<Teuchos::ParameterList> settings;
   vector<vector<Teuchos::RCP<cell> > > cells;
   vector<Teuchos::RCP<workset> > macro_wkset;
-  //vector<vector<vector<vector<FC> > > > subgrid_projection_basis;
-  //vector<FC> subgrid_projection_ip;
-  //vector<FC> subgrid_projection_wts;
   vector<vector<Teuchos::RCP<LA_CrsMatrix> > > subgrid_projection_maps;
   vector<Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > > subgrid_projection_solvers;
-  //vector<Teuchos::RCP<Epetra_LinearProblem> > subgrid_projection_linsys;
   Teuchos::RCP<FunctionInterface> macro_functionManager;
 };
 

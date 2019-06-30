@@ -13,6 +13,7 @@
 #define CDBATCHMANAGER_HPP
 
 #include "ROL_EpetraBatchManager.hpp"
+#include "ROL_StdVector.hpp"
 #include "control_vector.hpp"
 
 template<class Real> 

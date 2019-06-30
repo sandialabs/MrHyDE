@@ -74,10 +74,6 @@ public:
   
   virtual Kokkos::View<GO**,HostDevice> getCellGIDs(const int & cellnum) = 0;
   
-  //virtual void solutionStorage(Teuchos::RCP<Epetra_MultiVector> & newvec,
-  //                             const ScalarT & time, const bool & isAdjoint,
-  //                             const int & usernum)= 0;
-  
   virtual void updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames) = 0;
   
   virtual Kokkos::View<ScalarT**,AssemblyDevice> getCellFields(const int & usernum, const ScalarT & time) = 0;
@@ -85,10 +81,6 @@ public:
   virtual void addMeshData() = 0;
 
   virtual void updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data) = 0;
-
-  //virtual void reset();
-  
-  //virtual Epetra_MultiVector getVector() = 0;
   
   Teuchos::RCP<LA_MpiComm> LocalComm;
   Teuchos::RCP<SolutionStorage<LA_MultiVector> > soln, solndot, adjsoln;

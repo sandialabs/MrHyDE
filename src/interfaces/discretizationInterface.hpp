@@ -13,6 +13,8 @@
 #define DISCINTERFACE_H
 
 #include "trilinos.hpp"
+#include "Panzer_DOFManager.hpp"
+
 #include "preferences.hpp"
 #include "cell.hpp"
 #include "boundaryCell.hpp"

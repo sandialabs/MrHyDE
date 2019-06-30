@@ -10,6 +10,10 @@
  ************************************************************************/
 
 #include "physicsInterface.hpp"
+#include "Panzer_IntrepidFieldPattern.hpp"
+#include "Panzer_STK_Interface.hpp"
+#include "Panzer_STK_SetupUtilities.hpp"
+
 #include "rectPeriodicMatcher.hpp"
 #include "discretizationTools.hpp"
 
@@ -1406,6 +1410,7 @@ Kokkos::View<int**,HostDevice> physics::getSideInfo(const int & block, int & num
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+/*
 void physics::setPeriBCs(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<panzer_stk::STK_Interface> & mesh){
   //set periodic BCs...
   std::string perBCs = settings->sublist("Mesh").get<string>("Periodic Boundaries","");
@@ -1439,7 +1444,7 @@ void physics::setPeriBCs(Teuchos::RCP<Teuchos::ParameterList> & settings, Teucho
     Teuchos::RCP<panzer_stk::PeriodicBC_Matcher<rectPeriodicMatcher> > pBC_matcher = Teuchos::rcp( new panzer_stk::PeriodicBC_Matcher<rectPeriodicMatcher>(periSides[2*i],periSides[2*i+1],matcher,"coord") );
     mesh->addPeriodicBC(pBC_matcher);
   }
-  /*
+ 
    if(hasPeri){ //DEBUG
    std::pair<Teuchos::RCP<std::vector<std::pair<std::size_t,std::size_t> > >, Teuchos::RCP<std::vector<unsigned int> > > meep =
    mesh->getPeriodicNodePairing();
@@ -1448,9 +1453,9 @@ void physics::setPeriBCs(Teuchos::RCP<Teuchos::ParameterList> & settings, Teucho
    std::pair<std::size_t,std::size_t> sheep = (*eep)[i];
    cout << sheep.first << " " << sheep.second << endl;
    }
-   }*/
+   }
 }
-
+*/
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 

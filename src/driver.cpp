@@ -22,6 +22,8 @@ Bart van Bloemen Waanders (bartv@sandia.gov)
 #include "postprocessManager.hpp"
 #include "analysisInterface.hpp"
 #include "trilinos.hpp"
+#include "Panzer_DOFManager.hpp"
+
 #include "preferences.hpp"
 #include "subgridGenerator.hpp"
 #include "milo_help.hpp"
@@ -122,7 +124,7 @@ int main(int argc,char * argv[]) {
     vector<vector<Teuchos::RCP<cell> > > cells;
     vector<vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
     mesh->createCells(phys,cells,boundaryCells);
-    phys->setPeriBCs(settings, mesh->mesh);
+    //phys->setPeriBCs(settings, mesh->mesh);
 
     ////////////////////////////////////////////////////////////////////////////////
     // Define the discretization(s)
