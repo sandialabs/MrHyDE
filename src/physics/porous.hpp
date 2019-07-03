@@ -44,6 +44,7 @@ public:
     functionManager->addFunction("source",fs.get<string>("porous source","0.0"),numElem,numip,"ip",blocknum);
     functionManager->addFunction("permeability",fs.get<string>("permeability","1.0"),numElem,numip,"ip",blocknum);
     functionManager->addFunction("porosity",fs.get<string>("porosity","1.0"),numElem,numip,"ip",blocknum);
+    functionManager->addFunction("viscosity",fs.get<string>("viscosity","1.0"),numElem,numip,"ip",blocknum);
     functionManager->addFunction("reference density",fs.get<string>("reference density","1.0"),numElem,numip,"ip",blocknum);
     functionManager->addFunction("reference pressure",fs.get<string>("reference pressure","1.0"),numElem,numip,"ip",blocknum);
     functionManager->addFunction("compressibility",fs.get<string>("compressibility","0.0"),numElem,numip,"ip",blocknum);
@@ -81,10 +82,11 @@ public:
         for (int k=0; k<sol.dimension(2); k++ ) {
           for (int i=0; i<basis.dimension(1); i++ ) {
             resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
-            AD dens = densref(e,k)*comp(e,k)*(sol(e,pnum,k,0) - pref(e,k));
+            AD dens = densref(e,k)*(1.0+comp(e,k)*(sol(e,pnum,k,0) - pref(e,k)));
             
             res(e,resindex) += porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
-            perm(e,k)/viscosity(e,k)*dens*(sol_grad(e,pnum,k,0)*basis_grad(e,i,k,0)); // diffusion terms
+            perm(e,k)/viscosity(e,k)*dens*(sol_grad(e,pnum,k,0)*basis_grad(e,i,k,0)) // diffusion terms
+            -source(e,k)*basis(e,i,k); // source/well model
             
           }
         }
@@ -95,11 +97,11 @@ public:
         for (int k=0; k<sol.dimension(2); k++ ) {
           for (int i=0; i<basis.dimension(1); i++ ) {
             resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
-            AD dens = densref(e,k)*comp(e,k)*(sol(e,pnum,k,0) - pref(e,k));
+            AD dens = densref(e,k)*(1.0+comp(e,k)*(sol(e,pnum,k,0) - pref(e,k)));
             
             res(e,resindex) += porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
-            perm(e,k)/viscosity(e,k)*dens*(sol_grad(e,pnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,pnum,k,1)*basis_grad(e,i,k,1)); // diffusion terms
-            
+            perm(e,k)/viscosity(e,k)*dens*(sol_grad(e,pnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,pnum,k,1)*basis_grad(e,i,k,1)) // diffusion terms
+            -source(e,k)*basis(e,i,k); // source/well model
           }
         }
       });
@@ -110,16 +112,18 @@ public:
           for (int i=0; i<basis.dimension(1); i++ ) {
             resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
             
-            AD dens = densref(e,k)*comp(e,k)*(sol(e,pnum,k,0) - pref(e,k));
+            AD dens = densref(e,k)*(1.0+comp(e,k)*(sol(e,pnum,k,0) - pref(e,k)));
             
             res(e,resindex) += porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
             perm(e,k)/viscosity(e,k)*dens*(sol_grad(e,pnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,pnum,k,1)*basis_grad(e,i,k,1) +
-                                           (sol_grad(e,pnum,k,2) - gravity(e,k)*dens*1.0)*basis_grad(e,i,k,2)); // diffusion terms
+                                           (sol_grad(e,pnum,k,2) - gravity(e,k)*dens*1.0)*basis_grad(e,i,k,2)) // diffusion terms
+            -source(e,k)*basis(e,i,k); // source/well model
             
           }
         }
       });
     }
+    
   }
   
   
