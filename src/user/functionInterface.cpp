@@ -519,7 +519,7 @@ void FunctionInterface::decomposeFunctions() {
     
     for (size_t k=0; k<functions[b].size(); k++) {
       for (size_t j=0; j<functions[b][k].terms.size(); j++) {
-        bool termcheck = isScalarTerm(b,k,j); // is this term a ScalarT
+        bool termcheck = this->isScalarTerm(b,k,j); // is this term a ScalarT
         if (termcheck) {
           functions[b][k].terms[j].isAD = false;
           if (!functions[b][k].terms[j].isRoot) {
@@ -553,9 +553,9 @@ bool FunctionInterface::isScalarTerm(const size_t & block, const int & findex, c
       is_scalar = false;
     }
   }
-  else if (functions[block][findex].terms[tindex].isFunc) {
+  //else if (functions[block][findex].terms[tindex].isFunc) {
     //is_scalar = false;
-  }
+  //}
   else {
     for (size_t k=0; k<functions[block][findex].terms[tindex].dep_list.size(); k++){
       bool depcheck = isScalarTerm(block, findex, functions[block][findex].terms[tindex].dep_list[k]);
@@ -640,9 +640,18 @@ void FunctionInterface::evaluate(const size_t & block, const size_t & findex, co
   }
   else if (functions[block][findex].terms[tindex].isFunc) {
     int funcIndex = functions[block][findex].terms[tindex].funcIndex;
-    evaluate(block, funcIndex, 0);
-    if (functions[block][findex].terms[0].isAD) {
-      functions[block][findex].terms[tindex].data = functions[block][funcIndex].terms[0].data;
+    this->evaluate(block, funcIndex, 0);
+    if (functions[block][findex].terms[tindex].isAD) {
+      if (functions[block][funcIndex].terms[0].isAD) {
+        functions[block][findex].terms[tindex].data = functions[block][funcIndex].terms[0].data;
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyDevice>(0,functions[block][findex].dim0), KOKKOS_LAMBDA (const int e ) {
+          for (int n=0; n<functions[block][findex].dim1; n++) {
+            functions[block][findex].terms[tindex].data(e,n) = functions[block][funcIndex].terms[0].ddata(e,n);
+          }
+        });
+      }
     }
     else {
       functions[block][findex].terms[tindex].ddata = functions[block][funcIndex].terms[0].ddata;
@@ -653,26 +662,26 @@ void FunctionInterface::evaluate(const size_t & block, const size_t & findex, co
     for (size_t k=0; k<functions[block][findex].terms[tindex].dep_list.size(); k++) {
       
       int dep = functions[block][findex].terms[tindex].dep_list[k];
-      evaluate(block, findex, dep);
+      this->evaluate(block, findex, dep);
       
       bool termisAD = functions[block][findex].terms[dep].isAD;
       if (isAD) {
         if (termisAD) {
-          evaluateOp(functions[block][findex].terms[tindex].data,
-                     functions[block][findex].terms[dep].data,
-                     functions[block][findex].terms[tindex].dep_ops[k]);
+          this->evaluateOp(functions[block][findex].terms[tindex].data,
+                           functions[block][findex].terms[dep].data,
+                           functions[block][findex].terms[tindex].dep_ops[k]);
           
         }
         else {
-          evaluateOp(functions[block][findex].terms[tindex].data,
-                     functions[block][findex].terms[dep].ddata,
-                     functions[block][findex].terms[tindex].dep_ops[k]);
+          this->evaluateOp(functions[block][findex].terms[tindex].data,
+                           functions[block][findex].terms[dep].ddata,
+                           functions[block][findex].terms[tindex].dep_ops[k]);
         }
       }
       else { // termisAD must also be false
-        evaluateOp(functions[block][findex].terms[tindex].ddata,
-                   functions[block][findex].terms[dep].ddata,
-                   functions[block][findex].terms[tindex].dep_ops[k]);
+        this->evaluateOp(functions[block][findex].terms[tindex].ddata,
+                         functions[block][findex].terms[dep].ddata,
+                         functions[block][findex].terms[tindex].dep_ops[k]);
       }
     }
   }
