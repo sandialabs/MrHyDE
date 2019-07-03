@@ -265,6 +265,7 @@ Commptr(Comm_), functionManager(functionManager_) {
       string entry = efields.get<string>(ef_itr->first);
       block_ef.push_back(ef_itr->first);
       functionManager->addFunction(ef_itr->first,entry,numElemPerCell,numip,"ip",b);
+      functionManager->addFunction(ef_itr->first,entry,numElemPerCell,1,"point",b);
       ef_itr++;
     }
     extrafields_list.push_back(block_ef);
@@ -1023,7 +1024,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> physics::getExtraCellFields(const int & 
                                                                    const size_t & numElem) {
   Kokkos::View<ScalarT***,AssemblyDevice> fields("cell field data",numElem,extracellfields_list[block].size(),1);
   
-  for (size_t k=0; k<extrafields_list[block].size(); k++) {
+  for (size_t k=0; k<extracellfields_list[block].size(); k++) {
     FDATA efdata = functionManager->evaluate(extracellfields_list[block][k],"ip",block);
     size_t numip = efdata.dimension(1);
     for (size_t e=0; e<numElem; e++) {
