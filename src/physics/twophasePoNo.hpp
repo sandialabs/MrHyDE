@@ -114,15 +114,15 @@ public:
     if (spaceDim == 1) {
       parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
         for (int k=0; k<sol.dimension(2); k++ ) { // loop over integration points
-          AD rho_o = densref_o(e,k)*comp_o(e,k)*(sol(e,Ponum,k,0) - pref_o(e,k));
+          AD rho_o = densref_o(e,k)*(1.0+comp_o(e,k)*(sol(e,Ponum,k,0) - pref_o(e,k)));
           AD S_o = sol(e,Ponum,k,0) / rho_o;
           AD S_w = 1.0 - S_o;
-          AD dP_o_dt = densref_o(e,k)*comp_o(e,k)*sol_dot(e,Ponum,k,0);
+          AD dP_o_dt = densref_o(e,k)*(1.0+comp_o(e,k)*sol_dot(e,Ponum,k,0));
           AD dS_w_dt = -1.0/(rho_o*rho_o)*(sol_dot(e,Nonum,k,0)*rho_o - sol(e,Nonum,k,0)*dP_o_dt);
           AD P_w = sol(e,Ponum,k,0) - cp(e,k);
-          AD rho_w = densref_w(e,k)*comp_w(e,k)*(P_w - pref_w(e,k));
+          AD rho_w = densref_w(e,k)*(1.0+comp_w(e,k)*(P_w - pref_w(e,k)));
           AD dP_w_dt = sol_dot(e,Ponum,k,0) - dcp(e,k)*dS_w_dt;
-          AD drho_w_dt = densref_w(e,k)*comp_w(e,k)*dP_w_dt;
+          AD drho_w_dt = densref_w(e,k)*(1.0+comp_w(e,k)*dP_w_dt);
           AD dN_w_dt = S_w*drho_w_dt + dS_w_dt*rho_w;
           AD dS_w_dx = -1.0/(rho_o*rho_o)*(rho_o*sol_grad(e,Nonum,k,0) - sol(e,Nonum,k,0)*densref_o(e,k)*comp_o(e,k)*sol_grad(e,Ponum,k,0));
           AD dP_w_dx = sol_grad(e,Ponum,k,0) - dcp(e,k)*dS_w_dx;
@@ -133,13 +133,15 @@ public:
             resindex = offsets(Nonum,i);
             
             res(e,resindex) += porosity(e,k)*sol_dot(e,Nonum,k,0)*basis(e,i,k) + // transient term
-            perm(e,k)*relperm_o(e,k)/viscosity_o(e,k)*rho_o*(sol_grad(e,Ponum,k,0)*basis_grad(e,i,k,0)); // diffusion terms
+            perm(e,k)*relperm_o(e,k)/viscosity_o(e,k)*rho_o*(sol_grad(e,Ponum,k,0)*basis_grad(e,i,k,0)) // diffusion terms
+            -source_o(e,k)*basis(e,i,k); // source/well model
             
             // Po equation
             resindex = offsets(Ponum,i);
             
             res(e,resindex) += porosity(e,k)*dN_w_dt*basis(e,i,k) + // transient term
-            perm(e,k)*relperm_w(e,k)/viscosity_w(e,k)*rho_w*(dP_w_dx*basis_grad(e,i,k,0)); // diffusion terms
+            perm(e,k)*relperm_w(e,k)/viscosity_w(e,k)*rho_w*(dP_w_dx*basis_grad(e,i,k,0)) // diffusion terms
+            -source_w(e,k)*basis(e,i,k); // source/well model
             
           }
         }
@@ -148,15 +150,15 @@ public:
     else if (spaceDim == 2) {
       parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
         for (int k=0; k<sol.dimension(2); k++ ) {
-          AD rho_o = densref_o(e,k)*comp_o(e,k)*(sol(e,Ponum,k,0) - pref_o(e,k));
+          AD rho_o = densref_o(e,k)*(1.0+comp_o(e,k)*(sol(e,Ponum,k,0) - pref_o(e,k)));
           AD S_o = sol(e,Ponum,k,0) / rho_o;
           AD S_w = 1.0 - S_o;
-          AD dP_o_dt = densref_o(e,k)*comp_o(e,k)*sol_dot(e,Ponum,k,0);
+          AD dP_o_dt = densref_o(e,k)*(1.0+comp_o(e,k)*sol_dot(e,Ponum,k,0));
           AD dS_w_dt = -1.0/(rho_o*rho_o)*(sol_dot(e,Nonum,k,0)*rho_o - sol(e,Nonum,k,0)*dP_o_dt);
           AD P_w = sol(e,Ponum,k,0) - cp(e,k);
-          AD rho_w = densref_w(e,k)*comp_w(e,k)*(P_w - pref_w(e,k));
+          AD rho_w = densref_w(e,k)*(1.0+comp_w(e,k)*(P_w - pref_w(e,k)));
           AD dP_w_dt = sol_dot(e,Ponum,k,0) - dcp(e,k)*dS_w_dt;
-          AD drho_w_dt = densref_w(e,k)*comp_w(e,k)*dP_w_dt;
+          AD drho_w_dt = densref_w(e,k)*(1.0+comp_w(e,k)*dP_w_dt);
           AD dN_w_dt = S_w*drho_w_dt + dS_w_dt*rho_w;
           
           AD dS_w_dx = -1.0/(rho_o*rho_o)*(rho_o*sol_grad(e,Nonum,k,0) - sol(e,Nonum,k,0)*densref_o(e,k)*comp_o(e,k)*sol_grad(e,Ponum,k,0));
@@ -171,14 +173,16 @@ public:
             
             res(e,resindex) += porosity(e,k)*sol_dot(e,Nonum,k,0)*basis(e,i,k) + // transient term
             perm(e,k)*relperm_o(e,k)/viscosity_o(e,k)*rho_o*(sol_grad(e,Ponum,k,0)*basis_grad(e,i,k,0) +
-                                                             sol_grad(e,Ponum,k,1)*basis_grad(e,i,k,1)); // diffusion terms
+                                                             sol_grad(e,Ponum,k,1)*basis_grad(e,i,k,1)) // diffusion terms
+            -source_o(e,k)*basis(e,i,k); // source/well model
             
             // Po equation
             resindex = offsets(Ponum,i);
             
             res(e,resindex) += porosity(e,k)*dN_w_dt*basis(e,i,k) + // transient term
             perm(e,k)*relperm_w(e,k)/viscosity_w(e,k)*rho_w*(dP_w_dx*basis_grad(e,i,k,0) +
-                                                             dP_w_dy*basis_grad(e,i,k,1)); // diffusion terms
+                                                             dP_w_dy*basis_grad(e,i,k,1)) // diffusion terms
+            -source_w(e,k)*basis(e,i,k); // source/well model
             
           }
         }
@@ -187,15 +191,15 @@ public:
     else if (spaceDim == 3) {
       parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
         for (int k=0; k<sol.dimension(2); k++ ) {
-          AD rho_o = densref_o(e,k)*comp_o(e,k)*(sol(e,Ponum,k,0) - pref_o(e,k));
+          AD rho_o = densref_o(e,k)*(1.0+comp_o(e,k)*(sol(e,Ponum,k,0) - pref_o(e,k)));
           AD S_o = sol(e,Ponum,k,0) / rho_o;
           AD S_w = 1.0 - S_o;
-          AD dP_o_dt = densref_o(e,k)*comp_o(e,k)*sol_dot(e,Ponum,k,0);
+          AD dP_o_dt = densref_o(e,k)*(1.0+comp_o(e,k)*sol_dot(e,Ponum,k,0));
           AD dS_w_dt = -1.0/(rho_o*rho_o)*(sol_dot(e,Nonum,k,0)*rho_o - sol(e,Nonum,k,0)*dP_o_dt);
           AD P_w = sol(e,Ponum,k,0) - cp(e,k);
-          AD rho_w = densref_w(e,k)*comp_w(e,k)*(P_w - pref_w(e,k));
+          AD rho_w = densref_w(e,k)*(1.0+comp_w(e,k)*(P_w - pref_w(e,k)));
           AD dP_w_dt = sol_dot(e,Ponum,k,0) - dcp(e,k)*dS_w_dt;
-          AD drho_w_dt = densref_w(e,k)*comp_w(e,k)*dP_w_dt;
+          AD drho_w_dt = densref_w(e,k)*(1.0+comp_w(e,k)*dP_w_dt);
           AD dN_w_dt = S_w*drho_w_dt + dS_w_dt*rho_w;
           
           AD dS_w_dx = -1.0/(rho_o*rho_o)*(rho_o*sol_grad(e,Nonum,k,0) - sol(e,Nonum,k,0)*densref_o(e,k)*comp_o(e,k)*sol_grad(e,Ponum,k,0));
@@ -214,7 +218,8 @@ public:
             perm(e,k)*relperm_o(e,k)/viscosity_o(e,k)*rho_o*(sol_grad(e,Ponum,k,0)*basis_grad(e,i,k,0) +
                                                              sol_grad(e,Ponum,k,1)*basis_grad(e,i,k,1) +
                                                              sol_grad(e,Ponum,k,2)*basis_grad(e,i,k,2) -
-                                                             rho_o*gravity(e,k)*1.0); // diffusion terms
+                                                             rho_o*gravity(e,k)*1.0) // diffusion terms
+            -source_o(e,k)*basis(e,i,k); // source/well model
             
             // Po equation
             resindex = offsets(Ponum,i);
@@ -223,7 +228,8 @@ public:
             perm(e,k)*relperm_w(e,k)/viscosity_w(e,k)*rho_w*(dP_w_dx*basis_grad(e,i,k,0) +
                                                              dP_w_dy*basis_grad(e,i,k,1) +
                                                              dP_w_dz*basis_grad(e,i,k,2) -
-                                                             rho_w*gravity(e,k)*1.0); // diffusion terms
+                                                             rho_w*gravity(e,k)*1.0) // diffusion terms
+            -source_w(e,k)*basis(e,i,k); // source/well model
             
           }
         }
