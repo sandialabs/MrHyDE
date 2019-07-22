@@ -189,8 +189,7 @@ public:
                      const bool & compute_aux_sens, const bool & store_adjPrev,
                      Kokkos::View<ScalarT***,AssemblyDevice> res,
                      Kokkos::View<ScalarT***,AssemblyDevice> local_J,
-                     Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot,
-                     const bool & includeBoundary);
+                     Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Update the solution variables in the workset

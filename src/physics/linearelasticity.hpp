@@ -140,10 +140,6 @@ public:
             dvdx = basis_grad(e,i,k,0);
             resindex = offsets(dx_num,i);
             res(e,resindex) += stress(e,k,0,0)*dvdx - source_dx(e,k)*v;
-            if (addBiot) {
-              dpdx = sol_grad(e,p_num,k,0);
-              res(e,resindex) += -biot_alpha*dpdx*dvdx;
-            }
           }
         }
       });
@@ -165,11 +161,7 @@ public:
             resindex = offsets(dx_num,i);
             
             res(e,resindex) += stress(e,k,0,0)*dvdx + stress(e,k,0,1)*dvdy - source_dx(e,k)*v;
-            
-            if (addBiot) {
-              dpdx = sol_grad(e,p_num,k,0);
-              res(e,resindex) += biot_alpha*dpdx*v;
-            }
+          
           }
         }
       });
@@ -191,10 +183,7 @@ public:
             resindex = offsets(dy_num,i);
             
             res(e,resindex) += stress(e,k,1,0)*dvdx + stress(e,k,1,1)*dvdy - source_dy(e,k)*v;
-            if (addBiot) {
-              dpdy= sol(e,p_num,k,1);
-              res(e,resindex) += biot_alpha*dpdy*v;
-            }
+            
           }
         }
       });
@@ -216,10 +205,6 @@ public:
             dvdz = basis_grad(e,i,k,2);
             resindex = offsets(dx_num,i);
             res(e,resindex) += stress(e,k,0,0)*dvdx + stress(e,k,0,1)*dvdy + stress(e,k,0,2)*dvdz - source_dx(e,k)*v;
-            if (addBiot) {
-              dpdx = sol_grad(e,p_num,k,0);
-              res(e,resindex) += -biot_alpha*dpdx*dvdx;
-            }
           }
         }
       });
@@ -239,10 +224,6 @@ public:
             dvdz = basis_grad(e,i,k,2);
             resindex = offsets(dy_num,i);
             res(e,resindex) += stress(e,k,1,0)*dvdx + stress(e,k,1,1)*dvdy + stress(e,k,1,2)*dvdz - source_dy(e,k)*v;
-            if (addBiot) {
-              dpdy = sol_grad(e,p_num,k,1);
-              res(e,resindex) += -biot_alpha*dpdy*dvdy;
-            }
           }
         }
       });
@@ -262,10 +243,6 @@ public:
             dvdz = basis_grad(e,i,k,2);
             resindex = offsets(dz_num,i);
             res(e,resindex) += stress(e,k,2,0)*dvdx + stress(e,k,2,1)*dvdy + stress(e,k,2,2)*dvdz - source_dz(e,k)*v;
-            if (addBiot) {
-              dpdz = sol_grad(e,p_num,k,2);
-              res(e,resindex) += -biot_alpha*dpdz*dvdz;
-            }
           }
         }
       });
@@ -759,6 +736,10 @@ public:
         eval = sol(e,e_num,ipindex,0);
         delta_e = eval-e_ref;
       }
+      if (p_num >= 0) {
+        pval = sol(e,p_num,ipindex,0);
+      }
+      
       
     }
   }
@@ -782,6 +763,10 @@ public:
       else if (varlist[i] == "e")
         e_num = i;
       else if (varlist[i] == "p")
+        p_num = i;
+      else if (varlist[i] == "Po")
+        p_num = i;
+      else if (varlist[i] == "Pw")
         p_num = i;
       
     }
@@ -848,6 +833,11 @@ public:
             stress(e,k,2,2) += -alpha_T*delta_e*(3.0*lambda_val + 2.0*mu_val);
           }
           
+          if (addBiot) {
+            stress(e,k,0,0) += -biot_alpha*pval;
+            stress(e,k,1,1) += -biot_alpha*pval;
+            stress(e,k,2,2) += -biot_alpha*pval;
+          }
         }
       }
       //vector<int> indices = {dx_num, dy_num, dz_num, e_num};
@@ -1069,7 +1059,7 @@ private:
   AD dy, ddy_dx, ddy_dy, ddy_dz;
   AD dz, ddz_dx, ddz_dy, ddz_dz;
   
-  AD dpdx, dpdy, dpdz, eval, delta_e;
+  AD dpdx, dpdy, dpdz, eval, delta_e, pval;
   AD plambdax, plambday, plambdaz;
   
   //Kokkos::View<AD**,AssemblyDevice> lambda, mu, source_dx, source_dy, source_dz;

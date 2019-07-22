@@ -308,6 +308,7 @@ public:
   size_t numBlocks;
   
   vector<int> numVars;
+  vector<vector<bool> > useSubgrid;
   
   vector<vector<string> > varlist;
   vector<vector<int> > varowned;

@@ -22,7 +22,7 @@
 #include "porousHDIV.hpp"
 //#include "twophasePwNo.hpp"
 #include "twophasePoNo.hpp"
-//#include "twophasePoPw.hpp"
+#include "twophasePoPw.hpp"
 #include "cdr.hpp"
 //#include "msconvdiff.hpp"
 #include "thermal.hpp"
@@ -369,6 +369,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   }
   
   vector<Teuchos::RCP<physicsbase> > currmodules;
+  vector<bool> currSubgrid;
   std::string var;
   int default_order = 1;
   std::string default_type = "HGRAD";
@@ -381,6 +382,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
                                                               numElemPerCell, functionManager,
                                                               blocknum) );
     currmodules.push_back(porous_RCP);
+    currSubgrid.push_back(currsettings.get<bool>("subgrid_porous",false));
   }
   
   
@@ -390,6 +392,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
                                                                           numElemPerCell, functionManager,
                                                                           blocknum) );
     currmodules.push_back(porousHDIV_RCP);
+    currSubgrid.push_back(currsettings.get<bool>("subgrid_porousHDIV",false));
   }
   
   // Two phase porous media
@@ -406,12 +409,14 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
                                                                               numElemPerCell, functionManager,
                                                                               blocknum) );
       currmodules.push_back(twophase_RCP);
+      currSubgrid.push_back(currsettings.get<bool>("subgrid_twophase",false));
     }
-    else if (formulation == "PwNo"){
-      //Teuchos::RCP<twophasePwNo> twophase_RCP = Teuchos::rcp(new twophasePwNo(settings, numip, numip_side,
-      //                                                                        numElemPerCell, functionManager,
-      //                                                                        blocknum) );
-      //currmodules.push_back(twophase_RCP);
+    else if (formulation == "PoPw"){
+      Teuchos::RCP<twophasePoPw> twophase_RCP = Teuchos::rcp(new twophasePoPw(settings, numip, numip_side,
+                                                                              numElemPerCell, functionManager,
+                                                                              blocknum) );
+      currmodules.push_back(twophase_RCP);
+      currSubgrid.push_back(currsettings.get<bool>("subgrid_twophase",false));
     }
   
   }
@@ -421,6 +426,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
     Teuchos::RCP<cdr> cdr_RCP = Teuchos::rcp(new cdr(settings, numip, numip_side,
                                                     numElemPerCell, functionManager, blocknum) );
     currmodules.push_back(cdr_RCP);
+    currSubgrid.push_back(currsettings.get<bool>("subgrid_cdr",false));
   }
   
   /* not setting up correctly
@@ -436,6 +442,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
                                                                  numip_side, numElemPerCell,
                                                                  functionManager, blocknum) );
     currmodules.push_back(thermal_RCP);
+    currSubgrid.push_back(currsettings.get<bool>("subgrid_thermal",false));
   }
   
   /*
@@ -452,6 +459,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
                                                                                             numElemPerCell, functionManager,
                                                                                             blocknum) );
     currmodules.push_back(thermal_enthalpy_RCP);
+    currSubgrid.push_back(currsettings.get<bool>("subgrid_thermal_enthalpy",false));
   }
   
   // Shallow Water
@@ -459,6 +467,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
     Teuchos::RCP<shallowwater> shallowwater_RCP = Teuchos::rcp(new shallowwater(settings, numip, numip_side,numElemPerCell,
                                                                                 functionManager, blocknum) );
     currmodules.push_back(shallowwater_RCP);
+    currSubgrid.push_back(currsettings.get<bool>("subgrid_shallowwater",false));
   }
   /*
   // Maxwells
@@ -490,6 +499,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
                                                                                 numElemPerCell,
                                                                                 functionManager, blocknum) );
     currmodules.push_back(msphasefield_RCP);
+    currSubgrid.push_back(currsettings.get<bool>("subgrid_msphasefield",false));
   }
   
   // Navier Stokes
@@ -499,6 +509,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
                                                                                 blocknum) );
     
     currmodules.push_back(navierstokes_RCP);
+    currSubgrid.push_back(currsettings.get<bool>("subgrid_navierstokes",false));
   }
   
   /* not setting up correctly
@@ -514,6 +525,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
                                                                                             numip_side, numElemPerCell,
                                                                                             functionManager, blocknum) );
     currmodules.push_back(linearelasticity_RCP);
+    currSubgrid.push_back(currsettings.get<bool>("subgrid_linearelasticity",false));
   }
   
   /* not setting up correctly
@@ -530,6 +542,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
                                                                        numElemPerCell, functionManager,
                                                                        blocknum) );
     currmodules.push_back(helmholtz_RCP);
+    currSubgrid.push_back(currsettings.get<bool>("subgrid_helmholtz",false));
   }
   
   /* not setting up correctly
@@ -545,6 +558,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
                                                                              numElemPerCell, functionManager,
                                                                              blocknum) );
     currmodules.push_back(maxwells_fp_RCP);
+    currSubgrid.push_back(currsettings.get<bool>("subgrid_maxwells_freq_pot",false));
   }
   
   /*
@@ -556,6 +570,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   */
   
   modules.push_back(currmodules);
+  useSubgrid.push_back(currSubgrid);
   
   for (size_t m=0; m<currmodules.size(); m++) {
     vector<string> cvars = currmodules[m]->myvars;
@@ -1462,7 +1477,9 @@ void physics::setPeriBCs(Teuchos::RCP<Teuchos::ParameterList> & settings, Teucho
 
 void physics::volumeResidual(const size_t block) {
   for (size_t i=0; i<modules[block].size(); i++) {
-    modules[block][i]->volumeResidual();
+    if (useSubgrid[block][i] == false) {
+      modules[block][i]->volumeResidual();
+    }
   }
 }
 
