@@ -172,7 +172,7 @@ public:
           AD dNo_dz = sol_grad(e,Nonum,k,2);
           AD dNo_dt = sol_dot(e,Nonum,k,0);
           AD dPo_dt = sol_dot(e,Ponum,k,0);
-          
+
           AD rhoo = densref_o(e,k)*(1.0+comp_o(e,k)*(Po - pref_o(e,k)));
           AD So = No / rhoo;
           AD Sw = 1.0 - So;
@@ -222,7 +222,7 @@ public:
           AD dNo_dz = sol_grad(e,Nonum,k,2);
           AD dNo_dt = sol_dot(e,Nonum,k,0);
           AD dPo_dt = sol_dot(e,Ponum,k,0);
-          
+
           AD rhoo = densref_o(e,k)*(1.0+comp_o(e,k)*(Po - pref_o(e,k)));
           AD So = No / rhoo;
           AD Sw = 1.0 - So;
