@@ -56,7 +56,7 @@ public:
   solver(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
          Teuchos::RCP<meshInterface> & mesh_,
          Teuchos::RCP<discretization> & disc_,
-         Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<LO,GO> > & DOF_,
+         Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
          Teuchos::RCP<AssemblyManager> & assembler_,
          Teuchos::RCP<ParameterManager> & params_);
   
@@ -175,7 +175,7 @@ public:
   GO globalNumUnknowns;
   int verbosity, batchID, spaceDim, numsteps, gNLiter, milo_debug_level, MaxNLiter, time_order, liniter, kspace;
   
-  vector<LO> owned, ownedAndShared, LA_owned, LA_ownedAndShared;
+  vector<GO> owned, ownedAndShared, LA_owned, LA_ownedAndShared;
   
   ScalarT NLtol, final_time, lintol, dropTol, fillParam, current_time, initial_time, deltat;
   
@@ -207,7 +207,7 @@ private:
   Teuchos::RCP<LA_MpiComm> Comm;
   Teuchos::RCP<discretization> disc;
   Teuchos::RCP<physics> phys;
-  Teuchos::RCP<const panzer::DOFManager<LO,GO> > DOF;
+  Teuchos::RCP<const panzer::DOFManager> DOF;
   
   Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - total assembly");
   Teuchos::RCP<Teuchos::Time> linearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::linearSolver()");

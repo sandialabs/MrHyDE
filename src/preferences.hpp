@@ -12,8 +12,9 @@
 #ifndef PREFERENCES_H
 #define PREFERENCES_H
 
+#include "panzerCore_config.hpp"
+
 using namespace std;
-//using namespace Intrepid2;
 using Kokkos::parallel_for;
 using Kokkos::RangePolicy;
 
@@ -21,12 +22,12 @@ using Kokkos::RangePolicy;
 
 typedef double ScalarT;
 typedef int LO;
-typedef int GO;
+typedef panzer::GlobalOrdinal GO; // this should really be panzer::GlobalOrdinal
 
 #define maxDerivs 64 // adjust this to improve performance
 #define PI 3.141592653589793238463
 #define MILO_DEBUG false
-typedef Teuchos::MpiComm<GO> LA_MpiComm;
+typedef Teuchos::MpiComm<int> LA_MpiComm;
 
 // AD typedefs
 typedef Sacado::Fad::DFad<ScalarT> DFAD; // used only when absolutely necessary

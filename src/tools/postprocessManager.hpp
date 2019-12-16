@@ -38,7 +38,7 @@ public:
   PostprocessManager(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
               Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
               Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
-              Teuchos::RCP<solver> & solve_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
+              Teuchos::RCP<solver> & solve_, Teuchos::RCP<panzer::DOFManager> & DOF_,
               vector<vector<Teuchos::RCP<cell> > > cells_,
               Teuchos::RCP<FunctionInterface> & functionManager,
               Teuchos::RCP<AssemblyManager> & assembler_,
@@ -105,7 +105,7 @@ protected:
   Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
   Teuchos::RCP<discretization> disc;
   Teuchos::RCP<physics> phys;
-  Teuchos::RCP<const panzer::DOFManager<int,int> > DOF;
+  Teuchos::RCP<const panzer::DOFManager> DOF;
   Teuchos::RCP<solver> solve;
   Teuchos::RCP<AssemblyManager> assembler;
   Teuchos::RCP<ParameterManager> params;

@@ -19,7 +19,7 @@
 
 AssemblyManager::AssemblyManager(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
                                  Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
-                                 Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<LO,GO> > & DOF_,
+                                 Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
                                  vector<vector<Teuchos::RCP<cell> > > & cells_,
                                  vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells_,
                                  Teuchos::RCP<ParameterManager> & params_) :
@@ -99,7 +99,7 @@ void AssemblyManager::updateJacDBC(matrix_RCP & J, size_t & e, size_t & block, i
   // given a "block" and the unknown field update jacobian to enforce Dirichlet BCs
   
   string blockID = blocknames[block];
-  vector<int> GIDs;// = cells[block][e]->GIDs;
+  vector<GO> GIDs;// = cells[block][e]->GIDs;
   DOF->getElementGIDs(e, GIDs, blockID);
   
   const pair<vector<int>,vector<int> > SideIndex = DOF->getGIDFieldOffsets_closure(blockID, fieldNum,
@@ -112,12 +112,12 @@ void AssemblyManager::updateJacDBC(matrix_RCP & J, size_t & e, size_t & block, i
   Teuchos::Array<GO> cols(1);
   
   for( size_t i=0; i<elmtOffset.size(); i++ ) { // for each node
-    int row = GIDs[elmtOffset[i]]; // global row
+    GO row = GIDs[elmtOffset[i]]; // global row
     if (compute_disc_sens) {
-      vector<int> paramGIDs;// = cells[block][e]->paramGIDs;
+      vector<GO> paramGIDs;// = cells[block][e]->paramGIDs;
       params->paramDOF->getElementGIDs(e, paramGIDs, blockID);
       for( size_t col=0; col<paramGIDs.size(); col++ ) {
-        int ind = paramGIDs[col];
+        GO ind = paramGIDs[col];
         ScalarT m_val = 0.0; // set ALL of the entries to 0 in the Jacobian
         //J.ReplaceGlobalValues(row, 1, &m_val, &ind);
         J->replaceGlobalValues(ind, 1, &m_val, &row);
@@ -142,14 +142,14 @@ void AssemblyManager::updateJacDBC(matrix_RCP & J, size_t & e, size_t & block, i
 // ========================================================================================
 // ========================================================================================
 
-void AssemblyManager::updateJacDBC(matrix_RCP & J, const vector<int> & dofs, const bool & compute_disc_sens) {
+void AssemblyManager::updateJacDBC(matrix_RCP & J, const vector<GO> & dofs, const bool & compute_disc_sens) {
   
   // given a "block" and the unknown field update jacobian to enforce Dirichlet BCs
   
   //size_t numcols = J->getGlobalNumCols();
   for( int i=0; i<dofs.size(); i++ ) { // for each node
     if (compute_disc_sens) {
-      size_t numcols = globalParamUnknowns;
+      int numcols = globalParamUnknowns;
       for( int col=0; col<numcols; col++ ) {
         ScalarT m_val = 0.0; // set ALL of the entries to 0 in the Jacobian
         //J.ReplaceGlobalValues(row, 1, &m_val, &ind);
@@ -157,8 +157,8 @@ void AssemblyManager::updateJacDBC(matrix_RCP & J, const vector<int> & dofs, con
       }
     }
     else {
-      size_t numcols = J->getGlobalNumCols();
-      for( int col=0; col<numcols; col++ ) {
+      GO numcols = J->getGlobalNumCols();
+      for( GO col=0; col<numcols; col++ ) {
         ScalarT m_val = 0.0; // set ALL of the entries to 0 in the Jacobian
         J->replaceGlobalValues(dofs[i], 1, &m_val, &col);
       }
@@ -176,7 +176,7 @@ void AssemblyManager::updateResDBC(vector_RCP & resid, size_t & e, size_t & bloc
   // given a "block" and the unknown field update resid to enforce Dirichlet BCs
   
   string blockID = blocknames[block];
-  vector<int> elemGIDs;
+  vector<GO> elemGIDs;
   DOF->getElementGIDs(e, elemGIDs, blockID); // compute element global IDs
   
   int numRes = resid->getNumVectors();
@@ -187,7 +187,7 @@ void AssemblyManager::updateResDBC(vector_RCP & resid, size_t & e, size_t & bloc
   const vector<int> basisIdMap = SideIndex.second;
   
   for( size_t i=0; i<elmtOffset.size(); i++ ) { // for each node
-    int row = elemGIDs[elmtOffset[i]]; // global row
+    GO row = elemGIDs[elmtOffset[i]]; // global row
     ScalarT r_val = 0.0; // set residual to 0
     for( int j=0; j<numRes; j++ ) {
       resid->replaceGlobalValue(row, j, r_val); // replace the value
@@ -198,7 +198,7 @@ void AssemblyManager::updateResDBC(vector_RCP & resid, size_t & e, size_t & bloc
 // ========================================================================================
 // ========================================================================================
 
-void AssemblyManager::updateResDBC(vector_RCP & resid, const vector<int> & dofs) {
+void AssemblyManager::updateResDBC(vector_RCP & resid, const vector<GO> & dofs) {
   // given a "block" and the unknown field update resid to enforce Dirichlet BCs
   
   int numRes = resid->getNumVectors();
@@ -221,7 +221,7 @@ void AssemblyManager::updateResDBCsens(vector_RCP & resid, size_t & e, size_t & 
   
   int fnum = DOF->getFieldNum(varlist[block][fieldNum]);
   string blockID = blocknames[block];
-  vector<int> elemGIDs;// = cells[block][e]->GIDs[p];
+  vector<GO> elemGIDs;// = cells[block][e]->GIDs[p];
   DOF->getElementGIDs(e, elemGIDs, blockID);
   
   int numRes = resid->getNumVectors();
@@ -232,7 +232,7 @@ void AssemblyManager::updateResDBCsens(vector_RCP & resid, size_t & e, size_t & 
   const vector<int> basisIdMap = SideIndex.second;
   
   for( size_t i=0; i<elmtOffset.size(); i++ ) { // for each node
-    int row = elemGIDs[elmtOffset[i]]; // global row
+    GO row = elemGIDs[elmtOffset[i]]; // global row
     ScalarT r_val = 0.0;
     for( int j=0; j<numRes; j++ ) {
       resid->replaceGlobalValue(row, j, r_val); // replace the value
@@ -262,7 +262,7 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
           ScalarT val = localrhs(c,row);
           rhs->sumIntoGlobalValue(rowIndex,0, val);
           for( size_t col=0; col<GIDs.dimension(1); col++ ) {
-            int colIndex = GIDs(c,col);
+            GO colIndex = GIDs(c,col);
             ScalarT val = localmass(c,row,col);
             mass->insertGlobalValues(rowIndex, 1, &val, &colIndex);
           }
@@ -445,7 +445,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
         
         cells[b][e]->computeJacRes(current_time, isTransient, useadjoint, compute_jacobian, compute_sens,
                                    num_active_params, compute_disc_sens, false, store_adjPrev,
-                                   local_res, local_J, local_Jdot, !useNewBCs);
+                                   local_res, local_J, local_Jdot);
         
         
       }
@@ -575,7 +575,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
   
   if (usestrongDBCs) {
     Teuchos::TimeMonitor localtimer(*dbctimer);
-    vector<vector<int> > fixedDOFs = phys->dbc_dofs;
+    vector<vector<GO> > fixedDOFs = phys->dbc_dofs;
     for (size_t b=0; b<cells.size(); b++) {
       vector<size_t> boundDirichletElemIDs;   // list of elements on the Dirichlet boundary
       vector<size_t> localDirichletSideIDs;   // local side numbers for Dirichlet boundary sides
@@ -770,10 +770,10 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
   
   for (int i=0; i<GIDs.dimension(0); i++) {
     Teuchos::Array<ScalarT> vals(GIDs.dimension(1));
-    Teuchos::Array<LO> cols(GIDs.dimension(1));
+    Teuchos::Array<GO> cols(GIDs.dimension(1));
     
     for( size_t row=0; row<GIDs.dimension(1); row++ ) {
-      int rowIndex = GIDs(i,row);
+      GO rowIndex = GIDs(i,row);
       for (int g=0; g<local_res.dimension(2); g++) {
         ScalarT val = local_res(i,row,g);
         res->sumIntoGlobalValue(rowIndex,g, val);
@@ -781,7 +781,7 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
       if (compute_jacobian) {
         if (compute_disc_sens) {
           for( size_t col=0; col<paramGIDs.dimension(1); col++ ) {
-            int colIndex = paramGIDs(i,col);
+            GO colIndex = paramGIDs(i,col);
             ScalarT val = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
             J->insertGlobalValues(colIndex, 1, &val, &rowIndex);
           }

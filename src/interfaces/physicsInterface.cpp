@@ -596,7 +596,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
 // to the DOF manager
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Teuchos::RCP<panzer::DOFManager<int,int> > physics::buildDOF(Teuchos::RCP<panzer_stk::STK_Interface> & mesh) {
+Teuchos::RCP<panzer::DOFManager> physics::buildDOF(Teuchos::RCP<panzer_stk::STK_Interface> & mesh) {
   
   if (milo_debug_level > 0) {
     if (Commptr->getRank() == 0) {
@@ -604,8 +604,8 @@ Teuchos::RCP<panzer::DOFManager<int,int> > physics::buildDOF(Teuchos::RCP<panzer
     }
   }
   
-  Teuchos::RCP<panzer::DOFManager<int,int> > DOF = Teuchos::rcp(new panzer::DOFManager<int,int>());
-  Teuchos::RCP<panzer::ConnManager<int,int> > conn = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
+  Teuchos::RCP<panzer::DOFManager> DOF = Teuchos::rcp(new panzer::DOFManager());
+  Teuchos::RCP<panzer::ConnManager> conn = Teuchos::rcp(new panzer_stk::STKConnManager(mesh));
   DOF->setConnManager(conn,*(Commptr->getRawMpiComm()));
   DOF->setOrientationsRequired(true);
   
@@ -1082,7 +1082,7 @@ int physics::getUniqueIndex(const int & block, const std::string & var) {
 
 void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
                         Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
-                        Teuchos::RCP<panzer::DOFManager<int,int> > & DOF,
+                        Teuchos::RCP<panzer::DOFManager> & DOF,
                         std::vector<std::vector<int> > cards) {
   
   if (milo_debug_level > 0) {
@@ -1287,7 +1287,7 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
           //vector<int> var_offsets = DOF->getGIDFieldOffsets(blockID,num);
           vector<stk::mesh::Entity> nodeEntities;
           mesh->getMyNodes(nodeName, blockID, nodeEntities);
-          vector<int> elemGIDs;
+          vector<GO> elemGIDs;
           
           vector<size_t> local_elem_Ids;
           vector<size_t> local_node_Ids;
@@ -1316,7 +1316,7 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
     int globalsize = 0;
     
     //Teuchos::reduceAll<int, int>(*Commptr, Teuchos::REDUCE_SUM, localsize, Teuchos::outArg(globalsize));
-    Teuchos::reduceAll(*Commptr,Teuchos::REDUCE_SUM,1,&localsize,&globalsize);
+    Teuchos::reduceAll<int,int>(*Commptr,Teuchos::REDUCE_SUM,1,&localsize,&globalsize);
     //Commptr->SumAll(&localsize, &globalsize, 1);
     int gathersize = Commptr->getSize()*globalsize;
     int *block_dbc_dofs_local = new int [globalsize];
@@ -1334,7 +1334,7 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
     
     //Commptr->GatherAll(block_dbc_dofs_local, block_dbc_dofs_global, globalsize);
     Teuchos::gatherAll(*Commptr, globalsize, &block_dbc_dofs_local[0], gathersize, &block_dbc_dofs_global[0]);
-    vector<int> all_dbcs;
+    vector<GO> all_dbcs;
     
     for (int i = 0; i < gathersize; i++) {
       all_dbcs.push_back(block_dbc_dofs_global[i]);
@@ -1342,8 +1342,8 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
     delete [] block_dbc_dofs_local;
     delete [] block_dbc_dofs_global;
     
-    vector<int> dbc_final;
-    vector<int> ownedAndShared;
+    vector<GO> dbc_final;
+    vector<GO> ownedAndShared;
     DOF->getOwnedAndGhostedIndices(ownedAndShared);
     
     sort(all_dbcs.begin(),all_dbcs.end());
@@ -1400,7 +1400,7 @@ Kokkos::View<int****,HostDevice> physics::getSideInfo(const size_t & block,
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-vector<vector<int> > physics::getOffsets(const int & block, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF) {
+vector<vector<int> > physics::getOffsets(const int & block, Teuchos::RCP<panzer::DOFManager> & DOF) {
   return offsets[block];
 }
 

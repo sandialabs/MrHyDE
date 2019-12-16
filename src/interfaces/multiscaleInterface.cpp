@@ -252,7 +252,7 @@ ScalarT MultiScale::initialize() {
         //Teuchos::rcp(new LA_CrsMatrix(Copy, *(subgridModels[i]->owned_map), -1)); // reset Jacobian
         
         Teuchos::Array<ScalarT> vals(1);
-        Teuchos::Array<LO> cols(1);
+        Teuchos::Array<GO> cols(1);
         
         for (size_t k=0; k<ip.dimension(1); k++) {
           int icell = basisinfo_i.first(k,0);

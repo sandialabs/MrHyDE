@@ -23,7 +23,7 @@ typedef Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator> LA_LinearProb
 solver::solver(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
                Teuchos::RCP<meshInterface> & mesh_,
                Teuchos::RCP<discretization> & disc_,
-               Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<LO,GO> > & DOF_,
+               Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
                Teuchos::RCP<AssemblyManager> & assembler_,
                Teuchos::RCP<ParameterManager> & params_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembler_), params(params_) { 
@@ -128,7 +128,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   numUnknowns = (LO)LA_owned.size();
   DOF->getOwnedAndGhostedIndices(LA_ownedAndShared);
   numUnknownsOS = (LO)LA_ownedAndShared.size();
-  LO localNumUnknowns = numUnknowns;
+  GO localNumUnknowns = numUnknowns;
   
   DOF->getOwnedIndices(owned);
   DOF->getOwnedAndGhostedIndices(ownedAndShared);
@@ -157,7 +157,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   //}
   
   globalNumUnknowns = 0;
-  Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
+  Teuchos::reduceAll<LO,GO>(*Comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
   //Comm->SumAll(&localNumUnknowns, &globalNumUnknowns, 1);
   
   // needed information from the disc interface
@@ -1203,7 +1203,7 @@ void solver::setDirichlet(vector_RCP & initial) {
   //auto meas_kv = meas->getLocalView<HostDevice>();
   
   // TMW: this function needs to be fixed
-  vector<vector<int> > fixedDOFs = phys->dbc_dofs;
+  vector<vector<GO> > fixedDOFs = phys->dbc_dofs;
   
   for (size_t b=0; b<blocknames.size(); b++) {
     string blockID = blocknames[b];
@@ -1265,7 +1265,7 @@ void solver::setDirichlet(vector_RCP & initial) {
       }
     }
     // set point dbcs
-    vector<LO> dbc_dofs = fixedDOFs[b];
+    vector<GO> dbc_dofs = fixedDOFs[b];
     
     for (int i = 0; i < dbc_dofs.size(); i++) {
       LO row = LA_overlapped_map->getLocalElement(dbc_dofs[i]);

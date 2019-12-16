@@ -227,8 +227,8 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
       
     }
     
-    paramDOF = Teuchos::rcp(new panzer::DOFManager<int,int>());
-    Teuchos::RCP<panzer::ConnManager<int,int> > conn = Teuchos::rcp(new panzer_stk::STKConnManager<int>(mesh));
+    paramDOF = Teuchos::rcp(new panzer::DOFManager());
+    Teuchos::RCP<panzer::ConnManager> conn = Teuchos::rcp(new panzer_stk::STKConnManager(mesh));
     paramDOF->setConnManager(conn,*(Comm->getRawMpiComm()));
     
     Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern;
@@ -260,12 +260,12 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
     
     for (size_t b=0; b<cells.size(); b++) {
       for (size_t e=0; e<cells[b].size(); e++) {
-        vector<vector<int> > GIDs;
+        vector<vector<GO> > GIDs;
         int numElem = cells[b][e]->numElem;
         int numLocalDOF = 0;
         for (int p=0; p<numElem; p++) {
           size_t elemID = cells[b][e]->localElemID(p);//disc->myElements[b][eprog+p];
-          vector<int> localGIDs;
+          vector<GO> localGIDs;
           paramDOF->getElementGIDs(elemID, localGIDs, blocknames[b]);
           GIDs.push_back(localGIDs);
           numLocalDOF = localGIDs.size(); // should be the same for all elements
@@ -282,12 +282,12 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
     }
     for (size_t b=0; b<boundaryCells.size(); b++) {
       for (size_t e=0; e<boundaryCells[b].size(); e++) {
-        vector<vector<int> > GIDs;
+        vector<vector<GO> > GIDs;
         int numElem = boundaryCells[b][e]->numElem;
         int numLocalDOF = 0;
         for (int p=0; p<numElem; p++) {
           size_t elemID = boundaryCells[b][e]->localElemID(p);//disc->myElements[b][eprog+p];
-          vector<int> localGIDs;
+          vector<GO> localGIDs;
           paramDOF->getElementGIDs(elemID, localGIDs, blocknames[b]);
           GIDs.push_back(localGIDs);
           numLocalDOF = localGIDs.size(); // should be the same for all elements

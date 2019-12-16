@@ -144,21 +144,21 @@ public:
   vector<vector_RCP> auxsol;
   vector<vector_RCP> dRdP;
   bool have_dRdP;
-  Teuchos::RCP<const panzer::DOFManager<int,int> > discparamDOF;
+  Teuchos::RCP<const panzer::DOFManager> discparamDOF;
   vector<vector<ScalarT> > paramLowerBounds;
   vector<vector<ScalarT> > paramUpperBounds;
   vector<string> discretized_param_basis_types;
   vector<int> discretized_param_basis_orders, discretized_param_usebasis;
   vector<string> discretized_param_names;
   vector<basis_RCP> discretized_param_basis;
-  Teuchos::RCP<panzer::DOFManager<int,int> > paramDOF;
+  Teuchos::RCP<panzer::DOFManager> paramDOF;
   vector<vector<int> > paramoffsets;
   vector<int> paramNumBasis;
   int numParamUnknowns;     					 // total number of unknowns
   int numParamUnknownsOS;     					 // total number of unknowns
   int globalParamUnknowns; // total number of unknowns across all processors
-  vector<int> paramOwned;					 // GIDs that live on the local processor.
-  vector<int> paramOwnedAndShared;				 // GIDs that live or are shared on the local processor.
+  vector<GO> paramOwned;					 // GIDs that live on the local processor.
+  vector<GO> paramOwnedAndShared;				 // GIDs that live or are shared on the local processor.
   
   vector<int> paramtypes;
   vector<vector<int>> paramNodes;  // for distinguishing between parameter fields when setting initial

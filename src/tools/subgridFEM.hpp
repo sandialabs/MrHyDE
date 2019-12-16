@@ -304,7 +304,7 @@ public:
   vector<string> varlist;
   vector<string> discparamnames;
   Teuchos::RCP<physics> physics_RCP;
-  Teuchos::RCP<panzer::DOFManager<int,int> > DOF;
+  Teuchos::RCP<panzer::DOFManager> DOF;
   Teuchos::RCP<AssemblyManager> sub_assembler;
   Teuchos::RCP<ParameterManager> sub_params;
   Teuchos::RCP<solver> sub_solver;

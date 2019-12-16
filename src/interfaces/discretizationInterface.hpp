@@ -36,7 +36,7 @@ public:
   
   void setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & cells,
                           vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells,
-                          Teuchos::RCP<panzer::DOFManager<int,int> > & DOF,
+                          Teuchos::RCP<panzer::DOFManager> & DOF,
                           Teuchos::RCP<physics> & phys);
   
   ////////////////////////////////////////////////////////////////////////////////

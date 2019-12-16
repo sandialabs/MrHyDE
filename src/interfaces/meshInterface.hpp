@@ -22,7 +22,7 @@
 #include "Panzer_STK_SetupUtilities.hpp"
 #include "Panzer_STK_Interface.hpp"
 #include "Panzer_STK_ExodusReaderFactory.hpp"
-#include "Panzer_STK_PamgenReaderFactory.hpp"
+//#include "Panzer_STK_PamgenReaderFactory.hpp"
 
 #include "preferences.hpp"
 #include "physicsInterface.hpp"

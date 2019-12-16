@@ -116,8 +116,8 @@ settings(settings_), Commptr(Commptr_) {
     pl->set("File Name",settings->sublist("Mesh").get<std::string>("Mesh_File","mesh.exo"));
   }
   else if (settings->sublist("Mesh").get<std::string>("Source","Internal") ==  "Pamgen") { // NOT TESTED IN MILO YET
-    mesh_factory = Teuchos::rcp(new panzer_stk::STK_PamgenReaderFactory());
-    pl->set("File Name",settings->sublist("Mesh").get<std::string>("Mesh_File","mesh.pmg"));
+    //mesh_factory = Teuchos::rcp(new panzer_stk::STK_PamgenReaderFactory());
+    //pl->set("File Name",settings->sublist("Mesh").get<std::string>("Mesh_File","mesh.pmg"));
   }
   else {
     pl->set("X Blocks",settings->sublist("Mesh").get("Xblocks",1));
@@ -1317,7 +1317,7 @@ void meshInterface::updateMeshData(const int & newrandseed,
     }
   }
   //Comm->MaxAll(&localnumSeeds, &numSeeds, 1);
-  Teuchos::reduceAll(*Commptr,Teuchos::REDUCE_MAX,1,&localnumSeeds,&numSeeds);
+  Teuchos::reduceAll<int,int>(*Commptr,Teuchos::REDUCE_MAX,1,&localnumSeeds,&numSeeds);
   numSeeds += 1; //To properly allocate and iterate
   
   // Create a random number generator

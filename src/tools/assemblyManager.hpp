@@ -37,7 +37,7 @@ public:
   
   AssemblyManager(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
                   Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
-                  Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager<int,int> > & DOF_,
+                  Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
                   vector<vector<Teuchos::RCP<cell> > > & cells_,
                   vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells_,
                   Teuchos::RCP<ParameterManager> & params_);
@@ -56,7 +56,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void updateJacDBC(matrix_RCP & J, const vector<int> & dofs, const bool & compute_disc_sens);
+  void updateJacDBC(matrix_RCP & J, const vector<GO> & dofs, const bool & compute_disc_sens);
   
   // ========================================================================================
   // ========================================================================================
@@ -67,7 +67,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void updateResDBC(vector_RCP & resid, const vector<int> & dofs);
+  void updateResDBC(vector_RCP & resid, const vector<GO> & dofs);
   
   
   // ========================================================================================
@@ -157,7 +157,7 @@ public:
   vector<Teuchos::RCP<workset> > wkset;
   
   bool usestrongDBCs, use_meas_as_dbcs, multiscale, useNewBCs;
-  Teuchos::RCP<const panzer::DOFManager<LO, GO> > DOF;
+  Teuchos::RCP<const panzer::DOFManager> DOF;
   
 private:
   
