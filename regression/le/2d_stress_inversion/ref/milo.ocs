@@ -4,12 +4,14 @@ Trust-Region Model: Kelley-Sachs
   iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
   0     2.072632e+00   2.408116e-01                  1.000000e+01   
   1     1.958322e+00   2.362788e-01   2.408116e-01   2.500000e+01   3         3         0         1         0         
+Optimization Terminated with Status: Iteration Limit Exceeded
 
 Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
 Trust-Region Model: Kelley-Sachs
   iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
   0     2.072632e+00   2.408116e-01                  1.000000e+01   
   1     1.958322e+00   2.362788e-01   2.408116e-01   2.500000e+01   3         3         0         1         0         
+Optimization Terminated with Status: Iteration Limit Exceeded
 param 0 = 2.00896
 param 1 = 1.99954
 param 2 = 1.98289

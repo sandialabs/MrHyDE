@@ -114,7 +114,7 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
   macronodes.push_back(macronodes_);
   macrosideinfo.push_back(macrosideinfo_);
   vector<vector<ScalarT> > nodes;
-  vector<vector<int> > connectivity;
+  vector<vector<GO> > connectivity;
   Kokkos::View<int****,HostDevice> sideinfo;
   
   vector<string> eBlocks;
@@ -2334,7 +2334,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
   SubGridTools sgt(LocalComm, macroshape, shape, macronodes[usernum], macrosideinfo[usernum]);
   sgt.createSubMesh(numrefine);
   vector<vector<ScalarT> > nodes = sgt.getSubNodes();
-  vector<vector<int> > connectivity = sgt.getSubConnectivity();
+  vector<vector<GO> > connectivity = sgt.getSubConnectivity();
   Kokkos::View<int****,HostDevice> sideinfo = sgt.getSubSideinfo();
   
   panzer_stk::SubGridMeshFactory submeshFactory(shape, nodes, connectivity, blockID);
@@ -2404,6 +2404,8 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
       size_t numsb = cells[usernum][0]->numDOF(n);//index[0][n].size();
       Kokkos::View<ScalarT**,HostDevice> soln_computed("soln",cells[usernum].size(), numsb); // TMW temp. fix
       string var = varlist[n];
+      size_t pprog = 0;
+      
       for( size_t e=0; e<cells[usernum].size(); e++ ) {
         int numElem = cells[usernum][e]->numElem;
         Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;
@@ -2412,10 +2414,11 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
           for( int i=0; i<numsb; i++ ) {
             int pindex = overlapped_map->getLocalElement(GIDs(p,suboffsets[n][i]));
             //if (write_subgrid_state)
-            soln_computed(p,i) = u_kv(pindex,0);
+            soln_computed(pprog,i) = u_kv(pindex,0);
             //else
             //  soln_computed(p,i) = (*(adjsoln->data[usernum][m]))[0][pindex];
           }
+          pprog += 1;
         }
       }
       submesh->setSolutionFieldData(var, blockID, myElements, soln_computed);

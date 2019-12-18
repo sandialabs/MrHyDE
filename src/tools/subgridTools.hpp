@@ -38,7 +38,7 @@ public:
   void createSubMesh(const int & numrefine) {
     
     if (subshape == shape) {
-      vector<int> newconn;
+      vector<GO> newconn;
       for (int i=0; i<nodes.dimension(1); i++) {
         vector<ScalarT> newnode;
         for (int s=0; s<dimension; s++) {
@@ -71,7 +71,7 @@ public:
       }
       else if (dimension == 2) {
         if (shape == "quad" && subshape == "tri") {
-          vector<int> newconn0, newconn1, newconn2, newconn3;
+          vector<GO> newconn0, newconn1, newconn2, newconn3;
           for (int i=0; i<nodes.dimension(1); i++) {
             vector<ScalarT> newnode;
             for (int s=0; s<dimension; s++) {
@@ -141,7 +141,7 @@ public:
           subsideinfo.push_back(newsi3);
         }
         else if (shape == "tri" && subshape == "quad") {
-          vector<int> newconn0, newconn1, newconn2;
+          vector<GO> newconn0, newconn1, newconn2;
           for (int i=0; i<nodes.dimension(1); i++) {
             vector<ScalarT> newnode;
             
@@ -265,7 +265,7 @@ public:
       
       subnodes.push_back(mid);
       
-      vector<int> newelem0, newelem1;
+      vector<GO> newelem0, newelem1;
       newelem0.push_back(subconnectivity[e][0]);
       newelem0.push_back(subnodes.size());
       newelem1.push_back(subnodes.size());
@@ -332,7 +332,7 @@ public:
         }
         
         // Define the new elements (appended to end of list)
-        vector<int> elem0, elem1, elem2, elem3;
+        vector<GO> elem0, elem1, elem2, elem3;
         
         elem0.push_back(subconnectivity[e][0]);
         elem0.push_back(mid01_ind);
@@ -443,7 +443,7 @@ public:
         }
         
         // Define the new elements (appended to end of list)
-        vector<int> elem0, elem1, elem2, elem3;
+        vector<GO> elem0, elem1, elem2, elem3;
         
         elem0.push_back(subconnectivity[e][0]);
         elem0.push_back(mid01_ind);
@@ -584,7 +584,7 @@ public:
         }
         
         // Define the new elements (appended to end of list)
-        vector<int> elem0, elem1, elem2, elem3, elem4, elem5, elem6, elem7;
+        vector<GO> elem0, elem1, elem2, elem3, elem4, elem5, elem6, elem7;
         
         elem0.push_back(subconnectivity[e][0]);
         elem0.push_back(mid01_ind);
@@ -884,7 +884,7 @@ public:
         }
         
         // Define the new elements (appended to end of list)
-        vector<int> elem0, elem1, elem2, elem3, elem4, elem5, elem6, elem7;
+        vector<GO> elem0, elem1, elem2, elem3, elem4, elem5, elem6, elem7;
         
         elem0.push_back(subconnectivity[e][0]);
         elem0.push_back(mid01_ind);
@@ -1103,7 +1103,7 @@ public:
   // Get the sub-grid connectivity
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  vector<vector<int> > getSubConnectivity() {
+  vector<vector<GO> > getSubConnectivity() {
     return subconnectivity;
   }
   
@@ -1134,7 +1134,7 @@ protected:
   DRV nodes;
   Kokkos::View<int****,HostDevice> sideinfo;
   vector<vector<ScalarT> > subnodes;
-  vector<vector<int> > subconnectivity;
+  vector<vector<GO> > subconnectivity;
   vector<Kokkos::View<int****,AssemblyDevice> > subsideinfo;
   
   

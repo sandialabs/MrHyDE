@@ -35,8 +35,9 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   
   template<class T>
-  static void print(Kokkos::View<T*,AssemblyDevice> V) {
+  static void print(Kokkos::View<T*,AssemblyDevice> V, const string & message="") {
     cout << endl;
+    cout << message << endl;
     cout << "Printing data for View: " << V.label() << endl;
     
     cout << "  i  " << "  value  " << endl;
@@ -55,8 +56,9 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   
   template<class T>
-  static void print(Kokkos::View<T**,AssemblyDevice> V) {
+  static void print(Kokkos::View<T**,AssemblyDevice> V, const string & message="") {
     cout << endl;
+    cout << message << endl;
     cout << "Printing data for View: " << V.label() << endl;
     
     cout << "  i  " << "  j  " << "  value  " << endl;
@@ -75,10 +77,11 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  static void print(Teuchos::RCP<LA_MpiComm> & Comm, vector_RCP & V) {
+  static void print(Teuchos::RCP<LA_MpiComm> & Comm, vector_RCP & V, const string & message="") {
     auto V_kv = V->getLocalView<HostDevice>();
     
     cout << endl;
+    cout << message << endl;
     cout << "Printing data for View: " << V_kv.label() << endl;
     
     cout << " PID " << "  i  " << "  j  " << "  value  " << endl;
@@ -97,7 +100,8 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  static void print(matrix_RCP & M) {
+  static void print(matrix_RCP & M, const string & message="") {
+    cout << message << endl;
     Teuchos::EVerbosityLevel vl = Teuchos::VERB_EXTREME;
     auto out = Teuchos::getFancyOStream (Teuchos::rcpFromRef (std::cout));
     M->describe(*out,vl);
@@ -106,34 +110,19 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  static void print(const vector_RCP & V) {
+  static void print(const vector_RCP & V, const string & message="") {
+    cout << message << endl;
     Teuchos::EVerbosityLevel vl = Teuchos::VERB_EXTREME;
     auto out = Teuchos::getFancyOStream (Teuchos::rcpFromRef (std::cout));
     V->describe(*out,vl);
-    /*
-    auto V_kv = V->getLocalView<HostDevice>();
-    
-    cout << endl;
-    cout << "Printing data for View: " << V_kv.label() << endl;
-    
-    cout << "  i  " << "  j  " << "  value  " << endl;
-    cout << "-------------------------------" << endl;
-    
-    for (int i=0; i<V_kv.dimension(0); i++) {
-      for (int j=0; j<V_kv.dimension(1); j++) {
-        cout << "  " << i << "  " << "  " << j << "  " <<
-        "  " << "  " << V_kv(i,j) << "  " << endl;
-      }
-    }
-    cout << "-------------------------------" << endl;
-    */
   }
-  ///Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice>
+  
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  static void print(FDATA V) {
+  static void print(FDATA V, const string & message="") {
     cout << endl;
+    cout << message << endl;
     cout << "Printing data for View: " << V.label() << endl;
     
     cout << "  i  " << "  j  " << "  value  " << endl;
@@ -153,8 +142,9 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   
   template<class T>
-  static void print(Kokkos::View<T***,AssemblyDevice> V) {
+  static void print(Kokkos::View<T***,AssemblyDevice> V, const string & message="") {
     cout << endl;
+    cout << message << endl;
     cout << "Printing data for View: " << V.label() << endl;
     
     cout << "  i  " << "  j  " << "  k  " << "  value  " << endl;
@@ -176,8 +166,9 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   
   template<class T>
-  static void print(Kokkos::View<T****,AssemblyDevice> V) {
+  static void print(Kokkos::View<T****,AssemblyDevice> V, const string & message="") {
     cout << endl;
+    cout << message << endl;
     cout << "Printing data for View: " << V.label() << endl;
     cout << "  i  " << "  j  " << "  k  " << "  n  " << "  value  " << endl;
     cout << "-----------------------------------------------------" << endl;
@@ -200,8 +191,9 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   
   template<class T>
-  static void print(Kokkos::View<T*****,AssemblyDevice> V) {
+  static void print(Kokkos::View<T*****,AssemblyDevice> V, const string & message="") {
     cout << endl;
+    cout << message << endl;
     cout << "Printing data for View: " << V.label() << endl;
     cout << "  i  " << "  j  " << "  k  " << "  n  " << "  m  " << "  value  " << endl;
     cout << "----------------------------------------------------------------" << endl;
@@ -226,8 +218,9 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  static void print(DRV V) {
+  static void print(DRV V, const string & message="") {
     cout << endl;
+    cout << message << endl;
     cout << "Printing data for DynRankView: " << V.label() << endl;
   
     if (V.rank() == 2) {
@@ -280,8 +273,9 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  static void print(DRVint V) {
+  static void print(DRVint V, const string & message="") {
     cout << endl;
+    cout << message << endl;
     cout << "Printing data for DynRankView: " << V.label() << endl;
     
     if (V.rank() == 2) {
@@ -331,7 +325,166 @@ public:
     }
   }
 
-
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  template<class T>
+  static void checkSizes(Kokkos::View<T*,AssemblyDevice> V, vector<int> & sizes, const string message="") {
+    cout << endl;
+    cout << message << endl;
+    
+    if (V.rank() != sizes.size()) {
+      cout << "ERROR ---" << endl;
+      cout << "Rank of View = " << V.rank() << "    Expected rank = " << sizes.size() << endl;
+      cout << "---------" << endl;
+    }
+    else {
+      for (size_t k=0; k<V.rank(); k++) {
+        if (V.dimension(k) != sizes[k]) {
+          cout << "ERROR ---" << endl;
+          cout << "Size of dimension(" << k << ") = " << V.dimension(k) << "    Expected size = " << sizes[k] << endl;
+          cout << "---------" << endl;
+        }
+      }
+    }
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  template<class T>
+  static void checkSizes(Kokkos::View<T**,AssemblyDevice> V, vector<int> & sizes, const string message="") {
+    cout << endl;
+    cout << message << endl;
+    
+    if (V.rank() != sizes.size()) {
+      cout << "ERROR ---" << endl;
+      cout << "Rank of View = " << V.rank() << "    Expected rank = " << sizes.size() << endl;
+      cout << "---------" << endl;
+    }
+    else {
+      for (size_t k=0; k<V.rank(); k++) {
+        if (V.dimension(k) != sizes[k]) {
+          cout << "ERROR ---" << endl;
+          cout << "Size of dimension(" << k << ") = " << V.dimension(k) << "    Expected size = " << sizes[k] << endl;
+          cout << "---------" << endl;
+        }
+      }
+    }
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  template<class T>
+  static void checkSizes(Kokkos::View<T***,AssemblyDevice> V, vector<int> & sizes, const string message="") {
+    cout << endl;
+    cout << message << endl;
+    
+    if (V.rank() != sizes.size()) {
+      cout << "ERROR ---" << endl;
+      cout << "Rank of View = " << V.rank() << "    Expected rank = " << sizes.size() << endl;
+      cout << "---------" << endl;
+    }
+    else {
+      for (size_t k=0; k<V.rank(); k++) {
+        if (V.dimension(k) != sizes[k]) {
+          cout << "ERROR ---" << endl;
+          cout << "Size of dimension(" << k << ") = " << V.dimension(k) << "    Expected size = " << sizes[k] << endl;
+          cout << "---------" << endl;
+        }
+      }
+    }
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  template<class T>
+  static void checkSizes(Kokkos::View<T****,AssemblyDevice> V, vector<int> & sizes, const string message="") {
+    cout << endl;
+    cout << message << endl;
+    
+    if (V.rank() != sizes.size()) {
+      cout << "ERROR ---" << endl;
+      cout << "Rank of View = " << V.rank() << "    Expected rank = " << sizes.size() << endl;
+      cout << "---------" << endl;
+    }
+    else {
+      for (size_t k=0; k<V.rank(); k++) {
+        if (V.dimension(k) != sizes[k]) {
+          cout << "ERROR ---" << endl;
+          cout << "Size of dimension(" << k << ") = " << V.dimension(k) << "    Expected size = " << sizes[k] << endl;
+          cout << "---------" << endl;
+        }
+      }
+    }
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  template<class T>
+  static void checkSizes(Kokkos::View<T*****,AssemblyDevice> V, vector<int> & sizes, const string message="") {
+    cout << endl;
+    cout << message << endl;
+    
+    if (V.rank() != sizes.size()) {
+      cout << "ERROR ---" << endl;
+      cout << "Rank of View = " << V.rank() << "    Expected rank = " << sizes.size() << endl;
+      cout << "---------" << endl;
+    }
+    else {
+      for (size_t k=0; k<V.rank(); k++) {
+        if (V.dimension(k) != sizes[k]) {
+          cout << "ERROR ---" << endl;
+          cout << "Size of dimension(" << k << ") = " << V.dimension(k) << "    Expected size = " << sizes[k] << endl;
+          cout << "---------" << endl;
+        }
+      }
+    }
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  static void checkSizes(DRV V, vector<int> & sizes, const string message="") {
+    cout << endl;
+    cout << message << endl;
+    
+    if (V.rank() != sizes.size()) {
+      cout << "ERROR ---" << endl;
+      cout << "Rank of View = " << V.rank() << "    Expected rank = " << sizes.size() << endl;
+      cout << "---------" << endl;
+    }
+    else {
+      for (size_t k=0; k<V.rank(); k++) {
+        if (V.dimension(k) != sizes[k]) {
+          cout << "ERROR ---" << endl;
+          cout << "Size of dimension(" << k << ") = " << V.dimension(k) << "    Expected size = " << sizes[k] << endl;
+          cout << "---------" << endl;
+        }
+      }
+    }
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  static void checkSizes(DRVint V, vector<int> & sizes, const string message="") {
+    cout << endl;
+    cout << message << endl;
+    
+    if (V.rank() != sizes.size()) {
+      cout << "ERROR ---" << endl;
+      cout << "Rank of View = " << V.rank() << "    Expected rank = " << sizes.size() << endl;
+      cout << "---------" << endl;
+    }
+    else {
+      for (size_t k=0; k<V.rank(); k++) {
+        if (V.dimension(k) != sizes[k]) {
+          cout << "ERROR ---" << endl;
+          cout << "Size of dimension(" << k << ") = " << V.dimension(k) << "    Expected size = " << sizes[k] << endl;
+          cout << "---------" << endl;
+        }
+      }
+    }
+  }
 };
 #endif
 

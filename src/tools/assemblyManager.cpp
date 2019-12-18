@@ -94,7 +94,7 @@ void AssemblyManager::createWorkset() {
 // ========================================================================================
 
 void AssemblyManager::updateJacDBC(matrix_RCP & J, size_t & e, size_t & block, int & fieldNum,
-                  size_t & localSideId, const bool & compute_disc_sens) {
+                                   size_t & localSideId, const bool & compute_disc_sens) {
   
   // given a "block" and the unknown field update jacobian to enforce Dirichlet BCs
   
@@ -149,7 +149,7 @@ void AssemblyManager::updateJacDBC(matrix_RCP & J, const vector<GO> & dofs, cons
   //size_t numcols = J->getGlobalNumCols();
   for( int i=0; i<dofs.size(); i++ ) { // for each node
     if (compute_disc_sens) {
-      int numcols = globalParamUnknowns;
+      int numcols = globalParamUnknowns; // TMW
       for( int col=0; col<numcols; col++ ) {
         ScalarT m_val = 0.0; // set ALL of the entries to 0 in the Jacobian
         //J.ReplaceGlobalValues(row, 1, &m_val, &ind);
@@ -452,9 +452,9 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
       
       if (milo_debug_level > 2) {
         if (Comm->getRank() == 0) {
-          KokkosTools::print(local_res);
-          KokkosTools::print(local_J);
-          KokkosTools::print(local_Jdot);
+          KokkosTools::print(local_res, "inside assemblyManager.cpp, res after volumetric");
+          KokkosTools::print(local_J, "inside assemblyManager.cpp, J after volumetric");
+          KokkosTools::print(local_Jdot, "inside assemblyManager.cpp, J_dot after volumetric");
         }
       }
       
@@ -475,7 +475,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
   // Boundary terms
   //////////////////////////////////////////////////////////////////////////////////////
   
-  if (!cells[0][0]->cellData->multiscale && useNewBCs) {
+  if (!cells[0][0]->cellData->multiscale) {
     //for (size_t b=0; b<boundaryCells.size(); b++) {
       
       {
@@ -533,10 +533,12 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
             Teuchos::TimeMonitor localtimer(*phystimer);
             
             parallel_for(RangePolicy<AssemblyDevice>(0,local_res.dimension(0)), KOKKOS_LAMBDA (const int p ) {
-              for (int n=0; n<numDOF; n++) {
+              for (int n=0; n<local_res.dimension(1); n++) {
                 for (int s=0; s<local_res.dimension(2); s++) {
                   local_res(p,n,s) = 0.0;
                 }
+              }
+              for (int n=0; n<local_J.dimension(1); n++) {
                 for (int s=0; s<local_J.dimension(2); s++) {
                   local_J(p,n,s) = 0.0;
                   local_Jdot(p,n,s) = 0.0;
@@ -551,9 +553,9 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
           
           if (milo_debug_level > 2) {
             if (Comm->getRank() == 0) {
-              KokkosTools::print(local_res);
-              KokkosTools::print(local_J);
-              KokkosTools::print(local_Jdot);
+              KokkosTools::print(local_res, "inside assemblyManager.cpp, res after boundary");
+              KokkosTools::print(local_J, "inside assemblyManager.cpp, J after boundary");
+              KokkosTools::print(local_Jdot, "inside assemblyManager.cpp, J_dot after boundary");
             }
           }
           
@@ -663,9 +665,9 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
     
     if (milo_debug_level > 2) {
       if (Comm->getRank() == 0) {
-        KokkosTools::print(index);
-        KokkosTools::print(numDOF);
-        KokkosTools::print(data);
+        KokkosTools::print(index, "inside assemblyManager::gather - index");
+        KokkosTools::print(numDOF, "inside assemblyManager::gather - numDOF");
+        KokkosTools::print(data, "inside assemblyManager::gather - data");
       }
     }
     parallel_for(RangePolicy<AssemblyDevice>(0,index.dimension(0)), KOKKOS_LAMBDA (const int e ) {
@@ -736,9 +738,9 @@ void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP &
         
         if (milo_debug_level > 2) {
           if (Comm->getRank() == 0) {
-            KokkosTools::print(index);
-            KokkosTools::print(numDOF);
-            KokkosTools::print(data);
+            KokkosTools::print(index, "inside assemblyManager::boundarygather - index");
+            KokkosTools::print(numDOF, "inside assemblyManager::boundarygather - numDOF");
+            KokkosTools::print(data, "inside assemblyManager::boundarygather - data");
           }
         }
         parallel_for(RangePolicy<AssemblyDevice>(0,index.dimension(0)), KOKKOS_LAMBDA (const int e ) {

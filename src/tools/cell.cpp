@@ -297,7 +297,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
     
     {
       Teuchos::TimeMonitor localtimer(*volumeResidualTimer);
-      cellData->physics_RCP->volumeResidual(cellData->myBlock);
+      //cellData->physics_RCP->volumeResidual(cellData->myBlock);
       if (cellData->multiscale) {
         for (int e=0; e<numElem; e++) {
           int sgindex = subgrid_model_index[e][subgrid_model_index.size()-1];
@@ -308,6 +308,9 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
                                                 subgradient, store_adjPrev);
         }
         fixJacDiag = true;
+      }
+      else {
+        cellData->physics_RCP->volumeResidual(cellData->myBlock);
       }
     }
     
@@ -369,7 +372,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
     
     {
       Teuchos::TimeMonitor localtimer(*transientResidualTimer);
-      if (isTransient && compute_jacobian) {
+      if (isTransient && compute_jacobian && !cellData->multiscale) {
         if (compute_jacobian) {
           if (compute_disc_sens) {
             this->computeSolnVolIP(false,false,true,false);

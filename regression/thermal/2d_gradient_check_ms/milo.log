@@ -1,27 +1,27 @@
-[s998638:14483] *** Process received signal ***
-[s998638:14483] Signal: Segmentation fault: 11 (11)
-[s998638:14483] Signal code: Address not mapped (1)
-[s998638:14483] Failing at address: 0xf88
-[s998638:14484] *** Process received signal ***
-[s998638:14484] Signal: Segmentation fault: 11 (11)
-[s998638:14484] Signal code:  (0)
-[s998638:14484] Failing at address: 0x0
-[s998638:14485] *** Process received signal ***
-[s998638:14485] Signal: Segmentation fault: 11 (11)
-[s998638:14485] Signal code:  (0)
-[s998638:14485] Failing at address: 0x0
-[s998638:14482] *** Process received signal ***
-[s998638:14482] Signal: Segmentation fault: 11 (11)
-[s998638:14482] Signal code: Address not mapped (1)
-[s998638:14482] Failing at address: 0xf88
-[s998638:14482] *** End of error message ***
-[s998638:14483] *** End of error message ***
-[s998638:14484] *** End of error message ***
-[s998638:14485] *** End of error message ***
+[s998638:60525] *** Process received signal ***
+[s998638:60525] Signal: Bus error: 10 (10)
+[s998638:60525] Signal code: Non-existant physical address (2)
+[s998638:60525] Failing at address: 0x10d52d411
+[s998638:60526] *** Process received signal ***
+[s998638:60526] Signal: Bus error: 10 (10)
+[s998638:60526] Signal code: Non-existant physical address (2)
+[s998638:60526] Failing at address: 0x109df7411
+[s998638:60527] *** Process received signal ***
+[s998638:60527] Signal: Bus error: 10 (10)
+[s998638:60527] Signal code: Non-existant physical address (2)
+[s998638:60527] Failing at address: 0x1062ed411
+[s998638:60528] *** Process received signal ***
+[s998638:60528] Signal: Bus error: 10 (10)
+[s998638:60528] Signal code: Non-existant physical address (2)
+[s998638:60528] Failing at address: 0x104740411
+[s998638:60525] *** End of error message ***
+[s998638:60526] *** End of error message ***
+[s998638:60527] *** End of error message ***
+[s998638:60528] *** End of error message ***
 -------------------------------------------------------
 Primary job  terminated normally, but 1 process returned
 a non-zero exit code. Per user-direction, the job has been aborted.
 -------------------------------------------------------
 --------------------------------------------------------------------------
-mpiexec noticed that process rank 3 with PID 0 on node s998638 exited on signal 11 (Segmentation fault: 11).
+mpiexec noticed that process rank 3 with PID 0 on node s998638 exited on signal 10 (Bus error: 10).
 --------------------------------------------------------------------------

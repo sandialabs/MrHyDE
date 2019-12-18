@@ -2,6 +2,7 @@
 ---
 ANONYMOUS:
   debug level: 0
+  verbosity: 0
   Mesh: 
     blocknames: eblock_0-0
     dim: 2
@@ -16,12 +17,12 @@ ANONYMOUS:
       blocknames: eblock
     Physics: 
       solve_linearelasticity: true
-      form_param: 0.00000000000000000e+00
+      form_param: 0.0
       true solutions:
         dx: '-0.5*x'
         dy: 'y'
       Neumann conditions:
-        dx:
+        idx:
           top: '0.0'
           bottom: '0.0'
           ileft: '0.0'
@@ -53,7 +54,7 @@ ANONYMOUS:
       dx: '-0.5*x'
       dy: 'y'
     Neumann conditions:
-      dx:
+      idx:
         top: '0.0'
         bottom: '0.0'
         ileft: '0.0'

@@ -14,6 +14,8 @@
 
 #include <Panzer_STK_MeshFactory.hpp>
 #include <Panzer_STK_Interface.hpp>
+#include "trilinos.hpp"
+#include "preferences.hpp"
 
 typedef double ScalarT;
 
@@ -31,7 +33,7 @@ namespace panzer_stk {
     
     SubGridMeshFactory(const std::string & shape_, //const shards::CellTopology & cellTopo_,
                        std::vector<std::vector<ScalarT> > & nodes_,
-                       std::vector<std::vector<int> > & conn_, std::string & blockname_)
+                       std::vector<std::vector<GO> > & conn_, std::string & blockname_)
     {
       shape = shape_;
       blockname = blockname_;
@@ -45,7 +47,7 @@ namespace panzer_stk {
     virtual ~SubGridMeshFactory();
     
     // Add block
-    void addElems(std::vector<std::vector<ScalarT> > & newnodes, std::vector<std::vector<int> > & newconn);
+    void addElems(std::vector<std::vector<ScalarT> > & newnodes, std::vector<std::vector<GO> > & newconn);
     
     //! Build the mesh object
     Teuchos::RCP<STK_Interface> buildMesh(stk::ParallelMachine parallelMach) const;
@@ -68,7 +70,7 @@ namespace panzer_stk {
     std::string shape;
     std::string blockname;
     std::vector<std::vector<std::vector<ScalarT> > > nodes;
-    std::vector<std::vector<std::vector<int> > > conn;
+    std::vector<std::vector<std::vector<GO> > > conn;
     int dimension;
     
   };
