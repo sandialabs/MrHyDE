@@ -353,7 +353,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
     //////////////////////////////////////////////////////////////////////////////////////
     // Set up the worksets and allocate the local residual and Jacobians
     //////////////////////////////////////////////////////////////////////////////////////
-    
+  
     wkset[b]->time = current_time;
     wkset[b]->time_KV(0) = current_time;
     wkset[b]->isTransient = isTransient;
@@ -408,7 +408,8 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
         this->performGather(b,phi_dot,3,0);
       }
     }
-    
+  
+  
     /////////////////////////////////////////////////////////////////////////////
     // Volume contribution
     /////////////////////////////////////////////////////////////////////////////
@@ -566,6 +567,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
           this->insert(J, res, local_res, local_J, local_Jdot,
                        boundaryCells[b][e]->GIDs, boundaryCells[b][e]->paramGIDs,
                        compute_jacobian, compute_disc_sens, alpha);
+          
           
         }
       } // element loop

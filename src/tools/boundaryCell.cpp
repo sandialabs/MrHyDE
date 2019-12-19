@@ -206,7 +206,8 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
       this->computeSoln(false,false,false,false);
     }
     
-    wkset->resetResidual(numElem);
+    //wkset->resetResidual(numElem);
+    wkset->resetResidual();
     
     cellData->physics_RCP->boundaryResidual(cellData->myBlock);
     

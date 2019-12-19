@@ -17,7 +17,7 @@ ANONYMOUS:
       targ: sin(pi*x)*sin(pi*y)
     Weights:
       wt: '1.0'
-  Subgrid:
+  iSubgrid:
     Mesh:
       shape: quad
       refinements: 1

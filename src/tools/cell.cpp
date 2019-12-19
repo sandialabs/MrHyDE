@@ -271,9 +271,9 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
     }
     
     //////////////////////////////////////////////////////////////
-    // COmpute the AD-seeded solutions at integration points
+    // Compute the AD-seeded solutions at integration points
     //////////////////////////////////////////////////////////////
-    
+  
     if (compute_jacobian) {
       if (compute_disc_sens) {
         this->computeSolnVolIP(false,false,true,false);
@@ -294,7 +294,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
     //////////////////////////////////////////////////////////////
     
     // Volumetric contribution
-    
+  
     {
       Teuchos::TimeMonitor localtimer(*volumeResidualTimer);
       //cellData->physics_RCP->volumeResidual(cellData->myBlock);
@@ -313,7 +313,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
         cellData->physics_RCP->volumeResidual(cellData->myBlock);
       }
     }
-    
+  
     {
       Teuchos::TimeMonitor localtimer(*jacobianFillTimer);
       

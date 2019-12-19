@@ -197,7 +197,7 @@ public:
       
       parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
         for(size_t k=0; k<basis.dimension(2); k++ ) {
-          this->setLocalSoln(e,k,false);
+          //this->setLocalSoln(e,k,false);
           for( int i=0; i<basis.dimension(1); i++ ) {
             v = basis(e,i,k);
             dvdx = basis_grad(e,i,k,0);
@@ -216,7 +216,7 @@ public:
       
       parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
         for(size_t k=0; k<basis.dimension(2); k++ ) {
-          this->setLocalSoln(e,k,false);
+          //this->setLocalSoln(e,k,false);
           for( int i=0; i<basis.dimension(1); i++ ) {
             v = basis(e,i,k);
             dvdx = basis_grad(e,i,k,0);
@@ -235,7 +235,7 @@ public:
       
       parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
         for(size_t k=0; k<basis.dimension(2); k++ ) {
-          this->setLocalSoln(e,k,false);
+          //this->setLocalSoln(e,k,false);
           for( int i=0; i<basis.dimension(1); i++ ) {
             v = basis(e,i,k);
             dvdx = basis_grad(e,i,k,0);
@@ -753,6 +753,7 @@ public:
     dy_num = -1;
     dz_num = -1;
     e_num = -1;
+    p_num = -1;
     for (size_t i=0; i<varlist.size(); i++) {
       if (varlist[i] == "dx")
         dx_num = i;
@@ -805,7 +806,7 @@ public:
           
           this->setLocalSoln(e,k,onside);
           
-          AD lambda_val = lambda_vals(e,k);;
+          AD lambda_val = lambda_vals(e,k);
           if (incplanestress)
             lambda_val = 2.0*mu_vals(e,k);
           else
