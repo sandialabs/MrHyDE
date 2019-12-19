@@ -22,7 +22,7 @@ ANONYMOUS:
         dx: '-0.5*x'
         dy: 'y'
       Neumann conditions:
-        idx:
+        dx:
           top: '0.0'
           bottom: '0.0'
           ileft: '0.0'
@@ -54,7 +54,7 @@ ANONYMOUS:
       dx: '-0.5*x'
       dy: 'y'
     Neumann conditions:
-      idx:
+      dx:
         top: '0.0'
         bottom: '0.0'
         ileft: '0.0'
