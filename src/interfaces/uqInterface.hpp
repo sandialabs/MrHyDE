@@ -28,7 +28,7 @@ class uqmanager {
   /* Constructor to set up the problem */
   // ========================================================================================
   
-  uqmanager(const LA_MpiComm & Comm_, const Teuchos::ParameterList & uqsettings_,
+  uqmanager(const MpiComm & Comm_, const Teuchos::ParameterList & uqsettings_,
             const std::vector<string> & param_types_,
             const std::vector<ScalarT> & param_means_, const std::vector<ScalarT> & param_variances_,
             const std::vector<ScalarT> & param_mins_, const std::vector<ScalarT> & param_maxs_);
@@ -80,7 +80,7 @@ class uqmanager {
   
   protected:
   
-  LA_MpiComm Comm;
+  MpiComm Comm;
   std::string surrogate;
   std::vector<std::vector<ScalarT> > points;
   int evalprog, numstochparams;

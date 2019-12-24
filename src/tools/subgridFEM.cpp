@@ -15,7 +15,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-SubGridFEM::SubGridFEM(const Teuchos::RCP<LA_MpiComm> & LocalComm_,
+SubGridFEM::SubGridFEM(const Teuchos::RCP<MpiComm> & LocalComm_,
                        Teuchos::RCP<Teuchos::ParameterList> & settings_,
                        topo_RCP & macro_cellTopo_, int & num_macro_time_steps_,
                        ScalarT & macro_deltat_) :

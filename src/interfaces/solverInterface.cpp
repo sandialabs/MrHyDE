@@ -20,7 +20,7 @@ typedef Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator> LA_LinearProb
 /* Constructor to set up the problem */
 // ========================================================================================
 
-solver::solver(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
+solver::solver(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
                Teuchos::RCP<meshInterface> & mesh_,
                Teuchos::RCP<discretization> & disc_,
                Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
@@ -63,6 +63,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   NLtol = settings->sublist("Solver").get<ScalarT>("NLtol",1.0E-6);
   MaxNLiter = settings->sublist("Solver").get<int>("MaxNLiter",10);
   NLsolver = settings->sublist("Solver").get<string>("Nonlinear Solver","Newton");
+  TDsolver = settings->sublist("Solver").get<string>("Transient Solver","implicit");
   line_search = false;//settings->sublist("Solver").get<bool>("Use Line Search","false");
   store_adjPrev = false;
   

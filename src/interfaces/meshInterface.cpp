@@ -20,7 +20,7 @@
 // ========================================================================================
 
 meshInterface::meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                             const Teuchos::RCP<LA_MpiComm> & Commptr_) :
+                             const Teuchos::RCP<MpiComm> & Commptr_) :
 settings(settings_), Commptr(Commptr_) {
   
   using Teuchos::RCP;
@@ -209,7 +209,7 @@ settings(settings_), Commptr(Commptr_) {
 ////////////////////////////////////////////////////////////////////////////////
 
 meshInterface::meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                             const Teuchos::RCP<LA_MpiComm> & Commptr_,
+                             const Teuchos::RCP<MpiComm> & Commptr_,
                              Teuchos::RCP<panzer_stk::STK_MeshFactory> & mesh_factory_,
                              Teuchos::RCP<panzer_stk::STK_Interface> & mesh_) :
 settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), mesh(mesh_) {
@@ -522,8 +522,8 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
   MPI_Group_incl(world_comm, 1, &mypid, &group);
   //MPI_Comm_create(MPI_COMM_WORLD, group, &LocalMPIComm);
   MPI_Comm_create(*(Commptr->getRawMpiComm()), group, &LocalMPIComm); //to work with stochastic collocation batching
-  Teuchos::RCP<LA_MpiComm> LocalComm;
-  LocalComm = Teuchos::rcp( new LA_MpiComm(LocalMPIComm) ); // Create MPI_Comm
+  Teuchos::RCP<MpiComm> LocalComm;
+  LocalComm = Teuchos::rcp( new MpiComm(LocalMPIComm) ); // Create MPI_Comm
   for (size_t b=0; b<eBlocks.size(); b++) {
     vector<Teuchos::RCP<cell> > blockcells;
     vector<stk::mesh::Entity> stk_meshElems;

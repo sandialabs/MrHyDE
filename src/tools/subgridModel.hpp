@@ -82,7 +82,7 @@ public:
 
   virtual void updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data) = 0;
   
-  Teuchos::RCP<LA_MpiComm> LocalComm;
+  Teuchos::RCP<MpiComm> LocalComm;
   Teuchos::RCP<SolutionStorage<LA_MultiVector> > soln, solndot, adjsoln;
   
   bool useMachineLearning = false;

@@ -47,7 +47,7 @@
 /* Constructor to set up the problem */
 // ========================================================================================
 
-physics::physics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<LA_MpiComm> & Comm_,
+physics::physics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<MpiComm> & Comm_,
                  vector<topo_RCP> & cellTopo, vector<topo_RCP> & sideTopo,
                  Teuchos::RCP<FunctionInterface> & functionManager_,
                  Teuchos::RCP<panzer_stk::STK_Interface> & mesh) :

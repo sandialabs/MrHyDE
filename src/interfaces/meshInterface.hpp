@@ -41,10 +41,10 @@ class meshInterface {
   
   //~meshInterface();
   
-  meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_, const Teuchos::RCP<LA_MpiComm> & Commptr_);
+  meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_, const Teuchos::RCP<MpiComm> & Commptr_);
   
   meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                const Teuchos::RCP<LA_MpiComm> & Commptr_,
+                const Teuchos::RCP<MpiComm> & Commptr_,
                 Teuchos::RCP<panzer_stk::STK_MeshFactory> & mesh_factory_,
                 Teuchos::RCP<panzer_stk::STK_Interface> & mesh_);
   
@@ -103,7 +103,7 @@ class meshInterface {
   Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory;
   Teuchos::RCP<panzer_stk::STK_Interface> mesh;
   Teuchos::RCP<Teuchos::ParameterList>  settings;
-  Teuchos::RCP<LA_MpiComm> Commptr;
+  Teuchos::RCP<MpiComm> Commptr;
   bool have_mesh_data, compute_mesh_data, have_rotations, have_rotation_phi, have_multiple_data_files;
   string shape, mesh_data_file_tag, mesh_data_pts_tag, mesh_data_tag;
   int spaceDim, verbosity, number_mesh_data_files, milo_debug_level;

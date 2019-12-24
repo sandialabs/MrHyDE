@@ -53,7 +53,7 @@ public:
   /* Constructor to set up the problem */
   // ========================================================================================
   
-  solver(const Teuchos::RCP<LA_MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
+  solver(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
          Teuchos::RCP<meshInterface> & mesh_,
          Teuchos::RCP<discretization> & disc_,
          Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
@@ -180,6 +180,7 @@ public:
   ScalarT NLtol, final_time, lintol, dropTol, fillParam, current_time, initial_time, deltat;
   
   string solver_type, NLsolver, initial_type, response_type, multigrid_type, smoother_type;
+  string TDsolver;
   
   bool line_search, useL2proj, allow_remesh, useDomDecomp, useDirect, usePrec, discretized_stochastic;
   bool isInitial, isTransient, useadjoint, is_final_time, usestrongDBCs, compute_flux, useLinearSolver;
@@ -204,7 +205,7 @@ public:
   
 private:
   
-  Teuchos::RCP<LA_MpiComm> Comm;
+  Teuchos::RCP<MpiComm> Comm;
   Teuchos::RCP<discretization> disc;
   Teuchos::RCP<physics> phys;
   Teuchos::RCP<const panzer::DOFManager> DOF;

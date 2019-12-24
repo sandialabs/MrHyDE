@@ -24,7 +24,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  SubGridTools(const Teuchos::RCP<LA_MpiComm> & LocalComm_, const string & shape_,
+  SubGridTools(const Teuchos::RCP<MpiComm> & LocalComm_, const string & shape_,
                const string & subshape_, const DRV nodes_, Kokkos::View<int****,HostDevice> sideinfo_) :
   LocalComm(LocalComm_), shape(shape_), subshape(subshape_), nodes(nodes_), sideinfo(sideinfo_) {
     
@@ -1129,7 +1129,7 @@ public:
 protected:
   
   int dimension;
-  Teuchos::RCP<LA_MpiComm> LocalComm;
+  Teuchos::RCP<MpiComm> LocalComm;
   string shape, subshape;
   DRV nodes;
   Kokkos::View<int****,HostDevice> sideinfo;

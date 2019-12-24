@@ -13,9 +13,9 @@
 
 
 SplitComm::SplitComm(Teuchos::RCP<Teuchos::ParameterList> & settings,
-          LA_MpiComm & Comm,
-          Teuchos::RCP<LA_MpiComm> & tcomm_LA,
-          Teuchos::RCP<LA_MpiComm> & tcomm_S) {
+          MpiComm & Comm,
+          Teuchos::RCP<MpiComm> & tcomm_LA,
+          Teuchos::RCP<MpiComm> & tcomm_S) {
   
   
   string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
@@ -56,8 +56,8 @@ SplitComm::SplitComm(Teuchos::RCP<Teuchos::ParameterList> & settings,
   
 }
 
-void SplitComm::split_mpi_communicators( Teuchos::RCP<LA_MpiComm> & Comm_linalg,
-                              Teuchos::RCP<LA_MpiComm> & Comm_collocation,
+void SplitComm::split_mpi_communicators( Teuchos::RCP<MpiComm> & Comm_linalg,
+                              Teuchos::RCP<MpiComm> & Comm_collocation,
                               int rank, int M, int Ngroups ) {
   // Instantiate Linear Algebra Communicator
   MPI_Comm linalg_comm;
@@ -66,7 +66,7 @@ void SplitComm::split_mpi_communicators( Teuchos::RCP<LA_MpiComm> & Comm_linalg,
   int comSize; // Number of processes in linear algebra communicator
   MPI_Comm_rank(linalg_comm,&comRank);     // Get Process rank
   MPI_Comm_size(linalg_comm,&comSize);     // Get Communicator size
-  Comm_linalg = Teuchos::rcp( new LA_MpiComm(linalg_comm) );
+  Comm_linalg = Teuchos::rcp( new MpiComm(linalg_comm) );
 
   // Determine group ranks for Collocation Distribution
   Teuchos::Array<int> granks(Ngroups);
@@ -85,12 +85,12 @@ void SplitComm::split_mpi_communicators( Teuchos::RCP<LA_MpiComm> & Comm_linalg,
   int comSize1; // Number of processes in collocation communicator
   MPI_Comm_rank(collocation_comm,&comRank1);         // Get Process rank
   MPI_Comm_size(collocation_comm,&comSize1);         // Get Communicator size
-  Comm_collocation = Teuchos::rcp( new LA_MpiComm(collocation_comm) );
+  Comm_collocation = Teuchos::rcp( new MpiComm(collocation_comm) );
 }
 
-void SplitComm::split_mpi_communicators(LA_MpiComm & Comm_orig,
-                             Teuchos::RCP<LA_MpiComm> & Comm_main,
-                             Teuchos::RCP<LA_MpiComm> & Comm_ms,
+void SplitComm::split_mpi_communicators(MpiComm & Comm_orig,
+                             Teuchos::RCP<MpiComm> & Comm_main,
+                             Teuchos::RCP<MpiComm> & Comm_ms,
                              int myrank, int Nmain , bool & include_main) {
   
   int procsPerGroup = 1;
@@ -125,7 +125,7 @@ void SplitComm::split_mpi_communicators(LA_MpiComm & Comm_orig,
   MPI_Group_incl(world_comm,Nmain,&granks[0],&main_group);
   MPI_Comm main_comm;
   MPI_Comm_create(*(Comm_orig.getRawMpiComm()), main_group, &main_comm);
-  Comm_main = Teuchos::rcp( new LA_MpiComm(main_comm) );
+  Comm_main = Teuchos::rcp( new MpiComm(main_comm) );
   
   cout << "got to here" << endl;
   
@@ -145,6 +145,6 @@ void SplitComm::split_mpi_communicators(LA_MpiComm & Comm_orig,
   MPI_Group_incl(world_comm,procsPerGroup,&msranks[0],&ms_group);
   MPI_Comm ms_comm;
   MPI_Comm_create(Comm_orig.Comm(), ms_group, &ms_comm);
-  Comm_ms = Teuchos::rcp( new LA_MpiComm(ms_comm) );
+  Comm_ms = Teuchos::rcp( new MpiComm(ms_comm) );
   */
 }

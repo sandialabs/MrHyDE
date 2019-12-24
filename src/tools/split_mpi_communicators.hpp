@@ -23,17 +23,17 @@ class SplitComm {
   ~SplitComm() {};
   
   SplitComm(Teuchos::RCP<Teuchos::ParameterList> & settings,
-            LA_MpiComm & Comm,
-            Teuchos::RCP<LA_MpiComm> & tcomm_LA,
-            Teuchos::RCP<LA_MpiComm> & tcomm_S);
+            MpiComm & Comm,
+            Teuchos::RCP<MpiComm> & tcomm_LA,
+            Teuchos::RCP<MpiComm> & tcomm_S);
   
-  void split_mpi_communicators( Teuchos::RCP<LA_MpiComm> & Comm_linalg,
-                               Teuchos::RCP<LA_MpiComm> & Comm_collocation,
+  void split_mpi_communicators( Teuchos::RCP<MpiComm> & Comm_linalg,
+                               Teuchos::RCP<MpiComm> & Comm_collocation,
                                int rank, int M, int Ngroups );
   
-  void split_mpi_communicators(LA_MpiComm & Comm_orig,
-                               Teuchos::RCP<LA_MpiComm> & Comm_main,
-                               Teuchos::RCP<LA_MpiComm> & Comm_ms,
+  void split_mpi_communicators(MpiComm & Comm_orig,
+                               Teuchos::RCP<MpiComm> & Comm_main,
+                               Teuchos::RCP<MpiComm> & Comm_ms,
                                int myrank, int Nmain , bool & include_main);
 
 };

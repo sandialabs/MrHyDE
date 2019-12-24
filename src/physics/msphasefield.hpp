@@ -35,7 +35,7 @@ public:
   // ========================================================================================
   
   msphasefield(Teuchos::RCP<Teuchos::ParameterList> & settings,
-               const Teuchos::RCP<LA_MpiComm> & Comm_, const int & numip_,
+               const Teuchos::RCP<MpiComm> & Comm_, const int & numip_,
                const size_t & numip_side_, const int & numElem_,
                Teuchos::RCP<FunctionInterface> & functionManager_,
                const size_t & blocknum_) :
@@ -906,7 +906,7 @@ private:
   
   Teuchos::RCP<FunctionInterface> functionManager;
   
-  Teuchos::RCP<LA_MpiComm> Comm;      
+  Teuchos::RCP<MpiComm> Comm;      
   std::vector<AD> diff_FAD, L, A;   
   int spaceDim, numParams, numResponses, numphases, numdisks;
   vector<string> varlist;

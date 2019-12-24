@@ -27,7 +27,7 @@ typedef panzer::GlobalOrdinal GO; // this should really be panzer::GlobalOrdinal
 #define maxDerivs 64 // adjust this to improve performance
 #define PI 3.141592653589793238463
 #define MILO_DEBUG false
-typedef Teuchos::MpiComm<int> LA_MpiComm;
+typedef Teuchos::MpiComm<int> MpiComm;
 
 // AD typedefs
 typedef Sacado::Fad::DFad<ScalarT> DFAD; // used only when absolutely necessary
@@ -53,18 +53,7 @@ typedef Kokkos::View<ScalarT**,Kokkos::LayoutStride,AssemblyDevice> FDATAd;
 //typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
 
-// Epetra linear algebra typedefs (deprecated)
-/*
-typedef Epetra_MultiVector   LA_MultiVector;
-typedef Epetra_CrsMatrix     LA_CrsMatrix;
-typedef Epetra_Map           LA_Map;
-typedef Epetra_CrsGraph      LA_CrsGraph;
-typedef Epetra_Export        LA_Export;
-typedef Epetra_Import        LA_Import;
-typedef Epetra_LinearProblem LA_LinearProblem;
-*/
-
-// Tpetra linear algebra typedefs
+// Tpetra linear algebra typedefs (Epetra is non longer supported)
 typedef Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>   LA_CrsMatrix;
 typedef Tpetra::CrsGraph<LO,GO,HostNode>            LA_CrsGraph;
 typedef Tpetra::Export<LO, GO, HostNode>            LA_Export;
@@ -78,8 +67,5 @@ typedef Tpetra::MultiVector<ScalarT,LO,GO,HostNode> LA_MultiVector;
 // RCP to LA objects (may be removed in later version)
 typedef Teuchos::RCP<LA_MultiVector> vector_RCP;
 typedef Teuchos::RCP<LA_CrsMatrix>   matrix_RCP;
-
-// Class for printing and working with Kokkos::View and DRV
-//#include "kokkosTools.hpp"
 
 #endif

@@ -77,7 +77,7 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  static void print(Teuchos::RCP<LA_MpiComm> & Comm, vector_RCP & V, const string & message="") {
+  static void print(Teuchos::RCP<MpiComm> & Comm, vector_RCP & V, const string & message="") {
     auto V_kv = V->getLocalView<HostDevice>();
     
     cout << endl;

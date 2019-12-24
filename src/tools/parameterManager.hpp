@@ -29,7 +29,7 @@ public:
   /* Constructor to set up the problem */
   // ========================================================================================
   
-  ParameterManager(const Teuchos::RCP<LA_MpiComm> & Comm_,
+  ParameterManager(const Teuchos::RCP<MpiComm> & Comm_,
                    Teuchos::RCP<Teuchos::ParameterList> & settings,
                    Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
                    Teuchos::RCP<physics> & phys_,
@@ -185,7 +185,7 @@ public:
   
 private:
   
-  Teuchos::RCP<LA_MpiComm> Comm;
+  Teuchos::RCP<MpiComm> Comm;
   Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
   Teuchos::RCP<discretization> disc;
   Teuchos::RCP<physics> phys;

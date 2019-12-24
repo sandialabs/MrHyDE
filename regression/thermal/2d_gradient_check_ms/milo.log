@@ -1,27 +1,13 @@
-[s998638:88742] *** Process received signal ***
-[s998638:88742] Signal: Segmentation fault: 11 (11)
-[s998638:88742] Signal code: Address not mapped (1)
-[s998638:88742] Failing at address: 0x1210
-[s998638:88745] *** Process received signal ***
-[s998638:88745] Signal: Segmentation fault: 11 (11)
-[s998638:88745] Signal code: Address not mapped (1)
-[s998638:88745] Failing at address: 0x1210
-[s998638:88743] *** Process received signal ***
-[s998638:88744] *** Process received signal ***
-[s998638:88744] Signal: Bus error: 10 (10)
-[s998638:88744] Signal code: Non-existant physical address (2)
-[s998638:88744] Failing at address: 0x10eee1431
-[s998638:88742] *** End of error message ***
-[s998638:88743] Signal: Bus error: 10 (10)
-[s998638:88743] Signal code: Non-existant physical address (2)
-[s998638:88743] Failing at address: 0x1062ff431
-[s998638:88743] *** End of error message ***
-[s998638:88744] *** End of error message ***
-[s998638:88745] *** End of error message ***
--------------------------------------------------------
-Primary job  terminated normally, but 1 process returned
-a non-zero exit code. Per user-direction, the job has been aborted.
--------------------------------------------------------
---------------------------------------------------------------------------
-mpiexec noticed that process rank 3 with PID 0 on node s998638 exited on signal 11 (Segmentation fault: 11).
---------------------------------------------------------------------------
+
+Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
+  iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
+  0     1.250000e-01   2.375247e-01                  1.000000e+02   
+  1     7.494880e-02   1.839152e-01   2.375247e-01   2.500000e+02   2         2         0         1         0         
+Optimization Terminated with Status: Iteration Limit Exceeded
+
+Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
+  iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
+  0     1.250000e-01   2.375247e-01                  1.000000e+02   
+  1     7.494880e-02   1.839152e-01   2.375247e-01   2.500000e+02   2         2         0         1         0         
+Optimization Terminated with Status: Iteration Limit Exceeded
+param 0 = 0.237525

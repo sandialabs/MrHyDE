@@ -34,7 +34,7 @@ int main(int argc,char * argv[]) {
   
 #ifdef HAVE_MPI
   Teuchos::GlobalMPISession mpiSession(&argc, &argv,0);
-  LA_MpiComm Comm(MPI_COMM_WORLD);
+  Teuchos::RCP<MpiComm> Comm = Teuchos::rcp( new MpiComm(MPI_COMM_WORLD) );
 #else
   EPIC_FAIL // MILO requires MPI for HostDevice
 #endif
@@ -43,9 +43,6 @@ int main(int argc,char * argv[]) {
   bool profile = false;
   
   Kokkos::initialize();
-  
-  Teuchos::RCP<LA_MpiComm> tcomm_LA;
-  Teuchos::RCP<LA_MpiComm> tcomm_S;
   
   Teuchos::RCP<Teuchos::Time> totalTimer = Teuchos::TimeMonitor::getNewCounter("driver::total setup and execution time");
   Teuchos::RCP<Teuchos::Time> runTimer = Teuchos::TimeMonitor::getNewCounter("driver::total run time");
@@ -89,16 +86,17 @@ int main(int argc,char * argv[]) {
     profile = settings->get<bool>("profile",false);
     
     ////////////////////////////////////////////////////////////////////////////////
-    // split comm for SOL or multiscale runs
+    // split comm for SOL or multiscale runs (deprecated)
     ////////////////////////////////////////////////////////////////////////////////
     
-    SplitComm(settings, Comm, tcomm_LA, tcomm_S);
+    Teuchos::RCP<MpiComm> subgridComm, unusedComm;
+    SplitComm(settings, *Comm, unusedComm, subgridComm);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Create the mesh
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<meshInterface> mesh = Teuchos::rcp(new meshInterface(settings, tcomm_LA) );
+    Teuchos::RCP<meshInterface> mesh = Teuchos::rcp(new meshInterface(settings, Comm) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // Create the function manager
@@ -110,7 +108,7 @@ int main(int argc,char * argv[]) {
     // Set up the physics
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<physics> phys = Teuchos::rcp( new physics(settings, tcomm_LA,
+    Teuchos::RCP<physics> phys = Teuchos::rcp( new physics(settings, Comm,
                                                            mesh->cellTopo,
                                                            mesh->sideTopo,
                                                            functionManager,
@@ -130,7 +128,7 @@ int main(int argc,char * argv[]) {
     // Define the discretization(s)
     ////////////////////////////////////////////////////////////////////////////////
         
-    Teuchos::RCP<discretization> disc = Teuchos::rcp( new discretization(settings, tcomm_LA,
+    Teuchos::RCP<discretization> disc = Teuchos::rcp( new discretization(settings, Comm,
                                                                          mesh->mesh,
                                                                          phys->unique_orders,
                                                                          phys->unique_types,
@@ -151,9 +149,9 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     
-    vector<Teuchos::RCP<SubGridModel> > subgridModels = subgridGenerator(tcomm_S, settings, mesh->mesh);
+    vector<Teuchos::RCP<SubGridModel> > subgridModels = subgridGenerator(subgridComm, settings, mesh->mesh);
     
-    Teuchos::RCP<MultiScale> multiscale_manager = Teuchos::rcp( new MultiScale(tcomm_LA, tcomm_S, settings,
+    Teuchos::RCP<MultiScale> multiscale_manager = Teuchos::rcp( new MultiScale(Comm, subgridComm, settings,
                                                                                cells, subgridModels,
                                                                                functionManager) );
     
@@ -161,20 +159,20 @@ int main(int argc,char * argv[]) {
     // Create the solver object
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<ParameterManager> params = Teuchos::rcp( new ParameterManager(tcomm_LA, settings,
+    Teuchos::RCP<ParameterManager> params = Teuchos::rcp( new ParameterManager(Comm, settings,
                                                                                mesh->mesh, phys, cells,
                                                                                boundaryCells));
     
-    Teuchos::RCP<AssemblyManager> assembler = Teuchos::rcp( new AssemblyManager(tcomm_LA, settings, mesh->mesh,
+    Teuchos::RCP<AssemblyManager> assembler = Teuchos::rcp( new AssemblyManager(Comm, settings, mesh->mesh,
                                                                                 disc, phys, DOF, cells,
                                                                                 boundaryCells,
                                                                                 params));
     
-    Teuchos::RCP<solver> solve = Teuchos::rcp( new solver(tcomm_LA, settings, mesh,
+    Teuchos::RCP<solver> solve = Teuchos::rcp( new solver(Comm, settings, mesh,
                                                           disc, phys, DOF, assembler, params) );
     
     solve->multiscale_manager = multiscale_manager;
-    solve->setBatchID(tcomm_S->getRank());
+    solve->setBatchID(Comm->getRank());
     
     ////////////////////////////////////////////////////////////////////////////////
     // Finalize the functions
@@ -198,7 +196,7 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<PostprocessManager>
-    postproc = Teuchos::rcp( new PostprocessManager(tcomm_LA, settings, mesh->mesh, disc, phys,
+    postproc = Teuchos::rcp( new PostprocessManager(Comm, settings, mesh->mesh, disc, phys,
                                                     solve, DOF, cells, functionManager,
                                                     assembler, params, sensors) );
     
@@ -207,10 +205,10 @@ int main(int argc,char * argv[]) {
     // stored in settings->get<string>("analysis_type")
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<analysis> analys = Teuchos::rcp( new analysis(tcomm_LA, tcomm_S, settings,
+    Teuchos::RCP<analysis> analys = Teuchos::rcp( new analysis(Comm, settings,
                                                                solve, postproc, params) );
     
-    if (verbosity >= 20 && Comm.getRank() == 0) {
+    if (verbosity >= 20 && Comm->getRank() == 0) {
       functionManager->printFunctions();
     }
     

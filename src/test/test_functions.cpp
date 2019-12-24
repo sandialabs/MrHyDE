@@ -10,7 +10,7 @@ using namespace std;
 int main(int argc, char * argv[]) {
 
   Teuchos::GlobalMPISession mpiSession(&argc, &argv,0);
-  LA_MpiComm Comm(MPI_COMM_WORLD);
+  MpiComm Comm(MPI_COMM_WORLD);
   
   Kokkos::initialize();
   

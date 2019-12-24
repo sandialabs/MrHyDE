@@ -32,7 +32,7 @@ public:
   /* Constructor to set up the problem */
   // ========================================================================================
   
-  analysis(const Teuchos::RCP<LA_MpiComm> & LA_Comm_, const Teuchos::RCP<LA_MpiComm> & S_Comm_,
+  analysis(const Teuchos::RCP<MpiComm> & Comm_, 
            Teuchos::RCP<Teuchos::ParameterList> & settings_, Teuchos::RCP<solver> & solver_,
            Teuchos::RCP<PostprocessManager> & postproc_, Teuchos::RCP<ParameterManager> & params_);
   
@@ -44,8 +44,8 @@ public:
   
 protected:
   
-  Teuchos::RCP<LA_MpiComm> LA_Comm;
-  Teuchos::RCP<LA_MpiComm> S_Comm;
+  Teuchos::RCP<MpiComm> Comm;
+  //Teuchos::RCP<MpiComm> S_Comm;
   Teuchos::RCP<Teuchos::ParameterList> settings;
   Teuchos::RCP<solver> solve;
   Teuchos::RCP<PostprocessManager> postproc;

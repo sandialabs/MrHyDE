@@ -21,7 +21,7 @@
 using namespace std;
 using namespace Intrepid2;
 
-vector<Teuchos::RCP<SubGridModel> > subgridGenerator(const Teuchos::RCP<LA_MpiComm> & Comm,
+vector<Teuchos::RCP<SubGridModel> > subgridGenerator(const Teuchos::RCP<MpiComm> & Comm,
                                                      Teuchos::RCP<Teuchos::ParameterList> & settings,
                                                      Teuchos::RCP<panzer_stk::STK_Interface> & macromesh ) {
   
