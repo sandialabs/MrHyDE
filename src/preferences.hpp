@@ -30,8 +30,13 @@ typedef panzer::GlobalOrdinal GO; // this should really be panzer::GlobalOrdinal
 typedef Teuchos::MpiComm<int> MpiComm;
 
 // AD typedefs
+// For implicit time integration
 typedef Sacado::Fad::DFad<ScalarT> DFAD; // used only when absolutely necessary
 typedef Sacado::Fad::SFad<ScalarT,maxDerivs> AD;
+
+// For explicit time integration
+//typedef ScalarT DFAD; // used only when absolutely necessary
+//typedef ScalarT AD;
 
 // Kokkos Device typedefs
 typedef Kokkos::Serial AssemblyDevice;

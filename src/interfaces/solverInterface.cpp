@@ -66,10 +66,14 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   TDsolver = settings->sublist("Solver").get<string>("Transient Solver","implicit");
   line_search = false;//settings->sublist("Solver").get<bool>("Use Line Search","false");
   store_adjPrev = false;
-  
   isTransient = false;
   if (solver_type == "transient") {
     isTransient = true;
+  }
+  timeImplicit = true;
+  if (TDsolver != "implicit") {
+    timeImplicit = false;
+    this->setButcherTableau();
   }
   
   /*
@@ -619,8 +623,6 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     int maxCuts = 5; // TMW: make this a user-defined input
     while (abs(current_time - end_time)>1.0e-12 && numCuts<=maxCuts) {
       
-      current_time += deltat;
-      
       u_dot->putScalar(0.0);
       
       ////////////////////////////////////////////////////////////////////////
@@ -645,7 +647,14 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         cout << "*******************************************************" << endl << endl << endl;
       }
       
-      int status = this->nonlinearSolver(u, u_dot, zero_vec, zero_vec, alpha, beta);
+      int status= 1;
+      if (timeImplicit) {
+        current_time += deltat;
+        status = this->nonlinearSolver(u, u_dot, zero_vec, zero_vec, alpha, beta);
+      }
+      else {
+        status = this->explicitRKTimeSolver(u, u_dot, zero_vec, zero_vec);
+      }
       
       if (status == 0) { // NL solver converged
         
@@ -784,8 +793,8 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(LA_owned_map);
     vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
     matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
-    vector_RCP du = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    vector_RCP du_over = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+    vector_RCP du_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    vector_RCP du = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
     
     // *********************** COMPUTE THE JACOBIAN AND THE RESIDUAL **************************
     
@@ -839,17 +848,17 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     
     if (NLerr_scaled[0] > NLtol && useLinearSolver) {
       
-      this->linearSolver(J, res, du_over);
+      this->linearSolver(J, res, du);
       
-      du->doImport(*du_over, *importer, Tpetra::ADD);
+      du_over->doImport(*du, *importer, Tpetra::ADD);
       
       if (useadjoint) {
-        phi->update(1.0, *du, 1.0);
-        phi_dot->update(alpha, *du, 1.0);
+        phi->update(1.0, *du_over, 1.0);
+        phi_dot->update(alpha, *du_over, 1.0);
       }
       else {
-        u->update(1.0, *du, 1.0);
-        u_dot->update(alpha, *du, 1.0);
+        u->update(1.0, *du_over, 1.0);
+        u_dot->update(alpha, *du_over, 1.0);
       }
     }
     
@@ -874,6 +883,77 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
   }
   return status;
 }
+
+// ========================================================================================
+// ========================================================================================
+
+void solver::setButcherTableau() {
+  if (time_order == 1) { // FWD Euler
+    butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",1,1);
+    butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",1);
+    butcher_b(0) = 1.0;
+    butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",1);
+  }
+  else if (time_order == 4) { // Classical RK4
+    butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",4,4);
+    butcher_A(1,0) = 0.5;
+    butcher_A(2,1) = 0.5;
+    butcher_A(3,2) = 1.0;
+    butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",4);
+    butcher_b(0) = 1.0/6.0;
+    butcher_b(1) = 1.0/3.0;
+    butcher_b(2) = 1.0/3.0;
+    butcher_b(3) = 1.0/6.0;
+    butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",4);
+    butcher_c(1) = 1.0/2.0;
+    butcher_c(2) = 1.0/2.0;
+    butcher_c(3) = 1.0;
+  }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot, vector_RCP & phi, vector_RCP & phi_dot) {
+  int status = 0;
+  
+  size_t numStages = butcher_A.dimension(0);
+  std::vector<vector_RCP> stages;
+  
+  for (size_t s=0; s<numStages; s++){
+    stages.push_back(Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)));
+  }
+  
+  ScalarT prevtime = current_time;
+  for (size_t s=0; s<numStages; s++) {
+    
+    // set the current time
+    prevtime += deltat*butcher_c(s);
+    
+    // set the stage solution
+    
+    vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
+    vector_RCP du_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    vector_RCP du = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+    
+    // *********************** COMPUTE THE JACOBIAN AND THE RESIDUAL **************************
+    
+    bool build_jacobian = false;
+    
+    res_over->putScalar(0.0);
+    J_over->setAllToScalar(0.0);
+    bool store_adjPrev = false;
+    
+    assembler->assembleJacRes(u, u_dot, phi, phi_dot, alpha, beta, build_jacobian, false, false,
+                              res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
+                              params->num_active_params, params->Psol[0], is_final_time);
+    
+  }
+  return status;
+}
+
 
 // ========================================================================================
 // ========================================================================================

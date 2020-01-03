@@ -102,7 +102,18 @@ public:
   int nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
                       vector_RCP & phi, vector_RCP & phi_dot,
                       const ScalarT & alpha, const ScalarT & beta);
-    
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void setButcherTableau();
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  int explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot,
+                      vector_RCP & phi, vector_RCP & phi_dot);
+  
   // ========================================================================================
   // ========================================================================================
   
@@ -183,9 +194,11 @@ public:
   string TDsolver;
   
   bool line_search, useL2proj, allow_remesh, useDomDecomp, useDirect, usePrec, discretized_stochastic;
-  bool isInitial, isTransient, useadjoint, is_final_time, usestrongDBCs, compute_flux, useLinearSolver;
+  bool isInitial, isTransient, useadjoint, is_final_time, usestrongDBCs, compute_flux, useLinearSolver, timeImplicit;
   bool compute_objective, compute_sensitivity, compute_aux_sensitivity, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
   
+  Kokkos::View<ScalarT**,HostDevice> butcher_A;
+  Kokkos::View<ScalarT*,HostDevice> butcher_b, butcher_c;
   //vector<ScalarT> solvetimes;
   
   Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver;
