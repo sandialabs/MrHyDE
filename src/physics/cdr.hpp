@@ -115,7 +115,7 @@ public:
             (xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1))*basis(e,i,k) + // convection terms
             reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k); // reaction and source terms
             
-            res(e,resindex) += tau(e,k)*(rho(e,k)*cp(e,k)*sol_dot(e,cnum,k,0) + xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0) + yvel(e,k)*basis_grad(e,i,k,1));
+            //res(e,resindex) += tau(e,k)*(rho(e,k)*cp(e,k)*sol_dot(e,cnum,k,0) + xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0) + yvel(e,k)*basis_grad(e,i,k,1));
             
           }
         }

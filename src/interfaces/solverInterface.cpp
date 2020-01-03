@@ -592,6 +592,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
       cout << "******** Starting solver::transientSolver ..." << endl;
       cout << "******** Start time = " << start_time << endl;
       cout << "******** End time = " << end_time << endl;
+      cout << "******** Time step size = " << deltat << endl;
     }
   }
   
@@ -915,30 +916,51 @@ void solver::setButcherTableau() {
 // ========================================================================================
 
 int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot, vector_RCP & phi, vector_RCP & phi_dot) {
+  
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "******** Starting solver::explicitRKTimeSolver ..." << endl;
+      cout << "******** Current time = " << current_time << endl;
+    }
+  }
+  
   int status = 0;
   
   size_t numStages = butcher_A.dimension(0);
   std::vector<vector_RCP> stages;
-  
-  for (size_t s=0; s<numStages; s++){
-    stages.push_back(Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)));
-  }
+  std::vector<vector_RCP> stageres;
+  ScalarT alpha = 1.0, beta = 0.0;
   
   ScalarT prevtime = current_time;
   for (size_t s=0; s<numStages; s++) {
     
+    if (milo_debug_level > 1) {
+      if (Comm->getRank() == 0) {
+        cout << "******** Starting stage: " << s << endl;
+      }
+    }
+    
     // set the current time
-    prevtime += deltat*butcher_c(s);
+    current_time = prevtime + deltat*butcher_c(s);
     
     // set the stage solution
+    vector_RCP u_s = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    u_s->update(1.0, *u, 0.0);
+    if (s>0) {
+      for (size_t t=0; t<s-1; t++) {
+        double scale = deltat*butcher_A(s,t);
+        u_s->update(scale, *(stages[t]), 1.0);
+      }
+    }
+    stages.push_back(u_s);
     
-    vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+    //vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
     vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
     matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
-    vector_RCP du_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    vector_RCP du = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+    //vector_RCP du_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    //vector_RCP du = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
     
-    // *********************** COMPUTE THE JACOBIAN AND THE RESIDUAL **************************
+    // *********************** COMPUTE THE RESIDUAL **************************
     
     bool build_jacobian = false;
     
@@ -946,11 +968,32 @@ int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot, vector_RCP 
     J_over->setAllToScalar(0.0);
     bool store_adjPrev = false;
     
-    assembler->assembleJacRes(u, u_dot, phi, phi_dot, alpha, beta, build_jacobian, false, false,
+    assembler->assembleJacRes(u_s, u_dot, phi, phi_dot, alpha, beta, build_jacobian, false, false,
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
                               params->num_active_params, params->Psol[0], is_final_time);
     
+    // Add mass matrix inversion here
+    
+    stageres.push_back(res_over);
+    
+    if (milo_debug_level > 1) {
+      if (Comm->getRank() == 0) {
+        cout << "******** Finished stage: " << s << endl;
+      }
+    }
+    
   }
+  for (size_t s=0; s<numStages; s++) {
+    double scale = -1.0*deltat*butcher_b(s);
+    u->update(scale, *(stageres[s]), 1.0);
+  }
+  current_time = prevtime + deltat;
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "******** Finished solver::explicitRKTimeSolver" << endl;
+    }
+  }
+  
   return status;
 }
 
