@@ -14,7 +14,6 @@
 #include "discretizationTools.hpp"
 #include "workset.hpp"
 
-typedef Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator> LA_LinearProblem;
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -606,7 +605,10 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
   mass->setAllToScalar(0.0);
   mass->doExport(*mass_over, *exporter, Tpetra::ADD);
   mass->fillComplete();
+  vector_RCP temp_rhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
+  vector_RCP temp_sol = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
   
+  this->setupMassSolver(mass, temp_rhs, temp_sol);
   current_time = start_time;
   if (!useadjoint) { // forward solve - adaptive time stepping
     is_final_time = false;
@@ -975,7 +977,12 @@ int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot, vector_RCP 
     // Add mass matrix inversion here
     res->putScalar(0.0);
     res->doExport(*res_over, *exporter, Tpetra::ADD);
-    this->linearSolver(mass, res, mwres);
+    massProblem->setLHS(mwres);
+    massProblem->setRHS(res);
+    massProblem->setProblem();
+    
+    massSolver->solve();
+    //this->linearSolver(mass, res, mwres);
     
     mwres_over->doImport(*mwres, *importer, Tpetra::ADD);
     
@@ -1514,6 +1521,40 @@ void solver::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   }
 }
 
+void solver::setupMassSolver(matrix_RCP & mass, vector_RCP & r, vector_RCP & soln)  {
+  
+  massProblem = Teuchos::rcp(new LA_LinearProblem(mass, soln, r));
+  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > M = buildPreconditioner(mass);
+  
+  massProblem->setLeftPrec(M);
+  massProblem->setProblem();
+  
+  Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList());
+  belosList->set("Maximum Iterations",    kspace); // Maximum number of iterations allowed
+  belosList->set("Convergence Tolerance", lintol);    // Relative convergence tolerance requested
+  if (verbosity > 9) {
+    belosList->set("Verbosity", Belos::Errors + Belos::Warnings + Belos::StatusTestDetails);
+  }
+  else {
+    belosList->set("Verbosity", Belos::Errors);
+  }
+  if (verbosity > 8) {
+    belosList->set("Output Frequency",10);
+  }
+  else {
+    belosList->set("Output Frequency",0);
+  }
+  int numEqns = 1;
+  if (assembler->cells.size() == 1) {
+    numEqns = numVars[0];
+  }
+  belosList->set("number of equations",numEqns);
+  
+  belosList->set("Output Style",          Belos::Brief);
+  belosList->set("Implicit Residual Scaling", "None");
+  
+  massSolver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT, LA_MultiVector, LA_Operator>(massProblem, belosList));
+}
 // ========================================================================================
 // Preconditioner for Tpetra stack
 // ========================================================================================

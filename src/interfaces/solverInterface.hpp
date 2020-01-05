@@ -41,6 +41,7 @@
 // Amesos includes
 #include "Amesos2.hpp"
 
+typedef Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator> LA_LinearProblem;
 
 void static solverHelp(const string & details) {
   cout << "********** Help and Documentation for the Solver Interface **********" << endl;
@@ -149,6 +150,8 @@ public:
   
   void linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
   
+  void setupMassSolver(matrix_RCP & mass, vector_RCP & r, vector_RCP & soln);
+
   // ========================================================================================
   // Preconditioner for Tpetra stack
   // ========================================================================================
@@ -200,6 +203,8 @@ public:
   
   Kokkos::View<ScalarT**,HostDevice> butcher_A;
   Kokkos::View<ScalarT*,HostDevice> butcher_b, butcher_c;
+  Teuchos::RCP<LA_LinearProblem> massProblem;
+  Teuchos::RCP<Belos::SolverManager<ScalarT, LA_MultiVector, LA_Operator> > massSolver;
   //vector<ScalarT> solvetimes;
   
   Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver;
