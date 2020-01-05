@@ -354,21 +354,18 @@ void solver::setupLinearAlgebra() {
       gids = assembler->cells[b][e]->GIDs;
       
       int numElem = assembler->cells[b][e]->numElem;
-      
-      // this should fail on the first iteration through if maxDerivs is not large enough
-      TEUCHOS_TEST_FOR_EXCEPTION(gids.dimension(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element times the number of time stages.");
+      if (timeImplicit) {
+        // this should fail on the first iteration through if maxDerivs is not large enough
+        TEUCHOS_TEST_FOR_EXCEPTION(gids.dimension(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element times the number of time stages.");
+      }
       //vector<vector<vector<int> > > cellindices;
       Kokkos::View<LO***,AssemblyDevice> cellindices("Local DOF indices", numElem, numVars[b], maxBasis[b]);
       for (int p=0; p<numElem; p++) {
-        //vector<vector<int> > indices;
         for (int n=0; n<numVars[b]; n++) {
-          //vector<int> cindex;
           for( int i=0; i<numBasis[b][n]; i++ ) {
             GO cgid = gids(p,curroffsets[n][i]);
             cellindices(p,n,i) = LA_overlapped_map->getLocalElement(cgid);
-            //cindex.push_back(LA_overlapped_map->getLocalElement(cgid));
           }
-          //indices.push_back(cindex);
         }
         Teuchos::Array<GO> ind2(gids.dimension(1));
         for (size_t i=0; i<gids.dimension(1); i++) {
@@ -378,8 +375,6 @@ void solver::setupLinearAlgebra() {
           GO ind1 = gids(p,i);
           LA_overlapped_graph->insertGlobalIndices(ind1,ind2);
         }
-        //cellindices.push_back(indices);
-        
       }
       assembler->cells[b][e]->setIndex(cellindices, numDOF_KV);
     }
@@ -389,21 +384,13 @@ void solver::setupLinearAlgebra() {
         gids = assembler->boundaryCells[b][e]->GIDs;
         
         int numElem = assembler->boundaryCells[b][e]->numElem;
-        
-        // this should fail on the first iteration through if maxDerivs is not large enough
-        TEUCHOS_TEST_FOR_EXCEPTION(gids.dimension(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element times the number of time stages.");
-        //vector<vector<vector<int> > > cellindices;
         Kokkos::View<LO***,AssemblyDevice> cellindices("Local DOF indices", numElem, numVars[b], maxBasis[b]);
         for (int p=0; p<numElem; p++) {
-          //vector<vector<int> > indices;
           for (int n=0; n<numVars[b]; n++) {
-            //vector<int> cindex;
             for( int i=0; i<numBasis[b][n]; i++ ) {
               GO cgid = gids(p,curroffsets[n][i]);
               cellindices(p,n,i) = LA_overlapped_map->getLocalElement(cgid);
-              //cindex.push_back(LA_overlapped_map->getLocalElement(cgid));
             }
-            //indices.push_back(cindex);
           }
           Teuchos::Array<GO> ind2(gids.dimension(1));
           for (size_t i=0; i<gids.dimension(1); i++) {
@@ -413,8 +400,6 @@ void solver::setupLinearAlgebra() {
             GO ind1 = gids(p,i);
             LA_overlapped_graph->insertGlobalIndices(ind1,ind2);
           }
-          //cellindices.push_back(indices);
-          
         }
         assembler->boundaryCells[b][e]->setIndex(cellindices, numDOF_KV);
       }
