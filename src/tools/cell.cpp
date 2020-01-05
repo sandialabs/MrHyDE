@@ -1378,7 +1378,7 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
         sensorElem.push_back(0);
       }
       DRV refsenspts_buffer("refsenspts_buffer",1,sensorLocations.size(),cellData->dimension);
-      CellTools<PHX::Device>::mapToReferenceFrame(refsenspts_buffer, sensorPoints, nodes, *(cellData->cellTopo));
+      Intrepid2::CellTools<PHX::Device>::mapToReferenceFrame(refsenspts_buffer, sensorPoints, nodes, *(cellData->cellTopo));
       DRV refsenspts("refsenspts",sensorLocations.size(),cellData->dimension);
       Kokkos::deep_copy(refsenspts,Kokkos::subdynrankview(refsenspts_buffer,0,Kokkos::ALL(),Kokkos::ALL()));
       
@@ -1438,8 +1438,8 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
               cnodes(0,i,j) = nodes(e,i,j);
             }
           }
-          CellTools<AssemblyDevice>::mapToReferenceFrame(refpts, phys_points, cnodes, *(cellData->cellTopo));
-          CellTools<AssemblyDevice>::checkPointwiseInclusion(inRefCell, refpts, *(cellData->cellTopo), sensor_loc_tol);
+          Intrepid2::CellTools<AssemblyDevice>::mapToReferenceFrame(refpts, phys_points, cnodes, *(cellData->cellTopo));
+          Intrepid2::CellTools<AssemblyDevice>::checkPointwiseInclusion(inRefCell, refpts, *(cellData->cellTopo), sensor_loc_tol);
           
           for (size_t i=0; i<sensor_points.dimension(0); i++) {
             if (inRefCell(0,i) == 1) {
@@ -1520,7 +1520,7 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
           DRV refsenspts_buffer("refsenspts_buffer",1,1,cellData->dimension);
           DRV refsenspts("refsenspts",1,cellData->dimension);
           
-          CellTools<AssemblyDevice>::mapToReferenceFrame(refsenspts_buffer, csensorPoints, cnodes, *(cellData->cellTopo));
+          Intrepid2::CellTools<AssemblyDevice>::mapToReferenceFrame(refsenspts_buffer, csensorPoints, cnodes, *(cellData->cellTopo));
           //CellTools<AssemblyDevice>::mapToReferenceFrame(refsenspts, csensorPoints, cnodes, *cellTopo);
           Kokkos::deep_copy(refsenspts,Kokkos::subdynrankview(refsenspts_buffer,0,Kokkos::ALL(),Kokkos::ALL()));
           

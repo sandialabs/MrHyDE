@@ -19,7 +19,7 @@
 //#include "subgridFEM2.hpp"
 
 using namespace std;
-using namespace Intrepid2;
+//using namespace Intrepid2;
 
 vector<Teuchos::RCP<SubGridModel> > subgridGenerator(const Teuchos::RCP<MpiComm> & Comm,
                                                      Teuchos::RCP<Teuchos::ParameterList> & settings,

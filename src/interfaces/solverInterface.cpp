@@ -610,6 +610,18 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     alpha = 0.0; // would be better to print out an error message
   }
   
+  // Set up a global mass matrix (possibly mass-lumped)
+  vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // reset residual
+  matrix_RCP mass_over = Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
+  matrix_RCP mass = Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
+  
+  assembler->setInitial(rhs, mass_over, false);
+  assembler->pointConstraints(mass_over, rhs, current_time, true, false);
+  //KokkosTools::print(mass_over);
+  mass->setAllToScalar(0.0);
+  mass->doExport(*mass_over, *exporter, Tpetra::ADD);
+  mass->fillComplete();
+  
   current_time = start_time;
   if (!useadjoint) { // forward solve - adaptive time stepping
     is_final_time = false;
@@ -654,7 +666,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         status = this->nonlinearSolver(u, u_dot, zero_vec, zero_vec, alpha, beta);
       }
       else {
-        status = this->explicitRKTimeSolver(u, u_dot, zero_vec, zero_vec);
+        status = this->explicitRKTimeSolver(u, u_dot, zero_vec, zero_vec, mass);
       }
       
       if (status == 0) { // NL solver converged
@@ -915,7 +927,7 @@ void solver::setButcherTableau() {
 // ========================================================================================
 // ========================================================================================
 
-int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot, vector_RCP & phi, vector_RCP & phi_dot) {
+int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot, vector_RCP & phi, vector_RCP & phi_dot, matrix_RCP & mass) {
   
   if (milo_debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -941,7 +953,7 @@ int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot, vector_RCP 
     }
     
     // set the current time
-    current_time = prevtime + deltat*butcher_c(s);
+    ScalarT stage_time = prevtime + deltat*butcher_c(s);
     
     // set the stage solution
     vector_RCP u_s = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
@@ -952,13 +964,16 @@ int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot, vector_RCP 
         u_s->update(scale, *(stages[t]), 1.0);
       }
     }
+    if (usestrongDBCs) {
+      this->setDirichlet(u_s);
+    }
     stages.push_back(u_s);
     
-    //vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+    vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+    vector_RCP mwres = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
     vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    vector_RCP mwres_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
     matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
-    //vector_RCP du_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    //vector_RCP du = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
     
     // *********************** COMPUTE THE RESIDUAL **************************
     
@@ -969,12 +984,18 @@ int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot, vector_RCP 
     bool store_adjPrev = false;
     
     assembler->assembleJacRes(u_s, u_dot, phi, phi_dot, alpha, beta, build_jacobian, false, false,
-                              res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
+                              res_over, J_over, isTransient, stage_time, useadjoint, store_adjPrev,
                               params->num_active_params, params->Psol[0], is_final_time);
     
     // Add mass matrix inversion here
+    res->putScalar(0.0);
+    res->doExport(*res_over, *exporter, Tpetra::ADD);
+    this->linearSolver(mass, res, mwres);
     
-    stageres.push_back(res_over);
+    mwres_over->doImport(*mwres, *importer, Tpetra::ADD);
+    
+    
+    stageres.push_back(mwres_over);
     
     if (milo_debug_level > 1) {
       if (Comm->getRank() == 0) {
@@ -984,7 +1005,7 @@ int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot, vector_RCP 
     
   }
   for (size_t s=0; s<numStages; s++) {
-    double scale = -1.0*deltat*butcher_b(s);
+    double scale = 1.0*deltat*butcher_b(s);
     u->update(scale, *(stageres[s]), 1.0);
   }
   current_time = prevtime + deltat;

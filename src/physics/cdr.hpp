@@ -94,12 +94,12 @@ public:
         for (int k=0; k<sol.dimension(2); k++ ) {
           for (int i=0; i<basis.dimension(1); i++ ) {
             resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
-            res(e,resindex) += rho(e,k)*cp(e,k)*sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
-            diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0)) + // diffusion terms
+            res(e,resindex) += sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
+            1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0)) + // diffusion terms
             (xvel(e,k)*sol_grad(e,cnum,k,0))*basis(e,i,k) + // convection terms
-            reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k); // reaction and source terms
+            reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k)); // reaction and source terms
             
-            res(e,resindex) += tau(e,k)*(rho(e,k)*cp(e,k)*sol_dot(e,cnum,k,0) + xvel(e,k)*sol_grad(e,cnum,k,0) + reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0));
+            res(e,resindex) += tau(e,k)*(sol_dot(e,cnum,k,0) + 1.0/(rho(e,k)*cp(e,k))*(xvel(e,k)*sol_grad(e,cnum,k,0) + reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0)));
             
           }
         }
@@ -110,12 +110,12 @@ public:
         for (int k=0; k<sol.dimension(2); k++ ) {
           for (int i=0; i<basis.dimension(1); i++ ) {
             resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
-            res(e,resindex) += rho(e,k)*cp(e,k)*sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
-            diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,cnum,k,1)*basis_grad(e,i,k,1)) + // diffusion terms
+            res(e,resindex) += sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
+            1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,cnum,k,1)*basis_grad(e,i,k,1)) + // diffusion terms
             (xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1))*basis(e,i,k) + // convection terms
-            reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k); // reaction and source terms
+            reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k)); // reaction and source terms
             
-            //res(e,resindex) += tau(e,k)*(rho(e,k)*cp(e,k)*sol_dot(e,cnum,k,0) + xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0) + yvel(e,k)*basis_grad(e,i,k,1));
+            //res(e,resindex) += tau(e,k)*(sol_dot(e,cnum,k,0) + 1.0/(rho(e,k)*cp(e,k))*(xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0) + yvel(e,k)*basis_grad(e,i,k,1)));
             
           }
         }
@@ -126,12 +126,12 @@ public:
         for (int k=0; k<sol.dimension(2); k++ ) {
           for (int i=0; i<basis.dimension(1); i++ ) {
             resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
-            res(e,resindex) += rho(e,k)*cp(e,k)*sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
-            diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,cnum,k,1)*basis_grad(e,i,k,1) + sol_grad(e,cnum,k,2)*basis_grad(e,i,k,2)) + // diffusion terms
+            res(e,resindex) += sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
+            1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,cnum,k,1)*basis_grad(e,i,k,1) + sol_grad(e,cnum,k,2)*basis_grad(e,i,k,2)) + // diffusion terms
             (xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + zvel(e,k)*sol_grad(e,cnum,k,2))*basis(e,i,k) + // convection terms
-            reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k); // reaction and source terms
+            reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k)); // reaction and source terms
             
-            res(e,resindex) += tau(e,k)*(rho(e,k)*cp(e,k)*sol_dot(e,cnum,k,0) + xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + zvel(e,k)*sol_grad(e,cnum,k,2) +reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0) + yvel(e,k)*basis_grad(e,i,k,1) + zvel(e,k)*basis_grad(e,i,k,2));
+            res(e,resindex) += tau(e,k)*(sol_dot(e,cnum,k,0) + 1.0/(rho(e,k)*cp(e,k))*(xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + zvel(e,k)*sol_grad(e,cnum,k,2) +reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0) + yvel(e,k)*basis_grad(e,i,k,1) + zvel(e,k)*basis_grad(e,i,k,2)));
             
           }
         }

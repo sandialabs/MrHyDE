@@ -114,6 +114,13 @@ public:
                       const int & num_active_params, vector_RCP & Psol,
                       const bool & is_final_time, const int & block);
   
+  // ========================================================================================
+  //
+  // ========================================================================================
+  
+  void pointConstraints(matrix_RCP & J, vector_RCP & res,
+                        const ScalarT & current_time, const bool & compute_jacobian,
+                        const bool & compute_disc_sens);
   
   // ========================================================================================
   //

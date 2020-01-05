@@ -22,7 +22,6 @@
 #include "solverInterface.hpp"
 
 using namespace std;
-using namespace Intrepid2;
 
 void static postprocessHelp(const string & details) {
   cout << "********** Help and Documentation for the Postprocess Interface **********" << endl;

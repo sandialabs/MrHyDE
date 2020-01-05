@@ -156,16 +156,16 @@ void workset::setupBasis() {
     
     if (basis_types[i] == "HGRAD") {
       DRV basisvals("basisvals",numb, numip);
-      basis_pointers[i]->getValues(basisvals, ref_ip, OPERATOR_VALUE);
+      basis_pointers[i]->getValues(basisvals, ref_ip, Intrepid2::OPERATOR_VALUE);
       DRV basisvals_Transformed("basisvals_Transformed",numElem, numb, numip);
-      FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_Transformed, basisvals);
+      Intrepid2::FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_Transformed, basisvals);
       ref_basis.push_back(basisvals_Transformed);
       basis.push_back(DRV("basis",numElem,numb,numip));
       basis_uw.push_back(DRV("basis_uw",numElem,numb,numip));
       
       
       DRV basisgrad("basisgrad",numb, numip, dimension);
-      basis_pointers[i]->getValues(basisgrad, ref_ip, OPERATOR_GRAD);
+      basis_pointers[i]->getValues(basisgrad, ref_ip, Intrepid2::OPERATOR_GRAD);
       ref_basis_grad.push_back(basisgrad);
       
       DRV basisdiv("basisdiv",numb, numip);
@@ -178,7 +178,7 @@ void workset::setupBasis() {
     else if (basis_types[i] == "HDIV"){
       
       DRV basisvals("basisvals",numb, numip, dimension);
-      basis_pointers[i]->getValues(basisvals, ref_ip, OPERATOR_VALUE);
+      basis_pointers[i]->getValues(basisvals, ref_ip, Intrepid2::OPERATOR_VALUE);
       
       DRV basisvals_Transformed("basisvals_Transformed",numElem, numb, numip, dimension);
       
@@ -197,7 +197,7 @@ void workset::setupBasis() {
       basis_uw.push_back(DRV("basis_uw",numElem,numb,numip,dimension));
       
       DRV basisdiv("basisdiv",numb, numip);
-      basis_pointers[i]->getValues(basisdiv, ref_ip, OPERATOR_DIV);
+      basis_pointers[i]->getValues(basisdiv, ref_ip, Intrepid2::OPERATOR_DIV);
       
       ref_basis_div.push_back(basisdiv);
       
@@ -210,7 +210,7 @@ void workset::setupBasis() {
     }
     else if (basis_types[i] == "HCURL"){
       DRV basisvals("basisvals",numb, numip, dimension);
-      basis_pointers[i]->getValues(basisvals, ref_ip, OPERATOR_VALUE);
+      basis_pointers[i]->getValues(basisvals, ref_ip, Intrepid2::OPERATOR_VALUE);
       
       DRV basisvals_Transformed("basisvals_Transformed", numElem, numb, numip, dimension);
       parallel_for(RangePolicy<AssemblyDevice>(0,basisvals_Transformed.dimension(0)), KOKKOS_LAMBDA (const int e ) {
@@ -227,7 +227,7 @@ void workset::setupBasis() {
       basis.push_back(DRV("basis",numElem,numb,numip,dimension));
       
       DRV basiscurl("basiscurl",numb, numip, dimension);
-      basis_pointers[i]->getValues(basiscurl, ref_ip, OPERATOR_CURL);
+      basis_pointers[i]->getValues(basiscurl, ref_ip, Intrepid2::OPERATOR_CURL);
       
       ref_basis_curl.push_back(basiscurl);
       
@@ -257,19 +257,19 @@ void workset::setupBasis() {
         basis_curl_side_uw.push_back(DRV("basis_curl_side_uw",numElem,numb,numsideip,dimension));
       }
       DRV refSidePoints("refSidePoints",numsideip, dimension);
-      CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, ref_side_ip, dimension-1, s, *celltopo);
+      Intrepid2::CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, ref_side_ip, dimension-1, s, *celltopo);
       ref_side_ip_vec.push_back(refSidePoints);
       
       if (basis_types[i] == "HGRAD"){
         
         DRV basisvals("basisvals",numb, numsideip);
-        basis_pointers[i]->getValues(basisvals, refSidePoints, OPERATOR_VALUE);
+        basis_pointers[i]->getValues(basisvals, refSidePoints, Intrepid2::OPERATOR_VALUE);
         DRV basisvals_Transformed("basisvals_Transformed",numElem, numb, numsideip);
-        FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_Transformed, basisvals);
+        Intrepid2::FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_Transformed, basisvals);
         csbasis.push_back(basisvals_Transformed);
         
         DRV basisgrad("basisgrad",numb, numsideip, dimension);
-        basis_pointers[i]->getValues(basisgrad, refSidePoints, OPERATOR_GRAD);
+        basis_pointers[i]->getValues(basisgrad, refSidePoints, Intrepid2::OPERATOR_GRAD);
         csbasisgrad.push_back(basisgrad);
         
         if (s==0) {
@@ -279,7 +279,7 @@ void workset::setupBasis() {
       }
       else if (basis_types[i] == "HDIV"){
         DRV basisvals("basisvals",numb, numsideip, dimension);
-        basis_pointers[i]->getValues(basisvals, refSidePoints, OPERATOR_VALUE);
+        basis_pointers[i]->getValues(basisvals, refSidePoints, Intrepid2::OPERATOR_VALUE);
         DRV basisvals_Transformed("basisvals_Transformed",numElem, numb, numsideip, dimension);
         //FunctionSpaceTools<AssemblyDevice>::HDIVtransformVALUE(basisvals_Transformed, basisvals);
         csbasis.push_back(basisvals_Transformed);
@@ -290,7 +290,7 @@ void workset::setupBasis() {
       }
       else if (basis_types[i] == "HCURL"){
         DRV basisvals("basisvals",numb, numsideip, dimension);
-        basis_pointers[i]->getValues(basisvals, refSidePoints, OPERATOR_VALUE);
+        basis_pointers[i]->getValues(basisvals, refSidePoints, Intrepid2::OPERATOR_VALUE);
         DRV basisvals_Transformed("basisvals_Transformed",numElem, numb, numsideip, dimension);
         //FunctionSpaceTools<AssemblyDevice>::HCURLtransformVALUE(basisvals_Transformed, basisvals);
         csbasis.push_back(basisvals_Transformed);
@@ -322,13 +322,13 @@ void workset::setupParamBasis() {
     int numb = param_basis_pointers[i]->getCardinality();
     numparambasis.push_back(numb);
     DRV basisvals("basisvals",numb, numip);
-    param_basis_pointers[i]->getValues(basisvals, ref_ip, OPERATOR_VALUE);
+    param_basis_pointers[i]->getValues(basisvals, ref_ip, Intrepid2::OPERATOR_VALUE);
     DRV basisvals_Transformed("basisvals_Transformed",numElem, numb, numip);
-    FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_Transformed, basisvals);
+    Intrepid2::FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_Transformed, basisvals);
     param_basis.push_back(basisvals_Transformed);
     
     DRV basisgrad("basisgrad",numb, numip, dimension);
-    param_basis_pointers[i]->getValues(basisgrad, ref_ip, OPERATOR_GRAD);
+    param_basis_pointers[i]->getValues(basisgrad, ref_ip, Intrepid2::OPERATOR_GRAD);
     param_basis_grad_ref.push_back(basisgrad);
     param_basis_grad.push_back(DRV("param_basis_grad",numElem,numb,numip,dimension));
   }
@@ -342,16 +342,16 @@ void workset::setupParamBasis() {
     for (size_t i=0; i<param_basis_pointers.size(); i++) {
       int numb = param_basis_pointers[i]->getCardinality();
       DRV refSidePoints("refSidePoints", numsideip, dimension);
-      CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, ref_side_ip, dimension-1, s, *celltopo);
+      Intrepid2::CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, ref_side_ip, dimension-1, s, *celltopo);
       
       DRV basisvals("basisvals", numb, numsideip);
-      param_basis_pointers[i]->getValues(basisvals, refSidePoints, OPERATOR_VALUE);
+      param_basis_pointers[i]->getValues(basisvals, refSidePoints, Intrepid2::OPERATOR_VALUE);
       DRV basisvals_Transformed("basisvals_Transformed", numElem, numb, numsideip);
-      FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_Transformed, basisvals);
+      Intrepid2::FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_Transformed, basisvals);
       csbasis.push_back(basisvals_Transformed);
       
       DRV basisgrad("basisgrad", numb, numsideip, dimension);
-      param_basis_pointers[i]->getValues(basisgrad, refSidePoints, OPERATOR_GRAD);
+      param_basis_pointers[i]->getValues(basisgrad, refSidePoints, Intrepid2::OPERATOR_GRAD);
       csbasisgrad.push_back(basisgrad);
       
       if (s==0) {
@@ -373,7 +373,10 @@ void workset::setupParamBasis() {
 
 void workset::update(const DRV & ip_, const DRV & jacobian, const vector<vector<ScalarT> > & orientation) {
   
+  using namespace Intrepid2;
+  
   {
+    
     Teuchos::TimeMonitor updatetimer(*worksetUpdateIPTimer);
     ip = ip_;
     
@@ -459,6 +462,7 @@ void workset::update(const DRV & ip_, const DRV & jacobian, const vector<vector<
 int workset::addSide(const DRV & nodes, const int & sidenum,
                      Kokkos::View<int*> & localSideID) {
   
+  using namespace Intrepid2;
   Teuchos::TimeMonitor updatetimer(*worksetAddSideTimer);
   int BID = 0;
   
@@ -647,6 +651,7 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
 void workset::updateSide(const DRV & nodes, const DRV & ip_side_, const DRV & wts_side_,
                          const DRV & normals_, const DRV & sidejacobian, const int & s) {
   
+  using namespace Intrepid2;
   
   {
     Teuchos::TimeMonitor updatetimer(*worksetSideUpdateIPTimer);

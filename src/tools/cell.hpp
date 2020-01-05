@@ -53,10 +53,10 @@ public:
   void setIP(const DRV & ref_ip) {
     // ip and ref_ip will live on the assembly device
     ip = DRV("ip", numElem, ref_ip.dimension(0), cellData->dimension);
-    CellTools<AssemblyDevice>::mapToPhysicalFrame(ip, ref_ip, nodes, *(cellData->cellTopo));
+    Intrepid2::CellTools<AssemblyDevice>::mapToPhysicalFrame(ip, ref_ip, nodes, *(cellData->cellTopo));
     
     ijac = DRV("ijac", numElem, ref_ip.dimension(0), cellData->dimension, cellData->dimension);
-    CellTools<AssemblyDevice>::setJacobian(ijac, ref_ip, nodes, *(cellData->cellTopo));
+    Intrepid2::CellTools<AssemblyDevice>::setJacobian(ijac, ref_ip, nodes, *(cellData->cellTopo));
     
   }
   

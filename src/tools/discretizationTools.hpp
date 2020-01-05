@@ -62,9 +62,8 @@ typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> DRV;
 typedef Kokkos::DynRankView<int,AssemblyDevice> DRVint;
 typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;
 
-using namespace Intrepid2;
-
 class DiscTools {
+  
 public:
   
   //////////////////////////////////////////////////////////////////////////////////////
@@ -72,7 +71,7 @@ public:
   //////////////////////////////////////////////////////////////////////////////////////
   
   static DRV evaluateBasis(const basis_RCP & basis_pointer, const DRV & evalpts) {
-    
+    using namespace Intrepid2;
     int numCells = 1;//evalpts.dimension(0);
     int numpts = evalpts.dimension(0);
     int numBasis = basis_pointer->getCardinality();
@@ -86,7 +85,8 @@ public:
   }
   
   static Teuchos::RCP<DRV> evaluateBasisRCP(const basis_RCP & basis_pointer, const DRV & evalpts) {
-    
+    using namespace Intrepid2;
+
     int numCells = 1;//evalpts.dimension(0);
     int numpts = evalpts.dimension(0);
     int numBasis = basis_pointer->getCardinality();
@@ -105,7 +105,8 @@ public:
   
   static DRV evaluateSideBasis(const basis_RCP & basis_pointer, const DRV & evalpts,
                               const topo_RCP & cellTopo, const int & side) {
-    
+    using namespace Intrepid2;
+
     int numCells = 1;
     int numpts = evalpts.dimension(0);
     int spaceDim = evalpts.dimension(1)+1;
@@ -131,7 +132,8 @@ public:
   static DRV evaluateBasisWeighted(const basis_RCP & basis_pointer, const DRV & nodes,
                                   const DRV & evalpts, const DRV & evalwts, 
                                   const topo_RCP & cellTopo) {
-    
+    using namespace Intrepid2;
+
     int numCells = 1;
     int numpts = evalpts.dimension(0);
     int spaceDim = evalpts.dimension(1);
@@ -157,7 +159,8 @@ public:
   static Teuchos::RCP<DRV> evaluateBasisWeightedRCP(const basis_RCP & basis_pointer, const DRV & nodes,
                                   const DRV & evalpts, const DRV & evalwts,
                                   const topo_RCP & cellTopo) {
-    
+    using namespace Intrepid2;
+
     int numCells = 1;
     int numpts = evalpts.dimension(0);
     int spaceDim = evalpts.dimension(1);
@@ -187,7 +190,8 @@ public:
   static DRV evaluateSideBasisWeighted(const basis_RCP & basis_pointer, const DRV & nodes,
                                       const DRV & evalpts, const DRV & evalwts,
                                       const topo_RCP & cellTopo, const int & side) {
-    
+    using namespace Intrepid2;
+
     int numCells = 1;
     int numpts = evalpts.dimension(0);
     int spaceDim = evalpts.dimension(1)+1;
@@ -230,7 +234,8 @@ public:
   
   static DRV evaluateBasisGrads(const basis_RCP & basis_pointer, const DRV & nodes, 
                                const DRV & evalpts, const topo_RCP & cellTopo) {
-    
+    using namespace Intrepid2;
+
     int numCells = 1;
     int numpts = evalpts.dimension(0);
     int spaceDim = evalpts.dimension(1);
@@ -250,7 +255,8 @@ public:
   
   static Teuchos::RCP<DRV> evaluateBasisGradsRCP(const basis_RCP & basis_pointer, const DRV & nodes,
                                const DRV & evalpts, const topo_RCP & cellTopo) {
-    
+    using namespace Intrepid2;
+
     int numCells = 1;
     int numpts = evalpts.dimension(0);
     int spaceDim = evalpts.dimension(1);
@@ -275,7 +281,8 @@ public:
   
   static DRV evaluateSideBasisGrads(const basis_RCP & basis_pointer, const DRV & nodes, 
                                    const DRV & evalpts, const topo_RCP & cellTopo, const int & side) {
-    
+    using namespace Intrepid2;
+
     int numCells = 1;
     int numpts = evalpts.dimension(0);
     int spaceDim = evalpts.dimension(1)+1;
@@ -307,7 +314,8 @@ public:
   static DRV evaluateBasisGradsWeighted(const basis_RCP & basis_pointer, const DRV & nodes, 
                                        const DRV & evalpts, const DRV & evalwts,
                                        const topo_RCP & cellTopo) {
-    
+    using namespace Intrepid2;
+
     int numCells = 1;
     int numpts = evalpts.dimension(0);
     int spaceDim = evalpts.dimension(1);
@@ -335,7 +343,8 @@ public:
   static Teuchos::RCP<DRV> evaluateBasisGradsWeightedRCP(const basis_RCP & basis_pointer, const DRV & nodes,
                                        const DRV & evalpts, const DRV & evalwts,
                                        const topo_RCP & cellTopo) {
-    
+    using namespace Intrepid2;
+
     int numCells = 1;
     int numpts = evalpts.dimension(0);
     int spaceDim = evalpts.dimension(1);
@@ -367,7 +376,8 @@ public:
   static DRV evaluateSideBasisGradsWeighted(const basis_RCP & basis_pointer, const DRV & nodes, 
                                            const DRV & evalpts, const DRV & evalwts,
                                            const topo_RCP & cellTopo, const int & side) {
-    
+    using namespace Intrepid2;
+
     int numCells = 1;
     int numpts = evalpts.dimension(0);
     int spaceDim = evalpts.dimension(1)+1;
@@ -406,7 +416,8 @@ public:
   
   static DRV evaluateSideNormals(const DRV & nodes, const DRV & evalpts,
                                 const topo_RCP & cellTopo, const int & side) {
-    
+    using namespace Intrepid2;
+
     int numCells = 1;
     int numpts = evalpts.dimension(0);
     int spaceDim = evalpts.dimension(1)+1;
@@ -441,7 +452,8 @@ public:
   
   static DRV getPhysicalWts(const DRV & nodes, const DRV & evalpts, const DRV & evalwts, 
                            const topo_RCP & cellTopo) {
-    
+    using namespace Intrepid2;
+
     int numCells = 1;//evalpts.dimension(0);
     int numpts = evalpts.dimension(0);
     int spaceDim = evalpts.dimension(1);
@@ -463,6 +475,8 @@ public:
   //////////////////////////////////////////////////////////////////////////////////////
   
   static DRV getPhysicalIP(const DRV & nodes, const DRV & evalpts, const topo_RCP & cellTopo) {
+    using namespace Intrepid2;
+
     int numCells = 1;//evalpts.dimension(0);
     int numpts = evalpts.dimension(0);
     int spaceDim = evalpts.dimension(1);
@@ -477,6 +491,8 @@ public:
   
   static DRV getPhysicalSideIP(const DRV & nodes, const DRV & evalpts, 
                               const topo_RCP & cellTopo, const int & s) {
+    using namespace Intrepid2;
+
     int numCells = 1;//evalpts.dimension(0);
     int numpts = evalpts.dimension(0);
     int spaceDim = evalpts.dimension(1)+1;
@@ -493,6 +509,8 @@ public:
   
   static DRV getPhysicalSideWts(const DRV & nodes, const DRV & evalpts, const DRV & evalwts,
                               const topo_RCP & cellTopo, const int & s) {
+    using namespace Intrepid2;
+
     int numCells = 1;//evalpts.dimension(0);
     int numpts = evalpts.dimension(0);
     int spaceDim = evalpts.dimension(1)+1;
@@ -520,7 +538,8 @@ public:
   
   static ScalarT getElementSize(const DRV & nodes, const DRV & ip, const DRV & wts,
                                const topo_RCP & cellTopo) {
-    
+    using namespace Intrepid2;
+
     int numip = ip.dimension(0);
     int spaceDim = ip.dimension(1);
     DRV jacobian("jacobian", 1, numip, spaceDim, spaceDim);
@@ -549,7 +568,8 @@ public:
   //////////////////////////////////////////////////////////////////////////////////////
   
   static void getQuadrature(const topo_RCP & cellTopo, const int & order, DRV & ip, DRV & wts) {
-    
+    using namespace Intrepid2;
+
     DefaultCubatureFactory cubFactory;
     Teuchos::RCP<Cubature<AssemblyDevice> > basisCub  = cubFactory.create<AssemblyDevice, ScalarT, ScalarT>(*cellTopo, order); // TMW: the mesh sublist is not the correct place
     int cubDim  = basisCub->getDimension();
@@ -566,7 +586,8 @@ public:
   
   static basis_RCP getBasis(const int & spaceDim, const topo_RCP & cellTopo, 
                             const string & type, const int & degree) {
-    
+    using namespace Intrepid2;
+
     basis_RCP basis;
    
     string shape = cellTopo->getName();
@@ -710,6 +731,7 @@ public:
   //////////////////////////////////////////////////////////////////////////////////////
 
   static topo_RCP getCellTopology(const int & dimension, const string & shape) {
+    
     topo_RCP cellTopo;
     if (dimension == 1) {
       cellTopo = Teuchos::rcp( new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() ) );// lin. cell topology on the interior

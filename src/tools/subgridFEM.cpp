@@ -603,7 +603,7 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
         DRV ip = cells[block][e]->ip;//wkset[b]->ip;
         DRV sref_ip_tmp("sref_ip_tmp",numElem, ip.dimension(1), ip.dimension(2));
         DRV sref_ip("sref_ip",ip.dimension(1), ip.dimension(2));
-        CellTools<AssemblyDevice>::mapToReferenceFrame(sref_ip_tmp, ip, macronodes[block], *macro_cellTopo);
+        Intrepid2::CellTools<AssemblyDevice>::mapToReferenceFrame(sref_ip_tmp, ip, macronodes[block], *macro_cellTopo);
         for (size_t i=0; i<ip.dimension(1); i++) {
           for (size_t j=0; j<ip.dimension(2); j++) {
             sref_ip(i,j) = sref_ip_tmp(0,i,j);
@@ -661,7 +661,7 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
           
           //CellTools<AssemblyDevice>::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, macronodes[block], *macro_cellTopo);
           DRV sref_side_ip("sref_side_ip", sside_ip.dimension(1), sside_ip.dimension(2));
-          CellTools<AssemblyDevice>::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, macronodes[block], *macro_cellTopo);
+          Intrepid2::CellTools<AssemblyDevice>::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, macronodes[block], *macro_cellTopo);
           for (size_t i=0; i<sside_ip.dimension(1); i++) {
             for (size_t j=0; j<sside_ip.dimension(2); j++) {
               sref_side_ip(i,j) = sref_side_ip_tmp(0,i,j);
@@ -2717,8 +2717,8 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
         }
       }
       
-      CellTools<AssemblyDevice>::mapToReferenceFrame(refpts, pts, cnodes, *cellTopo);
-      CellTools<AssemblyDevice>::checkPointwiseInclusion(inRefCell, refpts, *cellTopo, 0.0);
+      Intrepid2::CellTools<AssemblyDevice>::mapToReferenceFrame(refpts, pts, cnodes, *cellTopo);
+      Intrepid2::CellTools<AssemblyDevice>::checkPointwiseInclusion(inRefCell, refpts, *cellTopo, 0.0);
       
       for (size_t i=0; i<numpts; i++) {
         if (inRefCell(0,i) == 1) {
@@ -2748,7 +2748,7 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
         cnodes(0,i,j) = nodes(owners(i,0),i,j);
       }
     }
-    CellTools<AssemblyDevice>::mapToReferenceFrame(refpt_buffer, cpt, cnodes, *cellTopo);
+    Intrepid2::CellTools<AssemblyDevice>::mapToReferenceFrame(refpt_buffer, cpt, cnodes, *cellTopo);
     DRV refpt("refpt",1,dimpts);
     Kokkos::deep_copy(refpt,Kokkos::subdynrankview(refpt_buffer,0,Kokkos::ALL(),Kokkos::ALL()));
     

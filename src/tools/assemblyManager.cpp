@@ -574,40 +574,46 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
       
     //} // block loop
   }
-  
-  // ************************** STRONGLY ENFORCE DIRICHLET BCs *******************************************
-  
   if (usestrongDBCs) {
-    Teuchos::TimeMonitor localtimer(*dbctimer);
-    vector<vector<GO> > fixedDOFs = phys->dbc_dofs;
-    for (size_t b=0; b<cells.size(); b++) {
-      vector<size_t> boundDirichletElemIDs;   // list of elements on the Dirichlet boundary
-      vector<size_t> localDirichletSideIDs;   // local side numbers for Dirichlet boundary sides
-      vector<size_t> globalDirichletSideIDs;   // local side numbers for Dirichlet boundary sides
-      for (int n=0; n<numVars[b]; n++) {
-        int fnum = DOF->getFieldNum(varlist[b][n]);
-        boundDirichletElemIDs = phys->boundDirichletElemIDs[b][n];
-        localDirichletSideIDs = phys->localDirichletSideIDs[b][n];
-        globalDirichletSideIDs = phys->globalDirichletSideIDs[b][n];
+    this->pointConstraints(J, res, current_time, compute_jacobian, compute_disc_sens);
+  }
+}
+
+
+// ************************** STRONGLY ENFORCE DIRICHLET BCs *******************************************
+void AssemblyManager::pointConstraints(matrix_RCP & J, vector_RCP & res,
+                                       const ScalarT & current_time,
+                                       const bool & compute_jacobian,
+                                       const bool & compute_disc_sens) {
+  Teuchos::TimeMonitor localtimer(*dbctimer);
+  vector<vector<GO> > fixedDOFs = phys->dbc_dofs;
+  for (size_t b=0; b<cells.size(); b++) {
+    vector<size_t> boundDirichletElemIDs;   // list of elements on the Dirichlet boundary
+    vector<size_t> localDirichletSideIDs;   // local side numbers for Dirichlet boundary sides
+    vector<size_t> globalDirichletSideIDs;   // local side numbers for Dirichlet boundary sides
+    for (int n=0; n<numVars[b]; n++) {
+      int fnum = DOF->getFieldNum(varlist[b][n]);
+      boundDirichletElemIDs = phys->boundDirichletElemIDs[b][n];
+      localDirichletSideIDs = phys->localDirichletSideIDs[b][n];
+      globalDirichletSideIDs = phys->globalDirichletSideIDs[b][n];
+      
+      size_t numDBC = boundDirichletElemIDs.size();
+      for (size_t e=0; e<numDBC; e++) {
+        size_t eindex = boundDirichletElemIDs[e];
+        size_t sindex = localDirichletSideIDs[e];
+        size_t gside_index = globalDirichletSideIDs[e];
         
-        size_t numDBC = boundDirichletElemIDs.size();
-        for (size_t e=0; e<numDBC; e++) {
-          size_t eindex = boundDirichletElemIDs[e];
-          size_t sindex = localDirichletSideIDs[e];
-          size_t gside_index = globalDirichletSideIDs[e];
-          
-          if (compute_jacobian) {
-            this->updateJacDBC(J, eindex, b, fnum, sindex, compute_disc_sens);
-          }
-          std::string gside = phys->sideSets[gside_index];
-          this->updateResDBCsens(res, eindex, b, n, sindex, gside, current_time);
+        if (compute_jacobian) {
+          this->updateJacDBC(J, eindex, b, fnum, sindex, compute_disc_sens);
         }
+        std::string gside = phys->sideSets[gside_index];
+        this->updateResDBCsens(res, eindex, b, n, sindex, gside, current_time);
       }
-      if (compute_jacobian) {
-        this->updateJacDBC(J,fixedDOFs[b],compute_disc_sens);
-      }
-      this->updateResDBC(res,fixedDOFs[b]);
     }
+    if (compute_jacobian) {
+      this->updateJacDBC(J,fixedDOFs[b],compute_disc_sens);
+    }
+    this->updateResDBC(res,fixedDOFs[b]);
   }
   
 }

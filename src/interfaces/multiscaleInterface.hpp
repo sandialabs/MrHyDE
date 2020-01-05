@@ -18,9 +18,6 @@
 #include "subgridModel.hpp"
 #include "Amesos2.hpp"
 
-using namespace std;
-using namespace Intrepid2;
-
 void static multiscaleHelp(const string & details) {
   cout << "********** Help and Documentation for the Multiscale Interface **********" << endl;
 }
