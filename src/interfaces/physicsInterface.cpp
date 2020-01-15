@@ -41,7 +41,7 @@
 #include "maxwells_fp.hpp"
 //#include "phasesolidification.hpp"
 #include "shallowwater.hpp"
-//#include "maxwells.hpp"
+#include "maxwell.hpp"
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -469,13 +469,15 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
     currmodules.push_back(shallowwater_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_shallowwater",false));
   }
-  /*
-  // Maxwells
-  if (currsettings.get<bool>("solve_maxwells",false)) {
-    Teuchos::RCP<maxwells> maxwells_RCP = Teuchos::rcp(new maxwells(settings, numip, numip_side) );
-    currmodules.push_back(maxwells_RCP);
+  
+  // Maxwell
+  if (currsettings.get<bool>("solve_maxwell",false)) {
+    Teuchos::RCP<maxwell> maxwell_RCP = Teuchos::rcp(new maxwell(settings, numip,
+                                                                      numip_side,numElemPerCell,
+                                                                      functionManager, blocknum) );
+    currmodules.push_back(maxwell_RCP);
+    currSubgrid.push_back(currsettings.get<bool>("subgrid_maxwell",false));
   }
-  */
   
   /* not setting up correctly
    // Burgers (entropy viscosity)

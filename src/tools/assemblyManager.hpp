@@ -84,7 +84,8 @@ public:
   // ========================================================================================
   // ========================================================================================
 
-  void setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint);
+  void setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
+                  const bool & lumpmass=false);
 
   void setInitial(vector_RCP & initial, const bool & useadjoint);
 

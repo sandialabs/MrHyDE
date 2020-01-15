@@ -164,6 +164,11 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   Teuchos::reduceAll<LO,GO>(*Comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
   //Comm->SumAll(&localNumUnknowns, &globalNumUnknowns, 1);
   
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "Number of global unknowns: " << globalNumUnknowns << endl;
+    }
+  }
   // needed information from the disc interface
   vector<vector<int> > cards = disc->cards;
   
@@ -328,8 +333,8 @@ void solver::setupLinearAlgebra() {
   
   const Tpetra::global_size_t INVALID = Teuchos::OrdinalTraits<Tpetra::global_size_t>::invalid ();
   
-  LA_owned_map = Teuchos::rcp(new LA_Map(INVALID, LA_owned, 0, Comm));
-  LA_overlapped_map = Teuchos::rcp(new LA_Map(INVALID, LA_ownedAndShared, 0, Comm));
+  LA_owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, LA_owned, 0, Comm));
+  LA_overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, LA_ownedAndShared, 0, Comm));
   LA_owned_graph = createCrsGraph(LA_owned_map);//Teuchos::rcp(new LA_CrsGraph(Copy, *LA_owned_map, 0));
   LA_overlapped_graph = createCrsGraph(LA_overlapped_map);//Teuchos::rcp(new LA_CrsGraph(Copy, *LA_overlapped_map, 0));
   
@@ -433,6 +438,7 @@ void solver::forwardModel(DFAD & obj) {
   params->sacadoizeParams(false);
   
   vector_RCP u = this->setInitial();
+  
   if (solver_type == "transient") {
     soln->store(u, current_time, 0); // copies the data
   }
@@ -595,11 +601,12 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
   }
   
   // Set up a global mass matrix (possibly mass-lumped)
+  
   vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // reset residual
   matrix_RCP mass_over = Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
   matrix_RCP mass = Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
   
-  assembler->setInitial(rhs, mass_over, false);
+  assembler->setInitial(rhs, mass_over, false, false);
   assembler->pointConstraints(mass_over, rhs, current_time, true, false);
   //KokkosTools::print(mass_over);
   mass->setAllToScalar(0.0);
@@ -609,6 +616,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
   vector_RCP temp_sol = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
   
   this->setupMassSolver(mass, temp_rhs, temp_sol);
+  
   current_time = start_time;
   if (!useadjoint) { // forward solve - adaptive time stepping
     is_final_time = false;
@@ -653,7 +661,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         status = this->nonlinearSolver(u, u_dot, zero_vec, zero_vec, alpha, beta);
       }
       else {
-        status = this->explicitRKTimeSolver(u, u_dot, zero_vec, zero_vec, mass);
+        //status = this->explicitRKTimeSolver(u, u_dot, zero_vec, zero_vec, mass);
       }
       
       if (status == 0) { // NL solver converged
@@ -810,6 +818,7 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     assembler->assembleJacRes(u, u_dot, phi, phi_dot, alpha, beta, build_jacobian, false, false,
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
                               params->num_active_params, params->Psol[0], is_final_time);
+    
     J_over->fillComplete();
     
     J->setAllToScalar(0.0);

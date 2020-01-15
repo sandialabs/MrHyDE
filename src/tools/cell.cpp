@@ -263,13 +263,13 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   }*/
   //else { // NON-MULTISCALE RESIDUAL, JACOBIAN, ETC.
     bool fixJacDiag = false;
-    
+  
     wkset->resetResidual();
     
     if (isAdjoint) {
       wkset->resetAdjointRHS();
     }
-    
+  
     //////////////////////////////////////////////////////////////
     // Compute the AD-seeded solutions at integration points
     //////////////////////////////////////////////////////////////
@@ -288,7 +288,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
     else {
       this->computeSolnVolIP(false,false,false,false);
     }
-    
+  
     //////////////////////////////////////////////////////////////
     // Compute res and J=dF/du
     //////////////////////////////////////////////////////////////

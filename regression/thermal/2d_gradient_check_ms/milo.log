@@ -1,13 +1,27 @@
-
-Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
-  iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
-  0     1.250000e-01   2.375247e-01                  1.000000e+02   
-  1     7.494880e-02   1.839152e-01   2.375247e-01   2.500000e+02   2         2         0         1         0         
-Optimization Terminated with Status: Iteration Limit Exceeded
-
-Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
-  iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
-  0     1.250000e-01   2.375247e-01                  1.000000e+02   
-  1     7.494880e-02   1.839152e-01   2.375247e-01   2.500000e+02   2         2         0         1         0         
-Optimization Terminated with Status: Iteration Limit Exceeded
-param 0 = 0.237525
+[s998638:70019] *** Process received signal ***
+[s998638:70019] Signal: Bus error: 10 (10)
+[s998638:70019] Signal code: Non-existant physical address (2)
+[s998638:70019] Failing at address: 0x10cf3bf31
+[s998638:70020] *** Process received signal ***
+[s998638:70020] Signal: Bus error: 10 (10)
+[s998638:70020] Signal code: Non-existant physical address (2)
+[s998638:70020] Failing at address: 0x111a2ef31
+[s998638:70021] *** Process received signal ***
+[s998638:70021] Signal: Bus error: 10 (10)
+[s998638:70021] Signal code: Non-existant physical address (2)
+[s998638:70021] Failing at address: 0x10bf93f31
+[s998638:70022] *** Process received signal ***
+[s998638:70022] Signal: Bus error: 10 (10)
+[s998638:70022] Signal code: Non-existant physical address (2)
+[s998638:70022] Failing at address: 0x10aabef31
+[s998638:70019] *** End of error message ***
+[s998638:70020] *** End of error message ***
+[s998638:70021] *** End of error message ***
+[s998638:70022] *** End of error message ***
+-------------------------------------------------------
+Primary job  terminated normally, but 1 process returned
+a non-zero exit code. Per user-direction, the job has been aborted.
+-------------------------------------------------------
+--------------------------------------------------------------------------
+mpiexec noticed that process rank 3 with PID 0 on node s998638 exited on signal 10 (Bus error: 10).
+--------------------------------------------------------------------------

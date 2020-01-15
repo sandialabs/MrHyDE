@@ -225,6 +225,7 @@ void workset::setupBasis() {
       
       ref_basis.push_back(basisvals_Transformed);
       basis.push_back(DRV("basis",numElem,numb,numip,dimension));
+      basis_uw.push_back(DRV("basis_uw",numElem,numb,numip,dimension));
       
       DRV basiscurl("basiscurl",numb, numip, dimension);
       basis_pointers[i]->getValues(basiscurl, ref_ip, Intrepid2::OPERATOR_CURL);
@@ -404,6 +405,7 @@ void workset::update(const DRV & ip_, const DRV & jacobian, const vector<vector<
   
   {
     for (size_t i=0; i<basis_pointers.size(); i++) {
+      
       if (basis_types[i] == "HGRAD"){
         basis_uw[i] = ref_basis[i];
         {
@@ -425,6 +427,7 @@ void workset::update(const DRV & ip_, const DRV & jacobian, const vector<vector<
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis[i], wts, basis_uw[i]);
         FunctionSpaceTools<AssemblyDevice>::HDIVtransformDIV(basis_div_uw[i], jacobDet, ref_basis_div[i]);
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_div[i], wts, basis_div_uw[i]);
+        /*
         vector<ScalarT> orient = {-1.0, -1.0, 1.0, 1.0};
         for (int e=0; e<numElem; e++) {
           for (size_t j=0; j<orient.size(); j++) {
@@ -437,7 +440,8 @@ void workset::update(const DRV & ip_, const DRV & jacobian, const vector<vector<
               basis_div[i](e,j,k) *= orient[j];
             }
           }
-        }
+        }*/
+        
       }
       else if (basis_types[i] == "HCURL"){
         FunctionSpaceTools<AssemblyDevice>::HCURLtransformVALUE(basis_uw[i], jacobInv, ref_basis[i]);
@@ -935,7 +939,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
             local_soln_dot(e,k,i,s) = 0.0;
             local_soln_grad(e,k,i,s) = 0.0;
             //local_soln_dot_grad(e,k,i,s) = 0.0;
-            //local_soln_curl(e,k,i,s) = 0.0;
+            local_soln_curl(e,k,i,s) = 0.0;
           }
           local_soln_div(e,k,i) = 0.0;
         }

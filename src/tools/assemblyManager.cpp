@@ -243,7 +243,8 @@ void AssemblyManager::updateResDBCsens(vector_RCP & resid, size_t & e, size_t & 
 // ========================================================================================
 // ========================================================================================
 
-void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint) {
+void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
+                                 const bool & lumpmass) {
   
   
   for (size_t b=0; b<cells.size(); b++) {
@@ -258,13 +259,23 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
       // assemble into global matrix
       for (int c=0; c<numElem; c++) {
         for( size_t row=0; row<GIDs.dimension(1); row++ ) {
-          int rowIndex = GIDs(c,row);
+          GO rowIndex = GIDs(c,row);
           ScalarT val = localrhs(c,row);
           rhs->sumIntoGlobalValue(rowIndex,0, val);
-          for( size_t col=0; col<GIDs.dimension(1); col++ ) {
-            GO colIndex = GIDs(c,col);
-            ScalarT val = localmass(c,row,col);
-            mass->insertGlobalValues(rowIndex, 1, &val, &colIndex);
+          if (lumpmass) {
+            ScalarT totalval = 0.0;
+            for( size_t col=0; col<GIDs.dimension(1); col++ ) {
+              GO colIndex = GIDs(c,col);
+              totalval += localmass(c,row,col);
+            }
+            mass->insertGlobalValues(rowIndex, 1, &totalval, &rowIndex);
+          }
+          else {
+            for( size_t col=0; col<GIDs.dimension(1); col++ ) {
+              GO colIndex = GIDs(c,col);
+              ScalarT val = localmass(c,row,col);
+              mass->insertGlobalValues(rowIndex, 1, &val, &colIndex);
+            }
           }
         }
       }
@@ -448,7 +459,6 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
                                    num_active_params, compute_disc_sens, false, store_adjPrev,
                                    local_res, local_J, local_Jdot);
         
-        
       }
       
       if (milo_debug_level > 2) {
@@ -475,6 +485,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
   //////////////////////////////////////////////////////////////////////////////////////
   // Boundary terms
   //////////////////////////////////////////////////////////////////////////////////////
+  
   
   if (!cells[0][0]->cellData->multiscale) {
     //for (size_t b=0; b<boundaryCells.size(); b++) {
@@ -673,6 +684,7 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
     
     if (milo_debug_level > 2) {
       if (Comm->getRank() == 0) {
+        cout << "inside assemblyManager::gather: type = " << type << endl;
         KokkosTools::print(index, "inside assemblyManager::gather - index");
         KokkosTools::print(numDOF, "inside assemblyManager::gather - numDOF");
         KokkosTools::print(data, "inside assemblyManager::gather - data");
