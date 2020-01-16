@@ -336,7 +336,8 @@ void solver::setupLinearAlgebra() {
   LA_owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, LA_owned, 0, Comm));
   LA_overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, LA_ownedAndShared, 0, Comm));
   LA_owned_graph = createCrsGraph(LA_owned_map);//Teuchos::rcp(new LA_CrsGraph(Copy, *LA_owned_map, 0));
-  LA_overlapped_graph = createCrsGraph(LA_overlapped_map);//Teuchos::rcp(new LA_CrsGraph(Copy, *LA_overlapped_map, 0));
+  LA_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(LA_overlapped_map,0,Tpetra::DynamicProfile));//Teuchos::rcp(new LA_CrsGraph(Copy,
+  //LA_overlapped_graph = createCrsGraph(LA_overlapped_map,0,Teuchos::null);//Teuchos::rcp(new LA_CrsGraph(Copy, *LA_overlapped_map, 0));
   
   exporter = Teuchos::rcp(new LA_Export(LA_overlapped_map, LA_owned_map));
   importer = Teuchos::rcp(new LA_Import(LA_owned_map, LA_overlapped_map));
