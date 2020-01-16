@@ -263,19 +263,27 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
           ScalarT val = localrhs(c,row);
           rhs->sumIntoGlobalValue(rowIndex,0, val);
           if (lumpmass) {
+            Teuchos::Array<ScalarT> vals(1);
+            Teuchos::Array<GO> cols(1);
+            
             ScalarT totalval = 0.0;
             for( size_t col=0; col<GIDs.dimension(1); col++ ) {
-              GO colIndex = GIDs(c,col);
+              cols[0] = GIDs(c,col);
               totalval += localmass(c,row,col);
             }
-            mass->insertGlobalValues(rowIndex, 1, &totalval, &rowIndex);
+            vals[0] = totalval;
+            mass->sumIntoGlobalValues(rowIndex, cols, vals);
           }
           else {
+            Teuchos::Array<ScalarT> vals(GIDs.dimension(1));
+            Teuchos::Array<GO> cols(GIDs.dimension(1));
+            
             for( size_t col=0; col<GIDs.dimension(1); col++ ) {
-              GO colIndex = GIDs(c,col);
-              ScalarT val = localmass(c,row,col);
-              mass->insertGlobalValues(rowIndex, 1, &val, &colIndex);
+              cols[col] = GIDs(c,col);
+              vals[col] = localmass(c,row,col);
             }
+            mass->sumIntoGlobalValues(rowIndex, cols, vals);
+            
           }
         }
       }

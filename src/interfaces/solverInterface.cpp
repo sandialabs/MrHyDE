@@ -205,6 +205,18 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   // Tpetra maps
   /////////////////////////////////////////////////////////////////////////////
   
+  maxEntries = 256;
+  
+  if (spaceDim == 1) {
+    maxEntries = 2*maxDerivs;
+  }
+  else if (spaceDim == 2) {
+    maxEntries = 4*maxDerivs;
+  }
+  else if (spaceDim == 3) {
+    maxEntries = 8*maxDerivs;
+  }
+  
   this->setupLinearAlgebra();
   
   /////////////////////////////////////////////////////////////////////////////
@@ -335,13 +347,11 @@ void solver::setupLinearAlgebra() {
   
   LA_owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, LA_owned, 0, Comm));
   LA_overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, LA_ownedAndShared, 0, Comm));
-  LA_owned_graph = createCrsGraph(LA_owned_map);//Teuchos::rcp(new LA_CrsGraph(Copy, *LA_owned_map, 0));
-  LA_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(LA_overlapped_map,0,Tpetra::DynamicProfile));//Teuchos::rcp(new LA_CrsGraph(Copy,
-  //LA_overlapped_graph = createCrsGraph(LA_overlapped_map,0,Teuchos::null);//Teuchos::rcp(new LA_CrsGraph(Copy, *LA_overlapped_map, 0));
+  //LA_owned_graph = createCrsGraph(LA_owned_map, maxEntries);//Teuchos::rcp(new LA_CrsGraph(Copy, *LA_owned_map, 0));
+  LA_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(LA_overlapped_map,maxEntries));
   
   exporter = Teuchos::rcp(new LA_Export(LA_overlapped_map, LA_owned_map));
   importer = Teuchos::rcp(new LA_Import(LA_owned_map, LA_overlapped_map));
-  //importer = Teuchos::rcp(new LA_Import(LA_overlapped_map, LA_owned_map));
   
   
   Kokkos::View<GO**,HostDevice> gids;
@@ -604,9 +614,12 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
   // Set up a global mass matrix (possibly mass-lumped)
   
   vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // reset residual
-  matrix_RCP mass_over = Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
-  matrix_RCP mass = Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
+  matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));
+  vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+  matrix_RCP mass_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
   
+  
+  /*
   assembler->setInitial(rhs, mass_over, false, false);
   assembler->pointConstraints(mass_over, rhs, current_time, true, false);
   //KokkosTools::print(mass_over);
@@ -617,6 +630,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
   vector_RCP temp_sol = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
   
   this->setupMassSolver(mass, temp_rhs, temp_sol);
+  */
   
   current_time = start_time;
   if (!useadjoint) { // forward solve - adaptive time stepping
@@ -799,7 +813,7 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     gNLiter = NLiter;
     
     vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
-    matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(LA_owned_map);
+    matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));
     vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
     matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
     vector_RCP du_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
@@ -822,7 +836,7 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     
     J_over->fillComplete();
     
-    J->setAllToScalar(0.0);
+    //J->setAllToScalar(0.0);
     J->doExport(*J_over, *exporter, Tpetra::ADD);
     J->fillComplete();
     
@@ -1217,9 +1231,9 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
     ScalarT globalsens = 0.0;
     
     vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,params->num_active_params)); // reset residual
-    matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
+    matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));//Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
     vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,params->num_active_params)); // reset residual
-    matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
+    matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));;//Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
     
     auto res_kv = res->getLocalView<HostDevice>();
     
@@ -1292,8 +1306,8 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
     }
     
     vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // reset residual
-    matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(params->param_overlapped_map); // reset Jacobian
-    matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(params->param_owned_map); // reset Jacobian
+    matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(params->param_owned_map, maxEntries));
+    matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(params->param_overlapped_map, maxEntries));
     
     res_over->putScalar(0.0);
     J->setAllToScalar(0.0);
@@ -1446,10 +1460,9 @@ vector_RCP solver::setInitial() {
     
     // Compute the L2 projection of the initial data into the discrete space
     vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // reset residual
-    matrix_RCP mass = Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
+    matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));//Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
     vector_RCP glrhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
-    matrix_RCP glmass = Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
-    
+    matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));//Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
     assembler->setInitial(rhs, mass, useadjoint);
     
     glmass->setAllToScalar(0.0);

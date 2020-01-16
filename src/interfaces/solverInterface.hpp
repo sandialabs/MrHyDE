@@ -190,6 +190,8 @@ public:
   GO globalNumUnknowns;
   int verbosity, batchID, spaceDim, numsteps, gNLiter, milo_debug_level, MaxNLiter, time_order, liniter, kspace;
   
+  size_t maxEntries;
+  
   vector<GO> owned, ownedAndShared, LA_owned, LA_ownedAndShared;
   
   ScalarT NLtol, final_time, lintol, dropTol, fillParam, current_time, initial_time, deltat;
