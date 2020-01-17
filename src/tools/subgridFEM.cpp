@@ -475,7 +475,7 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
     exporter = sub_solver->exporter;
     importer = sub_solver->importer;
     owned_graph = sub_solver->LA_owned_graph;
-    owned_graph->fillComplete();
+    //owned_graph->fillComplete();
     
     overlapped_graph = sub_solver->LA_overlapped_graph;
     
@@ -2601,7 +2601,7 @@ void SubGridFEM::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_poin
 Teuchos::RCP<LA_CrsMatrix>  SubGridFEM::getProjectionMatrix() {
   
   // Compute the mass matrix on a reference element
-  matrix_RCP mass = Tpetra::createCrsMatrix<ScalarT>(overlapped_map);
+  matrix_RCP mass = Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(overlapped_graph) );
   
   int usernum = 0;
   for (size_t e=0; e<cells[usernum].size(); e++) {
@@ -2623,8 +2623,9 @@ Teuchos::RCP<LA_CrsMatrix>  SubGridFEM::getProjectionMatrix() {
   mass->fillComplete();
   
   matrix_RCP glmass;
+  size_t maxEntries = 256;
   if (LocalComm->getSize() > 1) {
-    glmass = Tpetra::createCrsMatrix<ScalarT>(owned_map);
+    glmass = Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(owned_map,maxEntries) );
     glmass->setAllToScalar(0.0);
     glmass->doExport(*mass, *exporter, Tpetra::ADD);
     glmass->fillComplete();
@@ -2834,10 +2835,11 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
 ////////////////////////////////////////////////////////////////////////////////
 
 Teuchos::RCP<LA_CrsMatrix>  SubGridFEM::getEvaluationMatrix(const DRV & newip, Teuchos::RCP<LA_Map> & ip_map) {
-  matrix_RCP map_over = Tpetra::createCrsMatrix<ScalarT>(overlapped_map);
+  matrix_RCP map_over = Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(overlapped_graph) );
   matrix_RCP map;
   if (LocalComm->getSize() > 1) {
-    map = Tpetra::createCrsMatrix<ScalarT>(owned_map);
+    size_t maxEntries = 256;
+    map = Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(owned_map, maxEntries) );
     
     map->setAllToScalar(0.0);
     map->doExport(*map_over, *exporter, Tpetra::ADD);
