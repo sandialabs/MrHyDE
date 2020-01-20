@@ -12,7 +12,7 @@
 #ifndef PREFERENCES_H
 #define PREFERENCES_H
 
-#include "panzerCore_config.hpp"
+#include "PanzerCore_config.hpp"
 
 using namespace std;
 using Kokkos::parallel_for;

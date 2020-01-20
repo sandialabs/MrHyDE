@@ -81,7 +81,7 @@ void BoundaryCell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & para
   vector<int> paramusebasis = pusebasis_;
   
   Kokkos::View<int*,HostDevice> numParamDOF_host("numParamDOF on host",paramusebasis.size());
-  for (int i=0; i<paramusebasis.size(); i++) {
+  for (unsigned int i=0; i<paramusebasis.size(); i++) {
     numParamDOF_host(i) = paramnumbasis_[paramusebasis[i]];
   }
   numParamDOF = Kokkos::create_mirror_view(numParamDOF_host);
@@ -253,8 +253,8 @@ void BoundaryCell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   if (compute_sens) {
     parallel_for(RangePolicy<AssemblyDevice>(0,local_res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int r=0; r<local_res.dimension(2); r++) {
-        for (int n=0; n<index.dimension(1); n++) {
+      for (unsigned int r=0; r<local_res.dimension(2); r++) {
+        for (unsigned int n=0; n<index.dimension(1); n++) {
           for (int j=0; j<numDOF(n); j++) {
             local_res(e,offsets(n,j),r) -= res_AD(e,offsets(n,j)).fastAccessDx(r);
           }
@@ -264,7 +264,7 @@ void BoundaryCell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,
   }
   else {
     parallel_for(RangePolicy<AssemblyDevice>(0,local_res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<index.dimension(1); n++) {
+      for (unsigned int n=0; n<index.dimension(1); n++) {
         for (int j=0; j<numDOF(n); j++) {
           local_res(e,offsets(n,j),0) -= res_AD(e,offsets(n,j)).val();
         }
@@ -283,7 +283,7 @@ void BoundaryCell::updateAdjointRes(const bool & compute_sens, Kokkos::View<Scal
   if (compute_sens) {
     parallel_for(RangePolicy<AssemblyDevice>(0,local_res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
       for (int r=0; r<maxDerivs; r++) {
-        for (int n=0; n<index.dimension(1); n++) {
+        for (unsigned int n=0; n<index.dimension(1); n++) {
           for (int j=0; j<numDOF(n); j++) {
             local_res(e,offsets(n,j),r) -= res_AD(e,offsets(n,j)).fastAccessDx(r);
           }
@@ -293,7 +293,7 @@ void BoundaryCell::updateAdjointRes(const bool & compute_sens, Kokkos::View<Scal
   }
   else {
     parallel_for(RangePolicy<AssemblyDevice>(0,local_res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<index.dimension(1); n++) {
+      for (unsigned int n=0; n<index.dimension(1); n++) {
         for (int j=0; j<numDOF(n); j++) {
           local_res(e,offsets(n,j),0) -= res_AD(e,offsets(n,j)).val();
         }
@@ -314,9 +314,9 @@ void BoundaryCell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,As
   
   if (useadjoint) {
     parallel_for(RangePolicy<AssemblyDevice>(0,local_J.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<index.dimension(1); n++) {
+      for (unsigned int n=0; n<index.dimension(1); n++) {
         for (int j=0; j<numDOF(n); j++) {
-          for (int m=0; m<index.dimension(1); m++) {
+          for (unsigned int m=0; m<index.dimension(1); m++) {
             for (int k=0; k<numDOF(m); k++) {
               local_J(e,offsets(m,k),offsets(n,j)) += res_AD(e,offsets(n,j)).fastAccessDx(offsets(m,k));
             }
@@ -327,9 +327,9 @@ void BoundaryCell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,As
   }
   else {
     parallel_for(RangePolicy<AssemblyDevice>(0,local_J.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<index.dimension(1); n++) {
+      for (unsigned int n=0; n<index.dimension(1); n++) {
         for (int j=0; j<numDOF(n); j++) {
-          for (int m=0; m<index.dimension(1); m++) {
+          for (unsigned int m=0; m<index.dimension(1); m++) {
             for (int k=0; k<numDOF(m); k++) {
               local_J(e,offsets(n,j),offsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(offsets(m,k));
             }
@@ -351,9 +351,9 @@ void BoundaryCell::updateJacDot(const bool & useadjoint, Kokkos::View<ScalarT***
   
   if (useadjoint) {
     parallel_for(RangePolicy<AssemblyDevice>(0,local_Jdot.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<index.dimension(1); n++) {
+      for (unsigned int n=0; n<index.dimension(1); n++) {
         for (int j=0; j<numDOF(n); j++) {
-          for (int m=0; m<index.dimension(1); m++) {
+          for (unsigned int m=0; m<index.dimension(1); m++) {
             for (int k=0; k<numDOF(m); k++) {
               local_Jdot(e,offsets(m,k),offsets(n,j)) += res_AD(e,offsets(n,j)).fastAccessDx(offsets(m,k));
             }
@@ -364,9 +364,9 @@ void BoundaryCell::updateJacDot(const bool & useadjoint, Kokkos::View<ScalarT***
   }
   else {
     parallel_for(RangePolicy<AssemblyDevice>(0,local_Jdot.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<index.dimension(1); n++) {
+      for (unsigned int n=0; n<index.dimension(1); n++) {
         for (int j=0; j<numDOF(n); j++) {
-          for (int m=0; m<index.dimension(1); m++) {
+          for (unsigned int m=0; m<index.dimension(1); m++) {
             for (int k=0; k<numDOF(m); k++) {
               local_Jdot(e,offsets(n,j),offsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(offsets(m,k));
             }
@@ -382,8 +382,8 @@ void BoundaryCell::updateJacDot(const bool & useadjoint, Kokkos::View<ScalarT***
    local_Jdot.initialize(0.0);
    //his->resetJacDot();
    for (int e=0; e<numElem; e++) {
-   for (int n=0; n<GIDs[e].size(); n++) {
-   for (int m=0; m<GIDs[e].size(); m++) {
+   for (unsigned int n=0; n<GIDs[e].size(); n++) {
+   for (unsigned int m=0; m<GIDs[e].size(); m++) {
    local_Jdot(e,n,n) += Jdotold(e,n,m);
    }
    }
@@ -402,9 +402,9 @@ void BoundaryCell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_
   Kokkos::View<int**,AssemblyDevice> paramoffsets = wkset->paramoffsets;
   
   parallel_for(RangePolicy<AssemblyDevice>(0,local_J.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-    for (int n=0; n<index.dimension(1); n++) {
+    for (unsigned int n=0; n<index.dimension(1); n++) {
       for (int j=0; j<numDOF(n); j++) {
-        for (int m=0; m<paramindex.dimension(1); m++) {
+        for (unsigned int m=0; m<paramindex.dimension(1); m++) {
           for (int k=0; k<numParamDOF(m); k++) {
             local_J(e,offsets(n,j),paramoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(paramoffsets(m,k));
           }
@@ -425,9 +425,9 @@ void BoundaryCell::updateParamJacDot(Kokkos::View<ScalarT***,AssemblyDevice> loc
   Kokkos::View<int**,AssemblyDevice> paramoffsets = wkset->paramoffsets;
   
   parallel_for(RangePolicy<AssemblyDevice>(0,local_Jdot.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-    for (int n=0; n<index.dimension(1); n++) {
+    for (unsigned int n=0; n<index.dimension(1); n++) {
       for (int j=0; j<numDOF(n); j++) {
-        for (int m=0; m<paramindex.dimension(1); m++) {
+        for (unsigned int m=0; m<paramindex.dimension(1); m++) {
           for (int k=0; k<numParamDOF(m); k++) {
             local_Jdot(e,offsets(n,j),paramoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(paramoffsets(m,k));
           }
@@ -447,9 +447,9 @@ void BoundaryCell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J)
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   
   parallel_for(RangePolicy<AssemblyDevice>(0,local_J.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-    for (int n=0; n<index.dimension(1); n++) {
+    for (unsigned int n=0; n<index.dimension(1); n++) {
       for (int j=0; j<numDOF(n); j++) {
-        for (int m=0; m<auxindex.dimension(1); m++) {
+        for (unsigned int m=0; m<auxindex.dimension(1); m++) {
           for (int k=0; k<numAuxDOF(m); k++) {
             local_J(e,offsets(n,j),auxoffsets[m][k]) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets[m][k]);
           }
@@ -469,9 +469,9 @@ void BoundaryCell::updateAuxJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   
   parallel_for(RangePolicy<AssemblyDevice>(0,local_Jdot.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-    for (int n=0; n<index.dimension(1); n++) {
+    for (unsigned int n=0; n<index.dimension(1); n++) {
       for (int j=0; j<numDOF(n); j++) {
-        for (int m=0; m<auxindex.dimension(1); m++) {
+        for (unsigned int m=0; m<auxindex.dimension(1); m++) {
           for (int k=0; k<numAuxDOF(m); k++) {
             local_Jdot(e,offsets(n,j),auxoffsets[m][k]) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets[m][k]);
           }

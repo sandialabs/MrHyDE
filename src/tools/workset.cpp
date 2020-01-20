@@ -540,7 +540,7 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
   
   // scale the normal vector (we need unit normal...)
   for (int e=0; e<bnormals.dimension(0); e++) {
-    for( int j=0; j<bnormals.dimension(1); j++ ) {
+    for (int j=0; j<bnormals.dimension(1); j++ ) {
       ScalarT normalLength = 0.0;
       for (int sd=0; sd<dimension; sd++) {
         normalLength += bnormals(e,j,sd)*bnormals(e,j,sd);
@@ -872,12 +872,12 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
         DRV kbasis_uw = basis_uw[kubasis];
         DRV kbasis_grad_uw = basis_grad_uw[kubasis];
         
-        for( int i=0; i<knbasis; i++ ) {
+        for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             uval = u(e,k,i);
-            for( size_t j=0; j<numip; j++ ) {
+            for (size_t j=0; j<numip; j++ ) {
               local_soln(e,k,j,0) += uval*kbasis_uw(e,i,j);
-              for( int s=0; s<dimension; s++ ) {
+              for (int s=0; s<dimension; s++ ) {
                 local_soln_grad(e,k,j,s) += uval*kbasis_grad_uw(e,i,j,s);
               }
             }
@@ -888,11 +888,11 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
         DRV kbasis_uw = basis_uw[kubasis];
         DRV kbasis_div_uw = basis_div_uw[kubasis];
         
-        for( int i=0; i<knbasis; i++ ) {
+        for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             uval = u(e,k,i);
-            for( size_t j=0; j<numip; j++ ) {
-              for( int s=0; s<dimension; s++ ) {
+            for (size_t j=0; j<numip; j++ ) {
+              for (int s=0; s<dimension; s++ ) {
                 local_soln(e,k,j,s) += uval*kbasis_uw(e,i,j,s);
               }
               local_soln_div(e,k,j) += uval*kbasis_div_uw(e,i,j);
@@ -904,11 +904,11 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
         DRV kbasis_uw = basis_uw[kubasis];
         DRV kbasis_curl_uw = basis_curl_uw[kubasis];
         
-        for( int i=0; i<knbasis; i++ ) {
+        for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             uval = u(e,k,i);
-            for( size_t j=0; j<numip; j++ ) {
-              for( int s=0; s<dimension; s++ ) {
+            for (size_t j=0; j<numip; j++ ) {
+              for (int s=0; s<dimension; s++ ) {
                 local_soln(e,k,j,s) += uval*kbasis_uw(e,i,j,s);
                 local_soln_curl(e,k,j,s) += uval*kbasis_curl_uw(e,i,j,s);
               }
@@ -960,7 +960,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         DRV kbasis_uw = basis_uw[kubasis];
         DRV kbasis_grad_uw = basis_grad_uw[kubasis];
         
-        for( int i=0; i<knbasis; i++ ) {
+        for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             if (seedu) {
               uval = AD(maxDerivs,offsets(k,i),u(e,k,i));
@@ -975,10 +975,10 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
               u_dotval = u_dot(e,k,i);
             }
             
-            for( size_t j=0; j<numip; j++ ) {
+            for (size_t j=0; j<numip; j++ ) {
               local_soln(e,k,j,0) += uval*kbasis_uw(e,i,j);
               local_soln_dot(e,k,j,0) += u_dotval*kbasis_uw(e,i,j);
-              for( int s=0; s<dimension; s++ ) {
+              for (int s=0; s<dimension; s++ ) {
                 local_soln_grad(e,k,j,s) += uval*kbasis_grad_uw(e,i,j,s);
                 //local_soln_dot_grad(e,k,j,s) += u_dotval*kbasis_grad_uw(e,i,j,s);
               }
@@ -990,7 +990,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         DRV kbasis_uw = basis_uw[kubasis];
         DRV kbasis_div_uw = basis_div_uw[kubasis];
         
-        for( int i=0; i<knbasis; i++ ) {
+        for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             
             if (seedu) {
@@ -1006,8 +1006,8 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
               u_dotval = u_dot(e,k,i);
             }
             
-            for( size_t j=0; j<numip; j++ ) {
-              for( int s=0; s<dimension; s++ ) {
+            for (size_t j=0; j<numip; j++ ) {
+              for (int s=0; s<dimension; s++ ) {
                 local_soln(e,k,j,s) += uval*kbasis_uw(e,i,j,s);
                 local_soln_dot(e,k,j,s) += u_dotval*kbasis_uw(e,i,j,s);
               }
@@ -1020,7 +1020,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         DRV kbasis_uw = basis_uw[kubasis];
         DRV kbasis_curl_uw = basis_curl_uw[kubasis];
         
-        for( int i=0; i<knbasis; i++ ) {
+        for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             
             if (seedu) {
@@ -1036,8 +1036,8 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
               u_dotval = u_dot(e,k,i);
             }
             
-            for( size_t j=0; j<numip; j++ ) {
-              for( int s=0; s<dimension; s++ ) {
+            for (size_t j=0; j<numip; j++ ) {
+              for (int s=0; s<dimension; s++ ) {
                 local_soln(e,k,j,s) += uval*kbasis_uw(e,i,j,s);
                 local_soln_dot(e,k,j,s) += u_dotval*kbasis_uw(e,i,j,s);
                 local_soln_curl(e,k,j,s) += uval*kbasis_curl_uw(e,i,j,s);
@@ -1084,7 +1084,7 @@ void workset::computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param, c
       DRV pbasis = param_basis[kpbasis];
       DRV pbasis_grad = param_basis_grad[kpbasis];
       
-      for( int i=0; i<knpbasis; i++ ) {
+      for (int i=0; i<knpbasis; i++ ) {
         for (int e=0; e<numElem; e++) {
           
           if (seedparams) {
@@ -1093,9 +1093,9 @@ void workset::computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param, c
           else {
             paramval = param(e,k,i);
           }
-          for( size_t j=0; j<numip; j++ ) {
+          for (size_t j=0; j<numip; j++ ) {
             local_param(e,k,j) += paramval*pbasis(e,i,j);
-            for( int s=0; s<dimension; s++ ) {
+            for (int s=0; s<dimension; s++ ) {
               local_param_grad(e,k,j,s) += paramval*pbasis_grad(e,i,j,s);
             }
           }
@@ -1140,7 +1140,7 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<ScalarT***,Assemb
       if (kutype == "HGRAD") {
         DRV kbasis_uw = basis_side_uw[kubasis];
         DRV kbasis_grad_uw = basis_grad_side_uw[kubasis];
-        for( int i=0; i<knbasis; i++ ) {
+        for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             
             if (seedu) {
@@ -1155,10 +1155,10 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<ScalarT***,Assemb
             //else {
             //  u_dotval = u_dot(e,k,i);
             //}
-            for( size_t j=0; j<numsideip; j++ ) {
+            for (size_t j=0; j<numsideip; j++ ) {
               local_soln_side(e,k,j,0) += uval*kbasis_uw(e,i,j);
               //local_soln_dot_side(e,k,j,0) += u_dotval*kbasis_uw(e,i,j);
-              for( int s=0; s<dimension; s++ ) {
+              for (int s=0; s<dimension; s++ ) {
                 local_soln_grad_side(e,k,j,s) += uval*kbasis_grad_uw(e,i,j,s);
               }
             }
@@ -1170,7 +1170,7 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<ScalarT***,Assemb
         /*
          DRV kbasis_uw = ref_basis_side[side][kubasis];
          
-         for( int i=0; i<knbasis; i++ ) {
+         for (int i=0; i<knbasis; i++ ) {
          for (int e=0; e<numElem; e++) {
          
          if (seedu) {
@@ -1185,8 +1185,8 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<ScalarT***,Assemb
          else {
          u_dotval = u_dot(e,k,i);
          }
-         for( size_t j=0; j<numsideip; j++ ) {
-         for( int s=0; s<dimension; s++ ) {
+         for (size_t j=0; j<numsideip; j++ ) {
+         for (int s=0; s<dimension; s++ ) {
          local_soln_side(e,k,j,s) += uval*kbasis_uw(e,i,j,s);
          local_soln_dot_side(e,k,j,s) += u_dotval*kbasis_uw(e,i,j,s);
          }
@@ -1201,7 +1201,7 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<ScalarT***,Assemb
         /*
          DRV kbasis_uw = ref_basis_side[side][kubasis];
          
-         for( int i=0; i<knbasis; i++ ) {
+         for (int i=0; i<knbasis; i++ ) {
          for (int e=0; e<numElem; e++) {
          
          if (seedu) {
@@ -1216,8 +1216,8 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<ScalarT***,Assemb
          else {
          u_dotval = u_dot(e,k,i);
          }
-         for( size_t j=0; j<numsideip; j++ ) {
-         for( int s=0; s<dimension; s++ ) {
+         for (size_t j=0; j<numsideip; j++ ) {
+         for (int s=0; s<dimension; s++ ) {
          local_soln_side(e,k,j,s) += uval*kbasis_uw(e,i,j,s);
          local_soln_dot_side(e,k,j,s) += u_dotval*kbasis_uw(e,i,j,s);
          }
@@ -1265,7 +1265,7 @@ void workset::computeParamSideIP(const int & side, Kokkos::View<ScalarT***,Assem
       DRV pbasis = param_basis_side[kpbasis];
       DRV pbasis_grad = param_basis_grad_side[kpbasis];
       
-      for( int i=0; i<knpbasis; i++ ) {
+      for (int i=0; i<knpbasis; i++ ) {
         for (int e=0; e<numElem; e++) {
           if (seedparams) {
             paramval = AD(maxDerivs,paramoffsets(k,i),param(e,k,i));
@@ -1274,9 +1274,9 @@ void workset::computeParamSideIP(const int & side, Kokkos::View<ScalarT***,Assem
             paramval = param(e,k,i);
           }
           
-          for( size_t j=0; j<numsideip; j++ ) {
+          for (size_t j=0; j<numsideip; j++ ) {
             local_param_side(e,k,j) += paramval*pbasis(e,i,j);
-            for( int s=0; s<dimension; s++ ) {
+            for (int s=0; s<dimension; s++ ) {
               local_param_grad_side(e,k,j,s) += paramval*pbasis_grad(e,i,j,s);
             }
           }
@@ -1321,14 +1321,14 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
         DRV kbasis_uw = basis_side_uw[kubasis];
         DRV kbasis_grad_uw = basis_grad_side_uw[kubasis];
         
-        for( int i=0; i<knbasis; i++ ) {
+        for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             uval = u_AD(e,k,i);
             u_dotval = u_dot_AD(e,k,i);
-            for( size_t j=0; j<numsideip; j++ ) {
+            for (size_t j=0; j<numsideip; j++ ) {
               local_soln_side(e,k,j,0) += uval*kbasis_uw(e,i,j);
               local_soln_dot_side(e,k,j,0) += u_dotval*kbasis_uw(e,i,j);
-              for( int s=0; s<dimension; s++ ) {
+              for (int s=0; s<dimension; s++ ) {
                 local_soln_grad_side(e,k,j,s) += uval*kbasis_grad_uw(e,i,j,s);
               }
             }
@@ -1337,12 +1337,12 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
       }
       else if (kutype == "HDIV"){
         DRV kbasis_uw = ref_basis_side[side][kubasis];
-        for( int i=0; i<knbasis; i++ ) {
+        for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             uval = u_AD(e,k,i);
             u_dotval = u_dot_AD(e,k,i);
-            for( size_t j=0; j<numsideip; j++ ) {
-              for( int s=0; s<dimension; s++ ) {
+            for (size_t j=0; j<numsideip; j++ ) {
+              for (int s=0; s<dimension; s++ ) {
                 local_soln_side(e,k,j,s) += uval*kbasis_uw(e,i,j,s);
                 local_soln_dot_side(e,k,j,s) += u_dotval*kbasis_uw(e,i,j,s);
               }
@@ -1353,12 +1353,12 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
       else if (kutype == "HCURL"){
         DRV kbasis_uw = ref_basis_side[side][kubasis];
         
-        for( int i=0; i<knbasis; i++ ) {
+        for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             uval = u_AD(e,k,i);
             u_dotval = u_dot_AD(e,k,i);
-            for( size_t j=0; j<numsideip; j++ ) {
-              for( int s=0; s<dimension; s++ ) {
+            for (size_t j=0; j<numsideip; j++ ) {
+              for (int s=0; s<dimension; s++ ) {
                 local_soln_side(e,k,j,s) += uval*kbasis_uw(e,i,j,s);
                 local_soln_dot_side(e,k,j,s) += u_dotval*kbasis_uw(e,i,j,s);
               }
@@ -1396,12 +1396,12 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
       DRV pbasis = param_basis[kpbasis];
       DRV pbasis_grad = param_basis_grad[kpbasis];
       
-      for( int i=0; i<knpbasis; i++ ) {
+      for (int i=0; i<knpbasis; i++ ) {
         for (int e=0; e<numElem; e++) {
           paramval = param_AD(e,k,i);
-          for( size_t j=0; j<numsideip; j++ ) {
+          for (size_t j=0; j<numsideip; j++ ) {
             local_param_side(e,k,j) += paramval*pbasis(e,i,j);
-            for( int s=0; s<dimension; s++ ) {
+            for (int s=0; s<dimension; s++ ) {
               local_param_grad_side(e,k,j,s) += paramval*pbasis_grad(e,i,j,s);
             }
           }

@@ -70,8 +70,8 @@ public:
     
     // Need to copy the data since index_ is rewritten for each cell
     parallel_for(RangePolicy<AssemblyDevice>(0,index_.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int j=0; j<index_.dimension(1); j++) {
-        for (int k=0; k<index_.dimension(2); k++) {
+      for (unsigned int j=0; j<index_.dimension(1); j++) {
+        for (unsigned int k=0; k<index_.dimension(2); k++) {
           index(e,j,k) = index_(e,j,k);
         }
       }
@@ -93,8 +93,8 @@ public:
     
     // Need to copy the data since index_ is rewritten for each cell
     parallel_for(RangePolicy<AssemblyDevice>(0,pindex_.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int j=0; j<pindex_.dimension(1); j++) {
-        for (int k=0; k<pindex_.dimension(2); k++) {
+      for (unsigned int j=0; j<pindex_.dimension(1); j++) {
+        for (unsigned int k=0; k<pindex_.dimension(2); k++) {
           paramindex(e,j,k) = pindex_(e,j,k);
         }
       }
@@ -115,8 +115,8 @@ public:
     
     // Need to copy the data since index_ is rewritten for each cell
     parallel_for(RangePolicy<AssemblyDevice>(0,aindex_.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int j=0; j<aindex_.dimension(1); j++) {
-        for (int k=0; k<aindex_.dimension(2); k++) {
+      for (unsigned int j=0; j<aindex_.dimension(1); j++) {
+        for (unsigned int k=0; k<aindex_.dimension(2); k++) {
           auxindex(e,j,k) = aindex_(e,j,k);
         }
       }
@@ -127,7 +127,7 @@ public:
     //numAuxDOF = anumDOF_;
     // Temp. fix
     numAuxDOF = Kokkos::View<int*,HostDevice>("numAuxDOF",auxindex.dimension(1));
-    for (int i=0; i<auxindex.dimension(1); i++) {
+    for (unsigned int i=0; i<auxindex.dimension(1); i++) {
       numAuxDOF(i) = auxindex.dimension(2);
     }
     
