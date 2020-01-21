@@ -39,6 +39,9 @@ static void physicsHelp(const string & details) {
   else if (details == "msphasefield") {
     msphasefieldHelp();
   }
+  else if (details == "stokes") {
+    stokesHelp();
+  }
   else if (details == "navierstokes") {
     navierstokesHelp();
   }

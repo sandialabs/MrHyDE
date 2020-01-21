@@ -32,6 +32,7 @@
 //#include "burgers.hpp"
 //#include "phasefield.hpp"
 #include "msphasefield.hpp"
+#include "stokes.hpp"
 #include "navierstokes.hpp"
 //#include "euler.hpp"
 #include "linearelasticity.hpp"
@@ -504,6 +505,16 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
     currSubgrid.push_back(currsettings.get<bool>("subgrid_msphasefield",false));
   }
   
+  // Stokes
+  if (currsettings.get<bool>("solve_stokes",false)) {
+    Teuchos::RCP<stokes> stokes_RCP = Teuchos::rcp(new stokes(settings, numip, numip_side,
+                                                                                numElemPerCell, functionManager,
+                                                                                blocknum) );
+
+    currmodules.push_back(stokes_RCP);
+    currSubgrid.push_back(currsettings.get<bool>("subgrid_stokes",false));
+  }
+
   // Navier Stokes
   if (currsettings.get<bool>("solve_navierstokes",false)) {
     Teuchos::RCP<navierstokes> navierstokes_RCP = Teuchos::rcp(new navierstokes(settings, numip, numip_side,
