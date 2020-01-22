@@ -64,3 +64,5 @@ navierstokes/channel               | tmwilde                   | 2D steady-state
 shallowwater/droptest              | tmwilde                   | 2D transient benchmark problem for shallow water equations.
                                    |                           | The analytical solution is not known, but results agree with
                                    |                           | literature.  No multi scale in this test.
+stokes/channel                     | gbharpe                   | 2D steady-state problem for Stokes flow.
+                                   |                           | Almost the same as navierstokes/channel.

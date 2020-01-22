@@ -222,7 +222,7 @@ void FunctionInterface::decomposeFunctions() {
           
           // IS IT ONE OF THE VARIABLES (
           if (decompose) {
-            for (int j=0; j<variables.size(); j++) {
+            for (unsigned int j=0; j<variables.size(); j++) {
               if (functions[b][fiter].terms[k].expression == variables[j]) { // just scalar variables
                 functions[b][fiter].terms[k].isRoot = true;
                 functions[b][fiter].terms[k].isAD = true;
@@ -362,7 +362,7 @@ void FunctionInterface::decomposeFunctions() {
           // check if it is a discretized parameter
           if (decompose) { // TMW: NOT UPDATED FOR PARAM GRAD
             
-            for (int j=0; j<disc_parameters.size(); j++) {
+            for (unsigned int j=0; j<disc_parameters.size(); j++) {
               if (functions[b][fiter].terms[k].expression == disc_parameters[j]) {
                 functions[b][fiter].terms[k].isRoot = true;
                 functions[b][fiter].terms[k].isAD = true;
@@ -386,7 +386,7 @@ void FunctionInterface::decomposeFunctions() {
           // check if it is a parameter
           if (decompose) {
             
-            for (int j=0; j<parameters.size(); j++) {
+            for (unsigned int j=0; j<parameters.size(); j++) {
               
               if (functions[b][fiter].terms[k].expression == parameters[j]) {
                 functions[b][fiter].terms[k].isRoot = true;
@@ -478,7 +478,7 @@ void FunctionInterface::decomposeFunctions() {
           
           // check if it is a function
           if (decompose) {
-            for (int j=0; j<functions[b].size(); j++) {
+            for (unsigned int j=0; j<functions[b].size(); j++) {
               if (functions[b][fiter].terms[k].expression == functions[b][j].function_name &&
                   functions[b][fiter].location == functions[b][j].location) {
                 functions[b][fiter].terms[k].isFunc = true;
@@ -599,7 +599,7 @@ FDATA FunctionInterface::evaluate(const string & fname, const string & location,
   
   if (!functions[block][findex].terms[0].isAD) {
     parallel_for(RangePolicy<AssemblyDevice>(0,functions[block][findex].dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<functions[block][findex].dim1; n++) {
+      for (unsigned int n=0; n<functions[block][findex].dim1; n++) {
         functions[block][findex].terms[0].data(e,n) = functions[block][findex].terms[0].ddata(e,n);
       }
     });
@@ -624,14 +624,14 @@ void FunctionInterface::evaluate(const size_t & block, const size_t & findex, co
     if (functions[block][findex].terms[tindex].isScalar && !functions[block][findex].terms[tindex].isConstant) {
       if (functions[block][findex].terms[tindex].isAD) {
         parallel_for(RangePolicy<AssemblyDevice>(0,functions[block][findex].dim0), KOKKOS_LAMBDA (const int e ) {
-          for (int n=0; n<functions[block][findex].dim1; n++) {
+          for (unsigned int n=0; n<functions[block][findex].dim1; n++) {
             functions[block][findex].terms[tindex].data(e,n) = functions[block][findex].terms[tindex].scalar_data(0);
           }
         });
       }
       else {
         parallel_for(RangePolicy<AssemblyDevice>(0,functions[block][findex].dim0), KOKKOS_LAMBDA (const int e ) {
-          for (int n=0; n<functions[block][findex].dim1; n++) {
+          for (unsigned int n=0; n<functions[block][findex].dim1; n++) {
             functions[block][findex].terms[tindex].ddata(e,n) = functions[block][findex].terms[tindex].scalar_ddata(0);
           }
         });
@@ -647,7 +647,7 @@ void FunctionInterface::evaluate(const size_t & block, const size_t & findex, co
       }
       else {
         parallel_for(RangePolicy<AssemblyDevice>(0,functions[block][findex].dim0), KOKKOS_LAMBDA (const int e ) {
-          for (int n=0; n<functions[block][findex].dim1; n++) {
+          for (unsigned int n=0; n<functions[block][findex].dim1; n++) {
             functions[block][findex].terms[tindex].data(e,n) = functions[block][funcIndex].terms[0].ddata(e,n);
           }
         });
@@ -698,84 +698,84 @@ void FunctionInterface::evaluateOp(T1 data, T2 tdata, const string & op) {
   
   if (op == "") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = tdata(e,n);
       }
     });
   }
   else if (op == "plus") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         data(e,n) += tdata(e,n);
       }
     });
   }
   else if (op == "minus") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         data(e,n) += -tdata(e,n);
       }
     });
   }
   else if (op == "times") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         data(e,n) *= tdata(e,n);
       }
     });
   }
   else if (op == "divide") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         data(e,n) /= tdata(e,n);
       }
     });
   }
   else if (op == "power") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = pow(data(e,n),tdata(e,n));
       }
     });
   }
   else if (op == "sin") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = sin(tdata(e,n));
       }
     });
   }
   else if (op == "cos") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = cos(tdata(e,n));
       }
     });
   }
   else if (op == "tan") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = tan(tdata(e,n));
       }
     });
   }
   else if (op == "exp") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = exp(tdata(e,n));
       }
     });
   }
   else if (op == "log") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = log(tdata(e,n));
       }
     });
   }
   else if (op == "abs") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         if (tdata(e,n) < 0.0) {
           data(e,n) = -tdata(e,n);
         }
@@ -788,12 +788,12 @@ void FunctionInterface::evaluateOp(T1 data, T2 tdata, const string & op) {
   else if (op == "max") { // maximum over rows ... usually corr. to max over element/face at ip
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       data(e,0) = tdata(e,0);
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         if (tdata(e,n) > tdata(e,0)) {
           data(e,0) = tdata(e,n);
         }
       }
-      for (int n=0; n<dim1; n++) { // copy max value at all ip
+      for (unsigned int n=0; n<dim1; n++) { // copy max value at all ip
         data(e,n) = data(e,0);
       }
     });
@@ -801,12 +801,12 @@ void FunctionInterface::evaluateOp(T1 data, T2 tdata, const string & op) {
   else if (op == "min") { // minimum over rows ... usually corr. to min over element/face at ip
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       data(e,0) = tdata(e,0);
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         if (tdata(e,n) < tdata(e,0)) {
           data(e,0) = tdata(e,n);
         }
       }
-      for (int n=0; n<dim1; n++) { // copy min value at all ip
+      for (unsigned int n=0; n<dim1; n++) { // copy min value at all ip
         data(e,n) = data(e,0);
       }
     });
@@ -815,17 +815,17 @@ void FunctionInterface::evaluateOp(T1 data, T2 tdata, const string & op) {
     double scale = (double)dim1;
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       data(e,0) = tdata(e,0)/scale;
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         data(e,0) += tdata(e,n)/scale;
       }
-      for (int n=0; n<dim1; n++) { // copy max value at all ip
+      for (unsigned int n=0; n<dim1; n++) { // copy max value at all ip
         data(e,n) = data(e,0);
       }
     });
   }
   else if (op == "lt") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         if (data(e,n) < tdata(e,n)) {
           data(e,n) = 1.0;
         }
@@ -837,7 +837,7 @@ void FunctionInterface::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "lte") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         if (data(e,n) <= tdata(e,n)) {
           data(e,n) = 1.0;
         }
@@ -849,7 +849,7 @@ void FunctionInterface::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "gt") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         if (data(e,n) > tdata(e,n)) {
           data(e,n) = 1.0;
         }
@@ -861,7 +861,7 @@ void FunctionInterface::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "gte") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<dim1; n++) {
+      for (unsigned int n=0; n<dim1; n++) {
         if (data(e,n) >= tdata(e,n)) {
           data(e,n) = 1.0;
         }

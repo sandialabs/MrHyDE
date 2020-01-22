@@ -39,9 +39,9 @@ public:
     
     if (subshape == shape) {
       vector<GO> newconn;
-      for (int i=0; i<nodes.dimension(1); i++) {
+      for (unsigned int i=0; i<nodes.dimension(1); i++) {
         vector<ScalarT> newnode;
-        for (int s=0; s<dimension; s++) {
+        for (unsigned int s=0; s<dimension; s++) {
           newnode.push_back(nodes(0,i,s));
         }
         subnodes.push_back(newnode);
@@ -72,9 +72,9 @@ public:
       else if (dimension == 2) {
         if (shape == "quad" && subshape == "tri") {
           vector<GO> newconn0, newconn1, newconn2, newconn3;
-          for (int i=0; i<nodes.dimension(1); i++) {
+          for (unsigned int i=0; i<nodes.dimension(1); i++) {
             vector<ScalarT> newnode;
-            for (int s=0; s<dimension; s++) {
+            for (unsigned int s=0; s<dimension; s++) {
               newnode.push_back(nodes(0,i,s));
             }
             subnodes.push_back(newnode);
@@ -142,10 +142,10 @@ public:
         }
         else if (shape == "tri" && subshape == "quad") {
           vector<GO> newconn0, newconn1, newconn2;
-          for (int i=0; i<nodes.dimension(1); i++) {
+          for (unsigned int i=0; i<nodes.dimension(1); i++) {
             vector<ScalarT> newnode;
             
-            for (int s=0; s<dimension; s++) {
+            for (unsigned int s=0; s<dimension; s++) {
               newnode.push_back(nodes(0,i,s));
             }
             subnodes.push_back(newnode);
@@ -281,7 +281,7 @@ public:
       Kokkos::deep_copy(newsi0,oldsi);
       Kokkos::deep_copy(newsi1,oldsi);
       
-      for (int n=0; n<oldsi.dimension(1); n++) {
+      for (unsigned int n=0; n<oldsi.dimension(1); n++) {
         newsi0(0,n,1,0) = 0;
         newsi0(0,n,1,1) = 0;
         newsi1(0,n,0,0) = 0;
@@ -365,7 +365,7 @@ public:
         Kokkos::deep_copy(newsi2,oldsi);
         Kokkos::deep_copy(newsi3,oldsi);
         
-        for (int n=0; n<oldsi.dimension(1); n++) {
+        for (unsigned int n=0; n<oldsi.dimension(1); n++) {
           newsi0(0,n,1,0) = 0;
           newsi0(0,n,1,1) = 0;
           newsi1(0,n,1,0) = 0;
@@ -480,7 +480,7 @@ public:
         Kokkos::deep_copy(newsi2,oldsi);
         Kokkos::deep_copy(newsi3,oldsi);
         
-        for (int n=0; n<oldsi.dimension(1); n++) {
+        for (unsigned int n=0; n<oldsi.dimension(1); n++) {
           newsi0(0,n,1,0) = 0;
           newsi0(0,n,1,1) = 0;
           newsi0(0,n,2,0) = 0;
@@ -653,7 +653,7 @@ public:
         Kokkos::deep_copy(newsi6,oldsi);
         Kokkos::deep_copy(newsi7,oldsi);
         
-        for (int n=0; n<oldsi.dimension(1); n++) {
+        for (unsigned int n=0; n<oldsi.dimension(1); n++) {
           newsi0(0,n,2,0) = 0;
           newsi0(0,n,2,1) = 0;
           newsi1(0,n,2,0) = 0;
@@ -995,7 +995,7 @@ public:
         
         // order = 0145, 1256, 2367, 0367, 0123, 4567
         // order = bottom, right, top, left, back, front
-        for (int n=0; n<oldsi.dimension(1); n++) {
+        for (unsigned int n=0; n<oldsi.dimension(1); n++) {
           newsi0(0,n,1,0) = 0;
           newsi0(0,n,1,1) = 0;
           newsi0(0,n,2,0) = 0;
@@ -1076,7 +1076,7 @@ public:
                              const ScalarT & tol, int & index) {
     bool found = false;
     int dimension = newpt.size();
-    for (int i=0; i<subnodes.size(); i++) {
+    for (unsigned int i=0; i<subnodes.size(); i++) {
       if (!found) {
         ScalarT val = 0.0;
         for (int j=0; j<dimension; j++) {
@@ -1114,10 +1114,10 @@ public:
   Kokkos::View<int****,HostDevice> getSubSideinfo() {
     Kokkos::View<int****,HostDevice> ksubsideinfo("subgrid side info",subsideinfo.size(),
                                                   sideinfo.dimension(1),sideinfo.dimension(2),2);
-    for (int e=0; e<ksubsideinfo.dimension(0); e++) {
-      for (int i=0; i<ksubsideinfo.dimension(1); i++) {
-        for (int j=0; j<ksubsideinfo.dimension(2); j++) {
-          for (int k=0; k<ksubsideinfo.dimension(3); k++) {
+    for (unsigned int e=0; e<ksubsideinfo.dimension(0); e++) {
+      for (unsigned int i=0; i<ksubsideinfo.dimension(1); i++) {
+        for (unsigned int j=0; j<ksubsideinfo.dimension(2); j++) {
+          for (unsigned int k=0; k<ksubsideinfo.dimension(3); k++) {
             ksubsideinfo(e,i,j,k) = subsideinfo[e](0,i,j,k);
           }
         }
