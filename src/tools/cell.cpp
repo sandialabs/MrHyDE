@@ -833,14 +833,17 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::computeError(const ScalarT & solvet
      */
     
     if (error_type == "L2") {
-      Kokkos::View<ScalarT***,AssemblyDevice> truesol("true solution",numElem,index.dimension(1),numip);
+      Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index.dimension(1),
+                                                      numip,cellData->dimension);
       cellData->physics_RCP->trueSolution(cellData->myBlock, solvetime, truesol);
       //KokkosTools::print(wkset->local_soln);
       for (int e=0; e<numElem; e++) {
         for (int n=0; n<index.dimension(1); n++) {
           for( size_t j=0; j<numip; j++ ) {
-            ScalarT diff = wkset->local_soln(e,n,j,0).val() - truesol(e,n,j);
-            errors(e,n) += diff*diff*wkset->wts(e,j);
+            for (size_t d=0; d<wkset->local_soln.dimension(3); d++) {
+              ScalarT diff = wkset->local_soln(e,n,j,d).val() - truesol(e,n,j,d);
+              errors(e,n) += diff*diff*wkset->wts(e,j);
+            }
           }
         }
       }

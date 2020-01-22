@@ -168,17 +168,30 @@ Commptr(Comm_), functionManager(functionManager_) {
     Teuchos::ParameterList true_solns = blocksettings.sublist("true solutions");
     for (size_t j=0; j<currvarlist.size(); j++) {
       
-      string expression = true_solns.get<string>(currvarlist[j],"0.0");
-      functionManager->addFunction("true "+currvarlist[j],expression,numElemPerCell,numip,"ip",b);
-      
-      expression = true_solns.get<string>(currvarlist[j]+"_x","0.0");
-      functionManager->addFunction("true "+currvarlist[j]+"_x",expression,numElemPerCell,numip,"ip",b);
-      
-      expression = true_solns.get<string>(currvarlist[j]+"_y","0.0");
-      functionManager->addFunction("true "+currvarlist[j]+"_y",expression,numElemPerCell,numip,"ip",b);
-      
-      expression = true_solns.get<string>(currvarlist[j]+"_z","0.0");
-      functionManager->addFunction("true "+currvarlist[j]+"_z",expression,numElemPerCell,numip,"ip",b);
+      if (currtypes[j] == "HGRAD" || currtypes[j] == "HVOL") {
+        string expression = true_solns.get<string>(currvarlist[j],"0.0");
+        functionManager->addFunction("true "+currvarlist[j],expression,numElemPerCell,numip,"ip",b);
+        
+        expression = true_solns.get<string>(currvarlist[j]+"_x","0.0");
+        functionManager->addFunction("true "+currvarlist[j]+"_x",expression,numElemPerCell,numip,"ip",b);
+        
+        expression = true_solns.get<string>(currvarlist[j]+"_y","0.0");
+        functionManager->addFunction("true "+currvarlist[j]+"_y",expression,numElemPerCell,numip,"ip",b);
+        
+        expression = true_solns.get<string>(currvarlist[j]+"_z","0.0");
+        functionManager->addFunction("true "+currvarlist[j]+"_z",expression,numElemPerCell,numip,"ip",b);
+      }
+      else if (currtypes[j] == "HDIV" || currtypes[j] == "HCURL") {
+        
+        string expression = true_solns.get<string>(currvarlist[j]+"x","0.0");
+        functionManager->addFunction("true "+currvarlist[j]+"x",expression,numElemPerCell,numip,"ip",b);
+        
+        expression = true_solns.get<string>(currvarlist[j]+"y","0.0");
+        functionManager->addFunction("true "+currvarlist[j]+"y",expression,numElemPerCell,numip,"ip",b);
+        
+        expression = true_solns.get<string>(currvarlist[j]+"z","0.0");
+        functionManager->addFunction("true "+currvarlist[j]+"z",expression,numElemPerCell,numip,"ip",b);
+      }
     }
     
     // Add initial conditions
@@ -720,14 +733,44 @@ int physics::getNumResponses(const int & block, const string & var) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 void physics::trueSolution(const int & block, const ScalarT & time,
-                           Kokkos::View<ScalarT***,AssemblyDevice> truesol) {
+                           Kokkos::View<ScalarT****,AssemblyDevice> truesol) {
   
   for (int v=0; v<varlist[block].size(); v++) {
-    string expression = "true " + varlist[block][v];
-    FDATA tsol = functionManager->evaluate(expression,"ip",block);
-    for (size_t i=0; i<truesol.dimension(0); i++) {
-      for (size_t j=0; j<truesol.dimension(2); j++) {
-        truesol(i,v,j) = tsol(i,j).val();
+    string btype = types[block][v];
+    if (btype == "HGRAD" || btype == "HVOL") {
+      string expression = "true " + varlist[block][v];
+      FDATA tsol = functionManager->evaluate(expression,"ip",block);
+      for (size_t i=0; i<truesol.dimension(0); i++) {
+        for (size_t j=0; j<truesol.dimension(2); j++) {
+          truesol(i,v,j,0) = tsol(i,j).val();
+        }
+      }
+    }
+    else if (btype == "HDIV" || btype == "HCURL") {
+      string expression = "true " + varlist[block][v] + "x";
+      FDATA tsol = functionManager->evaluate(expression,"ip",block);
+      for (size_t i=0; i<truesol.dimension(0); i++) {
+        for (size_t j=0; j<truesol.dimension(2); j++) {
+          truesol(i,v,j,0) = tsol(i,j).val();
+        }
+      }
+      if (spaceDim > 1){
+        string expression = "true " + varlist[block][v] + "y";
+        FDATA tsol = functionManager->evaluate(expression,"ip",block);
+        for (size_t i=0; i<truesol.dimension(0); i++) {
+          for (size_t j=0; j<truesol.dimension(2); j++) {
+            truesol(i,v,j,1) = tsol(i,j).val();
+          }
+        }
+      }
+      if (spaceDim > 2) {
+        string expression = "true " + varlist[block][v] + "z";
+        FDATA tsol = functionManager->evaluate(expression,"ip",block);
+        for (size_t i=0; i<truesol.dimension(0); i++) {
+          for (size_t j=0; j<truesol.dimension(2); j++) {
+            truesol(i,v,j,2) = tsol(i,j).val();
+          }
+        }
       }
     }
   }
