@@ -889,6 +889,8 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     NLiter++; // increment number of iterations
   } // while loop
   
+  //KokkosTools::print(u);
+  
   if(Comm->getRank() == 0) {
     if (!useadjoint) {
       if( (NLiter>MaxNLiter || NLerr_scaled[0]>NLtol) && verbosity > 1) {

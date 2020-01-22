@@ -207,11 +207,11 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
       cells[b][e]->sidenames = phys->sideSets;
       //-----------------------------------------------
       
-      // Set the cell orientation (not really used) ---
+      // Set the cell orientation ---
       vector<vector<ScalarT> > cellOrient;
       for (int i=0; i<numElem; i++) {
         vector<ScalarT> orient;
-        size_t elemID = this->myElements[b][eprog+i];
+        size_t elemID = localEID(i);//this->myElements[b][eprog+i];
         DOF->getElementOrientation(elemID, orient);
         cellOrient.push_back(orient);
       }

@@ -310,8 +310,27 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
   for(std::size_t i=0;i<eBlocks.size();i++) {
     
     std::vector<string> varlist = phys->varlist[i];
+    std::vector<string> vartypes = phys->types[i];
+    
     for (size_t j=0; j<varlist.size(); j++) {
-      mesh->addSolutionField(varlist[j], eBlocks[i]);
+      if (vartypes[j] == "HGRAD") {
+        mesh->addSolutionField(varlist[j], eBlocks[i]);
+      }
+      else if (vartypes[j] == "HVOL") { // PW constant
+        mesh->addCellField(varlist[j], eBlocks[i]);
+      }
+      else if (vartypes[j] == "HFACE") { // hybridized variable
+        mesh->addSolutionField(varlist[j], eBlocks[i]);
+        mesh->addCellField(varlist[j], eBlocks[i]);
+      }
+      else { // HDIV or HCURL
+        mesh->addSolutionField(varlist[j]+"x", eBlocks[i]);
+        mesh->addSolutionField(varlist[j]+"y", eBlocks[i]);
+        mesh->addSolutionField(varlist[j]+"z", eBlocks[i]);
+        mesh->addCellField(varlist[j]+"x", eBlocks[i]);
+        mesh->addCellField(varlist[j]+"y", eBlocks[i]);
+        mesh->addCellField(varlist[j]+"z", eBlocks[i]);
+      }
     }
     mesh->addSolutionField("dispx", eBlocks[i]);
     mesh->addSolutionField("dispy", eBlocks[i]);

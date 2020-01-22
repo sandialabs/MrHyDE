@@ -45,8 +45,17 @@ public:
     
     myvars.push_back("p");
     myvars.push_back("u");
-    mybasistypes.push_back("HGRAD");
+    mybasistypes.push_back("HVOL");
     mybasistypes.push_back("HDIV");
+    
+    dxnum = 0;
+    dynum = 0;
+    dznum = 0;
+    
+    // Functions
+    Teuchos::ParameterList fs = settings->sublist("Functions");
+    
+    functionManager->addFunction("source",fs.get<string>("source","0.0"),numElem,numip,"ip",blocknum);
     
   }
   
@@ -62,6 +71,11 @@ public:
     int p_basis = wkset->usebasis[pnum];
     int u_basis = wkset->usebasis[unum];
     
+    {
+      Teuchos::TimeMonitor funceval(*volumeResidualFunc);
+      source = functionManager->evaluate("source","ip",blocknum);
+    }
+    
     basis = wkset->basis[u_basis];
     basis_div = wkset->basis_div[u_basis];
     
@@ -72,17 +86,18 @@ public:
       ScalarT vy = 0.0;
       ScalarT vz = 0.0;
       ScalarT divv = 0.0;
+      AD uy = 0.0, uz = 0.0;
       
       for (int k=0; k<sol.dimension(2); k++ ) {
         for (int i=0; i<basis.dimension(1); i++ ) {
           AD p = sol(e,pnum,k,0);
           AD ux = sol(e,unum,k,0);
-          AD uy, uz;
+          
           if (spaceDim > 1) {
-            uy = wkset->local_soln(e,unum,k,1);
+            uy = sol(e,unum,k,1);
           }
           if (spaceDim > 2) {
-            uz = wkset->local_soln(e,unum,k,2);
+            uz = sol(e,unum,k,2);
           }
           
           vx = basis(e,i,k,0);
@@ -109,10 +124,10 @@ public:
       
       for (int k=0; k<sol.dimension(2); k++ ) {
         for (int i=0; i<basis.dimension(1); i++ ) {
-          ScalarT v = basis(e,i,k);
+          ScalarT v = basis(e,i,k,0);
           AD divu = sol_div(e,unum,k);
           int resindex = offsets(pnum,i);
-          res(e,resindex) += -divu*v + 1.0*v;
+          res(e,resindex) += -divu*v + source(e,k)*v;
         }
       }
     });
@@ -165,6 +180,7 @@ private:
   
   int spaceDim, numElem, numParams, numResponses, numSteps;
   size_t numip, numip_side, blocknum;
+  FDATA source;
   
   int pnum, unum;
   int dxnum,dynum,dznum;
@@ -172,6 +188,9 @@ private:
   ScalarT biot_alpha;
   
   vector<string> varlist;
+  
+  Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV::volumeResidual() - function evaluation");
+  Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV::volumeResidual() - evaluation of residual");
   
 };
 

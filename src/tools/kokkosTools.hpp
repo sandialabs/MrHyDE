@@ -56,6 +56,25 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   
   template<class T>
+  static void print(const std::vector<T> & V, const string & message="") {
+    cout << endl;
+    cout << message << endl;
+    cout << "Printing data for std::vector: " << endl;
+    
+    cout << "  i  " << "  value  " << endl;
+    cout << "--------------------" << endl;
+    
+    for (int i=0; i<V.size(); i++) {
+      cout << "  " << i << "  " << "  " << "  " << V[i] << "  " << endl;
+    }
+    cout << "--------------------" << endl;
+    
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  template<class T>
   static void print(Kokkos::View<T**,AssemblyDevice> V, const string & message="") {
     cout << endl;
     cout << message << endl;

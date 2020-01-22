@@ -154,7 +154,7 @@ void workset::setupBasis() {
     numbasis.push_back(numb);
     
     
-    if (basis_types[i] == "HGRAD") {
+    if (basis_types[i] == "HGRAD" || basis_types[i] == "HVOL") {
       DRV basisvals("basisvals",numb, numip);
       basis_pointers[i]->getValues(basisvals, ref_ip, Intrepid2::OPERATOR_VALUE);
       DRV basisvals_Transformed("basisvals_Transformed",numElem, numb, numip);
@@ -180,8 +180,9 @@ void workset::setupBasis() {
       DRV basisvals("basisvals",numb, numip, dimension);
       basis_pointers[i]->getValues(basisvals, ref_ip, Intrepid2::OPERATOR_VALUE);
       
-      DRV basisvals_Transformed("basisvals_Transformed",numElem, numb, numip, dimension);
+      //DRV basisvals_Transformed("basisvals_Transformed",numElem, numb, numip, dimension);
       
+      /*
       parallel_for(RangePolicy<AssemblyDevice>(0,basisvals_Transformed.dimension(0)), KOKKOS_LAMBDA (const int e ) {
         for (size_t m=0; m<numb; m++) {
           for (size_t j=0; j<numip; j++) {
@@ -191,8 +192,10 @@ void workset::setupBasis() {
           }
         }
       });
+      */
+      //ref_basis.push_back(basisvals_Transformed);
       
-      ref_basis.push_back(basisvals_Transformed);
+      ref_basis.push_back(basisvals);
       basis.push_back(DRV("basis",numElem,numb,numip,dimension));
       basis_uw.push_back(DRV("basis_uw",numElem,numb,numip,dimension));
       
@@ -261,7 +264,7 @@ void workset::setupBasis() {
       Intrepid2::CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, ref_side_ip, dimension-1, s, *celltopo);
       ref_side_ip_vec.push_back(refSidePoints);
       
-      if (basis_types[i] == "HGRAD"){
+      if (basis_types[i] == "HGRAD" || basis_types[i] == "HVOL"){
         
         DRV basisvals("basisvals",numb, numsideip);
         basis_pointers[i]->getValues(basisvals, refSidePoints, Intrepid2::OPERATOR_VALUE);
@@ -421,26 +424,41 @@ void workset::update(const DRV & ip_, const DRV & jacobian, const vector<vector<
           FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_grad[i], wts, basis_grad_uw[i]);
         }
       }
+      else if (basis_types[i] == "HVOL"){
+        basis_uw[i] = ref_basis[i];
+        {
+          Teuchos::TimeMonitor updatetimer(*worksetUpdateBasisMMTimer);
+          FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis[i], wts, ref_basis[i]);
+        }
+      }
       else if (basis_types[i] == "HDIV"){
-        
         FunctionSpaceTools<AssemblyDevice>::HDIVtransformVALUE(basis_uw[i], jacobian, jacobDet, ref_basis[i]);
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis[i], wts, basis_uw[i]);
         FunctionSpaceTools<AssemblyDevice>::HDIVtransformDIV(basis_div_uw[i], jacobDet, ref_basis_div[i]);
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_div[i], wts, basis_div_uw[i]);
-        /*
-        vector<ScalarT> orient = {-1.0, -1.0, 1.0, 1.0};
+        
+        // find a variable that uses this basis (takes the last one)
+        int bindex = -1;
+        for (size_t k=0; k<usebasis.size(); k++) {
+          if (usebasis[k] == i) {
+            bindex = k;
+          }
+        }
+        
         for (int e=0; e<numElem; e++) {
-          for (size_t j=0; j<orient.size(); j++) {
+          for (size_t j=0; j<basis[i].dimension(1); j++) {
+            // divide these by 2.0 to recover same results as ACES
             for (size_t k=0; k<numip; k++) {
               for (int s=0; s<dimension; s++) {
-                basis_uw[i](e,j,k,s) *= orient[j];
-                basis[i](e,j,k,s) *= orient[j];
+                basis_uw[i](e,j,k,s) *= orientation[e][offsets(bindex,j)];
+                basis[i](e,j,k,s) *= orientation[e][offsets(bindex,j)];
               }
-              basis_div_uw[i](e,j,k) *= orient[j];
-              basis_div[i](e,j,k) *= orient[j];
+              basis_div_uw[i](e,j,k) *= orientation[e][offsets(bindex,j)];
+              basis_div[i](e,j,k) *= orientation[e][offsets(bindex,j)];
             }
+            
           }
-        }*/
+        }
         
       }
       else if (basis_types[i] == "HCURL"){
@@ -453,6 +471,7 @@ void workset::update(const DRV & ip_, const DRV & jacobian, const vector<vector<
     }
     
     for (size_t i=0; i<param_basis_pointers.size(); i++) {
+      
       FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(param_basis_grad[i], jacobInv, param_basis_grad_ref[i]);
     }
   }
@@ -579,6 +598,15 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
       FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(cbasis_grad_uw[i], bijacInv, basisgrad);
       FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(cbasis_grad[i], bwts, cbasis_grad_uw[i]);
     }
+    else if (basis_types[i] == "HVOL"){
+      int numb = basis_pointers[i]->getCardinality();
+      
+      DRV basisvals("basisvals",numb, numsideip);
+      basis_pointers[i]->getValues(basisvals, refSidePoints, OPERATOR_VALUE);
+      
+      DRV basisvals_trans("basisvals_Transformed",numBElem, numb, numsideip);
+      FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(cbasis_uw[i], basisvals);
+    }
     else if (basis_types[i] == "HDIV"){
       //FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_side[i], wts_side, ref_basis_side[s][i]);
     }
@@ -686,6 +714,10 @@ void workset::updateSide(const DRV & nodes, const DRV & ip_side_, const DRV & wt
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_side[i], wts_side, ref_basis_side[s][i]);
         FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(basis_grad_side_uw[i], sidejacobInv, ref_basis_grad_side[s][i]);
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_grad_side[i], wts_side, basis_grad_side_uw[i]);
+      }
+      else if (basis_types[i] == "HVOL"){
+        basis_side_uw[i] = ref_basis_side[s][i];
+        FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_side[i], wts_side, ref_basis_side[s][i]);
       }
       else if (basis_types[i] == "HDIV"){
         //FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_side[i], wts_side, ref_basis_side[s][i]);
@@ -884,6 +916,17 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
           }
         }
       }
+      else if (kutype == "HVOL") {
+        DRV kbasis_uw = basis_uw[kubasis];
+        for( int i=0; i<knbasis; i++ ) {
+          for (int e=0; e<numElem; e++) {
+            uval = u(e,k,i);
+            for( size_t j=0; j<numip; j++ ) {
+              local_soln(e,k,j,0) += uval*kbasis_uw(e,i,j);
+            }
+          }
+        }
+      }
       else if (basis_types[usebasis[k]] == "HDIV"){
         DRV kbasis_uw = basis_uw[kubasis];
         DRV kbasis_div_uw = basis_div_uw[kubasis];
@@ -982,6 +1025,31 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
                 local_soln_grad(e,k,j,s) += uval*kbasis_grad_uw(e,i,j,s);
                 //local_soln_dot_grad(e,k,j,s) += u_dotval*kbasis_grad_uw(e,i,j,s);
               }
+            }
+          }
+        }
+      }
+      else if (kutype == "HVOL") {
+        DRV kbasis_uw = basis_uw[kubasis];
+        
+        for( int i=0; i<knbasis; i++ ) {
+          for (int e=0; e<numElem; e++) {
+            if (seedu) {
+              uval = AD(maxDerivs,offsets(k,i),u(e,k,i));
+            }
+            else {
+              uval = u(e,k,i);
+            }
+            if (seedudot) {
+              u_dotval = AD(maxDerivs,offsets(k,i),u_dot(e,k,i));
+            }
+            else {
+              u_dotval = u_dot(e,k,i);
+            }
+            
+            for( size_t j=0; j<numip; j++ ) {
+              local_soln(e,k,j,0) += uval*kbasis_uw(e,i,j);
+              local_soln_dot(e,k,j,0) += u_dotval*kbasis_uw(e,i,j);
             }
           }
         }
@@ -1165,6 +1233,22 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<ScalarT***,Assemb
           }
         }
       }
+      else if (kutype == "HVOL") {
+        DRV kbasis_uw = basis_side_uw[kubasis];
+        for( int i=0; i<knbasis; i++ ) {
+          for (int e=0; e<numElem; e++) {
+            if (seedu) {
+              uval = AD(maxDerivs,offsets(k,i),u(e,k,i));
+            }
+            else {
+              uval = u(e,k,i);
+            }
+            for( size_t j=0; j<numsideip; j++ ) {
+              local_soln_side(e,k,j,0) += uval*kbasis_uw(e,i,j);
+            }
+          }
+        }
+      }
       else if (kutype == "HDIV"){
         
         /*
@@ -1331,6 +1415,19 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
               for( int s=0; s<dimension; s++ ) {
                 local_soln_grad_side(e,k,j,s) += uval*kbasis_grad_uw(e,i,j,s);
               }
+            }
+          }
+        }
+      }
+      else if (kutype == "HVOL") {
+        DRV kbasis_uw = basis_side_uw[kubasis];
+        for( int i=0; i<knbasis; i++ ) {
+          for (int e=0; e<numElem; e++) {
+            uval = u_AD(e,k,i);
+            u_dotval = u_dot_AD(e,k,i);
+            for( size_t j=0; j<numsideip; j++ ) {
+              local_soln_side(e,k,j,0) += uval*kbasis_uw(e,i,j);
+              local_soln_dot_side(e,k,j,0) += u_dotval*kbasis_uw(e,i,j);
             }
           }
         }

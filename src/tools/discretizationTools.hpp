@@ -598,9 +598,7 @@ public:
       }
       if (spaceDim == 2) { 
         if (shape == "Quadrilateral_4") {
-          if (degree == 0)
-            basis = Teuchos::rcp(new Basis_HVOL_C0_FEM<AssemblyDevice>(*cellTopo));
-          else if (degree == 1) {
+          if (degree == 1) {
             basis = Teuchos::rcp(new Basis_HGRAD_QUAD_C1_FEM<AssemblyDevice>() );
           }
           else if (degree == 2) {
@@ -622,9 +620,7 @@ public:
       }
       if (spaceDim == 3) { 
         if (shape == "Hexahedron_8") {
-          if (degree == 0)
-            basis = Teuchos::rcp(new Basis_HVOL_C0_FEM<AssemblyDevice>(*cellTopo));
-          else if (degree  == 1)
+          if (degree  == 1)
             basis = Teuchos::rcp(new Basis_HGRAD_HEX_C1_FEM<AssemblyDevice>() ); 
           else if (degree  == 2)
             basis = Teuchos::rcp(new Basis_HGRAD_HEX_C2_FEM<AssemblyDevice>() );
@@ -640,6 +636,9 @@ public:
           }
         }
       }
+    }
+    else if (type == "HVOL") {
+      basis = Teuchos::rcp(new Basis_HVOL_C0_FEM<AssemblyDevice>(*cellTopo));
     }
     else if (type == "HDIV") {
       if (spaceDim == 1) {

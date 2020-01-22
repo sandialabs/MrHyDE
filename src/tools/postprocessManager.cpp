@@ -597,65 +597,136 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
   for(int m=0; m<numSteps; m++) {
     bool fnd = solve->soln->extract(u,m);
     auto u_kv = u->getLocalView<HostDevice>();
+    //KokkosTools::print(u, "solution from postprocess");
     for (size_t b=0; b<cells.size(); b++) {
       std::string blockID = blocknames[b];
       vector<vector<int> > curroffsets = phys->offsets[b];
       vector<size_t> myElements = disc->myElements[b];
+      vector<string> vartypes = phys->types[b];
+      vector<int> varorders = phys->orders[b];
+      
       for (int n = 0; n<numVars[b]; n++) {
-        Kokkos::View<ScalarT**,HostDevice> soln_computed;
-        if (numBasis[b][n]>1) {
-          soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numBasis[b][n]);
-        }
-        else {
-          soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
-        }
-        std::string var = varlist[b][n];
-        size_t eprog = 0;
-        for( size_t e=0; e<cells[b].size(); e++ ) {
-          int numElem = cells[b][e]->numElem;
-          Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
-          for (int p=0; p<numElem; p++) {
-            for( int i=0; i<numBasis[b][n]; i++ ) {
-              int pindex = overlapped_map->getLocalElement(GIDs(p,curroffsets[n][i]));
-              if (numBasis[b][n] == 1) {
-                for( int j=0; j<numNodesPerElem; j++ ) {
-                  soln_computed(eprog,j) = u_kv(pindex,0);
-                }
-              }
-              else {
-                soln_computed(eprog,i) = u_kv(pindex,0);
-              }
-              if (use_sol_mod_mesh && sol_to_mod_mesh == n) {
-                if (abs(soln_computed(e,i)) >= meshmod_TOL) {
-                  dispz(eprog,i) += layer_size;
-                }
-              }
-              else if (use_sol_mod_height && sol_to_mod_height == n) {
-                dispz(eprog,i) = 10.0*soln_computed(eprog,i);
-              }
-            }
-            eprog++;
-          }
-        }
-        if (use_sol_mod_mesh && sol_to_mod_mesh == n) {
-          mesh->setSolutionFieldData("dispz", blockID, myElements, dispz);
-        }
-        else if (use_sol_mod_height && sol_to_mod_height == n) {
-          mesh->setSolutionFieldData("dispz", blockID, myElements, dispz);
-        }
-        else {
-          if (var == "dx") {
-            mesh->setSolutionFieldData("dispx", blockID, myElements, soln_computed);
-          }
-          if (var == "dy") {
-            mesh->setSolutionFieldData("dispy", blockID, myElements, soln_computed);
-          }
-          if (var == "dz" || var == "H") {
-            mesh->setSolutionFieldData("dispz", blockID, myElements, soln_computed);
-          }
-        }
         
-        mesh->setSolutionFieldData(var, blockID, myElements, soln_computed);
+        if (vartypes[n] == "HGRAD") {
+          
+          if (varorders[n] > 1) { // project to PWlinear for plotting
+            
+          }
+          Kokkos::View<ScalarT**,HostDevice> soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
+          
+          //if (varorders[n] == 1) {
+          //  soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numBasis[b][n]);
+          //}
+          //else {
+          //  soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
+          //}
+          std::string var = varlist[b][n];
+          size_t eprog = 0;
+          for( size_t e=0; e<cells[b].size(); e++ ) {
+            int numElem = cells[b][e]->numElem;
+            Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
+            for (int p=0; p<numElem; p++) {
+              for( int i=0; i<numBasis[b][n]; i++ ) {
+                int pindex = overlapped_map->getLocalElement(GIDs(p,curroffsets[n][i]));
+                if (numBasis[b][n] == 1) {
+                  for( int j=0; j<numNodesPerElem; j++ ) {
+                    soln_computed(eprog,j) = u_kv(pindex,0);
+                  }
+                }
+                else {
+                  soln_computed(eprog,i) = u_kv(pindex,0);
+                }
+                if (use_sol_mod_mesh && sol_to_mod_mesh == n) {
+                  if (abs(soln_computed(e,i)) >= meshmod_TOL) {
+                    dispz(eprog,i) += layer_size;
+                  }
+                }
+                else if (use_sol_mod_height && sol_to_mod_height == n) {
+                  dispz(eprog,i) = 10.0*soln_computed(eprog,i);
+                }
+              }
+              eprog++;
+            }
+          }
+          if (use_sol_mod_mesh && sol_to_mod_mesh == n) {
+            mesh->setSolutionFieldData("dispz", blockID, myElements, dispz);
+          }
+          else if (use_sol_mod_height && sol_to_mod_height == n) {
+            mesh->setSolutionFieldData("dispz", blockID, myElements, dispz);
+          }
+          else {
+            if (var == "dx") {
+              mesh->setSolutionFieldData("dispx", blockID, myElements, soln_computed);
+            }
+            if (var == "dy") {
+              mesh->setSolutionFieldData("dispy", blockID, myElements, soln_computed);
+            }
+            if (var == "dz" || var == "H") {
+              mesh->setSolutionFieldData("dispz", blockID, myElements, soln_computed);
+            }
+          }
+          
+          mesh->setSolutionFieldData(var, blockID, myElements, soln_computed);
+        }
+        else if (vartypes[n] == "HVOL") {
+          Kokkos::View<ScalarT**,HostDevice> soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), 1);
+          std::string var = varlist[b][n];
+          size_t eprog = 0;
+          for( size_t e=0; e<cells[b].size(); e++ ) {
+            int numElem = cells[b][e]->numElem;
+            Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
+            for (int p=0; p<numElem; p++) {
+              int pindex = overlapped_map->getLocalElement(GIDs(p,curroffsets[n][0]));
+              soln_computed(eprog,0) = u_kv(pindex,0);
+              eprog++;
+            }
+          }
+          mesh->setCellFieldData(var, blockID, myElements, soln_computed);
+        }
+        else if (vartypes[n] == "HDIV" || vartypes[n] == "HCURL") { // need to project each component onto PW-linear basis and PW constant basis
+          Kokkos::View<ScalarT**,HostDevice> soln_x = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), 1);
+          Kokkos::View<ScalarT**,HostDevice> soln_y = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), 1);
+          Kokkos::View<ScalarT**,HostDevice> soln_z = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), 1);
+          std::string var = varlist[b][n];
+          assembler->performGather(b,u,0,0);
+          size_t eprog = 0;
+          //vector_RCP u_dot;
+          for( size_t e=0; e<cells[b].size(); e++ ) {
+            assembler->wkset[b]->update(cells[b][e]->ip,cells[b][e]->ijac,cells[b][e]->orientation);
+            assembler->wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_dot, false, false);
+            
+            Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
+            for (int p=0; p<cells[b][e]->numElem; p++) {
+              ScalarT avgxval = 0.0;
+              ScalarT avgyval = 0.0;
+              ScalarT avgzval = 0.0;
+              ScalarT avgwt = 0.0;
+              for (int j=0; j<curroffsets[n].size(); j++) {
+                ScalarT xval = assembler->wkset[b]->local_soln(p,n,j,0).val();
+                avgxval += xval*assembler->wkset[b]->wts(p,j);
+                if (spaceDim > 1) {
+                  ScalarT yval = assembler->wkset[b]->local_soln(p,n,j,1).val();
+                  avgyval += yval*assembler->wkset[b]->wts(p,j);
+                }
+                if (spaceDim > 2) {
+                  ScalarT zval = assembler->wkset[b]->local_soln(p,n,j,2).val();
+                  avgzval += zval*assembler->wkset[b]->wts(p,j);
+                }
+                avgwt += assembler->wkset[b]->wts(p,j);
+              }
+              soln_x(eprog,0) = avgxval/avgwt;
+              soln_y(eprog,0) = avgyval/avgwt;
+              soln_z(eprog,0) = avgzval/avgwt;
+              eprog++;
+            }
+          }
+          mesh->setCellFieldData(var+"x", blockID, myElements, soln_x);
+          mesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
+          mesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
+        }
+        else if (vartypes[n] == "HFACE") { // need to project each component onto PW-linear basis and PW constant basis
+          
+        }
       }
       
       ////////////////////////////////////////////////////////////////
