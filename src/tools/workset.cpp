@@ -215,18 +215,7 @@ void workset::setupBasis() {
       DRV basisvals("basisvals",numb, numip, dimension);
       basis_pointers[i]->getValues(basisvals, ref_ip, Intrepid2::OPERATOR_VALUE);
       
-      DRV basisvals_Transformed("basisvals_Transformed", numElem, numb, numip, dimension);
-      parallel_for(RangePolicy<AssemblyDevice>(0,basisvals_Transformed.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-        for (size_t m=0; m<numb; m++) {
-          for (size_t j=0; j<numip; j++) {
-            for (size_t k=0; k<dimension; k++) {
-              basisvals_Transformed(e,m,j,k) = basisvals(m,j,k);
-            }
-          }
-        }
-      });
-      
-      ref_basis.push_back(basisvals_Transformed);
+      ref_basis.push_back(basisvals);
       basis.push_back(DRV("basis",numElem,numb,numip,dimension));
       basis_uw.push_back(DRV("basis_uw",numElem,numb,numip,dimension));
       
@@ -502,22 +491,12 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
   // ----------------------------------------------------------
   int numBElem = nodes.dimension(0);
   
-  DRV bip("sip", numBElem, ref_side_ip.dimension(0), dimension);
-  DRV bijac("sijac", numBElem, ref_side_ip.dimension(0), dimension, dimension);
-  DRV bijacInv("sijac", numBElem, ref_side_ip.dimension(0), dimension, dimension);
+  DRV bip("bip", numBElem, ref_side_ip.dimension(0), dimension);
+  DRV bijac("bijac", numBElem, ref_side_ip.dimension(0), dimension, dimension);
+  DRV bijacDet("bijacDet", numBElem, ref_side_ip.dimension(0));
+  DRV bijacInv("bijacInv", numBElem, ref_side_ip.dimension(0), dimension, dimension);
   DRV bwts("wts_side", numBElem, ref_side_ip.dimension(0));
   DRV bnormals("normals", numBElem, ref_side_ip.dimension(0), dimension);
-  
-  vector<DRV> cbasis, cbasis_uw, cbasis_grad, cbasis_grad_uw;
-  
-  for (size_t i=0; i<basis_pointers.size(); i++) {
-    int numb = basis_pointers[i]->getCardinality();
-    cbasis.push_back(DRV("basis_side",numBElem,numb,numsideip));
-    cbasis_uw.push_back(DRV("basis_side",numBElem,numb,numsideip));
-    cbasis_grad.push_back(DRV("basis_grad_side",numBElem,numb,numsideip,dimension));
-    cbasis_grad_uw.push_back(DRV("basis_grad_side_uw",numBElem,numb,numsideip,dimension));
-  }
-  
   
   DRV refSidePoints("refSidePoints", ref_side_ip.dimension(0), dimension);
   
@@ -528,6 +507,7 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
   CellTools<AssemblyDevice>::mapToPhysicalFrame(bip, refSidePoints, nodes, *celltopo);
   CellTools<AssemblyDevice>::setJacobian(bijac, refSidePoints, nodes, *celltopo);
   CellTools<AssemblyDevice>::setJacobianInv(bijacInv, bijac);
+  CellTools<AssemblyDevice>::setJacobianDet(bijacDet, bijac);
   DRV temporary_buffer("temporary_buffer",numBElem*ref_side_ip.dimension(0)*dimension*dimension);
   
   if (dimension == 2) {
@@ -541,19 +521,14 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
   CellTools<AssemblyDevice>::getPhysicalSideNormals(bnormals, bijac, localSideID(0), *celltopo);
   
   BID = ip_side_vec.size();
+  
   // ----------------------------------------------------------
   // store ip
-  //if (ip_side_vec.size() < cnum+1) {
-  //  ip_side_vec.resize(cnum+1);
-  //}
   ip_side_vec.push_back(bip);
   // ----------------------------------------------------------
   
   // ----------------------------------------------------------
   // store wts
-  //if (wts_side_vec.size() < cnum+1) {
-  //  wts_side_vec.resize(cnum+1);
-  //}
   wts_side_vec.push_back(bwts);
   
   // ----------------------------------------------------------
@@ -574,41 +549,110 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
   
   // ----------------------------------------------------------
   // store normals
-  //if (normals_side_vec.size() < cnum+1) {
-  //  normals_side_vec.resize(cnum+1);
-  //}
   normals_side_vec.push_back(bnormals);
   // ----------------------------------------------------------
   
   // ----------------------------------------------------------
   // evaluate basis vectors
+  
+  vector<DRV> cbasis, cbasis_uw, cbasis_grad, cbasis_grad_uw;
+  
+  /*
+  for (size_t i=0; i<basis_pointers.size(); i++) {
+    int numb = basis_pointers[i]->getCardinality();
+    cbasis.push_back(DRV("basis_side",numBElem,numb,numsideip));
+    cbasis_uw.push_back(DRV("basis_side",numBElem,numb,numsideip));
+    cbasis_grad.push_back(DRV("basis_grad_side",numBElem,numb,numsideip,dimension));
+    cbasis_grad_uw.push_back(DRV("basis_grad_side_uw",numBElem,numb,numsideip,dimension));
+  }*/
+  
   for (size_t i=0; i<basis_pointers.size(); i++) {
     if (basis_types[i] == "HGRAD"){
       int numb = basis_pointers[i]->getCardinality();
       
-      DRV basisvals("basisvals",numb, numsideip);
-      basis_pointers[i]->getValues(basisvals, refSidePoints, OPERATOR_VALUE);
+      DRV ref_basisvals("basisvals",numb, numsideip);
+      basis_pointers[i]->getValues(ref_basisvals, refSidePoints, OPERATOR_VALUE);
       
       DRV basisvals_trans("basisvals_Transformed",numBElem, numb, numsideip);
-      FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(cbasis_uw[i], basisvals);
+      FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_trans, ref_basisvals);
+      cbasis_uw.push_back(basisvals_trans);
       
-      DRV basisgrad("basisgrad",numb, numsideip, dimension);
-      basis_pointers[i]->getValues(basisgrad, refSidePoints, OPERATOR_GRAD);
+      DRV basis_wtd("basis_side",numBElem,numb,numsideip);
+      FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_wtd, bwts, cbasis_uw[i]);
+      cbasis.push_back(basis_wtd);
       
-      FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(cbasis[i], bwts, cbasis_uw[i]);
-      FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(cbasis_grad_uw[i], bijacInv, basisgrad);
-      FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(cbasis_grad[i], bwts, cbasis_grad_uw[i]);
+      DRV ref_basisgrad("basisgrad",numb, numsideip, dimension);
+      basis_pointers[i]->getValues(ref_basisgrad, refSidePoints, OPERATOR_GRAD);
+      
+      DRV basis_grad_trans("basis_grad_side_uw",numBElem,numb,numsideip,dimension);
+      FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(basis_grad_trans, bijacInv, ref_basisgrad);
+      cbasis_grad_uw.push_back(basis_grad_trans);
+      
+      DRV basis_grad_wtd("basis_grad_side_uw",numBElem,numb,numsideip,dimension);
+      FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_grad_wtd, bwts, cbasis_grad_uw[i]);
+      cbasis_grad.push_back(basis_grad_wtd);
     }
     else if (basis_types[i] == "HVOL"){
       int numb = basis_pointers[i]->getCardinality();
       
-      DRV basisvals("basisvals",numb, numsideip);
-      basis_pointers[i]->getValues(basisvals, refSidePoints, OPERATOR_VALUE);
+      DRV ref_basisvals("basisvals",numb, numsideip);
+      basis_pointers[i]->getValues(ref_basisvals, refSidePoints, OPERATOR_VALUE);
       
       DRV basisvals_trans("basisvals_Transformed",numBElem, numb, numsideip);
-      FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(cbasis_uw[i], basisvals);
+      FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_trans, ref_basisvals);
+      cbasis_uw.push_back(basisvals_trans);
+      
+      DRV basis_wtd("basis_side",numBElem,numb,numsideip);
+      FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_wtd, bwts, cbasis_uw[i]);
+      cbasis.push_back(basis_wtd);
+      
+      DRV basis_grad_trans("basis_grad_side_uw",numBElem,numb,numsideip,dimension);
+      cbasis_grad_uw.push_back(basis_grad_trans);
+      
+      DRV basis_grad_wtd("basis_grad_side_uw",numBElem,numb,numsideip,dimension);
+      cbasis_grad.push_back(basis_grad_wtd);
+      
     }
     else if (basis_types[i] == "HDIV"){
+      int numb = basis_pointers[i]->getCardinality();
+      
+      DRV ref_basisvals("basisvals",numb, numsideip, dimension);
+      basis_pointers[i]->getValues(ref_basisvals, refSidePoints, OPERATOR_VALUE);
+      
+      DRV basisvals_trans("basisvals_Transformed",numBElem, numb, numsideip, dimension);
+      
+      FunctionSpaceTools<AssemblyDevice>::HDIVtransformVALUE(basisvals_trans, bijac, bijacDet, ref_basisvals);
+      
+      DRV basis_wtd("basis_side",numBElem,numb,numsideip,dimension);
+      FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_wtd, bwts, basisvals_trans);
+      
+      // find a variable that uses this basis (takes the last one)
+      int bindex = -1;
+      for (size_t k=0; k<usebasis.size(); k++) {
+        if (usebasis[k] == i) {
+          bindex = k;
+        }
+      }
+      
+      for (int e=0; e<numBElem; e++) {
+        for (size_t j=0; j<basisvals_trans.dimension(1); j++) {
+          // divide these by 2.0 to recover same results as ACES
+          for (size_t k=0; k<basisvals_trans.dimension(2); k++) {
+            for (int s=0; s<dimension; s++) {
+              basisvals_trans(e,j,k,s) *= orientation[e][offsets(bindex,j)];
+              basis_wtd(e,j,k,s) *= orientation[e][offsets(bindex,j)];
+            }
+          }
+        }
+      }
+      cbasis_uw.push_back(basisvals_trans);
+      cbasis.push_back(basis_wtd);
+      
+      DRV basis_grad_trans("basis_grad_side_uw",numBElem,numb,numsideip,dimension);
+      cbasis_grad_uw.push_back(basis_grad_trans);
+      
+      DRV basis_grad_wtd("basis_grad_side_uw",numBElem,numb,numsideip,dimension);
+      cbasis_grad.push_back(basis_grad_wtd);
       //FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_side[i], wts_side, ref_basis_side[s][i]);
     }
     else if (basis_types[i] == "HCURL"){
