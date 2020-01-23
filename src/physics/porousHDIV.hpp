@@ -57,6 +57,7 @@ public:
     
     functionManager->addFunction("source",fs.get<string>("source","0.0"),numElem,numip,"ip",blocknum);
     
+    
   }
   
   // ========================================================================================
@@ -140,8 +141,51 @@ public:
   
   void boundaryResidual() {
     
-    // Nothing implemented yet
+    sideinfo = wkset->sideinfo;
+    Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
     
+    int cside = wkset->currentside;
+    int sidetype;
+    sidetype = bcs(pnum,cside);
+    
+    basis = wkset->basis_side[unum];
+    
+    {
+      Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
+      
+      //if (sidetype == 2 ) {
+        bsource = functionManager->evaluate("Dirichlet p " + wkset->sidename,"side ip",blocknum);
+      //}
+      
+    }
+    
+    // Since normals get recomputed often, this needs to be reset
+    normals = wkset->normals;
+    
+    Teuchos::TimeMonitor localtime(*boundaryResidualFill);
+    
+    ScalarT vx = 0.0, vy = 0.0, vz = 0.0;
+    ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
+    for (int e=0; e<basis.dimension(0); e++) {
+      //if (bcs(pnum,cside) == 2) {
+        for (int k=0; k<basis.dimension(2); k++ ) {
+          for (int i=0; i<basis.dimension(1); i++ ) {
+            vx = basis(e,i,k,0);
+            nx = normals(e,k,0);
+            if (spaceDim>1) {
+              vy = basis(e,i,k,1);
+              ny = normals(e,k,1);
+            }
+            if (spaceDim>2) {
+              vz = basis(e,i,k,2);
+              nz = normals(e,k,2);
+            }
+            int resindex = offsets(unum,i);
+            res(e,resindex) += bsource(e,k)*(vx*nx+vy*ny+vz*nz);
+          }
+        }
+      //}
+    }
   }
   
   
@@ -180,7 +224,7 @@ private:
   
   int spaceDim, numElem, numParams, numResponses, numSteps;
   size_t numip, numip_side, blocknum;
-  FDATA source;
+  FDATA source, bsource;
   
   int pnum, unum;
   int dxnum,dynum,dznum;
@@ -188,9 +232,12 @@ private:
   ScalarT biot_alpha;
   
   vector<string> varlist;
+  Kokkos::View<int****,AssemblyDevice> sideinfo;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV::volumeResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV::volumeResidual() - evaluation of residual");
+  Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV::boundaryResidual() - function evaluation");
+  Teuchos::RCP<Teuchos::Time> boundaryResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV::boundaryResidual() - evaluation of residual");
   
 };
 

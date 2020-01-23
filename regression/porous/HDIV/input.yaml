@@ -7,8 +7,14 @@ ANONYMOUS:
   Physics: 
     eblock-0_0: 
       solve_porousHDIV: true
+      Dirichlet conditions:
+        p:
+          left: '1.0'
+          right: '1.0'
+          top: '1.0'
+          bottom: '1.0'
       true solutions:
-        p: sin(2*pi*x)*sin(2*pi*y)
+        p: 1.0+sin(2*pi*x)*sin(2*pi*y)
         ux: -2*pi*cos(2*pi*x)*sin(2*pi*y)
         uy: -2*pi*sin(2*pi*x)*cos(2*pi*y)
   Parameters Settings File: input_params.yaml
