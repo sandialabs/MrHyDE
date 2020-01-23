@@ -448,7 +448,8 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
         bCells[0][e]->wkset = wkset[0];
         bCells[0][e]->setUseBasis(sub_solver->useBasis[0],1);
         bCells[0][e]->wksetBID = wkset[0]->addSide(bCells[0][e]->nodes, bCells[0][e]->sidenum,
-                                                   bCells[0][e]->localSideID);
+                                                   bCells[0][e]->localSideID,
+                                                   bCells[0][e]->orientation);
       }
     }
   }

@@ -253,6 +253,17 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
       boundaryCells[b][e]->sideinfo = sideinfo;
       //-----------------------------------------------
       
+      // Set the cell orientation ---
+      vector<vector<ScalarT> > cellOrient;
+      for (int i=0; i<numElem; i++) {
+        vector<ScalarT> orient;
+        size_t elemID = localEID(i);//this->myElements[b][eprog+i];
+        DOF->getElementOrientation(elemID, orient);
+        cellOrient.push_back(orient);
+      }
+      boundaryCells[b][e]->orientation = cellOrient;
+      //-----------------------------------------------
+      
     }
   }
   // Set the cell integration points/wts-----------

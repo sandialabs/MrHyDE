@@ -316,7 +316,8 @@ void solver::finalizeWorkset() {
           
           assembler->boundaryCells[b][e]->wksetBID = assembler->wkset[b]->addSide(assembler->boundaryCells[b][e]->nodes,
                                                                                   assembler->boundaryCells[b][e]->sidenum,
-                                                                                  assembler->boundaryCells[b][e]->localSideID);
+                                                                                  assembler->boundaryCells[b][e]->localSideID,
+                                                                                  assembler->boundaryCells[b][e]->orientation);
         }
       }
     }

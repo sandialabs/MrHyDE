@@ -483,7 +483,8 @@ void workset::update(const DRV & ip_, const DRV & jacobian, const vector<vector<
 ////////////////////////////////////////////////////////////////////////////////////
 
 int workset::addSide(const DRV & nodes, const int & sidenum,
-                     Kokkos::View<int*> & localSideID) {
+                     Kokkos::View<int*> & localSideID,
+                     vector<vector<ScalarT> > & orientation) {
   
   using namespace Intrepid2;
   Teuchos::TimeMonitor updatetimer(*worksetAddSideTimer);
