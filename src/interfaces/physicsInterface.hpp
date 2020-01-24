@@ -312,6 +312,7 @@ public:
   
   vector<int> numVars;
   vector<vector<bool> > useSubgrid;
+  vector<vector<bool> > useDG;
   
   vector<vector<string> > varlist;
   vector<vector<int> > varowned;

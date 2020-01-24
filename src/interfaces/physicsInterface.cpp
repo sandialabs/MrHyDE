@@ -20,6 +20,7 @@
 // Physics modules:
 #include "porous.hpp"
 #include "porousHDIV.hpp"
+#include "porousHDIV_hybridized.hpp"
 //#include "twophasePwNo.hpp"
 #include "twophasePoNo.hpp"
 #include "twophasePoPw.hpp"
@@ -383,7 +384,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   }
   
   vector<Teuchos::RCP<physicsbase> > currmodules;
-  vector<bool> currSubgrid;
+  vector<bool> currSubgrid, curruseDG;
   std::string var;
   int default_order = 1;
   std::string default_type = "HGRAD";
@@ -407,6 +408,15 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
                                                                           blocknum) );
     currmodules.push_back(porousHDIV_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_porousHDIV",false));
+  }
+  
+  // Hybridized porous media with HDIV basis
+  if (currsettings.get<bool>("solve_porousHDIV_hybrid",false)) {
+    Teuchos::RCP<porousHDIV_HYBRID> porousHDIV_HYBRID_RCP = Teuchos::rcp(new porousHDIV_HYBRID(settings, numip, numip_side,
+                                                                          numElemPerCell, functionManager,
+                                                                          blocknum) );
+    currmodules.push_back(porousHDIV_HYBRID_RCP);
+    currSubgrid.push_back(currsettings.get<bool>("subgrid_porousHDIV_HYBRID",false));
   }
   
   // Two phase porous media
@@ -603,12 +613,35 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
     vector<string> ctypes = currmodules[m]->mybasistypes;
     for (size_t v=0; v<cvars.size(); v++) {
       currvarlist.push_back(cvars[v]);
-      currtypes.push_back(ctypes[v]);
+      
+      if (ctypes[v] == "HGRAD-DG") {
+        currtypes.push_back("HGRAD");
+        curruseDG.push_back(true);
+      }
+      else if (ctypes[v] == "HDIV-DG") {
+        currtypes.push_back("HDIV");
+        curruseDG.push_back(true);
+      }
+      else if (ctypes[v] == "HCURL-DG") {
+        currtypes.push_back("HCURL");
+        curruseDG.push_back(true);
+      }
+      else {
+        currtypes.push_back(ctypes[v]);
+        curruseDG.push_back(false);
+      }
       currvarowned.push_back(m);
       currorders.push_back(discsettings.sublist("order").get<int>(cvars[v],default_order));
     }
   }
+  useDG.push_back(curruseDG);
   
+  if (currsettings.isSublist("DG variables")) {
+  
+  }
+  else {
+  }
+    
   if (milo_debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Finished physics::importPhysics ..." << endl;
@@ -649,7 +682,13 @@ Teuchos::RCP<panzer::DOFManager> physics::buildDOF(Teuchos::RCP<panzer_stk::STK_
       basis_pointer = DiscTools::getBasis(spaceDim, cellTopo, types[b][j], orders[b][j]);
       
       Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis_pointer));
-      DOF->addField(currblock, currvarlist[j], Pattern);
+      
+      if (useDG[b][j]) {
+        DOF->addField(currblock, currvarlist[j], Pattern, panzer::FieldType::DG);
+      }
+      else {
+        DOF->addField(currblock, currvarlist[j], Pattern, panzer::FieldType::CG);
+      }
     }
   }
   

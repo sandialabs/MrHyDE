@@ -197,6 +197,7 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
         }
       }
       cells[b][e]->GIDs = hostGIDs;
+      
       //-----------------------------------------------
       
       Kokkos::View<int*> localEID = cells[b][e]->localElemID;
