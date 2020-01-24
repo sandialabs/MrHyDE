@@ -153,9 +153,9 @@ public:
     {
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
       
-      //if (sidetype == 2 ) {
+      if (sidetype == 1 ) {
         bsource = functionManager->evaluate("Dirichlet p " + wkset->sidename,"side ip",blocknum);
-      //}
+      }
       
     }
     
@@ -167,7 +167,7 @@ public:
     ScalarT vx = 0.0, vy = 0.0, vz = 0.0;
     ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
     for (int e=0; e<basis.dimension(0); e++) {
-      //if (bcs(pnum,cside) == 2) {
+      if (bcs(pnum,cside) == 1) {
         for (int k=0; k<basis.dimension(2); k++ ) {
           for (int i=0; i<basis.dimension(1); i++ ) {
             vx = basis(e,i,k,0);
@@ -184,7 +184,7 @@ public:
             res(e,resindex) += bsource(e,k)*(vx*nx+vy*ny+vz*nz);
           }
         }
-      //}
+      }
     }
   }
   
