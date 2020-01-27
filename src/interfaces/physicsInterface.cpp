@@ -912,7 +912,7 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
 // TMW: following function may be removed
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-AD physics::computeTopoResp(const int & block){
+AD physics::computeTopoResp(const size_t & block){
   AD topoResp = 0.0;
   for (size_t i=0; i<modules[block].size(); i++) {
     // needs to be updated
@@ -920,6 +920,22 @@ AD physics::computeTopoResp(const int & block){
   }
   
   return topoResp;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+//
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+bool physics::checkEdgeFace(const size_t & block){
+  bool include_edgeface = false;
+  for (size_t i=0; i<modules[block].size(); i++) {
+    bool cuseef = modules[block][i]->include_edgeface;
+    if (cuseef) {
+      include_edgeface = true;
+    }
+  }
+  
+  return include_edgeface;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1603,6 +1619,17 @@ void physics::setWorkset(vector<Teuchos::RCP<workset> > & wkset) {
   for (size_t block = 0; block<wkset.size(); block++){
     for (size_t i=0; i<modules[block].size(); i++) {
       modules[block][i]->setWorkset(wkset[block]);//setWorkset(wkset[block]);
+    }
+  }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+void physics::edgeFaceResidual(const size_t block) {
+  for (size_t i=0; i<modules[block].size(); i++) {
+    if (useSubgrid[block][i] == false) {
+      modules[block][i]->edgeFaceResidual();
     }
   }
 }

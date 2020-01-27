@@ -42,12 +42,13 @@ public:
     label = "porousHDIV-Hybrid";
     
     spaceDim = settings->sublist("Mesh").get<int>("dim",2);
+    include_edgeface = true;
     
     myvars.push_back("p");
     myvars.push_back("u");
     myvars.push_back("lambda");
     mybasistypes.push_back("HVOL");
-    mybasistypes.push_back("HDIV");
+    mybasistypes.push_back("HDIV-DG");
     mybasistypes.push_back("HGRAD");
     
     dxnum = 0;
@@ -127,10 +128,10 @@ public:
       
       for (int k=0; k<sol.dimension(2); k++ ) {
         for (int i=0; i<basis.dimension(1); i++ ) {
-          ScalarT v = basis(e,i,k,0);
+          ScalarT q = basis(e,i,k,0);
           AD divu = sol_div(e,unum,k);
           int resindex = offsets(pnum,i);
-          res(e,resindex) += -divu*v + source(e,k)*v;
+          res(e,resindex) += divu*q - source(e,k)*q;
         }
       }
     });
@@ -150,14 +151,16 @@ public:
     int sidetype;
     sidetype = bcs(pnum,cside);
     
-    basis = wkset->basis_side[unum];
+    int u_basis = wkset->usebasis[unum];
+    
+    basis = wkset->basis_side[u_basis];
     
     {
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
       
-      //if (sidetype == 2 ) {
+      if (sidetype == 1 ) {
         bsource = functionManager->evaluate("Dirichlet p " + wkset->sidename,"side ip",blocknum);
-      //}
+      }
       
     }
     
@@ -169,7 +172,7 @@ public:
     ScalarT vx = 0.0, vy = 0.0, vz = 0.0;
     ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
     for (int e=0; e<basis.dimension(0); e++) {
-      //if (bcs(pnum,cside) == 2) {
+      if (bcs(pnum,cside) == 1) {
         for (int k=0; k<basis.dimension(2); k++ ) {
           for (int i=0; i<basis.dimension(1); i++ ) {
             vx = basis(e,i,k,0);
@@ -186,10 +189,75 @@ public:
             res(e,resindex) += bsource(e,k)*(vx*nx+vy*ny+vz*nz);
           }
         }
-      //}
+      }
     }
   }
   
+  // ========================================================================================
+  // The edge (2D) and face (3D) contributions to the residual
+  // ========================================================================================
+  
+  void edgeFaceResidual() {
+    
+    int lambda_basis = wkset->usebasis[lambdanum];
+    int u_basis = wkset->usebasis[unum];
+    
+    // Since normals get recomputed often, this needs to be reset
+    normals = wkset->normals;
+    
+    Teuchos::TimeMonitor localtime(*boundaryResidualFill);
+    
+    ScalarT vx = 0.0, vy = 0.0, vz = 0.0;
+    ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
+    
+    // include <lambda, v \cdot n> in velocity equation
+    basis = wkset->basis_side[u_basis];
+    
+    for (int e=0; e<basis.dimension(0); e++) {
+      for (int k=0; k<basis.dimension(2); k++ ) {
+        for (int i=0; i<basis.dimension(1); i++ ) {
+          vx = basis(e,i,k,0);
+          nx = normals(e,k,0);
+          if (spaceDim>1) {
+            vy = basis(e,i,k,1);
+            ny = normals(e,k,1);
+          }
+          if (spaceDim>2) {
+            vz = basis(e,i,k,2);
+            nz = normals(e,k,2);
+          }
+          AD lambda = sol_side(e,lambdanum,k,0);
+          int resindex = offsets(unum,i);
+          res(e,resindex) += lambda*(vx*nx+vy*ny+vz*nz);
+        }
+      }
+    }
+    
+    // include -<u \cdot n, mu> in interface equation
+    AD ux = 0.0, uy = 0.0, uz = 0.0;
+    basis = wkset->basis_side[lambda_basis];
+    
+    for (int e=0; e<basis.dimension(0); e++) {
+      for (int k=0; k<basis.dimension(2); k++ ) {
+        for (int i=0; i<basis.dimension(1); i++ ) {
+          ux = sol_side(e,unum,k,0);
+          nx = normals(e,k,0);
+          if (spaceDim>1) {
+            uy = sol_side(e,unum,k,1);
+            ny = normals(e,k,1);
+          }
+          if (spaceDim>2) {
+            uz = sol_side(e,unum,k,2);
+            nz = normals(e,k,2);
+          }
+          ScalarT mu = basis(e,i,k);
+          int resindex = offsets(lambdanum,i);
+          res(e,resindex) += (ux*nx+uy*ny+uz*nz)*mu;
+        }
+      }
+    }
+    
+  }
   
   // ========================================================================================
   // The boundary/edge flux

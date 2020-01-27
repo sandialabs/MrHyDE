@@ -58,9 +58,12 @@ class workset {
   // Update the nodes and the basis functions at the side ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void updateSide(const DRV & nodes, const DRV & ip_side_, const DRV & wts_side_,
-                  const DRV & normals_, const DRV & sidejacobian, const int & s);
+  //void updateSide(const DRV & nodes, const DRV & ip_side_, const DRV & wts_side_,
+  //                const DRV & normals_, const DRV & sidejacobian, const int & s);
   
+  void updateSide(const DRV & nodes, const vector<vector<ScalarT> > & orientation,
+                  const size_t & sidenum);
+
   ////////////////////////////////////////////////////////////////////////////////////
   // Update the nodes and the basis functions at the side ip
   ////////////////////////////////////////////////////////////////////////////////////

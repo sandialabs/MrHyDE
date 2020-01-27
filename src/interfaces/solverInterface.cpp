@@ -889,8 +889,9 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     
     NLiter++; // increment number of iterations
   } // while loop
-  
-  //KokkosTools::print(u);
+  if (milo_debug_level>2) {
+    KokkosTools::print(u);
+  }
   
   if(Comm->getRank() == 0) {
     if (!useadjoint) {
@@ -1512,9 +1513,10 @@ void solver::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   }
   else {
     Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
-    Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > M = buildPreconditioner(J);
-    
-    Problem->setLeftPrec(M);
+    if (usePrec) {
+      Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > M = buildPreconditioner(J);
+      Problem->setLeftPrec(M);
+    }
     Problem->setProblem();
     
     Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList());

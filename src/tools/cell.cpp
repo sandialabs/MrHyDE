@@ -168,6 +168,54 @@ void cell::computeSolnVolIP(const bool & seedu, const bool & seedudot, const boo
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
+// Map the AD degrees of freedom to integration points
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::computeSolnEdgeFaceIP(const size_t & sidenum, const bool & seedu,
+                                 const bool & seedudot, const bool & seedparams,
+                                 const bool & seedaux) {
+  
+  Teuchos::TimeMonitor localtimer(*computeSolnEdgeFaceTimer);
+  
+  wkset->updateSide(nodes, orientation, sidenum);
+  wkset->computeSolnSideIP(sidenum, u, u_dot, seedu, seedudot);
+  
+  // TMW: this other stuff does not have a use case yet for edge/face integrations
+  /*
+  wkset->computeParamVolIP(param, seedparams);
+  
+  if (wkset->numAux > 0) {
+    wkset->resetAux();
+    
+    AD auxval;
+    for (int e=0; e<numElem; e++) {
+      if (auxindex.size() > e ) {
+        for (size_t k=0; k<auxindex.dimension(1); k++) {
+          if (auxusebasis[k] < auxbasis.size()) {
+            for( int i=0; i<numAuxDOF(k); i++ ) {
+              
+              if (seedaux) {
+                auxval = AD(maxDerivs,auxoffsets[k][i],aux(e,k,i));
+              }
+              else {
+                auxval = aux(e,k,i);
+              }
+              for( size_t j=0; j<ip.dimension(1); j++ ) {
+                wkset->local_aux(e,k,j) += auxval*auxbasis[auxusebasis[k]](e,i,j);
+                //for( int s=0; s<dimension; s++ ) {
+                //  wkset->local_aux_grad(e,k,j,s) += auxval*auxbasisGrad[auxusebasis[k]](e,i,j,s);
+                //}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  */
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
 // Update the solution variables in the workset
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -202,253 +250,224 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   // Compute the local contribution to the global residual and Jacobians
   /////////////////////////////////////////////////////////////////////////////////////
   
-  /*
-  if (cellData->multiscale) {
-    
-    wkset->resetResidual();
-    
-    for (int e=0; e<numElem; e++) {
-      int sgindex = subgrid_model_index[e][subgrid_model_index.size()-1];
-      
-      subgridModels[sgindex]->subgridSolver(u, phi, time, isTransient, isAdjoint,
-                                            compute_jacobian, compute_sens, num_active_params,
-                                            compute_disc_sens, compute_aux_sens,
-                                            *wkset, subgrid_usernum[e], e,
-                                            subgradient, store_adjPrev);
-      
-    }
-    
-    //////////////////////////////////////////////////////////////
-    // Fill in the coarse scale res and J
-    //////////////////////////////////////////////////////////////
-    
-    this->updateRes(compute_sens, local_res);
-    if (compute_jacobian) {
-      if (isAdjoint) { // && !useSubGridAdjoint) {
-        this->updateJac(false, local_J);
-      }
-      else {
-        this->updateJac(false, local_J);
-      }
-    }
-    
-    if (compute_jacobian) {
-      bool fixJacDiag = true;
-      if (fixJacDiag) {
-        ScalarT JTOL = 1.0E-8;
-        
-        for (int e=0; e<numElem; e++) {
-          for (size_t n=0; n<wkset->offsets.dimension(0); n++) {
-            for (size_t i=0; i<wkset->offsets.dimension(1); i++) {
-              if (abs(local_J(e,wkset->offsets(n,i),wkset->offsets(n,i))) < JTOL) {
-                local_res(e,wkset->offsets(n,i),0) = -u(e,n,i);
-                
-                
-                for (size_t j=0; j<wkset->offsets.dimension(0); j++) {
-                  ScalarT scale = 1.0/((ScalarT)wkset->offsets.dimension(1)-1.0);
-                  local_J(e,wkset->offsets(n,i),wkset->offsets(n,j)) = -scale;
-                  //local_J(wkset->offsets[n][j],wkset->offsets[n][i]) = 0.0;
-                  
-                  if (j!=i)
-                    local_res(e,wkset->offsets(n,i),0) += scale*u(e,n,j);
-                }
-                local_J(e,wkset->offsets(n,i),wkset->offsets(n,i)) = 1.0;
-              }
-            }
-          }
-        }
-        
-      }
-    }
-  }*/
-  //else { // NON-MULTISCALE RESIDUAL, JACOBIAN, ETC.
-    bool fixJacDiag = false;
+  bool fixJacDiag = false;
   
-    wkset->resetResidual();
-    
-    if (isAdjoint) {
-      wkset->resetAdjointRHS();
+  wkset->resetResidual();
+  
+  if (isAdjoint) {
+    wkset->resetAdjointRHS();
+  }
+  
+  //////////////////////////////////////////////////////////////
+  // Compute the AD-seeded solutions at integration points
+  //////////////////////////////////////////////////////////////
+  
+  if (compute_jacobian) {
+    if (compute_disc_sens) {
+      this->computeSolnVolIP(false,false,true,false);
     }
-  
-    //////////////////////////////////////////////////////////////
-    // Compute the AD-seeded solutions at integration points
-    //////////////////////////////////////////////////////////////
-  
-    if (compute_jacobian) {
-      if (compute_disc_sens) {
-        this->computeSolnVolIP(false,false,true,false);
-      }
-      else if (compute_aux_sens) {
-        this->computeSolnVolIP(false,false,false,true);
-      }
-      else {
-        this->computeSolnVolIP(true,false,false,false);
-      }
+    else if (compute_aux_sens) {
+      this->computeSolnVolIP(false,false,false,true);
     }
     else {
-      this->computeSolnVolIP(false,false,false,false);
+      this->computeSolnVolIP(true,false,false,false);
     }
+  }
+  else {
+    this->computeSolnVolIP(false,false,false,false);
+  }
   
-    //////////////////////////////////////////////////////////////
-    // Compute res and J=dF/du
-    //////////////////////////////////////////////////////////////
-    
-    // Volumetric contribution
+  //////////////////////////////////////////////////////////////
+  // Compute res and J=dF/du
+  //////////////////////////////////////////////////////////////
   
-    {
-      Teuchos::TimeMonitor localtimer(*volumeResidualTimer);
-      //cellData->physics_RCP->volumeResidual(cellData->myBlock);
-      if (cellData->multiscale) {
-        for (int e=0; e<numElem; e++) {
-          int sgindex = subgrid_model_index[e][subgrid_model_index.size()-1];
-          subgridModels[sgindex]->subgridSolver(u, phi, time, isTransient, isAdjoint,
-                                                compute_jacobian, compute_sens, num_active_params,
-                                                compute_disc_sens, compute_aux_sens,
-                                                *wkset, subgrid_usernum[e], e,
-                                                subgradient, store_adjPrev);
-        }
-        fixJacDiag = true;
-      }
-      else {
-        cellData->physics_RCP->volumeResidual(cellData->myBlock);
-      }
-    }
+  // Volumetric contribution
   
-    {
-      Teuchos::TimeMonitor localtimer(*jacobianFillTimer);
-      
-      // Use AD residual to update local Jacobian
-      if (compute_jacobian) {
-        if (compute_disc_sens) {
-          this->updateParamJac(local_J);
-        }
-        else if (compute_aux_sens){
-          this->updateAuxJac(local_J);
-        }
-        else {
-          this->updateJac(isAdjoint, local_J);
-        }
-      }
-    }
-    
-    if (compute_jacobian && fixJacDiag) {
-      ScalarT JTOL = 1.0E-8;
-      
+  {
+    Teuchos::TimeMonitor localtimer(*volumeResidualTimer);
+    if (cellData->multiscale) {
       for (int e=0; e<numElem; e++) {
-        for (size_t n=0; n<wkset->offsets.dimension(0); n++) {
-          for (size_t i=0; i<wkset->offsets.dimension(1); i++) {
-            if (abs(local_J(e,wkset->offsets(n,i),wkset->offsets(n,i))) < JTOL) {
-              local_res(e,wkset->offsets(n,i),0) = -u(e,n,i);
-              
-              
-              for (size_t j=0; j<wkset->offsets.dimension(0); j++) {
-                ScalarT scale = 1.0/((ScalarT)wkset->offsets.dimension(1)-1.0);
-                local_J(e,wkset->offsets(n,i),wkset->offsets(n,j)) = -scale;
-                //local_J(wkset->offsets[n][j],wkset->offsets[n][i]) = 0.0;
-                
-                if (j!=i)
-                local_res(e,wkset->offsets(n,i),0) += scale*u(e,n,j);
-              }
-              local_J(e,wkset->offsets(n,i),wkset->offsets(n,i)) = 1.0;
+        int sgindex = subgrid_model_index[e][subgrid_model_index.size()-1];
+        subgridModels[sgindex]->subgridSolver(u, phi, time, isTransient, isAdjoint,
+                                              compute_jacobian, compute_sens, num_active_params,
+                                              compute_disc_sens, compute_aux_sens,
+                                              *wkset, subgrid_usernum[e], e,
+                                              subgradient, store_adjPrev);
+      }
+      fixJacDiag = true;
+    }
+    else {
+      cellData->physics_RCP->volumeResidual(cellData->myBlock);
+    }
+  }
+  
+  // Edge/face contribution
+  
+  {
+    Teuchos::TimeMonitor localtimer(*edgeFaceResidualTimer);
+    if (cellData->multiscale) {
+      // do nothing
+    }
+    else {
+      // determine if we need to include edge/face terms
+      bool include_edgeface = cellData->physics_RCP->checkEdgeFace(cellData->myBlock);
+      
+      if (include_edgeface) {
+        for (size_t s=0; s<cellData->numSides; s++) {
+          if (compute_jacobian) {
+            if (compute_disc_sens) {
+              this->computeSolnEdgeFaceIP(s,false,false,true,false);
             }
-          }
-        }
-        
-      }
-    }
-    
-    {
-      Teuchos::TimeMonitor localtimer(*residualFillTimer);
-      
-      // Update the local residual (forward mode)
-      if (isAdjoint) {
-        this->updateAdjointRes(compute_sens, local_res);
-      }
-      else {
-        this->updateRes(compute_sens, local_res);
-      }
-      
-    }
-    
-    {
-      Teuchos::TimeMonitor localtimer(*transientResidualTimer);
-      if (isTransient && compute_jacobian && !cellData->multiscale) {
-        if (compute_jacobian) {
-          if (compute_disc_sens) {
-            this->computeSolnVolIP(false,false,true,false);
-          }
-          else if (compute_aux_sens) {
-            this->computeSolnVolIP(false,false,false,true);
-          }
-          else {
-            this->computeSolnVolIP(false,true,false,false);
-          }
-        }
-        else {
-          this->computeSolnVolIP(false,false,false,false);
-        }
-        wkset->resetResidual();//res.initialize(0.0);// = FCAD(GIDs.size());
-        
-        
-        // evaluate the local solutions at the volumetric integration points
-        
-        cellData->physics_RCP->volumeResidual(cellData->myBlock);
-        
-        // Update the local transient Jacobian
-        if (compute_disc_sens) {
-          this->updateParamJacDot(local_Jdot);
-        }
-        else if (compute_aux_sens) {
-          //  this->updateAuxJacDot(wkset->res);
-        }
-        else {
-          this->updateJacDot(isAdjoint, local_Jdot);
-        }
-      }
-    }
-    
-    {
-      Teuchos::TimeMonitor localtimer(*adjointResidualTimer);
-      // Update residual (adjoint mode)
-      if (isAdjoint) {
-        if (!(cellData->mortar_objective)) {
-          for (int w=1; w < cellData->dimension+2; w++) {
-            
-            Kokkos::View<AD**,AssemblyDevice> obj = computeObjective(wkset->time, 0, w);
-            
-            int numDerivs;
-            if (useSensors) {
-              if (numSensors > 0) {
-                //for (int e=0; e<numSensors; e++) {
-                for (int s=0; s<numSensors; s++) {
-                  int e = sensorElem[s];
-                  for (int n=0; n<index.dimension(1); n++) {
-                    for (int j=0; j<numDOF(n); j++) {
-                      for (int i=0; i<numDOF(n); i++) {
-                        if (w == 1) {
-                          local_res(e,wkset->offsets(n,j),0) += -obj(e,s).fastAccessDx(wkset->offsets(n,i))*sensorBasis[s][wkset->usebasis[n]](0,j,s);
-                        }
-                        else {
-                          local_res(e,wkset->offsets(n,j),0) += -obj(e,s).fastAccessDx(wkset->offsets(n,i))*sensorBasisGrad[s][wkset->usebasis[n]](0,j,s,w-2);
-                        }
-                      }
-                    }
-                  }
-                }
-              }
+            else if (compute_aux_sens) {
+              this->computeSolnEdgeFaceIP(s,false,false,false,true);
             }
             else {
-              for (int e=0; e<numElem; e++) {
+              this->computeSolnEdgeFaceIP(s,true,false,false,false);
+            }
+          }
+          else {
+            this->computeSolnEdgeFaceIP(s,false,false,false,false);
+          }
+          cellData->physics_RCP->edgeFaceResidual(cellData->myBlock);
+        }
+      }
+    }
+  }
+  
+  {
+    Teuchos::TimeMonitor localtimer(*jacobianFillTimer);
+    
+    // Use AD residual to update local Jacobian
+    if (compute_jacobian) {
+      if (compute_disc_sens) {
+        this->updateParamJac(local_J);
+      }
+      else if (compute_aux_sens){
+        this->updateAuxJac(local_J);
+      }
+      else {
+        this->updateJac(isAdjoint, local_J);
+      }
+    }
+  }
+  
+  if (compute_jacobian && fixJacDiag) {
+    ScalarT JTOL = 1.0E-8;
+    
+    for (int e=0; e<numElem; e++) {
+      for (size_t n=0; n<wkset->offsets.dimension(0); n++) {
+        for (size_t i=0; i<wkset->offsets.dimension(1); i++) {
+          if (abs(local_J(e,wkset->offsets(n,i),wkset->offsets(n,i))) < JTOL) {
+            local_res(e,wkset->offsets(n,i),0) = -u(e,n,i);
+            
+            
+            for (size_t j=0; j<wkset->offsets.dimension(0); j++) {
+              ScalarT scale = 1.0/((ScalarT)wkset->offsets.dimension(1)-1.0);
+              local_J(e,wkset->offsets(n,i),wkset->offsets(n,j)) = -scale;
+              //local_J(wkset->offsets[n][j],wkset->offsets[n][i]) = 0.0;
+              
+              if (j!=i)
+                local_res(e,wkset->offsets(n,i),0) += scale*u(e,n,j);
+            }
+            local_J(e,wkset->offsets(n,i),wkset->offsets(n,i)) = 1.0;
+          }
+        }
+      }
+      
+    }
+  }
+  
+  {
+    Teuchos::TimeMonitor localtimer(*residualFillTimer);
+    
+    // Update the local residual (forward mode)
+    if (isAdjoint) {
+      this->updateAdjointRes(compute_sens, local_res);
+    }
+    else {
+      this->updateRes(compute_sens, local_res);
+    }
+    
+  }
+  
+  {
+    Teuchos::TimeMonitor localtimer(*transientResidualTimer);
+    if (isTransient && compute_jacobian && !cellData->multiscale) {
+      if (compute_jacobian) {
+        if (compute_disc_sens) {
+          this->computeSolnVolIP(false,false,true,false);
+        }
+        else if (compute_aux_sens) {
+          this->computeSolnVolIP(false,false,false,true);
+        }
+        else {
+          this->computeSolnVolIP(false,true,false,false);
+        }
+      }
+      else {
+        this->computeSolnVolIP(false,false,false,false);
+      }
+      wkset->resetResidual();//res.initialize(0.0);// = FCAD(GIDs.size());
+      
+      
+      // evaluate the local solutions at the volumetric integration points
+      
+      cellData->physics_RCP->volumeResidual(cellData->myBlock);
+      
+      // Update the local transient Jacobian
+      if (compute_disc_sens) {
+        this->updateParamJacDot(local_Jdot);
+      }
+      else if (compute_aux_sens) {
+        //  this->updateAuxJacDot(wkset->res);
+      }
+      else {
+        this->updateJacDot(isAdjoint, local_Jdot);
+      }
+    }
+  }
+  
+  {
+    Teuchos::TimeMonitor localtimer(*adjointResidualTimer);
+    // Update residual (adjoint mode)
+    if (isAdjoint) {
+      if (!(cellData->mortar_objective)) {
+        for (int w=1; w < cellData->dimension+2; w++) {
+          
+          Kokkos::View<AD**,AssemblyDevice> obj = computeObjective(wkset->time, 0, w);
+          
+          int numDerivs;
+          if (useSensors) {
+            if (numSensors > 0) {
+              //for (int e=0; e<numSensors; e++) {
+              for (int s=0; s<numSensors; s++) {
+                int e = sensorElem[s];
                 for (int n=0; n<index.dimension(1); n++) {
                   for (int j=0; j<numDOF(n); j++) {
                     for (int i=0; i<numDOF(n); i++) {
-                      for (int s=0; s<wkset->numip; s++) {
-                        if (w == 1) {
-                          local_res(e,wkset->offsets(n,j),0) += -obj(e,s).fastAccessDx(wkset->offsets(n,i))*wkset->ref_basis[wkset->usebasis[n]](e,j,s);
-                        }
-                        else {
-                          local_res(e,wkset->offsets(n,j),0) += -obj(e,s).fastAccessDx(wkset->offsets(n,i))*wkset->basis_grad_uw[wkset->usebasis[n]](e,j,s,w-2);
-                        }
+                      if (w == 1) {
+                        local_res(e,wkset->offsets(n,j),0) += -obj(e,s).fastAccessDx(wkset->offsets(n,i))*sensorBasis[s][wkset->usebasis[n]](0,j,s);
+                      }
+                      else {
+                        local_res(e,wkset->offsets(n,j),0) += -obj(e,s).fastAccessDx(wkset->offsets(n,i))*sensorBasisGrad[s][wkset->usebasis[n]](0,j,s,w-2);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          else {
+            for (int e=0; e<numElem; e++) {
+              for (int n=0; n<index.dimension(1); n++) {
+                for (int j=0; j<numDOF(n); j++) {
+                  for (int i=0; i<numDOF(n); i++) {
+                    for (int s=0; s<wkset->numip; s++) {
+                      if (w == 1) {
+                        local_res(e,wkset->offsets(n,j),0) += -obj(e,s).fastAccessDx(wkset->offsets(n,i))*wkset->ref_basis[wkset->usebasis[n]](e,j,s);
+                      }
+                      else {
+                        local_res(e,wkset->offsets(n,j),0) += -obj(e,s).fastAccessDx(wkset->offsets(n,i))*wkset->basis_grad_uw[wkset->usebasis[n]](e,j,s,w-2);
                       }
                     }
                   }
@@ -457,33 +476,33 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
             }
           }
         }
-        if (compute_jacobian) {
-          for (int e=0; e<numElem; e++) {
-            for (int n=0; n<index.dimension(1); n++) {
-              for (int j=0; j<numDOF(n); j++) {
-                for (int m=0; m<index.dimension(1); m++) {
-                  for (int k=0; k<numDOF(m); k++) {
-                    local_res(e,wkset->offsets(n,j),0) += -local_J(e,wkset->offsets(n,j),wkset->offsets(m,k))*phi(e,m,k);
-                  }
+      }
+      if (compute_jacobian) {
+        for (int e=0; e<numElem; e++) {
+          for (int n=0; n<index.dimension(1); n++) {
+            for (int j=0; j<numDOF(n); j++) {
+              for (int m=0; m<index.dimension(1); m++) {
+                for (int k=0; k<numDOF(m); k++) {
+                  local_res(e,wkset->offsets(n,j),0) += -local_J(e,wkset->offsets(n,j),wkset->offsets(m,k))*phi(e,m,k);
                 }
               }
             }
           }
-          if (isTransient) {
-            for (int e=0; e<numElem; e++) {
-              for (int n=0; n<index.dimension(1); n++) {
-                for (int j=0; j<numDOF(n); j++) {
-                  ScalarT aPrev = 0.0;
-                  for (int m=0; m<index.dimension(1); m++) {
-                    for (int k=0; k<numDOF(m); k++) {
-                      local_res(e,wkset->offsets(n,j),0) += -wkset->alpha*local_Jdot(e,wkset->offsets(n,j),wkset->offsets(m,k))*phi(e,m,k);
-                      aPrev += wkset->alpha*local_Jdot(e,wkset->offsets(n,j),wkset->offsets(m,k))*phi(e,m,k);
-                    }
+        }
+        if (isTransient) {
+          for (int e=0; e<numElem; e++) {
+            for (int n=0; n<index.dimension(1); n++) {
+              for (int j=0; j<numDOF(n); j++) {
+                ScalarT aPrev = 0.0;
+                for (int m=0; m<index.dimension(1); m++) {
+                  for (int k=0; k<numDOF(m); k++) {
+                    local_res(e,wkset->offsets(n,j),0) += -wkset->alpha*local_Jdot(e,wkset->offsets(n,j),wkset->offsets(m,k))*phi(e,m,k);
+                    aPrev += wkset->alpha*local_Jdot(e,wkset->offsets(n,j),wkset->offsets(m,k))*phi(e,m,k);
                   }
-                  local_res(e,wkset->offsets(n,j),0) += this->adjPrev(e,wkset->offsets(n,j));
-                  if (!compute_aux_sens && store_adjPrev) {
-                    adjPrev(e,wkset->offsets(n,j)) = aPrev;
-                  }
+                }
+                local_res(e,wkset->offsets(n,j),0) += this->adjPrev(e,wkset->offsets(n,j));
+                if (!compute_aux_sens && store_adjPrev) {
+                  adjPrev(e,wkset->offsets(n,j)) = aPrev;
                 }
               }
             }
@@ -491,7 +510,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
         }
       }
     }
-  //}
+  }
   
 }
 
@@ -742,10 +761,10 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, co
   if (project) { // works for any basis
     for (int n=0; n<wkset->varlist.size(); n++) {
       Kokkos::View<ScalarT**,AssemblyDevice> initialip = cellData->physics_RCP->getInitial(wkset->ip,
-                                                                                wkset->varlist[n],
-                                                                                wkset->time,
-                                                                                isAdjoint,
-                                                                                wkset);
+                                                                                           wkset->varlist[n],
+                                                                                           wkset->time,
+                                                                                           isAdjoint,
+                                                                                           wkset);
       for (int e=0; e<numElem; e++) {
         for( int i=0; i<numDOF(n); i++ ) {
           for( size_t j=0; j<wkset->numip; j++ ) {
@@ -759,10 +778,10 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, co
     for (int e=0; e<numElem; e++) {
       for (int n=0; n<index.dimension(1); n++) {
         Kokkos::View<ScalarT**,AssemblyDevice> initialnodes = cellData->physics_RCP->getInitial(nodes,
-                                                                                     wkset->varlist[n],
-                                                                                     wkset->time,
-                                                                                     isAdjoint,
-                                                                                     wkset);
+                                                                                                wkset->varlist[n],
+                                                                                                wkset->time,
+                                                                                                isAdjoint,
+                                                                                                wkset);
         for( int i=0; i<numDOF(n); i++ ) {
           initialvals(e,wkset->offsets(n,i)) = initialnodes(e,i);
         }
@@ -804,9 +823,9 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 Kokkos::View<ScalarT**,AssemblyDevice> cell::computeError(const ScalarT & solvetime,
-                                                         const size_t & tindex,
-                                                         const bool compute_subgrid,
-                                                         const string & error_type) {
+                                                          const size_t & tindex,
+                                                          const bool compute_subgrid,
+                                                          const string & error_type) {
   
   // Assumes that u has been updated already
   wkset->time = solvetime;
@@ -834,7 +853,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::computeError(const ScalarT & solvet
     
     if (error_type == "L2") {
       Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index.dimension(1),
-                                                      numip,cellData->dimension);
+                                                       numip,cellData->dimension);
       cellData->physics_RCP->trueSolution(cellData->myBlock, solvetime, truesol);
       //KokkosTools::print(wkset->local_soln);
       for (int e=0; e<numElem; e++) {
@@ -1166,14 +1185,14 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const ScalarT & solveti
     if (useSensors) {
       if (sensorLocations.size() > 0){
         response = cellData->physics_RCP->getResponse(cellData->myBlock, u_ip, ugrad_ip, param_ip,
-                                            paramgrad_ip, sensorPoints,
-                                            solvetime, wkset);
+                                                      paramgrad_ip, sensorPoints,
+                                                      solvetime, wkset);
       }
     }
     else {
       response = cellData->physics_RCP->getResponse(cellData->myBlock, u_ip, ugrad_ip, param_ip,
-                                          paramgrad_ip, wkset->ip,
-                                          solvetime, wkset);
+                                                    paramgrad_ip, wkset->ip,
+                                                    solvetime, wkset);
     }
   }
   if (seedwhat == 1) {
@@ -1624,17 +1643,17 @@ void cell::updateData() {
       wkset->rotation(e,2,2) = cell_data(e,8);
     }
     /*
-    for (int e=0; e<numElem; e++) {
-      rotmat(e,0,0) = cell_data(e,0);
-      rotmat(e,0,1) = cell_data(e,1);
-      rotmat(e,0,2) = cell_data(e,2);
-      rotmat(e,1,0) = cell_data(e,3);
-      rotmat(e,1,1) = cell_data(e,4);
-      rotmat(e,1,2) = cell_data(e,5);
-      rotmat(e,2,0) = cell_data(e,6);
-      rotmat(e,2,1) = cell_data(e,7);
-      rotmat(e,2,2) = cell_data(e,8);
-    }*/
+     for (int e=0; e<numElem; e++) {
+     rotmat(e,0,0) = cell_data(e,0);
+     rotmat(e,0,1) = cell_data(e,1);
+     rotmat(e,0,2) = cell_data(e,2);
+     rotmat(e,1,0) = cell_data(e,3);
+     rotmat(e,1,1) = cell_data(e,4);
+     rotmat(e,1,2) = cell_data(e,5);
+     rotmat(e,2,0) = cell_data(e,6);
+     rotmat(e,2,1) = cell_data(e,7);
+     rotmat(e,2,2) = cell_data(e,8);
+     }*/
     //wkset->rotation = rotmat;
   }
 }

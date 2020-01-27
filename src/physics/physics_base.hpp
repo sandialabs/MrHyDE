@@ -46,6 +46,13 @@ public:
   void boundaryResidual() = 0;
   
   // ========================================================================================
+  // The edge (2D) and face (3D) contributions to the residual
+  // ========================================================================================
+  
+  virtual
+  void edgeFaceResidual() {};
+  
+  // ========================================================================================
   // The boundary/edge flux
   // ========================================================================================
   
@@ -97,7 +104,7 @@ public:
   Teuchos::RCP<FunctionInterface> functionManager;
   int spaceDim;
   vector<string> myvars, mybasistypes;
-  
+  bool include_edgeface = false;
   // All of these point to specific information in the workset
   Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad, sol_side, sol_grad_side, aux_grad_side, sol_curl;
   Kokkos::View<AD***,AssemblyDevice> aux, aux_side, sol_div, flux;
