@@ -21,6 +21,7 @@
 #include "porous.hpp"
 #include "porousHDIV.hpp"
 #include "porousHDIV_hybridized.hpp"
+#include "porousHDIV_weakGalerkin.hpp"
 //#include "twophasePwNo.hpp"
 #include "twophasePoNo.hpp"
 #include "twophasePoPw.hpp"
@@ -419,6 +420,15 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
     currSubgrid.push_back(currsettings.get<bool>("subgrid_porousHDIV_HYBRID",false));
   }
   
+  // weak Galerkin porous media with HDIV basis
+  if (currsettings.get<bool>("solve_porousHDIV_weakGalerkin",false)) {
+    Teuchos::RCP<porousHDIV_WG> porousHDIV_WG_RCP = Teuchos::rcp(new porousHDIV_WG(settings, numip, numip_side,
+                                                                          numElemPerCell, functionManager,
+                                                                          blocknum) );
+    currmodules.push_back(porousHDIV_WG_RCP);
+    currSubgrid.push_back(currsettings.get<bool>("subgrid_porousHDIV_WG",false));
+  }
+
   // Two phase porous media
   if (currsettings.get<bool>("solve_twophase",false)) {
     string formulation = currsettings.get<string>("formulation","PoNo");
