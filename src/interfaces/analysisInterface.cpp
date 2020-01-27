@@ -13,7 +13,7 @@
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
 #include "uqInterface.hpp"
-#include "CDBatchManager.hpp";
+#include "CDBatchManager.hpp"
 #include "obj_milorol.hpp"
 #include "ROL_StdVector.hpp"
 #include "obj_milorol_simopt.hpp"
