@@ -710,7 +710,8 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
 ////////////////////////////////////////////////////////////////////////////////
 
 void SubGridFEM::finalize() {
-  // nothing to do here
+  size_t defblock = 0;
+  physics_RCP->setAuxVars(defblock, macro_varlist);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

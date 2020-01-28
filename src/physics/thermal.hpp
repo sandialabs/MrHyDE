@@ -207,7 +207,7 @@ public:
           AD lambda;
           
           if (bcs(e_num,cside) == 5) {
-            lambda = aux_side(e,e_num,k);
+            lambda = aux_side(e,auxe_num,k);
           }
           else {
             lambda = nsource(e,k);
@@ -272,7 +272,7 @@ public:
         for (size_t i=0; i<wkset->ip_side.dimension(1); i++) {
           penalty = 10.0*diff_side(n,i)/wkset->h(n);
           flux(n,e_num,i) += sf*diff_side(n,i)*sol_grad_side(n,e_num,i,0)*normals(n,i,0) +
-                             penalty*(aux_side(n,e_num,i)-sol_side(n,e_num,i,0));
+                             penalty*(aux_side(n,auxe_num,i)-sol_side(n,e_num,i,0));
           if (spaceDim > 1) {
             flux(n,e_num,i) += sf*diff_side(n,i)*sol_grad_side(n,e_num,i,1)*normals(n,i,1);
           }
@@ -308,6 +308,18 @@ public:
       have_nsvel = true;
   }
   
+  // ========================================================================================
+  // ========================================================================================
+  
+  void setAuxVars(std::vector<string> & auxvarlist) {
+    
+    for (size_t i=0; i<auxvarlist.size(); i++) {
+      if (auxvarlist[i] == "e")
+        auxe_num = i;
+    }
+    
+  }
+  
 private:
   
   Teuchos::RCP<FunctionInterface> functionManager;
@@ -319,6 +331,7 @@ private:
   int spaceDim, numElem, numParams, numResponses;
   vector<string> varlist;
   int e_num, e_basis, numBasis, ux_num, uy_num, uz_num;
+  int auxe_num = -1;
   ScalarT alpha;
   bool isTD;
   //int test, simNum;

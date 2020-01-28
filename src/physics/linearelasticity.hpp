@@ -333,7 +333,7 @@ public:
               penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
               plambdax = 0.0;
               if (dx_sidetype == 5) {
-                plambdax = aux_side(e,dx_num,k);
+                plambdax = aux_side(e,auxdx_num,k);
               }
               
               for (int i=0; i<basis.dimension(1); i++ ) {
@@ -372,8 +372,8 @@ public:
               plambdax = 0.0;
               plambday = 0.0;
               if (dx_sidetype == 5) {
-                plambdax = aux_side(e,dx_num,k);
-                plambday = aux_side(e,dy_num,k);
+                plambdax = aux_side(e,auxdx_num,k);
+                plambday = aux_side(e,auxdy_num,k);
               }
               for (int i=0; i<basis.dimension(1); i++ ) {
                 v = basis(e,i,k);
@@ -413,8 +413,8 @@ public:
               plambdax = 0.0;
               plambday = 0.0;
               if (dy_sidetype == 5) {
-                plambdax = aux_side(e,dx_num,k);
-                plambday = aux_side(e,dy_num,k);
+                plambdax = aux_side(e,auxdx_num,k);
+                plambday = aux_side(e,auxdy_num,k);
               }
               
               for (int i=0; i<basis.dimension(1); i++ ) {
@@ -460,9 +460,9 @@ public:
               plambday = 0.0;
               plambdaz = 0.0;
               if (dx_sidetype == 5) {
-                plambdax = aux_side(e,dx_num,k);
-                plambday = aux_side(e,dy_num,k);
-                plambdaz = aux_side(e,dz_num,k);
+                plambdax = aux_side(e,auxdx_num,k);
+                plambday = aux_side(e,auxdy_num,k);
+                plambdaz = aux_side(e,auxdz_num,k);
               }
               
               for (int i=0; i<basis.dimension(1); i++ ) {
@@ -509,9 +509,9 @@ public:
               plambday = 0.0;
               plambdaz = 0.0;
               if (dy_sidetype == 5) {
-                plambdax = aux_side(e,dx_num,k);
-                plambday = aux_side(e,dy_num,k);
-                plambdaz = aux_side(e,dz_num,k);
+                plambdax = aux_side(e,auxdx_num,k);
+                plambday = aux_side(e,auxdy_num,k);
+                plambdaz = aux_side(e,auxdz_num,k);
               }
               
               for (int i=0; i<basis.dimension(1); i++ ) {
@@ -558,9 +558,9 @@ public:
               plambday = 0.0;
               plambdaz = 0.0;
               if (dz_sidetype == 5) {
-                plambdax = aux_side(e,dx_num,k);
-                plambday = aux_side(e,dy_num,k);
-                plambdaz = aux_side(e,dz_num,k);
+                plambdax = aux_side(e,auxdx_num,k);
+                plambday = aux_side(e,auxdy_num,k);
+                plambdaz = aux_side(e,auxdz_num,k);
               }
               
               for (int i=0; i<basis.dimension(1); i++ ) {
@@ -629,7 +629,7 @@ public:
         for (size_t e=0; e<sol_side.dimension(0); e++) {
           for (size_t i=0; i<sol_side.dimension(2); i++) {
             this->setLocalSoln(e,i,true);
-            plambdax = aux_side(e,dx_num,i);
+            plambdax = aux_side(e,auxdx_num,i);
             penalty = epen*(lambda_side(e,i) + 2.0*mu_side(e,i))/wkset->h(e);
             flux(e,dx_num,i) += sf*stress(e,i,0,0)*normals(e,i,0) + penalty*(plambdax-dx);
           }
@@ -639,8 +639,8 @@ public:
         for (size_t e=0; e<sol_side.dimension(0); e++) {
           for (size_t i=0; i<sol_side.dimension(2); i++) {
             this->setLocalSoln(e,i,true);
-            plambdax = aux_side(e,dx_num,i);
-            plambday = aux_side(e,dy_num,i);
+            plambdax = aux_side(e,auxdx_num,i);
+            plambday = aux_side(e,auxdy_num,i);
             penalty = epen*(lambda_side(e,i) + 2.0*mu_side(e,i))/wkset->h(e);
             flux(e,dx_num,i) += sf*(stress(e,i,0,0)*normals(e,i,0) + stress(e,i,0,1)*normals(e,i,1)) + penalty*(plambdax-dx);
             flux(e,dy_num,i) += sf*(stress(e,i,1,0)*normals(e,i,0) + stress(e,i,1,1)*normals(e,i,1)) + penalty*(plambday-dy);
@@ -651,9 +651,9 @@ public:
         for (size_t e=0; e<sol_side.dimension(0); e++) {
           for (size_t i=0; i<sol_side.dimension(2); i++) {
             this->setLocalSoln(e,i,true);
-            plambdax = aux_side(e,dx_num,i);
-            plambday = aux_side(e,dy_num,i);
-            plambdaz = aux_side(e,dz_num,i);
+            plambdax = aux_side(e,auxdx_num,i);
+            plambday = aux_side(e,auxdy_num,i);
+            plambdaz = aux_side(e,auxdz_num,i);
             penalty = epen*(lambda_side(e,i) + 2.0*mu_side(e,i))/wkset->h(e);
             
             flux(e,dx_num,i) += sf*(stress(e,i,0,0)*normals(e,i,0) + stress(e,i,0,1)*normals(e,i,1) + stress(e,i,0,2)*normals(e,i,2)) + penalty*(plambdax-dx);
@@ -773,6 +773,29 @@ public:
     }
   }
   
+  // ========================================================================================
+  // ========================================================================================
+  
+  void setAuxVars(std::vector<string> & auxvarlist) {
+    
+    for (size_t i=0; i<auxvarlist.size(); i++) {
+      if (auxvarlist[i] == "dx")
+        auxdx_num = i;
+      else if (auxvarlist[i] == "dy")
+        auxdy_num = i;
+      else if (auxvarlist[i] == "dz")
+        auxdz_num = i;
+      else if (auxvarlist[i] == "e")
+        auxe_num = i;
+      else if (auxvarlist[i] == "p")
+        auxp_num = i;
+      else if (auxvarlist[i] == "Po")
+        auxp_num = i;
+      else if (auxvarlist[i] == "Pw")
+        auxp_num = i;
+      
+    }
+  }
   
   // ========================================================================================
   // return the stress
@@ -1042,8 +1065,8 @@ private:
   
   int spaceDim, numElem, numParams, numResponses;
   vector<string> varlist;
-  int dx_num, dy_num, dz_num;
-  int e_num, p_num;
+  int dx_num, dy_num, dz_num, e_num, p_num;
+  int auxdx_num = -1, auxdy_num = -1, auxdz_num = -1, auxe_num = -1, auxp_num = -1;
   int test, simNum, cell_num;
   string response_type;
   // Parameters

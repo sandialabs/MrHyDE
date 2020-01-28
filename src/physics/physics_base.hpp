@@ -66,6 +66,12 @@ public:
   virtual void setVars(vector<string> & varlist_) = 0;
   
   // ========================================================================================
+  // Set the global index for each variable
+  // ========================================================================================
+  
+  virtual void setAuxVars(vector<string> & auxvarlist) {} ;
+  
+  // ========================================================================================
   // ========================================================================================
   
   virtual void updateParameters(const vector<Teuchos::RCP<vector<AD> > > & params, const std::vector<string> & paramnames) {} ;

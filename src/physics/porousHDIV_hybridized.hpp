@@ -44,13 +44,28 @@ public:
     spaceDim = settings->sublist("Mesh").get<int>("dim",2);
     include_edgeface = true;
     
-    myvars.push_back("p");
-    myvars.push_back("u");
-    myvars.push_back("lambda");
-    mybasistypes.push_back("HVOL");
-    mybasistypes.push_back("HDIV-DG");
-    mybasistypes.push_back("HGRAD");
-    
+    if (settings->sublist("Physics").isSublist("Active variables")) {
+      if (settings->sublist("Physics").sublist("Active variables").isParameter("p")) {
+        myvars.push_back("p");
+        mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("p","HVOL"));
+      }
+      if (settings->sublist("Physics").sublist("Active variables").isParameter("u")) {
+        myvars.push_back("u");
+        mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("u","HDIV-DG"));
+      }
+      if (settings->sublist("Physics").sublist("Active variables").isParameter("lambda")) {
+        myvars.push_back("lambda");
+        mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("lambda","HGRAD"));
+      }
+    }
+    else {
+      myvars.push_back("p");
+      myvars.push_back("u");
+      myvars.push_back("lambda");
+      mybasistypes.push_back("HVOL");
+      mybasistypes.push_back("HDIV-DG");
+      mybasistypes.push_back("HGRAD");
+    }
     dxnum = 0;
     dynum = 0;
     dznum = 0;
@@ -186,7 +201,26 @@ public:
               nz = normals(e,k,2);
             }
             int resindex = offsets(unum,i);
-            res(e,resindex) += bsource(e,k)*(vx*nx+vy*ny+vz*nz);
+            res(e,resindex) -= bsource(e,k)*(vx*nx+vy*ny+vz*nz);
+          }
+        }
+      }
+      if (bcs(pnum,cside) == 5) {
+        for (int k=0; k<basis.dimension(2); k++ ) {
+          for (int i=0; i<basis.dimension(1); i++ ) {
+            vx = basis(e,i,k,0);
+            nx = normals(e,k,0);
+            if (spaceDim>1) {
+              vy = basis(e,i,k,1);
+              ny = normals(e,k,1);
+            }
+            if (spaceDim>2) {
+              vz = basis(e,i,k,2);
+              nz = normals(e,k,2);
+            }
+            int resindex = offsets(unum,i);
+            AD bval = aux_side(e,auxlambdanum,k);
+            res(e,resindex) -= bval*(vx*nx+vy*ny+vz*nz);
           }
         }
       }
@@ -288,6 +322,22 @@ public:
     }
   }
   
+  // ========================================================================================
+  // ========================================================================================
+  
+  void setAuxVars(std::vector<string> & auxvarlist) {
+    
+    for (size_t i=0; i<auxvarlist.size(); i++) {
+      if (auxvarlist[i] == "p")
+        auxpnum = i;
+      if (auxvarlist[i] == "u")
+        auxunum = i;
+      if (auxvarlist[i] == "lambda")
+        auxlambdanum = i;
+    }
+  }
+  
+  
   
   
 private:
@@ -299,7 +349,8 @@ private:
   FDATA source, bsource;
   
   int pnum, unum, lambdanum;
-  int dxnum,dynum,dznum;
+  int auxpnum=-1, auxunum=-1, auxlambdanum=-1;
+  int dxnum=-1, dynum=-1, dznum=-1;
   bool isTD, addBiot;
   ScalarT biot_alpha;
   
