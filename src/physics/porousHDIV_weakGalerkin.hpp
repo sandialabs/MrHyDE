@@ -265,6 +265,72 @@ public:
   
   
   // ========================================================================================
+  // The edge (2D) and face (3D) contributions to the residual
+  // ========================================================================================
+
+  void edgeFaceResidual() {
+
+    int pbndry_basis = wkset->usebasis[pbndrynum];
+    int u_basis = wkset->usebasis[unum];
+
+    // Since normals get recomputed often, this needs to be reset
+    normals = wkset->normals;
+
+    Teuchos::TimeMonitor localtime(*boundaryResidualFill);
+
+    ScalarT vx = 0.0, vy = 0.0, vz = 0.0;
+    ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
+
+    // include <pbndry, v \cdot n> in velocity equation
+    basis = wkset->basis_side[u_basis];
+
+    for (int e=0; e<basis.dimension(0); e++) {
+      for (int k=0; k<basis.dimension(2); k++ ) {
+        for (int i=0; i<basis.dimension(1); i++ ) {
+          vx = basis(e,i,k,0);
+          nx = normals(e,k,0);
+          if (spaceDim>1) {
+            vy = basis(e,i,k,1);
+            ny = normals(e,k,1);
+          }
+          if (spaceDim>2) {
+            vz = basis(e,i,k,2);
+            nz = normals(e,k,2);
+          }
+          AD pbndry = sol_side(e,pbndrynum,k,0);
+          int resindex = offsets(unum,i);
+          res(e,resindex) -= pbndry*(vx*nx+vy*ny+vz*nz);
+        }
+      }
+    }
+
+    // include -<t \cdot n, qbndry> in interface equation
+    AD tx = 0.0, ty = 0.0, tz = 0.0;
+    basis = wkset->basis_side[pbndry_basis];
+
+    for (int e=0; e<basis.dimension(0); e++) {
+      for (int k=0; k<basis.dimension(2); k++ ) {
+        for (int i=0; i<basis.dimension(1); i++ ) {
+          tx = sol_side(e,unum,k,0);
+          nx = normals(e,k,0);
+          if (spaceDim>1) {
+            ty = sol_side(e,unum,k,1);
+            ny = normals(e,k,1);
+          }
+          if (spaceDim>2) {
+            tz = sol_side(e,unum,k,2);
+            nz = normals(e,k,2);
+          }
+          ScalarT qbndry = basis(e,i,k);
+          int resindex = offsets(pbndrynum,i);
+          res(e,resindex) -= (tx*nx+ty*ny+tz*nz)*qbndry;
+        }
+      }
+    }
+
+  }
+
+  // ========================================================================================
   // The boundary/edge flux
   // ========================================================================================
   
