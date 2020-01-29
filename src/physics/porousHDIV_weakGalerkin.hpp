@@ -203,11 +203,11 @@ public:
     int sidetype;
     sidetype = bcs(pbndrynum,cside);
     
-    basis = wkset->basis_side[pbndrynum];
+    basis = wkset->basis[pbndrynum];
     
     {
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
-      bsource = functionManager->evaluate("Dirichlet p " + wkset->sidename,"side ip",blocknum);
+      bsource = functionManager->evaluate("Dirichlet pbndry " + wkset->sidename,"side ip",blocknum);
     }
     
     // Since normals get recomputed often, this needs to be reset
