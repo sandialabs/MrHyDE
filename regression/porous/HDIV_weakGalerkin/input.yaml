@@ -19,7 +19,7 @@ ANONYMOUS:
         ux: 2*pi*cos(2*pi*x)*sin(2*pi*y)
         uy: 2*pi*sin(2*pi*x)*cos(2*pi*y)
         tx: -2*pi*cos(2*pi*x)*sin(2*pi*y)
-        ty: -2*pi*cos(2*pi*x)*sin(2*pi*y)
+        ty: -2*pi*sin(2*pi*x)*cos(2*pi*y)
   Parameters Settings File: input_params.yaml
   Functions Settings File: input_functions.yaml
   Solver: 
@@ -31,16 +31,16 @@ ANONYMOUS:
     finaltime: 1.00000000000000000e+00
     numSteps: 10
     Initial type: none
-    use direct solver: false
+    use direct solver: true
     use preconditioner: false
   Discretization:
     eblock-0_0:
       order:
         pint: 0
-        pbndry: 0
+        pbndry: 1
         u: 1
         t: 1
-      quadrature: 1
+      quadrature: 2
   Analysis:
     analysis type: forward
     Have Sensor Points: false
