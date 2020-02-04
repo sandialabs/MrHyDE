@@ -49,6 +49,9 @@
 #include "Intrepid2_HCURL_TET_I1_FEM.hpp"
 #include "Intrepid2_HCURL_TET_In_FEM.hpp"
 
+// HFACE (experimental) functionality
+#include "Intrepid2_HFACE_QUAD_In_FEM.hpp"
+
 #include "Intrepid2_PointTools.hpp"
 #include "Intrepid2_FunctionSpaceTools.hpp"
 #include "Intrepid2_CellTools.hpp"
@@ -716,8 +719,20 @@ public:
       }
 
     }
-    else if (type == "HMORT") {
-      
+    else if (type == "HFACE") {
+      if (spaceDim == 2) {
+        if (shape == "Quadrilateral_4") {
+          basis = Teuchos::rcp(new Basis_HFACE_QUAD_In_FEM<AssemblyDevice>(degree,POINTTYPE_EQUISPACED) );
+        }
+      }
+      if (spaceDim == 3) {
+        if (shape == "Hexahedron_8") {
+          
+        }
+        if (shape == "Tetrahedron_4") {
+          
+        }
+      }
     }
     
     

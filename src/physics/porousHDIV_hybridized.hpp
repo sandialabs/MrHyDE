@@ -42,7 +42,7 @@ public:
     label = "porousHDIV-Hybrid";
     
     spaceDim = settings->sublist("Mesh").get<int>("dim",2);
-    include_edgeface = true;
+    include_face = true;
     
     if (settings->sublist("Physics").isSublist("Active variables")) {
       if (settings->sublist("Physics").sublist("Active variables").isParameter("p")) {
@@ -64,11 +64,12 @@ public:
       myvars.push_back("lambda");
       mybasistypes.push_back("HVOL");
       mybasistypes.push_back("HDIV-DG");
-      mybasistypes.push_back("HGRAD");
+      mybasistypes.push_back("HFACE");
     }
     dxnum = 0;
     dynum = 0;
     dznum = 0;
+    
     
     // Functions
     Teuchos::ParameterList fs = settings->sublist("Functions");
@@ -159,6 +160,7 @@ public:
   
   void boundaryResidual() {
     
+    
     sideinfo = wkset->sideinfo;
     Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
     
@@ -225,13 +227,15 @@ public:
         }
       }
     }
+    
   }
   
   // ========================================================================================
   // The edge (2D) and face (3D) contributions to the residual
   // ========================================================================================
   
-  void edgeFaceResidual() {
+  void faceResidual() {
+    
     
     int lambda_basis = wkset->usebasis[lambdanum];
     int u_basis = wkset->usebasis[unum];
@@ -245,7 +249,7 @@ public:
     ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
     
     // include <lambda, v \cdot n> in velocity equation
-    basis = wkset->basis_side[u_basis];
+    basis = wkset->basis_face[u_basis];
     
     for (int e=0; e<basis.dimension(0); e++) {
       for (int k=0; k<basis.dimension(2); k++ ) {
@@ -260,33 +264,32 @@ public:
             vz = basis(e,i,k,2);
             nz = normals(e,k,2);
           }
-          AD lambda = sol_side(e,lambdanum,k,0);
+          AD lambda = sol_face(e,lambdanum,k,0);
           int resindex = offsets(unum,i);
-          res(e,resindex) += lambda*(vx*nx+vy*ny+vz*nz);
+          res(e,resindex) += 1.0*lambda*(vx*nx+vy*ny+vz*nz);
         }
       }
     }
     
     // include -<u \cdot n, mu> in interface equation
     AD ux = 0.0, uy = 0.0, uz = 0.0;
-    basis = wkset->basis_side[lambda_basis];
-    
+    basis = wkset->basis_face[lambda_basis];
     for (int e=0; e<basis.dimension(0); e++) {
       for (int k=0; k<basis.dimension(2); k++ ) {
         for (int i=0; i<basis.dimension(1); i++ ) {
-          ux = sol_side(e,unum,k,0);
+          ux = sol_face(e,unum,k,0);
           nx = normals(e,k,0);
           if (spaceDim>1) {
-            uy = sol_side(e,unum,k,1);
+            uy = sol_face(e,unum,k,1);
             ny = normals(e,k,1);
           }
           if (spaceDim>2) {
-            uz = sol_side(e,unum,k,2);
+            uz = sol_face(e,unum,k,2);
             nz = normals(e,k,2);
           }
           ScalarT mu = basis(e,i,k);
           int resindex = offsets(lambdanum,i);
-          res(e,resindex) += (ux*nx+uy*ny+uz*nz)*mu;
+          res(e,resindex) -= (ux*nx+uy*ny+uz*nz)*mu;
         }
       }
     }

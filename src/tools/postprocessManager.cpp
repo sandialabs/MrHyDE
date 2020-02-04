@@ -871,7 +871,6 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
         }
       }
       
-      
       ////////////////////////////////////////////////////////////////
       // Extra nodal fields
       ////////////////////////////////////////////////////////////////
@@ -946,7 +945,6 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
         mesh->setCellFieldData(extracellfieldnames[j], blockID, myElements, extracellfields[j]);
       }
       
-      
       if (cells[b][0]->cellData->have_cell_phi || cells[b][0]->cellData->have_cell_rotation) {
         Kokkos::View<ScalarT**,HostDevice> cdata("cell data",myElements.size(), 1);
         int eprog = 0;
@@ -1008,8 +1006,9 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
       if(isTD) {
         mesh->writeToExodus(solvetimes[m]);
       }
-      else
-      mesh->writeToExodus(filename);
+      else {
+        mesh->writeToExodus(filename);
+      }
     }
   }
   

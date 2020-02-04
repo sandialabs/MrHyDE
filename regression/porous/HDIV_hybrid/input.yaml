@@ -5,6 +5,10 @@ ANONYMOUS:
   debug level: 0
   Mesh Settings File: input_mesh.yaml
   Physics: 
+    Active variables:
+      p: HVOL
+      u: HDIV-DG
+      lambda: HFACE
     eblock-0_0: 
       solve_porousHDIV_hybrid: true
       Dirichlet conditions:
@@ -36,7 +40,7 @@ ANONYMOUS:
       order:
         p: 0
         u: 1
-        lambda: 1
+        lambda: 0
       quadrature: 2
   Analysis:
     analysis type: forward

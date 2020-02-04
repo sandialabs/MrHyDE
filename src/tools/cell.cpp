@@ -171,48 +171,14 @@ void cell::computeSolnVolIP(const bool & seedu, const bool & seedudot, const boo
 // Map the AD degrees of freedom to integration points
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::computeSolnEdgeFaceIP(const size_t & sidenum, const bool & seedu,
+void cell::computeSolnFaceIP(const size_t & facenum, const bool & seedu,
                                  const bool & seedudot, const bool & seedparams,
                                  const bool & seedaux) {
   
-  Teuchos::TimeMonitor localtimer(*computeSolnEdgeFaceTimer);
+  Teuchos::TimeMonitor localtimer(*computeSolnFaceTimer);
   
-  wkset->updateSide(nodes, orientation, sidenum);
-  wkset->computeSolnSideIP(sidenum, u, u_dot, seedu, seedudot);
-  
-  // TMW: this other stuff does not have a use case yet for edge/face integrations
-  /*
-  wkset->computeParamVolIP(param, seedparams);
-  
-  if (wkset->numAux > 0) {
-    wkset->resetAux();
-    
-    AD auxval;
-    for (int e=0; e<numElem; e++) {
-      if (auxindex.size() > e ) {
-        for (size_t k=0; k<auxindex.dimension(1); k++) {
-          if (auxusebasis[k] < auxbasis.size()) {
-            for( int i=0; i<numAuxDOF(k); i++ ) {
-              
-              if (seedaux) {
-                auxval = AD(maxDerivs,auxoffsets[k][i],aux(e,k,i));
-              }
-              else {
-                auxval = aux(e,k,i);
-              }
-              for( size_t j=0; j<ip.dimension(1); j++ ) {
-                wkset->local_aux(e,k,j) += auxval*auxbasis[auxusebasis[k]](e,i,j);
-                //for( int s=0; s<dimension; s++ ) {
-                //  wkset->local_aux_grad(e,k,j,s) += auxval*auxbasisGrad[auxusebasis[k]](e,i,j,s);
-                //}
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  */
+  wkset->updateFace(nodes, orientation, facenum);
+  wkset->computeSolnFaceIP(u, u_dot, seedu, seedudot);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -304,31 +270,31 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   // Edge/face contribution
   
   {
-    Teuchos::TimeMonitor localtimer(*edgeFaceResidualTimer);
+    Teuchos::TimeMonitor localtimer(*faceResidualTimer);
     if (cellData->multiscale) {
       // do nothing
     }
     else {
       // determine if we need to include edge/face terms
-      bool include_edgeface = cellData->physics_RCP->checkEdgeFace(cellData->myBlock);
+      bool include_face = cellData->physics_RCP->checkFace(cellData->myBlock);
       
-      if (include_edgeface) {
+      if (include_face) {
         for (size_t s=0; s<cellData->numSides; s++) {
           if (compute_jacobian) {
             if (compute_disc_sens) {
-              this->computeSolnEdgeFaceIP(s,false,false,true,false);
+              this->computeSolnFaceIP(s,false,false,true,false);
             }
             else if (compute_aux_sens) {
-              this->computeSolnEdgeFaceIP(s,false,false,false,true);
+              this->computeSolnFaceIP(s,false,false,false,true);
             }
             else {
-              this->computeSolnEdgeFaceIP(s,true,false,false,false);
+              this->computeSolnFaceIP(s,true,false,false,false);
             }
           }
           else {
-            this->computeSolnEdgeFaceIP(s,false,false,false,false);
+            this->computeSolnFaceIP(s,false,false,false,false);
           }
-          cellData->physics_RCP->edgeFaceResidual(cellData->myBlock);
+          cellData->physics_RCP->faceResidual(cellData->myBlock);
         }
       }
     }
@@ -836,7 +802,6 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::computeError(const ScalarT & solvet
     wkset->update(ip,ijac,orientation);
     wkset->computeSolnVolIP(u, u_dot, false, false);
     size_t numip = wkset->numip;
-    
     /*
      size_t numip = wkset->numip;
      Kokkos::View<ScalarT***,AssemblyDevice> u_ip("u_ip",numElem,index[0].size(),numip);
@@ -856,6 +821,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::computeError(const ScalarT & solvet
                                                        numip,cellData->dimension);
       cellData->physics_RCP->trueSolution(cellData->myBlock, solvetime, truesol);
       //KokkosTools::print(wkset->local_soln);
+      //KokkosTools::print(truesol);
       for (int e=0; e<numElem; e++) {
         for (int n=0; n<index.dimension(1); n++) {
           for( size_t j=0; j<numip; j++ ) {

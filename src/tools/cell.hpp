@@ -180,9 +180,9 @@ public:
                         const bool & seedaux);
   
   
-  void computeSolnEdgeFaceIP(const size_t & sidenum, const bool & seedu,
-                             const bool & seedudot, const bool & seedparams,
-                             const bool & seedaux);
+  void computeSolnFaceIP(const size_t & facenum, const bool & seedu,
+                         const bool & seedudot, const bool & seedparams,
+                         const bool & seedaux);
 
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the contribution from this cell to the global res, J, Jdot
@@ -437,10 +437,10 @@ public:
   
   // Profile timers
   Teuchos::RCP<Teuchos::Time> computeSolnVolTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeSolnVolIP()");
-  Teuchos::RCP<Teuchos::Time> computeSolnEdgeFaceTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeSolnEdgeFaceIP()");
+  Teuchos::RCP<Teuchos::Time> computeSolnFaceTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeSolnFaceIP()");
   Teuchos::RCP<Teuchos::Time> volumeResidualTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeJacRes() - volume residual");
   Teuchos::RCP<Teuchos::Time> boundaryResidualTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeJacRes() - boundary residual");
-  Teuchos::RCP<Teuchos::Time> edgeFaceResidualTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeJacRes() - edge/face residual");
+  Teuchos::RCP<Teuchos::Time> faceResidualTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeJacRes() - edge/face residual");
   Teuchos::RCP<Teuchos::Time> jacobianFillTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeJacRes() - fill local Jacobian");
   Teuchos::RCP<Teuchos::Time> residualFillTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeJacRes() - fill local residual");
   Teuchos::RCP<Teuchos::Time> transientResidualTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeJacRes() - transient residual");

@@ -58,10 +58,7 @@ class workset {
   // Update the nodes and the basis functions at the side ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  //void updateSide(const DRV & nodes, const DRV & ip_side_, const DRV & wts_side_,
-  //                const DRV & normals_, const DRV & sidejacobian, const int & s);
-  
-  void updateSide(const DRV & nodes, const vector<vector<ScalarT> > & orientation,
+  void updateFace(const DRV & nodes, const vector<vector<ScalarT> > & orientation,
                   const size_t & sidenum);
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -130,7 +127,15 @@ class workset {
   // Compute the solutions at the side ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void computeSolnSideIP(const int & side, Kokkos::View<ScalarT***,AssemblyDevice> u,
+  void computeSolnSideIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
+                         Kokkos::View<ScalarT***,AssemblyDevice> u_dot,
+                         const bool & seedu, const bool& seedudot);
+  
+  ////////////////////////////////////////////////////////////////////////////////////
+  // Compute the solutions at the face ip
+  ////////////////////////////////////////////////////////////////////////////////////
+  
+  void computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
                          Kokkos::View<ScalarT***,AssemblyDevice> u_dot,
                          const bool & seedu, const bool& seedudot);
   
@@ -221,12 +226,14 @@ class workset {
   vector<DRV> basis_curl_uw; // un-weighted
   
   vector<DRV> basis_side, basis_side_uw, basis_grad_side, basis_grad_side_uw;
+  vector<DRV> basis_face, basis_face_uw, basis_grad_face, basis_grad_face_uw;
   vector<DRV> basis_div_side, basis_div_side_uw, basis_curl_side, basis_curl_side_uw;
   
   Kokkos::View<AD****, AssemblyDevice> local_soln, local_soln_grad, local_soln_dot, local_soln_dot_grad, local_soln_curl;
   Kokkos::View<AD***, AssemblyDevice> local_soln_div, local_param, local_aux, local_param_side, local_aux_side;
   Kokkos::View<AD****, AssemblyDevice> local_param_grad, local_aux_grad, local_param_grad_side, local_aux_grad_side;
   Kokkos::View<AD****, AssemblyDevice> local_soln_side, local_soln_grad_side, local_soln_dot_side;
+  Kokkos::View<AD****, AssemblyDevice> local_soln_face, local_soln_grad_face;
   
   Kokkos::View<AD****, AssemblyDevice> local_soln_point, local_soln_grad_point, local_param_grad_point;
   Kokkos::View<AD***, AssemblyDevice> local_param_point;

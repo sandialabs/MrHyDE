@@ -50,7 +50,7 @@ public:
   // ========================================================================================
   
   virtual
-  void edgeFaceResidual() {};
+  void faceResidual() {};
   
   // ========================================================================================
   // The boundary/edge flux
@@ -91,6 +91,9 @@ public:
     sol_side = wkset->local_soln_side;
     sol_grad_side = wkset->local_soln_grad_side;
     
+    sol_face = wkset->local_soln_face;
+    sol_grad_face = wkset->local_soln_grad_face;
+    
     aux = wkset->local_aux;
     aux_side = wkset->local_aux_side;
     
@@ -110,9 +113,9 @@ public:
   Teuchos::RCP<FunctionInterface> functionManager;
   int spaceDim;
   vector<string> myvars, mybasistypes;
-  bool include_edgeface = false;
+  bool include_face = false;
   // All of these point to specific information in the workset
-  Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad, sol_side, sol_grad_side, aux_grad_side, sol_curl;
+  Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad, sol_side, sol_grad_side, aux_grad_side, sol_curl, sol_face, sol_grad_face;
   Kokkos::View<AD***,AssemblyDevice> aux, aux_side, sol_div, flux;
   Kokkos::View<AD**,AssemblyDevice> res, adjrhs;
   Kokkos::View<int**,AssemblyDevice> offsets;

@@ -37,7 +37,7 @@ ANONYMOUS:
     eblock-0_0:
       order:
         pint: 0
-        pbndry: 1
+        pbndry: 0
         u: 1
         t: 1
       quadrature: 2

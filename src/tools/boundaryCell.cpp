@@ -123,7 +123,7 @@ void BoundaryCell::computeSoln(const bool & seedu, const bool & seedudot, const 
   
   Teuchos::TimeMonitor localtimer(*computeSolnSideTimer);
   
-  wkset->computeSolnSideIP(sidenum, u, u_dot, seedu, seedudot);
+  wkset->computeSolnSideIP(u, u_dot, seedu, seedudot);
   wkset->computeParamSideIP(sidenum, param, seedparams);
   
   if (wkset->numAux > 0) {

@@ -62,7 +62,7 @@ public:
     label = "porousHDIV-WeakGalerkin";
     
     spaceDim = settings->sublist("Mesh").get<int>("dim",2);
-    include_edgeface = true;
+    include_face = true;
     
     if (settings->sublist("Physics").isSublist("Active variables")) {
       if (settings->sublist("Physics").sublist("Active variables").isParameter("pint")) {
@@ -88,7 +88,7 @@ public:
       myvars.push_back("u");
       myvars.push_back("t");
       mybasistypes.push_back("HVOL");
-      mybasistypes.push_back("HGRAD"); // TODO: turn into HFACE-DG
+      mybasistypes.push_back("HFACE"); // TODO: turn into HFACE-DG
       mybasistypes.push_back("HDIV-DG");
       mybasistypes.push_back("HDIV-DG");
     }
@@ -329,7 +329,7 @@ public:
   // The edge (2D) and face (3D) contributions to the residual
   // ========================================================================================
 
-  void edgeFaceResidual() {
+  void faceResidual() {
 
     int pbndry_basis = wkset->usebasis[pbndrynum];
     int u_basis = wkset->usebasis[unum];
@@ -343,7 +343,7 @@ public:
     ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
 
     // include <pbndry, v \cdot n> in velocity equation
-    basis = wkset->basis_side[u_basis];
+    basis = wkset->basis_face[u_basis];
 
     for (size_t e=0; e<basis.dimension(0); e++) {
       for (size_t k=0; k<basis.dimension(2); k++ ) {
@@ -358,7 +358,7 @@ public:
             vz = basis(e,i,k,2);
             nz = normals(e,k,2);
           }
-          AD pbndry = sol_side(e,pbndrynum,k,0);
+          AD pbndry = sol_face(e,pbndrynum,k,0);
           int resindex = offsets(unum,i);
           res(e,resindex) -= pbndry*(vx*nx+vy*ny+vz*nz);
         }
@@ -367,19 +367,19 @@ public:
 
     // include -<t \cdot n, qbndry> in interface equation
     AD tx = 0.0, ty = 0.0, tz = 0.0;
-    basis = wkset->basis_side[pbndry_basis];
+    basis = wkset->basis_face[pbndry_basis];
 
     for (size_t e=0; e<basis.dimension(0); e++) {
       for (size_t k=0; k<basis.dimension(2); k++ ) {
         for (size_t i=0; i<basis.dimension(1); i++ ) {
-          tx = sol_side(e,unum,k,0);
+          tx = sol_face(e,unum,k,0);
           nx = normals(e,k,0);
           if (spaceDim>1) {
-            ty = sol_side(e,unum,k,1);
+            ty = sol_face(e,unum,k,1);
             ny = normals(e,k,1);
           }
           if (spaceDim>2) {
-            tz = sol_side(e,unum,k,2);
+            tz = sol_face(e,unum,k,2);
             nz = normals(e,k,2);
           }
           ScalarT qbndry = basis(e,i,k);

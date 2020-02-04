@@ -170,7 +170,7 @@ Commptr(Comm_), functionManager(functionManager_) {
     Teuchos::ParameterList true_solns = blocksettings.sublist("true solutions");
     for (size_t j=0; j<currvarlist.size(); j++) {
       
-      if (currtypes[j] == "HGRAD" || currtypes[j] == "HVOL") {
+      if (currtypes[j] == "HGRAD" || currtypes[j] == "HVOL" || currtypes[j] == "HFACE") {
         string expression = true_solns.get<string>(currvarlist[j],"0.0");
         functionManager->addFunction("true "+currvarlist[j],expression,numElemPerCell,numip,"ip",b);
         
@@ -786,7 +786,7 @@ void physics::trueSolution(const int & block, const ScalarT & time,
   
   for (int v=0; v<varlist[block].size(); v++) {
     string btype = types[block][v];
-    if (btype == "HGRAD" || btype == "HVOL") {
+    if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE") {
       string expression = "true " + varlist[block][v];
       FDATA tsol = functionManager->evaluate(expression,"ip",block);
       for (size_t i=0; i<truesol.dimension(0); i++) {
@@ -936,16 +936,16 @@ AD physics::computeTopoResp(const size_t & block){
 //
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-bool physics::checkEdgeFace(const size_t & block){
-  bool include_edgeface = false;
+bool physics::checkFace(const size_t & block){
+  bool include_face = false;
   for (size_t i=0; i<modules[block].size(); i++) {
-    bool cuseef = modules[block][i]->include_edgeface;
+    bool cuseef = modules[block][i]->include_face;
     if (cuseef) {
-      include_edgeface = true;
+      include_face = true;
     }
   }
   
-  return include_edgeface;
+  return include_face;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1642,10 +1642,10 @@ void physics::setWorkset(vector<Teuchos::RCP<workset> > & wkset) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void physics::edgeFaceResidual(const size_t block) {
+void physics::faceResidual(const size_t block) {
   for (size_t i=0; i<modules[block].size(); i++) {
     if (useSubgrid[block][i] == false) {
-      modules[block][i]->edgeFaceResidual();
+      modules[block][i]->faceResidual();
     }
   }
 }
