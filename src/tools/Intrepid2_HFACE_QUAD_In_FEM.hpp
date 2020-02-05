@@ -257,6 +257,6 @@ namespace Intrepid2 {
   
 }// namespace Intrepid2
 
-#include "Intrepid2_HFACE_QUAD_In_FEMDef.hpp"
+#include "Intrepid2_HFACE_QUAD_In_FEMdef.hpp"
 
 #endif
