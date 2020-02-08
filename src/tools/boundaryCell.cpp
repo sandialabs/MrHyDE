@@ -9,12 +9,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#include "cell.hpp"
+#include "boundaryCell.hpp"
 #include "physicsInterface.hpp"
-#include "discretizationInterface.hpp"
-#include "solverInterface.hpp"
-#include "uqInterface.hpp"
-#include "subgridFEM.hpp"
 
 #include <iostream>
 #include <iterator>

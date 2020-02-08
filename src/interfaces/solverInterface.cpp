@@ -9,11 +9,7 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#include "multiscaleInterface.hpp"
 #include "solverInterface.hpp"
-#include "discretizationTools.hpp"
-#include "workset.hpp"
-
 
 // ========================================================================================
 /* Constructor to set up the problem */

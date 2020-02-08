@@ -13,6 +13,7 @@
 #define PREFERENCES_H
 
 #include "PanzerCore_config.hpp"
+#include "Intrepid2_Basis.hpp"
 
 using namespace std;
 using Kokkos::parallel_for;
@@ -49,14 +50,15 @@ typedef Kokkos::Compat::KokkosSerialWrapperNode SubgridNode;
 //typedef Kokkos::Compat::KokkosCudaWrapperNode HostNode;
 
 // Kokkos object typedefs (preferable to use Kokkos::View<*,Device>)
-//typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> DRV;
-//typedef Kokkos::DynRankView<int,AssemblyDevice> DRVint;
+typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> DRV;
+typedef Kokkos::DynRankView<int,AssemblyDevice> DRVint;
 typedef Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> FDATA;
 typedef Kokkos::View<ScalarT**,Kokkos::LayoutStride,AssemblyDevice> FDATAd;
 
 // Intrepid and shards typedefs
 //typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
+typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;
 
 // Tpetra linear algebra typedefs (Epetra is non longer supported)
 typedef Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>   LA_CrsMatrix;

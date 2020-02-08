@@ -10,11 +10,8 @@
  ************************************************************************/
 
 #include "cell.hpp"
+#include "discretizationTools.hpp"
 #include "physicsInterface.hpp"
-#include "discretizationInterface.hpp"
-#include "solverInterface.hpp"
-#include "uqInterface.hpp"
-#include "subgridFEM.hpp"
 
 #include <iostream>
 #include <iterator>

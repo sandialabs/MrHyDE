@@ -46,6 +46,14 @@
 // Shards includes
 #include "Shards_CellTopology.hpp"
 
+#include "Intrepid2_Basis.hpp"
+#include "Intrepid2_PointTools.hpp"
+#include "Intrepid2_FunctionSpaceTools.hpp"
+#include "Intrepid2_CellTools.hpp"
+#include "Intrepid2_ArrayTools.hpp"
+#include "Intrepid2_RealSpaceTools.hpp"
+#include "Intrepid2_DefaultCubatureFactory.hpp"
+
 #ifdef HAVE_MPI
 //#include "Epetra_MpiComm.h"
 #include "mpi.h"

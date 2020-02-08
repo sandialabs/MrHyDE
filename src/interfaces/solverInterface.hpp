@@ -20,8 +20,6 @@
 #include "physicsInterface.hpp"
 #include "multiscaleInterface.hpp"
 #include "discretizationInterface.hpp"
-#include "discretizationTools.hpp"
-#include "cell.hpp"
 #include "assemblyManager.hpp"
 #include "parameterManager.hpp"
 #include "solutionStorage.hpp"

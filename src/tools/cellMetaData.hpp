@@ -15,6 +15,7 @@
 #include "trilinos.hpp"
 #include "preferences.hpp"
 #include "physics_base.hpp"
+#include "physicsInterface.hpp"
 
 #include <iostream>     
 #include <iterator>     

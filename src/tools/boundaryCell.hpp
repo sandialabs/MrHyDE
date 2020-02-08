@@ -14,7 +14,6 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "discretizationTools.hpp"
 #include "workset.hpp"
 #include "cellMetaData.hpp"
 

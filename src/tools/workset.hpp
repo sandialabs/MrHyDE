@@ -14,7 +14,6 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "discretizationTools.hpp"
 
 class workset {
   public:

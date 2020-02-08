@@ -14,9 +14,6 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "physics_base.hpp"
-#include "discretizationTools.hpp"
-#include "physicsInterface.hpp"
 #include "workset.hpp"
 #include "subgridModel.hpp"
 #include "cellMetaData.hpp"

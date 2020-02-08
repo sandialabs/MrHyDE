@@ -61,9 +61,9 @@
 #include "Intrepid2_Utils.hpp"
 
 #include "preferences.hpp"
-typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> DRV;
-typedef Kokkos::DynRankView<int,AssemblyDevice> DRVint;
-typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;
+//typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> DRV;
+//typedef Kokkos::DynRankView<int,AssemblyDevice> DRVint;
+//typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;
 
 class DiscTools {
   

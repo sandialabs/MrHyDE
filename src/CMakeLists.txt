@@ -30,6 +30,7 @@ tools/boundaryCell.cpp
 tools/workset.cpp
 tools/split_mpi_communicators.cpp 
 tools/subgridFEM.cpp 
+physics/thermal.cpp
 user/functionInterface.cpp)
 TARGET_LINK_LIBRARIES(milo ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
