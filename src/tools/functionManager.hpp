@@ -9,19 +9,19 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef FUNCTION_INTERFACE_H
-#define FUNCTION_INTERFACE_H
+#ifndef FUNCTION_MANAGER_H
+#define FUNCTION_MANAGER_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
 #include "function.hpp"
 
-class FunctionInterface {
+class FunctionManager {
   public:
   
-  FunctionInterface();
+  FunctionManager();
   
-  FunctionInterface(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  FunctionManager(Teuchos::RCP<Teuchos::ParameterList> & settings);
   
   //////////////////////////////////////////////////////////////////////////////////////
   // Add a user defined function

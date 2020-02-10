@@ -17,34 +17,34 @@
 #include "rectPeriodicMatcher.hpp"
 #include "discretizationTools.hpp"
 
-// Physics modules:
+// Enabled physics modules:
 #include "porous.hpp"
 #include "porousHDIV.hpp"
 #include "porousHDIV_hybridized.hpp"
 #include "porousHDIV_weakGalerkin.hpp"
-//#include "twophasePwNo.hpp"
 #include "twophasePoNo.hpp"
 #include "twophasePoPw.hpp"
 #include "cdr.hpp"
-//#include "msconvdiff.hpp"
 #include "thermal.hpp"
-
-//#include "thermal_fr.hpp"
 #include "thermal_enthalpy.hpp"
-//#include "burgers.hpp"
-//#include "phasefield.hpp"
 #include "msphasefield.hpp"
 #include "stokes.hpp"
 #include "navierstokes.hpp"
-//#include "euler.hpp"
 #include "linearelasticity.hpp"
-//#include "peridynamics.hpp"
 #include "helmholtz.hpp"
-//#include "mwhelmholtz.hpp"
 #include "maxwells_fp.hpp"
-//#include "phasesolidification.hpp"
 #include "shallowwater.hpp"
 #include "maxwell.hpp"
+
+// Disabled/out-of-date physics modules
+//#include "msconvdiff.hpp"
+//#include "phasesolidification.hpp"
+//#include "mwhelmholtz.hpp"
+//#include "peridynamics.hpp"
+//#include "euler.hpp"
+//#include "burgers.hpp"
+//#include "phasefield.hpp"
+//#include "thermal_fr.hpp"
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -52,7 +52,7 @@
 
 physics::physics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<MpiComm> & Comm_,
                  vector<topo_RCP> & cellTopo, vector<topo_RCP> & sideTopo,
-                 Teuchos::RCP<FunctionInterface> & functionManager_,
+                 Teuchos::RCP<FunctionManager> & functionManager_,
                  Teuchos::RCP<panzer_stk::STK_Interface> & mesh) :
 Commptr(Comm_), functionManager(functionManager_) {
   

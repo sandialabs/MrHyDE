@@ -14,8 +14,10 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "cell.hpp"
+#include "meshInterface.hpp"
 #include "physicsInterface.hpp"
+#include "cell.hpp"
+#include "boundaryCell.hpp"
 
 
 void static parameterHelp(const string & details) {

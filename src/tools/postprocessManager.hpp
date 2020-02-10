@@ -14,8 +14,10 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
+#include "meshInterface.hpp"
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
+#include "functionManager.hpp"
 #include "assemblyManager.hpp"
 #include "parameterManager.hpp"
 #include "sensorManager.hpp"
@@ -34,15 +36,16 @@ public:
   /* Constructor to set up the problem */
   // ========================================================================================
   
-  PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
-              Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
-              Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
-              Teuchos::RCP<solver> & solve_, Teuchos::RCP<panzer::DOFManager> & DOF_,
-              vector<vector<Teuchos::RCP<cell> > > cells_,
-              Teuchos::RCP<FunctionInterface> & functionManager,
-              Teuchos::RCP<AssemblyManager> & assembler_,
-              Teuchos::RCP<ParameterManager> & params_,
-              Teuchos::RCP<SensorManager> & sensors_);
+  PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
+                     Teuchos::RCP<Teuchos::ParameterList> & settings,
+                     Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                     Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
+                     Teuchos::RCP<solver> & solve_, Teuchos::RCP<panzer::DOFManager> & DOF_,
+                     vector<vector<Teuchos::RCP<cell> > > cells_,
+                     Teuchos::RCP<FunctionManager> & functionManager,
+                     Teuchos::RCP<AssemblyManager> & assembler_,
+                     Teuchos::RCP<ParameterManager> & params_,
+                     Teuchos::RCP<SensorManager> & sensors_);
   
   // ========================================================================================
   // ========================================================================================

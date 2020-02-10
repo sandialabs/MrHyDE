@@ -9,28 +9,40 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#include "thermal.hpp"
-
+#include "thermal_enthalpy.hpp"
 
 // ========================================================================================
 /* Constructor to set up the problem */
 // ========================================================================================
 
-thermal::thermal(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-                 const size_t & numip_side_, const int & numElem_,
-                 Teuchos::RCP<FunctionManager> & functionManager_,
-                 const size_t & blocknum_) :
+thermal_enthalpy::thermal_enthalpy(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
+                                   const size_t & numip_side_, const int & numElem_,
+                                   Teuchos::RCP<FunctionManager> & functionManager_,
+                                   const size_t & blocknum_) :
 numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
   
-  // Standard data
+  label = "thermal_enthalpy";
   functionManager = functionManager_;
-  label = "thermal";
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
+  
   myvars.push_back("e");
+  myvars.push_back("H");
+  mybasistypes.push_back("HGRAD");
   mybasistypes.push_back("HGRAD");
   
-  // Extra data
+  if (settings->sublist("Physics").get<int>("solver",0) == 1)
+    isTD = true;
+  else
+    isTD = false;
+  
+  multiscale = settings->isSublist("Subgrid");
+  analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
+  
+  numResponses = settings->sublist("Physics").get<int>("numResp_thermal",2);
+  useScalarRespFx = settings->sublist("Physics").get<bool>("use scalar response function (thermal)",false);
+  
   formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
+  
   have_nsvel = false;
   
   // Functions
@@ -40,24 +52,19 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
   functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),numElem,numip,"ip",blocknum);
   functionManager->addFunction("specific heat",fs.get<string>("specific heat","1.0"),numElem,numip,"ip",blocknum);
   functionManager->addFunction("density",fs.get<string>("density","1.0"),numElem,numip,"ip",blocknum);
-  //functionManager->addFunction("thermal Neumann source",fs.get<string>("thermal Neumann source","0.0"),numElem,numip_side,"side ip",blocknum);
+  functionManager->addFunction("thermal Neumann source",fs.get<string>("thermal Neumann source","0.0"),numElem,numip_side,"side ip",blocknum);
   functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),numElem,numip_side,"side ip",blocknum);
   functionManager->addFunction("robin alpha",fs.get<string>("robin alpha","0.0"),numElem,numip_side,"side ip",blocknum);
-  
 }
 
 // ========================================================================================
 // ========================================================================================
 
-void thermal::volumeResidual() {
+void thermal_enthalpy::volumeResidual() {
   
   // NOTES:
   // 1. basis and basis_grad already include the integration weights
   
-  int e_basis_num = wkset->usebasis[e_num];
-  basis = wkset->basis[e_basis_num];
-  basis_grad = wkset->basis_grad[e_basis_num];
-  //offsets = wkset->offsets;
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("thermal source","ip",blocknum);
@@ -68,57 +75,101 @@ void thermal::volumeResidual() {
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
-  if (spaceDim ==1) {
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.dimension(2); k++ ) {
-        for (int i=0; i<basis.dimension(1); i++ ) {
-          resindex = offsets(e_num,i); // TMW: e_num is not on the assembly device
-          res(e,resindex) += rho(e,k)*cp(e,k)*sol_dot(e,e_num,k,0)*basis(e,i,k) +
-          diff(e,k)*(sol_grad(e,e_num,k,0)*basis_grad(e,i,k,0)) -
-          source(e,k)*basis(e,i,k);
-          if (have_nsvel) { // TMW: have_nsvel is not on the assembly device
-            res(e,resindex) += (sol(e,ux_num,k,0)*sol_grad(e,e_num,k,0)*basis(e,i,k));
-          }
+  basis = wkset->basis[e_basis];
+  basis_grad = wkset->basis_grad[e_basis];
+  
+  parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+    
+    ScalarT v = 0.0;
+    ScalarT dvdx = 0.0;
+    ScalarT dvdy = 0.0;
+    ScalarT dvdz = 0.0;
+    
+    for (int k=0; k<sol.dimension(2); k++ ) {
+      AD T = sol(e,e_num,k,0);
+      AD T_dot = sol_dot(e,e_num,k,0);
+      AD dTdx = sol_grad(e,e_num,k,0);
+      AD H = sol(e,H_num,k,0);
+      AD H_dot = sol_dot(e,H_num,k,0);
+      AD dHdx = sol_grad(e,H_num,k,0);
+      AD dTdy, dHdy, dTdz, dHdz;
+      if (spaceDim > 1) {
+        dTdy = sol_grad(e,e_num,k,1);
+        dHdy = sol_grad(e,H_num,k,1);
+      }
+      if (spaceDim > 2) {
+        dTdz = sol_grad(e,e_num,k,2);
+        dHdz = sol_grad(e,H_num,k,2);
+      }
+      AD ux, uy, uz;
+      if (have_nsvel) {
+        ux = sol(e,ux_num,k,0);
+        if (spaceDim > 1) {
+          uy = sol(e,uy_num,k,1);
         }
+        if (spaceDim > 2) {
+          uz = sol(e,uz_num,k,2);
+        }
+      }
+      for (int i=0; i<basis.dimension(1); i++ ) {
         
-      }
-    });
-  }
-  else if (spaceDim == 2) {
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.dimension(2); k++ ) {
-        for (int i=0; i<basis.dimension(1); i++ ) {
-          resindex = offsets(e_num,i);
-          res(e,resindex) += rho(e,k)*cp(e,k)*sol_dot(e,e_num,k,0)*basis(e,i,k) +
-          diff(e,k)*(sol_grad(e,e_num,k,0)*basis_grad(e,i,k,0) +
-                     sol_grad(e,e_num,k,1)*basis_grad(e,i,k,1)) -
-          source(e,k)*basis(e,i,k);
-          if (have_nsvel) {
-            res(e,resindex) += (sol(e,ux_num,k,0)*sol_grad(e,e_num,k,0)*basis(e,i,k) + sol(e,uy_num,k,0)*sol_grad(e,e_num,k,1)*basis(e,i,k));
-          }
+        resindex = offsets(e_num,i);
+        v = basis(e,i,k);
+        dvdx = basis_grad(e,i,k,0);
+        if (spaceDim > 1) {
+          dvdy = basis_grad(e,i,k,1);
         }
-        
-      }
-    });
-  }
-  else {
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.dimension(2); k++ ) {
-        for (int i=0; i<basis.dimension(1); i++ ) {
-          resindex = offsets(e_num,i);
-          res(e,resindex) += rho(e,k)*cp(e,k)*sol_dot(e,e_num,k,0)*basis(e,i,k) +
-          diff(e,k)*(sol_grad(e,e_num,k,0)*basis_grad(e,i,k,0) +
-                     sol_grad(e,e_num,k,1)*basis_grad(e,i,k,1) +
-                     sol_grad(e,e_num,k,2)*basis_grad(e,i,k,2)) -
-          source(e,k)*basis(e,i,k);
-          if (have_nsvel) {
-            res(e,resindex) += (sol_grad(e,ux_num,k,0)*basis_grad(e,i,k,0) + sol_grad(e,uy_num,k,1)*basis_grad(e,i,k,1)
-                                + sol_grad(e,uz_num,k,0)*basis_grad(e,i,k,2));
-          }
+        if (spaceDim > 2) {
+          dvdz = basis_grad(e,i,k,2);
+        }
+        res(e,resindex) += H_dot*v + diff(e,k)*(dTdx*dvdx + dTdy*dvdy + dTdz*dvdz) - source(e,k)*v;
+        if (have_nsvel) {
+          res(e,resindex) += (ux*dvdx + uy*dvdy + uz*dvdz);
         }
       }
-    });
-  }
+    }
+  });
+  
+  
+  basis = wkset->basis[H_basis];
+  basis_grad = wkset->basis_grad[H_basis];
+  
+  parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+    
+    ScalarT v = 0.0;
+    ScalarT dvdx = 0.0;
+    ScalarT dvdy = 0.0;
+    ScalarT dvdz = 0.0;
+    
+    for (int k=0; k<sol.dimension(2); k++ ) {
+      AD T = sol(e,e_num,k,0);
+      AD H = sol(e,H_num,k,0);
+      
+      for (int i=0; i<basis.dimension(1); i++ ) {
+        resindex = wkset->offsets(H_num,i);
+        v = basis(e,i,k);
+        // make cp_integral and gfunc udfuncs
+        //cp_integral = 320.3*e + 0.379/2.0*e*e;
+        AD cp_integral = 438.0*T + 0.169/2.0*T*T;
+        //        if (e.val() <= 1648.0) {
+        AD gfunc;
+        if (T.val() <= 1673.0) {
+          gfunc = 0.0;
+        }
+        //else if (e.val() >= 1673.0) {
+        else if (T.val() >= 1723.0) {
+          gfunc = 1.0;
+        }
+        else {
+          //gfunc = (e - 1648.0)/(1673.0 - 1648.0);
+          gfunc = (T - 1673.0)/(1723.0 - 1673.0);
+        }
+        // T_ref = 293.75
+        //wkset->res(resindex) += -(H - rho(k)*cp_integral - rho(k)*latent_heat*gfunc + rho(k)*(320.3*293.75 + 0.379*293.75*293.75/2.0))*v;
+        res(e,resindex) += -(H - rho(e,k)*cp_integral - rho(e,k)*latent_heat*gfunc + rho(e,k)*(438.0*293.75 + 0.169*293.75*293.75/2.0))*v;
+      }
+    }
+  });
   
 }
 
@@ -126,47 +177,36 @@ void thermal::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void thermal::boundaryResidual() {
+void thermal_enthalpy::boundaryResidual() {
   
-  sideinfo = wkset->sideinfo;
-  Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
-  
-  int cside = wkset->currentside;
-  int sidetype;
-  sidetype = bcs(e_num,cside);
+  // NOTES:
+  // 1. basis and basis_grad already include the integration weights
   
   int e_basis_num = wkset->usebasis[e_num];
   numBasis = wkset->basis_side[e_basis_num].dimension(1);
-  basis = wkset->basis_side[e_basis_num];
-  basis_grad = wkset->basis_grad_side[e_basis_num];
   
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
-    
-    if (sidetype == 4 ) {
-      nsource = functionManager->evaluate("Dirichlet e " + wkset->sidename,"side ip",blocknum);
-    }
-    else if (sidetype == 2) {
-      nsource = functionManager->evaluate("Neumann e " + wkset->sidename,"side ip",blocknum);
-    }
+    nsource = functionManager->evaluate("thermal Neumann source","side ip",blocknum);
     diff_side = functionManager->evaluate("thermal diffusion","side ip",blocknum);
     robin_alpha = functionManager->evaluate("robin alpha","side ip",blocknum);
-    
   }
   
   ScalarT sf = formparam;
   if (wkset->isAdjoint) {
     sf = 1.0;
-    adjrhs = wkset->adjrhs;
   }
   
-  // Since normals get recomputed often, this needs to be reset
-  normals = wkset->normals;
+  sideinfo = wkset->sideinfo;
+  basis = wkset->basis_side[e_basis_num];
+  basis_grad = wkset->basis_grad_side[e_basis_num];
+  DRV ip = wkset->ip_side;
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
-  for (int e=0; e<basis.dimension(0); e++) {
-    if (bcs(e_num,cside) == 2) {
+  int cside = wkset->currentside;
+  for (int e=0; e<sideinfo.dimension(0); e++) {
+    if (sideinfo(e,e_num,cside,0) == 2) { // Element e is on the side
       for (int k=0; k<basis.dimension(2); k++ ) {
         for (int i=0; i<basis.dimension(1); i++ ) {
           resindex = offsets(e_num,i);
@@ -174,28 +214,29 @@ void thermal::boundaryResidual() {
         }
       }
     }
-    
-    if (bcs(e_num,cside) == 4 || bcs(e_num,cside) == 5) {
-      
+    else if (sideinfo(e,e_num,cside,0) == 1){ // Weak Dirichlet
       for (int k=0; k<basis.dimension(2); k++ ) {
-        
         AD eval = sol_side(e,e_num,k,0);
-        AD dedx = sol_grad_side(e,e_num,k,0);
-        AD dedy, dedz;
+        dedx = sol_grad_side(e,e_num,k,0);
+        ScalarT x = ip(e,k,0);
+        ScalarT y = 0.0;
+        ScalarT z = 0.0;
         if (spaceDim > 1) {
           dedy = sol_grad_side(e,e_num,k,1);
+          y = ip(e,k,1);
         }
         if (spaceDim > 2) {
           dedz = sol_grad_side(e,e_num,k,2);
+          z = ip(e,k,2);
         }
         
-        AD lambda;
-        
-        if (bcs(e_num,cside) == 5) {
-          lambda = aux_side(e,auxe_num,k);
-        }
+        if (sideinfo(e,e_num,cside,1) == -1)
+          lambda = aux_side(e,e_num,k);
         else {
-          lambda = nsource(e,k);
+          lambda = 0.0; //udfunc->boundaryDirichletValue(label,"e",x,y,z,wkset->time,wkset->sidename,wkset->isAdjoint);
+          
+          //  lambda = this->getDirichletValue("e", x, y, z, wkset->time,
+          //                                  wkset->sidename, wkset->isAdjoint);
         }
         
         for (int i=0; i<basis.dimension(1); i++ ) {
@@ -208,7 +249,6 @@ void thermal::boundaryResidual() {
             dvdz = basis_grad(e,i,k,2);
           
           weakDiriScale = 10.0*diff_side(e,k)/wkset->h(e);
-          
           res(e,resindex) += -diff_side(e,k)*dedx*normals(e,k,0)*v - sf*diff_side(e,k)*dvdx*normals(e,k,0)*(eval-lambda) + weakDiriScale*(eval-lambda)*v;
           if (spaceDim > 1) {
             res(e,resindex) += -diff_side(e,k)*dedy*normals(e,k,1)*v - sf*diff_side(e,k)*dvdy*normals(e,k,1)*(eval-lambda);
@@ -224,17 +264,23 @@ void thermal::boundaryResidual() {
               adjrhs(e,resindex) += sf*diff_side(e,k)*dvdz*normals(e,k,2)*lambda;
           }
         }
-        
       }
     }
+    
   }
+  
 }
+
+// ========================================================================================
+// ========================================================================================
+
+void thermal_enthalpy::edgeResidual() {}
 
 // ========================================================================================
 // The boundary/edge flux
 // ========================================================================================
 
-void thermal::computeFlux() {
+void thermal_enthalpy::computeFlux() {
   
   ScalarT sf = 1.0;
   if (wkset->isAdjoint) {
@@ -246,8 +292,6 @@ void thermal::computeFlux() {
     diff_side = functionManager->evaluate("thermal diffusion","side ip",blocknum);
   }
   
-  // Since normals get recomputed often, this needs to be reset
-  normals = wkset->normals;
   
   {
     Teuchos::TimeMonitor localtime(*fluxFill);
@@ -256,8 +300,7 @@ void thermal::computeFlux() {
       
       for (size_t i=0; i<wkset->ip_side.dimension(1); i++) {
         penalty = 10.0*diff_side(n,i)/wkset->h(n);
-        flux(n,e_num,i) += sf*diff_side(n,i)*sol_grad_side(n,e_num,i,0)*normals(n,i,0) +
-        penalty*(aux_side(n,auxe_num,i)-sol_side(n,e_num,i,0));
+        flux(n,e_num,i) += sf*diff_side(n,i)*sol_grad_side(n,e_num,i,0)*normals(n,i,0) + penalty*(aux_side(n,e_num,i)-sol_side(n,e_num,i,0));
         if (spaceDim > 1) {
           flux(n,e_num,i) += sf*diff_side(n,i)*sol_grad_side(n,e_num,i,1)*normals(n,i,1);
         }
@@ -267,13 +310,13 @@ void thermal::computeFlux() {
       }
     }
   }
-  
 }
 
+
 // ========================================================================================
 // ========================================================================================
 
-void thermal::setVars(std::vector<string> & varlist_) {
+void thermal_enthalpy::setVars(std::vector<string> & varlist_) {
   varlist = varlist_;
   ux_num = -1;
   uy_num = -1;
@@ -282,6 +325,8 @@ void thermal::setVars(std::vector<string> & varlist_) {
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "e")
       e_num = i;
+    if (varlist[i] == "H")
+      H_num = i;
     if (varlist[i] == "ux")
       ux_num = i;
     if (varlist[i] == "uy")
@@ -293,14 +338,3 @@ void thermal::setVars(std::vector<string> & varlist_) {
     have_nsvel = true;
 }
 
-// ========================================================================================
-// ========================================================================================
-
-void thermal::setAuxVars(std::vector<string> & auxvarlist) {
-  
-  for (size_t i=0; i<auxvarlist.size(); i++) {
-    if (auxvarlist[i] == "e")
-      auxe_num = i;
-  }
-  
-}

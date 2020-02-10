@@ -33,7 +33,7 @@ public:
   
   thermal(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
           const size_t & numip_side_, const int & numElem_,
-          Teuchos::RCP<FunctionInterface> & functionManager_,
+          Teuchos::RCP<FunctionManager> & functionManager_,
           const size_t & blocknum_) ;
   
   // ========================================================================================
@@ -64,8 +64,6 @@ public:
   
 private:
   
-  Teuchos::RCP<FunctionInterface> functionManager;
-
   data grains;
  
   size_t numip, numip_side, blocknum;

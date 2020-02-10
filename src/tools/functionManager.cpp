@@ -9,17 +9,17 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#include "functionInterface.hpp"
+#include "functionManager.hpp"
 #include "interpreter.hpp"
 
-FunctionInterface::FunctionInterface() {
+FunctionManager::FunctionManager() {
   known_vars = {"x","y","z","t","nx","ny","nz","pi","h"};
   known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean"};
   verbosity = 0;
 }
 
 
-FunctionInterface::FunctionInterface(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+FunctionManager::FunctionManager(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   known_vars = {"x","y","z","t","nx","ny","nz","pi","h"};
   known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean"};
   verbosity = settings->get<int>("verbosity",0);
@@ -29,7 +29,7 @@ FunctionInterface::FunctionInterface(Teuchos::RCP<Teuchos::ParameterList> & sett
 // Add a user defined function
 //////////////////////////////////////////////////////////////////////////////////////
 
-int FunctionInterface::addFunction(const string & fname, const string & expression,
+int FunctionManager::addFunction(const string & fname, const string & expression,
                                    const size_t & dim0, const size_t & dim1,
                                    const string & location, const size_t & blocknum) {
   bool found = false;
@@ -57,7 +57,7 @@ int FunctionInterface::addFunction(const string & fname, const string & expressi
 // Set the lists of variables, parameters and discretized parameters
 //////////////////////////////////////////////////////////////////////////////////////
 
-void FunctionInterface::setupLists(const vector<string> & variables_,
+void FunctionManager::setupLists(const vector<string> & variables_,
                                    const vector<string> & parameters_,
                                    const vector<string> & disc_parameters_) {
   variables = variables_;
@@ -69,7 +69,7 @@ void FunctionInterface::setupLists(const vector<string> & variables_,
 // Validate all of the functions
 //////////////////////////////////////////////////////////////////////////////////////
 
-void FunctionInterface::validateFunctions(){
+void FunctionManager::validateFunctions(){
   for (size_t b=0; b<functions.size(); b++) {
     vector<string> function_names;
     for (size_t k=0; k<functions[b].size(); k++) {
@@ -91,7 +91,7 @@ void FunctionInterface::validateFunctions(){
 // Also sets up the Kokkos::Views (subviews) to the data for all of the terms
 //////////////////////////////////////////////////////////////////////////////////////
 
-void FunctionInterface::decomposeFunctions() {
+void FunctionManager::decomposeFunctions() {
   
   Teuchos::TimeMonitor ttimer(*decomposeTimer);
   
@@ -546,7 +546,7 @@ void FunctionInterface::decomposeFunctions() {
 // Determine if a term is a ScalarT or needs to be an AD type
 //////////////////////////////////////////////////////////////////////////////////////
 
-bool FunctionInterface::isScalarTerm(const size_t & block, const int & findex, const int & tindex) {
+bool FunctionManager::isScalarTerm(const size_t & block, const int & findex, const int & tindex) {
   bool is_scalar = true;
   if (functions[block][findex].terms[tindex].isRoot) {
     if (functions[block][findex].terms[tindex].isAD) {
@@ -571,7 +571,7 @@ bool FunctionInterface::isScalarTerm(const size_t & block, const int & findex, c
 // Evaluate a function (probably will be deprecated)
 //////////////////////////////////////////////////////////////////////////////////////
 
-FDATA FunctionInterface::evaluate(const string & fname, const string & location,
+FDATA FunctionManager::evaluate(const string & fname, const string & location,
                                   const size_t & block) {
   Teuchos::TimeMonitor ttimer(*evaluateTimer);
   
@@ -612,7 +612,7 @@ FDATA FunctionInterface::evaluate(const string & fname, const string & location,
 // Evaluate a function
 //////////////////////////////////////////////////////////////////////////////////////
 
-void FunctionInterface::evaluate(const size_t & block, const size_t & findex, const size_t & tindex) {
+void FunctionManager::evaluate(const size_t & block, const size_t & findex, const size_t & tindex) {
   
   if (verbosity > 10) {
     cout << "------- Evaluating: " << functions[block][findex].terms[tindex].expression << endl;
@@ -692,7 +692,7 @@ void FunctionInterface::evaluate(const size_t & block, const size_t & findex, co
 //////////////////////////////////////////////////////////////////////////////////////
 
 template<class T1, class T2>
-void FunctionInterface::evaluateOp(T1 data, T2 tdata, const string & op) {
+void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   size_t dim0 = std::min(data.dimension(0),tdata.dimension(0));
   size_t dim1 = std::min(data.dimension(1),tdata.dimension(1));
   
@@ -878,7 +878,7 @@ void FunctionInterface::evaluateOp(T1 data, T2 tdata, const string & op) {
 // Print out the function information (mostly for debugging)
 //////////////////////////////////////////////////////////////////////////////////////
 
-void FunctionInterface::printFunctions() {
+void FunctionManager::printFunctions() {
   
   for (size_t b=0; b<functions.size(); b++) {
     cout << "Block Number: " << b << endl;

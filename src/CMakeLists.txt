@@ -31,7 +31,23 @@ tools/workset.cpp
 tools/split_mpi_communicators.cpp 
 tools/subgridFEM.cpp 
 physics/thermal.cpp
-user/functionInterface.cpp)
+physics/porous.cpp
+physics/porousHDIV.cpp
+physics/porousHDIV_hybridized.cpp
+physics/porousHDIV_weakGalerkin.cpp
+physics/twophasePoNo.cpp
+physics/twophasePoPw.cpp
+physics/cdr.cpp
+physics/thermal_enthalpy.cpp
+physics/stokes.cpp
+physics/navierstokes.cpp
+physics/linearelasticity.cpp
+physics/helmholtz.cpp
+physics/msphasefield.cpp
+physics/maxwells_fp.cpp
+physics/shallowwater.cpp
+physics/maxwell.cpp
+tools/functionManager.cpp)
 TARGET_LINK_LIBRARIES(milo ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
 ADD_EXECUTABLE(xml_to_yaml
@@ -45,5 +61,5 @@ TARGET_LINK_LIBRARIES(test_interpreter ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBR
 ADD_EXECUTABLE(test_functions
 test/test_functions.cpp
 tools/workset.cpp
-user/functionInterface.cpp)
+tools/functionManager.cpp)
 TARGET_LINK_LIBRARIES(test_functions ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 

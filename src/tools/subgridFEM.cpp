@@ -166,7 +166,7 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
     int numNodesPerElem = cellTopo->getNodeCount();
     
     if (first_time) { // first time through
-      functionManager = Teuchos::rcp(new FunctionInterface(settings));
+      functionManager = Teuchos::rcp(new FunctionManager(settings));
       
       vector<topo_RCP> cellTopo;
       cellTopo.push_back(DiscTools::getCellTopology(dimension, shape));

@@ -233,6 +233,7 @@ namespace Intrepid2 {
       const ordinal_type cardinality = outputValues.extent(0);
       //get basis order based on basis cardinality.
       ordinal_type order = 0;   // = std::sqrt(cardinality/2);
+      
       ordinal_type cardLine;  // = cardBubble+1;
       do {
         cardLine = Intrepid2::getPnCardinality<1>(++order);

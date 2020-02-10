@@ -34,7 +34,7 @@ class MultiScale {
              Teuchos::RCP<Teuchos::ParameterList> & settings_,
              vector<vector<Teuchos::RCP<cell> > > & cells_,
              vector<Teuchos::RCP<SubGridModel> > subgridModels_,
-             Teuchos::RCP<FunctionInterface> macro_functionManager_);
+             Teuchos::RCP<FunctionManager> macro_functionManager_);
   
   ////////////////////////////////////////////////////////////////////////////////
   // Set the information from the macro-scale that does not depend on the specific cell
@@ -102,7 +102,7 @@ class MultiScale {
   vector<Teuchos::RCP<workset> > macro_wkset;
   vector<vector<Teuchos::RCP<LA_CrsMatrix> > > subgrid_projection_maps;
   vector<Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > > subgrid_projection_solvers;
-  Teuchos::RCP<FunctionInterface> macro_functionManager;
+  Teuchos::RCP<FunctionManager> macro_functionManager;
 };
 
 #endif

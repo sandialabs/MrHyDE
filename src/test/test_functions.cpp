@@ -1,7 +1,7 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "functionInterface.hpp"
+#include "functionManager.hpp"
 #include "workset.hpp"
 #include "discretizationTools.hpp"
 
@@ -14,7 +14,7 @@ int main(int argc, char * argv[]) {
   
   Kokkos::initialize();
   
-  Teuchos::RCP<FunctionInterface> functionManager = Teuchos::rcp(new FunctionInterface());
+  Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager());
   
   vector<string> variables = {"a","b","c","d","p"};
   vector<string> parameters = {"mu"};

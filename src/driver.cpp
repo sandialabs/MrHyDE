@@ -27,7 +27,7 @@ Bart van Bloemen Waanders (bartv@sandia.gov)
 #include "preferences.hpp"
 #include "subgridGenerator.hpp"
 #include "milo_help.hpp"
-#include "functionInterface.hpp"
+#include "functionManager.hpp"
 #include "split_mpi_communicators.hpp"
 
 int main(int argc,char * argv[]) {
@@ -102,7 +102,7 @@ int main(int argc,char * argv[]) {
     // Create the function manager
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<FunctionInterface> functionManager = Teuchos::rcp(new FunctionInterface(settings));
+    Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager(settings));
     
     ////////////////////////////////////////////////////////////////////////////////
     // Set up the physics

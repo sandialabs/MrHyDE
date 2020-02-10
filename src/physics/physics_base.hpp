@@ -17,7 +17,7 @@
 #include "data.hpp"
 #include "klexpansion.hpp"
 #include "workset.hpp"
-#include "functionInterface.hpp"
+#include "functionManager.hpp"
 
 class physicsbase {
   
@@ -110,7 +110,7 @@ public:
   string label;
   
   Teuchos::RCP<workset> wkset;
-  Teuchos::RCP<FunctionInterface> functionManager;
+  Teuchos::RCP<FunctionManager> functionManager;
   int spaceDim;
   vector<string> myvars, mybasistypes;
   bool include_face = false;

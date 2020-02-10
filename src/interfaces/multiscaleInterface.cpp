@@ -20,7 +20,7 @@ MultiScale::MultiScale(const Teuchos::RCP<MpiComm> & MacroComm_,
                        Teuchos::RCP<Teuchos::ParameterList> & settings_,
                        vector<vector<Teuchos::RCP<cell> > > & cells_,
                        vector<Teuchos::RCP<SubGridModel> > subgridModels_,
-                       Teuchos::RCP<FunctionInterface> macro_functionManager_ ) :
+                       Teuchos::RCP<FunctionManager> macro_functionManager_ ) :
 MacroComm(MacroComm_), Comm(Comm_), settings(settings_), cells(cells_), subgridModels(subgridModels_),
 macro_functionManager(macro_functionManager_) {
   
