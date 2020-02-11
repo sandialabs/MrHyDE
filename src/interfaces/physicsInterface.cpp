@@ -64,6 +64,8 @@ Commptr(Comm_), functionManager(functionManager_) {
     }
   }
   
+  Teuchos::RCP<DiscTools> discTools = Teuchos::rcp( new DiscTools() );
+  
   numElemPerCell = settings->sublist("Solver").get<int>("Workset size",1);
   
   mesh->getElementBlockNames(blocknames);
@@ -107,13 +109,13 @@ Commptr(Comm_), functionManager(functionManager_) {
     DRV qpts, qwts;
     int quadorder = blockdiscsettings.get<int>("quadrature",2);
     
-    DiscTools::getQuadrature(cellTopo[b], quadorder, qpts, qwts);
+    discTools->getQuadrature(cellTopo[b], quadorder, qpts, qwts);
     numip = qwts.dimension(0);
     
     DRV side_qpts, side_qwts;
     int side_quadorder = blockdiscsettings.sublist(currblock).get<int>("side quadrature",2);
     
-    DiscTools::getQuadrature(sideTopo[b], side_quadorder, side_qpts, side_qwts);
+    discTools->getQuadrature(sideTopo[b], side_quadorder, side_qpts, side_qwts);
     numip_side = side_qwts.dimension(0);
     
     this->importPhysics(settings, blocksettings, blockdiscsettings, currorders, currtypes, currvarlist,
@@ -673,6 +675,8 @@ Teuchos::RCP<panzer::DOFManager> physics::buildDOF(Teuchos::RCP<panzer_stk::STK_
     }
   }
   
+  Teuchos::RCP<DiscTools> discTools = Teuchos::rcp( new DiscTools() ) ;
+  
   Teuchos::RCP<panzer::DOFManager> DOF = Teuchos::rcp(new panzer::DOFManager());
   Teuchos::RCP<panzer::ConnManager> conn = Teuchos::rcp(new panzer_stk::STKConnManager(mesh));
   DOF->setConnManager(conn,*(Commptr->getRawMpiComm()));
@@ -689,7 +693,7 @@ Teuchos::RCP<panzer::DOFManager> physics::buildDOF(Teuchos::RCP<panzer_stk::STK_
       num = getUniqueIndex(b,currvarlist[j]);
       topo_RCP cellTopo = mesh->getCellTopology(currblock);
       
-      basis_pointer = DiscTools::getBasis(spaceDim, cellTopo, types[b][j], orders[b][j]);
+      basis_pointer = discTools->getBasis(spaceDim, cellTopo, types[b][j], orders[b][j]);
       
       Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis_pointer));
       

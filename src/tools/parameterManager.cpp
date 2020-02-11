@@ -193,6 +193,8 @@ void ParameterManager::setupParameters(Teuchos::RCP<Teuchos::ParameterList> & se
 void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cell> > > & cells,
                                                   vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells) {
   
+  Teuchos::RCP<DiscTools> discTools = Teuchos::rcp( new DiscTools() );
+  
   if (num_discretized_params > 0) {
     // determine the unique list of basis'
     vector<int> disc_orders;
@@ -221,7 +223,7 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
     
     for (size_t n=0; n<disc_orders.size(); n++) {
       topo_RCP cellTopo = mesh->getCellTopology(blocknames[0]);
-      basis_RCP basis = DiscTools::getBasis(spaceDim, cellTopo, disc_types[n],
+      basis_RCP basis = discTools->getBasis(spaceDim, cellTopo, disc_types[n],
                                             disc_orders[n]);
       discretized_param_basis.push_back(basis);
       

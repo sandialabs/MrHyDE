@@ -21,6 +21,7 @@ interfaces/solverInterface.cpp
 interfaces/analysisInterface.cpp 
 interfaces/uqInterface.cpp 
 interfaces/multiscaleInterface.cpp 
+tools/discretizationTools.cpp 
 tools/postprocessManager.cpp 
 tools/assemblyManager.cpp
 tools/parameterManager.cpp
@@ -60,6 +61,7 @@ TARGET_LINK_LIBRARIES(test_interpreter ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBR
 
 ADD_EXECUTABLE(test_functions
 test/test_functions.cpp
+tools/discretizationTools.cpp
 tools/workset.cpp
 tools/functionManager.cpp)
 TARGET_LINK_LIBRARIES(test_functions ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 

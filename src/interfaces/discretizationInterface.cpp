@@ -27,6 +27,8 @@ Commptr(Comm_) {
     }
   }
   
+  Teuchos::RCP<DiscTools> discTools = Teuchos::rcp( new DiscTools() );
+  
   ////////////////////////////////////////////////////////////////////////////////
   // Collect some information
   ////////////////////////////////////////////////////////////////////////////////
@@ -89,7 +91,7 @@ Commptr(Comm_) {
         }
       }
       if (go) {
-        basis_RCP basis = DiscTools::getBasis(spaceDim, cellTopo, types[b][n], orders[b][n]);
+        basis_RCP basis = discTools->getBasis(spaceDim, cellTopo, types[b][n], orders[b][n]);
         int bsize = basis->getCardinality();
         blockcards.push_back(bsize); // cardinality of the basis
         blockbasis.push_back(basis);
@@ -113,7 +115,7 @@ Commptr(Comm_) {
     
     DRV qpts, qwts;
     int quadorder = db_settings.get<int>("quadrature",mxorder+1);
-    DiscTools::getQuadrature(cellTopo, quadorder, qpts, qwts);
+    discTools->getQuadrature(cellTopo, quadorder, qpts, qwts);
     
     ///////////////////////////////////////////////////////////////////////////
     // Side Quadrature
@@ -144,7 +146,7 @@ Commptr(Comm_) {
     
     DRV side_qpts, side_qwts;
     int side_quadorder = db_settings.sublist(blockID).get<int>("side quadrature",mxorder+1);
-    DiscTools::getQuadrature(sideTopo, side_quadorder, side_qpts, side_qwts);
+    discTools->getQuadrature(sideTopo, side_quadorder, side_qpts, side_qwts);
     
     ///////////////////////////////////////////////////////////////////////////
     // Store locally

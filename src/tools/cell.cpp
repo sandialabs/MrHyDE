@@ -1351,6 +1351,8 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
     useFineScale = false;
   }
   
+  Teuchos::RCP<DiscTools> discTools = Teuchos::rcp( new DiscTools() );
+  
   if (cellData->exodus_sensors) {
     // don't use sensor_points
     // set sensorData and sensorLocations from exodus file
@@ -1371,8 +1373,8 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
       vector<DRV> csensorBasisGrad;
       
       for (size_t b=0; b<basis_pointers.size(); b++) {
-        csensorBasis.push_back(DiscTools::evaluateBasis(basis_pointers[b], refsenspts));
-        csensorBasisGrad.push_back(DiscTools::evaluateBasisGrads(basis_pointers[b], nodes, refsenspts, cellData->cellTopo));
+        csensorBasis.push_back(discTools->evaluateBasis(basis_pointers[b], refsenspts));
+        csensorBasisGrad.push_back(discTools->evaluateBasisGrads(basis_pointers[b], nodes, refsenspts, cellData->cellTopo));
       }
       
       sensorBasis.push_back(csensorBasis);
@@ -1383,8 +1385,8 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
       vector<DRV> cpsensorBasisGrad;
       
       for (size_t b=0; b<param_basis_pointers.size(); b++) {
-        cpsensorBasis.push_back(DiscTools::evaluateBasis(param_basis_pointers[b], refsenspts));
-        cpsensorBasisGrad.push_back(DiscTools::evaluateBasisGrads(param_basis_pointers[b], nodes,
+        cpsensorBasis.push_back(discTools->evaluateBasis(param_basis_pointers[b], refsenspts));
+        cpsensorBasisGrad.push_back(discTools->evaluateBasisGrads(param_basis_pointers[b], nodes,
                                                                   refsenspts, cellData->cellTopo));
       }
       
@@ -1513,8 +1515,8 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
           vector<DRV> csensorBasisGrad;
           
           for (size_t b=0; b<basis_pointers.size(); b++) {
-            csensorBasis.push_back(DiscTools::evaluateBasis(basis_pointers[b], refsenspts));
-            csensorBasisGrad.push_back(DiscTools::evaluateBasisGrads(basis_pointers[b], cnodes,
+            csensorBasis.push_back(discTools->evaluateBasis(basis_pointers[b], refsenspts));
+            csensorBasisGrad.push_back(discTools->evaluateBasisGrads(basis_pointers[b], cnodes,
                                                                      refsenspts, cellData->cellTopo));
           }
           sensorBasis.push_back(csensorBasis);
@@ -1525,8 +1527,8 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
           vector<DRV> cpsensorBasisGrad;
           
           for (size_t b=0; b<param_basis_pointers.size(); b++) {
-            cpsensorBasis.push_back(DiscTools::evaluateBasis(param_basis_pointers[b], refsenspts));
-            cpsensorBasisGrad.push_back(DiscTools::evaluateBasisGrads(param_basis_pointers[b], nodes,
+            cpsensorBasis.push_back(discTools->evaluateBasis(param_basis_pointers[b], refsenspts));
+            cpsensorBasisGrad.push_back(discTools->evaluateBasisGrads(param_basis_pointers[b], nodes,
                                                                       refsenspts, cellData->cellTopo));
           }
           

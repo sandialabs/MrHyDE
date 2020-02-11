@@ -15,7 +15,7 @@ int main(int argc, char * argv[]) {
   Kokkos::initialize();
   
   Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager());
-  
+  Teuchos::RCP<DiscTools> discTools = Teuchos::rcp( new DiscTools() );
   vector<string> variables = {"a","b","c","d","p"};
   vector<string> parameters = {"mu"};
   vector<string> disc_parameters = {"ff"};
@@ -34,8 +34,8 @@ int main(int argc, char * argv[]) {
   vector<int> cellinfo = {2,numvars,1,0,16,numElem};
   DRV ip, wts, sip, swts;
   
-  DiscTools::getQuadrature(cellTopo, quadorder, ip, wts);
-  DiscTools::getQuadrature(sideTopo, quadorder, sip, swts);
+  discTools->getQuadrature(cellTopo, quadorder, ip, wts);
+  discTools->getQuadrature(sideTopo, quadorder, sip, swts);
   
   vector<string> btypes = {"HGRAD"};
   Kokkos::View<int**,AssemblyDevice> bcs("bcs",1,1);

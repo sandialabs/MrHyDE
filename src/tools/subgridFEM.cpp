@@ -103,6 +103,8 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
     first_time = true;
   }
   
+  Teuchos::RCP<DiscTools> discTools = Teuchos::rcp( new DiscTools() ) ;
+  
   /////////////////////////////////////////////////////////////////////////////////////
   // Define the sub-grid mesh
   /////////////////////////////////////////////////////////////////////////////////////
@@ -169,10 +171,10 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
       functionManager = Teuchos::rcp(new FunctionManager(settings));
       
       vector<topo_RCP> cellTopo;
-      cellTopo.push_back(DiscTools::getCellTopology(dimension, shape));
+      cellTopo.push_back(discTools->getCellTopology(dimension, shape));
       
       vector<topo_RCP> sideTopo;
-      sideTopo.push_back(DiscTools::getCellSideTopology(dimension, shape));
+      sideTopo.push_back(discTools->getCellSideTopology(dimension, shape));
       physics_RCP = Teuchos::rcp( new physics(settings, LocalComm, cellTopo, sideTopo,
                                               functionManager, mesh) );
     }
@@ -611,8 +613,8 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
           }
         }
         for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-          currcell_basis.push_back(DiscTools::evaluateBasis(macro_basis_pointers[i], sref_ip));
-          currcell_basisGrad.push_back(DiscTools::evaluateBasisGrads(macro_basis_pointers[i], macronodes[block],
+          currcell_basis.push_back(discTools->evaluateBasis(macro_basis_pointers[i], sref_ip));
+          currcell_basisGrad.push_back(discTools->evaluateBasisGrads(macro_basis_pointers[i], macronodes[block],
                                                                      sref_ip, macro_cellTopo));
         }
       }
@@ -669,7 +671,7 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
             }
           }
           for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-            DRV bvals = DiscTools::evaluateBasis(macro_basis_pointers[i], sref_side_ip);
+            DRV bvals = discTools->evaluateBasis(macro_basis_pointers[i], sref_side_ip);
             //DRV tmp_basis = DiscTools::evaluateBasis(macro_basis_pointers[i], sref_side_ip_tmp);
             for (unsigned int k=0; k<bvals.dimension(1); k++) {
               for (unsigned int j=0; j<bvals.dimension(2); j++) {
@@ -2707,6 +2709,8 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
   size_t numGIDs = cells[0][0]->GIDs.dimension(1);
   Kokkos::View<int**,AssemblyDevice> owners("owners",numpts,1+numGIDs);
   
+  Teuchos::RCP<DiscTools> discTools = Teuchos::rcp( new DiscTools() );
+  
   for (size_t e=0; e<cells[0].size(); e++) {
     int numElem = cells[0][e]->numElem;
     DRV nodes = cells[0][e]->nodes;
@@ -2759,7 +2763,7 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
     vector<int> usebasis = wkset[0]->usebasis;
     DRV basisvals("basisvals",offsets.dimension(0),numGIDs);
     for (size_t n=0; n<offsets.dimension(0); n++) {
-      DRV bvals = DiscTools::evaluateBasis(basis_pointers[usebasis[n]], refpt);
+      DRV bvals = discTools->evaluateBasis(basis_pointers[usebasis[n]], refpt);
       for (size_t m=0; m<offsets.dimension(1); m++) {
         basisvals(n,offsets(n,m)) = bvals(0,m,0);
       }

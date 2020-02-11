@@ -299,7 +299,7 @@ namespace Intrepid2 {
       
       // An array with local DoF tags assigned to the basis functions, in the order of their local enumeration
       constexpr ordinal_type maxCardLine = Parameters::MaxOrder + 1;
-      ordinal_type tags[4*maxCardLine][4];
+      ordinal_type tags[4*cardLine][4];
       
       const ordinal_type edge_x[2] = {0,2};
       const ordinal_type edge_y[2] = {3,1};
@@ -310,9 +310,9 @@ namespace Intrepid2 {
         for (ordinal_type j=0;j<cardLine;++j) { // y
           const auto tag_y = lineBasis.getDofTag(j);
           tags[idx][0] = 1; // edge dof
-          tags[idx][1] = 3;
-          tags[idx][2] = tag_y(2); // local dof id
-          tags[idx][3] = tag_y(3); // total number of dofs in this vertex
+          tags[idx][1] = 3; // left edge ID
+          tags[idx][2] = j; // dof ID on this edge
+          tags[idx][3] = cardLine; // total number of dofs on this edge
           idx++;
         }
         
@@ -320,9 +320,9 @@ namespace Intrepid2 {
         for (ordinal_type j=0;j<cardLine;++j) { // y
           const auto tag_x = lineBasis.getDofTag(j);
           tags[idx][0] = 1; // edge dof
-          tags[idx][1] = 0;
-          tags[idx][2] = tag_x(2); // local dof id
-          tags[idx][3] = tag_x(3); // total number of dofs in this vertex
+          tags[idx][1] = 0; // bottom edge ID
+          tags[idx][2] = j; // dof ID on this edge
+          tags[idx][3] = cardLine; // total number of dofs on this edge
           idx++;
         }
         
@@ -330,9 +330,9 @@ namespace Intrepid2 {
         for (ordinal_type j=0;j<cardLine;++j) { // y
           const auto tag_y = lineBasis.getDofTag(j);
           tags[idx][0] = 1; // edge dof
-          tags[idx][1] = 1;
-          tags[idx][2] = tag_y(2); // local dof id
-          tags[idx][3] = tag_y(3); // total number of dofs in this vertex
+          tags[idx][1] = 1; // right edge ID
+          tags[idx][2] = j; // dof ID on this edge
+          tags[idx][3] = cardLine; // total number of dofs on this edge
           idx++;
         }
         
@@ -340,9 +340,9 @@ namespace Intrepid2 {
         for (ordinal_type j=0;j<cardLine;++j) { // y
           const auto tag_x = lineBasis.getDofTag(j);
           tags[idx][0] = 1; // edge dof
-          tags[idx][1] = 2;
-          tags[idx][2] = tag_x(2); // local dof id
-          tags[idx][3] = tag_x(3); // total number of dofs in this vertex
+          tags[idx][1] = 2; // top edge ID
+          tags[idx][2] = j; // dof ID on this edge
+          tags[idx][3] = cardLine; // total number of dofs on this edge
           idx++;
         }
         
@@ -372,6 +372,7 @@ namespace Intrepid2 {
     // dofCoeffs on host and create its mirror view to device
     //Kokkos::DynRankView<typename ScalarViewType::value_type,typename SpT::array_layout,Kokkos::HostSpace>
     //dofCoeffsHost("dofCoeffsHost", this->basisCardinality_, this->basisCellTopology_.getDimension());
+    
     
     Kokkos::DynRankView<typename ScalarViewType::value_type,SpT>
     dofCoordsLine("dofCoordsLine", cardLine, 1);
