@@ -523,7 +523,7 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
   
   if (milo_debug_level > 0) {
     if (Commptr->getRank() == 0) {
-      cout << "**** Starting mesh::creatCells ..." << endl;
+      cout << "**** Starting mesh::createCells ..." << endl;
     }
   }
   
