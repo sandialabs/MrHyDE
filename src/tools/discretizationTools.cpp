@@ -608,7 +608,7 @@ basis_RCP DiscTools::getBasis(const int & spaceDim, const topo_RCP & cellTopo,
         else if (degree == 2)
           basis = Teuchos::rcp(new Basis_HGRAD_TRI_C2_FEM<AssemblyDevice>() );
         else {
-          basis = Teuchos::rcp(new Basis_HGRAD_TRI_Cn_FEM<AssemblyDevice>(degree,POINTTYPE_EQUISPACED) );
+          basis = Teuchos::rcp(new Basis_HGRAD_TRI_Cn_FEM<AssemblyDevice>(degree,POINTTYPE_WARPBLEND) );
         }
       }
     }

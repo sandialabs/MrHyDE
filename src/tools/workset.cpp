@@ -306,11 +306,6 @@ void workset::setupBasis() {
     ref_basis_grad_side.push_back(csbasisgrad);
   }
   
-  //basis_side_vec = vector<vector<DRV> >(numBound);
-  //basis_grad_side_vec = vector<vector<DRV> >(numBound);
-  //basis_side_uw_vec = vector<vector<DRV> >(numBound);
-  //basis_grad_side_uw_vec = vector<vector<DRV> >(numBound);
-  
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -325,9 +320,11 @@ void workset::setupParamBasis() {
     numparambasis.push_back(numb);
     DRV basisvals("basisvals",numb, numip);
     param_basis_pointers[i]->getValues(basisvals, ref_ip, Intrepid2::OPERATOR_VALUE);
-    DRV basisvals_Transformed("basisvals_Transformed",numElem, numb, numip);
-    Intrepid2::FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_Transformed, basisvals);
-    param_basis.push_back(basisvals_Transformed);
+    param_basis_ref.push_back(basisvals);
+    param_basis.push_back(DRV("param_basis",numElem,numb,numip));
+    //DRV basisvals_Transformed("basisvals_Transformed",numElem, numb, numip);
+    //Intrepid2::FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_Transformed, basisvals);
+    //param_basis.push_back(basisvals_Transformed);
     
     DRV basisgrad("basisgrad",numb, numip, dimension);
     param_basis_pointers[i]->getValues(basisgrad, ref_ip, Intrepid2::OPERATOR_GRAD);
@@ -373,17 +370,18 @@ void workset::setupParamBasis() {
 // Update the nodes and the basis functions at the volumetric ip
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::update(const DRV & ip_, const DRV & jacobian, const vector<vector<ScalarT> > & orientation) {
+void workset::update(const DRV & ip_, const DRV & jacobian, Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation) {
   
   using namespace Intrepid2;
   
+  size_t activeElem = ip_.dimension(0);
   {
     
     Teuchos::TimeMonitor updatetimer(*worksetUpdateIPTimer);
     ip = ip_;
     
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,ip.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,activeElem), KOKKOS_LAMBDA (const int e ) {
       for (size_t j=0; j<numip; j++) {
         for (size_t k=0; k<dimension; k++) {
           ip_KV(e,j,k) = ip(e,j,k);
@@ -395,7 +393,7 @@ void workset::update(const DRV & ip_, const DRV & jacobian, const vector<vector<
     CellTools<AssemblyDevice>::setJacobianInv(jacobInv, jacobian);
     FunctionSpaceTools<AssemblyDevice>::computeCellMeasure(wts, jacobDet, ref_wts);
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,wts.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,activeElem), KOKKOS_LAMBDA (const int e ) {
       ScalarT vol = 0.0;
       for (int i=0; i<numip; i++) {
         vol += wts(e,i);
@@ -404,18 +402,24 @@ void workset::update(const DRV & ip_, const DRV & jacobian, const vector<vector<
     });
   }
   
+  //ots::modifyBasisByOrientation(basis_out, basis_in, orientations[i],basis_pointers[i]);
+  
   {
     for (size_t i=0; i<basis_pointers.size(); i++) {
       
+      int numb = basis_pointers[i]->getCardinality();
+      
       if (basis_types[i] == "HGRAD"){
-        basis_uw[i] = ref_basis[i];
+        OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basis_uw[i], ref_basis[i], orientation, basis_pointers[i]);
         {
           Teuchos::TimeMonitor updatetimer(*worksetUpdateBasisMMTimer);
-          FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis[i], wts, ref_basis[i]);
+          FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis[i], wts, basis_uw[i]);
         }
         {
           Teuchos::TimeMonitor updatetimer(*worksetUpdateBasisHGTGTimer);
-          FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(basis_grad_uw[i], jacobInv, ref_basis_grad[i]);
+          DRV basis_grad_tmp("basis grad tmp",activeElem,numb,numip,dimension);
+          FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(basis_grad_tmp, jacobInv, ref_basis_grad[i]);
+          OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basis_grad_uw[i], basis_grad_tmp, orientation, basis_pointers[i]);
         }
         {
           Teuchos::TimeMonitor updatetimer(*worksetUpdateBasisMMTimer);
@@ -430,47 +434,39 @@ void workset::update(const DRV & ip_, const DRV & jacobian, const vector<vector<
         }
       }
       else if (basis_types[i] == "HDIV"){
-        FunctionSpaceTools<AssemblyDevice>::HDIVtransformVALUE(basis_uw[i], jacobian, jacobDet, ref_basis[i]);
+        DRV basis_tmp("basis tmp",activeElem,numb,numip,dimension);
+        FunctionSpaceTools<AssemblyDevice>::HDIVtransformVALUE(basis_tmp, jacobian, jacobDet, ref_basis[i]);
+        OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basis_uw[i], basis_tmp, orientation, basis_pointers[i]);
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis[i], wts, basis_uw[i]);
-        FunctionSpaceTools<AssemblyDevice>::HDIVtransformDIV(basis_div_uw[i], jacobDet, ref_basis_div[i]);
+        
+        DRV basis_div_tmp("basis div tmp",activeElem,numb,numip);
+        FunctionSpaceTools<AssemblyDevice>::HDIVtransformDIV(basis_div_tmp, jacobDet, ref_basis_div[i]);
+        OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basis_div_uw[i], basis_div_tmp, orientation, basis_pointers[i]);
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_div[i], wts, basis_div_uw[i]);
-        
-        // find a variable that uses this basis (takes the last one)
-        int bindex = -1;
-        for (size_t k=0; k<usebasis.size(); k++) {
-          if (usebasis[k] == i) {
-            bindex = k;
-          }
-        }
-        
-        for (int e=0; e<numElem; e++) {
-          for (size_t j=0; j<basis[i].dimension(1); j++) {
-            // divide these by 2.0 to recover same results as ACES
-            for (size_t k=0; k<numip; k++) {
-              for (int s=0; s<dimension; s++) {
-                basis_uw[i](e,j,k,s) *= orientation[e][offsets(bindex,j)];
-                basis[i](e,j,k,s) *= orientation[e][offsets(bindex,j)];
-              }
-              basis_div_uw[i](e,j,k) *= orientation[e][offsets(bindex,j)];
-              basis_div[i](e,j,k) *= orientation[e][offsets(bindex,j)];
-            }
-            
-          }
-        }
         
       }
       else if (basis_types[i] == "HCURL"){
-        FunctionSpaceTools<AssemblyDevice>::HCURLtransformVALUE(basis_uw[i], jacobInv, ref_basis[i]);
+        DRV basis_tmp("basis tmp",activeElem,numb,numip,dimension);
+        FunctionSpaceTools<AssemblyDevice>::HCURLtransformVALUE(basis_tmp, jacobInv, ref_basis[i]);
+        OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basis_uw[i], basis_tmp, orientation, basis_pointers[i]);
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis[i], wts, basis_uw[i]);
-        FunctionSpaceTools<AssemblyDevice>::HCURLtransformCURL(basis_curl_uw[i], jacobian, jacobDet, ref_basis_curl[i]);
+        
+        DRV basis_curl_tmp("basis curl tmp",activeElem,numb,numip,dimension);
+        FunctionSpaceTools<AssemblyDevice>::HCURLtransformCURL(basis_curl_tmp, jacobian, jacobDet, ref_basis_curl[i]);
+        OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basis_curl_uw[i], basis_curl_tmp, orientation, basis_pointers[i]);
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_curl[i], wts, basis_curl_uw[i]);
         
       }
     }
     
     for (size_t i=0; i<param_basis_pointers.size(); i++) {
-      
-      FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(param_basis_grad[i], jacobInv, param_basis_grad_ref[i]);
+      int numb = param_basis_pointers[i]->getCardinality();
+      DRV basisvals("basisvals_Transformed",activeElem, numb, numip);
+      Intrepid2::FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals, param_basis_ref[i]);
+      OrientationTools<AssemblyDevice>::modifyBasisByOrientation(param_basis[i], basisvals, orientation, param_basis_pointers[i]);
+      DRV basis_grad_tmp("basis grad tmp",activeElem,numb,numip,dimension);
+      FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(basis_grad_tmp, jacobInv, param_basis_grad_ref[i]);
+      OrientationTools<AssemblyDevice>::modifyBasisByOrientation(param_basis_grad[i], basis_grad_tmp, orientation, param_basis_pointers[i]);
     }
   }
   
@@ -482,7 +478,7 @@ void workset::update(const DRV & ip_, const DRV & jacobian, const vector<vector<
 
 int workset::addSide(const DRV & nodes, const int & sidenum,
                      Kokkos::View<int*> & localSideID,
-                     vector<vector<ScalarT> > & orientation) {
+                     Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation) {
   
   using namespace Intrepid2;
   Teuchos::TimeMonitor updatetimer(*worksetAddSideTimer);
@@ -562,18 +558,9 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
   // ----------------------------------------------------------
   
   // ----------------------------------------------------------
-  // evaluate basis vectors
+  // evaluate basis vectors (just values and grads for now)
   
   vector<DRV> cbasis, cbasis_uw, cbasis_grad, cbasis_grad_uw;
-  
-  /*
-  for (size_t i=0; i<basis_pointers.size(); i++) {
-    int numb = basis_pointers[i]->getCardinality();
-    cbasis.push_back(DRV("basis_side",numBElem,numb,numsideip));
-    cbasis_uw.push_back(DRV("basis_side",numBElem,numb,numsideip));
-    cbasis_grad.push_back(DRV("basis_grad_side",numBElem,numb,numsideip,dimension));
-    cbasis_grad_uw.push_back(DRV("basis_grad_side_uw",numBElem,numb,numsideip,dimension));
-  }*/
   
   for (size_t i=0; i<basis_pointers.size(); i++) {
     if (basis_types[i] == "HGRAD"){
@@ -584,7 +571,10 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
       
       DRV basisvals_trans("basisvals_Transformed",numBElem, numb, numsideip);
       FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_trans, ref_basisvals);
-      cbasis_uw.push_back(basisvals_trans);
+      DRV basisvals_to("basisvals_Transformed",numBElem, numb, numsideip);
+      OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basisvals_to, basisvals_trans, orientation, basis_pointers[i]);
+      
+      cbasis_uw.push_back(basisvals_to);
       
       DRV basis_wtd("basis_side",numBElem,numb,numsideip);
       FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_wtd, bwts, cbasis_uw[i]);
@@ -595,13 +585,17 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
       
       DRV basis_grad_trans("basis_grad_side_uw",numBElem,numb,numsideip,dimension);
       FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(basis_grad_trans, bijacInv, ref_basisgrad);
-      cbasis_grad_uw.push_back(basis_grad_trans);
+      
+      DRV basis_grad_to("basis_grad_side_uw",numBElem,numb,numsideip,dimension);
+      OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basis_grad_to, basis_grad_trans, orientation, basis_pointers[i]);
+      
+      cbasis_grad_uw.push_back(basis_grad_to);
       
       DRV basis_grad_wtd("basis_grad_side_uw",numBElem,numb,numsideip,dimension);
       FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_grad_wtd, bwts, cbasis_grad_uw[i]);
       cbasis_grad.push_back(basis_grad_wtd);
     }
-    else if (basis_types[i] == "HVOL"){
+    else if (basis_types[i] == "HVOL"){ // does not require orientations
       int numb = basis_pointers[i]->getCardinality();
       
       DRV ref_basisvals("basisvals",numb, numsideip);
@@ -623,17 +617,21 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
       
     }
     else if (basis_types[i] == "HFACE"){
+      //cout << "in here " << endl;
       int numb = basis_pointers[i]->getCardinality();
       
-      DRV ref_basisvals("basisvals",numb, numsideip);
-      basis_pointers[i]->getValues(ref_basisvals, refSidePoints, OPERATOR_VALUE);
+      //DRV ref_basisvals("basisvals",numb, numsideip);
+      //basis_pointers[i]->getValues(ref_basisvals, refSidePoints, OPERATOR_VALUE);
       
-      DRV basisvals_trans("basisvals_Transformed",numBElem, numb, numsideip);
-      FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_trans, ref_basisvals);
-      cbasis_uw.push_back(basisvals_trans);
+      //DRV basisvals_trans("basisvals_Transformed",numBElem, numb, numsideip);
+      //FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_trans, ref_basisvals);
+      DRV basisvals_to("basisvals_Transformed",numBElem, numb, numsideip);
+      //OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basisvals_to, basisvals_trans, orientation, basis_pointers[i]);
+      
+      cbasis_uw.push_back(basisvals_to);
       
       DRV basis_wtd("basis_side",numBElem,numb,numsideip);
-      FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_wtd, bwts, cbasis_uw[i]);
+      //FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_wtd, bwts, cbasis_uw[i]);
       cbasis.push_back(basis_wtd);
       
       DRV basis_grad_trans("basis_grad_side_uw",numBElem,numb,numsideip,dimension);
@@ -652,29 +650,12 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
       DRV basisvals_trans("basisvals_Transformed",numBElem, numb, numsideip, dimension);
       
       FunctionSpaceTools<AssemblyDevice>::HDIVtransformVALUE(basisvals_trans, bijac, bijacDet, ref_basisvals);
+      DRV basisvals_to("basisvals_Transformed",numBElem, numb, numsideip, dimension);
+      OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basisvals_to, basisvals_trans, orientation, basis_pointers[i]);
       
       DRV basis_wtd("basis_side",numBElem,numb,numsideip,dimension);
-      FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_wtd, bwts, basisvals_trans);
+      FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_wtd, bwts, basisvals_to);
       
-      // find a variable that uses this basis (takes the last one)
-      int bindex = -1;
-      for (size_t k=0; k<usebasis.size(); k++) {
-        if (usebasis[k] == i) {
-          bindex = k;
-        }
-      }
-      
-      for (int e=0; e<numBElem; e++) {
-        for (size_t j=0; j<basisvals_trans.dimension(1); j++) {
-          // divide these by 2.0 to recover same results as ACES
-          for (size_t k=0; k<basisvals_trans.dimension(2); k++) {
-            for (int s=0; s<dimension; s++) {
-              basisvals_trans(e,j,k,s) *= orientation[e][offsets(bindex,j)];
-              basis_wtd(e,j,k,s) *= orientation[e][offsets(bindex,j)];
-            }
-          }
-        }
-      }
       cbasis_uw.push_back(basisvals_trans);
       cbasis.push_back(basis_wtd);
       
@@ -693,24 +674,9 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
   
   // ----------------------------------------------------------
   // store basis values
-  //if (basis_side_vec.size() < cnum+1) {
-  //  basis_side_vec.resize(cnum+1);
-  //}
   basis_side_vec.push_back(cbasis);
-  
-  //if (basis_side_uw_vec.size() < cnum+1) {
-  //  basis_side_uw_vec.resize(cnum+1);
-  //}
   basis_side_uw_vec.push_back(cbasis_uw);
-  
-  //if (basis_grad_side_vec.size() < cnum+1) {
-  //  basis_grad_side_vec.resize(cnum+1);
-  //}
   basis_grad_side_vec.push_back(cbasis_grad);
-  
-  //if (basis_grad_side_uw_vec.size() < cnum+1) {
-  //  basis_grad_side_uw_vec.resize(cnum+1);
-  //}
   basis_grad_side_uw_vec.push_back(cbasis_grad_uw);
   // ----------------------------------------------------------
   
@@ -728,23 +694,23 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
     int numb = param_basis_pointers[i]->getCardinality();
     DRV basisvals("basisvals",numb, numsideip);
     param_basis_pointers[i]->getValues(basisvals, refSidePoints, OPERATOR_VALUE);
-    FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(cpbasis[i], basisvals);
+    DRV basisvals_trans("basisvals_Transformed",numBElem, numb, numsideip);
+    FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_trans, basisvals);
+    OrientationTools<AssemblyDevice>::modifyBasisByOrientation(cpbasis[i], basisvals_trans, orientation, basis_pointers[i]);
+    
     DRV basisgrad("basisgrad",numb, numsideip, dimension);
     basis_pointers[i]->getValues(basisgrad, refSidePoints, OPERATOR_GRAD);
-    FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(cpbasis_grad[i], bijacInv, basisgrad);
+    DRV basis_grad_trans("basisvals_Transformed",numBElem, numb, numsideip, dimension);
+    
+    FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(basis_grad_trans, bijacInv, basisgrad);
+    OrientationTools<AssemblyDevice>::modifyBasisByOrientation(cpbasis_grad[i], basis_grad_trans, orientation, basis_pointers[i]);
+    
   }
   // ----------------------------------------------------------
   
   // ----------------------------------------------------------
   // store param basis values
-  //if (param_basis_side_vec.size() < cnum+1) {
-  //  param_basis_side_vec.resize(cnum+1);
-  //}
   param_basis_side_vec.push_back(cpbasis);
-  
-  //if (param_basis_grad_side_vec.size() < cnum+1) {
-  //  param_basis_grad_side_vec.resize(cnum+1);
-  //}
   param_basis_grad_side_vec.push_back(cpbasis_grad);
   // ----------------------------------------------------------
   return BID;
@@ -755,7 +721,8 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
 // Update the nodes and the basis functions at the face ip
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::updateFace(const DRV & nodes, const vector<vector<ScalarT> > & orientation,
+void workset::updateFace(const DRV & nodes, Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation,
+                         //const vector<vector<ScalarT> > & orientation,
                          const size_t & facenum) {
     
   using namespace Intrepid2;
@@ -837,13 +804,17 @@ void workset::updateFace(const DRV & nodes, const vector<vector<ScalarT> > & ori
         DRV ref_basisvals("basisvals",numb, numsideip);
         basis_pointers[i]->getValues(ref_basisvals, refSidePoints, OPERATOR_VALUE);
         
-        FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basis_trans, ref_basisvals);
+        DRV basis_tmp("basisvals_Transformed",numElem, numb, numsideip);
+        FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basis_tmp, ref_basisvals);
+        OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basis_trans, basis_tmp, orientation, basis_pointers[i]);
+        
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_wtd, wts_side, basis_trans);
         
         DRV ref_basisgrad("basisgrad",numb, numsideip, dimension);
         basis_pointers[i]->getValues(ref_basisgrad, refSidePoints, OPERATOR_GRAD);
-        
-        FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(basis_grad_trans, jacInv, ref_basisgrad);
+        DRV basis_grad_tmp("basisvals_Transformed",numElem, numb, numsideip, dimension);
+        FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(basis_grad_tmp, jacInv, ref_basisgrad);
+        OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basis_grad_trans, basis_grad_tmp, orientation, basis_pointers[i]);
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_grad_wtd, wts_side, basis_grad_trans);
         
       }
@@ -860,32 +831,15 @@ void workset::updateFace(const DRV & nodes, const vector<vector<ScalarT> > & ori
         DRV ref_basisvals("basisvals",numb, numsideip, dimension);
         basis_pointers[i]->getValues(ref_basisvals, refSidePoints, OPERATOR_VALUE);
         
+        DRV basis_tmp("basisvals_Transformed",numElem, numb, numsideip, dimension);
         basis_trans = DRV("basisvals_Transformed",numElem, numb, numsideip, dimension);
         
-        FunctionSpaceTools<AssemblyDevice>::HDIVtransformVALUE(basis_trans, jac, jacDet, ref_basisvals);
+        FunctionSpaceTools<AssemblyDevice>::HDIVtransformVALUE(basis_tmp, jac, jacDet, ref_basisvals);
+        OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basis_trans, basis_tmp, orientation, basis_pointers[i]);
         
         basis_wtd = DRV("basis_side",numElem,numb,numsideip,dimension);
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_wtd, wts_side, basis_trans);
         
-        // find a variable that uses this basis (takes the last one)
-        
-        int bindex = -1;
-        for (size_t k=0; k<usebasis.size(); k++) {
-          if (usebasis[k] == i) {
-            bindex = k;
-          }
-        }
-        
-        for (int e=0; e<numElem; e++) {
-          for (size_t j=0; j<basis_trans.dimension(1); j++) {
-            for (size_t k=0; k<basis_trans.dimension(2); k++) {
-              for (int s=0; s<dimension; s++) {
-                basis_trans(e,j,k,s) *= orientation[e][offsets(bindex,j)];
-                basis_wtd(e,j,k,s) *= orientation[e][offsets(bindex,j)];
-              }
-            }
-          }
-        }
         
       }
       else if (basis_types[i] == "HCURL"){
@@ -896,28 +850,13 @@ void workset::updateFace(const DRV & nodes, const vector<vector<ScalarT> > & ori
         DRV ref_basisvals("basisvals",numb, numsideip);
         basis_pointers[i]->getValues(ref_basisvals, refSidePoints, OPERATOR_VALUE);
         
+        
+        //DRV basis_tmp("basisvals_Transformed",numElem, numb, numsideip);
         FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basis_trans, ref_basisvals);
+        //OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basis_trans, basis_tmp, orientation, basis_pointers[i]);
+        
+        //FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basis_trans, ref_basisvals);
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_wtd, wts_side, basis_trans);
-        
-        // find a variable that uses this basis (takes the last one)
-        /*
-        int bindex = -1;
-        for (size_t k=0; k<usebasis.size(); k++) {
-          if (usebasis[k] == i) {
-            bindex = k;
-          }
-        }
-        
-        for (int e=0; e<numElem; e++) {
-          for (size_t j=0; j<basis_trans.dimension(1); j++) {
-            for (size_t k=0; k<basis_trans.dimension(2); k++) {
-              for (int s=0; s<dimension; s++) {
-                basis_trans(e,j,k,s) *= orientation[e][offsets(bindex,j)];
-                basis_wtd(e,j,k,s) *= orientation[e][offsets(bindex,j)];
-              }
-            }
-          }
-        }*/
         
       }
       

@@ -321,7 +321,7 @@ void solver::finalizeWorkset() {
   
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Finished solver::finalizeWorsket" << endl;
+      cout << "**** Finished solver::finalizeWorkset" << endl;
     }
   }
   

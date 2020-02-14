@@ -14,10 +14,10 @@
 
 discretization::discretization(Teuchos::RCP<Teuchos::ParameterList> & settings,
                                Teuchos::RCP<MpiComm> & Comm_,
-                               Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
+                               Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
                                vector<vector<int> > & orders, vector<vector<string> > & types,
                                vector<vector<Teuchos::RCP<cell> > > & cells) :
-Commptr(Comm_) {
+Commptr(Comm_), mesh(mesh_) {
   
   milo_debug_level = settings->get<int>("debug level",0);
   
@@ -114,7 +114,7 @@ Commptr(Comm_) {
     }
     
     DRV qpts, qwts;
-    int quadorder = db_settings.get<int>("quadrature",mxorder+1);
+    int quadorder = db_settings.get<int>("quadrature",2*mxorder);
     discTools->getQuadrature(cellTopo, quadorder, qpts, qwts);
     
     ///////////////////////////////////////////////////////////////////////////
@@ -145,7 +145,7 @@ Commptr(Comm_) {
     }
     
     DRV side_qpts, side_qwts;
-    int side_quadorder = db_settings.sublist(blockID).get<int>("side quadrature",mxorder+1);
+    int side_quadorder = db_settings.sublist(blockID).get<int>("side quadrature",2*mxorder);
     discTools->getQuadrature(sideTopo, side_quadorder, side_qpts, side_qwts);
     
     ///////////////////////////////////////////////////////////////////////////
@@ -177,8 +177,20 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
                                         vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells,
                                         Teuchos::RCP<panzer::DOFManager> & DOF,
                                         Teuchos::RCP<physics> & phys) {
+  
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting discretization:: setIntegrationInfo" << endl;
+    }
+  }
+  vector<string> eBlocks;
+  mesh->getElementBlockNames(eBlocks);
+  
   for (size_t b=0; b<cells.size(); b++) {
     int eprog = 0;
+    vector<stk::mesh::Entity> stk_meshElems;
+    mesh->getMyElements(eBlocks[b], stk_meshElems);
+    
     for (size_t e=0; e<cells[b].size(); e++) {
       int numElem = cells[b][e]->numElem;
       
@@ -211,6 +223,7 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
       //-----------------------------------------------
       
       // Set the cell orientation ---
+      /*
       vector<vector<ScalarT> > cellOrient;
       for (int i=0; i<numElem; i++) {
         vector<ScalarT> orient;
@@ -219,6 +232,22 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
         cellOrient.push_back(orient);
       }
       cells[b][e]->orientation = cellOrient;
+      */
+      
+      Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", numElem, cells[b][e]->cellData->numnodes);
+      
+      for (int i=0; i<numElem; i++) {
+        vector<stk::mesh::EntityId> stk_nodeids;
+        mesh->getNodeIdsForElement(stk_meshElems[eprog+i], stk_nodeids);
+        for (int n=0; n<cells[b][e]->cellData->numnodes; n++) {
+          currind(i,n) = stk_nodeids[n];
+        }
+      }
+      Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orient_drv("kv to orients",numElem);
+      //Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, cells[b][e]->nodeIndices, *(cells[b][e]->cellData->cellTopo));
+      Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *(cells[b][e]->cellData->cellTopo));
+      cells[b][e]->orientation = orient_drv;
+      
       //-----------------------------------------------
       
       eprog += numElem;
@@ -227,6 +256,9 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
   }
   
   for (size_t b=0; b<boundaryCells.size(); b++) {
+    vector<stk::mesh::Entity> stk_meshElems;
+    mesh->getMyElements(eBlocks[b], stk_meshElems);
+    
     for (size_t e=0; e<boundaryCells[b].size(); e++) {
       int numElem = boundaryCells[b][e]->numElem;
       
@@ -257,6 +289,25 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
       //-----------------------------------------------
       
       // Set the cell orientation ---
+      
+      Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", numElem, boundaryCells[b][e]->cellData->numnodes);
+      
+      for (int i=0; i<numElem; i++) {
+        vector<stk::mesh::EntityId> stk_nodeids;
+        size_t elemID = boundaryCells[b][e]->localElemID(i);
+        mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
+        for (int n=0; n<boundaryCells[b][e]->cellData->numnodes; n++) {
+          currind(i,n) = stk_nodeids[n];
+        }
+      }
+      //KokkosTools::print(currind);
+      
+      Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orient_drv("kv to orients",numElem);
+      //Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, cells[b][e]->nodeIndices, *(cells[b][e]->cellData->cellTopo));
+      Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *(boundaryCells[b][e]->cellData->cellTopo));
+      boundaryCells[b][e]->orientation = orient_drv;
+      
+      /*
       vector<vector<ScalarT> > cellOrient;
       for (int i=0; i<numElem; i++) {
         vector<ScalarT> orient;
@@ -265,6 +316,7 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
         cellOrient.push_back(orient);
       }
       boundaryCells[b][e]->orientation = cellOrient;
+       */
       //-----------------------------------------------
       
     }
@@ -288,6 +340,11 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
   //}
   //-----------------------------------------------
   
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished discretization:: setIntegrationInfo" << endl;
+    }
+  }
   
 }
 

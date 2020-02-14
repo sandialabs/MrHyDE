@@ -44,20 +44,21 @@ class workset {
   // Update the nodes and the basis functions at the volumetric ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void update(const DRV & ip_, const DRV & jacobian, const vector<vector<ScalarT> > & orientation);
+  void update(const DRV & ip_, const DRV & jacobian, Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation);
   
   ////////////////////////////////////////////////////////////////////////////////////
   // Add a side information
   ////////////////////////////////////////////////////////////////////////////////////
   
   int addSide(const DRV & nodes, const int & sidenum, Kokkos::View<int*> & localSideID,
-              vector<vector<ScalarT> > & orientation);
+              Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation);
 
   ////////////////////////////////////////////////////////////////////////////////////
   // Update the nodes and the basis functions at the side ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void updateFace(const DRV & nodes, const vector<vector<ScalarT> > & orientation,
+  void updateFace(const DRV & nodes, Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation,
+                  //const vector<vector<ScalarT> > & orientation,
                   const size_t & sidenum);
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -186,7 +187,8 @@ class workset {
   vector<string> basis_types;
   vector<int> numbasis, numparambasis;
   vector<basis_RCP> basis_pointers, param_basis_pointers;
-  vector<DRV> param_basis, param_basis_grad_ref; //parameter basis functions are never weighted
+  vector<DRV> param_basis, param_basis_grad;
+  vector<DRV> param_basis_ref, param_basis_grad_ref;
   vector<DRV> param_basis_grad_side, param_basis_side;
   
   // Scalar and vector parameters
@@ -241,7 +243,7 @@ class workset {
   //DRV sidejacobian, sidejacobDet, sidejacobInv, sideweightedMeasure;
   DRV jacobDet, jacobInv, weightedMeasure;
   DRV sidejacobDet, sidejacobInv, sideweightedMeasure;
-  vector<DRV> param_basis_grad; // parameter basis function are never weighted
+  //vector<DRV> param_basis_grad; // parameter basis function are never weighted
   // Dynamic data (changes multiple times per element)
   int sidetype;
   Kokkos::View<int****,AssemblyDevice> sideinfo;

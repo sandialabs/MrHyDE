@@ -200,7 +200,6 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
       }
       DRV currnodes("currnodes",currElem,numNodesPerElem,dimension);
       Kokkos::View<int*> eIndex("element indices",currElem);
-      
       for (size_t e=0; e<currElem; e++) {
         for (int n=0; n<numNodesPerElem; n++) {
           for (int m=0; m<dimension; m++) {
@@ -209,8 +208,6 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
         }
         eIndex(e) = prog+e;
       }
-      //newcells.push_back(Teuchos::rcp(new cell(settings, LocalComm, cellTopo, physics_RCP,
-      //                                         currnodes, 0, eIndex, 0, false)));
       newcells.push_back(Teuchos::rcp(new cell(cellData, currnodes, eIndex)));
       prog += currElem;
     }

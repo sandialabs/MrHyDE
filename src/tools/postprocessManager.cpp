@@ -626,8 +626,9 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
             int numElem = cells[b][e]->numElem;
             Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
             for (int p=0; p<numElem; p++) {
-              for( int i=0; i<numBasis[b][n]; i++ ) {
-                int pindex = overlapped_map->getLocalElement(GIDs(p,curroffsets[n][i]));
+              //for( int i=0; i<numBasis[b][n]; i++ ) {
+              for( int i=0; i<numNodesPerElem; i++ ) {
+                  int pindex = overlapped_map->getLocalElement(GIDs(p,curroffsets[n][i]));
                 if (numBasis[b][n] == 1) {
                   for( int j=0; j<numNodesPerElem; j++ ) {
                     soln_computed(eprog,j) = u_kv(pindex,0);

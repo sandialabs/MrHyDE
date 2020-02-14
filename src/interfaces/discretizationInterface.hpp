@@ -30,7 +30,7 @@ public:
   
   discretization(Teuchos::RCP<Teuchos::ParameterList> & settings,
                  Teuchos::RCP<MpiComm> & Comm_,
-                 Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
+                 Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
                  vector<vector<int> > & orders, vector<vector<string> > & types,
                  vector<vector<Teuchos::RCP<cell> > > & cells);
   
@@ -45,7 +45,7 @@ public:
   
   int milo_debug_level;
   Teuchos::RCP<MpiComm> Commptr;
-  
+  Teuchos::RCP<panzer_stk::STK_Interface> mesh;
   vector<vector<basis_RCP> > basis_pointers;
   vector<vector<string> > basis_types;
   

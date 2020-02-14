@@ -547,6 +547,7 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
     vector<Teuchos::RCP<cell> > blockcells;
     vector<stk::mesh::Entity> stk_meshElems;
     mesh->getMyElements(eBlocks[b], stk_meshElems);
+    
     topo_RCP cellTopo = mesh->getCellTopology(eBlocks[b]);
     size_t numElem = stk_meshElems.size();
     vector<size_t> localIds;

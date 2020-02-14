@@ -261,7 +261,7 @@ public:
   Teuchos::RCP<workset> wkset;
   
   Kokkos::View<LO*> localElemID, localSideID;
-  vector<vector<ScalarT> > orientation;
+  Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
   
   // Geometry Information
   int numElem = 0; // default value ... used to check if proc. has elements on boundary

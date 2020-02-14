@@ -113,7 +113,7 @@ Commptr(Comm_), functionManager(functionManager_) {
     numip = qwts.dimension(0);
     
     DRV side_qpts, side_qwts;
-    int side_quadorder = blockdiscsettings.sublist(currblock).get<int>("side quadrature",2);
+    int side_quadorder = blockdiscsettings.get<int>("side quadrature",quadorder);
     
     discTools->getQuadrature(sideTopo[b], side_quadorder, side_qpts, side_qwts);
     numip_side = side_qwts.dimension(0);

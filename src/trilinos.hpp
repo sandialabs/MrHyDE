@@ -50,6 +50,8 @@
 #include "Intrepid2_PointTools.hpp"
 #include "Intrepid2_FunctionSpaceTools.hpp"
 #include "Intrepid2_CellTools.hpp"
+#include "Intrepid2_Orientation.hpp"
+#include "Intrepid2_OrientationTools.hpp"
 #include "Intrepid2_ArrayTools.hpp"
 #include "Intrepid2_RealSpaceTools.hpp"
 #include "Intrepid2_DefaultCubatureFactory.hpp"
