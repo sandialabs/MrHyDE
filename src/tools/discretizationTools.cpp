@@ -49,6 +49,7 @@
 
 // HFACE (experimental) functionality
 #include "Intrepid2_HFACE_QUAD_In_FEM.hpp"
+#include "Intrepid2_HFACE_TRI_In_FEM.hpp"
 #include "Intrepid2_HFACE_HEX_In_FEM.hpp"
 
 #include "Intrepid2_PointTools.hpp"
@@ -714,6 +715,9 @@ basis_RCP DiscTools::getBasis(const int & spaceDim, const topo_RCP & cellTopo,
     if (spaceDim == 2) {
       if (shape == "Quadrilateral_4") {
         basis = Teuchos::rcp(new Basis_HFACE_QUAD_In_FEM<AssemblyDevice>(degree,POINTTYPE_EQUISPACED) );
+      }
+      else if (shape == "Triangle_3") {
+        basis = Teuchos::rcp(new Basis_HFACE_TRI_In_FEM<AssemblyDevice>(degree,POINTTYPE_EQUISPACED) );
       }
     }
     if (spaceDim == 3) {
