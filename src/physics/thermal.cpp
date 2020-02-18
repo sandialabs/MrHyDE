@@ -26,9 +26,16 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
   functionManager = functionManager_;
   label = "thermal";
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
-  myvars.push_back("e");
-  mybasistypes.push_back("HGRAD");
-  
+  if (settings->sublist("Physics").isSublist("Active variables")) {
+    if (settings->sublist("Physics").sublist("Active variables").isParameter("e")) {
+      myvars.push_back("e");
+      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("e","HGRAD"));
+    }
+  }
+  else {
+    myvars.push_back("e");
+    mybasistypes.push_back("HGRAD");
+  }
   // Extra data
   formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
   have_nsvel = false;
