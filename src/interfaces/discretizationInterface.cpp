@@ -204,6 +204,7 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
         cellGIDs.push_back(GIDs);
         numLocalDOF = GIDs.size(); // should be the same for all elements
       }
+      
       Kokkos::View<GO**,HostDevice> hostGIDs("GIDs on host device",numElem,numLocalDOF);
       for (int i=0; i<numElem; i++) {
         for (int j=0; j<numLocalDOF; j++) {
@@ -243,6 +244,8 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
           currind(i,n) = stk_nodeids[n];
         }
       }
+      
+      
       Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orient_drv("kv to orients",numElem);
       //Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, cells[b][e]->nodeIndices, *(cells[b][e]->cellData->cellTopo));
       Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *(cells[b][e]->cellData->cellTopo));

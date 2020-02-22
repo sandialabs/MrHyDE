@@ -280,6 +280,34 @@ void porousHDIV_HYBRID::faceResidual() {
 
 void porousHDIV_HYBRID::computeFlux() {
   
+  // Since normals get recomputed often, this needs to be reset
+  normals = wkset->normals;
+  
+  {
+    Teuchos::TimeMonitor localtime(*fluxFill);
+    
+    AD ux = 0.0, uy = 0.0, uz = 0.0;
+    ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
+    for (int e=0; e<numElem; e++) {
+      
+      for (size_t k=0; k<wkset->ip_side.dimension(1); k++) {
+        
+        ux = sol_side(e,unum,k,0);
+        nx = normals(e,k,0);
+        
+        if (spaceDim > 1) {
+          uy = sol_side(e,unum,k,1);
+          ny = normals(e,k,1);
+        }
+        if (spaceDim > 2) {
+          uz = sol_side(e,unum,k,2);
+          nz = normals(e,k,2);
+        }
+        
+        flux(e,auxlambdanum,k) += -(ux*nx+uy*ny+uz*nz);
+      }
+    }
+  }
 }
 
 // ========================================================================================

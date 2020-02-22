@@ -799,26 +799,11 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::computeError(const ScalarT & solvet
     wkset->update(ip,ijac,orientation);
     wkset->computeSolnVolIP(u, u_dot, false, false);
     size_t numip = wkset->numip;
-    /*
-     size_t numip = wkset->numip;
-     Kokkos::View<ScalarT***,AssemblyDevice> u_ip("u_ip",numElem,index[0].size(),numip);
-     for (int e=0; e<numElem; e++) {
-     for (int n=0; n<index.dimension(1); n++) {
-     for( int i=0; i<index.dimension(2); i++ ) {
-     for( size_t j=0; j<numip; j++ ) {
-     u_ip(e,n,j) += u(e,n,i)*wkset->ref_basis[wkset->usebasis[n]](e,i,j);
-     }
-     }
-     }
-     }
-     */
     
     if (error_type == "L2") {
       Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index.dimension(1),
                                                        numip,cellData->dimension);
       cellData->physics_RCP->trueSolution(cellData->myBlock, solvetime, truesol);
-      //KokkosTools::print(wkset->local_soln);
-      //KokkosTools::print(truesol);
       for (int e=0; e<numElem; e++) {
         for (int n=0; n<index.dimension(1); n++) {
           for( size_t j=0; j<numip; j++ ) {
@@ -845,27 +830,6 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::computeError(const ScalarT & solvet
         }
       }
     }
-    
-    /*
-     for (int e=0; e<numElem; e++) {
-     for (int n=0; n<index.dimension(1); n++) {
-     for( size_t j=0; j<numip; j++ ) {
-     ScalarT x = wkset->ip(e,j,0);
-     ScalarT y = 0.0;
-     if (dimension > 1) {
-     y = wkset->ip(e,j,1);
-     }
-     ScalarT z = 0.0;
-     if (dimension > 2) {
-     z = wkset->ip(e,j,2);
-     }
-     ScalarT truesol = physics_RCP->trueSolution(myBlock, wkset->varlist[n], x, y, z, solvetime, error_type);
-     errors(e,n) += (u_ip(e,n,j)-truesol)*(u_ip(e,n,j)-truesol)*wkset->wts(e,j);
-     }
-     }
-     }
-     */
-    
   }
   else if (cellData->multiscale) {
     

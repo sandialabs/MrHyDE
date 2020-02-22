@@ -847,7 +847,7 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
     if (NLiter == 0) {
       res->normInf(NLerr_first);
-      if (NLerr_first[0] > 1.0e-14)
+      if (NLerr_first[0] > 1.0e-16)
         NLerr_scaled[0] = 1.0;
       else
         NLerr_scaled[0] = 0.0;
@@ -882,7 +882,6 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
         u_dot->update(alpha, *du_over, 1.0);
       }
     }
-    
     NLiter++; // increment number of iterations
   } // while loop
   if (milo_debug_level>2) {
@@ -1495,16 +1494,14 @@ void solver::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   Teuchos::TimeMonitor localtimer(*linearsolvertimer);
   
   if (useDirect) {
-    if (have_symbolic_factor) {
-      Am2Solver->setA(J, Amesos2::SYMBFACT);
-      Am2Solver->setX(soln);
-      Am2Solver->setB(r);
-    }
-    else {
+    if (!have_symbolic_factor) {
       Am2Solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>("KLU2", J, r, soln);
       Am2Solver->symbolicFactorization();
       have_symbolic_factor = true;
     }
+    Am2Solver->setA(J, Amesos2::SYMBFACT);
+    Am2Solver->setX(soln);
+    Am2Solver->setB(r);
     Am2Solver->numericFactorization().solve();
   }
   else {

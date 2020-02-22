@@ -75,7 +75,7 @@ private:
   size_t numip, numip_side, blocknum;
   FDATA source, bsource;
   
-  int pnum, unum, lambdanum;
+  int pnum=-1, unum=-1, lambdanum=-1;
   int auxpnum=-1, auxunum=-1, auxlambdanum=-1;
   int dxnum=-1, dynum=-1, dznum=-1;
   bool isTD, addBiot;
@@ -86,6 +86,7 @@ private:
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::volumeResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::volumeResidual() - evaluation of residual");
+  Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::computeFlux() - evaluation of interface flux");
   Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::boundaryResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> boundaryResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::boundaryResidual() - evaluation of residual");
   

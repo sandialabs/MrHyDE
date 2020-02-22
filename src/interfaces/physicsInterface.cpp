@@ -692,7 +692,6 @@ Teuchos::RCP<panzer::DOFManager> physics::buildDOF(Teuchos::RCP<panzer_stk::STK_
     for (size_t j=0; j<currvarlist.size(); j++) {
       num = getUniqueIndex(b,currvarlist[j]);
       topo_RCP cellTopo = mesh->getCellTopology(currblock);
-      
       basis_pointer = discTools->getBasis(spaceDim, cellTopo, types[b][j], orders[b][j]);
       
       Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis_pointer));
@@ -707,7 +706,6 @@ Teuchos::RCP<panzer::DOFManager> physics::buildDOF(Teuchos::RCP<panzer_stk::STK_
   }
   
   DOF->buildGlobalUnknowns();
-  
   if (milo_debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Finished physics::buildDOF" << endl;

@@ -88,7 +88,6 @@ celltopo(topo), var_bcs(var_bcs_)  { //, timeInt(timeInt_) {
   sidejacobInv = DRV("sidejacobInv",numElem, numsideip, dimension, dimension);
   sideweightedMeasure = DRV("sideweightedMeasure",numElem, numsideip);
   
-  flux = Kokkos::View<AD***,AssemblyDevice>("flux",numElem,numVars,numsideip);
   
   have_rotation = false;
   have_rotation_phi = false;
@@ -436,11 +435,13 @@ void workset::update(const DRV & ip_, const DRV & jacobian, Kokkos::DynRankView<
       else if (basis_types[i] == "HDIV"){
         DRV basis_tmp("basis tmp",activeElem,numb,numip,dimension);
         FunctionSpaceTools<AssemblyDevice>::HDIVtransformVALUE(basis_tmp, jacobian, jacobDet, ref_basis[i]);
+        //basis_uw[i] = basis_tmp;
         OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basis_uw[i], basis_tmp, orientation, basis_pointers[i]);
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis[i], wts, basis_uw[i]);
         
         DRV basis_div_tmp("basis div tmp",activeElem,numb,numip);
         FunctionSpaceTools<AssemblyDevice>::HDIVtransformDIV(basis_div_tmp, jacobDet, ref_basis_div[i]);
+        //basis_div_uw[i] = basis_div_tmp;
         OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basis_div_uw[i], basis_div_tmp, orientation, basis_pointers[i]);
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_div[i], wts, basis_div_uw[i]);
         
@@ -652,11 +653,11 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
       FunctionSpaceTools<AssemblyDevice>::HDIVtransformVALUE(basisvals_trans, bijac, bijacDet, ref_basisvals);
       DRV basisvals_to("basisvals_Transformed",numBElem, numb, numsideip, dimension);
       OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basisvals_to, basisvals_trans, orientation, basis_pointers[i]);
-      
+      //basisvals_to = basisvals_trans;
       DRV basis_wtd("basis_side",numBElem,numb,numsideip,dimension);
       FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_wtd, bwts, basisvals_to);
       
-      cbasis_uw.push_back(basisvals_trans);
+      cbasis_uw.push_back(basisvals_to);
       cbasis.push_back(basis_wtd);
       
       DRV basis_grad_trans("basis_grad_side_uw",numBElem,numb,numsideip,dimension);
@@ -1746,6 +1747,8 @@ void workset::addAux(const size_t & naux) {
   local_aux = Kokkos::View<AD***, AssemblyDevice>("local_aux",numElem, numAux, numip);
   //local_aux_grad = Kokkos::View<AD****, AssemblyDevice>("local_aux_grad",numElem, numAux, numip, dimension);
   local_aux_side = Kokkos::View<AD***, AssemblyDevice>("local_aux_side",numElem, numAux, numsideip);
+  flux = Kokkos::View<AD***,AssemblyDevice>("flux",numElem,numAux,numsideip);
+  
   //local_aux_grad_side = Kokkos::View<AD****, AssemblyDevice>("local_aux_grad_side",numElem, numAux, numsideip, dimension);
 }
 

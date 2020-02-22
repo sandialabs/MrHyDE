@@ -21,11 +21,22 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
   functionManager = functionManager_;
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   
-  myvars.push_back("p");
-  myvars.push_back("u");
-  mybasistypes.push_back("HVOL");
-  mybasistypes.push_back("HDIV");
-  
+  if (settings->sublist("Physics").isSublist("Active variables")) {
+    if (settings->sublist("Physics").sublist("Active variables").isParameter("p")) {
+      myvars.push_back("p");
+      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("p","HVOL"));
+    }
+    if (settings->sublist("Physics").sublist("Active variables").isParameter("u")) {
+      myvars.push_back("u");
+      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("u","HDIV"));
+    }
+  }
+  else {
+    myvars.push_back("p");
+    myvars.push_back("u");
+    mybasistypes.push_back("HVOL");
+    mybasistypes.push_back("HDIV");
+  }
   dxnum = 0;
   dynum = 0;
   dznum = 0;
@@ -163,6 +174,26 @@ void porousHDIV::boundaryResidual() {
         }
       }
     }
+    else if (bcs(pnum,cside) == 5) {
+      for (int k=0; k<basis.dimension(2); k++ ) {
+        AD lambda = aux_side(e,auxpnum,k);
+        
+        for (int i=0; i<basis.dimension(1); i++ ) {
+          vx = basis(e,i,k,0);
+          nx = normals(e,k,0);
+          if (spaceDim>1) {
+            vy = basis(e,i,k,1);
+            ny = normals(e,k,1);
+          }
+          if (spaceDim>2) {
+            vz = basis(e,i,k,2);
+            nz = normals(e,k,2);
+          }
+          int resindex = offsets(unum,i);
+          res(e,resindex) += lambda*(vx*nx+vy*ny+vz*nz);
+        }
+      }
+    }
   }
 }
 
@@ -172,6 +203,34 @@ void porousHDIV::boundaryResidual() {
 // ========================================================================================
 
 void porousHDIV::computeFlux() {
+  
+  // Since normals get recomputed often, this needs to be reset
+  normals = wkset->normals;
+  
+  {
+    Teuchos::TimeMonitor localtime(*fluxFill);
+    
+    AD ux = 0.0, uy = 0.0, uz = 0.0;
+    ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
+    for (int e=0; e<wkset->ip_side.dimension(0); e++) {
+      
+      for (size_t k=0; k<wkset->ip_side.dimension(1); k++) {
+        
+        ux = sol_side(e,unum,k,0);
+        nx = normals(e,k,0);
+        
+        if (spaceDim > 1) {
+          uy = sol_side(e,unum,k,1);
+          ny = normals(e,k,1);
+        }
+        if (spaceDim > 2) {
+          uz = sol_side(e,unum,k,2);
+          nz = normals(e,k,2);
+        }
+        flux(e,auxpnum,k) += (ux*nx+uy*ny+uz*nz);
+      }
+    }
+  }
   
 }
 
@@ -191,5 +250,18 @@ void porousHDIV::setVars(std::vector<string> & varlist_) {
       dynum = i;
     if (varlist[i] == "dz")
       dznum = i;
+  }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void porousHDIV::setAuxVars(std::vector<string> & auxvarlist) {
+  
+  for (size_t i=0; i<auxvarlist.size(); i++) {
+    if (auxvarlist[i] == "p")
+      auxpnum = i;
+    if (auxvarlist[i] == "u")
+      auxunum = i;
   }
 }

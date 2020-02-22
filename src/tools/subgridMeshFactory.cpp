@@ -119,6 +119,7 @@ namespace panzer_stk{
     mesh.endModification();
     
     // build bulk data
+    mesh.buildSubcells();
     mesh.buildLocalElementIDs();
     
     // calls Stk_MeshFactory::rebalance

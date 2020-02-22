@@ -161,7 +161,6 @@ void PostprocessManager::computeError() {
         }
       }
     }
-    
     for (size_t t=0; t<solvetimes.size(); t++) {
       for (int n=0; n<numVars[b]; n++) {
         ScalarT lerr = localerror(t,n);

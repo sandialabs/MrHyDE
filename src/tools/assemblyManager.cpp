@@ -690,7 +690,7 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
         cout << "ERROR - NOTHING WAS GATHERED" << endl;
     }
     
-    if (milo_debug_level > 2) {
+    if (milo_debug_level > 3) {
       if (Comm->getRank() == 0) {
         cout << "inside assemblyManager::gather: type = " << type << endl;
         KokkosTools::print(index, "inside assemblyManager::gather - index");

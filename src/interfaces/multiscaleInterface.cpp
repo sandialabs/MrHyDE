@@ -156,8 +156,10 @@ ScalarT MultiScale::initialize() {
             }
           }
           // needs to be updated
+          
           int cnum = subgridModels[sgnum[c]]->addMacro(cnodes, csideinfo, cells[b][e]->sidenames,
                                                        cGIDs, cindex);
+          
           usernum.push_back(cnum);
         }
       }

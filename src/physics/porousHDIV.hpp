@@ -58,13 +58,18 @@ public:
   
   void setVars(std::vector<string> & varlist_);
   
+  // ========================================================================================
+  // ========================================================================================
+  
+  void setAuxVars(std::vector<string> & auxvarlist);
+  
 private:
   
   int spaceDim, numElem, numParams, numResponses, numSteps;
   size_t numip, numip_side, blocknum;
   FDATA source, bsource;
   
-  int pnum, unum;
+  int pnum=-1, unum=-1, auxpnum=-1, auxunum=-1;
   int dxnum,dynum,dznum;
   bool isTD, addBiot;
   ScalarT biot_alpha;
@@ -76,6 +81,7 @@ private:
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV::volumeResidual() - evaluation of residual");
   Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV::boundaryResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> boundaryResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV::boundaryResidual() - evaluation of residual");
+  Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV::computeFlux() - evaluation of interface flux");
   
 };
 
