@@ -2301,6 +2301,8 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
   vector<vector<GO> > connectivity = sgt.getSubConnectivity();
   Kokkos::View<int****,HostDevice> sideinfo = sgt.getSubSideinfo();
   
+  size_t numNodesPerElem = connectivity[0].size();
+  
   panzer_stk::SubGridMeshFactory submeshFactory(shape, nodes, connectivity, blockID);
   Teuchos::RCP<panzer_stk::STK_Interface> submesh = submeshFactory.buildMesh(*(LocalComm->getRawMpiComm()));
   
@@ -2309,10 +2311,22 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
   // Add in the necessary fields for plotting
   //////////////////////////////////////////////////////////////
   
+  vector<string> vartypes = physics_RCP->types[0];
+  
   vector<string> subeBlocks;
   submesh->getElementBlockNames(subeBlocks);
   for (size_t j=0; j<varlist.size(); j++) {
-    submesh->addSolutionField(varlist[j], subeBlocks[0]);
+    if (vartypes[j] == "HGRAD") {
+      submesh->addSolutionField(varlist[j], subeBlocks[0]);
+    }
+    else if (vartypes[j] == "HVOL"){
+      submesh->addCellField(varlist[j], subeBlocks[0]);
+    }
+    else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL"){
+      submesh->addCellField(varlist[j]+"x", subeBlocks[0]);
+      submesh->addCellField(varlist[j]+"y", subeBlocks[0]);
+      submesh->addCellField(varlist[j]+"z", subeBlocks[0]);
+    }
   }
   vector<string> subextrafieldnames = physics_RCP->getExtraFieldNames(0);
   for (size_t j=0; j<subextrafieldnames.size(); j++) {
@@ -2364,28 +2378,85 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
     
     vector<vector<int> > suboffsets = physics_RCP->offsets[0];
     // Collect the subgrid solution
-    for (int n = 0; n<varlist.size(); n++) { // change to subgrid numVars
-      size_t numsb = cells[usernum][0]->numDOF(n);//index[0][n].size();
-      Kokkos::View<ScalarT**,HostDevice> soln_computed("soln",cells[usernum].size(), numsb); // TMW temp. fix
-      string var = varlist[n];
-      size_t pprog = 0;
-      
-      for( size_t e=0; e<cells[usernum].size(); e++ ) {
-        int numElem = cells[usernum][e]->numElem;
-        Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;
-        for (int p=0; p<numElem; p++) {
-          
-          for( int i=0; i<numsb; i++ ) {
-            int pindex = overlapped_map->getLocalElement(GIDs(p,suboffsets[n][i]));
-            //if (write_subgrid_state)
-            soln_computed(pprog,i) = u_kv(pindex,0);
-            //else
-            //  soln_computed(p,i) = (*(adjsoln->data[usernum][m]))[0][pindex];
+    for (int n = 0; n<varlist.size(); n++) {
+      if (vartypes[n] == "HGRAD") {
+        //size_t numsb = cells[usernum][0]->numDOF(n);//index[0][n].size();
+        Kokkos::View<ScalarT**,HostDevice> soln_computed("soln",cells[usernum].size(), numNodesPerElem); // TMW temp. fix
+        string var = varlist[n];
+        size_t pprog = 0;
+        
+        for( size_t e=0; e<cells[usernum].size(); e++ ) {
+          int numElem = cells[usernum][e]->numElem;
+          Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;
+          for (int p=0; p<numElem; p++) {
+            
+            for( int i=0; i<numNodesPerElem; i++ ) {
+              int pindex = overlapped_map->getLocalElement(GIDs(p,suboffsets[n][i]));
+              soln_computed(pprog,i) = u_kv(pindex,0);
+            }
+            pprog += 1;
           }
-          pprog += 1;
         }
+        submesh->setSolutionFieldData(var, blockID, myElements, soln_computed);
       }
-      submesh->setSolutionFieldData(var, blockID, myElements, soln_computed);
+      else if (vartypes[n] == "HVOL") {
+        Kokkos::View<ScalarT**,HostDevice> soln_computed("soln",cells[usernum].size(), 1);
+        string var = varlist[n];
+        size_t pprog = 0;
+        
+        for( size_t e=0; e<cells[usernum].size(); e++ ) {
+          int numElem = cells[usernum][e]->numElem;
+          Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;
+          for (int p=0; p<numElem; p++) {
+            int pindex = overlapped_map->getLocalElement(GIDs(p,suboffsets[n][0]));
+            soln_computed(pprog,0) = u_kv(pindex,0);
+            pprog += 1;
+          }
+        }
+        submesh->setCellFieldData(var, blockID, myElements, soln_computed);
+      }
+      else if (vartypes[n] == "HDIV" || vartypes[n] == "HCURL") {
+        Kokkos::View<ScalarT**,HostDevice> soln_x("soln",cells[usernum].size(), 1);
+        Kokkos::View<ScalarT**,HostDevice> soln_y("soln",cells[usernum].size(), 1);
+        Kokkos::View<ScalarT**,HostDevice> soln_z("soln",cells[usernum].size(), 1);
+        string var = varlist[n];
+        size_t pprog = 0;
+        
+        for( size_t e=0; e<cells[usernum].size(); e++ ) {
+          wkset[0]->update(cells[usernum][e]->ip,cells[usernum][e]->ijac,cells[usernum][e]->orientation);
+          wkset[0]->computeSolnVolIP(cells[usernum][e]->u, cells[usernum][e]->u_dot, false, false);
+          
+          int numElem = cells[usernum][e]->numElem;
+          Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;
+          
+          for (int p=0; p<numElem; p++) {
+            ScalarT avgxval = 0.0;
+            ScalarT avgyval = 0.0;
+            ScalarT avgzval = 0.0;
+            ScalarT avgwt = 0.0;
+            for (int j=0; j<suboffsets[n].size(); j++) {
+              ScalarT xval = wkset[0]->local_soln(p,n,j,0).val();
+              avgxval += xval*wkset[0]->wts(p,j);
+              if (dimension > 1) {
+                ScalarT yval = wkset[0]->local_soln(p,n,j,1).val();
+                avgyval += yval*wkset[0]->wts(p,j);
+              }
+              if (dimension > 2) {
+                ScalarT zval = wkset[0]->local_soln(p,n,j,2).val();
+                avgzval += zval*wkset[0]->wts(p,j);
+              }
+              avgwt += wkset[0]->wts(p,j);
+            }
+            soln_x(pprog,0) = avgxval/avgwt;
+            soln_y(pprog,0) = avgyval/avgwt;
+            soln_z(pprog,0) = avgzval/avgwt;
+            pprog += 1;
+          }
+        }
+        submesh->setCellFieldData(var+"x", blockID, myElements, soln_x);
+        submesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
+        submesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
+      }
     }
     
     

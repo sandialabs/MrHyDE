@@ -41,7 +41,7 @@ ANONYMOUS:
         e: 1
       quadrature: 2
     Postprocess: 
-      store aux and flux: true
+      store aux and flux: false
   Parameters Settings File: input_params.yaml
   Solver: 
     solver: steady-state
