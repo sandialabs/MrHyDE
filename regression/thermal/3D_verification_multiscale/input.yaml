@@ -59,5 +59,6 @@ ANONYMOUS:
     compute response: false
     compute objective: false
     compute sensitivities: false
-    Subgrid Error: true
+    Error type: L2-face
+    Subgrid error type: L2
 ...

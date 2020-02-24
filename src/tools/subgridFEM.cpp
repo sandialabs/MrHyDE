@@ -698,7 +698,9 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
 
 void SubGridFEM::finalize() {
   size_t defblock = 0;
-  physics_RCP->setAuxVars(defblock, macro_varlist);
+  if (cells.size() > 0) {
+    physics_RCP->setAuxVars(defblock, macro_varlist);
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2176,30 +2178,62 @@ void SubGridFEM::setInitial(Teuchos::RCP<LA_MultiVector> & initial,
 // Compute the error for verification
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT**,AssemblyDevice> SubGridFEM::computeError(const ScalarT & time, const int & usernum) {
+//Kokkos::View<ScalarT**,AssemblyDevice> SubGridFEM::computeError(const ScalarT & time, const int & usernum) {
+Kokkos::View<ScalarT***,AssemblyDevice> SubGridFEM::computeError(const vector<string> & error_types,
+                                                                 const vector<ScalarT> & solvetimes) {
+
+  Kokkos::View<ScalarT***,AssemblyDevice> errors("error",solvetimes.size(), varlist.size(), error_types.size());
   
-  size_t numVars = macro_varlist.size();
-  int tindex = -1;
-  //for (int tt=0; tt<soln[usernum].size(); tt++) {
-  //  if (abs(soln[usernum][tt].first - time)<1.0e-10) {
-  //    tindex = tt;
-  //  }
-  //}
-  Teuchos::RCP<LA_MultiVector> currsol;
-  bool found = soln->extract(currsol, usernum, time, tindex);
-  Kokkos::View<ScalarT**,AssemblyDevice> errors("error",cells[usernum].size(), numVars);
+  for (size_t t=0; t<solvetimes.size(); t++) {
+    
+    for (size_t b=0; b<cells.size(); b++) {// loop over coarse scale elements
+      bool compute = false;
+      if (subgrid_static) {
+        compute = true;
+      }
+      else if (active[t][b]) {
+        compute = true;
+      }
+      if (compute) {
+        size_t usernum = b;
+        Teuchos::RCP<LA_MultiVector> currsol;
+        size_t tindex = t;
+        bool found = soln->extract(currsol, usernum, solvetimes[t]);//, tindex);
+        
+        if (found) {
+          
+          //Kokkos::View<ScalarT***,AssemblyDevice> localerror("error",solvetimes.size(),numVars[b],error_types.size());
+          //bool fnd = solve->soln->extract(u,t);
+          this->performGather(usernum,currsol,0,0);
+          for (size_t ee=0; ee<cells[usernum].size(); ee++) {
+            int numElem = cells[usernum][ee]->numElem;
+            //Kokkos::View<ScalarT**,AssemblyDevice> localerrs = cells[b][e]->computeError(solvetimes[t], t, compute_subgrid_error, error_types);
+            Kokkos::View<ScalarT***,AssemblyDevice> localerrs = cells[usernum][ee]->computeError(solvetimes[t], t, error_types);
+            for (int p=0; p<numElem; p++) {
+              for (int n=0; n<varlist.size(); n++) {
+                for (size_t et=0; et<error_types.size(); et++){
+                  errors(t,n,et) += localerrs(p,n,et);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  /*
   if (found) {
     Kokkos::View<ScalarT**,AssemblyDevice> curr_errors;
     this->performGather(usernum, currsol, 0, 0);
     for (size_t e=0; e<cells[usernum].size(); e++) {
-      curr_errors = cells[usernum][e]->computeError(time,tindex,false,error_type);
+      curr_errors = cells[usernum][e]->computeError(time,tindex,error_type);
       for (unsigned int c=0; c<curr_errors.dimension(0); c++) {
         for (size_t i=0; i < numVars; i++) {
           errors(e,i) += curr_errors(c,i);
         }
       }
     }
-  }
+  }*/
   return errors;
 }
 

@@ -90,6 +90,7 @@ public:
   bool extract(Teuchos::RCP<V> & vec, const size_t & index, const ScalarT & currtime, int & timeindex) {
     Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
     bool found = false;
+    
     for (size_t j=0; j<times[index].size(); j++) {
       if (abs(times[index][j] - currtime) < timeTOL) {
         vec = data[index][j];

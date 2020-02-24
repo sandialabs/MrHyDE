@@ -11,7 +11,7 @@ ANONYMOUS:
     true solutions:
       e: sin(2*pi*x)*sin(2*pi*y)
   Subgrid:
-    Static Subgrids: false
+    Static Subgrids: true
     Number of Models: 2
     Model0:
       usage: '(x>=0.5)*(y<=0.5)'
@@ -80,5 +80,6 @@ ANONYMOUS:
     compute response: false
     compute objective: false
     compute sensitivities: false
-    Subgrid Error: true
+    Subgrid error type: L2
+    Error type: L2-face
 ...

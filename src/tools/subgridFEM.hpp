@@ -150,7 +150,9 @@ public:
   // Compute the error for verification
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  Kokkos::View<ScalarT**,AssemblyDevice> computeError(const ScalarT & time, const int & usernum);
+  //Kokkos::View<ScalarT**,AssemblyDevice> computeError(const ScalarT & time, const int & usernum);
+  Kokkos::View<ScalarT***,AssemblyDevice> computeError(const vector<string> & error_types,
+                                                       const vector<ScalarT> & solvetimes);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the objective function
@@ -301,7 +303,7 @@ public:
   
   bool have_sym_factor, useDirect;
   
-  vector<string> varlist;
+  
   vector<string> discparamnames;
   Teuchos::RCP<physics> physics_RCP;
   Teuchos::RCP<panzer::DOFManager> DOF;

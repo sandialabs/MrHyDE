@@ -80,6 +80,7 @@ void MultiScale::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
     subgridModels[j]->macro_offsets = macro_offsets[mblock];
     subgridModels[j]->macro_paramnames = macro_paramnames;
     subgridModels[j]->macro_disc_paramnames = macro_disc_paramnames;
+    subgridModels[j]->subgrid_static = subgrid_static;
   }
   
 }
@@ -90,6 +91,7 @@ void MultiScale::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
 
 ScalarT MultiScale::initialize() {
   ScalarT my_cost = 0.0;
+  size_t numusers = 0;
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       // needs to be updated
@@ -204,7 +206,9 @@ ScalarT MultiScale::initialize() {
                                                   cGIDs, cindex);
             usernum.push_back(cnum);
           }
+          numusers += 1;
         }
+        
       }
       cells[b][e]->subgridModels = subgridModels;
       cells[b][e]->subgrid_model_index.push_back(sgnum);
@@ -227,6 +231,23 @@ ScalarT MultiScale::initialize() {
   ////////////////////////////////////////////////////////////////////////////////
   
   if (!subgrid_static) {
+    for (size_t s=0; s<subgridModels.size(); s++) {
+      vector<bool> active(numusers,false);
+      size_t numactive = 0;
+      for (size_t b=0; b<cells.size(); b++) {
+        for (size_t e=0; e<cells[b].size(); e++) {
+          for (int c=0; c<cells[b][e]->numElem; c++) {
+            if (cells[b][e]->subgrid_model_index[c][0] == s) {
+              size_t usernum = cells[b][e]->subgrid_usernum[c];
+              active[usernum] = true;
+              numactive += 1;
+            }
+          }
+        }
+      }
+      subgridModels[s]->active.push_back(active);
+    }
+    
     for (size_t i=0; i<subgridModels.size(); i++) {
       //vector<vector<vector<FC> > > curr_sg_basis;
       DRV ip = subgridModels[i]->getIP();
@@ -392,6 +413,24 @@ ScalarT MultiScale::update() {
           }
         }
       }
+    }
+    
+    for (size_t s=0; s<subgridModels.size(); s++) {
+      vector<bool> active(subgridModels[s]->active[0].size(),false);
+      size_t numactive = 0;
+      for (size_t b=0; b<cells.size(); b++) {
+        for (size_t e=0; e<cells[b].size(); e++) {
+          for (int c=0; c<cells[b][e]->numElem; c++) {
+            size_t nindex = cells[b][e]->subgrid_model_index[c].size();
+            if (cells[b][e]->subgrid_model_index[c][nindex-1] == s) {
+              size_t usernum = cells[b][e]->subgrid_usernum[c];
+              active[usernum] = true;
+              numactive += 1;
+            }
+          }
+        }
+      }
+      subgridModels[s]->active.push_back(active);
     }
   }
   

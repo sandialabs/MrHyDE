@@ -779,14 +779,13 @@ void workset::updateFace(const DRV & nodes, Kokkos::DynRankView<Intrepid2::Orien
     parallel_for(RangePolicy<AssemblyDevice>(0,normals.dimension(0)), KOKKOS_LAMBDA (const int e ) {
       for (size_t j=0; j<numsideip; j++) {
         for (size_t k=0; k<dimension; k++) {
-          //ip_side_KV(e,j,k) = ip_side(e,j,k);
-          //normals_KV(e,j,k) = normals(e,j,k);
+          ip_side_KV(e,j,k) = ip_side(e,j,k);
+          normals_KV(e,j,k) = normals(e,j,k);
         }
       }
     });
     
   }
-  
   
   // Step 2: define basis functionsat these integration points
   {

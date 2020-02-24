@@ -49,14 +49,52 @@ DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensor
   sol_to_mod_mesh = settings->sublist("Postprocess").get<int>("Solution For Mesh Mod",0);
   meshmod_TOL = settings->sublist("Postprocess").get<ScalarT>("Solution Based Mesh Mod TOL",1.0);
   layer_size = settings->sublist("Postprocess").get<ScalarT>("Solution Based Mesh Mod Layer Thickness",0.1);
-  compute_subgrid_error = settings->sublist("Postprocess").get<bool>("Subgrid Error",false);
-  error_type = settings->sublist("Postprocess").get<string>("Error type","L2"); // or "H1"
+  
+  string error_list = settings->sublist("Postprocess").get<string>("Error type","L2"); // or "H1"
+  
+  // Script to break delimited list into pieces
+  {
+    string delimiter = ", ";
+    size_t pos = 0;
+    if (error_list.find(delimiter) == string::npos) {
+      error_types.push_back(error_list);
+    }
+    else {
+      string token;
+      while ((pos = error_list.find(delimiter)) != string::npos) {
+        token = error_list.substr(0, pos);
+        error_types.push_back(token);
+        error_list.erase(0, pos + delimiter.length());
+      }
+      error_types.push_back(error_list);
+    }
+  }
+  string subgrid_error_list = settings->sublist("Postprocess").get<string>("Subgrid error type","L2"); // or "H1"
+  
+  // Script to break delimited list into pieces
+  {
+    string delimiter = ", ";
+    size_t pos = 0;
+    if (subgrid_error_list.find(delimiter) == string::npos) {
+      subgrid_error_types.push_back(subgrid_error_list);
+    }
+    else {
+      string token;
+      while ((pos = subgrid_error_list.find(delimiter)) != string::npos) {
+        token = subgrid_error_list.substr(0, pos);
+        subgrid_error_types.push_back(token);
+        subgrid_error_list.erase(0, pos + delimiter.length());
+      }
+      subgrid_error_types.push_back(subgrid_error_list);
+    }
+  }
+  
   use_sol_mod_height = settings->sublist("Postprocess").get<bool>("Solution Based Height Mod",false);
   sol_to_mod_height = settings->sublist("Postprocess").get<int>("Solution For Height Mod",0);
   
-  have_subgrids = false;
-  if (settings->isSublist("Subgrid"))
-  have_subgrids = true;
+  //have_subgrids = false;
+  //if (settings->isSublist("Subgrid"))
+  //have_subgrids = true;
   
   isTD = false;
   if (settings->sublist("Solver").get<string>("solver","steady-state") == "transient") {
@@ -145,29 +183,81 @@ void PostprocessManager::computeError() {
   vector<ScalarT> solvetimes = solve->soln->times[0];
   vector_RCP u;
   
-  for (size_t b=0; b<cells.size(); b++) {
-    Kokkos::View<ScalarT**,AssemblyDevice> localerror("error",solvetimes.size(),numVars[b]);
+  for (size_t b=0; b<cells.size(); b++) {// loop over blocks
+    Kokkos::View<ScalarT***,AssemblyDevice> localerror("error",solvetimes.size(),numVars[b],error_types.size());
     for (size_t t=0; t<solvetimes.size(); t++) {
       bool fnd = solve->soln->extract(u,t);
       assembler->performGather(b,u,0,0);
       for (size_t e=0; e<cells[b].size(); e++) {
         int numElem = cells[b][e]->numElem;
-        Kokkos::View<ScalarT**,AssemblyDevice> localerrs = cells[b][e]->computeError(solvetimes[t], t, compute_subgrid_error, error_type);
-        
+        //Kokkos::View<ScalarT**,AssemblyDevice> localerrs = cells[b][e]->computeError(solvetimes[t], t, compute_subgrid_error, error_types);
+        Kokkos::View<ScalarT***,AssemblyDevice> localerrs = cells[b][e]->computeError(solvetimes[t], t, error_types);
         for (int p=0; p<numElem; p++) {
           for (int n=0; n<numVars[b]; n++) {
-            localerror(t,n) += localerrs(p,n);
+            for (size_t et=0; et<error_types.size(); et++){
+              localerror(t,n,et) += localerrs(p,n,et);
+            }
           }
         }
       }
     }
-    for (size_t t=0; t<solvetimes.size(); t++) {
-      for (int n=0; n<numVars[b]; n++) {
-        ScalarT lerr = localerror(t,n);
-        ScalarT gerr = 0.0;
-        Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lerr,&gerr);
-        if(Comm->getRank() == 0) {
-          cout << "***** " << error_type << " norm of the error for " << varlist[b][n] << " = " << sqrt(gerr) << "  (time = " << solvetimes[t] << ")" <<  endl;
+    for (size_t et=0; et<error_types.size(); et++){
+      for (size_t t=0; t<solvetimes.size(); t++) {
+        for (int n=0; n<numVars[b]; n++) {
+          ScalarT lerr = localerror(t,n,et);
+          ScalarT gerr = 0.0;
+          Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lerr,&gerr);
+          if(Comm->getRank() == 0) {
+            cout << "***** " << error_types[et] << " norm of the error for " << varlist[b][n] << " = " << sqrt(gerr) << "  (time = " << solvetimes[t] << ")" <<  endl;
+          }
+        }
+      }
+    }
+  }
+  
+  // Error in subgrid models
+  if (solve->multiscale_manager->subgridModels.size() > 0) {
+    // Collect all of the errors for each subgrid model
+    vector<Kokkos::View<ScalarT***,AssemblyDevice> > sgerrs;
+    for (size_t m=0; m<solve->multiscale_manager->subgridModels.size(); m++) {
+      size_t sgindex = m;
+      Kokkos::View<ScalarT***,AssemblyDevice> err = solve->multiscale_manager->subgridModels[m]->computeError(subgrid_error_types, solvetimes);
+      sgerrs.push_back(err);
+    }
+    
+    for (size_t m=0; m<solve->multiscale_manager->subgridModels.size(); m++) {
+      vector<string> sgvars = solve->multiscale_manager->subgridModels[m]->varlist;
+      
+      // A given processor may not have any elements that use this subgrid model
+      // In this case, nothing gets initialized so sgvars.size() == 0
+      // Find the global max number of sgvars over all processors
+      size_t nvars = sgvars.size();
+      size_t gnvars = 0;
+      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&nvars,&gnvars);
+      
+      for (size_t et=0; et<subgrid_error_types.size(); et++) {
+        for (size_t t=0; t<solvetimes.size(); t++) {
+          for (int n=0; n<gnvars; n++) {
+            // Get the local contribution (if processor uses subgrid model)
+            ScalarT lerr = 0.0;
+            if (n < nvars) {
+              lerr = sgerrs[m](t,n,et);
+            }
+            ScalarT gerr = 0.0;
+            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lerr,&gerr);
+            
+            // Figure out who can print the information (lowest rank amongst procs using subgrid model)
+            size_t myID = Comm->getRank();
+            if (nvars == 0) {
+              myID = 100000000;
+            }
+            size_t gID = 0;
+            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&myID,&gID);
+            
+            if(Comm->getRank() == gID) {
+              cout << "***** Subgrid" << m << ": " << subgrid_error_types[et] << " norm of the error for " << sgvars[n] << " = " << sqrt(gerr) << "  (time = " << solvetimes[t] << ")" <<  endl;
+            }
+          }
         }
       }
     }
@@ -968,6 +1058,7 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
         mesh->setCellFieldData("mesh_data_seed", blockID, myElements, cdata);
       }
       
+      /*
       if (have_subgrids) {
         Kokkos::View<ScalarT**,HostDevice> cdata("cell data",myElements.size(), 1);
         int eprog = 0;
@@ -981,6 +1072,7 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
         }
         mesh->setCellFieldData("subgrid model", blockID, myElements, cdata);
       }
+       */
       /*
       if (have_subgrids) {
         Kokkos::View<ScalarT**,HostDevice> subgrid_mean_fields = solve->multiscale_manager->getMeanCellFields(b, m,

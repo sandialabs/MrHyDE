@@ -176,6 +176,8 @@ Commptr(Comm_), functionManager(functionManager_) {
         string expression = true_solns.get<string>(currvarlist[j],"0.0");
         functionManager->addFunction("true "+currvarlist[j],expression,numElemPerCell,numip,"ip",b);
         
+        functionManager->addFunction("true "+currvarlist[j],expression,numElemPerCell,numip_side,"side ip",b);
+        
         expression = true_solns.get<string>(currvarlist[j]+"_x","0.0");
         functionManager->addFunction("true "+currvarlist[j]+"_x",expression,numElemPerCell,numip,"ip",b);
         
@@ -342,6 +344,7 @@ Commptr(Comm_), functionManager(functionManager_) {
     while (fnc_itr != functions.end()) {
       string entry = functions.get<string>(fnc_itr->first);
       functionManager->addFunction(fnc_itr->first,entry,numElemPerCell,numip,"ip",b);
+      functionManager->addFunction(fnc_itr->first,entry,numElemPerCell,numip_side,"side ip",b);
       functionManager->addFunction(fnc_itr->first,entry,1,1,"point",b);
       fnc_itr++;
     }
@@ -822,6 +825,24 @@ void physics::trueSolution(const int & block, const ScalarT & time,
             truesol(i,v,j,2) = tsol(i,j).val();
           }
         }
+      }
+    }
+  }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+void physics::trueSolutionFace(const int & block, const ScalarT & time,
+                               Kokkos::View<ScalarT****,AssemblyDevice> truesol) {
+  
+  for (int v=0; v<varlist[block].size(); v++) {
+    string btype = types[block][v];
+    string expression = "true " + varlist[block][v];
+    FDATA tsol = functionManager->evaluate(expression,"side ip",block);
+    for (size_t i=0; i<truesol.dimension(0); i++) {
+      for (size_t j=0; j<truesol.dimension(2); j++) {
+        truesol(i,v,j,0) = tsol(i,j).val();
       }
     }
   }

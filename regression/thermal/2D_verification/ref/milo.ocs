@@ -3,3 +3,5 @@
 ***** Performing verification ******
 
 ***** L2 norm of the error for e = 0.00102776  (time = 0)
+***** H1 norm of the error for e = 0.201394  (time = 0)
+***** L2-face norm of the error for e = 0.0017603  (time = 0)

@@ -785,52 +785,90 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
 // Compute the error at the integration points given the solution and solve times
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT**,AssemblyDevice> cell::computeError(const ScalarT & solvetime,
+Kokkos::View<ScalarT***,AssemblyDevice> cell::computeError(const ScalarT & solvetime,
                                                           const size_t & tindex,
-                                                          const bool compute_subgrid,
-                                                          const string & error_type) {
+                                                          //const bool compute_subgrid,
+                                                          const vector<string> & error_types) {
   
   // Assumes that u has been updated already
   wkset->time = solvetime;
   wkset->time_KV(0) = solvetime;
   
-  Kokkos::View<ScalarT**,AssemblyDevice> errors("errors",numElem,index.dimension(1));
-  if (!compute_subgrid) {
-    wkset->update(ip,ijac,orientation);
-    wkset->computeSolnVolIP(u, u_dot, false, false);
-    size_t numip = wkset->numip;
-    
-    if (error_type == "L2") {
-      Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index.dimension(1),
-                                                       numip,cellData->dimension);
-      cellData->physics_RCP->trueSolution(cellData->myBlock, solvetime, truesol);
-      for (int e=0; e<numElem; e++) {
-        for (int n=0; n<index.dimension(1); n++) {
-          for( size_t j=0; j<numip; j++ ) {
-            for (size_t d=0; d<wkset->local_soln.dimension(3); d++) {
-              ScalarT diff = wkset->local_soln(e,n,j,d).val() - truesol(e,n,j,d);
-              errors(e,n) += diff*diff*wkset->wts(e,j);
+  Kokkos::View<ScalarT***,AssemblyDevice> errors("errors",numElem,index.dimension(1), error_types.size());
+  //if (!compute_subgrid) {
+  
+    for (size_t et=0; et<error_types.size(); et++){
+      if (error_types[et] == "L2") {
+        wkset->update(ip,ijac,orientation);
+        wkset->computeSolnVolIP(u, u_dot, false, false);
+        size_t numip = wkset->numip;
+        
+        Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index.dimension(1),
+                                                         numip,cellData->dimension);
+        cellData->physics_RCP->trueSolution(cellData->myBlock, solvetime, truesol);
+        //KokkosTools::print(truesol);
+        //KokkosTools::print(wkset->local_soln);
+        
+        for (int e=0; e<numElem; e++) {
+          for (int n=0; n<index.dimension(1); n++) {
+            for( size_t j=0; j<numip; j++ ) {
+              for (size_t d=0; d<wkset->local_soln.dimension(3); d++) {
+                ScalarT diff = wkset->local_soln(e,n,j,d).val() - truesol(e,n,j,d);
+                errors(e,n,et) += diff*diff*wkset->wts(e,j);
+              }
+            }
+          }
+        }
+      }
+      else if (error_types[et] == "H1") {
+        wkset->update(ip,ijac,orientation);
+        wkset->computeSolnVolIP(u, u_dot, false, false);
+        size_t numip = wkset->numip;
+        
+        Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index.dimension(1),
+                                                         numip,cellData->dimension);
+        cellData->physics_RCP->trueSolutionGrad(cellData->myBlock, solvetime, truesol);
+        for (int e=0; e<numElem; e++) {
+          for (int n=0; n<index.dimension(1); n++) {
+            for( size_t j=0; j<numip; j++ ) {
+              for (int s=0; s<cellData->dimension; s++) {
+                ScalarT diff = wkset->local_soln_grad(e,n,j,s).val() - truesol(e,n,j,s);
+                errors(e,n,et) += diff*diff*wkset->wts(e,j);
+              }
+            }
+          }
+        }
+      }
+      else if (error_types[et] == "L2-face") {
+        for (size_t s=0; s<cellData->numSides; s++) {
+          
+          wkset->updateFace(nodes, orientation, s);
+          wkset->computeSolnFaceIP(u, u_dot, false, false);
+
+          size_t numip = wkset->numsideip;
+        
+          Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index.dimension(1),
+                                                           numip,cellData->dimension);
+          cellData->physics_RCP->trueSolutionFace(cellData->myBlock, solvetime, truesol);
+          for (int e=0; e<numElem; e++) {
+            double edgelength = 0.0;
+            for( size_t j=0; j<numip; j++ ) {
+              edgelength += wkset->wts_side(e,j);
+            }
+            for (int n=0; n<index.dimension(1); n++) {
+              for( size_t j=0; j<numip; j++ ) {
+                //for (size_t d=0; d<wkset->local_soln_face.dimension(3); d++) { // this loop might be unnecessary ... any vector HFACE variables?
+                  ScalarT diff = wkset->local_soln_face(e,n,j,0).val() - truesol(e,n,j,0);
+                errors(e,n,et) += 0.5/edgelength*diff*diff*wkset->wts_side(e,j);
+                //}
+              }
             }
           }
         }
       }
     }
-    if (error_type == "H1") {
-      Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index.dimension(1),
-                                                       numip,cellData->dimension);
-      cellData->physics_RCP->trueSolutionGrad(cellData->myBlock, solvetime, truesol);
-      for (int e=0; e<numElem; e++) {
-        for (int n=0; n<index.dimension(1); n++) {
-          for( size_t j=0; j<numip; j++ ) {
-            for (int s=0; s<cellData->dimension; s++) {
-              ScalarT diff = wkset->local_soln_grad(e,n,j,s).val() - truesol(e,n,j,s);
-              errors(e,n) += diff*diff*wkset->wts(e,j);
-            }
-          }
-        }
-      }
-    }
-  }
+  //}
+  /*
   else if (cellData->multiscale) {
     
     for (int e=0; e<numElem; e++) {
@@ -844,7 +882,8 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::computeError(const ScalarT & solvet
       }
     }
     
-  }
+  }*/
+  
   return errors;
 }
 

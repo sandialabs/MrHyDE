@@ -72,5 +72,6 @@ ANONYMOUS:
     write solution: false
     compute objective: false
     compute sensitivities: false
-    Subgrid Error: true
+    Subgrid error type: L2
+    Error type: L2-face
 ...

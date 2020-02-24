@@ -127,17 +127,16 @@ protected:
   string sname;
   ScalarT stddev;
   
-  vector<string> blocknames;
+  vector<string> blocknames, error_types, subgrid_error_types;
   
   vector<int> numVars;                                    // Number of variables used by the application (may not be used yet)
   int numsteps;
   vector<vector<string> > varlist;
-  //vector<FCint > offsets;                   // matrix of offsets (numVars,numBasis)
   
   bool use_sol_mod_mesh, use_sol_mod_height;
   int sol_to_mod_mesh, sol_to_mod_height;
   ScalarT meshmod_TOL, layer_size;
-  bool compute_subgrid_error, have_subgrids;
+  //bool compute_subgrid_error, have_subgrids;
   
   
   

@@ -263,8 +263,9 @@ public:
   // Compute the error at the integration points given the solution and solve times
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  Kokkos::View<ScalarT**,AssemblyDevice> computeError(const ScalarT & solvetime, const size_t & tindex,
-                                                     const bool compute_subgrid, const string & error_type);
+  Kokkos::View<ScalarT***,AssemblyDevice> computeError(const ScalarT & solvetime, const size_t & tindex,
+                                                      //const bool compute_subgrid,
+                                                      const vector<string> & error_type);
 
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the response at a given set of points and time

@@ -44,8 +44,11 @@ public:
                              const int & usernum,
                              Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev) = 0;
   
-  virtual Kokkos::View<ScalarT**,AssemblyDevice> computeError(const ScalarT & time,
-                                                             const int & usernum) = 0;
+  //virtual Kokkos::View<ScalarT**,AssemblyDevice> computeError(const ScalarT & time,
+  //                                                           const int & usernum) = 0;
+  
+  virtual Kokkos::View<ScalarT***,AssemblyDevice> computeError(const vector<string> & error_types,
+                                                               const vector<ScalarT> & solvetimes) = 0;
   
   virtual Kokkos::View<AD*,AssemblyDevice> computeObjective(const string & response_type,
                                                             const int & seedwhat,
@@ -96,6 +99,7 @@ public:
   vector<string> macro_paramnames, macro_disc_paramnames;
   int macro_block;
   ScalarT cost_estimate;
+  bool subgrid_static;
   
   Teuchos::RCP<const LA_Map> owned_map, overlapped_map;
   Teuchos::RCP<LA_CrsGraph> owned_graph, overlapped_graph;
@@ -108,6 +112,8 @@ public:
   string usage;
   Kokkos::View<AD**,AssemblyDevice> paramvals_KVAD;
   
+  vector<string> varlist;
+  vector<vector<bool> > active;
   
 };
 #endif
