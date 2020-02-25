@@ -83,20 +83,6 @@ public:
                      const DRV normals, DRV basis_grad, const int num_basis,
                      const int & elem, const int inode, const int k, const int component);
   
-  
-  // ========================================================================================
-  // TMW: this has been deprecated ... capability will be replaced
-  // ========================================================================================
-  
-  vector<string> extraCellFieldNames() const;
-  
-  // ========================================================================================
-  // TMW: this has been deprecated ... capability will be replaced
-  // ========================================================================================
-  
-  vector<Kokkos::View<ScalarT***,AssemblyDevice>> extraCellFields();
-  
-  
   // ========================================================================================
   // TMW: needs to be deprecated
   // ========================================================================================

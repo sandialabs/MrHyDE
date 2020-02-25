@@ -64,16 +64,6 @@ public:
   
   AD computeTau(const AD & localdiff, const AD & xvl, const AD & yvl, const AD & zvl, const ScalarT & h) const;
   
-  // ========================================================================================
-  // ========================================================================================
-  
-  vector<string> extraCellFieldNames() const;
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  vector<Kokkos::View<ScalarT***,AssemblyDevice>> extraCellFields();
-  
 private:
   
   size_t numip, numip_side, blocknum;

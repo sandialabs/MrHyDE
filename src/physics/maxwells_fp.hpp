@@ -57,35 +57,6 @@ public:
   
   void computeFlux();
   
-  ScalarT trueSolution(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const;
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  AD getDirichletValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
-                       const string & gside, const bool & useadjoint);
-  
-  // ========================================================================================
-  // response calculation
-  // ========================================================================================
-  
-  Kokkos::View<AD***,AssemblyDevice> response(Kokkos::View<AD****,AssemblyDevice> local_soln,
-                                              Kokkos::View<AD****,AssemblyDevice> local_soln_grad,
-                                              Kokkos::View<AD***,AssemblyDevice> local_psoln,
-                                              Kokkos::View<AD****,AssemblyDevice> local_psoln_grad,
-                                              const DRV & ip, const ScalarT & time) const;
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  Kokkos::View<AD***,AssemblyDevice> target(const DRV & ip, const ScalarT & time) const;
-  
-  // =====================================================================================
-  // return boundary type
-  // ====================================================================================
-  
-  int getBoundaryType(const string & side_name) const;
-  
   // =======================================================================================
   // return frequency
   // ======================================================================================
@@ -139,21 +110,6 @@ public:
   // ========================================================================================
   
   void setVars(std::vector<string> & varlist_);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  std::vector<string> extraFieldNames() const;
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  std::vector<Kokkos::View<ScalarT***,AssemblyDevice> > extraFields() const;
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void setExtraFields(const size_t & numGlobalElem_);
   
   // ========================================================================================
   // TMW: this needs to be deprecated

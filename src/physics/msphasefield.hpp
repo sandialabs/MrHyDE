@@ -64,47 +64,6 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  AD getDirichletValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
-                       const ScalarT & t, const string & gside, const bool & useadjoint) const;
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  ScalarT getInitialValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
-                          const bool & useadjoint) const;
-  
-  // ========================================================================================
-  // Get the initial value
-  // ========================================================================================
-  
-  Kokkos::View<ScalarT**,AssemblyDevice> getInitial(const DRV & ip, const string & var,
-                                                    const ScalarT & time, const bool & isAdjoint) const;
-  
-  // ========================================================================================
-  // error calculation
-  // ========================================================================================
-  
-  ScalarT trueSolution(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z,
-                       const ScalarT & time) const;
-  
-  // ========================================================================================
-  // response calculation
-  // ========================================================================================
-  
-  Kokkos::View<AD***,AssemblyDevice> response(Kokkos::View<AD****,AssemblyDevice> local_soln,
-                                              Kokkos::View<AD****,AssemblyDevice> local_soln_grad,
-                                              Kokkos::View<AD***,AssemblyDevice> local_psoln,
-                                              Kokkos::View<AD****,AssemblyDevice> local_psoln_grad,
-                                              const DRV & ip, const ScalarT & time);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  Kokkos::View<AD***,AssemblyDevice> target(const DRV & ip, const ScalarT & time);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
   void setVars(std::vector<string> & varlist_);
   
   // ========================================================================================
@@ -133,17 +92,6 @@ public:
   
   ScalarT robinAlpha(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
                      const string & side) const;
-  
-  
-  std::vector<string> extraFieldNames() const;
-  
-  vector<Kokkos::View<ScalarT***,AssemblyDevice> > extraFields(const DRV & ip, const ScalarT & time) const;
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  vector<Kokkos::View<ScalarT***,AssemblyDevice> > extraCellFields(const DRV ip, const ScalarT & time) const;
-  
   
   // ========================================================================================
   // TMW: this is deprecated

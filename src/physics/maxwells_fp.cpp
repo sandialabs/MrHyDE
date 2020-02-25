@@ -453,8 +453,8 @@ void maxwells_fp::boundaryResidual() {
   
   ScalarT nx = 0.0, ny = 0.0, nz = 0.0; //components of normal
   
-  
-  int boundary_type = getBoundaryType(wkset->sidename);
+  // TMW: needs to use bcs from wkset
+  int boundary_type = 0;//getBoundaryType(wkset->sidename);
   
   
   ScalarT weakEssScale;
@@ -700,140 +700,6 @@ void maxwells_fp::edgeResidual() {
 
 void maxwells_fp::computeFlux() {
   
-}
-
-ScalarT maxwells_fp::trueSolution(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const {
-  ScalarT val = 0.0;
-  if(test == 1 || test == 2){
-    if(var == "Arx" || var == "Aix")
-      val = sin(PI*x)*sin(PI*y)*sin(PI*z);
-    else if(var == "Ary" || var == "Aiy")
-      val = -sin(PI*x)*sin(PI*y)*sin(PI*z);
-    else if(var == "Arz" || var == "Aiz")
-      val = 2.0*sin(PI*x)*sin(PI*y)*sin(PI*z);
-    else if(var == "phir" || var == "phii")
-      val = sin(PI*x)*sin(PI*y)*sin(PI*z);
-    else
-      val = 0.0;
-  }else if(test == 3){
-    if(var == "Arx")
-      val = PI*sin(PI*x)*cos(PI*y)*sin(PI*z)-PI*sin(PI*x)*sin(PI*y)*cos(PI*z);
-    else if(var == "Ary")
-      val = PI*sin(PI*x)*sin(PI*y)*cos(PI*z)-PI*cos(PI*x)*sin(PI*y)*sin(PI*z);
-    else if(var == "Arz")
-      val = PI*cos(PI*x)*sin(PI*y)*sin(PI*z)-PI*sin(PI*x)*cos(PI*y)*sin(PI*z);
-    else if(var == "phir")
-      val = sin(PI*x)*sin(PI*y)*sin(PI*z);
-    else
-      val = 0.0;
-  }
-  return val;
-}
-
-// ========================================================================================
-// ========================================================================================
-
-AD maxwells_fp::getDirichletValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
-                                  const string & gside, const bool & useadjoint) {
-  AD val = 0.0;
-  if(!useadjoint){
-    if(test == 1 || test == 2 || test == 3)
-      val = trueSolution(var, x, y, z, t);
-  }
-  return val;
-}
-
-// ========================================================================================
-// ========================================================================================
-
-//AD getInitialValue(const string & var, const ScalarT & x, const ScalarT & y, const ScalarT & z, const bool & useadjoint) const {
-//  AD val = 0.0;
-//  return val;
-//}
-
-// ========================================================================================
-// Get the initial value
-// ========================================================================================
-
-//FC getInitial(const DRV & ip, const string & var, const ScalarT & time, const bool & isAdjoint) const {
-//  int numip = ip.dimension(1);
-//  //    FC initial(1,numip);
-//  FC initial(spaceDim,numip);  // initial to zero?
-//  return initial;
-//}
-
-
-// ========================================================================================
-// response calculation
-// ========================================================================================
-
-Kokkos::View<AD***,AssemblyDevice> maxwells_fp::response(Kokkos::View<AD****,AssemblyDevice> local_soln,
-                                                         Kokkos::View<AD****,AssemblyDevice> local_soln_grad,
-                                                         Kokkos::View<AD***,AssemblyDevice> local_psoln,
-                                                         Kokkos::View<AD****,AssemblyDevice> local_psoln_grad,
-                                                         const DRV & ip, const ScalarT & time) const {
-  
-  int numip = ip.dimension(1);
-  Kokkos::View<AD***,AssemblyDevice> resp("response",numElem,numResponses,numip);
-  
-  ScalarT x = 0.0;
-  ScalarT y = 0.0;
-  
-  for (int e=0; e<numElem; e++) {
-    for (int j=0; j<numip; j++) {
-      resp(e,0,j) = local_soln(e,Axr_num,j,0);
-      resp(e,1,j) = local_soln(e,Axi_num,j,0);
-      if (spaceDim > 1){
-        resp(e,2,j) = local_soln(e,Ayr_num,j,0);
-        resp(e,3,j) = local_soln(e,Ayi_num,j,0);
-      }
-      if (spaceDim > 2){
-        resp(e,4,j) = local_soln(e,Azr_num,j,0);
-        resp(e,5,j) = local_soln(e,Azi_num,j,0);
-      }
-      
-      resp(e,2*spaceDim,j) = local_soln(e,phir_num,j,0);
-      resp(e,2*spaceDim+1,j) = local_soln(e,phii_num,j,0);
-    }
-  }
-  return resp;
-}
-
-// ========================================================================================
-// ========================================================================================
-
-Kokkos::View<AD***,AssemblyDevice> maxwells_fp::target(const DRV & ip, const ScalarT & time) const {
-  int numip = ip.dimension(1);
-  Kokkos::View<AD***,AssemblyDevice> targ("target",numElem,numResponses,numip);
-  
-  for (int e=0; e<numElem; e++) {
-    for (int j=0; j<numip; j++) {
-      targ(e,0,j) = 1.0;
-      if (spaceDim > 1)
-        targ(e,1,j) = 1.0;
-      if (spaceDim > 2)
-        targ(e,2,j) = 1.0;
-      
-      targ(e,spaceDim,j) = 1.0;
-    }
-  }
-  
-  return targ;
-}
-
-// =====================================================================================
-// return boundary type
-// ====================================================================================
-
-int maxwells_fp::getBoundaryType(const string & side_name) const{
-  int type = 0;
-  
-  if(test == 3)
-    type = 1;
-  else if(test == 4)
-    type = 2;
-  
-  return type;
 }
 
 // =======================================================================================
@@ -1086,53 +952,6 @@ void maxwells_fp::setVars(std::vector<string> & varlist_) {
       phir_num = i;
     if (varlist[i] == "phii")
       phii_num = i;
-  }
-}
-
-// ========================================================================================
-// ========================================================================================
-
-std::vector<string> maxwells_fp::extraFieldNames() const {
-  std::vector<string> ef;
-  if(calcE){
-    ef.push_back("Erx");
-    ef.push_back("Ery");
-    ef.push_back("Erz");
-    ef.push_back("Eix");
-    ef.push_back("Eiy");
-    ef.push_back("Eiz");
-  }
-  return ef;
-}
-
-// ========================================================================================
-// ========================================================================================
-
-std::vector<Kokkos::View<ScalarT***,AssemblyDevice> > maxwells_fp::extraFields() const {
-  std::vector<Kokkos::View<ScalarT***,AssemblyDevice> > ef;
-  if(calcE){
-    ef.push_back(Erx);
-    ef.push_back(Ery);
-    ef.push_back(Erz);
-    ef.push_back(Eix);
-    ef.push_back(Eiy);
-    ef.push_back(Eiz);
-  }
-  return ef;
-}
-
-// ========================================================================================
-// ========================================================================================
-
-void maxwells_fp::setExtraFields(const size_t & numGlobalElem_) {
-  //numElem = numElem_;
-  if(calcE){
-    Erx = Kokkos::View<ScalarT***,AssemblyDevice>("Erx",numGlobalElem_,1,1);
-    Ery = Kokkos::View<ScalarT***,AssemblyDevice>("Ery",numGlobalElem_,1,1);
-    Erz = Kokkos::View<ScalarT***,AssemblyDevice>("Erz",numGlobalElem_,1,1);
-    Eix = Kokkos::View<ScalarT***,AssemblyDevice>("Eix",numGlobalElem_,1,1);
-    Eiy = Kokkos::View<ScalarT***,AssemblyDevice>("Eiy",numGlobalElem_,1,1);
-    Eiz = Kokkos::View<ScalarT***,AssemblyDevice>("Eiz",numGlobalElem_,1,1);
   }
 }
 
