@@ -616,16 +616,9 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
           }
         }
         for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-          if (macro_basis_types[i] == "HGRAD") {
             currcell_basis.push_back(discTools->evaluateBasis(macro_basis_pointers[i], sref_ip, macroorientation));
             currcell_basisGrad.push_back(discTools->evaluateBasisGrads(macro_basis_pointers[i], macronodes[block],
                                                                        sref_ip, macro_cellTopo, macroorientation));
-          }
-          else {
-            currcell_basis.push_back(discTools->evaluateBasis(macro_basis_pointers[i], sref_ip));
-            currcell_basisGrad.push_back(discTools->evaluateBasisGrads(macro_basis_pointers[i], macronodes[block],
-                                                                       sref_ip, macro_cellTopo));
-          }
         }
       }
     }
@@ -664,14 +657,7 @@ int SubGridFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice>
             }
           }
           for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-            DRV bvals;
-            if (macro_basis_types[i] == "HGRAD") {
-              bvals = discTools->evaluateBasis(macro_basis_pointers[i], sref_side_ip, macroorientation);
-            }
-            else {
-              bvals = discTools->evaluateBasis(macro_basis_pointers[i], sref_side_ip);
-            }
-            //DRV tmp_basis = DiscTools::evaluateBasis(macro_basis_pointers[i], sref_side_ip_tmp);
+            DRV bvals = discTools->evaluateBasis(macro_basis_pointers[i], sref_side_ip, macroorientation);
             for (unsigned int k=0; k<bvals.dimension(1); k++) {
               for (unsigned int j=0; j<bvals.dimension(2); j++) {
                 currside_basis[i](c,k,j) = bvals(0,k,j);

@@ -246,7 +246,7 @@ namespace Intrepid2 {
     virtual
     bool
     requireOrientation() const {
-      return true;
+      return false; // TMW: update when fixed
     }
     
   private:

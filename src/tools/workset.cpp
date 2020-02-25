@@ -618,21 +618,20 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
       
     }
     else if (basis_types[i] == "HFACE"){
-      //cout << "in here " << endl;
       int numb = basis_pointers[i]->getCardinality();
       
-      //DRV ref_basisvals("basisvals",numb, numsideip);
-      //basis_pointers[i]->getValues(ref_basisvals, refSidePoints, OPERATOR_VALUE);
+      DRV ref_basisvals("basisvals",numb, numsideip);
+      basis_pointers[i]->getValues(ref_basisvals, refSidePoints, OPERATOR_VALUE);
       
-      //DRV basisvals_trans("basisvals_Transformed",numBElem, numb, numsideip);
-      //FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_trans, ref_basisvals);
+      DRV basisvals_trans("basisvals_Transformed",numBElem, numb, numsideip);
+      FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_trans, ref_basisvals);
       DRV basisvals_to("basisvals_Transformed",numBElem, numb, numsideip);
-      //OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basisvals_to, basisvals_trans, orientation, basis_pointers[i]);
+      OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basisvals_to, basisvals_trans, orientation, basis_pointers[i]);
       
       cbasis_uw.push_back(basisvals_to);
       
       DRV basis_wtd("basis_side",numBElem,numb,numsideip);
-      //FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_wtd, bwts, cbasis_uw[i]);
+      FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_wtd, bwts, cbasis_uw[i]);
       cbasis.push_back(basis_wtd);
       
       DRV basis_grad_trans("basis_grad_side_uw",numBElem,numb,numsideip,dimension);
@@ -653,7 +652,7 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
       FunctionSpaceTools<AssemblyDevice>::HDIVtransformVALUE(basisvals_trans, bijac, bijacDet, ref_basisvals);
       DRV basisvals_to("basisvals_Transformed",numBElem, numb, numsideip, dimension);
       OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basisvals_to, basisvals_trans, orientation, basis_pointers[i]);
-      //basisvals_to = basisvals_trans;
+      
       DRV basis_wtd("basis_side",numBElem,numb,numsideip,dimension);
       FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_wtd, bwts, basisvals_to);
       
@@ -851,9 +850,9 @@ void workset::updateFace(const DRV & nodes, Kokkos::DynRankView<Intrepid2::Orien
         basis_pointers[i]->getValues(ref_basisvals, refSidePoints, OPERATOR_VALUE);
         
         
-        //DRV basis_tmp("basisvals_Transformed",numElem, numb, numsideip);
-        FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basis_trans, ref_basisvals);
-        //OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basis_trans, basis_tmp, orientation, basis_pointers[i]);
+        DRV basis_tmp("basisvals_Transformed",numElem, numb, numsideip);
+        FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basis_tmp, ref_basisvals);
+        OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basis_trans, basis_tmp, orientation, basis_pointers[i]);
         
         //FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basis_trans, ref_basisvals);
         FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_wtd, wts_side, basis_trans);
