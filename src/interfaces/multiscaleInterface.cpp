@@ -137,6 +137,8 @@ ScalarT MultiScale::initialize() {
           Kokkos::View<GO**,HostDevice> cGIDs("GIDs",1,GIDs.dimension(1));
           Kokkos::View<LO***,HostDevice> cindex("index",1,index.dimension(1), index.dimension(2));
           
+          Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation("macro-orient",1);
+          orientation(0) = cells[b][e]->orientation(c);
           for (int i=0; i<cellnodes.dimension(1); i++) {
             for (int j=0; j<cellnodes.dimension(2); j++) {
               cnodes(0,i,j) = cellnodes(c,i,j);
@@ -160,7 +162,7 @@ ScalarT MultiScale::initialize() {
           // needs to be updated
           
           int cnum = subgridModels[sgnum[c]]->addMacro(cnodes, csideinfo, cells[b][e]->sidenames,
-                                                       cGIDs, cindex);
+                                                       cGIDs, cindex, orientation);
           
           usernum.push_back(cnum);
         }
@@ -179,6 +181,8 @@ ScalarT MultiScale::initialize() {
                                                      cellsideinfo.dimension(3));
           Kokkos::View<GO**,HostDevice> cGIDs("GIDs",1,GIDs.dimension(1));
           Kokkos::View<LO***,HostDevice> cindex("index",1,index.dimension(1), index.dimension(2));
+          Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation("macro-orient",1);
+          orientation(0) = cells[b][e]->orientation(c);
           
           for (int i=0; i<cellnodes.dimension(1); i++) {
             for (int j=0; j<cellnodes.dimension(2); j++) {
@@ -203,7 +207,7 @@ ScalarT MultiScale::initialize() {
           for (size_t s=0; s<subgridModels.size(); s++) {
             int cnum = subgridModels[s]->addMacro(cnodes, csideinfo,
                                                   cells[b][e]->sidenames,
-                                                  cGIDs, cindex);
+                                                  cGIDs, cindex, orientation);
             usernum.push_back(cnum);
           }
           numusers += 1;

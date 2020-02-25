@@ -79,6 +79,24 @@ DRV DiscTools::evaluateBasis(const basis_RCP & basis_pointer, const DRV & evalpt
   return basisvals_Transformed;
 }
 
+DRV DiscTools::evaluateBasis(const basis_RCP & basis_pointer, const DRV & evalpts,
+                             Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation) {
+  using namespace Intrepid2;
+  int numCells = 1;//evalpts.dimension(0);
+  int numpts = evalpts.dimension(0);
+  int numBasis = basis_pointer->getCardinality();
+  DRV basisvals("basisvals", numBasis, numpts);
+  basis_pointer->getValues(basisvals, evalpts, OPERATOR_VALUE);
+  
+  DRV basisvals_Transformed("basisvals_Transformed", numCells, numBasis, numpts);
+  FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_Transformed, basisvals);
+  DRV basisvals_to("basisvals_Transformed", numCells, numBasis, numpts);
+  OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basisvals_to, basisvals_Transformed,
+                                                             orientation, basis_pointer);
+  
+  return basisvals_to;
+}
+
 Teuchos::RCP<DRV> DiscTools::evaluateBasisRCP(const basis_RCP & basis_pointer, const DRV & evalpts) {
   using namespace Intrepid2;
   
@@ -246,6 +264,31 @@ DRV DiscTools::evaluateBasisGrads(const basis_RCP & basis_pointer, const DRV & n
   FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(basisgrads_Transformed, jacobInv, basisgrads);
   
   return basisgrads_Transformed;
+}
+
+DRV DiscTools::evaluateBasisGrads(const basis_RCP & basis_pointer, const DRV & nodes,
+                                  const DRV & evalpts, const topo_RCP & cellTopo,
+                                  Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation) {
+  using namespace Intrepid2;
+  
+  int numCells = 1;
+  int numpts = evalpts.dimension(0);
+  int spaceDim = evalpts.dimension(1);
+  int numBasis = basis_pointer->getCardinality();
+  DRV basisgrads("basisgrads", numBasis, numpts, spaceDim);
+  DRV basisgrads_Transformed("basisgrads_Transformed", numCells, numBasis, numpts, spaceDim);
+  basis_pointer->getValues(basisgrads, evalpts, OPERATOR_GRAD);
+  
+  DRV jacobian("jacobian", numCells, numpts, spaceDim, spaceDim);
+  DRV jacobInv("jacobInv", numCells, numpts, spaceDim, spaceDim);
+  CellTools<AssemblyDevice>::setJacobian(jacobian, evalpts, nodes, *cellTopo);
+  CellTools<AssemblyDevice>::setJacobianInv(jacobInv, jacobian);
+  FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(basisgrads_Transformed, jacobInv, basisgrads);
+  DRV basisgrads_to("basisgrads_Transformed", numCells, numBasis, numpts, spaceDim);
+  OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basisgrads_to, basisgrads_Transformed,
+                                                             orientation, basis_pointer);
+  
+  return basisgrads_to;
 }
 
 Teuchos::RCP<DRV> DiscTools::evaluateBasisGradsRCP(const basis_RCP & basis_pointer, const DRV & nodes,

@@ -29,7 +29,8 @@ public:
   virtual int addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice> macrosideinfo_,
                        vector<string> & macrosidenames,
                        Kokkos::View<GO**,HostDevice> & macroGIDs,
-                       Kokkos::View<LO***,HostDevice> & macroindex) = 0;
+                       Kokkos::View<LO***,HostDevice> & macroindex,
+                       Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & macroorientation) = 0;
 
   
   virtual void finalize() = 0;

@@ -29,6 +29,9 @@ public:
   
   DRV evaluateBasis(const basis_RCP & basis_pointer, const DRV & evalpts);
   
+  DRV evaluateBasis(const basis_RCP & basis_pointer, const DRV & evalpts,
+                    Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation);
+
   Teuchos::RCP<DRV> evaluateBasisRCP(const basis_RCP & basis_pointer, const DRV & evalpts);
   
   //////////////////////////////////////////////////////////////////////////////////////
@@ -65,6 +68,10 @@ public:
   DRV evaluateBasisGrads(const basis_RCP & basis_pointer, const DRV & nodes,
                          const DRV & evalpts, const topo_RCP & cellTopo);
   
+  DRV evaluateBasisGrads(const basis_RCP & basis_pointer, const DRV & nodes,
+                         const DRV & evalpts, const topo_RCP & cellTopo,
+                         Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation);
+    
   Teuchos::RCP<DRV> evaluateBasisGradsRCP(const basis_RCP & basis_pointer, const DRV & nodes,
                                           const DRV & evalpts, const topo_RCP & cellTopo);
 
