@@ -1,0 +1,662 @@
+# Teuchos::TimeMonitor report
+---
+Output mode: spacious
+Number of processes: 4
+Time unit: s
+Statistics collected: 
+  - MinOverProcs
+  - MeanOverProcs
+  - MaxOverProcs
+  - MeanOverCallCounts
+Timer names: 
+  - "Epetra_CrsMatrix::Multiply(TransA,X,Y)"
+  - "Epetra_CrsMatrix::Multiply(TransA,x,y)"
+  - "Epetra_CrsMatrix::Solve(Upper,Trans,UnitDiag,X,Y)"
+  - "Ifpack_ILU::ApplyInverse"
+  - "Ifpack_ILU::ApplyInverse - Solve"
+  - "Ifpack_ILU::Compute"
+  - "Ifpack_ILU::ComputeSetup"
+  - "Ifpack_ILU::Initialize"
+  - "MILO::cell::computeJacRes() - adjoint residual"
+  - "MILO::cell::computeJacRes() - boundary residual"
+  - "MILO::cell::computeJacRes() - fill local Jacobian"
+  - "MILO::cell::computeJacRes() - fill local residual"
+  - "MILO::cell::computeJacRes() - transient residual"
+  - "MILO::cell::computeJacRes() - volume residual"
+  - "MILO::cell::computeSolnSideIP()"
+  - "MILO::cell::computeSolnVolIP()"
+  - "MILO::driver - total run time"
+  - "MILO::driver - total setup and execution time"
+  - "MILO::solver::computeJacRes() - gather"
+  - "MILO::solver::computeJacRes() - insert"
+  - "MILO::solver::computeJacRes() - physics evaluation"
+  - "MILO::solver::computeJacRes() - strong Dirichlet BCs"
+  - "MILO::solver::computeJacRes() - total assembly"
+  - "MILO::solver::linearSolver()"
+  - "MILO::thermal::boundaryResidual() - evaluation of residual"
+  - "MILO::thermal::boundaryResidual() - function evaluation"
+  - "MILO::thermal::volumeResidual() - evaluation of residual"
+  - "MILO::thermal::volumeResidual() - function evaluation"
+  - "MILO::workset::computeParamSideIP"
+  - "MILO::workset::computeParamVolIP"
+  - "MILO::workset::computeSolnSideIP"
+  - "MILO::workset::computeSolnVolIP"
+  - "MILO::workset::reset*"
+  - "MILO::workset::update - integration data"
+  - "MILO::workset::update::HGRADTransformGrad"
+  - "MILO::workset::update::multiplyMeasure"
+  - "MILO::workset::updateSide - basis data"
+  - "MILO::workset::updateSide - integration data"
+  - "STK_Interface::setupExodusFile(filename)"
+  - "STK_Interface::writeToExodus(timestep)"
+  - "panzer::DOFManager::buildGlobalUnknowns"
+  - "panzer::DOFManager::buildGlobalUnknowns::build_ghosted_array"
+  - "panzer::DOFManager::buildGlobalUnknowns::build_local_ids"
+  - "panzer::DOFManager::buildGlobalUnknowns::build_orientation"
+  - "panzer::DOFManager::buildGlobalUnknowns::build_owned_vector"
+  - "panzer::DOFManager::buildGlobalUnknowns_GUN"
+  - "panzer::DOFManager::buildGlobalUnknowns_GUN::line_04 createOneToOne"
+  - "panzer::DOFManager::buildGlobalUnknowns_GUN::line_05 alloc_unique_mv"
+  - "panzer::DOFManager::buildGlobalUnknowns_GUN::line_06 export"
+  - "panzer::DOFManager::buildGlobalUnknowns_GUN::line_07-09 local_count"
+  - "panzer::DOFManager::buildGlobalUnknowns_GUN::line_10 prefix_sum"
+  - "panzer::DOFManager::buildGlobalUnknowns_GUN::line_13-21 gid_assignment"
+  - "panzer::DOFManager::buildGlobalUnknowns_GUN::line_23 final_import"
+  - "panzer::DOFManager::buildTaggedMultiVector"
+  - "panzer::DOFManager::buildTaggedMultiVector::allocate_tagged_multivector"
+  - "panzer::DOFManager::buildTaggedMultiVector::fill_tagged_multivector"
+  - "panzer::DOFManager::builderOverlapMapFromElements"
+  - "panzer::SquareQuadMeshFactory::buildUncomittedMesh()"
+  - "panzer::SquareQuadMeshFactory::completeMeshConstruction()"
+Total times: 
+  "Epetra_CrsMatrix::Multiply(TransA,X,Y)": 
+    MinOverProcs: 2.3e-05
+    MeanOverProcs: 2.475e-05
+    MaxOverProcs: 2.7e-05
+    MeanOverCallCounts: 2.475e-05
+  "Epetra_CrsMatrix::Multiply(TransA,x,y)": 
+    MinOverProcs: 7.2e-05
+    MeanOverProcs: 7.55e-05
+    MaxOverProcs: 8e-05
+    MeanOverCallCounts: 7.55e-06
+  "Epetra_CrsMatrix::Solve(Upper,Trans,UnitDiag,X,Y)": 
+    MinOverProcs: 9e-06
+    MeanOverProcs: 1.15e-05
+    MaxOverProcs: 1.3e-05
+    MeanOverCallCounts: 2.875e-06
+  "Ifpack_ILU::ApplyInverse": 
+    MinOverProcs: 2.6e-05
+    MeanOverProcs: 2.65e-05
+    MaxOverProcs: 2.7e-05
+    MeanOverCallCounts: 1.325e-05
+  "Ifpack_ILU::ApplyInverse - Solve": 
+    MinOverProcs: 2.2e-05
+    MeanOverProcs: 2.25e-05
+    MaxOverProcs: 2.3e-05
+    MeanOverCallCounts: 1.125e-05
+  "Ifpack_ILU::Compute": 
+    MinOverProcs: 0.000362
+    MeanOverProcs: 0.00039675
+    MaxOverProcs: 0.000413
+    MeanOverCallCounts: 0.000198375
+  "Ifpack_ILU::ComputeSetup": 
+    MinOverProcs: 0.000176
+    MeanOverProcs: 0.0001985
+    MaxOverProcs: 0.000209
+    MeanOverCallCounts: 9.925e-05
+  "Ifpack_ILU::Initialize": 
+    MinOverProcs: 0.000585
+    MeanOverProcs: 0.0006115
+    MaxOverProcs: 0.000628
+    MeanOverCallCounts: 0.00030575
+  "MILO::cell::computeJacRes() - adjoint residual": 
+    MinOverProcs: 2e-06
+    MeanOverProcs: 3e-06
+    MaxOverProcs: 4e-06
+    MeanOverCallCounts: 7.5e-08
+  "MILO::cell::computeJacRes() - boundary residual": 
+    MinOverProcs: 0.000372
+    MeanOverProcs: 0.001017
+    MaxOverProcs: 0.001677
+    MeanOverCallCounts: 2.5425e-05
+  "MILO::cell::computeJacRes() - fill local Jacobian": 
+    MinOverProcs: 5.2e-05
+    MeanOverProcs: 5.475e-05
+    MaxOverProcs: 5.7e-05
+    MeanOverCallCounts: 1.36875e-06
+  "MILO::cell::computeJacRes() - fill local residual": 
+    MinOverProcs: 2.2e-05
+    MeanOverProcs: 2.4e-05
+    MaxOverProcs: 2.8e-05
+    MeanOverCallCounts: 6e-07
+  "MILO::cell::computeJacRes() - transient residual": 
+    MinOverProcs: 2e-06
+    MeanOverProcs: 3.75e-06
+    MaxOverProcs: 7e-06
+    MeanOverCallCounts: 9.375e-08
+  "MILO::cell::computeJacRes() - volume residual": 
+    MinOverProcs: 0.001897
+    MeanOverProcs: 0.00193925
+    MaxOverProcs: 0.001969
+    MeanOverCallCounts: 4.84813e-05
+  "MILO::cell::computeSolnSideIP()": 
+    MinOverProcs: 0.000258
+    MeanOverProcs: 0.00080775
+    MaxOverProcs: 0.001374
+    MeanOverCallCounts: 3.67159e-05
+  "MILO::cell::computeSolnVolIP()": 
+    MinOverProcs: 0.002348
+    MeanOverProcs: 0.0023925
+    MaxOverProcs: 0.002428
+    MeanOverCallCounts: 5.98125e-05
+  "MILO::driver - total run time": 
+    MinOverProcs: 0.071075
+    MeanOverProcs: 0.0711003
+    MaxOverProcs: 0.071136
+    MeanOverCallCounts: 0.0711003
+  "MILO::driver - total setup and execution time": 
+    MinOverProcs: 0.180558
+    MeanOverProcs: 0.180581
+    MaxOverProcs: 0.180641
+    MeanOverCallCounts: 0.180581
+  "MILO::solver::computeJacRes() - gather": 
+    MinOverProcs: 2.6e-05
+    MeanOverProcs: 2.975e-05
+    MaxOverProcs: 3.6e-05
+    MeanOverCallCounts: 2.975e-05
+  "MILO::solver::computeJacRes() - insert": 
+    MinOverProcs: 0.000387
+    MeanOverProcs: 0.0004055
+    MaxOverProcs: 0.000418
+    MeanOverCallCounts: 1.01375e-05
+  "MILO::solver::computeJacRes() - physics evaluation": 
+    MinOverProcs: 0.005136
+    MeanOverProcs: 0.00583125
+    MaxOverProcs: 0.00652
+    MeanOverCallCounts: 0.000145781
+  "MILO::solver::computeJacRes() - strong Dirichlet BCs": 
+    MinOverProcs: 6e-05
+    MeanOverProcs: 0.0001095
+    MaxOverProcs: 0.000159
+    MeanOverCallCounts: 0.0001095
+  "MILO::solver::computeJacRes() - total assembly": 
+    MinOverProcs: 0.005734
+    MeanOverProcs: 0.006468
+    MaxOverProcs: 0.007207
+    MeanOverCallCounts: 0.006468
+  "MILO::solver::linearSolver()": 
+    MinOverProcs: 0.034643
+    MeanOverProcs: 0.034664
+    MaxOverProcs: 0.03469
+    MeanOverCallCounts: 0.034664
+  "MILO::thermal::boundaryResidual() - evaluation of residual": 
+    MinOverProcs: 8e-05
+    MeanOverProcs: 0.00016475
+    MaxOverProcs: 0.000251
+    MeanOverCallCounts: 7.48864e-06
+  "MILO::thermal::boundaryResidual() - function evaluation": 
+    MinOverProcs: 0
+    MeanOverProcs: 5e-07
+    MaxOverProcs: 2e-06
+    MeanOverCallCounts: 2.27273e-08
+  "MILO::thermal::volumeResidual() - evaluation of residual": 
+    MinOverProcs: 0.001634
+    MeanOverProcs: 0.001677
+    MaxOverProcs: 0.001693
+    MeanOverCallCounts: 4.1925e-05
+  "MILO::thermal::volumeResidual() - function evaluation": 
+    MinOverProcs: 2e-06
+    MeanOverProcs: 3.25e-06
+    MaxOverProcs: 4e-06
+    MeanOverCallCounts: 8.125e-08
+  "MILO::workset::computeParamSideIP": 
+    MinOverProcs: 0
+    MeanOverProcs: 2.75e-06
+    MaxOverProcs: 8e-06
+    MeanOverCallCounts: 1.25e-07
+  "MILO::workset::computeParamVolIP": 
+    MinOverProcs: 1e-06
+    MeanOverProcs: 2e-06
+    MaxOverProcs: 3e-06
+    MeanOverCallCounts: 5e-08
+  "MILO::workset::computeSolnSideIP": 
+    MinOverProcs: 2e-05
+    MeanOverProcs: 0.00019375
+    MaxOverProcs: 0.000372
+    MeanOverCallCounts: 8.80682e-06
+  "MILO::workset::computeSolnVolIP": 
+    MinOverProcs: 0.002216
+    MeanOverProcs: 0.002249
+    MaxOverProcs: 0.002294
+    MeanOverCallCounts: 1.87417e-05
+  "MILO::workset::reset*": 
+    MinOverProcs: 0.000895
+    MeanOverProcs: 0.000958
+    MaxOverProcs: 0.001026
+    MeanOverCallCounts: 3.92623e-06
+  "MILO::workset::update - integration data": 
+    MinOverProcs: 0.001203
+    MeanOverProcs: 0.00121625
+    MaxOverProcs: 0.00123
+    MeanOverCallCounts: 6.08125e-06
+  "MILO::workset::update::HGRADTransformGrad": 
+    MinOverProcs: 0.002238
+    MeanOverProcs: 0.0022565
+    MaxOverProcs: 0.002269
+    MeanOverCallCounts: 1.12825e-05
+  "MILO::workset::update::multiplyMeasure": 
+    MinOverProcs: 0.002664
+    MeanOverProcs: 0.0027055
+    MaxOverProcs: 0.002732
+    MeanOverCallCounts: 6.76375e-06
+  "MILO::workset::updateSide - basis data": 
+    MinOverProcs: 2.9e-05
+    MeanOverProcs: 0.00029475
+    MaxOverProcs: 0.000564
+    MeanOverCallCounts: 1.33977e-05
+  "MILO::workset::updateSide - integration data": 
+    MinOverProcs: 1.3e-05
+    MeanOverProcs: 7.1e-05
+    MaxOverProcs: 0.000139
+    MeanOverCallCounts: 3.22727e-06
+  "STK_Interface::setupExodusFile(filename)": 
+    MinOverProcs: 0.004771
+    MeanOverProcs: 0.00481775
+    MaxOverProcs: 0.004852
+    MeanOverCallCounts: 0.00481775
+  "STK_Interface::writeToExodus(timestep)": 
+    MinOverProcs: 0.010976
+    MeanOverProcs: 0.011003
+    MaxOverProcs: 0.011027
+    MeanOverCallCounts: 0.011003
+  "panzer::DOFManager::buildGlobalUnknowns": 
+    MinOverProcs: 0.010782
+    MeanOverProcs: 0.010789
+    MaxOverProcs: 0.010798
+    MeanOverCallCounts: 0.010789
+  "panzer::DOFManager::buildGlobalUnknowns::build_ghosted_array": 
+    MinOverProcs: 8.2e-05
+    MeanOverProcs: 8.45e-05
+    MaxOverProcs: 8.6e-05
+    MeanOverCallCounts: 8.45e-05
+  "panzer::DOFManager::buildGlobalUnknowns::build_local_ids": 
+    MinOverProcs: 0.00014
+    MeanOverProcs: 0.00014225
+    MaxOverProcs: 0.000145
+    MeanOverCallCounts: 0.00014225
+  "panzer::DOFManager::buildGlobalUnknowns::build_orientation": 
+    MinOverProcs: 0.00017
+    MeanOverProcs: 0.000172
+    MaxOverProcs: 0.000175
+    MeanOverCallCounts: 0.000172
+  "panzer::DOFManager::buildGlobalUnknowns::build_owned_vector": 
+    MinOverProcs: 0.000208
+    MeanOverProcs: 0.0002165
+    MaxOverProcs: 0.000231
+    MeanOverCallCounts: 0.0002165
+  "panzer::DOFManager::buildGlobalUnknowns_GUN": 
+    MinOverProcs: 0.00387
+    MeanOverProcs: 0.00389375
+    MaxOverProcs: 0.003909
+    MeanOverCallCounts: 0.00389375
+  "panzer::DOFManager::buildGlobalUnknowns_GUN::line_04 createOneToOne": 
+    MinOverProcs: 0.002109
+    MeanOverProcs: 0.00213075
+    MaxOverProcs: 0.002145
+    MeanOverCallCounts: 0.00213075
+  "panzer::DOFManager::buildGlobalUnknowns_GUN::line_05 alloc_unique_mv": 
+    MinOverProcs: 1e-05
+    MeanOverProcs: 1.075e-05
+    MaxOverProcs: 1.1e-05
+    MeanOverCallCounts: 1.075e-05
+  "panzer::DOFManager::buildGlobalUnknowns_GUN::line_06 export": 
+    MinOverProcs: 0.001551
+    MeanOverProcs: 0.00157375
+    MaxOverProcs: 0.001582
+    MeanOverCallCounts: 0.00157375
+  "panzer::DOFManager::buildGlobalUnknowns_GUN::line_07-09 local_count": 
+    MinOverProcs: 3e-06
+    MeanOverProcs: 4.75e-06
+    MaxOverProcs: 8e-06
+    MeanOverCallCounts: 4.75e-06
+  "panzer::DOFManager::buildGlobalUnknowns_GUN::line_10 prefix_sum": 
+    MinOverProcs: 5.6e-05
+    MeanOverProcs: 6.675e-05
+    MaxOverProcs: 8.3e-05
+    MeanOverCallCounts: 6.675e-05
+  "panzer::DOFManager::buildGlobalUnknowns_GUN::line_13-21 gid_assignment": 
+    MinOverProcs: 1.2e-05
+    MeanOverProcs: 1.275e-05
+    MaxOverProcs: 1.3e-05
+    MeanOverCallCounts: 1.275e-05
+  "panzer::DOFManager::buildGlobalUnknowns_GUN::line_23 final_import": 
+    MinOverProcs: 3.6e-05
+    MeanOverProcs: 6.075e-05
+    MaxOverProcs: 8.9e-05
+    MeanOverCallCounts: 6.075e-05
+  "panzer::DOFManager::buildTaggedMultiVector": 
+    MinOverProcs: 0.005901
+    MeanOverProcs: 0.005918
+    MaxOverProcs: 0.005926
+    MeanOverCallCounts: 0.005918
+  "panzer::DOFManager::buildTaggedMultiVector::allocate_tagged_multivector": 
+    MinOverProcs: 0.002496
+    MeanOverProcs: 0.00250975
+    MaxOverProcs: 0.002524
+    MeanOverCallCounts: 0.00250975
+  "panzer::DOFManager::buildTaggedMultiVector::fill_tagged_multivector": 
+    MinOverProcs: 0.000341
+    MeanOverProcs: 0.00035225
+    MaxOverProcs: 0.000367
+    MeanOverCallCounts: 0.00035225
+  "panzer::DOFManager::builderOverlapMapFromElements": 
+    MinOverProcs: 0.003004
+    MeanOverProcs: 0.00300925
+    MaxOverProcs: 0.003022
+    MeanOverCallCounts: 0.00300925
+  "panzer::SquareQuadMeshFactory::buildUncomittedMesh()": 
+    MinOverProcs: 0.003874
+    MeanOverProcs: 0.00388475
+    MaxOverProcs: 0.003889
+    MeanOverCallCounts: 0.00388475
+  "panzer::SquareQuadMeshFactory::completeMeshConstruction()": 
+    MinOverProcs: 0.048922
+    MeanOverProcs: 0.048929
+    MaxOverProcs: 0.048933
+    MeanOverCallCounts: 0.048929
+Call counts:
+  "Epetra_CrsMatrix::Multiply(TransA,X,Y)": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "Epetra_CrsMatrix::Multiply(TransA,x,y)": 
+    MinOverProcs: 10
+    MeanOverProcs: 10
+    MaxOverProcs: 10
+    MeanOverCallCounts: 10
+  "Epetra_CrsMatrix::Solve(Upper,Trans,UnitDiag,X,Y)": 
+    MinOverProcs: 4
+    MeanOverProcs: 4
+    MaxOverProcs: 4
+    MeanOverCallCounts: 4
+  "Ifpack_ILU::ApplyInverse": 
+    MinOverProcs: 2
+    MeanOverProcs: 2
+    MaxOverProcs: 2
+    MeanOverCallCounts: 2
+  "Ifpack_ILU::ApplyInverse - Solve": 
+    MinOverProcs: 2
+    MeanOverProcs: 2
+    MaxOverProcs: 2
+    MeanOverCallCounts: 2
+  "Ifpack_ILU::Compute": 
+    MinOverProcs: 2
+    MeanOverProcs: 2
+    MaxOverProcs: 2
+    MeanOverCallCounts: 2
+  "Ifpack_ILU::ComputeSetup": 
+    MinOverProcs: 2
+    MeanOverProcs: 2
+    MaxOverProcs: 2
+    MeanOverCallCounts: 2
+  "Ifpack_ILU::Initialize": 
+    MinOverProcs: 2
+    MeanOverProcs: 2
+    MaxOverProcs: 2
+    MeanOverCallCounts: 2
+  "MILO::cell::computeJacRes() - adjoint residual": 
+    MinOverProcs: 40
+    MeanOverProcs: 40
+    MaxOverProcs: 40
+    MeanOverCallCounts: 40
+  "MILO::cell::computeJacRes() - boundary residual": 
+    MinOverProcs: 40
+    MeanOverProcs: 40
+    MaxOverProcs: 40
+    MeanOverCallCounts: 40
+  "MILO::cell::computeJacRes() - fill local Jacobian": 
+    MinOverProcs: 40
+    MeanOverProcs: 40
+    MaxOverProcs: 40
+    MeanOverCallCounts: 40
+  "MILO::cell::computeJacRes() - fill local residual": 
+    MinOverProcs: 40
+    MeanOverProcs: 40
+    MaxOverProcs: 40
+    MeanOverCallCounts: 40
+  "MILO::cell::computeJacRes() - transient residual": 
+    MinOverProcs: 40
+    MeanOverProcs: 40
+    MaxOverProcs: 40
+    MeanOverCallCounts: 40
+  "MILO::cell::computeJacRes() - volume residual": 
+    MinOverProcs: 40
+    MeanOverProcs: 40
+    MaxOverProcs: 40
+    MeanOverCallCounts: 40
+  "MILO::cell::computeSolnSideIP()": 
+    MinOverProcs: 2
+    MeanOverProcs: 22
+    MaxOverProcs: 42
+    MeanOverCallCounts: 22
+  "MILO::cell::computeSolnVolIP()": 
+    MinOverProcs: 40
+    MeanOverProcs: 40
+    MaxOverProcs: 40
+    MeanOverCallCounts: 40
+  "MILO::driver - total run time": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "MILO::driver - total setup and execution time": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "MILO::solver::computeJacRes() - gather": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "MILO::solver::computeJacRes() - insert": 
+    MinOverProcs: 40
+    MeanOverProcs: 40
+    MaxOverProcs: 40
+    MeanOverCallCounts: 40
+  "MILO::solver::computeJacRes() - physics evaluation": 
+    MinOverProcs: 40
+    MeanOverProcs: 40
+    MaxOverProcs: 40
+    MeanOverCallCounts: 40
+  "MILO::solver::computeJacRes() - strong Dirichlet BCs": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "MILO::solver::computeJacRes() - total assembly": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "MILO::solver::linearSolver()": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "MILO::thermal::boundaryResidual() - evaluation of residual": 
+    MinOverProcs: 2
+    MeanOverProcs: 22
+    MaxOverProcs: 42
+    MeanOverCallCounts: 22
+  "MILO::thermal::boundaryResidual() - function evaluation": 
+    MinOverProcs: 2
+    MeanOverProcs: 22
+    MaxOverProcs: 42
+    MeanOverCallCounts: 22
+  "MILO::thermal::volumeResidual() - evaluation of residual": 
+    MinOverProcs: 40
+    MeanOverProcs: 40
+    MaxOverProcs: 40
+    MeanOverCallCounts: 40
+  "MILO::thermal::volumeResidual() - function evaluation": 
+    MinOverProcs: 40
+    MeanOverProcs: 40
+    MaxOverProcs: 40
+    MeanOverCallCounts: 40
+  "MILO::workset::computeParamSideIP": 
+    MinOverProcs: 2
+    MeanOverProcs: 22
+    MaxOverProcs: 42
+    MeanOverCallCounts: 22
+  "MILO::workset::computeParamVolIP": 
+    MinOverProcs: 40
+    MeanOverProcs: 40
+    MaxOverProcs: 40
+    MeanOverCallCounts: 40
+  "MILO::workset::computeSolnSideIP": 
+    MinOverProcs: 2
+    MeanOverProcs: 22
+    MaxOverProcs: 42
+    MeanOverCallCounts: 22
+  "MILO::workset::computeSolnVolIP": 
+    MinOverProcs: 120
+    MeanOverProcs: 120
+    MaxOverProcs: 120
+    MeanOverCallCounts: 120
+  "MILO::workset::reset*": 
+    MinOverProcs: 204
+    MeanOverProcs: 244
+    MaxOverProcs: 284
+    MeanOverCallCounts: 244
+  "MILO::workset::update - integration data": 
+    MinOverProcs: 200
+    MeanOverProcs: 200
+    MaxOverProcs: 200
+    MeanOverCallCounts: 200
+  "MILO::workset::update::HGRADTransformGrad": 
+    MinOverProcs: 200
+    MeanOverProcs: 200
+    MaxOverProcs: 200
+    MeanOverCallCounts: 200
+  "MILO::workset::update::multiplyMeasure": 
+    MinOverProcs: 400
+    MeanOverProcs: 400
+    MaxOverProcs: 400
+    MeanOverCallCounts: 400
+  "MILO::workset::updateSide - basis data": 
+    MinOverProcs: 2
+    MeanOverProcs: 22
+    MaxOverProcs: 42
+    MeanOverCallCounts: 22
+  "MILO::workset::updateSide - integration data": 
+    MinOverProcs: 2
+    MeanOverProcs: 22
+    MaxOverProcs: 42
+    MeanOverCallCounts: 22
+  "STK_Interface::setupExodusFile(filename)": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "STK_Interface::writeToExodus(timestep)": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::buildGlobalUnknowns": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::buildGlobalUnknowns::build_ghosted_array": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::buildGlobalUnknowns::build_local_ids": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::buildGlobalUnknowns::build_orientation": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::buildGlobalUnknowns::build_owned_vector": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::buildGlobalUnknowns_GUN": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::buildGlobalUnknowns_GUN::line_04 createOneToOne": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::buildGlobalUnknowns_GUN::line_05 alloc_unique_mv": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::buildGlobalUnknowns_GUN::line_06 export": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::buildGlobalUnknowns_GUN::line_07-09 local_count": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::buildGlobalUnknowns_GUN::line_10 prefix_sum": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::buildGlobalUnknowns_GUN::line_13-21 gid_assignment": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::buildGlobalUnknowns_GUN::line_23 final_import": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::buildTaggedMultiVector": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::buildTaggedMultiVector::allocate_tagged_multivector": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::buildTaggedMultiVector::fill_tagged_multivector": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::DOFManager::builderOverlapMapFromElements": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::SquareQuadMeshFactory::buildUncomittedMesh()": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1
+  "panzer::SquareQuadMeshFactory::completeMeshConstruction()": 
+    MinOverProcs: 1
+    MeanOverProcs: 1
+    MaxOverProcs: 1
+    MeanOverCallCounts: 1

@@ -616,18 +616,18 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
   matrix_RCP mass_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
   
   
-  /*
-  assembler->setInitial(rhs, mass_over, false, false);
-  assembler->pointConstraints(mass_over, rhs, current_time, true, false);
-  //KokkosTools::print(mass_over);
-  mass->setAllToScalar(0.0);
-  mass->doExport(*mass_over, *exporter, Tpetra::ADD);
-  mass->fillComplete();
-  vector_RCP temp_rhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
-  vector_RCP temp_sol = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
-  
-  this->setupMassSolver(mass, temp_rhs, temp_sol);
-  */
+  if (!timeImplicit) {
+    assembler->setInitial(rhs, mass_over, false, false);
+    assembler->pointConstraints(mass_over, rhs, current_time, true, false);
+    //KokkosTools::print(mass_over);
+    mass->setAllToScalar(0.0);
+    mass->doExport(*mass_over, *exporter, Tpetra::ADD);
+    mass->fillComplete();
+    vector_RCP temp_rhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
+    vector_RCP temp_sol = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
+    
+    this->setupMassSolver(mass, temp_rhs, temp_sol);
+  }
   
   current_time = start_time;
   if (!useadjoint) { // forward solve - adaptive time stepping
@@ -673,7 +673,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         status = this->nonlinearSolver(u, u_dot, zero_vec, zero_vec, alpha, beta);
       }
       else {
-        //status = this->explicitRKTimeSolver(u, u_dot, zero_vec, zero_vec, mass);
+        status = this->explicitRKTimeSolver(u, u_dot, zero_vec, zero_vec, mass);
       }
       
       if (status == 0) { // NL solver converged
@@ -931,6 +931,14 @@ void solver::setButcherTableau() {
     butcher_c(1) = 1.0/2.0;
     butcher_c(2) = 1.0/2.0;
     butcher_c(3) = 1.0;
+  }
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "******** Butcher tableau: " << endl;
+      KokkosTools::print(butcher_A, "solver::setButcherTableau() - Butcher-A");
+      KokkosTools::print(butcher_b, "solver::setButcherTableau() - Butcher-b");
+      KokkosTools::print(butcher_c, "solver::setButcherTableau() - Butcher-c");
+    }
   }
 }
 
