@@ -33,7 +33,7 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
     }
     if (settings->sublist("Physics").sublist("Active variables").isParameter("lambda")) {
       myvars.push_back("lambda");
-      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("lambda","HGRAD"));
+      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("lambda","HFACE"));
     }
   }
   else {
@@ -138,7 +138,6 @@ void porousHDIV_HYBRID::volumeResidual() {
 
 void porousHDIV_HYBRID::boundaryResidual() {
   
-  
   sideinfo = wkset->sideinfo;
   Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
   
@@ -185,7 +184,7 @@ void porousHDIV_HYBRID::boundaryResidual() {
         }
       }
     }
-    if (bcs(pnum,cside) == 5) {
+    else if (bcs(pnum,cside) == 5) {
       for (int k=0; k<basis.dimension(2); k++ ) {
         for (int i=0; i<basis.dimension(1); i++ ) {
           vx = basis(e,i,k,0);
@@ -213,7 +212,6 @@ void porousHDIV_HYBRID::boundaryResidual() {
 // ========================================================================================
 
 void porousHDIV_HYBRID::faceResidual() {
-  
   
   int lambda_basis = wkset->usebasis[lambdanum];
   int u_basis = wkset->usebasis[unum];
@@ -308,6 +306,7 @@ void porousHDIV_HYBRID::computeFlux() {
       }
     }
   }
+  
 }
 
 // ========================================================================================
@@ -338,7 +337,7 @@ void porousHDIV_HYBRID::setAuxVars(std::vector<string> & auxvarlist) {
   
   for (size_t i=0; i<auxvarlist.size(); i++) {
     if (auxvarlist[i] == "p")
-      auxpnum = i;
+      auxlambdanum = i; // hard-coded for now
     if (auxvarlist[i] == "u")
       auxunum = i;
     if (auxvarlist[i] == "lambda")

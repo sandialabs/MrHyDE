@@ -261,6 +261,8 @@ void porousHDIV::setAuxVars(std::vector<string> & auxvarlist) {
   for (size_t i=0; i<auxvarlist.size(); i++) {
     if (auxvarlist[i] == "p")
       auxpnum = i;
+    if (auxvarlist[i] == "lambda")
+      auxpnum = i;
     if (auxvarlist[i] == "u")
       auxunum = i;
   }
