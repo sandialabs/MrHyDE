@@ -148,7 +148,6 @@ int main(int argc,char * argv[]) {
     // Set up the subgrid discretizations/models if using multiscale method
     ////////////////////////////////////////////////////////////////////////////////
     
-    
     vector<Teuchos::RCP<SubGridModel> > subgridModels = subgridGenerator(subgridComm, settings, mesh->mesh);
     
     Teuchos::RCP<MultiScale> multiscale_manager = Teuchos::rcp( new MultiScale(Comm, subgridComm, settings,

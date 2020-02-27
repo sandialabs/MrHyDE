@@ -47,7 +47,14 @@ vector<Teuchos::RCP<SubGridModel> > subgridGenerator(const Teuchos::RCP<MpiComm>
       macromesh->getElementBlockNames(macro_blocknames);
       topo_RCP macro_topo = macromesh->getCellTopology(macro_blocknames[macro_block]);
       if (subgrid_model_type == "FEM") {
-        subgridModels.push_back(Teuchos::rcp( new SubGridFEM(Comm, subgrid_pl, macro_topo, num_macro_time_steps, macro_deltat) ) );
+        subgridModels.push_back(Teuchos::rcp( new SubGridFEM(Comm, subgrid_pl, macro_topo,
+                                                             num_macro_time_steps,
+                                                             macro_deltat) ) );
+      }
+      else if (subgrid_model_type == "Explicit FEM") {
+        subgridModels.push_back(Teuchos::rcp( new SubGridExpFEM(Comm, subgrid_pl, macro_topo,
+                                                                num_macro_time_steps,
+                                                                macro_deltat) ) );
       }
       else if (subgrid_model_type == "FEM2") {
         //subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo, num_macro_time_steps, macro_deltat) ) );
