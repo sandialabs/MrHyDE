@@ -29,7 +29,7 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
     }
     if (settings->sublist("Physics").sublist("Active variables").isParameter("pbndry")) {
       myvars.push_back("pbndry");
-      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("pbndry","HGRAD")); // TODO: turn into HFACE-DG
+      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("pbndry","HFACE")); // TODO: turn into HFACE-DG
     }
     if (settings->sublist("Physics").sublist("Active variables").isParameter("u")) {
       myvars.push_back("u");
@@ -169,7 +169,7 @@ void porousHDIV_WG::volumeResidual() {
           sz = basis(e,i,k,2);
         }
         int resindex = offsets(tnum,i);
-        // should be k_ij u_i s_j
+        // should be k_ij u_i s_j, but currently we assume K=1
         res(e,resindex) += ux*sx + uy*sy + uz*sz;
         //                               kxx(e,k)*ux*sx
         //                             + kxy(e,k)*ux*sy
@@ -215,71 +215,73 @@ void porousHDIV_WG::volumeResidual() {
 
 void porousHDIV_WG::boundaryResidual() {
   
-  //    sideinfo = wkset->sideinfo;
-  //    Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
-  //
-  //    int cside = wkset->currentside;
-  //    int sidetype;
-  //    sidetype = bcs(pbndrynum,cside);
-  //
-  //    basis = wkset->basis[pbndrynum];
-  //
-  //    {
-  //      Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
-  //      bsource = functionManager->evaluate("Dirichlet pbndry " + wkset->sidename,"side ip",blocknum);
-  //    }
-  //
-  //    // Since normals get recomputed often, this needs to be reset
-  //    normals = wkset->normals;
-  //
-  //    Teuchos::TimeMonitor localtime(*boundaryResidualFill);
-  //
-  //    ScalarT qbndry = 0.0;
-  //    AD ty = 0.0, tz = 0.0;
-  //    ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
-  //    for (int e=0; e<basis.dimension(0); e++) {
-  //      for (int k=0; k<basis.dimension(2); k++ ) {
-  //        for (int i=0; i<basis.dimension(1); i++ ) {
-  //          AD tx = sol(e,tnum,k,0);
-  //          nx = normals(e,k,0);
-  //          if (spaceDim>1) {
-  //            AD ty = sol(e,tnum,k,1);
-  //            ny = normals(e,k,1);
-  //          }
-  //          if (spaceDim>2) {
-  //            AD tz = sol(e,tnum,k,2);
-  //            nz = normals(e,k,2);
-  //          }
-  //          qbndry = basis(e,i,k,0);
-  //          int resindex = offsets(pbndrynum,i);
-  //          res(e,resindex) += -qbndry*(tx*nx+ty*ny+tz*nz);
-  //        }
-  //      }
-  //    }
-  //
-  //    basis = wkset->basis[unum];
-  //
-  //    ScalarT vx = 0.0, vy = 0.0, vz = 0.0;
-  //    for (int e=0; e<basis.dimension(0); e++) {
-  //      for (int k=0; k<basis.dimension(2); k++ ) {
-  //        for (int i=0; i<basis.dimension(1); i++ ) {
-  //          vx = basis(e,i,k,0);
-  //          nx = normals(e,k,0);
-  //          if (spaceDim>1) {
-  //            vy = basis(e,i,k,1);
-  //            ny = normals(e,k,1);
-  //          }
-  //          if (spaceDim>2) {
-  //            vz = basis(e,i,k,2);
-  //            nz = normals(e,k,2);
-  //          }
-  //          AD pbndry = sol(e,pbndrynum,k,0);
-  //
-  //          int resindex = offsets(unum,i);
-  //          res(e,resindex) += -pbndry*(vx*nx+vy*ny+vz*nz);
-  //        }
-  //      }
-  //    }
+  sideinfo = wkset->sideinfo;
+    Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
+
+    int cside = wkset->currentside;
+    int sidetype;
+    sidetype = bcs(pintnum,cside);
+
+    int t_basis = wkset->usebasis[tnum];
+
+    basis = wkset->basis_side[t_basis];
+
+    {
+      Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
+
+      if (sidetype == 1 ) {
+        bsource = functionManager->evaluate("Dirichlet p " + wkset->sidename,"side ip",blocknum);
+      }
+
+    }
+
+    // Since normals get recomputed often, this needs to be reset
+    normals = wkset->normals;
+
+    Teuchos::TimeMonitor localtime(*boundaryResidualFill);
+
+    ScalarT vx = 0.0, vy = 0.0, vz = 0.0;
+    ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
+    for (int e=0; e<basis.dimension(0); e++) {
+      if (bcs(pintnum,cside) == 1) {
+        for (int k=0; k<basis.dimension(2); k++ ) {
+          for (int i=0; i<basis.dimension(1); i++ ) {
+            vx = basis(e,i,k,0);
+            nx = normals(e,k,0);
+            if (spaceDim>1) {
+              vy = basis(e,i,k,1);
+              ny = normals(e,k,1);
+            }
+            if (spaceDim>2) {
+              vz = basis(e,i,k,2);
+              nz = normals(e,k,2);
+            }
+            int resindex = offsets(tnum,i);
+            res(e,resindex) -= bsource(e,k)*(vx*nx+vy*ny+vz*nz);
+          }
+        }
+      }
+      else if (bcs(pintnum,cside) == 5) {
+        for (int k=0; k<basis.dimension(2); k++ ) {
+          for (int i=0; i<basis.dimension(1); i++ ) {
+            vx = basis(e,i,k,0);
+            nx = normals(e,k,0);
+            if (spaceDim>1) {
+              vy = basis(e,i,k,1);
+              ny = normals(e,k,1);
+            }
+            if (spaceDim>2) {
+              vz = basis(e,i,k,2);
+              nz = normals(e,k,2);
+            }
+            int resindex = offsets(unum,i);
+            AD bval = aux_side(e,auxpbndrynum,k);
+            res(e,resindex) -= bval*(vx*nx+vy*ny+vz*nz);
+          }
+        }
+      }
+    }
+
 }
 
 
@@ -355,6 +357,35 @@ void porousHDIV_WG::faceResidual() {
 
 void porousHDIV_WG::computeFlux() {
   
+  // Since normals get recomputed often, this needs to be reset
+  normals = wkset->normals;
+
+  {
+    Teuchos::TimeMonitor localtime(*fluxFill);
+
+    AD tx = 0.0, ty = 0.0, tz = 0.0;
+    ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
+    for (int e=0; e<numElem; e++) {
+
+      for (size_t k=0; k<wkset->ip_side.dimension(1); k++) {
+
+        tx = sol_side(e,tnum,k,0);
+        nx = normals(e,k,0);
+
+        if (spaceDim > 1) {
+          ty = sol_side(e,tnum,k,1);
+          ny = normals(e,k,1);
+        }
+        if (spaceDim > 2) {
+          tz = sol_side(e,tnum,k,2);
+          nz = normals(e,k,2);
+        }
+
+        flux(e,auxpbndrynum,k) += -(tx*nx+ty*ny+tz*nz);
+      }
+    }
+  }
+
 }
 
 // ========================================================================================
@@ -377,5 +408,22 @@ void porousHDIV_WG::setVars(std::vector<string> & varlist_) {
       dynum = i;
     if (varlist[i] == "dz")
       dznum = i;
+  }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void porousHDIV_WG::setAuxVars(std::vector<string> & auxvarlist) {
+
+  for (size_t i=0; i<auxvarlist.size(); i++) {
+    if (auxvarlist[i] == "pbndry")
+      auxpbndrynum = i;
+    if (auxvarlist[i] == "pint")
+      auxpbndrynum = i; // hard-coded for now
+    if (auxvarlist[i] == "u")
+      auxunum = i;
+    if (auxvarlist[i] == "t")
+      auxtnum = i;
   }
 }
