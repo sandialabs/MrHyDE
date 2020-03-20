@@ -93,8 +93,7 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-int SubGridExpFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice> macrosideinfo_,
-                         vector<string> & macrosidenames,
+int SubGridExpFEM::addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> & macrosideinfo_,
                          Kokkos::View<GO**,HostDevice> & macroGIDs,
                          Kokkos::View<LO***,HostDevice> & macroindex,
                          Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & macroorientation) {
@@ -188,7 +187,8 @@ int SubGridExpFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevi
     // with multiple elements - this will help expose subgrid/local parallelism
     
     Teuchos::RCP<CellMetaData> cellData = Teuchos::rcp( new CellMetaData(settings, cellTopo,
-                                                                         physics_RCP, 0, 0, false));
+                                                                         physics_RCP, 0, 0, false,
+                                                                         macrosidenames));
     
     vector<Teuchos::RCP<cell> > newcells;
     int prog = 0;
@@ -240,14 +240,15 @@ int SubGridExpFEM::addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevi
         
       }
       currcells[0][e]->sideinfo = subsideinfo;
-      currcells[0][e]->sidenames = macrosidenames;
+      //currcells[0][e]->cellData->sidenames = macrosidenames;
     }
   }
   
   {
     // Determine the number of local sides
     Teuchos::RCP<CellMetaData> cellData = Teuchos::rcp( new CellMetaData(settings, cellTopo,
-                                                                         physics_RCP, 0, 0, false));
+                                                                         physics_RCP, 0, 0, false,
+                                                                         macrosidenames));
     
     int numSideElem = numSubElem;
     int numNodesPerElem = cellTopo->getNodeCount();
@@ -2669,6 +2670,63 @@ Teuchos::RCP<LA_CrsMatrix>  SubGridExpFEM::getProjectionMatrix() {
     glmass = mass;
   }
   return glmass;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Assemble the projection (mass) matrix
+////////////////////////////////////////////////////////////////////////////////
+
+Teuchos::RCP<LA_CrsMatrix> SubGridExpFEM::getProjectionMatrix(DRV & ip, DRV & wts,
+                                                              pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) {
+  
+  pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > my_basisinfo = this->evaluateBasis2(ip);
+  matrix_RCP map_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(sub_solver->LA_overlapped_graph));
+  
+  matrix_RCP map;
+  if (LocalComm->getSize() > 1) {
+    map = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(sub_solver->LA_overlapped_graph));
+    map->setAllToScalar(0.0);
+  }
+  else {
+    map = map_over;
+  }
+  
+  Teuchos::Array<ScalarT> vals(1);
+  Teuchos::Array<GO> cols(1);
+  
+  for (size_t k=0; k<ip.dimension(1); k++) {
+    for (size_t r=0; r<my_basisinfo.second[k].dimension(0);r++) {
+      for (size_t p=0; p<my_basisinfo.second[k].dimension(1);p++) {
+        int igid = my_basisinfo.first(k,p+2);
+        for (size_t s=0; s<other_basisinfo.second[k].dimension(0);s++) {
+          for (size_t q=0; q<other_basisinfo.second[k].dimension(1);q++) {
+            cols[0] = other_basisinfo.first(k,q+2);
+            if (r == s) {
+              vals[0] = my_basisinfo.second[k](r,p) * other_basisinfo.second[k](s,q) * wts(0,k);
+              map_over->sumIntoGlobalValues(igid, cols, vals);
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  map_over->fillComplete();
+  
+  if (LocalComm->getSize() > 1) {
+    map->doExport(*map_over, *(sub_solver->exporter), Tpetra::ADD);
+    map->fillComplete();
+  }
+  return map;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get an empty vector
+////////////////////////////////////////////////////////////////////////////////
+
+vector_RCP SubGridExpFEM::getVector() {
+  vector_RCP vec = Teuchos::rcp(new LA_MultiVector(sub_solver->LA_overlapped_map,1));
+  return vec;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

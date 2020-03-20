@@ -89,7 +89,7 @@ void cdr::volumeResidual() {
                                   (xvel(e,k)*sol_grad(e,cnum,k,0))*basis(e,i,k) + // convection terms
                                   reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k)); // reaction and source terms
           
-          res(e,resindex) += tau(e,k)*(sol_dot(e,cnum,k,0) + 1.0/(rho(e,k)*cp(e,k))*(xvel(e,k)*sol_grad(e,cnum,k,0) + reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0)));
+          //res(e,resindex) += tau(e,k)*(sol_dot(e,cnum,k,0) + 1.0/(rho(e,k)*cp(e,k))*(xvel(e,k)*sol_grad(e,cnum,k,0) + reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0)));
           
         }
       }
@@ -121,7 +121,7 @@ void cdr::volumeResidual() {
                                   (xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + zvel(e,k)*sol_grad(e,cnum,k,2))*basis(e,i,k) + // convection terms
                                   reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k)); // reaction and source terms
           
-          res(e,resindex) += tau(e,k)*(sol_dot(e,cnum,k,0) + 1.0/(rho(e,k)*cp(e,k))*(xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + zvel(e,k)*sol_grad(e,cnum,k,2) +reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0) + yvel(e,k)*basis_grad(e,i,k,1) + zvel(e,k)*basis_grad(e,i,k,2)));
+          //res(e,resindex) += tau(e,k)*(sol_dot(e,cnum,k,0) + 1.0/(rho(e,k)*cp(e,k))*(xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + zvel(e,k)*sol_grad(e,cnum,k,2) +reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0) + yvel(e,k)*basis_grad(e,i,k,1) + zvel(e,k)*basis_grad(e,i,k,2)));
           
         }
       }

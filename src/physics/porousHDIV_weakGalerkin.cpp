@@ -146,7 +146,7 @@ void porousHDIV_WG::volumeResidual() {
     AD uy = 0.0, uz = 0.0;
     AD ty = 0.0, tz = 0.0;
     
-    for (size_t k=0; k<sol.dimension(2); k++ ) {
+    for (size_t k=0; k<basis.dimension(2); k++ ) {
       for (size_t i=0; i<basis.dimension(1); i++ ) {
         AD ux = sol(e,unum,k,0);
         AD tx = sol(e,tnum,k,0);
@@ -161,7 +161,6 @@ void porousHDIV_WG::volumeResidual() {
         }
         
         sx = basis(e,i,k,0);
-        
         if (spaceDim > 1) {
           sy = basis(e,i,k,1);
         }
@@ -194,7 +193,7 @@ void porousHDIV_WG::volumeResidual() {
     
     ScalarT qint = 0.0;
     
-    for (size_t k=0; k<sol.dimension(2); k++ ) {
+    for (size_t k=0; k<basis.dimension(2); k++ ) {
       for (size_t i=0; i<basis.dimension(1); i++ ) {
         AD divt = sol_div(e,tnum,k);
         
@@ -230,7 +229,7 @@ void porousHDIV_WG::boundaryResidual() {
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
 
       if (sidetype == 1 ) {
-        bsource = functionManager->evaluate("Dirichlet p " + wkset->sidename,"side ip",blocknum);
+        bsource = functionManager->evaluate("Dirichlet pbndry " + wkset->sidename,"side ip",blocknum);
       }
 
     }

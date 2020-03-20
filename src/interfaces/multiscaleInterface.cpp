@@ -81,6 +81,7 @@ void MultiScale::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
     subgridModels[j]->macro_paramnames = macro_paramnames;
     subgridModels[j]->macro_disc_paramnames = macro_disc_paramnames;
     subgridModels[j]->subgrid_static = subgrid_static;
+    subgridModels[j]->macrosidenames = cells[0][0]->cellData->sidenames;
   }
   
 }
@@ -90,6 +91,11 @@ void MultiScale::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
 ////////////////////////////////////////////////////////////////////////////////
 
 ScalarT MultiScale::initialize() {
+  if (milo_debug_level > 0) {
+    if (MacroComm->getRank() == 0) {
+      cout << "**** Starting multiscale manager initialize" << endl;
+    }
+  }
   ScalarT my_cost = 0.0;
   size_t numusers = 0;
   for (size_t b=0; b<cells.size(); b++) {
@@ -161,7 +167,7 @@ ScalarT MultiScale::initialize() {
           }
           // needs to be updated
           
-          int cnum = subgridModels[sgnum[c]]->addMacro(cnodes, csideinfo, cells[b][e]->sidenames,
+          int cnum = subgridModels[sgnum[c]]->addMacro(cnodes, csideinfo,
                                                        cGIDs, cindex, orientation);
           
           usernum.push_back(cnum);
@@ -206,7 +212,6 @@ ScalarT MultiScale::initialize() {
           }
           for (size_t s=0; s<subgridModels.size(); s++) {
             int cnum = subgridModels[s]->addMacro(cnodes, csideinfo,
-                                                  cells[b][e]->sidenames,
                                                   cGIDs, cindex, orientation);
             usernum.push_back(cnum);
           }
@@ -235,6 +240,7 @@ ScalarT MultiScale::initialize() {
   ////////////////////////////////////////////////////////////////////////////////
   
   if (!subgrid_static) {
+    
     for (size_t s=0; s<subgridModels.size(); s++) {
       vector<bool> active(numusers,false);
       size_t numactive = 0;
@@ -251,72 +257,23 @@ ScalarT MultiScale::initialize() {
       }
       subgridModels[s]->active.push_back(active);
     }
-    
+  
     for (size_t i=0; i<subgridModels.size(); i++) {
-      //vector<vector<vector<FC> > > curr_sg_basis;
       DRV ip = subgridModels[i]->getIP();
       DRV wts = subgridModels[i]->getIPWts();
-      //KokkosTools::print(ip);
-      //KokkosTools::print(wts);
-      
       pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > basisinfo_i = subgridModels[i]->evaluateBasis2(ip);
       vector<Teuchos::RCP<LA_CrsMatrix> > currmaps;
       for (size_t j=0; j<subgridModels.size(); j++) {
         pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > basisinfo_j = subgridModels[j]->evaluateBasis2(ip);
-        matrix_RCP map_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(subgridModels[i]->overlapped_graph));
-        //matrix_RCP map_over = Tpetra::createCrsMatrix<ScalarT>(subgridModels[i]->overlapped_map);
-        //Teuchos::rcp(new LA_CrsMatrix(Copy, *(subgridModels[i]->overlapped_map), -1)); // reset Jacobian
-        
-        matrix_RCP map;
-        if (subgridModels[i]->LocalComm->getSize() > 1) {
-          map = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(subgridModels[i]->overlapped_graph));
-          map->setAllToScalar(0.0);
-        }
-        else {
-          map = map_over;
-        }
-        //matrix_RCP map = Tpetra::createCrsMatrix<ScalarT>(subgridModels[i]->owned_map);
-        //Teuchos::rcp(new LA_CrsMatrix(Copy, *(subgridModels[i]->owned_map), -1)); // reset Jacobian
-        
-        Teuchos::Array<ScalarT> vals(1);
-        Teuchos::Array<GO> cols(1);
-        
-        for (size_t k=0; k<ip.dimension(1); k++) {
-          int icell = basisinfo_i.first(k,0);
-          int jcell = basisinfo_j.first(k,0);
-          for (size_t r=0; r<basisinfo_i.second[k].dimension(0);r++) {
-            for (size_t p=0; p<basisinfo_i.second[k].dimension(1);p++) {
-              int igid = basisinfo_i.first(k,p+1);
-              for (size_t s=0; s<basisinfo_j.second[k].dimension(0);s++) {
-                for (size_t q=0; q<basisinfo_j.second[k].dimension(1);q++) {
-                  cols[0] = basisinfo_j.first(k,q+1);
-                  if (r == s) {
-                    vals[0] = basisinfo_i.second[k](r,p) * basisinfo_j.second[k](s,q) * wts(0,k);
-                    map_over->sumIntoGlobalValues(igid, cols, vals);
-                  }
-                }
-              }
-            }
-          }
-        }
-        
-        map_over->fillComplete();
-        
-        if (subgridModels[i]->LocalComm->getSize() > 1) {
-          //map->setAllToScalar(0.0);
-          map->doExport(*map_over, *(subgridModels[i]->exporter), Tpetra::ADD);
-          map->fillComplete();
-        }
+        Teuchos::RCP<LA_CrsMatrix> map = subgridModels[i]->getProjectionMatrix(ip, wts, basisinfo_j);
         currmaps.push_back(map);
-        
       }
       subgrid_projection_maps.push_back(currmaps);
     }
     
     for (size_t i=0; i<subgridModels.size(); i++) {
-      
-      vector_RCP dummy_vec = Teuchos::rcp(new LA_MultiVector(subgridModels[i]->overlapped_map,1));
-      vector_RCP dummy_vec2 = Teuchos::rcp(new LA_MultiVector(subgridModels[i]->overlapped_map,1));
+      vector_RCP dummy_vec = subgridModels[i]->getVector();
+      vector_RCP dummy_vec2 = subgridModels[i]->getVector();
       Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>("KLU2",subgrid_projection_maps[i][i], dummy_vec, dummy_vec2);
       Am2Solver->symbolicFactorization();
       Am2Solver->numericFactorization();
@@ -328,6 +285,12 @@ ScalarT MultiScale::initialize() {
   
   for (size_t s=0; s< subgridModels.size(); s++) {
     subgridModels[s]->addMeshData();
+  }
+  
+  if (milo_debug_level > 0) {
+    if (MacroComm->getRank() == 0) {
+      cout << "**** Finished multiscale manager initialize" << endl;
+    }
   }
   
   //subgrid_static = true;
@@ -396,10 +359,12 @@ ScalarT MultiScale::update() {
               int lastindex = subgridModels[oldmodel]->soln->times[usernum].size()-1;
               Teuchos::RCP<LA_MultiVector> lastsol = subgridModels[oldmodel]->soln->data[usernum][lastindex];
               ScalarT lasttime = subgridModels[oldmodel]->soln->times[usernum][lastindex];
-              Teuchos::RCP<LA_MultiVector> projvec = Teuchos::rcp(new LA_MultiVector(subgridModels[newmodel[c]]->owned_map,1));
+              //Teuchos::RCP<LA_MultiVector> projvec = Teuchos::rcp(new LA_MultiVector(subgridModels[newmodel[c]]->owned_map,1));
+              vector_RCP projvec = subgridModels[newmodel[c]]->getVector();//Teuchos::rcp(new LA_MultiVector(subgridModels[newmodel[c]]->owned_map,1));
               subgrid_projection_maps[newmodel[c]][oldmodel]->apply(*lastsol, *projvec);
               
-              Teuchos::RCP<LA_MultiVector> newvec = Teuchos::rcp(new LA_MultiVector(subgridModels[newmodel[c]]->owned_map,1));
+              //Teuchos::RCP<LA_MultiVector> newvec = Teuchos::rcp(new LA_MultiVector(subgridModels[newmodel[c]]->owned_map,1));
+              vector_RCP newvec = subgridModels[newmodel[c]]->getVector();
               subgrid_projection_solvers[newmodel[c]]->setB(projvec);
               subgrid_projection_solvers[newmodel[c]]->setX(newvec);
               

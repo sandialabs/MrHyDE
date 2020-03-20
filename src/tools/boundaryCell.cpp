@@ -24,18 +24,9 @@ void BoundaryCell::addAuxDiscretization(const vector<basis_RCP> & abasis_pointer
                                         const vector<DRV> & asideBasis,
                                         const vector<DRV> & asideBasisGrad) {
   
-  for (size_t b=0; b<abasis_pointers.size(); b++) {
-    auxbasisPointers.push_back(abasis_pointers[b]);
-  }
-  //for (size_t b=0; b<abasis.size(); b++) {
-  //  auxbasis.push_back(abasis[b]);
-    //auxbasisGrad.push_back(abasisGrad[b]);
-  //}
+  auxbasisPointers = abasis_pointers;
+  auxside_basis = asideBasis;
   
-  for (size_t s=0; s<asideBasis.size(); s++) {
-    auxside_basis.push_back(asideBasis[s]);
-    //auxside_basisGrad.push_back(asideBasisGrad[s]);
-  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -155,12 +146,12 @@ void BoundaryCell::computeSoln(const bool & seedu, const bool & seedudot, const 
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
-                         const bool & compute_jacobian, const bool & compute_sens,
-                         const int & num_active_params, const bool & compute_disc_sens,
-                         const bool & compute_aux_sens, const bool & store_adjPrev,
-                         Kokkos::View<ScalarT***,AssemblyDevice> local_res,
-                         Kokkos::View<ScalarT***,AssemblyDevice> local_J,
-                         Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
+                                 const bool & compute_jacobian, const bool & compute_sens,
+                                 const int & num_active_params, const bool & compute_disc_sens,
+                                 const bool & compute_aux_sens, const bool & store_adjPrev,
+                                 Kokkos::View<ScalarT***,AssemblyDevice> local_res,
+                                 Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                                 Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Compute the local contribution to the global residual and Jacobians

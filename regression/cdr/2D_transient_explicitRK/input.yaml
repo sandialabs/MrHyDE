@@ -2,18 +2,18 @@
 ---
 ANONYMOUS:
   verbosity: 0
-  debug level: 0
+  debug level: 2
   Mesh Settings File: input_mesh.yaml
   Functions Settings File: input_functions.yaml
   Physics: 
     solve_cdr: true
     Dirichlet conditions:
       c:
-        all boundaries: '0.0'
+        all boundaries: 'sin(2*pi*t)+(1.0+x+y)'
     initial conditions:
-      c: 'exp(bubble)'
+      c: '1.0+x+y'
     true solutions:
-      c: '0.0'
+      c: 'sin(2*pi*t)+(1.0+x+y)'
   Discretization:
     order:
       c: 1
@@ -23,12 +23,12 @@ ANONYMOUS:
     solver: transient
     Transient Solver: RK
     time order: 4
-    Workset size: 40
+    Workset size: 100
     Verbosity: 0
-    NLtol: 9.99999999999999955e-07
+    NLtol: 1.0e-12
     MaxNLiter: 10
-    final time: 1.00000000000000000e-4
-    delta t: 1.00000000000000000e-5
+    final time: 1.0e-4
+    delta t: 1.0e-5
     use strong DBCs: true
   Analysis: 
     analysis type: forward
@@ -42,5 +42,5 @@ ANONYMOUS:
     compute response: false
     compute objective: false
     compute sensitivities: false
-    write solution: false
+    write solution: true
 ...

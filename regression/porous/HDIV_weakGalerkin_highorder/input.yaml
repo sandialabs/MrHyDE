@@ -7,9 +7,9 @@ ANONYMOUS:
   Physics:  
     Active variables:
       pint: HGRAD-DG
-      pbndry: HFACE
       u: HDIV-DG
       t: HDIV-DG
+      pbndry: HFACE
     eblock-0_0: 
       solve_porousHDIV_weakGalerkin: true
       Dirichlet conditions:
@@ -55,7 +55,7 @@ ANONYMOUS:
     Verbosity: 0
     verification: true
     compute response: false
-    write solution: true
+    write solution: false
     compute objective: false
     compute sensitivities: false
 ...

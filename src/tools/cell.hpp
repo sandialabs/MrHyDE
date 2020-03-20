@@ -397,14 +397,11 @@ public:
   int numElem;
   DRV nodes, ip, ijac;
   
-  //vector<DRV> sideip, sideijac, normals, sidewts;
   Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
-  vector<string> sidenames;
   
   // DOF information
   Kokkos::View<GO**,HostDevice> GIDs, paramGIDs, auxGIDs;
   Kokkos::View<LO***,AssemblyDevice> index, paramindex, auxindex;
-  //vector<vector<ScalarT> > orientation;
   Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
   Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
   Kokkos::View<ScalarT***,AssemblyDevice> u, u_dot, phi, phi_dot, aux;

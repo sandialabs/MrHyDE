@@ -560,8 +560,12 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
     bool memeff = settings->sublist("Solver").get<bool>("Memory Efficient",false);
     int prog = 0;
     
+    vector<string> sideSets;
+    mesh->getSidesetNames(sideSets);
+    
     Teuchos::RCP<CellMetaData> cellData = Teuchos::rcp( new CellMetaData(settings, cellTopo,
-                                                                         phys, b, 0, memeff));
+                                                                         phys, b, 0, memeff,
+                                                                         sideSets));
     
     while (prog < numElem) {
       int currElem = elemPerCell;  // Avoid faults in last iteration
@@ -608,8 +612,7 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
     // Next, create the boundary cells
     
     vector<Teuchos::RCP<BoundaryCell> > bcells;
-    vector<string> sideSets;
-    mesh->getSidesetNames(sideSets);
+    
     // TMW: this is just for ease of use
     int numBoundaryElem = settings->sublist("Solver").get<int>("Workset size",1);
     

@@ -60,9 +60,8 @@ public:
   
 private:
   
-  FDATA mag_source_x, elec_source_x, mu, epsilon;
-  FDATA mag_source_y, elec_source_y;
-  FDATA mag_source_z, elec_source_z;
+  FDATA mu, epsilon;
+  FDATA current_x, current_y, current_z;
   
   int spaceDim, numElem, numParams, numResponses, numSteps;
   size_t numip, numip_side, blocknum;

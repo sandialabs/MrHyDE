@@ -220,7 +220,7 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
       // Set the side information (soon to be removed)-
       Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,localEID);
       cells[b][e]->sideinfo = sideinfo;
-      cells[b][e]->sidenames = phys->sideSets;
+      //cells[b][e]->sidenames = phys->sideSets;
       //-----------------------------------------------
       
       // Set the cell orientation ---

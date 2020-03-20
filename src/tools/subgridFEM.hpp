@@ -28,6 +28,7 @@
 #include "solverInterface.hpp"
 #include "subgridTools.hpp"
 #include "parameterManager.hpp"
+#include "subGridLocalData.hpp"
 
 // Belos
 #include <BelosConfigDefs.hpp>
@@ -64,10 +65,14 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  int addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice> macrosideinfo_,
-               vector<string> & macrosidenames,
+  int addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> & macrosideinfo_,
                Kokkos::View<GO**,HostDevice> & macroGIDs, Kokkos::View<LO***,HostDevice> & macroindex,
                Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & macroorientation);
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  void setUpSubgridModels();
   
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
@@ -181,6 +186,20 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   
   Teuchos::RCP<LA_CrsMatrix>  getProjectionMatrix();
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // Assemble the projection matrix using ip and basis values from another subgrid model
+  ////////////////////////////////////////////////////////////////////////////////
+
+  Teuchos::RCP<LA_CrsMatrix> getProjectionMatrix(DRV & ip, DRV & wts,
+                                                 pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo);
+
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Get an empty vector
+  ////////////////////////////////////////////////////////////////////////////////
+
+  vector_RCP getVector();
   
   ////////////////////////////////////////////////////////////////////////////////
   // Get the integration points
@@ -251,6 +270,12 @@ public:
   
   void updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data);
   
+  // ========================================================================================
+  //
+  // ========================================================================================
+  
+  void updateLocalData(const int & usernum);
+  
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
@@ -261,27 +286,14 @@ public:
   string macroshape, shape, multiscale_method, error_type;
   int nummacroVars, subgridverbose, numrefine;
   topo_RCP cellTopo, macro_cellTopo;
-  vector<basis_RCP> basis_pointers;
-  
-  vector<Kokkos::View<int**,AssemblyDevice> > subgridbcs;
-  vector<vector<int> > useBasis;
   
   // Linear algebra / solver objects
-  Teuchos::RCP<LA_Map> param_owned_map;
   Teuchos::RCP<LA_Map> param_overlapped_map;
-  Teuchos::RCP<LA_Export> param_exporter;
-  Teuchos::RCP<LA_Import> param_importer;
-  
   Teuchos::RCP<LA_MultiVector> res, res_over, d_um, du, du_glob;//, d_up;//,
   Teuchos::RCP<LA_MultiVector> u, u_dot, phi, phi_dot;
   Teuchos::RCP<LA_MultiVector> d_sub_res_overm, d_sub_resm, d_sub_u_prevm, d_sub_u_overm;
-  
-  //Teuchos::RCP<LA_CrsGraph> owned_graph, overlapped_graph;
   Teuchos::RCP<LA_CrsMatrix>  J, sub_J_over, M, sub_M_over;
   
-  //LA_LinearProblem LinSys;
-  
-  //Amesos_BaseSolver * AmSolver;
   Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver;
   Teuchos::RCP<LA_MultiVector> LA_rhs, LA_lhs;
   
@@ -291,36 +303,27 @@ public:
   Teuchos::RCP<Belos::SolverManager<ScalarT, LA_MultiVector, LA_Operator> > belos_solver;
   bool have_belos = false;
   
-  bool filledJ, filledM;
   vector<string> stoch_param_types;
   vector<ScalarT> stoch_param_means, stoch_param_vars, stoch_param_mins, stoch_param_maxs;
   int num_stochclassic_params, num_active_params;
   vector<string> stochclassic_param_names;
-  
-  
   ScalarT sub_NLtol;
   int sub_maxNLiter;
-  
-  
   bool have_sym_factor, useDirect;
-  
-  
+    
   vector<string> discparamnames;
-  Teuchos::RCP<physics> physics_RCP;
-  Teuchos::RCP<panzer::DOFManager> DOF;
+  Teuchos::RCP<physics> sub_physics;
   Teuchos::RCP<AssemblyManager> sub_assembler;
   Teuchos::RCP<ParameterManager> sub_params;
   Teuchos::RCP<solver> sub_solver;
-  Teuchos::RCP<meshInterface> mesh_interface;
-  Teuchos::RCP<panzer_stk::STK_Interface> mesh;
-  Teuchos::RCP<discretization> disc;
-  Teuchos::RCP<FunctionManager> functionManager;
+  Teuchos::RCP<meshInterface> sub_mesh;
+  Teuchos::RCP<discretization> sub_disc;
   
   vector<Teuchos::RCP<LA_MultiVector> > Psol;
   
   // Dynamic - depend on the macro-element
-  vector<DRV> macronodes;
-  vector<Kokkos::View<int****,HostDevice> > macrosideinfo;
+  vector<Teuchos::RCP<SubGridLocalData> > localData;
+  
   int num_macro_time_steps;
   ScalarT macro_deltat;
   bool write_subgrid_state;
@@ -355,6 +358,7 @@ public:
   Teuchos::RCP<Teuchos::Time> sgfemSubMeshTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::addMacro - create subgrid meshes");
   Teuchos::RCP<Teuchos::Time> sgfemLinearAlgebraSetupTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::addMacro - setup linear algebra");
   Teuchos::RCP<Teuchos::Time> sgfemTotalAddMacroTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::addMacro()");
+  Teuchos::RCP<Teuchos::Time> sgfemTotalSetUpTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::setUpSubgridModels()");
   Teuchos::RCP<Teuchos::Time> sgfemMeshDataTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::addMeshData()");
   Teuchos::RCP<Teuchos::Time> sgfemSubCellTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::addMacro - create subcells");
   Teuchos::RCP<Teuchos::Time> sgfemSubDiscTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::addMacro - create disc. interface");

@@ -265,7 +265,7 @@ void workset::setupBasis() {
       Intrepid2::CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, ref_side_ip, dimension-1, s, *celltopo);
       ref_side_ip_vec.push_back(refSidePoints);
       
-      if (basis_types[i] == "HGRAD" || basis_types[i] == "HVOL"){
+      if (basis_types[i] == "HGRAD" || basis_types[i] == "HVOL" || basis_types[i] == "HFACE"){
         
         DRV basisvals("basisvals",numb, numsideip);
         basis_pointers[i]->getValues(basisvals, refSidePoints, Intrepid2::OPERATOR_VALUE);
@@ -1634,7 +1634,7 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
         DRV kbasis_grad_uw = basis_grad_side_uw[kubasis];
         
         for (int i=0; i<knbasis; i++ ) {
-          for (int e=0; e<numElem; e++) {
+          for (int e=0; e<kbasis_uw.dimension(0); e++) {
             uval = u_AD(e,k,i);
             u_dotval = u_dot_AD(e,k,i);
             for (size_t j=0; j<numsideip; j++ ) {

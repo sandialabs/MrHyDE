@@ -126,7 +126,6 @@ void thermal::volumeResidual() {
       }
     });
   }
-  
 }
 
 
@@ -255,6 +254,7 @@ void thermal::computeFlux() {
   
   // Since normals get recomputed often, this needs to be reset
   normals = wkset->normals;
+  //KokkosTools::print(wkset->basis_grad_side_uw[0]);
   
   {
     Teuchos::TimeMonitor localtime(*fluxFill);

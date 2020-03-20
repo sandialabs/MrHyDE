@@ -1,15 +1,97 @@
+**** Starting mesh interface constructor ...
+**** Finished mesh interface constructor
+**** Starting physics constructor ...
+**** Starting physics::importPhysics ...
+**** Finished physics::importPhysics ...
+**** Finished physics constructor
+**** Starting mesh::createCells ...
+**** Finished mesh::createCells
+**** Starting discretization constructor...
+**** Finished discretization constructor
+**** Starting physics::buildDOF ...
+**** Finished physics::buildDOF
+**** Starting physics::setBCData ...
+**** Finished physics::setBCData
+**** Starting discretization:: setIntegrationInfo
+**** Finished discretization:: setIntegrationInfo
+**** Starting multiscale manager constructor ...
+**** Finished multiscale manager constructor
+**** Starting assembly manager constructor ...
+**** Finished assembly manager constructor
+**** Starting solver constructor ...
+******** Butcher tableau: 
 
-*********************************************************
-***** Performing verification ******
+solver::setButcherTableau() - Butcher-A
+Printing data for View: butcher_A
+  i    j    value  
+-------------------------------
+  0    0      0  
+  0    1      0  
+  0    2      0  
+  0    3      0  
+  1    0      0.5  
+  1    1      0  
+  1    2      0  
+  1    3      0  
+  2    0      0  
+  2    1      0.5  
+  2    2      0  
+  2    3      0  
+  3    0      0  
+  3    1      0  
+  3    2      1  
+  3    3      0  
+-------------------------------
 
-***** L2 norm of the error for c = 0.375083  (time = 0)
-***** L2 norm of the error for c = 0.374787  (time = 1e-05)
-***** L2 norm of the error for c = 0.374503  (time = 2e-05)
-***** L2 norm of the error for c = 0.374228  (time = 3e-05)
-***** L2 norm of the error for c = 0.373963  (time = 4e-05)
-***** L2 norm of the error for c = 0.373705  (time = 5e-05)
-***** L2 norm of the error for c = 0.373454  (time = 6e-05)
-***** L2 norm of the error for c = 0.373208  (time = 7e-05)
-***** L2 norm of the error for c = 0.372968  (time = 8e-05)
-***** L2 norm of the error for c = 0.372732  (time = 9e-05)
-***** L2 norm of the error for c = 0.3725  (time = 0.0001)
+solver::setButcherTableau() - Butcher-b
+Printing data for View: butcher_b
+  i    value  
+--------------------
+  0      0.166667  
+  1      0.333333  
+  2      0.333333  
+  3      0.166667  
+--------------------
+
+solver::setButcherTableau() - Butcher-c
+Printing data for View: butcher_c
+  i    value  
+--------------------
+  0      0  
+  1      0.5  
+  2      0.5  
+  3      1  
+--------------------
+Number of global unknowns: 25
+**** Starting solver::setupLinearAlgebra...
+**** Finished solver::setupLinearAlgebra
+**** Starting AssemblyManager::createWorkset ...
+**** Finished AssemblyManager::createWorkset
+**** Starting solver::finalizeWorkset ...
+**** Finished solver::finalizeWorkset
+**** Finished solver constructor
+**** Starting analysis::run ...
+**** Starting solver::forwardModel ...
+******** Starting solver::transientSolver ...
+******** Start time = 0
+******** End time = 0.0001
+******** Time step size = 1e-05
+******** Starting solver::explicitRKTimeSolver ...
+******** Current time = 0
+******** Starting stage: 0
+******** Starting AssemblyManager::assembleJacRes ...
+******** Finished AssemblyManager::assembleJacRes
+
+ "Tpetra::MultiVector":
+  Template parameters:
+   Scalar: double
+   LocalOrdinal: int
+   GlobalOrdinal: long long
+   Node: Serial/Wrapper
+  Global number of rows: 25
+  Number of columns: 1
+  Process 0 of 4:
+   Local number of rows: 10
+   Column stride: 10
+   Values: 
+   [3.53429; -7.06858; 14.1372; -7.06858; 7.06858; -3.53429; 14.1372; -7.06858; -7.06858; 3.53429]

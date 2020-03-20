@@ -31,9 +31,10 @@ public:
   CellMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settings,
                const topo_RCP & cellTopo_,
                const Teuchos::RCP<physics> & physics_RCP_, const size_t & myBlock_,
-               const size_t & myLevel_, const bool & memeff_) :
+               const size_t & myLevel_, const bool & memeff_,
+               const vector<string> & sidenames_) :
   cellTopo(cellTopo_), physics_RCP(physics_RCP_), myBlock(myBlock_),
-  myLevel(myLevel_), memory_efficient(memeff_) {
+  myLevel(myLevel_), memory_efficient(memeff_), sidenames(sidenames_) {
   
     
     compute_diff = settings->sublist("Postprocess").get<bool>("Compute Difference in Objective", true);
@@ -67,6 +68,7 @@ public:
   size_t myBlock, myLevel;
   Teuchos::RCP<physics> physics_RCP;
   string response_type;
+  vector<string> sidenames;
   
   // Geometry Information
   size_t numnodes, numSides, dimension;

@@ -26,8 +26,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  virtual int addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice> macrosideinfo_,
-                       vector<string> & macrosidenames,
+  virtual int addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> & macrosideinfo_,
                        Kokkos::View<GO**,HostDevice> & macroGIDs,
                        Kokkos::View<LO***,HostDevice> & macroindex,
                        Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & macroorientation) = 0;
@@ -66,6 +65,11 @@ public:
   
   virtual matrix_RCP getProjectionMatrix() = 0;
   
+  virtual Teuchos::RCP<LA_CrsMatrix> getProjectionMatrix(DRV & ip, DRV & wts,
+                                                         pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) = 0;  
+  
+  virtual vector_RCP getVector() = 0;
+  
   virtual DRV getIP() = 0;
   
   virtual DRV getIPWts() = 0;
@@ -97,16 +101,10 @@ public:
   vector<string> macro_varlist;
   vector<int> macro_usebasis;
   vector<vector<int> > macro_offsets;
-  vector<string> macro_paramnames, macro_disc_paramnames;
+  vector<string> macro_paramnames, macro_disc_paramnames, macrosidenames;
   int macro_block;
   ScalarT cost_estimate;
   bool subgrid_static;
-  
-  Teuchos::RCP<const LA_Map> owned_map, overlapped_map;
-  Teuchos::RCP<LA_CrsGraph> owned_graph, overlapped_graph;
-  
-  Teuchos::RCP<LA_Export> exporter;
-  Teuchos::RCP<LA_Import> importer;
   
   vector<Teuchos::RCP<vector<AD> > > paramvals_AD;
 

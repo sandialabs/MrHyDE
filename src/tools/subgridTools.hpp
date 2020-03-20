@@ -46,6 +46,16 @@ public:
         }
         subnodes.push_back(newnode);
         newconn.push_back(i);
+        
+        Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+        for (unsigned int j=0; j<nodes.dimension(1); j++) {
+          if (i==j) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 1.0;
+            }
+          }
+        }
+        subnodemap.push_back(newmap);
       }
       subconnectivity.push_back(newconn);
       
@@ -64,6 +74,21 @@ public:
       }
       subsideinfo.push_back(newsi);
       
+      Kokkos::View<int***,AssemblyDevice> newsidemap("newsidemap",sideinfo.dimension(1),sideinfo.dimension(2),2);
+      for (size_t n=0; n<sideinfo.dimension(1); n++) {
+        for (size_t s=0; s<sideinfo.dimension(2); s++) {
+          //if (sideinfo(0,n,s,0) > 0) {
+            newsidemap(n,s,0) = 1;
+            newsidemap(n,s,1) = s;
+          //}
+          //else {
+          //  newsidemap(n,s,0) = 1;
+          //  newsidemap(n,s,1) = -1;
+          //}
+        }
+      }
+      subsidemap.push_back(newsidemap);
+      
     }
     else {
       if (dimension == 1) {
@@ -78,11 +103,29 @@ public:
               newnode.push_back(nodes(0,i,s));
             }
             subnodes.push_back(newnode);
+            
+            Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+            for (unsigned int j=0; j<nodes.dimension(1); j++) {
+              if (i==j) {
+                for (unsigned int s=0; s<dimension; s++) {
+                  newmap(j,s) = 1.0;
+                }
+              }
+            }
+            subnodemap.push_back(newmap);
           }
           vector<ScalarT> midnode;
           midnode.push_back(0.25*(nodes(0,0,0)+nodes(0,1,0)+nodes(0,2,0)+nodes(0,3,0)));
           midnode.push_back(0.25*(nodes(0,0,1)+nodes(0,1,1)+nodes(0,2,1)+nodes(0,3,1)));
           subnodes.push_back(midnode);
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.25;
+            }
+          }
+          subnodemap.push_back(newmap);
           
           newconn0.push_back(0);
           newconn0.push_back(1);
@@ -139,6 +182,43 @@ public:
           subsideinfo.push_back(newsi1);
           subsideinfo.push_back(newsi2);
           subsideinfo.push_back(newsi3);
+          
+          Kokkos::View<int***,AssemblyDevice> newsidemap0("newsi",sideinfo.dimension(1),3,2);
+          Kokkos::View<int***,AssemblyDevice> newsidemap1("newsi",sideinfo.dimension(1),3,2);
+          Kokkos::View<int***,AssemblyDevice> newsidemap2("newsi",sideinfo.dimension(1),3,2);
+          Kokkos::View<int***,AssemblyDevice> newsidemap3("newsi",sideinfo.dimension(1),3,2);
+          
+          for (size_t n=0; n<sideinfo.dimension(1); n++) {
+            
+            newsidemap0(n,0,0) = 1;
+            if (sideinfo(0,n,0,0) > 0)
+              newsidemap0(n,0,1) = 0;
+            else
+              newsidemap0(n,0,1) = -1;
+            
+            newsidemap1(n,0,0) = 1;
+            if (sideinfo(0,n,1,0) > 0)
+              newsidemap1(n,0,1) = 1;
+            else
+              newsidemap1(n,0,1) = -1;
+            
+            newsidemap2(n,0,0) = 1;
+            if (sideinfo(0,n,2,0) > 0)
+              newsidemap2(n,0,1) = 2;
+            else
+              newsidemap2(n,0,1) = -1;
+            
+            newsidemap3(n,0,0) = 1;
+            if (sideinfo(0,n,3,0) > 0)
+              newsidemap3(n,0,1) = 3;
+            else
+              newsidemap3(n,0,1) = -1;
+          }
+          subsidemap.push_back(newsidemap0);
+          subsidemap.push_back(newsidemap1);
+          subsidemap.push_back(newsidemap2);
+          subsidemap.push_back(newsidemap3);
+          
         }
         else if (shape == "tri" && subshape == "quad") {
           vector<GO> newconn0, newconn1, newconn2;
@@ -149,7 +229,18 @@ public:
               newnode.push_back(nodes(0,i,s));
             }
             subnodes.push_back(newnode);
+          
+            Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+            for (unsigned int j=0; j<nodes.dimension(1); j++) {
+              if (i==j) {
+                for (unsigned int s=0; s<dimension; s++) {
+                  newmap(j,s) = 1.0;
+                }
+              }
+            }
+            subnodemap.push_back(newmap);
           }
+          
           vector<ScalarT> center, mid01, mid12, mid02;
           center.push_back(1.0/3.0*(nodes(0,0,0)+nodes(0,1,0)+nodes(0,2,0)));
           center.push_back(1.0/3.0*(nodes(0,0,1)+nodes(0,1,1)+nodes(0,2,1)));
@@ -163,6 +254,35 @@ public:
           subnodes.push_back(mid01);
           subnodes.push_back(mid12);
           subnodes.push_back(mid02);
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmapc("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmapc(j,s) = 1.0/3.0;
+            }
+          }
+          subnodemap.push_back(newmapc);
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmapm01("node map", nodes.dimension(1), dimension);
+          for (unsigned int s=0; s<dimension; s++) {
+            newmapm01(0,s) = 0.5;
+            newmapm01(1,s) = 0.5;
+          }
+          subnodemap.push_back(newmapm01);
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmapm12("node map", nodes.dimension(1), dimension);
+          for (unsigned int s=0; s<dimension; s++) {
+            newmapm12(1,s) = 0.5;
+            newmapm12(2,s) = 0.5;
+          }
+          subnodemap.push_back(newmapm12);
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmapm02("node map", nodes.dimension(1), dimension);
+          for (unsigned int s=0; s<dimension; s++) {
+            newmapm02(0,s) = 0.5;
+            newmapm02(2,s) = 0.5;
+          }
+          subnodemap.push_back(newmapm02);
           
           newconn0.push_back(0);
           newconn0.push_back(4);
@@ -228,6 +348,54 @@ public:
           subsideinfo.push_back(newsi0);
           subsideinfo.push_back(newsi1);
           subsideinfo.push_back(newsi2);
+          
+          Kokkos::View<int***,AssemblyDevice> newsidemap0("newsi",sideinfo.dimension(1),4,2);
+          Kokkos::View<int***,AssemblyDevice> newsidemap1("newsi",sideinfo.dimension(1),4,2);
+          Kokkos::View<int***,AssemblyDevice> newsidemap2("newsi",sideinfo.dimension(1),4,2);
+          
+          for (size_t n=0; n<sideinfo.dimension(1); n++) {
+            
+            newsidemap0(n,0,0) = 1;
+            if (sideinfo(0,n,0,0) > 0)
+              newsidemap0(n,0,1) = 0;
+            else
+              newsidemap0(n,0,1) = -1;
+            
+            newsidemap0(n,3,0) = 1;
+            if (sideinfo(0,n,2,0) > 0)
+              newsidemap0(n,3,1) = 2;
+            else
+              newsidemap0(n,3,1) = -1;
+            
+            newsidemap1(n,0,0) = 1;
+            if (sideinfo(0,n,1,0) > 0)
+              newsidemap1(n,0,1) = 1;
+            else
+              newsidemap1(n,0,1) = -1;
+            
+            newsidemap1(n,3,0) = 1;
+            if (sideinfo(0,n,0,0) > 0)
+              newsidemap1(n,3,1) = 0;
+            else
+              newsidemap1(n,3,1) = -1;
+            
+            newsidemap2(n,0,0) = 1;
+            if (sideinfo(0,n,2,0) > 0)
+              newsidemap2(n,0,1) = 2;
+            else
+              newsidemap2(n,0,1) = -1;
+            
+            newsidemap2(n,3,0) = 1;
+            if (sideinfo(0,n,1,0) > 0)
+              newsidemap2(n,3,1) = 1;
+            else
+              newsidemap2(n,3,1) = -1;
+            
+          }
+          subsidemap.push_back(newsidemap0);
+          subsidemap.push_back(newsidemap1);
+          subsidemap.push_back(newsidemap2);
+          
         }
         else {
           // output an error message
@@ -247,7 +415,12 @@ public:
       }
       subconnectivity.erase(subconnectivity.begin(), subconnectivity.begin()+numelem);
       subsideinfo.erase(subsideinfo.begin(), subsideinfo.begin()+numelem);
+      subsidemap.erase(subsidemap.begin(), subsidemap.begin()+numelem);
     }
+    
+    //this->checkNodeMap();
+    //this->checkSideMap();
+    
   }
   
   //////////////////////////////////////////////////////////////////////////////////////
@@ -264,6 +437,13 @@ public:
       vector<ScalarT> mid(1,midx);
       
       subnodes.push_back(mid);
+      
+      Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+      for (unsigned int s=0; s<dimension; s++) {
+        newmap(0,s) = 0.5;
+        newmap(1,s) = 0.5;
+      }
+      subnodemap.push_back(newmap);
       
       vector<GO> newelem0, newelem1;
       newelem0.push_back(subconnectivity[e][0]);
@@ -290,6 +470,21 @@ public:
       subsideinfo.push_back(newsi0);
       subsideinfo.push_back(newsi1);
       
+      Kokkos::View<int***,AssemblyDevice> oldmap = subsidemap[e];
+      Kokkos::View<int***,AssemblyDevice> newsm0("newsi",oldmap.dimension(1),2,2);
+      Kokkos::View<int***,AssemblyDevice> newsm1("newsi",oldmap.dimension(1),2,2);
+      Kokkos::deep_copy(newsm0,oldmap);
+      Kokkos::deep_copy(newsm1,oldmap);
+      
+      for (unsigned int n=0; n<oldmap.dimension(0); n++) {
+        newsm0(n,1,0) = 0;
+        newsm0(n,1,1) = 0;
+        newsm1(n,0,0) = 0;
+        newsm1(n,0,1) = 0;
+      }
+      subsidemap.push_back(newsm0);
+      subsidemap.push_back(newsm1);
+      
     }
     if (dimension == 2) {
       if (subshape == "tri") {
@@ -297,6 +492,10 @@ public:
         vector<ScalarT> node0 = subnodes[subconnectivity[e][0]];
         vector<ScalarT> node1 = subnodes[subconnectivity[e][1]];
         vector<ScalarT> node2 = subnodes[subconnectivity[e][2]];
+        
+        Kokkos::View<ScalarT**,AssemblyDevice> map0 = subnodemap[subconnectivity[e][0]];
+        Kokkos::View<ScalarT**,AssemblyDevice> map1 = subnodemap[subconnectivity[e][1]];
+        Kokkos::View<ScalarT**,AssemblyDevice> map2 = subnodemap[subconnectivity[e][2]];
         
         // Compute the candidate new nodes
         vector<ScalarT> mid01, mid12, mid02;
@@ -317,18 +516,42 @@ public:
         if (!found) {
           subnodes.push_back(mid01);
           mid01_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map0(j,s) + 0.5*map1(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid12,tol,mid12_ind);
         if (!found) {
           subnodes.push_back(mid12);
           mid12_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map1(j,s) + 0.5*map2(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid02,tol,mid02_ind);
         if (!found) {
           subnodes.push_back(mid02);
           mid02_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map0(j,s) + 0.5*map2(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         // Define the new elements (appended to end of list)
@@ -384,6 +607,35 @@ public:
         subsideinfo.push_back(newsi2);
         subsideinfo.push_back(newsi3);
         
+        Kokkos::View<int***,AssemblyDevice> oldmap = subsidemap[e];
+        Kokkos::View<int***,AssemblyDevice> newsm0("newsi",oldmap.dimension(1),3,2);
+        Kokkos::View<int***,AssemblyDevice> newsm1("newsi",oldmap.dimension(1),3,2);
+        Kokkos::View<int***,AssemblyDevice> newsm2("newsi",oldmap.dimension(1),3,2);
+        Kokkos::View<int***,AssemblyDevice> newsm3("newsi",oldmap.dimension(1),3,2);
+        Kokkos::deep_copy(newsm0,oldmap);
+        Kokkos::deep_copy(newsm1,oldmap);
+        Kokkos::deep_copy(newsm2,oldmap);
+        Kokkos::deep_copy(newsm3,oldmap);
+        
+        for (unsigned int n=0; n<oldmap.dimension(0); n++) {
+          newsm0(n,1,0) = 0;
+          newsm0(n,1,1) = 0;
+          newsm1(n,1,0) = 0;
+          newsm1(n,1,1) = 0;
+          newsm2(n,1,0) = 0;
+          newsm2(n,1,1) = 0;
+          newsm3(n,0,0) = 0;
+          newsm3(n,0,1) = 0;
+          newsm3(n,1,0) = 0;
+          newsm3(n,1,1) = 0;
+          newsm3(n,2,0) = 0;
+          newsm3(n,2,1) = 0;
+        }
+        subsidemap.push_back(newsm0);
+        subsidemap.push_back(newsm1);
+        subsidemap.push_back(newsm2);
+        subsidemap.push_back(newsm3);
+        
         
       }
       else if (subshape == "quad") {
@@ -392,6 +644,11 @@ public:
         vector<ScalarT> node1 = subnodes[subconnectivity[e][1]];
         vector<ScalarT> node2 = subnodes[subconnectivity[e][2]];
         vector<ScalarT> node3 = subnodes[subconnectivity[e][3]];
+        
+        Kokkos::View<ScalarT**,AssemblyDevice> map0 = subnodemap[subconnectivity[e][0]];
+        Kokkos::View<ScalarT**,AssemblyDevice> map1 = subnodemap[subconnectivity[e][1]];
+        Kokkos::View<ScalarT**,AssemblyDevice> map2 = subnodemap[subconnectivity[e][2]];
+        Kokkos::View<ScalarT**,AssemblyDevice> map3 = subnodemap[subconnectivity[e][3]];
         
         // Compute the candidate new nodes
         vector<ScalarT> center, mid01, mid12, mid23, mid03;
@@ -416,30 +673,70 @@ public:
         if (!found) {
           subnodes.push_back(center);
           center_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.25*map0(j,s) + 0.25*map1(j,s) + 0.25*map2(j,s) + 0.25*map3(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid01,tol,mid01_ind);
         if (!found) {
           subnodes.push_back(mid01);
           mid01_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map0(j,s) + 0.5*map1(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid12,tol,mid12_ind);
         if (!found) {
           subnodes.push_back(mid12);
           mid12_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map1(j,s) + 0.5*map2(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid23,tol,mid23_ind);
         if (!found) {
           subnodes.push_back(mid23);
           mid23_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map2(j,s) + 0.5*map3(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid03,tol,mid03_ind);
         if (!found) {
           subnodes.push_back(mid03);
           mid03_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map0(j,s) + 0.5*map3(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         // Define the new elements (appended to end of list)
@@ -506,6 +803,42 @@ public:
         subsideinfo.push_back(newsi2);
         subsideinfo.push_back(newsi3);
         
+        Kokkos::View<int***,AssemblyDevice> oldmap = subsidemap[e];
+        Kokkos::View<int***,AssemblyDevice> newsm0("newsm",oldmap.dimension(1),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm1("newsm",oldmap.dimension(1),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm2("newsm",oldmap.dimension(1),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm3("newsm",oldmap.dimension(1),4,2);
+        Kokkos::deep_copy(newsm0,oldmap);
+        Kokkos::deep_copy(newsm1,oldmap);
+        Kokkos::deep_copy(newsm2,oldmap);
+        Kokkos::deep_copy(newsm3,oldmap);
+        
+        for (unsigned int n=0; n<oldmap.dimension(0); n++) {
+          newsm0(n,1,0) = 0;
+          newsm0(n,1,1) = 0;
+          newsm0(n,2,0) = 0;
+          newsm0(n,2,1) = 0;
+          
+          newsm1(n,2,0) = 0;
+          newsm1(n,2,1) = 0;
+          newsm1(n,3,0) = 0;
+          newsm1(n,3,1) = 0;
+          
+          newsm2(n,0,0) = 0;
+          newsm2(n,0,1) = 0;
+          newsm2(n,3,0) = 0;
+          newsm2(n,3,1) = 0;
+          
+          newsm3(n,0,0) = 0;
+          newsm3(n,0,1) = 0;
+          newsm3(n,1,0) = 0;
+          newsm3(n,1,1) = 0;
+        }
+        subsidemap.push_back(newsm0);
+        subsidemap.push_back(newsm1);
+        subsidemap.push_back(newsm2);
+        subsidemap.push_back(newsm3);
+        
       }
       else {
         // add error
@@ -518,6 +851,11 @@ public:
         vector<ScalarT> node1 = subnodes[subconnectivity[e][1]];
         vector<ScalarT> node2 = subnodes[subconnectivity[e][2]];
         vector<ScalarT> node3 = subnodes[subconnectivity[e][3]];
+        
+        Kokkos::View<ScalarT**,AssemblyDevice> map0 = subnodemap[subconnectivity[e][0]];
+        Kokkos::View<ScalarT**,AssemblyDevice> map1 = subnodemap[subconnectivity[e][1]];
+        Kokkos::View<ScalarT**,AssemblyDevice> map2 = subnodemap[subconnectivity[e][2]];
+        Kokkos::View<ScalarT**,AssemblyDevice> map3 = subnodemap[subconnectivity[e][3]];
         
         // Compute the candidate new nodes
         vector<ScalarT> mid01, mid12, mid02, mid03, mid13, mid23;
@@ -551,36 +889,84 @@ public:
         if (!found) {
           subnodes.push_back(mid01);
           mid01_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map0(j,s) + 0.5*map1(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid12,tol,mid12_ind);
         if (!found) {
           subnodes.push_back(mid12);
           mid12_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map1(j,s) + 0.5*map2(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid02,tol,mid02_ind);
         if (!found) {
           subnodes.push_back(mid02);
           mid02_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map0(j,s) + 0.5*map2(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid03,tol,mid03_ind);
         if (!found) {
           subnodes.push_back(mid03);
           mid03_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map0(j,s) + 0.5*map3(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid13,tol,mid13_ind);
         if (!found) {
           subnodes.push_back(mid13);
           mid13_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map1(j,s) + 0.5*map3(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid23,tol,mid23_ind);
         if (!found) {
           subnodes.push_back(mid23);
           mid23_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map2(j,s) + 0.5*map3(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         // Define the new elements (appended to end of list)
@@ -681,6 +1067,53 @@ public:
         subsideinfo.push_back(newsi6);
         subsideinfo.push_back(newsi7);
         
+        Kokkos::View<int***,AssemblyDevice> oldmap = subsidemap[e];
+        Kokkos::View<int***,AssemblyDevice> newsm0("newsi",oldmap.dimension(1),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm1("newsi",oldmap.dimension(1),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm2("newsi",oldmap.dimension(1),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm3("newsi",oldmap.dimension(1),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm4("newsi",oldmap.dimension(1),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm5("newsi",oldmap.dimension(1),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm6("newsi",oldmap.dimension(1),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm7("newsi",oldmap.dimension(1),4,2);
+        
+        Kokkos::deep_copy(newsm0,oldmap);
+        Kokkos::deep_copy(newsm1,oldmap);
+        Kokkos::deep_copy(newsm2,oldmap);
+        Kokkos::deep_copy(newsm3,oldmap);
+        Kokkos::deep_copy(newsm4,oldmap);
+        Kokkos::deep_copy(newsm5,oldmap);
+        Kokkos::deep_copy(newsm6,oldmap);
+        Kokkos::deep_copy(newsm7,oldmap);
+        
+        for (unsigned int n=0; n<oldmap.dimension(0); n++) {
+          newsm0(n,2,0) = 0;
+          newsm0(n,2,1) = 0;
+          newsm1(n,2,0) = 0;
+          newsm1(n,2,1) = 0;
+          newsm2(n,2,0) = 0;
+          newsm2(n,2,1) = 0;
+          newsm3(n,0,0) = 0;
+          newsm3(n,0,1) = 0;
+          
+          newsm4(n,1,0) = 0;
+          newsm4(n,1,1) = 0;
+          newsm4(n,2,0) = 0;
+          newsm4(n,2,1) = 0;
+          newsm4(n,3,0) = 0;
+          newsm4(n,3,1) = 0;
+          newsm5(n,2,0) = 0;
+          newsm5(n,2,1) = 0;
+        }
+        subsidemap.push_back(newsm0);
+        subsidemap.push_back(newsm1);
+        subsidemap.push_back(newsm2);
+        subsidemap.push_back(newsm3);
+        subsidemap.push_back(newsm4);
+        subsidemap.push_back(newsm5);
+        subsidemap.push_back(newsm6);
+        subsidemap.push_back(newsm7);
+        
       }
       else if (subshape == "hex") {
         // Extract the existing nodes
@@ -692,6 +1125,15 @@ public:
         vector<ScalarT> node5 = subnodes[subconnectivity[e][5]];
         vector<ScalarT> node6 = subnodes[subconnectivity[e][6]];
         vector<ScalarT> node7 = subnodes[subconnectivity[e][7]];
+        
+        Kokkos::View<ScalarT**,AssemblyDevice> map0 = subnodemap[subconnectivity[e][0]];
+        Kokkos::View<ScalarT**,AssemblyDevice> map1 = subnodemap[subconnectivity[e][1]];
+        Kokkos::View<ScalarT**,AssemblyDevice> map2 = subnodemap[subconnectivity[e][2]];
+        Kokkos::View<ScalarT**,AssemblyDevice> map3 = subnodemap[subconnectivity[e][3]];
+        Kokkos::View<ScalarT**,AssemblyDevice> map4 = subnodemap[subconnectivity[e][4]];
+        Kokkos::View<ScalarT**,AssemblyDevice> map5 = subnodemap[subconnectivity[e][5]];
+        Kokkos::View<ScalarT**,AssemblyDevice> map6 = subnodemap[subconnectivity[e][6]];
+        Kokkos::View<ScalarT**,AssemblyDevice> map7 = subnodemap[subconnectivity[e][7]];
         
         // Compute the candidate new nodes
         vector<ScalarT> mid0123, mid01, mid12, mid23, mid03;
@@ -773,114 +1215,267 @@ public:
         if (!found) {
           subnodes.push_back(mid0123);
           mid0123_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.25*map0(j,s) + 0.25*map1(j,s) + 0.25*map2(j,s) + 0.25*map3(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid01,tol,mid01_ind);
         if (!found) {
           subnodes.push_back(mid01);
           mid01_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map0(j,s) + 0.5*map1(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid12,tol,mid12_ind);
         if (!found) {
           subnodes.push_back(mid12);
           mid12_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map1(j,s) + 0.5*map2(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid23,tol,mid23_ind);
         if (!found) {
           subnodes.push_back(mid23);
           mid23_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map2(j,s) + 0.5*map3(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid03,tol,mid03_ind);
         if (!found) {
           subnodes.push_back(mid03);
           mid03_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map2(j,s) + 0.5*map3(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(center,tol,center_ind);
         if (!found) {
           subnodes.push_back(center);
           center_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.125*map0(j,s) + 0.125*map1(j,s) + 0.125*map2(j,s) + 0.125*map3(j,s)
+                          + 0.125*map4(j,s) + 0.125*map5(j,s) + 0.125*map6(j,s) + 0.125*map7(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid04,tol,mid04_ind);
         if (!found) {
           subnodes.push_back(mid04);
           mid04_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map0(j,s) + 0.5*map4(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid15,tol,mid15_ind);
         if (!found) {
           subnodes.push_back(mid15);
           mid15_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map1(j,s) + 0.5*map5(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid26,tol,mid26_ind);
         if (!found) {
           subnodes.push_back(mid26);
           mid26_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map2(j,s) + 0.5*map6(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid37,tol,mid37_ind);
         if (!found) {
           subnodes.push_back(mid37);
           mid37_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map3(j,s) + 0.5*map7(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid0145,tol,mid0145_ind);
         if (!found) {
           subnodes.push_back(mid0145);
           mid0145_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.25*map0(j,s) + 0.25*map1(j,s) + 0.25*map4(j,s) + 0.25*map5(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid1256,tol,mid1256_ind);
         if (!found) {
           subnodes.push_back(mid1256);
           mid1256_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.25*map1(j,s) + 0.25*map2(j,s) + 0.25*map5(j,s) + 0.25*map6(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid2367,tol,mid2367_ind);
         if (!found) {
           subnodes.push_back(mid2367);
           mid2367_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.25*map2(j,s) + 0.25*map3(j,s) + 0.25*map6(j,s) + 0.25*map7(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid0347,tol,mid0347_ind);
         if (!found) {
           subnodes.push_back(mid0347);
           mid0347_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.25*map0(j,s) + 0.25*map3(j,s) + 0.25*map4(j,s) + 0.25*map7(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid4567,tol,mid4567_ind);
         if (!found) {
           subnodes.push_back(mid4567);
           mid4567_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.25*map4(j,s) + 0.25*map5(j,s) + 0.25*map6(j,s) + 0.25*map7(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid45,tol,mid45_ind);
         if (!found) {
           subnodes.push_back(mid45);
           mid45_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map4(j,s) + 0.5*map5(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid56,tol,mid56_ind);
         if (!found) {
           subnodes.push_back(mid56);
           mid56_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map5(j,s) + 0.5*map6(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid67,tol,mid67_ind);
         if (!found) {
           subnodes.push_back(mid67);
           mid67_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map6(j,s) + 0.5*map7(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         found = checkExistingSubNodes(mid47,tol,mid47_ind);
         if (!found) {
           subnodes.push_back(mid47);
           mid47_ind = subnodes.size()-1;
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> newmap("node map", nodes.dimension(1), dimension);
+          for (unsigned int j=0; j<nodes.dimension(1); j++) {
+            for (unsigned int s=0; s<dimension; s++) {
+              newmap(j,s) = 0.5*map4(j,s) + 0.5*map7(j,s);
+            }
+          }
+          subnodemap.push_back(newmap);
         }
         
         // Define the new elements (appended to end of list)
@@ -1061,6 +1656,94 @@ public:
         subsideinfo.push_back(newsi6);
         subsideinfo.push_back(newsi7);
         
+        
+        Kokkos::View<int***,AssemblyDevice> oldmap = subsidemap[e];
+        Kokkos::View<int***,AssemblyDevice> newsm0("newsi",oldmap.dimension(1),6,2);
+        Kokkos::View<int***,AssemblyDevice> newsm1("newsi",oldmap.dimension(1),6,2);
+        Kokkos::View<int***,AssemblyDevice> newsm2("newsi",oldmap.dimension(1),6,2);
+        Kokkos::View<int***,AssemblyDevice> newsm3("newsi",oldmap.dimension(1),6,2);
+        Kokkos::View<int***,AssemblyDevice> newsm4("newsi",oldmap.dimension(1),6,2);
+        Kokkos::View<int***,AssemblyDevice> newsm5("newsi",oldmap.dimension(1),6,2);
+        Kokkos::View<int***,AssemblyDevice> newsm6("newsi",oldmap.dimension(1),6,2);
+        Kokkos::View<int***,AssemblyDevice> newsm7("newsi",oldmap.dimension(1),6,2);
+        
+        Kokkos::deep_copy(newsm0,oldmap);
+        Kokkos::deep_copy(newsm1,oldmap);
+        Kokkos::deep_copy(newsm2,oldmap);
+        Kokkos::deep_copy(newsm3,oldmap);
+        Kokkos::deep_copy(newsm4,oldmap);
+        Kokkos::deep_copy(newsm5,oldmap);
+        Kokkos::deep_copy(newsm6,oldmap);
+        Kokkos::deep_copy(newsm7,oldmap);
+        
+        // order = 0145, 1256, 2367, 0367, 0123, 4567
+        // order = bottom, right, top, left, back, front
+        for (unsigned int n=0; n<oldmap.dimension(0); n++) {
+          newsm0(n,1,0) = 0;
+          newsm0(n,1,1) = 0;
+          newsm0(n,2,0) = 0;
+          newsm0(n,2,1) = 0;
+          newsm0(n,5,0) = 0;
+          newsm0(n,5,1) = 0;
+          
+          newsm1(n,2,0) = 0;
+          newsm1(n,2,1) = 0;
+          newsm1(n,3,0) = 0;
+          newsm1(n,3,1) = 0;
+          newsm1(n,5,0) = 0;
+          newsm1(n,5,1) = 0;
+          
+          newsm2(n,0,0) = 0;
+          newsm2(n,0,1) = 0;
+          newsm2(n,3,0) = 0;
+          newsm2(n,3,1) = 0;
+          newsm2(n,5,0) = 0;
+          newsm2(n,5,1) = 0;
+          
+          newsm3(n,0,0) = 0;
+          newsm3(n,0,1) = 0;
+          newsm3(n,1,0) = 0;
+          newsm3(n,1,1) = 0;
+          newsm3(n,5,0) = 0;
+          newsm3(n,5,1) = 0;
+          
+          newsm4(n,1,0) = 0;
+          newsm4(n,1,1) = 0;
+          newsm4(n,2,0) = 0;
+          newsm4(n,2,1) = 0;
+          newsm4(n,4,0) = 0;
+          newsm4(n,4,1) = 0;
+          
+          newsm5(n,2,0) = 0;
+          newsm5(n,2,1) = 0;
+          newsm5(n,3,0) = 0;
+          newsm5(n,3,1) = 0;
+          newsm5(n,4,0) = 0;
+          newsm5(n,4,1) = 0;
+          
+          newsm6(n,0,0) = 0;
+          newsm6(n,0,1) = 0;
+          newsm6(n,3,0) = 0;
+          newsm6(n,3,1) = 0;
+          newsm6(n,4,0) = 0;
+          newsm6(n,4,1) = 0;
+          
+          newsm7(n,0,0) = 0;
+          newsm7(n,0,1) = 0;
+          newsm7(n,1,0) = 0;
+          newsm7(n,1,1) = 0;
+          newsm7(n,4,0) = 0;
+          newsm7(n,4,1) = 0;
+        }
+        subsidemap.push_back(newsm0);
+        subsidemap.push_back(newsm1);
+        subsidemap.push_back(newsm2);
+        subsidemap.push_back(newsm3);
+        subsidemap.push_back(newsm4);
+        subsidemap.push_back(newsm5);
+        subsidemap.push_back(newsm6);
+        subsidemap.push_back(newsm7);
+        
       }
       else {
         // add error
@@ -1089,6 +1772,124 @@ public:
       }
     }
     return found;
+  }
+  
+  ///////////////////////////////////////////////////////////////////////////////////////
+  // Make sure the node map is correct
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
+  void checkNodeMap() {
+    ScalarT tol = 1.0e-12;
+    for (size_t i=0; i<subnodes.size(); i++) {
+      for (size_t s=0; s<dimension; s++) {
+        ScalarT refval = subnodes[i][s];
+        ScalarT mapval = 0.0;
+        for (size_t j=0; j<nodes.dimension(1); j++) {
+          mapval += subnodemap[i](j,s)*nodes(0,j,s);
+        }
+        if (abs(mapval-refval)>tol) {
+          std::cout << "Error in subgrid node mapping *******" << std::endl;
+          std::cout << "  refval = " << refval << std::endl;
+          std::cout << "  mapval = " << mapval << std::endl;
+        }
+      }
+    }
+  }
+  
+  ///////////////////////////////////////////////////////////////////////////////////////
+  // Make sure the node map is correct
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
+  void checkSideMap() {
+    for (size_t i=0; i<subsideinfo.size(); i++) {
+      for (size_t n=0; n<subsideinfo[i].dimension(1); n++) {
+        for (size_t s=0; s<subsideinfo[i].dimension(2); s++) {
+          int sval0 = subsideinfo[i](0,n,s,0);
+          int sval1 = subsideinfo[i](0,n,s,1);
+          int cval0 = 0;
+          int cval1 = 0;
+          if (subsidemap[i](n,s,0)>0) {
+            //if (subsidemap[i](n,s,1)>=0) {
+            if (sideinfo(0,n,subsidemap[i](n,s,1),0)>0) {
+              cval0 = sideinfo(0,n,subsidemap[i](n,s,1),0);
+              cval1 = sideinfo(0,n,subsidemap[i](n,s,1),1);
+            }
+            else {
+              cval0 = 1;
+              cval1 = -1;
+            }
+          }
+          else {
+            cval0 = 1;
+            cval1 = -1;
+          }
+          
+          if (sval0 != cval0 || sval1 != cval1) {
+            std::cout << "Error in subgrid side mapping *******" << std::endl;
+            std::cout << "  refval0 = " << sval0 << std::endl;
+            std::cout << "  mapval0 = " << cval0 << std::endl;
+            std::cout << "  refval1 = " << sval1 << std::endl;
+            std::cout << "  mapval1 = " << cval1 << std::endl;
+          }
+        }
+      }
+    }
+  }
+  
+  ///////////////////////////////////////////////////////////////////////////////////////
+  // Get the sub-grid nodes
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
+  DRV getNewNodes(DRV & newmacronodes) {
+    vector<vector<ScalarT> > newnodes;
+    for (size_t i=0; i<subnodemap.size(); i++) {
+      vector<ScalarT> newnode(dimension,0.0);
+      for (size_t j=0; j<newmacronodes.dimension(1); j++) {
+        for (size_t s=0; s<dimension; s++) {
+          newnode[s] += subnodemap[i](j,s)*newmacronodes(0,j,s);
+        }
+      }
+      newnodes.push_back(newnode);
+    }
+    
+    DRV currnodes("currnodes",subconnectivity.size(),subconnectivity[0].size(),dimension);
+    for (size_t e=0; e<subconnectivity.size(); e++) { // number of elements
+      for (int n=0; n<subconnectivity[e].size(); n++) { // number of nodes/element
+        for (int m=0; m<dimension; m++) {
+          currnodes(e,n,m) = newnodes[subconnectivity[e][n]][m];
+        }
+      }
+    }
+    return currnodes;
+  }
+  
+  ///////////////////////////////////////////////////////////////////////////////////////
+  // Get the sub-grid side info
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
+  Kokkos::View<int****,HostDevice> getNewSideinfo(Kokkos::View<int****,HostDevice> & macrosideinfo) {
+    Kokkos::View<int****,HostDevice> ksubsideinfo("subgrid side info",subsideinfo.size(),
+                                                  sideinfo.dimension(1),sideinfo.dimension(2),2);
+    
+    //KokkosTools::print(subsidemap[0]);
+    for (unsigned int e=0; e<ksubsideinfo.dimension(0); e++) {
+      for (unsigned int i=0; i<ksubsideinfo.dimension(1); i++) {
+        for (unsigned int j=0; j<ksubsideinfo.dimension(2); j++) {
+          if (subsidemap[e](i,j,0)>0) {
+            int sideindex = subsidemap[e](i,j,1);
+            if (macrosideinfo(0,i,sideindex,0)>0) {
+              ksubsideinfo(e,i,j,0) = macrosideinfo(0,i,sideindex,0);
+              ksubsideinfo(e,i,j,1) = macrosideinfo(0,i,sideindex,1);
+            }
+            else {
+              ksubsideinfo(e,i,j,0) = 5;
+              ksubsideinfo(e,i,j,1) = -1;
+            }
+          }
+        }
+      }
+    }
+    return ksubsideinfo;
   }
   
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -1126,6 +1927,64 @@ public:
     return ksubsideinfo;
   }
   
+  ///////////////////////////////////////////////////////////////////////////////////////
+  // Get the unique subgrid side names and indices
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
+  void getUniqueSides(Kokkos::View<int****,HostDevice> & newsi, vector<int> & unique_sides,
+                      vector<int> & unique_local_sides, vector<string> & unique_names,
+                      vector<string> & macrosidenames,
+                      vector<vector<size_t> > & boundary_groups) {
+    
+    for (size_t c=0; c<newsi.dimension(0); c++) { // number of elem in cell
+      for (size_t i=0; i<newsi.dimension(1); i++) { // number of variables
+        for (size_t j=0; j<newsi.dimension(2); j++) { // number of sides per element
+          if (newsi(c,i,j,0) > 0) {
+            bool found = false;
+            for (size_t s=0; s<unique_sides.size(); s++) {
+              if (newsi(c,i,j,1) == unique_sides[s]) {
+                if (j == unique_local_sides[s]) {
+                  found = true;
+                }
+              }
+            }
+            if (!found) {
+              unique_sides.push_back(newsi(c,i,j,1));
+              unique_local_sides.push_back(j);
+              if (newsi(c,i,j,1) == -1) {
+                unique_names.push_back("interior");
+              }
+              else {
+                unique_names.push_back(macrosidenames[newsi(c,i,j,1)]);
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    for (size_t s=0; s<unique_sides.size(); s++) {
+      
+      int clside = unique_local_sides[s];
+      string sidename = unique_names[s];
+      vector<size_t> group;
+      for (size_t c=0; c<newsi.dimension(0); c++) {
+        bool addthis = false;
+        for (size_t i=0; i<newsi.dimension(1); i++) { // number of variables
+          if (newsi(c,i,clside,0) > 0) {
+            if (newsi(c,i,clside,1) == unique_sides[s]) {
+              addthis = true;
+            }
+          }
+        }
+        if (addthis) {
+          group.push_back(c);
+        }
+      }
+      boundary_groups.push_back(group);
+    }
+  }
+  
 protected:
   
   int dimension;
@@ -1134,6 +1993,8 @@ protected:
   DRV nodes;
   Kokkos::View<int****,HostDevice> sideinfo;
   vector<vector<ScalarT> > subnodes;
+  vector<Kokkos::View<ScalarT**,AssemblyDevice> > subnodemap;
+  vector<Kokkos::View<int***,AssemblyDevice> > subsidemap;
   vector<vector<GO> > subconnectivity;
   vector<Kokkos::View<int****,AssemblyDevice> > subsideinfo;
   

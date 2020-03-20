@@ -641,7 +641,8 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     obj = 0.0;
     int numCuts = 0;
     int maxCuts = 5; // TMW: make this a user-defined input
-    while (abs(current_time - end_time)>1.0e-12 && numCuts<=maxCuts) {
+    double timetol = end_time*1.0e-6; // just need to get close enough to final time
+    while (current_time < (end_time-timetol) && numCuts<=maxCuts) {
       
       u_dot->putScalar(0.0);
       
@@ -972,7 +973,7 @@ int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot, vector_RCP 
     
     // set the current time
     ScalarT stage_time = prevtime + deltat*butcher_c(s);
-    
+    current_time = stage_time;
     // set the stage solution
     vector_RCP u_s = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
     u_s->update(1.0, *u, 0.0);
@@ -1022,6 +1023,7 @@ int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot, vector_RCP 
     
     if (milo_debug_level > 1) {
       if (Comm->getRank() == 0) {
+        KokkosTools::print(mwres_over);
         cout << "******** Finished stage: " << s << endl;
       }
     }

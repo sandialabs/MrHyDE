@@ -64,8 +64,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  int addMacro(const DRV macronodes_, Kokkos::View<int****,HostDevice> macrosideinfo_,
-               vector<string> & macrosidenames,
+  int addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> & macrosideinfo_,
                Kokkos::View<GO**,HostDevice> & macroGIDs, Kokkos::View<LO***,HostDevice> & macroindex,
                Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & macroorientation);
   
@@ -183,6 +182,20 @@ public:
   Teuchos::RCP<LA_CrsMatrix>  getProjectionMatrix();
   
   ////////////////////////////////////////////////////////////////////////////////
+  // Assemble the projection matrix using ip and basis values from another subgrid model
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  Teuchos::RCP<LA_CrsMatrix> getProjectionMatrix(DRV & ip, DRV & wts,
+                                                 pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo);
+  
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Get an empty vector
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  vector_RCP getVector();
+  
+  ////////////////////////////////////////////////////////////////////////////////
   // Get the integration points
   ////////////////////////////////////////////////////////////////////////////////
   
@@ -267,16 +280,19 @@ public:
   vector<vector<int> > useBasis;
   
   // Linear algebra / solver objects
-  Teuchos::RCP<LA_Map> param_owned_map;
+  //Teuchos::RCP<LA_Map> param_owned_map;
   Teuchos::RCP<LA_Map> param_overlapped_map;
-  Teuchos::RCP<LA_Export> param_exporter;
-  Teuchos::RCP<LA_Import> param_importer;
+  //Teuchos::RCP<LA_Export> param_exporter;
+  //Teuchos::RCP<LA_Import> param_importer;
+  
+  Teuchos::RCP<const LA_Map> owned_map, overlapped_map;
+  Teuchos::RCP<LA_CrsGraph> owned_graph, overlapped_graph;
+  Teuchos::RCP<LA_Export> exporter;
+  Teuchos::RCP<LA_Import> importer;
   
   Teuchos::RCP<LA_MultiVector> res, res_over, d_um, du, du_glob;//, d_up;//,
   Teuchos::RCP<LA_MultiVector> u, u_dot, phi, phi_dot;
   Teuchos::RCP<LA_MultiVector> d_sub_res_overm, d_sub_resm, d_sub_u_prevm, d_sub_u_overm;
-  
-  //Teuchos::RCP<LA_CrsGraph> owned_graph, overlapped_graph;
   Teuchos::RCP<LA_CrsMatrix>  J, sub_J_over, M, sub_M_over;
   
   //LA_LinearProblem LinSys;

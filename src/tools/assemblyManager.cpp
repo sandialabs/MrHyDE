@@ -316,6 +316,7 @@ void AssemblyManager::setInitial(vector_RCP & initial, const bool & useadjoint) 
 }
 
 // ========================================================================================
+// Wrapper to the main assembly routine to assemble over all blocks (most common use case)
 // ========================================================================================
 
 void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
@@ -348,6 +349,10 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
     }
   }
 }
+
+// ========================================================================================
+// Main assembly routine ... only assembles on a given block (b)
+// ========================================================================================
 
 void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
                                      vector_RCP & phi, vector_RCP & phi_dot,
@@ -569,6 +574,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
             boundaryCells[b][e]->computeJacRes(current_time, isTransient, useadjoint, compute_jacobian, compute_sens,
                                                num_active_params, compute_disc_sens, false, store_adjPrev,
                                                local_res, local_J, local_Jdot);
+            
           }
           
           if (milo_debug_level > 2) {

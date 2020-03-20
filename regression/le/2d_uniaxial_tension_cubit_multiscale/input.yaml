@@ -9,6 +9,7 @@ ANONYMOUS:
     Source: Exodus
     Mesh_File: tiny.g
   Subgrid:
+    iSubgrid Model: 'Explicit FEM'
     Subgrid Model: 'FEM'
     Mesh: 
       shape: quad

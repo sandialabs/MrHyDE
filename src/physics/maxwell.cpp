@@ -28,12 +28,9 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
   
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("mag source x",fs.get<string>("mag source x","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("mag source y",fs.get<string>("mag source y","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("mag source z",fs.get<string>("mag source z","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("elec source x",fs.get<string>("elec source x","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("elec source y",fs.get<string>("elec source y","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("elec source z",fs.get<string>("elec source z","0.0"),numElem,numip,"ip",blocknum);
+  functionManager->addFunction("current x",fs.get<string>("current x","0.0"),numElem,numip,"ip",blocknum);
+  functionManager->addFunction("current y",fs.get<string>("current y","0.0"),numElem,numip,"ip",blocknum);
+  functionManager->addFunction("current z",fs.get<string>("current z","0.0"),numElem,numip,"ip",blocknum);
   functionManager->addFunction("mu",fs.get<string>("mu","1.0"),numElem,numip,"ip",blocknum);
   functionManager->addFunction("epsilon",fs.get<string>("epsilon","1.0"),numElem,numip,"ip",blocknum);
   
@@ -53,15 +50,15 @@ void maxwell::volumeResidual() {
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    mag_source_x = functionManager->evaluate("mag source x","ip",blocknum);
-    mag_source_y = functionManager->evaluate("mag source y","ip",blocknum);
-    mag_source_z = functionManager->evaluate("mag source z","ip",blocknum);
-    elec_source_x = functionManager->evaluate("elec source x","ip",blocknum);
-    elec_source_y = functionManager->evaluate("elec source y","ip",blocknum);
-    elec_source_z = functionManager->evaluate("elec source z","ip",blocknum);
+    current_x = functionManager->evaluate("current x","ip",blocknum);
+    current_y = functionManager->evaluate("current y","ip",blocknum);
+    current_z = functionManager->evaluate("current z","ip",blocknum);
     mu = functionManager->evaluate("mu","ip",blocknum);
     epsilon = functionManager->evaluate("epsilon","ip",blocknum);
   }
+  
+  //KokkosTools::print(epsilon);
+  //KokkosTools::print(mu);
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
@@ -86,9 +83,9 @@ void maxwell::volumeResidual() {
         AD cEz = sol_curl(e,Enum,k,2);
         
         int resindex = offsets(Bnum,i);
-        res(e,resindex) += dBx_dt*vx + cEx*vx - mag_source_x(e,k)*vx;
-        res(e,resindex) += dBy_dt*vy + cEy*vy - mag_source_y(e,k)*vy;
-        res(e,resindex) += dBz_dt*vz + cEz*vz - mag_source_z(e,k)*vz;
+        res(e,resindex) += dBx_dt*vx + cEx*vx;
+        res(e,resindex) += dBy_dt*vy + cEy*vy;
+        res(e,resindex) += dBz_dt*vz + cEz*vz;
         
         
       }
@@ -121,16 +118,16 @@ void maxwell::volumeResidual() {
         AD Bz = sol(e,Bnum,k,2);
         
         int resindex = offsets(Enum,i);
-        res(e,resindex) += epsilon(e,k)*dEx_dt*vx - Bx/mu(e,k)*cvx - elec_source_x(e,k)*vx;
-        res(e,resindex) += epsilon(e,k)*dEy_dt*vy - By/mu(e,k)*cvy - elec_source_y(e,k)*vy;
-        res(e,resindex) += epsilon(e,k)*dEz_dt*vz - Bz/mu(e,k)*cvz - elec_source_z(e,k)*vz;
+        res(e,resindex) += epsilon(e,k)*dEx_dt*vx - Bx/mu(e,k)*cvx + current_x(e,k)*vx;
+        res(e,resindex) += epsilon(e,k)*dEy_dt*vy - By/mu(e,k)*cvy + current_y(e,k)*vy;
+        res(e,resindex) += epsilon(e,k)*dEz_dt*vz - Bz/mu(e,k)*cvz + current_z(e,k)*vz;
         
         
       }
     }
     
   });
-  
+  //KokkosTools::print(res);
 }
 
 

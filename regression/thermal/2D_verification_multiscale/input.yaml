@@ -18,6 +18,7 @@ ANONYMOUS:
     quadrature: 2
   Subgrid:
     Subgrid Model: FEM
+    iSubgrid Model: Explicit FEM
     Mesh:
       shape: quad
       refinements: 2
