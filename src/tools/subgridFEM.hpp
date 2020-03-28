@@ -28,7 +28,7 @@
 #include "solverInterface.hpp"
 #include "subgridTools.hpp"
 #include "parameterManager.hpp"
-#include "subGridLocalData.hpp"
+#include "subgridLocalData.hpp"
 
 // Belos
 #include <BelosConfigDefs.hpp>
