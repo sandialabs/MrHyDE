@@ -92,7 +92,7 @@ DRV DiscTools::evaluateBasis(const basis_RCP & basis_pointer, const DRV & evalpt
   FunctionSpaceTools<AssemblyDevice>::HGRADtransformVALUE(basisvals_Transformed, basisvals);
   DRV basisvals_to("basisvals_Transformed", numCells, numBasis, numpts);
   OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basisvals_to, basisvals_Transformed,
-                                                             orientation, basis_pointer);
+                                                             orientation, basis_pointer.get());
   
   return basisvals_to;
 }
@@ -286,7 +286,7 @@ DRV DiscTools::evaluateBasisGrads(const basis_RCP & basis_pointer, const DRV & n
   FunctionSpaceTools<AssemblyDevice>::HGRADtransformGRAD(basisgrads_Transformed, jacobInv, basisgrads);
   DRV basisgrads_to("basisgrads_Transformed", numCells, numBasis, numpts, spaceDim);
   OrientationTools<AssemblyDevice>::modifyBasisByOrientation(basisgrads_to, basisgrads_Transformed,
-                                                             orientation, basis_pointer);
+                                                             orientation, basis_pointer.get());
   
   return basisgrads_to;
 }
