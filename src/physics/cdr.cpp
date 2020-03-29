@@ -80,9 +80,9 @@ void cdr::volumeResidual() {
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
   if (spaceDim == 1) {
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.dimension(2); k++ ) {
-        for (int i=0; i<basis.dimension(1); i++ ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int k=0; k<sol.extent(2); k++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
           resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
           res(e,resindex) += sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
           1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0)) + // diffusion terms
@@ -96,9 +96,9 @@ void cdr::volumeResidual() {
     });
   }
   else if (spaceDim == 2) {
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.dimension(2); k++ ) {
-        for (int i=0; i<basis.dimension(1); i++ ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int k=0; k<sol.extent(2); k++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
           resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
           res(e,resindex) += sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
           1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,cnum,k,1)*basis_grad(e,i,k,1)) + // diffusion terms
@@ -112,9 +112,9 @@ void cdr::volumeResidual() {
     });
   }
   else if (spaceDim == 3) {
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.dimension(2); k++ ) {
-        for (int i=0; i<basis.dimension(1); i++ ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int k=0; k<sol.extent(2); k++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
           resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
           res(e,resindex) += sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
           1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,cnum,k,1)*basis_grad(e,i,k,1) + sol_grad(e,cnum,k,2)*basis_grad(e,i,k,2)) + // diffusion terms
@@ -139,8 +139,8 @@ void cdr::boundaryResidual() {
    // 1. basis and basis_grad already include the integration weights
    
    int c_basis = wkset->usebasis[cnum];
-   int numBasis = wkset->basis_side[c_basis].dimension(1);
-   int numSideCubPoints = wkset->ip_side.dimension(1);
+   int numBasis = wkset->basis_side[c_basis].extent(1);
+   int numSideCubPoints = wkset->ip_side.extent(1);
    
    // Set the parameters
    ScalarT x = 0.0;
@@ -322,7 +322,7 @@ void cdr::computeFlux() {
    
    AD xconv, yconv, zconv;
    AD c, dcdx, dcdy, dcdz, lambda;
-   for (size_t i=0; i<wkset->ip_side.dimension(1); i++) {
+   for (size_t i=0; i<wkset->ip_side.extent(1); i++) {
    x = wkset->ip_side(0,i,0);
    c = wkset->local_soln_side(cnum,i,0);
    dcdx = wkset->local_soln_grad_side(cnum,i,0);

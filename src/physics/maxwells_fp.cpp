@@ -82,7 +82,7 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
 void maxwells_fp::volumeResidual() {
   
   int resindex;
-  int numCubPoints = wkset->ip.dimension(1);
+  int numCubPoints = wkset->ip.extent(1);
   int phir_basis_num = wkset->usebasis[phir_num];
   int phii_basis_num = wkset->usebasis[phii_num];
   
@@ -132,8 +132,8 @@ void maxwells_fp::volumeResidual() {
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
-  for (int e=0; e<res.dimension(0); e++) {
-    for( int k=0; k<sol.dimension(2); k++ ) {
+  for (int e=0; e<res.extent(0); e++) {
+    for( int k=0; k<sol.extent(2); k++ ) {
       
       // gather up all the information at the integration point
       x = ip(e,k,0);
@@ -192,7 +192,7 @@ void maxwells_fp::volumeResidual() {
         dphiidz = sol_grad(e,phii_num,k,2);
       }
       
-      for (int i=0; i<phir_basis.dimension(1); i++ ) { // TMW: this will fail if using different basis for phir and phii
+      for (int i=0; i<phir_basis.extent(1); i++ ) { // TMW: this will fail if using different basis for phir and phii
         //	v = wkset->basis[e_basis](0,i,k);
         vr = phir_basis(e,i,k);
         vi = phii_basis(e,i,k);
@@ -418,8 +418,8 @@ void maxwells_fp::boundaryResidual() {
   int phir_basis_num = wkset->usebasis[phir_num];
   int phii_basis_num = wkset->usebasis[phii_num];
   
-  //int numBasis = wkset->basis[Axr_basis].dimension(2);
-  //int numSideCubPoints = wkset->ip_side.dimension(1);
+  //int numBasis = wkset->basis[Axr_basis].extent(2);
+  //int numSideCubPoints = wkset->ip_side.extent(1);
   
   //    FCAD local_resid(numCC, 2*(spaceDim+1), numBasis);
   
@@ -483,9 +483,9 @@ void maxwells_fp::boundaryResidual() {
   int cside = wkset->currentside;
   
   
-  for (int e=0; e<res.dimension(0); e++) { // elements in workset
+  for (int e=0; e<res.extent(0); e++) { // elements in workset
     
-    for( int k=0; k<ip.dimension(1); k++) {
+    for( int k=0; k<ip.extent(1); k++) {
       
       x = ip(e,k,0);
       
@@ -542,7 +542,7 @@ void maxwells_fp::boundaryResidual() {
       }
       
       
-      for (int i=0; i<phir_basis.dimension(1); i++ ) {
+      for (int i=0; i<phir_basis.extent(1); i++ ) {
         vr = phir_basis(e,i,k);
         vi = phii_basis(e,i,k);  //bvbw check to make sure first index  = 0
         

@@ -291,7 +291,7 @@ void solver::finalizeWorkset() {
     assembler->wkset[b]->paramusebasis = params->discretized_param_usebasis;
     assembler->wkset[b]->paramoffsets = poffsets_device;//paramoffsets;
     assembler->wkset[b]->varlist = varlist[b];
-    int numDOF = assembler->cells[b][0]->GIDs.dimension(1);
+    int numDOF = assembler->cells[b][0]->GIDs.extent(1);
     for (size_t e=0; e<assembler->cells[b].size(); e++) {
       assembler->cells[b][e]->wkset = assembler->wkset[b];
       assembler->cells[b][e]->setUseBasis(useBasis[b],nstages);
@@ -368,7 +368,7 @@ void solver::setupLinearAlgebra() {
       int numElem = assembler->cells[b][e]->numElem;
       if (timeImplicit) {
         // this should fail on the first iteration through if maxDerivs is not large enough
-        TEUCHOS_TEST_FOR_EXCEPTION(gids.dimension(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element times the number of time stages.");
+        TEUCHOS_TEST_FOR_EXCEPTION(gids.extent(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element times the number of time stages.");
       }
       //vector<vector<vector<int> > > cellindices;
       Kokkos::View<LO***,AssemblyDevice> cellindices("Local DOF indices", numElem, numVars[b], maxBasis[b]);
@@ -379,11 +379,11 @@ void solver::setupLinearAlgebra() {
             cellindices(p,n,i) = LA_overlapped_map->getLocalElement(cgid);
           }
         }
-        Teuchos::Array<GO> ind2(gids.dimension(1));
-        for (size_t i=0; i<gids.dimension(1); i++) {
+        Teuchos::Array<GO> ind2(gids.extent(1));
+        for (size_t i=0; i<gids.extent(1); i++) {
           ind2[i] = gids(p,i);
         }
-        for (size_t i=0; i<gids.dimension(1); i++) {
+        for (size_t i=0; i<gids.extent(1); i++) {
           GO ind1 = gids(p,i);
           LA_overlapped_graph->insertGlobalIndices(ind1,ind2);
         }
@@ -404,11 +404,11 @@ void solver::setupLinearAlgebra() {
               cellindices(p,n,i) = LA_overlapped_map->getLocalElement(cgid);
             }
           }
-          Teuchos::Array<GO> ind2(gids.dimension(1));
-          for (size_t i=0; i<gids.dimension(1); i++) {
+          Teuchos::Array<GO> ind2(gids.extent(1));
+          for (size_t i=0; i<gids.extent(1); i++) {
             ind2[i] = gids(p,i);
           }
-          for (size_t i=0; i<gids.dimension(1); i++) {
+          for (size_t i=0; i<gids.extent(1); i++) {
             GO ind1 = gids(p,i);
             LA_overlapped_graph->insertGlobalIndices(ind1,ind2);
           }
@@ -957,7 +957,7 @@ int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot, vector_RCP 
   
   int status = 0;
   
-  size_t numStages = butcher_A.dimension(0);
+  size_t numStages = butcher_A.extent(0);
   std::vector<vector_RCP> stages;
   std::vector<vector_RCP> stageres;
   ScalarT alpha = 1.0, beta = 0.0;
@@ -1075,9 +1075,9 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
       Kokkos::View<GO**,HostDevice> paramGIDs = assembler->cells[b][e]->paramGIDs;
       int numElem = assembler->cells[b][e]->numElem;
       
-      if (obj.dimension(1) > 0) {
+      if (obj.extent(1) > 0) {
         for (int c=0; c<numElem; c++) {
-          for (size_t i=0; i<obj.dimension(1); i++) {
+          for (size_t i=0; i<obj.extent(1); i++) {
             totaldiff += obj(c,i);
             if (params->num_active_params > 0) {
               if (obj(c,i).size() > 0) {
@@ -1386,7 +1386,7 @@ void solver::setDirichlet(vector_RCP & initial) {
       int fnum = DOF->getFieldNum(varlist[b][n]);
       for( size_t e=0; e<disc->myElements[b].size(); e++ ) { // loop through all the elements
         side_info = phys->getSideInfo(b,n,e);
-        int numSides = side_info.dimension(0);
+        int numSides = side_info.extent(0);
         DRV I_elemNodes;
         vector<size_t> elist(1);
         elist[0] = e;

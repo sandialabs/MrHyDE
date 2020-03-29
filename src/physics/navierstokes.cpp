@@ -89,7 +89,7 @@ void navierstokes::volumeResidual() {
   // NOTES:
   // 1. basis and basis_grad already include the integration weights
   
-  int numip = wkset->ip.dimension(1);
+  int numip = wkset->ip.extent(1);
   int numBasis;
   
   {
@@ -116,14 +116,14 @@ void navierstokes::volumeResidual() {
   basis = wkset->basis[ux_basis];
   basis_grad = wkset->basis_grad[ux_basis];
   
-  parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     ScalarT v = 0.0;
     ScalarT dvdx = 0.0;
     ScalarT dvdy = 0.0;
     ScalarT dvdz = 0.0;
     
-    for (int k=0; k<sol.dimension(2); k++ ) {
+    for (int k=0; k<sol.extent(2); k++ ) {
       
       AD ux = sol(e,ux_num,k,0);
       AD ux_dot = sol_dot(e,ux_num,k,0);
@@ -149,7 +149,7 @@ void navierstokes::volumeResidual() {
       }
       
       
-      for( int i=0; i<basis.dimension(1); i++ ) {
+      for( int i=0; i<basis.extent(1); i++ ) {
         int resindex = offsets(ux_num,i);
         v = basis(e,i,k);
         dvdx = basis_grad(e,i,k,0);
@@ -189,14 +189,14 @@ void navierstokes::volumeResidual() {
   basis = wkset->basis[pr_basis];
   basis_grad = wkset->basis_grad[pr_basis];
   
-  parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     ScalarT v = 0.0;
     ScalarT dvdx = 0.0;
     ScalarT dvdy = 0.0;
     ScalarT dvdz = 0.0;
     
-    for( int k=0; k<sol.dimension(2); k++ ) {
+    for( int k=0; k<sol.extent(2); k++ ) {
       AD ux = sol(e,ux_num,k,0);
       AD ux_dot = sol_dot(e,ux_num,k,0);
       AD duxdx = sol_grad(e,ux_num,k,0);
@@ -221,7 +221,7 @@ void navierstokes::volumeResidual() {
         eval = sol(e,e_num,k,0);
       }
       
-      for( int i=0; i<basis.dimension(1); i++ ) {
+      for( int i=0; i<basis.extent(1); i++ ) {
         
         int resindex = offsets(pr_num,i);
         v = basis(e,i,k);
@@ -284,14 +284,14 @@ void navierstokes::volumeResidual() {
     basis = wkset->basis[uy_basis];
     basis_grad = wkset->basis_grad[uy_basis];
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       
       ScalarT v = 0.0;
       ScalarT dvdx = 0.0;
       ScalarT dvdy = 0.0;
       ScalarT dvdz = 0.0;
       
-      for( int k=0; k<sol.dimension(2); k++ ) {
+      for( int k=0; k<sol.extent(2); k++ ) {
         
         AD ux = sol(e,ux_num,k,0);
         AD uy_dot = sol_dot(e,uy_num,k,0);
@@ -313,7 +313,7 @@ void navierstokes::volumeResidual() {
           eval = sol(e,e_num,k,0);
         }
         
-        for( int i=0; i<basis.dimension(1); i++ ) {
+        for( int i=0; i<basis.extent(1); i++ ) {
           int resindex = offsets(uy_num,i);
           v = basis(e,i,k);
           dvdx = basis_grad(e,i,k,0);
@@ -356,14 +356,14 @@ void navierstokes::volumeResidual() {
     basis = wkset->basis[uz_basis];
     basis_grad = wkset->basis_grad[uz_basis];
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       
       ScalarT v = 0.0;
       ScalarT dvdx = 0.0;
       ScalarT dvdy = 0.0;
       ScalarT dvdz = 0.0;
       
-      for( int k=0; k<sol.dimension(2); k++ ) {
+      for( int k=0; k<sol.extent(2); k++ ) {
         
         AD ux = sol(e,ux_num,k,0);
         AD uz_dot = sol_dot(e,uz_num,k,0);
@@ -381,7 +381,7 @@ void navierstokes::volumeResidual() {
           eval = sol(e,e_num,k,0);
         }
         
-        for( int i=0; i<basis.dimension(1); i++ ) {
+        for( int i=0; i<basis.extent(1); i++ ) {
           
           int resindex = offsets(uz_num,i);
           v = basis(e,i,k);

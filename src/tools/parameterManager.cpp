@@ -350,7 +350,7 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
       for(size_t e=0; e<cells[b].size(); e++) {
         gids = cells[b][e]->paramGIDs;
         // this should fail on the first iteration through if maxDerivs is not large enough
-        TEUCHOS_TEST_FOR_EXCEPTION(gids.dimension(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of parameter degrees of freedom per element.");
+        TEUCHOS_TEST_FOR_EXCEPTION(gids.extent(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of parameter degrees of freedom per element.");
         
         int numElem = cells[b][e]->numElem;
         Kokkos::View<LO***,AssemblyDevice> cellindices("Local DOF indices", numElem,
@@ -387,7 +387,7 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
       for(size_t e=0; e<boundaryCells[b].size(); e++) {
         gids = boundaryCells[b][e]->paramGIDs;
         // this should fail on the first iteration through if maxDerivs is not large enough
-        TEUCHOS_TEST_FOR_EXCEPTION(gids.dimension(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of parameter degrees of freedom per element.");
+        TEUCHOS_TEST_FOR_EXCEPTION(gids.extent(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of parameter degrees of freedom per element.");
         
         int numElem = boundaryCells[b][e]->numElem;
         Kokkos::View<LO***,AssemblyDevice> cellindices("Local DOF indices", numElem,

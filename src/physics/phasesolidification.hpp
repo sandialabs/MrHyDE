@@ -159,9 +159,9 @@ public:
     // NOTES:
     // 1. basis and basis_grad already include the integration weights
     
-    int numCubPoints = wkset->ip.dimension(1);
+    int numCubPoints = wkset->ip.extent(1);
     int e_basis = wkset->usebasis[e_num[0]];
-    int numBasis = wkset->basis[e_basis].dimension(1);
+    int numBasis = wkset->basis[e_basis].extent(1);
     
     //    FCAD local_resid(numphases, numBasis);
     
@@ -231,8 +231,8 @@ public:
     // NOTES:
     // 1. basis and basis_grad already include the integration weights
     
-    // int numBasis = basis.dimension(2);
-    // int numSideCubPoints = ip.dimension(1);
+    // int numBasis = basis.extent(2);
+    // int numSideCubPoints = ip.extent(1);
     
     // FCAD local_resid(numphases, numBasis);
     
@@ -300,7 +300,7 @@ public:
     ScalarT z = 0.0;
     ScalarT current_time = wkset->time;
     
-    for (size_t i=0; i<wkset->ip_side.dimension(1); i++) {
+    for (size_t i=0; i<wkset->ip_side.extent(1); i++) {
       x = wkset->ip_side(0,i,0);
       if (spaceDim > 1)
         y = wkset->ip_side(0,i,1);
@@ -455,7 +455,7 @@ public:
   // ========================================================================================
   
   FC getInitial(const DRV & ip, const string & var, const ScalarT & time, const bool & isAdjoint) const {
-    int numip = ip.dimension(1);
+    int numip = ip.extent(1);
     FC initial(1,numip);
     return initial;
   }
@@ -484,7 +484,7 @@ public:
                                const FCAD & local_psoln,
                                const FCAD & local_psoln_grad,
                                const DRV & ip, const ScalarT & time) const {
-    int numip = ip.dimension(1);
+    int numip = ip.extent(1);
     FCAD resp(1,numip);
     for (int j=0; j<numip; j++) {
       resp(0,j) = local_soln(e_num[j],j,0);
@@ -498,8 +498,8 @@ public:
   
   //  FCAD target(const FC & ip, const ScalarT & time) const {
   FCAD target(const FC & ip, const ScalarT & time) {
-    int numCC = ip.dimension(0);
-    int numip = ip.dimension(1);
+    int numCC = ip.extent(0);
+    int numip = ip.extent(1);
     FCAD targ(numCC,1,numip);
     for (int i=0; i<numCC; i++) {
       for (int j=0; j<numip; j++) {

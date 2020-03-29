@@ -115,8 +115,8 @@ void helmholtz::volumeResidual() {
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
-  parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-    for (int k=0; k<sol.dimension(2); k++ ) {
+  parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    for (int k=0; k<sol.extent(2); k++ ) {
       AD ur = sol(e,ur_num,k,0);
       AD durdx = sol_grad(e,ur_num,k,0);
       AD ui = sol(e,ui_num,k,0);
@@ -134,7 +134,7 @@ void helmholtz::volumeResidual() {
       
       
       //TMW: this residual makes no sense to me
-      for (int i=0; i<urbasis.dimension(1); i++ ) { // what if ui uses a different basis?
+      for (int i=0; i<urbasis.extent(1); i++ ) { // what if ui uses a different basis?
         ScalarT vr = urbasis(e,i,k);
         ScalarT vi = uibasis(e,i,k);  //bvbw check to make sure first index  = 0
         ScalarT dvrdx = urbasis_grad(e,i,k,0);
@@ -278,8 +278,8 @@ void helmholtz::boundaryResidual() {
   
   //Robin boundary condition of form alpha*u + dudn - source = 0, where u is the state and dudn is its normal derivative
   if (bcs(ur_num,cside) == 2) {
-    for (int e=0; e<urbasis.dimension(0); e++) { // not parallelized yet
-      for( int k=0; k<urbasis.dimension(2); k++ ) {
+    for (int e=0; e<urbasis.extent(0); e++) { // not parallelized yet
+      for( int k=0; k<urbasis.extent(2); k++ ) {
         
         
         AD ur = sol(e,ur_num,k,0);
@@ -316,7 +316,7 @@ void helmholtz::boundaryResidual() {
         }
         
         if(!fractional) {       // fractional exponent on time operator or i_omega in frequency mode
-          for (int i=0; i<urbasis.dimension(1); i++ ) {
+          for (int i=0; i<urbasis.extent(1); i++ ) {
             int resindex = offsets(ur_num,i);
             ScalarT vr = urbasis(e,i,k);
             ScalarT vi = uibasis(e,i,k);
@@ -339,7 +339,7 @@ void helmholtz::boundaryResidual() {
           AD omegar = sqrt(omega2r(e,k));
           AD omegai = sqrt(omega2i(e,k));
           
-          for (int i=0; i<urbasis.dimension(1); i++ ) {
+          for (int i=0; i<urbasis.extent(1); i++ ) {
             int resindex = offsets(ur_num,i);
             ScalarT vr = urbasis(e,i,k);
             ScalarT vi = uibasis(e,i,k);

@@ -187,9 +187,9 @@ void msphasefield::volumeResidual() {
   
   int resindex;
   
-  int numCubPoints = wkset->ip.dimension(1);
+  int numCubPoints = wkset->ip.extent(1);
   int phi_basis = wkset->usebasis[phi_num[0]];
-  int numBasis = wkset->basis[phi_basis].dimension(1);
+  int numBasis = wkset->basis[phi_basis].extent(1);
   
   // FCAD local_resid(numphases, numBasis);
   
@@ -220,7 +220,7 @@ void msphasefield::volumeResidual() {
   res = wkset->res;
   
   for (size_t e=0; e<numElem; e++) {
-    for( int k=0; k<ip.dimension(1); k++ ) {
+    for( int k=0; k<ip.extent(1); k++ ) {
       x = ip(e,k,0);
       
       sumphi = 0.0;
@@ -262,7 +262,7 @@ void msphasefield::volumeResidual() {
         }
       }
       
-      for( int i=0; i<basis.dimension(1); i++ ) {
+      for( int i=0; i<basis.extent(1); i++ ) {
         v = basis(e,i,k);
         dvdx = basis_grad(e,i,k,0);
         dvdy = basis_grad(e,i,k,1);
@@ -310,9 +310,9 @@ void msphasefield::boundaryResidual() {
   // NOTES:
   // 1. basis and basis_grad already include the integration weights
   
-  //    int numCubPoints = ip.dimension(1);
+  //    int numCubPoints = ip.extent(1);
   // int phi_basis = usebasis[phi_num];
-  // int numBasis = basis[phi_basis].dimension(1);
+  // int numBasis = basis[phi_basis].extent(1);
   
   //    FCAD local_resid(numphases, numBasis);
   
@@ -380,7 +380,7 @@ void msphasefield::computeFlux() {
   ScalarT z = 0.0;
   
   for (size_t e=0; e<numElem; e++) {
-    for (size_t i=0; i<wkset->ip_side.dimension(1); i++) {
+    for (size_t i=0; i<wkset->ip_side.extent(1); i++) {
       x = wkset->ip_side(e,i,0);
       if (spaceDim > 1)
         y = wkset->ip_side(e,i,1);

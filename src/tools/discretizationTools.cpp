@@ -67,8 +67,8 @@
 
 DRV DiscTools::evaluateBasis(const basis_RCP & basis_pointer, const DRV & evalpts) {
   using namespace Intrepid2;
-  int numCells = 1;//evalpts.dimension(0);
-  int numpts = evalpts.dimension(0);
+  int numCells = 1;//evalpts.extent(0);
+  int numpts = evalpts.extent(0);
   int numBasis = basis_pointer->getCardinality();
   DRV basisvals("basisvals", numBasis, numpts);
   basis_pointer->getValues(basisvals, evalpts, OPERATOR_VALUE);
@@ -82,8 +82,8 @@ DRV DiscTools::evaluateBasis(const basis_RCP & basis_pointer, const DRV & evalpt
 DRV DiscTools::evaluateBasis(const basis_RCP & basis_pointer, const DRV & evalpts,
                              Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation) {
   using namespace Intrepid2;
-  int numCells = 1;//evalpts.dimension(0);
-  int numpts = evalpts.dimension(0);
+  int numCells = 1;//evalpts.extent(0);
+  int numpts = evalpts.extent(0);
   int numBasis = basis_pointer->getCardinality();
   DRV basisvals("basisvals", numBasis, numpts);
   basis_pointer->getValues(basisvals, evalpts, OPERATOR_VALUE);
@@ -100,8 +100,8 @@ DRV DiscTools::evaluateBasis(const basis_RCP & basis_pointer, const DRV & evalpt
 Teuchos::RCP<DRV> DiscTools::evaluateBasisRCP(const basis_RCP & basis_pointer, const DRV & evalpts) {
   using namespace Intrepid2;
   
-  int numCells = 1;//evalpts.dimension(0);
-  int numpts = evalpts.dimension(0);
+  int numCells = 1;//evalpts.extent(0);
+  int numpts = evalpts.extent(0);
   int numBasis = basis_pointer->getCardinality();
   DRV basisvals("basisvals", numBasis, numpts);
   basis_pointer->getValues(basisvals, evalpts, OPERATOR_VALUE);
@@ -121,8 +121,8 @@ DRV DiscTools::evaluateSideBasis(const basis_RCP & basis_pointer, const DRV & ev
   using namespace Intrepid2;
   
   int numCells = 1;
-  int numpts = evalpts.dimension(0);
-  int spaceDim = evalpts.dimension(1)+1;
+  int numpts = evalpts.extent(0);
+  int spaceDim = evalpts.extent(1)+1;
   
   DRV refSidePoints("refSidePoints", numpts, spaceDim);
   
@@ -148,8 +148,8 @@ DRV DiscTools::evaluateBasisWeighted(const basis_RCP & basis_pointer, const DRV 
   using namespace Intrepid2;
   
   int numCells = 1;
-  int numpts = evalpts.dimension(0);
-  int spaceDim = evalpts.dimension(1);
+  int numpts = evalpts.extent(0);
+  int spaceDim = evalpts.extent(1);
   int numBasis = basis_pointer->getCardinality();
   DRV basisvals("basisvals", numBasis, numpts);
   basis_pointer->getValues(basisvals, evalpts, OPERATOR_VALUE);
@@ -175,8 +175,8 @@ Teuchos::RCP<DRV> DiscTools::evaluateBasisWeightedRCP(const basis_RCP & basis_po
   using namespace Intrepid2;
   
   int numCells = 1;
-  int numpts = evalpts.dimension(0);
-  int spaceDim = evalpts.dimension(1);
+  int numpts = evalpts.extent(0);
+  int spaceDim = evalpts.extent(1);
   int numBasis = basis_pointer->getCardinality();
   DRV basisvals("basisvals", numBasis, numpts);
   basis_pointer->getValues(basisvals, evalpts, OPERATOR_VALUE);
@@ -206,8 +206,8 @@ DRV DiscTools::evaluateSideBasisWeighted(const basis_RCP & basis_pointer, const 
   using namespace Intrepid2;
   
   int numCells = 1;
-  int numpts = evalpts.dimension(0);
-  int spaceDim = evalpts.dimension(1)+1;
+  int numpts = evalpts.extent(0);
+  int spaceDim = evalpts.extent(1)+1;
   DRV refSidePoints("refSidePoints",numpts, spaceDim);
   CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, evalpts, spaceDim-1, side, *cellTopo);
   
@@ -250,8 +250,8 @@ DRV DiscTools::evaluateBasisGrads(const basis_RCP & basis_pointer, const DRV & n
   using namespace Intrepid2;
   
   int numCells = 1;
-  int numpts = evalpts.dimension(0);
-  int spaceDim = evalpts.dimension(1);
+  int numpts = evalpts.extent(0);
+  int spaceDim = evalpts.extent(1);
   int numBasis = basis_pointer->getCardinality();
   DRV basisgrads("basisgrads", numBasis, numpts, spaceDim);
   DRV basisgrads_Transformed("basisgrads_Transformed", numCells, numBasis, numpts, spaceDim);
@@ -272,8 +272,8 @@ DRV DiscTools::evaluateBasisGrads(const basis_RCP & basis_pointer, const DRV & n
   using namespace Intrepid2;
   
   int numCells = 1;
-  int numpts = evalpts.dimension(0);
-  int spaceDim = evalpts.dimension(1);
+  int numpts = evalpts.extent(0);
+  int spaceDim = evalpts.extent(1);
   int numBasis = basis_pointer->getCardinality();
   DRV basisgrads("basisgrads", numBasis, numpts, spaceDim);
   DRV basisgrads_Transformed("basisgrads_Transformed", numCells, numBasis, numpts, spaceDim);
@@ -296,8 +296,8 @@ Teuchos::RCP<DRV> DiscTools::evaluateBasisGradsRCP(const basis_RCP & basis_point
   using namespace Intrepid2;
   
   int numCells = 1;
-  int numpts = evalpts.dimension(0);
-  int spaceDim = evalpts.dimension(1);
+  int numpts = evalpts.extent(0);
+  int spaceDim = evalpts.extent(1);
   int numBasis = basis_pointer->getCardinality();
   DRV basisgrads("basisgrads", numBasis, numpts, spaceDim);
   Teuchos::RCP<DRV> basisgrads_Transformed = Teuchos::rcp(new DRV("basisgrads_Transformed", numCells, numBasis, numpts, spaceDim));
@@ -322,8 +322,8 @@ DRV DiscTools::evaluateSideBasisGrads(const basis_RCP & basis_pointer, const DRV
   using namespace Intrepid2;
   
   int numCells = 1;
-  int numpts = evalpts.dimension(0);
-  int spaceDim = evalpts.dimension(1)+1;
+  int numpts = evalpts.extent(0);
+  int spaceDim = evalpts.extent(1)+1;
   DRV refSidePoints("refSidePoints", numpts, spaceDim);
   CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, evalpts, spaceDim-1, side, *cellTopo);
   
@@ -355,8 +355,8 @@ DRV DiscTools::evaluateBasisGradsWeighted(const basis_RCP & basis_pointer, const
   using namespace Intrepid2;
   
   int numCells = 1;
-  int numpts = evalpts.dimension(0);
-  int spaceDim = evalpts.dimension(1);
+  int numpts = evalpts.extent(0);
+  int spaceDim = evalpts.extent(1);
   int numBasis = basis_pointer->getCardinality();
   DRV basisgrads("basisgrads", numBasis, numpts, spaceDim);
   DRV basisgrads_Transformed("basisgrads_Transformed", numCells, numBasis, numpts, spaceDim);
@@ -384,8 +384,8 @@ Teuchos::RCP<DRV> DiscTools::evaluateBasisGradsWeightedRCP(const basis_RCP & bas
   using namespace Intrepid2;
   
   int numCells = 1;
-  int numpts = evalpts.dimension(0);
-  int spaceDim = evalpts.dimension(1);
+  int numpts = evalpts.extent(0);
+  int spaceDim = evalpts.extent(1);
   int numBasis = basis_pointer->getCardinality();
   DRV basisgrads("basisgrads", numBasis, numpts, spaceDim);
   DRV basisgrads_Transformed("basisgrads_Transformed", numCells, numBasis, numpts, spaceDim);
@@ -417,8 +417,8 @@ DRV DiscTools::evaluateSideBasisGradsWeighted(const basis_RCP & basis_pointer, c
   using namespace Intrepid2;
   
   int numCells = 1;
-  int numpts = evalpts.dimension(0);
-  int spaceDim = evalpts.dimension(1)+1;
+  int numpts = evalpts.extent(0);
+  int spaceDim = evalpts.extent(1)+1;
   DRV refSidePoints("refSidePoints", numpts, spaceDim);
   CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, evalpts, spaceDim-1, side, *cellTopo);
   
@@ -457,8 +457,8 @@ DRV DiscTools::evaluateSideNormals(const DRV & nodes, const DRV & evalpts,
   using namespace Intrepid2;
   
   int numCells = 1;
-  int numpts = evalpts.dimension(0);
-  int spaceDim = evalpts.dimension(1)+1;
+  int numpts = evalpts.extent(0);
+  int spaceDim = evalpts.extent(1)+1;
   DRV sideJacobian("sideJacobian", numCells, numpts, spaceDim, spaceDim);
   DRV refSidePoints("refSidePoints", numpts, spaceDim);
   CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, evalpts, spaceDim-1, side, *cellTopo);
@@ -492,9 +492,9 @@ DRV DiscTools::getPhysicalWts(const DRV & nodes, const DRV & evalpts, const DRV 
                               const topo_RCP & cellTopo) {
   using namespace Intrepid2;
   
-  int numCells = 1;//evalpts.dimension(0);
-  int numpts = evalpts.dimension(0);
-  int spaceDim = evalpts.dimension(1);
+  int numCells = 1;//evalpts.extent(0);
+  int numpts = evalpts.extent(0);
+  int spaceDim = evalpts.extent(1);
   DRV wts("wts", numCells,numpts);
   DRV jacobian("jacobian", numCells, numpts, spaceDim, spaceDim);
   DRV jacobDet("jacobDet", numCells, numpts);
@@ -515,9 +515,9 @@ DRV DiscTools::getPhysicalWts(const DRV & nodes, const DRV & evalpts, const DRV 
 DRV DiscTools::getPhysicalIP(const DRV & nodes, const DRV & evalpts, const topo_RCP & cellTopo) {
   using namespace Intrepid2;
   
-  int numCells = 1;//evalpts.dimension(0);
-  int numpts = evalpts.dimension(0);
-  int spaceDim = evalpts.dimension(1);
+  int numCells = 1;//evalpts.extent(0);
+  int numpts = evalpts.extent(0);
+  int spaceDim = evalpts.extent(1);
   DRV ip("ip",numCells,numpts,spaceDim);
   CellTools<AssemblyDevice>::mapToPhysicalFrame(ip, evalpts, nodes, *cellTopo);
   return ip;
@@ -531,9 +531,9 @@ DRV DiscTools::getPhysicalSideIP(const DRV & nodes, const DRV & evalpts,
                                  const topo_RCP & cellTopo, const int & s) {
   using namespace Intrepid2;
   
-  int numCells = 1;//evalpts.dimension(0);
-  int numpts = evalpts.dimension(0);
-  int spaceDim = evalpts.dimension(1)+1;
+  int numCells = 1;//evalpts.extent(0);
+  int numpts = evalpts.extent(0);
+  int spaceDim = evalpts.extent(1)+1;
   DRV ip("ip", numCells,numpts,spaceDim);
   DRV refSidePoints("refSidePoints", numpts, spaceDim);
   CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, evalpts, spaceDim-1, s, *cellTopo);
@@ -549,9 +549,9 @@ DRV DiscTools::getPhysicalSideWts(const DRV & nodes, const DRV & evalpts, const 
                                   const topo_RCP & cellTopo, const int & s) {
   using namespace Intrepid2;
   
-  int numCells = 1;//evalpts.dimension(0);
-  int numpts = evalpts.dimension(0);
-  int spaceDim = evalpts.dimension(1)+1;
+  int numCells = 1;//evalpts.extent(0);
+  int numpts = evalpts.extent(0);
+  int spaceDim = evalpts.extent(1)+1;
   DRV ip("ip", numCells,numpts,spaceDim);
   DRV refSidePoints("refSidePoints", numpts, spaceDim);
   CellTools<AssemblyDevice>::mapToReferenceSubcell(refSidePoints, evalpts, spaceDim-1, s, *cellTopo);
@@ -578,8 +578,8 @@ ScalarT DiscTools::getElementSize(const DRV & nodes, const DRV & ip, const DRV &
                                   const topo_RCP & cellTopo) {
   using namespace Intrepid2;
   
-  int numip = ip.dimension(0);
-  int spaceDim = ip.dimension(1);
+  int numip = ip.extent(0);
+  int spaceDim = ip.extent(1);
   DRV jacobian("jacobian", 1, numip, spaceDim, spaceDim);
   DRV jacobDet("jacobDet", 1, numip);
   DRV weightedMeasure("weightedMeasure", 1, numip);

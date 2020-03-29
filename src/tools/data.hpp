@@ -301,14 +301,14 @@ public:
       if (is_timedep) {
         size_t tn = 0;
         bool found = false;
-        while (!found && tn<sdata.dimension(0)) {
+        while (!found && tn<sdata.extent(0)) {
           if (time>=sdata(tn,timeindex) && time<=sdata(tn+1,timeindex)) 
             found = true;
           else
             tn += 1;
         }
         if (!found)
-          val = sdata(sdata.dimension(0)-1,index);
+          val = sdata(sdata.extent(0)-1,index);
         else {
           ScalarT alpha = (sdata(tn+1,timeindex)-time)/(sdata(tn+1,timeindex)-sdata(tn,timeindex));
           val = alpha*sdata(tn,index) + (1.0-alpha)*sdata(tn+1,index);

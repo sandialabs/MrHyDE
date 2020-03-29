@@ -191,9 +191,9 @@ void uqmanager::computeStatistics(const std::vector<ScalarT> & values) {
 void uqmanager::computeStatistics(const vector<Kokkos::View<ScalarT**,HostDevice> > & values) {
   int numvals = values.size();
   // assumes that values[i] is a rank-3 FC
-  int dim0 = values[0].dimension(0);
-  int dim1 = values[0].dimension(1);
-  int dim2 = values[0].dimension(2);
+  int dim0 = values[0].extent(0);
+  int dim1 = values[0].extent(1);
+  int dim2 = values[0].extent(2);
   
   if (uqsettings.get<bool>("Compute mean",true)) {
     

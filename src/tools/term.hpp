@@ -56,8 +56,8 @@ public:
     for (size_t k=0; k<dep_ops.size(); k++) {
       cout << "dep_ops[" << k << "]: " << dep_ops[k] << endl;
     }
-    cout << "data dims: " << data.dimension(0) << "  " << data.dimension(1) << endl;
-    cout << "ddata dims: " << ddata.dimension(0) << "  " << ddata.dimension(1) << endl;
+    cout << "data dims: " << data.extent(0) << "  " << data.extent(1) << endl;
+    cout << "ddata dims: " << ddata.extent(0) << "  " << ddata.extent(1) << endl;
     cout << "--------------------------------------------------" << endl;
     
     cout << endl;

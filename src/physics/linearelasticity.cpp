@@ -116,10 +116,10 @@ void linearelasticity::volumeResidual() {
     basis = wkset->basis[dx_basis];
     basis_grad = wkset->basis_grad[dx_basis];
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (size_t k=0; k<basis.dimension(2); k++ ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (size_t k=0; k<basis.extent(2); k++ ) {
         this->setLocalSoln(e,k,false);
-        for (int i=0; i<basis.dimension(1); i++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
           v = basis(e,i,k);
           dvdx = basis_grad(e,i,k,0);
           resindex = offsets(dx_num,i);
@@ -135,10 +135,10 @@ void linearelasticity::volumeResidual() {
     basis = wkset->basis[dx_basis];
     basis_grad = wkset->basis_grad[dx_basis];
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (size_t k=0; k<basis.dimension(2); k++ ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (size_t k=0; k<basis.extent(2); k++ ) {
         //this->setLocalSoln(e,k,false);
-        for (int i=0; i<basis.dimension(1); i++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
           v = basis(e,i,k);
           dvdx = basis_grad(e,i,k,0);
           dvdy = basis_grad(e,i,k,1);
@@ -156,11 +156,11 @@ void linearelasticity::volumeResidual() {
     basis = wkset->basis[dy_basis];
     basis_grad = wkset->basis_grad[dy_basis];
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (size_t k=0; k<basis.dimension(2); k++ ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (size_t k=0; k<basis.extent(2); k++ ) {
         //this->setLocalSoln(e,k,false);
         
-        for (int i=0; i<basis.dimension(1); i++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
           v = basis(e,i,k);
           dvdx = basis_grad(e,i,k,0);
           dvdy = basis_grad(e,i,k,1);
@@ -179,10 +179,10 @@ void linearelasticity::volumeResidual() {
     basis = wkset->basis[dx_basis];
     basis_grad = wkset->basis_grad[dx_basis];
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for(size_t k=0; k<basis.dimension(2); k++ ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for(size_t k=0; k<basis.extent(2); k++ ) {
         //this->setLocalSoln(e,k,false);
-        for( int i=0; i<basis.dimension(1); i++ ) {
+        for( int i=0; i<basis.extent(1); i++ ) {
           v = basis(e,i,k);
           dvdx = basis_grad(e,i,k,0);
           dvdy = basis_grad(e,i,k,1);
@@ -198,10 +198,10 @@ void linearelasticity::volumeResidual() {
     basis = wkset->basis[dy_basis];
     basis_grad = wkset->basis_grad[dy_basis];
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for(size_t k=0; k<basis.dimension(2); k++ ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for(size_t k=0; k<basis.extent(2); k++ ) {
         //this->setLocalSoln(e,k,false);
-        for( int i=0; i<basis.dimension(1); i++ ) {
+        for( int i=0; i<basis.extent(1); i++ ) {
           v = basis(e,i,k);
           dvdx = basis_grad(e,i,k,0);
           dvdy = basis_grad(e,i,k,1);
@@ -217,10 +217,10 @@ void linearelasticity::volumeResidual() {
     basis = wkset->basis[dz_basis];
     basis_grad = wkset->basis_grad[dz_basis];
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for(size_t k=0; k<basis.dimension(2); k++ ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for(size_t k=0; k<basis.extent(2); k++ ) {
         //this->setLocalSoln(e,k,false);
-        for( int i=0; i<basis.dimension(1); i++ ) {
+        for( int i=0; i<basis.extent(1); i++ ) {
           v = basis(e,i,k);
           dvdx = basis_grad(e,i,k,0);
           dvdy = basis_grad(e,i,k,1);
@@ -301,10 +301,10 @@ void linearelasticity::boundaryResidual() {
       basis = wkset->basis_side[dx_basis];
       basis_grad = wkset->basis_grad_side[dx_basis];
       
-      for (int e=0; e<basis.dimension(0); e++) {
+      for (int e=0; e<basis.extent(0); e++) {
         if (dx_sidetype == 2) { // Neumann
-          for (size_t k=0; k<basis.dimension(2); k++ ) {
-            for (int i=0; i<basis.dimension(1); i++ ) {
+          for (size_t k=0; k<basis.extent(2); k++ ) {
+            for (int i=0; i<basis.extent(1); i++ ) {
               v = basis(e,i,k);
               resindex = offsets(dx_num,i);
               res(e,resindex) += -sourceN_dx(e,k)*v;
@@ -312,7 +312,7 @@ void linearelasticity::boundaryResidual() {
           }
         }
         else if (dx_sidetype == 4 || dx_sidetype == 5) {
-          for (int k=0; k<basis.dimension(2); k++ ) {
+          for (int k=0; k<basis.extent(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
             plambdax = 0.0;
@@ -320,7 +320,7 @@ void linearelasticity::boundaryResidual() {
               plambdax = aux_side(e,auxdx_num,k);
             }
             
-            for (int i=0; i<basis.dimension(1); i++ ) {
+            for (int i=0; i<basis.extent(1); i++ ) {
               v = basis(e,i,k);
               basisVec = computeBasisVec(dx-plambdax, dy-plambday, dz-plambdaz,
                                          mu_side(e,k), lambda_side(e,k), normals,
@@ -339,10 +339,10 @@ void linearelasticity::boundaryResidual() {
       basis = wkset->basis_side[dx_basis];
       basis_grad = wkset->basis_grad_side[dx_basis];
       
-      for (int e=0; e<basis.dimension(0); e++) {
+      for (int e=0; e<basis.extent(0); e++) {
         if (dx_sidetype == 2) {
-          for (size_t k=0; k<basis.dimension(2); k++ ) {
-            for (int i=0; i<basis.dimension(1); i++ ) {
+          for (size_t k=0; k<basis.extent(2); k++ ) {
+            for (int i=0; i<basis.extent(1); i++ ) {
               v = basis(e,i,k);
               resindex = offsets(dx_num,i);
               res(e,resindex) += -sourceN_dx(e,k)*v;
@@ -350,7 +350,7 @@ void linearelasticity::boundaryResidual() {
           }
         }
         else if (dx_sidetype == 4 || dx_sidetype == 5) {
-          for (int k=0; k<basis.dimension(2); k++ ) {
+          for (int k=0; k<basis.extent(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
             plambdax = 0.0;
@@ -359,7 +359,7 @@ void linearelasticity::boundaryResidual() {
               plambdax = aux_side(e,auxdx_num,k);
               plambday = aux_side(e,auxdy_num,k);
             }
-            for (int i=0; i<basis.dimension(1); i++ ) {
+            for (int i=0; i<basis.extent(1); i++ ) {
               v = basis(e,i,k);
               basisVec = computeBasisVec(dx-plambdax, dy-plambday, dz-plambdaz,
                                          mu_side(e,k), lambda_side(e,k), normals, basis_grad,
@@ -379,11 +379,11 @@ void linearelasticity::boundaryResidual() {
       basis = wkset->basis_side[dy_basis];
       basis_grad = wkset->basis_grad_side[dy_basis];
       
-      for (int e=0; e<basis.dimension(0); e++) {
+      for (int e=0; e<basis.extent(0); e++) {
         if (dy_sidetype == 2) {
           
-          for (size_t k=0; k<basis.dimension(2); k++ ) {
-            for (int i=0; i<basis.dimension(1); i++ ) {
+          for (size_t k=0; k<basis.extent(2); k++ ) {
+            for (int i=0; i<basis.extent(1); i++ ) {
               v = basis(e,i,k);
               resindex = offsets(dy_num,i);
               res(e,resindex) += -sourceN_dy(e,k)*v;
@@ -391,7 +391,7 @@ void linearelasticity::boundaryResidual() {
           }
         }
         else if (dy_sidetype == 4 || dy_sidetype == 5) {
-          for (int k=0; k<basis.dimension(2); k++ ) {
+          for (int k=0; k<basis.extent(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
             plambdax = 0.0;
@@ -401,7 +401,7 @@ void linearelasticity::boundaryResidual() {
               plambday = aux_side(e,auxdy_num,k);
             }
             
-            for (int i=0; i<basis.dimension(1); i++ ) {
+            for (int i=0; i<basis.extent(1); i++ ) {
               v = basis(e,i,k);
               basisVec = computeBasisVec(dx-plambdax, dy-plambday, dz-plambdaz,
                                          mu_side(e,k), lambda_side(e,k), normals, basis_grad,
@@ -426,10 +426,10 @@ void linearelasticity::boundaryResidual() {
       
       AD deltax, deltay, deltaz;
       
-      for (int e=0; e<basis.dimension(0); e++) {
+      for (int e=0; e<basis.extent(0); e++) {
         if (dx_sidetype == 2) {
-          for (size_t k=0; k<basis.dimension(2); k++ ) {
-            for (int i=0; i<basis.dimension(1); i++ ) {
+          for (size_t k=0; k<basis.extent(2); k++ ) {
+            for (int i=0; i<basis.extent(1); i++ ) {
               v = basis(e,i,k);
               resindex = offsets(dx_num,i);
               res(e,resindex) += -sourceN_dx(e,k)*v;
@@ -437,7 +437,7 @@ void linearelasticity::boundaryResidual() {
           }
         }
         else if (dx_sidetype == 4 || dx_sidetype == 5) {
-          for (int k=0; k<basis.dimension(2); k++ ) {
+          for (int k=0; k<basis.extent(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
             plambdax = 0.0;
@@ -449,7 +449,7 @@ void linearelasticity::boundaryResidual() {
               plambdaz = aux_side(e,auxdz_num,k);
             }
             
-            for (int i=0; i<basis.dimension(1); i++ ) {
+            for (int i=0; i<basis.extent(1); i++ ) {
               v = basis(e,i,k);
               deltax = dx-plambdax;
               deltay = dy-plambday;
@@ -475,10 +475,10 @@ void linearelasticity::boundaryResidual() {
       basis = wkset->basis_side[dy_basis];
       basis_grad = wkset->basis_grad_side[dy_basis];
       
-      for (int e=0; e<basis.dimension(0); e++) {
+      for (int e=0; e<basis.extent(0); e++) {
         if (dy_sidetype == 2) {
-          for (size_t k=0; k<basis.dimension(2); k++ ) {
-            for (int i=0; i<basis.dimension(1); i++ ) {
+          for (size_t k=0; k<basis.extent(2); k++ ) {
+            for (int i=0; i<basis.extent(1); i++ ) {
               v = basis(e,i,k);
               resindex = offsets(dy_num,i);
               res(e,resindex) += -sourceN_dy(e,k)*v;
@@ -486,7 +486,7 @@ void linearelasticity::boundaryResidual() {
           }
         }
         else if (dy_sidetype == 4 || dy_sidetype == 5) {
-          for (int k=0; k<basis.dimension(2); k++ ) {
+          for (int k=0; k<basis.extent(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
             plambdax = 0.0;
@@ -498,7 +498,7 @@ void linearelasticity::boundaryResidual() {
               plambdaz = aux_side(e,auxdz_num,k);
             }
             
-            for (int i=0; i<basis.dimension(1); i++ ) {
+            for (int i=0; i<basis.extent(1); i++ ) {
               v = basis(e,i,k);
               deltax = dx-plambdax;
               deltay = dy-plambday;
@@ -524,10 +524,10 @@ void linearelasticity::boundaryResidual() {
       basis = wkset->basis_side[dz_basis];
       basis_grad = wkset->basis_grad_side[dz_basis];
       
-      for (int e=0; e<basis.dimension(0); e++) {
+      for (int e=0; e<basis.extent(0); e++) {
         if (dz_sidetype == 2) {
-          for (size_t k=0; k<basis.dimension(2); k++ ) {
-            for (int i=0; i<basis.dimension(1); i++ ) {
+          for (size_t k=0; k<basis.extent(2); k++ ) {
+            for (int i=0; i<basis.extent(1); i++ ) {
               v = basis(e,i,k);
               resindex = offsets(dz_num,i);
               res(e,resindex) += -sourceN_dz(e,k)*v;
@@ -535,7 +535,7 @@ void linearelasticity::boundaryResidual() {
           }
         }
         else if (dz_sidetype == 4 || dz_sidetype == 5) {
-          for (int k=0; k<basis.dimension(2); k++ ) {
+          for (int k=0; k<basis.extent(2); k++ ) {
             this->setLocalSoln(e,k,true);
             penalty = epen*(lambda_side(e,k) + 2.0*mu_side(e,k))/wkset->h(e);
             plambdax = 0.0;
@@ -547,7 +547,7 @@ void linearelasticity::boundaryResidual() {
               plambdaz = aux_side(e,auxdz_num,k);
             }
             
-            for (int i=0; i<basis.dimension(1); i++ ) {
+            for (int i=0; i<basis.extent(1); i++ ) {
               v = basis(e,i,k);
               deltax = dx-plambdax;
               deltay = dy-plambday;
@@ -610,8 +610,8 @@ void linearelasticity::computeFlux() {
     this->computeStress(true);
     
     if (spaceDim == 1) {
-      for (size_t e=0; e<sol_side.dimension(0); e++) {
-        for (size_t i=0; i<sol_side.dimension(2); i++) {
+      for (size_t e=0; e<sol_side.extent(0); e++) {
+        for (size_t i=0; i<sol_side.extent(2); i++) {
           this->setLocalSoln(e,i,true);
           plambdax = aux_side(e,auxdx_num,i);
           penalty = epen*(lambda_side(e,i) + 2.0*mu_side(e,i))/wkset->h(e);
@@ -620,8 +620,8 @@ void linearelasticity::computeFlux() {
       }
     }
     else if (spaceDim == 2) {
-      for (size_t e=0; e<sol_side.dimension(0); e++) {
-        for (size_t i=0; i<sol_side.dimension(2); i++) {
+      for (size_t e=0; e<sol_side.extent(0); e++) {
+        for (size_t i=0; i<sol_side.extent(2); i++) {
           this->setLocalSoln(e,i,true);
           plambdax = aux_side(e,auxdx_num,i);
           plambday = aux_side(e,auxdy_num,i);
@@ -632,8 +632,8 @@ void linearelasticity::computeFlux() {
       }
     }
     else if (spaceDim == 3) {
-      for (size_t e=0; e<sol_side.dimension(0); e++) {
-        for (size_t i=0; i<sol_side.dimension(2); i++) {
+      for (size_t e=0; e<sol_side.extent(0); e++) {
+        for (size_t i=0; i<sol_side.extent(2); i++) {
           this->setLocalSoln(e,i,true);
           plambdax = aux_side(e,auxdx_num,i);
           plambday = aux_side(e,auxdy_num,i);
@@ -808,7 +808,7 @@ void linearelasticity::computeStress(const bool & onside) {
     
     stress = Kokkos::View<AD****>("stress",numElem,nip,3,3);
     
-    for (int e=0; e<lambda_vals.dimension(0); e++) {
+    for (int e=0; e<lambda_vals.extent(0); e++) {
       for (size_t k=0; k<nip; k++) {
         
         this->setLocalSoln(e,k,onside);

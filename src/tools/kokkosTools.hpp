@@ -43,8 +43,8 @@ public:
     cout << "  i  " << "  value  " << endl;
     cout << "--------------------" << endl;
     
-    for (unsigned int i=0; i<V.dimension(0); i++) {
-      for (unsigned int j=0; j<V.dimension(1); j++) {
+    for (unsigned int i=0; i<V.extent(0); i++) {
+      for (unsigned int j=0; j<V.extent(1); j++) {
         cout << "  " << i << "  " << "  " << "  " << V(i,j) << "  " << endl;
       }
     }
@@ -83,8 +83,8 @@ public:
     cout << "  i  " << "  j  " << "  value  " << endl;
     cout << "-------------------------------" << endl;
     
-    for (unsigned int i=0; i<V.dimension(0); i++) {
-      for (unsigned int j=0; j<V.dimension(1); j++) {
+    for (unsigned int i=0; i<V.extent(0); i++) {
+      for (unsigned int j=0; j<V.extent(1); j++) {
         cout << "  " << i << "  " << "  " << j << "  " <<
         "  " << "  " << V(i,j) << "  " << endl;
       }
@@ -106,8 +106,8 @@ public:
     cout << " PID " << "  i  " << "  j  " << "  value  " << endl;
     cout << "------------------------------------------" << endl;
     
-    for (unsigned int i=0; i<V_kv.dimension(0); i++) {
-      for (unsigned int j=0; j<V_kv.dimension(1); j++) {
+    for (unsigned int i=0; i<V_kv.extent(0); i++) {
+      for (unsigned int j=0; j<V_kv.extent(1); j++) {
         cout << "  " << Comm->getRank() <<  "  " << i << "  " << "  " << j << "  " <<
         "  " << "  " << V_kv(i,j) << "  " << endl;
       }
@@ -147,8 +147,8 @@ public:
     cout << "  i  " << "  j  " << "  value  " << endl;
     cout << "-------------------------------" << endl;
     
-    for (unsigned int i=0; i<V.dimension(0); i++) {
-      for (unsigned int j=0; j<V.dimension(1); j++) {
+    for (unsigned int i=0; i<V.extent(0); i++) {
+      for (unsigned int j=0; j<V.extent(1); j++) {
         cout << "  " << i << "  " << "  " << j << "  " <<
         "  " << "  " << V(i,j) << "  " << endl;
       }
@@ -169,9 +169,9 @@ public:
     cout << "  i  " << "  j  " << "  k  " << "  value  " << endl;
     cout << "------------------------------------------" << endl;
     
-    for (unsigned int i=0; i<V.dimension(0); i++) {
-      for (unsigned int j=0; j<V.dimension(1); j++) {
-        for (unsigned int k=0; k<V.dimension(2); k++) {
+    for (unsigned int i=0; i<V.extent(0); i++) {
+      for (unsigned int j=0; j<V.extent(1); j++) {
+        for (unsigned int k=0; k<V.extent(2); k++) {
           cout << "  " << i << "  " << "  " << j << "  " <<
           "  " << k << "  " << "  " << V(i,j,k) << "  " << endl;
         }
@@ -192,10 +192,10 @@ public:
     cout << "  i  " << "  j  " << "  k  " << "  n  " << "  value  " << endl;
     cout << "-----------------------------------------------------" << endl;
     
-    for (unsigned int i=0; i<V.dimension(0); i++) {
-      for (unsigned int j=0; j<V.dimension(1); j++) {
-        for (unsigned int k=0; k<V.dimension(2); k++) {
-          for (unsigned int n=0; n<V.dimension(3); n++) {
+    for (unsigned int i=0; i<V.extent(0); i++) {
+      for (unsigned int j=0; j<V.extent(1); j++) {
+        for (unsigned int k=0; k<V.extent(2); k++) {
+          for (unsigned int n=0; n<V.extent(3); n++) {
             cout << "  " << i << "  " << "  " << j << "  " <<
             "  " << k << "  " << "  " << n << "  " << "  " << V(i,j,k,n) << "  " << endl;
           }
@@ -217,11 +217,11 @@ public:
     cout << "  i  " << "  j  " << "  k  " << "  n  " << "  m  " << "  value  " << endl;
     cout << "----------------------------------------------------------------" << endl;
     
-    for (unsigned int i=0; i<V.dimension(0); i++) {
-      for (unsigned int j=0; j<V.dimension(1); j++) {
-        for (unsigned int k=0; k<V.dimension(2); k++) {
-          for (unsigned int n=0; n<V.dimension(3); n++) {
-            for (unsigned int m=0; m<V.dimension(4); m++) {
+    for (unsigned int i=0; i<V.extent(0); i++) {
+      for (unsigned int j=0; j<V.extent(1); j++) {
+        for (unsigned int k=0; k<V.extent(2); k++) {
+          for (unsigned int n=0; n<V.extent(3); n++) {
+            for (unsigned int m=0; m<V.extent(4); m++) {
               cout << "  " << i << "  " << "  " << j << "  " <<
               "  " << k << "  " << "  " << n << "  " << "  " << m
               << "  " << "  " << V(i,j,k,n,m) << "  " << endl;
@@ -246,8 +246,8 @@ public:
       cout << "  i  " << "  j  " << "  value  " << endl;
       cout << "-------------------------------" << endl;
       
-      for (unsigned int i=0; i<V.dimension(0); i++) {
-        for (unsigned int j=0; j<V.dimension(1); j++) {
+      for (unsigned int i=0; i<V.extent(0); i++) {
+        for (unsigned int j=0; j<V.extent(1); j++) {
           cout << "  " << i << "  " << "  " << j << "  " <<
           "  " << "  " << V(i,j) << "  " << endl;
         }
@@ -259,9 +259,9 @@ public:
       cout << "  i  " << "  j  " << "  k  " << "  value  " << endl;
       cout << "------------------------------------------" << endl;
       
-      for (unsigned int i=0; i<V.dimension(0); i++) {
-        for (unsigned int j=0; j<V.dimension(1); j++) {
-          for (unsigned int k=0; k<V.dimension(2); k++) {
+      for (unsigned int i=0; i<V.extent(0); i++) {
+        for (unsigned int j=0; j<V.extent(1); j++) {
+          for (unsigned int k=0; k<V.extent(2); k++) {
             cout << "  " << i << "  " << "  " << j << "  " <<
             "  " << k << "  " << "  " << V(i,j,k) << "  " << endl;
           }
@@ -274,10 +274,10 @@ public:
       cout << "  i  " << "  j  " << "  k  " << "  n  " << "  value  " << endl;
       cout << "-----------------------------------------------------" << endl;
       
-      for (unsigned int i=0; i<V.dimension(0); i++) {
-        for (unsigned int j=0; j<V.dimension(1); j++) {
-          for (unsigned int k=0; k<V.dimension(2); k++) {
-            for (unsigned int n=0; n<V.dimension(3); n++) {
+      for (unsigned int i=0; i<V.extent(0); i++) {
+        for (unsigned int j=0; j<V.extent(1); j++) {
+          for (unsigned int k=0; k<V.extent(2); k++) {
+            for (unsigned int n=0; n<V.extent(3); n++) {
               cout << "  " << i << "  " << "  " << j << "  " <<
               "  " << k << "  " << "  " << n << "  " << "  " << V(i,j,k,n) << "  " << endl;
             }
@@ -301,8 +301,8 @@ public:
       cout << "  i  " << "  j  " << "  value  " << endl;
       cout << "-------------------------------" << endl;
       
-      for (unsigned int i=0; i<V.dimension(0); i++) {
-        for (unsigned int j=0; j<V.dimension(1); j++) {
+      for (unsigned int i=0; i<V.extent(0); i++) {
+        for (unsigned int j=0; j<V.extent(1); j++) {
           cout << "  " << i << "  " << "  " << j << "  " <<
           "  " << "  " << V(i,j) << "  " << endl;
         }
@@ -314,9 +314,9 @@ public:
       cout << "  i  " << "  j  " << "  k  " << "  value  " << endl;
       cout << "------------------------------------------" << endl;
       
-      for (unsigned int i=0; i<V.dimension(0); i++) {
-        for (unsigned int j=0; j<V.dimension(1); j++) {
-          for (unsigned int k=0; k<V.dimension(2); k++) {
+      for (unsigned int i=0; i<V.extent(0); i++) {
+        for (unsigned int j=0; j<V.extent(1); j++) {
+          for (unsigned int k=0; k<V.extent(2); k++) {
             cout << "  " << i << "  " << "  " << j << "  " <<
             "  " << k << "  " << "  " << V(i,j,k) << "  " << endl;
           }
@@ -329,10 +329,10 @@ public:
       cout << "  i  " << "  j  " << "  k  " << "  n  " << "  value  " << endl;
       cout << "-----------------------------------------------------" << endl;
       
-      for (unsigned int i=0; i<V.dimension(0); i++) {
-        for (unsigned int j=0; j<V.dimension(1); j++) {
-          for (unsigned int k=0; k<V.dimension(2); k++) {
-            for (unsigned int n=0; n<V.dimension(3); n++) {
+      for (unsigned int i=0; i<V.extent(0); i++) {
+        for (unsigned int j=0; j<V.extent(1); j++) {
+          for (unsigned int k=0; k<V.extent(2); k++) {
+            for (unsigned int n=0; n<V.extent(3); n++) {
               cout << "  " << i << "  " << "  " << j << "  " <<
               "  " << k << "  " << "  " << n << "  " << "  " << V(i,j,k,n) << "  " << endl;
             }
@@ -358,9 +358,9 @@ public:
     }
     else {
       for (size_t k=0; k<V.rank(); k++) {
-        if (V.dimension(k) != sizes[k]) {
+        if (V.extent(k) != sizes[k]) {
           cout << "ERROR ---" << endl;
-          cout << "Size of dimension(" << k << ") = " << V.dimension(k) << "    Expected size = " << sizes[k] << endl;
+          cout << "Size of dimension(" << k << ") = " << V.extent(k) << "    Expected size = " << sizes[k] << endl;
           cout << "---------" << endl;
         }
       }
@@ -381,9 +381,9 @@ public:
     }
     else {
       for (size_t k=0; k<V.rank(); k++) {
-        if (V.dimension(k) != sizes[k]) {
+        if (V.extent(k) != sizes[k]) {
           cout << "ERROR ---" << endl;
-          cout << "Size of dimension(" << k << ") = " << V.dimension(k) << "    Expected size = " << sizes[k] << endl;
+          cout << "Size of dimension(" << k << ") = " << V.extent(k) << "    Expected size = " << sizes[k] << endl;
           cout << "---------" << endl;
         }
       }
@@ -404,9 +404,9 @@ public:
     }
     else {
       for (size_t k=0; k<V.rank(); k++) {
-        if (V.dimension(k) != sizes[k]) {
+        if (V.extent(k) != sizes[k]) {
           cout << "ERROR ---" << endl;
-          cout << "Size of dimension(" << k << ") = " << V.dimension(k) << "    Expected size = " << sizes[k] << endl;
+          cout << "Size of dimension(" << k << ") = " << V.extent(k) << "    Expected size = " << sizes[k] << endl;
           cout << "---------" << endl;
         }
       }
@@ -427,9 +427,9 @@ public:
     }
     else {
       for (size_t k=0; k<V.rank(); k++) {
-        if (V.dimension(k) != sizes[k]) {
+        if (V.extent(k) != sizes[k]) {
           cout << "ERROR ---" << endl;
-          cout << "Size of dimension(" << k << ") = " << V.dimension(k) << "    Expected size = " << sizes[k] << endl;
+          cout << "Size of dimension(" << k << ") = " << V.extent(k) << "    Expected size = " << sizes[k] << endl;
           cout << "---------" << endl;
         }
       }
@@ -450,9 +450,9 @@ public:
     }
     else {
       for (size_t k=0; k<V.rank(); k++) {
-        if (V.dimension(k) != sizes[k]) {
+        if (V.extent(k) != sizes[k]) {
           cout << "ERROR ---" << endl;
-          cout << "Size of dimension(" << k << ") = " << V.dimension(k) << "    Expected size = " << sizes[k] << endl;
+          cout << "Size of dimension(" << k << ") = " << V.extent(k) << "    Expected size = " << sizes[k] << endl;
           cout << "---------" << endl;
         }
       }
@@ -473,9 +473,9 @@ public:
     }
     else {
       for (size_t k=0; k<V.rank(); k++) {
-        if (V.dimension(k) != sizes[k]) {
+        if (V.extent(k) != sizes[k]) {
           cout << "ERROR ---" << endl;
-          cout << "Size of dimension(" << k << ") = " << V.dimension(k) << "    Expected size = " << sizes[k] << endl;
+          cout << "Size of dimension(" << k << ") = " << V.extent(k) << "    Expected size = " << sizes[k] << endl;
           cout << "---------" << endl;
         }
       }
@@ -496,9 +496,9 @@ public:
     }
     else {
       for (size_t k=0; k<V.rank(); k++) {
-        if (V.dimension(k) != sizes[k]) {
+        if (V.extent(k) != sizes[k]) {
           cout << "ERROR ---" << endl;
-          cout << "Size of dimension(" << k << ") = " << V.dimension(k) << "    Expected size = " << sizes[k] << endl;
+          cout << "Size of dimension(" << k << ") = " << V.extent(k) << "    Expected size = " << sizes[k] << endl;
           cout << "---------" << endl;
         }
       }

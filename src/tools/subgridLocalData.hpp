@@ -35,9 +35,9 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   
   void setIP(DRV & ref_ip, topo_RCP & cellTopo) {
-    ip = DRV("ip", nodes.dimension(0), ref_ip.dimension(0), nodes.dimension(2));
+    ip = DRV("ip", nodes.extent(0), ref_ip.extent(0), nodes.extent(2));
     Intrepid2::CellTools<AssemblyDevice>::mapToPhysicalFrame(ip, ref_ip, nodes, *cellTopo);
-    ijac = DRV("ijac", nodes.dimension(0), ref_ip.dimension(0), nodes.dimension(2), nodes.dimension(2));
+    ijac = DRV("ijac", nodes.extent(0), ref_ip.extent(0), nodes.extent(2), nodes.extent(2));
     Intrepid2::CellTools<AssemblyDevice>::setJacobian(ijac, ref_ip, nodes, *cellTopo);
   }
   
@@ -49,11 +49,11 @@ public:
     vector<DRV> currcell_basis, currcell_basisGrad;
     
     // Already have ip
-    DRV sref_ip_tmp("sref_ip_tmp", nodes.dimension(0), ip.dimension(1), ip.dimension(2));
-    DRV sref_ip("sref_ip",ip.dimension(1), ip.dimension(2));
+    DRV sref_ip_tmp("sref_ip_tmp", nodes.extent(0), ip.extent(1), ip.extent(2));
+    DRV sref_ip("sref_ip",ip.extent(1), ip.extent(2));
     Intrepid2::CellTools<AssemblyDevice>::mapToReferenceFrame(sref_ip_tmp, ip, macronodes, *macro_cellTopo);
-    for (size_t i=0; i<ip.dimension(1); i++) {
-      for (size_t j=0; j<ip.dimension(2); j++) {
+    for (size_t i=0; i<ip.extent(1); i++) {
+      for (size_t j=0; j<ip.extent(2); j++) {
         sref_ip(i,j) = sref_ip_tmp(0,i,j);
       }
     }
@@ -75,39 +75,39 @@ public:
     
     for (size_t e=0; e<BIDs.size(); e++) {
       
-      int numElem = boundaryNodes[e].dimension(0);
+      int numElem = boundaryNodes[e].extent(0);
       
       //DRV sside_ip = wkset[0]->ip_side_vec[boundaryCells[mindex][e]->wksetBID];
       DRV sside_ip = wkset->ip_side_vec[BIDs[e]];
       vector<DRV> currside_basis, currside_basis_grad;
       for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-        DRV tmp_basis = DRV("basis values",numElem,macro_basis_pointers[i]->getCardinality(),sside_ip.dimension(1));
+        DRV tmp_basis = DRV("basis values",numElem,macro_basis_pointers[i]->getCardinality(),sside_ip.extent(1));
         currside_basis.push_back(tmp_basis);
       }
       
       for (size_t c=0; c<numElem; c++) {
-        //DRV side_ip_e("side_ip_e",cells[block][e]->numElem, sside_ip.dimension(1), sside_ip.dimension(2));
-        DRV side_ip_e("side_ip_e",1, sside_ip.dimension(1), sside_ip.dimension(2));
-        for (unsigned int i=0; i<sside_ip.dimension(1); i++) {
-          for (unsigned int j=0; j<sside_ip.dimension(2); j++) {
+        //DRV side_ip_e("side_ip_e",cells[block][e]->numElem, sside_ip.extent(1), sside_ip.extent(2));
+        DRV side_ip_e("side_ip_e",1, sside_ip.extent(1), sside_ip.extent(2));
+        for (unsigned int i=0; i<sside_ip.extent(1); i++) {
+          for (unsigned int j=0; j<sside_ip.extent(2); j++) {
             side_ip_e(0,i,j) = sside_ip(c,i,j);
           }
         }
-        //DRV sref_side_ip_tmp("sref_side_ip_tmp",sside_ip.dimension(0), sside_ip.dimension(1), sside_ip.dimension(2));
-        DRV sref_side_ip_tmp("sref_side_ip_tmp",1, sside_ip.dimension(1), sside_ip.dimension(2));
+        //DRV sref_side_ip_tmp("sref_side_ip_tmp",sside_ip.extent(0), sside_ip.extent(1), sside_ip.extent(2));
+        DRV sref_side_ip_tmp("sref_side_ip_tmp",1, sside_ip.extent(1), sside_ip.extent(2));
         
         //CellTools<AssemblyDevice>::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, macronodes[block], *macro_cellTopo);
-        DRV sref_side_ip("sref_side_ip", sside_ip.dimension(1), sside_ip.dimension(2));
+        DRV sref_side_ip("sref_side_ip", sside_ip.extent(1), sside_ip.extent(2));
         Intrepid2::CellTools<AssemblyDevice>::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, macronodes, *macro_cellTopo);
-        for (size_t i=0; i<sside_ip.dimension(1); i++) {
-          for (size_t j=0; j<sside_ip.dimension(2); j++) {
+        for (size_t i=0; i<sside_ip.extent(1); i++) {
+          for (size_t j=0; j<sside_ip.extent(2); j++) {
             sref_side_ip(i,j) = sref_side_ip_tmp(0,i,j);
           }
         }
         for (size_t i=0; i<macro_basis_pointers.size(); i++) {
           DRV bvals = discTools->evaluateBasis(macro_basis_pointers[i], sref_side_ip, macroorientation);
-          for (unsigned int k=0; k<bvals.dimension(1); k++) {
-            for (unsigned int j=0; j<bvals.dimension(2); j++) {
+          for (unsigned int k=0; k<bvals.extent(1); k++) {
+            for (unsigned int j=0; j<bvals.extent(2); j++) {
               currside_basis[i](c,k,j) = bvals(0,k,j);
             }
           }

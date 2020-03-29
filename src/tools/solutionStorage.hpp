@@ -203,8 +203,8 @@ public:
     auto src_kv = src->getLocalView<HostDevice>();
     auto dest_kv = dest->getLocalView<HostDevice>();
     
-    for (size_t i=0; i<src_kv.dimension(0); i++) {
-      for (size_t j=0; j<src_kv.dimension(1); j++) {
+    for (size_t i=0; i<src_kv.extent(0); i++) {
+      for (size_t j=0; j<src_kv.extent(1); j++) {
         dest_kv(i,j) = src_kv(i,j);
       }
     }

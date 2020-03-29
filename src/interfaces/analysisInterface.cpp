@@ -145,7 +145,7 @@ void analysis::run() {
     int ptsdim = sampsettings.get<int>("dimension");
     data sdata("Sample Points", ptsdim, sampsettings.get("source","samples.dat"));
     Kokkos::View<ScalarT**,HostDevice> samples = sdata.getpoints();
-    int numsamples = samples.dimension(0);
+    int numsamples = samples.extent(0);
     
     // Evaluate MILO or a surrogate at these samples
     vector<ScalarT> response_values;
@@ -253,9 +253,9 @@ void analysis::run() {
          }*/
         if (settings->sublist("Postprocess").get<bool>("compute response",false)) {
           Kokkos::View<ScalarT***,HostDevice> currresponse = postproc->computeResponse(0);
-          for (size_t i=0; i<currresponse.dimension(0); i++) {
-            for (size_t j=0; j<currresponse.dimension(1); j++) {
-              for (size_t k=0; k<currresponse.dimension(2); k++) {
+          for (size_t i=0; i<currresponse.extent(0); i++) {
+            for (size_t j=0; j<currresponse.extent(1); j++) {
+              for (size_t k=0; k<currresponse.extent(2); k++) {
                 ScalarT myval = currresponse(i,j,k);
                 ScalarT gval = 0.0;
                 Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&myval,&gval);
@@ -267,8 +267,8 @@ void analysis::run() {
           
           response_values.push_back(currresponse);
           if (settings->sublist("Postprocess").get<bool>("compute response forward gradient",false)) {
-            Kokkos::View<ScalarT****,HostDevice> currgrad("current gradient",numstochparams,currresponse.dimension(0),
-                                                         currresponse.dimension(1),currresponse.dimension(2));
+            Kokkos::View<ScalarT****,HostDevice> currgrad("current gradient",numstochparams,currresponse.extent(0),
+                                                         currresponse.extent(1),currresponse.extent(2));
             for (int i=0; i<numstochparams; i++) {
               ScalarT oldval = currparams[i];
               ScalarT pert = 1.0e-6;
@@ -277,9 +277,9 @@ void analysis::run() {
               DFAD objfun2 = 0.0;
               solve->forwardModel(objfun2);
               Kokkos::View<ScalarT***,HostDevice> currresponse2 = postproc->computeResponse(0);
-              for (size_t i2=0; i2<currresponse2.dimension(0); i2++) {
-                for (size_t j=0; j<currresponse2.dimension(1); j++) {
-                  for (size_t k=0; k<currresponse2.dimension(2); k++) {
+              for (size_t i2=0; i2<currresponse2.extent(0); i2++) {
+                for (size_t j=0; j<currresponse2.extent(1); j++) {
+                  for (size_t k=0; k<currresponse2.extent(2); k++) {
                     ScalarT myval = currresponse2(i2,j,k);
                     ScalarT gval = 0.0;
                     Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&myval,&gval);
@@ -308,8 +308,8 @@ void analysis::run() {
       string sptname = "sample_points.dat";
       ofstream sampOUT(sptname.c_str());
       sampOUT.precision(6);
-      for (int r=0; r<samplepts.dimension(0); r++) {
-        for (int d=0; d<samplepts.dimension(1); d++) {
+      for (int r=0; r<samplepts.extent(0); r++) {
+        for (int d=0; d<samplepts.extent(1); d++) {
           sampOUT << samplepts(r,d) << "  ";
         }
         sampOUT << endl;
@@ -320,9 +320,9 @@ void analysis::run() {
       ofstream respOUT(sname.c_str());
       respOUT.precision(6);
       for (int r=0; r<response_values.size(); r++) {
-        for (int s=0; s<response_values[r].dimension(0); s++) { // sensor index
-          for (int t=0; t<response_values[r].dimension(2); t++) { // time index
-            for (int d=0; d<response_values[r].dimension(1); d++) { // data index
+        for (int s=0; s<response_values[r].extent(0); s++) { // sensor index
+          for (int t=0; t<response_values[r].extent(2); t++) { // time index
+            for (int d=0; d<response_values[r].extent(1); d++) { // data index
               respOUT << response_values[r](s,d,t) << "  ";
             }
           }
@@ -336,10 +336,10 @@ void analysis::run() {
         ofstream gradOUT(sname.c_str());
         gradOUT.precision(6);
         for (int r=0; r<response_grads.size(); r++) {
-          for (int s=0; s<response_grads[r].dimension(0); s++) { // sensor index
-            for (int t=0; t<response_grads[r].dimension(2); t++) { // time index
-              for (int d=0; d<response_grads[r].dimension(1); d++) { // data index
-                for (int p=0; d<response_grads[r].dimension(1); d++) { // data index
+          for (int s=0; s<response_grads[r].extent(0); s++) { // sensor index
+            for (int t=0; t<response_grads[r].extent(2); t++) { // time index
+              for (int d=0; d<response_grads[r].extent(1); d++) { // data index
+                for (int p=0; d<response_grads[r].extent(1); d++) { // data index
                   gradOUT << response_grads[r](s,d,t,p) << "  ";
                 }
               }

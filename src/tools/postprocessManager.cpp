@@ -137,7 +137,7 @@ DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensor
   
   
     int numElemPerCell = settings->sublist("Solver").get<int>("Workset size",1);
-    int numip = disc->ref_ip[0].dimension(0);
+    int numip = disc->ref_ip[0].extent(0);
     
     if (settings->sublist("Postprocess").isSublist("Responses")) {
       Teuchos::ParameterList resps = settings->sublist("Postprocess").sublist("Responses");
@@ -325,9 +325,9 @@ AD PostprocessManager::computeObjective() {
         
         vector<vector<int> > paramoffsets = params->paramoffsets;
         //for (size_t tt=0; tt<solvetimes.size(); tt++) { // skip initial condition in 0th position
-        if (obj.dimension(1) > 0) {
+        if (obj.extent(1) > 0) {
           for (int c=0; c<numElem; c++) {
-            for (size_t i=0; i<obj.dimension(1); i++) {
+            for (size_t i=0; i<obj.extent(1); i++) {
               totaldiff += obj(c,i);
               if (numClassicParams > 0) {
                 if (obj(c,i).size() > 0) {
@@ -474,16 +474,16 @@ Kokkos::View<ScalarT***,HostDevice> PostprocessManager::computeResponse(const in
         if (response_type == "global" ) {
           DRV wts = assembler->wkset[b]->wts;
           for (int p=0; p<numElem; p++) {
-            for (size_t j=0; j<wts.dimension(1); j++) {
+            for (size_t j=0; j<wts.extent(1); j++) {
               responses(0,r,tt) += responsevals(p,r,j).val() * wts(p,j);
             }
           }
         }
         else if (response_type == "pointwise" ) {
-          if (responsevals.dimension(1) > 0) {
+          if (responsevals.extent(1) > 0) {
             vector<int> sensIDs = cells[b][e]->mySensorIDs;
             for (int p=0; p<numElem; p++) {
-              for (size_t j=0; j<responsevals.dimension(2); j++) {
+              for (size_t j=0; j<responsevals.extent(2); j++) {
                 responses(sensIDs[j],r,tt) += responsevals(p,r,j).val();
               }
             }
@@ -543,7 +543,7 @@ void PostprocessManager::computeResponse() {
           if(Comm->getRank() == 0){
             respOUT << solvetimes[tt] << "  ";
           }
-          for (int n=0; n<responses.dimension(1); n++) {
+          for (int n=0; n<responses.extent(1); n++) {
             ScalarT tmp1 = responses(k,n,tt);
             ScalarT tmp2 = 0.0;//globalresp(k,n,tt);
             Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&tmp1,&tmp2);
@@ -567,9 +567,9 @@ void PostprocessManager::computeResponse() {
       string sname2 = "results.out";
       ofstream respOUT(sname2.c_str());
       respOUT.precision(16);
-      for (int k=0; k<responses.dimension(0); k++) {
-        for (int n=0; n<responses.dimension(1); n++) {
-          for (int m=0; m<responses.dimension(2); m++) {
+      for (int k=0; k<responses.extent(0); k++) {
+        for (int n=0; n<responses.extent(1); n++) {
+          for (int m=0; m<responses.extent(2); m++) {
             ScalarT tmp1 = responses(k,n,m);
             ScalarT tmp2 = 0.0;//globalresp(k,n,tt);
             Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&tmp1,&tmp2);
@@ -949,7 +949,7 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
           rfields = cells[b][k]->computeResponseAtNodes(nodes, m, solvetimes[m]);
           for (int p=0; p<cells[b][k]->numElem; p++) {
             for (size_t j=0; j<responsefieldnames.size(); j++) {
-              for (size_t i=0; i<nodes.dimension(1); i++) {
+              for (size_t i=0; i<nodes.extent(1); i++) {
                 responsefields[j](eprog,i) = rfields(p,j,i).val();
               }
             }
@@ -980,8 +980,8 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
         cfields = phys->getExtraFields(b, nodes, solvetimes[m], assembler->wkset[b]);
         for (int p=0; p<cells[b][k]->numElem; p++) {
           size_t j = 0;
-          for (size_t h=0; h<cfields.dimension(1); h++) {
-            for (size_t i=0; i<cfields.dimension(2); i++) {
+          for (size_t h=0; h<cfields.extent(1); h++) {
+            for (size_t i=0; i<cfields.extent(2); i++) {
               extrafields[j](eprog,i) = cfields(p,h,i);
             }
             ++j;
@@ -1009,8 +1009,8 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
       eprog = 0;
       for (size_t k=0; k<cells[b].size(); k++) {
         DRV nodes = cells[b][k]->nodes;
-        Kokkos::View<ScalarT***,HostDevice> center("center",nodes.dimension(0),1,spaceDim);
-        int numnodes = nodes.dimension(1);
+        Kokkos::View<ScalarT***,HostDevice> center("center",nodes.extent(0),1,spaceDim);
+        int numnodes = nodes.extent(1);
         for (int p=0; p<cells[b][k]->numElem; p++) {
           for (int i=0; i<numnodes; i++) {
             for (int d=0; d<spaceDim; d++) {
@@ -1024,7 +1024,7 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
         Kokkos::View<ScalarT***,HostDevice> cfields = phys->getExtraCellFields(b, cells[b][k]->numElem);
         for (int p=0; p<cells[b][k]->numElem; p++) {
           size_t j = 0;
-          for (size_t h=0; h<cfields.dimension(1); h++) {
+          for (size_t h=0; h<cfields.extent(1); h++) {
             extracellfields[j](eprog,0) = cfields(p,h,0);
             ++j;
           }
@@ -1044,10 +1044,10 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
           Kokkos::View<ScalarT**> cell_data = cells[b][k]->cell_data;
           for (int p=0; p<cells[b][k]->numElem; p++) {
             /*
-            if (cell_data.dimension(1) == 3) {
+            if (cell_data.extent(1) == 3) {
               cdata(eprog,0) = cell_data(p,0);//cell_data_seed[p];
             }
-            else if (cell_data.dimension(1) == 9) {
+            else if (cell_data.extent(1) == 9) {
               cdata(eprog,0) = cell_data(p,0);//*cell_data(p,4)*cell_data(p,8);//cell_data_seed[p];
             }
              */

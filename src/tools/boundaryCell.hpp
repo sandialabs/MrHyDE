@@ -41,7 +41,7 @@ public:
   cellData(cellData_), localElemID(localID_), localSideID(sideID_), nodes(nodes_),
   sidenum(sidenum_), sidename(sidename_), cellID(cellID_) {
   
-    numElem = nodes.dimension(0);
+    numElem = nodes.extent(0);
     
   }
   
@@ -50,13 +50,13 @@ public:
   
   void setIndex(Kokkos::View<LO***,AssemblyDevice> & index_, Kokkos::View<LO*,AssemblyDevice> & numDOF_) {
     
-    index = Kokkos::View<LO***,AssemblyDevice>("local index",index_.dimension(0),
-                                               index_.dimension(1), index_.dimension(2));
+    index = Kokkos::View<LO***,AssemblyDevice>("local index",index_.extent(0),
+                                               index_.extent(1), index_.extent(2));
     
     // Need to copy the data since index_ is rewritten for each cell
-    parallel_for(RangePolicy<AssemblyDevice>(0,index_.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (unsigned int j=0; j<index_.dimension(1); j++) {
-        for (unsigned int k=0; k<index_.dimension(2); k++) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (unsigned int j=0; j<index_.extent(1); j++) {
+        for (unsigned int k=0; k<index_.extent(2); k++) {
           index(e,j,k) = index_(e,j,k);
         }
       }
@@ -73,13 +73,13 @@ public:
   void setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_,
                      Kokkos::View<LO*,AssemblyDevice> & pnumDOF_) {
     
-    paramindex = Kokkos::View<LO***,AssemblyDevice>("local param index",pindex_.dimension(0),
-                                                    pindex_.dimension(1), pindex_.dimension(2));
+    paramindex = Kokkos::View<LO***,AssemblyDevice>("local param index",pindex_.extent(0),
+                                                    pindex_.extent(1), pindex_.extent(2));
     
     // Need to copy the data since index_ is rewritten for each cell
-    parallel_for(RangePolicy<AssemblyDevice>(0,pindex_.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (unsigned int j=0; j<pindex_.dimension(1); j++) {
-        for (unsigned int k=0; k<pindex_.dimension(2); k++) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,pindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (unsigned int j=0; j<pindex_.extent(1); j++) {
+        for (unsigned int k=0; k<pindex_.extent(2); k++) {
           paramindex(e,j,k) = pindex_(e,j,k);
         }
       }
@@ -95,13 +95,13 @@ public:
   
   void setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_) {
     
-    auxindex = Kokkos::View<LO***,AssemblyDevice>("local aux index",1,aindex_.dimension(1),
-                                                  aindex_.dimension(2));
+    auxindex = Kokkos::View<LO***,AssemblyDevice>("local aux index",1,aindex_.extent(1),
+                                                  aindex_.extent(2));
     
     // Need to copy the data since index_ is rewritten for each cell
-    parallel_for(RangePolicy<AssemblyDevice>(0,aindex_.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (unsigned int j=0; j<aindex_.dimension(1); j++) {
-        for (unsigned int k=0; k<aindex_.dimension(2); k++) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,aindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (unsigned int j=0; j<aindex_.extent(1); j++) {
+        for (unsigned int k=0; k<aindex_.extent(2); k++) {
           auxindex(e,j,k) = aindex_(e,j,k);
         }
       }
@@ -111,9 +111,9 @@ public:
     // This is excessive storage, please remove
     //numAuxDOF = anumDOF_;
     // Temp. fix
-    numAuxDOF = Kokkos::View<int*,HostDevice>("numAuxDOF",auxindex.dimension(1));
-    for (unsigned int i=0; i<auxindex.dimension(1); i++) {
-      numAuxDOF(i) = auxindex.dimension(2);
+    numAuxDOF = Kokkos::View<int*,HostDevice>("numAuxDOF",auxindex.extent(1));
+    for (unsigned int i=0; i<auxindex.extent(1); i++) {
+      numAuxDOF(i) = auxindex.extent(2);
     }
     
   }
@@ -241,14 +241,14 @@ public:
   vector<int> getInfo() {
     vector<int> info;
     int nparams = 0;
-    if (paramindex.dimension(0)>0) {
-      nparams = paramindex.dimension(1);
+    if (paramindex.extent(0)>0) {
+      nparams = paramindex.extent(1);
     }
     info.push_back(cellData->dimension);
-    info.push_back(numDOF.dimension(0));
+    info.push_back(numDOF.extent(0));
     info.push_back(nparams);
-    info.push_back(auxindex.dimension(1));
-    info.push_back(GIDs.dimension(1));
+    info.push_back(auxindex.extent(1));
+    info.push_back(GIDs.extent(1));
     info.push_back(numElem);
     return info;
   }

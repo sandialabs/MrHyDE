@@ -221,13 +221,13 @@ int SubGridExpFEM::addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> 
     int sprog = 0;
     for (size_t e=0; e<currcells[0].size(); e++) {
       // Redefine the sideinfo for the subcells
-      Kokkos::View<int****,HostDevice> subsideinfo("subcell side info", currcells[0][e]->numElem, sideinfo.dimension(1),
-                                                   sideinfo.dimension(2), sideinfo.dimension(3));
+      Kokkos::View<int****,HostDevice> subsideinfo("subcell side info", currcells[0][e]->numElem, sideinfo.extent(1),
+                                                   sideinfo.extent(2), sideinfo.extent(3));
       
       for (size_t c=0; c<currcells[0][e]->numElem; c++) { // number of elem in cell
-        for (size_t i=0; i<sideinfo.dimension(1); i++) { // number of variables
-          for (size_t j=0; j<sideinfo.dimension(2); j++) { // number of sides per element
-            for (size_t k=0; k<sideinfo.dimension(3); k++) { // boundary information
+        for (size_t i=0; i<sideinfo.extent(1); i++) { // number of variables
+          for (size_t j=0; j<sideinfo.extent(2); j++) { // number of sides per element
+            for (size_t k=0; k<sideinfo.extent(3); k++) { // boundary information
               subsideinfo(c,i,j,k) = sideinfo(sprog,i,j,k);
             }
             if (subsideinfo(c,i,j,0) == 1) {//} && subsideinfo(0,i,j,1) == -1) { // redefine for weak Dirichlet conditions
@@ -254,14 +254,14 @@ int SubGridExpFEM::addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> 
     int numNodesPerElem = cellTopo->getNodeCount();
     vector<Teuchos::RCP<BoundaryCell> > newbcells;
     
-    int numLocalBoundaries = macrosideinfo_.dimension(2);
+    int numLocalBoundaries = macrosideinfo_.extent(2);
     vector<int> unique_sides;
     vector<int> unique_local_sides;
     vector<string> unique_names;
     
-    for (size_t c=0; c<sideinfo.dimension(0); c++) { // number of elem in cell
-      for (size_t i=0; i<sideinfo.dimension(1); i++) { // number of variables
-        for (size_t j=0; j<sideinfo.dimension(2); j++) { // number of sides per element
+    for (size_t c=0; c<sideinfo.extent(0); c++) { // number of elem in cell
+      for (size_t i=0; i<sideinfo.extent(1); i++) { // number of variables
+        for (size_t j=0; j<sideinfo.extent(2); j++) { // number of sides per element
           if (sideinfo(c,i,j,0) > 0) {
             bool found = false;
             for (size_t s=0; s<unique_sides.size(); s++) {
@@ -295,16 +295,16 @@ int SubGridExpFEM::addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> 
       }
     }
     
-    Kokkos::View<int**,AssemblyDevice> currbcs("boundary conditions",sideinfo.dimension(1),
-                                               macrosideinfo_.dimension(2));
-    for (size_t i=0; i<sideinfo.dimension(1); i++) { // number of variables
-      for (size_t j=0; j<macrosideinfo_.dimension(2); j++) { // number of sides per element
+    Kokkos::View<int**,AssemblyDevice> currbcs("boundary conditions",sideinfo.extent(1),
+                                               macrosideinfo_.extent(2));
+    for (size_t i=0; i<sideinfo.extent(1); i++) { // number of variables
+      for (size_t j=0; j<macrosideinfo_.extent(2); j++) { // number of sides per element
         currbcs(i,j) = 5;
       }
     }
-    for (size_t c=0; c<sideinfo.dimension(0); c++) {
-      for (size_t i=0; i<sideinfo.dimension(1); i++) { // number of variables
-        for (size_t j=0; j<sideinfo.dimension(2); j++) { // number of sides per element
+    for (size_t c=0; c<sideinfo.extent(0); c++) {
+      for (size_t i=0; i<sideinfo.extent(1); i++) { // number of variables
+        for (size_t j=0; j<sideinfo.extent(2); j++) { // number of sides per element
           if (sideinfo(c,i,j,0) > 1) {
             for (size_t p=0; p<unique_sides.size(); p++) {
               if (unique_sides[p] == sideinfo(c,i,j,1)) {
@@ -331,9 +331,9 @@ int SubGridExpFEM::addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> 
       }
       sidename = unique_names[s];
       vector<size_t> group;
-      for (size_t c=0; c<sideinfo.dimension(0); c++) {
+      for (size_t c=0; c<sideinfo.extent(0); c++) {
         bool addthis = false;
-        for (size_t i=0; i<sideinfo.dimension(1); i++) { // number of variables
+        for (size_t i=0; i<sideinfo.extent(1); i++) { // number of variables
           if (sideinfo(c,i,clside,0) > 0) {
             if (sideinfo(c,i,clside,1) == unique_sides[s]) {
               addthis = true;
@@ -436,7 +436,7 @@ int SubGridExpFEM::addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> 
         currcells[0][e]->setParamIndex(cells[0][e]->paramindex, cells[0][e]->numParamDOF);
         currcells[0][e]->paramGIDs = cells[0][e]->paramGIDs;
         currcells[0][e]->setParamUseBasis(wkset[0]->paramusebasis, sub_params->paramNumBasis);
-        int numDOF = currcells[0][0]->GIDs.dimension(1);
+        int numDOF = currcells[0][0]->GIDs.extent(1);
         currcells[0][e]->wkset = wkset[0];
         currcells[0][e]->setUseBasis(sub_solver->useBasis[0],1);
         currcells[0][e]->setUpAdjointPrev(numDOF);
@@ -449,7 +449,7 @@ int SubGridExpFEM::addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> 
         bCells[0][e]->setParamIndex(boundaryCells[0][e]->paramindex, boundaryCells[0][e]->numParamDOF);
         bCells[0][e]->paramGIDs = boundaryCells[0][e]->paramGIDs;
         bCells[0][e]->setParamUseBasis(wkset[0]->paramusebasis, sub_params->paramNumBasis);
-        int numDOF = currcells[0][0]->GIDs.dimension(1);
+        int numDOF = currcells[0][0]->GIDs.extent(1);
         bCells[0][e]->wkset = wkset[0];
         bCells[0][e]->setUseBasis(sub_solver->useBasis[0],1);
         bCells[0][e]->wksetBID = wkset[0]->addSide(bCells[0][e]->nodes, bCells[0][e]->sidenum,
@@ -505,7 +505,7 @@ int SubGridExpFEM::addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> 
     phi = Teuchos::rcp( new LA_MultiVector(overlapped_map,1)); // reset residual
     phi_dot = Teuchos::rcp( new LA_MultiVector(overlapped_map,1)); // reset residual
     
-    int nmacroDOF = macroGIDs.dimension(1);
+    int nmacroDOF = macroGIDs.extent(1);
     d_um = Teuchos::rcp( new LA_MultiVector(owned_map,nmacroDOF)); // reset residual
     d_sub_res_overm = Teuchos::rcp(new LA_MultiVector(overlapped_map,nmacroDOF));
     d_sub_resm = Teuchos::rcp(new LA_MultiVector(owned_map,nmacroDOF));
@@ -608,11 +608,11 @@ int SubGridExpFEM::addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> 
         
         
         DRV ip = cells[block][e]->ip;//wkset[b]->ip;
-        DRV sref_ip_tmp("sref_ip_tmp",numElem, ip.dimension(1), ip.dimension(2));
-        DRV sref_ip("sref_ip",ip.dimension(1), ip.dimension(2));
+        DRV sref_ip_tmp("sref_ip_tmp",numElem, ip.extent(1), ip.extent(2));
+        DRV sref_ip("sref_ip",ip.extent(1), ip.extent(2));
         Intrepid2::CellTools<AssemblyDevice>::mapToReferenceFrame(sref_ip_tmp, ip, macronodes[block], *macro_cellTopo);
-        for (size_t i=0; i<ip.dimension(1); i++) {
-          for (size_t j=0; j<ip.dimension(2); j++) {
+        for (size_t i=0; i<ip.extent(1); i++) {
+          for (size_t j=0; j<ip.extent(2); j++) {
             sref_ip(i,j) = sref_ip_tmp(0,i,j);
           }
         }
@@ -634,33 +634,33 @@ int SubGridExpFEM::addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> 
         DRV sside_ip = wkset[0]->ip_side_vec[boundaryCells[block][e]->wksetBID];
         vector<DRV> currside_basis, currside_basis_grad;
         for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-          DRV tmp_basis = DRV("basis values",numElem,macro_basis_pointers[i]->getCardinality(),sside_ip.dimension(1));
+          DRV tmp_basis = DRV("basis values",numElem,macro_basis_pointers[i]->getCardinality(),sside_ip.extent(1));
           currside_basis.push_back(tmp_basis);
         }
         
         for (size_t c=0; c<numElem; c++) {
-          //DRV side_ip_e("side_ip_e",cells[block][e]->numElem, sside_ip.dimension(1), sside_ip.dimension(2));
-          DRV side_ip_e("side_ip_e",1, sside_ip.dimension(1), sside_ip.dimension(2));
-          for (unsigned int i=0; i<sside_ip.dimension(1); i++) {
-            for (unsigned int j=0; j<sside_ip.dimension(2); j++) {
+          //DRV side_ip_e("side_ip_e",cells[block][e]->numElem, sside_ip.extent(1), sside_ip.extent(2));
+          DRV side_ip_e("side_ip_e",1, sside_ip.extent(1), sside_ip.extent(2));
+          for (unsigned int i=0; i<sside_ip.extent(1); i++) {
+            for (unsigned int j=0; j<sside_ip.extent(2); j++) {
               side_ip_e(0,i,j) = sside_ip(c,i,j);
             }
           }
-          //DRV sref_side_ip_tmp("sref_side_ip_tmp",sside_ip.dimension(0), sside_ip.dimension(1), sside_ip.dimension(2));
-          DRV sref_side_ip_tmp("sref_side_ip_tmp",1, sside_ip.dimension(1), sside_ip.dimension(2));
+          //DRV sref_side_ip_tmp("sref_side_ip_tmp",sside_ip.extent(0), sside_ip.extent(1), sside_ip.extent(2));
+          DRV sref_side_ip_tmp("sref_side_ip_tmp",1, sside_ip.extent(1), sside_ip.extent(2));
           
           //CellTools<AssemblyDevice>::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, macronodes[block], *macro_cellTopo);
-          DRV sref_side_ip("sref_side_ip", sside_ip.dimension(1), sside_ip.dimension(2));
+          DRV sref_side_ip("sref_side_ip", sside_ip.extent(1), sside_ip.extent(2));
           Intrepid2::CellTools<AssemblyDevice>::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, macronodes[block], *macro_cellTopo);
-          for (size_t i=0; i<sside_ip.dimension(1); i++) {
-            for (size_t j=0; j<sside_ip.dimension(2); j++) {
+          for (size_t i=0; i<sside_ip.extent(1); i++) {
+            for (size_t j=0; j<sside_ip.extent(2); j++) {
               sref_side_ip(i,j) = sref_side_ip_tmp(0,i,j);
             }
           }
           for (size_t i=0; i<macro_basis_pointers.size(); i++) {
             DRV bvals = discTools->evaluateBasis(macro_basis_pointers[i], sref_side_ip, macroorientation);
-            for (unsigned int k=0; k<bvals.dimension(1); k++) {
-              for (unsigned int j=0; j<bvals.dimension(2); j++) {
+            for (unsigned int k=0; k<bvals.extent(1); k++) {
+              for (unsigned int j=0; j<bvals.extent(2); j++) {
                 currside_basis[i](c,k,j) = bvals(0,k,j);
               }
             }
@@ -758,7 +758,7 @@ void SubGridExpFEM::addMeshData() {
           DRV nodes = cells[b][e]->nodes;
           for (int c=0; c<numElem; c++) {
             Kokkos::View<ScalarT**,AssemblyDevice> center("center",1,3);
-            int numnodes = nodes.dimension(1);
+            int numnodes = nodes.extent(1);
             for (size_t i=0; i<numnodes; i++) {
               for (size_t j=0; j<dimension; j++) {
                 center(0,j) += nodes(c,i,j)/(ScalarT)numnodes;
@@ -777,7 +777,7 @@ void SubGridExpFEM::addMeshData() {
             if (iscloser) {
               Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
               
-              for (unsigned int i=0; i<cdata.dimension(1); i++) {
+              for (unsigned int i=0; i<cdata.extent(1); i++) {
                 cells[b][e]->cell_data(c,i) = cdata(0,i);
               }
               
@@ -1001,9 +1001,9 @@ void SubGridExpFEM::addMeshData() {
         int numElem = cells[b][e]->numElem;
         for (int c=0; c<numElem; c++) {
           Kokkos::View<ScalarT[1][3],HostDevice> center("center");
-          for (size_t i=0; i<nodes.dimension(1); i++) {
-            for (size_t j=0; j<nodes.dimension(2); j++) {
-              center(0,j) += nodes(c,i,j)/(ScalarT)nodes.dimension(1);
+          for (size_t i=0; i<nodes.extent(1); i++) {
+            for (size_t j=0; j<nodes.extent(2); j++) {
+              center(0,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
             }
           }
           ScalarT distance = 1.0e6;
@@ -1054,8 +1054,8 @@ void SubGridExpFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
   ScalarT current_time = time;
   int macroDOF = macrowkset.numDOF;
   bool usesubadjoint = false;
-  for (unsigned int i=0; i<subgradient.dimension(0); i++) {
-    for (unsigned int j=0; j<subgradient.dimension(1); j++) {
+  for (unsigned int i=0; i<subgradient.extent(0); i++) {
+    for (unsigned int j=0; j<subgradient.extent(1); j++) {
       subgradient(i,j) = 0.0;
     }
   }
@@ -1075,20 +1075,20 @@ void SubGridExpFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
   ///////////////////////////////////////////////////////////////////////////////////
   int cnumElem = cells[usernum][0]->numElem;
   Kokkos::View<ScalarT***,AssemblyDevice> cg_u("local u",cnumElem,
-                                               gl_u.dimension(1),gl_u.dimension(2));
+                                               gl_u.extent(1),gl_u.extent(2));
   Kokkos::View<ScalarT***,AssemblyDevice> cg_phi("local phi",cnumElem,
-                                                 gl_phi.dimension(1),gl_phi.dimension(2));
+                                                 gl_phi.extent(1),gl_phi.extent(2));
   
   for (int e=0; e<cnumElem; e++) {
-    for (unsigned int i=0; i<gl_u.dimension(1); i++) {
-      for (unsigned int j=0; j<gl_u.dimension(2); j++) {
+    for (unsigned int i=0; i<gl_u.extent(1); i++) {
+      for (unsigned int j=0; j<gl_u.extent(2); j++) {
         cg_u(e,i,j) = gl_u(macroelemindex,i,j);
       }
     }
   }
   for (int e=0; e<cnumElem; e++) {
-    for (unsigned int i=0; i<gl_phi.dimension(1); i++) {
-      for (unsigned int j=0; j<gl_phi.dimension(2); j++) {
+    for (unsigned int i=0; i<gl_phi.extent(1); i++) {
+      for (unsigned int j=0; j<gl_phi.extent(2); j++) {
         cg_phi(e,i,j) = gl_phi(macroelemindex,i,j);
       }
     }
@@ -1287,16 +1287,16 @@ void SubGridExpFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
 
 void SubGridExpFEM::storeFluxData(Kokkos::View<ScalarT***,AssemblyDevice> lambda, Kokkos::View<AD**,AssemblyDevice> flux) {
   
-  int num_dof_lambda = lambda.dimension(1)*lambda.dimension(2);
+  int num_dof_lambda = lambda.extent(1)*lambda.extent(2);
   
   std::ofstream ofs;
   
   // Input data - macro DOFs
   ofs.open ("input_data.txt", std::ofstream::out | std::ofstream::app);
   ofs.precision(10);
-  for (size_t e=0; e<lambda.dimension(0); e++) {
-    for (size_t i=0; i<lambda.dimension(1); i++) {
-      for (size_t j=0; j<lambda.dimension(2); j++) {
+  for (size_t e=0; e<lambda.extent(0); e++) {
+    for (size_t i=0; i<lambda.extent(1); i++) {
+      for (size_t j=0; j<lambda.extent(2); j++) {
         ofs << lambda(e,i,j) << "  ";
       }
     }
@@ -1307,9 +1307,9 @@ void SubGridExpFEM::storeFluxData(Kokkos::View<ScalarT***,AssemblyDevice> lambda
   // Output data - upscaled flux
   ofs.open ("output_data.txt", std::ofstream::out | std::ofstream::app);
   ofs.precision(10);
-  for (size_t e=0; e<flux.dimension(0); e++) {
-    //for (size_t i=0; i<flux.dimension(1); i++) {
-      //for (size_t j=0; j<flux.dimension(2); j++) {
+  for (size_t e=0; e<flux.extent(0); e++) {
+    //for (size_t i=0; i<flux.extent(1); i++) {
+      //for (size_t j=0; j<flux.extent(2); j++) {
       ofs << flux(e,0).val() << "  ";
       //}
     //}
@@ -1321,9 +1321,9 @@ void SubGridExpFEM::storeFluxData(Kokkos::View<ScalarT***,AssemblyDevice> lambda
   /*Kokkos::View<int**,AssemblyDevice> offsets = macrowkset->offsets;
   ofs.open ("output_gradients.txt", std::ofstream::out | std::ofstream::app);
   ofs.precision(10);
-  for (size_t e=0; e<flux.dimension(0); e++) {
-    for (size_t i=0; i<offsets.dimension(0); i++) {
-      //for (size_t j=0; j<flux.dimension(2); j++) {
+  for (size_t e=0; e<flux.extent(0); e++) {
+    for (size_t i=0; i<offsets.extent(0); i++) {
+      //for (size_t j=0; j<flux.extent(2); j++) {
       for (size_t k=0; k<num_dof_lambda; k++) {
         ofs << flux(e,0).fastAccessDx(k) << "  ";
       }
@@ -1345,15 +1345,15 @@ void SubGridExpFEM::sacadoizeParams(const bool & seed_active, const int & num_ac
   /*
    if (seed_active) {
    size_t pprog = 0;
-   for (size_t i=0; i<paramvals_KVAD.dimension(0); i++) {
+   for (size_t i=0; i<paramvals_KVAD.extent(0); i++) {
    if (paramtypes[i] == 1) { // active parameters
-   for (size_t j=0; j<paramvals_KVAD.dimension(1); j++) {
+   for (size_t j=0; j<paramvals_KVAD.extent(1); j++) {
    paramvals_KVAD(i,j) = AD(maxDerivs,pprog,paramvals_KVAD(i,j).val());
    pprog++;
    }
    }
    else { // inactive, stochastic, or discrete parameters
-   for (size_t j=0; j<paramvals_KVAD.dimension(1); j++) {
+   for (size_t j=0; j<paramvals_KVAD.extent(1); j++) {
    paramvals_KVAD(i,j) = AD(paramvals_KVAD(i,j).val());
    }
    }
@@ -1361,8 +1361,8 @@ void SubGridExpFEM::sacadoizeParams(const bool & seed_active, const int & num_ac
    }
    else {
    size_t pprog = 0;
-   for (size_t i=0; i<paramvals_KVAD.dimension(0); i++) {
-   for (size_t j=0; j<paramvals_KVAD.dimension(1); j++) {
+   for (size_t i=0; i<paramvals_KVAD.extent(0); i++) {
+   for (size_t j=0; j<paramvals_KVAD.extent(1); j++) {
    paramvals_KVAD(i,j) = AD(paramvals_KVAD(i,j).val());
    }
    }
@@ -1412,7 +1412,7 @@ void SubGridExpFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
     wkset[0]->isAdjoint = isAdjoint;
     
     int numElem = cells[usernum][0]->numElem;
-    int numDOF = cells[usernum][0]->GIDs.dimension(1);
+    int numDOF = cells[usernum][0]->GIDs.extent(1);
     
     Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
     
@@ -1452,8 +1452,8 @@ void SubGridExpFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
       if (isAdjoint) {
         aPrev = cells[usernum][e]->adjPrev;
         if (is_final_time) {
-          for (unsigned int i=0; i<aPrev.dimension(0); i++) {
-            for (unsigned int j=0; j<aPrev.dimension(1); j++) {
+          for (unsigned int i=0; i<aPrev.extent(0); i++) {
+            for (unsigned int j=0; j<aPrev.extent(1); j++) {
               cells[usernum][e]->adjPrev(i,j) = 0.0;
             }
           }
@@ -1465,10 +1465,10 @@ void SubGridExpFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
       
       for (int p=0; p<numElem; p++) {
         for (int n=0; n<numDOF; n++) {
-          for (unsigned int s=0; s<local_res.dimension(2); s++) {
+          for (unsigned int s=0; s<local_res.extent(2); s++) {
             local_res(p,n,s) = 0.0;
           }
-          for (unsigned int s=0; s<local_J.dimension(2); s++) {
+          for (unsigned int s=0; s<local_J.extent(2); s++) {
             local_J(p,n,s) = 0.0;
             local_Jdot(p,n,s) = 0.0;
           }
@@ -1487,19 +1487,19 @@ void SubGridExpFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
       {
         Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverInsertTimer);
         Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;
-        for (unsigned int i=0; i<GIDs.dimension(0); i++) {
-          Teuchos::Array<ScalarT> vals(GIDs.dimension(1));
-          Teuchos::Array<GO> cols(GIDs.dimension(1));
-          for( size_t row=0; row<GIDs.dimension(1); row++ ) {
+        for (unsigned int i=0; i<GIDs.extent(0); i++) {
+          Teuchos::Array<ScalarT> vals(GIDs.extent(1));
+          Teuchos::Array<GO> cols(GIDs.extent(1));
+          for( size_t row=0; row<GIDs.extent(1); row++ ) {
             GO rowIndex = GIDs(i,row);
             ScalarT val = local_res(i,row,0);
             res_over->sumIntoGlobalValue(rowIndex,0, val);
-            for( size_t col=0; col<GIDs.dimension(1); col++ ) {
+            for( size_t col=0; col<GIDs.extent(1); col++ ) {
               vals[col] = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
               cols[col] = GIDs(i,col);
             }
             sub_J_over->sumIntoGlobalValues(rowIndex, cols, vals);
-            for( size_t col=0; col<GIDs.dimension(1); col++ ) {
+            for( size_t col=0; col<GIDs.extent(1); col++ ) {
               vals[col] = local_Jdot(i,row,col);
             }
             sub_M_over->sumIntoGlobalValues(rowIndex, cols, vals);
@@ -1521,10 +1521,10 @@ void SubGridExpFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
         
         for (int p=0; p<numElem; p++) {
           for (int n=0; n<numDOF; n++) {
-            for (unsigned int s=0; s<local_res.dimension(2); s++) {
+            for (unsigned int s=0; s<local_res.extent(2); s++) {
               local_res(p,n,s) = 0.0;
             }
-            for (unsigned int s=0; s<local_J.dimension(2); s++) {
+            for (unsigned int s=0; s<local_J.extent(2); s++) {
               local_J(p,n,s) = 0.0;
               local_Jdot(p,n,s) = 0.0;
             }
@@ -1543,19 +1543,19 @@ void SubGridExpFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverInsertTimer);
           Kokkos::View<GO**,HostDevice> GIDs = boundaryCells[usernum][e]->GIDs;
-          for (unsigned int i=0; i<GIDs.dimension(0); i++) {
-            Teuchos::Array<ScalarT> vals(GIDs.dimension(1));
-            Teuchos::Array<GO> cols(GIDs.dimension(1));
-            for (size_t row=0; row<GIDs.dimension(1); row++ ) {
+          for (unsigned int i=0; i<GIDs.extent(0); i++) {
+            Teuchos::Array<ScalarT> vals(GIDs.extent(1));
+            Teuchos::Array<GO> cols(GIDs.extent(1));
+            for (size_t row=0; row<GIDs.extent(1); row++ ) {
               GO rowIndex = GIDs(i,row);
               ScalarT val = local_res(i,row,0);
               res_over->sumIntoGlobalValue(rowIndex,0, val);
-              for (size_t col=0; col<GIDs.dimension(1); col++ ) {
+              for (size_t col=0; col<GIDs.extent(1); col++ ) {
                 vals[col] = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
                 cols[col] = GIDs(i,col);
               }
               sub_J_over->sumIntoGlobalValues(rowIndex, cols, vals);
-              for (size_t col=0; col<GIDs.dimension(1); col++ ) {
+              for (size_t col=0; col<GIDs.extent(1); col++ ) {
                 vals[col] = local_Jdot(i,row,col);
               }
               sub_M_over->sumIntoGlobalValues(rowIndex, cols, vals);
@@ -1769,7 +1769,7 @@ void SubGridExpFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_
     if (multiscale_method != "mortar") {
       int numElem = cells[usernum][0]->numElem;
       
-      int snumDOF = cells[usernum][0]->GIDs.dimension(1);
+      int snumDOF = cells[usernum][0]->GIDs.extent(1);
       
       Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
       
@@ -1785,10 +1785,10 @@ void SubGridExpFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_
         
         for (int p=0; p<numElem; p++) {
           for (int n=0; n<snumDOF; n++) {
-            for (unsigned int s=0; s<local_res.dimension(2); s++) {
+            for (unsigned int s=0; s<local_res.extent(2); s++) {
               local_res(p,n,s) = 0.0;
             }
-            for (unsigned int s=0; s<local_J.dimension(2); s++) {
+            for (unsigned int s=0; s<local_J.extent(2); s++) {
               local_J(p,n,s) = 0.0;
               local_Jdot(p,n,s) = 0.0;
             }
@@ -1800,8 +1800,8 @@ void SubGridExpFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_
                                          local_res, local_J, local_Jdot);
         
         Kokkos::View<GO**,HostDevice>  GIDs = cells[usernum][e]->GIDs;
-        for (unsigned int i=0; i<GIDs.dimension(0); i++) {
-          for( size_t row=0; row<GIDs.dimension(1); row++ ) {
+        for (unsigned int i=0; i<GIDs.extent(0); i++) {
+          for( size_t row=0; row<GIDs.extent(1); row++ ) {
             int rowIndex = GIDs(i,row);
             for( size_t col=0; col<num_active_params; col++ ) {
               ScalarT val = local_res(i,row,col);
@@ -1823,7 +1823,7 @@ void SubGridExpFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_
       
       for (size_t e=0; e<boundaryCells[usernum].size(); e++) {
         int numElem = boundaryCells[usernum][e]->numElem;
-        int snumDOF = boundaryCells[usernum][e]->GIDs.dimension(1);
+        int snumDOF = boundaryCells[usernum][e]->GIDs.extent(1);
         
         Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
         
@@ -1840,10 +1840,10 @@ void SubGridExpFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_
         
         for (int p=0; p<numElem; p++) {
           for (int n=0; n<snumDOF; n++) {
-            for (unsigned int s=0; s<local_res.dimension(2); s++) {
+            for (unsigned int s=0; s<local_res.extent(2); s++) {
               local_res(p,n,s) = 0.0;
             }
-            for (unsigned int s=0; s<local_J.dimension(2); s++) {
+            for (unsigned int s=0; s<local_J.extent(2); s++) {
               local_J(p,n,s) = 0.0;
               local_Jdot(p,n,s) = 0.0;
             }
@@ -1855,8 +1855,8 @@ void SubGridExpFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_
                                                  local_res, local_J, local_Jdot);
         
         Kokkos::View<GO**,HostDevice>  GIDs = boundaryCells[usernum][e]->GIDs;
-        for (unsigned int i=0; i<GIDs.dimension(0); i++) {
-          for (size_t row=0; row<GIDs.dimension(1); row++ ) {
+        for (unsigned int i=0; i<GIDs.extent(0); i++) {
+          for (size_t row=0; row<GIDs.extent(1); row++ ) {
             int rowIndex = GIDs(i,row);
             for (size_t col=0; col<num_active_params; col++ ) {
               ScalarT val = local_res(i,row,col);
@@ -1887,8 +1887,8 @@ void SubGridExpFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_
       for (size_t e=0; e<cells[usernum].size(); e++) {
         
         int numElem = cells[usernum][e]->numElem;
-        int snumDOF = cells[usernum][e]->GIDs.dimension(1);
-        int anumDOF = cells[usernum][e]->auxGIDs.dimension(1);
+        int snumDOF = cells[usernum][e]->GIDs.extent(1);
+        int anumDOF = cells[usernum][e]->auxGIDs.extent(1);
         
         local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,snumDOF,1);
         local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,snumDOF,anumDOF);
@@ -1902,10 +1902,10 @@ void SubGridExpFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_
         
         for (int p=0; p<numElem; p++) {
           for (int n=0; n<snumDOF; n++) {
-            for (unsigned int s=0; s<local_res.dimension(2); s++) {
+            for (unsigned int s=0; s<local_res.extent(2); s++) {
               local_res(p,n,s) = 0.0;
             }
-            for (unsigned int s=0; s<local_J.dimension(2); s++) {
+            for (unsigned int s=0; s<local_J.extent(2); s++) {
               local_J(p,n,s) = 0.0;
               local_Jdot(p,n,s) = 0.0;
             }
@@ -1919,10 +1919,10 @@ void SubGridExpFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_
         Kokkos::View<GO**,HostDevice> aGIDs = cells[usernum][e]->auxGIDs;
         vector<vector<int> > aoffsets = cells[usernum][e]->auxoffsets;
         
-        for (unsigned int i=0; i<GIDs.dimension(0); i++) {
-          for (size_t row=0; row<GIDs.dimension(1); row++ ) {
+        for (unsigned int i=0; i<GIDs.extent(0); i++) {
+          for (size_t row=0; row<GIDs.extent(1); row++ ) {
             int rowIndex = GIDs(i,row);
-            for (size_t col=0; col<aGIDs.dimension(1); col++ ) {
+            for (size_t col=0; col<aGIDs.extent(1); col++ ) {
               ScalarT val = local_J(i,row,col);
               int colIndex = col;
               d_sub_res_over->sumIntoGlobalValue(rowIndex,colIndex, scale*val);
@@ -1935,8 +1935,8 @@ void SubGridExpFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_
       for (size_t e=0; e<boundaryCells[usernum].size(); e++) {
         
         int numElem = boundaryCells[usernum][e]->numElem;
-        int snumDOF = boundaryCells[usernum][e]->GIDs.dimension(1);
-        int anumDOF = boundaryCells[usernum][e]->auxGIDs.dimension(1);
+        int snumDOF = boundaryCells[usernum][e]->GIDs.extent(1);
+        int anumDOF = boundaryCells[usernum][e]->auxGIDs.extent(1);
         
         local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,snumDOF,1);
         local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,snumDOF,anumDOF);
@@ -1952,10 +1952,10 @@ void SubGridExpFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_
         
         for (int p=0; p<numElem; p++) {
           for (int n=0; n<snumDOF; n++) {
-            for (unsigned int s=0; s<local_res.dimension(2); s++) {
+            for (unsigned int s=0; s<local_res.extent(2); s++) {
               local_res(p,n,s) = 0.0;
             }
-            for (unsigned int s=0; s<local_J.dimension(2); s++) {
+            for (unsigned int s=0; s<local_J.extent(2); s++) {
               local_J(p,n,s) = 0.0;
               local_Jdot(p,n,s) = 0.0;
             }
@@ -1971,10 +1971,10 @@ void SubGridExpFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_
         //KokkosTools::print(local_J);
         //KokkosTools::print(GIDs);
         //KokkosTools::print(aGIDs);
-        for (unsigned int i=0; i<GIDs.dimension(0); i++) {
-          for (size_t row=0; row<GIDs.dimension(1); row++ ) {
+        for (unsigned int i=0; i<GIDs.extent(0); i++) {
+          for (size_t row=0; row<GIDs.extent(1); row++ ) {
             int rowIndex = GIDs(i,row);
-            for (size_t col=0; col<aGIDs.dimension(1); col++ ) {
+            for (size_t col=0; col<aGIDs.extent(1); col++ ) {
               ScalarT val = local_J(i,row,col);
               int colIndex = col;
               d_sub_res_over->sumIntoGlobalValue(rowIndex,colIndex, scale*val);
@@ -2082,8 +2082,8 @@ void SubGridExpFEM::updateFlux(const Teuchos::RCP<LA_MultiVector> & u,
         for (int n=0; n<nummacroVars; n++) {
           DRV mortarbasis_ip = boundaryCells[usernum][e]->auxside_basis[macrowkset.usebasis[n]];
           
-          for (unsigned int j=0; j<mortarbasis_ip.dimension(1); j++) {
-            for (unsigned int i=0; i<mortarbasis_ip.dimension(2); i++) {
+          for (unsigned int j=0; j<mortarbasis_ip.extent(1); j++) {
+            for (unsigned int i=0; i<mortarbasis_ip.extent(2); i++) {
               macrowkset.res(macroelemindex,macrowkset.offsets(n,j)) += mortarbasis_ip(c,j,i)*(wkset[0]->flux(c,n,i))*cwts(c,i)*fwt;
             }
           }
@@ -2228,7 +2228,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> SubGridExpFEM::computeError(const vector
     this->performGather(usernum, currsol, 0, 0);
     for (size_t e=0; e<cells[usernum].size(); e++) {
       curr_errors = cells[usernum][e]->computeError(time,tindex,error_type);
-      for (unsigned int c=0; c<curr_errors.dimension(0); c++) {
+      for (unsigned int c=0; c<curr_errors.extent(0); c++) {
         for (size_t i=0; i < numVars; i++) {
           errors(e,i) += curr_errors(c,i);
         }
@@ -2263,12 +2263,12 @@ Kokkos::View<AD*,AssemblyDevice> SubGridExpFEM::computeObjective(const string & 
     
     for (size_t e=0; e<cells[usernum].size(); e++) {
       Kokkos::View<AD**,AssemblyDevice> curr_obj = cells[usernum][e]->computeObjective(time, tindex, seedwhat);
-      if (!beensized && curr_obj.dimension(1)>0) {
-        objective = Kokkos::View<AD*,AssemblyDevice>("objective", curr_obj.dimension(1));
+      if (!beensized && curr_obj.extent(1)>0) {
+        objective = Kokkos::View<AD*,AssemblyDevice>("objective", curr_obj.extent(1));
         beensized = true;
       }
       for (int c=0; c<cells[usernum][e]->numElem; c++) {
-        for (size_t i=0; i<curr_obj.dimension(1); i++) {
+        for (size_t i=0; i<curr_obj.extent(1); i++) {
           objective(i) += curr_obj(c,i);
         }
       }
@@ -2341,7 +2341,7 @@ void SubGridExpFEM::writeSolution(const string & filename, const int & usernum) 
   
   if (discparamnames.size() > 0) {
     for (size_t n=0; n<discparamnames.size(); n++) {
-      int paramnumbasis = cells[0][0]->paramindex.dimension(1);
+      int paramnumbasis = cells[0][0]->paramindex.extent(1);
       if (paramnumbasis==1) {
         submesh->addCellField(discparamnames[n], subeBlocks[0]);
       }
@@ -2471,7 +2471,7 @@ void SubGridExpFEM::writeSolution(const string & filename, const int & usernum) 
      FC soln_computed;
      bool isConstant = false;
      DRV subnodes = cells[usernum][0]->nodes;
-     int numSubNodes = subnodes.dimension(0);
+     int numSubNodes = subnodes.extent(0);
      int paramnumbasis =cells[usernum][0]->paramindex[n].size();
      if (paramnumbasis>1)
      soln_computed = FC(cells[usernum].size(), paramnumbasis);
@@ -2509,7 +2509,7 @@ void SubGridExpFEM::writeSolution(const string & filename, const int & usernum) 
     // vector<FC> subextrafields;// = phys->getExtraFields(b);
     // DRV rnodes = cells[b][0]->nodes;
     // for (size_t j=0; j<subextrafieldnames.size(); j++) {
-    // FC efdata(cells[b].size(), rnodes.dimension(1));
+    // FC efdata(cells[b].size(), rnodes.extent(1));
     // subextrafields.push_back(efdata);
     // }
     
@@ -2518,7 +2518,7 @@ void SubGridExpFEM::writeSolution(const string & filename, const int & usernum) 
     // DRV snodes = cells[b][k]->nodes;
     // cfields = physics_RCP->getExtraFields(b, snodes, solvetimes[m]);
     // for (size_t j=0; j<subextrafieldnames.size(); j++) {
-    // for (size_t i=0; i<snodes.dimension(1); i++) {
+    // for (size_t i=0; i<snodes.extent(1); i++) {
     // subextrafields[j](k,i) = cfields[j](0,i);
     // }
     // }
@@ -2546,7 +2546,7 @@ void SubGridExpFEM::writeSolution(const string & filename, const int & usernum) 
     //}
     //          vector<FC> cfields = sub_physics_RCP[level]->getExtraFields(b, snodes, 0.0);//subgrid_solvetimes[m]);
     //          for (size_t j=0; j<subextrafieldnames.size(); j++) {
-    //            for (size_t i=0; i<snodes.dimension(1); i++) {
+    //            for (size_t i=0; i<snodes.extent(1); i++) {
     //              subextrafields[j](k,i) = vcfields[j](i);
     //            }
     //          }
@@ -2566,7 +2566,7 @@ void SubGridExpFEM::writeSolution(const string & filename, const int & usernum) 
      vector<FC> cfields = physics_RCP->getExtraCellFields(0);
      size_t j = 0;
      for (size_t g=0; g<cfields.size(); g++) {
-     for (size_t h=0; h<cfields[g].dimension(0); h++) {
+     for (size_t h=0; h<cfields[g].extent(0); h++) {
      extracellfields[j](k,0) = cfields[g](h,0);
      ++j;
      }
@@ -2588,10 +2588,10 @@ void SubGridExpFEM::writeSolution(const string & filename, const int & usernum) 
         Kokkos::View<ScalarT**> cell_data = cells[usernum][k]->cell_data;
         for (int p=0; p<cells[usernum][k]->numElem; p++) {
           /*
-           if (cell_data.dimension(1) == 3) {
+           if (cell_data.extent(1) == 3) {
            cdata(eprog,0) = cell_data(p,0);//cell_data_seed[p];
            }
-           else if (cell_data.dimension(1) == 9) {
+           else if (cell_data.extent(1) == 9) {
            cdata(eprog,0) = cell_data(p,0)*cell_data(p,4)*cell_data(p,8);//cell_data_seed[p];
            }
            */
@@ -2645,9 +2645,9 @@ Teuchos::RCP<LA_CrsMatrix>  SubGridExpFEM::getProjectionMatrix() {
     Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;
     Kokkos::View<ScalarT***,AssemblyDevice> localmass = cells[usernum][e]->getMass();
     for (int c=0; c<numElem; c++) {
-      for( size_t row=0; row<GIDs.dimension(1); row++ ) {
+      for( size_t row=0; row<GIDs.extent(1); row++ ) {
         GO rowIndex = GIDs(c,row);
-        for( size_t col=0; col<GIDs.dimension(1); col++ ) {
+        for( size_t col=0; col<GIDs.extent(1); col++ ) {
           GO colIndex = GIDs(c,col);
           ScalarT val = localmass(c,row,col);
           mass->insertGlobalValues(rowIndex, 1, &val, &colIndex);
@@ -2694,12 +2694,12 @@ Teuchos::RCP<LA_CrsMatrix> SubGridExpFEM::getProjectionMatrix(DRV & ip, DRV & wt
   Teuchos::Array<ScalarT> vals(1);
   Teuchos::Array<GO> cols(1);
   
-  for (size_t k=0; k<ip.dimension(1); k++) {
-    for (size_t r=0; r<my_basisinfo.second[k].dimension(0);r++) {
-      for (size_t p=0; p<my_basisinfo.second[k].dimension(1);p++) {
+  for (size_t k=0; k<ip.extent(1); k++) {
+    for (size_t r=0; r<my_basisinfo.second[k].extent(0);r++) {
+      for (size_t p=0; p<my_basisinfo.second[k].extent(1);p++) {
         int igid = my_basisinfo.first(k,p+2);
-        for (size_t s=0; s<other_basisinfo.second[k].dimension(0);s++) {
-          for (size_t q=0; q<other_basisinfo.second[k].dimension(1);q++) {
+        for (size_t s=0; s<other_basisinfo.second[k].extent(0);s++) {
+          for (size_t q=0; q<other_basisinfo.second[k].extent(1);q++) {
             cols[0] = other_basisinfo.first(k,q+2);
             if (r == s) {
               vals[0] = my_basisinfo.second[k](r,p) * other_basisinfo.second[k](s,q) * wts(0,k);
@@ -2747,8 +2747,8 @@ DRV SubGridExpFEM::getIP() {
     int numElem = cells[usernum][e]->numElem;
     DRV ip = cells[usernum][e]->ip;
     for (size_t c=0; c<numElem; c++) {
-      for (size_t i=0; i<ip.dimension(1); i++) {
-        for (size_t j=0; j<ip.dimension(2); j++) {
+      for (size_t i=0; i<ip.extent(1); i++) {
+        for (size_t j=0; j<ip.extent(2); j++) {
           refip(0,prog,j) = ip(c,i,j);
         }
         prog++;
@@ -2776,7 +2776,7 @@ DRV SubGridExpFEM::getIPWts() {
     DRV wts = wkset[0]->ref_wts;//cells[usernum][e]->ijac;
     int numElem = cells[usernum][e]->numElem;
     for (size_t c=0; c<numElem; c++) {
-      for (size_t i=0; i<wts.dimension(0); i++) {
+      for (size_t i=0; i<wts.extent(0); i++) {
         refwts(0,prog) = wts(i);//sref_ip_tmp(0,i,j);
         prog++;
       }
@@ -2793,9 +2793,9 @@ DRV SubGridExpFEM::getIPWts() {
 
 pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridExpFEM::evaluateBasis2(const DRV & pts) {
   
-  size_t numpts = pts.dimension(1);
-  size_t dimpts = pts.dimension(2);
-  size_t numGIDs = cells[0][0]->GIDs.dimension(1);
+  size_t numpts = pts.extent(1);
+  size_t dimpts = pts.extent(2);
+  size_t numGIDs = cells[0][0]->GIDs.extent(1);
   Kokkos::View<int**,AssemblyDevice> owners("owners",numpts,1+numGIDs);
   
   Teuchos::RCP<DiscTools> discTools = Teuchos::rcp( new DiscTools() );
@@ -2806,9 +2806,9 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridExpFEM::evaluateBa
     for (int c=0; c<numElem;c++) {
       DRV refpts("refpts",1, numpts, dimpts);
       DRVint inRefCell("inRefCell",1,numpts);
-      DRV cnodes("current nodes",1,nodes.dimension(1), nodes.dimension(2));
-      for (unsigned int i=0; i<nodes.dimension(1); i++) {
-        for (unsigned int j=0; j<nodes.dimension(2); j++) {
+      DRV cnodes("current nodes",1,nodes.extent(1), nodes.extent(2));
+      for (unsigned int i=0; i<nodes.extent(1); i++) {
+        for (unsigned int j=0; j<nodes.extent(2); j++) {
           cnodes(0,i,j) = nodes(c,i,j);
         }
       }
@@ -2838,9 +2838,9 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridExpFEM::evaluateBa
       cpt(0,0,s) = pts(0,i,s);
     }
     DRV nodes = cells[0][owners(i,0)]->nodes;
-    DRV cnodes("current nodes",1,nodes.dimension(1), nodes.dimension(2));
-    for (unsigned int i=0; i<nodes.dimension(1); i++) {
-      for (unsigned int j=0; j<nodes.dimension(2); j++) {
+    DRV cnodes("current nodes",1,nodes.extent(1), nodes.extent(2));
+    for (unsigned int i=0; i<nodes.extent(1); i++) {
+      for (unsigned int j=0; j<nodes.extent(2); j++) {
         cnodes(0,i,j) = nodes(owners(i,0),i,j);
       }
     }
@@ -2850,10 +2850,10 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridExpFEM::evaluateBa
     
     Kokkos::View<int**,AssemblyDevice> offsets = wkset[0]->offsets;
     vector<int> usebasis = wkset[0]->usebasis;
-    DRV basisvals("basisvals",offsets.dimension(0),numGIDs);
-    for (size_t n=0; n<offsets.dimension(0); n++) {
+    DRV basisvals("basisvals",offsets.extent(0),numGIDs);
+    for (size_t n=0; n<offsets.extent(0); n++) {
       DRV bvals = discTools->evaluateBasis(basis_pointers[usebasis[n]], refpt);
-      for (size_t m=0; m<offsets.dimension(1); m++) {
+      for (size_t m=0; m<offsets.extent(1); m++) {
         basisvals(n,offsets(n,m)) = bvals(0,m,0);
       }
     }
@@ -2873,8 +2873,8 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridExpFEM::evaluateBa
 pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridExpFEM::evaluateBasis(const DRV & pts) {
   
   /*
-   size_t numpts = pts.dimension(1);
-   size_t dimpts = pts.dimension(2);
+   size_t numpts = pts.extent(1);
+   size_t dimpts = pts.extent(2);
    size_t numGIDs = cells[0][0]->GIDs.size();
    FCint owners(numpts,1+numGIDs);
    
@@ -2991,7 +2991,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> SubGridExpFEM::getCellFields(const int & 
    vector<FC> cfields = physics_RCP->getExtraCellFields(0);
    size_t j = 0;
    for (size_t g=0; g<cfields.size(); g++) {
-   for (size_t h=0; h<cfields[g].dimension(0); h++) {
+   for (size_t h=0; h<cfields[g].extent(0); h++) {
    extracellfields(k,j) = cfields[g](h,0);
    ++j;
    }
@@ -3057,8 +3057,8 @@ void SubGridExpFEM::performGather(const size_t & b, const vector_RCP & vec,
         cout << "ERROR - NOTHING WAS GATHERED" << endl;
     }
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,index.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (size_t n=0; n<index.dimension(1); n++) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (size_t n=0; n<index.extent(1); n++) {
         for (size_t i=0; i<numDOF(n); i++ ) {
           data(e,n,i) = vec_kv(index(e,n,i),entry);
         }
@@ -3124,8 +3124,8 @@ void SubGridExpFEM::performBoundaryGather(const size_t & b, const vector_RCP & v
             cout << "ERROR - NOTHING WAS GATHERED" << endl;
         }
         
-        parallel_for(RangePolicy<AssemblyDevice>(0,index.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-          for (size_t n=0; n<index.dimension(1); n++) {
+        parallel_for(RangePolicy<AssemblyDevice>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          for (size_t n=0; n<index.extent(1); n++) {
             for(size_t i=0; i<numDOF(n); i++ ) {
               data(e,n,i) = vec_kv(index(e,n,i),entry);
             }

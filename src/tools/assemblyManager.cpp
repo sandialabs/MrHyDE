@@ -258,7 +258,7 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
       
       // assemble into global matrix
       for (int c=0; c<numElem; c++) {
-        for( size_t row=0; row<GIDs.dimension(1); row++ ) {
+        for( size_t row=0; row<GIDs.extent(1); row++ ) {
           GO rowIndex = GIDs(c,row);
           ScalarT val = localrhs(c,row);
           rhs->sumIntoGlobalValue(rowIndex,0, val);
@@ -267,7 +267,7 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
             Teuchos::Array<GO> cols(1);
             
             ScalarT totalval = 0.0;
-            for( size_t col=0; col<GIDs.dimension(1); col++ ) {
+            for( size_t col=0; col<GIDs.extent(1); col++ ) {
               cols[0] = GIDs(c,col);
               totalval += localmass(c,row,col);
             }
@@ -275,10 +275,10 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
             mass->sumIntoGlobalValues(rowIndex, cols, vals);
           }
           else {
-            Teuchos::Array<ScalarT> vals(GIDs.dimension(1));
-            Teuchos::Array<GO> cols(GIDs.dimension(1));
+            Teuchos::Array<ScalarT> vals(GIDs.extent(1));
+            Teuchos::Array<GO> cols(GIDs.extent(1));
             
-            for( size_t col=0; col<GIDs.dimension(1); col++ ) {
+            for( size_t col=0; col<GIDs.extent(1); col++ ) {
               cols[col] = GIDs(c,col);
               vals[col] = localmass(c,row,col);
             }
@@ -304,7 +304,7 @@ void AssemblyManager::setInitial(vector_RCP & initial, const bool & useadjoint) 
       Kokkos::View<ScalarT**,AssemblyDevice> localinit = cells[b][e]->getInitial(false, useadjoint);
       int numElem = cells[b][e]->numElem;
       for (int c=0; c<numElem; c++) {
-        for( size_t row=0; row<GIDs.dimension(1); row++ ) {
+        for( size_t row=0; row<GIDs.extent(1); row++ ) {
           int rowIndex = GIDs(c,row);
           ScalarT val = localinit(c,row);
           initial->replaceGlobalValue(rowIndex,0, val);
@@ -389,11 +389,11 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
       wkset[b]->deltat = 1.0;
     
     int numElem = cells[b][0]->numElem;
-    int numDOF = cells[b][0]->GIDs.dimension(1);
+    int numDOF = cells[b][0]->GIDs.extent(1);
     
     int numParamDOF = 0;
     if (compute_disc_sens) {
-      numParamDOF = cells[b][0]->paramGIDs.dimension(1);
+      numParamDOF = cells[b][0]->paramGIDs.extent(1);
     }
     
     Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
@@ -456,12 +456,12 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
       {
         Teuchos::TimeMonitor localtimer(*phystimer);
         
-        parallel_for(RangePolicy<AssemblyDevice>(0,local_res.dimension(0)), KOKKOS_LAMBDA (const int p ) {
+        parallel_for(RangePolicy<AssemblyDevice>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int p ) {
           for (int n=0; n<numDOF; n++) {
-            for (int s=0; s<local_res.dimension(2); s++) {
+            for (int s=0; s<local_res.extent(2); s++) {
               local_res(p,n,s) = 0.0;
             }
-            for (int s=0; s<local_J.dimension(2); s++) {
+            for (int s=0; s<local_J.extent(2); s++) {
               local_J(p,n,s) = 0.0;
               local_Jdot(p,n,s) = 0.0;
             }
@@ -525,11 +525,11 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
           //////////////////////////////////////////////////////////////////////////////////////
           
           int numElem = boundaryCells[b][e]->numElem;
-          int numDOF = boundaryCells[b][e]->GIDs.dimension(1);
+          int numDOF = boundaryCells[b][e]->GIDs.extent(1);
           
           int numParamDOF = 0;
           if (compute_disc_sens) {
-            numParamDOF = boundaryCells[b][e]->paramGIDs.dimension(1);
+            numParamDOF = boundaryCells[b][e]->paramGIDs.extent(1);
           }
           
           Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
@@ -557,14 +557,14 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
           {
             Teuchos::TimeMonitor localtimer(*phystimer);
             
-            parallel_for(RangePolicy<AssemblyDevice>(0,local_res.dimension(0)), KOKKOS_LAMBDA (const int p ) {
-              for (int n=0; n<local_res.dimension(1); n++) {
-                for (int s=0; s<local_res.dimension(2); s++) {
+            parallel_for(RangePolicy<AssemblyDevice>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int p ) {
+              for (int n=0; n<local_res.extent(1); n++) {
+                for (int s=0; s<local_res.extent(2); s++) {
                   local_res(p,n,s) = 0.0;
                 }
               }
-              for (int n=0; n<local_J.dimension(1); n++) {
-                for (int s=0; s<local_J.dimension(2); s++) {
+              for (int n=0; n<local_J.extent(1); n++) {
+                for (int s=0; s<local_J.extent(2); s++) {
                   local_J(p,n,s) = 0.0;
                   local_Jdot(p,n,s) = 0.0;
                 }
@@ -704,8 +704,8 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
         KokkosTools::print(data, "inside assemblyManager::gather - data");
       }
     }
-    parallel_for(RangePolicy<AssemblyDevice>(0,index.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (size_t n=0; n<index.dimension(1); n++) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (size_t n=0; n<index.extent(1); n++) {
         for(size_t i=0; i<numDOF(n); i++ ) {
           data(e,n,i) = vec_kv(index(e,n,i),entry);
         }
@@ -777,8 +777,8 @@ void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP &
             KokkosTools::print(data, "inside assemblyManager::boundarygather - data");
           }
         }
-        parallel_for(RangePolicy<AssemblyDevice>(0,index.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-          for (size_t n=0; n<index.dimension(1); n++) {
+        parallel_for(RangePolicy<AssemblyDevice>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          for (size_t n=0; n<index.extent(1); n++) {
             for(size_t i=0; i<numDOF(n); i++ ) {
               data(e,n,i) = vec_kv(index(e,n,i),entry);
             }
@@ -804,26 +804,26 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
 
   Teuchos::TimeMonitor localtimer(*inserttimer);
   
-  for (int i=0; i<GIDs.dimension(0); i++) {
-    Teuchos::Array<ScalarT> vals(GIDs.dimension(1));
-    Teuchos::Array<GO> cols(GIDs.dimension(1));
+  for (int i=0; i<GIDs.extent(0); i++) {
+    Teuchos::Array<ScalarT> vals(GIDs.extent(1));
+    Teuchos::Array<GO> cols(GIDs.extent(1));
     
-    for( size_t row=0; row<GIDs.dimension(1); row++ ) {
+    for( size_t row=0; row<GIDs.extent(1); row++ ) {
       GO rowIndex = GIDs(i,row);
-      for (int g=0; g<local_res.dimension(2); g++) {
+      for (int g=0; g<local_res.extent(2); g++) {
         ScalarT val = local_res(i,row,g);
         res->sumIntoGlobalValue(rowIndex,g, val);
       }
       if (compute_jacobian) {
         if (compute_disc_sens) {
-          for( size_t col=0; col<paramGIDs.dimension(1); col++ ) {
+          for( size_t col=0; col<paramGIDs.extent(1); col++ ) {
             GO colIndex = paramGIDs(i,col);
             ScalarT val = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
             J->insertGlobalValues(colIndex, 1, &val, &rowIndex);
           }
         }
         else {
-          for( size_t col=0; col<GIDs.dimension(1); col++ ) {
+          for( size_t col=0; col<GIDs.extent(1); col++ ) {
             vals[col] = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
             cols[col] = GIDs(i,col);
           }

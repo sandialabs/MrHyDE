@@ -100,20 +100,20 @@ public:
         data sdata("Sensor Measurements", spaceDim, settings->sublist("Analysis").get("Sensor Location File","sensor_points.dat"), settings->sublist("Analysis").get("Sensor Prefix","sensor"));
         sensor_data = sdata.getdata();
         sensor_points = sdata.getpoints();
-        numSensors = sensor_points.dimension(0);
+        numSensors = sensor_points.extent(0);
         have_sensor_data = true;
         have_sensor_points = true;
       }
       else if (settings->sublist("Analysis").get("Have Sensor Points",false)) {
         data sdata("Sensor Points", spaceDim, settings->sublist("Analysis").get("Sensor Location File","sensor_points.dat"));
         sensor_points = sdata.getpoints();
-        numSensors = sensor_points.dimension(0);
+        numSensors = sensor_points.extent(0);
         have_sensor_data = false;
         have_sensor_points = true;
       }
       
       if (settings->sublist("Analysis").get("Have Sensor Points",false)) {
-        //sensor_locations = FCint(sensor_points.dimension(0),2);
+        //sensor_locations = FCint(sensor_points.extent(0),2);
         ScalarT sensor_loc_tol = settings->sublist("Analysis").get("Sensor location tol",1.0E-6);
         for (size_t b=0; b<assembler->cells.size(); b++) {
           for (size_t j=0; j<assembler->cells[b].size(); j++) {

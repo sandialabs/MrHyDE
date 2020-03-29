@@ -693,8 +693,8 @@ void FunctionManager::evaluate(const size_t & block, const size_t & findex, cons
 
 template<class T1, class T2>
 void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
-  size_t dim0 = std::min(data.dimension(0),tdata.dimension(0));
-  size_t dim1 = std::min(data.dimension(1),tdata.dimension(1));
+  size_t dim0 = std::min(data.extent(0),tdata.extent(0));
+  size_t dim1 = std::min(data.extent(1),tdata.extent(1));
   
   if (op == "") {
     parallel_for(RangePolicy<AssemblyDevice>(0,dim0), KOKKOS_LAMBDA (const int e ) {

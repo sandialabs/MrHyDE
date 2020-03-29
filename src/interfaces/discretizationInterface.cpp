@@ -158,8 +158,8 @@ Commptr(Comm_), mesh(mesh_) {
     ref_side_ip.push_back(side_qpts);
     ref_side_wts.push_back(side_qwts);
     
-    numip.push_back(qpts.dimension(0));
-    numip_side.push_back(side_qpts.dimension(0));
+    numip.push_back(qpts.extent(0));
+    numip_side.push_back(side_qpts.extent(0));
     
   } // block loop
   

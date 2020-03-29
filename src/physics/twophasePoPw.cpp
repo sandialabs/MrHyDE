@@ -100,8 +100,8 @@ void twophasePoPw::volumeResidual() {
   //AD dS_w_dx, dP_w_dx, dS_w_dy, dP_w_dy, dS_w_dz, dP_w_dz;
   
   if (spaceDim == 1) {
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.dimension(2); k++ ) { // loop over integration points
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int k=0; k<sol.extent(2); k++ ) { // loop over integration points
         AD Po = sol(e,Ponum,k,0);
         AD Pw = sol(e,Pwnum,k,0);
         AD dPo_dx = sol_grad(e,Ponum,k,0);
@@ -125,7 +125,7 @@ void twophasePoPw::volumeResidual() {
         AD dNw_dt = Sw*drhow_dt + dSw_dt*rhow;
         AD dNo_dt = So*drhoo_dt + dSo_dt*rhoo;
         
-        for (int i=0; i<basis.dimension(1); i++ ) { // loop over basis functions
+        for (int i=0; i<basis.extent(1); i++ ) { // loop over basis functions
           
           // No equation
           resindex = offsets(Pwnum,i);
@@ -145,8 +145,8 @@ void twophasePoPw::volumeResidual() {
     });
   }
   else if (spaceDim == 2) {
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.dimension(2); k++ ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int k=0; k<sol.extent(2); k++ ) {
         AD Po = sol(e,Ponum,k,0);
         AD Pw = sol(e,Pwnum,k,0);
         AD dPo_dx = sol_grad(e,Ponum,k,0);
@@ -170,7 +170,7 @@ void twophasePoPw::volumeResidual() {
         AD dNw_dt = Sw*drhow_dt + dSw_dt*rhow;
         AD dNo_dt = So*drhoo_dt + dSo_dt*rhoo;
         
-        for (int i=0; i<basis.dimension(1); i++ ) { // loop over basis functions
+        for (int i=0; i<basis.extent(1); i++ ) { // loop over basis functions
           
           // No equation
           resindex = offsets(Ponum,i);
@@ -192,8 +192,8 @@ void twophasePoPw::volumeResidual() {
     });
   }
   else if (spaceDim == 3) {
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.dimension(2); k++ ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int k=0; k<sol.extent(2); k++ ) {
         AD Po = sol(e,Ponum,k,0);
         AD Pw = sol(e,Pwnum,k,0);
         AD dPo_dx = sol_grad(e,Ponum,k,0);
@@ -217,7 +217,7 @@ void twophasePoPw::volumeResidual() {
         AD dNw_dt = Sw*drhow_dt + dSw_dt*rhow;
         AD dNo_dt = So*drhoo_dt + dSo_dt*rhoo;
         
-        for (int i=0; i<basis.dimension(1); i++ ) { // loop over basis functions
+        for (int i=0; i<basis.extent(1); i++ ) { // loop over basis functions
           
           // Po equation
           resindex = offsets(Pwnum,i);
@@ -259,7 +259,7 @@ void twophasePoPw::boundaryResidual() {
   int sidetype = bcs(Ponum,cside); // TMW to do: allow No to use different BCs
   
   int basis_num = wkset->usebasis[Ponum];
-  int numBasis = wkset->basis_side[basis_num].dimension(1);
+  int numBasis = wkset->basis_side[basis_num].extent(1);
   basis = wkset->basis_side[basis_num];
   basis_grad = wkset->basis_grad_side[basis_num];
   
@@ -310,10 +310,10 @@ void twophasePoPw::boundaryResidual() {
   ScalarT dvdy = 0.0;
   ScalarT dvdz = 0.0;
   
-  for (int e=0; e<basis.dimension(0); e++) {
+  for (int e=0; e<basis.extent(0); e++) {
     if (bcs(Ponum,cside) == 2) {
-      for (int k=0; k<basis.dimension(2); k++ ) {
-        for (int i=0; i<basis.dimension(1); i++ ) {
+      for (int k=0; k<basis.extent(2); k++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
           resindex = offsets(Ponum,i);
           res(e,resindex) += -source_o(e,k)*basis(e,i,k);
           
@@ -325,7 +325,7 @@ void twophasePoPw::boundaryResidual() {
     
     if (bcs(Ponum,cside) == 4 || bcs(Ponum,cside) == 5) {
       
-      for (int k=0; k<basis.dimension(2); k++ ) {
+      for (int k=0; k<basis.extent(2); k++ ) {
         
         AD lambda_Po, lambda_Pw;
         
@@ -349,7 +349,7 @@ void twophasePoPw::boundaryResidual() {
         AD rhoo = densref_o(e,k)*(1.0+comp_o(e,k)*(Po - pref_o(e,k)));
         AD rhow = densref_w(e,k)*(1.0+comp_w(e,k)*(Pw - pref_w(e,k)));
         
-        for (int i=0; i<basis.dimension(1); i++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
           v = basis(e,i,k);
           dvdx = basis_grad(e,i,k,0);
           if (spaceDim > 1)
@@ -447,7 +447,7 @@ void twophasePoPw::computeFlux() {
     
     for (int e=0; e<numElem; e++) {
       
-      for (size_t k=0; k<wkset->ip_side.dimension(1); k++) {
+      for (size_t k=0; k<wkset->ip_side.extent(1); k++) {
         AD lambda_Po, lambda_Pw;
         
         lambda_Po = aux_side(e,Ponum,k);

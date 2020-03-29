@@ -432,8 +432,8 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
     //vector<size_t> localIds;
     //DRV blocknodes;
     //panzer_stk::workset_utils::getIdsAndVertices(*mesh, eBlocks[b], localIds, blocknodes);
-    int numNodesPerElem = blocknodes.dimension(1);
-    DRV blocknodePert("blocknodePert",blocknodes.dimension(0),numNodesPerElem,spaceDim);
+    int numNodesPerElem = blocknodes.extent(1);
+    DRV blocknodePert("blocknodePert",blocknodes.extent(0),numNodesPerElem,spaceDim);
     
     if (settings->sublist("Mesh").get("Modify Mesh Height",false)) {
       vector<vector<ScalarT> > values;
@@ -458,14 +458,14 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
       int Nz = settings->sublist("Mesh").get<int>("NZ",1);
       ScalarT zmin = settings->sublist("Mesh").get<ScalarT>("zmin",0.0);
       ScalarT zmax = settings->sublist("Mesh").get<ScalarT>("zmax",1.0);
-      for (int k=0; k<blocknodes.dimension(0); k++) {
+      for (int k=0; k<blocknodes.extent(0); k++) {
         for (int i=0; i<numNodesPerElem; i++){
           ScalarT x = blocknodes(k,i,0);
           ScalarT y = blocknodes(k,i,1);
           ScalarT z = blocknodes(k,i,2);
           int node;
           ScalarT dist = (ScalarT)RAND_MAX;
-          for( size_t j=0; j<pertdata.dimension(0); j++ ) {
+          for( size_t j=0; j<pertdata.extent(0); j++ ) {
             ScalarT xhat = pertdata(j,0);
             ScalarT yhat = pertdata(j,1);
             ScalarT d = sqrt((x-xhat)*(x-xhat) + (y-yhat)*(y-yhat));
@@ -479,7 +479,7 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
           blocknodePert(k,i,1) = 0.0;
           blocknodePert(k,i,2) = (ch)*(z-zmin)/(zmax-zmin);
         }
-        //for (int k=0; k<blocknodeVert.dimension(0); k++) {
+        //for (int k=0; k<blocknodeVert.extent(0); k++) {
         //  for (int i=0; i<numNodesPerElem; i++){
         //    for (int s=0; s<spaceDim; s++) {
         //      blocknodeVert(k,i,s) += blocknodePert(k,i,s);
@@ -490,14 +490,14 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
     }
     
     if (settings->sublist("Mesh").get("Modify Mesh",false)) {
-      for (int k=0; k<blocknodes.dimension(0); k++) {
+      for (int k=0; k<blocknodes.extent(0); k++) {
         for (int i=0; i<numNodesPerElem; i++){
           blocknodePert(k,i,0) = 0.0;
           blocknodePert(k,i,1) = 0.0;
           blocknodePert(k,i,2) = 0.0 + 0.2*sin(2*3.14159*blocknodes(k,i,0))*sin(2*3.14159*blocknodes(k,i,1));
         }
       }
-      //for (int k=0; k<blocknodeVert.dimension(0); k++) {
+      //for (int k=0; k<blocknodeVert.extent(0); k++) {
       //  for (int i=0; i<numNodesPerElem; i++){
       //    for (int s=0; s<spaceDim; s++) {
       //      blocknodeVert(k,i,s) += blocknodePert(k,i,s);
@@ -555,7 +555,7 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
     panzer_stk::workset_utils::getIdsAndVertices(*mesh, eBlocks[b], localIds, blocknodes);
     DRV blocknodepert = perturbMesh(b, blocknodes);
     //elemnodes.push_back(blocknodes);
-    int numNodesPerElem = blocknodes.dimension(1);
+    int numNodesPerElem = blocknodes.extent(1);
     int elemPerCell = settings->sublist("Solver").get<int>("Workset size",1);
     bool memeff = settings->sublist("Solver").get<bool>("Memory Efficient",false);
     int prog = 0;
@@ -769,9 +769,9 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
         
         for (int c=0; c<numElem; c++) {
           Kokkos::View<ScalarT[1][3],HostDevice> center("center");
-          for (size_t i=0; i<nodes.dimension(1); i++) {
+          for (size_t i=0; i<nodes.extent(1); i++) {
             for (size_t j=0; j<spaceDim; j++) {
-              center(0,j) += nodes(c,i,j)/(ScalarT)nodes.dimension(1);
+              center(0,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
             }
           }
           ScalarT distance = 0.0;
@@ -785,7 +785,7 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
           }
           if (iscloser) {
             Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
-            for (int i=0; i<cdata.dimension(1); i++) {
+            for (int i=0; i<cdata.extent(1); i++) {
               cells[b][e]->cell_data(c,i) = cdata(0,i);
             }
             if (have_rotations)
@@ -1031,9 +1031,9 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
       int numElem = cells[b][e]->numElem;
       for (int c=0; c<numElem; c++) {
         Kokkos::View<ScalarT[1][3],HostDevice> center("center");
-        for (size_t i=0; i<nodes.dimension(1); i++) {
+        for (size_t i=0; i<nodes.extent(1); i++) {
           for (size_t j=0; j<spaceDim; j++) {
-            center(0,j) += nodes(c,i,j)/(ScalarT)nodes.dimension(1);
+            center(0,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
           }
         }
         ScalarT distance = 1.0e6;
@@ -1088,7 +1088,7 @@ DRV meshInterface::getElemNodes(const int & block, const int & elemID) {
   mesh->getElementBlockNames(eBlocks);
   
   panzer_stk::workset_utils::getIdsAndVertices(*mesh, eBlocks[block], localIds, blocknodes);
-  int nnodes = blocknodes.dimension(1);
+  int nnodes = blocknodes.extent(1);
   
   DRV cnodes("element nodes",1,nnodes,spaceDim);
   for (int i=0; i<nnodes; i++) {
@@ -1115,7 +1115,7 @@ void meshInterface::remesh(const vector_RCP & u, vector<vector<Teuchos::RCP<cell
       bool changed = false;
       for (int p=0; p<cells[b][e]->numElem; p++) {
         
-        for( int i=0; i<nodes.dimension(1); i++ ) {
+        for( int i=0; i<nodes.extent(1); i++ ) {
           if (meshmod_xvar >= 0) {
             int pindex = index(p,meshmod_xvar,i);
             ScalarT xval = u_kv(pindex,0);
@@ -1294,7 +1294,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
     for( size_t e=0; e<cells[b].size(); e++ ) {
       cindex = cells[b][e]->index;
       nDOF = cells[b][e]->numDOF;
-      for (int n=0; n<cindex.dimension(1); n++) {
+      for (int n=0; n<cindex.extent(1); n++) {
         //Kokkos::View<GO**,HostDevice> GIDs = assembler->cells[b][e]->GIDs;
         for (int p=0; p<cells[b][e]->numElem; p++) {
           for( int i=0; i<nDOF(n); i++ ) {

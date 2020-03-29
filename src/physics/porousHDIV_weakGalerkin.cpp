@@ -100,7 +100,7 @@ void porousHDIV_WG::volumeResidual() {
   basis_div = wkset->basis_div[u_basis];
   
   // (u,v) + (p_0,div(v))
-  parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     ScalarT vx = 0.0;
     ScalarT vy = 0.0;
@@ -108,8 +108,8 @@ void porousHDIV_WG::volumeResidual() {
     ScalarT divv = 0.0;
     AD uy = 0.0, uz = 0.0;
     
-    for (size_t k=0; k<sol.dimension(2); k++ ) {
-      for (size_t i=0; i<basis.dimension(1); i++ ) {
+    for (size_t k=0; k<sol.extent(2); k++ ) {
+      for (size_t i=0; i<basis.extent(1); i++ ) {
         AD pint = sol(e,pintnum,k,0);
         AD ux = sol(e,unum,k,0);
         
@@ -138,7 +138,7 @@ void porousHDIV_WG::volumeResidual() {
   });
   
   //  (Ku,s) + (t,s)
-  parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     ScalarT sx = 0.0;
     ScalarT sy = 0.0;
@@ -146,8 +146,8 @@ void porousHDIV_WG::volumeResidual() {
     AD uy = 0.0, uz = 0.0;
     AD ty = 0.0, tz = 0.0;
     
-    for (size_t k=0; k<basis.dimension(2); k++ ) {
-      for (size_t i=0; i<basis.dimension(1); i++ ) {
+    for (size_t k=0; k<basis.extent(2); k++ ) {
+      for (size_t i=0; i<basis.extent(1); i++ ) {
         AD ux = sol(e,unum,k,0);
         AD tx = sol(e,tnum,k,0);
         
@@ -189,12 +189,12 @@ void porousHDIV_WG::volumeResidual() {
   
   //  (div(t),q_0) - (f,q_0)
   basis = wkset->basis[pint_basis];
-  parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     ScalarT qint = 0.0;
     
-    for (size_t k=0; k<basis.dimension(2); k++ ) {
-      for (size_t i=0; i<basis.dimension(1); i++ ) {
+    for (size_t k=0; k<basis.extent(2); k++ ) {
+      for (size_t i=0; i<basis.extent(1); i++ ) {
         AD divt = sol_div(e,tnum,k);
         
         qint = basis(e,i,k);
@@ -241,10 +241,10 @@ void porousHDIV_WG::boundaryResidual() {
 
     ScalarT vx = 0.0, vy = 0.0, vz = 0.0;
     ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
-    for (int e=0; e<basis.dimension(0); e++) {
+    for (int e=0; e<basis.extent(0); e++) {
       if (bcs(pintnum,cside) == 1) {
-        for (int k=0; k<basis.dimension(2); k++ ) {
-          for (int i=0; i<basis.dimension(1); i++ ) {
+        for (int k=0; k<basis.extent(2); k++ ) {
+          for (int i=0; i<basis.extent(1); i++ ) {
             vx = basis(e,i,k,0);
             nx = normals(e,k,0);
             if (spaceDim>1) {
@@ -261,8 +261,8 @@ void porousHDIV_WG::boundaryResidual() {
         }
       }
       else if (bcs(pintnum,cside) == 5) {
-        for (int k=0; k<basis.dimension(2); k++ ) {
-          for (int i=0; i<basis.dimension(1); i++ ) {
+        for (int k=0; k<basis.extent(2); k++ ) {
+          for (int i=0; i<basis.extent(1); i++ ) {
             vx = basis(e,i,k,0);
             nx = normals(e,k,0);
             if (spaceDim>1) {
@@ -304,9 +304,9 @@ void porousHDIV_WG::faceResidual() {
   // include <pbndry, v \cdot n> in velocity equation
   basis = wkset->basis_face[u_basis];
   
-  for (size_t e=0; e<basis.dimension(0); e++) {
-    for (size_t k=0; k<basis.dimension(2); k++ ) {
-      for (size_t i=0; i<basis.dimension(1); i++ ) {
+  for (size_t e=0; e<basis.extent(0); e++) {
+    for (size_t k=0; k<basis.extent(2); k++ ) {
+      for (size_t i=0; i<basis.extent(1); i++ ) {
         vx = basis(e,i,k,0);
         nx = normals(e,k,0);
         if (spaceDim>1) {
@@ -328,9 +328,9 @@ void porousHDIV_WG::faceResidual() {
   AD tx = 0.0, ty = 0.0, tz = 0.0;
   basis = wkset->basis_face[pbndry_basis];
   
-  for (size_t e=0; e<basis.dimension(0); e++) {
-    for (size_t k=0; k<basis.dimension(2); k++ ) {
-      for (size_t i=0; i<basis.dimension(1); i++ ) {
+  for (size_t e=0; e<basis.extent(0); e++) {
+    for (size_t k=0; k<basis.extent(2); k++ ) {
+      for (size_t i=0; i<basis.extent(1); i++ ) {
         tx = sol_face(e,unum,k,0);
         nx = normals(e,k,0);
         if (spaceDim>1) {
@@ -366,7 +366,7 @@ void porousHDIV_WG::computeFlux() {
     ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
     for (int e=0; e<numElem; e++) {
 
-      for (size_t k=0; k<wkset->ip_side.dimension(1); k++) {
+      for (size_t k=0; k<wkset->ip_side.extent(1); k++) {
 
         tx = sol_side(e,tnum,k,0);
         nx = normals(e,k,0);

@@ -65,9 +65,9 @@ void porous::volumeResidual() {
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
   if (spaceDim == 1) {
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.dimension(2); k++ ) {
-        for (int i=0; i<basis.dimension(1); i++ ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int k=0; k<sol.extent(2); k++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
           resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
           AD dens = densref(e,k)*(1.0+comp(e,k)*(sol(e,pnum,k,0) - pref(e,k)));
           
@@ -80,9 +80,9 @@ void porous::volumeResidual() {
     });
   }
   else if (spaceDim == 2) {
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.dimension(2); k++ ) {
-        for (int i=0; i<basis.dimension(1); i++ ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int k=0; k<sol.extent(2); k++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
           resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
           AD dens = densref(e,k)*(1.0+comp(e,k)*(sol(e,pnum,k,0) - pref(e,k)));
           
@@ -94,9 +94,9 @@ void porous::volumeResidual() {
     });
   }
   else if (spaceDim == 3) {
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.dimension(2); k++ ) {
-        for (int i=0; i<basis.dimension(1); i++ ) {
+    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int k=0; k<sol.extent(2); k++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
           resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
           
           AD dens = densref(e,k)*(1.0+comp(e,k)*(sol(e,pnum,k,0) - pref(e,k)));
@@ -127,7 +127,7 @@ void porous::boundaryResidual() {
   int sidetype = bcs(pnum,cside);
   
   int basis_num = wkset->usebasis[pnum];
-  int numBasis = wkset->basis_side[basis_num].dimension(1);
+  int numBasis = wkset->basis_side[basis_num].extent(1);
   basis = wkset->basis_side[basis_num];
   basis_grad = wkset->basis_grad_side[basis_num];
   
@@ -165,10 +165,10 @@ void porous::boundaryResidual() {
   ScalarT dvdy = 0.0;
   ScalarT dvdz = 0.0;
   
-  for (int e=0; e<basis.dimension(0); e++) {
+  for (int e=0; e<basis.extent(0); e++) {
     if (bcs(pnum,cside) == 2) {
-      for (int k=0; k<basis.dimension(2); k++ ) {
-        for (int i=0; i<basis.dimension(1); i++ ) {
+      for (int k=0; k<basis.extent(2); k++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
           resindex = offsets(pnum,i);
           res(e,resindex) += -source(e,k)*basis(e,i,k);
         }
@@ -177,7 +177,7 @@ void porous::boundaryResidual() {
     
     if (bcs(pnum,cside) == 4 || bcs(pnum,cside) == 5) {
       
-      for (int k=0; k<basis.dimension(2); k++ ) {
+      for (int k=0; k<basis.extent(2); k++ ) {
         
         AD pval = sol_side(e,pnum,k,0);
         AD dpdx = sol_grad_side(e,pnum,k,0);
@@ -198,7 +198,7 @@ void porous::boundaryResidual() {
           lambda = source(e,k);
         }
         
-        for (int i=0; i<basis.dimension(1); i++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
           resindex = offsets(pnum,i);
           v = basis(e,i,k);
           dvdx = basis_grad(e,i,k,0);
@@ -270,7 +270,7 @@ void porous::computeFlux() {
     
     for (int e=0; e<numElem; e++) {
       
-      for (size_t k=0; k<wkset->ip_side.dimension(1); k++) {
+      for (size_t k=0; k<wkset->ip_side.extent(1); k++) {
         AD dens = densref(e,k)*(1.0+comp(e,k)*(sol_side(e,pnum,k,0) - pref(e,k)));
         AD Kval = perm(e,k)/viscosity(e,k)*dens;
         

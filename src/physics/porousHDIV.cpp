@@ -70,7 +70,7 @@ void porousHDIV::volumeResidual() {
   basis_div = wkset->basis_div[u_basis];
   
   // (K^-1 u,v) - (p,div v) - src*v (src not added yet)
-  parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     ScalarT vx = 0.0;
     ScalarT vy = 0.0;
@@ -78,8 +78,8 @@ void porousHDIV::volumeResidual() {
     ScalarT divv = 0.0;
     AD uy = 0.0, uz = 0.0;
     
-    for (int k=0; k<sol.dimension(2); k++ ) {
-      for (int i=0; i<basis.dimension(1); i++ ) {
+    for (int k=0; k<sol.extent(2); k++ ) {
+      for (int i=0; i<basis.extent(1); i++ ) {
         AD p = sol(e,pnum,k,0);
         AD ux = sol(e,unum,k,0);
         
@@ -110,10 +110,10 @@ void porousHDIV::volumeResidual() {
   basis = wkset->basis[p_basis];
   
   // -(div u,q) + src*q (src not added yet)
-  parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
-    for (int k=0; k<sol.dimension(2); k++ ) {
-      for (int i=0; i<basis.dimension(1); i++ ) {
+    for (int k=0; k<sol.extent(2); k++ ) {
+      for (int i=0; i<basis.extent(1); i++ ) {
         ScalarT v = basis(e,i,k,0);
         AD divu = sol_div(e,unum,k);
         int resindex = offsets(pnum,i);
@@ -155,10 +155,10 @@ void porousHDIV::boundaryResidual() {
   
   ScalarT vx = 0.0, vy = 0.0, vz = 0.0;
   ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
-  for (int e=0; e<basis.dimension(0); e++) {
+  for (int e=0; e<basis.extent(0); e++) {
     if (bcs(pnum,cside) == 1) {
-      for (int k=0; k<basis.dimension(2); k++ ) {
-        for (int i=0; i<basis.dimension(1); i++ ) {
+      for (int k=0; k<basis.extent(2); k++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
           vx = basis(e,i,k,0);
           nx = normals(e,k,0);
           if (spaceDim>1) {
@@ -175,10 +175,10 @@ void porousHDIV::boundaryResidual() {
       }
     }
     else if (bcs(pnum,cside) == 5) {
-      for (int k=0; k<basis.dimension(2); k++ ) {
+      for (int k=0; k<basis.extent(2); k++ ) {
         AD lambda = aux_side(e,auxpnum,k);
         
-        for (int i=0; i<basis.dimension(1); i++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
           vx = basis(e,i,k,0);
           nx = normals(e,k,0);
           if (spaceDim>1) {
@@ -212,9 +212,9 @@ void porousHDIV::computeFlux() {
     
     AD ux = 0.0, uy = 0.0, uz = 0.0;
     ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
-    for (int e=0; e<wkset->ip_side.dimension(0); e++) {
+    for (int e=0; e<wkset->ip_side.extent(0); e++) {
       
-      for (size_t k=0; k<wkset->ip_side.dimension(1); k++) {
+      for (size_t k=0; k<wkset->ip_side.extent(1); k++) {
         
         ux = sol_side(e,unum,k,0);
         nx = normals(e,k,0);

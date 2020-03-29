@@ -110,13 +110,13 @@ Commptr(Comm_), functionManager(functionManager_) {
     int quadorder = blockdiscsettings.get<int>("quadrature",2);
     
     discTools->getQuadrature(cellTopo[b], quadorder, qpts, qwts);
-    numip = qwts.dimension(0);
+    numip = qwts.extent(0);
     
     DRV side_qpts, side_qwts;
     int side_quadorder = blockdiscsettings.get<int>("side quadrature",quadorder);
     
     discTools->getQuadrature(sideTopo[b], side_quadorder, side_qpts, side_qwts);
-    numip_side = side_qwts.dimension(0);
+    numip_side = side_qwts.extent(0);
     
     this->importPhysics(settings, blocksettings, blockdiscsettings, currorders, currtypes, currvarlist,
                         currvarowned, useScalarFunc, numip, numip_side, b);
@@ -794,8 +794,8 @@ void physics::trueSolution(const int & block, const ScalarT & time,
     if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE") {
       string expression = "true " + varlist[block][v];
       FDATA tsol = functionManager->evaluate(expression,"ip",block);
-      for (size_t i=0; i<truesol.dimension(0); i++) {
-        for (size_t j=0; j<truesol.dimension(2); j++) {
+      for (size_t i=0; i<truesol.extent(0); i++) {
+        for (size_t j=0; j<truesol.extent(2); j++) {
           truesol(i,v,j,0) = tsol(i,j).val();
         }
       }
@@ -803,16 +803,16 @@ void physics::trueSolution(const int & block, const ScalarT & time,
     else if (btype == "HDIV" || btype == "HCURL") {
       string expression = "true " + varlist[block][v] + "x";
       FDATA tsol = functionManager->evaluate(expression,"ip",block);
-      for (size_t i=0; i<truesol.dimension(0); i++) {
-        for (size_t j=0; j<truesol.dimension(2); j++) {
+      for (size_t i=0; i<truesol.extent(0); i++) {
+        for (size_t j=0; j<truesol.extent(2); j++) {
           truesol(i,v,j,0) = tsol(i,j).val();
         }
       }
       if (spaceDim > 1){
         string expression = "true " + varlist[block][v] + "y";
         FDATA tsol = functionManager->evaluate(expression,"ip",block);
-        for (size_t i=0; i<truesol.dimension(0); i++) {
-          for (size_t j=0; j<truesol.dimension(2); j++) {
+        for (size_t i=0; i<truesol.extent(0); i++) {
+          for (size_t j=0; j<truesol.extent(2); j++) {
             truesol(i,v,j,1) = tsol(i,j).val();
           }
         }
@@ -820,8 +820,8 @@ void physics::trueSolution(const int & block, const ScalarT & time,
       if (spaceDim > 2) {
         string expression = "true " + varlist[block][v] + "z";
         FDATA tsol = functionManager->evaluate(expression,"ip",block);
-        for (size_t i=0; i<truesol.dimension(0); i++) {
-          for (size_t j=0; j<truesol.dimension(2); j++) {
+        for (size_t i=0; i<truesol.extent(0); i++) {
+          for (size_t j=0; j<truesol.extent(2); j++) {
             truesol(i,v,j,2) = tsol(i,j).val();
           }
         }
@@ -840,8 +840,8 @@ void physics::trueSolutionFace(const int & block, const ScalarT & time,
     string btype = types[block][v];
     string expression = "true " + varlist[block][v];
     FDATA tsol = functionManager->evaluate(expression,"side ip",block);
-    for (size_t i=0; i<truesol.dimension(0); i++) {
-      for (size_t j=0; j<truesol.dimension(2); j++) {
+    for (size_t i=0; i<truesol.extent(0); i++) {
+      for (size_t j=0; j<truesol.extent(2); j++) {
         truesol(i,v,j,0) = tsol(i,j).val();
       }
     }
@@ -857,16 +857,16 @@ void physics::trueSolutionGrad(const int & block, const ScalarT & time,
   for (int v=0; v<varlist[block].size(); v++) {
     string expression = "true " + varlist[block][v] + "_x";
     FDATA tsol = functionManager->evaluate(expression,"ip",block);
-    for (size_t i=0; i<truesol.dimension(0); i++) {
-      for (size_t j=0; j<truesol.dimension(2); j++) {
+    for (size_t i=0; i<truesol.extent(0); i++) {
+      for (size_t j=0; j<truesol.extent(2); j++) {
         truesol(i,v,j,0) = tsol(i,j).val();
       }
     }
     if (spaceDim>1) {
       string expression = "true " + varlist[block][v] + "_y";
       FDATA tsol = functionManager->evaluate(expression,"ip",block);
-      for (size_t i=0; i<truesol.dimension(0); i++) {
-        for (size_t j=0; j<truesol.dimension(2); j++) {
+      for (size_t i=0; i<truesol.extent(0); i++) {
+        for (size_t j=0; j<truesol.extent(2); j++) {
           truesol(i,v,j,1) = tsol(i,j).val();
         }
       }
@@ -874,8 +874,8 @@ void physics::trueSolutionGrad(const int & block, const ScalarT & time,
     if (spaceDim > 2) {
       string expression = "true " + varlist[block][v] + "_z";
       FDATA tsol = functionManager->evaluate(expression,"ip",block);
-      for (size_t i=0; i<truesol.dimension(0); i++) {
-        for (size_t j=0; j<truesol.dimension(2); j++) {
+      for (size_t i=0; i<truesol.extent(0); i++) {
+        for (size_t j=0; j<truesol.extent(2); j++) {
           truesol(i,v,j,2) = tsol(i,j).val();
         }
       }
@@ -901,8 +901,8 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
                                                         const DRV & ip, const ScalarT & time,
                                                         Teuchos::RCP<workset> & wkset) {
   
-  size_t numElem = u_ip.dimension(0);
-  size_t numip = ip.dimension(1);
+  size_t numElem = u_ip.extent(0);
+  size_t numip = ip.extent(1);
   size_t numResponses = response_list[block].size();
   
   Kokkos::View<AD***,AssemblyDevice> responsetotal("responses",numElem,numResponses,numip);
@@ -914,14 +914,14 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
       for (size_t s=0; s<spaceDim; s++) {
         wkset->point_KV(0,0,s) = ip(e,k,s);
       }
-      for (size_t v=0; v<u_ip.dimension(1); v++) {
+      for (size_t v=0; v<u_ip.extent(1); v++) {
         wkset->local_soln_point(0,v,0,0) = u_ip(e,v,k,0);
         for (size_t s=0; s<spaceDim; s++) {
           wkset->local_soln_grad_point(0,v,0,s) = ugrad_ip(e,v,k,s);
         }
       }
       
-      for (size_t v=0; v<p_ip.dimension(1); v++) {
+      for (size_t v=0; v<p_ip.extent(1); v++) {
         wkset->local_param_point(0,v,0,0) = p_ip(e,v,k,0);
         for (size_t s=0; s<spaceDim; s++) {
           wkset->local_param_grad_point(0,v,0,s) = pgrad_ip(e,v,k,s);
@@ -979,8 +979,8 @@ Kokkos::View<AD***,AssemblyDevice> physics::target(const int & block, const DRV 
                                                    Teuchos::RCP<workset> & wkset) {
   
   
-  size_t numip = ip.dimension(1);
-  size_t numElem = ip.dimension(0);
+  size_t numip = ip.extent(1);
+  size_t numElem = ip.extent(0);
   
   Kokkos::View<AD***,AssemblyDevice> targettotal("target",numElem,target_list[block].size(),numip);
   
@@ -1007,8 +1007,8 @@ Kokkos::View<AD***,AssemblyDevice> physics::weight(const int & block, const DRV 
                                                    const ScalarT & current_time,
                                                    Teuchos::RCP<workset> & wkset) {
   
-  size_t numip = ip.dimension(1);
-  size_t numElem = ip.dimension(0);
+  size_t numip = ip.extent(1);
+  size_t numElem = ip.extent(0);
   
   Kokkos::View<AD***,AssemblyDevice> weighttotal("weight",numElem,weight_list[block].size(),numip);
   for (size_t t=0; t<weight_list[block].size(); t++) {
@@ -1036,8 +1036,8 @@ Kokkos::View<ScalarT**,AssemblyDevice> physics::getInitial(const DRV & ip, const
                                                           Teuchos::RCP<workset> & wkset) {
   
   
-  size_t numElem = ip.dimension(0);
-  size_t numip = ip.dimension(1);
+  size_t numElem = ip.extent(0);
+  size_t numip = ip.extent(1);
   size_t block = 0; // TMW: needs to be fixed
   
   Kokkos::View<ScalarT**,AssemblyDevice> ivals("temp invals", numElem, numip);
@@ -1166,11 +1166,11 @@ vector<Kokkos::View<ScalarT***,AssemblyDevice> > physics::getExtraFields(const i
 Kokkos::View<ScalarT***,AssemblyDevice> physics::getExtraFields(const int & block, const DRV & ip,
                                                                const ScalarT & time, Teuchos::RCP<workset> & wkset) {
   
-  Kokkos::View<ScalarT***,AssemblyDevice> fields("field data",ip.dimension(0),extrafields_list[block].size(),ip.dimension(1));
+  Kokkos::View<ScalarT***,AssemblyDevice> fields("field data",ip.extent(0),extrafields_list[block].size(),ip.extent(1));
   
   for (size_t k=0; k<extrafields_list[block].size(); k++) {
-    for (size_t e=0; e<ip.dimension(0); e++) {
-      for (size_t j=0; j<ip.dimension(1); j++) {
+    for (size_t e=0; e<ip.extent(0); e++) {
+      for (size_t j=0; j<ip.extent(1); j++) {
         for (size_t s=0; s<spaceDim; s++) {
           wkset->point_KV(0,0,s) = ip(e,j,s);
         }
@@ -1191,7 +1191,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> physics::getExtraCellFields(const int & 
   
   for (size_t k=0; k<extracellfields_list[block].size(); k++) {
     FDATA efdata = functionManager->evaluate(extracellfields_list[block][k],"ip",block);
-    size_t numip = efdata.dimension(1);
+    size_t numip = efdata.extent(1);
     for (size_t e=0; e<numElem; e++) {
       for (size_t j=0; j<numip; j++) {
         ScalarT val = efdata(e,k).val();
@@ -1524,10 +1524,10 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
 
 Kokkos::View<int****,HostDevice> physics::getSideInfo(const size_t & block,
                                                       Kokkos::View<int*> elem) {
-  size_t nelem = elem.dimension(0);
-  size_t nvars = side_info[block].dimension(1);
-  size_t nelemsides = side_info[block].dimension(2);
-  size_t nglobalsides = side_info[block].dimension(3);
+  size_t nelem = elem.extent(0);
+  size_t nvars = side_info[block].extent(1);
+  size_t nelemsides = side_info[block].extent(2);
+  size_t nglobalsides = side_info[block].extent(3);
   Kokkos::View<int****> currsi("side info for cell",nelem,nvars,nelemsides, 2);
   for (int e=0; e<nelem; e++) {
     for (int j=0; j<nelemsides; j++) {

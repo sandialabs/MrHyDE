@@ -65,11 +65,11 @@ void maxwell::volumeResidual() {
   basis = wkset->basis[B_basis];
   //basis_curl = wkset->basis_curl[B_basis];
   
-  parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     // (dB/dt,V) + (curl E,V) = (S_mag,V)
-    for (int k=0; k<sol.dimension(2); k++ ) {
-      for (int i=0; i<basis.dimension(1); i++ ) {
+    for (int k=0; k<sol.extent(2); k++ ) {
+      for (int i=0; i<basis.extent(1); i++ ) {
         AD dBx_dt = sol_dot(e,Bnum,k,0);
         AD dBy_dt = sol_dot(e,Bnum,k,1);
         AD dBz_dt = sol_dot(e,Bnum,k,2);
@@ -96,11 +96,11 @@ void maxwell::volumeResidual() {
   basis = wkset->basis[E_basis];
   basis_curl = wkset->basis_curl[E_basis];
   
-  parallel_for(RangePolicy<AssemblyDevice>(0,res.dimension(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     // (eps*dE/dt,V) - (1/mu B, curl V) = (S_elec,V)
-    for (int k=0; k<sol.dimension(2); k++ ) {
-      for (int i=0; i<basis.dimension(1); i++ ) {
+    for (int k=0; k<sol.extent(2); k++ ) {
+      for (int i=0; i<basis.extent(1); i++ ) {
         AD dEx_dt = sol_dot(e,Enum,k,0);
         AD dEy_dt = sol_dot(e,Enum,k,1);
         AD dEz_dt = sol_dot(e,Enum,k,2);

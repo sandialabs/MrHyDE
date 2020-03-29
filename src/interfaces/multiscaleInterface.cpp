@@ -44,7 +44,7 @@ macro_functionManager(macro_functionManager_) {
       stringstream ss;
       ss << n;
       macro_functionManager->addFunction("Subgrid " + ss.str() + " usage",subgridModels[n]->usage,
-                                         cells[0][0]->numElem,cells[0][0]->ip.dimension(1),"ip",0);
+                                         cells[0][0]->numElem,cells[0][0]->ip.extent(1),"ip",0);
     }
      
   }
@@ -121,7 +121,7 @@ ScalarT MultiScale::initialize() {
         FDATA usagecheck = macro_functionManager->evaluate("Subgrid " + ss.str() + " usage","ip",0);
         
         for (int p=0; p<numElem; p++) {
-          for (size_t j=0; j<usagecheck.dimension(1); j++) {
+          for (size_t j=0; j<usagecheck.extent(1); j++) {
             if (usagecheck(p,j).val() >= 1.0) {
               sgnum[p] = s;
             }
@@ -136,32 +136,32 @@ ScalarT MultiScale::initialize() {
         Kokkos::View<LO***,HostDevice> index = cells[b][e]->index;
         
         for (int c=0; c<numElem; c++) {
-          DRV cnodes("cnodes",1,cellnodes.dimension(1),cellnodes.dimension(2));
-          Kokkos::View<int****,HostDevice> csideinfo("csideinfo",1,cellsideinfo.dimension(1),
-                                                     cellsideinfo.dimension(2),
-                                                     cellsideinfo.dimension(3));
-          Kokkos::View<GO**,HostDevice> cGIDs("GIDs",1,GIDs.dimension(1));
-          Kokkos::View<LO***,HostDevice> cindex("index",1,index.dimension(1), index.dimension(2));
+          DRV cnodes("cnodes",1,cellnodes.extent(1),cellnodes.extent(2));
+          Kokkos::View<int****,HostDevice> csideinfo("csideinfo",1,cellsideinfo.extent(1),
+                                                     cellsideinfo.extent(2),
+                                                     cellsideinfo.extent(3));
+          Kokkos::View<GO**,HostDevice> cGIDs("GIDs",1,GIDs.extent(1));
+          Kokkos::View<LO***,HostDevice> cindex("index",1,index.extent(1), index.extent(2));
           
           Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation("macro-orient",1);
           orientation(0) = cells[b][e]->orientation(c);
-          for (int i=0; i<cellnodes.dimension(1); i++) {
-            for (int j=0; j<cellnodes.dimension(2); j++) {
+          for (int i=0; i<cellnodes.extent(1); i++) {
+            for (int j=0; j<cellnodes.extent(2); j++) {
               cnodes(0,i,j) = cellnodes(c,i,j);
             }
           }
-          for (int i=0; i<cellsideinfo.dimension(1); i++) {
-            for (int j=0; j<cellsideinfo.dimension(2); j++) {
-              for (int k=0; k<cellsideinfo.dimension(3); k++) {
+          for (int i=0; i<cellsideinfo.extent(1); i++) {
+            for (int j=0; j<cellsideinfo.extent(2); j++) {
+              for (int k=0; k<cellsideinfo.extent(3); k++) {
                 csideinfo(0,i,j,k) = cellsideinfo(c,i,j,k);
               }
             }
           }
-          for (int i=0; i<GIDs.dimension(1); i++) {
+          for (int i=0; i<GIDs.extent(1); i++) {
             cGIDs(0,i) = GIDs(c,i);
           }
-          for (int i=0; i<index.dimension(1); i++) {
-            for (int j=0; j<index.dimension(2); j++) {
+          for (int i=0; i<index.extent(1); i++) {
+            for (int j=0; j<index.extent(2); j++) {
               cindex(0,i,j) = index(c,i,j);
             }
           }
@@ -181,32 +181,32 @@ ScalarT MultiScale::initialize() {
         Kokkos::View<LO***,HostDevice> index = cells[b][e]->index;
         
         for (int c=0; c<numElem; c++) {
-          DRV cnodes("cnodes",1,cellnodes.dimension(1),cellnodes.dimension(2));
-          Kokkos::View<int****,HostDevice> csideinfo("csideinfo",1,cellsideinfo.dimension(1),
-                                                     cellsideinfo.dimension(2),
-                                                     cellsideinfo.dimension(3));
-          Kokkos::View<GO**,HostDevice> cGIDs("GIDs",1,GIDs.dimension(1));
-          Kokkos::View<LO***,HostDevice> cindex("index",1,index.dimension(1), index.dimension(2));
+          DRV cnodes("cnodes",1,cellnodes.extent(1),cellnodes.extent(2));
+          Kokkos::View<int****,HostDevice> csideinfo("csideinfo",1,cellsideinfo.extent(1),
+                                                     cellsideinfo.extent(2),
+                                                     cellsideinfo.extent(3));
+          Kokkos::View<GO**,HostDevice> cGIDs("GIDs",1,GIDs.extent(1));
+          Kokkos::View<LO***,HostDevice> cindex("index",1,index.extent(1), index.extent(2));
           Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation("macro-orient",1);
           orientation(0) = cells[b][e]->orientation(c);
           
-          for (int i=0; i<cellnodes.dimension(1); i++) {
-            for (int j=0; j<cellnodes.dimension(2); j++) {
+          for (int i=0; i<cellnodes.extent(1); i++) {
+            for (int j=0; j<cellnodes.extent(2); j++) {
               cnodes(0,i,j) = cellnodes(c,i,j);
             }
           }
-          for (int i=0; i<cellsideinfo.dimension(1); i++) {
-            for (int j=0; j<cellsideinfo.dimension(2); j++) {
-              for (int k=0; k<cellsideinfo.dimension(3); k++) {
+          for (int i=0; i<cellsideinfo.extent(1); i++) {
+            for (int j=0; j<cellsideinfo.extent(2); j++) {
+              for (int k=0; k<cellsideinfo.extent(3); k++) {
                 csideinfo(0,i,j,k) = cellsideinfo(c,i,j,k);
               }
             }
           }
-          for (int i=0; i<GIDs.dimension(1); i++) {
+          for (int i=0; i<GIDs.extent(1); i++) {
             cGIDs(0,i) = GIDs(c,i);
           }
-          for (int i=0; i<index.dimension(1); i++) {
-            for (int j=0; j<index.dimension(2); j++) {
+          for (int i=0; i<index.extent(1); i++) {
+            for (int j=0; j<index.extent(2); j++) {
               cindex(0,i,j) = index(c,i,j);
             }
           }
@@ -340,7 +340,7 @@ ScalarT MultiScale::update() {
             FDATA usagecheck = macro_functionManager->evaluate("Subgrid " + ss.str() + " usage","ip",0);
             
             for (int p=0; p<numElem; p++) {
-              for (size_t j=0; j<usagecheck.dimension(1); j++) {
+              for (size_t j=0; j<usagecheck.extent(1); j++) {
                 if (usagecheck(p,j).val() >= 1.0) {
                   newmodel[p] = s;
                 }
@@ -509,8 +509,8 @@ Kokkos::View<ScalarT**,HostDevice> MultiScale::getMeanCellFields(const size_t & 
     for (size_t e=0; e<cells[block].size(); e++) {
       int sgmodelnum = cells[block][e]->subgrid_model_index[timeindex];
       FC cfields = subgridModels[sgmodelnum]->getCellFields(cells[block][e]->subgrid_usernum, time);
-      size_t nsgc = cfields.dimension(0);
-      for (size_t k=0; k<cfields.dimension(1); k++) {
+      size_t nsgc = cfields.extent(0);
+      for (size_t k=0; k<cfields.extent(1); k++) {
         ScalarT cval = 0.0;
         for (size_t j=0; j<nsgc; j++) {
           cval += cfields(j,k)/(ScalarT)nsgc;
