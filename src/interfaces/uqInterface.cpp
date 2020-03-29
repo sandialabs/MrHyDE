@@ -188,7 +188,7 @@ void uqmanager::computeStatistics(const std::vector<ScalarT> & values) {
 // ========================================================================================
 // ========================================================================================
 
-void uqmanager::computeStatistics(const vector<Kokkos::View<ScalarT**,HostDevice> > & values) {
+void uqmanager::computeStatistics(const vector<Kokkos::View<ScalarT***,HostDevice> > & values) {
   int numvals = values.size();
   // assumes that values[i] is a rank-3 FC
   int dim0 = values[0].extent(0);

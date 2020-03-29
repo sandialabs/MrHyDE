@@ -922,7 +922,7 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
       }
       
       for (size_t v=0; v<p_ip.extent(1); v++) {
-        wkset->local_param_point(0,v,0,0) = p_ip(e,v,k,0);
+        wkset->local_param_point(0,v,0) = p_ip(e,v,k,0);
         for (size_t s=0; s<spaceDim; s++) {
           wkset->local_param_grad_point(0,v,0,s) = pgrad_ip(e,v,k,s);
         }

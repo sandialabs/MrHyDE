@@ -44,9 +44,7 @@ public:
     cout << "--------------------" << endl;
     
     for (unsigned int i=0; i<V.extent(0); i++) {
-      for (unsigned int j=0; j<V.extent(1); j++) {
-        cout << "  " << i << "  " << "  " << "  " << V(i,j) << "  " << endl;
-      }
+      cout << "  " << i << "  " << "  " << "  " << V(i) << "  " << endl;
     }
     cout << "--------------------" << endl;
     

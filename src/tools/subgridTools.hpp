@@ -471,8 +471,8 @@ public:
       subsideinfo.push_back(newsi1);
       
       Kokkos::View<int***,AssemblyDevice> oldmap = subsidemap[e];
-      Kokkos::View<int***,AssemblyDevice> newsm0("newsi",oldmap.extent(1),2,2);
-      Kokkos::View<int***,AssemblyDevice> newsm1("newsi",oldmap.extent(1),2,2);
+      Kokkos::View<int***,AssemblyDevice> newsm0("newsi",oldmap.extent(0),2,2);
+      Kokkos::View<int***,AssemblyDevice> newsm1("newsi",oldmap.extent(0),2,2);
       Kokkos::deep_copy(newsm0,oldmap);
       Kokkos::deep_copy(newsm1,oldmap);
       
@@ -608,10 +608,10 @@ public:
         subsideinfo.push_back(newsi3);
         
         Kokkos::View<int***,AssemblyDevice> oldmap = subsidemap[e];
-        Kokkos::View<int***,AssemblyDevice> newsm0("newsi",oldmap.extent(1),3,2);
-        Kokkos::View<int***,AssemblyDevice> newsm1("newsi",oldmap.extent(1),3,2);
-        Kokkos::View<int***,AssemblyDevice> newsm2("newsi",oldmap.extent(1),3,2);
-        Kokkos::View<int***,AssemblyDevice> newsm3("newsi",oldmap.extent(1),3,2);
+        Kokkos::View<int***,AssemblyDevice> newsm0("newsi",oldmap.extent(0),3,2);
+        Kokkos::View<int***,AssemblyDevice> newsm1("newsi",oldmap.extent(0),3,2);
+        Kokkos::View<int***,AssemblyDevice> newsm2("newsi",oldmap.extent(0),3,2);
+        Kokkos::View<int***,AssemblyDevice> newsm3("newsi",oldmap.extent(0),3,2);
         Kokkos::deep_copy(newsm0,oldmap);
         Kokkos::deep_copy(newsm1,oldmap);
         Kokkos::deep_copy(newsm2,oldmap);
@@ -804,10 +804,10 @@ public:
         subsideinfo.push_back(newsi3);
         
         Kokkos::View<int***,AssemblyDevice> oldmap = subsidemap[e];
-        Kokkos::View<int***,AssemblyDevice> newsm0("newsm",oldmap.extent(1),4,2);
-        Kokkos::View<int***,AssemblyDevice> newsm1("newsm",oldmap.extent(1),4,2);
-        Kokkos::View<int***,AssemblyDevice> newsm2("newsm",oldmap.extent(1),4,2);
-        Kokkos::View<int***,AssemblyDevice> newsm3("newsm",oldmap.extent(1),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm0("newsm",oldmap.extent(0),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm1("newsm",oldmap.extent(0),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm2("newsm",oldmap.extent(0),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm3("newsm",oldmap.extent(0),4,2);
         Kokkos::deep_copy(newsm0,oldmap);
         Kokkos::deep_copy(newsm1,oldmap);
         Kokkos::deep_copy(newsm2,oldmap);
@@ -1068,14 +1068,14 @@ public:
         subsideinfo.push_back(newsi7);
         
         Kokkos::View<int***,AssemblyDevice> oldmap = subsidemap[e];
-        Kokkos::View<int***,AssemblyDevice> newsm0("newsi",oldmap.extent(1),4,2);
-        Kokkos::View<int***,AssemblyDevice> newsm1("newsi",oldmap.extent(1),4,2);
-        Kokkos::View<int***,AssemblyDevice> newsm2("newsi",oldmap.extent(1),4,2);
-        Kokkos::View<int***,AssemblyDevice> newsm3("newsi",oldmap.extent(1),4,2);
-        Kokkos::View<int***,AssemblyDevice> newsm4("newsi",oldmap.extent(1),4,2);
-        Kokkos::View<int***,AssemblyDevice> newsm5("newsi",oldmap.extent(1),4,2);
-        Kokkos::View<int***,AssemblyDevice> newsm6("newsi",oldmap.extent(1),4,2);
-        Kokkos::View<int***,AssemblyDevice> newsm7("newsi",oldmap.extent(1),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm0("newsi",oldmap.extent(0),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm1("newsi",oldmap.extent(0),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm2("newsi",oldmap.extent(0),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm3("newsi",oldmap.extent(0),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm4("newsi",oldmap.extent(0),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm5("newsi",oldmap.extent(0),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm6("newsi",oldmap.extent(0),4,2);
+        Kokkos::View<int***,AssemblyDevice> newsm7("newsi",oldmap.extent(0),4,2);
         
         Kokkos::deep_copy(newsm0,oldmap);
         Kokkos::deep_copy(newsm1,oldmap);
@@ -1658,14 +1658,14 @@ public:
         
         
         Kokkos::View<int***,AssemblyDevice> oldmap = subsidemap[e];
-        Kokkos::View<int***,AssemblyDevice> newsm0("newsi",oldmap.extent(1),6,2);
-        Kokkos::View<int***,AssemblyDevice> newsm1("newsi",oldmap.extent(1),6,2);
-        Kokkos::View<int***,AssemblyDevice> newsm2("newsi",oldmap.extent(1),6,2);
-        Kokkos::View<int***,AssemblyDevice> newsm3("newsi",oldmap.extent(1),6,2);
-        Kokkos::View<int***,AssemblyDevice> newsm4("newsi",oldmap.extent(1),6,2);
-        Kokkos::View<int***,AssemblyDevice> newsm5("newsi",oldmap.extent(1),6,2);
-        Kokkos::View<int***,AssemblyDevice> newsm6("newsi",oldmap.extent(1),6,2);
-        Kokkos::View<int***,AssemblyDevice> newsm7("newsi",oldmap.extent(1),6,2);
+        Kokkos::View<int***,AssemblyDevice> newsm0("newsi",oldmap.extent(0),6,2);
+        Kokkos::View<int***,AssemblyDevice> newsm1("newsi",oldmap.extent(0),6,2);
+        Kokkos::View<int***,AssemblyDevice> newsm2("newsi",oldmap.extent(0),6,2);
+        Kokkos::View<int***,AssemblyDevice> newsm3("newsi",oldmap.extent(0),6,2);
+        Kokkos::View<int***,AssemblyDevice> newsm4("newsi",oldmap.extent(0),6,2);
+        Kokkos::View<int***,AssemblyDevice> newsm5("newsi",oldmap.extent(0),6,2);
+        Kokkos::View<int***,AssemblyDevice> newsm6("newsi",oldmap.extent(0),6,2);
+        Kokkos::View<int***,AssemblyDevice> newsm7("newsi",oldmap.extent(0),6,2);
         
         Kokkos::deep_copy(newsm0,oldmap);
         Kokkos::deep_copy(newsm1,oldmap);
