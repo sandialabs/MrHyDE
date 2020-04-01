@@ -1,0 +1,52 @@
+TRILINOS_DIR='/ascldap/users/tmwilde/Trilinos'
+
+INSTALL_DIR='/ascldap/users/tmwilde/Trilinos/install-hybrid'
+
+cmake \
+-GNinja \
+-D CMAKE_INSTALL_PREFIX:PATH=${INSTALL_DIR} \
+-D Trilinos_CONFIGURE_OPTIONS_FILE:STRING=cmake/std/atdm/ATDMDevEnv.cmake \
+-D Trilinos_ENABLE_TESTS=OFF \
+-D Trilinos_ENABLE_Fortran=ON \
+-D TPL_ENABLE_CUDA=ON \
+-D Kokkos_ENABLE_Cuda=ON \
+-D Kokkos_ENABLE_Serial=ON \
+-D Trilinos_ENABLE_ALL_PACKAGES:BOOL=OFF \
+-D Trilinos_ENABLE_ALL_OPTIONAL_PACKAGES:BOOL=OFF \
+-D Trilinos_ENABLE_Teko:BOOL=ON \
+-D Trilinos_ENABLE_Belos:BOOL=ON \
+-D Trilinos_ENABLE_ROL:BOOL=ON \
+-D Trilinos_ENABLE_Ifpack:BOOL=ON \
+-D Trilinos_ENABLE_Panzer:BOOL=ON \
+-D Trilinos_ENABLE_Intrepid2:BOOL=ON \
+-D Trilinos_ENABLE_Shards:BOOL=ON \
+-D Trilinos_ENABLE_ML:BOOL=ON \
+-D Trilinos_ENABLE_FEI:BOOL=ON \
+-D Trilinos_ENABLE_Amesos2:BOOL=ON \
+-D Trilinos_ENABLE_STKClassic:BOOL=ON \
+-D Trilinos_ENABLE_STKMesh:BOOL=ON \
+-D Trilinos_ENABLE_STKIO:BOOL=ON \
+-D Trilinos_ENABLE_STKUtil:BOOL=ON \
+-D Trilinos_ENABLE_STKSearch:BOOL=ON \
+-D Trilinos_ENABLE_STKTopology:BOOL=ON \
+-D Trilinos_ENABLE_STKTransfer:BOOL=OFF \
+-D Trilinos_ENABLE_SEACAS:BOOL=ON \
+-D Anasazi_ENABLE_COMPLEX=OFF \
+-D TPL_ENABLE_Matio=OFF \
+-D STK_ENABLE_ThreadPool=ON \
+-D STK_ENABLE_TESTS:BOOL=OFF \
+-D Panzer_ENABLE_TESTS:BOOL=OFF \
+-D EpetraExt_ENABLE_HDF5:BOOL=OFF \
+-D Panzer_ENABLE_EXAMPLES:BOOL=OFF \
+-D Panzer_ENABLE_EXPLICIT_INSTANTIATION:BOOL=ON \
+-D Trilinos_ENABLE_MueLu=ON \
+-D TPL_ENABLE_Boost:BOOL=ON \
+-D TPL_ENABLE_BoostLib:BOOL=ON \
+-D TPL_ENABLE_Netcdf:BOOL=ON \
+-D SEACASExodus_ENABLE_MPI:BOOL=OFF \
+-D Phalanx_KOKKOS_DEVICE_TYPE='CUDA' \
+-D Tpetra_ENABLE_CUDA:BOOL=ON \
+-D Tpetra_ASSUME_CUDA_AWARE_MPI=OFF \
+-D Tpetra_INST_SERIAL=ON \
+-D Tpetra_INST_CUDA=ON \
+$TRILINOS_DIR
