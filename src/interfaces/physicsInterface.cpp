@@ -35,6 +35,7 @@
 #include "maxwells_fp.hpp"
 #include "shallowwater.hpp"
 #include "maxwell.hpp"
+#include "maxwell_hybridized.hpp"
 
 // Disabled/out-of-date physics modules
 //#include "msconvdiff.hpp"
