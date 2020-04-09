@@ -65,7 +65,7 @@ void maxwell::volumeResidual() {
   basis = wkset->basis[B_basis];
   //basis_curl = wkset->basis_curl[B_basis];
   
-  parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     // (dB/dt,V) + (curl E,V) = (S_mag,V)
     for (int k=0; k<sol.extent(2); k++ ) {
@@ -96,7 +96,7 @@ void maxwell::volumeResidual() {
   basis = wkset->basis[E_basis];
   basis_curl = wkset->basis_curl[E_basis];
   
-  parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     // (eps*dE/dt,V) - (1/mu B, curl V) = (S_elec,V)
     for (int k=0; k<sol.extent(2); k++ ) {

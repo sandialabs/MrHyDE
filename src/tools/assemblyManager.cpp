@@ -456,7 +456,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
       {
         Teuchos::TimeMonitor localtimer(*phystimer);
         
-        parallel_for(RangePolicy<AssemblyDevice>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int p ) {
+        parallel_for(RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int p ) {
           for (int n=0; n<numDOF; n++) {
             for (int s=0; s<local_res.extent(2); s++) {
               local_res(p,n,s) = 0.0;
@@ -557,7 +557,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
           {
             Teuchos::TimeMonitor localtimer(*phystimer);
             
-            parallel_for(RangePolicy<AssemblyDevice>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int p ) {
+            parallel_for(RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int p ) {
               for (int n=0; n<local_res.extent(1); n++) {
                 for (int s=0; s<local_res.extent(2); s++) {
                   local_res(p,n,s) = 0.0;
@@ -704,7 +704,7 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
         KokkosTools::print(data, "inside assemblyManager::gather - data");
       }
     }
-    parallel_for(RangePolicy<AssemblyDevice>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (size_t n=0; n<index.extent(1); n++) {
         for(size_t i=0; i<numDOF(n); i++ ) {
           data(e,n,i) = vec_kv(index(e,n,i),entry);
@@ -777,7 +777,7 @@ void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP &
             KokkosTools::print(data, "inside assemblyManager::boundarygather - data");
           }
         }
-        parallel_for(RangePolicy<AssemblyDevice>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        parallel_for(RangePolicy<AssemblyExec>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (size_t n=0; n<index.extent(1); n++) {
             for(size_t i=0; i<numDOF(n); i++ ) {
               data(e,n,i) = vec_kv(index(e,n,i),entry);

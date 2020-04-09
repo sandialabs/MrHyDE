@@ -116,7 +116,7 @@ void linearelasticity::volumeResidual() {
     basis = wkset->basis[dx_basis];
     basis_grad = wkset->basis_grad[dx_basis];
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (size_t k=0; k<basis.extent(2); k++ ) {
         this->setLocalSoln(e,k,false);
         for (int i=0; i<basis.extent(1); i++ ) {
@@ -135,7 +135,7 @@ void linearelasticity::volumeResidual() {
     basis = wkset->basis[dx_basis];
     basis_grad = wkset->basis_grad[dx_basis];
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (size_t k=0; k<basis.extent(2); k++ ) {
         //this->setLocalSoln(e,k,false);
         for (int i=0; i<basis.extent(1); i++ ) {
@@ -156,7 +156,7 @@ void linearelasticity::volumeResidual() {
     basis = wkset->basis[dy_basis];
     basis_grad = wkset->basis_grad[dy_basis];
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (size_t k=0; k<basis.extent(2); k++ ) {
         //this->setLocalSoln(e,k,false);
         
@@ -179,7 +179,7 @@ void linearelasticity::volumeResidual() {
     basis = wkset->basis[dx_basis];
     basis_grad = wkset->basis_grad[dx_basis];
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for(size_t k=0; k<basis.extent(2); k++ ) {
         //this->setLocalSoln(e,k,false);
         for( int i=0; i<basis.extent(1); i++ ) {
@@ -198,7 +198,7 @@ void linearelasticity::volumeResidual() {
     basis = wkset->basis[dy_basis];
     basis_grad = wkset->basis_grad[dy_basis];
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for(size_t k=0; k<basis.extent(2); k++ ) {
         //this->setLocalSoln(e,k,false);
         for( int i=0; i<basis.extent(1); i++ ) {
@@ -217,7 +217,7 @@ void linearelasticity::volumeResidual() {
     basis = wkset->basis[dz_basis];
     basis_grad = wkset->basis_grad[dz_basis];
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for(size_t k=0; k<basis.extent(2); k++ ) {
         //this->setLocalSoln(e,k,false);
         for( int i=0; i<basis.extent(1); i++ ) {

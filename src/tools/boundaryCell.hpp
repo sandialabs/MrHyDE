@@ -54,7 +54,7 @@ public:
                                                index_.extent(1), index_.extent(2));
     
     // Need to copy the data since index_ is rewritten for each cell
-    parallel_for(RangePolicy<AssemblyDevice>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (unsigned int j=0; j<index_.extent(1); j++) {
         for (unsigned int k=0; k<index_.extent(2); k++) {
           index(e,j,k) = index_(e,j,k);
@@ -77,7 +77,7 @@ public:
                                                     pindex_.extent(1), pindex_.extent(2));
     
     // Need to copy the data since index_ is rewritten for each cell
-    parallel_for(RangePolicy<AssemblyDevice>(0,pindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,pindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (unsigned int j=0; j<pindex_.extent(1); j++) {
         for (unsigned int k=0; k<pindex_.extent(2); k++) {
           paramindex(e,j,k) = pindex_(e,j,k);
@@ -99,7 +99,7 @@ public:
                                                   aindex_.extent(2));
     
     // Need to copy the data since index_ is rewritten for each cell
-    parallel_for(RangePolicy<AssemblyDevice>(0,aindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,aindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (unsigned int j=0; j<aindex_.extent(1); j++) {
         for (unsigned int k=0; k<aindex_.extent(2); k++) {
           auxindex(e,j,k) = aindex_(e,j,k);

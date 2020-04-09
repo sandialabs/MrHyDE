@@ -2657,8 +2657,8 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
         }
       }
       
-      Intrepid2::CellTools<AssemblyDevice>::mapToReferenceFrame(refpts, pts, cnodes, *(sub_mesh->cellTopo[0]));
-      Intrepid2::CellTools<AssemblyDevice>::checkPointwiseInclusion(inRefCell, refpts, *(sub_mesh->cellTopo[0]), 0.0);
+      CellTools::mapToReferenceFrame(refpts, pts, cnodes, *(sub_mesh->cellTopo[0]));
+      CellTools::checkPointwiseInclusion(inRefCell, refpts, *(sub_mesh->cellTopo[0]), 0.0);
       
       for (size_t i=0; i<numpts; i++) {
         if (inRefCell(0,i) == 1) {
@@ -2689,7 +2689,7 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
         cnodes(0,i,j) = nodes(owners(i,1),i,j);
       }
     }
-    Intrepid2::CellTools<AssemblyDevice>::mapToReferenceFrame(refpt_buffer, cpt, cnodes, *(sub_mesh->cellTopo[0]));
+    CellTools::mapToReferenceFrame(refpt_buffer, cpt, cnodes, *(sub_mesh->cellTopo[0]));
     DRV refpt("refpt",1,dimpts);
     Kokkos::deep_copy(refpt,Kokkos::subdynrankview(refpt_buffer,0,Kokkos::ALL(),Kokkos::ALL()));
     
@@ -2902,7 +2902,7 @@ void SubGridFEM::performGather(const size_t & b, const vector_RCP & vec,
         cout << "ERROR - NOTHING WAS GATHERED" << endl;
     }
     
-    parallel_for(RangePolicy<AssemblyDevice>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (size_t n=0; n<index.extent(1); n++) {
         for (size_t i=0; i<numDOF(n); i++ ) {
           data(e,n,i) = vec_kv(index(e,n,i),entry);
@@ -2969,7 +2969,7 @@ void SubGridFEM::performBoundaryGather(const size_t & b, const vector_RCP & vec,
             cout << "ERROR - NOTHING WAS GATHERED" << endl;
         }
         
-        parallel_for(RangePolicy<AssemblyDevice>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        parallel_for(RangePolicy<AssemblyExec>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (size_t n=0; n<index.extent(1); n++) {
             for(size_t i=0; i<numDOF(n); i++ ) {
               data(e,n,i) = vec_kv(index(e,n,i),entry);

@@ -14,6 +14,10 @@
 
 #include "PanzerCore_config.hpp"
 #include "Intrepid2_Basis.hpp"
+#include "Intrepid2_FunctionSpaceTools.hpp"
+#include "Intrepid2_CellTools.hpp"
+#include "Intrepid2_Orientation.hpp"
+#include "Intrepid2_OrientationTools.hpp"
 
 using namespace std;
 using Kokkos::parallel_for;
@@ -39,15 +43,32 @@ typedef Sacado::Fad::SFad<ScalarT,maxDerivs> AD;
 //typedef ScalarT DFAD; // used only when absolutely necessary
 //typedef ScalarT AD;
 
-// Kokkos Device typedefs
-typedef Kokkos::Serial AssemblyDevice;
-typedef Kokkos::Serial HostDevice;
-typedef Kokkos::Serial SubgridDevice;
+// Kokkos Execution Space typedefs
+// Format: Kokkos::*
+// Options: Serial, OpenMP, Threads, Cuda
+typedef Kokkos::Serial HostExec;
+typedef Kokkos::Serial AssemblyExec;
+typedef Kokkos::Serial SubgridExec;
+
+// Kokkos Memory Space typedefs
+// Format: Kokkos::*
+// Options: HostSpace, CudaSpace, CudaUVMSpace
+typedef Kokkos::HostSpace HostMem;
+typedef Kokkos::HostSpace AssemblyMem;
+typedef Kokkos::HostSpace SubgridMem;
+
+// Kokkos Node typedefs
+// Format: Kokkos::Compat::Kokkos*WrapperNode
+// Options: Serial, OpenMP, Threads, Cuda
 typedef Kokkos::Compat::KokkosSerialWrapperNode HostNode;
+typedef Kokkos::Compat::KokkosSerialWrapperNode AssemblyNode;
 typedef Kokkos::Compat::KokkosSerialWrapperNode SubgridNode;
-//typedef Kokkos::Compat::KokkosOpenMPWrapperNode HostNode;
-//typedef Kokkos::Compat::KokkosThreadsWrapperNode HostNode;
-//typedef Kokkos::Compat::KokkosCudaWrapperNode HostNode;
+
+// Typedef Kokkos devices based on Exec, Mem
+typedef Kokkos::Device<HostExec,HostMem> HostDevice;
+typedef Kokkos::Device<AssemblyExec,AssemblyMem> AssemblyDevice;
+typedef Kokkos::Device<SubgridExec,SubgridMem> SubgridDevice;
+
 
 // Kokkos object typedefs (preferable to use Kokkos::View<*,Device>)
 typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> DRV;
@@ -58,7 +79,10 @@ typedef Kokkos::View<ScalarT**,Kokkos::LayoutStride,AssemblyDevice> FDATAd;
 // Intrepid and shards typedefs
 //typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
-typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;
+typedef Teuchos::RCP<Intrepid2::Basis<AssemblyExec, ScalarT, ScalarT > > basis_RCP;
+typedef Intrepid2::CellTools<AssemblyExec> CellTools;
+typedef Intrepid2::FunctionSpaceTools<AssemblyExec> FuncTools;
+typedef Intrepid2::OrientationTools<AssemblyExec> OrientTools;
 
 // Tpetra linear algebra typedefs (Epetra is non longer supported)
 typedef Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>   LA_CrsMatrix;

@@ -65,7 +65,7 @@ void porous::volumeResidual() {
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
   if (spaceDim == 1) {
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int k=0; k<sol.extent(2); k++ ) {
         for (int i=0; i<basis.extent(1); i++ ) {
           resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
@@ -80,7 +80,7 @@ void porous::volumeResidual() {
     });
   }
   else if (spaceDim == 2) {
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int k=0; k<sol.extent(2); k++ ) {
         for (int i=0; i<basis.extent(1); i++ ) {
           resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
@@ -94,7 +94,7 @@ void porous::volumeResidual() {
     });
   }
   else if (spaceDim == 3) {
-    parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int k=0; k<sol.extent(2); k++ ) {
         for (int i=0; i<basis.extent(1); i++ ) {
           resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device

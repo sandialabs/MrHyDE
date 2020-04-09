@@ -36,9 +36,9 @@ public:
   
   void setIP(DRV & ref_ip, topo_RCP & cellTopo) {
     ip = DRV("ip", nodes.extent(0), ref_ip.extent(0), nodes.extent(2));
-    Intrepid2::CellTools<AssemblyDevice>::mapToPhysicalFrame(ip, ref_ip, nodes, *cellTopo);
+    CellTools::mapToPhysicalFrame(ip, ref_ip, nodes, *cellTopo);
     ijac = DRV("ijac", nodes.extent(0), ref_ip.extent(0), nodes.extent(2), nodes.extent(2));
-    Intrepid2::CellTools<AssemblyDevice>::setJacobian(ijac, ref_ip, nodes, *cellTopo);
+    CellTools::setJacobian(ijac, ref_ip, nodes, *cellTopo);
   }
   
   ////////////////////////////////////////////////////////////////////////////////
@@ -51,7 +51,7 @@ public:
     // Already have ip
     DRV sref_ip_tmp("sref_ip_tmp", nodes.extent(0), ip.extent(1), ip.extent(2));
     DRV sref_ip("sref_ip",ip.extent(1), ip.extent(2));
-    Intrepid2::CellTools<AssemblyDevice>::mapToReferenceFrame(sref_ip_tmp, ip, macronodes, *macro_cellTopo);
+    CellTools::mapToReferenceFrame(sref_ip_tmp, ip, macronodes, *macro_cellTopo);
     for (size_t i=0; i<ip.extent(1); i++) {
       for (size_t j=0; j<ip.extent(2); j++) {
         sref_ip(i,j) = sref_ip_tmp(0,i,j);
@@ -98,7 +98,7 @@ public:
         
         //CellTools<AssemblyDevice>::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, macronodes[block], *macro_cellTopo);
         DRV sref_side_ip("sref_side_ip", sside_ip.extent(1), sside_ip.extent(2));
-        Intrepid2::CellTools<AssemblyDevice>::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, macronodes, *macro_cellTopo);
+        CellTools::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, macronodes, *macro_cellTopo);
         for (size_t i=0; i<sside_ip.extent(1); i++) {
           for (size_t j=0; j<sside_ip.extent(2); j++) {
             sref_side_ip(i,j) = sref_side_ip_tmp(0,i,j);

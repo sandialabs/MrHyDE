@@ -70,7 +70,7 @@ void porousHDIV::volumeResidual() {
   basis_div = wkset->basis_div[u_basis];
   
   // (K^-1 u,v) - (p,div v) - src*v (src not added yet)
-  parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     ScalarT vx = 0.0;
     ScalarT vy = 0.0;
@@ -110,7 +110,7 @@ void porousHDIV::volumeResidual() {
   basis = wkset->basis[p_basis];
   
   // -(div u,q) + src*q (src not added yet)
-  parallel_for(RangePolicy<AssemblyDevice>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     for (int k=0; k<sol.extent(2); k++ ) {
       for (int i=0; i<basis.extent(1); i++ ) {
