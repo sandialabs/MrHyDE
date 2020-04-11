@@ -551,7 +551,7 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
     topo_RCP cellTopo = mesh->getCellTopology(eBlocks[b]);
     size_t numElem = stk_meshElems.size();
     vector<size_t> localIds;
-    DRV blocknodes;
+    DRV blocknodes; // Assuming that panzer_stk will automatically put this on AssemblyDevice
     panzer_stk::workset_utils::getIdsAndVertices(*mesh, eBlocks[b], localIds, blocknodes);
     DRV blocknodepert = perturbMesh(b, blocknodes);
     //elemnodes.push_back(blocknodes);
@@ -575,7 +575,7 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
       Kokkos::View<int*> eIndex("element indices",currElem);
       DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
       DRV currnodepert("currnodepert", currElem, numNodesPerElem, spaceDim);
-      for (int e=0; e<currElem; e++) {
+      parallel_for(RangePolicy<AssemblyExec>(0,currnodes.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (int n=0; n<numNodesPerElem; n++) {
           for (int m=0; m<spaceDim; m++) {
             currnodes(e,n,m) = blocknodes(prog+e,n,m) + blocknodepert(prog+e,n,m);
@@ -583,7 +583,7 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
           }
         }
         eIndex(e) = prog+e;
-      }
+      });
       blockcells.push_back(Teuchos::rcp(new cell(cellData, currnodes, eIndex)));
       prog += elemPerCell;
     }

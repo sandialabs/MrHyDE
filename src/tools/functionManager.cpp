@@ -623,16 +623,20 @@ void FunctionManager::evaluate(const size_t & block, const size_t & findex, cons
   if (functions[block][findex].terms[tindex].isRoot) {
     if (functions[block][findex].terms[tindex].isScalar && !functions[block][findex].terms[tindex].isConstant) {
       if (functions[block][findex].terms[tindex].isAD) {
-        parallel_for(RangePolicy<AssemblyExec>(0,functions[block][findex].dim0), KOKKOS_LAMBDA (const int e ) {
-          for (unsigned int n=0; n<functions[block][findex].dim1; n++) {
-            functions[block][findex].terms[tindex].data(e,n) = functions[block][findex].terms[tindex].scalar_data(0);
+        FDATA data0 = functions[block][findex].terms[tindex].data;
+        Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> data1 = functions[block][findex].terms[tindex].scalar_data;
+        parallel_for(RangePolicy<AssemblyExec>(0,data0.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          for (unsigned int n=0; n<data0.extent(1); n++) {
+            data0(e,n) = data1(0);
           }
         });
       }
       else {
-        parallel_for(RangePolicy<AssemblyExec>(0,functions[block][findex].dim0), KOKKOS_LAMBDA (const int e ) {
-          for (unsigned int n=0; n<functions[block][findex].dim1; n++) {
-            functions[block][findex].terms[tindex].ddata(e,n) = functions[block][findex].terms[tindex].scalar_ddata(0);
+        FDATAd data0 = functions[block][findex].terms[tindex].ddata;
+        Kokkos::View<double*,Kokkos::LayoutStride,AssemblyDevice> data1 = functions[block][findex].terms[tindex].scalar_ddata;
+        parallel_for(RangePolicy<AssemblyExec>(0,data0.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          for (unsigned int n=0; n<data0.extent(1); n++) {
+            data0(e,n) = data1(0);
           }
         });
       }
@@ -646,9 +650,11 @@ void FunctionManager::evaluate(const size_t & block, const size_t & findex, cons
         functions[block][findex].terms[tindex].data = functions[block][funcIndex].terms[0].data;
       }
       else {
-        parallel_for(RangePolicy<AssemblyExec>(0,functions[block][findex].dim0), KOKKOS_LAMBDA (const int e ) {
-          for (unsigned int n=0; n<functions[block][findex].dim1; n++) {
-            functions[block][findex].terms[tindex].data(e,n) = functions[block][funcIndex].terms[0].ddata(e,n);
+        FDATA data0 = functions[block][findex].terms[tindex].data;
+        FDATAd data1 = functions[block][funcIndex].terms[0].ddata;
+        parallel_for(RangePolicy<AssemblyExec>(0,data0.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          for (unsigned int n=0; n<data0.extent(1); n++) {
+            data0(e,n) = data1(e,n);
           }
         });
       }
@@ -694,10 +700,11 @@ void FunctionManager::evaluate(const size_t & block, const size_t & findex, cons
 template<class T1, class T2>
 void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   size_t dim0 = std::min(data.extent(0),tdata.extent(0));
-  size_t dim1 = std::min(data.extent(1),tdata.extent(1));
+  //size_t dim1 = std::min(data.extent(1),tdata.extent(1));
   
   if (op == "") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = tdata(e,n);
       }
@@ -705,6 +712,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "plus") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) += tdata(e,n);
       }
@@ -712,6 +720,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "minus") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) += -tdata(e,n);
       }
@@ -719,6 +728,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "times") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) *= tdata(e,n);
       }
@@ -726,6 +736,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "divide") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) /= tdata(e,n);
       }
@@ -733,6 +744,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "power") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = pow(data(e,n),tdata(e,n));
       }
@@ -740,6 +752,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "sin") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = sin(tdata(e,n));
       }
@@ -747,6 +760,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "cos") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = cos(tdata(e,n));
       }
@@ -754,6 +768,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "tan") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = tan(tdata(e,n));
       }
@@ -761,6 +776,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "exp") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = exp(tdata(e,n));
       }
@@ -768,6 +784,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "log") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = log(tdata(e,n));
       }
@@ -775,6 +792,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "abs") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         if (tdata(e,n) < 0.0) {
           data(e,n) = -tdata(e,n);
@@ -787,6 +805,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "max") { // maximum over rows ... usually corr. to max over element/face at ip
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       data(e,0) = tdata(e,0);
       for (unsigned int n=0; n<dim1; n++) {
         if (tdata(e,n) > tdata(e,0)) {
@@ -800,6 +819,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "min") { // minimum over rows ... usually corr. to min over element/face at ip
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       data(e,0) = tdata(e,0);
       for (unsigned int n=0; n<dim1; n++) {
         if (tdata(e,n) < tdata(e,0)) {
@@ -812,8 +832,9 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "mean") { // mean over rows ... usually corr. to mean over element/face
-    double scale = (double)dim1;
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      double scale = (double)dim1;
       data(e,0) = tdata(e,0)/scale;
       for (unsigned int n=0; n<dim1; n++) {
         data(e,0) += tdata(e,n)/scale;
@@ -825,6 +846,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "lt") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         if (data(e,n) < tdata(e,n)) {
           data(e,n) = 1.0;
@@ -837,6 +859,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "lte") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         if (data(e,n) <= tdata(e,n)) {
           data(e,n) = 1.0;
@@ -849,6 +872,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "gt") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         if (data(e,n) > tdata(e,n)) {
           data(e,n) = 1.0;
@@ -861,6 +885,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   }
   else if (op == "gte") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         if (data(e,n) >= tdata(e,n)) {
           data(e,n) = 1.0;

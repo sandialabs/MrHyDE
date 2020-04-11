@@ -372,128 +372,129 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
   
   Teuchos::TimeMonitor localassemblytimer(*assemblytimer);
   
-  //for (size_t b=0; b<cells.size(); b++) {
-    
-    //////////////////////////////////////////////////////////////////////////////////////
-    // Set up the worksets and allocate the local residual and Jacobians
-    //////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Set up the worksets and allocate the local residual and Jacobians
+  //////////////////////////////////////////////////////////////////////////////////////
   
-    wkset[b]->time = current_time;
-    wkset[b]->time_KV(0) = current_time;
-    wkset[b]->isTransient = isTransient;
-    wkset[b]->isAdjoint = useadjoint;
-    wkset[b]->alpha = alpha;
-    if (isTransient)
-      wkset[b]->deltat = 1.0/alpha;
-    else
-      wkset[b]->deltat = 1.0;
+  wkset[b]->time = current_time;
+  wkset[b]->time_KV(0) = current_time; // TMW issue -- current_time in not on Device
+  wkset[b]->isTransient = isTransient;
+  wkset[b]->isAdjoint = useadjoint;
+  wkset[b]->alpha = alpha;
+  if (isTransient) {
+    wkset[b]->deltat = 1.0/alpha;
+  }
+  else {
+    wkset[b]->deltat = 1.0;
+  }
+  int numElem = cells[b][0]->numElem;
+  int numDOF = cells[b][0]->GIDs.extent(1);
+  
+  int numParamDOF = 0;
+  if (compute_disc_sens) {
+    numParamDOF = cells[b][0]->paramGIDs.extent(1); // is this on host
+  }
+  
+  // This data needs to be available on Host and Device
+  // Optimizing layout for AssemblyExec
+  Kokkos::View<ScalarT***,UnifiedDevice> local_res, local_J, local_Jdot;
+  
+  if (compute_sens) {
+    local_res = Kokkos::View<ScalarT***,UnifiedDevice>("local residual",numElem,numDOF,num_active_params);
+  }
+  else {
+    local_res = Kokkos::View<ScalarT***,UnifiedDevice>("local residual",numElem,numDOF,1);
+  }
+  
+  if (compute_disc_sens) {
+    local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",numElem,numDOF,numParamDOF);
+    local_Jdot = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian dot",numElem,numDOF,numParamDOF);
+  }
+  else {
+    local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",numElem,numDOF,numDOF);
+    local_Jdot = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian dot",numElem,numDOF,numDOF);
+  }
+  
+  //Kokkos::View<ScalarT**,AssemblyDevice> aPrev;
+  
+  /////////////////////////////////////////////////////////////////////////////
+  // Perform gather to cells
+  /////////////////////////////////////////////////////////////////////////////
+  
+  {
+    Teuchos::TimeMonitor localtimer(*gathertimer);
     
-    int numElem = cells[b][0]->numElem;
-    int numDOF = cells[b][0]->GIDs.extent(1);
-    
-    int numParamDOF = 0;
-    if (compute_disc_sens) {
-      numParamDOF = cells[b][0]->paramGIDs.extent(1);
+    // Local gather of solutions
+    this->performGather(b,u,0,0);
+    this->performGather(b,u_dot,1,0);
+    this->performGather(b,Psol,4,0);
+    if (useadjoint) {
+      this->performGather(b,phi,2,0);
+      this->performGather(b,phi_dot,3,0);
     }
+  }
+  
+  
+  /////////////////////////////////////////////////////////////////////////////
+  // Volume contribution
+  /////////////////////////////////////////////////////////////////////////////
+  
+  for (size_t e=0; e < cells[b].size(); e++) {
     
-    Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
+    wkset[b]->localEID = e;
+    cells[b][e]->updateData();
     
-    if (compute_sens) {
-      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,num_active_params);
+    if (isTransient && useadjoint && !cells[0][0]->cellData->multiscale) {
+      if (is_final_time) {
+        cells[b][e]->resetAdjPrev(0.0);
+      }
     }
-    else {
-      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,1);
-    }
-    
-    if (compute_disc_sens) {
-      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numParamDOF);
-      local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,numDOF,numParamDOF);
-    }
-    else {
-      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numDOF);
-      local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,numDOF,numDOF);
-    }
-    
-    //Kokkos::View<ScalarT**,AssemblyDevice> aPrev;
     
     /////////////////////////////////////////////////////////////////////////////
-    // Perform gather to cells
+    // Compute the local residual and Jacobian on this cell
     /////////////////////////////////////////////////////////////////////////////
     
     {
-      Teuchos::TimeMonitor localtimer(*gathertimer);
+      Teuchos::TimeMonitor localtimer(*phystimer);
+      
+      // This could be done on either host or device
+      parallel_for(RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int p ) {
+        for (int n=0; n<local_res.extent(1); n++) {
+          for (int s=0; s<local_res.extent(2); s++) {
+            local_res(p,n,s) = 0.0;
+          }
+          for (int s=0; s<local_J.extent(2); s++) {
+            local_J(p,n,s) = 0.0;
+            local_Jdot(p,n,s) = 0.0;
+          }
+        }
+      });
+      
+      cells[b][e]->computeJacRes(current_time, isTransient, useadjoint, compute_jacobian, compute_sens,
+                                 num_active_params, compute_disc_sens, false, store_adjPrev,
+                                 local_res, local_J, local_Jdot);
+      
+    }
     
-      // Local gather of solutions
-      this->performGather(b,u,0,0);
-      this->performGather(b,u_dot,1,0);
-      this->performGather(b,Psol,4,0);
-      if (useadjoint) {
-        this->performGather(b,phi,2,0);
-        this->performGather(b,phi_dot,3,0);
+    // This should be ok if KokkosTools is updated for device
+    if (milo_debug_level > 2) {
+      if (Comm->getRank() == 0) {
+        KokkosTools::print(local_res, "inside assemblyManager.cpp, res after volumetric");
+        KokkosTools::print(local_J, "inside assemblyManager.cpp, J after volumetric");
+        KokkosTools::print(local_Jdot, "inside assemblyManager.cpp, J_dot after volumetric");
       }
     }
-  
-  
-    /////////////////////////////////////////////////////////////////////////////
-    // Volume contribution
-    /////////////////////////////////////////////////////////////////////////////
     
-    for (size_t e=0; e < cells[b].size(); e++) {
-      
-      wkset[b]->localEID = e;
-      cells[b][e]->updateData();
-      
-      if (isTransient && useadjoint && !cells[0][0]->cellData->multiscale) {
-        if (is_final_time) {
-          cells[b][e]->resetAdjPrev(0.0);
-        }
-      }
-      
-      /////////////////////////////////////////////////////////////////////////////
-      // Compute the local residual and Jacobian on this cell
-      /////////////////////////////////////////////////////////////////////////////
-      
-      {
-        Teuchos::TimeMonitor localtimer(*phystimer);
-        
-        parallel_for(RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int p ) {
-          for (int n=0; n<numDOF; n++) {
-            for (int s=0; s<local_res.extent(2); s++) {
-              local_res(p,n,s) = 0.0;
-            }
-            for (int s=0; s<local_J.extent(2); s++) {
-              local_J(p,n,s) = 0.0;
-              local_Jdot(p,n,s) = 0.0;
-            }
-          }
-        });
-        
-        cells[b][e]->computeJacRes(current_time, isTransient, useadjoint, compute_jacobian, compute_sens,
-                                   num_active_params, compute_disc_sens, false, store_adjPrev,
-                                   local_res, local_J, local_Jdot);
-        
-      }
-      
-      if (milo_debug_level > 2) {
-        if (Comm->getRank() == 0) {
-          KokkosTools::print(local_res, "inside assemblyManager.cpp, res after volumetric");
-          KokkosTools::print(local_J, "inside assemblyManager.cpp, J after volumetric");
-          KokkosTools::print(local_Jdot, "inside assemblyManager.cpp, J_dot after volumetric");
-        }
-      }
-      
-      ///////////////////////////////////////////////////////////////////////////
-      // Insert into global matrix/vector
-      ///////////////////////////////////////////////////////////////////////////
-      
-      this->insert(J, res, local_res, local_J, local_Jdot,
-                   cells[b][e]->GIDs, cells[b][e]->paramGIDs,
-                   compute_jacobian, compute_disc_sens, alpha);
-      
-      
-    } // element loop
+    ///////////////////////////////////////////////////////////////////////////
+    // Insert into global matrix/vector
+    ///////////////////////////////////////////////////////////////////////////
     
-  //} // block loop
+    this->insert(J, res, local_res, local_J, local_Jdot,
+                 cells[b][e]->GIDs, cells[b][e]->paramGIDs,
+                 compute_jacobian, compute_disc_sens, alpha);
+    
+    
+  } // element loop
   
   //////////////////////////////////////////////////////////////////////////////////////
   // Boundary terms
@@ -532,22 +533,22 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
             numParamDOF = boundaryCells[b][e]->paramGIDs.extent(1);
           }
           
-          Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
+          Kokkos::View<ScalarT***,UnifiedDevice> local_res, local_J, local_Jdot;
           
           if (compute_sens) {
-            local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,num_active_params);
+            local_res = Kokkos::View<ScalarT***,UnifiedDevice>("local residual",numElem,numDOF,num_active_params);
           }
           else {
-            local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,1);
+            local_res = Kokkos::View<ScalarT***,UnifiedDevice>("local residual",numElem,numDOF,1);
           }
           
           if (compute_disc_sens) {
-            local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numParamDOF);
-            local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,numDOF,numParamDOF);
+            local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",numElem,numDOF,numParamDOF);
+            local_Jdot = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian dot",numElem,numDOF,numParamDOF);
           }
           else {
-            local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numDOF);
-            local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,numDOF,numDOF);
+            local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",numElem,numDOF,numDOF);
+            local_Jdot = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian dot",numElem,numDOF,numDOF);
           }
           
           /////////////////////////////////////////////////////////////////////////////
@@ -651,8 +652,10 @@ void AssemblyManager::pointConstraints(matrix_RCP & J, vector_RCP & res,
 void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
                                     const int & type, const size_t & entry) {
   
-  // Get a view of the vector on the HostDevice
-  auto vec_kv = vec->getLocalView<HostDevice>();
+  // Get a view of the vector on the AssemblyDevice
+  // TMW: not sure if this will work correctly.  According to the tpetra documentation, one can request a in either Host or Device
+  // This takes care of the memory transfer from Host to Device
+  auto vec_kv = vec->getLocalView<AssemblyDevice>();
   
   // Get a corresponding view on the AssemblyDevice
   
@@ -660,6 +663,7 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
   Kokkos::View<LO*,AssemblyDevice> numDOF;
   Kokkos::View<ScalarT***,AssemblyDevice> data;
   
+  // TMW: Does this need to be executed on Device?
   for (size_t c=0; c < cells[b].size(); c++) {
     switch(type) {
       case 0 :
@@ -696,6 +700,8 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
         cout << "ERROR - NOTHING WAS GATHERED" << endl;
     }
     
+    // TMW: commenting this debug statement out for now
+    /*
     if (milo_debug_level > 3) {
       if (Comm->getRank() == 0) {
         cout << "inside assemblyManager::gather: type = " << type << endl;
@@ -703,7 +709,7 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
         KokkosTools::print(numDOF, "inside assemblyManager::gather - numDOF");
         KokkosTools::print(data, "inside assemblyManager::gather - data");
       }
-    }
+    }*/
     parallel_for(RangePolicy<AssemblyExec>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (size_t n=0; n<index.extent(1); n++) {
         for(size_t i=0; i<numDOF(n); i++ ) {
@@ -724,7 +730,7 @@ void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP &
   if (boundaryCells.size() > b) {
     
     // Get a view of the vector on the HostDevice
-    auto vec_kv = vec->getLocalView<HostDevice>();
+    auto vec_kv = vec->getLocalView<AssemblyDevice>();
     
     // Get a corresponding view on the AssemblyDevice
     
@@ -769,14 +775,14 @@ void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP &
           default :
             cout << "ERROR - NOTHING WAS GATHERED" << endl;
         }
-        
+        /*
         if (milo_debug_level > 2) {
           if (Comm->getRank() == 0) {
             KokkosTools::print(index, "inside assemblyManager::boundarygather - index");
             KokkosTools::print(numDOF, "inside assemblyManager::boundarygather - numDOF");
             KokkosTools::print(data, "inside assemblyManager::boundarygather - data");
           }
-        }
+        }*/
         parallel_for(RangePolicy<AssemblyExec>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (size_t n=0; n<index.extent(1); n++) {
             for(size_t i=0; i<numDOF(n); i++ ) {
@@ -793,9 +799,9 @@ void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP &
 ////////////////////////////////////////////////////////////////////////////////
 
 void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
-                             Kokkos::View<ScalarT***,AssemblyDevice> & local_res,
-                             Kokkos::View<ScalarT***,AssemblyDevice> & local_J,
-                             Kokkos::View<ScalarT***,AssemblyDevice> & local_Jdot,
+                             Kokkos::View<ScalarT***,UnifiedDevice> & local_res,
+                             Kokkos::View<ScalarT***,UnifiedDevice> & local_J,
+                             Kokkos::View<ScalarT***,UnifiedDevice> & local_Jdot,
                              Kokkos::View<GO**,HostDevice> & GIDs,
                              Kokkos::View<GO**,HostDevice> & paramGIDs,
                              const bool & compute_jacobian,

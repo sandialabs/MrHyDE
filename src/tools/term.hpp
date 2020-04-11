@@ -73,8 +73,8 @@ public:
   
   FDATA data;
   FDATAd ddata;
-  Kokkos::View<double*,AssemblyDevice> scalar_ddata;
-  Kokkos::View<AD*,AssemblyDevice> scalar_data;
+  Kokkos::View<double*,Kokkos::LayoutStride,AssemblyDevice> scalar_ddata;
+  Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> scalar_data;
   
   vector<int> dep_list;
   vector<string> dep_ops;

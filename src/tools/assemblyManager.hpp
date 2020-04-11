@@ -140,8 +140,9 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  void insert(matrix_RCP & J, vector_RCP & res, Kokkos::View<ScalarT***,AssemblyDevice> & local_res,
-              Kokkos::View<ScalarT***,AssemblyDevice> & local_J, Kokkos::View<ScalarT***,AssemblyDevice> & local_Jdot,
+  void insert(matrix_RCP & J, vector_RCP & res, Kokkos::View<ScalarT***,UnifiedDevice> & local_res,
+              Kokkos::View<ScalarT***,UnifiedDevice> & local_J,
+              Kokkos::View<ScalarT***,UnifiedDevice> & local_Jdot,
               Kokkos::View<GO**,HostDevice> & GIDs, Kokkos::View<GO**,HostDevice> & paramGIDs,
               const bool & compute_jacobian, const bool & compute_disc_sens, const ScalarT & alpha);
     

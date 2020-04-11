@@ -149,9 +149,9 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
                                  const bool & compute_jacobian, const bool & compute_sens,
                                  const int & num_active_params, const bool & compute_disc_sens,
                                  const bool & compute_aux_sens, const bool & store_adjPrev,
-                                 Kokkos::View<ScalarT***,AssemblyDevice> local_res,
-                                 Kokkos::View<ScalarT***,AssemblyDevice> local_J,
-                                 Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
+                                 Kokkos::View<ScalarT***,UnifiedDevice> local_res,
+                                 Kokkos::View<ScalarT***,UnifiedDevice> local_J,
+                                 Kokkos::View<ScalarT***,UnifiedDevice> local_Jdot) {
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Compute the local contribution to the global residual and Jacobians

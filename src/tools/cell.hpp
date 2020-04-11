@@ -189,9 +189,9 @@ public:
                      const bool & compute_jacobian, const bool & compute_sens,
                      const int & num_active_params, const bool & compute_disc_sens,
                      const bool & compute_aux_sens, const bool & store_adjPrev,
-                     Kokkos::View<ScalarT***,AssemblyDevice> res,
-                     Kokkos::View<ScalarT***,AssemblyDevice> local_J,
-                     Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot);
+                     Kokkos::View<ScalarT***,UnifiedDevice> res,
+                     Kokkos::View<ScalarT***,UnifiedDevice> local_J,
+                     Kokkos::View<ScalarT***,UnifiedDevice> local_Jdot);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Update the solution variables in the workset
@@ -386,33 +386,38 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  // Public data 
+  // Public data
+  
+  // On Host
   Teuchos::RCP<CellMetaData> cellData;
   Teuchos::RCP<workset> wkset;
-  
-  bool active;
-  Kokkos::View<LO*> localElemID;
-  
-  // Geometry Information
-  int numElem;
-  DRV nodes, ip, ijac;
-  
-  Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
-  
-  // DOF information
   Kokkos::View<GO**,HostDevice> GIDs, paramGIDs, auxGIDs;
-  Kokkos::View<LO***,AssemblyDevice> index, paramindex, auxindex;
-  Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
-  Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
-  Kokkos::View<ScalarT***,AssemblyDevice> u, u_dot, phi, phi_dot, aux;
   
-  // Subgrid information
+  int numElem;
+  bool active;
+  
   vector<Teuchos::RCP<SubGridModel> > subgridModels;
   vector<size_t> subgrid_usernum, cell_data_seed, cell_data_seedindex;
   vector<vector<size_t> > subgrid_model_index;
   
-  // Discretized Parameter Information
-  Kokkos::View<ScalarT***,AssemblyDevice> param;
+  // On Device
+  DRV nodes, ip, ijac;
+  Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
+  Kokkos::View<ScalarT***,AssemblyDevice> u, u_dot, phi, phi_dot, aux, param;
+  Kokkos::View<LO***,AssemblyDevice> index, paramindex, auxindex;
+  Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
+  
+  // On both
+  
+  // Not sure
+  Kokkos::View<LO*> localElemID;
+  Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
+  
+  // Geometry Information
+  
+  
+  
+  
   
   // Aux variable Information
   vector<string> auxlist;

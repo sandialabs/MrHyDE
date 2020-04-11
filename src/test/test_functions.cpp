@@ -42,7 +42,7 @@ int main(int argc, char * argv[]) {
   Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset(cellinfo, ip, wts,
                                             sip, swts, btypes, basis, basis, cellTopo,bcs) );
   
-  for (size_t i=0; i<numElem; i++) {
+  parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
     for (size_t j=0; j<numip; j++) {
       for (size_t k=0; k<numvars; k++) {
         wkset->local_soln(i,j,k,0) = k+2;
@@ -51,7 +51,8 @@ int main(int argc, char * argv[]) {
         wkset->ip_KV(i,j,k) = k+2;
       }
     }
-  }
+  });
+  
   KokkosTools::print(wkset->ip);
   
   functionManager->wkset = wkset;
@@ -91,36 +92,44 @@ int main(int argc, char * argv[]) {
   FDATA data2 = functionManager->evaluate("well","ip",0);
   FDATA data3 = functionManager->evaluate("source","ip",0);
   
-  for (size_t i=0; i<numElem; i++) {
+  parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
     for (size_t j=0; j<numip; j++) {
-      cout << "data1(i,j) = " << data1(i,j) << endl;
-      cout << "data2(i,j) = " << data2(i,j) << endl;
-      cout << "data3(i,j) = " << data3(i,j) << endl;
+      printf("data1(i,j) : %f\n", data1(i,j));
+      printf("data2(i,j) : %f\n", data2(i,j));
+      printf("data3(i,j) : %f\n", data3(i,j));
+      //cout << "data1(i,j) = " << data1(i,j) << endl;
+      //cout << "data2(i,j) = " << data2(i,j) << endl;
+      //cout << "data3(i,j) = " << data3(i,j) << endl;
     }
-  }
+  });
   
   for (int m=0; m<10; m++) {
-    for (size_t i=0; i<numElem; i++) {
+    parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
       for (size_t j=0; j<numip; j++) {
         for (size_t k=0; k<numvars; k++) {
-          wkset->local_soln(i,k,j,0) = k+3+m;
+          wkset->local_soln(i,k,j,0) = k+3; // +m (but m is not on device)
         }
       }
-    }
+    });
+    
     FDATA datap = functionManager->evaluate("pres","ip",0);
     
     FDATA data1 = functionManager->evaluate("wellr","ip",0);
     FDATA data2 = functionManager->evaluate("welll","ip",0);
     FDATA data3 = functionManager->evaluate("source","ip",0);
     
-    for (size_t i=0; i<numElem; i++) {
+    parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
       for (size_t j=0; j<numip; j++) {
-        cout << "datap(i,j) = " << datap(i,j) << endl;
-        cout << "data1(i,j) = " << data1(i,j) << endl;
-        cout << "data2(i,j) = " << data2(i,j) << endl;
-        cout << "data3(i,j) = " << data3(i,j) << endl;
+        printf("datap(i,j) : %f\n", datap(i,j));
+        printf("data1(i,j) : %f\n", data1(i,j));
+        printf("data2(i,j) : %f\n", data2(i,j));
+        printf("data3(i,j) : %f\n", data3(i,j));
+        //cout << "datap(i,j) = " << datap(i,j) << endl;
+        //cout << "data1(i,j) = " << data1(i,j) << endl;
+        //cout << "data2(i,j) = " << data2(i,j) << endl;
+        //cout << "data3(i,j) = " << data3(i,j) << endl;
       }
-    }
+    });
     
   }
   
