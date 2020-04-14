@@ -44,7 +44,7 @@ public:
     cout << "--------------------" << endl;
     
     parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
-      printf("   %i      %f",i,V(i));
+      printf("   %i      %f\n",i,V(i));
       //cout << "  " << i << "  " << "  " << "  " << V(i) << "  " << endl;
     });
     cout << "--------------------" << endl;
@@ -84,7 +84,7 @@ public:
     
     parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
       for (unsigned int j=0; j<V.extent(1); j++) {
-        printf("   %i      %i      %f", i, j, V(i,j));
+        printf("   %i      %i      %f\n", i, j, V(i,j));
         //cout << "  " << i << "  " << "  " << j << "  " <<
         //"  " << "  " << V(i,j) << "  " << endl;
       }
@@ -150,7 +150,7 @@ public:
     
     parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
       for (unsigned int j=0; j<V.extent(1); j++) {
-        printf("   %i      %i      %f", i, j, V(i,j));
+        printf("   %i      %i      %f\n", i, j, V(i,j));
         //cout << "  " << i << "  " << "  " << j << "  " <<
         //"  " << "  " << V(i,j) << "  " << endl;
       }
@@ -174,7 +174,7 @@ public:
     parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
       for (unsigned int j=0; j<V.extent(1); j++) {
         for (unsigned int k=0; k<V.extent(2); k++) {
-          printf("   %i      %i      %i      %f", i, j, k, V(i,j,k));
+          printf("   %i      %i      %i      %f\n", i, j, k, V(i,j,k));
           //cout << "  " << i << "  " << "  " << j << "  " <<
           //"  " << k << "  " << "  " << V(i,j,k) << "  " << endl;
         }
@@ -199,7 +199,7 @@ public:
       for (unsigned int j=0; j<V.extent(1); j++) {
         for (unsigned int k=0; k<V.extent(2); k++) {
           for (unsigned int n=0; n<V.extent(3); n++) {
-            printf("   %i      %i      %i      %i      %f", i, j, k, n, V(i,j,k,n));
+            printf("   %i      %i      %i      %i      %f\n", i, j, k, n, V(i,j,k,n));
             //cout << "  " << i << "  " << "  " << j << "  " <<
             //"  " << k << "  " << "  " << n << "  " << "  " << V(i,j,k,n) << "  " << endl;
           }
@@ -226,7 +226,7 @@ public:
         for (unsigned int k=0; k<V.extent(2); k++) {
           for (unsigned int n=0; n<V.extent(3); n++) {
             for (unsigned int m=0; m<V.extent(4); m++) {
-              printf("   %i      %i      %i      %i      %i      %f", i, j, k, n, m, V(i,j,k,n,m));
+              printf("   %i      %i      %i      %i      %i      %f\n", i, j, k, n, m, V(i,j,k,n,m));
               //cout << "  " << i << "  " << "  " << j << "  " <<
               //"  " << k << "  " << "  " << n << "  " << "  " << m
               //<< "  " << "  " << V(i,j,k,n,m) << "  " << endl;
@@ -247,13 +247,23 @@ public:
     cout << message << endl;
     cout << "Printing data for DynRankView: " << V.label() << endl;
   
-    if (V.rank() == 2) {
+    if (V.rank() == 1) {
+      cout << "  i  " << "  value  " << endl;
+      cout << "-------------------------------" << endl;
+      
+      parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
+        printf("   %i      %f\n", i, V(i));
+      });
+      cout << "-------------------------------" << endl;
+      
+    }
+    else if (V.rank() == 2) {
       cout << "  i  " << "  j  " << "  value  " << endl;
       cout << "-------------------------------" << endl;
       
       parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
         for (unsigned int j=0; j<V.extent(1); j++) {
-          printf("   %i      %i      %f", i, j, V(i,j));
+          printf("   %i      %i      %f\n", i, j, V(i,j));
           //cout << "  " << i << "  " << "  " << j << "  " <<
           //"  " << "  " << V(i,j) << "  " << endl;
         }
@@ -268,7 +278,7 @@ public:
       parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
         for (unsigned int j=0; j<V.extent(1); j++) {
           for (unsigned int k=0; k<V.extent(2); k++) {
-            printf("   %i      %i      %i      %f", i, j, k, V(i,j,k));
+            printf("   %i      %i      %i      %f\n", i, j, k, V(i,j,k));
             //cout << "  " << i << "  " << "  " << j << "  " <<
             //"  " << k << "  " << "  " << V(i,j,k) << "  " << endl;
           }
@@ -285,7 +295,7 @@ public:
         for (unsigned int j=0; j<V.extent(1); j++) {
           for (unsigned int k=0; k<V.extent(2); k++) {
             for (unsigned int n=0; n<V.extent(3); n++) {
-              printf("   %i      %i      %i      %i      %f", i, j, k, n, V(i,j,k,n));
+              printf("   %i      %i      %i      %i      %f\n", i, j, k, n, V(i,j,k,n));
               //cout << "  " << i << "  " << "  " << j << "  " <<
               //"  " << k << "  " << "  " << n << "  " << "  " << V(i,j,k,n) << "  " << endl;
             }
@@ -311,7 +321,7 @@ public:
       
       parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
         for (unsigned int j=0; j<V.extent(1); j++) {
-          printf("   %i      %i      %i", i, j, V(i,j));
+          printf("   %i      %i      %i\n", i, j, V(i,j));
           //cout << "  " << i << "  " << "  " << j << "  " <<
           //"  " << "  " << V(i,j) << "  " << endl;
         }
@@ -326,7 +336,7 @@ public:
       parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
         for (unsigned int j=0; j<V.extent(1); j++) {
           for (unsigned int k=0; k<V.extent(2); k++) {
-            printf("   %i      %i      %i      %i", i, j, k, V(i,j,k));
+            printf("   %i      %i      %i      %i\n", i, j, k, V(i,j,k));
             //cout << "  " << i << "  " << "  " << j << "  " <<
             //"  " << k << "  " << "  " << V(i,j,k) << "  " << endl;
           }
@@ -343,7 +353,7 @@ public:
         for (unsigned int j=0; j<V.extent(1); j++) {
           for (unsigned int k=0; k<V.extent(2); k++) {
             for (unsigned int n=0; n<V.extent(3); n++) {
-              printf("   %i      %i      %i      %i      %i", i, j, k, n, V(i,j,k,n));
+              printf("   %i      %i      %i      %i      %i\n", i, j, k, n, V(i,j,k,n));
               //cout << "  " << i << "  " << "  " << j << "  " <<
               //"  " << k << "  " << "  " << n << "  " << "  " << V(i,j,k,n) << "  " << endl;
             }
@@ -514,6 +524,34 @@ public:
         }
       }
     }
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  static void reset(Kokkos::View<AD****, AssemblyDevice> & V, AD & value) {
+    parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int k=0; k<V.extent(1); k++) {
+        for (int i=0; i<V.extent(2); i++) {
+          for (int s=0; s<V.extent(3); s++) {
+            V(e,k,i,s) = value;
+          }
+        }
+      }
+    });
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  static void reset(Kokkos::View<AD***, AssemblyDevice> & V, AD & value) {
+    parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int k=0; k<V.extent(1); k++) {
+        for (int i=0; i<V.extent(2); i++) {
+          V(e,k,i) = value;
+        }
+      }
+    });
   }
 };
 #endif

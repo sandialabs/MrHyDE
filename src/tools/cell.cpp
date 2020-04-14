@@ -16,6 +16,110 @@
 #include <iostream>
 #include <iterator>
 
+cell::cell(const Teuchos::RCP<CellMetaData> & cellData_,
+           const DRV & nodes_,
+           const Kokkos::View<int*> & localID_) :
+cellData(cellData_), localElemID(localID_), nodes(nodes_){
+  
+  numElem = nodes.extent(0);
+  active = true;
+  useSensors = false;
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::setIP(const DRV & ref_ip, const DRV & ref_wts) {
+  // ip and ref_ip will live on the assembly device
+  ip = DRV("ip", numElem, ref_ip.extent(0), cellData->dimension);
+  CellTools::mapToPhysicalFrame(ip, ref_ip, nodes, *(cellData->cellTopo));
+  
+  jacobian = DRV("jacobian", numElem, ref_ip.extent(0), cellData->dimension, cellData->dimension);
+  CellTools::setJacobian(jacobian, ref_ip, nodes, *(cellData->cellTopo));
+  
+  jacobianDet = DRV("determinant of jacobian", numElem, ref_ip.extent(0));
+  jacobianInv = DRV("inverse of jacobian", numElem, ref_ip.extent(0), cellData->dimension, cellData->dimension);
+  CellTools::setJacobianDet(jacobianDet, jacobian);
+  CellTools::setJacobianInv(jacobianInv, jacobian);
+  
+  wts = DRV("ip wts", numElem, ref_ip.extent(0));
+  FuncTools::computeCellMeasure(wts, jacobianDet, ref_wts);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_, Kokkos::View<LO*,AssemblyDevice> & numDOF_) {
+  
+  index = Kokkos::View<LO***,AssemblyDevice>("local index",index_.extent(0),
+                                             index_.extent(1), index_.extent(2));
+  
+  // Need to copy the data since index_ is rewritten for each cell
+  parallel_for(RangePolicy<AssemblyExec>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    for (unsigned int j=0; j<index_.extent(1); j++) {
+      for (unsigned int k=0; k<index_.extent(2); k++) {
+        index(e,j,k) = index_(e,j,k);
+      }
+    }
+  });
+  
+  // This is common to all cells (within the same block), so a view copy will do
+  numDOF = numDOF_;
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_,
+                   Kokkos::View<LO*,AssemblyDevice> & pnumDOF_) {
+  
+  paramindex = Kokkos::View<LO***,AssemblyDevice>("local param index",pindex_.extent(0),
+                                                  pindex_.extent(1), pindex_.extent(2));
+  
+  // Need to copy the data since index_ is rewritten for each cell
+  parallel_for(RangePolicy<AssemblyExec>(0,pindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    for (unsigned int j=0; j<pindex_.extent(1); j++) {
+      for (unsigned int k=0; k<pindex_.extent(2); k++) {
+        paramindex(e,j,k) = pindex_(e,j,k);
+      }
+    }
+  });
+  
+  // This is common to all cells, so a view copy will do
+  numParamDOF = pnumDOF_;
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_) {
+  
+  auxindex = Kokkos::View<LO***,AssemblyDevice>("local aux index",1,aindex_.extent(1),
+                                                aindex_.extent(2));
+  
+  // Need to copy the data since index_ is rewritten for each cell
+  parallel_for(RangePolicy<AssemblyExec>(0,aindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    for (unsigned int j=0; j<aindex_.extent(1); j++) {
+      for (unsigned int k=0; k<aindex_.extent(2); k++) {
+        auxindex(e,j,k) = aindex_(e,j,k);
+      }
+    }
+  });
+  
+  // This is common to all cells, so a view copy will do
+  // This is excessive storage, please remove
+  //numAuxDOF = anumDOF_;
+  // Temp. fix
+  numAuxDOF = Kokkos::View<int*,HostDevice>("numAuxDOF",auxindex.extent(1));
+  for (unsigned int i=0; i<auxindex.extent(1); i++) {
+    numAuxDOF(i) = auxindex.extent(2);
+  }
+  
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////
 // Add the aux basis functions at the integration points.
 // This version assumes the basis functions have been evaluated elsewhere (as in multiscale)
@@ -124,15 +228,16 @@ void cell::setAuxUseBasis(vector<int> & ausebasis_) {
 // Map the AD degrees of freedom to integration points
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::computeSolnVolIP(const bool & seedu, const bool & seedudot, const bool & seedparams,
-                            const bool & seedaux) {
+void cell::computeSolnVolIP(Kokkos::View<int*,UnifiedDevice> seedwhat) {
+  // seedwhat key: 0-nothing; 1-sol; 2-soldot; 3-disc.params.; 4-aux.vars
   
   Teuchos::TimeMonitor localtimer(*computeSolnVolTimer);
   
-  wkset->update(ip,ijac,orientation);
-  wkset->computeSolnVolIP(u, u_dot, seedu, seedudot);
-  wkset->computeParamVolIP(param, seedparams);
+  wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
+  wkset->computeSolnVolIP(u, u_dot, seedwhat);
+  wkset->computeParamVolIP(param, seedwhat);
   
+  /*
   if (wkset->numAux > 0) {
     wkset->resetAux();
     
@@ -160,7 +265,7 @@ void cell::computeSolnVolIP(const bool & seedu, const bool & seedudot, const boo
         }
       }
     }
-  }
+  }*/
   
 }
 
@@ -168,14 +273,12 @@ void cell::computeSolnVolIP(const bool & seedu, const bool & seedudot, const boo
 // Map the AD degrees of freedom to integration points
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::computeSolnFaceIP(const size_t & facenum, const bool & seedu,
-                                 const bool & seedudot, const bool & seedparams,
-                                 const bool & seedaux) {
+void cell::computeSolnFaceIP(const size_t & facenum, Kokkos::View<int*,UnifiedDevice> seedwhat) {
   
   Teuchos::TimeMonitor localtimer(*computeSolnFaceTimer);
   
   wkset->updateFace(nodes, orientation, facenum);
-  wkset->computeSolnFaceIP(u, u_dot, seedu, seedudot);
+  wkset->computeSolnFaceIP(u, u_dot, seedwhat);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -193,7 +296,7 @@ void cell::updateSolnWorkset(const vector_RCP & gl_u, int tindex) {
       }
     }
   }
-  wkset->update(ip,ijac,orientation);
+  wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
   wkset->computeSolnVolIP(ulocal);
 }
 
@@ -225,19 +328,25 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   // Compute the AD-seeded solutions at integration points
   //////////////////////////////////////////////////////////////
   
+  // Putting this on UVM memory so anyone can access it
+  Kokkos::View<int*,UnifiedDevice> seedwhat("int indicating seeding",1);
   if (compute_jacobian) {
     if (compute_disc_sens) {
-      this->computeSolnVolIP(false,false,true,false);
+      seedwhat(0) = 3;
+      this->computeSolnVolIP(seedwhat);
     }
     else if (compute_aux_sens) {
-      this->computeSolnVolIP(false,false,false,true);
+      seedwhat(0) = 4;
+      this->computeSolnVolIP(seedwhat);
     }
     else {
-      this->computeSolnVolIP(true,false,false,false);
+      seedwhat(0) = 1;
+      this->computeSolnVolIP(seedwhat);
     }
   }
   else {
-    this->computeSolnVolIP(false,false,false,false);
+    seedwhat(0) = 0; // seed nothing
+    this->computeSolnVolIP(seedwhat);
   }
   
   //////////////////////////////////////////////////////////////
@@ -279,17 +388,21 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
         for (size_t s=0; s<cellData->numSides; s++) {
           if (compute_jacobian) {
             if (compute_disc_sens) {
-              this->computeSolnFaceIP(s,false,false,true,false);
+              seedwhat(0) = 3;
+              this->computeSolnFaceIP(s,seedwhat);
             }
             else if (compute_aux_sens) {
-              this->computeSolnFaceIP(s,false,false,false,true);
+              seedwhat(0) = 4;
+              this->computeSolnFaceIP(s,seedwhat);
             }
             else {
-              this->computeSolnFaceIP(s,true,false,false,false);
+              seedwhat(0) = 1;
+              this->computeSolnFaceIP(s,seedwhat);
             }
           }
           else {
-            this->computeSolnFaceIP(s,false,false,false,false);
+            seedwhat(0) = 0;
+            this->computeSolnFaceIP(s,seedwhat);
           }
           cellData->physics_RCP->faceResidual(cellData->myBlock);
         }
@@ -358,17 +471,21 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
     if (isTransient && compute_jacobian && !cellData->multiscale) {
       if (compute_jacobian) {
         if (compute_disc_sens) {
-          this->computeSolnVolIP(false,false,true,false);
+          seedwhat(0) = 3;
+          this->computeSolnVolIP(seedwhat);
         }
         else if (compute_aux_sens) {
-          this->computeSolnVolIP(false,false,false,true);
+          seedwhat(0) = 4;
+          this->computeSolnVolIP(seedwhat);
         }
         else {
-          this->computeSolnVolIP(false,true,false,false);
+          seedwhat(0) = 2;
+          this->computeSolnVolIP(seedwhat);
         }
       }
       else {
-        this->computeSolnVolIP(false,false,false,false);
+        seedwhat(0) = 0;
+        this->computeSolnVolIP(seedwhat);
       }
       wkset->resetResidual();//res.initialize(0.0);// = FCAD(GIDs.size());
       
@@ -720,7 +837,7 @@ void cell::updateAuxJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
 
 Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, const bool & isAdjoint) {
   Kokkos::View<ScalarT**,AssemblyDevice> initialvals("initial values",numElem,GIDs.extent(1));
-  wkset->update(ip,ijac,orientation);
+  wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
   if (project) { // works for any basis
     for (int n=0; n<wkset->varlist.size(); n++) {
       Kokkos::View<ScalarT**,AssemblyDevice> initialip = cellData->physics_RCP->getInitial(wkset->ip,
@@ -760,7 +877,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, co
 
 Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
   Kokkos::View<ScalarT***,AssemblyDevice> mass("local mass",numElem,GIDs.extent(1), GIDs.extent(1));
-  wkset->update(ip,ijac,orientation);
+  wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
   vector<string> basis_types = wkset->basis_types;
   
   parallel_for(RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -799,8 +916,10 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::computeError(const ScalarT & solve
   
     for (size_t et=0; et<error_types.size(); et++){
       if (error_types[et] == "L2") {
-        wkset->update(ip,ijac,orientation);
-        wkset->computeSolnVolIP(u, u_dot, false, false);
+        wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
+        Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
+        seedwhat(0) = 0;
+        wkset->computeSolnVolIP(u, u_dot, seedwhat);
         size_t numip = wkset->numip;
         
         Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index.extent(1),
@@ -821,8 +940,10 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::computeError(const ScalarT & solve
         }
       }
       else if (error_types[et] == "H1") {
-        wkset->update(ip,ijac,orientation);
-        wkset->computeSolnVolIP(u, u_dot, false, false);
+        wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
+        Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
+        seedwhat(0) = 0;
+        wkset->computeSolnVolIP(u, u_dot, seedwhat);
         size_t numip = wkset->numip;
         
         Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index.extent(1),
@@ -843,7 +964,9 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::computeError(const ScalarT & solve
         for (size_t s=0; s<cellData->numSides; s++) {
           
           wkset->updateFace(nodes, orientation, s);
-          wkset->computeSolnFaceIP(u, u_dot, false, false);
+          Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
+          seedwhat(0) = 0;
+          wkset->computeSolnFaceIP(u, u_dot, seedwhat);
 
           size_t numip = wkset->numsideip;
         
@@ -899,7 +1022,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponseAtNodes(const DRV & node
   // TMW: this whole function needs to be rewritten to use worksets properly
   /*
    size_t numip = nodes.extent(1);
-   wkset->update(ip,ijac,orientation);
+   wkset->update(ip,jacobian,orientation);
    
    // Map the local solution to the solution and gradient at ip
    FCAD u_ip(numElem,index[0].size(),numip);
@@ -961,7 +1084,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const ScalarT & solveti
     numip = sensorLocations.size();
   }
   
-  wkset->update(ip,ijac,orientation);
+  wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
   
   //KokkosTools::print(u);
   if (numip > 0) {
@@ -1279,8 +1402,10 @@ AD cell::computeDomainRegularization(const vector<ScalarT> reg_constants, const 
   //}
   //this->setLocalADParams(param_AD,seedParams);
   int numip = wkset->numip;
-  wkset->update(ip,ijac,orientation);
-  wkset->computeParamVolIP(param, seedParams);
+  wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
+  Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
+  seedwhat(0) = 3;  
+  wkset->computeParamVolIP(param, seedwhat);
   
   AD p, dpdx, dpdy, dpdz; // parameters
   ScalarT regoffset = 1.0e-5;
@@ -1563,7 +1688,7 @@ void cell::writeSubgridSolution(const std::string & filename) {
 void cell::updateSubgridModel(vector<Teuchos::RCP<SubGridModel> > & models) {
   
   /*
-   wkset->update(ip,ijac);
+   wkset->update(ip,jacobian);
    int newmodel = udfunc->getSubgridModel(nodes, wkset, models.size());
    if (newmodel != subgrid_model_index) {
    // then we need:

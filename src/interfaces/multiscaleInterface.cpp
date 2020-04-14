@@ -110,9 +110,13 @@ ScalarT MultiScale::initialize() {
       vector<size_t> sgnum(numElem,0);
       
       
-      macro_wkset[b]->update(cells[b][e]->ip,cells[b][e]->ijac,cells[b][e]->orientation);
-      macro_wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_dot, false, false);
-      macro_wkset[b]->computeParamVolIP(cells[b][e]->param, false);
+      macro_wkset[b]->update(cells[b][e]->ip,cells[b][e]->wts,
+                             cells[b][e]->jacobian,cells[b][e]->jacobianInv,
+                             cells[b][e]->jacobianDet,cells[b][e]->orientation);
+      Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
+      seedwhat(0) = 0;
+      macro_wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_dot, seedwhat);
+      macro_wkset[b]->computeParamVolIP(cells[b][e]->param, seedwhat);
       
       
       for (size_t s=0; s<subgridModels.size(); s++) {
@@ -330,9 +334,13 @@ ScalarT MultiScale::update() {
           int numElem = cells[b][e]->numElem;
           vector<size_t> newmodel(numElem,0);
           
-          macro_wkset[b]->update(cells[b][e]->ip,cells[b][e]->ijac,cells[b][e]->orientation);
-          macro_wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_dot, false, false);
-          macro_wkset[b]->computeParamVolIP(cells[b][e]->param, false);
+          macro_wkset[b]->update(cells[b][e]->ip,cells[b][e]->wts,
+                                 cells[b][e]->jacobian,cells[b][e]->jacobianInv,
+                                 cells[b][e]->jacobianDet,cells[b][e]->orientation);
+          Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
+          seedwhat(0) = 0;
+          macro_wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_dot, seedwhat);
+          macro_wkset[b]->computeParamVolIP(cells[b][e]->param, seedwhat);
           
           for (size_t s=0; s<subgridModels.size(); s++) {
             stringstream ss;

@@ -34,11 +34,19 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  void setIP(DRV & ref_ip, topo_RCP & cellTopo) {
+  void setIP(DRV & ref_ip, DRV & ref_wts, topo_RCP & cellTopo) {
     ip = DRV("ip", nodes.extent(0), ref_ip.extent(0), nodes.extent(2));
     CellTools::mapToPhysicalFrame(ip, ref_ip, nodes, *cellTopo);
-    ijac = DRV("ijac", nodes.extent(0), ref_ip.extent(0), nodes.extent(2), nodes.extent(2));
-    CellTools::setJacobian(ijac, ref_ip, nodes, *cellTopo);
+    jacobian = DRV("jacobian", nodes.extent(0), ref_ip.extent(0), nodes.extent(2), nodes.extent(2));
+    CellTools::setJacobian(jacobian, ref_ip, nodes, *cellTopo);
+    
+    jacobianDet = DRV("determinant of jacobian", nodes.extent(0), ref_ip.extent(0));
+    jacobianInv = DRV("inverse of jacobian", nodes.extent(0), ref_ip.extent(0), nodes.extent(2), nodes.extent(2));
+    CellTools::setJacobianDet(jacobianDet, jacobian);
+    CellTools::setJacobianInv(jacobianInv, jacobian);
+    
+    wts = DRV("ip wts", nodes.extent(0), ref_ip.extent(0));
+    FuncTools::computeCellMeasure(wts, jacobianDet, ref_wts);
   }
   
   ////////////////////////////////////////////////////////////////////////////////
@@ -122,7 +130,7 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  DRV macronodes, nodes, ip, ijac;
+  DRV macronodes, nodes, ip, wts, jacobian, jacobianInv, jacobianDet;
   Kokkos::View<int****,HostDevice> macrosideinfo, sideinfo;
   Kokkos::View<GO**,HostDevice> macroGIDs;
   Kokkos::View<LO***,HostDevice> macroindex;

@@ -327,7 +327,7 @@ void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & c
   // Set the cell integration points/wts-----------
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
-      cells[b][e]->setIP(ref_ip[b]);
+      cells[b][e]->setIP(ref_ip[b], ref_wts[b]);
       //cells[b][e]->setSideIP(ref_side_ip[b], ref_side_wts[b]);
     }
   }

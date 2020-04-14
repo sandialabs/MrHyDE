@@ -16,6 +16,96 @@
 #include <iterator>
 
 ///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+BoundaryCell::BoundaryCell(const Teuchos::RCP<CellMetaData> & cellData_,
+                           const DRV & nodes_,
+                           const Kokkos::View<int*> & localID_,
+                           const Kokkos::View<int*> & sideID_,
+                           const int & sidenum_, const string & sidename_,
+                           const int & cellID_) :
+cellData(cellData_), localElemID(localID_), localSideID(sideID_), nodes(nodes_),
+sidenum(sidenum_), sidename(sidename_), cellID(cellID_) {
+  
+  numElem = nodes.extent(0);
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void BoundaryCell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_,
+                            Kokkos::View<LO*,AssemblyDevice> & numDOF_) {
+  
+  index = Kokkos::View<LO***,AssemblyDevice>("local index",index_.extent(0),
+                                             index_.extent(1), index_.extent(2));
+  
+  // Need to copy the data since index_ is rewritten for each cell
+  parallel_for(RangePolicy<AssemblyExec>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    for (unsigned int j=0; j<index_.extent(1); j++) {
+      for (unsigned int k=0; k<index_.extent(2); k++) {
+        index(e,j,k) = index_(e,j,k);
+      }
+    }
+  });
+  
+  // This is common to all cells (within the same block), so a view copy will do
+  numDOF = numDOF_;
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void BoundaryCell::setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_,
+                                 Kokkos::View<LO*,AssemblyDevice> & pnumDOF_) {
+  
+  paramindex = Kokkos::View<LO***,AssemblyDevice>("local param index",pindex_.extent(0),
+                                                  pindex_.extent(1), pindex_.extent(2));
+  
+  // Need to copy the data since index_ is rewritten for each cell
+  parallel_for(RangePolicy<AssemblyExec>(0,pindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    for (unsigned int j=0; j<pindex_.extent(1); j++) {
+      for (unsigned int k=0; k<pindex_.extent(2); k++) {
+        paramindex(e,j,k) = pindex_(e,j,k);
+      }
+    }
+  });
+  
+  // This is common to all cells, so a view copy will do
+  numParamDOF = pnumDOF_;
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void BoundaryCell::setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_) {
+  
+  auxindex = Kokkos::View<LO***,AssemblyDevice>("local aux index",1,aindex_.extent(1),
+                                                aindex_.extent(2));
+  
+  // Need to copy the data since index_ is rewritten for each cell
+  parallel_for(RangePolicy<AssemblyExec>(0,aindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    for (unsigned int j=0; j<aindex_.extent(1); j++) {
+      for (unsigned int k=0; k<aindex_.extent(2); k++) {
+        auxindex(e,j,k) = aindex_(e,j,k);
+      }
+    }
+  });
+  
+  // This is common to all cells, so a view copy will do
+  // This is excessive storage, please remove
+  //numAuxDOF = anumDOF_;
+  // Temp. fix
+  numAuxDOF = Kokkos::View<int*,HostDevice>("numAuxDOF",auxindex.extent(1));
+  for (unsigned int i=0; i<auxindex.extent(1); i++) {
+    numAuxDOF(i) = auxindex.extent(2);
+  }
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
 // Add the aux basis functions at the integration points.
 // This version assumes the basis functions have been evaluated elsewhere (as in multiscale)
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -105,13 +195,12 @@ void BoundaryCell::setAuxUseBasis(vector<int> & ausebasis_) {
 // Map the coarse grid solution to the fine grid integration points
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::computeSoln(const bool & seedu, const bool & seedudot, const bool & seedparams,
-                               const bool & seedaux) {
+void BoundaryCell::computeSoln(Kokkos::View<int*,UnifiedDevice> seedwhat) {
   
   Teuchos::TimeMonitor localtimer(*computeSolnSideTimer);
   
-  wkset->computeSolnSideIP(u, u_dot, seedu, seedudot);
-  wkset->computeParamSideIP(sidenum, param, seedparams);
+  wkset->computeSolnSideIP(u, u_dot, seedwhat);
+  wkset->computeParamSideIP(sidenum, param, seedwhat);
   
   if (wkset->numAux > 0) {
     
@@ -123,7 +212,7 @@ void BoundaryCell::computeSoln(const bool & seedu, const bool & seedudot, const 
     for (int e=0; e<numElem; e++) {
       for (size_t k=0; k<auxindex.extent(1); k++) {
         for(size_t i=0; i<numAuxDOF(k); i++ ) {
-          if (seedaux) {
+          if (seedwhat(0) == 4) {
             auxval = AD(maxDerivs,auxoffsets[k][i],aux(e,k,i));
           }
           else {
@@ -177,20 +266,24 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
     //    wkset->sidename = gsideid;
     //wkset->sidetype = sideinfo[e](side,0);
     // }
-    
+    Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
     if (compute_jacobian) {
       if (compute_disc_sens) {
-        this->computeSoln(false,false,true,false);
+        seedwhat(0) = 3;
+        this->computeSoln(seedwhat);
       }
       else if (compute_aux_sens) {
-        this->computeSoln(false,false,false,true);
+        seedwhat(0) = 4;
+        this->computeSoln(seedwhat);
       }
       else {
-        this->computeSoln(true,false,false,false);
+        seedwhat(0) = 1;
+        this->computeSoln(seedwhat);
       }
     }
     else {
-      this->computeSoln(false,false,false,false);
+      seedwhat(0) = 0;
+      this->computeSoln(seedwhat);
     }
     
     //wkset->resetResidual(numElem);
@@ -522,7 +615,9 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
         if (found != string::npos) {
           
           wkset->updateSide(sidenum, cellID);
-          wkset->computeParamSideIP(sidenum, param, seedParams);
+          Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
+          seedwhat(0) = 3;
+          wkset->computeParamSideIP(sidenum, param, seedwhat);
           
           AD p, dpdx, dpdy, dpdz; // parameters
           ScalarT offset = 1.0e-5;
@@ -601,6 +696,7 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
   auto du_kv = gl_du->getLocalView<HostDevice>();
   //auto params_kv = params->getLocalView<HostDevice>();
   
+  
   Kokkos::View<AD***,AssemblyDevice> u_AD("temp u AD",u.extent(0),u.extent(1),u.extent(2));
   Kokkos::View<AD***,AssemblyDevice> u_dot_AD("temp u AD",u.extent(0),u.extent(1),u.extent(2));
   //Kokkos::View<AD***,AssemblyDevice> param_AD("temp u AD",param.extent(0),param.extent(1),param.extent(2));
@@ -631,14 +727,6 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
         }
       }
     }
-    /*
-     for (int e=0; e<paramindex.size(); e++) {
-     for (size_t n=0; n<paramindex.extent(1); n++) {
-     for( size_t i=0; i<numParamDOF(n); i++ ) {
-     param_AD(e,n,i) = AD(params_kv(paramindex(e,n,i),0));
-     }
-     }
-     }*/
   }
   
   {

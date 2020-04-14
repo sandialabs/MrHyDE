@@ -135,23 +135,25 @@ void SubGridFEM::setUpSubgridModels() {
   SubGridTools sgt(LocalComm, macroshape, shape, localData[0]->macronodes,
                    localData[0]->macrosideinfo);
   
-  Teuchos::TimeMonitor localmeshtimer(*sgfemSubMeshTimer);
-  
-  sgt.createSubMesh(numrefine);
-  
-  nodes = sgt.getSubNodes();
-  connectivity = sgt.getSubConnectivity();
-  sideinfo = sgt.getSubSideinfo();
-  
-  panzer_stk::SubGridMeshFactory meshFactory(shape, nodes, connectivity, blockID);
-  
-  Teuchos::RCP<panzer_stk::STK_Interface> mesh = meshFactory.buildMesh(*(LocalComm->getRawMpiComm()));
-  
-  mesh->getElementBlockNames(eBlocks);
-  
-  meshFactory.completeMeshConstruction(*mesh,*(LocalComm->getRawMpiComm()));
-  sub_mesh = Teuchos::rcp(new meshInterface(settings, LocalComm) );
-  sub_mesh->mesh = mesh;
+  {
+    Teuchos::TimeMonitor localmeshtimer(*sgfemSubMeshTimer);
+    
+    sgt.createSubMesh(numrefine);
+    
+    nodes = sgt.getSubNodes();
+    connectivity = sgt.getSubConnectivity();
+    sideinfo = sgt.getSubSideinfo();
+    
+    panzer_stk::SubGridMeshFactory meshFactory(shape, nodes, connectivity, blockID);
+    
+    Teuchos::RCP<panzer_stk::STK_Interface> mesh = meshFactory.buildMesh(*(LocalComm->getRawMpiComm()));
+    
+    mesh->getElementBlockNames(eBlocks);
+    
+    meshFactory.completeMeshConstruction(*mesh,*(LocalComm->getRawMpiComm()));
+    sub_mesh = Teuchos::rcp(new meshInterface(settings, LocalComm) );
+    sub_mesh->mesh = mesh;
+  }
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Define the sub-grid physics
@@ -259,17 +261,19 @@ void SubGridFEM::setUpSubgridModels() {
   // Create a subgrid function mananger
   /////////////////////////////////////////////////////////////////////////////////////
   
-  Teuchos::TimeMonitor localtimer(*sgfemLinearAlgebraSetupTimer);
-  
-  varlist = sub_physics->varlist[0];
-  functionManager->setupLists(sub_physics->varlist[0], macro_paramnames,
-                              macro_disc_paramnames);
-  sub_assembler->wkset[0]->params_AD = paramvals_KVAD;
-  
-  functionManager->wkset = sub_assembler->wkset[0];
-  
-  functionManager->validateFunctions();
-  functionManager->decomposeFunctions();
+  {
+    Teuchos::TimeMonitor localtimer(*sgfemLinearAlgebraSetupTimer);
+    
+    varlist = sub_physics->varlist[0];
+    functionManager->setupLists(sub_physics->varlist[0], macro_paramnames,
+                                macro_disc_paramnames);
+    sub_assembler->wkset[0]->params_AD = paramvals_KVAD;
+    
+    functionManager->wkset = sub_assembler->wkset[0];
+    
+    functionManager->validateFunctions();
+    functionManager->decomposeFunctions();
+  }
   
   /////////////////////////////////////////////////////////////////////////////////////
   // A bunch of stuff that needs to be removed
@@ -364,7 +368,8 @@ void SubGridFEM::setUpSubgridModels() {
     
     localData[mindex]->nodes = sgt.getNewNodes(localData[mindex]->macronodes);
     
-    localData[mindex]->setIP(sub_disc->ref_ip[0], cells[0][0]->cellData->cellTopo);
+    localData[mindex]->setIP(sub_disc->ref_ip[0], sub_disc->ref_wts[0],
+                             cells[0][0]->cellData->cellTopo);
     
     /////////////////////////////////////////////////////////////////////////////////////
     // Define the local sideinfo
@@ -504,12 +509,17 @@ void SubGridFEM::setUpSubgridModels() {
       Teuchos::TimeMonitor auxbasistimer(*sgfemComputeAuxBasisTimer);
       
       nummacroVars = macro_varlist.size();
-      
-      if (multiscale_method != "mortar" ) {
-        localData[mindex]->computeMacroBasisVolIP(macro_cellTopo, macro_basis_pointers, discTools);
+      if (mindex == 0) {
+        if (multiscale_method != "mortar" ) {
+          localData[mindex]->computeMacroBasisVolIP(macro_cellTopo, macro_basis_pointers, discTools);
+        }
+        else {
+          localData[mindex]->computeMacroBasisBoundaryIP(macro_cellTopo, macro_basis_pointers, discTools, wkset[0]);
+        }
       }
       else {
-        localData[mindex]->computeMacroBasisBoundaryIP(macro_cellTopo, macro_basis_pointers, discTools, wkset[0]);
+        localData[mindex]->aux_side_basis = localData[0]->aux_side_basis;
+        localData[mindex]->aux_side_basis_grad = localData[0]->aux_side_basis_grad;
       }
     }
   }
@@ -1482,7 +1492,7 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
     
     if (resnorm_scaled[0] > sub_NLtol) {
       
-      //Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverSolveTimer);
+      Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverSolveTimer);
       du_glob->putScalar(0.0);
       if (useDirect) {
         Am2Solver->numericFactorization().solve();
@@ -2283,8 +2293,12 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
         
         this->updateLocalData(usernum);
         for( size_t e=0; e<cells[0].size(); e++ ) {
-          wkset[0]->update(cells[0][e]->ip,cells[0][e]->ijac,cells[0][e]->orientation);
-          wkset[0]->computeSolnVolIP(cells[0][e]->u, cells[0][e]->u_dot, false, false);
+          wkset[0]->update(cells[0][e]->ip,cells[0][e]->wts,
+                           cells[0][e]->jacobian,cells[0][e]->jacobianInv,
+                           cells[0][e]->jacobianDet,cells[0][e]->orientation);
+          Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
+          seedwhat(0) = 0;
+          wkset[0]->computeSolnVolIP(cells[0][e]->u, cells[0][e]->u_dot, seedwhat);
           
           int numElem = cells[0][e]->numElem;
           Kokkos::View<GO**,HostDevice> GIDs = cells[0][e]->GIDs;
@@ -3010,7 +3024,10 @@ void SubGridFEM::updateLocalData(const int & usernum) {
   for (size_t e=0; e<cells[0].size(); e++) {
     cells[0][e]->nodes = localData[usernum]->nodes;
     cells[0][e]->ip = localData[usernum]->ip;
-    cells[0][e]->ijac = localData[usernum]->ijac;
+    cells[0][e]->wts = localData[usernum]->wts;
+    cells[0][e]->jacobian = localData[usernum]->jacobian;
+    cells[0][e]->jacobianInv = localData[usernum]->jacobianInv;
+    cells[0][e]->jacobianDet = localData[usernum]->jacobianDet;
     cells[0][e]->sideinfo = localData[usernum]->sideinfo;
     cells[0][e]->cell_data = localData[usernum]->cell_data;
   }

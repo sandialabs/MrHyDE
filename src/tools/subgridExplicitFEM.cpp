@@ -402,7 +402,7 @@ int SubGridExpFEM::addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> 
     else {
       
       for (size_t e=0; e<currcells[0].size(); e++) {
-        currcells[0][e]->setIP(disc->ref_ip[0]);
+        currcells[0][e]->setIP(disc->ref_ip[0], disc->ref_wts[0]);
         currcells[0][e]->GIDs = cells[0][e]->GIDs;
         currcells[0][e]->orientation = cells[0][e]->orientation;
       }
@@ -2424,8 +2424,12 @@ void SubGridExpFEM::writeSolution(const string & filename, const int & usernum) 
         size_t pprog = 0;
         
         for( size_t e=0; e<cells[usernum].size(); e++ ) {
-          wkset[0]->update(cells[usernum][e]->ip,cells[usernum][e]->ijac,cells[usernum][e]->orientation);
-          wkset[0]->computeSolnVolIP(cells[usernum][e]->u, cells[usernum][e]->u_dot, false, false);
+          wkset[0]->update(cells[usernum][e]->ip,cells[usernum][e]->wts,
+                           cells[usernum][e]->jacobian,cells[usernum][e]->jacobianInv,
+                           cells[usernum][e]->jacobianDet,cells[usernum][e]->orientation);
+          Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
+          seedwhat(0) = 0;
+          wkset[0]->computeSolnVolIP(cells[usernum][e]->u, cells[usernum][e]->u_dot, seedwhat);
           
           int numElem = cells[usernum][e]->numElem;
           Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;

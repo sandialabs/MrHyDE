@@ -20,7 +20,7 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
   label = "porousHDIV-WeakGalerkin";
   functionManager = functionManager_;
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
-  include_face = true;
+  include_face = settings->sublist("Physics").get<bool>("Include face terms","true");
   
   if (settings->sublist("Physics").isSublist("Active variables")) {
     if (settings->sublist("Physics").sublist("Active variables").isParameter("pint")) {

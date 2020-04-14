@@ -465,7 +465,9 @@ Kokkos::View<ScalarT***,HostDevice> PostprocessManager::computeResponse(const in
     assembler->performGather(b,P_soln,4,0);
     
     for (size_t e=0; e<cells[b].size(); e++) {
-      assembler->wkset[b]->update(cells[b][e]->ip, cells[b][e]->ijac, cells[b][e]->orientation);
+      assembler->wkset[b]->update(cells[b][e]->ip, cells[b][e]->wts,
+                                  cells[b][e]->jacobian, cells[b][e]->jacobianInv,
+                                  cells[b][e]->jacobianDet, cells[b][e]->orientation);
       
       Kokkos::View<AD***,AssemblyDevice> responsevals = cells[b][e]->computeResponse(solvetimes[tt], tt, 0);
       
@@ -782,8 +784,12 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
           size_t eprog = 0;
           //vector_RCP u_dot;
           for( size_t e=0; e<cells[b].size(); e++ ) {
-            assembler->wkset[b]->update(cells[b][e]->ip,cells[b][e]->ijac,cells[b][e]->orientation);
-            assembler->wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_dot, false, false);
+            assembler->wkset[b]->update(cells[b][e]->ip,cells[b][e]->wts,
+                                        cells[b][e]->jacobian,cells[b][e]->jacobianInv,
+                                        cells[b][e]->jacobianDet,cells[b][e]->orientation);
+            Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
+            seedwhat(0) = 0;
+            assembler->wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_dot, seedwhat);
             
             Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
             for (int p=0; p<cells[b][e]->numElem; p++) {

@@ -44,7 +44,9 @@ class workset {
   // Update the nodes and the basis functions at the volumetric ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void update(const DRV & ip_, const DRV & jacobian, Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation);
+  void update(const DRV & ip_, const DRV & wts_, const DRV & jacobian,
+              const DRV & jacobianInv, const DRV & jacobianDet,
+              Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation);
   
   ////////////////////////////////////////////////////////////////////////////////////
   // Add a side information
@@ -115,13 +117,14 @@ class workset {
   
   void computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
                         Kokkos::View<ScalarT***,AssemblyDevice> u_dot,
-                        const bool & seedu, const bool & seedudot);
+                        Kokkos::View<int*,UnifiedDevice> seedwhat);
 
   ////////////////////////////////////////////////////////////////////////////////////
   // Compute the discretized parameters at the volumetric ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param, const bool & seedparams);
+  void computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param,
+                         Kokkos::View<int*,UnifiedDevice> seedwhat);
   
   ////////////////////////////////////////////////////////////////////////////////////
   // Compute the solutions at the side ip
@@ -129,7 +132,7 @@ class workset {
   
   void computeSolnSideIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
                          Kokkos::View<ScalarT***,AssemblyDevice> u_dot,
-                         const bool & seedu, const bool& seedudot);
+                         Kokkos::View<int*,UnifiedDevice> seedwhat);
   
   ////////////////////////////////////////////////////////////////////////////////////
   // Compute the solutions at the face ip
@@ -137,14 +140,14 @@ class workset {
   
   void computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
                          Kokkos::View<ScalarT***,AssemblyDevice> u_dot,
-                         const bool & seedu, const bool& seedudot);
+                         Kokkos::View<int*,UnifiedDevice> seedwhat);
   
   ////////////////////////////////////////////////////////////////////////////////////
   // Compute the discretized parameters at the side ip
   ////////////////////////////////////////////////////////////////////////////////////
   
   void computeParamSideIP(const int & side, Kokkos::View<ScalarT***,AssemblyDevice> param,
-                          const bool & seedparams);
+                          Kokkos::View<int*,UnifiedDevice> seedwhat);
   
   ////////////////////////////////////////////////////////////////////////////////////
   // Compute the solutions at the side ip
@@ -183,7 +186,7 @@ class workset {
   size_t numsides, numip, numsideip, numVars, numParams, numAux, numDOF;
   int dimension, numElem;//, num_stages;
   DRV ref_ip, ref_side_ip, ref_wts, ref_side_wts;
-  vector<DRV> ref_side_ip_vec;
+  vector<DRV> ref_side_ip_vec, ref_side_normals_vec, ref_side_tangents_vec, ref_side_tangentsU_vec, ref_side_tangentsV_vec;
   vector<string> basis_types;
   vector<int> numbasis, numparambasis;
   vector<basis_RCP> basis_pointers, param_basis_pointers;
@@ -267,12 +270,18 @@ class workset {
   Teuchos::RCP<Teuchos::Time> worksetAddSideTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::addSide");
   Teuchos::RCP<Teuchos::Time> worksetSideUpdateIPTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::updateSide - integration data");
   Teuchos::RCP<Teuchos::Time> worksetSideUpdateBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::updateSide - basis data");
+  Teuchos::RCP<Teuchos::Time> worksetFaceUpdateIPTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::updateFace - integration data");
+  Teuchos::RCP<Teuchos::Time> worksetFaceUpdateBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::updateFace - basis data");
   Teuchos::RCP<Teuchos::Time> worksetResetTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::reset*");
   Teuchos::RCP<Teuchos::Time> worksetComputeSolnVolTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::computeSolnVolIP");
   Teuchos::RCP<Teuchos::Time> worksetComputeSolnSideTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::computeSolnSideIP");
   Teuchos::RCP<Teuchos::Time> worksetComputeParamVolTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::computeParamVolIP");
   Teuchos::RCP<Teuchos::Time> worksetComputeParamSideTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::computeParamSideIP");
-    
+  
+  Teuchos::RCP<Teuchos::Time> worksetDebugTimer0 = Teuchos::TimeMonitor::getNewCounter("MILO::workset::debug0");
+  Teuchos::RCP<Teuchos::Time> worksetDebugTimer1 = Teuchos::TimeMonitor::getNewCounter("MILO::workset::debug1");
+  Teuchos::RCP<Teuchos::Time> worksetDebugTimer2 = Teuchos::TimeMonitor::getNewCounter("MILO::workset::debug2");
+  
 };
 
 #endif

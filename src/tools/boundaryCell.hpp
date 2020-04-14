@@ -37,86 +37,23 @@ public:
                const Kokkos::View<int*> & localID_,
                const Kokkos::View<int*> & sideID_,
                const int & sidenum_, const string & sidename_,
-               const int & cellID_) :
-  cellData(cellData_), localElemID(localID_), localSideID(sideID_), nodes(nodes_),
-  sidenum(sidenum_), sidename(sidename_), cellID(cellID_) {
-  
-    numElem = nodes.extent(0);
-    
-  }
+               const int & cellID_);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void setIndex(Kokkos::View<LO***,AssemblyDevice> & index_, Kokkos::View<LO*,AssemblyDevice> & numDOF_) {
-    
-    index = Kokkos::View<LO***,AssemblyDevice>("local index",index_.extent(0),
-                                               index_.extent(1), index_.extent(2));
-    
-    // Need to copy the data since index_ is rewritten for each cell
-    parallel_for(RangePolicy<AssemblyExec>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (unsigned int j=0; j<index_.extent(1); j++) {
-        for (unsigned int k=0; k<index_.extent(2); k++) {
-          index(e,j,k) = index_(e,j,k);
-        }
-      }
-    });
-    
-    // This is common to all cells (within the same block), so a view copy will do
-    numDOF = numDOF_;
-    
-  }
+  void setIndex(Kokkos::View<LO***,AssemblyDevice> & index_, Kokkos::View<LO*,AssemblyDevice> & numDOF_);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
   void setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_,
-                     Kokkos::View<LO*,AssemblyDevice> & pnumDOF_) {
-    
-    paramindex = Kokkos::View<LO***,AssemblyDevice>("local param index",pindex_.extent(0),
-                                                    pindex_.extent(1), pindex_.extent(2));
-    
-    // Need to copy the data since index_ is rewritten for each cell
-    parallel_for(RangePolicy<AssemblyExec>(0,pindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (unsigned int j=0; j<pindex_.extent(1); j++) {
-        for (unsigned int k=0; k<pindex_.extent(2); k++) {
-          paramindex(e,j,k) = pindex_(e,j,k);
-        }
-      }
-    });
-    
-    // This is common to all cells, so a view copy will do
-    numParamDOF = pnumDOF_;
-    
-  }
+                     Kokkos::View<LO*,AssemblyDevice> & pnumDOF_);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_) {
-    
-    auxindex = Kokkos::View<LO***,AssemblyDevice>("local aux index",1,aindex_.extent(1),
-                                                  aindex_.extent(2));
-    
-    // Need to copy the data since index_ is rewritten for each cell
-    parallel_for(RangePolicy<AssemblyExec>(0,aindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (unsigned int j=0; j<aindex_.extent(1); j++) {
-        for (unsigned int k=0; k<aindex_.extent(2); k++) {
-          auxindex(e,j,k) = aindex_(e,j,k);
-        }
-      }
-    });
-    
-    // This is common to all cells, so a view copy will do
-    // This is excessive storage, please remove
-    //numAuxDOF = anumDOF_;
-    // Temp. fix
-    numAuxDOF = Kokkos::View<int*,HostDevice>("numAuxDOF",auxindex.extent(1));
-    for (unsigned int i=0; i<auxindex.extent(1); i++) {
-      numAuxDOF(i) = auxindex.extent(2);
-    }
-    
-  }
+  void setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Add the aux basis functions at the integration points.
@@ -155,8 +92,7 @@ public:
   // Map the coarse grid solution to the fine grid integration points
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void computeSoln(const bool & seedu, const bool & seedudot, const bool & seedparams,
-                        const bool & seedaux);
+  void computeSoln(Kokkos::View<int*,UnifiedDevice> seedwhat);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the contribution from this cell to the global res, J, Jdot
