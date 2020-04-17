@@ -1,0 +1,8 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Functions: 
+    current_x: 12*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z) 
+    current_y: 12*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z) 
+    current_z: 12*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z) 
+...
