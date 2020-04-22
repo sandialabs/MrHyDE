@@ -36,7 +36,6 @@
 #include "shallowwater.hpp"
 #include "maxwell.hpp"
 #include "maxwell_hybridized.hpp"
-#include "maxwell_weakGalerkin.hpp"
 
 // Disabled/out-of-date physics modules
 //#include "msconvdiff.hpp"
