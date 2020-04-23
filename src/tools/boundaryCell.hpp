@@ -222,6 +222,7 @@ public:
   vector<basis_RCP> auxbasisPointers;
   vector<DRV> auxbasis, auxbasisGrad;
   vector<DRV> auxside_basis, auxside_basisGrad;
+  vector<size_t> auxMIDs;
   
   // Profile timers
   Teuchos::RCP<Teuchos::Time> computeSolnSideTimer = Teuchos::TimeMonitor::getNewCounter("MILO::boundaryCell::computeSolnSideIP()");

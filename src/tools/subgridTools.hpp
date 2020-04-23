@@ -1840,26 +1840,60 @@ public:
   // Get the sub-grid nodes
   ///////////////////////////////////////////////////////////////////////////////////////
   
+  vector<vector<ScalarT> > getNodes(DRV & newmacronodes) {
+    vector<vector<ScalarT> > newnodes;
+    
+    for (size_t e=0; e<newmacronodes.extent(0); e++) {
+      for (size_t i=0; i<subnodemap.size(); i++) {
+        vector<ScalarT> newnode(dimension,0.0);
+        for (size_t j=0; j<newmacronodes.extent(1); j++) {
+          for (size_t s=0; s<dimension; s++) {
+            newnode[s] += subnodemap[i](j,s)*newmacronodes(e,j,s);
+          }
+        }
+        newnodes.push_back(newnode);
+      }
+    }
+    return newnodes;
+  }
+  
+  ///////////////////////////////////////////////////////////////////////////////////////
+  // Get the sub-grid nodes
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
   DRV getNewNodes(DRV & newmacronodes) {
     vector<vector<ScalarT> > newnodes;
-    for (size_t i=0; i<subnodemap.size(); i++) {
-      vector<ScalarT> newnode(dimension,0.0);
-      for (size_t j=0; j<newmacronodes.extent(1); j++) {
-        for (size_t s=0; s<dimension; s++) {
-          newnode[s] += subnodemap[i](j,s)*newmacronodes(0,j,s);
+    //KokkosTools::print(newmacronodes,"new macro nodes");
+    for (size_t e=0; e<newmacronodes.extent(0); e++) {
+      for (size_t i=0; i<subnodemap.size(); i++) {
+        vector<ScalarT> newnode(dimension,0.0);
+        for (size_t j=0; j<newmacronodes.extent(1); j++) {
+          for (size_t s=0; s<dimension; s++) {
+            newnode[s] += subnodemap[i](j,s)*newmacronodes(e,j,s);
+          }
         }
+        newnodes.push_back(newnode);
       }
-      newnodes.push_back(newnode);
     }
     
-    DRV currnodes("currnodes",subconnectivity.size(),subconnectivity[0].size(),dimension);
-    for (size_t e=0; e<subconnectivity.size(); e++) { // number of elements
-      for (int n=0; n<subconnectivity[e].size(); n++) { // number of nodes/element
-        for (int m=0; m<dimension; m++) {
-          currnodes(e,n,m) = newnodes[subconnectivity[e][n]][m];
+    DRV currnodes("currnodes",newmacronodes.extent(0)*subconnectivity.size(),
+                  subconnectivity[0].size(),
+                  dimension);
+    int prog = 0, prog2 = 0;
+    
+    for (size_t k=0; k<newmacronodes.extent(0); k++) { // number of macro elements
+      for (size_t e=0; e<subconnectivity.size(); e++) { // number of elements
+        for (int n=0; n<subconnectivity[e].size(); n++) { // number of nodes/element
+          for (int m=0; m<dimension; m++) {
+            currnodes(prog+e,n,m) = newnodes[prog2+subconnectivity[e][n]][m];
+          }
         }
       }
+      prog += subconnectivity.size();
+      prog2 += subnodes.size();
     }
+    //KokkosTools::print(currnodes,"new subgrid nodes");
+    
     return currnodes;
   }
   
@@ -1868,26 +1902,34 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   
   Kokkos::View<int****,HostDevice> getNewSideinfo(Kokkos::View<int****,HostDevice> & macrosideinfo) {
-    Kokkos::View<int****,HostDevice> ksubsideinfo("subgrid side info",subsideinfo.size(),
-                                                  sideinfo.extent(1),sideinfo.extent(2),2);
+    Kokkos::View<int****,HostDevice> ksubsideinfo("subgrid side info",
+                                                  macrosideinfo.extent(0)*subsideinfo.size(), // macroelem*subelem
+                                                  sideinfo.extent(1),
+                                                  sideinfo.extent(2),
+                                                  2);
     
     //KokkosTools::print(subsidemap[0]);
-    for (unsigned int e=0; e<ksubsideinfo.extent(0); e++) {
-      for (unsigned int i=0; i<ksubsideinfo.extent(1); i++) {
-        for (unsigned int j=0; j<ksubsideinfo.extent(2); j++) {
-          if (subsidemap[e](i,j,0)>0) {
-            int sideindex = subsidemap[e](i,j,1);
-            if (macrosideinfo(0,i,sideindex,0)>0) {
-              ksubsideinfo(e,i,j,0) = macrosideinfo(0,i,sideindex,0);
-              ksubsideinfo(e,i,j,1) = macrosideinfo(0,i,sideindex,1);
-            }
-            else {
-              ksubsideinfo(e,i,j,0) = 5;
-              ksubsideinfo(e,i,j,1) = -1;
+    int prog = 0;
+    for (unsigned int k=0; k<macrosideinfo.extent(0); k++) {
+      
+      for (unsigned int e=0; e<subsidemap.size(); e++) {
+        for (unsigned int i=0; i<ksubsideinfo.extent(1); i++) {
+          for (unsigned int j=0; j<ksubsideinfo.extent(2); j++) {
+            if (subsidemap[e](i,j,0)>0) {
+              int sideindex = subsidemap[e](i,j,1);
+              if (macrosideinfo(k,i,sideindex,0)>0) {
+                ksubsideinfo(e+prog,i,j,0) = macrosideinfo(k,i,sideindex,0);
+                ksubsideinfo(e+prog,i,j,1) = macrosideinfo(k,i,sideindex,1);
+              }
+              else {
+                ksubsideinfo(e+prog,i,j,0) = 5;
+                ksubsideinfo(e+prog,i,j,1) = -1;
+              }
             }
           }
         }
       }
+      prog += subsidemap.size();
     }
     return ksubsideinfo;
   }
@@ -1906,6 +1948,27 @@ public:
   
   vector<vector<GO> > getSubConnectivity() {
     return subconnectivity;
+  }
+  
+  ///////////////////////////////////////////////////////////////////////////////////////
+  // Get the sub-grid connectivity
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
+  vector<vector<GO> > getSubConnectivity(int & reps) {
+    vector<vector<GO> > newconn;
+    
+    int prog = 0;
+    for (int k=0; k<reps; k++) {
+      for (int i=0; i<subconnectivity.size(); i++) {
+        vector<GO> cc;
+        for (int j=0; j<subconnectivity[i].size(); j++) {
+          cc.push_back(subconnectivity[i][j]+prog);
+        }
+        newconn.push_back(cc);
+      }
+      prog += subnodes.size();
+    }
+    return newconn;
   }
   
   ///////////////////////////////////////////////////////////////////////////////////////

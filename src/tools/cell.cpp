@@ -358,14 +358,14 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   {
     Teuchos::TimeMonitor localtimer(*volumeResidualTimer);
     if (cellData->multiscale) {
-      for (int e=0; e<numElem; e++) {
-        int sgindex = subgrid_model_index[e][subgrid_model_index.size()-1];
+      //for (int e=0; e<numElem; e++) {
+        int sgindex = subgrid_model_index[subgrid_model_index.size()-1];
         subgridModels[sgindex]->subgridSolver(u, phi, time, isTransient, isAdjoint,
                                               compute_jacobian, compute_sens, num_active_params,
                                               compute_disc_sens, compute_aux_sens,
-                                              *wkset, subgrid_usernum[e], e,
+                                              *wkset, subgrid_usernum, 0,
                                               subgradient, store_adjPrev);
-      }
+      //}
       fixJacDiag = true;
     }
     else {
@@ -1368,20 +1368,20 @@ Kokkos::View<AD**,AssemblyDevice> cell::computeObjective(const ScalarT & solveti
   }
   else {
     
-    for (int e=0; e<numElem; e++) {
-      int sgindex = subgrid_model_index[e][tindex];
+    //for (int e=0; e<numElem; e++) {
+      int sgindex = subgrid_model_index[tindex];
       Kokkos::View<AD*,AssemblyDevice> cobj = subgridModels[sgindex]->computeObjective(cellData->response_type,seedwhat,
-                                                                                       solvetime,subgrid_usernum[e]);
+                                                                                       solvetime,subgrid_usernum);
       
-      if (e == 0) {
+      //if (e == 0) {
         objective = Kokkos::View<AD**,AssemblyDevice>("objective",numElem,cobj.extent(0));
-      }
+      //}
       for (int i=0; i<cobj.extent(0); i++) {
-        objective(e,i) += cobj(i);
+        objective(0,i) += cobj(i); // TMW: tempory fix
       }
       
       
-    }
+    //}
   }
   
   return objective;
@@ -1530,7 +1530,7 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
       for (size_t i=0; i<subgridModels.size(); i++) {
         //if (subgrid_model_index[0] == i) {
         subgridModels[i]->addSensors(sensor_points,sensor_loc_tol,sensor_data,have_sensor_data,
-                                     basis_pointers, subgrid_usernum[0]);
+                                     basis_pointers, subgrid_usernum);
         //}
       }
       

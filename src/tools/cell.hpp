@@ -323,8 +323,9 @@ public:
   bool active;
   
   vector<Teuchos::RCP<SubGridModel> > subgridModels;
-  vector<size_t> subgrid_usernum, cell_data_seed, cell_data_seedindex;
-  vector<vector<size_t> > subgrid_model_index;
+  vector<size_t> cell_data_seed, cell_data_seedindex;
+  vector<size_t> subgrid_model_index; // which subgrid model is used for each time step
+  size_t subgrid_usernum; // what is the index for this cell in the subgrid model (should be deprecated)
   
   // On Device
   DRV nodes, ip, wts, jacobian, jacobianInv, jacobianDet;

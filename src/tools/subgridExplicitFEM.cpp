@@ -355,7 +355,7 @@ int SubGridExpFEM::addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> 
         Kokkos::View<int*> sideIndex("local side indices",currElem);
         DRV currnodes("currnodes", currElem, numNodesPerElem, dimension);
         for (int e=0; e<currElem; e++) {
-          eIndex(e) = group[e+prog];
+          eIndex(e) = e;//group[e+prog];
           sideIndex(e) = unique_local_sides[s];
           for (int n=0; n<numNodesPerElem; n++) {
             for (int m=0; m<dimension; m++) {
@@ -1484,6 +1484,7 @@ void SubGridExpFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
         
       }
       //KokkosTools::print(local_J);
+      //KokkosTools::print(local_res);
       {
         Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverInsertTimer);
         Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;
@@ -1539,7 +1540,8 @@ void SubGridExpFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
                                                    local_res, local_J, local_Jdot);
           
         }
-        //KokkosTools::print(local_J);
+        //KokkosTools::print(local_J,"subgrid after bres");
+        //KokkosTools::print(local_res,"subgrid after bres");
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverInsertTimer);
           Kokkos::View<GO**,HostDevice> GIDs = boundaryCells[usernum][e]->GIDs;

@@ -82,7 +82,9 @@ void BoundaryCell::setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_,
 
 void BoundaryCell::setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_) {
   
-  auxindex = Kokkos::View<LO***,AssemblyDevice>("local aux index",1,aindex_.extent(1),
+  auxindex = Kokkos::View<LO***,AssemblyDevice>("local aux index",
+                                                aindex_.extent(0),
+                                                aindex_.extent(1),
                                                 aindex_.extent(2));
   
   // Need to copy the data since index_ is rewritten for each cell
@@ -210,13 +212,17 @@ void BoundaryCell::computeSoln(Kokkos::View<int*,UnifiedDevice> seedwhat) {
     AD auxval;
     
     for (int e=0; e<numElem; e++) {
+      
       for (size_t k=0; k<auxindex.extent(1); k++) {
         for(size_t i=0; i<numAuxDOF(k); i++ ) {
+          ScalarT auxtmp = aux(localElemID[e],k,i);
           if (seedwhat(0) == 4) {
-            auxval = AD(maxDerivs,auxoffsets[k][i],aux(e,k,i));
+            auxval = AD(maxDerivs,auxoffsets[k][i],auxtmp);
+            //auxval = AD(maxDerivs,auxoffsets[k][i],aux(e,k,i));
           }
           else {
-            auxval = aux(e,k,i);
+            auxval = auxtmp;
+            //auxval = aux(e,k,i);
           }
           for( size_t j=0; j<numip; j++ ) {
             wkset->local_aux_side(e,k,j) += auxval*auxside_basis[auxusebasis[k]](e,i,j);
@@ -696,6 +702,7 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
   auto du_kv = gl_du->getLocalView<HostDevice>();
   //auto params_kv = params->getLocalView<HostDevice>();
   
+  //KokkosTools::print(lambda);
   
   Kokkos::View<AD***,AssemblyDevice> u_AD("temp u AD",u.extent(0),u.extent(1),u.extent(2));
   Kokkos::View<AD***,AssemblyDevice> u_dot_AD("temp u AD",u.extent(0),u.extent(1),u.extent(2));
@@ -742,11 +749,10 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
     
     size_t numip = wkset->numsideip;
     AD auxval;
-    
     for (int e=0; e<numElem; e++) {
       for (size_t k=0; k<auxindex.extent(1); k++) {
         for(size_t i=0; i<numAuxDOF(k); i++ ) {
-          auxval = AD(maxDerivs, auxoffsets[k][i], lambda(0,k,i));
+          auxval = AD(maxDerivs, auxoffsets[k][i], lambda(localElemID[e],k,i));
           for( size_t j=0; j<numip; j++ ) {
             wkset->local_aux_side(e,k,j) += auxval*auxside_basis[auxusebasis[k]](e,i,j);
           }

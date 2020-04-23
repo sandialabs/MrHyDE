@@ -14,7 +14,8 @@ ANONYMOUS:
     Static Subgrids: true
     Number of Models: 2
     Model0:
-      usage: '(x>=0.5)*(y<=0.5)'
+      iusage: '(x>=0.5)*(y<=0.5)'
+      usage: '1.0'
       Mesh: 
         shape: quad
         refinements: 0

@@ -92,7 +92,7 @@ public:
         DRV tmp_basis = DRV("basis values",numElem,macro_basis_pointers[i]->getCardinality(),sside_ip.extent(1));
         currside_basis.push_back(tmp_basis);
       }
-      
+      //KokkosTools::print(sside_ip);
       for (size_t c=0; c<numElem; c++) {
         //DRV side_ip_e("side_ip_e",cells[block][e]->numElem, sside_ip.extent(1), sside_ip.extent(2));
         DRV side_ip_e("side_ip_e",1, sside_ip.extent(1), sside_ip.extent(2));
@@ -106,14 +106,29 @@ public:
         
         //CellTools<AssemblyDevice>::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, macronodes[block], *macro_cellTopo);
         DRV sref_side_ip("sref_side_ip", sside_ip.extent(1), sside_ip.extent(2));
-        CellTools::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, macronodes, *macro_cellTopo);
+        
+        // issue is here
+        // need to know which macro-element each (set of) ip belongs to
+        // this is trivial for volumetric ip since nummacro = macronodes.extent(0)
+        // and the number of total elements divides evenly.
+        // this assumption is not nec. true for the boundary cells
+        size_t mID = boundaryMIDs[e][c];
+        DRV cnodes("tmp nodes",1,macronodes.extent(1),macronodes.extent(2));
+        for (size_t i=0; i<macronodes.extent(1); i++) {
+          for (size_t j=0; j<macronodes.extent(2); j++) {
+            cnodes(0,i,j) = macronodes(mID,i,j);
+          }
+        }
+        CellTools::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, cnodes, *macro_cellTopo);
         for (size_t i=0; i<sside_ip.extent(1); i++) {
           for (size_t j=0; j<sside_ip.extent(2); j++) {
             sref_side_ip(i,j) = sref_side_ip_tmp(0,i,j);
           }
         }
+        Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> corientation("tmp orientation",1);
+        corientation(0) = macroorientation(mID);
         for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-          DRV bvals = discTools->evaluateBasis(macro_basis_pointers[i], sref_side_ip, macroorientation);
+          DRV bvals = discTools->evaluateBasis(macro_basis_pointers[i], sref_side_ip, corientation);
           for (unsigned int k=0; k<bvals.extent(1); k++) {
             for (unsigned int j=0; j<bvals.extent(2); j++) {
               currside_basis[i](c,k,j) = bvals(0,k,j);
@@ -127,6 +142,49 @@ public:
     }
   }
   
+  ///////////////////////////////////////////////////////////////////////////////////////
+  // Get the macro element for a sub-element
+  ///////////////////////////////////////////////////////////////////////////////////////
+  size_t getMacroID(const size_t & eID) {
+    size_t numMacro = macronodes.extent(0);
+    size_t numElem = nodes.extent(0);
+    size_t numEperM = numElem/numMacro;
+    size_t mID = -1;
+    size_t prog = 0;
+    for (size_t i=0; i<numMacro; i++) {
+      for (size_t j=0; j<numEperM; j++) {
+        if (prog+j == eID) {
+          mID = i;
+        }
+      }
+      prog+=numEperM;
+    }
+    return mID;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  void setBoundaryIndexGIDs() {
+    for (size_t b=0; b<boundaryMIDs.size(); b++) {
+      Kokkos::View<GO**,HostDevice> cGIDs("boundary macro GIDs",boundaryMIDs[b].size(),macroGIDs.extent(1));
+      Kokkos::View<LO***,HostDevice> cindex("boundary macro GIDs",boundaryMIDs[b].size(),macroindex.extent(1),
+                                            macroindex.extent(2));
+      for (size_t e=0; e<boundaryMIDs[b].size(); e++) {
+        size_t mid = boundaryMIDs[b][e];
+        for (size_t i=0; i<cGIDs.extent(1); i++) {
+          cGIDs(e,i) = macroGIDs(mid,i);
+        }
+        for (size_t i=0; i<cindex.extent(1); i++) {
+          for (size_t j=0; j<cindex.extent(2); j++) {
+            cindex(e,i,j) = macroindex(mid,i,j);
+          }
+        }
+      }
+      boundaryMacroGIDs.push_back(cGIDs);
+      boundaryMacroindex.push_back(cindex);
+    }
+  }
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
@@ -134,6 +192,9 @@ public:
   Kokkos::View<int****,HostDevice> macrosideinfo, sideinfo;
   Kokkos::View<GO**,HostDevice> macroGIDs;
   Kokkos::View<LO***,HostDevice> macroindex;
+  vector<Kokkos::View<GO**,HostDevice> > boundaryMacroGIDs;
+  vector<Kokkos::View<LO***,HostDevice> > boundaryMacroindex;
+  
   Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> macroorientation;
     
   Kokkos::View<int**,AssemblyDevice> bcs;
@@ -141,6 +202,8 @@ public:
   vector<int> BIDs;
   vector<DRV> boundaryNodes;
   vector<string> boundaryNames;
+  vector<vector<size_t> > boundaryMIDs;
+  vector<size_t> macroIDs;
   
   vector<Kokkos::View<ScalarT**,HostDevice> > sensorLocations, sensorData;
   DRV sensorPoints;

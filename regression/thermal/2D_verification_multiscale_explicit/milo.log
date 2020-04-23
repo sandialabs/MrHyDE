@@ -1,6 +1,471 @@
+**** Starting mesh interface constructor ...
+**** Finished mesh interface constructor
+**** Starting physics constructor ...
+**** Starting physics::importPhysics ...
+**** Finished physics::importPhysics ...
+**** Finished physics constructor
+**** Starting mesh::createCells ...
+**** Finished mesh::createCells
+**** Starting discretization constructor...
+**** Finished discretization constructor
+**** Starting physics::buildDOF ...
+**** Finished physics::buildDOF
+**** Starting physics::setBCData ...
+**** Finished physics::setBCData
+**** Starting discretization:: setIntegrationInfo
+**** Finished discretization:: setIntegrationInfo
+**** Starting multiscale manager constructor ...
+**** Finished multiscale manager constructor
+**** Starting assembly manager constructor ...
+**** Finished assembly manager constructor
+**** Starting solver constructor ...
+Number of global unknowns: 25
+**** Starting solver::setupLinearAlgebra...
+**** Finished solver::setupLinearAlgebra
+**** Starting AssemblyManager::createWorkset ...
+**** Finished AssemblyManager::createWorkset
+**** Starting solver::finalizeWorkset ...
+**** Finished solver::finalizeWorkset
+**** Finished solver constructor
+**** Starting multiscale manager initialize
+**** Finished multiscale manager initialize
+**** Starting analysis::run ...
+**** Starting solver::forwardModel ...
+******** Starting solver::nonlinearSolver ...
+******** Starting AssemblyManager::assembleJacRes ...
 
-*********************************************************
-***** Performing verification ******
+inside assemblyManager.cpp, res after volumetric
+Printing data for View: local residual
+  i    j    k    value  
+------------------------------------------
+  0    0    0    -0  
+  0    1    0    2.04683e+198  
+  0    2    0    -3.21005e+198  
+  0    3    0    -5.46307e+198  
+------------------------------------------
 
-***** L2-face norm of the error for e = 0.198706  (time = 0)
-***** Subgrid0: L2 norm of the error for e = 0.042848  (time = 0)
+inside assemblyManager.cpp, J after volumetric
+Printing data for View: local Jacobian
+  i    j    k    value  
+------------------------------------------
+  0    0    0    1  
+  0    0    1    0  
+  0    0    2    0  
+  0    0    3    0  
+  0    1    0    -0.333333  
+  0    1    1    0.333333  
+  0    1    2    0.166667  
+  0    1    3    -0.166667  
+  0    2    0    -0.333333  
+  0    2    1    -0.166667  
+  0    2    2    0.666667  
+  0    2    3    -0.166667  
+  0    3    0    -0.333333  
+  0    3    1    -0.166667  
+  0    3    2    0.166667  
+  0    3    3    0.333333  
+------------------------------------------
+
+inside assemblyManager.cpp, J_dot after volumetric
+Printing data for View: local Jacobian dot
+  i    j    k    value  
+------------------------------------------
+  0    0    0    0  
+  0    0    1    0  
+  0    0    2    0  
+  0    0    3    0  
+  0    1    0    0  
+  0    1    1    0  
+  0    1    2    0  
+  0    1    3    0  
+  0    2    0    0  
+  0    2    1    0  
+  0    2    2    0  
+  0    2    3    0  
+  0    3    0    0  
+  0    3    1    0  
+  0    3    2    0  
+  0    3    3    0  
+------------------------------------------
+
+inside assemblyManager.cpp, res after volumetric
+Printing data for View: local residual
+  i    j    k    value  
+------------------------------------------
+  0    0    0    0.312782  
+  0    1    0    0.810596  
+  0    2    0    0.462658  
+  0    3    0    0.132034  
+------------------------------------------
+
+inside assemblyManager.cpp, J after volumetric
+Printing data for View: local Jacobian
+  i    j    k    value  
+------------------------------------------
+  0    0    0    0.333333  
+  0    0    1    0.166667  
+  0    0    2    -0.166667  
+  0    0    3    -0.333333  
+  0    1    0    -0.166667  
+  0    1    1    0.666667  
+  0    1    2    -0.166667  
+  0    1    3    -0.333333  
+  0    2    0    -0.333333  
+  0    2    1    -0.166667  
+  0    2    2    0.666667  
+  0    2    3    -0.166667  
+  0    3    0    -0.333333  
+  0    3    1    -0.166667  
+  0    3    2    0.166667  
+  0    3    3    0.333333  
+------------------------------------------
+
+inside assemblyManager.cpp, J_dot after volumetric
+Printing data for View: local Jacobian dot
+  i    j    k    value  
+------------------------------------------
+  0    0    0    0  
+  0    0    1    0  
+  0    0    2    0  
+  0    0    3    0  
+  0    1    0    0  
+  0    1    1    0  
+  0    1    2    0  
+  0    1    3    0  
+  0    2    0    0  
+  0    2    1    0  
+  0    2    2    0  
+  0    2    3    0  
+  0    3    0    0  
+  0    3    1    0  
+  0    3    2    0  
+  0    3    3    0  
+------------------------------------------
+
+inside assemblyManager.cpp, res after volumetric
+Printing data for View: local residual
+  i    j    k    value  
+------------------------------------------
+  0    0    0    3.94384e+264  
+  0    1    0    -7.1917e+264  
+  0    2    0    -3.59585e+265  
+  0    3    0    3.25004e+265  
+------------------------------------------
+
+inside assemblyManager.cpp, J after volumetric
+Printing data for View: local Jacobian
+  i    j    k    value  
+------------------------------------------
+  0    0    0    0.333333  
+  0    0    1    0.166667  
+  0    0    2    -0.166667  
+  0    0    3    -0.333333  
+  0    1    0    -0.166667  
+  0    1    1    0.666667  
+  0    1    2    -0.166667  
+  0    1    3    -0.333333  
+  0    2    0    -0.333333  
+  0    2    1    -0.166667  
+  0    2    2    0.666667  
+  0    2    3    -0.166667  
+  0    3    0    -0.333333  
+  0    3    1    -0.166667  
+  0    3    2    0.166667  
+  0    3    3    0.333333  
+------------------------------------------
+
+inside assemblyManager.cpp, J_dot after volumetric
+Printing data for View: local Jacobian dot
+  i    j    k    value  
+------------------------------------------
+  0    0    0    0  
+  0    0    1    0  
+  0    0    2    0  
+  0    0    3    0  
+  0    1    0    0  
+  0    1    1    0  
+  0    1    2    0  
+  0    1    3    0  
+  0    2    0    0  
+  0    2    1    0  
+  0    2    2    0  
+  0    2    3    0  
+  0    3    0    0  
+  0    3    1    0  
+  0    3    2    0  
+  0    3    3    0  
+------------------------------------------
+
+inside assemblyManager.cpp, res after volumetric
+Printing data for View: local residual
+  i    j    k    value  
+------------------------------------------
+  0    0    0    8.49258e+250  
+  0    1    0    3.94589e+251  
+  0    2    0    -6.93171e+250  
+  0    3    0    0  
+------------------------------------------
+
+inside assemblyManager.cpp, J after volumetric
+Printing data for View: local Jacobian
+  i    j    k    value  
+------------------------------------------
+  0    0    0    0.333333  
+  0    0    1    0.166667  
+  0    0    2    -0.166667  
+  0    0    3    -0.333333  
+  0    1    0    -0.166667  
+  0    1    1    0.666667  
+  0    1    2    -0.166667  
+  0    1    3    -0.333333  
+  0    2    0    -0.166667  
+  0    2    1    0.166667  
+  0    2    2    0.333333  
+  0    2    3    -0.333333  
+  0    3    0    -0.333333  
+  0    3    1    0  
+  0    3    2    0  
+  0    3    3    1  
+------------------------------------------
+
+inside assemblyManager.cpp, J_dot after volumetric
+Printing data for View: local Jacobian dot
+  i    j    k    value  
+------------------------------------------
+  0    0    0    0  
+  0    0    1    0  
+  0    0    2    0  
+  0    0    3    0  
+  0    1    0    0  
+  0    1    1    0  
+  0    1    2    0  
+  0    1    3    0  
+  0    2    0    0  
+  0    2    1    0  
+  0    2    2    0  
+  0    2    3    0  
+  0    3    0    0  
+  0    3    1    0  
+  0    3    2    0  
+  0    3    3    0  
+------------------------------------------
+******** Finished AssemblyManager::assembleJacRes
+
+ Tpetra::CrsMatrix (Kokkos refactor):
+  Template parameters:
+   Scalar: double
+   LocalOrdinal: int
+   GlobalOrdinal: long long
+
+
+
+   Node: Kokkos::Compat::KokkosDeviceWrapperNode<Kokkos::Serial, Kokkos::HostSpace>
+  isFillComplete: true
+  Global dimensions: [25, 25]
+  Global number of entries: 169
+  
+  Global max number of entries in a row: 9
+  
+  Row Map:
+  
+   "Tpetra::Map":
+    Template parameters:
+     LocalOrdinal: int
+     GlobalOrdinal: long long
+     Node: Kokkos::Compat::KokkosDeviceWrapperNode<Kokkos::Serial, Kokkos::HostSpace>
+    Global number of entries: 25
+    Minimum global index: 0
+    Maximum global index: 24
+    Index base: 0
+    Number of processes: 4
+    Uniform: false
+    Contiguous: false
+    Distributed: true
+    Process 0 of 4:
+     My number of entries: 10
+     My minimum global index: 0
+     My maximum global index: 9
+     My global indices: [0, 1, 3, 2, 5, 4, 7, 6, 9, 8]
+    Process 1 of 4:
+     My number of entries: 5
+     My minimum global index: 10
+     My maximum global index: 14
+     My global indices: [10, 11, 12, 13, 14]
+    Process 2 of 4:
+     My number of entries: 5
+     My minimum global index: 15
+     My maximum global index: 19
+     My global indices: [15, 16, 17, 18, 19]
+    Process 3 of 4:
+     My number of entries: 5
+     My minimum global index: 20
+     My maximum global index: 24
+     My global indices: [20, 21, 22, 23, 24]
+  Column Map: 
+   "Tpetra::Map":
+    Template parameters:
+     LocalOrdinal: int
+     GlobalOrdinal: long long
+     Node: Kokkos::Compat::KokkosDeviceWrapperNode<Kokkos::Serial, Kokkos::HostSpace>
+    Global number of entries: 55
+    Minimum global index: 0
+    Maximum global index: 24
+    Index base: 0
+    Number of processes: 4
+    Uniform: false
+    Contiguous: false
+    Distributed: true
+    Process 0 of 4:
+     My number of entries: 15
+     My minimum global index: 0
+     My maximum global index: 14
+     My global indices: [0, 1, 3, 2, 5, 4, 7, 6, 9, 8, 10, 11, 12, 13, 14]
+    Process 1 of 4:
+     My number of entries: 15
+     My minimum global index: 1
+     My maximum global index: 19
+     My global indices: [10, 11, 12, 13, 14, 1, 3, 5, 7, 9, 15, 16, 17, 18, 19]
+    Process 2 of 4:
+     My number of entries: 15
+     My minimum global index: 10
+     My maximum global index: 24
+     My global indices: [15, 16, 17, 18, 19, 10, 11, 12, 13, 14, 20, 21, 22, 23, 24]
+    Process 3 of 4:
+     My number of entries: 10
+     My minimum global index: 15
+     My maximum global index: 24
+     My global indices: [20, 21, 22, 23, 24, 15, 16, 17, 18, 19]
+  Domain Map: same as row Map
+  Range Map: same as domain Map
+  Process rank: 0
+   Number of allocated entries: 65
+   Number of entries: 65
+   Max number of entries per row: 9
+  Process rank: 1
+   Number of allocated entries: 39
+   Number of entries: 39
+   Max number of entries per row: 9
+  Process rank: 2
+   Number of allocated entries: 39
+   Number of entries: 39
+   Max number of entries per row: 9
+  Process rank: 3
+   Number of allocated entries: 26
+   Number of entries: 26
+   Max number of entries per row: 6
+      Proc Rank   Global Row  Num Entries(Index,Value)
+              0            0            4 (0, 1)  (1, 0)  (3, 0)  (2, 0) 
+              0            1            6 (0, 0)  (1, 2)  (3, 0)  (2, 0)  (10, 0)  (11, 0) 
+              0            3            9 (0, -0.333333)  (1, -0.333333)  (3, 2.66667)  (2, -0.333333)  (5, -0.333333)  (4, -0.333333)  (10, -0.333333)  (11, -0.333333)  (12, -0.333333) 
+              0            2            6 (0, 0)  (1, 0)  (3, 0)  (2, 1)  (5, 0)  (4, 0) 
+              0            5            9 (3, -0.333333)  (2, -0.333333)  (5, 2.66667)  (4, -0.333333)  (7, -0.333333)  (6, -0.333333)  (11, -0.333333)  (12, -0.333333)  (13, -0.333333) 
+              0            4            6 (3, 0)  (2, 0)  (5, 0)  (4, 1)  (7, 0)  (6, 0) 
+              0            7            9 (5, -0.333333)  (4, -0.333333)  (7, 2.66667)  (6, -0.333333)  (9, -0.333333)  (8, -0.333333)  (12, -0.333333)  (13, -0.333333)  (14, -0.333333) 
+              0            6            6 (5, 0)  (4, 0)  (7, 0)  (6, 1)  (9, 0)  (8, 0) 
+              0            9            6 (7, 0)  (6, 0)  (9, 2)  (8, 0)  (13, 0)  (14, 0) 
+              0            8            4 (7, 0)  (6, 0)  (9, 0)  (8, 1) 
+      Proc Rank   Global Row  Num Entries(Index,Value)
+              1           10            6 (10, 2)  (11, 0)  (1, 0)  (3, 0)  (15, 0)  (16, 0) 
+              1           11            9 (10, -0.333333)  (11, 2.66667)  (12, -0.333333)  (1, -0.333333)  (3, -0.333333)  (5, -0.333333)  (15, -0.333333)  (16, -0.333333)  (17, -0.333333) 
+              1           12            9 (11, -0.333333)  (12, 2.66667)  (13, -0.333333)  (3, -0.333333)  (5, -0.333333)  (7, -0.333333)  (16, -0.333333)  (17, -0.333333)  (18, -0.333333) 
+              1           13            9 (12, -0.333333)  (13, 2.66667)  (14, -0.333333)  (5, -0.333333)  (7, -0.333333)  (9, -0.333333)  (17, -0.333333)  (18, -0.333333)  (19, -0.333333) 
+              1           14            6 (13, 0)  (14, 2)  (7, 0)  (9, 0)  (18, 0)  (19, 0) 
+      Proc Rank   Global Row  Num Entries(Index,Value)
+              2           15            6 (15, 2)  (16, 0)  (10, 0)  (11, 0)  (20, 0)  (21, 0) 
+              2           16            9 (15, -0.333333)  (16, 2.66667)  (17, -0.333333)  (10, -0.333333)  (11, -0.333333)  (12, -0.333333)  (20, -0.333333)  (21, -0.333333)  (22, -0.333333) 
+              2           17            9 (16, -0.333333)  (17, 2.66667)  (18, -0.333333)  (11, -0.333333)  (12, -0.333333)  (13, -0.333333)  (21, -0.333333)  (22, -0.333333)  (23, -0.333333) 
+              2           18            9 (17, -0.333333)  (18, 2.66667)  (19, -0.333333)  (12, -0.333333)  (13, -0.333333)  (14, -0.333333)  (22, -0.333333)  (23, -0.333333)  (24, -0.333333) 
+              2           19            6 (18, 0)  (19, 2)  (13, 0)  (14, 0)  (23, 0)  (24, 0) 
+      Proc Rank   Global Row  Num Entries(Index,Value)
+              3           20            4 (20, 1)  (21, 0)  (15, 0)  (16, 0) 
+              3           21            6 (20, 0)  (21, 1)  (22, 0)  (15, 0)  (16, 0)  (17, 0) 
+              3           22            6 (21, 0)  (22, 1)  (23, 0)  (16, 0)  (17, 0)  (18, 0) 
+
+
+
+              3           23            6 (22, 0)  (23, 1)  (24, 0)  (17, 0)  (18, 0)  (19, 0) 
+              3           24            4 (23, 0)  (24, 1)  (18, 0)  (19, 0) 
+
+ "Tpetra::MultiVector":
+  Template parameters:
+   Scalar: double
+   LocalOrdinal: int
+   GlobalOrdinal: long long
+   Node: Serial/Wrapper
+  Global number of rows: 25
+  Number of columns: 1
+  Process 0 of 4:
+   Local number of rows: 10
+   Column stride: 10
+   Values: 
+   [0; 0; 1.15936e+251; 0; -7.1917e+264; 0; -3.59585e+265; 0; 0; 0]
+  Process 1 of 4:
+   Local number of rows: 5
+   Column stride: 5
+   Values: 
+   [0; 2.68953e+252; -7.1917e+265; 1.15067e+266; 0]
+  Process 2 of 4:
+   Local number of rows: 5
+   Column stride: 5
+   Values: 
+   [0; 5.71387e+256; -1.43834e+266; 1.00684e+266; 0]
+  Process 3 of 4:
+   Local number of rows: 5
+   Column stride: 5
+   Values: 
+   [0; 0; 0; 0; 0]
+terminate called after throwing an instance of 'Belos::StatusTestError'
+  what():  /Users/tmwilde/Desktop/Software/Trilinos_2/Trilinos/trilinos-kokkos/include/BelosStatusTestGenResNorm.hpp:578:
+
+Throw number = 49
+
+Throw test that evaluated to true: true
+
+StatusTestGenResNorm::checkStatus(): NaN has been detected.
+terminate called after throwing an instance of 'Belos::StatusTestError'
+[s998638:10697] *** Process received signal ***
+[s998638:10697] Signal: Abort trap: 6 (6)
+[s998638:10697] Signal code:  (0)
+  what():  /Users/tmwilde/Desktop/Software/Trilinos_2/Trilinos/trilinos-kokkos/include/BelosStatusTestGenResNorm.hpp:578:
+
+Throw number = 49
+
+Throw test that evaluated to true: true
+
+StatusTestGenResNorm::checkStatus(): NaN has been detected.
+[s998638:10700] *** Process received signal ***
+[s998638:10700] Signal: Abort trap: 6 (6)
+[s998638:10700] Signal code:  (0)
+[s998638:10697] *** End of error message ***
+[s998638:10700] *** End of error message ***
+terminate called after throwing an instance of 'Belos::StatusTestError'
+  what():  /Users/tmwilde/Desktop/Software/Trilinos_2/Trilinos/trilinos-kokkos/include/BelosStatusTestGenResNorm.hpp:578:
+
+Throw number = 49
+
+Throw test that evaluated to true: true
+
+StatusTestGenResNorm::checkStatus(): NaN has been detected.
+[s998638:10699] *** Process received signal ***
+[s998638:10699] Signal: Abort trap: 6 (6)
+[s998638:10699] Signal code:  (0)
+[s998638:10699] *** End of error message ***
+terminate called after throwing an instance of 'Belos::StatusTestError'
+  what():  /Users/tmwilde/Desktop/Software/Trilinos_2/Trilinos/trilinos-kokkos/include/BelosStatusTestGenResNorm.hpp:578:
+
+Throw number = 49
+
+Throw test that evaluated to true: true
+
+StatusTestGenResNorm::checkStatus(): NaN has been detected.
+[s998638:10698] *** Process received signal ***
+[s998638:10698] Signal: Abort trap: 6 (6)
+[s998638:10698] Signal code:  (0)
+[s998638:10698] *** End of error message ***
+-------------------------------------------------------
+Primary job  terminated normally, but 1 process returned
+a non-zero exit code. Per user-direction, the job has been aborted.
+-------------------------------------------------------
+--------------------------------------------------------------------------
+mpiexec noticed that process rank 3 with PID 0 on node s998638 exited on signal 6 (Abort trap: 6).
+--------------------------------------------------------------------------

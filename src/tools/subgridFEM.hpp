@@ -284,7 +284,7 @@ public:
   ScalarT initial_time, final_time;
   Teuchos::RCP<Teuchos::ParameterList> settings;
   string macroshape, shape, multiscale_method, error_type;
-  int nummacroVars, subgridverbose, numrefine;
+  int nummacroVars, subgridverbose, numrefine, assemble_together;
   topo_RCP cellTopo, macro_cellTopo;
   
   // Linear algebra / solver objects

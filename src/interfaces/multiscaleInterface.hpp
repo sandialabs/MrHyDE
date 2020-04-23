@@ -94,7 +94,7 @@ class MultiScale {
   ////////////////////////////////////////////////////////////////////////////////
   
   bool subgrid_static;
-  int milo_debug_level;
+  int milo_debug_level, macro_concurrency;
   vector<Teuchos::RCP<SubGridModel> > subgridModels;
   Teuchos::RCP<MpiComm> Comm, MacroComm;
   Teuchos::RCP<Teuchos::ParameterList> settings;

@@ -38,7 +38,7 @@ macro_functionManager(macro_functionManager_) {
     
     int nummodels = settings->sublist("Subgrid").get<int>("Number of Models",1);
     subgrid_static = settings->sublist("Subgrid").get<bool>("Static Subgrids",true);
-    
+    macro_concurrency = settings->sublist("Subgrid").get<int>("Macro-element concurrency",1);
     
     for (size_t n=0; n<subgridModels.size(); n++) {
       stringstream ss;
@@ -103,12 +103,8 @@ ScalarT MultiScale::initialize() {
       // needs to be updated
       //vector<size_t> sgnum = udfunc->getSubgridModel(cells[b][e]->nodes, macro_wkset[b],
       //                                               cells[b][e]->u, subgridModels.size());
-      vector<size_t> usernum;
-      int numElem = cells[b][e]->numElem;
-      
-      
-      vector<size_t> sgnum(numElem,0);
-      
+      //vector<size_t> usernum;
+      //int numElem = cells[b][e]->numElem;
       
       macro_wkset[b]->update(cells[b][e]->ip,cells[b][e]->wts,
                              cells[b][e]->jacobian,cells[b][e]->jacobianInv,
@@ -118,122 +114,68 @@ ScalarT MultiScale::initialize() {
       macro_wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_dot, seedwhat);
       macro_wkset[b]->computeParamVolIP(cells[b][e]->param, seedwhat);
       
+      //vector<size_t> sgnum(numElem,0);
+      vector<int> sgvotes(subgridModels.size(),0);
       
       for (size_t s=0; s<subgridModels.size(); s++) {
         stringstream ss;
         ss << s;
         FDATA usagecheck = macro_functionManager->evaluate("Subgrid " + ss.str() + " usage","ip",0);
         
-        for (int p=0; p<numElem; p++) {
+        for (int p=0; p<cells[b][e]->numElem; p++) {
           for (size_t j=0; j<usagecheck.extent(1); j++) {
             if (usagecheck(p,j).val() >= 1.0) {
-              sgnum[p] = s;
+              sgvotes[s] += 1;
             }
           }
         }
+        //cout << "s = " << s << "  " << sgvotes[s] << endl;
+      }
+      int maxvotes = -1;
+      int sgwinner = -1;
+      for (size_t i=0; i<sgvotes.size(); i++) {
+        if (sgvotes[i] >= maxvotes) {
+          maxvotes = sgvotes[i];
+          sgwinner = i;
+        }
+      }
+      if (maxvotes < cells[b][e]->numElem) {
+        //output a warning
       }
       
+      int sgusernum;
       if (subgrid_static) { // only add each cell to one subgrid model
-        DRV cellnodes = cells[b][e]->nodes;
-        Kokkos::View<int****,HostDevice> cellsideinfo = cells[b][e]->sideinfo;
-        Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
-        Kokkos::View<LO***,HostDevice> index = cells[b][e]->index;
         
-        for (int c=0; c<numElem; c++) {
-          DRV cnodes("cnodes",1,cellnodes.extent(1),cellnodes.extent(2));
-          Kokkos::View<int****,HostDevice> csideinfo("csideinfo",1,cellsideinfo.extent(1),
-                                                     cellsideinfo.extent(2),
-                                                     cellsideinfo.extent(3));
-          Kokkos::View<GO**,HostDevice> cGIDs("GIDs",1,GIDs.extent(1));
-          Kokkos::View<LO***,HostDevice> cindex("index",1,index.extent(1), index.extent(2));
-          
-          Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation("macro-orient",1);
-          orientation(0) = cells[b][e]->orientation(c);
-          for (int i=0; i<cellnodes.extent(1); i++) {
-            for (int j=0; j<cellnodes.extent(2); j++) {
-              cnodes(0,i,j) = cellnodes(c,i,j);
-            }
-          }
-          for (int i=0; i<cellsideinfo.extent(1); i++) {
-            for (int j=0; j<cellsideinfo.extent(2); j++) {
-              for (int k=0; k<cellsideinfo.extent(3); k++) {
-                csideinfo(0,i,j,k) = cellsideinfo(c,i,j,k);
-              }
-            }
-          }
-          for (int i=0; i<GIDs.extent(1); i++) {
-            cGIDs(0,i) = GIDs(c,i);
-          }
-          for (int i=0; i<index.extent(1); i++) {
-            for (int j=0; j<index.extent(2); j++) {
-              cindex(0,i,j) = index(c,i,j);
-            }
-          }
-          // needs to be updated
-          
-          int cnum = subgridModels[sgnum[c]]->addMacro(cnodes, csideinfo,
-                                                       cGIDs, cindex, orientation);
-          
-          usernum.push_back(cnum);
-        }
+        sgusernum = subgridModels[sgwinner]->addMacro(cells[b][e]->nodes,
+                                                      cells[b][e]->sideinfo,
+                                                      cells[b][e]->GIDs,
+                                                      cells[b][e]->index,
+                                                      cells[b][e]->orientation);
+        
+        //int cnum = subgridModels[sgnum[c]]->addMacro(cnodes, csideinfo,
+        //                                             cGIDs, cindex, orientation);
+        
+        
       }
       else {
-        // usernum is the same for all subgrid models
-        DRV cellnodes = cells[b][e]->nodes;
-        Kokkos::View<int****,HostDevice> cellsideinfo = cells[b][e]->sideinfo;
-        Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
-        Kokkos::View<LO***,HostDevice> index = cells[b][e]->index;
-        
-        for (int c=0; c<numElem; c++) {
-          DRV cnodes("cnodes",1,cellnodes.extent(1),cellnodes.extent(2));
-          Kokkos::View<int****,HostDevice> csideinfo("csideinfo",1,cellsideinfo.extent(1),
-                                                     cellsideinfo.extent(2),
-                                                     cellsideinfo.extent(3));
-          Kokkos::View<GO**,HostDevice> cGIDs("GIDs",1,GIDs.extent(1));
-          Kokkos::View<LO***,HostDevice> cindex("index",1,index.extent(1), index.extent(2));
-          Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation("macro-orient",1);
-          orientation(0) = cells[b][e]->orientation(c);
-          
-          for (int i=0; i<cellnodes.extent(1); i++) {
-            for (int j=0; j<cellnodes.extent(2); j++) {
-              cnodes(0,i,j) = cellnodes(c,i,j);
-            }
-          }
-          for (int i=0; i<cellsideinfo.extent(1); i++) {
-            for (int j=0; j<cellsideinfo.extent(2); j++) {
-              for (int k=0; k<cellsideinfo.extent(3); k++) {
-                csideinfo(0,i,j,k) = cellsideinfo(c,i,j,k);
-              }
-            }
-          }
-          for (int i=0; i<GIDs.extent(1); i++) {
-            cGIDs(0,i) = GIDs(c,i);
-          }
-          for (int i=0; i<index.extent(1); i++) {
-            for (int j=0; j<index.extent(2); j++) {
-              cindex(0,i,j) = index(c,i,j);
-            }
-          }
-          for (size_t s=0; s<subgridModels.size(); s++) {
-            int cnum = subgridModels[s]->addMacro(cnodes, csideinfo,
-                                                  cGIDs, cindex, orientation);
-            usernum.push_back(cnum);
-          }
-          numusers += 1;
+        for (size_t s=0; s<subgridModels.size(); s++) { // needs to add this cell info to all of them (sgusernum is same for all)
+          sgusernum = subgridModels[s]->addMacro(cells[b][e]->nodes,
+                                                 cells[b][e]->sideinfo,
+                                                 cells[b][e]->GIDs,
+                                                 cells[b][e]->index,
+                                                 cells[b][e]->orientation);
         }
-        
       }
       cells[b][e]->subgridModels = subgridModels;
-      cells[b][e]->subgrid_model_index.push_back(sgnum);
-      cells[b][e]->subgrid_usernum = usernum;
+      cells[b][e]->subgrid_model_index.push_back(sgwinner);
+      cells[b][e]->subgrid_usernum = sgusernum;
       cells[b][e]->cellData->multiscale = true;
-      for (int c=0; c<numElem; c++) {
-        my_cost += subgridModels[sgnum[c]]->cost_estimate;
-      }
+      my_cost = subgridModels[sgwinner]->cost_estimate * cells[b][e]->numElem;
+      numusers += 1;
     }
   }
   
-  for (size_t s=0; s< subgridModels.size(); s++) {
+  for (size_t s=0; s<subgridModels.size(); s++) {
     subgridModels[s]->finalize();
   }
   
@@ -250,14 +192,14 @@ ScalarT MultiScale::initialize() {
       size_t numactive = 0;
       for (size_t b=0; b<cells.size(); b++) {
         for (size_t e=0; e<cells[b].size(); e++) {
-          for (int c=0; c<cells[b][e]->numElem; c++) {
-            if (cells[b][e]->subgrid_model_index[c][0] == s) {
-              size_t usernum = cells[b][e]->subgrid_usernum[c];
+          //for (int c=0; c<cells[b][e]->numElem; c++) {
+            if (cells[b][e]->subgrid_model_index[0] == s) {
+              size_t usernum = cells[b][e]->subgrid_usernum;
               active[usernum] = true;
               numactive += 1;
             }
           }
-        }
+        //}
       }
       subgridModels[s]->active.push_back(active);
     }
@@ -265,6 +207,7 @@ ScalarT MultiScale::initialize() {
     for (size_t i=0; i<subgridModels.size(); i++) {
       DRV ip = subgridModels[i]->getIP();
       DRV wts = subgridModels[i]->getIPWts();
+      
       pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > basisinfo_i = subgridModels[i]->evaluateBasis2(ip);
       vector<Teuchos::RCP<LA_CrsMatrix> > currmaps;
       for (size_t j=0; j<subgridModels.size(); j++) {
@@ -313,12 +256,12 @@ ScalarT MultiScale::update() {
       for (size_t e=0; e<cells[b].size(); e++) {
         if (cells[b][e]->cellData->multiscale) {
           int numElem = cells[b][e]->numElem;
-          for (int c=0;c<numElem; c++) {
-            int nummod = cells[b][e]->subgrid_model_index[c].size();
-            int oldmodel = cells[b][e]->subgrid_model_index[c][nummod-1];
-            cells[b][e]->subgrid_model_index[c].push_back(oldmodel);
+          //for (int c=0;c<numElem; c++) {
+            int nummod = cells[b][e]->subgrid_model_index.size();
+            int oldmodel = cells[b][e]->subgrid_model_index[nummod-1];
+            cells[b][e]->subgrid_model_index.push_back(oldmodel);
             my_cost += subgridModels[oldmodel]->cost_estimate;
-          }
+          //}
         }
       }
     }
@@ -327,12 +270,6 @@ ScalarT MultiScale::update() {
     for (size_t b=0; b<cells.size(); b++) {
       for (size_t e=0; e<cells[b].size(); e++) {
         if (cells[b][e]->cellData->multiscale) {
-          // needs to be updated
-          //vector<size_t> newmodel = udfunc->getSubgridModel(cells[b][e]->nodes, macro_wkset[0],
-          //                                               cells[b][e]->u, subgridModels.size());
-          
-          int numElem = cells[b][e]->numElem;
-          vector<size_t> newmodel(numElem,0);
           
           macro_wkset[b]->update(cells[b][e]->ip,cells[b][e]->wts,
                                  cells[b][e]->jacobian,cells[b][e]->jacobianInv,
@@ -342,52 +279,63 @@ ScalarT MultiScale::update() {
           macro_wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_dot, seedwhat);
           macro_wkset[b]->computeParamVolIP(cells[b][e]->param, seedwhat);
           
+          vector<int> sgvotes(subgridModels.size(),0);
+          
           for (size_t s=0; s<subgridModels.size(); s++) {
             stringstream ss;
             ss << s;
             FDATA usagecheck = macro_functionManager->evaluate("Subgrid " + ss.str() + " usage","ip",0);
-            
-            for (int p=0; p<numElem; p++) {
+            for (int p=0; p<cells[b][e]->numElem; p++) {
               for (size_t j=0; j<usagecheck.extent(1); j++) {
                 if (usagecheck(p,j).val() >= 1.0) {
-                  newmodel[p] = s;
+                  sgvotes[s] += 1;
                 }
               }
             }
           }
-
-          for (int c=0;c<numElem; c++) {
+          int maxvotes = -1;
+          int sgwinner = -1;
+          for (size_t i=0; i<sgvotes.size(); i++) {
+            if (sgvotes[i] >= maxvotes) {
+              maxvotes = sgvotes[i];
+              sgwinner = i;
+            }
+          }
+          if (maxvotes < cells[b][e]->numElem) {
+            //output a warning
+          }
+          
+          //for (int c=0;c<numElem; c++) {
             
-            int nummod = cells[b][e]->subgrid_model_index[c].size();
-            int oldmodel = cells[b][e]->subgrid_model_index[c][nummod-1];
-            if (newmodel[c] != oldmodel) {
+            int nummod = cells[b][e]->subgrid_model_index.size();
+            int oldmodel = cells[b][e]->subgrid_model_index[nummod-1];
+            if (sgwinner != oldmodel) {
               
-              int usernum = cells[b][e]->subgrid_usernum[c];
+              int usernum = cells[b][e]->subgrid_usernum;
               // get the time/solution from old subgrid model at last time step
               int lastindex = subgridModels[oldmodel]->soln->times[usernum].size()-1;
               Teuchos::RCP<LA_MultiVector> lastsol = subgridModels[oldmodel]->soln->data[usernum][lastindex];
               ScalarT lasttime = subgridModels[oldmodel]->soln->times[usernum][lastindex];
               //Teuchos::RCP<LA_MultiVector> projvec = Teuchos::rcp(new LA_MultiVector(subgridModels[newmodel[c]]->owned_map,1));
-              vector_RCP projvec = subgridModels[newmodel[c]]->getVector();//Teuchos::rcp(new LA_MultiVector(subgridModels[newmodel[c]]->owned_map,1));
-              subgrid_projection_maps[newmodel[c]][oldmodel]->apply(*lastsol, *projvec);
+              vector_RCP projvec = subgridModels[sgwinner]->getVector();//Teuchos::rcp(new LA_MultiVector(subgridModels[newmodel[c]]->owned_map,1));
+              subgrid_projection_maps[sgwinner][oldmodel]->apply(*lastsol, *projvec);
               
               //Teuchos::RCP<LA_MultiVector> newvec = Teuchos::rcp(new LA_MultiVector(subgridModels[newmodel[c]]->owned_map,1));
-              vector_RCP newvec = subgridModels[newmodel[c]]->getVector();
-              subgrid_projection_solvers[newmodel[c]]->setB(projvec);
-              subgrid_projection_solvers[newmodel[c]]->setX(newvec);
+              vector_RCP newvec = subgridModels[sgwinner]->getVector();
+              subgrid_projection_solvers[sgwinner]->setB(projvec);
+              subgrid_projection_solvers[sgwinner]->setX(newvec);
               
-              subgrid_projection_solvers[newmodel[c]]->solve();
-              
-              subgridModels[newmodel[c]]->soln->store(newvec, lasttime, usernum);
+              subgrid_projection_solvers[sgwinner]->solve();
+              subgridModels[sgwinner]->soln->store(newvec, lasttime, usernum);
               //subgridModels[newmodel[c]]->solutionStorage(newvec, lastsol.first, false, usernum);
               
               // update the cell
               //cells[b][e]->subgridModel = subgridModels[newmodel];
               
             }
-            my_cost += subgridModels[newmodel[c]]->cost_estimate;
-            cells[b][e]->subgrid_model_index[c].push_back(newmodel[c]);
-          }
+            my_cost += subgridModels[sgwinner]->cost_estimate * cells[b][e]->numElem;
+            cells[b][e]->subgrid_model_index.push_back(sgwinner);
+          //}
         }
       }
     }
@@ -397,14 +345,14 @@ ScalarT MultiScale::update() {
       size_t numactive = 0;
       for (size_t b=0; b<cells.size(); b++) {
         for (size_t e=0; e<cells[b].size(); e++) {
-          for (int c=0; c<cells[b][e]->numElem; c++) {
-            size_t nindex = cells[b][e]->subgrid_model_index[c].size();
-            if (cells[b][e]->subgrid_model_index[c][nindex-1] == s) {
-              size_t usernum = cells[b][e]->subgrid_usernum[c];
+          //for (int c=0; c<cells[b][e]->numElem; c++) {
+            size_t nindex = cells[b][e]->subgrid_model_index.size();
+            if (cells[b][e]->subgrid_model_index[nindex-1] == s) {
+              size_t usernum = cells[b][e]->subgrid_usernum;
               active[usernum] = true;
               numactive += 1;
             }
-          }
+          //}
         }
       }
       subgridModels[s]->active.push_back(active);
@@ -448,15 +396,15 @@ void MultiScale::writeSolution(const string & macrofilename, const vector<Scalar
       
       for (size_t b=0; b<cells.size(); b++) {
         for (size_t e=0; e<cells[b].size(); e++) {
-          for (size_t c=0; c<cells[b][e]->numElem; c++) {
+          //for (size_t c=0; c<cells[b][e]->numElem; c++) {
             
             stringstream ss;
             ss << globalPID << "." << e;
             string filename = "subgrid_data/subgrid_"+macrofilename+".exo." + ss.str();// + ".exo";
             //cells[b][e]->writeSubgridSolution(blockname);
-            int sgmodelnum = cells[b][e]->subgrid_model_index[c][0];
-            subgridModels[sgmodelnum]->writeSolution(filename, cells[b][e]->subgrid_usernum[c]);
-          }
+            int sgmodelnum = cells[b][e]->subgrid_model_index[0];
+            subgridModels[sgmodelnum]->writeSolution(filename, cells[b][e]->subgrid_usernum);
+          //}
         }
       }
     }
