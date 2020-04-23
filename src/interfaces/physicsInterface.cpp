@@ -519,6 +519,15 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
     currSubgrid.push_back(currsettings.get<bool>("subgrid_maxwell",false));
   }
   
+  // Maxwell hybridized
+  if (currsettings.get<bool>("solve_maxwell_hybrid",false)) {
+    Teuchos::RCP<maxwell_HYBRID> maxwell_HYBRID_RCP = Teuchos::rcp(new maxwell_HYBRID(settings, numip,
+                                                                      numip_side,numElemPerCell,
+                                                                      functionManager, blocknum) );
+    currmodules.push_back(maxwell_HYBRID_RCP);
+    currSubgrid.push_back(currsettings.get<bool>("subgrid_maxwell_hybrid",false));
+  }
+
   /* not setting up correctly
    // Burgers (entropy viscosity)
    if (currsettings.get<bool>("solve_burgers",false)) {

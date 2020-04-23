@@ -47,6 +47,7 @@ physics/linearelasticity.cpp
 physics/helmholtz.cpp
 physics/msphasefield.cpp
 physics/maxwells_fp.cpp
+physics/maxwell_hybridized.cpp
 physics/shallowwater.cpp
 physics/maxwell.cpp
 tools/functionManager.cpp)

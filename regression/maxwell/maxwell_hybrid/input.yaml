@@ -1,0 +1,76 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh Settings File: input_mesh.yaml
+  Physics: 
+    Active variables:
+      Ex: HGRAD-DG
+      Ey: HGRAD-DG
+      Ez: HGRAD-DG
+      Hx: HGRAD-DG
+      Hy: HGRAD-DG
+      Hz: HGRAD-DG
+      lambdax: HFACE
+      lambday: HFACE
+      lambdaz: HFACE
+    eblock-0_0_0: 
+      solve_maxwell_hybrid: true
+      Dirichlet conditions:
+        lambda:
+          left: '0.0'
+          right: '0.0'
+          top: '0.0'
+          bottom: '0.0'
+          front: '0.0'
+          back: '0.0'
+      true solutions:
+        Ex: '0.0'
+        Ey: '0.0'
+        Ez: '0.0'
+        Hx: '0.0'
+        Hy: '0.0'
+        Hz: '0.0'
+        lambdax: '0.0'
+        lambday: '0.0'
+        lambdaz: '0.0'
+  Parameters Settings File: input_params.yaml
+  Functions Settings File: input_functions.yaml
+  Solver: 
+    solver: transient
+    Workset Size: 1
+    Verbosity: 0
+    NLtol: 9.99999999999999955e-07
+    MaxNLiter: 2
+    finaltime: 1.00000000000000000e+00
+    numSteps: 10
+    Initial type: none
+    use direct solver: true
+    use preconditioner: false
+  Discretization:
+    eblock-0_0_0:
+      order:
+        Ex: 1
+        Ey: 1
+        Ez: 1
+        Hx: 1
+        Hy: 1
+        Hz: 1
+        lambdax: 1
+        lambday: 1
+        lambdaz: 1
+      quadrature: 1
+  Analysis:
+    analysis type: forward
+    Have Sensor Points: false
+    Have Sensor Data: false
+  Postprocess: 
+    response type: global
+    Verbosity: 0
+    verification: true
+    compute response: false
+    write solution: false
+    compute objective: false
+    compute sensitivities: false
+...
