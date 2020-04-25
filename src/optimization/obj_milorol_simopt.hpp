@@ -358,7 +358,7 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
     for(int i=0;i<n;i++){
       diff = difflo + i*diffstep;
       (*Params_rcp)[0] = diff;
-      val = this->value(Params,tol);
+      val = value(Params,tol); // GH: removed "this->". need to revisit if this should call base or derived method.
       if(output.is_open()){
         output << std::scientific << diff << " " << val << "\n";
       }
@@ -387,7 +387,7 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
         b = blo + j*bstep;
         (*Params_rcp)[0] = a;
         (*Params_rcp)[1] = b;
-        val = this->value(Params,tol);
+        val = value(Params,tol); // GH: removed "this->". need to revisit if this should call base or derived method.
         if(output.is_open()){
           output << std::scientific << a << " " << b << " " << val << "\n";
         }

@@ -1538,7 +1538,7 @@ Kokkos::View<int****,HostDevice> physics::getSideInfo(const size_t & block,
   size_t nvars = side_info[block].extent(1);
   size_t nelemsides = side_info[block].extent(2);
   size_t nglobalsides = side_info[block].extent(3);
-  Kokkos::View<int****> currsi("side info for cell",nelem,nvars,nelemsides, 2);
+  Kokkos::View<int****,HostDevice> currsi("side info for cell",nelem,nvars,nelemsides, 2);
   for (int e=0; e<nelem; e++) {
     for (int j=0; j<nelemsides; j++) {
       for (int i=0; i<nvars; i++) {

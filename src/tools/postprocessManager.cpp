@@ -1027,7 +1027,7 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
         cells[b][k]->updateSolnWorkset(u,0); // also updates ip, ijac
         cells[b][k]->updateData();
         assembler->wkset[b]->time = solvetimes[m];
-        Kokkos::View<ScalarT***,HostDevice> cfields = phys->getExtraCellFields(b, cells[b][k]->numElem);
+        Kokkos::View<ScalarT***,AssemblyDevice> cfields = phys->getExtraCellFields(b, cells[b][k]->numElem);
         for (int p=0; p<cells[b][k]->numElem; p++) {
           size_t j = 0;
           for (size_t h=0; h<cfields.extent(1); h++) {

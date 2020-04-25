@@ -729,7 +729,7 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       int numElem = cells[b][e]->numElem;
-      Kokkos::View<ScalarT**,HostDevice> cell_data("cell_data",numElem,numdata);
+      Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
       cells[b][e]->cell_data = cell_data;
       cells[b][e]->cell_data_distance = vector<ScalarT>(numElem);
       cells[b][e]->cell_data_seed = vector<size_t>(numElem);
@@ -1013,7 +1013,7 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       int numElem = cells[b][e]->numElem;
-      Kokkos::View<ScalarT**,HostDevice> cell_data("cell_data",numElem,numdata);
+      Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
       cells[b][e]->cell_data = cell_data;
       cells[b][e]->cell_data_distance = vector<ScalarT>(numElem);
       cells[b][e]->cell_data_seed = vector<size_t>(numElem);
@@ -1110,7 +1110,7 @@ void meshInterface::remesh(const vector_RCP & u, vector<vector<Teuchos::RCP<cell
   
   for (size_t b=0; b<cells.size(); b++) {
     for( size_t e=0; e<cells[b].size(); e++ ) {
-      Kokkos::View<LO***,HostDevice> index = cells[b][e]->index;
+      Kokkos::View<LO***,AssemblyDevice> index = cells[b][e]->index;
       DRV nodes = cells[b][e]->nodes;
       bool changed = false;
       for (int p=0; p<cells[b][e]->numElem; p++) {

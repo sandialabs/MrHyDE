@@ -477,13 +477,15 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
     }
     
     // This should be ok if KokkosTools is updated for device
+    // GH: commented this out for now; it can't tell DRV from DRVint
+    /*
     if (milo_debug_level > 2) {
       if (Comm->getRank() == 0) {
         KokkosTools::print(local_res, "inside assemblyManager.cpp, res after volumetric");
         KokkosTools::print(local_J, "inside assemblyManager.cpp, J after volumetric");
         KokkosTools::print(local_Jdot, "inside assemblyManager.cpp, J_dot after volumetric");
       }
-    }
+    }*/
     
     ///////////////////////////////////////////////////////////////////////////
     // Insert into global matrix/vector
@@ -578,13 +580,15 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
             
           }
           
+          // GH: commented this out for now; it can't tell DRV from DRVint
+          /*
           if (milo_debug_level > 2) {
             if (Comm->getRank() == 0) {
               KokkosTools::print(local_res, "inside assemblyManager.cpp, res after boundary");
               KokkosTools::print(local_J, "inside assemblyManager.cpp, J after boundary");
               KokkosTools::print(local_Jdot, "inside assemblyManager.cpp, J_dot after boundary");
             }
-          }
+          }*/
           
           ///////////////////////////////////////////////////////////////////////////
           // Insert into global matrix/vector

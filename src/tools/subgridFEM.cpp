@@ -95,7 +95,7 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
 
 int SubGridFEM::addMacro(DRV & macronodes_,
                          Kokkos::View<int****,HostDevice> & macrosideinfo_,
-                         Kokkos::View<GO**,HostDevice> & macroGIDs_,
+                         Kokkos::View<GO**,AssemblyDevice> & macroGIDs_,
                          Kokkos::View<LO***,HostDevice> & macroindex_,
                          Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & macroorientation_) {
   

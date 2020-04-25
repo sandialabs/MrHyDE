@@ -209,7 +209,7 @@ void uqmanager::computeStatistics(const vector<Kokkos::View<ScalarT***,HostDevic
     }
     if (Comm.getRank() == 0 )
     cout << "Mean value of the response: " << endl;
-    KokkosTools::print(meanval);
+    // KokkosTools::print(meanval); // GH: commenting this out for now; it can't tell DRV from DRVint
   }
   /*if (uqsettings.get<bool>("Compute variance",true)) {
    ScalarT meanval = 0.0;

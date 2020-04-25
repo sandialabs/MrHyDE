@@ -261,15 +261,14 @@ void solver::finalizeWorkset() {
         maxoff = voffsets[i].size();
       }
     }
-    Kokkos::View<int**,HostDevice> offsets_host("offsets on host device",voffsets.size(),maxoff);
+    // GH: this will not work if AssemblyMem is Cuda
+    Kokkos::View<int**,AssemblyDevice> offsets_view("offsets on assembly device",voffsets.size(),maxoff);
     for (size_t i=0; i<voffsets.size(); i++) {
       for (size_t j=0; j<voffsets[i].size(); j++) {
-        offsets_host(i,j) = voffsets[i][j];
+        offsets_view(i,j) = voffsets[i][j];
       }
     }
-    Kokkos::View<int**,AssemblyDevice>::HostMirror offsets_device = Kokkos::create_mirror_view(offsets_host);
-    Kokkos::deep_copy(offsets_host, offsets_device);
-    assembler->wkset[b]->offsets = offsets_device;//phys->voffsets[b];
+    assembler->wkset[b]->offsets = offsets_view;//phys->voffsets[b];
     
     size_t maxpoff = 0;
     for (size_t i=0; i<params->paramoffsets.size(); i++) {
@@ -278,18 +277,17 @@ void solver::finalizeWorkset() {
       }
       //maxpoff = max(maxpoff,paramoffsets[i].size());
     }
-    Kokkos::View<int**,HostDevice> poffsets_host("param offsets on host device",params->paramoffsets.size(),maxpoff);
+    // GH: this will not work if AssemblyMem is Cuda
+    Kokkos::View<int**,AssemblyDevice> poffsets_view("param offsets on assembly device",params->paramoffsets.size(),maxpoff);
     for (size_t i=0; i<params->paramoffsets.size(); i++) {
       for (size_t j=0; j<params->paramoffsets[i].size(); j++) {
-        poffsets_host(i,j) = params->paramoffsets[i][j];
+        poffsets_view(i,j) = params->paramoffsets[i][j];
       }
     }
-    Kokkos::View<int**,AssemblyDevice>::HostMirror poffsets_device = Kokkos::create_mirror_view(poffsets_host);
-    Kokkos::deep_copy(poffsets_host, poffsets_device);
     
     assembler->wkset[b]->usebasis = useBasis[b];
     assembler->wkset[b]->paramusebasis = params->discretized_param_usebasis;
-    assembler->wkset[b]->paramoffsets = poffsets_device;//paramoffsets;
+    assembler->wkset[b]->paramoffsets = poffsets_view;//paramoffsets;
     assembler->wkset[b]->varlist = varlist[b];
     int numDOF = assembler->cells[b][0]->GIDs.extent(1);
     for (size_t e=0; e<assembler->cells[b].size(); e++) {
@@ -355,12 +353,10 @@ void solver::setupLinearAlgebra() {
   
   for (size_t b=0; b<assembler->cells.size(); b++) {
     vector<vector<int> > curroffsets = phys->offsets[b];
-    Kokkos::View<LO*,HostDevice> numDOF_KVhost("number of DOF per variable",numVars[b]);
+    Kokkos::View<LO*,AssemblyDevice> numDOF_KV("number of DOF per variable",numVars[b]);
     for (int k=0; k<numVars[b]; k++) {
-      numDOF_KVhost(k) = numBasis[b][k];
+      numDOF_KV(k) = numBasis[b][k];
     }
-    Kokkos::View<LO*,AssemblyDevice> numDOF_KV = Kokkos::create_mirror_view(numDOF_KVhost);
-    Kokkos::deep_copy(numDOF_KVhost, numDOF_KV);
     
     for(size_t e=0; e<assembler->cells[b].size(); e++) {
       gids = assembler->cells[b][e]->GIDs;
@@ -933,6 +929,8 @@ void solver::setButcherTableau() {
     butcher_c(2) = 1.0/2.0;
     butcher_c(3) = 1.0;
   }
+  // GH: commenting this out for now; it can't tell DRV from DRVint and has an overload problem
+  /*
   if (milo_debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "******** Butcher tableau: " << endl;
@@ -940,7 +938,7 @@ void solver::setButcherTableau() {
       KokkosTools::print(butcher_b, "solver::setButcherTableau() - Butcher-b");
       KokkosTools::print(butcher_c, "solver::setButcherTableau() - Butcher-c");
     }
-  }
+  }*/
 }
 
 // ========================================================================================
