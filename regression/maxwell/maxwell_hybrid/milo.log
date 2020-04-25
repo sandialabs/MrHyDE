@@ -1,8 +1,20 @@
 p=0 | CubeHexMesh: Building sub cells
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  /Users/tmwilde/Desktop/Software/MrHyDE/src/interfaces/solverInterface.cpp:371:
 
-*********************************************************
-***** Performing verification ******
+Throw number = 1
 
-***** L2 norm of the error for p = 0.135175  (time = 0)
-***** L2 norm of the error for u = 1.22176  (time = 0)
-***** L2 norm of the error for lambda = 0.353553  (time = 0)
+Throw test that evaluated to true: gids.extent(1) > maxDerivs
+
+Error: maxDerivs is not large enough to support the number of degrees of freedom per element times the number of time stages.
+[s998638:17774] *** Process received signal ***
+[s998638:17774] Signal: Abort trap: 6 (6)
+[s998638:17774] Signal code:  (0)
+[s998638:17774] *** End of error message ***
+-------------------------------------------------------
+Primary job  terminated normally, but 1 process returned
+a non-zero exit code. Per user-direction, the job has been aborted.
+-------------------------------------------------------
+--------------------------------------------------------------------------
+mpiexec noticed that process rank 0 with PID 0 on node s998638 exited on signal 6 (Abort trap: 6).
+--------------------------------------------------------------------------

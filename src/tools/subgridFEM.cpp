@@ -1403,6 +1403,13 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
         wkset[0]->localEID = e;
         //wkset[0]->var_bcs = subgridbcs[usernum];
         
+        {
+          Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverAllocateTimer);
+          local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",boundaryCells[0][e]->numElem,numDOF,1);
+          local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",boundaryCells[0][e]->numElem,numDOF,numDOF);
+          local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",boundaryCells[0][e]->numElem,numDOF,numDOF);
+        }
+        /*
         for (int p=0; p<numElem; p++) {
           for (int n=0; n<numDOF; n++) {
             for (unsigned int s=0; s<local_res.extent(2); s++) {
@@ -1413,7 +1420,7 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
               local_Jdot(p,n,s) = 0.0;
             }
           }
-        }
+        }*/
         //KokkosTools::print(local_J);
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverJacResTimer);

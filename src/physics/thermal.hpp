@@ -64,33 +64,17 @@ public:
   
 private:
   
-  data grains;
- 
-  size_t numip, numip_side, blocknum;
+  size_t blocknum;
   
-  int spaceDim, numElem, numParams, numResponses;
-  vector<string> varlist;
-  int e_num, e_basis, numBasis, ux_num, uy_num, uz_num;
+  int spaceDim;
+  int e_num, ux_num, uy_num, uz_num;
   int auxe_num = -1;
-  ScalarT alpha;
-  bool isTD;
-  //int test, simNum;
-  //string simName;
-  
-  ScalarT v, dvdx, dvdy, dvdz, x, y, z;
-  AD e, e_dot, dedx, dedy, dedz, reax, weakDiriScale, lambda, penalty;
-  AD ux, uy, uz;
-  
-  int resindex;
   
   FDATA diff, rho, cp, source, nsource, diff_side, robin_alpha;
-  Kokkos::View<int****,AssemblyDevice> sideinfo;
   
-  string analysis_type; //to know when parameter is a sample that needs to be transformed
-  
-  bool useScalarRespFx;
   bool multiscale, have_nsvel;
   ScalarT formparam;
+  
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::thermal::volumeResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::thermal::volumeResidual() - evaluation of residual");
   Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::thermal::boundaryResidual() - function evaluation");

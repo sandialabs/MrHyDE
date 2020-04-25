@@ -101,6 +101,8 @@ public:
     res = wkset->res;
     adjrhs = wkset->adjrhs;
     flux = wkset->flux;
+    bcs = wkset->var_bcs;
+    h = wkset->h;
     
   }
   
@@ -119,6 +121,8 @@ public:
   Kokkos::View<AD***,AssemblyDevice> aux, aux_side, sol_div, flux;
   Kokkos::View<AD**,AssemblyDevice> res, adjrhs;
   Kokkos::View<int**,AssemblyDevice> offsets;
+  Kokkos::View<int**,UnifiedDevice> bcs;
+  Kokkos::View<ScalarT*,AssemblyDevice> h;
   
   // The basis functions change depending on the variable, so these cannot be set just once
   DRV basis, basis_grad, basis_div, basis_curl, normals;
