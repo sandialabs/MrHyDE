@@ -52,8 +52,7 @@ public:
   
   maxwell_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
                  const size_t & numip_side_, const int & numElem_,
-                 Teuchos::RCP<FunctionManager> & functionManager_,
-                 const size_t & blocknum_);
+                 Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -89,7 +88,7 @@ private:
   FDATA bsourcex, bsourcey, bsourcez;
   
   int spaceDim, numElem, numParams, numResponses, numSteps;
-  size_t numip, numip_side, blocknum;
+  size_t numip, numip_side;
   
   int Ex_num, Ey_num, Ez_num,
       Hx_num, Hy_num, Hz_num,

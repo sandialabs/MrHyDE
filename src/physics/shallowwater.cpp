@@ -17,9 +17,8 @@
 
 shallowwater::shallowwater(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
                            const size_t & numip_side_, const int & numElem_,
-                           Teuchos::RCP<FunctionManager> & functionManager_,
-                           const size_t & blocknum_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
+                           Teuchos::RCP<FunctionManager> & functionManager_) :
+numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   
   label = "shallowwater";
   functionManager = functionManager_;
@@ -50,21 +49,21 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
   
   
   Teuchos::ParameterList fs = settings->sublist("Functions");
-  functionManager->addFunction("bathymetry",fs.get<string>("bathymetry","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("bathymetry_x",fs.get<string>("bathymetry_x","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("bathymetry_y",fs.get<string>("bathymetry_y","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("bottom friction",fs.get<string>("bottom friction","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("viscosity",fs.get<string>("viscosity","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("Coriolis",fs.get<string>("Coriolis","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("source Hu",fs.get<string>("source Hu","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("source Hv",fs.get<string>("source Hv","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("flux left",fs.get<string>("flux left","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("flux right",fs.get<string>("flux right","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("flux top",fs.get<string>("flux top","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("flux bottom",fs.get<string>("flux bottom","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("Neumann source Hu",fs.get<string>("Neumann source Hu","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("Neumann source Hv",fs.get<string>("Neumann source Hv","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("bathymetry side",fs.get<string>("bathymetry","1.0"),numElem,numip_side,"side_ip",blocknum);
+  functionManager->addFunction("bathymetry",fs.get<string>("bathymetry","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("bathymetry_x",fs.get<string>("bathymetry_x","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("bathymetry_y",fs.get<string>("bathymetry_y","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("bottom friction",fs.get<string>("bottom friction","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("viscosity",fs.get<string>("viscosity","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("Coriolis",fs.get<string>("Coriolis","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("source Hu",fs.get<string>("source Hu","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("source Hv",fs.get<string>("source Hv","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("flux left",fs.get<string>("flux left","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("flux right",fs.get<string>("flux right","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("flux top",fs.get<string>("flux top","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("flux bottom",fs.get<string>("flux bottom","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("Neumann source Hu",fs.get<string>("Neumann source Hu","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("Neumann source Hv",fs.get<string>("Neumann source Hv","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("bathymetry side",fs.get<string>("bathymetry","1.0"),numElem,numip_side,"side_ip");
   
 }
 
@@ -79,13 +78,13 @@ void shallowwater::volumeResidual() {
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    bath = functionManager->evaluate("bathymetry","ip",blocknum);
-    bath_x = functionManager->evaluate("bathymetry_x","ip",blocknum);
-    bath_y = functionManager->evaluate("bathymetry_y","ip",blocknum);
-    visc = functionManager->evaluate("viscosity","ip",blocknum);
-    cor = functionManager->evaluate("Coriolis","ip",blocknum);
-    source_Hu = functionManager->evaluate("source Hu","ip",blocknum);
-    source_Hv = functionManager->evaluate("source Hv","ip",blocknum);
+    bath = functionManager->evaluate("bathymetry","ip");
+    bath_x = functionManager->evaluate("bathymetry_x","ip");
+    bath_y = functionManager->evaluate("bathymetry_y","ip");
+    visc = functionManager->evaluate("viscosity","ip");
+    cor = functionManager->evaluate("Coriolis","ip");
+    source_Hu = functionManager->evaluate("source Hu","ip");
+    source_Hv = functionManager->evaluate("source Hv","ip");
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
@@ -176,21 +175,18 @@ void shallowwater::boundaryResidual() {
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     if (sidename == "left") {
-      nsource = functionManager->evaluate("flux left","side ip",blocknum);
+      nsource = functionManager->evaluate("flux left","side ip");
     }
     else if (sidename == "right") {
-      nsource = functionManager->evaluate("flux right","side ip",blocknum);
+      nsource = functionManager->evaluate("flux right","side ip");
     }
     else if (sidename == "top") {
-      nsource = functionManager->evaluate("flux top","side ip",blocknum);
+      nsource = functionManager->evaluate("flux top","side ip");
     }
     else if (sidename == "bottom") {
-      nsource = functionManager->evaluate("flux bottom","side ip",blocknum);
+      nsource = functionManager->evaluate("flux bottom","side ip");
     }
-    //nsource_H = functionManager->evaluate("Neumann source H","side ip",blocknum);
-    //nsource_Hu = functionManager->evaluate("Neumann source Hu","side ip",blocknum);
-    //nsource_Hv = functionManager->evaluate("Neumann source Hv","side ip",blocknum);
-    //bath_side = functionManager->evaluate("bathymetry side","side ip",blocknum);
+    
   }
   
   sideinfo = wkset->sideinfo;

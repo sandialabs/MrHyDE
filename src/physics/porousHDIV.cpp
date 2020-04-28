@@ -13,9 +13,8 @@
 
 porousHDIV::porousHDIV(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
                        const size_t & numip_side_, const int & numElem_,
-                       Teuchos::RCP<FunctionManager> & functionManager_,
-                       const size_t & blocknum_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
+                       Teuchos::RCP<FunctionManager> & functionManager_) :
+numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   
   label = "porousHDIV";
   functionManager = functionManager_;
@@ -44,7 +43,7 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
   // Functions
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("source",fs.get<string>("source","0.0"),numElem,numip,"ip",blocknum);
+  functionManager->addFunction("source",fs.get<string>("source","0.0"),numElem,numip,"ip");
   
   
 }
@@ -63,7 +62,7 @@ void porousHDIV::volumeResidual() {
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    source = functionManager->evaluate("source","ip",blocknum);
+    source = functionManager->evaluate("source","ip");
   }
   
   basis = wkset->basis[u_basis];
@@ -143,7 +142,7 @@ void porousHDIV::boundaryResidual() {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
     if (sidetype == 1 ) {
-      bsource = functionManager->evaluate("Dirichlet p " + wkset->sidename,"side ip",blocknum);
+      bsource = functionManager->evaluate("Dirichlet p " + wkset->sidename,"side ip");
     }
     
   }

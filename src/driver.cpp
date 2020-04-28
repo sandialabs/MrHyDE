@@ -102,7 +102,12 @@ int main(int argc,char * argv[]) {
     // Create the function manager
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager(settings));
+    vector<string> eBlocks;
+    mesh->mesh->getElementBlockNames(eBlocks);
+    vector<Teuchos::RCP<FunctionManager> > functionManagers;
+    for (size_t b=0; b<eBlocks.size(); b++) {
+      functionManagers.push_back(Teuchos::rcp(new FunctionManager(eBlocks[b])));
+    }
     
     ////////////////////////////////////////////////////////////////////////////////
     // Set up the physics
@@ -111,7 +116,7 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<physics> phys = Teuchos::rcp( new physics(settings, Comm,
                                                            mesh->cellTopo,
                                                            mesh->sideTopo,
-                                                           functionManager,
+                                                           functionManagers,
                                                            mesh->mesh) );
     mesh->finalize(phys);
     
@@ -152,7 +157,7 @@ int main(int argc,char * argv[]) {
     
     Teuchos::RCP<MultiScale> multiscale_manager = Teuchos::rcp( new MultiScale(Comm, subgridComm, settings,
                                                                                cells, subgridModels,
-                                                                               functionManager) );
+                                                                               functionManagers) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // Create the solver object
@@ -177,13 +182,15 @@ int main(int argc,char * argv[]) {
     // Finalize the functions
     ////////////////////////////////////////////////////////////////////////////////
     
-    functionManager->setupLists(phys->varlist[0], params->paramnames,
-                                params->discretized_param_names);
-    
-    functionManager->wkset = assembler->wkset[0];
-    
-    functionManager->validateFunctions();
-    functionManager->decomposeFunctions();
+    for (size_t b=0; b<eBlocks.size(); b++) {
+      functionManagers[b]->setupLists(phys->varlist[b], params->paramnames,
+                                      params->discretized_param_names);
+      
+      functionManagers[b]->wkset = assembler->wkset[b];
+      
+      functionManagers[b]->validateFunctions();
+      functionManagers[b]->decomposeFunctions();
+    }
     
     solve->finalizeMultiscale();
     
@@ -196,7 +203,7 @@ int main(int argc,char * argv[]) {
     
     Teuchos::RCP<PostprocessManager>
     postproc = Teuchos::rcp( new PostprocessManager(Comm, settings, mesh->mesh, disc, phys,
-                                                    solve, DOF, cells, functionManager,
+                                                    solve, DOF, cells, functionManagers,
                                                     assembler, params, sensors) );
     
     ////////////////////////////////////////////////////////////////////////////////
@@ -206,10 +213,6 @@ int main(int argc,char * argv[]) {
     
     Teuchos::RCP<analysis> analys = Teuchos::rcp( new analysis(Comm, settings,
                                                                solve, postproc, params) );
-    
-    if (verbosity >= 20 && Comm->getRank() == 0) {
-      functionManager->printFunctions();
-    }
     
     {
       Teuchos::TimeMonitor rtimer(*runTimer);

@@ -174,11 +174,11 @@ void SubGridFEM::setUpSubgridModels() {
   int numSubElem = connectivity.size();
   
   settings->sublist("Solver").set<int>("Workset size",numSubElem);
-  
-  Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager(settings));
+  vector<Teuchos::RCP<FunctionManager> > functionManagers;
+  functionManagers.push_back(Teuchos::rcp(new FunctionManager(blockID)));
   
   sub_physics = Teuchos::rcp( new physics(settings, LocalComm, sub_mesh->cellTopo,
-                                          sub_mesh->sideTopo, functionManager, sub_mesh->mesh) );
+                                          sub_mesh->sideTopo, functionManagers, sub_mesh->mesh) );
   
   sub_mesh->createCells(sub_physics,cells,boundaryCells);
   
@@ -276,14 +276,14 @@ void SubGridFEM::setUpSubgridModels() {
     Teuchos::TimeMonitor localtimer(*sgfemLinearAlgebraSetupTimer);
     
     varlist = sub_physics->varlist[0];
-    functionManager->setupLists(sub_physics->varlist[0], macro_paramnames,
+    functionManagers[0]->setupLists(sub_physics->varlist[0], macro_paramnames,
                                 macro_disc_paramnames);
     sub_assembler->wkset[0]->params_AD = paramvals_KVAD;
     
-    functionManager->wkset = sub_assembler->wkset[0];
+    functionManagers[0]->wkset = sub_assembler->wkset[0];
     
-    functionManager->validateFunctions();
-    functionManager->decomposeFunctions();
+    functionManagers[0]->validateFunctions();
+    functionManagers[0]->decomposeFunctions();
   }
   
   /////////////////////////////////////////////////////////////////////////////////////

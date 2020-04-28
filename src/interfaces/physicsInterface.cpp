@@ -53,9 +53,9 @@
 
 physics::physics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<MpiComm> & Comm_,
                  vector<topo_RCP> & cellTopo, vector<topo_RCP> & sideTopo,
-                 Teuchos::RCP<FunctionManager> & functionManager_,
+                 vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
                  Teuchos::RCP<panzer_stk::STK_Interface> & mesh) :
-Commptr(Comm_), functionManager(functionManager_) {
+Commptr(Comm_), functionManagers(functionManagers_) {
   
   milo_debug_level = settings->get<int>("debug level",0);
   
@@ -175,29 +175,29 @@ Commptr(Comm_), functionManager(functionManager_) {
       
       if (currtypes[j] == "HGRAD" || currtypes[j] == "HVOL" || currtypes[j] == "HFACE") {
         string expression = true_solns.get<string>(currvarlist[j],"0.0");
-        functionManager->addFunction("true "+currvarlist[j],expression,numElemPerCell,numip,"ip",b);
+        functionManagers[b]->addFunction("true "+currvarlist[j],expression,numElemPerCell,numip,"ip");
         
-        functionManager->addFunction("true "+currvarlist[j],expression,numElemPerCell,numip_side,"side ip",b);
+        functionManagers[b]->addFunction("true "+currvarlist[j],expression,numElemPerCell,numip_side,"side ip");
         
         expression = true_solns.get<string>(currvarlist[j]+"_x","0.0");
-        functionManager->addFunction("true "+currvarlist[j]+"_x",expression,numElemPerCell,numip,"ip",b);
+        functionManagers[b]->addFunction("true "+currvarlist[j]+"_x",expression,numElemPerCell,numip,"ip");
         
         expression = true_solns.get<string>(currvarlist[j]+"_y","0.0");
-        functionManager->addFunction("true "+currvarlist[j]+"_y",expression,numElemPerCell,numip,"ip",b);
+        functionManagers[b]->addFunction("true "+currvarlist[j]+"_y",expression,numElemPerCell,numip,"ip");
         
         expression = true_solns.get<string>(currvarlist[j]+"_z","0.0");
-        functionManager->addFunction("true "+currvarlist[j]+"_z",expression,numElemPerCell,numip,"ip",b);
+        functionManagers[b]->addFunction("true "+currvarlist[j]+"_z",expression,numElemPerCell,numip,"ip");
       }
       else if (currtypes[j] == "HDIV" || currtypes[j] == "HCURL") {
         
         string expression = true_solns.get<string>(currvarlist[j]+"x","0.0");
-        functionManager->addFunction("true "+currvarlist[j]+"x",expression,numElemPerCell,numip,"ip",b);
+        functionManagers[b]->addFunction("true "+currvarlist[j]+"x",expression,numElemPerCell,numip,"ip");
         
         expression = true_solns.get<string>(currvarlist[j]+"y","0.0");
-        functionManager->addFunction("true "+currvarlist[j]+"y",expression,numElemPerCell,numip,"ip",b);
+        functionManagers[b]->addFunction("true "+currvarlist[j]+"y",expression,numElemPerCell,numip,"ip");
         
         expression = true_solns.get<string>(currvarlist[j]+"z","0.0");
-        functionManager->addFunction("true "+currvarlist[j]+"z",expression,numElemPerCell,numip,"ip",b);
+        functionManagers[b]->addFunction("true "+currvarlist[j]+"z",expression,numElemPerCell,numip,"ip");
       }
     }
     
@@ -208,10 +208,10 @@ Commptr(Comm_), functionManager(functionManager_) {
       string expression = initial_conds.get<string>(currvarlist[j],"0.0");
       
       if (initial_type == "L2-projection") {
-        functionManager->addFunction("initial "+currvarlist[j],expression,numElemPerCell,numip,"ip",b);
+        functionManagers[b]->addFunction("initial "+currvarlist[j],expression,numElemPerCell,numip,"ip");
       }
       else {
-        functionManager->addFunction("initial "+currvarlist[j],expression,1,1,"point",b);
+        functionManagers[b]->addFunction("initial "+currvarlist[j],expression,1,1,"point");
       }
     }
     
@@ -227,10 +227,10 @@ Commptr(Comm_), functionManager(functionManager_) {
           for (size_t s=0; s<sideNames.size(); s++) {
             string label = "Dirichlet " + currvarlist[j] + " " + sideNames[s];
             //if (weak_dbcs) {
-              functionManager->addFunction(label,entry,numElemPerCell,numip_side,"side ip",b);
+              functionManagers[b]->addFunction(label,entry,numElemPerCell,numip_side,"side ip");
             //}
             //else {
-              functionManager->addFunction(label,entry,1,1,"point",b);
+              functionManagers[b]->addFunction(label,entry,1,1,"point");
             //}
           }
           
@@ -242,10 +242,10 @@ Commptr(Comm_), functionManager(functionManager_) {
             string entry = currdbcs.get<string>(d_itr->first);
             string label = "Dirichlet " + currvarlist[j] + " " + d_itr->first;
             //if (weak_dbcs) {
-              functionManager->addFunction(label,entry,numElemPerCell,numip_side,"side ip",b);
+              functionManagers[b]->addFunction(label,entry,numElemPerCell,numip_side,"side ip");
             //}
             //else {
-              functionManager->addFunction(label,entry,1,1,"point",b);
+              functionManagers[b]->addFunction(label,entry,1,1,"point");
             //}
             d_itr++;
           }
@@ -263,7 +263,7 @@ Commptr(Comm_), functionManager(functionManager_) {
           string entry = nbcs.sublist(currvarlist[j]).get<string>("all boundaries");
           for (size_t s=0; s<sideNames.size(); s++) {
             string label = "Neumann " + currvarlist[j] + " " + sideNames[s];
-            functionManager->addFunction(label,entry,numElemPerCell,numip_side,"side ip",b);
+            functionManagers[b]->addFunction(label,entry,numElemPerCell,numip_side,"side ip");
           }
         }
         else {
@@ -272,7 +272,7 @@ Commptr(Comm_), functionManager(functionManager_) {
           while (n_itr != currnbcs.end()) {
             string entry = currnbcs.get<string>(n_itr->first);
             string label = "Neumann " + currvarlist[j] + " " + n_itr->first;
-            functionManager->addFunction(label,entry,numElemPerCell,numip_side,"side ip",b);
+            functionManagers[b]->addFunction(label,entry,numElemPerCell,numip_side,"side ip");
             n_itr++;
           }
         }
@@ -285,8 +285,8 @@ Commptr(Comm_), functionManager(functionManager_) {
     while (ef_itr != efields.end()) {
       string entry = efields.get<string>(ef_itr->first);
       block_ef.push_back(ef_itr->first);
-      functionManager->addFunction(ef_itr->first,entry,numElemPerCell,numip,"ip",b);
-      functionManager->addFunction(ef_itr->first,entry,numElemPerCell,1,"point",b);
+      functionManagers[b]->addFunction(ef_itr->first,entry,numElemPerCell,numip,"ip");
+      functionManagers[b]->addFunction(ef_itr->first,entry,numElemPerCell,1,"point");
       ef_itr++;
     }
     extrafields_list.push_back(block_ef);
@@ -297,7 +297,7 @@ Commptr(Comm_), functionManager(functionManager_) {
     while (ecf_itr != ecfields.end()) {
       string entry = ecfields.get<string>(ecf_itr->first);
       block_ecf.push_back(ecf_itr->first);
-      functionManager->addFunction(ecf_itr->first,entry,numElemPerCell,numip,"ip",b);
+      functionManagers[b]->addFunction(ecf_itr->first,entry,numElemPerCell,numip,"ip");
       ecf_itr++;
     }
     extracellfields_list.push_back(block_ecf);
@@ -309,7 +309,7 @@ Commptr(Comm_), functionManager(functionManager_) {
     while (r_itr != rfields.end()) {
       string entry = rfields.get<string>(r_itr->first);
       block_resp.push_back(r_itr->first);
-      functionManager->addFunction(r_itr->first,entry,1,1,"point",b);
+      functionManagers[b]->addFunction(r_itr->first,entry,1,1,"point");
       r_itr++;
     }
     response_list.push_back(block_resp);
@@ -320,7 +320,7 @@ Commptr(Comm_), functionManager(functionManager_) {
     while (t_itr != tfields.end()) {
       string entry = tfields.get<string>(t_itr->first);
       block_targ.push_back(t_itr->first);
-      functionManager->addFunction(t_itr->first,entry,1,1,"point",b);
+      functionManagers[b]->addFunction(t_itr->first,entry,1,1,"point");
       t_itr++;
     }
     target_list.push_back(block_targ);
@@ -331,7 +331,7 @@ Commptr(Comm_), functionManager(functionManager_) {
     while (w_itr != wfields.end()) {
       string entry = wfields.get<string>(w_itr->first);
       block_wts.push_back(w_itr->first);
-      functionManager->addFunction(w_itr->first,entry,1,1,"point",b);
+      functionManagers[b]->addFunction(w_itr->first,entry,1,1,"point");
       w_itr++;
     }
     weight_list.push_back(block_wts);
@@ -344,9 +344,9 @@ Commptr(Comm_), functionManager(functionManager_) {
     Teuchos::ParameterList::ConstIterator fnc_itr = functions.begin();
     while (fnc_itr != functions.end()) {
       string entry = functions.get<string>(fnc_itr->first);
-      functionManager->addFunction(fnc_itr->first,entry,numElemPerCell,numip,"ip",b);
-      functionManager->addFunction(fnc_itr->first,entry,numElemPerCell,numip_side,"side ip",b);
-      functionManager->addFunction(fnc_itr->first,entry,1,1,"point",b);
+      functionManagers[b]->addFunction(fnc_itr->first,entry,numElemPerCell,numip,"ip");
+      functionManagers[b]->addFunction(fnc_itr->first,entry,numElemPerCell,numip_side,"side ip");
+      functionManagers[b]->addFunction(fnc_itr->first,entry,1,1,"point");
       fnc_itr++;
     }
   }
@@ -358,7 +358,7 @@ Commptr(Comm_), functionManager(functionManager_) {
       Teuchos::ParameterList::ConstIterator fnc_itr = side_functions.begin();
       while (fnc_itr != side_functions.end()) {
         string entry = side_functions.get<string>(fnc_itr->first);
-        functionManager->addFunction(fnc_itr->first,entry,numElemPerCell,numip_side,"side ip",b);
+        functionManagers[b]->addFunction(fnc_itr->first,entry,numElemPerCell,numip_side,"side ip");
         fnc_itr++;
       }
     }
@@ -401,8 +401,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   // Porous media (single phase slightly compressible)
   if (currsettings.get<bool>("solve_porous",false)) {
     Teuchos::RCP<porous> porous_RCP = Teuchos::rcp(new porous(settings, numip, numip_side,
-                                                              numElemPerCell, functionManager,
-                                                              blocknum) );
+                                                              numElemPerCell, functionManagers[blocknum]) );
     currmodules.push_back(porous_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_porous",false));
   }
@@ -411,8 +410,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   // Porous media with HDIV basis
   if (currsettings.get<bool>("solve_porousHDIV",false)) {
     Teuchos::RCP<porousHDIV> porousHDIV_RCP = Teuchos::rcp(new porousHDIV(settings, numip, numip_side,
-                                                                          numElemPerCell, functionManager,
-                                                                          blocknum) );
+                                                                          numElemPerCell, functionManagers[blocknum]) );
     currmodules.push_back(porousHDIV_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_porousHDIV",false));
   }
@@ -420,8 +418,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   // Hybridized porous media with HDIV basis
   if (currsettings.get<bool>("solve_porousHDIV_hybrid",false)) {
     Teuchos::RCP<porousHDIV_HYBRID> porousHDIV_HYBRID_RCP = Teuchos::rcp(new porousHDIV_HYBRID(settings, numip, numip_side,
-                                                                          numElemPerCell, functionManager,
-                                                                          blocknum) );
+                                                                          numElemPerCell, functionManagers[blocknum]) );
     currmodules.push_back(porousHDIV_HYBRID_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_porousHDIV_HYBRID",false));
   }
@@ -429,8 +426,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   // weak Galerkin porous media with HDIV basis
   if (currsettings.get<bool>("solve_porousHDIV_weakGalerkin",false)) {
     Teuchos::RCP<porousHDIV_WG> porousHDIV_WG_RCP = Teuchos::rcp(new porousHDIV_WG(settings, numip, numip_side,
-                                                                          numElemPerCell, functionManager,
-                                                                          blocknum) );
+                                                                          numElemPerCell, functionManagers[blocknum]) );
     currmodules.push_back(porousHDIV_WG_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_porousHDIV_WG",false));
   }
@@ -446,15 +442,13 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
     }
     else if (formulation == "PoNo"){
       Teuchos::RCP<twophasePoNo> twophase_RCP = Teuchos::rcp(new twophasePoNo(settings, numip, numip_side,
-                                                                              numElemPerCell, functionManager,
-                                                                              blocknum) );
+                                                                              numElemPerCell, functionManagers[blocknum]) );
       currmodules.push_back(twophase_RCP);
       currSubgrid.push_back(currsettings.get<bool>("subgrid_twophase",false));
     }
     else if (formulation == "PoPw"){
       Teuchos::RCP<twophasePoPw> twophase_RCP = Teuchos::rcp(new twophasePoPw(settings, numip, numip_side,
-                                                                              numElemPerCell, functionManager,
-                                                                              blocknum) );
+                                                                              numElemPerCell, functionManagers[blocknum]) );
       currmodules.push_back(twophase_RCP);
       currSubgrid.push_back(currsettings.get<bool>("subgrid_twophase",false));
     }
@@ -464,7 +458,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   // Convection diffusion
   if (currsettings.get<bool>("solve_cdr",false)) {
     Teuchos::RCP<cdr> cdr_RCP = Teuchos::rcp(new cdr(settings, numip, numip_side,
-                                                    numElemPerCell, functionManager, blocknum) );
+                                                    numElemPerCell, functionManagers[blocknum]) );
     currmodules.push_back(cdr_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_cdr",false));
   }
@@ -480,7 +474,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   if (currsettings.get<bool>("solve_thermal",false)) {
     Teuchos::RCP<thermal> thermal_RCP = Teuchos::rcp(new thermal(settings, numip,
                                                                  numip_side, numElemPerCell,
-                                                                 functionManager, blocknum) );
+                                                                 functionManagers[blocknum]) );
     currmodules.push_back(thermal_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_thermal",false));
   }
@@ -496,8 +490,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   // Thermal with enthalpy variable
   if (currsettings.get<bool>("solve_thermal_enthalpy",false)) {
     Teuchos::RCP<thermal_enthalpy> thermal_enthalpy_RCP = Teuchos::rcp(new thermal_enthalpy(settings, numip, numip_side,
-                                                                                            numElemPerCell, functionManager,
-                                                                                            blocknum) );
+                                                                                            numElemPerCell, functionManagers[blocknum]) );
     currmodules.push_back(thermal_enthalpy_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_thermal_enthalpy",false));
   }
@@ -505,7 +498,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   // Shallow Water
   if (currsettings.get<bool>("solve_shallowwater",false)) {
     Teuchos::RCP<shallowwater> shallowwater_RCP = Teuchos::rcp(new shallowwater(settings, numip, numip_side,numElemPerCell,
-                                                                                functionManager, blocknum) );
+                                                                                functionManagers[blocknum]) );
     currmodules.push_back(shallowwater_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_shallowwater",false));
   }
@@ -513,8 +506,8 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   // Maxwell
   if (currsettings.get<bool>("solve_maxwell",false)) {
     Teuchos::RCP<maxwell> maxwell_RCP = Teuchos::rcp(new maxwell(settings, numip,
-                                                                      numip_side,numElemPerCell,
-                                                                      functionManager, blocknum) );
+                                                                 numip_side,numElemPerCell,
+                                                                 functionManagers[blocknum]) );
     currmodules.push_back(maxwell_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_maxwell",false));
   }
@@ -523,7 +516,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   if (currsettings.get<bool>("solve_maxwell_hybrid",false)) {
     Teuchos::RCP<maxwell_HYBRID> maxwell_HYBRID_RCP = Teuchos::rcp(new maxwell_HYBRID(settings, numip,
                                                                       numip_side,numElemPerCell,
-                                                                      functionManager, blocknum) );
+                                                                      functionManagers[blocknum]) );
     currmodules.push_back(maxwell_HYBRID_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_maxwell_hybrid",false));
   }
@@ -548,7 +541,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
     Teuchos::RCP<msphasefield> msphasefield_RCP = Teuchos::rcp(new msphasefield(settings, Commptr,
                                                                                 numip, numip_side,
                                                                                 numElemPerCell,
-                                                                                functionManager, blocknum) );
+                                                                                functionManagers[blocknum]) );
     currmodules.push_back(msphasefield_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_msphasefield",false));
   }
@@ -556,8 +549,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   // Stokes
   if (currsettings.get<bool>("solve_stokes",false)) {
     Teuchos::RCP<stokes> stokes_RCP = Teuchos::rcp(new stokes(settings, numip, numip_side,
-                                                                                numElemPerCell, functionManager,
-                                                                                blocknum) );
+                                                              numElemPerCell, functionManagers[blocknum]) );
 
     currmodules.push_back(stokes_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_stokes",false));
@@ -566,8 +558,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   // Navier Stokes
   if (currsettings.get<bool>("solve_navierstokes",false)) {
     Teuchos::RCP<navierstokes> navierstokes_RCP = Teuchos::rcp(new navierstokes(settings, numip, numip_side,
-                                                                                numElemPerCell, functionManager,
-                                                                                blocknum) );
+                                                                                numElemPerCell, functionManagers[blocknum]) );
     
     currmodules.push_back(navierstokes_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_navierstokes",false));
@@ -584,7 +575,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   if (currsettings.get<bool>("solve_linearelasticity",false)) {
     Teuchos::RCP<linearelasticity> linearelasticity_RCP = Teuchos::rcp(new linearelasticity(settings, numip,
                                                                                             numip_side, numElemPerCell,
-                                                                                            functionManager, blocknum) );
+                                                                                            functionManagers[blocknum]) );
     currmodules.push_back(linearelasticity_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_linearelasticity",false));
   }
@@ -600,8 +591,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   // Helmholtz
   if (currsettings.get<bool>("solve_helmholtz",false)) {
     Teuchos::RCP<helmholtz> helmholtz_RCP = Teuchos::rcp(new helmholtz(settings, numip, numip_side,
-                                                                       numElemPerCell, functionManager,
-                                                                       blocknum) );
+                                                                       numElemPerCell, functionManagers[blocknum]) );
     currmodules.push_back(helmholtz_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_helmholtz",false));
   }
@@ -616,8 +606,7 @@ void physics::importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teu
   // Maxwell's (potential of electric field, curl-curl frequency domain (Boyse et al (1992))
   if (currsettings.get<bool>("solve_maxwells_freq_pot",false)){
     Teuchos::RCP<maxwells_fp> maxwells_fp_RCP = Teuchos::rcp(new maxwells_fp(settings, numip, numip_side,
-                                                                             numElemPerCell, functionManager,
-                                                                             blocknum) );
+                                                                             numElemPerCell, functionManagers[blocknum]) );
     currmodules.push_back(maxwells_fp_RCP);
     currSubgrid.push_back(currsettings.get<bool>("subgrid_maxwells_freq_pot",false));
   }
@@ -760,7 +749,7 @@ AD physics::getDirichletValue(const int & block, const ScalarT & x, const Scalar
   wkset->time_KV(0) = t;
   
   // evaluate the response
-  FDATA ddata = functionManager->evaluate("Dirichlet " + var + " " + gside,"point",block);
+  FDATA ddata = functionManagers[block]->evaluate("Dirichlet " + var + " " + gside,"point");
   AD val = 0.0;
   return ddata(0,0);
   
@@ -803,7 +792,7 @@ void physics::trueSolution(const int & block, const ScalarT & time,
     string btype = types[block][v];
     if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE") {
       string expression = "true " + varlist[block][v];
-      FDATA tsol = functionManager->evaluate(expression,"ip",block);
+      FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
       for (size_t i=0; i<truesol.extent(0); i++) {
         for (size_t j=0; j<truesol.extent(2); j++) {
           truesol(i,v,j,0) = tsol(i,j).val();
@@ -812,7 +801,7 @@ void physics::trueSolution(const int & block, const ScalarT & time,
     }
     else if (btype == "HDIV" || btype == "HCURL") {
       string expression = "true " + varlist[block][v] + "x";
-      FDATA tsol = functionManager->evaluate(expression,"ip",block);
+      FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
       for (size_t i=0; i<truesol.extent(0); i++) {
         for (size_t j=0; j<truesol.extent(2); j++) {
           truesol(i,v,j,0) = tsol(i,j).val();
@@ -820,7 +809,7 @@ void physics::trueSolution(const int & block, const ScalarT & time,
       }
       if (spaceDim > 1){
         string expression = "true " + varlist[block][v] + "y";
-        FDATA tsol = functionManager->evaluate(expression,"ip",block);
+        FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
         for (size_t i=0; i<truesol.extent(0); i++) {
           for (size_t j=0; j<truesol.extent(2); j++) {
             truesol(i,v,j,1) = tsol(i,j).val();
@@ -829,7 +818,7 @@ void physics::trueSolution(const int & block, const ScalarT & time,
       }
       if (spaceDim > 2) {
         string expression = "true " + varlist[block][v] + "z";
-        FDATA tsol = functionManager->evaluate(expression,"ip",block);
+        FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
         for (size_t i=0; i<truesol.extent(0); i++) {
           for (size_t j=0; j<truesol.extent(2); j++) {
             truesol(i,v,j,2) = tsol(i,j).val();
@@ -849,7 +838,7 @@ void physics::trueSolutionFace(const int & block, const ScalarT & time,
   for (int v=0; v<varlist[block].size(); v++) {
     string btype = types[block][v];
     string expression = "true " + varlist[block][v];
-    FDATA tsol = functionManager->evaluate(expression,"side ip",block);
+    FDATA tsol = functionManagers[block]->evaluate(expression,"side ip");
     for (size_t i=0; i<truesol.extent(0); i++) {
       for (size_t j=0; j<truesol.extent(2); j++) {
         truesol(i,v,j,0) = tsol(i,j).val();
@@ -866,7 +855,7 @@ void physics::trueSolutionGrad(const int & block, const ScalarT & time,
   
   for (int v=0; v<varlist[block].size(); v++) {
     string expression = "true " + varlist[block][v] + "_x";
-    FDATA tsol = functionManager->evaluate(expression,"ip",block);
+    FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
     for (size_t i=0; i<truesol.extent(0); i++) {
       for (size_t j=0; j<truesol.extent(2); j++) {
         truesol(i,v,j,0) = tsol(i,j).val();
@@ -874,7 +863,7 @@ void physics::trueSolutionGrad(const int & block, const ScalarT & time,
     }
     if (spaceDim>1) {
       string expression = "true " + varlist[block][v] + "_y";
-      FDATA tsol = functionManager->evaluate(expression,"ip",block);
+      FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
       for (size_t i=0; i<truesol.extent(0); i++) {
         for (size_t j=0; j<truesol.extent(2); j++) {
           truesol(i,v,j,1) = tsol(i,j).val();
@@ -883,7 +872,7 @@ void physics::trueSolutionGrad(const int & block, const ScalarT & time,
     }
     if (spaceDim > 2) {
       string expression = "true " + varlist[block][v] + "_z";
-      FDATA tsol = functionManager->evaluate(expression,"ip",block);
+      FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
       for (size_t i=0; i<truesol.extent(0); i++) {
         for (size_t j=0; j<truesol.extent(2); j++) {
           truesol(i,v,j,2) = tsol(i,j).val();
@@ -941,7 +930,7 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
       for (size_t r=0; r<numResponses; r++) {
         
         // evaluate the response
-        FDATA rdata = functionManager->evaluate(response_list[block][r],"point",block);
+        FDATA rdata = functionManagers[block]->evaluate(response_list[block][r],"point");
         // copy data into responsetotal
         responsetotal(e,r,k) = rdata(0,0);
       }
@@ -1002,7 +991,7 @@ Kokkos::View<AD***,AssemblyDevice> physics::target(const int & block, const DRV 
           wkset->point_KV(0,0,s) = ip(e,k,s);
         }
         
-        FDATA tdata = functionManager->evaluate(target_list[block][t],"point",block);
+        FDATA tdata = functionManagers[block]->evaluate(target_list[block][t],"point");
         targettotal(e,t,k) = tdata(0,0);
       }
     }
@@ -1028,7 +1017,7 @@ Kokkos::View<AD***,AssemblyDevice> physics::weight(const int & block, const DRV 
         for (size_t s=0; s<spaceDim; s++) {
           wkset->point_KV(0,0,s) = ip(e,k,s);
         }
-        FDATA wdata = functionManager->evaluate(weight_list[block][t],"point",block);
+        FDATA wdata = functionManagers[block]->evaluate(weight_list[block][t],"point");
         weighttotal(e,t,k) = wdata(0,0);
       }
     }
@@ -1056,7 +1045,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> physics::getInitial(const DRV & ip, const
     // ip in wkset are set in cell::getInitial
     
     // evaluate
-    FDATA ivals_AD = functionManager->evaluate("initial " + var,"ip",block);
+    FDATA ivals_AD = functionManagers[block]->evaluate("initial " + var,"ip");
     
     //copy
     for (size_t e=0; e<numElem; e++) {
@@ -1074,7 +1063,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> physics::getInitial(const DRV & ip, const
         }
         
         // evaluate
-        FDATA ivals_AD = functionManager->evaluate("initial " + var,"point",block);
+        FDATA ivals_AD = functionManagers[block]->evaluate("initial " + var,"point");
         
         // copy
         ivals(e,i) = ivals_AD(0,0).val();
@@ -1184,7 +1173,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> physics::getExtraFields(const int & bloc
         for (size_t s=0; s<spaceDim; s++) {
           wkset->point_KV(0,0,s) = ip(e,j,s);
         }
-        FDATA efdata = functionManager->evaluate(extrafields_list[block][k],"point",block);
+        FDATA efdata = functionManagers[block]->evaluate(extrafields_list[block][k],"point");
         fields(e,k,j) = efdata(0,0).val();
       }
     }
@@ -1200,7 +1189,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> physics::getExtraCellFields(const int & 
   Kokkos::View<ScalarT***,AssemblyDevice> fields("cell field data",numElem,extracellfields_list[block].size(),1);
   
   for (size_t k=0; k<extracellfields_list[block].size(); k++) {
-    FDATA efdata = functionManager->evaluate(extracellfields_list[block][k],"ip",block);
+    FDATA efdata = functionManagers[block]->evaluate(extracellfields_list[block][k],"ip");
     size_t numip = efdata.extent(1);
     for (size_t e=0; e<numElem; e++) {
       for (size_t j=0; j<numip; j++) {

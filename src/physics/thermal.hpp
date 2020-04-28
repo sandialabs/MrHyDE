@@ -33,8 +33,7 @@ public:
   
   thermal(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
           const size_t & numip_side_, const int & numElem_,
-          Teuchos::RCP<FunctionManager> & functionManager_,
-          const size_t & blocknum_) ;
+          Teuchos::RCP<FunctionManager> & functionManager_) ;
   
   // ========================================================================================
   // ========================================================================================
@@ -63,8 +62,6 @@ public:
   void setAuxVars(std::vector<string> & auxvarlist);
   
 private:
-  
-  size_t blocknum;
   
   int spaceDim;
   int e_num, ux_num, uy_num, uz_num;

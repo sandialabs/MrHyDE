@@ -21,9 +21,8 @@
 msphasefield::msphasefield(Teuchos::RCP<Teuchos::ParameterList> & settings,
                            const Teuchos::RCP<MpiComm> & Comm_, const int & numip_,
                            const size_t & numip_side_, const int & numElem_,
-                           Teuchos::RCP<FunctionManager> & functionManager_,
-                           const size_t & blocknum_) :
-Comm(Comm_), numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
+                           Teuchos::RCP<FunctionManager> & functionManager_) :
+Comm(Comm_), numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   
   functionManager = functionManager_;
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);

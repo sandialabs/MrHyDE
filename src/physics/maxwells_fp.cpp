@@ -17,9 +17,8 @@
 
 maxwells_fp::maxwells_fp(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
                          const size_t & numip_side_, const int & numElem_,
-                         Teuchos::RCP<FunctionManager> & functionManager_,
-                         const size_t & blocknum_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
+                         Teuchos::RCP<FunctionManager> & functionManager_) :
+numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   
   //potential approach to frequency-domain Maxwell's (see Boyse et al (1992)); uses -iwt convention
   

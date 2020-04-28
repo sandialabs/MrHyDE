@@ -29,6 +29,8 @@ public:
     
     term newt = term(expression);
     terms.push_back(newt);
+    //terms = Kokkos::View<term*,AssemblyDevice>(expression, 1);
+    
   } ;
   
   ~function_class() {};
@@ -39,6 +41,7 @@ public:
   
   size_t dim0, dim1;
   vector<term> terms;
+  //Kokkos::View<term*,AssemblyDevice> terms;
   string function_name, expression, location;
   bool isScalar, isStatic, onSide;
   

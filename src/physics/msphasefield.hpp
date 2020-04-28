@@ -37,8 +37,7 @@ public:
   msphasefield(Teuchos::RCP<Teuchos::ParameterList> & settings,
                const Teuchos::RCP<MpiComm> & Comm_, const int & numip_,
                const size_t & numip_side_, const int & numElem_,
-               Teuchos::RCP<FunctionManager> & functionManager_,
-               const size_t & blocknum_);
+               Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -105,7 +104,7 @@ public:
   
 private:
   
-  size_t numip, numip_side, numElem, blocknum;
+  size_t numip, numip_side, numElem;
   
   Teuchos::RCP<MpiComm> Comm;      
   std::vector<AD> diff_FAD, L, A;   

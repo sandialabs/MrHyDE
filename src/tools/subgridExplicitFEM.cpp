@@ -168,7 +168,7 @@ int SubGridExpFEM::addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> 
     int numNodesPerElem = cellTopo->getNodeCount();
     
     if (first_time) { // first time through
-      functionManager = Teuchos::rcp(new FunctionManager(settings));
+      functionManagers.push_back(Teuchos::rcp(new FunctionManager(blockID)));
       
       vector<topo_RCP> cellTopo;
       cellTopo.push_back(discTools->getCellTopology(dimension, shape));
@@ -176,7 +176,7 @@ int SubGridExpFEM::addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> 
       vector<topo_RCP> sideTopo;
       sideTopo.push_back(discTools->getCellSideTopology(dimension, shape));
       physics_RCP = Teuchos::rcp( new physics(settings, LocalComm, cellTopo, sideTopo,
-                                              functionManager, mesh) );
+                                              functionManagers, mesh) );
     }
     
     orders = physics_RCP->unique_orders;
@@ -464,14 +464,14 @@ int SubGridExpFEM::addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> 
     
     Teuchos::TimeMonitor localtimer(*sgfemLinearAlgebraSetupTimer);
     
-    functionManager->setupLists(physics_RCP->varlist[0], macro_paramnames,
+    functionManagers[0]->setupLists(physics_RCP->varlist[0], macro_paramnames,
                                 macro_disc_paramnames);
     sub_assembler->wkset[0]->params_AD = paramvals_KVAD;
     
-    functionManager->wkset = sub_assembler->wkset[0];
+    functionManagers[0]->wkset = sub_assembler->wkset[0];
     
-    functionManager->validateFunctions();
-    functionManager->decomposeFunctions();
+    functionManagers[0]->validateFunctions();
+    functionManagers[0]->decomposeFunctions();
     
     cost_estimate = 1.0*currcells[0].size()*(currcells[0][0]->numElem)*time_steps;
     basis_pointers = disc->basis_pointers[0];

@@ -58,13 +58,13 @@ int main(int argc, char * argv[]) {
   functionManager->wkset = wkset;
   
   string test1 = "sin(a+b+c)";
-  functionManager->addFunction("test1",test1,numElem,numip,"ip",0);
+  functionManager->addFunction("test1",test1,numElem,numip,"ip");
   
   string test2 = "a+exp(b)";
-  functionManager->addFunction("test2",test2,numElem,numip,"ip",0);
+  functionManager->addFunction("test2",test2,numElem,numip,"ip");
   
   string test3 = "8*(pi^2)*sin(2*pi*x+1)*sin(2*pi*y+1)";
-  functionManager->addFunction("g",test3,numElem,numip,"ip",0);
+  functionManager->addFunction("g",test3,numElem,numip,"ip");
   
   string bubble = "-0.001*(x*x+y*y)";
   string well = "100.0*exp(bubble)";
@@ -73,24 +73,24 @@ int main(int argc, char * argv[]) {
   
   string source = "wellr - welll";
 //  source = "0.5*p*p+2";
-  functionManager->addFunction("pres","p",numElem,numip,"ip",0);
+  functionManager->addFunction("pres","p",numElem,numip,"ip");
   
-  functionManager->addFunction("bubble",bubble,numElem,numip,"ip",0);
-  functionManager->addFunction("well",well,numElem,numip,"ip",0);
-  functionManager->addFunction("welll",welll,numElem,numip,"ip",0);
-  functionManager->addFunction("wellr",wellr,numElem,numip,"ip",0);
-  functionManager->addFunction("source",source,numElem,numip,"ip",0);
+  functionManager->addFunction("bubble",bubble,numElem,numip,"ip");
+  functionManager->addFunction("well",well,numElem,numip,"ip");
+  functionManager->addFunction("welll",welll,numElem,numip,"ip");
+  functionManager->addFunction("wellr",wellr,numElem,numip,"ip");
+  functionManager->addFunction("source",source,numElem,numip,"ip");
   
   functionManager->validateFunctions();
   functionManager->decomposeFunctions();
   
   functionManager->printFunctions();
   
-  FDATA datax = functionManager->evaluate("pres","ip",0);
+  FDATA datax = functionManager->evaluate("pres","ip");
   
-  FDATA data1 = functionManager->evaluate("bubble","ip",0);
-  FDATA data2 = functionManager->evaluate("well","ip",0);
-  FDATA data3 = functionManager->evaluate("source","ip",0);
+  FDATA data1 = functionManager->evaluate("bubble","ip");
+  FDATA data2 = functionManager->evaluate("well","ip");
+  FDATA data3 = functionManager->evaluate("source","ip");
   
   parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
     for (size_t j=0; j<numip; j++) {
@@ -112,11 +112,11 @@ int main(int argc, char * argv[]) {
       }
     });
     
-    FDATA datap = functionManager->evaluate("pres","ip",0);
+    FDATA datap = functionManager->evaluate("pres","ip");
     
-    FDATA data1 = functionManager->evaluate("wellr","ip",0);
-    FDATA data2 = functionManager->evaluate("welll","ip",0);
-    FDATA data3 = functionManager->evaluate("source","ip",0);
+    FDATA data1 = functionManager->evaluate("wellr","ip");
+    FDATA data2 = functionManager->evaluate("welll","ip");
+    FDATA data3 = functionManager->evaluate("source","ip");
     
     parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
       for (size_t j=0; j<numip; j++) {

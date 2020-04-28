@@ -13,9 +13,8 @@
 
 maxwell_HYBRID::maxwell_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
                                const size_t & numip_side_, const int & numElem_,
-                               Teuchos::RCP<FunctionManager> & functionManager_,
-                               const size_t & blocknum_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
+                               Teuchos::RCP<FunctionManager> & functionManager_) :
+numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   
   label = "maxwell_hybrid";
   functionManager = functionManager_;
@@ -57,11 +56,11 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
   
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("current x",fs.get<string>("current x","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("current y",fs.get<string>("current y","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("current z",fs.get<string>("current z","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("mu",fs.get<string>("mu","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("epsilon",fs.get<string>("epsilon","1.0"),numElem,numip,"ip",blocknum);
+  functionManager->addFunction("current x",fs.get<string>("current x","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("current y",fs.get<string>("current y","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("current z",fs.get<string>("current z","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("mu",fs.get<string>("mu","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("epsilon",fs.get<string>("epsilon","1.0"),numElem,numip,"ip");
   
 }
 
@@ -78,11 +77,8 @@ void maxwell_HYBRID::volumeResidual() {
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    //current_x = functionManager->evaluate("current x","ip",blocknum);
-    //current_y = functionManager->evaluate("current y","ip",blocknum);
-    //current_z = functionManager->evaluate("current z","ip",blocknum);
-    mu = functionManager->evaluate("mu","ip",blocknum);
-    epsilon = functionManager->evaluate("epsilon","ip",blocknum);
+    mu = functionManager->evaluate("mu","ip");
+    epsilon = functionManager->evaluate("epsilon","ip");
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
@@ -279,14 +275,14 @@ void maxwell_HYBRID::boundaryResidual() {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
 
     if (sidetype == 1 ) {
-      bsourcex = functionManager->evaluate("Dirichlet lambdax " + wkset->sidename,"side ip",blocknum);
-      bsourcey = functionManager->evaluate("Dirichlet lambday " + wkset->sidename,"side ip",blocknum);
-      bsourcez = functionManager->evaluate("Dirichlet lambdaz " + wkset->sidename,"side ip",blocknum);
+      bsourcex = functionManager->evaluate("Dirichlet lambdax " + wkset->sidename,"side ip");
+      bsourcey = functionManager->evaluate("Dirichlet lambday " + wkset->sidename,"side ip");
+      bsourcez = functionManager->evaluate("Dirichlet lambdaz " + wkset->sidename,"side ip");
     }
 
-    current_x = functionManager->evaluate("current x","ip",blocknum);
-    current_y = functionManager->evaluate("current y","ip",blocknum);
-    current_z = functionManager->evaluate("current z","ip",blocknum);
+    current_x = functionManager->evaluate("current x","ip");
+    current_y = functionManager->evaluate("current y","ip");
+    current_z = functionManager->evaluate("current z","ip");
   }
 
   // Since normals get recomputed often, this needs to be reset
@@ -343,8 +339,8 @@ void maxwell_HYBRID::faceResidual() {
   {
     // It should still be possible to evaluate and use these, right?
     // TODO: add a timer for this
-    mu = functionManager->evaluate("mu","ip",blocknum);
-    epsilon = functionManager->evaluate("epsilon","ip",blocknum);
+    mu = functionManager->evaluate("mu","ip");
+    epsilon = functionManager->evaluate("epsilon","ip");
   }
 
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);

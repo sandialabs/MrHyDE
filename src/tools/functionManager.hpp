@@ -21,7 +21,7 @@ class FunctionManager {
   
   FunctionManager();
   
-  FunctionManager(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  FunctionManager(const string & blockname);
   
   //////////////////////////////////////////////////////////////////////////////////////
   // Add a user defined function
@@ -35,8 +35,7 @@ class FunctionManager {
   //////////////////////////////////////////////////////////////////////////////////////
   
   int addFunction(const string & fname, const string & expression,
-                  const size_t & dim0, const size_t & dim1, const string & location,
-                  const size_t & block);
+                  const size_t & dim0, const size_t & dim1, const string & location);
   
   //////////////////////////////////////////////////////////////////////////////////////
   // Set the lists of variables, parameters and discretized parameters
@@ -62,19 +61,19 @@ class FunctionManager {
   // Determine if a term is a ScalarT or needs to be an AD type
   //////////////////////////////////////////////////////////////////////////////////////
   
-  bool isScalarTerm(const size_t & block, const int & findex, const int & tindex);
+  bool isScalarTerm(const int & findex, const int & tindex);
     
   //////////////////////////////////////////////////////////////////////////////////////
   // Evaluate a function (probably will be deprecated)
   //////////////////////////////////////////////////////////////////////////////////////
 
-  FDATA evaluate(const string & fname, const string & location, const size_t & block);
+  FDATA evaluate(const string & fname, const string & location);
   
   //////////////////////////////////////////////////////////////////////////////////////
   // Evaluate a function
   //////////////////////////////////////////////////////////////////////////////////////
   
-  void evaluate(const size_t & block, const size_t & findex, const size_t & tindex);
+  void evaluate(const size_t & findex, const size_t & tindex);
 
   //////////////////////////////////////////////////////////////////////////////////////
   // Evaluate an operator
@@ -93,10 +92,13 @@ class FunctionManager {
   // Public data members
   //////////////////////////////////////////////////////////////////////////////////////
 
-  size_t numBlocks;
-  int verbosity;
-  vector<vector<function_class> > functions;
-  vector<string> known_vars, known_ops, variables, parameters, disc_parameters;
+  string blockname;
+  vector<function_class> functions;
+  //Kokkos::View<function_class*,AssemblyDevice> functions;
+  
+  vector<string> variables, parameters, disc_parameters;
+  vector<string> known_vars, known_ops;
+  //Kokkos::View<string*,UnifiedDevice> known_vars, known_ops;
   Teuchos::RCP<workset> wkset;
   Teuchos::RCP<Teuchos::Time> decomposeTimer = Teuchos::TimeMonitor::getNewCounter("MILO::function::decompose");
   Teuchos::RCP<Teuchos::Time> evaluateTimer = Teuchos::TimeMonitor::getNewCounter("MILO::function::evaluate");

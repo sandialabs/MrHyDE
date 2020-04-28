@@ -19,9 +19,8 @@
 
 linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
                                    const size_t & numip_side_, const int & numElem_,
-                                   Teuchos::RCP<FunctionManager> & functionManager_, const size_t & blocknum_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_),
-blocknum(blocknum_) {
+                                   Teuchos::RCP<FunctionManager> & functionManager_) :
+numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   
   label = "linearelasticity";
   
@@ -72,16 +71,13 @@ blocknum(blocknum_) {
   
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("mu",fs.get<string>("mu","0.5"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("source dx",fs.get<string>("source dx","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("source dy",fs.get<string>("source dy","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("source dz",fs.get<string>("source dz","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("mu",fs.get<string>("mu","0.5"),numElem,numip_side,"side ip",blocknum);
-  //functionManager->addFunction("Neumann source dx",fs.get<string>("Neumann source dx","0.0"),numElem,numip_side,"side ip",blocknum);
-  //functionManager->addFunction("Neumann source dy",fs.get<string>("Neumann source dy","0.0"),numElem,numip_side,"side ip",blocknum);
-  //functionManager->addFunction("Neumann source dz",fs.get<string>("Neumann source dz","0.0"),numElem,numip_side,"side ip",blocknum);
+  functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("mu",fs.get<string>("mu","0.5"),numElem,numip,"ip");
+  functionManager->addFunction("source dx",fs.get<string>("source dx","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("source dy",fs.get<string>("source dy","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("source dz",fs.get<string>("source dz","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("mu",fs.get<string>("mu","0.5"),numElem,numip_side,"side ip");
   
 }
 // ========================================================================================
@@ -96,15 +92,15 @@ void linearelasticity::volumeResidual() {
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    source_dx = functionManager->evaluate("source dx","ip",blocknum);
+    source_dx = functionManager->evaluate("source dx","ip");
     if (spaceDim > 1) {
-      source_dy = functionManager->evaluate("source dy","ip",blocknum);
+      source_dy = functionManager->evaluate("source dy","ip");
     }
     if (spaceDim > 2) {
-      source_dz = functionManager->evaluate("source dz","ip",blocknum);
+      source_dz = functionManager->evaluate("source dz","ip");
     }
-    lambda = functionManager->evaluate("lambda","ip",blocknum);
-    mu = functionManager->evaluate("mu","ip",blocknum);
+    lambda = functionManager->evaluate("lambda","ip");
+    mu = functionManager->evaluate("mu","ip");
   }
   
   this->computeStress(false);
@@ -276,17 +272,17 @@ void linearelasticity::boundaryResidual() {
     {
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
       if (dx_sidetype == 2) {
-        sourceN_dx = functionManager->evaluate("Neumann dx " + sname,"side ip",blocknum);
+        sourceN_dx = functionManager->evaluate("Neumann dx " + sname,"side ip");
       }
       if (dy_sidetype == 2) {
-        sourceN_dy = functionManager->evaluate("Neumann dy " + sname,"side ip",blocknum);
+        sourceN_dy = functionManager->evaluate("Neumann dy " + sname,"side ip");
       }
       if (dz_sidetype == 2) {
-        sourceN_dz = functionManager->evaluate("Neumann dz " + sname,"side ip",blocknum);
+        sourceN_dz = functionManager->evaluate("Neumann dz " + sname,"side ip");
       }
       
-      lambda_side = functionManager->evaluate("lambda","side ip",blocknum);
-      mu_side = functionManager->evaluate("mu","side ip",blocknum);
+      lambda_side = functionManager->evaluate("lambda","side ip");
+      mu_side = functionManager->evaluate("mu","side ip");
       
     }
     
@@ -592,8 +588,8 @@ void linearelasticity::computeFlux() {
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
     
-    lambda_side = functionManager->evaluate("lambda","side ip",blocknum);
-    mu_side = functionManager->evaluate("mu","side ip",blocknum);
+    lambda_side = functionManager->evaluate("lambda","side ip");
+    mu_side = functionManager->evaluate("mu","side ip");
   }
   
   // Since normals get recomputed often, this needs to be reset

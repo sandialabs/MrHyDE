@@ -33,8 +33,7 @@ public:
   
   thermal_enthalpy(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
                    const size_t & numip_side_, const int & numElem_,
-                   Teuchos::RCP<FunctionManager> & functionManager_,
-                   const size_t & blocknum_);
+                   Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -66,7 +65,7 @@ private:
   
   data grains;
  
-  size_t numip, numip_side, blocknum;
+  size_t numip, numip_side;
   
   int spaceDim, numElem, numParams, numResponses;
   vector<string> varlist;

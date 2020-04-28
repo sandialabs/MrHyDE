@@ -42,7 +42,7 @@ public:
                      Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                      Teuchos::RCP<solver> & solve_, Teuchos::RCP<panzer::DOFManager> & DOF_,
                      vector<vector<Teuchos::RCP<cell> > > cells_,
-                     Teuchos::RCP<FunctionManager> & functionManager,
+                     vector<Teuchos::RCP<FunctionManager> > & functionManagers,
                      Teuchos::RCP<AssemblyManager> & assembler_,
                      Teuchos::RCP<ParameterManager> & params_,
                      Teuchos::RCP<SensorManager> & sensors_);

@@ -13,9 +13,8 @@
 
 twophasePoPw::twophasePoPw(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
                            const size_t & numip_side_, const int & numElem_,
-                           Teuchos::RCP<FunctionManager> & functionManager_,
-                           const size_t & blocknum_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
+                           Teuchos::RCP<FunctionManager> & functionManager_) :
+numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   
   // Standard data
   functionManager = functionManager_;
@@ -31,25 +30,25 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
   // Functions
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("permeability",fs.get<string>("permeability","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("porosity",fs.get<string>("porosity","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("gravity",fs.get<string>("gravity","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("cap press inverse",fs.get<string>("capillary pressure inverse","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("dcap press inverse",fs.get<string>("derivative capillary pressure inverse","0.0"),numElem,numip,"ip",blocknum);
+  functionManager->addFunction("permeability",fs.get<string>("permeability","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("porosity",fs.get<string>("porosity","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("gravity",fs.get<string>("gravity","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("cap press inverse",fs.get<string>("capillary pressure inverse","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("dcap press inverse",fs.get<string>("derivative capillary pressure inverse","0.0"),numElem,numip,"ip");
   
-  functionManager->addFunction("source oil",fs.get<string>("source oil","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("viscosity oil",fs.get<string>("viscosity oil","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("relative permeability oil",fs.get<string>("relative permeability oil","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("reference density oil",fs.get<string>("reference density oil","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("reference pressure oil",fs.get<string>("reference pressure oil","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("compressibility oil",fs.get<string>("compressibility oil","0.0"),numElem,numip,"ip",blocknum);
+  functionManager->addFunction("source oil",fs.get<string>("source oil","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("viscosity oil",fs.get<string>("viscosity oil","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("relative permeability oil",fs.get<string>("relative permeability oil","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("reference density oil",fs.get<string>("reference density oil","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("reference pressure oil",fs.get<string>("reference pressure oil","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("compressibility oil",fs.get<string>("compressibility oil","0.0"),numElem,numip,"ip");
   
-  functionManager->addFunction("source water",fs.get<string>("source water","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("viscosity water",fs.get<string>("viscosity water","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("relative permeability water",fs.get<string>("relative permeability water","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("reference density water",fs.get<string>("reference density water","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("reference pressure water",fs.get<string>("reference pressure water","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("compressibility water",fs.get<string>("compressibility water","0.0"),numElem,numip,"ip",blocknum);
+  functionManager->addFunction("source water",fs.get<string>("source water","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("viscosity water",fs.get<string>("viscosity water","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("relative permeability water",fs.get<string>("relative permeability water","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("reference density water",fs.get<string>("reference density water","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("reference pressure water",fs.get<string>("reference pressure water","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("compressibility water",fs.get<string>("compressibility water","0.0"),numElem,numip,"ip");
   
 }
 
@@ -72,26 +71,26 @@ void twophasePoPw::volumeResidual() {
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    porosity = functionManager->evaluate("porosity","ip",blocknum);
-    perm = functionManager->evaluate("permeability","ip",blocknum);
+    porosity = functionManager->evaluate("porosity","ip");
+    perm = functionManager->evaluate("permeability","ip");
     
-    relperm_o = functionManager->evaluate("relative permeability oil","ip",blocknum);
-    source_o = functionManager->evaluate("source oil","ip",blocknum);
-    viscosity_o = functionManager->evaluate("viscosity oil","ip",blocknum);
-    densref_o = functionManager->evaluate("reference density oil","ip",blocknum);
-    pref_o = functionManager->evaluate("reference pressure oil","ip",blocknum);
-    comp_o = functionManager->evaluate("compressibility oil","ip",blocknum);
+    relperm_o = functionManager->evaluate("relative permeability oil","ip");
+    source_o = functionManager->evaluate("source oil","ip");
+    viscosity_o = functionManager->evaluate("viscosity oil","ip");
+    densref_o = functionManager->evaluate("reference density oil","ip");
+    pref_o = functionManager->evaluate("reference pressure oil","ip");
+    comp_o = functionManager->evaluate("compressibility oil","ip");
     
-    relperm_w = functionManager->evaluate("relative permeability water","ip",blocknum);
-    source_w = functionManager->evaluate("source water","ip",blocknum);
-    viscosity_w = functionManager->evaluate("viscosity water","ip",blocknum);
-    densref_w = functionManager->evaluate("reference density water","ip",blocknum);
-    pref_w = functionManager->evaluate("reference pressure water","ip",blocknum);
-    comp_w = functionManager->evaluate("compressibility water","ip",blocknum);
+    relperm_w = functionManager->evaluate("relative permeability water","ip");
+    source_w = functionManager->evaluate("source water","ip");
+    viscosity_w = functionManager->evaluate("viscosity water","ip");
+    densref_w = functionManager->evaluate("reference density water","ip");
+    pref_w = functionManager->evaluate("reference pressure water","ip");
+    comp_w = functionManager->evaluate("compressibility water","ip");
     
-    gravity = functionManager->evaluate("gravity","ip",blocknum);
-    cpinv = functionManager->evaluate("cap press inverse","ip",blocknum);
-    dcpinv = functionManager->evaluate("dcap press inverse","ip",blocknum);
+    gravity = functionManager->evaluate("gravity","ip");
+    cpinv = functionManager->evaluate("cap press inverse","ip");
+    dcpinv = functionManager->evaluate("dcap press inverse","ip");
     
   }
   
@@ -267,30 +266,30 @@ void twophasePoPw::boundaryResidual() {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
     if (sidetype == 4 ) {
-      source_w = functionManager->evaluate("Dirichlet Pw " + wkset->sidename,"side ip",blocknum);
-      source_o = functionManager->evaluate("Dirichlet No " + wkset->sidename,"side ip",blocknum);
+      source_w = functionManager->evaluate("Dirichlet Pw " + wkset->sidename,"side ip");
+      source_o = functionManager->evaluate("Dirichlet No " + wkset->sidename,"side ip");
     }
     else if (sidetype == 2) {
-      source_w = functionManager->evaluate("Neumann Pw " + wkset->sidename,"side ip",blocknum);
-      source_o = functionManager->evaluate("Neumann No " + wkset->sidename,"side ip",blocknum);
+      source_w = functionManager->evaluate("Neumann Pw " + wkset->sidename,"side ip");
+      source_o = functionManager->evaluate("Neumann No " + wkset->sidename,"side ip");
     }
     
-    perm = functionManager->evaluate("permeability","side ip",blocknum);
-    relperm_o = functionManager->evaluate("relative permeability oil","side ip",blocknum);
-    source_o = functionManager->evaluate("source oil","side ip",blocknum);
-    viscosity_o = functionManager->evaluate("viscosity oil","side ip",blocknum);
-    densref_o = functionManager->evaluate("reference density oil","side ip",blocknum);
-    pref_o = functionManager->evaluate("reference pressure oil","side ip",blocknum);
-    comp_o = functionManager->evaluate("compressibility oil","side ip",blocknum);
+    perm = functionManager->evaluate("permeability","side ip");
+    relperm_o = functionManager->evaluate("relative permeability oil","side ip");
+    source_o = functionManager->evaluate("source oil","side ip");
+    viscosity_o = functionManager->evaluate("viscosity oil","side ip");
+    densref_o = functionManager->evaluate("reference density oil","side ip");
+    pref_o = functionManager->evaluate("reference pressure oil","side ip");
+    comp_o = functionManager->evaluate("compressibility oil","side ip");
     
-    relperm_w = functionManager->evaluate("relative permeability water","side ip",blocknum);
-    source_w = functionManager->evaluate("source water","side ip",blocknum);
-    viscosity_w = functionManager->evaluate("viscosity water","side ip",blocknum);
-    densref_w = functionManager->evaluate("reference density water","side ip",blocknum);
-    pref_w = functionManager->evaluate("reference pressure water","side ip",blocknum);
-    comp_w = functionManager->evaluate("compressibility water","side ip",blocknum);
+    relperm_w = functionManager->evaluate("relative permeability water","side ip");
+    source_w = functionManager->evaluate("source water","side ip");
+    viscosity_w = functionManager->evaluate("viscosity water","side ip");
+    densref_w = functionManager->evaluate("reference density water","side ip");
+    pref_w = functionManager->evaluate("reference pressure water","side ip");
+    comp_w = functionManager->evaluate("compressibility water","side ip");
     
-    gravity = functionManager->evaluate("gravity","side ip",blocknum);
+    gravity = functionManager->evaluate("gravity","side ip");
     
   }
   
@@ -420,22 +419,22 @@ void twophasePoPw::computeFlux() {
   
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
-    perm = functionManager->evaluate("permeability","side ip",blocknum);
-    relperm_o = functionManager->evaluate("relative permeability oil","side ip",blocknum);
-    source_o = functionManager->evaluate("source oil","side ip",blocknum);
-    viscosity_o = functionManager->evaluate("viscosity oil","side ip",blocknum);
-    densref_o = functionManager->evaluate("reference density oil","side ip",blocknum);
-    pref_o = functionManager->evaluate("reference pressure oil","side ip",blocknum);
-    comp_o = functionManager->evaluate("compressibility oil","side ip",blocknum);
+    perm = functionManager->evaluate("permeability","side ip");
+    relperm_o = functionManager->evaluate("relative permeability oil","side ip");
+    source_o = functionManager->evaluate("source oil","side ip");
+    viscosity_o = functionManager->evaluate("viscosity oil","side ip");
+    densref_o = functionManager->evaluate("reference density oil","side ip");
+    pref_o = functionManager->evaluate("reference pressure oil","side ip");
+    comp_o = functionManager->evaluate("compressibility oil","side ip");
     
-    relperm_w = functionManager->evaluate("relative permeability water","side ip",blocknum);
-    source_w = functionManager->evaluate("source water","side ip",blocknum);
-    viscosity_w = functionManager->evaluate("viscosity water","side ip",blocknum);
-    densref_w = functionManager->evaluate("reference density water","side ip",blocknum);
-    pref_w = functionManager->evaluate("reference pressure water","side ip",blocknum);
-    comp_w = functionManager->evaluate("compressibility water","side ip",blocknum);
+    relperm_w = functionManager->evaluate("relative permeability water","side ip");
+    source_w = functionManager->evaluate("source water","side ip");
+    viscosity_w = functionManager->evaluate("viscosity water","side ip");
+    densref_w = functionManager->evaluate("reference density water","side ip");
+    pref_w = functionManager->evaluate("reference pressure water","side ip");
+    comp_w = functionManager->evaluate("compressibility water","side ip");
     
-    gravity = functionManager->evaluate("gravity","side ip",blocknum);
+    gravity = functionManager->evaluate("gravity","side ip");
     
   }
   

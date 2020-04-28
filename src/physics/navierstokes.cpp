@@ -17,9 +17,8 @@
 
 navierstokes::navierstokes(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
                            const size_t & numip_side_, const int & numElem_,
-                           Teuchos::RCP<FunctionManager> & functionManager_,
-                           const size_t & blocknum_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
+                           Teuchos::RCP<FunctionManager> & functionManager_) :
+numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   
   label = "navierstokes";
   functionManager = functionManager_;
@@ -71,12 +70,12 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
   
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("source ux",fs.get<string>("source ux","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("source pr",fs.get<string>("source pr","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("source uy",fs.get<string>("source uy","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("source uz",fs.get<string>("source uz","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("density",fs.get<string>("density","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("viscosity",fs.get<string>("viscosity","1.0"),numElem,numip,"ip",blocknum);
+  functionManager->addFunction("source ux",fs.get<string>("source ux","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("source pr",fs.get<string>("source pr","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("source uy",fs.get<string>("source uy","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("source uz",fs.get<string>("source uz","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("density",fs.get<string>("density","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("viscosity",fs.get<string>("viscosity","1.0"),numElem,numip,"ip");
   
   
 }
@@ -94,16 +93,16 @@ void navierstokes::volumeResidual() {
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    source_ux = functionManager->evaluate("source ux","ip",blocknum);
-    source_pr = functionManager->evaluate("source pr","ip",blocknum);
+    source_ux = functionManager->evaluate("source ux","ip");
+    source_pr = functionManager->evaluate("source pr","ip");
     if (spaceDim > 1) {
-      source_uy = functionManager->evaluate("source uy","ip",blocknum);
+      source_uy = functionManager->evaluate("source uy","ip");
     }
     if (spaceDim > 2) {
-      source_uz = functionManager->evaluate("source uz","ip",blocknum);
+      source_uz = functionManager->evaluate("source uz","ip");
     }
-    dens = functionManager->evaluate("density","ip",blocknum);
-    visc = functionManager->evaluate("viscosity","ip",blocknum);
+    dens = functionManager->evaluate("density","ip");
+    visc = functionManager->evaluate("viscosity","ip");
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);

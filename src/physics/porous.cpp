@@ -13,9 +13,8 @@
 
 porous::porous(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
                const size_t & numip_side_, const int & numElem_,
-               Teuchos::RCP<FunctionManager> & functionManager_,
-               const size_t & blocknum_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
+               Teuchos::RCP<FunctionManager> & functionManager_) :
+numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   
   // Standard data
   functionManager = functionManager_;
@@ -28,14 +27,14 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
   // Functions
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("source",fs.get<string>("porous source","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("permeability",fs.get<string>("permeability","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("porosity",fs.get<string>("porosity","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("viscosity",fs.get<string>("viscosity","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("reference density",fs.get<string>("reference density","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("reference pressure",fs.get<string>("reference pressure","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("compressibility",fs.get<string>("compressibility","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("gravity",fs.get<string>("gravity","1.0"),numElem,numip,"ip",blocknum);
+  functionManager->addFunction("source",fs.get<string>("porous source","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("permeability",fs.get<string>("permeability","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("porosity",fs.get<string>("porosity","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("viscosity",fs.get<string>("viscosity","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("reference density",fs.get<string>("reference density","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("reference pressure",fs.get<string>("reference pressure","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("compressibility",fs.get<string>("compressibility","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("gravity",fs.get<string>("gravity","1.0"),numElem,numip,"ip");
 }
 
 // ========================================================================================
@@ -52,14 +51,14 @@ void porous::volumeResidual() {
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    source = functionManager->evaluate("source","ip",blocknum);
-    perm = functionManager->evaluate("permeability","ip",blocknum);
-    porosity = functionManager->evaluate("porosity","ip",blocknum);
-    viscosity = functionManager->evaluate("viscosity","ip",blocknum);
-    densref = functionManager->evaluate("reference density","ip",blocknum);
-    pref = functionManager->evaluate("reference pressure","ip",blocknum);
-    comp = functionManager->evaluate("compressibility","ip",blocknum);
-    gravity = functionManager->evaluate("gravity","ip",blocknum);
+    source = functionManager->evaluate("source","ip");
+    perm = functionManager->evaluate("permeability","ip");
+    porosity = functionManager->evaluate("porosity","ip");
+    viscosity = functionManager->evaluate("viscosity","ip");
+    densref = functionManager->evaluate("reference density","ip");
+    pref = functionManager->evaluate("reference pressure","ip");
+    comp = functionManager->evaluate("compressibility","ip");
+    gravity = functionManager->evaluate("gravity","ip");
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
@@ -135,17 +134,17 @@ void porous::boundaryResidual() {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
     if (sidetype == 4 ) {
-      source = functionManager->evaluate("Dirichlet p " + wkset->sidename,"side ip",blocknum);
+      source = functionManager->evaluate("Dirichlet p " + wkset->sidename,"side ip");
     }
     else if (sidetype == 2) {
-      source = functionManager->evaluate("Neumann p " + wkset->sidename,"side ip",blocknum);
+      source = functionManager->evaluate("Neumann p " + wkset->sidename,"side ip");
     }
-    perm = functionManager->evaluate("permeability","side ip",blocknum);
-    viscosity = functionManager->evaluate("viscosity","side ip",blocknum);
-    densref = functionManager->evaluate("reference density","side ip",blocknum);
-    pref = functionManager->evaluate("reference pressure","side ip",blocknum);
-    comp = functionManager->evaluate("compressibility","side ip",blocknum);
-    gravity = functionManager->evaluate("gravity","side ip",blocknum);
+    perm = functionManager->evaluate("permeability","side ip");
+    viscosity = functionManager->evaluate("viscosity","side ip");
+    densref = functionManager->evaluate("reference density","side ip");
+    pref = functionManager->evaluate("reference pressure","side ip");
+    comp = functionManager->evaluate("compressibility","side ip");
+    gravity = functionManager->evaluate("gravity","side ip");
     
   }
   
@@ -253,12 +252,12 @@ void porous::computeFlux() {
   
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
-    perm = functionManager->evaluate("permeability","side ip",blocknum);
-    viscosity = functionManager->evaluate("viscosity","side ip",blocknum);
-    densref = functionManager->evaluate("reference density","side ip",blocknum);
-    pref = functionManager->evaluate("reference pressure","side ip",blocknum);
-    comp = functionManager->evaluate("compressibility","side ip",blocknum);
-    gravity = functionManager->evaluate("gravity","side ip",blocknum);
+    perm = functionManager->evaluate("permeability","side ip");
+    viscosity = functionManager->evaluate("viscosity","side ip");
+    densref = functionManager->evaluate("reference density","side ip");
+    pref = functionManager->evaluate("reference pressure","side ip");
+    comp = functionManager->evaluate("compressibility","side ip");
+    gravity = functionManager->evaluate("gravity","side ip");
     
   }
   

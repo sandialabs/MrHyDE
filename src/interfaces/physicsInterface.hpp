@@ -74,7 +74,7 @@ public:
   
   physics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<MpiComm> & Comm_,
           vector<topo_RCP> & cellTopo, vector<topo_RCP> & sideTopo,
-          Teuchos::RCP<FunctionManager> & functionManager_,
+          vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
           Teuchos::RCP<panzer_stk::STK_Interface> & mesh);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
@@ -311,7 +311,7 @@ public:
 
   vector<vector<Teuchos::RCP<physicsbase> > > modules;
   vector<vector<bool> > module_useScalarRespFunc;
-  Teuchos::RCP<FunctionManager> functionManager;
+  vector<Teuchos::RCP<FunctionManager> > functionManagers;
   Teuchos::RCP<MpiComm> Commptr;
   
   vector<string> blocknames;

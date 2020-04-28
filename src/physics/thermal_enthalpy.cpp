@@ -17,9 +17,8 @@
 
 thermal_enthalpy::thermal_enthalpy(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
                                    const size_t & numip_side_, const int & numElem_,
-                                   Teuchos::RCP<FunctionManager> & functionManager_,
-                                   const size_t & blocknum_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
+                                   Teuchos::RCP<FunctionManager> & functionManager_) :
+numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   
   label = "thermal_enthalpy";
   functionManager = functionManager_;
@@ -48,13 +47,13 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
   // Functions
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("thermal source",fs.get<string>("thermal source","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("specific heat",fs.get<string>("specific heat","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("density",fs.get<string>("density","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("thermal Neumann source",fs.get<string>("thermal Neumann source","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("robin alpha",fs.get<string>("robin alpha","0.0"),numElem,numip_side,"side ip",blocknum);
+  functionManager->addFunction("thermal source",fs.get<string>("thermal source","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("specific heat",fs.get<string>("specific heat","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("density",fs.get<string>("density","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("thermal Neumann source",fs.get<string>("thermal Neumann source","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("robin alpha",fs.get<string>("robin alpha","0.0"),numElem,numip_side,"side ip");
 }
 
 // ========================================================================================
@@ -67,10 +66,10 @@ void thermal_enthalpy::volumeResidual() {
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    source = functionManager->evaluate("thermal source","ip",blocknum);
-    diff = functionManager->evaluate("thermal diffusion","ip",blocknum);
-    cp = functionManager->evaluate("specific heat","ip",blocknum);
-    rho = functionManager->evaluate("density","ip",blocknum);
+    source = functionManager->evaluate("thermal source","ip");
+    diff = functionManager->evaluate("thermal diffusion","ip");
+    cp = functionManager->evaluate("specific heat","ip");
+    rho = functionManager->evaluate("density","ip");
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
@@ -187,9 +186,9 @@ void thermal_enthalpy::boundaryResidual() {
   
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
-    nsource = functionManager->evaluate("thermal Neumann source","side ip",blocknum);
-    diff_side = functionManager->evaluate("thermal diffusion","side ip",blocknum);
-    robin_alpha = functionManager->evaluate("robin alpha","side ip",blocknum);
+    nsource = functionManager->evaluate("thermal Neumann source","side ip");
+    diff_side = functionManager->evaluate("thermal diffusion","side ip");
+    robin_alpha = functionManager->evaluate("robin alpha","side ip");
   }
   
   ScalarT sf = formparam;
@@ -289,7 +288,7 @@ void thermal_enthalpy::computeFlux() {
   
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
-    diff_side = functionManager->evaluate("thermal diffusion","side ip",blocknum);
+    diff_side = functionManager->evaluate("thermal diffusion","side ip");
   }
   
   

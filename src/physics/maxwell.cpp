@@ -13,9 +13,8 @@
 
 maxwell::maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
                  const size_t & numip_side_, const int & numElem_,
-                 Teuchos::RCP<FunctionManager> & functionManager_,
-                 const size_t & blocknum_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
+                 Teuchos::RCP<FunctionManager> & functionManager_) :
+numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   
   label = "maxwell";
   functionManager = functionManager_;
@@ -28,11 +27,11 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
   
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("current x",fs.get<string>("current x","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("current y",fs.get<string>("current y","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("current z",fs.get<string>("current z","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("mu",fs.get<string>("mu","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("epsilon",fs.get<string>("epsilon","1.0"),numElem,numip,"ip",blocknum);
+  functionManager->addFunction("current x",fs.get<string>("current x","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("current y",fs.get<string>("current y","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("current z",fs.get<string>("current z","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("mu",fs.get<string>("mu","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("epsilon",fs.get<string>("epsilon","1.0"),numElem,numip,"ip");
   
 }
 
@@ -50,11 +49,11 @@ void maxwell::volumeResidual() {
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    current_x = functionManager->evaluate("current x","ip",blocknum);
-    current_y = functionManager->evaluate("current y","ip",blocknum);
-    current_z = functionManager->evaluate("current z","ip",blocknum);
-    mu = functionManager->evaluate("mu","ip",blocknum);
-    epsilon = functionManager->evaluate("epsilon","ip",blocknum);
+    current_x = functionManager->evaluate("current x","ip");
+    current_y = functionManager->evaluate("current y","ip");
+    current_z = functionManager->evaluate("current z","ip");
+    mu = functionManager->evaluate("mu","ip");
+    epsilon = functionManager->evaluate("epsilon","ip");
   }
   
   //KokkosTools::print(epsilon);

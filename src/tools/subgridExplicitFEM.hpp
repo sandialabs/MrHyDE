@@ -330,7 +330,7 @@ public:
   Teuchos::RCP<meshInterface> mesh_interface;
   Teuchos::RCP<panzer_stk::STK_Interface> mesh;
   Teuchos::RCP<discretization> disc;
-  Teuchos::RCP<FunctionManager> functionManager;
+  vector<Teuchos::RCP<FunctionManager> > functionManagers;
   
   vector<Teuchos::RCP<LA_MultiVector> > Psol;
   

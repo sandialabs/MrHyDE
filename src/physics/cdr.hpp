@@ -26,8 +26,7 @@ public:
   
   cdr(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
       const size_t & numip_side_, const int & numElem_,
-      Teuchos::RCP<FunctionManager> & functionManager_,
-      const size_t & blocknum_);
+      Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -66,7 +65,7 @@ private:
   FDATA diff, rho, cp, xvel, yvel, zvel, reax, tau, source, nsource, diff_side, robin_alpha;
   
   int spaceDim, numElem;
-  size_t numip, numip_side, blocknum;
+  size_t numip, numip_side;
   vector<string> varlist;
   int cnum, resindex;
   

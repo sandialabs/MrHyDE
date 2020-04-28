@@ -20,9 +20,9 @@ MultiScale::MultiScale(const Teuchos::RCP<MpiComm> & MacroComm_,
                        Teuchos::RCP<Teuchos::ParameterList> & settings_,
                        vector<vector<Teuchos::RCP<cell> > > & cells_,
                        vector<Teuchos::RCP<SubGridModel> > subgridModels_,
-                       Teuchos::RCP<FunctionManager> macro_functionManager_ ) :
+                       vector<Teuchos::RCP<FunctionManager> > macro_functionManagers_ ) :
 MacroComm(MacroComm_), Comm(Comm_), settings(settings_), cells(cells_), subgridModels(subgridModels_),
-macro_functionManager(macro_functionManager_) {
+macro_functionManagers(macro_functionManagers_) {
   
   milo_debug_level = settings->get<int>("debug level",0);
   if (milo_debug_level > 0) {
@@ -43,8 +43,8 @@ macro_functionManager(macro_functionManager_) {
     for (size_t n=0; n<subgridModels.size(); n++) {
       stringstream ss;
       ss << n;
-      macro_functionManager->addFunction("Subgrid " + ss.str() + " usage",subgridModels[n]->usage,
-                                         cells[0][0]->numElem,cells[0][0]->ip.extent(1),"ip",0);
+      macro_functionManagers[0]->addFunction("Subgrid " + ss.str() + " usage",subgridModels[n]->usage,
+                                             cells[0][0]->numElem,cells[0][0]->ip.extent(1),"ip");
     }
      
   }
@@ -120,7 +120,7 @@ ScalarT MultiScale::initialize() {
       for (size_t s=0; s<subgridModels.size(); s++) {
         stringstream ss;
         ss << s;
-        FDATA usagecheck = macro_functionManager->evaluate("Subgrid " + ss.str() + " usage","ip",0);
+        FDATA usagecheck = macro_functionManagers[0]->evaluate("Subgrid " + ss.str() + " usage","ip");
         
         for (int p=0; p<cells[b][e]->numElem; p++) {
           for (size_t j=0; j<usagecheck.extent(1); j++) {
@@ -284,7 +284,7 @@ ScalarT MultiScale::update() {
           for (size_t s=0; s<subgridModels.size(); s++) {
             stringstream ss;
             ss << s;
-            FDATA usagecheck = macro_functionManager->evaluate("Subgrid " + ss.str() + " usage","ip",0);
+            FDATA usagecheck = macro_functionManagers[0]->evaluate("Subgrid " + ss.str() + " usage","ip");
             for (int p=0; p<cells[b][e]->numElem; p++) {
               for (size_t j=0; j<usagecheck.extent(1); j++) {
                 if (usagecheck(p,j).val() >= 1.0) {

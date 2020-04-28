@@ -50,7 +50,8 @@ void cell::setIP(const DRV & ref_ip, const DRV & ref_wts) {
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_, Kokkos::View<LO*,AssemblyDevice> & numDOF_) {
+void cell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_,
+                    Kokkos::View<LO*,AssemblyDevice> & numDOF_) {
   
   index = Kokkos::View<LO***,AssemblyDevice>("local index",index_.extent(0),
                                              index_.extent(1), index_.extent(2));

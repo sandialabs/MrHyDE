@@ -32,8 +32,7 @@ public:
   
   maxwells_fp(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
               const size_t & numip_side_, const int & numElem_,
-              Teuchos::RCP<FunctionManager> & functionManager_,
-              const size_t & blocknum_);
+              Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -123,7 +122,7 @@ public:
   
 private:
   
-  size_t numip, numip_side, numElem, blocknum;
+  size_t numip, numip_side, numElem;
   
   vector<AD> mu_params; //permeability
   vector<AD> eps_params; //permittivity

@@ -17,9 +17,8 @@
 
 helmholtz::helmholtz(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
           const size_t & numip_side_, const int & numElem_,
-          Teuchos::RCP<FunctionManager> & functionManager_,
-          const size_t & blocknum_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
+          Teuchos::RCP<FunctionManager> & functionManager_) :
+numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   
   
   label = "helmholtz";
@@ -38,36 +37,36 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
   
   // Functions
   Teuchos::ParameterList fs = settings->sublist("Functions");
-  functionManager->addFunction("c2r_x",fs.get<string>("c2r_x","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("c2i_x",fs.get<string>("c2i_x","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("c2r_y",fs.get<string>("c2r_y","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("c2i_y",fs.get<string>("c2i_y","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("c2r_z",fs.get<string>("c2r_z","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("c2i_z",fs.get<string>("c2i_z","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("omega2r",fs.get<string>("omega2r","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("omega2i",fs.get<string>("omega2i","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("omega2r",fs.get<string>("omega2r","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("omega2i",fs.get<string>("omega2i","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("omegar",fs.get<string>("omegar","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("omegai",fs.get<string>("omegai","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("source_r",fs.get<string>("source_r","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("source_i",fs.get<string>("source_i","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("source_r_side",fs.get<string>("source_r_side","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("source_i_side",fs.get<string>("source_i_side","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("robin_alpha_r",fs.get<string>("robin_alpha_r","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("robin_alpha_i",fs.get<string>("robin_alpha_i","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("c2r_x",fs.get<string>("c2r_x","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("c2i_x",fs.get<string>("c2i_x","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("c2r_y",fs.get<string>("c2r_y","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("c2i_y",fs.get<string>("c2i_y","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("c2r_z",fs.get<string>("c2r_z","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("c2i_z",fs.get<string>("c2i_z","0.0"),numElem,numip_side,"side ip",blocknum);
-  functionManager->addFunction("alphaHr",fs.get<string>("alphaHr","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("alphaHi",fs.get<string>("alphaHi","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("alphaTr",fs.get<string>("alphaTr","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("alphaTi",fs.get<string>("alphaTi","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("freqExp",fs.get<string>("freqExp","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("freqExp",fs.get<string>("freqExp","0.0"),numElem,numip_side,"side ip",blocknum);
+  functionManager->addFunction("c2r_x",fs.get<string>("c2r_x","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("c2i_x",fs.get<string>("c2i_x","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("c2r_y",fs.get<string>("c2r_y","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("c2i_y",fs.get<string>("c2i_y","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("c2r_z",fs.get<string>("c2r_z","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("c2i_z",fs.get<string>("c2i_z","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("omega2r",fs.get<string>("omega2r","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("omega2i",fs.get<string>("omega2i","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("omega2r",fs.get<string>("omega2r","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("omega2i",fs.get<string>("omega2i","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("omegar",fs.get<string>("omegar","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("omegai",fs.get<string>("omegai","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("source_r",fs.get<string>("source_r","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("source_i",fs.get<string>("source_i","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("source_r_side",fs.get<string>("source_r_side","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("source_i_side",fs.get<string>("source_i_side","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("robin_alpha_r",fs.get<string>("robin_alpha_r","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("robin_alpha_i",fs.get<string>("robin_alpha_i","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("c2r_x",fs.get<string>("c2r_x","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("c2i_x",fs.get<string>("c2i_x","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("c2r_y",fs.get<string>("c2r_y","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("c2i_y",fs.get<string>("c2i_y","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("c2r_z",fs.get<string>("c2r_z","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("c2i_z",fs.get<string>("c2i_z","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("alphaHr",fs.get<string>("alphaHr","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("alphaHi",fs.get<string>("alphaHi","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("alphaTr",fs.get<string>("alphaTr","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("alphaTi",fs.get<string>("alphaTi","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("freqExp",fs.get<string>("freqExp","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("freqExp",fs.get<string>("freqExp","0.0"),numElem,numip_side,"side ip");
 }
 
 // ========================================================================================
@@ -81,24 +80,24 @@ void helmholtz::volumeResidual() {
   int ur_basis_num = wkset->usebasis[ur_num];
   int ui_basis_num = wkset->usebasis[ui_num];
   
-  c2r_x = functionManager->evaluate("c2r_x","ip",blocknum);
-  c2i_x = functionManager->evaluate("c2i_x","ip",blocknum);
-  c2r_y = functionManager->evaluate("c2r_y","ip",blocknum);
-  c2i_y = functionManager->evaluate("c2i_y","ip",blocknum);
-  c2r_z = functionManager->evaluate("c2r_z","ip",blocknum);
-  c2i_z = functionManager->evaluate("c2i_z","ip",blocknum);
-  omega2r = functionManager->evaluate("omega2r","ip",blocknum);
-  omega2i = functionManager->evaluate("omega2i","ip",blocknum);
+  c2r_x = functionManager->evaluate("c2r_x","ip");
+  c2i_x = functionManager->evaluate("c2i_x","ip");
+  c2r_y = functionManager->evaluate("c2r_y","ip");
+  c2i_y = functionManager->evaluate("c2i_y","ip");
+  c2r_z = functionManager->evaluate("c2r_z","ip");
+  c2i_z = functionManager->evaluate("c2i_z","ip");
+  omega2r = functionManager->evaluate("omega2r","ip");
+  omega2i = functionManager->evaluate("omega2i","ip");
   
   if (fractional) {
-    alphaHr = functionManager->evaluate("alphaHr","ip",blocknum);
-    alphaHi = functionManager->evaluate("alphaHi","ip",blocknum);
-    alphaTr = functionManager->evaluate("alphaTr","ip",blocknum);
-    alphaTi = functionManager->evaluate("alphaTi","ip",blocknum);
-    freqExp = functionManager->evaluate("freqExp","ip",blocknum);
+    alphaHr = functionManager->evaluate("alphaHr","ip");
+    alphaHi = functionManager->evaluate("alphaHi","ip");
+    alphaTr = functionManager->evaluate("alphaTr","ip");
+    alphaTi = functionManager->evaluate("alphaTi","ip");
+    freqExp = functionManager->evaluate("freqExp","ip");
   }
-  source_r = functionManager->evaluate("source_r","ip",blocknum);
-  source_i = functionManager->evaluate("source_i","ip",blocknum);
+  source_r = functionManager->evaluate("source_r","ip");
+  source_i = functionManager->evaluate("source_i","ip");
   
   sol = wkset->local_soln;
   sol_dot = wkset->local_soln_dot;
@@ -245,22 +244,22 @@ void helmholtz::boundaryResidual() {
   
   // Set the parameters
   
-  c2r_side_x = functionManager->evaluate("c2r_x","side ip",blocknum);
-  c2i_side_x = functionManager->evaluate("c2i_x","side ip",blocknum);
-  c2r_side_y = functionManager->evaluate("c2r_y","side ip",blocknum);
-  c2i_side_y = functionManager->evaluate("c2i_y","side ip",blocknum);
-  c2r_side_z = functionManager->evaluate("c2r_z","side ip",blocknum);
-  c2i_side_z = functionManager->evaluate("c2i_z","side ip",blocknum);
+  c2r_side_x = functionManager->evaluate("c2r_x","side ip");
+  c2i_side_x = functionManager->evaluate("c2i_x","side ip");
+  c2r_side_y = functionManager->evaluate("c2r_y","side ip");
+  c2i_side_y = functionManager->evaluate("c2i_y","side ip");
+  c2r_side_z = functionManager->evaluate("c2r_z","side ip");
+  c2i_side_z = functionManager->evaluate("c2i_z","side ip");
   
-  robin_alpha_r = functionManager->evaluate("robin_alpha_r","side ip",blocknum);
-  robin_alpha_i = functionManager->evaluate("robin_alpha_i","side ip",blocknum);
+  robin_alpha_r = functionManager->evaluate("robin_alpha_r","side ip");
+  robin_alpha_i = functionManager->evaluate("robin_alpha_i","side ip");
   
-  source_r_side = functionManager->evaluate("source_r_side","side ip",blocknum);
-  source_i_side = functionManager->evaluate("source_i_side","side ip",blocknum);
+  source_r_side = functionManager->evaluate("source_r_side","side ip");
+  source_i_side = functionManager->evaluate("source_i_side","side ip");
   
-  omega2r = functionManager->evaluate("omega2r","side ip",blocknum);
-  omega2i = functionManager->evaluate("omega2i","side ip",blocknum);
-  freqExp = functionManager->evaluate("freqExp","side ip",blocknum);
+  omega2r = functionManager->evaluate("omega2r","side ip");
+  omega2i = functionManager->evaluate("omega2i","side ip");
+  freqExp = functionManager->evaluate("freqExp","side ip");
   
   //sideinfo = wkset->sideinfo;
   sol = wkset->local_soln_side;

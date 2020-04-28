@@ -54,8 +54,7 @@ public:
 
   porousHDIV_WG(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
                 const size_t & numip_side_, const int & numElem_,
-                Teuchos::RCP<FunctionManager> & functionManager_,
-                const size_t & blocknum_);
+                Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -92,7 +91,7 @@ public:
 private:
   
   int spaceDim, numElem, numParams, numResponses, numSteps;
-  size_t numip, numip_side, blocknum;
+  size_t numip, numip_side;
   FDATA source, bsource, kxx, kxy, kyx, kyy, kxz, kyz, kzx, kzy, kzz;
 
   int pintnum=-1, pbndrynum=-1, unum=-1, tnum=-1;

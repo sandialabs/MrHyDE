@@ -21,7 +21,7 @@ PostprocessManager::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                          Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                          Teuchos::RCP<solver> & solve_, Teuchos::RCP<panzer::DOFManager> & DOF_,
                          vector<vector<Teuchos::RCP<cell> > > cells_,
-                         Teuchos::RCP<FunctionManager> & functionManager,
+                         vector<Teuchos::RCP<FunctionManager> > & functionManagers,
                          Teuchos::RCP<AssemblyManager> & assembler_,
                          Teuchos::RCP<ParameterManager> & params_,
                          Teuchos::RCP<SensorManager> & sensors_) :
@@ -144,7 +144,7 @@ DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensor
       Teuchos::ParameterList::ConstIterator rsp_itr = resps.begin();
       while (rsp_itr != resps.end()) {
         string entry = resps.get<string>(rsp_itr->first);
-        functionManager->addFunction(rsp_itr->first,entry,numElemPerCell,numip,"ip",b);
+        functionManagers[b]->addFunction(rsp_itr->first,entry,numElemPerCell,numip,"ip");
         rsp_itr++;
       }
     }
@@ -153,7 +153,7 @@ DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensor
       Teuchos::ParameterList::ConstIterator wts_itr = wts.begin();
       while (wts_itr != wts.end()) {
         string entry = wts.get<string>(wts_itr->first);
-        functionManager->addFunction(wts_itr->first,entry,numElemPerCell,numip,"ip",b);
+        functionManagers[b]->addFunction(wts_itr->first,entry,numElemPerCell,numip,"ip");
         wts_itr++;
       }
     }
@@ -162,7 +162,7 @@ DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensor
       Teuchos::ParameterList::ConstIterator tgt_itr = tgts.begin();
       while (tgt_itr != tgts.end()) {
         string entry = tgts.get<string>(tgt_itr->first);
-        functionManager->addFunction(tgt_itr->first,entry,numElemPerCell,numip,"ip",b);
+        functionManagers[b]->addFunction(tgt_itr->first,entry,numElemPerCell,numip,"ip");
         tgt_itr++;
       }
     }

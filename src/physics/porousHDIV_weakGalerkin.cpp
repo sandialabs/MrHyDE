@@ -13,9 +13,8 @@
 
 porousHDIV_WG::porousHDIV_WG(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
                              const size_t & numip_side_, const int & numElem_,
-                             Teuchos::RCP<FunctionManager> & functionManager_,
-                             const size_t & blocknum_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
+                             Teuchos::RCP<FunctionManager> & functionManager_) :
+numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   
   label = "porousHDIV-WeakGalerkin";
   functionManager = functionManager_;
@@ -58,16 +57,16 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_), blocknum(blocknum_) {
   // Functions
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("source",fs.get<string>("source","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("kxx",fs.get<string>("kxx","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("kxy",fs.get<string>("kxy","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("kyx",fs.get<string>("kyx","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("kyy",fs.get<string>("kyy","1.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("kxz",fs.get<string>("kxz","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("kzx",fs.get<string>("kzx","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("kyz",fs.get<string>("kyz","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("kzy",fs.get<string>("kzy","0.0"),numElem,numip,"ip",blocknum);
-  functionManager->addFunction("kzz",fs.get<string>("kzz","1.0"),numElem,numip,"ip",blocknum);
+  functionManager->addFunction("source",fs.get<string>("source","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("kxx",fs.get<string>("kxx","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("kxy",fs.get<string>("kxy","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("kyx",fs.get<string>("kyx","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("kyy",fs.get<string>("kyy","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("kxz",fs.get<string>("kxz","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("kzx",fs.get<string>("kzx","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("kyz",fs.get<string>("kyz","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("kzy",fs.get<string>("kzy","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("kzz",fs.get<string>("kzz","1.0"),numElem,numip,"ip");
 }
 
 // ========================================================================================
@@ -84,16 +83,16 @@ void porousHDIV_WG::volumeResidual() {
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    source = functionManager->evaluate("source","ip",blocknum);
-    kxx = functionManager->evaluate("kxx","ip",blocknum);
-    kxy = functionManager->evaluate("kxy","ip",blocknum);
-    kyx = functionManager->evaluate("kyx","ip",blocknum);
-    kyy = functionManager->evaluate("kyy","ip",blocknum);
-    kxy = functionManager->evaluate("kxz","ip",blocknum);
-    kyz = functionManager->evaluate("kyz","ip",blocknum);
-    kzx = functionManager->evaluate("kzx","ip",blocknum);
-    kzy = functionManager->evaluate("kzy","ip",blocknum);
-    kzz = functionManager->evaluate("kzz","ip",blocknum);
+    source = functionManager->evaluate("source","ip");
+    kxx = functionManager->evaluate("kxx","ip");
+    kxy = functionManager->evaluate("kxy","ip");
+    kyx = functionManager->evaluate("kyx","ip");
+    kyy = functionManager->evaluate("kyy","ip");
+    kxy = functionManager->evaluate("kxz","ip");
+    kyz = functionManager->evaluate("kyz","ip");
+    kzx = functionManager->evaluate("kzx","ip");
+    kzy = functionManager->evaluate("kzy","ip");
+    kzz = functionManager->evaluate("kzz","ip");
   }
   
   basis = wkset->basis[u_basis];
@@ -229,7 +228,7 @@ void porousHDIV_WG::boundaryResidual() {
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
 
       if (sidetype == 1 ) {
-        bsource = functionManager->evaluate("Dirichlet pbndry " + wkset->sidename,"side ip",blocknum);
+        bsource = functionManager->evaluate("Dirichlet pbndry " + wkset->sidename,"side ip");
       }
 
     }

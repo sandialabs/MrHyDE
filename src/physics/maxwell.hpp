@@ -34,8 +34,7 @@ public:
   
   maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
           const size_t & numip_side_, const int & numElem_,
-          Teuchos::RCP<FunctionManager> & functionManager_,
-          const size_t & blocknum_);
+          Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -64,7 +63,7 @@ private:
   FDATA current_x, current_y, current_z;
   
   int spaceDim, numElem, numParams, numResponses, numSteps;
-  size_t numip, numip_side, blocknum;
+  size_t numip, numip_side;
   
   int Enum, Bnum;
   
