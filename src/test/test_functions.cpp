@@ -41,7 +41,8 @@ int main(int argc, char * argv[]) {
   Kokkos::View<int**,AssemblyDevice> bcs("bcs",1,1);
   Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset(cellinfo, ip, wts,
                                             sip, swts, btypes, basis, basis, cellTopo,bcs) );
-  
+ 
+  /*
   parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
     for (size_t j=0; j<numip; j++) {
       for (size_t k=0; k<numvars; k++) {
@@ -52,7 +53,8 @@ int main(int argc, char * argv[]) {
       }
     }
   });
-  
+  */
+
   KokkosTools::print(wkset->ip);
   
   functionManager->wkset = wkset;
@@ -104,6 +106,7 @@ int main(int argc, char * argv[]) {
   });
   
   for (int m=0; m<10; m++) {
+    /*
     parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
       for (size_t j=0; j<numip; j++) {
         for (size_t k=0; k<numvars; k++) {
@@ -111,7 +114,7 @@ int main(int argc, char * argv[]) {
         }
       }
     });
-    
+    */
     FDATA datap = functionManager->evaluate("pres","ip");
     
     FDATA data1 = functionManager->evaluate("wellr","ip");

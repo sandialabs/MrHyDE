@@ -24,7 +24,7 @@ public:
   
   SubGridLocalData(DRV & macronodes_, Kokkos::View<int****,HostDevice> & macrosideinfo_,
                    Kokkos::View<GO**,HostDevice> & macroGIDs_,
-                   Kokkos::View<LO***,HostDevice> & macroindex_,
+                   Kokkos::View<LO***,AssemblyDevice> & macroindex_,
                    Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & macroorientation_)
   : macronodes(macronodes_), macrosideinfo(macrosideinfo_), macroGIDs(macroGIDs_),
   macroindex(macroindex_), macroorientation(macroorientation_) {
@@ -149,7 +149,7 @@ public:
     size_t numMacro = macronodes.extent(0);
     size_t numElem = nodes.extent(0);
     size_t numEperM = numElem/numMacro;
-    size_t mID = -1;
+    size_t mID = 0;
     size_t prog = 0;
     for (size_t i=0; i<numMacro; i++) {
       for (size_t j=0; j<numEperM; j++) {
@@ -168,7 +168,7 @@ public:
   void setBoundaryIndexGIDs() {
     for (size_t b=0; b<boundaryMIDs.size(); b++) {
       Kokkos::View<GO**,HostDevice> cGIDs("boundary macro GIDs",boundaryMIDs[b].size(),macroGIDs.extent(1));
-      Kokkos::View<LO***,HostDevice> cindex("boundary macro GIDs",boundaryMIDs[b].size(),macroindex.extent(1),
+      Kokkos::View<LO***,AssemblyDevice> cindex("boundary macro GIDs",boundaryMIDs[b].size(),macroindex.extent(1),
                                             macroindex.extent(2));
       for (size_t e=0; e<boundaryMIDs[b].size(); e++) {
         size_t mid = boundaryMIDs[b][e];
@@ -191,9 +191,9 @@ public:
   DRV macronodes, nodes, ip, wts, jacobian, jacobianInv, jacobianDet;
   Kokkos::View<int****,HostDevice> macrosideinfo, sideinfo;
   Kokkos::View<GO**,HostDevice> macroGIDs;
-  Kokkos::View<LO***,HostDevice> macroindex;
+  Kokkos::View<LO***,AssemblyDevice> macroindex;
   vector<Kokkos::View<GO**,HostDevice> > boundaryMacroGIDs;
-  vector<Kokkos::View<LO***,HostDevice> > boundaryMacroindex;
+  vector<Kokkos::View<LO***,AssemblyDevice> > boundaryMacroindex;
   
   Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> macroorientation;
     

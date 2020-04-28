@@ -723,7 +723,7 @@ void SubGridExpFEM::addMeshData() {
     for (size_t b=0; b<cells.size(); b++) {
       for (size_t e=0; e<cells[b].size(); e++) {
         int numElem = cells[b][e]->numElem;
-        Kokkos::View<ScalarT**,HostDevice> cell_data("cell_data",numElem,numdata);
+        Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
         cells[b][e]->cell_data = cell_data;
         cells[b][e]->cell_data_distance = vector<ScalarT>(numElem);
         cells[b][e]->cell_data_seed = vector<size_t>(numElem);
@@ -982,7 +982,7 @@ void SubGridExpFEM::addMeshData() {
     for (size_t b=0; b<cells.size(); b++) {
       for (size_t e=0; e<cells[b].size(); e++) {
         int numElem = cells[b][e]->numElem;
-        Kokkos::View<ScalarT**,HostDevice> cell_data("cell_data",numElem,numdata);
+        Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
         cells[b][e]->cell_data = cell_data;
         cells[b][e]->cell_data_distance = vector<ScalarT>(numElem);
         cells[b][e]->cell_data_seed = vector<size_t>(numElem);
