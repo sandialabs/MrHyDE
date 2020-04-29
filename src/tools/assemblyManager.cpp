@@ -659,7 +659,7 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
   // Get a view of the vector on the AssemblyDevice
   // TMW: not sure if this will work correctly.  According to the tpetra documentation, one can request a in either Host or Device
   // This takes care of the memory transfer from Host to Device
-  auto vec_kv = vec->getLocalView<AssemblyDevice>();
+  auto vec_kv = vec->getLocalView<HostDevice>();
   
   // Get a corresponding view on the AssemblyDevice
   
@@ -734,7 +734,7 @@ void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP &
   if (boundaryCells.size() > b) {
     
     // Get a view of the vector on the HostDevice
-    auto vec_kv = vec->getLocalView<AssemblyDevice>();
+    auto vec_kv = vec->getLocalView<HostDevice>();
     
     // Get a corresponding view on the AssemblyDevice
     

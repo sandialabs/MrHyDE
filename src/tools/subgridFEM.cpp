@@ -95,8 +95,8 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
 
 int SubGridFEM::addMacro(DRV & macronodes_,
                          Kokkos::View<int****,HostDevice> & macrosideinfo_,
-                         Kokkos::View<GO**,AssemblyDevice> & macroGIDs_,
-                         Kokkos::View<LO***,HostDevice> & macroindex_,
+                         Kokkos::View<GO**,HostDevice> & macroGIDs_,
+                         Kokkos::View<LO***,AssemblyDevice> & macroindex_,
                          Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & macroorientation_) {
   
   Teuchos::TimeMonitor localmeshtimer(*sgfemTotalAddMacroTimer);
@@ -577,7 +577,7 @@ void SubGridFEM::addMeshData() {
     for (size_t b=0; b<cells.size(); b++) {
       for (size_t e=0; e<cells[b].size(); e++) {
         int numElem = cells[b][e]->numElem;
-        Kokkos::View<ScalarT**,HostDevice> cell_data("cell_data",numElem,numdata);
+        Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
         cells[b][e]->cell_data = cell_data;
         cells[b][e]->cell_data_distance = vector<ScalarT>(numElem);
         cells[b][e]->cell_data_seed = vector<size_t>(numElem);
@@ -587,7 +587,7 @@ void SubGridFEM::addMeshData() {
     
     for (size_t b=0; b<localData.size(); b++) {
       int numElem = cells[0][0]->numElem;
-      Kokkos::View<ScalarT**,HostDevice> cell_data("cell_data",numElem,numdata);
+      Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
       localData[b]->cell_data = cell_data;
       localData[b]->cell_data_distance = vector<ScalarT>(numElem);
       localData[b]->cell_data_seed = vector<size_t>(numElem);
@@ -845,7 +845,7 @@ void SubGridFEM::addMeshData() {
     for (size_t b=0; b<cells.size(); b++) {
       for (size_t e=0; e<cells[b].size(); e++) {
         int numElem = cells[b][e]->numElem;
-        Kokkos::View<ScalarT**,HostDevice> cell_data("cell_data",numElem,numdata);
+        Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
         cells[b][e]->cell_data = cell_data;
         cells[b][e]->cell_data_distance = vector<ScalarT>(numElem);
         cells[b][e]->cell_data_seed = vector<size_t>(numElem);
@@ -855,7 +855,7 @@ void SubGridFEM::addMeshData() {
     
     for (size_t b=0; b<localData.size(); b++) {
       int numElem = cells[0][0]->numElem;
-      Kokkos::View<ScalarT**,HostDevice> cell_data("cell_data",numElem,numdata);
+      Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
       localData[b]->cell_data = cell_data;
       localData[b]->cell_data_distance = vector<ScalarT>(numElem);
       localData[b]->cell_data_seed = vector<size_t>(numElem);
