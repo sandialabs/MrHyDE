@@ -273,8 +273,9 @@ static int split(vector<term> & terms, const size_t & index) {
           num_pm += 1;
         }
         if (s[i] == '*' || s[i] == '/' || s[i] == '^'
-            || s[i] == '<' || s[i] == '>' || s[i] == '<='
-            || s[i] == '>=') {
+            || s[i] == '<' || s[i] == '>') {
+            // || s[i] == '<=' // TMW: this might fail - don't use <= or >=
+            // || s[i] == '>=') {
           num_mdp += 1;
         }
       }

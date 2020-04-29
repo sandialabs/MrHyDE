@@ -1210,9 +1210,11 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
   exo_error = ex_get_init(exoid, title, &num_dim, &num_nods, &num_el,
                           &num_el_blk, &num_ns, &num_ss);
   
+  if (exo_error>0) {
+    // need some debug statement
+  }
   int id = 1; // only one blkid
   int step = 1; // only one time step (for now)
-  char elem_type[MAX_STR_LENGTH+1];
   ex_block eblock;
   eblock.id = id;
   eblock.type = EX_ELEM_BLOCK;
@@ -1228,7 +1230,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
     int num_elem_vars;
     int var_ind;
     numResponses = 1;
-    exo_error = ex_get_var_param(exoid, "e", &num_elem_vars);
+    exo_error = ex_get_var_param(exoid, "e", &num_elem_vars); // TMW: this is depracated
     for (int i=0; i<num_elem_vars; i++) {
       char varname[MAX_STR_LENGTH+1];
       ScalarT *var_vals = new ScalarT[num_el_in_blk];
@@ -1240,7 +1242,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
       if (found != std::string::npos) {
         vector<string> results;
         stringstream sns, snr;
-        int ns, nr;
+        int nr;
         boost::split(results, vname, [](char u){return u == '_';});
         snr << results[3];
         snr >> nr;

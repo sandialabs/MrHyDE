@@ -220,7 +220,6 @@ void PostprocessManager::computeError() {
     // Collect all of the errors for each subgrid model
     vector<Kokkos::View<ScalarT***,AssemblyDevice> > sgerrs;
     for (size_t m=0; m<solve->multiscale_manager->subgridModels.size(); m++) {
-      size_t sgindex = m;
       Kokkos::View<ScalarT***,AssemblyDevice> err = solve->multiscale_manager->subgridModels[m]->computeError(subgrid_error_types, solvetimes);
       sgerrs.push_back(err);
     }
@@ -293,10 +292,6 @@ AD PostprocessManager::computeObjective() {
   vector<string> boundaryRegSides = params->boundaryRegSides;
   
   
-  int numSensors = 1;
-  if (response_type == "pointwise") {
-    numSensors = sensors->numSensors;
-  }
   params->sacadoizeParams(true);
   int numClassicParams = params->getNumParams(1);
   int numDiscParams = params->getNumParams(4);
@@ -1280,7 +1275,6 @@ vector<ScalarT> PostprocessManager::computeParameterSensitivities() {
   params->sacadoizeParams(true);
   
   vector<ScalarT> localsens(params->num_active_params);
-  ScalarT globalsens = 0.0;
   int nsteps = 1;
   if (solve->isTransient) {
     nsteps = solve->soln->times[0].size()-1;

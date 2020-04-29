@@ -114,7 +114,7 @@ void linearelasticity::volumeResidual() {
     
     parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (size_t k=0; k<basis.extent(2); k++ ) {
-        this->setLocalSoln(e,k,false);
+        //this->setLocalSoln(e,k,false);
         for (int i=0; i<basis.extent(1); i++ ) {
           v = basis(e,i,k);
           dvdx = basis_grad(e,i,k,0);

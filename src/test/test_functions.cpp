@@ -94,9 +94,9 @@ int main(int argc, char * argv[]) {
   
   parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
     for (size_t j=0; j<numip; j++) {
-      printf("data1(i,j) : %f\n", data1(i,j));
-      printf("data2(i,j) : %f\n", data2(i,j));
-      printf("data3(i,j) : %f\n", data3(i,j));
+      printf("data1(i,j) : %f\n", data1(i,j).val());
+      printf("data2(i,j) : %f\n", data2(i,j).val());
+      printf("data3(i,j) : %f\n", data3(i,j).val());
       //cout << "data1(i,j) = " << data1(i,j) << endl;
       //cout << "data2(i,j) = " << data2(i,j) << endl;
       //cout << "data3(i,j) = " << data3(i,j) << endl;
@@ -120,10 +120,10 @@ int main(int argc, char * argv[]) {
     
     parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
       for (size_t j=0; j<numip; j++) {
-        printf("datap(i,j) : %f\n", datap(i,j));
-        printf("data1(i,j) : %f\n", data1(i,j));
-        printf("data2(i,j) : %f\n", data2(i,j));
-        printf("data3(i,j) : %f\n", data3(i,j));
+        printf("datap(i,j) : %f\n", datap(i,j).val());
+        printf("data1(i,j) : %f\n", data1(i,j).val());
+        printf("data2(i,j) : %f\n", data2(i,j).val());
+        printf("data3(i,j) : %f\n", data3(i,j).val());
         //cout << "datap(i,j) = " << datap(i,j) << endl;
         //cout << "data1(i,j) = " << data1(i,j) << endl;
         //cout << "data2(i,j) = " << data2(i,j) << endl;

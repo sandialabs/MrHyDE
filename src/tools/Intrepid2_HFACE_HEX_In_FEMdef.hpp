@@ -372,9 +372,9 @@ namespace Intrepid2 {
       constexpr ordinal_type maxCardLine = Parameters::MaxOrder + 1;
       ordinal_type tags[6*maxCardLine*maxCardLine][4];
       
-      const ordinal_type face_yz[2] = {3, 1};
-      const ordinal_type face_xz[2] = {0, 2};
-      const ordinal_type face_xy[2] = {4, 5};
+      //const ordinal_type face_yz[2] = {3, 1};
+      //const ordinal_type face_xz[2] = {0, 2};
+      //const ordinal_type face_xy[2] = {4, 5};
       
       {
         ordinal_type idx = 0;

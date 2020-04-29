@@ -133,8 +133,8 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   DOF->getOwnedIndices(owned);
   DOF->getOwnedAndGhostedIndices(ownedAndShared);
   
-  int nstages = 1;//timeInt->num_stages;
-  bool sol_staggered = true;//timeInt->sol_staggered;
+  //int nstages = 1;//timeInt->num_stages;
+  //bool sol_staggered = true;//timeInt->sol_staggered;
   /*
   LA_owned = vector(numUnknowns);
   LA_ownedAndShared = vector(numUnknownsOS);
@@ -502,10 +502,10 @@ void solver::forwardModel_fr(DFAD & obj, ScalarT yt, ScalarT st) {
     soln->store(u, current_time, 0);
   }
   vector_RCP I_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
-  int numsols = 1;
-  if (solver_type == "transient") {
-    numsols = numsteps+1;
-  }
+  //int numsols = 1;
+  //if (solver_type == "transient") {
+  //  numsols = numsteps+1;
+  //}
   
   //vector_RCP F_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,numsols)); // empty solution
   //vector_RCP F_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
@@ -1235,7 +1235,6 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
     params->sacadoizeParams(true);
     
     vector<ScalarT> localsens(params->num_active_params);
-    ScalarT globalsens = 0.0;
     
     vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,params->num_active_params)); // reset residual
     matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));//Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
@@ -1594,16 +1593,16 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > solver::buildPre
   mueluParams.setName("MueLu");
   
   // Main settings
-  if (verbosity >= 10){
+  if (verbosity >= 20){
     mueluParams.set("verbosity","high");
   }
   else {
     mueluParams.set("verbosity","none");
   }
-  int numEqns = 1;
-  if (assembler->cells.size() == 1) {
-    numEqns = numVars[0];
-  }
+  //int numEqns = 1;
+  //if (assembler->cells.size() == 1) {
+  //  numEqns = numVars[0];
+  //}
   //mueluParams.set("number of equations",numEqns);
   
   mueluParams.set("coarse: max size",500);

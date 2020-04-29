@@ -67,14 +67,12 @@ void ParameterManager::setupParameters(Teuchos::RCP<Teuchos::ParameterList> & se
     while (pl_itr != parameters.end()) {
       Teuchos::ParameterList newparam = parameters.sublist(pl_itr->first);
       vector<ScalarT> newparamvals;
-      int numnewparams = 0;
       if (!newparam.isParameter("type") || !newparam.isParameter("usage")) {
         // print out error message
       }
       
       if (newparam.get<string>("type") == "scalar") {
         newparamvals.push_back(newparam.get<ScalarT>("value"));
-        numnewparams = 1;
       }
       else if (newparam.get<string>("type") == "vector") {
         std::string filename = newparam.get<string>("source");
@@ -536,7 +534,6 @@ void ParameterManager::sacadoizeParams(const bool & seed_active) {
     }
   }
   else {
-    size_t pprog = 0;
     for (size_t i=0; i<paramvals.size(); i++) {
       vector<AD> currparams;
       for (size_t j=0; j<paramvals[i].size(); j++) {
@@ -714,7 +711,6 @@ vector<vector<ScalarT> > ParameterManager::getParamBounds(const std::string & st
     vector<ScalarT> rLocalUp(numDiscParams);
     vector<ScalarT> rlo(numDiscParams);
     vector<ScalarT> rup(numDiscParams);
-    int pindex;
     for (int n = 0; n < num_discretized_params; n++) {
       for (size_t i = 0; i < paramNodes[n].size(); i++) {
         int pnode = paramNodes[n][i];

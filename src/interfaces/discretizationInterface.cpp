@@ -123,7 +123,6 @@ Commptr(Comm_), mesh(mesh_) {
     
     topo_RCP sideTopo;
     
-    int sideDim = spaceDim-1;
     if (spaceDim == 1) {
       //sideTopo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Node<> >() ));
     }

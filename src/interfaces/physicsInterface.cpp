@@ -684,7 +684,6 @@ Teuchos::RCP<panzer::DOFManager> physics::buildDOF(Teuchos::RCP<panzer_stk::STK_
   DOF->setConnManager(conn,*(Commptr->getRawMpiComm()));
   DOF->setOrientationsRequired(true);
   
-  int num;
   basis_RCP basis_pointer;
   Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern;
   
@@ -692,7 +691,6 @@ Teuchos::RCP<panzer::DOFManager> physics::buildDOF(Teuchos::RCP<panzer_stk::STK_
     std::string currblock = blocknames[b];
     std::vector<std::string> currvarlist = varlist[b];
     for (size_t j=0; j<currvarlist.size(); j++) {
-      num = getUniqueIndex(b,currvarlist[j]);
       topo_RCP cellTopo = mesh->getCellTopology(currblock);
       basis_pointer = discTools->getBasis(spaceDim, cellTopo, types[b][j], orders[b][j]);
       
@@ -1335,7 +1333,7 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
           mesh->getMySides(sideName, blockID, sideEntities);
           
           bool isDiri = false;
-          bool isPeri = false;
+          //bool isPeri = false;
           bool isNeum = false;
           if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
             isDiri = true;

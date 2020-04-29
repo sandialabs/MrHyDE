@@ -509,7 +509,6 @@ public:
         // Check if these nodes have been added and add if not
         ScalarT tol=1.0e-10;
         int mid01_ind, mid12_ind, mid02_ind;
-        ScalarT check;
         bool found;
         
         found = checkExistingSubNodes(mid01,tol,mid01_ind);
@@ -666,7 +665,6 @@ public:
         // Check if these nodes have been added and add if not
         ScalarT tol=1.0e-6;
         int center_ind, mid01_ind, mid12_ind, mid23_ind, mid03_ind;
-        ScalarT check;
         bool found;
         
         found = checkExistingSubNodes(center,tol,center_ind);
@@ -882,7 +880,6 @@ public:
         ScalarT tol=1.0e-10;
         int mid01_ind, mid12_ind, mid02_ind;
         int mid03_ind, mid13_ind, mid23_ind;
-        ScalarT check;
         bool found;
         
         found = checkExistingSubNodes(mid01,tol,mid01_ind);
@@ -1208,7 +1205,6 @@ public:
         int center_ind, mid04_ind, mid15_ind, mid26_ind, mid37_ind;
         int mid0145_ind, mid1256_ind, mid2367_ind, mid0347_ind;
         int mid4567_ind, mid45_ind, mid56_ind, mid67_ind, mid47_ind;
-        ScalarT check;
         bool found;
         
         found = checkExistingSubNodes(mid0123,tol,mid0123_ind);

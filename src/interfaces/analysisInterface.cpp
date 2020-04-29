@@ -358,44 +358,6 @@ void analysis::run() {
     // Compute the statistics (mean, variance, probability levels, etc.)
     //uq.computeStatistics(response_values);
     
-    
-    /*
-     int numParams = solve.getNumParams("stochastic");
-     bool adaptive = uqsettings.get<bool>("Adaptive",false);
-     std::string adaptive_criteria = uqsettings.get<std::string>("Adaptive Criteria","");
-     vector<vector<ScalarT> > params = uq.getNewPoints();
-     size_t numpts = params.size();
-     bool done = false;
-     if (numpts == 0)
-     done = true;
-     
-     vector<Epetra_MultiVector> fwdsols;
-     vector<Epetra_MultiVector> adjsols;
-     vector<ScalarT> responsevals;
-     vector<ScalarT> errorvals;
-     //array<ScalarT> newpoints;
-     
-     while (!done) {
-     for (int j=0; j++; j<numpts) {
-     vector<ScalarT> currparams = params[j];
-     solve.updateParams(currparams,"stochastic");
-     Epetra_MultiVector F_soln = solve.forwardModel();
-     fwdsols.push_back(F_soln);
-     if (settings->sublist("Postprocess").get<bool>("compute response",false)) {
-     ScalarT currresponse = postproc.computeResponse(F_soln);
-     responsevals.push_back(currresponse);
-     }
-     //Epetra_MultiVector A_soln = solve.adjointModel(F_soln);
-     //adjsols.push_back(A_soln);
-     }
-     if (adaptive) {
-     
-     }
-     else
-     done = true;
-     }
-     */
-    
   }
   else if (analysis_type == "ROL") {
     typedef ScalarT RealT;
@@ -486,8 +448,10 @@ void analysis::run() {
         (*obj).gradient(g0p,x,tol);
         scale = 1.0e-2/g0p.norm();
       }
-      else
-      scale = 1.0;
+      else {
+        scale = 1.0;
+      }
+      // TMW: where is scale used?
       
       //initialize max and min vectors for bounds
       Teuchos::RCP<vector<RealT> > minvec = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
@@ -688,8 +652,10 @@ void analysis::run() {
         (*obj).gradient(g0p,x,tol);
         scale = 1.0e-2/g0p.norm();
       }
-      else
-      scale = 1.0;
+      else {
+        scale = 1.0;
+      }
+      // TMW: where is scale used?
       
       //initialize max and min vectors for bounds
       Teuchos::RCP<vector<RealT> > minvec = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );

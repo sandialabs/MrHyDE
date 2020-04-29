@@ -2,6 +2,7 @@
 ---
 ANONYMOUS:
   verbosity: 0
+  debug level: 2
   Mesh: 
     dim: 2
     shape: quad

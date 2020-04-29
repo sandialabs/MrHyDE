@@ -591,15 +591,16 @@ FDATA FunctionManager::evaluate(const string & fname, const string & location) {
     TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: function manager could not evaluate: " + fname + " at " + location);
   }
   
-  
+  FDATA output = functions[findex].terms[0].data;
   if (!functions[findex].terms[0].isAD) {
-    parallel_for(RangePolicy<AssemblyExec>(0,functions[findex].dim0), KOKKOS_LAMBDA (const int e ) {
-      for (unsigned int n=0; n<functions[findex].dim1; n++) {
-        functions[findex].terms[0].data(e,n) = functions[findex].terms[0].ddata(e,n);
+    FDATAd doutput = functions[findex].terms[0].ddata;
+    parallel_for(RangePolicy<AssemblyExec>(0,output.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (unsigned int n=0; n<output.extent(1); n++) {
+        output(e,n) = doutput(e,n);
       }
     });
   }
-  return functions[findex].terms[0].data;
+  return output;
   
 }
 
@@ -852,7 +853,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
       }
     });
   }
-  else if (op == "lte") {
+  /*else if (op == "lte") { // TMW: commenting this for now
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
@@ -864,7 +865,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
         }
       }
     });
-  }
+  }*/
   else if (op == "gt") {
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -878,7 +879,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
       }
     });
   }
-  else if (op == "gte") {
+  /*else if (op == "gte") { // TMW: commenting this for now
     parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
@@ -890,7 +891,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
         }
       }
     });
-  }
+  }*/
   
 }
 
