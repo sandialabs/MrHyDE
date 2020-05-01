@@ -802,7 +802,7 @@ void cell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
       for (int j=0; j<numDOF(n); j++) {
         for (int m=0; m<auxindex.extent(1); m++) {
           for (int k=0; k<numAuxDOF(m); k++) {
-            local_J(e,offsets(n,j),auxoffsets[m][k]) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets[m][k]);
+            local_J(e,offsets(n,j),auxoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets(m,k));
           }
         }
       }
@@ -824,7 +824,7 @@ void cell::updateAuxJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
       for (int j=0; j<numDOF(n); j++) {
         for (int m=0; m<auxindex.extent(1); m++) {
           for (int k=0; k<numAuxDOF(m); k++) {
-            local_Jdot(e,offsets(n,j),auxoffsets[m][k]) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets[m][k]);
+            local_Jdot(e,offsets(n,j),auxoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets(m,k));
           }
         }
       }
@@ -880,22 +880,22 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
   Kokkos::View<ScalarT***,AssemblyDevice> mass("local mass",numElem,GIDs.extent(1), GIDs.extent(1));
   wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
   vector<string> basis_types = wkset->basis_types;
+  Kokkos::View<LO**,AssemblyDevice> offsets= wkset->offsets;
   
-  parallel_for(RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    for (int n=0; n<index.extent(1); n++) {
-      for( int i=0; i<numDOF(n); i++ ) {
-        for (int m=0; m<index.extent(1); m++) {
-          if (n == m) {
-            for( int j=0; j<numDOF(m); j++ ) {
-              for( size_t k=0; k<wkset->numip; k++ ) {
-                mass(e,wkset->offsets(n,i),wkset->offsets(m,j)) += wkset->basis_uw[wkset->usebasis[n]](e,i,k)*wkset->basis[wkset->usebasis[m]](e,j,k);
-              }
-            }
+  for (int n=0; n<index.extent(1); n++) {
+    DRV basis_uw = wkset->basis_uw[wkset->usebasis[n]];
+    DRV basis = wkset->basis[wkset->usebasis[n]];
+    auto cndof = Kokkos::subview(numDOF, n);
+    parallel_for(RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for( int i=0; i<cndof(0); i++ ) {
+        for( int j=0; j<cndof(0); j++ ) {
+          for( size_t k=0; k<wkset->numip; k++ ) {
+            mass(e,offsets(n,i),offsets(n,j)) += basis_uw(e,i,k)*basis(e,j,k);
           }
         }
       }
-    }
-  });
+    });
+  }
   return mass;
 }
 

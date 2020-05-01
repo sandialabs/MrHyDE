@@ -77,7 +77,7 @@ void MultiScale::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
     subgridModels[j]->macro_basis_types = macro_basis_types[mblock];
     subgridModels[j]->macro_varlist = macro_varlist[mblock];
     subgridModels[j]->macro_usebasis = macro_usebasis[mblock];
-    subgridModels[j]->macro_offsets = macro_offsets[mblock];
+    subgridModels[j]->macro_offsets = macro_wkset[mblock]->offsets;//macro_offsets[mblock];
     subgridModels[j]->macro_paramnames = macro_paramnames;
     subgridModels[j]->macro_disc_paramnames = macro_disc_paramnames;
     subgridModels[j]->subgrid_static = subgrid_static;

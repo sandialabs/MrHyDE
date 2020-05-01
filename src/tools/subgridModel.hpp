@@ -100,7 +100,8 @@ public:
   vector<string> macro_basis_types;
   vector<string> macro_varlist;
   vector<int> macro_usebasis;
-  vector<vector<int> > macro_offsets;
+  //vector<vector<int> > macro_offsets;
+  Kokkos::View<LO**,AssemblyDevice> macro_offsets;
   vector<string> macro_paramnames, macro_disc_paramnames, macrosidenames;
   int macro_block;
   ScalarT cost_estimate;

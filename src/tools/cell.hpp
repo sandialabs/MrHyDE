@@ -348,8 +348,8 @@ public:
   
   // Aux variable Information
   vector<string> auxlist;
-  vector<vector<int> > auxoffsets;
-  //Kokkos::View<LO**,AssemblyDevice> auxoffsets;
+  //vector<vector<int> > auxoffsets;
+  Kokkos::View<LO**,AssemblyDevice> auxoffsets;
   vector<int> auxusebasis;
   vector<basis_RCP> auxbasisPointers;
   vector<DRV> auxbasis, auxbasisGrad;

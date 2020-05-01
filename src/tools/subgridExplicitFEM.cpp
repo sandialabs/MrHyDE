@@ -1919,7 +1919,7 @@ void SubGridExpFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_
                                          local_res, local_J, local_Jdot);
         Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;
         Kokkos::View<GO**,HostDevice> aGIDs = cells[usernum][e]->auxGIDs;
-        vector<vector<int> > aoffsets = cells[usernum][e]->auxoffsets;
+        //vector<vector<int> > aoffsets = cells[usernum][e]->auxoffsets;
         
         for (unsigned int i=0; i<GIDs.extent(0); i++) {
           for (size_t row=0; row<GIDs.extent(1); row++ ) {

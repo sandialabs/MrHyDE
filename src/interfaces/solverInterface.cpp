@@ -1665,11 +1665,12 @@ void solver::finalizeMultiscale() {
     //  multiscale_manager->subgridModels[k]->wkset[0]->paramnames = paramnames;
     }
     
+    multiscale_manager->macro_wkset = assembler->wkset;
+    
     multiscale_manager->setMacroInfo(disc->basis_pointers, disc->basis_types,
                                      phys->varlist, useBasis, phys->offsets,
                                      params->paramnames, params->discretized_param_names);
     
-    multiscale_manager->macro_wkset = assembler->wkset;
     ScalarT my_cost = multiscale_manager->initialize();
     ScalarT gmin = 0.0;
     Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&my_cost,&gmin);

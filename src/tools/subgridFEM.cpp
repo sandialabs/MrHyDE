@@ -1814,7 +1814,7 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
                                    local_res, local_J, local_Jdot);
         Kokkos::View<GO**,HostDevice> GIDs = cells[0][e]->GIDs;
         Kokkos::View<GO**,HostDevice> aGIDs = cells[0][e]->auxGIDs;
-        vector<vector<int> > aoffsets = cells[0][e]->auxoffsets;
+        //vector<vector<int> > aoffsets = cells[0][e]->auxoffsets;
         
         for (unsigned int i=0; i<GIDs.extent(0); i++) {
           for (size_t row=0; row<GIDs.extent(1); row++ ) {

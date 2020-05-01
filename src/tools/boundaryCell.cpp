@@ -217,7 +217,7 @@ void BoundaryCell::computeSoln(Kokkos::View<int*,UnifiedDevice> seedwhat) {
         for(size_t i=0; i<numAuxDOF(k); i++ ) {
           ScalarT auxtmp = aux(localElemID[e],k,i);
           if (seedwhat(0) == 4) {
-            auxval = AD(maxDerivs,auxoffsets[k][i],auxtmp);
+            auxval = AD(maxDerivs,auxoffsets(k,i),auxtmp);
             //auxval = AD(maxDerivs,auxoffsets[k][i],aux(e,k,i));
           }
           else {
@@ -537,7 +537,7 @@ void BoundaryCell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J)
       for (int j=0; j<numDOF(n); j++) {
         for (unsigned int m=0; m<auxindex.extent(1); m++) {
           for (int k=0; k<numAuxDOF(m); k++) {
-            local_J(e,offsets(n,j),auxoffsets[m][k]) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets[m][k]);
+            local_J(e,offsets(n,j),auxoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets(m,k));
           }
         }
       }
@@ -559,7 +559,7 @@ void BoundaryCell::updateAuxJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local
       for (int j=0; j<numDOF(n); j++) {
         for (unsigned int m=0; m<auxindex.extent(1); m++) {
           for (int k=0; k<numAuxDOF(m); k++) {
-            local_Jdot(e,offsets(n,j),auxoffsets[m][k]) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets[m][k]);
+            local_Jdot(e,offsets(n,j),auxoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets(m,k));
           }
         }
       }
@@ -752,7 +752,7 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
     for (int e=0; e<numElem; e++) {
       for (size_t k=0; k<auxindex.extent(1); k++) {
         for(size_t i=0; i<numAuxDOF(k); i++ ) {
-          auxval = AD(maxDerivs, auxoffsets[k][i], lambda(localElemID[e],k,i));
+          auxval = AD(maxDerivs, auxoffsets(k,i), lambda(localElemID[e],k,i));
           for( size_t j=0; j<numip; j++ ) {
             wkset->local_aux_side(e,k,j) += auxval*auxside_basis[auxusebasis[k]](e,i,j);
           }
