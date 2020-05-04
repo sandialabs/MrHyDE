@@ -31,13 +31,7 @@ public:
   discretization(Teuchos::RCP<Teuchos::ParameterList> & settings,
                  Teuchos::RCP<MpiComm> & Comm_,
                  Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
-                 vector<vector<int> > & orders, vector<vector<string> > & types,
-                 vector<vector<Teuchos::RCP<cell> > > & cells);
-  
-  void setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & cells,
-                          vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells,
-                          Teuchos::RCP<panzer::DOFManager> & DOF,
-                          Teuchos::RCP<physics> & phys);
+                 vector<vector<int> > & orders, vector<vector<string> > & types);
   
   ////////////////////////////////////////////////////////////////////////////////
   // Public data

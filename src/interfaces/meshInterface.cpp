@@ -10,7 +10,6 @@
  ************************************************************************/
 
 #include "meshInterface.hpp"
-#include "cellMetaData.hpp"
 #include "exodusII.h"
 
 #include <boost/algorithm/string.hpp>
@@ -513,6 +512,7 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+/*
 void meshInterface::createCells(Teuchos::RCP<physics> & phys,
                                 vector<vector<Teuchos::RCP<cell> > > & cells,
                                 vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells) {
@@ -551,9 +551,16 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
     topo_RCP cellTopo = mesh->getCellTopology(eBlocks[b]);
     size_t numElem = stk_meshElems.size();
     vector<size_t> localIds;
-    DRV blocknodes; // Assuming that panzer_stk will automatically put this on AssemblyDevice
-    panzer_stk::workset_utils::getIdsAndVertices(*mesh, eBlocks[b], localIds, blocknodes);
-    DRV blocknodepert = perturbMesh(b, blocknodes);
+    
+    //DRV blocknodes("nodes on block",numElem,numNodesPerElem,spaceDim); // create on device
+    //Kokkos::View<ScalarT***,HostDevice>::HostMirror hostblocknodes = Kokkos:create_mirror_view(blocknodes); // mirror on host
+    //panzer_stk::workset_utils::getIdsAndVertices(*mesh, eBlocks[b], localIds, hostblocknodes); // fill on host
+    //Kokkos::deep_copy(blocknodes,hostblocknodes); // copy to device
+    
+    Kokkos::DynRankView<ScalarT,HostDevice> blocknodes("nodes on block",numElem,numNodesPerElem,spaceDim); // create on device
+    panzer_stk::workset_utils::getIdsAndVertices(*mesh, eBlocks[b], localIds, blocknodes); // fill on host
+    // Mesh perturbation are currently deprecated (easy to re-enable)
+    //DRV blocknodepert = perturbMesh(b, blocknodes);
     //elemnodes.push_back(blocknodes);
     int numNodesPerElem = blocknodes.extent(1);
     int elemPerCell = settings->sublist("Solver").get<int>("Workset size",1);
@@ -572,42 +579,31 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
       if (prog+currElem > numElem){
         currElem = numElem-prog;
       }
-      Kokkos::View<int*> eIndex("element indices",currElem);
+      
+      Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
       DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
-      DRV currnodepert("currnodepert", currElem, numNodesPerElem, spaceDim);
-      parallel_for(RangePolicy<AssemblyExec>(0,currnodes.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (int n=0; n<numNodesPerElem; n++) {
-          for (int m=0; m<spaceDim; m++) {
-            currnodes(e,n,m) = blocknodes(prog+e,n,m) + blocknodepert(prog+e,n,m);
-            currnodepert(e,n,m) = blocknodepert(prog+e,n,m);
+      
+      Kokkos::View<LO*,HostDevice>::HostMirror host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
+      Kokkos::DynRankView<ScalarT,HostDevice>::HostMirror host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
+      
+      //DRV currnodepert("currnodepert", currElem, numNodesPerElem, spaceDim);
+      // Making this loop explicitly on the host
+      for (int e=0; e<host_currnodes.extent(0); e++) {
+        for (int n=0; n<host_currnodes.extent(1); n++) {
+          for (int m=0; m<host_currnodes.extent(2); m++) {
+            host_currnodes(e,n,m) = blocknodes(prog+e,n,m);// + blocknodepert(prog+e,n,m);
+            //currnodepert(e,n,m) = blocknodepert(prog+e,n,m);
           }
         }
         eIndex(e) = prog+e;
-      });
+      }
+      Kokkos::deep_copy(currnodes,host_currnodes);
+      Kokkos::deep_copy(eIndex,host_eIndex);
+      
       blockcells.push_back(Teuchos::rcp(new cell(cellData, currnodes, eIndex)));
       prog += elemPerCell;
     }
     cells.push_back(blockcells);
-    
-    
-    /*
-    int currElem = elemPerCell;  // Avoid faults in last iteration
-    if (prog+currElem > numElem){
-      currElem = numElem-prog;
-    }
-    Kokkos::View<int*> eIndex("element indices",currElem);
-    DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
-    DRV currnodepert("currnodepert", currElem, numNodesPerElem, spaceDim);
-    for (int e=0; e<currElem; e++) {
-      for (int n=0; n<numNodesPerElem; n++) {
-        for (int m=0; m<spaceDim; m++) {
-          currnodes(e ,n,m) = blocknodes(prog+e,n,m) + blocknodepert(prog+e,n,m);
-          currnodepert(e,n,m) = blocknodepert(prog+e,n,m);
-        }
-      }
-      eIndex(e) = prog+e;
-    }
-    */
     
     // Next, create the boundary cells
     
@@ -667,18 +663,26 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
             if (prog+currElem > group.size()){
               currElem = group.size()-prog;
             }
-            Kokkos::View<int*> eIndex("element indices",currElem);
-            Kokkos::View<int*> sideIndex("local side indices",currElem);
+            Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
+            Kokkos::View<LO*,AssemblyDevice> sideIndex("local side indices",currElem);
             DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
+            
+            Kokkos::View<LO*,HostDevice>::HostMirror host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
+            Kokkos::View<LO*,HostDevice>::HostMirror host_sideIndex = Kokkos::create_mirror_view(sideIndex); // mirror on host
+            Kokkos::DynRankView<ScalarT,HostDevice>::HostMirror host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
+            
             for (int e=0; e<currElem; e++) {
-              eIndex(e) = mesh->elementLocalId(side_output[group[e+prog]]);
-              sideIndex(e) = local_side_Ids[group[e+prog]];
-              for (int n=0; n<numNodesPerElem; n++) {
-                for (int m=0; m<spaceDim; m++) {
-                  currnodes(e,n,m) = blocknodes(eIndex(e),n,m);
+              host_eIndex(e) = mesh->elementLocalId(side_output[group[e+prog]]);
+              host_sideIndex(e) = local_side_Ids[group[e+prog]];
+              for (int n=0; n<host_currnodes.extent(1); n++) {
+                for (int m=0; m<host_currnodes.extent(2); m++) {
+                  host_currnodes(e,n,m) = blocknodes(eIndex(e),n,m);
                 }
               }
             }
+            Kokkos::deep_copy(currnodes,host_currnodes);
+            Kokkos::deep_copy(eIndex,host_eIndex);
+            Kokkos::deep_copy(sideIndex,host_sideIndex);
             
             bcells.push_back(Teuchos::rcp(new BoundaryCell(cellData,currnodes,eIndex,sideIndex,
                                                            side,sideName, bcells.size())));
@@ -691,6 +695,12 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
     boundaryCells.push_back(bcells);
     
   }
+ }*/
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+void meshInterface::setMeshData(vector<vector<Teuchos::RCP<cell> > > & cells) {
   if (have_mesh_data) {
     this->importMeshData(cells);
   }
@@ -703,6 +713,7 @@ void meshInterface::createCells(Teuchos::RCP<physics> & phys,
     }
   }
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

@@ -34,10 +34,13 @@ public:
   
   BoundaryCell(const Teuchos::RCP<CellMetaData> & cellData_,
                const DRV & nodes_,
-               const Kokkos::View<int*> & localID_,
-               const Kokkos::View<int*> & sideID_,
+               const Kokkos::View<LO*,AssemblyDevice> & localID_,
+               const Kokkos::View<LO*,AssemblyDevice> & sideID_,
                const int & sidenum_, const string & sidename_,
-               const int & cellID_);
+               const int & cellID_,
+               Kokkos::View<GO**,HostDevice> GIDs_,
+               Kokkos::View<int****,HostDevice> sideinfo_,
+               Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -196,7 +199,7 @@ public:
   Teuchos::RCP<CellMetaData> cellData;
   Teuchos::RCP<workset> wkset;
   
-  Kokkos::View<LO*> localElemID, localSideID;
+  Kokkos::View<LO*,AssemblyDevice> localElemID, localSideID;
   Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
   
   // Geometry Information
@@ -210,20 +213,18 @@ public:
   Kokkos::View<GO**,HostDevice> GIDs, paramGIDs, auxGIDs;
   Kokkos::View<LO***,AssemblyDevice> index, paramindex, auxindex;
   Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
-  Kokkos::View<ScalarT***,AssemblyDevice> u, u_dot, phi, phi_dot, aux;
-  
-  // Discretized Parameter Information
-  Kokkos::View<ScalarT***,AssemblyDevice> param;
+  Kokkos::View<ScalarT***,AssemblyDevice> u, u_dot, phi, phi_dot, aux, param;
   
   // Aux variable Information
   vector<string> auxlist;
-  //vector<vector<int> > auxoffsets;
   Kokkos::View<LO**,AssemblyDevice> auxoffsets;
   vector<int> auxusebasis;
   vector<basis_RCP> auxbasisPointers;
   vector<DRV> auxbasis, auxbasisGrad;
   vector<DRV> auxside_basis, auxside_basisGrad;
   vector<size_t> auxMIDs;
+  
+  // Boundary cells do not have sensors
   
   // Profile timers
   Teuchos::RCP<Teuchos::Time> computeSolnSideTimer = Teuchos::TimeMonitor::getNewCounter("MILO::boundaryCell::computeSolnSideIP()");

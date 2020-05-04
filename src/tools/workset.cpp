@@ -514,7 +514,7 @@ void workset::update(const DRV & ip_, const DRV & wts_, const DRV & jacobian,
 ////////////////////////////////////////////////////////////////////////////////////
 
 int workset::addSide(const DRV & nodes, const int & sidenum,
-                     Kokkos::View<int*> & localSideID,
+                     Kokkos::View<LO*,AssemblyDevice> & localSideID,
                      Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation) {
   
   Teuchos::TimeMonitor updatetimer(*worksetAddSideTimer);

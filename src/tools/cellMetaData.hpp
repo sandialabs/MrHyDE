@@ -32,9 +32,9 @@ public:
                const topo_RCP & cellTopo_,
                const Teuchos::RCP<physics> & physics_RCP_, const size_t & myBlock_,
                const size_t & myLevel_, const bool & memeff_,
-               const vector<string> & sidenames_) :
+               const vector<string> & sidenames_, DRV ref_ip_, DRV ref_wts_) :
   cellTopo(cellTopo_), physics_RCP(physics_RCP_), myBlock(myBlock_),
-  myLevel(myLevel_), memory_efficient(memeff_), sidenames(sidenames_) {
+  myLevel(myLevel_), memory_efficient(memeff_), sidenames(sidenames_), ref_ip(ref_ip_), ref_wts(ref_wts_) {
   
     
     compute_diff = settings->sublist("Postprocess").get<bool>("Compute Difference in Objective", true);
@@ -73,6 +73,7 @@ public:
   // Geometry Information
   size_t numnodes, numSides, dimension;
   topo_RCP cellTopo;
+  DRV ref_ip, ref_wts;
   
   bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles;
   bool mortar_objective;

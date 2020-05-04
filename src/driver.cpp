@@ -99,7 +99,7 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<meshInterface> mesh = Teuchos::rcp(new meshInterface(settings, Comm) );
     
     ////////////////////////////////////////////////////////////////////////////////
-    // Create the function manager
+    // Create the function managers (need to be defined before physics modules)
     ////////////////////////////////////////////////////////////////////////////////
     
     vector<string> eBlocks;
@@ -124,9 +124,9 @@ int main(int argc,char * argv[]) {
     // Create the cells
     ////////////////////////////////////////////////////////////////////////////////
     
-    vector<vector<Teuchos::RCP<cell> > > cells;
-    vector<vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
-    mesh->createCells(phys,cells,boundaryCells);
+    //vector<vector<Teuchos::RCP<cell> > > cells;
+    //vector<vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
+    //mesh->createCells(phys,cells,boundaryCells);
     //phys->setPeriBCs(settings, mesh->mesh);
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -136,8 +136,7 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<discretization> disc = Teuchos::rcp( new discretization(settings, Comm,
                                                                          mesh->mesh,
                                                                          phys->unique_orders,
-                                                                         phys->unique_types,
-                                                                         cells) );
+                                                                         phys->unique_types) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // The DOF-manager needs to be aware of the physics and the discretization(s)
@@ -146,8 +145,17 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<panzer::DOFManager> DOF = phys->buildDOF(mesh->mesh);
     phys->setBCData(settings, mesh->mesh, DOF, disc->cards);
     
+    ////////////////////////////////////////////////////////////////////////////////
+    // Create the solver object
+    ////////////////////////////////////////////////////////////////////////////////
     
-    disc->setIntegrationInfo(cells, boundaryCells, DOF, phys);
+    Teuchos::RCP<ParameterManager> params = Teuchos::rcp( new ParameterManager(Comm, settings,
+                                                                               mesh->mesh, phys));
+                                                         
+    Teuchos::RCP<AssemblyManager> assembler = Teuchos::rcp( new AssemblyManager(Comm, settings, mesh->mesh,
+                                                                                disc, phys, DOF, params));
+    
+    mesh->setMeshData(assembler->cells);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Set up the subgrid discretizations/models if using multiscale method
@@ -156,21 +164,12 @@ int main(int argc,char * argv[]) {
     vector<Teuchos::RCP<SubGridModel> > subgridModels = subgridGenerator(subgridComm, settings, mesh->mesh);
     
     Teuchos::RCP<MultiScale> multiscale_manager = Teuchos::rcp( new MultiScale(Comm, subgridComm, settings,
-                                                                               cells, subgridModels,
+                                                                               assembler->cells, subgridModels,
                                                                                functionManagers) );
     
     ////////////////////////////////////////////////////////////////////////////////
-    // Create the solver object
+    // Set up the solver and finalize some objects
     ////////////////////////////////////////////////////////////////////////////////
-    
-    Teuchos::RCP<ParameterManager> params = Teuchos::rcp( new ParameterManager(Comm, settings,
-                                                                               mesh->mesh, phys, cells,
-                                                                               boundaryCells));
-    
-    Teuchos::RCP<AssemblyManager> assembler = Teuchos::rcp( new AssemblyManager(Comm, settings, mesh->mesh,
-                                                                                disc, phys, DOF, cells,
-                                                                                boundaryCells,
-                                                                                params));
     
     Teuchos::RCP<solver> solve = Teuchos::rcp( new solver(Comm, settings, mesh,
                                                           disc, phys, DOF, assembler, params) );
@@ -203,7 +202,7 @@ int main(int argc,char * argv[]) {
     
     Teuchos::RCP<PostprocessManager>
     postproc = Teuchos::rcp( new PostprocessManager(Comm, settings, mesh->mesh, disc, phys,
-                                                    solve, DOF, cells, functionManagers,
+                                                    solve, DOF, assembler->cells, functionManagers,
                                                     assembler, params, sensors) );
     
     ////////////////////////////////////////////////////////////////////////////////

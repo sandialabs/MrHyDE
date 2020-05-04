@@ -38,10 +38,14 @@ public:
   AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
                   Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
                   Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
-                  vector<vector<Teuchos::RCP<cell> > > & cells_,
-                  vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells_,
                   Teuchos::RCP<ParameterManager> & params_);
   
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void createCells();
+    
   // ========================================================================================
   // ========================================================================================
   
@@ -150,6 +154,8 @@ public:
   // Public data members
   ///////////////////////////////////////////////////////////////////////////////////////////
   
+  Teuchos::RCP<Teuchos::ParameterList> settings;
+  
   // Need
   vector<string> blocknames;
   vector<vector<string> > varlist;
@@ -166,7 +172,7 @@ public:
   vector<Teuchos::RCP<workset> > wkset;
   
   bool usestrongDBCs, use_meas_as_dbcs, multiscale, useNewBCs;
-  Teuchos::RCP<const panzer::DOFManager> DOF;
+  Teuchos::RCP<panzer::DOFManager> DOF;
   
 private:
   

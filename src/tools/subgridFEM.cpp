@@ -180,8 +180,8 @@ void SubGridFEM::setUpSubgridModels() {
   sub_physics = Teuchos::rcp( new physics(settings, LocalComm, sub_mesh->cellTopo,
                                           sub_mesh->sideTopo, functionManagers, sub_mesh->mesh) );
   
-  sub_mesh->createCells(sub_physics,cells,boundaryCells);
-  
+  //sub_mesh->createCells(sub_physics,cells,boundaryCells);
+  /*
   Teuchos::RCP<CellMetaData> cellData = cells[0][0]->cellData;
   
   /////////////////////////////////////////////////////////////////////////////////////
@@ -237,13 +237,14 @@ void SubGridFEM::setUpSubgridModels() {
   for (size_t bb=0; bb<newbcells.size(); bb++) {
     boundaryCells[0].push_back(newbcells[bb]);
   }
+   */
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the subgrid discretizations
   /////////////////////////////////////////////////////////////////////////////////////
   
   sub_disc = Teuchos::rcp( new discretization(settings, LocalComm, sub_mesh->mesh, sub_physics->unique_orders,
-                                              sub_physics->unique_types, cells) );
+                                              sub_physics->unique_types) );
   
   ////////////////////////////////////////////////////////////////////////////////
   // The DOF-manager needs to be aware of the physics and the discretization(s)
@@ -251,18 +252,123 @@ void SubGridFEM::setUpSubgridModels() {
   
   Teuchos::RCP<panzer::DOFManager> DOF = sub_physics->buildDOF(sub_mesh->mesh);
   sub_physics->setBCData(settings, sub_mesh->mesh, DOF, sub_disc->cards);
-  sub_disc->setIntegrationInfo(cells, boundaryCells, DOF, sub_physics);
+  //sub_disc->setIntegrationInfo(cells, boundaryCells, DOF, sub_physics);
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the parameter manager, the assembler and the solver
   /////////////////////////////////////////////////////////////////////////////////////
   
   sub_params = Teuchos::rcp( new ParameterManager(LocalComm, settings, sub_mesh->mesh,
-                                                  sub_physics, cells, boundaryCells));
+                                                  sub_physics));
   
   sub_assembler = Teuchos::rcp( new AssemblyManager(LocalComm, settings, sub_mesh->mesh,
                                                     sub_disc, sub_physics, DOF,
-                                                    cells, boundaryCells, sub_params));
+                                                    sub_params));
+  
+  cells = sub_assembler->cells;
+  
+  Teuchos::RCP<CellMetaData> cellData = cells[0][0]->cellData;
+  
+  /////////////////////////////////////////////////////////////////////////////////////
+  // Boundary cells are not set up properly due to the lack of side sets in the subgrid mesh
+  // These just need to be defined once though
+  /////////////////////////////////////////////////////////////////////////////////////
+  
+  int numNodesPerElem = sub_mesh->cellTopo[0]->getNodeCount();
+  vector<Teuchos::RCP<BoundaryCell> > newbcells;
+  
+  int numLocalBoundaries = localData[0]->macrosideinfo.extent(2);
+  
+  vector<int> unique_sides;
+  vector<int> unique_local_sides;
+  vector<string> unique_names;
+  vector<vector<size_t> > boundary_groups;
+  
+  sgt.getUniqueSides(sideinfo, unique_sides, unique_local_sides, unique_names,
+                     macrosidenames, boundary_groups);
+  
+  vector<stk::mesh::Entity> stk_meshElems;
+  sub_mesh->mesh->getMyElements(blockID, stk_meshElems);
+  
+  for (size_t s=0; s<unique_sides.size(); s++) {
+    
+    string sidename = unique_names[s];
+    vector<size_t> group = boundary_groups[s];
+    
+    int prog = 0;
+    while (prog < group.size()) {
+      int currElem = numSubElem;  // Avoid faults in last iteration
+      if (prog+currElem > group.size()){
+        currElem = group.size()-prog;
+      }
+      Kokkos::View<int*> eIndex("element indices",currElem);
+      Kokkos::View<int*> sideIndex("local side indices",currElem);
+      DRV currnodes("currnodes", currElem, numNodesPerElem, dimension);
+      for (int e=0; e<currElem; e++) {
+        eIndex(e) = group[e+prog];
+        sideIndex(e) = unique_local_sides[s];
+        for (int n=0; n<numNodesPerElem; n++) {
+          for (int m=0; m<dimension; m++) {
+            currnodes(e,n,m) = nodes[connectivity[eIndex(e)][n]][m];
+          }
+        }
+      }
+      int sideID = s;
+      
+      // Build the Kokkos View of the cell GIDs ------
+      vector<vector<GO> > cellGIDs;
+      int numLocalDOF = 0;
+      for (int i=0; i<currElem; i++) {
+        vector<GO> GIDs;
+        size_t elemID = eIndex(i);
+        DOF->getElementGIDs(elemID, GIDs, blockID);
+        cellGIDs.push_back(GIDs);
+        numLocalDOF = GIDs.size(); // should be the same for all elements
+      }
+      Kokkos::View<GO**,HostDevice> hostGIDs("GIDs on host device",currElem,numLocalDOF);
+      for (int i=0; i<currElem; i++) {
+        for (int j=0; j<numLocalDOF; j++) {
+          hostGIDs(i,j) = cellGIDs[i][j];
+        }
+      }
+      
+      //-----------------------------------------------
+      // Set the side information (soon to be removed)-
+      Kokkos::View<int****,HostDevice> sideinfo = sub_physics->getSideInfo(0,eIndex);
+      
+      //-----------------------------------------------
+      // Set the cell orientation ---
+      Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices",
+                                                                      currElem, numNodesPerElem);
+      for (int i=0; i<currElem; i++) {
+        vector<stk::mesh::EntityId> stk_nodeids;
+        size_t elemID = eIndex(i);
+        sub_mesh->mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
+        for (int n=0; n<numNodesPerElem; n++) {
+          currind(i,n) = stk_nodeids[n];
+        }
+      }
+      
+      Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orient_drv("kv to orients",currElem);
+      Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *(sub_mesh->cellTopo[0]));
+      
+      newbcells.push_back(Teuchos::rcp(new BoundaryCell(cellData,currnodes,eIndex,sideIndex,
+                                                        sideID,sidename, newbcells.size(),
+                                                        hostGIDs, sideinfo, orient_drv)));
+      
+      prog += currElem;
+    }
+    
+    
+  }
+  
+  boundaryCells.push_back(newbcells);
+  
+  //for (size_t bb=0; bb<newbcells.size(); bb++) {
+  //  boundaryCells[0].push_back(newbcells[bb]);
+  //}
+  sub_assembler->boundaryCells = boundaryCells;
+  //sub_disc->setIntegrationInfo(cells, boundaryCells, DOF, sub_physics);
   
   sub_solver = Teuchos::rcp( new solver(LocalComm, settings, sub_mesh, sub_disc, sub_physics,
                                         DOF, sub_assembler, sub_params) );
@@ -334,7 +440,6 @@ void SubGridFEM::setUpSubgridModels() {
     boundaryCells[0][e]->auxoffsets = macro_offsets;
     boundaryCells[0][e]->wkset = wkset[0];
   }
-  
   
   // TMW: would like to remove these since most of this is stored by the
   //      parameter manager

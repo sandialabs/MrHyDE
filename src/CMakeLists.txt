@@ -31,7 +31,6 @@ tools/boundaryCell.cpp
 tools/workset.cpp
 tools/split_mpi_communicators.cpp 
 tools/subgridFEM.cpp 
-tools/subgridExplicitFEM.cpp 
 physics/thermal.cpp
 physics/porous.cpp
 physics/porousHDIV.cpp

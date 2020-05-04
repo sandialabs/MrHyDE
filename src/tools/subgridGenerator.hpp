@@ -16,7 +16,7 @@
 #include "preferences.hpp"
 #include "subgridModel.hpp"
 #include "subgridFEM.hpp"
-#include "subgridExplicitFEM.hpp"
+//#include "subgridExplicitFEM.hpp"
 //#include "subgridFEM2.hpp"
 
 using namespace std;
@@ -52,9 +52,9 @@ vector<Teuchos::RCP<SubGridModel> > subgridGenerator(const Teuchos::RCP<MpiComm>
                                                              macro_deltat) ) );
       }
       else if (subgrid_model_type == "Explicit FEM") {
-        subgridModels.push_back(Teuchos::rcp( new SubGridExpFEM(Comm, subgrid_pl, macro_topo,
-                                                                num_macro_time_steps,
-                                                                macro_deltat) ) );
+       // subgridModels.push_back(Teuchos::rcp( new SubGridExpFEM(Comm, subgrid_pl, macro_topo,
+       //                                                         num_macro_time_steps,
+       //                                                         macro_deltat) ) );
       }
       else if (subgrid_model_type == "FEM2") {
         //subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo, num_macro_time_steps, macro_deltat) ) );
@@ -81,9 +81,9 @@ vector<Teuchos::RCP<SubGridModel> > subgridGenerator(const Teuchos::RCP<MpiComm>
                                                                  macro_deltat ) ) );
           }
           else if (subgrid_model_type == "Explicit FEM") {
-            subgridModels.push_back(Teuchos::rcp( new SubGridExpFEM(Comm, subgrid_pl, macro_topo,
-                                                                    num_macro_time_steps,
-                                                                    macro_deltat ) ) );
+           // subgridModels.push_back(Teuchos::rcp( new SubGridExpFEM(Comm, subgrid_pl, macro_topo,
+          //                                                          num_macro_time_steps,
+          //                                                          macro_deltat ) ) );
           }
           else if (subgrid_model_type == "FEM2") {
             //subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo, num_macro_time_steps, macro_deltat ) ) );

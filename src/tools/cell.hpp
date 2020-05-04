@@ -35,12 +35,15 @@ public:
   
   cell(const Teuchos::RCP<CellMetaData> & cellData_,
        const DRV & nodes_,
-       const Kokkos::View<int*> & localID_);
+       const Kokkos::View<LO*,AssemblyDevice> & localID_,
+       Kokkos::View<GO**,HostDevice> GIDs_,
+       Kokkos::View<int****,HostDevice> sideinfo_,
+       Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void setIP(const DRV & ref_ip, const DRV & ref_wts);
+  void setIP();
   
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -314,45 +317,32 @@ public:
 
   // Public data
   
-  // On Host
+  // Data created elsewhere
+  Kokkos::View<GO**,HostDevice> GIDs, paramGIDs, auxGIDs; // scatter on host
+  Kokkos::View<LO***,HostDevice> index, paramindex, auxindex; // gather on device
   Teuchos::RCP<CellMetaData> cellData;
   Teuchos::RCP<workset> wkset;
-  Kokkos::View<GO**,HostDevice> GIDs, paramGIDs, auxGIDs;
-  
-  int numElem;
-  bool active;
-  
   vector<Teuchos::RCP<SubGridModel> > subgridModels;
+  Kokkos::View<LO*,AssemblyDevice> localElemID;
+  Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
+  DRV nodes;
   vector<size_t> cell_data_seed, cell_data_seedindex;
   vector<size_t> subgrid_model_index; // which subgrid model is used for each time step
   size_t subgrid_usernum; // what is the index for this cell in the subgrid model (should be deprecated)
   
-  // On Device
-  DRV nodes, ip, wts, jacobian, jacobianInv, jacobianDet;
+  // Data created here (Views should all be AssemblyDevice)
+  size_t numElem;
+  DRV ip, wts, jacobian, jacobianInv, jacobianDet;
   Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
   Kokkos::View<ScalarT***,AssemblyDevice> u, u_dot, phi, phi_dot, aux, param;
-  Kokkos::View<LO***,AssemblyDevice> index, paramindex, auxindex;
-  Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
-  
-  // On both
-  
-  // Not sure
-  Kokkos::View<LO*> localElemID;
-  Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
-  
-  // Geometry Information
-  
-  
-  
-  
+  Kokkos::View<int*,HostDevice> numDOF, numParamDOF, numAuxDOF;
   
   // Aux variable Information
   vector<string> auxlist;
-  //vector<vector<int> > auxoffsets;
   Kokkos::View<LO**,AssemblyDevice> auxoffsets;
   vector<int> auxusebasis;
   vector<basis_RCP> auxbasisPointers;
-  vector<DRV> auxbasis, auxbasisGrad;
+  vector<DRV> auxbasis, auxbasisGrad; // this does cause a problem
   vector<vector<DRV> > auxside_basis, auxside_basisGrad;
   
   // Sensor information

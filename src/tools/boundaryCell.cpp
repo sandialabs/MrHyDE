@@ -20,12 +20,15 @@
 
 BoundaryCell::BoundaryCell(const Teuchos::RCP<CellMetaData> & cellData_,
                            const DRV & nodes_,
-                           const Kokkos::View<int*> & localID_,
-                           const Kokkos::View<int*> & sideID_,
+                           const Kokkos::View<LO*,AssemblyDevice> & localID_,
+                           const Kokkos::View<LO*,AssemblyDevice> & sideID_,
                            const int & sidenum_, const string & sidename_,
-                           const int & cellID_) :
+                           const int & cellID_,
+                           Kokkos::View<GO**,HostDevice> GIDs_,
+                           Kokkos::View<int****,HostDevice> sideinfo_,
+                           Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_) :
 cellData(cellData_), localElemID(localID_), localSideID(sideID_), nodes(nodes_),
-sidenum(sidenum_), sidename(sidename_), cellID(cellID_) {
+sidenum(sidenum_), sidename(sidename_), cellID(cellID_), GIDs(GIDs_), sideinfo(sideinfo_), orientation(orientation_) {
   
   numElem = nodes.extent(0);
   
@@ -41,6 +44,7 @@ void BoundaryCell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_,
                                              index_.extent(1), index_.extent(2));
   
   // Need to copy the data since index_ is rewritten for each cell
+  
   parallel_for(RangePolicy<AssemblyExec>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (unsigned int j=0; j<index_.extent(1); j++) {
       for (unsigned int k=0; k<index_.extent(2); k++) {
@@ -48,6 +52,7 @@ void BoundaryCell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_,
       }
     }
   });
+  
   
   // This is common to all cells (within the same block), so a view copy will do
   numDOF = numDOF_;
@@ -64,6 +69,7 @@ void BoundaryCell::setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_,
                                                   pindex_.extent(1), pindex_.extent(2));
   
   // Need to copy the data since index_ is rewritten for each cell
+  
   parallel_for(RangePolicy<AssemblyExec>(0,pindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (unsigned int j=0; j<pindex_.extent(1); j++) {
       for (unsigned int k=0; k<pindex_.extent(2); k++) {
@@ -88,6 +94,8 @@ void BoundaryCell::setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_) {
                                                 aindex_.extent(2));
   
   // Need to copy the data since index_ is rewritten for each cell
+  Kokkos::deep_copy(auxindex,aindex_);
+  /*
   parallel_for(RangePolicy<AssemblyExec>(0,aindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (unsigned int j=0; j<aindex_.extent(1); j++) {
       for (unsigned int k=0; k<aindex_.extent(2); k++) {
@@ -95,7 +103,7 @@ void BoundaryCell::setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_) {
       }
     }
   });
-  
+  */
   // This is common to all cells, so a view copy will do
   // This is excessive storage, please remove
   //numAuxDOF = anumDOF_;

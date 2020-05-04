@@ -15,8 +15,7 @@
 discretization::discretization(Teuchos::RCP<Teuchos::ParameterList> & settings,
                                Teuchos::RCP<MpiComm> & Comm_,
                                Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
-                               vector<vector<int> > & orders, vector<vector<string> > & types,
-                               vector<vector<Teuchos::RCP<cell> > > & cells) :
+                               vector<vector<int> > & orders, vector<vector<string> > & types) :
 Commptr(Comm_), mesh(mesh_) {
   
   milo_debug_level = settings->get<int>("debug level",0);
@@ -43,7 +42,7 @@ Commptr(Comm_), mesh(mesh_) {
   // Assemble the information we always store
   ////////////////////////////////////////////////////////////////////////////////
   
-  for (size_t b=0; b<cells.size(); b++) {
+  for (size_t b=0; b<blocknames.size(); b++) {
     
     string blockID = blocknames[b];
     Teuchos::ParameterList db_settings;
@@ -63,15 +62,6 @@ Commptr(Comm_), mesh(mesh_) {
       blockmyElements[e] = mesh->elementLocalId(stk_meshElems[e]);
     }
     myElements.push_back(blockmyElements);
-    
-    ///////////////////////////////////////////////////////////////////////////
-    // Modify the mesh (if requested)
-    ///////////////////////////////////////////////////////////////////////////
-    
-    //FC blocknodePert = this->modifyMesh(settings, blocknodeVert);
-    
-    //nodeVert.push_back(blocknodeVert_vec);
-    //nodePert.push_back(blocknodePert);
     
     ///////////////////////////////////////////////////////////////////////////
     // Get the cardinality of the basis functions  on this block
@@ -168,186 +158,3 @@ Commptr(Comm_), mesh(mesh_) {
     }
   }
 }
-
-///////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////
-
-void discretization::setIntegrationInfo(vector<vector<Teuchos::RCP<cell> > > & cells,
-                                        vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells,
-                                        Teuchos::RCP<panzer::DOFManager> & DOF,
-                                        Teuchos::RCP<physics> & phys) {
-  
-  if (milo_debug_level > 0) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Starting discretization:: setIntegrationInfo" << endl;
-    }
-  }
-  vector<string> eBlocks;
-  mesh->getElementBlockNames(eBlocks);
-  
-  for (size_t b=0; b<cells.size(); b++) {
-    int eprog = 0;
-    vector<stk::mesh::Entity> stk_meshElems;
-    mesh->getMyElements(eBlocks[b], stk_meshElems);
-    
-    for (size_t e=0; e<cells[b].size(); e++) {
-      int numElem = cells[b][e]->numElem;
-      
-      // Build the Kokkos View of the cell GIDs ------
-      vector<vector<GO> > cellGIDs;
-      int numLocalDOF = 0;
-      for (int i=0; i<numElem; i++) {
-        vector<GO> GIDs;
-        size_t elemID = this->myElements[b][eprog+i];
-        DOF->getElementGIDs(elemID, GIDs, phys->blocknames[b]);
-        cellGIDs.push_back(GIDs);
-        numLocalDOF = GIDs.size(); // should be the same for all elements
-      }
-      
-      Kokkos::View<GO**,HostDevice> hostGIDs("GIDs on host device",numElem,numLocalDOF);
-      for (int i=0; i<numElem; i++) {
-        for (int j=0; j<numLocalDOF; j++) {
-          hostGIDs(i,j) = cellGIDs[i][j];
-        }
-      }
-      cells[b][e]->GIDs = hostGIDs;
-      
-      //-----------------------------------------------
-      
-      Kokkos::View<int*> localEID = cells[b][e]->localElemID;
-      
-      // Set the side information (soon to be removed)-
-      Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,localEID);
-      cells[b][e]->sideinfo = sideinfo;
-      //cells[b][e]->sidenames = phys->sideSets;
-      //-----------------------------------------------
-      
-      // Set the cell orientation ---
-      /*
-      vector<vector<ScalarT> > cellOrient;
-      for (int i=0; i<numElem; i++) {
-        vector<ScalarT> orient;
-        size_t elemID = localEID(i);//this->myElements[b][eprog+i];
-        DOF->getElementOrientation(elemID, orient);
-        cellOrient.push_back(orient);
-      }
-      cells[b][e]->orientation = cellOrient;
-      */
-      
-      Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", numElem, cells[b][e]->cellData->numnodes);
-      
-      for (int i=0; i<numElem; i++) {
-        vector<stk::mesh::EntityId> stk_nodeids;
-        mesh->getNodeIdsForElement(stk_meshElems[eprog+i], stk_nodeids);
-        for (int n=0; n<cells[b][e]->cellData->numnodes; n++) {
-          currind(i,n) = stk_nodeids[n];
-        }
-      }
-      
-      
-      Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orient_drv("kv to orients",numElem);
-      //Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, cells[b][e]->nodeIndices, *(cells[b][e]->cellData->cellTopo));
-      Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *(cells[b][e]->cellData->cellTopo));
-      cells[b][e]->orientation = orient_drv;
-      
-      //-----------------------------------------------
-      
-      eprog += numElem;
-      
-    }
-  }
-  
-  for (size_t b=0; b<boundaryCells.size(); b++) {
-    vector<stk::mesh::Entity> stk_meshElems;
-    mesh->getMyElements(eBlocks[b], stk_meshElems);
-    
-    for (size_t e=0; e<boundaryCells[b].size(); e++) {
-      int numElem = boundaryCells[b][e]->numElem;
-      
-      // Build the Kokkos View of the cell GIDs ------
-      vector<vector<GO> > cellGIDs;
-      int numLocalDOF = 0;
-      for (int i=0; i<numElem; i++) {
-        vector<GO> GIDs;
-        size_t elemID = boundaryCells[b][e]->localElemID(i);
-        DOF->getElementGIDs(elemID, GIDs, phys->blocknames[b]);
-        cellGIDs.push_back(GIDs);
-        numLocalDOF = GIDs.size(); // should be the same for all elements
-      }
-      Kokkos::View<GO**,HostDevice> hostGIDs("GIDs on host device",numElem,numLocalDOF);
-      for (int i=0; i<numElem; i++) {
-        for (int j=0; j<numLocalDOF; j++) {
-          hostGIDs(i,j) = cellGIDs[i][j];
-        }
-      }
-      boundaryCells[b][e]->GIDs = hostGIDs;
-      //-----------------------------------------------
-    
-      Kokkos::View<int*> localEID = boundaryCells[b][e]->localElemID;
-      
-      // Set the side information (soon to be removed)-
-      Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,localEID);
-      boundaryCells[b][e]->sideinfo = sideinfo;
-      //-----------------------------------------------
-      
-      // Set the cell orientation ---
-      
-      Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", numElem, boundaryCells[b][e]->cellData->numnodes);
-      
-      for (int i=0; i<numElem; i++) {
-        vector<stk::mesh::EntityId> stk_nodeids;
-        size_t elemID = boundaryCells[b][e]->localElemID(i);
-        mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
-        for (int n=0; n<boundaryCells[b][e]->cellData->numnodes; n++) {
-          currind(i,n) = stk_nodeids[n];
-        }
-      }
-      //KokkosTools::print(currind);
-      
-      Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orient_drv("kv to orients",numElem);
-      //Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, cells[b][e]->nodeIndices, *(cells[b][e]->cellData->cellTopo));
-      Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *(boundaryCells[b][e]->cellData->cellTopo));
-      boundaryCells[b][e]->orientation = orient_drv;
-      
-      /*
-      vector<vector<ScalarT> > cellOrient;
-      for (int i=0; i<numElem; i++) {
-        vector<ScalarT> orient;
-        size_t elemID = localEID(i);//this->myElements[b][eprog+i];
-        DOF->getElementOrientation(elemID, orient);
-        cellOrient.push_back(orient);
-      }
-      boundaryCells[b][e]->orientation = cellOrient;
-       */
-      //-----------------------------------------------
-      
-    }
-  }
-  // Set the cell integration points/wts-----------
-  for (size_t b=0; b<cells.size(); b++) {
-    for (size_t e=0; e<cells[b].size(); e++) {
-      cells[b][e]->setIP(ref_ip[b], ref_wts[b]);
-      //cells[b][e]->setSideIP(ref_side_ip[b], ref_side_wts[b]);
-    }
-  }
-  //-----------------------------------------------
-  
-  // Set the boundary cell integration points/wts -
-  //for (size_t b=0; b<boundaryCells.size(); b++) {
-  //  for (size_t e=0; e<boundaryCells[b].size(); e++) {
-  //    int s = boundaryCells[b][e]->sidenum;
-      //boundaryCells[b][e]->setIP(ref_side_ip[b], ref_side_wts[b]);
-      //cells[b][e]->setSideIP(ref_side_ip[b], ref_side_wts[b]);
-  //  }
-  //}
-  //-----------------------------------------------
-  
-  if (milo_debug_level > 0) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Finished discretization:: setIntegrationInfo" << endl;
-    }
-  }
-  
-}
-
-

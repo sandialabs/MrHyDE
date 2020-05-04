@@ -52,7 +52,7 @@ class workset {
   // Add a side information
   ////////////////////////////////////////////////////////////////////////////////////
   
-  int addSide(const DRV & nodes, const int & sidenum, Kokkos::View<int*> & localSideID,
+  int addSide(const DRV & nodes, const int & sidenum, Kokkos::View<LO*,AssemblyDevice> & localSideID,
               Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation);
 
   ////////////////////////////////////////////////////////////////////////////////////

@@ -252,7 +252,7 @@ public:
       cout << "-------------------------------" << endl;
       
       parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
-        //printf("   %i      %f\n", i, V(i));
+        printf("   %i      %f\n", i, V(i));
         //cout << "  " << i << "  " << // GH: std::cout is illegal in device
         //"  " << "  " << V(i) << "  " << endl;
       });
@@ -265,7 +265,7 @@ public:
       
       parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
         for (unsigned int j=0; j<V.extent(1); j++) {
-          //printf("   %i      %i      %f\n", i, j, V(i,j));
+          printf("   %i      %i      %f\n", i, j, V(i,j));
           //cout << "  " << i << "  " << "  " << j << "  " << // GH: std::cout is illegal in device
           //"  " << "  " << V(i,j) << "  " << endl;
         }
@@ -280,7 +280,7 @@ public:
       parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
         for (unsigned int j=0; j<V.extent(1); j++) {
           for (unsigned int k=0; k<V.extent(2); k++) {
-            //printf("   %i      %i      %i      %f\n", i, j, k, V(i,j,k));
+            printf("   %i      %i      %i      %f\n", i, j, k, V(i,j,k));
             //cout << "  " << i << "  " << "  " << j << "  " << // GH: std::cout is illegal in device
             //"  " << k << "  " << "  " << V(i,j,k) << "  " << endl;
           }
@@ -297,7 +297,7 @@ public:
         for (unsigned int j=0; j<V.extent(1); j++) {
           for (unsigned int k=0; k<V.extent(2); k++) {
             for (unsigned int n=0; n<V.extent(3); n++) {
-              //printf("   %i      %i      %i      %i      %f\n", i, j, k, n, V(i,j,k,n));
+              printf("   %i      %i      %i      %i      %f\n", i, j, k, n, V(i,j,k,n));
               //cout << "  " << i << "  " << "  " << j << "  " << // GH: std::cout is illegal in device
               //"  " << k << "  " << "  " << n << "  " << "  " << V(i,j,k,n) << "  " << endl;
             }

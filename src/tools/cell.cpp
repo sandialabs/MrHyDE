@@ -18,46 +18,51 @@
 
 cell::cell(const Teuchos::RCP<CellMetaData> & cellData_,
            const DRV & nodes_,
-           const Kokkos::View<int*> & localID_) :
-cellData(cellData_), localElemID(localID_), nodes(nodes_){
+           const Kokkos::View<LO*,AssemblyDevice> & localID_,
+           Kokkos::View<GO**,HostDevice> GIDs_,
+           Kokkos::View<int****,HostDevice> sideinfo_,
+           Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_) :
+cellData(cellData_), localElemID(localID_), nodes(nodes_), GIDs(GIDs_), sideinfo(sideinfo_), orientation(orientation_)
+{
   
   numElem = nodes.extent(0);
-  active = true;
   useSensors = false;
+  
+  this->setIP();
   
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::setIP(const DRV & ref_ip, const DRV & ref_wts) {
+void cell::setIP() {
   // ip and ref_ip will live on the assembly device
-  ip = DRV("ip", numElem, ref_ip.extent(0), cellData->dimension);
-  CellTools::mapToPhysicalFrame(ip, ref_ip, nodes, *(cellData->cellTopo));
+  ip = DRV("ip", numElem, cellData->ref_ip.extent(0), cellData->dimension);
+  CellTools::mapToPhysicalFrame(ip, cellData->ref_ip, nodes, *(cellData->cellTopo));
   
-  jacobian = DRV("jacobian", numElem, ref_ip.extent(0), cellData->dimension, cellData->dimension);
-  CellTools::setJacobian(jacobian, ref_ip, nodes, *(cellData->cellTopo));
+  jacobian = DRV("jacobian", numElem, cellData->ref_ip.extent(0), cellData->dimension, cellData->dimension);
+  CellTools::setJacobian(jacobian, cellData->ref_ip, nodes, *(cellData->cellTopo));
   
-  jacobianDet = DRV("determinant of jacobian", numElem, ref_ip.extent(0));
-  jacobianInv = DRV("inverse of jacobian", numElem, ref_ip.extent(0), cellData->dimension, cellData->dimension);
+  jacobianDet = DRV("determinant of jacobian", numElem, cellData->ref_ip.extent(0));
+  jacobianInv = DRV("inverse of jacobian", numElem, cellData->ref_ip.extent(0), cellData->dimension, cellData->dimension);
   CellTools::setJacobianDet(jacobianDet, jacobian);
   CellTools::setJacobianInv(jacobianInv, jacobian);
   
-  wts = DRV("ip wts", numElem, ref_ip.extent(0));
-  FuncTools::computeCellMeasure(wts, jacobianDet, ref_wts);
+  wts = DRV("ip wts", numElem, cellData->ref_ip.extent(0));
+  FuncTools::computeCellMeasure(wts, jacobianDet, cellData->ref_wts);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_,
-                    Kokkos::View<LO*,AssemblyDevice> & numDOF_) {
+void cell::setIndex(Kokkos::View<LO***,HostDevice> & index_,
+                    Kokkos::View<LO*,HostDevice> & numDOF_) {
   
-  index = Kokkos::View<LO***,AssemblyDevice>("local index",index_.extent(0),
-                                             index_.extent(1), index_.extent(2));
+  index = Kokkos::View<LO***,HostDevice>("local index",index_.extent(0),
+                                         index_.extent(1), index_.extent(2));
   
   // Need to copy the data since index_ is rewritten for each cell
-  parallel_for(RangePolicy<AssemblyExec>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<HostExec>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (unsigned int j=0; j<index_.extent(1); j++) {
       for (unsigned int k=0; k<index_.extent(2); k++) {
         index(e,j,k) = index_(e,j,k);
@@ -73,14 +78,14 @@ void cell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_,
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_,
-                   Kokkos::View<LO*,AssemblyDevice> & pnumDOF_) {
+void cell::setParamIndex(Kokkos::View<LO***,HostDevice> & pindex_,
+                   Kokkos::View<LO*,HostDevice> & pnumDOF_) {
   
-  paramindex = Kokkos::View<LO***,AssemblyDevice>("local param index",pindex_.extent(0),
-                                                  pindex_.extent(1), pindex_.extent(2));
+  paramindex = Kokkos::View<LO***,HostDevice>("local param index",pindex_.extent(0),
+                                              pindex_.extent(1), pindex_.extent(2));
   
   // Need to copy the data since index_ is rewritten for each cell
-  parallel_for(RangePolicy<AssemblyExec>(0,pindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<HostExec>(0,pindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (unsigned int j=0; j<pindex_.extent(1); j++) {
       for (unsigned int k=0; k<pindex_.extent(2); k++) {
         paramindex(e,j,k) = pindex_(e,j,k);
@@ -96,13 +101,13 @@ void cell::setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_,
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_) {
+void cell::setAuxIndex(Kokkos::View<LO***,HostDevice> & aindex_) {
   
-  auxindex = Kokkos::View<LO***,AssemblyDevice>("local aux index",1,aindex_.extent(1),
-                                                aindex_.extent(2));
+  auxindex = Kokkos::View<LO***,HostDevice>("local aux index",1,aindex_.extent(1),
+                                            aindex_.extent(2));
   
   // Need to copy the data since index_ is rewritten for each cell
-  parallel_for(RangePolicy<AssemblyExec>(0,aindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<HostExec>(0,aindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (unsigned int j=0; j<aindex_.extent(1); j++) {
       for (unsigned int k=0; k<aindex_.extent(2); k++) {
         auxindex(e,j,k) = aindex_(e,j,k);

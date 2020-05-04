@@ -34,9 +34,7 @@ public:
   ParameterManager(const Teuchos::RCP<MpiComm> & Comm_,
                    Teuchos::RCP<Teuchos::ParameterList> & settings,
                    Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
-                   Teuchos::RCP<physics> & phys_,
-                   vector<vector<Teuchos::RCP<cell> > > & cells,
-                   vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells);
+                   Teuchos::RCP<physics> & phys_);
   
   // ========================================================================================
   // Set up the parameters (inactive, active, stochastic, discrete)

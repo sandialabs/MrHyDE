@@ -39,12 +39,12 @@ macro_functionManagers(macro_functionManagers_) {
     int nummodels = settings->sublist("Subgrid").get<int>("Number of Models",1);
     subgrid_static = settings->sublist("Subgrid").get<bool>("Static Subgrids",true);
     macro_concurrency = settings->sublist("Subgrid").get<int>("Macro-element concurrency",1);
-    
+    int numElem = settings->sublist("Solver").get<int>("Workset size",1);
     for (size_t n=0; n<subgridModels.size(); n++) {
       stringstream ss;
       ss << n;
       macro_functionManagers[0]->addFunction("Subgrid " + ss.str() + " usage",subgridModels[n]->usage,
-                                             cells[0][0]->numElem,cells[0][0]->ip.extent(1),"ip");
+                                             numElem,cells[0][0]->ip.extent(1),"ip");
     }
      
   }
