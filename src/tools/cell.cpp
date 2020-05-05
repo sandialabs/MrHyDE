@@ -890,10 +890,10 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
   for (int n=0; n<index.extent(1); n++) {
     DRV basis_uw = wkset->basis_uw[wkset->usebasis[n]];
     DRV basis = wkset->basis[wkset->usebasis[n]];
-    auto cndof = Kokkos::subview(numDOF, n);
+    //auto cndof = Kokkos::subview(numDOF, n);
     parallel_for(RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for( int i=0; i<cndof(0); i++ ) {
-        for( int j=0; j<cndof(0); j++ ) {
+      for( int i=0; i<numDOF(n); i++ ) {
+        for( int j=0; j<numDOF(n); j++ ) {
           for( size_t k=0; k<wkset->numip; k++ ) {
             mass(e,offsets(n,i),offsets(n,j)) += basis_uw(e,i,k)*basis(e,j,k);
           }

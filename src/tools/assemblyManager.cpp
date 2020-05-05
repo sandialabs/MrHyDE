@@ -114,8 +114,8 @@ void AssemblyManager::createCells() {
       DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
       
       Kokkos::View<LO*,HostDevice>::HostMirror host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
-      Kokkos::DynRankView<ScalarT,HostDevice>::HostMirror host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
-      
+      Kokkos::DynRankView<ScalarT,HostMem>::HostMirror host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
+
       //DRV currnodepert("currnodepert", currElem, numNodesPerElem, spaceDim);
       // Making this loop explicitly on the host
       for (int e=0; e<host_currnodes.extent(0); e++) {
@@ -234,7 +234,7 @@ void AssemblyManager::createCells() {
             
             Kokkos::View<LO*,HostDevice>::HostMirror host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
             Kokkos::View<LO*,HostDevice>::HostMirror host_sideIndex = Kokkos::create_mirror_view(sideIndex); // mirror on host
-            Kokkos::DynRankView<ScalarT,HostDevice>::HostMirror host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
+            Kokkos::DynRankView<ScalarT,HostMem>::HostMirror host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
             
             for (int e=0; e<currElem; e++) {
               host_eIndex(e) = mesh->elementLocalId(side_output[group[e+prog]]);
