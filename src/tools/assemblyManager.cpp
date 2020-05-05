@@ -912,11 +912,17 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
                                     const int & type, const size_t & entry) {
   
   // Get a view of the vector on the AssemblyDevice
-  // TMW: not sure if this will work correctly.  According to the tpetra documentation, one can request a in either Host or Device
-  // This takes care of the memory transfer from Host to Device
+  // TMW: this manual deep copy is a hack.  There should be a better way to do this.
+
   auto vec_kv = vec->getLocalView<HostDevice>();
-  // TMW : need to move this to the device
-  // Get a corresponding view on the AssemblyDevice
+  Kokkos::View<ScalarT**,AssemblyDevice> vec_dev("tpetra vector on device",vec_kv.extent(0),vec_kv.extent(1));
+  Kokkos::View<ScalarT**,HostMem>::HostMirror vec_host = Kokkos::create_mirror_view(vec_dev);
+  for (int i=0; i<vec_kv.extent(0); i++) {
+    for (int j=0; j<vec_kv.extent(1); j++) {
+      vec_host(i,j) = vec_kv(i,j);
+    }
+  }
+  Kokkos::deep_copy(vec_dev,vec_host);
   
   Kokkos::View<LO***,AssemblyDevice> index;
   Kokkos::View<LO*,AssemblyDevice> numDOF;
@@ -973,7 +979,8 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
     parallel_for(RangePolicy<AssemblyExec>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (size_t n=0; n<index.extent(1); n++) {
         for(size_t i=0; i<numDOF(n); i++ ) {
-          data(e,n,i) = vec_kv(index(e,n,i),entry);
+          //data(e,n,i) = vec_kv(index(e,n,i),entry);
+          data(e,n,i) = vec_dev(index(e,n,i),entry);
         }
       }
     });
