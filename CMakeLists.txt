@@ -30,6 +30,36 @@ MESSAGE("   Trilinos_BUILD_SHARED_LIBS = ${Trilinos_BUILD_SHARED_LIBS}")
 MESSAGE("   Trilinos_CXX_FLAGS = ${Trilinos_CXX_COMPILER_FLAGS}")
 MESSAGE("End of Trilinos details\n")
 
+# Check the available Kokkos devices at the time of configuration
+MESSAGE("Checking if Kokkos has the GPU enabled...")
+kokkos_check(DEVICES CUDA RETURN_VALUE HAS_CUDA) # GH: This doesn't seem to work on my desktop, but it works on other machines.
+
+# Flags to set the Kokkos devices at configuration time
+IF(MrHyDE_ALL_CPU)
+  MESSAGE("Configuration specified using a serial configuration for MrHyDE.")
+ELSEIF(MrHyDE_ASSEMBLY_GPU)
+  IF(HAS_CUDA)
+    MESSAGE("Configuration specified performing assembly on the GPU for MrHyDE.")
+    ADD_DEFINITIONS(-DMrHyDE_ASSEMBLYSPACE_CUDA)
+    ADD_DEFINITIONS(-DMrHyDE_ASSEMBLYMEM_CUDAUVM)
+  ELSE()
+    MESSAGE("Configuration requested to use Kokkos on the GPU for MrHyDE but no available Kokkos device was found. Defaulting to serial.")
+  ENDIF()
+ELSEIF(MrHyDE_SUBGRID_GPU)
+  IF(HAS_CUDA)
+    MESSAGE("Configuration specified performing subgrid and assembly on the GPU for MrHyDE.")
+    ADD_DEFINITIONS(-DMrHyDE_ASSEMBLYSPACE_CUDA)
+    ADD_DEFINITIONS(-DMrHyDE_ASSEMBLYMEM_CUDAUVM)
+    ADD_DEFINITIONS(-DMrHyDE_SUBGRIDSPACE_CUDA)
+    ADD_DEFINITIONS(-DMrHyDE_SUBGRIDMEM_CUDAUVM)
+  ELSE()
+    MESSAGE("Configuration requested to use Kokkos on the GPU for MrHyDE but no available Kokkos device was found. Defaulting to serial.")
+  ENDIF()
+ELSE()
+  MESSAGE("No device configuration specified. Defaulting to a serial configuration for MrHyDE.")
+ENDIF()
+MESSAGE("\n")
+
 
 # Make sure to use same compilers and flags as Trilinos
 SET(CMAKE_CXX_COMPILER ${Trilinos_CXX_COMPILER} )

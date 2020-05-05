@@ -47,15 +47,31 @@ typedef Sacado::Fad::SFad<ScalarT,maxDerivs> AD;
 // Format: Kokkos::*
 // Options: Serial, OpenMP, Threads, Cuda
 typedef Kokkos::Serial HostExec; // cannot be Cuda right now
-typedef Kokkos::Serial AssemblyExec;
-typedef Kokkos::Serial SubgridExec;
+#if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+  typedef Kokkos::Cuda AssemblyExec;
+#else
+  typedef Kokkos::Serial AssemblyExec;
+#endif
+#if defined(MrHyDE_SUBGRIDSPACE_CUDA)
+  typedef Kokkos::Cuda SubgridExec;
+#else
+  typedef Kokkos::Serial SubgridExec;
+#endif
 
 // Kokkos Memory Space typedefs
 // Format: Kokkos::*
 // Options: HostSpace, CudaSpace, CudaUVMSpace
 typedef Kokkos::HostSpace HostMem; // cannot be CudaSpace right now
-typedef Kokkos::HostSpace AssemblyMem;
-typedef Kokkos::HostSpace SubgridMem;
+#if defined(MrHyDE_ASSEMBLYMEM_CUDAUVM)
+  typedef Kokkos::CudaUVMSpace AssemblyMem;
+#else
+  typedef Kokkos::HostSpace AssemblyMem;
+#endif
+#if defined(MrHyDE_SUBGRIDMEM_CUDAUVM)
+  typedef Kokkos::CudaUVMSpace SubgridMem;
+#else
+  typedef Kokkos::HostSpace SubgridMem;
+#endif
 
 // Define a unified memory space for data required on Host and Device
 // If HostMem == AssemblyMem == HostSpace, then UnifiedMem = HostSpace
