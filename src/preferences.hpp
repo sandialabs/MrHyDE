@@ -47,26 +47,26 @@ typedef Sacado::Fad::SFad<ScalarT,maxDerivs> AD;
 // Format: Kokkos::*
 // Options: Serial, OpenMP, Threads, Cuda
 typedef Kokkos::Serial HostExec; // cannot be Cuda right now
-typedef Kokkos::Cuda AssemblyExec;
+typedef Kokkos::Serial AssemblyExec;
 typedef Kokkos::Serial SubgridExec;
 
 // Kokkos Memory Space typedefs
 // Format: Kokkos::*
 // Options: HostSpace, CudaSpace, CudaUVMSpace
-typedef Kokkos::CudaUVMSpace HostMem; // cannot be CudaSpace right now
-typedef Kokkos::CudaUVMSpace AssemblyMem;
-typedef Kokkos::CudaUVMSpace SubgridMem;
+typedef Kokkos::HostSpace HostMem; // cannot be CudaSpace right now
+typedef Kokkos::HostSpace AssemblyMem;
+typedef Kokkos::HostSpace SubgridMem;
 
 // Define a unified memory space for data required on Host and Device
 // If HostMem == AssemblyMem == HostSpace, then UnifiedMem = HostSpace
 // If HostMem == HostSpace and AssemblyMem == CudaSpace, then UnifiedMem = CudaUVMSpace
-typedef Kokkos::CudaUVMSpace UnifiedMem;
+typedef Kokkos::HostSpace UnifiedMem;
 
 // Kokkos Node typedefs
 // Format: Kokkos::Compat::Kokkos*WrapperNode
 // Options: Serial, OpenMP, Threads, Cuda
 typedef Kokkos::Compat::KokkosSerialWrapperNode HostNode;
-typedef Kokkos::Compat::KokkosCudaWrapperNode AssemblyNode;
+typedef Kokkos::Compat::KokkosSerialWrapperNode AssemblyNode;
 typedef Kokkos::Compat::KokkosSerialWrapperNode SubgridNode;
 
 // Typedef Kokkos devices based on Exec, Mem

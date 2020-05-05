@@ -992,7 +992,7 @@ void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP &
     
     // Get a view of the vector on the HostDevice
     auto vec_kv = vec->getLocalView<HostDevice>();
-    i// TMW: need to move this to the device
+    // TMW: need to move this to the device
 
     // Get a corresponding view on the AssemblyDevice
     
