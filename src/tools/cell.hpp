@@ -318,7 +318,7 @@ public:
   // Public data
   
   // Data created elsewhere
-  Kokkos::View<GO**,AssemblyDevice> GIDs, paramGIDs, auxGIDs; // scatter on host
+  Kokkos::View<GO**,HostDevice> GIDs, paramGIDs, auxGIDs; // scatter on host
   Kokkos::View<LO***,AssemblyDevice> index, paramindex, auxindex; // gather on device
   Teuchos::RCP<CellMetaData> cellData;
   Teuchos::RCP<workset> wkset;
@@ -335,7 +335,7 @@ public:
   DRV ip, wts, jacobian, jacobianInv, jacobianDet;
   Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
   Kokkos::View<ScalarT***,AssemblyDevice> u, u_dot, phi, phi_dot, aux, param;
-  Kokkos::View<int*,HostDevice> numDOF, numParamDOF, numAuxDOF;
+  Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
   
   // Aux variable Information
   vector<string> auxlist;
