@@ -13,7 +13,9 @@ int main(int argc, char * argv[]) {
   MpiComm Comm(MPI_COMM_WORLD);
   
   Kokkos::initialize();
-  
+ 
+  {
+   
   Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager());
   Teuchos::RCP<DiscTools> discTools = Teuchos::rcp( new DiscTools() );
   vector<string> variables = {"a","b","c","d","p"};
@@ -41,7 +43,7 @@ int main(int argc, char * argv[]) {
   Kokkos::View<int**,AssemblyDevice> bcs("bcs",1,1);
   Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset(cellinfo, ip, wts,
                                             sip, swts, btypes, basis, basis, cellTopo,bcs) );
- 
+  
   /*
   parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
     for (size_t j=0; j<numip; j++) {
@@ -55,8 +57,9 @@ int main(int argc, char * argv[]) {
   });
   */
 
-  KokkosTools::print(wkset->ip);
+  //KokkosTools::print(wkset->ip);
   
+
   functionManager->wkset = wkset;
   
   string test1 = "sin(a+b+c)";
@@ -86,7 +89,7 @@ int main(int argc, char * argv[]) {
   functionManager->validateFunctions();
   functionManager->decomposeFunctions();
   
-  functionManager->printFunctions();
+  //functionManager->printFunctions();
   
   FDATA datax = functionManager->evaluate("pres","ip");
   
@@ -94,6 +97,7 @@ int main(int argc, char * argv[]) {
   FDATA data2 = functionManager->evaluate("well","ip");
   FDATA data3 = functionManager->evaluate("source","ip");
   
+  /*
   parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
     for (size_t j=0; j<numip; j++) {
       printf("data1(i,j) : %f\n", data1(i,j).val());
@@ -104,7 +108,8 @@ int main(int argc, char * argv[]) {
       //cout << "data3(i,j) = " << data3(i,j) << endl;
     }
   });
-  
+  */
+
   for (int m=0; m<10; m++) {
     /*
     parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
@@ -120,7 +125,7 @@ int main(int argc, char * argv[]) {
     FDATA data1 = functionManager->evaluate("wellr","ip");
     FDATA data2 = functionManager->evaluate("welll","ip");
     FDATA data3 = functionManager->evaluate("source","ip");
-    
+    /*
     parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
       for (size_t j=0; j<numip; j++) {
         printf("datap(i,j) : %f\n", datap(i,j).val());
@@ -133,16 +138,18 @@ int main(int argc, char * argv[]) {
         //cout << "data3(i,j) = " << data3(i,j) << endl;
       }
     });
-    
+    */
   }
   
   
-  Teuchos::TimeMonitor::summarize();
-  
+  //Teuchos::TimeMonitor::summarize();
+  }
+
   Kokkos::finalize();
   
-  
-  return 0;
+ 
+  int val = 0; 
+  return val;
 }
 
 

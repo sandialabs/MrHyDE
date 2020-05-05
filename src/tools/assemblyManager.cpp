@@ -915,11 +915,11 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
   // TMW: not sure if this will work correctly.  According to the tpetra documentation, one can request a in either Host or Device
   // This takes care of the memory transfer from Host to Device
   auto vec_kv = vec->getLocalView<HostDevice>();
-  
+  // TMW : need to move this to the device
   // Get a corresponding view on the AssemblyDevice
   
-  Kokkos::View<LO***,HostDevice> index;
-  Kokkos::View<LO*,HostDevice> numDOF;
+  Kokkos::View<LO***,AssemblyDevice> index;
+  Kokkos::View<LO*,AssemblyDevice> numDOF;
   Kokkos::View<ScalarT***,AssemblyDevice> data;
   
   // TMW: Does this need to be executed on Device?
@@ -969,15 +969,15 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
         KokkosTools::print(data, "inside assemblyManager::gather - data");
       }
     }*/
-    Kokkos::View<ScalarT***,HostDevice>::HostMirror host_data = Kokkos::create_mirror_view(data);
+    //Kokkos::View<ScalarT***,HostDevice>::HostMirror host_data = Kokkos::create_mirror_view(data);
     parallel_for(RangePolicy<AssemblyExec>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (size_t n=0; n<index.extent(1); n++) {
         for(size_t i=0; i<numDOF(n); i++ ) {
-          host_data(e,n,i) = vec_kv(index(e,n,i),entry);
+          data(e,n,i) = vec_kv(index(e,n,i),entry);
         }
       }
     });
-    Kokkos::deep_copy(data,host_data);
+    //Kokkos::deep_copy(data,host_data);
   }
 }
 
@@ -992,11 +992,12 @@ void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP &
     
     // Get a view of the vector on the HostDevice
     auto vec_kv = vec->getLocalView<HostDevice>();
-    
+    i// TMW: need to move this to the device
+
     // Get a corresponding view on the AssemblyDevice
     
-    Kokkos::View<LO***,HostDevice> index;
-    Kokkos::View<LO*,HostDevice> numDOF;
+    Kokkos::View<LO***,AssemblyDevice> index;
+    Kokkos::View<LO*,AssemblyDevice> numDOF;
     Kokkos::View<ScalarT***,AssemblyDevice> data;
     
     for (size_t c=0; c < boundaryCells[b].size(); c++) {
@@ -1045,15 +1046,15 @@ void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP &
           }
         }*/
         
-        Kokkos::View<ScalarT***,HostDevice>::HostMirror host_data = Kokkos::create_mirror_view(data);
-        parallel_for(RangePolicy<HostExec>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        //Kokkos::View<ScalarT***,HostDevice>::HostMirror host_data = Kokkos::create_mirror_view(data);
+        parallel_for(RangePolicy<AssemblyExec>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (size_t n=0; n<index.extent(1); n++) {
             for(size_t i=0; i<numDOF(n); i++ ) {
-              host_data(e,n,i) = vec_kv(index(e,n,i),entry);
+              data(e,n,i) = vec_kv(index(e,n,i),entry);
             }
           }
         });
-        Kokkos::deep_copy(data,host_data);
+        //Kokkos::deep_copy(data,host_data);
       }
     }
   }

@@ -55,14 +55,14 @@ void cell::setIP() {
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::setIndex(Kokkos::View<LO***,HostDevice> & index_,
-                    Kokkos::View<LO*,HostDevice> & numDOF_) {
+void cell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_,
+                    Kokkos::View<LO*,AssemblyDevice> & numDOF_) {
   
-  index = Kokkos::View<LO***,HostDevice>("local index",index_.extent(0),
+  index = Kokkos::View<LO***,AssemblyDevice>("local index",index_.extent(0),
                                          index_.extent(1), index_.extent(2));
   
   // Need to copy the data since index_ is rewritten for each cell
-  parallel_for(RangePolicy<HostExec>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<AssemblyExec>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (unsigned int j=0; j<index_.extent(1); j++) {
       for (unsigned int k=0; k<index_.extent(2); k++) {
         index(e,j,k) = index_(e,j,k);
@@ -78,14 +78,14 @@ void cell::setIndex(Kokkos::View<LO***,HostDevice> & index_,
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::setParamIndex(Kokkos::View<LO***,HostDevice> & pindex_,
-                   Kokkos::View<LO*,HostDevice> & pnumDOF_) {
+void cell::setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_,
+                   Kokkos::View<LO*,AssemblyDevice> & pnumDOF_) {
   
-  paramindex = Kokkos::View<LO***,HostDevice>("local param index",pindex_.extent(0),
+  paramindex = Kokkos::View<LO***,AssemblyDevice>("local param index",pindex_.extent(0),
                                               pindex_.extent(1), pindex_.extent(2));
   
   // Need to copy the data since index_ is rewritten for each cell
-  parallel_for(RangePolicy<HostExec>(0,pindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<AssemblyExec>(0,pindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (unsigned int j=0; j<pindex_.extent(1); j++) {
       for (unsigned int k=0; k<pindex_.extent(2); k++) {
         paramindex(e,j,k) = pindex_(e,j,k);
@@ -101,13 +101,13 @@ void cell::setParamIndex(Kokkos::View<LO***,HostDevice> & pindex_,
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::setAuxIndex(Kokkos::View<LO***,HostDevice> & aindex_) {
+void cell::setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_) {
   
-  auxindex = Kokkos::View<LO***,HostDevice>("local aux index",1,aindex_.extent(1),
+  auxindex = Kokkos::View<LO***,AssemblyDevice>("local aux index",1,aindex_.extent(1),
                                             aindex_.extent(2));
   
   // Need to copy the data since index_ is rewritten for each cell
-  parallel_for(RangePolicy<HostExec>(0,aindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for(RangePolicy<AssemblyExec>(0,aindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (unsigned int j=0; j<aindex_.extent(1); j++) {
       for (unsigned int k=0; k<aindex_.extent(2); k++) {
         auxindex(e,j,k) = aindex_(e,j,k);
@@ -119,7 +119,7 @@ void cell::setAuxIndex(Kokkos::View<LO***,HostDevice> & aindex_) {
   // This is excessive storage, please remove
   //numAuxDOF = anumDOF_;
   // Temp. fix
-  numAuxDOF = Kokkos::View<int*,HostDevice>("numAuxDOF",auxindex.extent(1));
+  numAuxDOF = Kokkos::View<int*,AssemblyDevice>("numAuxDOF",auxindex.extent(1));
   for (unsigned int i=0; i<auxindex.extent(1); i++) {
     numAuxDOF(i) = auxindex.extent(2);
   }

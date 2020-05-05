@@ -318,8 +318,8 @@ public:
   // Public data
   
   // Data created elsewhere
-  Kokkos::View<GO**,HostDevice> GIDs, paramGIDs, auxGIDs; // scatter on host
-  Kokkos::View<LO***,HostDevice> index, paramindex, auxindex; // gather on device
+  Kokkos::View<GO**,AssemblyDevice> GIDs, paramGIDs, auxGIDs; // scatter on host
+  Kokkos::View<LO***,AssemblyDevice> index, paramindex, auxindex; // gather on device
   Teuchos::RCP<CellMetaData> cellData;
   Teuchos::RCP<workset> wkset;
   vector<Teuchos::RCP<SubGridModel> > subgridModels;
