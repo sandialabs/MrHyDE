@@ -45,13 +45,12 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void setIndex(Kokkos::View<LO***,AssemblyDevice> & index_, Kokkos::View<LO*,AssemblyDevice> & numDOF_);
+  void setIndex(Kokkos::View<LO***,AssemblyDevice> & index_);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_,
-                     Kokkos::View<LO*,AssemblyDevice> & pnumDOF_);
+  void setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -184,7 +183,7 @@ public:
       nparams = paramindex.extent(1);
     }
     info.push_back(cellData->dimension);
-    info.push_back(numDOF.extent(0));
+    info.push_back(cellData->numDOF.extent(0));
     info.push_back(nparams);
     info.push_back(auxindex.extent(1));
     info.push_back(GIDs.extent(1));
@@ -212,7 +211,7 @@ public:
   // DOF information
   Kokkos::View<GO**,HostDevice> GIDs, paramGIDs, auxGIDs;
   Kokkos::View<LO***,AssemblyDevice> index, paramindex, auxindex;
-  Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
+  //Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
   Kokkos::View<ScalarT***,AssemblyDevice> u, u_dot, phi, phi_dot, aux, param;
   
   // Aux variable Information

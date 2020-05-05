@@ -27,7 +27,7 @@ class workset {
   workset(const vector<int> & cellinfo, const DRV & ref_ip_, const DRV & ref_wts_, const DRV & ref_side_ip_,
           const DRV & ref_side_wts_, const vector<string> & basis_types_,
           const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
-          const topo_RCP & topo, Kokkos::View<int**,AssemblyDevice> & var_bcs_);
+          const topo_RCP & topo, Kokkos::View<int**,UnifiedDevice> & var_bcs_);
   
   ////////////////////////////////////////////////////////////////////////////////////
   // Public functions
@@ -218,7 +218,7 @@ class workset {
   vector<DRV> ip_side_vec, wts_side_vec, normals_side_vec;
   vector<vector<DRV> > param_basis_grad_side_vec, param_basis_side_vec;
   vector<vector<DRV> > basis_side_vec, basis_side_uw_vec, basis_grad_side_vec, basis_grad_side_uw_vec;
-  Kokkos::View<int**,AssemblyDevice> var_bcs;
+  Kokkos::View<int**,UnifiedDevice> var_bcs;
   
   vector<DRV> basis; // weighted by volumetric integration weights
   vector<DRV> basis_uw; // un-weighted

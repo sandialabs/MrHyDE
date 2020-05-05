@@ -55,8 +55,7 @@ void cell::setIP() {
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_,
-                    Kokkos::View<LO*,AssemblyDevice> & numDOF_) {
+void cell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_) {
   
   index = Kokkos::View<LO***,AssemblyDevice>("local index",index_.extent(0),
                                          index_.extent(1), index_.extent(2));
@@ -71,15 +70,14 @@ void cell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_,
   });
   
   // This is common to all cells (within the same block), so a view copy will do
-  numDOF = numDOF_;
+  //numDOF = numDOF_;
   
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_,
-                   Kokkos::View<LO*,AssemblyDevice> & pnumDOF_) {
+void cell::setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_) {
   
   paramindex = Kokkos::View<LO***,AssemblyDevice>("local param index",pindex_.extent(0),
                                               pindex_.extent(1), pindex_.extent(2));
@@ -94,7 +92,7 @@ void cell::setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_,
   });
   
   // This is common to all cells, so a view copy will do
-  numParamDOF = pnumDOF_;
+  //numParamDOF = pnumDOF_;
   
 }
 
@@ -118,12 +116,13 @@ void cell::setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_) {
   // This is common to all cells, so a view copy will do
   // This is excessive storage, please remove
   //numAuxDOF = anumDOF_;
+  
   // Temp. fix
-  numAuxDOF = Kokkos::View<int*,AssemblyDevice>("numAuxDOF",auxindex.extent(1));
+  Kokkos::View<int*,AssemblyDevice> numAuxDOF("numAuxDOF",auxindex.extent(1));
   for (unsigned int i=0; i<auxindex.extent(1); i++) {
     numAuxDOF(i) = auxindex.extent(2);
   }
-  
+  cellData->numAuxDOF = numAuxDOF;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -176,16 +175,16 @@ void cell::setUseBasis(vector<int> & usebasis_, const int & nstages_) {
   
   // Set up the containers for usual solution storage
   size_t maxnbasis = 0;
-  for (size_t i=0; i<numDOF.size(); i++) {
-    if (numDOF(i) > maxnbasis) {
-      maxnbasis = numDOF(i);
+  for (size_t i=0; i<cellData->numDOF.extent(0); i++) {
+    if (cellData->numDOF(i) > maxnbasis) {
+      maxnbasis = cellData->numDOF(i);
     }
   }
   //maxnbasis *= nstages;
-  u = Kokkos::View<ScalarT***,AssemblyDevice>("u",numElem,numDOF.size(),maxnbasis);
-  u_dot = Kokkos::View<ScalarT***,AssemblyDevice>("u_dot",numElem,numDOF.size(),maxnbasis);
-  phi = Kokkos::View<ScalarT***,AssemblyDevice>("phi",numElem,numDOF.size(),maxnbasis);
-  phi_dot = Kokkos::View<ScalarT***,AssemblyDevice>("phi_dot",numElem,numDOF.size(),maxnbasis);
+  u = Kokkos::View<ScalarT***,AssemblyDevice>("u",numElem,cellData->numDOF.extent(0),maxnbasis);
+  u_dot = Kokkos::View<ScalarT***,AssemblyDevice>("u_dot",numElem,cellData->numDOF.extent(0),maxnbasis);
+  phi = Kokkos::View<ScalarT***,AssemblyDevice>("phi",numElem,cellData->numDOF.extent(0),maxnbasis);
+  phi_dot = Kokkos::View<ScalarT***,AssemblyDevice>("phi_dot",numElem,cellData->numDOF.extent(0),maxnbasis);
   
 }
 
@@ -196,21 +195,22 @@ void cell::setUseBasis(vector<int> & usebasis_, const int & nstages_) {
 void cell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasis_) {
   vector<int> paramusebasis = pusebasis_;
   
+  /*
   Kokkos::View<int*,HostDevice> numParamDOF_host("numParamDOF on host",paramusebasis.size());
   for (int i=0; i<paramusebasis.size(); i++) {
     numParamDOF_host(i) = paramnumbasis_[paramusebasis[i]];
   }
   numParamDOF = Kokkos::create_mirror_view(numParamDOF_host);
   Kokkos::deep_copy(numParamDOF_host, numParamDOF);
-  
+  */
   
   size_t maxnbasis = 0;
-  for (size_t i=0; i<numParamDOF.size(); i++) {
-    if (numParamDOF(i) > maxnbasis) {
-      maxnbasis = numParamDOF(i);
+  for (size_t i=0; i<cellData->numParamDOF.extent(0); i++) {
+    if (cellData->numParamDOF(i) > maxnbasis) {
+      maxnbasis = cellData->numParamDOF(i);
     }
   }
-  param = Kokkos::View<ScalarT***,AssemblyDevice>("param",numElem,numParamDOF.size(),maxnbasis);
+  param = Kokkos::View<ScalarT***,AssemblyDevice>("param",numElem,cellData->numParamDOF.extent(0),maxnbasis);
   
 }
 
@@ -221,12 +221,12 @@ void cell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasi
 void cell::setAuxUseBasis(vector<int> & ausebasis_) {
   auxusebasis = ausebasis_;
   size_t maxnbasis = 0;
-  for (size_t i=0; i<numAuxDOF.size(); i++) {
-    if (numAuxDOF(i) > maxnbasis) {
-      maxnbasis = numAuxDOF(i);
+  for (size_t i=0; i<cellData->numAuxDOF.extent(0); i++) {
+    if (cellData->numAuxDOF(i) > maxnbasis) {
+      maxnbasis = cellData->numAuxDOF(i);
     }
   }
-  aux = Kokkos::View<ScalarT***,AssemblyDevice>("aux",numElem,numAuxDOF.size(),maxnbasis);
+  aux = Kokkos::View<ScalarT***,AssemblyDevice>("aux",numElem,cellData->numAuxDOF.extent(0),maxnbasis);
   
 }
 
@@ -297,7 +297,7 @@ void cell::updateSolnWorkset(const vector_RCP & gl_u, int tindex) {
   
   for (int e=0; e<numElem; e++) {
     for (size_t n=0; n<index.extent(1); n++) {
-      for(size_t i=0; i<numDOF(n); i++ ) {
+      for(size_t i=0; i<cellData->numDOF(n); i++ ) {
         ulocal(e,n,i) = u_kv(index(e,n,i),tindex);
       }
     }
@@ -529,8 +529,8 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
               for (int s=0; s<numSensors; s++) {
                 int e = sensorElem[s];
                 for (int n=0; n<index.extent(1); n++) {
-                  for (int j=0; j<numDOF(n); j++) {
-                    for (int i=0; i<numDOF(n); i++) {
+                  for (int j=0; j<cellData->numDOF(n); j++) {
+                    for (int i=0; i<cellData->numDOF(n); i++) {
                       if (w == 1) {
                         local_res(e,wkset->offsets(n,j),0) += -obj(e,s).fastAccessDx(wkset->offsets(n,i))*sensorBasis[s][wkset->usebasis[n]](0,j,s);
                       }
@@ -546,8 +546,8 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
           else {
             for (int e=0; e<numElem; e++) {
               for (int n=0; n<index.extent(1); n++) {
-                for (int j=0; j<numDOF(n); j++) {
-                  for (int i=0; i<numDOF(n); i++) {
+                for (int j=0; j<cellData->numDOF(n); j++) {
+                  for (int i=0; i<cellData->numDOF(n); i++) {
                     for (int s=0; s<wkset->numip; s++) {
                       if (w == 1) {
                         local_res(e,wkset->offsets(n,j),0) += -obj(e,s).fastAccessDx(wkset->offsets(n,i))*wkset->ref_basis[wkset->usebasis[n]](e,j,s);
@@ -566,9 +566,9 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
       if (compute_jacobian) {
         for (int e=0; e<numElem; e++) {
           for (int n=0; n<index.extent(1); n++) {
-            for (int j=0; j<numDOF(n); j++) {
+            for (int j=0; j<cellData->numDOF(n); j++) {
               for (int m=0; m<index.extent(1); m++) {
-                for (int k=0; k<numDOF(m); k++) {
+                for (int k=0; k<cellData->numDOF(m); k++) {
                   local_res(e,wkset->offsets(n,j),0) += -local_J(e,wkset->offsets(n,j),wkset->offsets(m,k))*phi(e,m,k);
                 }
               }
@@ -578,10 +578,10 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
         if (isTransient) {
           for (int e=0; e<numElem; e++) {
             for (int n=0; n<index.extent(1); n++) {
-              for (int j=0; j<numDOF(n); j++) {
+              for (int j=0; j<cellData->numDOF(n); j++) {
                 ScalarT aPrev = 0.0;
                 for (int m=0; m<index.extent(1); m++) {
-                  for (int k=0; k<numDOF(m); k++) {
+                  for (int k=0; k<cellData->numDOF(m); k++) {
                     local_res(e,wkset->offsets(n,j),0) += -wkset->alpha*local_Jdot(e,wkset->offsets(n,j),wkset->offsets(m,k))*phi(e,m,k);
                     aPrev += wkset->alpha*local_Jdot(e,wkset->offsets(n,j),wkset->offsets(m,k))*phi(e,m,k);
                   }
@@ -607,6 +607,8 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
 void cell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
+  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
+  
   if (compute_sens) {
     parallel_for(RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int r=0; r<local_res.extent(2); r++) {
@@ -636,6 +638,8 @@ void cell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,Assembly
 void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->adjrhs;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
+  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
+  
   if (compute_sens) {
     parallel_for(RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int r=0; r<maxDerivs; r++) {
@@ -667,6 +671,7 @@ void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDe
   
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
+  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
   
   if (useadjoint) {
     parallel_for(RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -704,6 +709,7 @@ void cell::updateJacDot(const bool & useadjoint, Kokkos::View<ScalarT***,Assembl
   
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
+  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
   
   if (useadjoint) {
     parallel_for(RangePolicy<AssemblyExec>(0,local_Jdot.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -756,6 +762,8 @@ void cell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   Kokkos::View<int**,AssemblyDevice> paramoffsets = wkset->paramoffsets;
+  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
+  Kokkos::View<LO*,UnifiedDevice> numParamDOF = cellData->numParamDOF;
   
   parallel_for(RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (int n=0; n<index.extent(1); n++) {
@@ -779,6 +787,8 @@ void cell::updateParamJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot)
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   Kokkos::View<int**,AssemblyDevice> paramoffsets = wkset->paramoffsets;
+  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
+  Kokkos::View<LO*,UnifiedDevice> numParamDOF = cellData->numParamDOF;
   
   parallel_for(RangePolicy<AssemblyExec>(0,local_Jdot.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (int n=0; n<index.extent(1); n++) {
@@ -801,6 +811,8 @@ void cell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
+  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
+  Kokkos::View<LO*,UnifiedDevice> numAuxDOF = cellData->numAuxDOF;
   
   parallel_for(RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (int n=0; n<index.extent(1); n++) {
@@ -823,6 +835,8 @@ void cell::updateAuxJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
   
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
+  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
+  Kokkos::View<LO*,UnifiedDevice> numAuxDOF = cellData->numAuxDOF;
   
   parallel_for(RangePolicy<AssemblyExec>(0,local_Jdot.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (int n=0; n<index.extent(1); n++) {
@@ -852,7 +866,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, co
                                                                                            isAdjoint,
                                                                                            wkset);
       for (int e=0; e<numElem; e++) {
-        for( int i=0; i<numDOF(n); i++ ) {
+        for( int i=0; i<cellData->numDOF(n); i++ ) {
           for( size_t j=0; j<wkset->numip; j++ ) {
             initialvals(e,wkset->offsets(n,i)) += initialip(e,j)*wkset->basis[wkset->usebasis[n]](e,i,j);
           }
@@ -868,7 +882,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, co
                                                                                                 wkset->time,
                                                                                                 isAdjoint,
                                                                                                 wkset);
-        for( int i=0; i<numDOF(n); i++ ) {
+        for( int i=0; i<cellData->numDOF(n); i++ ) {
           initialvals(e,wkset->offsets(n,i)) = initialnodes(e,i);
         }
       }
@@ -886,6 +900,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
   wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
   vector<string> basis_types = wkset->basis_types;
   Kokkos::View<LO**,AssemblyDevice> offsets= wkset->offsets;
+  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
   
   for (int n=0; n<index.extent(1); n++) {
     DRV basis_uw = wkset->basis_uw[wkset->usebasis[n]];
@@ -1099,7 +1114,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const ScalarT & solveti
     Kokkos::View<AD***,AssemblyDevice> u_dof("u_dof",numElem,index.extent(1),GIDs.extent(1));
     for (int e=0; e<numElem; e++) {
       for (int n=0; n<index.extent(1); n++) {
-        for( int i=0; i<numDOF(n); i++ ) {
+        for( int i=0; i<cellData->numDOF(n); i++ ) {
           u_dof(e,n,i) = AD(maxDerivs,wkset->offsets(n,i),u(e,n,i));
         }
       }
@@ -1112,7 +1127,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const ScalarT & solveti
                                                  numip,cellData->dimension);
     for (int e=0; e<numElem; e++) {
       for (int n=0; n<index.extent(1); n++) {
-        for( int i=0; i<numDOF(n); i++ ) {
+        for( int i=0; i<cellData->numDOF(n); i++ ) {
           if (useSensors) {
             for (int ee=0; ee<numSensors; ee++) {
               int eind = sensorElem[ee];
@@ -1205,7 +1220,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const ScalarT & solveti
       Kokkos::View<AD***,AssemblyDevice> param_dof("param dof",numElem,paramindex.extent(1),paramGIDs.extent(1));
       for (int e=0; e<numElem; e++) {
         for (int n=0; n<paramindex.extent(1); n++) {
-          for( int i=0; i<numParamDOF(n); i++ ) {
+          for( int i=0; i<cellData->numParamDOF(n); i++ ) {
             param_dof(e,n,i) = AD(maxDerivs,wkset->paramoffsets(n,i),param(e,n,i));
           }
         }
@@ -1218,7 +1233,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const ScalarT & solveti
                                                          numip,cellData->dimension);
       for (int e=0; e<numElem; e++) {
         for (int n=0; n<paramindex.extent(1); n++) {
-          for( int i=0; i<numParamDOF(n); i++ ) {
+          for( int i=0; i<cellData->numParamDOF(n); i++ ) {
             if (useSensors) {
               for (int ee=0; ee<numSensors; ee++) {
                 int eind = sensorElem[ee];

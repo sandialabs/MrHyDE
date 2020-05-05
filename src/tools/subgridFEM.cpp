@@ -3017,39 +3017,39 @@ void SubGridFEM::performGather(const size_t & b, const vector_RCP & vec,
   // Get a corresponding view on the AssemblyDevice
   
   Kokkos::View<LO***,AssemblyDevice> index;
-  Kokkos::View<LO*,AssemblyDevice> numDOF;
+  Kokkos::View<LO*,UnifiedDevice> numDOF;
   Kokkos::View<ScalarT***,AssemblyDevice> data;
   
   for (size_t c=0; c < cells[b].size(); c++) {
     switch(type) {
       case 0 :
         index = cells[b][c]->index;
-        numDOF = cells[b][c]->numDOF;
+        numDOF = cells[b][c]->cellData->numDOF;
         data = cells[b][c]->u;
         break;
       case 1 :
         index = cells[b][c]->index;
-        numDOF = cells[b][c]->numDOF;
+        numDOF = cells[b][c]->cellData->numDOF;
         data = cells[b][c]->u_dot;
         break;
       case 2 :
         index = cells[b][c]->index;
-        numDOF = cells[b][c]->numDOF;
+        numDOF = cells[b][c]->cellData->numDOF;
         data = cells[b][c]->phi;
         break;
       case 3 :
         index = cells[b][c]->index;
-        numDOF = cells[b][c]->numDOF;
+        numDOF = cells[b][c]->cellData->numDOF;
         data = cells[b][c]->phi_dot;
         break;
       case 4:
         index = cells[b][c]->paramindex;
-        numDOF = cells[b][c]->numParamDOF;
+        numDOF = cells[b][c]->cellData->numParamDOF;
         data = cells[b][c]->param;
         break;
       case 5 :
         index = cells[b][c]->auxindex;
-        numDOF = cells[b][c]->numAuxDOF;
+        numDOF = cells[b][c]->cellData->numAuxDOF;
         data = cells[b][c]->aux;
         break;
       default :
@@ -3077,12 +3077,14 @@ void SubGridFEM::performBoundaryGather(const size_t & b, const vector_RCP & vec,
   if (boundaryCells.size() > b) {
     
     // Get a view of the vector on the HostDevice
+    
+    // TMW: this all needs to be updated
     auto vec_kv = vec->getLocalView<HostDevice>();
     
     // Get a corresponding view on the AssemblyDevice
     
     Kokkos::View<LO***,AssemblyDevice> index;
-    Kokkos::View<LO*,AssemblyDevice> numDOF;
+    Kokkos::View<LO*,UnifiedDevice> numDOF;
     Kokkos::View<ScalarT***,AssemblyDevice> data;
     
     for (size_t c=0; c < boundaryCells[b].size(); c++) {
@@ -3091,32 +3093,32 @@ void SubGridFEM::performBoundaryGather(const size_t & b, const vector_RCP & vec,
         switch(type) {
           case 0 :
             index = boundaryCells[b][c]->index;
-            numDOF = boundaryCells[b][c]->numDOF;
+            numDOF = boundaryCells[b][c]->cellData->numDOF;
             data = boundaryCells[b][c]->u;
             break;
           case 1 :
             index = boundaryCells[b][c]->index;
-            numDOF = boundaryCells[b][c]->numDOF;
+            numDOF = boundaryCells[b][c]->cellData->numDOF;
             data = boundaryCells[b][c]->u_dot;
             break;
           case 2 :
             index = boundaryCells[b][c]->index;
-            numDOF = boundaryCells[b][c]->numDOF;
+            numDOF = boundaryCells[b][c]->cellData->numDOF;
             data = boundaryCells[b][c]->phi;
             break;
           case 3 :
             index = boundaryCells[b][c]->index;
-            numDOF = boundaryCells[b][c]->numDOF;
+            numDOF = boundaryCells[b][c]->cellData->numDOF;
             data = boundaryCells[b][c]->phi_dot;
             break;
           case 4:
             index = boundaryCells[b][c]->paramindex;
-            numDOF = boundaryCells[b][c]->numParamDOF;
+            numDOF = boundaryCells[b][c]->cellData->numParamDOF;
             data = boundaryCells[b][c]->param;
             break;
           case 5 :
             index = boundaryCells[b][c]->auxindex;
-            numDOF = boundaryCells[b][c]->numAuxDOF;
+            numDOF = boundaryCells[b][c]->cellData->numAuxDOF;
             data = boundaryCells[b][c]->aux;
             break;
           default :

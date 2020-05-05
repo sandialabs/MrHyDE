@@ -353,12 +353,13 @@ void solver::setupLinearAlgebra() {
   
   for (size_t b=0; b<assembler->cells.size(); b++) {
     vector<vector<int> > curroffsets = phys->offsets[b];
-    Kokkos::View<LO*,AssemblyDevice> numDOF_KV("number of DOF per variable",numVars[b]);
+    Kokkos::View<LO*,UnifiedDevice> numDOF_KV("number of DOF per variable",numVars[b]);
     for (int k=0; k<numVars[b]; k++) {
       numDOF_KV(k) = numBasis[b][k];
     }
     
     for(size_t e=0; e<assembler->cells[b].size(); e++) {
+      assembler->cells[b][0]->cellData->numDOF = numDOF_KV;
       gids = assembler->cells[b][e]->GIDs;
       
       int numElem = assembler->cells[b][e]->numElem;
@@ -384,10 +385,11 @@ void solver::setupLinearAlgebra() {
           LA_overlapped_graph->insertGlobalIndices(ind1,ind2);
         }
       }
-      assembler->cells[b][e]->setIndex(cellindices, numDOF_KV);
+      assembler->cells[b][e]->setIndex(cellindices);
     }
     
     if (assembler->boundaryCells.size() > b) {
+      // boundary cells share meta-data, so no need to reset numDOF
       for(size_t e=0; e<assembler->boundaryCells[b].size(); e++) {
         gids = assembler->boundaryCells[b][e]->GIDs;
         
@@ -409,7 +411,7 @@ void solver::setupLinearAlgebra() {
             LA_overlapped_graph->insertGlobalIndices(ind1,ind2);
           }
         }
-        assembler->boundaryCells[b][e]->setIndex(cellindices, numDOF_KV);
+        assembler->boundaryCells[b][e]->setIndex(cellindices);
       }
     }
   }

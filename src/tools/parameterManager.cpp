@@ -257,6 +257,13 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
     }
     
     for (size_t b=0; b<cells.size(); b++) {
+      int max_param_basis = 0;
+      Kokkos::View<LO*,UnifiedDevice> numDOF_KV("number of param DOF per variable",num_discretized_params);
+      for (int k=0; k<num_discretized_params; k++) {
+        numDOF_KV(k) = paramNumBasis[k];
+      }
+      cells[b][0]->cellData->numParamDOF = numDOF_KV;
+      
       for (size_t e=0; e<cells[b].size(); e++) {
         vector<vector<GO> > GIDs;
         int numElem = cells[b][e]->numElem;
@@ -332,15 +339,13 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
     vector_RCP paramVec = this->setInitialParams(); // TMW: this will be deprecated soon
     
     int max_param_basis = 0;
-    Kokkos::View<LO*,HostDevice> numDOF_KVhost("number of param DOF per variable",num_discretized_params);
+    //Kokkos::View<LO*,UnifiedDevice> numDOF_KV("number of param DOF per variable",num_discretized_params);
     for (int k=0; k<num_discretized_params; k++) {
-      numDOF_KVhost(k) = paramNumBasis[k];
+      //numDOF_KV(k) = paramNumBasis[k];
       if (paramNumBasis[k]>max_param_basis){
         max_param_basis = paramNumBasis[k];
       }
     }
-    Kokkos::View<LO*,AssemblyDevice> numDOF_KV = Kokkos::create_mirror_view(numDOF_KVhost);
-    Kokkos::deep_copy(numDOF_KVhost, numDOF_KV);
     
     for (size_t b=0; b<cells.size(); b++) {
       for(size_t e=0; e<cells[b].size(); e++) {
@@ -363,23 +368,11 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
             }
           }
         }
-        cells[b][e]->setParamIndex(cellindices, numDOF_KV);
-        /* // needs to be updated
-         if (use_custom_initial_param_guess) {
-         nodes = assembler->cells[b][e]->nodes;
-         param_initial_vals = phys->udfunc->setInitialParams(nodes,cellindices);
-         for (int p=0; p<numElem; p++) {
-         for (int n = 0; n < num_discretized_params; n++) {
-         for (int i = 0; i < cellindices[p][n].size(); i++) {
-         paramVec->ReplaceGlobalValue(paramOwnedAndShared[cellindices[p][n][i]]
-         ,0,param_initial_vals[p][n][i]);
-         }
-         }
-         }
-         }*/
+        cells[b][e]->setParamIndex(cellindices);
       }
     }
     for (size_t b=0; b<boundaryCells.size(); b++) {
+      // boundary cells share the same meta-data as the cells, so no need to reser numParamDOF
       for(size_t e=0; e<boundaryCells[b].size(); e++) {
         gids = boundaryCells[b][e]->paramGIDs;
         // this should fail on the first iteration through if maxDerivs is not large enough
@@ -397,7 +390,7 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
             }
           }
         }
-        boundaryCells[b][e]->setParamIndex(cellindices, numDOF_KV);
+        boundaryCells[b][e]->setParamIndex(cellindices);
       }
     }
     for (int n=0; n<num_discretized_params; n++) {

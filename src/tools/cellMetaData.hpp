@@ -80,6 +80,9 @@ public:
   bool exodus_sensors = false;
   bool multiscale, have_cell_phi, have_cell_rotation;
   
+  // these are common to all elements/cells and are often used on both devices
+  Kokkos::View<int*,UnifiedDevice> numDOF, numParamDOF, numAuxDOF;
+  
 };
 
 #endif

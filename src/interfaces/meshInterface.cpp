@@ -1303,10 +1303,10 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
     int index, dindex;
     //vector<vector<int> > curroffsets = phys->offsets[b];
     Kokkos::View<LO***,AssemblyDevice> cindex;
-    Kokkos::View<LO*,AssemblyDevice> nDOF;
+    Kokkos::View<LO*,UnifiedDevice> nDOF;
     for( size_t e=0; e<cells[b].size(); e++ ) {
       cindex = cells[b][e]->index;
-      nDOF = cells[b][e]->numDOF;
+      nDOF = cells[b][e]->cellData->numDOF;
       for (int n=0; n<cindex.extent(1); n++) {
         //Kokkos::View<GO**,HostDevice> GIDs = assembler->cells[b][e]->GIDs;
         for (int p=0; p<cells[b][e]->numElem; p++) {
