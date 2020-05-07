@@ -33,9 +33,13 @@ public:
   /* Constructor to set up the problem */
   // ========================================================================================
   
-  linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-                   const size_t & numip_side_, const int & numElem_,
-                   Teuchos::RCP<FunctionManager> & functionManager_);
+  linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                       Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================

@@ -32,9 +32,13 @@ public:
   
   ~porousHDIV_HYBRID() {};
   
-  porousHDIV_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-                    const size_t & numip_side_, const int & numElem_,
-                    Teuchos::RCP<FunctionManager> & functionManager_);
+  porousHDIV_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                       Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -70,8 +74,7 @@ public:
   
 private:
   
-  int spaceDim, numElem, numParams, numResponses, numSteps;
-  size_t numip, numip_side;
+  int spaceDim;
   FDATA source, bsource;
   
   int pnum=-1, unum=-1, lambdanum=-1;
@@ -79,10 +82,7 @@ private:
   int dxnum=-1, dynum=-1, dznum=-1;
   bool isTD, addBiot;
   ScalarT biot_alpha;
-  
-  vector<string> varlist;
-  Kokkos::View<int****,AssemblyDevice> sideinfo;
-  
+    
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::volumeResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::volumeResidual() - evaluation of residual");
   Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::computeFlux() - evaluation of interface flux");

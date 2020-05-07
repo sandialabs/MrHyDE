@@ -13,6 +13,11 @@
 #include "interpreter.hpp"
 
 FunctionManager::FunctionManager() {
+  // This really should NOT be constructed
+  
+  numElem = 1;
+  numip = 1;
+  numip_side = 1;
   known_vars = {"x","y","z","t","nx","ny","nz","pi","h"};
   known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean"};
   
@@ -26,7 +31,9 @@ FunctionManager::FunctionManager() {
 }
 
 
-FunctionManager::FunctionManager(const string & blockname_) : blockname(blockname_) {
+FunctionManager::FunctionManager(const string & blockname_, const int & numElem_,
+                                 const int & numip_, const int & numip_side_) :
+blockname(blockname_), numElem(numElem_), numip(numip_), numip_side(numip_side_) {
   known_vars = {"x","y","z","t","nx","ny","nz","pi","h"};
   known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean"};
 }
@@ -35,9 +42,7 @@ FunctionManager::FunctionManager(const string & blockname_) : blockname(blocknam
 // Add a user defined function
 //////////////////////////////////////////////////////////////////////////////////////
 
-int FunctionManager::addFunction(const string & fname, const string & expression,
-                                   const size_t & dim0, const size_t & dim1,
-                                   const string & location) {
+int FunctionManager::addFunction(const string & fname, const string & expression, const string & location) {
   bool found = false;
   int findex = 0;
   
@@ -48,7 +53,17 @@ int FunctionManager::addFunction(const string & fname, const string & expression
     }
   }
   if (!found) {
-    functions.push_back(function_class(fname, expression, dim0, dim1, location));
+    int dim1;
+    if (location == "ip") {
+      dim1 = numip;
+    }
+    else if (location == "side ip") {
+      dim1 = numip_side;
+    }
+    else if (location == "point") {
+      dim1 = 1;
+    }
+    functions.push_back(function_class(fname, expression, numElem, dim1, location));
     findex = functions.size()-1;
   }
   return findex;

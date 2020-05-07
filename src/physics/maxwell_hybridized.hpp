@@ -50,9 +50,13 @@ public:
   
   ~maxwell_HYBRID() {};
   
-  maxwell_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-                 const size_t & numip_side_, const int & numElem_,
-                 Teuchos::RCP<FunctionManager> & functionManager_);
+  maxwell_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                       Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -87,18 +91,12 @@ private:
   FDATA current_x, current_y, current_z;
   FDATA bsourcex, bsourcey, bsourcez;
   
-  int spaceDim, numElem, numParams, numResponses, numSteps;
-  size_t numip, numip_side;
+  int spaceDim;
   
   int Ex_num, Ey_num, Ez_num,
       Hx_num, Hy_num, Hz_num,
       lambdax_num, lambday_num, lambdaz_num;
-  
-
-
-  vector<string> varlist;
-  Kokkos::View<int****,AssemblyDevice> sideinfo;
-  
+    
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell_HYBRID::volumeResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell_HYBRID::volumeResidual() - evaluation of residual");
   Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell_HYBRID::boundaryResidual() - function evaluation");

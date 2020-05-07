@@ -31,9 +31,13 @@ public:
   /* Constructor to set up the problem */
   // ========================================================================================
   
-  helmholtz(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-            const size_t & numip_side_, const int & numElem_,
-            Teuchos::RCP<FunctionManager> & functionManager_);
+  helmholtz(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                       Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -62,10 +66,8 @@ public:
   
 private:
   
-  int spaceDim, numElem, numResponses;
-  vector<string> varlist;
+  int spaceDim;
   int ur_num, ui_num;
-  size_t numip, numip_side;
   
   int verbosity;
   
@@ -88,7 +90,6 @@ private:
   FDATA c2r_side_x, c2i_side_x, c2r_side_y, c2i_side_y, c2r_side_z, c2i_side_z;
   FDATA robin_alpha_r, robin_alpha_i;
   
-  bool useScalarRespFx;
   bool fractional;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::helmholtz::volumeResidual() - function evaluation");

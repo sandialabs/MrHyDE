@@ -38,7 +38,8 @@ public:
   AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
                   Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
                   Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
-                  Teuchos::RCP<ParameterManager> & params_);
+                  Teuchos::RCP<ParameterManager> & params_,
+                  const int & numElemPerCell_);
   
   
   // ========================================================================================
@@ -160,6 +161,7 @@ public:
   vector<string> blocknames;
   vector<vector<string> > varlist;
   vector<LO> numVars;
+  int numElemPerCell;
   
   Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
   Teuchos::RCP<discretization> disc;

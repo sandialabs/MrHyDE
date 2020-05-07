@@ -15,58 +15,60 @@
 /* Constructor to set up the problem */
 // ========================================================================================
 
-helmholtz::helmholtz(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-          const size_t & numip_side_, const int & numElem_,
-          Teuchos::RCP<FunctionManager> & functionManager_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_) {
-  
+helmholtz::helmholtz(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   label = "helmholtz";
-  functionManager = functionManager_;
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   verbosity = settings->sublist("Physics").get<int>("Verbosity",0);
   fractional = settings->sublist("Physics").get<bool>("fractional",false);
-  
-  useScalarRespFx = settings->sublist("Physics").get<bool>("use scalar response function (helmholtz)",false);
   
   myvars.push_back("ureal");
   myvars.push_back("uimag");
   mybasistypes.push_back("HGRAD");
   mybasistypes.push_back("HGRAD");
   
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void helmholtz::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                                Teuchos::RCP<FunctionManager> & functionManager_) {
+
+  functionManager = functionManager_;
   
   // Functions
   Teuchos::ParameterList fs = settings->sublist("Functions");
-  functionManager->addFunction("c2r_x",fs.get<string>("c2r_x","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("c2i_x",fs.get<string>("c2i_x","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("c2r_y",fs.get<string>("c2r_y","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("c2i_y",fs.get<string>("c2i_y","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("c2r_z",fs.get<string>("c2r_z","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("c2i_z",fs.get<string>("c2i_z","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("omega2r",fs.get<string>("omega2r","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("omega2i",fs.get<string>("omega2i","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("omega2r",fs.get<string>("omega2r","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("omega2i",fs.get<string>("omega2i","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("omegar",fs.get<string>("omegar","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("omegai",fs.get<string>("omegai","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("source_r",fs.get<string>("source_r","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("source_i",fs.get<string>("source_i","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("source_r_side",fs.get<string>("source_r_side","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("source_i_side",fs.get<string>("source_i_side","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("robin_alpha_r",fs.get<string>("robin_alpha_r","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("robin_alpha_i",fs.get<string>("robin_alpha_i","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("c2r_x",fs.get<string>("c2r_x","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("c2i_x",fs.get<string>("c2i_x","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("c2r_y",fs.get<string>("c2r_y","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("c2i_y",fs.get<string>("c2i_y","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("c2r_z",fs.get<string>("c2r_z","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("c2i_z",fs.get<string>("c2i_z","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("alphaHr",fs.get<string>("alphaHr","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("alphaHi",fs.get<string>("alphaHi","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("alphaTr",fs.get<string>("alphaTr","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("alphaTi",fs.get<string>("alphaTi","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("freqExp",fs.get<string>("freqExp","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("freqExp",fs.get<string>("freqExp","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("c2r_x",fs.get<string>("c2r_x","0.0"),"ip");
+  functionManager->addFunction("c2i_x",fs.get<string>("c2i_x","0.0"),"ip");
+  functionManager->addFunction("c2r_y",fs.get<string>("c2r_y","0.0"),"ip");
+  functionManager->addFunction("c2i_y",fs.get<string>("c2i_y","0.0"),"ip");
+  functionManager->addFunction("c2r_z",fs.get<string>("c2r_z","0.0"),"ip");
+  functionManager->addFunction("c2i_z",fs.get<string>("c2i_z","0.0"),"ip");
+  functionManager->addFunction("omega2r",fs.get<string>("omega2r","0.0"),"ip");
+  functionManager->addFunction("omega2i",fs.get<string>("omega2i","0.0"),"ip");
+  functionManager->addFunction("omega2r",fs.get<string>("omega2r","0.0"),"side ip");
+  functionManager->addFunction("omega2i",fs.get<string>("omega2i","0.0"),"side ip");
+  functionManager->addFunction("omegar",fs.get<string>("omegar","0.0"),"ip");
+  functionManager->addFunction("omegai",fs.get<string>("omegai","0.0"),"ip");
+  functionManager->addFunction("source_r",fs.get<string>("source_r","0.0"),"ip");
+  functionManager->addFunction("source_i",fs.get<string>("source_i","0.0"),"ip");
+  functionManager->addFunction("source_r_side",fs.get<string>("source_r_side","0.0"),"side ip");
+  functionManager->addFunction("source_i_side",fs.get<string>("source_i_side","0.0"),"side ip");
+  functionManager->addFunction("robin_alpha_r",fs.get<string>("robin_alpha_r","0.0"),"side ip");
+  functionManager->addFunction("robin_alpha_i",fs.get<string>("robin_alpha_i","0.0"),"side ip");
+  functionManager->addFunction("c2r_x",fs.get<string>("c2r_x","0.0"),"side ip");
+  functionManager->addFunction("c2i_x",fs.get<string>("c2i_x","0.0"),"side ip");
+  functionManager->addFunction("c2r_y",fs.get<string>("c2r_y","0.0"),"side ip");
+  functionManager->addFunction("c2i_y",fs.get<string>("c2i_y","0.0"),"side ip");
+  functionManager->addFunction("c2r_z",fs.get<string>("c2r_z","0.0"),"side ip");
+  functionManager->addFunction("c2i_z",fs.get<string>("c2i_z","0.0"),"side ip");
+  functionManager->addFunction("alphaHr",fs.get<string>("alphaHr","0.0"),"ip");
+  functionManager->addFunction("alphaHi",fs.get<string>("alphaHi","0.0"),"ip");
+  functionManager->addFunction("alphaTr",fs.get<string>("alphaTr","0.0"),"ip");
+  functionManager->addFunction("alphaTi",fs.get<string>("alphaTi","0.0"),"ip");
+  functionManager->addFunction("freqExp",fs.get<string>("freqExp","0.0"),"ip");
+  functionManager->addFunction("freqExp",fs.get<string>("freqExp","0.0"),"side ip");
 }
 
 // ========================================================================================
@@ -394,8 +396,7 @@ void helmholtz::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void helmholtz::setVars(std::vector<string> & varlist_) {
-  varlist = varlist_;
+void helmholtz::setVars(std::vector<string> & varlist) {
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "ureal"){
       ur_num = i;

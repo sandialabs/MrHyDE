@@ -30,9 +30,13 @@ public:
   /* Constructor to set up the problem */
   // ========================================================================================
   
-  maxwells_fp(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-              const size_t & numip_side_, const int & numElem_,
-              Teuchos::RCP<FunctionManager> & functionManager_);
+  maxwells_fp(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                       Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -129,21 +133,18 @@ private:
   vector<AD> freq_params; //frequency
   vector<AD> source_params, boundary_params;
   
-  int spaceDim, numResponses;
-  vector<string> varlist;
+  int spaceDim;
   int Axr_num, phir_num, Ayr_num, Azr_num,
   Axi_num, phii_num, Ayi_num, Azi_num;
   
-  bool isTD;
-  int test;
-  int verbosity;
+  int verbosity, test;
   
   Kokkos::View<ScalarT***,AssemblyDevice> Erx, Ery, Erz, Eix, Eiy, Eiz; //corresponding electric field
   bool calcE; //whether to calculate E field here (does not give smooth result like Paraview does; cause unknown)
   
   ScalarT essScale;
   
-  Kokkos::View<int****,AssemblyDevice> sideinfo;
+  //Kokkos::View<int****,AssemblyDevice> sideinfo;
   DRV phir_basis, phir_basis_grad;
   DRV phii_basis, phii_basis_grad;
   

@@ -31,9 +31,13 @@ public:
   /* Constructor to set up the problem */
   // ========================================================================================
   
-  stokes(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-         const size_t & numip_side_, const int & numElem_,
-         Teuchos::RCP<FunctionManager> & functionManager_);
+  stokes(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                       Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -58,29 +62,19 @@ public:
   
 private:
   
-  size_t numip, numip_side;
-  
-  int spaceDim, numElem, numParams, numResponses;
-  vector<string> varlist;
+  int spaceDim;
   int ux_num, uy_num, uz_num, pr_num;//, e_num;
   
   bool isTD, useSUPG, usePSPG; // GH: might not need these
-  
-  int test;
-  
-  std::string analysis_type; //to know when parameter is a sample that needs to be transformed
   
   vector<ScalarT> pik;
   bool pin_pr;//, have_energy;
   ScalarT pin_tol, pin_scale, T_ambient, beta;
   
   int verbosity;
-  bool useScalarRespFx;
   
   FDATA visc, source_ux, source_pr, source_uy, source_uz;
-  
-  Kokkos::View<int****,AssemblyDevice> sideinfo;
-  
+    
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::stokes::volumeResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::stokes::volumeResidual() - evaluation of residual");
   Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::stokes::boundaryResidual() - function evaluation");

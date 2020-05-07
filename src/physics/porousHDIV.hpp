@@ -32,9 +32,13 @@ public:
   
   ~porousHDIV() {};
   
-  porousHDIV(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-             const size_t & numip_side_, const int & numElem_,
-             Teuchos::RCP<FunctionManager> & functionManager_);
+  porousHDIV(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                       Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -64,17 +68,13 @@ public:
   
 private:
   
-  int spaceDim, numElem, numParams, numResponses, numSteps;
-  size_t numip, numip_side;
+  int spaceDim;
   FDATA source, bsource;
   
   int pnum=-1, unum=-1, auxpnum=-1, auxunum=-1;
   int dxnum,dynum,dznum;
   bool isTD, addBiot;
   ScalarT biot_alpha;
-  
-  vector<string> varlist;
-  Kokkos::View<int****,AssemblyDevice> sideinfo;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV::volumeResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV::volumeResidual() - evaluation of residual");

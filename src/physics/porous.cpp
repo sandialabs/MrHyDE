@@ -11,30 +11,35 @@
 
 #include "porous.hpp"
 
-porous::porous(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-               const size_t & numip_side_, const int & numElem_,
-               Teuchos::RCP<FunctionManager> & functionManager_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_) {
+porous::porous(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   // Standard data
-  functionManager = functionManager_;
   label = "porous";
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   myvars.push_back("p");
   mybasistypes.push_back("HGRAD");
   formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void porous::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                             Teuchos::RCP<FunctionManager> & functionManager_) {
   
+  functionManager = functionManager_;
+
   // Functions
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("source",fs.get<string>("porous source","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("permeability",fs.get<string>("permeability","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("porosity",fs.get<string>("porosity","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("viscosity",fs.get<string>("viscosity","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("reference density",fs.get<string>("reference density","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("reference pressure",fs.get<string>("reference pressure","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("compressibility",fs.get<string>("compressibility","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("gravity",fs.get<string>("gravity","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("source",fs.get<string>("porous source","0.0"),"ip");
+  functionManager->addFunction("permeability",fs.get<string>("permeability","1.0"),"ip");
+  functionManager->addFunction("porosity",fs.get<string>("porosity","1.0"),"ip");
+  functionManager->addFunction("viscosity",fs.get<string>("viscosity","1.0"),"ip");
+  functionManager->addFunction("reference density",fs.get<string>("reference density","1.0"),"ip");
+  functionManager->addFunction("reference pressure",fs.get<string>("reference pressure","1.0"),"ip");
+  functionManager->addFunction("compressibility",fs.get<string>("compressibility","0.0"),"ip");
+  functionManager->addFunction("gravity",fs.get<string>("gravity","1.0"),"ip");
 }
 
 // ========================================================================================
@@ -67,7 +72,7 @@ void porous::volumeResidual() {
     parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int k=0; k<sol.extent(2); k++ ) {
         for (int i=0; i<basis.extent(1); i++ ) {
-          resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
+          int resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
           AD dens = densref(e,k)*(1.0+comp(e,k)*(sol(e,pnum,k,0) - pref(e,k)));
           
           res(e,resindex) += porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
@@ -82,7 +87,7 @@ void porous::volumeResidual() {
     parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int k=0; k<sol.extent(2); k++ ) {
         for (int i=0; i<basis.extent(1); i++ ) {
-          resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
+          int resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
           AD dens = densref(e,k)*(1.0+comp(e,k)*(sol(e,pnum,k,0) - pref(e,k)));
           
           res(e,resindex) += porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
@@ -96,7 +101,7 @@ void porous::volumeResidual() {
     parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int k=0; k<sol.extent(2); k++ ) {
         for (int i=0; i<basis.extent(1); i++ ) {
-          resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
+          int resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
           
           AD dens = densref(e,k)*(1.0+comp(e,k)*(sol(e,pnum,k,0) - pref(e,k)));
           
@@ -119,8 +124,7 @@ void porous::volumeResidual() {
 void porous::boundaryResidual() {
   
   
-  sideinfo = wkset->sideinfo;
-  Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
+  bcs = wkset->var_bcs;
   
   int cside = wkset->currentside;
   int sidetype = bcs(pnum,cside);
@@ -168,7 +172,7 @@ void porous::boundaryResidual() {
     if (bcs(pnum,cside) == 2) {
       for (int k=0; k<basis.extent(2); k++ ) {
         for (int i=0; i<basis.extent(1); i++ ) {
-          resindex = offsets(pnum,i);
+          int resindex = offsets(pnum,i);
           res(e,resindex) += -source(e,k)*basis(e,i,k);
         }
       }
@@ -198,7 +202,7 @@ void porous::boundaryResidual() {
         }
         
         for (int i=0; i<basis.extent(1); i++ ) {
-          resindex = offsets(pnum,i);
+          int resindex = offsets(pnum,i);
           v = basis(e,i,k);
           dvdx = basis_grad(e,i,k,0);
           if (spaceDim > 1)
@@ -267,7 +271,7 @@ void porous::computeFlux() {
   {
     Teuchos::TimeMonitor localtime(*fluxFill);
     
-    for (int e=0; e<numElem; e++) {
+    for (int e=0; e<flux.extent(0); e++) {
       
       for (size_t k=0; k<wkset->ip_side.extent(1); k++) {
         AD dens = densref(e,k)*(1.0+comp(e,k)*(sol_side(e,pnum,k,0) - pref(e,k)));
@@ -291,8 +295,7 @@ void porous::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void porous::setVars(std::vector<string> & varlist_) {
-  varlist = varlist_;
+void porous::setVars(std::vector<string> & varlist) {
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "p") {
       pnum = i;

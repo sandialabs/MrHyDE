@@ -15,14 +15,10 @@
 /* Constructor to set up the problem */
 // ========================================================================================
 
-maxwells_fp::maxwells_fp(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-                         const size_t & numip_side_, const int & numElem_,
-                         Teuchos::RCP<FunctionManager> & functionManager_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_) {
+maxwells_fp::maxwells_fp(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   //potential approach to frequency-domain Maxwell's (see Boyse et al (1992)); uses -iwt convention
   
-  functionManager = functionManager_;
   spaceDim = settings->sublist("Mesh").get<int>("dim",3);
   if(spaceDim < 2)
     cout << "Not all aspects may be well-defined in 1D..." << endl;
@@ -54,12 +50,8 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_) {
     mybasistypes.push_back("HGRAD");
   }
   
-  if (settings->sublist("Solver").get<string>("solver","steady-state") == "transient"){
-    cout << "This is supposed to be in frequency domain..." << endl;
-    isTD = true; //leave possibility in case weak form parallels something else that user want to solve...
-  }
-  else
-    isTD = false;
+  essScale = settings->sublist("Physics").get<ScalarT>("weak ess BC scaling",100.0);
+  calcE = settings->sublist("Physics").get<bool>("Calculate electric field",false);
   
   test = settings->sublist("Physics").get<int>("test",0);
   //test == 1: convergence study with manufactured solution
@@ -69,10 +61,16 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   //test == 3: convergence study with manufactured solution (with boundary condition type 1)
   //test == 4: attempt to replicate Fig 1 in Paulsen et all (1992)
   
-  numResponses = 2*(spaceDim+1);
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void maxwells_fp::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                                 Teuchos::RCP<FunctionManager> & functionManager_) {
   
-  essScale = settings->sublist("Physics").get<ScalarT>("weak ess BC scaling",100.0);
-  calcE = settings->sublist("Physics").get<bool>("Calculate electric field",false);
+  functionManager = functionManager_;
+
 }
 
 // ========================================================================================
@@ -228,19 +226,17 @@ void maxwells_fp::volumeResidual() {
         rhor = source_charge[0]; rhoi = source_charge[1];
         
         // TMW: this will fail if running with other physics enabled
-        if(isTD){
-          res(e,0) += Axrdot*vr - Axidot*vi;
-          res(e,1) += Axrdot*vi + Axidot*vr;
-          res(e,2) += phirdot*vr - phiidot*vi;
-          res(e,3) += phirdot*vi + phiidot*vr;
-          if(spaceDim > 1){
-            res(e,4) += Ayrdot*vr - Ayidot*vi;
-            res(e,5) += Ayrdot*vi + Ayidot*vr;
-          }
-          if(spaceDim > 2){
-            res(e,6) += Azrdot*vr - Azidot*vi;
-            res(e,7) += Azrdot*vi + Azidot*vr;
-          }
+        res(e,0) += Axrdot*vr - Axidot*vi;
+        res(e,1) += Axrdot*vi + Axidot*vr;
+        res(e,2) += phirdot*vr - phiidot*vi;
+        res(e,3) += phirdot*vi + phiidot*vr;
+        if(spaceDim > 1){
+          res(e,4) += Ayrdot*vr - Ayidot*vi;
+          res(e,5) += Ayrdot*vi + Ayidot*vr;
+        }
+        if(spaceDim > 2){
+          res(e,6) += Azrdot*vr - Azidot*vi;
+          res(e,7) += Azrdot*vi + Azidot*vr;
         }
         
         resindex = offsets(Axr_num,i);
@@ -460,7 +456,7 @@ void maxwells_fp::boundaryResidual() {
   
   ScalarT current_time = wkset->time;
   
-  sideinfo = wkset->sideinfo;
+  //sideinfo = wkset->sideinfo;
   DRV ip = wkset->ip_side;
   // Since normals get recomputed often, this needs to be reset
   normals  = wkset->normals;
@@ -932,8 +928,7 @@ vector<AD> maxwells_fp::getBoundaryCharge(const ScalarT & x, const ScalarT & y, 
 // ========================================================================================
 // ========================================================================================
 
-void maxwells_fp::setVars(std::vector<string> & varlist_) {
-  varlist = varlist_;
+void maxwells_fp::setVars(std::vector<string> & varlist) {
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "Arx")
       Axr_num = i;

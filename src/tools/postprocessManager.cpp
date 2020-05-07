@@ -134,17 +134,13 @@ DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensor
     useBasis.push_back(curruseBasis);
     numBasis.push_back(currnumBasis);
     maxbasis.push_back(currmaxbasis);
-  
-  
-    int numElemPerCell = settings->sublist("Solver").get<int>("Workset size",1);
-    int numip = disc->ref_ip[0].extent(0);
     
     if (settings->sublist("Postprocess").isSublist("Responses")) {
       Teuchos::ParameterList resps = settings->sublist("Postprocess").sublist("Responses");
       Teuchos::ParameterList::ConstIterator rsp_itr = resps.begin();
       while (rsp_itr != resps.end()) {
         string entry = resps.get<string>(rsp_itr->first);
-        functionManagers[b]->addFunction(rsp_itr->first,entry,numElemPerCell,numip,"ip");
+        functionManagers[b]->addFunction(rsp_itr->first,entry,"ip");
         rsp_itr++;
       }
     }
@@ -153,7 +149,7 @@ DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensor
       Teuchos::ParameterList::ConstIterator wts_itr = wts.begin();
       while (wts_itr != wts.end()) {
         string entry = wts.get<string>(wts_itr->first);
-        functionManagers[b]->addFunction(wts_itr->first,entry,numElemPerCell,numip,"ip");
+        functionManagers[b]->addFunction(wts_itr->first,entry,"ip");
         wts_itr++;
       }
     }
@@ -162,7 +158,7 @@ DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensor
       Teuchos::ParameterList::ConstIterator tgt_itr = tgts.begin();
       while (tgt_itr != tgts.end()) {
         string entry = tgts.get<string>(tgt_itr->first);
-        functionManagers[b]->addFunction(tgt_itr->first,entry,numElemPerCell,numip,"ip");
+        functionManagers[b]->addFunction(tgt_itr->first,entry,"ip");
         tgt_itr++;
       }
     }

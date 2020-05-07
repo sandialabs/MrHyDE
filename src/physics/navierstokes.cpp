@@ -15,17 +15,12 @@
 /* Constructor to set up the problem */
 // ========================================================================================
 
-navierstokes::navierstokes(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-                           const size_t & numip_side_, const int & numElem_,
-                           Teuchos::RCP<FunctionManager> & functionManager_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_) {
+navierstokes::navierstokes(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   label = "navierstokes";
-  functionManager = functionManager_;
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   
   verbosity = settings->sublist("Physics").get<int>("Verbosity",0);
-  numElem = settings->sublist("Solver").get<int>("Workset size",1);
   
   myvars.push_back("ux");
   myvars.push_back("pr");
@@ -44,12 +39,7 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   if (spaceDim > 2) {
     mybasistypes.push_back("HGRAD");
   }
-  
-  
-  if (settings->sublist("Solver").get<string>("solver","steady-state") == "transient")
-    isTD = true;
-  else
-    isTD = false;
+   
   
   useSUPG = settings->sublist("Physics").get<bool>("useSUPG",false);
   usePSPG = settings->sublist("Physics").get<bool>("usePSPG",false);
@@ -58,25 +48,24 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   
   have_energy = false;
   
-  numResponses = settings->sublist("Physics").get<int>("numResp_navierstokes",spaceDim+1);
-  useScalarRespFx = settings->sublist("Physics").get<bool>("use scalar response function (navierstokes)",false);
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void navierstokes::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                                   Teuchos::RCP<FunctionManager> & functionManager_) {
   
-  test = settings->sublist("Physics").get<int>("test",0);
-  //test 1: lid-driven cavity
-  //test 3: lid-driven cavity, two 'lids'
-  //test 30: lid-driven cavity, two 'lids'; provides velocity for msconvdiff
-  
-  analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
-  
+  functionManager = functionManager_;
+
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("source ux",fs.get<string>("source ux","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("source pr",fs.get<string>("source pr","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("source uy",fs.get<string>("source uy","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("source uz",fs.get<string>("source uz","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("density",fs.get<string>("density","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("viscosity",fs.get<string>("viscosity","1.0"),numElem,numip,"ip");
-  
+  functionManager->addFunction("source ux",fs.get<string>("source ux","0.0"),"ip");
+  functionManager->addFunction("source pr",fs.get<string>("source pr","0.0"),"ip");
+  functionManager->addFunction("source uy",fs.get<string>("source uy","0.0"),"ip");
+  functionManager->addFunction("source uz",fs.get<string>("source uz","0.0"),"ip");
+  functionManager->addFunction("density",fs.get<string>("density","1.0"),"ip");
+  functionManager->addFunction("viscosity",fs.get<string>("viscosity","1.0"),"ip");  
   
 }
 
@@ -434,8 +423,7 @@ void navierstokes::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void navierstokes::setVars(std::vector<string> & varlist_) {
-  varlist = varlist_;
+void navierstokes::setVars(std::vector<string> & varlist) {
   e_num = -1;
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "ux")

@@ -14,35 +14,39 @@
 // ========================================================================================
 // ========================================================================================
 
-cdr::cdr(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-         const size_t & numip_side_, const int & numElem_,
-         Teuchos::RCP<FunctionManager> & functionManager_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_) {
+cdr::cdr(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   label = "cdr";
-  functionManager = functionManager_;
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   myvars.push_back("c");
   mybasistypes.push_back("HGRAD");
   
   //velFromNS = settings->sublist("Physics").get<bool>("Get velocity from navierstokes",false);
   //burgersflux = settings->sublist("Physics").get<bool>("Add Burgers",false);
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void cdr::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                          Teuchos::RCP<FunctionManager> & functionManager_) {
   
+  functionManager = functionManager_;
   // Functions
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("source",fs.get<string>("source","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("diffusion",fs.get<string>("diffusion","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("specific heat",fs.get<string>("specific heat","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("density",fs.get<string>("density","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("reaction",fs.get<string>("reaction","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("xvel",fs.get<string>("xvel","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("yvel",fs.get<string>("yvel","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("zvel",fs.get<string>("zvel","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("SUPG tau",fs.get<string>("SUPG tau","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("source",fs.get<string>("source","0.0"),"ip");
+  functionManager->addFunction("diffusion",fs.get<string>("diffusion","1.0"),"ip");
+  functionManager->addFunction("specific heat",fs.get<string>("specific heat","1.0"),"ip");
+  functionManager->addFunction("density",fs.get<string>("density","1.0"),"ip");
+  functionManager->addFunction("reaction",fs.get<string>("reaction","1.0"),"ip");
+  functionManager->addFunction("xvel",fs.get<string>("xvel","1.0"),"ip");
+  functionManager->addFunction("yvel",fs.get<string>("yvel","1.0"),"ip");
+  functionManager->addFunction("zvel",fs.get<string>("zvel","1.0"),"ip");
+  functionManager->addFunction("SUPG tau",fs.get<string>("SUPG tau","0.0"),"ip");
   
-  functionManager->addFunction("diffusion",fs.get<string>("diffusion","1.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("robin alpha",fs.get<string>("robin alpha","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("diffusion",fs.get<string>("diffusion","1.0"),"side ip");
+  functionManager->addFunction("robin alpha",fs.get<string>("robin alpha","0.0"),"side ip");
   
   //regParam = settings->sublist("Analysis").sublist("ROL").get<ScalarT>("regularization parameter",1.e-6);
   //moveVort = settings->sublist("Physics").get<bool>("moving vortices",true);
@@ -81,7 +85,7 @@ void cdr::volumeResidual() {
     parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int k=0; k<sol.extent(2); k++ ) {
         for (int i=0; i<basis.extent(1); i++ ) {
-          resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
+          int resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
           res(e,resindex) += sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
           1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0)) + // diffusion terms
                                   (xvel(e,k)*sol_grad(e,cnum,k,0))*basis(e,i,k) + // convection terms
@@ -97,7 +101,7 @@ void cdr::volumeResidual() {
     parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int k=0; k<sol.extent(2); k++ ) {
         for (int i=0; i<basis.extent(1); i++ ) {
-          resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
+          int resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
           res(e,resindex) += sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
           1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,cnum,k,1)*basis_grad(e,i,k,1)) + // diffusion terms
                                   (xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1))*basis(e,i,k) + // convection terms
@@ -113,7 +117,7 @@ void cdr::volumeResidual() {
     parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int k=0; k<sol.extent(2); k++ ) {
         for (int i=0; i<basis.extent(1); i++ ) {
-          resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
+          int resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
           res(e,resindex) += sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
           1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,cnum,k,1)*basis_grad(e,i,k,1) + sol_grad(e,cnum,k,2)*basis_grad(e,i,k,2)) + // diffusion terms
                                   (xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + zvel(e,k)*sol_grad(e,cnum,k,2))*basis(e,i,k) + // convection terms
@@ -382,8 +386,7 @@ void cdr::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void cdr::setVars(vector<string> & varlist_) {
-  varlist = varlist_;
+void cdr::setVars(vector<string> & varlist) {
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "c") {
       cnum = i;

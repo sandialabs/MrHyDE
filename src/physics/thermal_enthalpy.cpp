@@ -15,13 +15,9 @@
 /* Constructor to set up the problem */
 // ========================================================================================
 
-thermal_enthalpy::thermal_enthalpy(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-                                   const size_t & numip_side_, const int & numElem_,
-                                   Teuchos::RCP<FunctionManager> & functionManager_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_) {
+thermal_enthalpy::thermal_enthalpy(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   label = "thermal_enthalpy";
-  functionManager = functionManager_;
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   
   myvars.push_back("e");
@@ -29,31 +25,29 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   mybasistypes.push_back("HGRAD");
   mybasistypes.push_back("HGRAD");
   
-  if (settings->sublist("Physics").get<int>("solver",0) == 1)
-    isTD = true;
-  else
-    isTD = false;
-  
-  multiscale = settings->isSublist("Subgrid");
-  analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
-  
-  numResponses = settings->sublist("Physics").get<int>("numResp_thermal",2);
-  useScalarRespFx = settings->sublist("Physics").get<bool>("use scalar response function (thermal)",false);
-  
   formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
   
   have_nsvel = false;
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void thermal_enthalpy::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                                       Teuchos::RCP<FunctionManager> & functionManager_) {
   
+  functionManager = functionManager_;
+
   // Functions
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("thermal source",fs.get<string>("thermal source","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("specific heat",fs.get<string>("specific heat","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("density",fs.get<string>("density","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("thermal Neumann source",fs.get<string>("thermal Neumann source","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("robin alpha",fs.get<string>("robin alpha","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("thermal source",fs.get<string>("thermal source","0.0"),"ip");
+  functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),"ip");
+  functionManager->addFunction("specific heat",fs.get<string>("specific heat","1.0"),"ip");
+  functionManager->addFunction("density",fs.get<string>("density","1.0"),"ip");
+  functionManager->addFunction("thermal Neumann source",fs.get<string>("thermal Neumann source","0.0"),"side ip");
+  functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),"side ip");
+  functionManager->addFunction("robin alpha",fs.get<string>("robin alpha","0.0"),"side ip");
 }
 
 // ========================================================================================
@@ -112,7 +106,7 @@ void thermal_enthalpy::volumeResidual() {
       }
       for (int i=0; i<basis.extent(1); i++ ) {
         
-        resindex = offsets(e_num,i);
+        int resindex = offsets(e_num,i);
         v = basis(e,i,k);
         dvdx = basis_grad(e,i,k,0);
         if (spaceDim > 1) {
@@ -145,7 +139,7 @@ void thermal_enthalpy::volumeResidual() {
       AD H = sol(e,H_num,k,0);
       
       for (int i=0; i<basis.extent(1); i++ ) {
-        resindex = wkset->offsets(H_num,i);
+        int resindex = wkset->offsets(H_num,i);
         v = basis(e,i,k);
         // make cp_integral and gfunc udfuncs
         //cp_integral = 320.3*e + 0.379/2.0*e*e;
@@ -208,7 +202,7 @@ void thermal_enthalpy::boundaryResidual() {
     if (sideinfo(e,e_num,cside,0) == 2) { // Element e is on the side
       for (int k=0; k<basis.extent(2); k++ ) {
         for (int i=0; i<basis.extent(1); i++ ) {
-          resindex = offsets(e_num,i);
+          int resindex = offsets(e_num,i);
           res(e,resindex) += -nsource(e,k)*basis(e,i,k);
         }
       }
@@ -239,7 +233,7 @@ void thermal_enthalpy::boundaryResidual() {
         }
         
         for (int i=0; i<basis.extent(1); i++ ) {
-          resindex = offsets(e_num,i);
+          int resindex = offsets(e_num,i);
           v = basis(e,i,k);
           dvdx = basis_grad(e,i,k,0);
           if (spaceDim > 1)
@@ -295,7 +289,7 @@ void thermal_enthalpy::computeFlux() {
   {
     Teuchos::TimeMonitor localtime(*fluxFill);
     
-    for (int n=0; n<numElem; n++) {
+    for (int n=0; n<flux.extent(0); n++) {
       
       for (size_t i=0; i<wkset->ip_side.extent(1); i++) {
         penalty = 10.0*diff_side(n,i)/wkset->h(n);
@@ -315,8 +309,7 @@ void thermal_enthalpy::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void thermal_enthalpy::setVars(std::vector<string> & varlist_) {
-  varlist = varlist_;
+void thermal_enthalpy::setVars(std::vector<string> & varlist) {
   ux_num = -1;
   uy_num = -1;
   uz_num = -1;

@@ -31,9 +31,13 @@ public:
   /* Constructor to set up the problem */
   // ========================================================================================
   
-  shallowwater(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-               const size_t & numip_side_, const int & numElem_,
-               Teuchos::RCP<FunctionManager> & functionManager_);
+  shallowwater(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                       Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -63,26 +67,15 @@ private:
   
   data grains;
   
-  size_t numip, numip_side;
-  
-  int spaceDim, numElem, numParams, numResponses;
-  vector<string> varlist;
+  int spaceDim;
   int H_num, Hu_num, Hv_num;
   ScalarT alpha;
   ScalarT gravity;
-  bool isTD;
-  //int test, simNum;
-  //string simName;
   
   FDATA bath, bath_x, bath_y, visc, cor, bfric, source_Hu, source_Hv, nsource, nsource_Hu, nsource_Hv, bath_side;
   Kokkos::View<int****,AssemblyDevice> sideinfo;
   DRV Hbasis, Hbasis_grad, Hubasis, Hubasis_grad, Hvbasis, Hvbasis_grad;
   
-  
-  string analysis_type; //to know when parameter is a sample that needs to be transformed
-  
-  bool useScalarRespFx;
-  bool multiscale;
   ScalarT formparam;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::shallowwater::volumeResidual() - function evaluation");

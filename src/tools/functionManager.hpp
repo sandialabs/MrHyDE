@@ -21,7 +21,8 @@ class FunctionManager {
   
   FunctionManager();
   
-  FunctionManager(const string & blockname);
+  FunctionManager(const string & blockname, const int & numElem_,
+                  const int & numip_, const int & numip_side_);
   
   //////////////////////////////////////////////////////////////////////////////////////
   // Add a user defined function
@@ -34,8 +35,7 @@ class FunctionManager {
   // Add a user defined function
   //////////////////////////////////////////////////////////////////////////////////////
   
-  int addFunction(const string & fname, const string & expression,
-                  const size_t & dim0, const size_t & dim1, const string & location);
+  int addFunction(const string & fname, const string & expression, const string & location);
   
   //////////////////////////////////////////////////////////////////////////////////////
   // Set the lists of variables, parameters and discretized parameters
@@ -93,6 +93,8 @@ class FunctionManager {
   //////////////////////////////////////////////////////////////////////////////////////
 
   string blockname;
+  int numElem, numip, numip_side;
+  
   vector<function_class> functions;
   //Kokkos::View<function_class*,AssemblyDevice> functions;
   

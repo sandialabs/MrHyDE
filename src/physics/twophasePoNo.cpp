@@ -11,13 +11,9 @@
 
 #include "twophasePoNo.hpp"
 
-twophasePoNo::twophasePoNo(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-                           const size_t & numip_side_, const int & numElem_,
-                           Teuchos::RCP<FunctionManager> & functionManager_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_) {
+twophasePoNo::twophasePoNo(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   // Standard data
-  functionManager = functionManager_;
   label = "twophase";
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   myvars.push_back("Po");
@@ -26,29 +22,38 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   mybasistypes.push_back("HGRAD");
   formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
   
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void twophasePoNo::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                                   Teuchos::RCP<FunctionManager> & functionManager_) {
   
+  functionManager = functionManager_;
+
   // Functions
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("permeability",fs.get<string>("permeability","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("porosity",fs.get<string>("porosity","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("gravity",fs.get<string>("gravity","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("cap press",fs.get<string>("capillary pressure","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("dcap press",fs.get<string>("derivative capillary pressure","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("permeability",fs.get<string>("permeability","1.0"),"ip");
+  functionManager->addFunction("porosity",fs.get<string>("porosity","1.0"),"ip");
+  functionManager->addFunction("gravity",fs.get<string>("gravity","1.0"),"ip");
+  functionManager->addFunction("cap press",fs.get<string>("capillary pressure","1.0"),"ip");
+  functionManager->addFunction("dcap press",fs.get<string>("derivative capillary pressure","0.0"),"ip");
   
-  functionManager->addFunction("source oil",fs.get<string>("source oil","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("viscosity oil",fs.get<string>("viscosity oil","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("relative permeability oil",fs.get<string>("relative permeability oil","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("reference density oil",fs.get<string>("reference density oil","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("reference pressure oil",fs.get<string>("reference pressure oil","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("compressibility oil",fs.get<string>("compressibility oil","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("source oil",fs.get<string>("source oil","0.0"),"ip");
+  functionManager->addFunction("viscosity oil",fs.get<string>("viscosity oil","0.0"),"ip");
+  functionManager->addFunction("relative permeability oil",fs.get<string>("relative permeability oil","1.0"),"ip");
+  functionManager->addFunction("reference density oil",fs.get<string>("reference density oil","1.0"),"ip");
+  functionManager->addFunction("reference pressure oil",fs.get<string>("reference pressure oil","1.0"),"ip");
+  functionManager->addFunction("compressibility oil",fs.get<string>("compressibility oil","0.0"),"ip");
   
-  functionManager->addFunction("source water",fs.get<string>("source water","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("viscosity water",fs.get<string>("viscosity water","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("relative permeability water",fs.get<string>("relative permeability water","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("reference density water",fs.get<string>("reference density water","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("reference pressure water",fs.get<string>("reference pressure water","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("compressibility water",fs.get<string>("compressibility water","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("source water",fs.get<string>("source water","0.0"),"ip");
+  functionManager->addFunction("viscosity water",fs.get<string>("viscosity water","0.0"),"ip");
+  functionManager->addFunction("relative permeability water",fs.get<string>("relative permeability water","1.0"),"ip");
+  functionManager->addFunction("reference density water",fs.get<string>("reference density water","1.0"),"ip");
+  functionManager->addFunction("reference pressure water",fs.get<string>("reference pressure water","1.0"),"ip");
+  functionManager->addFunction("compressibility water",fs.get<string>("compressibility water","0.0"),"ip");
   
 }
 
@@ -128,7 +133,7 @@ void twophasePoNo::volumeResidual() {
         for (int i=0; i<basis.extent(1); i++ ) { // loop over basis functions
           
           // No equation
-          resindex = offsets(Nonum,i);
+          int resindex = offsets(Nonum,i);
           
           res(e,resindex) += porosity(e,k)*dNo_dt*basis(e,i,k) + // transient term
           perm(e,k)*relperm_o(e,k)/viscosity_o(e,k)*rhoo*(dPo_dx*basis_grad(e,i,k,0)) // diffusion terms
@@ -176,7 +181,7 @@ void twophasePoNo::volumeResidual() {
         for (int i=0; i<basis.extent(1); i++ ) { // loop over basis functions
           
           // No equation
-          resindex = offsets(Ponum,i);
+          int resindex = offsets(Ponum,i);
           
           res(e,resindex) += porosity(e,k)*dNo_dt*basis(e,i,k) + // transient term
           perm(e,k)*relperm_o(e,k)/viscosity_o(e,k)*rhoo*(dPo_dx*basis_grad(e,i,k,0) +
@@ -228,7 +233,7 @@ void twophasePoNo::volumeResidual() {
         for (int i=0; i<basis.extent(1); i++ ) { // loop over basis functions
           
           // Po equation
-          resindex = offsets(Nonum,i);
+          int resindex = offsets(Nonum,i);
           
           res(e,resindex) += porosity(e,k)*dNo_dt*basis(e,i,k) + // transient term
           perm(e,k)*relperm_o(e,k)/viscosity_o(e,k)*rhoo*(dPo_dx*basis_grad(e,i,k,0) +
@@ -259,8 +264,7 @@ void twophasePoNo::volumeResidual() {
 
 void twophasePoNo::boundaryResidual() {
   
-  sideinfo = wkset->sideinfo;
-  Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
+  bcs = wkset->var_bcs;
   
   int cside = wkset->currentside;
   int sidetype = bcs(Ponum,cside); // TMW to do: allow No to use different BCs
@@ -323,7 +327,7 @@ void twophasePoNo::boundaryResidual() {
     if (bcs(Ponum,cside) == 2) {
       for (int k=0; k<basis.extent(2); k++ ) {
         for (int i=0; i<basis.extent(1); i++ ) {
-          resindex = offsets(Ponum,i);
+          int resindex = offsets(Ponum,i);
           res(e,resindex) += -source_o(e,k)*basis(e,i,k);
           
           resindex = offsets(Nonum,i); // index into Pw eqn
@@ -393,7 +397,7 @@ void twophasePoNo::boundaryResidual() {
           AD Kval = perm(e,k)*relperm_o(e,k)/viscosity_o(e,k)*rhoo;
           AD weakDiriScale = 10.0*Kval/wkset->h(e);
           
-          resindex = offsets(Ponum,i);
+          int resindex = offsets(Ponum,i);
           
           res(e,resindex) += -Kval*dPo_dx*normals(e,k,0)*v - sf*Kval*dvdx*normals(e,k,0)*(Po-lambda_Po) + weakDiriScale*(Po-lambda_Po)*v;
           if (spaceDim > 1) {
@@ -479,7 +483,7 @@ void twophasePoNo::computeFlux() {
   {
     Teuchos::TimeMonitor localtime(*fluxFill);
     
-    for (int e=0; e<numElem; e++) {
+    for (int e=0; e<flux.extent(0); e++) {
       
       for (size_t k=0; k<wkset->ip_side.extent(1); k++) {
         AD lambda_Po, lambda_Pw;
@@ -543,8 +547,7 @@ void twophasePoNo::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void twophasePoNo::setVars(std::vector<string> & varlist_) {
-  varlist = varlist_;
+void twophasePoNo::setVars(std::vector<string> & varlist) {
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "Po") {
       Ponum = i;

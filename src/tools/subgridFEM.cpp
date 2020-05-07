@@ -170,74 +170,8 @@ void SubGridFEM::setUpSubgridModels() {
   /////////////////////////////////////////////////////////////////////////////////////
   // Define the sub-grid physics
   /////////////////////////////////////////////////////////////////////////////////////
-  
-  int numSubElem = connectivity.size();
-  
-  settings->sublist("Solver").set<int>("Workset size",numSubElem);
-  vector<Teuchos::RCP<FunctionManager> > functionManagers;
-  functionManagers.push_back(Teuchos::rcp(new FunctionManager(blockID)));
-  
   sub_physics = Teuchos::rcp( new physics(settings, LocalComm, sub_mesh->cellTopo,
-                                          sub_mesh->sideTopo, functionManagers, sub_mesh->mesh) );
-  
-  //sub_mesh->createCells(sub_physics,cells,boundaryCells);
-  /*
-  Teuchos::RCP<CellMetaData> cellData = cells[0][0]->cellData;
-  
-  /////////////////////////////////////////////////////////////////////////////////////
-  // Boundary cells are not set up properly due to the lack of side sets in the subgrid mesh
-  // These just need to be defined once though
-  /////////////////////////////////////////////////////////////////////////////////////
-  
-  int numNodesPerElem = sub_mesh->cellTopo[0]->getNodeCount();
-  vector<Teuchos::RCP<BoundaryCell> > newbcells;
-  
-  int numLocalBoundaries = localData[0]->macrosideinfo.extent(2);
-  
-  vector<int> unique_sides;
-  vector<int> unique_local_sides;
-  vector<string> unique_names;
-  vector<vector<size_t> > boundary_groups;
-  
-  sgt.getUniqueSides(sideinfo, unique_sides, unique_local_sides, unique_names,
-                     macrosidenames, boundary_groups);
-  
-  for (size_t s=0; s<unique_sides.size(); s++) {
-    
-    string sidename = unique_names[s];
-    vector<size_t> group = boundary_groups[s];
-    
-    int prog = 0;
-    while (prog < group.size()) {
-      int currElem = numSubElem;  // Avoid faults in last iteration
-      if (prog+currElem > group.size()){
-        currElem = group.size()-prog;
-      }
-      Kokkos::View<int*> eIndex("element indices",currElem);
-      Kokkos::View<int*> sideIndex("local side indices",currElem);
-      DRV currnodes("currnodes", currElem, numNodesPerElem, dimension);
-      for (int e=0; e<currElem; e++) {
-        eIndex(e) = group[e+prog];
-        sideIndex(e) = unique_local_sides[s];
-        for (int n=0; n<numNodesPerElem; n++) {
-          for (int m=0; m<dimension; m++) {
-            currnodes(e,n,m) = nodes[connectivity[eIndex(e)][n]][m];
-          }
-        }
-      }
-      int sideID = s;
-      newbcells.push_back(Teuchos::rcp(new BoundaryCell(cellData,currnodes,eIndex,sideIndex,
-                                                        sideID,sidename, newbcells.size())));
-      prog += currElem;
-    }
-    
-    
-  }
-  
-  for (size_t bb=0; bb<newbcells.size(); bb++) {
-    boundaryCells[0].push_back(newbcells[bb]);
-  }
-   */
+                                          sub_mesh->sideTopo, sub_mesh->mesh) );
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the subgrid discretizations
@@ -245,6 +179,22 @@ void SubGridFEM::setUpSubgridModels() {
   
   sub_disc = Teuchos::rcp( new discretization(settings, LocalComm, sub_mesh->mesh, sub_physics->unique_orders,
                                               sub_physics->unique_types) );
+  
+  
+  int numSubElem = connectivity.size();
+  
+  settings->sublist("Solver").set<int>("Workset size",numSubElem);
+  vector<Teuchos::RCP<FunctionManager> > functionManagers;
+  functionManagers.push_back(Teuchos::rcp(new FunctionManager(blockID,
+                                                              numSubElem,
+                                                              sub_disc->numip[0],
+                                                              sub_disc->numip_side[0])));
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Define the functions on each block
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  sub_physics->defineFunctions(functionManagers);
   
   ////////////////////////////////////////////////////////////////////////////////
   // The DOF-manager needs to be aware of the physics and the discretization(s)
@@ -263,7 +213,7 @@ void SubGridFEM::setUpSubgridModels() {
   
   sub_assembler = Teuchos::rcp( new AssemblyManager(LocalComm, settings, sub_mesh->mesh,
                                                     sub_disc, sub_physics, DOF,
-                                                    sub_params));
+                                                    sub_params, numSubElem));
   
   cells = sub_assembler->cells;
   

@@ -25,9 +25,13 @@ public:
   
   ~twophasePoPw() {};
   
-  twophasePoPw(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-               const size_t & numip_side_, const int & numElem_,
-               Teuchos::RCP<FunctionManager> & functionManager_);
+  twophasePoPw(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                       Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -57,17 +61,13 @@ public:
   
 private:
   
-  int spaceDim, numElem;
-  size_t numip, numip_side;
+  int spaceDim;
   ScalarT formparam;
-  int Ponum, Pwnum, resindex;
-  
-  vector<string> varlist;
+  int Ponum, Pwnum;
   
   FDATA perm, porosity, gravity, cpinv, dcpinv;
   FDATA relperm_o, source_o, viscosity_o, densref_o, pref_o, comp_o;
   FDATA relperm_w, source_w, viscosity_w, densref_w, pref_w, comp_w;
-  Kokkos::View<int****,AssemblyDevice> sideinfo;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porous2p::volumeResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porous2p::volumeResidual() - evaluation of residual");

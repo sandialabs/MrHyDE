@@ -35,9 +35,13 @@ public:
   // ========================================================================================
   
   msphasefield(Teuchos::RCP<Teuchos::ParameterList> & settings,
-               const Teuchos::RCP<MpiComm> & Comm_, const int & numip_,
-               const size_t & numip_side_, const int & numElem_,
-               Teuchos::RCP<FunctionManager> & functionManager_);
+               const Teuchos::RCP<MpiComm> & Comm_);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                       Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -104,8 +108,6 @@ public:
   
 private:
   
-  size_t numip, numip_side, numElem;
-  
   Teuchos::RCP<MpiComm> Comm;      
   std::vector<AD> diff_FAD, L, A;   
   int spaceDim, numParams, numResponses, numphases, numdisks;
@@ -114,17 +116,10 @@ private:
   ScalarT diff, alpha;
   ScalarT disksize;
   ScalarT xmax, xmin, ymax, ymin;
-  bool isTD;
   bool uniform, systematic, variableMobility;
   std::vector<ScalarT> disk;
-  string initialType; 
-  string analysis_type; //to know when parameter is a sample that needs to be transformed
-  bool multiscale;
+  std::string initialType;
   
-  Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad;
-  Kokkos::View<AD**,AssemblyDevice> res;
-  Kokkos::View<int**,AssemblyDevice> offsets;
-  Kokkos::View<int****,AssemblyDevice> sideinfo;
   DRV basis, basis_grad;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::msphasefield::volumeResidual() - function evaluation");

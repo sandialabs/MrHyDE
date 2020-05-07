@@ -22,8 +22,9 @@
 AssemblyManager::AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                  Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
                                  Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
-                                 Teuchos::RCP<ParameterManager> & params_) :
-Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), params(params_) {
+                                 Teuchos::RCP<ParameterManager> & params_,
+                                 const int & numElemPerCell_) :
+Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), params(params_), numElemPerCell(numElemPerCell_) {
   
   // Get the required information from the settings
   milo_debug_level = settings->get<int>("debug level",0);
@@ -76,7 +77,7 @@ void AssemblyManager::createCells() {
     }
   }
   
-  int numElem = settings->sublist("Solver").get<int>("Workset size",1);
+  int numElem = numElemPerCell;
   
   for (size_t b=0; b<blocknames.size(); b++) {
     vector<Teuchos::RCP<cell> > blockcells;

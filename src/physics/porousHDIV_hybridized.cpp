@@ -11,13 +11,9 @@
 
 #include "porousHDIV_hybridized.hpp"
 
-porousHDIV_HYBRID::porousHDIV_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-                                     const size_t & numip_side_, const int & numElem_,
-                                     Teuchos::RCP<FunctionManager> & functionManager_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_) {
+porousHDIV_HYBRID::porousHDIV_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   label = "porousHDIV-Hybrid";
-  functionManager = functionManager_;
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   include_face = true;
   
@@ -47,11 +43,20 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   dynum = 0;
   dznum = 0;
   
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void porousHDIV_HYBRID::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                                        Teuchos::RCP<FunctionManager> & functionManager_) {
   
+  functionManager = functionManager_;
+
   // Functions
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("source",fs.get<string>("source","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("source",fs.get<string>("source","0.0"),"ip");
   
   
 }
@@ -137,12 +142,10 @@ void porousHDIV_HYBRID::volumeResidual() {
 
 void porousHDIV_HYBRID::boundaryResidual() {
   
-  sideinfo = wkset->sideinfo;
-  Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
+  bcs = wkset->var_bcs;
   
   int cside = wkset->currentside;
-  int sidetype;
-  sidetype = bcs(pnum,cside);
+  int sidetype = bcs(pnum,cside);
   
   int u_basis = wkset->usebasis[unum];
   
@@ -285,7 +288,7 @@ void porousHDIV_HYBRID::computeFlux() {
     
     AD ux = 0.0, uy = 0.0, uz = 0.0;
     ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
-    for (int e=0; e<numElem; e++) {
+    for (int e=0; e<flux.extent(0); e++) {
       
       for (size_t k=0; k<wkset->ip_side.extent(1); k++) {
         
@@ -311,8 +314,7 @@ void porousHDIV_HYBRID::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void porousHDIV_HYBRID::setVars(std::vector<string> & varlist_) {
-  varlist = varlist_;
+void porousHDIV_HYBRID::setVars(std::vector<string> & varlist) {
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "p")
       pnum = i;

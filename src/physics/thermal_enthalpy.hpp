@@ -31,9 +31,13 @@ public:
   /* Constructor to set up the problem */
   // ========================================================================================
   
-  thermal_enthalpy(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-                   const size_t & numip_side_, const int & numElem_,
-                   Teuchos::RCP<FunctionManager> & functionManager_);
+  thermal_enthalpy(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                       Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -64,25 +68,17 @@ public:
 private:
   
   data grains;
- 
-  size_t numip, numip_side;
   
-  int spaceDim, numElem, numParams, numResponses;
-  vector<string> varlist;
+  int spaceDim;
   int e_num, e_basis, numBasis, ux_num, uy_num, uz_num;
   int H_num, H_basis; // for melt fraction variable
   ScalarT alpha;
-  bool isTD;
-  //int test, simNum;
-  //string simName;
   
   ScalarT v, dvdx, dvdy, dvdz, x, y, z;
   AD e, e_dot, dedx, dedy, dedz, reax, weakDiriScale, lambda, penalty;
   AD H, H_dot, dHdx, dHdy, dHdz; // spatial derivatives of g are not explicity needed atm
   AD ux, uy, uz;
   ScalarT latent_heat = 2.7e5;
-  
-  int resindex;
   
   FDATA diff, rho, cp, source, nsource, diff_side, robin_alpha;
   

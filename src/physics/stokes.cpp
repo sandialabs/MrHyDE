@@ -15,17 +15,12 @@
 /* Constructor to set up the problem */
 // ========================================================================================
 
-stokes::stokes(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-               const size_t & numip_side_, const int & numElem_,
-               Teuchos::RCP<FunctionManager> & functionManager_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_) {
+stokes::stokes(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   label = "stokes";
-  functionManager = functionManager_;
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   
   verbosity = settings->sublist("Physics").get<int>("Verbosity",0);
-  numElem = settings->sublist("Solver").get<int>("Workset size",1);
   
   myvars.push_back("ux");
   myvars.push_back("pr");
@@ -46,37 +41,29 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   }
   
   
-  if (settings->sublist("Solver").get<string>("solver","steady-state") == "transient")
-    isTD = true;
-  else
-    isTD = false;
-  
   //useSUPG = settings->sublist("Physics").get<bool>("useSUPG",false);
   //usePSPG = settings->sublist("Physics").get<bool>("usePSPG",false);
   T_ambient = settings->sublist("Physics").get<ScalarT>("T_ambient",0.0);
   beta = settings->sublist("Physics").get<ScalarT>("beta",1.0);
   
-  //have_energy = false;
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void stokes::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                             Teuchos::RCP<FunctionManager> & functionManager_) {
   
-  numResponses = settings->sublist("Physics").get<int>("numResp_stokes",spaceDim+1);
-  useScalarRespFx = settings->sublist("Physics").get<bool>("use scalar response function (stokes)",false);
-  
-  test = settings->sublist("Physics").get<int>("test",0);
-  //test 1: lid-driven cavity
-  //test 3: lid-driven cavity, two 'lids'
-  //test 30: lid-driven cavity, two 'lids'; provides velocity for msconvdiff
-  
-  analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
-  
+  functionManager = functionManager_;
+
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("source ux",fs.get<string>("source ux","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("source pr",fs.get<string>("source pr","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("source uy",fs.get<string>("source uy","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("source uz",fs.get<string>("source uz","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("viscosity",fs.get<string>("viscosity","1.0"),numElem,numip,"ip");
-  
-  
+  functionManager->addFunction("source ux",fs.get<string>("source ux","0.0"),"ip");
+  functionManager->addFunction("source pr",fs.get<string>("source pr","0.0"),"ip");
+  functionManager->addFunction("source uy",fs.get<string>("source uy","0.0"),"ip");
+  functionManager->addFunction("source uz",fs.get<string>("source uz","0.0"),"ip");
+  functionManager->addFunction("viscosity",fs.get<string>("viscosity","1.0"),"ip");
+    
 }
 
 // ========================================================================================
@@ -346,8 +333,7 @@ void stokes::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void stokes::setVars(std::vector<string> & varlist_) {
-  varlist = varlist_;
+void stokes::setVars(std::vector<string> & varlist) {
   //    e_num = -1;
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "ux")

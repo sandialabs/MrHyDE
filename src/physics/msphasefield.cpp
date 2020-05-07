@@ -19,12 +19,9 @@
 // ========================================================================================
 
 msphasefield::msphasefield(Teuchos::RCP<Teuchos::ParameterList> & settings,
-                           const Teuchos::RCP<MpiComm> & Comm_, const int & numip_,
-                           const size_t & numip_side_, const int & numElem_,
-                           Teuchos::RCP<FunctionManager> & functionManager_) :
-Comm(Comm_), numip(numip_), numip_side(numip_side_), numElem(numElem_) {
+                           const Teuchos::RCP<MpiComm> & Comm_) :
+Comm(Comm_) {
   
-  functionManager = functionManager_;
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   numphases = settings->sublist("Physics").get<int>("number_phases",1);
   numdisks = settings->sublist("Physics").get<int>("numdisks",3);
@@ -42,11 +39,6 @@ Comm(Comm_), numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   for(int i=1;i<=numphases;i++) {
     mybasistypes.push_back("HGRAD");
   }
-  
-  if (settings->sublist("Solver").get<string>("solver","steady-state") == "transient")
-    isTD = true;
-  else
-    isTD = false;
   
   // generation of disks for initial condition
   
@@ -172,8 +164,16 @@ Comm(Comm_), numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   //   }
   // }
   
-  multiscale = settings->isSublist("Subgrid");
-  analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void msphasefield::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                                   Teuchos::RCP<FunctionManager> & functionManager_) {
+  
+  functionManager = functionManager_;
+  
 }
 
 // ========================================================================================
@@ -218,7 +218,7 @@ void msphasefield::volumeResidual() {
   DRV ip = wkset->ip;
   res = wkset->res;
   
-  for (size_t e=0; e<numElem; e++) {
+  for (size_t e=0; e<res.extent(0); e++) {
     for( int k=0; k<ip.extent(1); k++ ) {
       x = ip(e,k,0);
       
@@ -378,7 +378,7 @@ void msphasefield::computeFlux() {
   ScalarT y = 0.0;
   ScalarT z = 0.0;
   
-  for (size_t e=0; e<numElem; e++) {
+  for (size_t e=0; e<flux.extent(0); e++) {
     for (size_t i=0; i<wkset->ip_side.extent(1); i++) {
       x = wkset->ip_side(e,i,0);
       if (spaceDim > 1)
@@ -402,8 +402,7 @@ void msphasefield::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void msphasefield::setVars(std::vector<string> & varlist_) {
-  varlist = varlist_;
+void msphasefield::setVars(std::vector<string> & varlist) {
   for (size_t i=0; i<varlist.size(); i++) {
     for (size_t j=1; j<numphases+1; j++) {
       //	std::string name = "phi";

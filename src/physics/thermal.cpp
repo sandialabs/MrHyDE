@@ -16,12 +16,9 @@
 /* Constructor to set up the problem */
 // ========================================================================================
 
-thermal::thermal(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip,
-                 const size_t & numip_side, const int & numElem,
-                 Teuchos::RCP<FunctionManager> & functionManager_) {
+thermal::thermal(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   // Standard data
-  functionManager = functionManager_;
   label = "thermal";
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   if (settings->sublist("Physics").isSublist("Active variables")) {
@@ -38,15 +35,25 @@ thermal::thermal(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & nu
   formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
   have_nsvel = false;
   
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void thermal::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                              Teuchos::RCP<FunctionManager> & functionManager_) {
+  
+  functionManager = functionManager_;
+
   // Functions
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("thermal source",fs.get<string>("thermal source","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("specific heat",fs.get<string>("specific heat","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("density",fs.get<string>("density","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("robin alpha",fs.get<string>("robin alpha","0.0"),numElem,numip_side,"side ip");
+  functionManager->addFunction("thermal source",fs.get<string>("thermal source","0.0"),"ip");
+  functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),"ip");
+  functionManager->addFunction("specific heat",fs.get<string>("specific heat","1.0"),"ip");
+  functionManager->addFunction("density",fs.get<string>("density","1.0"),"ip");
+  functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),"side ip");
+  functionManager->addFunction("robin alpha",fs.get<string>("robin alpha","0.0"),"side ip");
   
 }
 

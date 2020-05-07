@@ -11,27 +11,32 @@
 
 #include "maxwell.hpp"
 
-maxwell::maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-                 const size_t & numip_side_, const int & numElem_,
-                 Teuchos::RCP<FunctionManager> & functionManager_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_) {
+maxwell::maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   label = "maxwell";
-  functionManager = functionManager_;
   spaceDim = settings->sublist("Mesh").get<int>("dim",3);
   
   myvars.push_back("E");
   myvars.push_back("B");
   mybasistypes.push_back("HCURL");
   mybasistypes.push_back("HDIV");
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void maxwell::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                              Teuchos::RCP<FunctionManager> & functionManager_) {
+  
+  functionManager = functionManager_;
   
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("current x",fs.get<string>("current x","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("current y",fs.get<string>("current y","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("current z",fs.get<string>("current z","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("mu",fs.get<string>("mu","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("epsilon",fs.get<string>("epsilon","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("current x",fs.get<string>("current x","0.0"),"ip");
+  functionManager->addFunction("current y",fs.get<string>("current y","0.0"),"ip");
+  functionManager->addFunction("current z",fs.get<string>("current z","0.0"),"ip");
+  functionManager->addFunction("mu",fs.get<string>("mu","1.0"),"ip");
+  functionManager->addFunction("epsilon",fs.get<string>("epsilon","1.0"),"ip");
   
 }
 
@@ -151,8 +156,7 @@ void maxwell::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void maxwell::setVars(std::vector<string> & varlist_) {
-  varlist = varlist_;
+void maxwell::setVars(std::vector<string> & varlist) {
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "E")
       Enum = i;

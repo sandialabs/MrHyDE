@@ -15,15 +15,10 @@
 /* Constructor to set up the problem */
 // ========================================================================================
 
-shallowwater::shallowwater(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-                           const size_t & numip_side_, const int & numElem_,
-                           Teuchos::RCP<FunctionManager> & functionManager_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_) {
+shallowwater::shallowwater(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   label = "shallowwater";
-  functionManager = functionManager_;
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
-  numElem = settings->sublist("Solver").get<int>("Workset size",1);
+  spaceDim = 2; // Just 2D
   
   myvars.push_back("H");
   myvars.push_back("Hu");
@@ -32,38 +27,37 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   mybasistypes.push_back("HGRAD");
   mybasistypes.push_back("HGRAD");
   
-  if (settings->sublist("Physics").get<int>("solver",0) == 1)
-    isTD = true;
-  else
-    isTD = false;
-  
-  multiscale = settings->isSublist("Subgrid");
-  analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
-  
-  numResponses = settings->sublist("Physics").get<int>("numResp_thermal",1);
-  useScalarRespFx = settings->sublist("Physics").get<bool>("use scalar response function (thermal)",false);
   
   gravity = settings->sublist("Physics").get<ScalarT>("gravity",9.8);
   
   formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
   
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void shallowwater::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                                   Teuchos::RCP<FunctionManager> & functionManager_) {
   
+  functionManager = functionManager_;
+
   Teuchos::ParameterList fs = settings->sublist("Functions");
-  functionManager->addFunction("bathymetry",fs.get<string>("bathymetry","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("bathymetry_x",fs.get<string>("bathymetry_x","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("bathymetry_y",fs.get<string>("bathymetry_y","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("bottom friction",fs.get<string>("bottom friction","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("viscosity",fs.get<string>("viscosity","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("Coriolis",fs.get<string>("Coriolis","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("source Hu",fs.get<string>("source Hu","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("source Hv",fs.get<string>("source Hv","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("flux left",fs.get<string>("flux left","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("flux right",fs.get<string>("flux right","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("flux top",fs.get<string>("flux top","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("flux bottom",fs.get<string>("flux bottom","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("Neumann source Hu",fs.get<string>("Neumann source Hu","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("Neumann source Hv",fs.get<string>("Neumann source Hv","0.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("bathymetry side",fs.get<string>("bathymetry","1.0"),numElem,numip_side,"side_ip");
+  functionManager->addFunction("bathymetry",fs.get<string>("bathymetry","1.0"),"ip");
+  functionManager->addFunction("bathymetry_x",fs.get<string>("bathymetry_x","0.0"),"ip");
+  functionManager->addFunction("bathymetry_y",fs.get<string>("bathymetry_y","0.0"),"ip");
+  functionManager->addFunction("bottom friction",fs.get<string>("bottom friction","1.0"),"ip");
+  functionManager->addFunction("viscosity",fs.get<string>("viscosity","0.0"),"ip");
+  functionManager->addFunction("Coriolis",fs.get<string>("Coriolis","0.0"),"ip");
+  functionManager->addFunction("source Hu",fs.get<string>("source Hu","0.0"),"ip");
+  functionManager->addFunction("source Hv",fs.get<string>("source Hv","0.0"),"ip");
+  functionManager->addFunction("flux left",fs.get<string>("flux left","0.0"),"side ip");
+  functionManager->addFunction("flux right",fs.get<string>("flux right","0.0"),"side ip");
+  functionManager->addFunction("flux top",fs.get<string>("flux top","0.0"),"side ip");
+  functionManager->addFunction("flux bottom",fs.get<string>("flux bottom","0.0"),"side ip");
+  functionManager->addFunction("Neumann source Hu",fs.get<string>("Neumann source Hu","0.0"),"side ip");
+  functionManager->addFunction("Neumann source Hv",fs.get<string>("Neumann source Hv","0.0"),"side ip");
+  functionManager->addFunction("bathymetry side",fs.get<string>("bathymetry","1.0"),"side_ip");
   
 }
 
@@ -270,8 +264,7 @@ void shallowwater::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void shallowwater::setVars(std::vector<string> & varlist_) {
-  varlist = varlist_;
+void shallowwater::setVars(std::vector<string> & varlist) {
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "H")
       H_num = i;

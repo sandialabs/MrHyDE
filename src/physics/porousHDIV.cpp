@@ -11,13 +11,9 @@
 
 #include "porousHDIV.hpp"
 
-porousHDIV::porousHDIV(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-                       const size_t & numip_side_, const int & numElem_,
-                       Teuchos::RCP<FunctionManager> & functionManager_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_) {
+porousHDIV::porousHDIV(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   label = "porousHDIV";
-  functionManager = functionManager_;
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   
   if (settings->sublist("Physics").isSublist("Active variables")) {
@@ -40,10 +36,20 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_) {
   dynum = 0;
   dznum = 0;
   
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void porousHDIV::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                                 Teuchos::RCP<FunctionManager> & functionManager_) {
+  
+  functionManager = functionManager_;
+
   // Functions
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("source",fs.get<string>("source","0.0"),numElem,numip,"ip");
+  functionManager->addFunction("source",fs.get<string>("source","0.0"),"ip");
   
   
 }
@@ -129,7 +135,6 @@ void porousHDIV::volumeResidual() {
 
 void porousHDIV::boundaryResidual() {
   
-  sideinfo = wkset->sideinfo;
   Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
   
   int cside = wkset->currentside;
@@ -236,8 +241,7 @@ void porousHDIV::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void porousHDIV::setVars(std::vector<string> & varlist_) {
-  varlist = varlist_;
+void porousHDIV::setVars(std::vector<string> & varlist) {
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "p")
       pnum = i;

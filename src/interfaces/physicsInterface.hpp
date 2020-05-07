@@ -74,19 +74,19 @@ public:
   
   physics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<MpiComm> & Comm_,
           vector<topo_RCP> & cellTopo, vector<topo_RCP> & sideTopo,
-          vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
           Teuchos::RCP<panzer_stk::STK_Interface> & mesh);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   // Add the requested physics modules, variables, discretization types 
   /////////////////////////////////////////////////////////////////////////////////////////////
   
-  void importPhysics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::ParameterList & currsettings,
-                     Teuchos::ParameterList & discsettings,
-                     vector<int> & currorders, vector<string> & currtypes,
-                     vector<string> & currvarlist, vector<int> & currvarowned,
-                     vector<bool> & useScalarFunc, const size_t & numip, const size_t & numip_side,
-                     const size_t & blocknum);
+  void importPhysics();
+  
+  /////////////////////////////////////////////////////////////////////////////////////////////
+  // Add the functions to the function managers
+  /////////////////////////////////////////////////////////////////////////////////////////////
+  
+  void defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionManagers_);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   // After the mesh and the discretizations have been defined, we can create and add the physics 
@@ -121,14 +121,6 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
-  /*
-  ScalarT trueSolution(const int & block, const string & var, const ScalarT & x, const ScalarT & y,
-                      const ScalarT & z, const ScalarT & time);
-  */
-  
-  /////////////////////////////////////////////////////////////////////////////////////////////
-  /////////////////////////////////////////////////////////////////////////////////////////////
-  
   void trueSolution(const int & block, const ScalarT & time,
                         Kokkos::View<ScalarT****,AssemblyDevice> truesol);
 
@@ -159,18 +151,6 @@ public:
                                                  Kokkos::View<AD****,AssemblyDevice> pgrad_ip,
                                                  const DRV & ip, const ScalarT & time,
                                                  Teuchos::RCP<workset> & wkset);
-  
-  /////////////////////////////////////////////////////////////////////////////////////////////
-  /////////////////////////////////////////////////////////////////////////////////////////////
-  
-  bool useScalarRespFunc(const int & block);
-  
-  /////////////////////////////////////////////////////////////////////////////////////////////
-  /////////////////////////////////////////////////////////////////////////////////////////////
-  /*
-  Kokkos::View<AD*,AssemblyDevice> applyScalarRespFunc(const vector<AD> & integralvals, const int & block,
-                           const bool & justDeriv);
-   */
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
@@ -310,13 +290,14 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////
 
   vector<vector<Teuchos::RCP<physicsbase> > > modules;
-  vector<vector<bool> > module_useScalarRespFunc;
   vector<Teuchos::RCP<FunctionManager> > functionManagers;
   Teuchos::RCP<MpiComm> Commptr;
-  
-  vector<string> blocknames;
-  int spaceDim, numElemPerCell, milo_debug_level;
+  vector<Teuchos::ParameterList> blockPhysSettings, blockDiscSettings;
+  vector<string> blocknames, sideNames;
+  int spaceDim, milo_debug_level;
   size_t numBlocks;
+  Teuchos::RCP<Teuchos::ParameterList> settings;
+  
   
   vector<int> numVars;
   vector<vector<bool> > useSubgrid;

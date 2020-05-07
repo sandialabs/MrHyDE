@@ -32,9 +32,13 @@ public:
   
   ~maxwell() {};
   
-  maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-          const size_t & numip_side_, const int & numElem_,
-          Teuchos::RCP<FunctionManager> & functionManager_);
+  maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                       Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -62,12 +66,9 @@ private:
   FDATA mu, epsilon;
   FDATA current_x, current_y, current_z;
   
-  int spaceDim, numElem, numParams, numResponses, numSteps;
-  size_t numip, numip_side;
+  int spaceDim;
   
   int Enum, Bnum;
-  
-  vector<string> varlist;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell::volumeResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell::volumeResidual() - evaluation of residual");

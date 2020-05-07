@@ -32,6 +32,14 @@ public:
   ~physicsbase() {};
   
   // ========================================================================================
+  // Define the functions for this module (not necessary, but probably need to be defined in all modules)
+  // ========================================================================================
+  
+  virtual
+  void defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                       Teuchos::RCP<FunctionManager> & functionManager_) {} ;
+  
+  // ========================================================================================
   // The volumetric contributions to the residual
   // ========================================================================================
   

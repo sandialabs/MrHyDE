@@ -84,6 +84,7 @@ int main(int argc,char * argv[]) {
     
     verbosity = settings->get<int>("verbosity",0);
     profile = settings->get<bool>("profile",false);
+    int numElemPerCell = settings->sublist("Solver").get<int>("Workset size",1);
     
     ////////////////////////////////////////////////////////////////////////////////
     // split comm for SOL or multiscale runs (deprecated)
@@ -99,36 +100,20 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<meshInterface> mesh = Teuchos::rcp(new meshInterface(settings, Comm) );
     
     ////////////////////////////////////////////////////////////////////////////////
-    // Create the function managers (need to be defined before physics modules)
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    vector<string> eBlocks;
-    mesh->mesh->getElementBlockNames(eBlocks);
-    vector<Teuchos::RCP<FunctionManager> > functionManagers;
-    for (size_t b=0; b<eBlocks.size(); b++) {
-      functionManagers.push_back(Teuchos::rcp(new FunctionManager(eBlocks[b])));
-    }
-    
-    ////////////////////////////////////////////////////////////////////////////////
     // Set up the physics
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<physics> phys = Teuchos::rcp( new physics(settings, Comm,
                                                            mesh->cellTopo,
                                                            mesh->sideTopo,
-                                                           functionManagers,
                                                            mesh->mesh) );
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    // Mesh only needs the variable names and types to finalize
+    ////////////////////////////////////////////////////////////////////////////////
+    
     mesh->finalize(phys);
     
-    ////////////////////////////////////////////////////////////////////////////////
-    // Create the cells
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    //vector<vector<Teuchos::RCP<cell> > > cells;
-    //vector<vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
-    //mesh->createCells(phys,cells,boundaryCells);
-    //phys->setPeriBCs(settings, mesh->mesh);
-
     ////////////////////////////////////////////////////////////////////////////////
     // Define the discretization(s)
     ////////////////////////////////////////////////////////////////////////////////
@@ -137,6 +122,26 @@ int main(int argc,char * argv[]) {
                                                                          mesh->mesh,
                                                                          phys->unique_orders,
                                                                          phys->unique_types) );
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    // Create the function managers
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    vector<string> eBlocks;
+    mesh->mesh->getElementBlockNames(eBlocks);
+    vector<Teuchos::RCP<FunctionManager> > functionManagers;
+    for (size_t b=0; b<eBlocks.size(); b++) {
+      functionManagers.push_back(Teuchos::rcp(new FunctionManager(eBlocks[b],
+                                                                  numElemPerCell,
+                                                                  disc->numip[b],
+                                                                  disc->numip_side[b])));
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    // Define the functions on each block
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    phys->defineFunctions(functionManagers);
     
     ////////////////////////////////////////////////////////////////////////////////
     // The DOF-manager needs to be aware of the physics and the discretization(s)
@@ -153,7 +158,8 @@ int main(int argc,char * argv[]) {
                                                                                mesh->mesh, phys));
                                                          
     Teuchos::RCP<AssemblyManager> assembler = Teuchos::rcp( new AssemblyManager(Comm, settings, mesh->mesh,
-                                                                                disc, phys, DOF, params));
+                                                                                disc, phys, DOF, params,
+                                                                                numElemPerCell));
     
     mesh->setMeshData(assembler->cells);
     

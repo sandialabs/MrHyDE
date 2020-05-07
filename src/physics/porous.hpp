@@ -25,9 +25,13 @@ public:
   
   ~porous() {};
   
-  porous(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-         const size_t & numip_side_, const int & numElem_,
-         Teuchos::RCP<FunctionManager> & functionManager_);
+  porous(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                       Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================
   // ========================================================================================
@@ -58,14 +62,10 @@ public:
 
 private:
 
-  int spaceDim, numElem;
-  size_t numip, numip_side;
-
-  int pnum, resindex;
-  bool isTD, addBiot;
+  int spaceDim;
+  int pnum;
+  bool addBiot;
   ScalarT biot_alpha, formparam;
-  
-  vector<string> varlist;
   
   FDATA perm, porosity, viscosity, densref, pref, comp, gravity, source;
   Kokkos::View<int****,AssemblyDevice> sideinfo;

@@ -17,14 +17,11 @@
 /* Constructor to set up the problem */
 // ========================================================================================
 
-linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip,
-                                   const size_t & numip_side, const int & numElem,
-                                   Teuchos::RCP<FunctionManager> & functionManager_) {
+linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   label = "linearelasticity";
   
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
-  functionManager = functionManager_;
   
   if (spaceDim == 1) {
     myvars = {"dx"};
@@ -40,9 +37,7 @@ linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settin
   }
   
   useCE = settings->sublist("Physics").get<bool>("Use Crystal Elasticity",false);
-  if (useCE) {
-    crystalelast = Teuchos::rcp(new CrystalElastic(settings, numElem));
-  }
+  
   
   incplanestress = settings->sublist("Physics").get<bool>("incplanestress",false);
   useLame = settings->sublist("Physics").get<bool>("Use Lame Parameters",true);
@@ -59,19 +54,39 @@ linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settin
   modelparams = modelparams_host;//Kokkos::create_mirror_view(modelparams_host);
   
   //Kokkos::deep_copy(modelparams, modelparams_host);
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void linearelasticity::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                                       Teuchos::RCP<FunctionManager> & functionManager_) {
   
+  functionManager = functionManager_;
+
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("mu",fs.get<string>("mu","0.5"),numElem,numip,"ip");
-  functionManager->addFunction("source dx",fs.get<string>("source dx","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("source dy",fs.get<string>("source dy","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("source dz",fs.get<string>("source dz","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),numElem,numip_side,"side ip");
-  functionManager->addFunction("mu",fs.get<string>("mu","0.5"),numElem,numip_side,"side ip");
+  functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),"ip");
+  functionManager->addFunction("mu",fs.get<string>("mu","0.5"),"ip");
+  functionManager->addFunction("source dx",fs.get<string>("source dx","0.0"),"ip");
+  functionManager->addFunction("source dy",fs.get<string>("source dy","0.0"),"ip");
+  functionManager->addFunction("source dz",fs.get<string>("source dz","0.0"),"ip");
+  functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),"side ip");
+  functionManager->addFunction("mu",fs.get<string>("mu","0.5"),"side ip");
   
-  stress = Kokkos::View<AD****,AssemblyDevice>("stress tensor",numElem, numip, spaceDim, spaceDim);
-  stress_side = Kokkos::View<AD****,AssemblyDevice>("stress tensor",numElem, numip_side, spaceDim, spaceDim);
+  if (useCE) {
+    crystalelast = Teuchos::rcp(new CrystalElastic(settings, functionManager->numElem));
+  }
+  
+  stress = Kokkos::View<AD****,AssemblyDevice>("stress tensor",
+                                               functionManager->numElem,
+                                               functionManager->numip,
+                                               spaceDim, spaceDim);
+  
+  stress_side = Kokkos::View<AD****,AssemblyDevice>("stress tensor",
+                                                    functionManager->numElem,
+                                                    functionManager->numip_side,
+                                                    spaceDim, spaceDim);
   
 }
 // ========================================================================================
@@ -664,85 +679,6 @@ void linearelasticity::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-/*
-void linearelasticity::setLocalSoln(const size_t & e, const size_t & ipindex, const bool & onside) {
-  Teuchos::TimeMonitor localtime(*setLocalSol);
-  
-  if (onside) {
-    if (spaceDim == 1) {
-      dx = sol_side(e,dx_num,ipindex,0);
-      ddx_dx = sol_grad_side(e,dx_num,ipindex,0);
-    }
-    else if (spaceDim == 2) {
-      dx = sol_side(e,dx_num,ipindex,0);
-      dy = sol_side(e,dy_num,ipindex,0);
-      ddx_dx = sol_grad_side(e,dx_num,ipindex,0);
-      ddx_dy = sol_grad_side(e,dx_num,ipindex,1);
-      ddy_dx = sol_grad_side(e,dy_num,ipindex,0);
-      ddy_dy = sol_grad_side(e,dy_num,ipindex,1);
-    }
-    else if (spaceDim == 3) {
-      dx = sol_side(e,dx_num,ipindex,0);
-      dy = sol_side(e,dy_num,ipindex,0);
-      dz = sol_side(e,dz_num,ipindex,0);
-      ddx_dx = sol_grad_side(e,dx_num,ipindex,0);
-      ddx_dy = sol_grad_side(e,dx_num,ipindex,1);
-      ddx_dz = sol_grad_side(e,dx_num,ipindex,2);
-      ddy_dx = sol_grad_side(e,dy_num,ipindex,0);
-      ddy_dy = sol_grad_side(e,dy_num,ipindex,1);
-      ddy_dz = sol_grad_side(e,dy_num,ipindex,2);
-      ddz_dx = sol_grad_side(e,dz_num,ipindex,0);
-      ddz_dy = sol_grad_side(e,dz_num,ipindex,1);
-      ddz_dz = sol_grad_side(e,dz_num,ipindex,2);
-    }
-    if (e_num >= 0) {
-      eval = sol_side(e,e_num,ipindex,0);
-      delta_e = eval-e_ref;
-    }
-  }
-  else {
-    if (spaceDim == 1) {
-      dx = sol(e,dx_num,ipindex,0);
-      ddx_dx = sol_grad(e,dx_num,ipindex,0);
-    }
-    else if (spaceDim == 2) {
-      dx = sol(e,dx_num,ipindex,0);
-      dy = sol(e,dy_num,ipindex,0);
-      ddx_dx = sol_grad(e,dx_num,ipindex,0);
-      ddx_dy = sol_grad(e,dx_num,ipindex,1);
-      ddy_dx = sol_grad(e,dy_num,ipindex,0);
-      ddy_dy = sol_grad(e,dy_num,ipindex,1);
-    }
-    else if (spaceDim == 3) {
-      dx = sol(e,dx_num,ipindex,0);
-      dy = sol(e,dy_num,ipindex,0);
-      dz = sol(e,dz_num,ipindex,0);
-      ddx_dx = sol_grad(e,dx_num,ipindex,0);
-      ddx_dy = sol_grad(e,dx_num,ipindex,1);
-      ddx_dz = sol_grad(e,dx_num,ipindex,2);
-      ddy_dx = sol_grad(e,dy_num,ipindex,0);
-      ddy_dy = sol_grad(e,dy_num,ipindex,1);
-      ddy_dz = sol_grad(e,dy_num,ipindex,2);
-      ddz_dx = sol_grad(e,dz_num,ipindex,0);
-      ddz_dy = sol_grad(e,dz_num,ipindex,1);
-      ddz_dz = sol_grad(e,dz_num,ipindex,2);
-    }
-    if (e_num >= 0) {
-      eval = sol(e,e_num,ipindex,0);
-      delta_e = eval-e_ref;
-    }
-    if (p_num >= 0) {
-      pval = sol(e,p_num,ipindex,0);
-    }
-    
-    
-  }
-}
-*/
-
-// ========================================================================================
-// ========================================================================================
-
 void linearelasticity::setVars(std::vector<string> & varlist) {
   //varlist = varlist_;
   dx_num = -1;
@@ -1082,64 +1018,6 @@ void linearelasticity::computeStress(const bool & onside) {
     }
   }
 }
-
-// ========================================================================================
-/* return the SIPG / IIPG term for a given node and component at an integration point */
-// ========================================================================================
-/*
-AD linearelasticity::computeBasisVec(const AD dx, const AD dy, const AD dz, const AD mu_val, const AD lambda_val,
-                                     const DRV normals, DRV basis_grad, const int num_basis,
-                                     const int & elem, const int inode, const int k, const int component) {
-  
-  Teuchos::TimeMonitor localtime(*computeBasis);
-  
-  
-  AD basisVec;
-  //AD lambda_val = this->MaterialProperty("lambda", x, y, z, t);
-  //
-  
-  if (spaceDim == 1) {
-    basisVec = (lambda_val + 2.0*mu_val)*basis_grad(elem,inode,k,0)*dx*normals(elem,k,0);
-  }
-  else if (spaceDim == 2) {
-    if (component == 0) {
-      basisVec = lambda_val*basis_grad(elem,inode,k,0)*(dx*normals(elem,k,0) + dy*normals(elem,k,1)) +
-      2.0*mu_val*basis_grad(elem,inode,k,0)*dx*normals(elem,k,0) +
-      mu_val*basis_grad(elem,inode,k,1)*(dx*normals(elem,k,1) + dy*normals(elem,k,0));
-      
-    }
-    else if (component == 1) {
-      basisVec = lambda_val*basis_grad(elem,inode,k,1)*(dx*normals(elem,k,0) + dy*normals(elem,k,1)) +
-      2.0*mu_val*basis_grad(elem,inode,k,1)*dy*normals(elem,k,1) +
-      mu_val*basis_grad(elem,inode,k,0)*(dy*normals(elem,k,0) + dx*normals(elem,k,1));
-    }
-  }
-  else if (spaceDim == 3) {
-    if (component == 0) {
-      basisVec = lambda_val*basis_grad(elem,inode,k,0)*(dx*normals(elem,k,0) + dy*normals(elem,k,1) + dz*normals(elem,k,2)) +
-      2.0*mu_val*basis_grad(elem,inode,k,0)*dx*normals(elem,k,0) +
-      mu_val*basis_grad(elem,inode,k,1)*(dx*normals(elem,k,1) + dy*normals(elem,k,0)) +
-      mu_val*basis_grad(elem,inode,k,2)*(dx*normals(elem,k,2) + dz*normals(elem,k,0));
-      
-    }
-    else if (component == 1) {
-      basisVec = lambda_val*basis_grad(elem,inode,k,1)*(dx*normals(elem,k,0) + dy*normals(elem,k,1) + dz*normals(elem,k,2)) +
-      2.0*mu_val*basis_grad(elem,inode,k,1)*dy*normals(elem,k,1) +
-      mu_val*basis_grad(elem,inode,k,0)*(dy*normals(elem,k,0) + dx*normals(elem,k,1)) +
-      mu_val*basis_grad(elem,inode,k,2)*(dy*normals(elem,k,2) + dz*normals(elem,k,1));
-    }
-    else if (component == 2) {
-      basisVec = lambda_val*basis_grad(elem,inode,k,2)*(dx*normals(elem,k,0) + dy*normals(elem,k,1) + dz*normals(elem,k,2)) +
-      2.0*mu_val*basis_grad(elem,inode,k,2)*dz*normals(elem,k,2) +
-      mu_val*basis_grad(elem,inode,k,0)*(dz*normals(elem,k,0) + dx*normals(elem,k,2)) +
-      mu_val*basis_grad(elem,inode,k,1)*(dz*normals(elem,k,1) + dy*normals(elem,k,2));
-      
-    }
-  }
-  
-  
-  return basisVec;
-}*/
 
 // ========================================================================================
 // TMW: needs to be deprecated

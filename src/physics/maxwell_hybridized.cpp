@@ -11,13 +11,9 @@
 
 #include "maxwell_hybridized.hpp"
 
-maxwell_HYBRID::maxwell_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings, const int & numip_,
-                               const size_t & numip_side_, const int & numElem_,
-                               Teuchos::RCP<FunctionManager> & functionManager_) :
-numip(numip_), numip_side(numip_side_), numElem(numElem_) {
+maxwell_HYBRID::maxwell_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   label = "maxwell_hybrid";
-  functionManager = functionManager_;
   spaceDim = settings->sublist("Mesh").get<int>("dim",3);
   
   // GH Note: it's likely none of this will make sense in the 2D case... should it require 3D?
@@ -53,14 +49,23 @@ numip(numip_), numip_side(numip_side_), numElem(numElem_) {
     myvars.push_back("lambdaz");
     mybasistypes.push_back("HFACE");
   }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void maxwell_HYBRID::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                                     Teuchos::RCP<FunctionManager> & functionManager_) {
   
+  functionManager = functionManager_;
+
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
-  functionManager->addFunction("current x",fs.get<string>("current x","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("current y",fs.get<string>("current y","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("current z",fs.get<string>("current z","0.0"),numElem,numip,"ip");
-  functionManager->addFunction("mu",fs.get<string>("mu","1.0"),numElem,numip,"ip");
-  functionManager->addFunction("epsilon",fs.get<string>("epsilon","1.0"),numElem,numip,"ip");
+  functionManager->addFunction("current x",fs.get<string>("current x","0.0"),"ip");
+  functionManager->addFunction("current y",fs.get<string>("current y","0.0"),"ip");
+  functionManager->addFunction("current z",fs.get<string>("current z","0.0"),"ip");
+  functionManager->addFunction("mu",fs.get<string>("mu","1.0"),"ip");
+  functionManager->addFunction("epsilon",fs.get<string>("epsilon","1.0"),"ip");
   
 }
 
@@ -261,12 +266,10 @@ void maxwell_HYBRID::volumeResidual() {
 
 void maxwell_HYBRID::boundaryResidual() {
 
-  sideinfo = wkset->sideinfo;
   Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
 
   int cside = wkset->currentside;
-  int sidetype;
-  sidetype = bcs(lambdax_num,cside);
+  int sidetype = bcs(lambdax_num,cside);
 
   int lambdax_basis = wkset->usebasis[lambdax_num];
   basis = wkset->basis_side[lambdax_basis];
@@ -506,8 +509,7 @@ void maxwell_HYBRID::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void maxwell_HYBRID::setVars(std::vector<string> & varlist_) {
-  varlist = varlist_;
+void maxwell_HYBRID::setVars(std::vector<string> & varlist) {
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "Ex")
       Ex_num = i;

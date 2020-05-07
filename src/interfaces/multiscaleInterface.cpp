@@ -43,8 +43,7 @@ macro_functionManagers(macro_functionManagers_) {
     for (size_t n=0; n<subgridModels.size(); n++) {
       stringstream ss;
       ss << n;
-      macro_functionManagers[0]->addFunction("Subgrid " + ss.str() + " usage",subgridModels[n]->usage,
-                                             numElem,cells[0][0]->ip.extent(1),"ip");
+      macro_functionManagers[0]->addFunction("Subgrid " + ss.str() + " usage",subgridModels[n]->usage, "ip");
     }
      
   }
