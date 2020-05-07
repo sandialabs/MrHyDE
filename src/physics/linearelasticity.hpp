@@ -57,7 +57,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void setLocalSoln(const size_t & e, const size_t & ipindex, const bool & onside);
+  //void setLocalSoln(const size_t & e, const size_t & ipindex, const bool & onside);
   
   // ========================================================================================
   // ========================================================================================
@@ -79,9 +79,9 @@ public:
   /* return the SIPG / IIPG term for a given node and component at an integration point */
   // ========================================================================================
   
-  AD computeBasisVec(const AD dx, const AD dy, const AD dz, const AD mu_val, const AD lambda_val,
-                     const DRV normals, DRV basis_grad, const int num_basis,
-                     const int & elem, const int inode, const int k, const int component);
+  //AD computeBasisVec(const AD dx, const AD dy, const AD dz, const AD mu_val, const AD lambda_val,
+  //                   const DRV normals, DRV basis_grad, const int num_basis,
+  //                  const int & elem, const int inode, const int k, const int component);
   
   // ========================================================================================
   // TMW: needs to be deprecated
@@ -93,45 +93,18 @@ public:
   
 private:
   
-  size_t numip, numip_side;
-  
-  int spaceDim, numElem, numParams, numResponses;
-  vector<string> varlist;
+  int spaceDim;
   int dx_num, dy_num, dz_num, e_num, p_num;
   int auxdx_num = -1, auxdy_num = -1, auxdz_num = -1, auxe_num = -1, auxp_num = -1;
-  int test, simNum, cell_num;
-  string response_type;
-  // Parameters
-  //    ScalarT lambda, mu;
-  
-  ScalarT v, dvdx, dvdy, dvdz;
-  int resindex, dx_basis, dy_basis, dz_basis;
-  ScalarT time;
-  ScalarT x,y,z;
-  
-  // The notation here is a little unfortunate for the derivatives
-  // Attempting to make it clearer by using dvar_dx where var = {dx,dy,dz}
-  AD dx, ddx_dx, ddx_dy, ddx_dz;
-  AD dy, ddy_dx, ddy_dy, ddy_dz;
-  AD dz, ddz_dx, ddz_dy, ddz_dz;
-  
-  AD dpdx, dpdy, dpdz, eval, delta_e, pval;
-  AD plambdax, plambday, plambdaz;
-  
-  //Kokkos::View<AD**,AssemblyDevice> lambda, mu, source_dx, source_dy, source_dz;
-  //Kokkos::View<AD**,AssemblyDevice> lambda_side, mu_side, sourceN_dx, sourceN_dy, sourceN_dz;
   
   FDATA lambda, mu, source_dx, source_dy, source_dz;
   FDATA lambda_side, mu_side, sourceN_dx, sourceN_dy, sourceN_dz;
   
-  Kokkos::View<AD****,AssemblyDevice> stress;
+  Kokkos::View<AD****,AssemblyDevice> stress, stress_side;
   
-  Kokkos::View<int****,AssemblyDevice> sideinfo;
-  
-  bool multiscale, useLame, addBiot, useCE;
-  bool incplanestress;
-  bool disp_response_type;
-  ScalarT formparam, biot_alpha, e_ref, alpha_T, epen;
+  bool useLame, addBiot, useCE, incplanestress, disp_response_type;
+  //ScalarT formparam, biot_alpha, e_ref, alpha_T, epen;
+  Kokkos::View<ScalarT*,HostDevice> modelparams;
   
   Teuchos::RCP<CrystalElastic> crystalelast;
   

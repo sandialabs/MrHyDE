@@ -69,7 +69,7 @@ private:
   
   FDATA diff, rho, cp, source, nsource, diff_side, robin_alpha;
   
-  bool multiscale, have_nsvel;
+  bool have_nsvel;
   ScalarT formparam;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::thermal::volumeResidual() - function evaluation");

@@ -25,7 +25,6 @@ ANONYMOUS:
       dz: 1
     quadrature: 2
   Subgrid:
-    iSubgrid Model: 'Explicit FEM'
     Mesh:
       macro-shape: hex
       shape: hex

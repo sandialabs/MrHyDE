@@ -56,7 +56,7 @@ ANONYMOUS:
         dz: 1
       quadrature: 2
   Solver:
-    Verbosity: 0
+    Workset size: 10
     solver: steady-state
     NLtol: 9.99999999999999955e-07
     use direct solver: true
