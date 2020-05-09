@@ -1179,14 +1179,14 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
 ////////////////////////////////////////////////////////////////////////////////////
 
 void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
-                               Kokkos::View<ScalarT***,AssemblyDevice> u_dot,
+                               Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
                                Kokkos::View<int*,UnifiedDevice> seedwhat) {
   
   // Reset the values (may combine with next loop when parallelized)
   {
     Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-    AD value = 0.0;
     parallel_for(RangePolicy<AssemblyExec>(0,local_soln.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      AD value = 0.0;
       for (int k=0; k<local_soln.extent(1); k++) {
         for (int i=0; i<local_soln.extent(2); i++) {
           for (int s=0; s<local_soln.extent(3); s++) {
@@ -1217,21 +1217,27 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         DRV kbasis_grad_uw = basis_grad_uw[kubasis];
         
         parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD uval, u_dotval;
+          AD uval;
           int kk = bind(0);
           for (int i=0; i<kbasis_uw.extent(1); i++ ) {
             if (seedwhat(0) == 1) {
               uval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
-              u_dotval = u_dot(e,kk,i);
-            }
-            else if (seedwhat(0) == 2) {
-              uval = u(e,kk,i);
-              u_dotval = AD(maxDerivs,offsets(kk,i),u_dot(e,kk,i));
             }
             else {
               uval = u(e,kk,i);
-              u_dotval = u_dot(e,kk,i);
             }
+            AD u_dotval = udot_wts(0)*uval;
+            if (udot_wts.extent(0)>1) {
+              for (int s=1; s<udot_wts.extent(0); s++) {
+                u_dotval += udot_wts(s)*u_prev(e,kk,i,s-1);
+              }
+            }
+            if (seedwhat(0) == 2) {
+              ScalarT val = u_dotval.val();
+              u_dotval = AD(maxDerivs,offsets(kk,i),val);
+            }
+            //cout << "seedwhat = " << seedwhat(0) << endl;
+            //cout << "udotval = " << u_dotval << endl;
             
             for (size_t j=0; j<kbasis_uw.extent(2); j++ ) {
               local_soln(e,kk,j,0) += uval*kbasis_uw(e,i,j);
@@ -1247,20 +1253,20 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         DRV kbasis_uw = basis_uw[kubasis];
         
         parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD uval, u_dotval;
+          AD uval;
           int kk = bind(0);
           for( int i=0; i<kbasis_uw.extent(1); i++ ) {
             if (seedwhat(0) == 1) {
               uval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
-              u_dotval = u_dot(e,kk,i);
-            }
-            else if (seedwhat(0) == 2) {
-              uval = u(e,kk,i);
-              u_dotval = AD(maxDerivs,offsets(kk,i),u_dot(e,kk,i));
             }
             else {
               uval = u(e,kk,i);
-              u_dotval = u_dot(e,kk,i);
+            }
+            AD u_dotval = udot_wts(0)*uval;
+            if (udot_wts.extent(0)>1) {
+              for (int s=1; s<udot_wts.extent(0); s++) {
+                u_dotval += udot_wts(s)*u_prev(e,kk,i,s);
+              }
             }
             
             for( size_t j=0; j<kbasis_uw.extent(2); j++ ) {
@@ -1275,21 +1281,22 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         DRV kbasis_div_uw = basis_div_uw[kubasis];
         
         parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD uval, u_dotval;
+          AD uval;
           int kk = bind(0);
           for (int i=0; i<kbasis_uw.extent(1); i++ ) {
             
             if (seedwhat(0) == 1) {
               uval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
-              u_dotval = u_dot(e,kk,i);
-            }
-            else if (seedwhat(0) == 2) {
-              uval = u(e,kk,i);
-              u_dotval = AD(maxDerivs,offsets(kk,i),u_dot(e,kk,i));
             }
             else {
               uval = u(e,kk,i);
-              u_dotval = u_dot(e,kk,i);
+            }
+            
+            AD u_dotval = udot_wts(0)*uval;
+            if (udot_wts.extent(0)>1) {
+              for (int s=1; s<udot_wts.extent(0); s++) {
+                u_dotval += udot_wts(s)*u_prev(e,kk,i,s);
+              }
             }
             
             for (size_t j=0; j<kbasis_uw.extent(2); j++ ) {
@@ -1307,21 +1314,22 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         DRV kbasis_curl_uw = basis_curl_uw[kubasis];
         
         parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD uval, u_dotval;
+          AD uval;
           int kk = bind(0);
           for (int i=0; i<kbasis_uw.extent(1); i++ ) {
             
             if (seedwhat(0) == 1) {
               uval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
-              u_dotval = u_dot(e,kk,i);
-            }
-            else if (seedwhat(0) == 2) {
-              uval = u(e,kk,i);
-              u_dotval = AD(maxDerivs,offsets(kk,i),u_dot(e,kk,i));
             }
             else {
               uval = u(e,kk,i);
-              u_dotval = u_dot(e,kk,i);
+            }
+            
+            AD u_dotval = udot_wts(0)*uval;
+            if (udot_wts.extent(0)>1) {
+              for (int s=1; s<udot_wts.extent(0); s++) {
+                u_dotval += udot_wts(s)*u_prev(e,kk,i,s);
+              }
             }
             
             for (size_t j=0; j<kbasis_uw.extent(2); j++ ) {
@@ -1402,7 +1410,6 @@ void workset::computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param,
 ////////////////////////////////////////////////////////////////////////////////////
 
 void workset::computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
-                                Kokkos::View<ScalarT***,AssemblyDevice> u_dot,
                                 Kokkos::View<int*,UnifiedDevice> seedwhat) {
   
   {
@@ -1414,7 +1421,6 @@ void workset::computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
           for (int s=0; s<local_soln_face.extent(3); s++) {
             local_soln_face(e,k,i,s) = 0.0;
             local_soln_grad_face(e,k,i,s) = 0.0;
-            //local_soln_dot_side(e,k,i,s) = 0.0;
           }
         }
       }
@@ -1520,7 +1526,6 @@ void workset::computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
 ////////////////////////////////////////////////////////////////////////////////////
 
 void workset::computeSolnSideIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
-                                Kokkos::View<ScalarT***,AssemblyDevice> u_dot,
                                 Kokkos::View<int*,UnifiedDevice> seedwhat) {
   
   {// Reset the values (may combine with next loop when parallelized)
@@ -1680,7 +1685,6 @@ void workset::computeParamSideIP(const int & side, Kokkos::View<ScalarT***,Assem
 ////////////////////////////////////////////////////////////////////////////////////
 
 void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDevice> u_AD,
-                                Kokkos::View<AD***,AssemblyDevice> u_dot_AD,
                                 Kokkos::View<AD***,AssemblyDevice> param_AD) {
   {
     Teuchos::TimeMonitor resettimer(*worksetResetTimer);
@@ -1691,7 +1695,6 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
           for (int s=0; s<local_soln_side.extent(3); s++) {
             local_soln_side(e,k,i,s) = 0.0;
             local_soln_grad_side(e,k,i,s) = 0.0;
-            //local_soln_dot_side(e,k,i,s) = 0.0;
           }
         }
       }
@@ -1713,10 +1716,8 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
         for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<kbasis_uw.extent(0); e++) {
             uval = u_AD(e,k,i);
-            //u_dotval = u_dot_AD(e,k,i);
             for (size_t j=0; j<numsideip; j++ ) {
               local_soln_side(e,k,j,0) += uval*kbasis_uw(e,i,j);
-              //local_soln_dot_side(e,k,j,0) += u_dotval*kbasis_uw(e,i,j);
               for (int s=0; s<dimension; s++ ) {
                 local_soln_grad_side(e,k,j,s) += uval*kbasis_grad_uw(e,i,j,s);
               }
@@ -1729,10 +1730,8 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
         for( int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             uval = u_AD(e,k,i);
-            //u_dotval = u_dot_AD(e,k,i);
             for( size_t j=0; j<numsideip; j++ ) {
               local_soln_side(e,k,j,0) += uval*kbasis_uw(e,i,j);
-              //local_soln_dot_side(e,k,j,0) += u_dotval*kbasis_uw(e,i,j);
             }
           }
         }
@@ -1742,11 +1741,9 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
         for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             uval = u_AD(e,k,i);
-            //u_dotval = u_dot_AD(e,k,i);
             for (size_t j=0; j<numsideip; j++ ) {
               for (int s=0; s<dimension; s++ ) {
                 local_soln_side(e,k,j,s) += uval*kbasis_uw(e,i,j,s);
-                //local_soln_dot_side(e,k,j,s) += u_dotval*kbasis_uw(e,i,j,s);
               }
             }
           }
@@ -1758,11 +1755,9 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
         for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             uval = u_AD(e,k,i);
-            //u_dotval = u_dot_AD(e,k,i);
             for (size_t j=0; j<numsideip; j++ ) {
               for (int s=0; s<dimension; s++ ) {
                 local_soln_side(e,k,j,s) += uval*kbasis_uw(e,i,j,s);
-                //local_soln_dot_side(e,k,j,s) += u_dotval*kbasis_uw(e,i,j,s);
               }
             }
           }

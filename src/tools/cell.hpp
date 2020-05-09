@@ -100,14 +100,23 @@ public:
   void setAuxUseBasis(vector<int> & ausebasis_);
   
   ///////////////////////////////////////////////////////////////////////////////////////
-  // Map the coarse grid solution to the fine grid integration points
+  // Map the solution to the volumetric integration points
   ///////////////////////////////////////////////////////////////////////////////////////
   
   void computeSolnVolIP(Kokkos::View<int*,UnifiedDevice> seedwhat);
   
+  ///////////////////////////////////////////////////////////////////////////////////////
+  // Map the solution to the face integration points
+  ///////////////////////////////////////////////////////////////////////////////////////
   
   void computeSolnFaceIP(const size_t & facenum, Kokkos::View<int*,UnifiedDevice> seedwhat);
 
+  ///////////////////////////////////////////////////////////////////////////////////////
+  // Reset the data stored in the previous step/stage solutions
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
+  void resetPrevSoln();
+  
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the contribution from this cell to the global res, J, Jdot
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -327,12 +336,14 @@ public:
   vector<size_t> cell_data_seed, cell_data_seedindex;
   vector<size_t> subgrid_model_index; // which subgrid model is used for each time step
   size_t subgrid_usernum; // what is the index for this cell in the subgrid model (should be deprecated)
+  Kokkos::View<ScalarT*,AssemblyDevice> udot_wts;
   
   // Data created here (Views should all be AssemblyDevice)
   size_t numElem;
   DRV ip, wts, jacobian, jacobianInv, jacobianDet;
   Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
-  Kokkos::View<ScalarT***,AssemblyDevice> u, u_dot, phi, phi_dot, aux, param;
+  Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param;
+  Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev;
   //Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
   
   // Aux variable Information

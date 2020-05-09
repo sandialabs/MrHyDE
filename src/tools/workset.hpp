@@ -59,8 +59,8 @@ class workset {
   // Update the nodes and the basis functions at the side ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void updateFace(const DRV & nodes, Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation,
-                  //const vector<vector<ScalarT> > & orientation,
+  void updateFace(const DRV & nodes,
+                  Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation,
                   const size_t & sidenum);
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -116,7 +116,7 @@ class workset {
   ////////////////////////////////////////////////////////////////////////////////////
   
   void computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
-                        Kokkos::View<ScalarT***,AssemblyDevice> u_dot,
+                        Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
                         Kokkos::View<int*,UnifiedDevice> seedwhat);
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -131,7 +131,6 @@ class workset {
   ////////////////////////////////////////////////////////////////////////////////////
   
   void computeSolnSideIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
-                         Kokkos::View<ScalarT***,AssemblyDevice> u_dot,
                          Kokkos::View<int*,UnifiedDevice> seedwhat);
   
   ////////////////////////////////////////////////////////////////////////////////////
@@ -139,7 +138,6 @@ class workset {
   ////////////////////////////////////////////////////////////////////////////////////
   
   void computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
-                         Kokkos::View<ScalarT***,AssemblyDevice> u_dot,
                          Kokkos::View<int*,UnifiedDevice> seedwhat);
   
   ////////////////////////////////////////////////////////////////////////////////////
@@ -154,7 +152,6 @@ class workset {
   ////////////////////////////////////////////////////////////////////////////////////
   
   void computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDevice> u_AD,
-                         Kokkos::View<AD***,AssemblyDevice> u_dot_AD,
                          Kokkos::View<AD***,AssemblyDevice> param_AD);
   
   //////////////////////////////////////////////////////////////
@@ -178,6 +175,7 @@ class workset {
   Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets;
   vector<string> varlist;
   //Teuchos::RCP<TimeIntegrator> timeInt;
+  Kokkos::View<ScalarT*,AssemblyDevice> udot_wts;
   
   vector<int> usebasis, paramusebasis;
   bool isAdjoint, onlyTransient, isTransient;

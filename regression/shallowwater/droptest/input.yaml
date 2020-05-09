@@ -22,8 +22,6 @@ ANONYMOUS:
         H: '0.0'
         Hu: '0.0'
         Hv: '0.0'
-    simulation_number: 1
-    test: 2
   Discretization:
     eblock-0_0:
       order:
@@ -34,7 +32,7 @@ ANONYMOUS:
   Parameters Settings File: input_params.yaml
   Solver: 
     solver: transient
-    Workset Size: 1
+    Workset Size: 100
     NLtol: 9.99999999999999955e-07
     MaxNLiter: 4
     final time: 5.0000000000000000e-3

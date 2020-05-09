@@ -1042,7 +1042,7 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
   // Set the initial conditions
   //////////////////////////////////////////////////////////////
   
-  ScalarT prev_time = 0.0;
+  ScalarT prev_time = 0.0; // TMW: is this actually used???
   
   {
     Teuchos::TimeMonitor localtimer(*sgfemInitialTimer);
@@ -1071,6 +1071,15 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
       }
     }
   }
+  
+  this->performGather(0, u, 0, 0);
+  for (size_t b=0; b<cells.size(); b++) {
+    for (size_t e=0; e<cells[b].size(); e++) {
+      cells[b][e]->resetPrevSoln();
+    }
+  }
+  
+  //cout << "Inside subgrid dolver" << endl;
   
   //////////////////////////////////////////////////////////////
   // Use the coarse scale solution to solve local transient/nonlinear problem
@@ -1159,6 +1168,9 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
         sgtime += macro_deltat/(ScalarT)time_steps;
         // set du/dt and \lambda
         alpha = (ScalarT)time_steps/macro_deltat;
+        wkset[0]->udot_wts(0) = alpha;
+        wkset[0]->udot_wts(1) = -alpha;
+        
         wkset[0]->alpha = alpha;
         wkset[0]->deltat= 1.0/alpha;
         
@@ -1167,6 +1179,12 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
         ScalarT lambda_scale = 1.0;//-(current_time-sgtime)/deltat;
         
         u_dot->putScalar(0.0);
+        for (size_t b=0; b<cells.size(); b++) {
+          for (size_t e=0; e<cells[b].size(); e++) {
+            cells[b][e]->resetPrevSoln();
+          }
+        }
+        
         if (isAdjoint) {
           phi_dot->putScalar(0.0);
         }
@@ -1359,18 +1377,18 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
     {
       Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverSetSolnTimer);
       this->performGather(0, sub_u, 0, 0);
-      this->performGather(0, sub_u_dot, 1, 0);
+      //this->performGather(0, sub_u_dot, 1, 0);
       if (isAdjoint) {
         this->performGather(0, sub_phi, 2, 0);
-        this->performGather(0, sub_phi_dot, 3, 0);
+        //this->performGather(0, sub_phi_dot, 3, 0);
       }
       //this->performGather(usernum, sub_params, 4, 0);
       
       this->performBoundaryGather(0, sub_u, 0, 0);
-      this->performBoundaryGather(0, sub_u_dot, 1, 0);
+      //this->performBoundaryGather(0, sub_u_dot, 1, 0);
       if (isAdjoint) {
         this->performBoundaryGather(0, sub_phi, 2, 0);
-        this->performBoundaryGather(0, sub_phi_dot, 3, 0);
+        //this->performBoundaryGather(0, sub_phi_dot, 3, 0);
       }
       
       for (size_t e=0; e < boundaryCells[0].size(); e++) {
@@ -1431,7 +1449,7 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
             ScalarT val = local_res(i,row,0);
             res_over->sumIntoGlobalValue(rowIndex,0, val);
             for( size_t col=0; col<GIDs.extent(1); col++ ) {
-              vals[col] = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
+              vals[col] = local_J(i,row,col);// + alpha*local_Jdot(i,row,col);
               cols[col] = GIDs(i,col);
             }
             sub_J_over->sumIntoGlobalValues(rowIndex, cols, vals);
@@ -1501,7 +1519,7 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
               ScalarT val = local_res(i,row,0);
               res_over->sumIntoGlobalValue(rowIndex,0, val);
               for (size_t col=0; col<GIDs.extent(1); col++ ) {
-                vals[col] = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
+                vals[col] = local_J(i,row,col);// + alpha*local_Jdot(i,row,col);
                 cols[col] = GIDs(i,col);
               }
               sub_J_over->sumIntoGlobalValues(rowIndex, cols, vals);
@@ -1684,10 +1702,10 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
   
   if (multiscale_method != "mortar") {
     this->performGather(0, sub_u, 0, 0);
-    this->performGather(0, sub_u_dot, 1, 0);
+    //this->performGather(0, sub_u_dot, 1, 0);
     if (isAdjoint) {
       this->performGather(0, sub_phi, 2, 0);
-      this->performGather(0, sub_phi_dot, 3, 0);
+      //this->performGather(0, sub_phi_dot, 3, 0);
     }
     for (size_t e=0; e < cells[0].size(); e++) {
       cells[0][e]->aux = lambda;
@@ -1695,10 +1713,10 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
   }
   else {
     this->performBoundaryGather(0, sub_u, 0, 0);
-    this->performBoundaryGather(0, sub_u_dot, 1, 0);
+    //this->performBoundaryGather(0, sub_u_dot, 1, 0);
     if (isAdjoint) {
       this->performBoundaryGather(0, sub_phi, 2, 0);
-      this->performBoundaryGather(0, sub_phi_dot, 3, 0);
+      //this->performBoundaryGather(0, sub_phi_dot, 3, 0);
     }
     for (size_t e=0; e < boundaryCells[0].size(); e++) {
       boundaryCells[0][e]->aux = lambda;
@@ -2389,7 +2407,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
                            cells[0][e]->jacobianDet,cells[0][e]->orientation);
           Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
           seedwhat(0) = 0;
-          wkset[0]->computeSolnVolIP(cells[0][e]->u, cells[0][e]->u_dot, seedwhat);
+          wkset[0]->computeSolnVolIP(cells[0][e]->u, cells[0][e]->u_prev, seedwhat);
           
           int numElem = cells[0][e]->numElem;
           Kokkos::View<GO**,HostDevice> GIDs = cells[0][e]->GIDs;
@@ -2978,9 +2996,9 @@ void SubGridFEM::performGather(const size_t & b, const vector_RCP & vec,
         data = cells[b][c]->u;
         break;
       case 1 :
-        index = cells[b][c]->index;
-        numDOF = cells[b][c]->cellData->numDOF;
-        data = cells[b][c]->u_dot;
+        //index = cells[b][c]->index;
+        //numDOF = cells[b][c]->cellData->numDOF;
+        //data = cells[b][c]->u_dot;
         break;
       case 2 :
         index = cells[b][c]->index;
@@ -2988,9 +3006,9 @@ void SubGridFEM::performGather(const size_t & b, const vector_RCP & vec,
         data = cells[b][c]->phi;
         break;
       case 3 :
-        index = cells[b][c]->index;
-        numDOF = cells[b][c]->cellData->numDOF;
-        data = cells[b][c]->phi_dot;
+        //index = cells[b][c]->index;
+        //numDOF = cells[b][c]->cellData->numDOF;
+        //data = cells[b][c]->phi_dot;
         break;
       case 4:
         index = cells[b][c]->paramindex;
@@ -3047,9 +3065,9 @@ void SubGridFEM::performBoundaryGather(const size_t & b, const vector_RCP & vec,
             data = boundaryCells[b][c]->u;
             break;
           case 1 :
-            index = boundaryCells[b][c]->index;
-            numDOF = boundaryCells[b][c]->cellData->numDOF;
-            data = boundaryCells[b][c]->u_dot;
+            //index = boundaryCells[b][c]->index;
+            //numDOF = boundaryCells[b][c]->cellData->numDOF;
+            //data = boundaryCells[b][c]->u_dot;
             break;
           case 2 :
             index = boundaryCells[b][c]->index;
@@ -3057,9 +3075,9 @@ void SubGridFEM::performBoundaryGather(const size_t & b, const vector_RCP & vec,
             data = boundaryCells[b][c]->phi;
             break;
           case 3 :
-            index = boundaryCells[b][c]->index;
-            numDOF = boundaryCells[b][c]->cellData->numDOF;
-            data = boundaryCells[b][c]->phi_dot;
+            //index = boundaryCells[b][c]->index;
+            //numDOF = boundaryCells[b][c]->cellData->numDOF;
+            //data = boundaryCells[b][c]->phi_dot;
             break;
           case 4:
             index = boundaryCells[b][c]->paramindex;

@@ -12,7 +12,7 @@ ANONYMOUS:
     true solutions:
       e: sin(2.0*pi*x)*sin(2.0*pi*y)
   Subgrid:
-    Static Subgrids: false
+    Static Subgrids: true
     Number of Models: 3
     Model0:
       usage: '1.0'
@@ -83,7 +83,7 @@ ANONYMOUS:
     solver: transient
     Workset Size: 1
     Verbosity: 0
-    NLtol: 9.99999999999999955e-10
+    NLtol: 9.99999999999999955e-6
     MaxNLiter: 4
     final time: 4.000000000000000e-01
     ddelta t: 1.000000000000000e-01

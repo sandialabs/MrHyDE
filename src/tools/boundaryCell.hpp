@@ -212,7 +212,7 @@ public:
   Kokkos::View<GO**,HostDevice> GIDs, paramGIDs, auxGIDs;
   Kokkos::View<LO***,AssemblyDevice> index, paramindex, auxindex;
   //Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
-  Kokkos::View<ScalarT***,AssemblyDevice> u, u_dot, phi, phi_dot, aux, param;
+  Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param;
   
   // Aux variable Information
   vector<string> auxlist;

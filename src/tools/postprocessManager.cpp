@@ -780,7 +780,7 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
                                         cells[b][e]->jacobianDet,cells[b][e]->orientation);
             Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
             seedwhat(0) = 0;
-            assembler->wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_dot, seedwhat);
+            assembler->wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_prev, seedwhat);
             
             Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
             for (int p=0; p<cells[b][e]->numElem; p++) {

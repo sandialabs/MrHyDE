@@ -683,11 +683,11 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
     
     // Local gather of solutions
     this->performGather(b,u,0,0);
-    this->performGather(b,u_dot,1,0);
+    //this->performGather(b,u_dot,1,0);
     this->performGather(b,Psol,4,0);
     if (useadjoint) {
       this->performGather(b,phi,2,0);
-      this->performGather(b,phi_dot,3,0);
+      //this->performGather(b,phi_dot,3,0);
     }
   }
   
@@ -909,6 +909,18 @@ void AssemblyManager::pointConstraints(matrix_RCP & J, vector_RCP & res,
 //
 // ========================================================================================
 
+void AssemblyManager::resetPrevSoln() {
+  for (size_t b=0; b<cells.size(); b++) {
+    for (size_t e=0; e<cells[b].size(); e++) {
+      cells[b][e]->resetPrevSoln();
+    }
+  }
+}
+
+// ========================================================================================
+//
+// ========================================================================================
+
 void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
                                     const int & type, const size_t & entry) {
   
@@ -938,9 +950,9 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
         data = cells[b][c]->u;
         break;
       case 1 :
-        index = cells[b][c]->index;
-        numDOF = cells[b][c]->cellData->numDOF;
-        data = cells[b][c]->u_dot;
+        //index = cells[b][c]->index;
+        //numDOF = cells[b][c]->cellData->numDOF;
+        //data = cells[b][c]->u_dot;
         break;
       case 2 :
         index = cells[b][c]->index;
@@ -948,9 +960,9 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
         data = cells[b][c]->phi;
         break;
       case 3 :
-        index = cells[b][c]->index;
-        numDOF = cells[b][c]->cellData->numDOF;
-        data = cells[b][c]->phi_dot;
+        //index = cells[b][c]->index;
+        //numDOF = cells[b][c]->cellData->numDOF;
+        //data = cells[b][c]->phi_dot;
         break;
       case 4:
         index = cells[b][c]->paramindex;
@@ -1018,9 +1030,9 @@ void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP &
             data = boundaryCells[b][c]->u;
             break;
           case 1 :
-            index = boundaryCells[b][c]->index;
-            numDOF = boundaryCells[b][c]->cellData->numDOF;
-            data = boundaryCells[b][c]->u_dot;
+            //index = boundaryCells[b][c]->index;
+            //numDOF = boundaryCells[b][c]->cellData->numDOF;
+            //data = boundaryCells[b][c]->u_dot;
             break;
           case 2 :
             index = boundaryCells[b][c]->index;
@@ -1028,9 +1040,9 @@ void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP &
             data = boundaryCells[b][c]->phi;
             break;
           case 3 :
-            index = boundaryCells[b][c]->index;
-            numDOF = boundaryCells[b][c]->cellData->numDOF;
-            data = boundaryCells[b][c]->phi_dot;
+            //index = boundaryCells[b][c]->index;
+            //numDOF = boundaryCells[b][c]->cellData->numDOF;
+            //data = boundaryCells[b][c]->phi_dot;
             break;
           case 4:
             index = boundaryCells[b][c]->paramindex;
@@ -1097,13 +1109,13 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
         if (compute_disc_sens) {
           for( size_t col=0; col<paramGIDs.extent(1); col++ ) {
             GO colIndex = paramGIDs(i,col);
-            ScalarT val = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
+            ScalarT val = local_J(i,row,col);// + alpha*local_Jdot(i,row,col);
             J->insertGlobalValues(colIndex, 1, &val, &rowIndex);
           }
         }
         else {
           for( size_t col=0; col<GIDs.extent(1); col++ ) {
-            vals[col] = local_J(i,row,col) + alpha*local_Jdot(i,row,col);
+            vals[col] = local_J(i,row,col);// + alpha*local_Jdot(i,row,col);
             cols[col] = GIDs(i,col);
           }
           //J->sumIntoGlobalValues(rowIndex, GIDs[i].size(), &vals[0], &GIDs[i][0]);

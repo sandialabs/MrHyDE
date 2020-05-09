@@ -251,9 +251,30 @@ void solver::finalizeWorkset() {
     }
   }
   
-  int nstages = 1;//timeInt->num_stages;
+  int nstages = 1; // TMW: should we distinguish between steps and stages?
+  
+  if (isTransient) { // Hard-coded for BWE for now
+    Kokkos::View<ScalarT*,AssemblyDevice> udot_wts("weights to compute u_dot",2);
+    Kokkos::View<ScalarT*,HostDevice>::HostMirror host_wts = Kokkos::create_mirror_view(udot_wts);
+    host_wts(0) = 1.0/deltat;
+    host_wts(1) = -1.0/deltat;
+    Kokkos::deep_copy(udot_wts,host_wts);
+    for (size_t b=0; b<assembler->cells.size(); b++) {
+      assembler->wkset[b]->udot_wts = udot_wts;
+    }
+  }
+  else { // for steady state solves, u_dot = 0.0*u
+    Kokkos::View<ScalarT*,AssemblyDevice> udot_wts("weights to compute u_dot",1);
+    Kokkos::View<ScalarT*,HostDevice>::HostMirror host_wts = Kokkos::create_mirror_view(udot_wts);
+    host_wts(0) = 0.0;
+    Kokkos::deep_copy(udot_wts,host_wts);
+    for (size_t b=0; b<assembler->cells.size(); b++) {
+      assembler->wkset[b]->udot_wts = udot_wts;
+    }
+  }
   
   for (size_t b=0; b<assembler->cells.size(); b++) {
+    
     vector<vector<int> > voffsets = phys->offsets[b];
     size_t maxoff = 0;
     for (size_t i=0; i<voffsets.size(); i++) {
@@ -635,6 +656,11 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     vector_RCP zero_vec = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
     u_dot->putScalar(0.0);
     zero_vec->putScalar(0.0);
+    if (usestrongDBCs) {
+      this->setDirichlet(u);
+    }
+    
+    assembler->performGather(0,u,0,0);
     
     obj = 0.0;
     int numCuts = 0;
@@ -643,6 +669,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     while (current_time < (end_time-timetol) && numCuts<=maxCuts) {
       
       u_dot->putScalar(0.0);
+      assembler->resetPrevSoln();
       
       ////////////////////////////////////////////////////////////////////////
       // Allow the cells to change subgrid model
@@ -654,7 +681,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&my_cost,&gmin);
         ScalarT gmax = 0.0;
         Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&my_cost,&gmin);
-        if(Comm->getRank() == 0 && verbosity>0) {
+        if (Comm->getRank() == 0 && verbosity>0) {
           cout << "***** Load Balancing Factor " << gmax/gmin <<  endl;
         }
       }
@@ -680,7 +707,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         // TMW: currently allowing storage of all solutions
         // Need to implement some form of checkpointing
         soln->store(u, current_time, 0);
-        soln_dot->store(u_dot, current_time, 0);
+        //soln_dot->store(u_dot, current_time, 0);
         
         if (allow_remesh) {
           mesh->remesh(u, assembler->cells);
@@ -698,6 +725,8 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         }
       }
       else { // something went wrong, cut time step and try again
+        soln->store(u, current_time, 0);
+        /*
         current_time -= deltat;
         deltat *= 0.5;
         current_time += deltat;
@@ -710,6 +739,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
           cout << "**** Current time is " << current_time << endl << endl;
           cout << "*******************************************************" << endl << endl << endl;
         }
+         */
       }
     }
   }
@@ -725,6 +755,9 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     phi_dot->putScalar(0.0);
     
     size_t numsteps = soln->times[0].size()-1;
+    
+    //bool fndu = soln->extract(u, numsteps);
+    //assembler->performGather(0,u,0,0);
     
     for (size_t timeiter = 0; timeiter<numsteps; timeiter++) {
       size_t cindex = numsteps-timeiter;
@@ -743,6 +776,11 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
       // Also, need to implement checkpoint/recovery
       bool fndu = soln->extract(u, cindex);
       bool fndup = soln->extract(u_prev, cindex-1);
+      for (size_t b=0; b<assembler->blocknames.size(); b++) {
+        assembler->performGather(b,u_prev,0,0);
+        assembler->resetPrevSoln();
+      }
+      
       auto u_kv = u->getLocalView<HostDevice>();
       auto u_prev_kv = u_prev->getLocalView<HostDevice>();
       auto u_dot_kv = u_dot->getLocalView<HostDevice>();
@@ -758,6 +796,9 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
       this->computeSensitivities(u,u_dot,phi,gradient,alpha,beta);
       
       is_final_time = false;
+      
+      
+      
     }
   }
   
@@ -846,7 +887,7 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
     if (NLiter == 0) {
       res->normInf(NLerr_first);
-      if (NLerr_first[0] > 1.0e-16)
+      if (NLerr_first[0] > 1.0e-14)
         NLerr_scaled[0] = 1.0;
       else
         NLerr_scaled[0] = 0.0;
@@ -1482,7 +1523,7 @@ vector_RCP solver::setInitial() {
     glmass->fillComplete();
     
     this->linearSolver(glmass, glrhs, glinitial);
-    
+    have_preconditioner = false; // resetting this because mass matrix may not have connectivity as Jacobians
     initial->doImport(*glinitial, *importer, Tpetra::ADD);
     
   }
@@ -1516,7 +1557,13 @@ void solver::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   else {
     Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
     if (usePrec) {
-      Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > M = buildPreconditioner(J);
+      if (!have_preconditioner) {
+        M = this->buildPreconditioner(J);
+        have_preconditioner = true;
+      }
+      else {
+        MueLu::ReuseTpetraPreconditioner(J,*M);
+      }
       Problem->setLeftPrec(M);
     }
     Problem->setProblem();
@@ -1554,9 +1601,9 @@ void solver::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
 void solver::setupMassSolver(matrix_RCP & mass, vector_RCP & r, vector_RCP & soln)  {
   
   massProblem = Teuchos::rcp(new LA_LinearProblem(mass, soln, r));
-  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > M = buildPreconditioner(mass);
+  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > Mmass = buildPreconditioner(mass);
   
-  massProblem->setLeftPrec(M);
+  massProblem->setLeftPrec(Mmass);
   massProblem->setProblem();
   
   Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList());
@@ -1636,9 +1683,10 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > solver::buildPre
   mueluParams.set("repartition: max imbalance", 1.1);
   mueluParams.set("repartition: remap parts",false);
   
-  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > M = MueLu::CreateTpetraPreconditioner((Teuchos::RCP<LA_Operator>)J, mueluParams);
+  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > Mnew = MueLu::CreateTpetraPreconditioner((Teuchos::RCP<LA_Operator>)J, mueluParams);
 
-  return M;
+  //have_preconditioner = true;
+  return Mnew;
 }
 
 // ========================================================================================

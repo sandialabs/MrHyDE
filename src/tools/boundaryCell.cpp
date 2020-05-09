@@ -153,9 +153,9 @@ void BoundaryCell::setUseBasis(vector<int> & usebasis_, const int & nstages_) {
   }
   //maxnbasis *= nstages;
   u = Kokkos::View<ScalarT***,AssemblyDevice>("u",numElem,cellData->numDOF.extent(0),maxnbasis);
-  u_dot = Kokkos::View<ScalarT***,AssemblyDevice>("u_dot",numElem,cellData->numDOF.extent(0),maxnbasis);
+  //u_dot = Kokkos::View<ScalarT***,AssemblyDevice>("u_dot",numElem,cellData->numDOF.extent(0),maxnbasis);
   phi = Kokkos::View<ScalarT***,AssemblyDevice>("phi",numElem,cellData->numDOF.extent(0),maxnbasis);
-  phi_dot = Kokkos::View<ScalarT***,AssemblyDevice>("phi_dot",numElem,cellData->numDOF.extent(0),maxnbasis);
+  //phi_dot = Kokkos::View<ScalarT***,AssemblyDevice>("phi_dot",numElem,cellData->numDOF.extent(0),maxnbasis);
   
 }
 
@@ -209,7 +209,7 @@ void BoundaryCell::computeSoln(Kokkos::View<int*,UnifiedDevice> seedwhat) {
   
   Teuchos::TimeMonitor localtimer(*computeSolnSideTimer);
   
-  wkset->computeSolnSideIP(u, u_dot, seedwhat);
+  wkset->computeSolnSideIP(u, seedwhat);
   wkset->computeParamSideIP(sidenum, param, seedwhat);
   
   if (wkset->numAux > 0) {
@@ -727,7 +727,7 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
   //KokkosTools::print(lambda);
   
   Kokkos::View<AD***,AssemblyDevice> u_AD("temp u AD",u.extent(0),u.extent(1),u.extent(2));
-  Kokkos::View<AD***,AssemblyDevice> u_dot_AD("temp u AD",u.extent(0),u.extent(1),u.extent(2));
+  //Kokkos::View<AD***,AssemblyDevice> u_dot_AD("temp u AD",u.extent(0),u.extent(1),u.extent(2));
   //Kokkos::View<AD***,AssemblyDevice> param_AD("temp u AD",param.extent(0),param.extent(1),param.extent(2));
   Kokkos::View<AD***,AssemblyDevice> param_AD("temp u AD",1,1,1);
   
@@ -761,7 +761,7 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
   {
     Teuchos::TimeMonitor localtimer(*cellFluxWksetTimer);
     
-    wkset->computeSolnSideIP(sidenum, u_AD, u_dot_AD, param_AD);
+    wkset->computeSolnSideIP(sidenum, u_AD, param_AD);
   }
   if (wkset->numAux > 0) {
     

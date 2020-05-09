@@ -189,6 +189,7 @@ public:
   int verbosity, batchID, spaceDim, numsteps, gNLiter, milo_debug_level, MaxNLiter, time_order, liniter, kspace;
   
   size_t maxEntries;
+  bool have_preconditioner=false;
   
   vector<GO> owned, ownedAndShared, LA_owned, LA_ownedAndShared;
   
@@ -221,6 +222,8 @@ public:
   vector<LO> maxBasis, numVars;
   
   Teuchos::RCP<MultiScale> multiscale_manager;
+  
+  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > M;
   
 private:
   
