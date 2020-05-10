@@ -185,8 +185,8 @@ void cell::setUseBasis(vector<int> & usebasis_, const int & nstages_) {
   phi = Kokkos::View<ScalarT***,AssemblyDevice>("phi",numElem,cellData->numDOF.extent(0),maxnbasis);
   
   // This does add a little extra un-used memory for steady-state problems, but not a concern
-  u_prev = Kokkos::View<ScalarT****,AssemblyDevice>("u_dot",numElem,cellData->numDOF.extent(0),maxnbasis,nstages_);
-  phi_prev = Kokkos::View<ScalarT****,AssemblyDevice>("phi_dot",numElem,cellData->numDOF.extent(0),maxnbasis,nstages_);
+  u_prev = Kokkos::View<ScalarT****,AssemblyDevice>("u previous",numElem,cellData->numDOF.extent(0),maxnbasis,nstages_);
+  phi_prev = Kokkos::View<ScalarT****,AssemblyDevice>("phi previous",numElem,cellData->numDOF.extent(0),maxnbasis,nstages_);
   
 }
 

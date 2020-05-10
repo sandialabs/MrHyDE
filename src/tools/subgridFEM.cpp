@@ -1043,27 +1043,30 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
   //////////////////////////////////////////////////////////////
   
   ScalarT prev_time = 0.0; // TMW: is this actually used???
-  
+  Teuchos::RCP<LA_MultiVector> prev_u;
   {
     Teuchos::TimeMonitor localtimer(*sgfemInitialTimer);
     
     size_t numtimes = soln->times[usernum].size();
     if (isAdjoint) {
       if (isTransient) {
-        bool foundfwd = soln->extractPrevious(u, usernum, current_time, prev_time);
+        bool foundfwd = soln->extractPrevious(prev_u, usernum, current_time, prev_time);
         bool foundadj = adjsoln->extract(phi, usernum, current_time);
       }
       else {
-        bool foundfwd = soln->extract(u, usernum, current_time);
+        bool foundfwd = soln->extract(prev_u, usernum, current_time);
         bool foundadj = adjsoln->extract(phi, usernum, current_time);
       }
     }
     else { // forward or compute sens
       if (isTransient) {
-        bool foundfwd = soln->extractPrevious(u, usernum, current_time, prev_time);
+        bool foundfwd = soln->extractPrevious(prev_u, usernum, current_time, prev_time);
+        if (!foundfwd) { // this subgrid has not been solved at this time yet
+          foundfwd = soln->extractLast(prev_u, usernum, prev_time);
+        }
       }
       else {
-        bool foundfwd = soln->extractLast(u,usernum,prev_time);
+        bool foundfwd = soln->extractLast(prev_u,usernum,prev_time);
       }
       if (compute_sens) {
         double nexttime = 0.0;
@@ -1072,7 +1075,16 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
     }
   }
   
-  this->performGather(0, u, 0, 0);
+  auto prev_u_kv = prev_u->getLocalView<HostDevice>();
+  auto u_kv = u->getLocalView<HostDevice>();
+  
+  for (size_t i=0; i<u_kv.extent(0); i++) {
+    for (size_t j=0; j<u_kv.extent(1); j++) {
+      u_kv(i,j) = prev_u_kv(i,j);
+    }
+  }
+  
+  this->performGather(0, prev_u, 0, 0);
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       cells[b][e]->resetPrevSoln();

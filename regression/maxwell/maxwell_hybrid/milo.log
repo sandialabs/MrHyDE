@@ -7,10 +7,10 @@ Throw number = 1
 Throw test that evaluated to true: gids.extent(1) > maxDerivs
 
 Error: maxDerivs is not large enough to support the number of degrees of freedom per element times the number of time stages.
-[s998638:05110] *** Process received signal ***
-[s998638:05110] Signal: Abort trap: 6 (6)
-[s998638:05110] Signal code:  (0)
-[s998638:05110] *** End of error message ***
+[s998638:57370] *** Process received signal ***
+[s998638:57370] Signal: Abort trap: 6 (6)
+[s998638:57370] Signal code:  (0)
+[s998638:57370] *** End of error message ***
 -------------------------------------------------------
 Primary job  terminated normally, but 1 process returned
 a non-zero exit code. Per user-direction, the job has been aborted.

@@ -41,7 +41,7 @@ ANONYMOUS:
     Workset Size: 1
     Verbosity: 0
     NLtol: 9.99999999999999955e-6
-    MaxNLiter: 1
+    MaxNLiter: 4
     final time: 4.000000000000000e-01
     ddelta t: 1.000000000000000e-01
     numSteps: 4

@@ -725,8 +725,8 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         }
       }
       else { // something went wrong, cut time step and try again
-        soln->store(u, current_time, 0);
-        /*
+        //soln->store(u, current_time, 0);
+        
         current_time -= deltat;
         deltat *= 0.5;
         current_time += deltat;
@@ -739,7 +739,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
           cout << "**** Current time is " << current_time << endl << endl;
           cout << "*******************************************************" << endl << endl << endl;
         }
-         */
+        
       }
     }
   }
