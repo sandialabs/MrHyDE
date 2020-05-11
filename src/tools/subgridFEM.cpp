@@ -314,11 +314,7 @@ void SubGridFEM::setUpSubgridModels() {
   
   boundaryCells.push_back(newbcells);
   
-  //for (size_t bb=0; bb<newbcells.size(); bb++) {
-  //  boundaryCells[0].push_back(newbcells[bb]);
-  //}
   sub_assembler->boundaryCells = boundaryCells;
-  //sub_disc->setIntegrationInfo(cells, boundaryCells, DOF, sub_physics);
   
   sub_solver = Teuchos::rcp( new solver(LocalComm, settings, sub_mesh, sub_disc, sub_physics,
                                         DOF, sub_assembler, sub_params) );
@@ -347,24 +343,19 @@ void SubGridFEM::setUpSubgridModels() {
   /////////////////////////////////////////////////////////////////////////////////////
   
   cost_estimate = 1.0*cells[0].size()*(cells[0][0]->numElem)*time_steps;
-  res = Teuchos::rcp( new LA_MultiVector(sub_solver->LA_owned_map,1)); // reset residual
+  res = Teuchos::rcp( new LA_MultiVector(sub_solver->LA_owned_map,1)); // allocate residual
   J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(sub_solver->LA_overlapped_graph));
-  M = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(sub_solver->LA_overlapped_graph));
   
   if (LocalComm->getSize() > 1) {
-    res_over = Teuchos::rcp( new LA_MultiVector(sub_solver->LA_overlapped_map,1)); // reset residual
+    res_over = Teuchos::rcp( new LA_MultiVector(sub_solver->LA_overlapped_map,1)); // allocate residual
     sub_J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(sub_solver->LA_overlapped_graph));
-    sub_M_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(sub_solver->LA_overlapped_graph));
   }
   else {
     res_over = res;
     sub_J_over = J;
-    sub_M_over = M;
   }
-  u = Teuchos::rcp( new LA_MultiVector(sub_solver->LA_overlapped_map,1)); // reset residual
-  u_dot = Teuchos::rcp( new LA_MultiVector(sub_solver->LA_overlapped_map,1)); // reset residual
-  phi = Teuchos::rcp( new LA_MultiVector(sub_solver->LA_overlapped_map,1)); // reset residual
-  phi_dot = Teuchos::rcp( new LA_MultiVector(sub_solver->LA_overlapped_map,1)); // reset residual
+  u = Teuchos::rcp( new LA_MultiVector(sub_solver->LA_overlapped_map,1));
+  phi = Teuchos::rcp( new LA_MultiVector(sub_solver->LA_overlapped_map,1));
   
   int nmacroDOF = localData[0]->macroGIDs.extent(1);
   d_um = Teuchos::rcp( new LA_MultiVector(sub_solver->LA_owned_map,nmacroDOF)); // reset residual
@@ -1113,7 +1104,6 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
     ScalarT sgtime = prev_time;
     Teuchos::RCP<LA_MultiVector> prev_u = u;
     vector<Teuchos::RCP<LA_MultiVector> > curr_fsol;
-    vector<Teuchos::RCP<LA_MultiVector> > curr_fsol_dot;
     vector<ScalarT> subsolvetimes;
     subsolvetimes.push_back(sgtime);
     if (isAdjoint) {
@@ -1121,7 +1111,6 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
       
       for (int tstep=0; tstep<time_steps; tstep++) {
         Teuchos::RCP<LA_MultiVector> recu = Teuchos::rcp( new LA_MultiVector(sub_solver->LA_overlapped_map,1)); // reset residual
-        Teuchos::RCP<LA_MultiVector> recu_dot = Teuchos::rcp( new LA_MultiVector(sub_solver->LA_overlapped_map,1)); // reset residual
         
         *recu = *u;
         sgtime += macro_deltat/(ScalarT)time_steps;
@@ -1136,13 +1125,10 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
         
         ScalarT lambda_scale = 1.0;//-(current_time-sgtime)/deltat;
         
-        recu_dot->putScalar(0.0);
-        
-        this->subGridNonlinearSolver(recu, recu_dot, phi, phi_dot, Psol[0], currlambda,
+        this->subGridNonlinearSolver(recu, phi, Psol[0], currlambda,
                                      sgtime, isTransient, false, num_active_params, alpha, usernum, false);
         
         curr_fsol.push_back(recu);
-        curr_fsol_dot.push_back(recu_dot);
         
       }
       
@@ -1160,15 +1146,11 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
         
         ScalarT lambda_scale = 1.0;//-(current_time-sgtime)/deltat;
         
-        if (isAdjoint) {
-          phi_dot->putScalar(0.0);
-        }
-        
-        this->subGridNonlinearSolver(curr_fsol[tindex-1], curr_fsol_dot[tindex-1], phi, phi_dot, Psol[0], currlambda,
+        this->subGridNonlinearSolver(curr_fsol[tindex-1], phi, Psol[0], currlambda,
                                      sgtime, isTransient, isAdjoint, num_active_params, alpha, usernum, store_adjPrev);
         
         this->computeSubGridSolnSens(d_u, compute_sens, curr_fsol[tindex-1],
-                                     curr_fsol_dot[tindex-1], phi, phi_dot, Psol[0], currlambda,
+                                     phi, Psol[0], currlambda,
                                      sgtime, isTransient, isAdjoint, num_active_params, alpha, lambda_scale, usernum, subgradient);
         
         this->updateFlux(phi, d_u, lambda, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0/(ScalarT)time_steps);
@@ -1180,8 +1162,8 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
         sgtime += macro_deltat/(ScalarT)time_steps;
         // set du/dt and \lambda
         alpha = (ScalarT)time_steps/macro_deltat;
-        wkset[0]->udot_wts(0) = alpha;
-        wkset[0]->udot_wts(1) = -alpha;
+        wkset[0]->soldot_wts(0) = alpha;
+        wkset[0]->soldot_wts(1) = -alpha;
         
         wkset[0]->alpha = alpha;
         wkset[0]->deltat= 1.0/alpha;
@@ -1190,22 +1172,17 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
         
         ScalarT lambda_scale = 1.0;//-(current_time-sgtime)/deltat;
         
-        u_dot->putScalar(0.0);
         for (size_t b=0; b<cells.size(); b++) {
           for (size_t e=0; e<cells[b].size(); e++) {
             cells[b][e]->resetPrevSoln();
           }
         }
         
-        if (isAdjoint) {
-          phi_dot->putScalar(0.0);
-        }
-        
-        this->subGridNonlinearSolver(u, u_dot, phi, phi_dot, Psol[0], currlambda,
+        this->subGridNonlinearSolver(u, phi, Psol[0], currlambda,
                                      sgtime, isTransient, isAdjoint, num_active_params, alpha, usernum, false);
         
         this->computeSubGridSolnSens(d_u, compute_sens, u,
-                                     u_dot, phi, phi_dot, Psol[0], currlambda,
+                                     phi, Psol[0], currlambda,
                                      sgtime, isTransient, isAdjoint, num_active_params, alpha, lambda_scale, usernum, subgradient);
         
         this->updateFlux(u, d_u, lambda, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0/(ScalarT)time_steps);
@@ -1217,11 +1194,11 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
     
     wkset[0]->deltat = 1.0;
     
-    this->subGridNonlinearSolver(u, u_dot, phi, phi_dot, Psol[0], lambda,
+    this->subGridNonlinearSolver(u, phi, Psol[0], lambda,
                                  current_time, isTransient, isAdjoint, num_active_params, alpha, usernum, false);
     
     this->computeSubGridSolnSens(d_u, compute_sens, u,
-                                 u_dot, phi, phi_dot, Psol[0], lambda,
+                                 phi, Psol[0], lambda,
                                  current_time, isTransient, isAdjoint, num_active_params, alpha, 1.0, usernum, subgradient);
     
     if (isAdjoint) {
@@ -1340,9 +1317,7 @@ void SubGridFEM::sacadoizeParams(const bool & seed_active, const int & num_activ
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
-                                        Teuchos::RCP<LA_MultiVector> & sub_u_dot,
                                         Teuchos::RCP<LA_MultiVector> & sub_phi,
-                                        Teuchos::RCP<LA_MultiVector> & sub_phi_dot,
                                         Teuchos::RCP<LA_MultiVector> & sub_params,
                                         Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                                         const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
@@ -1365,10 +1340,8 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
   while (iter < sub_maxNLiter && resnorm_scaled[0] > sub_NLtol) {
     
     sub_J_over->resumeFill();
-    sub_M_over->resumeFill();
     
     sub_J_over->setAllToScalar(0.0);
-    sub_M_over->setAllToScalar(0.0);
     res_over->putScalar(0.0);
     
     wkset[0]->time = time;
@@ -1384,23 +1357,19 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
       Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverAllocateTimer);
       local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,1);
       local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numDOF);
-      local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,numDOF,numDOF);
+      //local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,numDOF,numDOF);
     }
     {
       Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverSetSolnTimer);
       this->performGather(0, sub_u, 0, 0);
-      //this->performGather(0, sub_u_dot, 1, 0);
       if (isAdjoint) {
         this->performGather(0, sub_phi, 2, 0);
-        //this->performGather(0, sub_phi_dot, 3, 0);
       }
       //this->performGather(usernum, sub_params, 4, 0);
       
       this->performBoundaryGather(0, sub_u, 0, 0);
-      //this->performBoundaryGather(0, sub_u_dot, 1, 0);
       if (isAdjoint) {
         this->performBoundaryGather(0, sub_phi, 2, 0);
-        //this->performBoundaryGather(0, sub_phi_dot, 3, 0);
       }
       
       for (size_t e=0; e < boundaryCells[0].size(); e++) {
@@ -1435,7 +1404,6 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
           }
           for (unsigned int s=0; s<local_J.extent(2); s++) {
             local_J(p,n,s) = 0.0;
-            local_Jdot(p,n,s) = 0.0;
           }
         }
       }
@@ -1445,7 +1413,7 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
         
         cells[0][e]->computeJacRes(time, isTransient, isAdjoint,
                                    true, false, num_active_params, false, false, false,
-                                   local_res, local_J, local_Jdot);
+                                   local_res, local_J);
         
       }
       //KokkosTools::print(local_J);
@@ -1461,15 +1429,10 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
             ScalarT val = local_res(i,row,0);
             res_over->sumIntoGlobalValue(rowIndex,0, val);
             for( size_t col=0; col<GIDs.extent(1); col++ ) {
-              vals[col] = local_J(i,row,col);// + alpha*local_Jdot(i,row,col);
+              vals[col] = local_J(i,row,col);
               cols[col] = GIDs(i,col);
             }
             sub_J_over->sumIntoGlobalValues(rowIndex, cols, vals);
-            for( size_t col=0; col<GIDs.extent(1); col++ ) {
-              vals[col] = local_Jdot(i,row,col);
-            }
-            sub_M_over->sumIntoGlobalValues(rowIndex, cols, vals);
-            
           }
         }
       }
@@ -1484,35 +1447,20 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
     for (size_t e=0; e<boundaryCells[0].size(); e++) {
       
       if (boundaryCells[0][e]->numElem > 0) {
-        //numElem = boundaryCells[0][e]->numElem;
         wkset[0]->localEID = e;
-        //wkset[0]->var_bcs = subgridbcs[usernum];
         
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverAllocateTimer);
           local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",boundaryCells[0][e]->numElem,numDOF,1);
           local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",boundaryCells[0][e]->numElem,numDOF,numDOF);
-          local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",boundaryCells[0][e]->numElem,numDOF,numDOF);
         }
-        /*
-        for (int p=0; p<numElem; p++) {
-          for (int n=0; n<numDOF; n++) {
-            for (unsigned int s=0; s<local_res.extent(2); s++) {
-              local_res(p,n,s) = 0.0;
-            }
-            for (unsigned int s=0; s<local_J.extent(2); s++) {
-              local_J(p,n,s) = 0.0;
-              local_Jdot(p,n,s) = 0.0;
-            }
-          }
-        }*/
-        //KokkosTools::print(local_J);
+        
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverJacResTimer);
           
           boundaryCells[0][e]->computeJacRes(time, isTransient, isAdjoint,
                                              true, false, num_active_params, false, false, false,
-                                             local_res, local_J, local_Jdot);
+                                             local_res, local_J);
           
         }
         
@@ -1531,38 +1479,26 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
               ScalarT val = local_res(i,row,0);
               res_over->sumIntoGlobalValue(rowIndex,0, val);
               for (size_t col=0; col<GIDs.extent(1); col++ ) {
-                vals[col] = local_J(i,row,col);// + alpha*local_Jdot(i,row,col);
+                vals[col] = local_J(i,row,col);
                 cols[col] = GIDs(i,col);
               }
               sub_J_over->sumIntoGlobalValues(rowIndex, cols, vals);
-              for (size_t col=0; col<GIDs.extent(1); col++ ) {
-                vals[col] = local_Jdot(i,row,col);
-              }
-              sub_M_over->sumIntoGlobalValues(rowIndex, cols, vals);
-              
             }
           }
         }
       }
     }
     
-    
     sub_J_over->fillComplete();
-    sub_M_over->fillComplete();
     
     if (LocalComm->getSize() > 1) {
       J->resumeFill();
       J->setAllToScalar(0.0);
       J->doExport(*sub_J_over, *(sub_solver->exporter), Tpetra::ADD);
-      M->resumeFill();
-      M->setAllToScalar(0.0);
-      M->doExport(*sub_M_over, *(sub_solver->exporter), Tpetra::ADD);
       J->fillComplete();
-      M->fillComplete();
     }
     else {
       J = sub_J_over;
-      M = sub_M_over;
     }
     //KokkosTools::print(J);
     
@@ -1657,11 +1593,9 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
       if (isAdjoint) {
         
         sub_phi->update(1.0, *du, 1.0);
-        sub_phi_dot->update(alpha, *du, 1.0);
       }
       else {
         sub_u->update(1.0, *du, 1.0);
-        sub_u_dot->update(alpha, *du, 1.0);
       }
     }
     iter++;
@@ -1679,9 +1613,7 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
 void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
                                         const bool & compute_sens,
                                         Teuchos::RCP<LA_MultiVector> & sub_u,
-                                        Teuchos::RCP<LA_MultiVector> & sub_u_dot,
                                         Teuchos::RCP<LA_MultiVector> & sub_phi,
-                                        Teuchos::RCP<LA_MultiVector> & sub_phi_dot,
                                         Teuchos::RCP<LA_MultiVector> & sub_param,
                                         Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                                         const ScalarT & time,
@@ -1714,10 +1646,8 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
   
   if (multiscale_method != "mortar") {
     this->performGather(0, sub_u, 0, 0);
-    //this->performGather(0, sub_u_dot, 1, 0);
     if (isAdjoint) {
       this->performGather(0, sub_phi, 2, 0);
-      //this->performGather(0, sub_phi_dot, 3, 0);
     }
     for (size_t e=0; e < cells[0].size(); e++) {
       cells[0][e]->aux = lambda;
@@ -1725,10 +1655,8 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
   }
   else {
     this->performBoundaryGather(0, sub_u, 0, 0);
-    //this->performBoundaryGather(0, sub_u_dot, 1, 0);
     if (isAdjoint) {
       this->performBoundaryGather(0, sub_phi, 2, 0);
-      //this->performBoundaryGather(0, sub_phi_dot, 3, 0);
     }
     for (size_t e=0; e < boundaryCells[0].size(); e++) {
       boundaryCells[0][e]->aux = lambda;
@@ -1756,7 +1684,6 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
       local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,snumDOF,num_active_params);
       
       local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,snumDOF,snumDOF);
-      local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,snumDOF,snumDOF);
       
       for (size_t e=0; e<cells[0].size(); e++) {
         
@@ -1770,14 +1697,13 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
             }
             for (unsigned int s=0; s<local_J.extent(2); s++) {
               local_J(p,n,s) = 0.0;
-              local_Jdot(p,n,s) = 0.0;
             }
           }
         }
         
         cells[0][e]->computeJacRes(time, isTransient, isAdjoint,
                                    false, true, num_active_params, false, false, false,
-                                   local_res, local_J, local_Jdot);
+                                   local_res, local_J);
         
         Kokkos::View<GO**,HostDevice>  GIDs = cells[0][e]->GIDs;
         for (unsigned int i=0; i<GIDs.extent(0); i++) {
@@ -1810,8 +1736,6 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
         local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,snumDOF,num_active_params);
         
         local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,snumDOF,snumDOF);
-        local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,snumDOF,snumDOF);
-        
         
         wkset[0]->localEID = e;
         //wkset[0]->var_bcs = subgridbcs[usernum];
@@ -1825,14 +1749,13 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
             }
             for (unsigned int s=0; s<local_J.extent(2); s++) {
               local_J(p,n,s) = 0.0;
-              local_Jdot(p,n,s) = 0.0;
             }
           }
         }
         
         boundaryCells[0][e]->computeJacRes(time, isTransient, isAdjoint,
                                                  false, true, num_active_params, false, false, false,
-                                                 local_res, local_J, local_Jdot);
+                                                 local_res, local_J);
         
         Kokkos::View<GO**,HostDevice>  GIDs = boundaryCells[usernum][e]->GIDs;
         for (unsigned int i=0; i<GIDs.extent(0); i++) {
@@ -1872,10 +1795,6 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
         
         local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,snumDOF,1);
         local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,snumDOF,anumDOF);
-        local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,snumDOF,anumDOF);
-        
-        //volume assembly
-        
         
         wkset[0]->localEID = e;
         
@@ -1889,14 +1808,13 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
             }
             for (unsigned int s=0; s<local_J.extent(2); s++) {
               local_J(p,n,s) = 0.0;
-              local_Jdot(p,n,s) = 0.0;
             }
           }
         }
         
         cells[0][e]->computeJacRes(time, isTransient, isAdjoint,
                                    true, false, num_active_params, false, true, false,
-                                   local_res, local_J, local_Jdot);
+                                   local_res, local_J);
         Kokkos::View<GO**,HostDevice> GIDs = cells[0][e]->GIDs;
         Kokkos::View<GO**,HostDevice> aGIDs = cells[0][e]->auxGIDs;
         //vector<vector<int> > aoffsets = cells[0][e]->auxoffsets;
@@ -1922,15 +1840,6 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
         
         local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,snumDOF,1);
         local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,snumDOF,anumDOF);
-        local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,snumDOF,anumDOF);
-        
-        //volume assembly
-        
-        
-        //wkset[0]->localEID = e;
-        //wkset[0]->var_bcs = subgridbcs[usernum];
-        
-        //cells[usernum][e]->updateData();
         
         for (int p=0; p<numElem; p++) {
           for (int n=0; n<snumDOF; n++) {
@@ -1939,20 +1848,15 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
             }
             for (unsigned int s=0; s<local_J.extent(2); s++) {
               local_J(p,n,s) = 0.0;
-              local_Jdot(p,n,s) = 0.0;
             }
           }
         }
         
         boundaryCells[0][e]->computeJacRes(time, isTransient, isAdjoint,
                                            true, false, num_active_params, false, true, false,
-                                           local_res, local_J, local_Jdot);
+                                           local_res, local_J);
         Kokkos::View<GO**,HostDevice> GIDs = boundaryCells[0][e]->GIDs;
         Kokkos::View<GO**,HostDevice> aGIDs = boundaryCells[0][e]->auxGIDs;
-        //vector<vector<int> > aoffsets = boundaryCells[usernum][e]->auxoffsets;
-        //KokkosTools::print(local_J);
-        //KokkosTools::print(GIDs);
-        //KokkosTools::print(aGIDs);
         for (unsigned int i=0; i<GIDs.extent(0); i++) {
           for (size_t row=0; row<GIDs.extent(1); row++ ) {
             int rowIndex = GIDs(i,row);
@@ -1966,14 +1870,12 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
       }
     }
     
-    //M->apply(*d_sub_u,*d_sub_u_prev);
     if (LocalComm->getSize() > 1) {
       d_sub_res->doExport(*d_sub_res_over, *(sub_solver->exporter), Tpetra::ADD);
     }
     else {
       d_sub_res = d_sub_res_over;
     }
-    //d_sub_res->update(1.0*alpha, *d_sub_u_prev, 1.0);
     
     if (useDirect) {
       

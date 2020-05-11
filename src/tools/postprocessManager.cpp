@@ -1281,7 +1281,6 @@ vector<ScalarT> PostprocessManager::computeParameterSensitivities() {
     if (solve->isTransient) {
       current_time = solve->soln->times[0][timeiter+1];
       bool fnd = solve->soln->extract(u,timeiter+1);
-      bool fnddot = solve->soln_dot->extract(u_dot,timeiter+1);
       bool fndadj = solve->adj_soln->extract(phi,nsteps-timeiter);
       auto phi_kv = phi->getLocalView<HostDevice>();
       
@@ -1315,9 +1314,9 @@ vector<ScalarT> PostprocessManager::computeParameterSensitivities() {
     res_over->putScalar(0.0);
     
     //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, false, true, false, res_over, J_over);
-    assembler->assembleJacRes(u, u_dot, u, u_dot, alpha, beta, false, true, false,
+    assembler->assembleJacRes(u, u, false, true, false,
                               res_over, J_over, solve->isTransient, current_time, false, false,
-                              params->num_active_params, params->Psol[0], false);
+                              params->num_active_params, params->Psol[0], false, solve->deltat);
     
     res->putScalar(0.0);
     res->doExport(*res_over, *(solve->exporter), Tpetra::ADD);
@@ -1374,7 +1373,6 @@ vector<ScalarT> PostprocessManager::computeDiscretizedSensitivities() {
   vector_RCP u = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
   vector_RCP phi = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
   vector_RCP a2 = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,1)); // adjoint solution
-  vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // previous solution (can be either fwd or adj)
   
   //auto u_kv = u->getLocalView<HostDevice>();
   auto a2_kv = a2->getLocalView<HostDevice>();
@@ -1400,7 +1398,6 @@ vector<ScalarT> PostprocessManager::computeDiscretizedSensitivities() {
     if (solve->isTransient) {
       current_time = solve->soln->times[0][timeiter+1];
       bool fnd = solve->soln->extract(u,timeiter+1);
-      bool fnddot = solve->soln_dot->extract(u_dot,timeiter+1);
       bool fndadj = solve->adj_soln->extract(phi,nsteps-timeiter);
       auto phi_kv = phi->getLocalView<HostDevice>();
       
@@ -1440,9 +1437,9 @@ vector<ScalarT> PostprocessManager::computeDiscretizedSensitivities() {
     matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(params->param_overlapped_map); // reset Jacobian
     matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(params->param_owned_map); // reset Jacobian
     //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, true, false, true, res_over, J_over);
-    assembler->assembleJacRes(u, u_dot, u, u_dot, alpha, beta, true, false, true,
+    assembler->assembleJacRes(u, u, true, false, true,
                               res_over, J_over, solve->isTransient, current_time, false, false,
-                              params->num_active_params, params->Psol[0], false);
+                              params->num_active_params, params->Psol[0], false, solve->deltat);
     
     J_over->fillComplete(solve->LA_owned_map, params->param_owned_map);
     vector_RCP sens_over = Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1)); // reset residual

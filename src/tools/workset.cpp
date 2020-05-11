@@ -54,6 +54,7 @@ celltopo(topo), var_bcs(var_bcs_)  { //, timeInt(timeInt_) {
    ref_ip = newip;
    */
   
+  deltat = 1.0;
   // Integration information
   numip = ref_ip.extent(0);
   numsideip = ref_side_ip.extent(0);
@@ -1226,18 +1227,16 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
             else {
               uval = u(e,kk,i);
             }
-            AD u_dotval = udot_wts(0)*uval;
-            if (udot_wts.extent(0)>1) {
-              for (int s=1; s<udot_wts.extent(0); s++) {
-                u_dotval += udot_wts(s)*u_prev(e,kk,i,s-1);
+            AD u_dotval = soldot_wts(0)*uval;
+            if (soldot_wts.extent(0)>1) {
+              for (int s=1; s<soldot_wts.extent(0); s++) {
+                u_dotval += soldot_wts(s)*u_prev(e,kk,i,s-1);
               }
             }
             if (seedwhat(0) == 2) {
               ScalarT val = u_dotval.val();
               u_dotval = AD(maxDerivs,offsets(kk,i),val);
             }
-            //cout << "seedwhat = " << seedwhat(0) << endl;
-            //cout << "udotval = " << u_dotval << endl;
             
             for (size_t j=0; j<kbasis_uw.extent(2); j++ ) {
               local_soln(e,kk,j,0) += uval*kbasis_uw(e,i,j);
@@ -1262,10 +1261,10 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
             else {
               uval = u(e,kk,i);
             }
-            AD u_dotval = udot_wts(0)*uval;
-            if (udot_wts.extent(0)>1) {
-              for (int s=1; s<udot_wts.extent(0); s++) {
-                u_dotval += udot_wts(s)*u_prev(e,kk,i,s);
+            AD u_dotval = soldot_wts(0)*uval;
+            if (soldot_wts.extent(0)>1) {
+              for (int s=1; s<soldot_wts.extent(0); s++) {
+                u_dotval += soldot_wts(s)*u_prev(e,kk,i,s);
               }
             }
             
@@ -1292,10 +1291,10 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
               uval = u(e,kk,i);
             }
             
-            AD u_dotval = udot_wts(0)*uval;
-            if (udot_wts.extent(0)>1) {
-              for (int s=1; s<udot_wts.extent(0); s++) {
-                u_dotval += udot_wts(s)*u_prev(e,kk,i,s);
+            AD u_dotval = soldot_wts(0)*uval;
+            if (soldot_wts.extent(0)>1) {
+              for (int s=1; s<soldot_wts.extent(0); s++) {
+                u_dotval += soldot_wts(s)*u_prev(e,kk,i,s);
               }
             }
             
@@ -1325,10 +1324,10 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
               uval = u(e,kk,i);
             }
             
-            AD u_dotval = udot_wts(0)*uval;
-            if (udot_wts.extent(0)>1) {
-              for (int s=1; s<udot_wts.extent(0); s++) {
-                u_dotval += udot_wts(s)*u_prev(e,kk,i,s);
+            AD u_dotval = soldot_wts(0)*uval;
+            if (soldot_wts.extent(0)>1) {
+              for (int s=1; s<soldot_wts.extent(0); s++) {
+                u_dotval += soldot_wts(s)*u_prev(e,kk,i,s);
               }
             }
             

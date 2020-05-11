@@ -98,9 +98,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  int nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
-                      vector_RCP & phi, vector_RCP & phi_dot,
-                      const ScalarT & alpha, const ScalarT & beta);
+  int nonlinearSolver(vector_RCP & u, vector_RCP & phi);
   
   // ========================================================================================
   // ========================================================================================
@@ -110,9 +108,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  int explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot,
-                           vector_RCP & phi, vector_RCP & phi_dot,
-                           matrix_RCP & mass);
+  int explicitRKTimeSolver(vector_RCP & u, vector_RCP & phi, matrix_RCP & mass);
   
   // ========================================================================================
   // ========================================================================================
@@ -122,9 +118,8 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
-                            vector_RCP & a2, vector<ScalarT> & gradient,
-                            const ScalarT & alpha, const ScalarT & beta);
+  void computeSensitivities(vector_RCP & u,
+                            vector_RCP & a2, vector<ScalarT> & gradient);
   
   
   // ========================================================================================
@@ -211,7 +206,7 @@ public:
   Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver;
   bool have_symbolic_factor;
   
-  Teuchos::RCP<SolutionStorage<LA_MultiVector> > soln, adj_soln, soln_dot;
+  Teuchos::RCP<SolutionStorage<LA_MultiVector> > soln, adj_soln;
   
   //vector<vector_RCP> fwdsol;
   //vector<vector_RCP> adjsol;

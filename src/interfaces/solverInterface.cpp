@@ -33,7 +33,6 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   
   soln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
   adj_soln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
-  soln_dot = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
   
   // Get the required information from the settings
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
@@ -64,6 +63,9 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   isTransient = false;
   if (solver_type == "transient") {
     isTransient = true;
+  }
+  if (!isTransient) {
+    deltat = 1.0;
   }
   timeImplicit = true;
   if (TDsolver != "implicit") {
@@ -254,22 +256,36 @@ void solver::finalizeWorkset() {
   int nstages = 1; // TMW: should we distinguish between steps and stages?
   
   if (isTransient) { // Hard-coded for BWE for now
-    Kokkos::View<ScalarT*,AssemblyDevice> udot_wts("weights to compute u_dot",2);
-    Kokkos::View<ScalarT*,HostDevice>::HostMirror host_wts = Kokkos::create_mirror_view(udot_wts);
-    host_wts(0) = 1.0/deltat;
-    host_wts(1) = -1.0/deltat;
-    Kokkos::deep_copy(udot_wts,host_wts);
+    Kokkos::View<ScalarT*,AssemblyDevice> sol_wts("weights to compute u",2);
+    Kokkos::View<ScalarT*,HostDevice>::HostMirror host_wts = Kokkos::create_mirror_view(sol_wts);
+    host_wts(0) = 1.0;
+    host_wts(1) = 0.0;
+    Kokkos::deep_copy(sol_wts,host_wts);
+    
+    Kokkos::View<ScalarT*,AssemblyDevice> soldot_wts("weights to compute u_dot",2);
+    Kokkos::View<ScalarT*,HostDevice>::HostMirror hostdot_wts = Kokkos::create_mirror_view(soldot_wts);
+    hostdot_wts(0) = 1.0/deltat;
+    hostdot_wts(1) = -1.0/deltat;
+    Kokkos::deep_copy(soldot_wts,hostdot_wts);
+    
     for (size_t b=0; b<assembler->cells.size(); b++) {
-      assembler->wkset[b]->udot_wts = udot_wts;
+      assembler->wkset[b]->sol_wts = sol_wts;
+      assembler->wkset[b]->soldot_wts = soldot_wts;
     }
   }
   else { // for steady state solves, u_dot = 0.0*u
-    Kokkos::View<ScalarT*,AssemblyDevice> udot_wts("weights to compute u_dot",1);
-    Kokkos::View<ScalarT*,HostDevice>::HostMirror host_wts = Kokkos::create_mirror_view(udot_wts);
+    Kokkos::View<ScalarT*,AssemblyDevice> sol_wts("weights to compute u",1);
+    Kokkos::View<ScalarT*,HostDevice>::HostMirror host_wts = Kokkos::create_mirror_view(sol_wts);
     host_wts(0) = 0.0;
-    Kokkos::deep_copy(udot_wts,host_wts);
+    Kokkos::deep_copy(sol_wts,host_wts);
+    
+    Kokkos::View<ScalarT*,AssemblyDevice> soldot_wts("weights to compute u_dot",1);
+    Kokkos::View<ScalarT*,HostDevice>::HostMirror hostdot_wts = Kokkos::create_mirror_view(soldot_wts);
+    hostdot_wts(0) = 0.0;
+    Kokkos::deep_copy(soldot_wts,host_wts);
     for (size_t b=0; b<assembler->cells.size(); b++) {
-      assembler->wkset[b]->udot_wts = udot_wts;
+      assembler->wkset[b]->sol_wts = sol_wts;
+      assembler->wkset[b]->soldot_wts = soldot_wts;
     }
   }
   
@@ -473,7 +489,7 @@ void solver::forwardModel(DFAD & obj) {
   vector_RCP zero_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
   if (solver_type == "steady-state") {
     
-    this->nonlinearSolver(u, zero_soln, zero_soln, zero_soln, 0.0, 1.0);
+    this->nonlinearSolver(u, zero_soln);
     if (compute_objective) {
       obj = this->computeObjective(u, 0.0, 0);
     }
@@ -535,7 +551,7 @@ void solver::forwardModel_fr(DFAD & obj, ScalarT yt, ScalarT st) {
   vector_RCP zero_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
   
   if (solver_type == "steady-state") {
-    this->nonlinearSolver(u, zero_soln, zero_soln, zero_soln, 0.0, 1.0);
+    this->nonlinearSolver(u, zero_soln);
     soln->store(u, current_time, 0);
     if (compute_objective) {
       obj = this->computeObjective(u, 0.0, 0);
@@ -573,9 +589,9 @@ void solver::adjointModel(vector<ScalarT> & gradient) {
   if (solver_type == "steady-state") {
     vector_RCP u;
     bool fnd = soln->extract(u, current_time);
-    this->nonlinearSolver(u, zero_soln, phi, zero_soln, 0.0, 1.0);
+    this->nonlinearSolver(u, phi);
     
-    this->computeSensitivities(u, zero_soln, phi, gradient, 0.0, 1.0);
+    this->computeSensitivities(u, phi, gradient);
     
   }
   else if (solver_type == "transient") {
@@ -652,9 +668,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
   if (!useadjoint) { // forward solve - adaptive time stepping
     is_final_time = false;
     vector_RCP u = initial;
-    vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
     vector_RCP zero_vec = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    u_dot->putScalar(0.0);
     zero_vec->putScalar(0.0);
     if (usestrongDBCs) {
       this->setDirichlet(u);
@@ -668,7 +682,6 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     double timetol = end_time*1.0e-6; // just need to get close enough to final time
     while (current_time < (end_time-timetol) && numCuts<=maxCuts) {
       
-      u_dot->putScalar(0.0);
       assembler->resetPrevSoln();
       
       ////////////////////////////////////////////////////////////////////////
@@ -696,10 +709,10 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
       int status= 1;
       if (timeImplicit) {
         current_time += deltat;
-        status = this->nonlinearSolver(u, u_dot, zero_vec, zero_vec, alpha, beta);
+        status = this->nonlinearSolver(u, zero_vec);
       }
       else {
-        status = this->explicitRKTimeSolver(u, u_dot, zero_vec, zero_vec, mass);
+        status = this->explicitRKTimeSolver(u, zero_vec, mass);
       }
       
       if (status == 0) { // NL solver converged
@@ -707,7 +720,6 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         // TMW: currently allowing storage of all solutions
         // Need to implement some form of checkpointing
         soln->store(u, current_time, 0);
-        //soln_dot->store(u_dot, current_time, 0);
         
         if (allow_remesh) {
           mesh->remesh(u, assembler->cells);
@@ -749,10 +761,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     
     vector_RCP u = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
     vector_RCP u_prev = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
     vector_RCP phi = initial;
-    vector_RCP phi_dot = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    phi_dot->putScalar(0.0);
     
     size_t numsteps = soln->times[0].size()-1;
     
@@ -761,7 +770,6 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     
     for (size_t timeiter = 0; timeiter<numsteps; timeiter++) {
       size_t cindex = numsteps-timeiter;
-      phi_dot->putScalar(0.0);
       current_time = soln->times[0][cindex];
       
       if(Comm->getRank() == 0 && verbosity > 0) {
@@ -781,23 +789,15 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         assembler->resetPrevSoln();
       }
       
-      auto u_kv = u->getLocalView<HostDevice>();
-      auto u_prev_kv = u_prev->getLocalView<HostDevice>();
-      auto u_dot_kv = u_dot->getLocalView<HostDevice>();
-      for( size_t i=0; i<LA_ownedAndShared.size(); i++ ) {
-        u_dot_kv(i,0) = alpha*u_kv(i,0) - alpha*u_prev_kv(i,0);
-      }
-      int status = this->nonlinearSolver(u, u_dot, phi, phi_dot, alpha, beta);
+      int status = this->nonlinearSolver(u, phi);
       
       // Storing the adjoint solution should be made optional
       // We are computing the sensitivities as we go, so storage isn't always necessary
       adj_soln->store(phi,current_time,0);
       
-      this->computeSensitivities(u,u_dot,phi,gradient,alpha,beta);
+      this->computeSensitivities(u,phi,gradient);
       
       is_final_time = false;
-      
-      
       
     }
   }
@@ -814,9 +814,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
 // ========================================================================================
 
 
-int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
-                            vector_RCP & phi, vector_RCP & phi_dot,
-                            const ScalarT & alpha, const ScalarT & beta) {
+int solver::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
   
   if (milo_debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -867,9 +865,9 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
     else
       store_adjPrev = false;
     
-    assembler->assembleJacRes(u, u_dot, phi, phi_dot, alpha, beta, build_jacobian, false, false,
+    assembler->assembleJacRes(u, phi, build_jacobian, false, false,
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
-                              params->num_active_params, params->Psol[0], is_final_time);
+                              params->num_active_params, params->Psol[0], is_final_time, deltat);
     
     J_over->fillComplete();
     
@@ -915,11 +913,9 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & u_dot,
       
       if (useadjoint) {
         phi->update(1.0, *du_over, 1.0);
-        phi_dot->update(alpha, *du_over, 1.0);
       }
       else {
         u->update(1.0, *du_over, 1.0);
-        u_dot->update(alpha, *du_over, 1.0);
       }
     }
     NLiter++; // increment number of iterations
@@ -987,7 +983,7 @@ void solver::setButcherTableau() {
 // ========================================================================================
 // ========================================================================================
 
-int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot, vector_RCP & phi, vector_RCP & phi_dot, matrix_RCP & mass) {
+int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & phi, matrix_RCP & mass) {
   
   if (milo_debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -1043,9 +1039,9 @@ int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & u_dot, vector_RCP 
     J_over->setAllToScalar(0.0);
     bool store_adjPrev = false;
     
-    assembler->assembleJacRes(u_s, u_dot, phi, phi_dot, alpha, beta, build_jacobian, false, false,
+    assembler->assembleJacRes(u_s, phi, build_jacobian, false, false,
                               res_over, J_over, isTransient, stage_time, useadjoint, store_adjPrev,
-                              params->num_active_params, params->Psol[0], is_final_time);
+                              params->num_active_params, params->Psol[0], is_final_time, deltat);
     
     // Add mass matrix inversion here
     res->putScalar(0.0);
@@ -1263,14 +1259,12 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
 // ========================================================================================
 // ========================================================================================
 
-void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
-                          vector_RCP & a2, vector<ScalarT> & gradient,
-                          const ScalarT & alpha, const ScalarT & beta) {
+void solver::computeSensitivities(vector_RCP & u,
+                          vector_RCP & a2, vector<ScalarT> & gradient) {
   
   DFAD obj_sens = this->computeObjective(u, current_time, 0);
   
   auto u_kv = u->getLocalView<HostDevice>();
-  auto u_dot_kv = u_dot->getLocalView<HostDevice>();
   auto a2_kv = a2->getLocalView<HostDevice>();
   
   if (params->num_active_params > 0) {
@@ -1291,9 +1285,9 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
     bool curradjstatus = useadjoint;
     useadjoint = false;
     
-    assembler->assembleJacRes(u, u_dot, u, u_dot, alpha, beta, false, true, false,
+    assembler->assembleJacRes(u, u, false, true, false,
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
-                              params->num_active_params, params->Psol[0], is_final_time);
+                              params->num_active_params, params->Psol[0], is_final_time, deltat);
     useadjoint = curradjstatus;
     
     res->putScalar(0.0);
@@ -1363,9 +1357,9 @@ void solver::computeSensitivities(vector_RCP & u, vector_RCP & u_dot,
     J_over->setAllToScalar(0.0);
     
     //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, true, false, true, res_over, J_over);
-    assembler->assembleJacRes(u, u_dot, u, u_dot, alpha, beta, true, false, true,
+    assembler->assembleJacRes(u, u, true, false, true,
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
-                              params->num_active_params, params->Psol[0], is_final_time);
+                              params->num_active_params, params->Psol[0], is_final_time, deltat);
     J_over->fillComplete(LA_owned_map, params->param_owned_map);
     
     vector_RCP sens_over = Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1)); // reset residual

@@ -347,8 +347,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
                          const int & num_active_params, const bool & compute_disc_sens,
                          const bool & compute_aux_sens, const bool & store_adjPrev,
                          Kokkos::View<ScalarT***,UnifiedDevice> local_res,
-                         Kokkos::View<ScalarT***,UnifiedDevice> local_J,
-                         Kokkos::View<ScalarT***,UnifiedDevice> local_Jdot) {
+                         Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Compute the local contribution to the global residual and Jacobians
@@ -506,52 +505,12 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
     
   }
   
-  /*
-  {
-    Teuchos::TimeMonitor localtimer(*transientResidualTimer);
-    if (isTransient && compute_jacobian && !cellData->multiscale) {
-      if (compute_jacobian) {
-        if (compute_disc_sens) {
-          seedwhat(0) = 3;
-          this->computeSolnVolIP(seedwhat);
-        }
-        else if (compute_aux_sens) {
-          seedwhat(0) = 4;
-          this->computeSolnVolIP(seedwhat);
-        }
-        else {
-          seedwhat(0) = 2;
-          this->computeSolnVolIP(seedwhat);
-        }
-      }
-      else {
-        seedwhat(0) = 0;
-        this->computeSolnVolIP(seedwhat);
-      }
-      wkset->resetResidual();//res.initialize(0.0);// = FCAD(GIDs.size());
-      
-      
-      // evaluate the local solutions at the volumetric integration points
-      
-      cellData->physics_RCP->volumeResidual(cellData->myBlock);
-      
-      // Update the local transient Jacobian
-      if (compute_disc_sens) {
-        this->updateParamJacDot(local_Jdot);
-      }
-      else if (compute_aux_sens) {
-        //  this->updateAuxJacDot(wkset->res);
-      }
-      else {
-        this->updateJacDot(isAdjoint, local_Jdot);
-      }
-    }
-  }
-  */
-  
   {
     Teuchos::TimeMonitor localtimer(*adjointResidualTimer);
     // Update residual (adjoint mode)
+    // Adjoint residual: -dobj/du - J^T * phi + 1/dt*M^T * phi_prev
+    // J = 1/dtM + A
+    // adj_prev stores 1/dt*M^T * phi_prev where M is evaluated at appropriate time
     if (isAdjoint) {
       if (!(cellData->mortar_objective)) {
         for (int w=1; w < cellData->dimension+2; w++) {
@@ -614,15 +573,12 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
         if (isTransient) {
           seedwhat(0) = 2;
           this->computeSolnVolIP(seedwhat);
-          wkset->resetResidual();//res.initialize(0.0);// = FCAD(GIDs.size());
-          
-          
-          // evaluate the local solutions at the volumetric integration points
+          wkset->resetResidual();
           
           cellData->physics_RCP->volumeResidual(cellData->myBlock);
           Kokkos::View<ScalarT***,UnifiedDevice> Jdot("temporary fix for transient adjoint",
                                                       local_J.extent(0), local_J.extent(1), local_J.extent(2));
-          this->updateJacDot(isAdjoint, Jdot);
+          this->updateJac(isAdjoint, Jdot);
           //KokkosTools::print(Jdot);
           for (int e=0; e<numElem; e++) {
             for (int n=0; n<index.extent(1); n++) {
@@ -750,58 +706,6 @@ void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDe
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Use the AD res to update the scalarT Jdot
-///////////////////////////////////////////////////////////////////////////////////////
-
-void cell::updateJacDot(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
-  
-  Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
-  Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
-  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
-  
-  if (useadjoint) {
-    parallel_for(RangePolicy<AssemblyExec>(0,local_Jdot.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<index.extent(1); n++) {
-        for (int j=0; j<numDOF(n); j++) {
-          for (int m=0; m<index.extent(1); m++) {
-            for (int k=0; k<numDOF(m); k++) {
-              local_Jdot(e,offsets(m,k),offsets(n,j)) += res_AD(e,offsets(n,j)).fastAccessDx(offsets(m,k));
-            }
-          }
-        }
-      }
-    });
-  }
-  else {
-    parallel_for(RangePolicy<AssemblyExec>(0,local_Jdot.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<index.extent(1); n++) {
-        for (int j=0; j<numDOF(n); j++) {
-          for (int m=0; m<index.extent(1); m++) {
-            for (int k=0; k<numDOF(m); k++) {
-              local_Jdot(e,offsets(n,j),offsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(offsets(m,k));
-            }
-          }
-        }
-      }
-    });
-  }
-  bool lumpmass = false;
-  /* // TMW: Commented this out since have it hard-coded to false
-   if (lumpmass) {
-   FC Jdotold = local_Jdot;
-   local_Jdot.initialize(0.0);
-   //his->resetJacDot();
-   for (int e=0; e<numElem; e++) {
-   for (int n=0; n<GIDs[e].size(); n++) {
-   for (int m=0; m<GIDs[e].size(); m++) {
-   local_Jdot(e,n,n) += Jdotold(e,n,m);
-   }
-   }
-   }
-   }*/
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
 // Use the AD res to update the scalarT Jparam
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -827,31 +731,6 @@ void cell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Use the AD res to update the scalarT Jparamdot
-///////////////////////////////////////////////////////////////////////////////////////
-
-void cell::updateParamJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
-  
-  Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
-  Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
-  Kokkos::View<int**,AssemblyDevice> paramoffsets = wkset->paramoffsets;
-  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
-  Kokkos::View<LO*,UnifiedDevice> numParamDOF = cellData->numParamDOF;
-  
-  parallel_for(RangePolicy<AssemblyExec>(0,local_Jdot.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    for (int n=0; n<index.extent(1); n++) {
-      for (int j=0; j<numDOF(n); j++) {
-        for (int m=0; m<paramindex.extent(1); m++) {
-          for (int k=0; k<numParamDOF(m); k++) {
-            local_Jdot(e,offsets(n,j),paramoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(paramoffsets(m,k));
-          }
-        }
-      }
-    }
-  });
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
 // Use the AD res to update the scalarT Jaux
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -868,30 +747,6 @@ void cell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
         for (int m=0; m<auxindex.extent(1); m++) {
           for (int k=0; k<numAuxDOF(m); k++) {
             local_J(e,offsets(n,j),auxoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets(m,k));
-          }
-        }
-      }
-    }
-  });
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
-// Use the AD res to update the scalarT Jparamdot
-///////////////////////////////////////////////////////////////////////////////////////
-
-void cell::updateAuxJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
-  
-  Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
-  Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
-  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
-  Kokkos::View<LO*,UnifiedDevice> numAuxDOF = cellData->numAuxDOF;
-  
-  parallel_for(RangePolicy<AssemblyExec>(0,local_Jdot.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    for (int n=0; n<index.extent(1); n++) {
-      for (int j=0; j<numDOF(n); j++) {
-        for (int m=0; m<auxindex.extent(1); m++) {
-          for (int k=0; k<numAuxDOF(m); k++) {
-            local_Jdot(e,offsets(n,j),auxoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets(m,k));
           }
         }
       }

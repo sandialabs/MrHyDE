@@ -108,8 +108,8 @@ public:
   // Subgrid Nonlinear Solver
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u, Teuchos::RCP<LA_MultiVector> & sub_u_dot,
-                              Teuchos::RCP<LA_MultiVector> & sub_phi, Teuchos::RCP<LA_MultiVector> & sub_phi_dot,
+  void subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
+                              Teuchos::RCP<LA_MultiVector> & sub_phi,
                               Teuchos::RCP<LA_MultiVector> & sub_params, Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                               const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                               const int & num_active_params, const ScalarT & alpha, const int & usernum,
@@ -121,8 +121,8 @@ public:
   //////////////////////////////////////////////////////////////
   
   void computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u, const bool & compute_sens,
-                              Teuchos::RCP<LA_MultiVector> & sub_u, Teuchos::RCP<LA_MultiVector> & sub_u_dot,
-                              Teuchos::RCP<LA_MultiVector> & sub_phi, Teuchos::RCP<LA_MultiVector> & sub_phi_dot,
+                              Teuchos::RCP<LA_MultiVector> & sub_u,
+                              Teuchos::RCP<LA_MultiVector> & sub_phi,
                               Teuchos::RCP<LA_MultiVector> & sub_param, Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                               const ScalarT & time,
                               const bool & isTransient, const bool & isAdjoint, const int & num_active_params, const ScalarT & alpha,
@@ -289,10 +289,10 @@ public:
   
   // Linear algebra / solver objects
   Teuchos::RCP<LA_Map> param_overlapped_map;
-  Teuchos::RCP<LA_MultiVector> res, res_over, d_um, du, du_glob;//, d_up;//,
-  Teuchos::RCP<LA_MultiVector> u, u_dot, phi, phi_dot;
+  Teuchos::RCP<LA_MultiVector> res, res_over, d_um, du, du_glob;
+  Teuchos::RCP<LA_MultiVector> u, phi;
   Teuchos::RCP<LA_MultiVector> d_sub_res_overm, d_sub_resm, d_sub_u_prevm, d_sub_u_overm;
-  Teuchos::RCP<LA_CrsMatrix>  J, sub_J_over, M, sub_M_over;
+  Teuchos::RCP<LA_CrsMatrix>  J, sub_J_over;
   
   Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver;
   Teuchos::RCP<LA_MultiVector> LA_rhs, LA_lhs;

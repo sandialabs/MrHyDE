@@ -105,8 +105,7 @@ public:
                      const int & num_active_params, const bool & compute_disc_sens,
                      const bool & compute_aux_sens, const bool & store_adjPrev,
                      Kokkos::View<ScalarT***,UnifiedDevice> res,
-                     Kokkos::View<ScalarT***,UnifiedDevice> local_J,
-                     Kokkos::View<ScalarT***,UnifiedDevice> local_Jdot);
+                     Kokkos::View<ScalarT***,UnifiedDevice> local_J);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT res

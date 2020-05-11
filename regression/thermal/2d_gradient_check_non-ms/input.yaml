@@ -1,6 +1,8 @@
 %YAML 1.1
 ---
 ANONYMOUS:
+  verbosity: 0
+  debug level: 0
   Mesh Settings File: input_mesh.yaml
   Physics: 
     solve_thermal: true

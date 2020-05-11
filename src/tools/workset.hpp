@@ -175,7 +175,8 @@ class workset {
   Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets;
   vector<string> varlist;
   //Teuchos::RCP<TimeIntegrator> timeInt;
-  Kokkos::View<ScalarT*,AssemblyDevice> udot_wts;
+  // ScalarT wts to compute u and udot for transient problems
+  Kokkos::View<ScalarT*,AssemblyDevice> sol_wts, soldot_wts;
   
   vector<int> usebasis, paramusebasis;
   bool isAdjoint, onlyTransient, isTransient;

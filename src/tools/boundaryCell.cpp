@@ -253,8 +253,7 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
                                  const int & num_active_params, const bool & compute_disc_sens,
                                  const bool & compute_aux_sens, const bool & store_adjPrev,
                                  Kokkos::View<ScalarT***,UnifiedDevice> local_res,
-                                 Kokkos::View<ScalarT***,UnifiedDevice> local_J,
-                                 Kokkos::View<ScalarT***,UnifiedDevice> local_Jdot) {
+                                 Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Compute the local contribution to the global residual and Jacobians
@@ -440,58 +439,6 @@ void BoundaryCell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,As
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Use the AD res to update the scalarT Jdot
-///////////////////////////////////////////////////////////////////////////////////////
-
-void BoundaryCell::updateJacDot(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
-  
-  Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
-  Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
-  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
-  
-  if (useadjoint) {
-    parallel_for(RangePolicy<AssemblyExec>(0,local_Jdot.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (unsigned int n=0; n<index.extent(1); n++) {
-        for (int j=0; j<numDOF(n); j++) {
-          for (unsigned int m=0; m<index.extent(1); m++) {
-            for (int k=0; k<numDOF(m); k++) {
-              local_Jdot(e,offsets(m,k),offsets(n,j)) += res_AD(e,offsets(n,j)).fastAccessDx(offsets(m,k));
-            }
-          }
-        }
-      }
-    });
-  }
-  else {
-    parallel_for(RangePolicy<AssemblyExec>(0,local_Jdot.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (unsigned int n=0; n<index.extent(1); n++) {
-        for (int j=0; j<numDOF(n); j++) {
-          for (unsigned int m=0; m<index.extent(1); m++) {
-            for (int k=0; k<numDOF(m); k++) {
-              local_Jdot(e,offsets(n,j),offsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(offsets(m,k));
-            }
-          }
-        }
-      }
-    });
-  }
-  bool lumpmass = false;
-  /* // TMW: Commented this out since have it hard-coded to false
-   if (lumpmass) {
-   FC Jdotold = local_Jdot;
-   local_Jdot.initialize(0.0);
-   //his->resetJacDot();
-   for (int e=0; e<numElem; e++) {
-   for (unsigned int n=0; n<GIDs[e].size(); n++) {
-   for (unsigned int m=0; m<GIDs[e].size(); m++) {
-   local_Jdot(e,n,n) += Jdotold(e,n,m);
-   }
-   }
-   }
-   }*/
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
 // Use the AD res to update the scalarT Jparam
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -517,31 +464,6 @@ void BoundaryCell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Use the AD res to update the scalarT Jparamdot
-///////////////////////////////////////////////////////////////////////////////////////
-
-void BoundaryCell::updateParamJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
-  
-  Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
-  Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
-  Kokkos::View<int**,AssemblyDevice> paramoffsets = wkset->paramoffsets;
-  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
-  Kokkos::View<LO*,UnifiedDevice> numParamDOF = cellData->numParamDOF;
-  
-  parallel_for(RangePolicy<AssemblyExec>(0,local_Jdot.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    for (unsigned int n=0; n<index.extent(1); n++) {
-      for (int j=0; j<numDOF(n); j++) {
-        for (unsigned int m=0; m<paramindex.extent(1); m++) {
-          for (int k=0; k<numParamDOF(m); k++) {
-            local_Jdot(e,offsets(n,j),paramoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(paramoffsets(m,k));
-          }
-        }
-      }
-    }
-  });
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
 // Use the AD res to update the scalarT Jaux
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -558,30 +480,6 @@ void BoundaryCell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J)
         for (unsigned int m=0; m<auxindex.extent(1); m++) {
           for (int k=0; k<numAuxDOF(m); k++) {
             local_J(e,offsets(n,j),auxoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets(m,k));
-          }
-        }
-      }
-    }
-  });
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
-// Use the AD res to update the scalarT Jparamdot
-///////////////////////////////////////////////////////////////////////////////////////
-
-void BoundaryCell::updateAuxJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot) {
-  
-  Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
-  Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
-  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
-  Kokkos::View<LO*,UnifiedDevice> numAuxDOF = cellData->numAuxDOF;
-  
-  parallel_for(RangePolicy<AssemblyExec>(0,local_Jdot.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    for (unsigned int n=0; n<index.extent(1); n++) {
-      for (int j=0; j<numDOF(n); j++) {
-        for (unsigned int m=0; m<auxindex.extent(1); m++) {
-          for (int k=0; k<numAuxDOF(m); k++) {
-            local_Jdot(e,offsets(n,j),auxoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets(m,k));
           }
         }
       }

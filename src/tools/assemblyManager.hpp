@@ -97,28 +97,26 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
-                      vector_RCP & phi, vector_RCP & phi_dot,
-                      const ScalarT & alpha, const ScalarT & beta,
+  void assembleJacRes(vector_RCP & u, vector_RCP & phi,
                       const bool & compute_jacobian, const bool & compute_sens,
                       const bool & compute_disc_sens,
                       vector_RCP & res, matrix_RCP & J, const bool & isTransient,
                       const ScalarT & current_time, const bool & useadjoint,
                       const bool & store_adjPrev,
                       const int & num_active_params, vector_RCP & Psol,
-                      const bool & is_final_time);
+                      const bool & is_final_time,
+                      const ScalarT & deltat);
   
   
-  void assembleJacRes(vector_RCP & u, vector_RCP & u_dot,
-                      vector_RCP & phi, vector_RCP & phi_dot,
-                      const ScalarT & alpha, const ScalarT & beta,
+  void assembleJacRes(vector_RCP & u, vector_RCP & phi,
                       const bool & compute_jacobian, const bool & compute_sens,
                       const bool & compute_disc_sens,
                       vector_RCP & res, matrix_RCP & J, const bool & isTransient,
                       const ScalarT & current_time, const bool & useadjoint,
                       const bool & store_adjPrev,
                       const int & num_active_params, vector_RCP & Psol,
-                      const bool & is_final_time, const int & block);
+                      const bool & is_final_time, const int & block,
+                      const ScalarT & deltat);
   
   // ========================================================================================
   //
@@ -153,9 +151,8 @@ public:
   
   void insert(matrix_RCP & J, vector_RCP & res, Kokkos::View<ScalarT***,UnifiedDevice> & local_res,
               Kokkos::View<ScalarT***,UnifiedDevice> & local_J,
-              Kokkos::View<ScalarT***,UnifiedDevice> & local_Jdot,
               Kokkos::View<GO**,HostDevice> & GIDs, Kokkos::View<GO**,HostDevice> & paramGIDs,
-              const bool & compute_jacobian, const bool & compute_disc_sens, const ScalarT & alpha);
+              const bool & compute_jacobian, const bool & compute_disc_sens);
     
   ///////////////////////////////////////////////////////////////////////////////////////////
   // Public data members
