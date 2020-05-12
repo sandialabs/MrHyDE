@@ -276,13 +276,13 @@ void solver::finalizeWorkset() {
   else { // for steady state solves, u_dot = 0.0*u
     Kokkos::View<ScalarT*,AssemblyDevice> sol_wts("weights to compute u",1);
     Kokkos::View<ScalarT*,HostDevice>::HostMirror host_wts = Kokkos::create_mirror_view(sol_wts);
-    host_wts(0) = 0.0;
+    host_wts(0) = 1.0;
     Kokkos::deep_copy(sol_wts,host_wts);
     
     Kokkos::View<ScalarT*,AssemblyDevice> soldot_wts("weights to compute u_dot",1);
     Kokkos::View<ScalarT*,HostDevice>::HostMirror hostdot_wts = Kokkos::create_mirror_view(soldot_wts);
     hostdot_wts(0) = 0.0;
-    Kokkos::deep_copy(soldot_wts,host_wts);
+    Kokkos::deep_copy(soldot_wts,hostdot_wts);
     for (size_t b=0; b<assembler->cells.size(); b++) {
       assembler->wkset[b]->sol_wts = sol_wts;
       assembler->wkset[b]->soldot_wts = soldot_wts;

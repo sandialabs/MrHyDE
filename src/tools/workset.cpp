@@ -1227,6 +1227,8 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
             else {
               uval = u(e,kk,i);
             }
+            uval *= sol_wts(0);
+            
             AD u_dotval = soldot_wts(0)*uval;
             if (soldot_wts.extent(0)>1) {
               for (int s=1; s<soldot_wts.extent(0); s++) {
