@@ -111,19 +111,19 @@ public:
   // Use the AD res to update the scalarT res
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res);
+  void updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,UnifiedDevice> local_res);
 
   ///////////////////////////////////////////////////////////////////////////////////////
   // Update the adjoint res
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res);
+  void updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,UnifiedDevice> local_res);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT J
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J);
+  void updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,UnifiedDevice> local_J);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT Jdot
@@ -135,7 +135,7 @@ public:
   // Use the AD res to update the scalarT Jparam
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J);
+  void updateParamJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT Jdot
@@ -147,7 +147,7 @@ public:
   // Use the AD res to update the scalarT Jaux
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J);
+  void updateAuxJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT Jdot

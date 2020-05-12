@@ -197,7 +197,7 @@ public:
   
   Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> macroorientation;
     
-  Kokkos::View<int**,AssemblyDevice> bcs;
+  Kokkos::View<int**,UnifiedDevice> bcs;
   vector<vector<DRV> > aux_basis, aux_basis_grad, aux_side_basis, aux_side_basis_grad;
   vector<int> BIDs;
   vector<DRV> boundaryNodes;

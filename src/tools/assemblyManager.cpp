@@ -114,8 +114,8 @@ void AssemblyManager::createCells() {
       Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
       DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
       
-      Kokkos::View<LO*,HostDevice>::HostMirror host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
-      Kokkos::DynRankView<ScalarT,HostMem>::HostMirror host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
+      auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
+      auto host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
 
       //DRV currnodepert("currnodepert", currElem, numNodesPerElem, spaceDim);
       // Making this loop explicitly on the host
@@ -233,9 +233,9 @@ void AssemblyManager::createCells() {
             Kokkos::View<LO*,AssemblyDevice> sideIndex("local side indices",currElem);
             DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
             
-            Kokkos::View<LO*,HostDevice>::HostMirror host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
-            Kokkos::View<LO*,HostDevice>::HostMirror host_sideIndex = Kokkos::create_mirror_view(sideIndex); // mirror on host
-            Kokkos::DynRankView<ScalarT,HostMem>::HostMirror host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
+            auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
+            auto host_sideIndex = Kokkos::create_mirror_view(sideIndex); // mirror on host
+            auto host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
             
             for (int e=0; e<currElem; e++) {
               host_eIndex(e) = mesh->elementLocalId(side_output[group[e+prog]]);
@@ -909,7 +909,7 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
 
   auto vec_kv = vec->getLocalView<HostDevice>();
   Kokkos::View<ScalarT**,AssemblyDevice> vec_dev("tpetra vector on device",vec_kv.extent(0),vec_kv.extent(1));
-  Kokkos::View<ScalarT**,HostMem>::HostMirror vec_host = Kokkos::create_mirror_view(vec_dev);
+  auto vec_host = Kokkos::create_mirror_view(vec_dev);
   for (int i=0; i<vec_kv.extent(0); i++) {
     for (int j=0; j<vec_kv.extent(1); j++) {
       vec_host(i,j) = vec_kv(i,j);
