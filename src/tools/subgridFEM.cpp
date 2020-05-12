@@ -505,7 +505,7 @@ void SubGridFEM::setUpSubgridModels() {
       localData[mindex]->boundaryMIDs = boundaryMIDs;
       localData[mindex]->setBoundaryIndexGIDs(); // must be done after boundaryMIDs are set
       
-      Kokkos::View<int**,AssemblyDevice> currbcs("boundary conditions",subsideinfo.extent(1),
+      Kokkos::View<int**,UnifiedDevice> currbcs("boundary conditions",subsideinfo.extent(1),
                                                  localData[mindex]->macrosideinfo.extent(2));
       for (size_t i=0; i<subsideinfo.extent(1); i++) { // number of variables
         for (size_t j=0; j<localData[mindex]->macrosideinfo.extent(2); j++) { // number of sides per element
@@ -1351,12 +1351,12 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
     int numElem = cells[0][0]->numElem;
     int numDOF = cells[0][0]->GIDs.extent(1);
     
-    Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
+    Kokkos::View<ScalarT***,UnifiedDevice> local_res, local_J, local_Jdot;
     
     {
       Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverAllocateTimer);
-      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,1);
-      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numDOF);
+      local_res = Kokkos::View<ScalarT***,UnifiedDevice>("local residual",numElem,numDOF,1);
+      local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",numElem,numDOF,numDOF);
       //local_Jdot = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian dot",numElem,numDOF,numDOF);
     }
     {
@@ -1451,8 +1451,8 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
         
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverAllocateTimer);
-          local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",boundaryCells[0][e]->numElem,numDOF,1);
-          local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",boundaryCells[0][e]->numElem,numDOF,numDOF);
+          local_res = Kokkos::View<ScalarT***,UnifiedDevice>("local residual",boundaryCells[0][e]->numElem,numDOF,1);
+          local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",boundaryCells[0][e]->numElem,numDOF,numDOF);
         }
         
         {
@@ -1679,11 +1679,11 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
       
       int snumDOF = cells[0][0]->GIDs.extent(1);
       
-      Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
+      Kokkos::View<ScalarT***,UnifiedDevice> local_res, local_J, local_Jdot;
       
-      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,snumDOF,num_active_params);
+      local_res = Kokkos::View<ScalarT***,UnifiedDevice>("local residual",numElem,snumDOF,num_active_params);
       
-      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,snumDOF,snumDOF);
+      local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",numElem,snumDOF,snumDOF);
       
       for (size_t e=0; e<cells[0].size(); e++) {
         
@@ -1731,11 +1731,11 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
         int numElem = boundaryCells[0][e]->numElem;
         int snumDOF = boundaryCells[0][e]->GIDs.extent(1);
         
-        Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
+        Kokkos::View<ScalarT***,UnifiedDevice> local_res, local_J, local_Jdot;
         
-        local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,snumDOF,num_active_params);
+        local_res = Kokkos::View<ScalarT***,UnifiedDevice>("local residual",numElem,snumDOF,num_active_params);
         
-        local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,snumDOF,snumDOF);
+        local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",numElem,snumDOF,snumDOF);
         
         wkset[0]->localEID = e;
         //wkset[0]->var_bcs = subgridbcs[usernum];
@@ -1783,7 +1783,7 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
     wkset[0]->isTransient = isTransient;
     wkset[0]->isAdjoint = isAdjoint;
     
-    Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J, local_Jdot;
+    Kokkos::View<ScalarT***,UnifiedDevice> local_res, local_J, local_Jdot;
     
     if (multiscale_method != "mortar") {
       
@@ -1793,8 +1793,8 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
         int snumDOF = cells[0][e]->GIDs.extent(1);
         int anumDOF = cells[0][e]->auxGIDs.extent(1);
         
-        local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,snumDOF,1);
-        local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,snumDOF,anumDOF);
+        local_res = Kokkos::View<ScalarT***,UnifiedDevice>("local residual",numElem,snumDOF,1);
+        local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",numElem,snumDOF,anumDOF);
         
         wkset[0]->localEID = e;
         
@@ -1838,8 +1838,8 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
         int snumDOF = boundaryCells[0][e]->GIDs.extent(1);
         int anumDOF = boundaryCells[0][e]->auxGIDs.extent(1);
         
-        local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,snumDOF,1);
-        local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,snumDOF,anumDOF);
+        local_res = Kokkos::View<ScalarT***,UnifiedDevice>("local residual",numElem,snumDOF,1);
+        local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",numElem,snumDOF,anumDOF);
         
         for (int p=0; p<numElem; p++) {
           for (int n=0; n<snumDOF; n++) {

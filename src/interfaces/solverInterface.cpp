@@ -257,13 +257,13 @@ void solver::finalizeWorkset() {
   
   if (isTransient) { // Hard-coded for BWE for now
     Kokkos::View<ScalarT*,AssemblyDevice> sol_wts("weights to compute u",2);
-    Kokkos::View<ScalarT*,HostDevice>::HostMirror host_wts = Kokkos::create_mirror_view(sol_wts);
+    auto host_wts = Kokkos::create_mirror_view(sol_wts);
     host_wts(0) = 1.0;
     host_wts(1) = 0.0;
     Kokkos::deep_copy(sol_wts,host_wts);
     
     Kokkos::View<ScalarT*,AssemblyDevice> soldot_wts("weights to compute u_dot",2);
-    Kokkos::View<ScalarT*,HostDevice>::HostMirror hostdot_wts = Kokkos::create_mirror_view(soldot_wts);
+    auto hostdot_wts = Kokkos::create_mirror_view(soldot_wts);
     hostdot_wts(0) = 1.0/deltat;
     hostdot_wts(1) = -1.0/deltat;
     Kokkos::deep_copy(soldot_wts,hostdot_wts);
@@ -275,12 +275,12 @@ void solver::finalizeWorkset() {
   }
   else { // for steady state solves, u_dot = 0.0*u
     Kokkos::View<ScalarT*,AssemblyDevice> sol_wts("weights to compute u",1);
-    Kokkos::View<ScalarT*,HostDevice>::HostMirror host_wts = Kokkos::create_mirror_view(sol_wts);
+    auto host_wts = Kokkos::create_mirror_view(sol_wts);
     host_wts(0) = 1.0;
     Kokkos::deep_copy(sol_wts,host_wts);
     
     Kokkos::View<ScalarT*,AssemblyDevice> soldot_wts("weights to compute u_dot",1);
-    Kokkos::View<ScalarT*,HostDevice>::HostMirror hostdot_wts = Kokkos::create_mirror_view(soldot_wts);
+    auto hostdot_wts = Kokkos::create_mirror_view(soldot_wts);
     hostdot_wts(0) = 0.0;
     Kokkos::deep_copy(soldot_wts,hostdot_wts);
     for (size_t b=0; b<assembler->cells.size(); b++) {

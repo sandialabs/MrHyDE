@@ -118,7 +118,7 @@ void cell::setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_) {
   //numAuxDOF = anumDOF_;
   
   // Temp. fix
-  Kokkos::View<int*,AssemblyDevice> numAuxDOF("numAuxDOF",auxindex.extent(1));
+  Kokkos::View<int*,UnifiedDevice> numAuxDOF("numAuxDOF",auxindex.extent(1));
   for (unsigned int i=0; i<auxindex.extent(1); i++) {
     numAuxDOF(i) = auxindex.extent(2);
   }
@@ -608,7 +608,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
 // Use the AD res to update the scalarT res
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
+void cell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,UnifiedDevice> local_res) {
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
@@ -639,7 +639,7 @@ void cell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,Assembly
 // Use the AD res to update the scalarT res
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
+void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,UnifiedDevice> local_res) {
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->adjrhs;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
@@ -671,7 +671,7 @@ void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,A
 // Use the AD res to update the scalarT J
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
+void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
   
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
@@ -709,7 +709,7 @@ void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDe
 // Use the AD res to update the scalarT Jparam
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
+void cell::updateParamJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
   
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
@@ -734,7 +734,7 @@ void cell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
 // Use the AD res to update the scalarT Jaux
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
+void cell::updateAuxJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
   
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;

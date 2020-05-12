@@ -341,7 +341,7 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
 // Use the AD res to update the scalarT res
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
+void BoundaryCell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,UnifiedDevice> local_res) {
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
@@ -372,7 +372,7 @@ void BoundaryCell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,
 // Use the AD res to update the scalarT res
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
+void BoundaryCell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,UnifiedDevice> local_res) {
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->adjrhs;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
@@ -404,7 +404,7 @@ void BoundaryCell::updateAdjointRes(const bool & compute_sens, Kokkos::View<Scal
 // Use the AD res to update the scalarT J
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
+void BoundaryCell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
   
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
@@ -442,7 +442,7 @@ void BoundaryCell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,As
 // Use the AD res to update the scalarT Jparam
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
+void BoundaryCell::updateParamJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
   
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
@@ -467,7 +467,7 @@ void BoundaryCell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_
 // Use the AD res to update the scalarT Jaux
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
+void BoundaryCell::updateAuxJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
   
   Kokkos::View<AD**,AssemblyDevice> res_AD = wkset->res;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
