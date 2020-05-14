@@ -1162,8 +1162,9 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
         sgtime += macro_deltat/(ScalarT)time_steps;
         // set du/dt and \lambda
         alpha = (ScalarT)time_steps/macro_deltat;
-        wkset[0]->soldot_wts(0) = alpha;
-        wkset[0]->soldot_wts(1) = -alpha;
+        
+        wkset[0]->BDF_wts(0) = 1.0;//alpha;
+        wkset[0]->BDF_wts(1) = -1.0;//-alpha;
         
         wkset[0]->alpha = alpha;
         wkset[0]->deltat= 1.0/alpha;
@@ -1175,11 +1176,20 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
         for (size_t b=0; b<cells.size(); b++) {
           for (size_t e=0; e<cells[b].size(); e++) {
             cells[b][e]->resetPrevSoln();
+            cells[b][e]->resetStageSoln();
           }
         }
         
+        //vector_RCP u_prev = Teuchos::rcp(new LA_MultiVector(sub_solver->LA_overlapped_map,1));
+        //u_prev->update(1.0,*u,0.0);
+        //vector_RCP u_stage = Teuchos::rcp(new LA_MultiVector(sub_solver->LA_overlapped_map,1));
+        //u_stage->update(1.0,*u,0.0);
+        
         this->subGridNonlinearSolver(u, phi, Psol[0], currlambda,
                                      sgtime, isTransient, isAdjoint, num_active_params, alpha, usernum, false);
+        
+        //u->update(1.0, *u_stage, 1.0);
+        //u->update(-1.0, *u_prev, 1.0);
         
         this->computeSubGridSolnSens(d_u, compute_sens, u,
                                      phi, Psol[0], currlambda,
@@ -2321,7 +2331,8 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
                            cells[0][e]->jacobianDet,cells[0][e]->orientation);
           Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
           seedwhat(0) = 0;
-          wkset[0]->computeSolnVolIP(cells[0][e]->u, cells[0][e]->u_prev, seedwhat);
+          wkset[0]->computeSolnVolIP(cells[0][e]->u, cells[0][e]->u_prev,
+                                     cells[0][e]->u_stage, seedwhat);
           
           int numElem = cells[0][e]->numElem;
           Kokkos::View<GO**,HostDevice> GIDs = cells[0][e]->GIDs;

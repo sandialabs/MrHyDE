@@ -630,8 +630,13 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
   // Set up the worksets and allocate the local residual and Jacobians
   //////////////////////////////////////////////////////////////////////////////////////
   
-  wkset[b]->time = current_time;
-  wkset[b]->time_KV(0) = current_time; // TMW issue -- current_time in not on Device
+  // TMW: this won't really work on GPU, need to fix once working
+  if (isTransient) {
+    ScalarT timeval = current_time + wkset[b]->butcher_c(wkset[b]->current_stage)*deltat;
+    
+    wkset[b]->time = timeval;
+    wkset[b]->time_KV(0) = timeval; // TMW issue -- current_time in not on Device
+  }
   wkset[b]->isTransient = isTransient;
   wkset[b]->isAdjoint = useadjoint;
   wkset[b]->deltat = deltat;
@@ -893,6 +898,28 @@ void AssemblyManager::resetPrevSoln() {
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       cells[b][e]->resetPrevSoln();
+    }
+  }
+}
+
+void AssemblyManager::resetStageSoln() {
+  for (size_t b=0; b<cells.size(); b++) {
+    for (size_t e=0; e<cells[b].size(); e++) {
+      cells[b][e]->resetStageSoln();
+    }
+  }
+}
+
+void AssemblyManager::updateStageNumber(const int & stage) {
+  for (size_t b=0; b<wkset.size(); b++) {
+    wkset[b]->current_stage = stage;
+  }
+}
+
+void AssemblyManager::updateStageSoln()  {
+  for (size_t b=0; b<cells.size(); b++) {
+    for (size_t e=0; e<cells[b].size(); e++) {
+      cells[b][e]->updateStageSoln();
     }
   }
 }

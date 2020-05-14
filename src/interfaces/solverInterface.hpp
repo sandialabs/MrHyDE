@@ -59,6 +59,15 @@ public:
          Teuchos::RCP<AssemblyManager> & assembler_,
          Teuchos::RCP<ParameterManager> & params_);
   
+  // ========================================================================================
+  // ========================================================================================
+  
+  void setButcherTableau(const string & tableau);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void setBackwardDifference(const int & order);
   
   // ========================================================================================
   // Set up the Tpetra objects (maps, importers, exporters and graphs)
@@ -103,11 +112,6 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void setButcherTableau();
-  
-  // ========================================================================================
-  // ========================================================================================
-  
   int explicitRKTimeSolver(vector_RCP & u, vector_RCP & phi, matrix_RCP & mass);
   
   // ========================================================================================
@@ -143,7 +147,7 @@ public:
   
   void linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
   
-  void setupMassSolver(matrix_RCP & mass, vector_RCP & r, vector_RCP & soln);
+  //void setupMassSolver(matrix_RCP & mass, vector_RCP & r, vector_RCP & soln);
 
   // ========================================================================================
   // Preconditioner for Tpetra stack
@@ -181,10 +185,13 @@ public:
   
   LO numUnknowns, numUnknownsOS;
   GO globalNumUnknowns;
-  int verbosity, batchID, spaceDim, numsteps, gNLiter, milo_debug_level, MaxNLiter, time_order, liniter, kspace;
+  int verbosity, batchID, spaceDim, numsteps, numstages, gNLiter, milo_debug_level, MaxNLiter, time_order, liniter, kspace;
   
   size_t maxEntries;
   bool have_preconditioner=false;
+  
+  int BDForder, startupBDForder, startupSteps;
+  string ButcherTab, startupButcherTab;
   
   vector<GO> owned, ownedAndShared, LA_owned, LA_ownedAndShared;
   
@@ -196,12 +203,6 @@ public:
   bool line_search, useL2proj, allow_remesh, useDomDecomp, useDirect, usePrec, discretized_stochastic;
   bool isInitial, isTransient, useadjoint, is_final_time, usestrongDBCs, compute_flux, useLinearSolver, timeImplicit;
   bool compute_objective, compute_sensitivity, compute_aux_sensitivity, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
-  
-  Kokkos::View<ScalarT**,HostDevice> butcher_A;
-  Kokkos::View<ScalarT*,HostDevice> butcher_b, butcher_c;
-  Teuchos::RCP<LA_LinearProblem> massProblem;
-  Teuchos::RCP<Belos::SolverManager<ScalarT, LA_MultiVector, LA_Operator> > massSolver;
-  //vector<ScalarT> solvetimes;
   
   Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver;
   bool have_symbolic_factor;

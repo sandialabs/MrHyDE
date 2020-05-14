@@ -55,6 +55,7 @@ celltopo(topo), var_bcs(var_bcs_)  { //, timeInt(timeInt_) {
    */
   
   deltat = 1.0;
+  current_stage = 0;
   // Integration information
   numip = ref_ip.extent(0);
   numsideip = ref_side_ip.extent(0);
@@ -1181,6 +1182,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
 
 void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
                                Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
+                               Kokkos::View<ScalarT****,AssemblyDevice> u_stage,
                                Kokkos::View<int*,UnifiedDevice> seedwhat) {
   
   // Reset the values (may combine with next loop when parallelized)
@@ -1217,24 +1219,41 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         DRV kbasis_uw = basis_uw[kubasis];
         DRV kbasis_grad_uw = basis_grad_uw[kubasis];
         
-        parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD uval;
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          AD uval, u_dotval, stageval;
           int kk = bind(0);
           for (int i=0; i<kbasis_uw.extent(1); i++ ) {
             if (seedwhat(0) == 1) {
-              uval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
+              stageval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
             }
             else {
-              uval = u(e,kk,i);
+              stageval = u(e,kk,i);
             }
-            uval *= sol_wts(0);
-            
-            AD u_dotval = soldot_wts(0)*uval;
-            if (soldot_wts.extent(0)>1) {
-              for (int s=1; s<soldot_wts.extent(0); s++) {
-                u_dotval += soldot_wts(s)*u_prev(e,kk,i,s-1);
+            //cout << "prevval = " << u_prev(e,kk,i,0) << endl;
+            //cout << "stageval = " << stageval << endl;
+            // uval is the stage solution
+            // the solution that goes into the residual is slightly different
+            if (BDF_wts.extent(0) > 1) { // transient problem
+              uval = u_prev(e,kk,i,0);
+              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - u_prev(e,kk,i,0));
+              for (int s=0; s<current_stage; s++) {
+                uval += butcher_A(current_stage,s)/butcher_b(s) * (u_stage(e,kk,i,s) - u_prev(e,kk,i,0));
               }
+              //cout << "uval2 = " << uval << endl;
+              u_dotval = BDF_wts(0)*stageval;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                u_dotval += BDF_wts(s)*u_prev(e,kk,i,s-1);
+              }
+              u_dotval *= 1.0/deltat;
+              u_dotval *= 1.0/butcher_b(current_stage);
             }
+            else {// steady state
+              uval = stageval;
+              u_dotval = 0.0;
+            }
+            
+            //cout << "u_dotval = " << u_dotval << endl;
+            
             if (seedwhat(0) == 2) {
               ScalarT val = u_dotval.val();
               u_dotval = AD(maxDerivs,offsets(kk,i),val);
@@ -1253,21 +1272,38 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       else if (kutype == "HVOL") {
         DRV kbasis_uw = basis_uw[kubasis];
         
-        parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD uval;
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          AD uval, u_dotval, stageval;
           int kk = bind(0);
-          for( int i=0; i<kbasis_uw.extent(1); i++ ) {
+          for (int i=0; i<kbasis_uw.extent(1); i++ ) {
             if (seedwhat(0) == 1) {
-              uval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
+              stageval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
             }
             else {
-              uval = u(e,kk,i);
+              stageval = u(e,kk,i);
             }
-            AD u_dotval = soldot_wts(0)*uval;
-            if (soldot_wts.extent(0)>1) {
-              for (int s=1; s<soldot_wts.extent(0); s++) {
-                u_dotval += soldot_wts(s)*u_prev(e,kk,i,s);
+            if (BDF_wts.extent(0) > 1) { // transient problem
+              uval = u_prev(e,kk,i,0);
+              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - u_prev(e,kk,i,0));
+              for (int s=0; s<current_stage; s++) {
+                uval += butcher_A(current_stage,s)/butcher_b(s) * (u_stage(e,kk,i,s) - u_prev(e,kk,i,0));
               }
+              
+              u_dotval = BDF_wts(0)*stageval;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                u_dotval += BDF_wts(s)*u_prev(e,kk,i,s-1);
+              }
+              u_dotval *= 1.0/deltat;
+              u_dotval *= 1.0/butcher_b(current_stage);
+            }
+            else {// steady state
+              uval = stageval;
+              u_dotval = 0.0;
+            }
+            
+            if (seedwhat(0) == 2) {
+              ScalarT val = u_dotval.val();
+              u_dotval = AD(maxDerivs,offsets(kk,i),val);
             }
             
             for( size_t j=0; j<kbasis_uw.extent(2); j++ ) {
@@ -1281,23 +1317,33 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         DRV kbasis_uw = basis_uw[kubasis];
         DRV kbasis_div_uw = basis_div_uw[kubasis];
         
-        parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD uval;
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          AD uval, u_dotval, stageval;
           int kk = bind(0);
           for (int i=0; i<kbasis_uw.extent(1); i++ ) {
-            
             if (seedwhat(0) == 1) {
-              uval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
+              stageval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
             }
             else {
-              uval = u(e,kk,i);
+              stageval = u(e,kk,i);
             }
-            
-            AD u_dotval = soldot_wts(0)*uval;
-            if (soldot_wts.extent(0)>1) {
-              for (int s=1; s<soldot_wts.extent(0); s++) {
-                u_dotval += soldot_wts(s)*u_prev(e,kk,i,s);
+            if (BDF_wts.extent(0) > 1) { // transient problem
+              uval = u_prev(e,kk,i,0);
+              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - u_prev(e,kk,i,0));
+              for (int s=0; s<current_stage; s++) {
+                uval += butcher_A(current_stage,s)/butcher_b(s) * (u_stage(e,kk,i,s) - u_prev(e,kk,i,0));
               }
+              
+              u_dotval = BDF_wts(0)*stageval;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                u_dotval += BDF_wts(s)*u_prev(e,kk,i,s-1);
+              }
+              u_dotval *= 1.0/deltat;
+              u_dotval *= 1.0/butcher_b(current_stage);
+            }
+            else {// steady state
+              uval = stageval;
+              u_dotval = 0.0;
             }
             
             for (size_t j=0; j<kbasis_uw.extent(2); j++ ) {
@@ -1314,23 +1360,33 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         DRV kbasis_uw = basis_uw[kubasis];
         DRV kbasis_curl_uw = basis_curl_uw[kubasis];
         
-        parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD uval;
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          AD uval, u_dotval, stageval;
           int kk = bind(0);
           for (int i=0; i<kbasis_uw.extent(1); i++ ) {
-            
             if (seedwhat(0) == 1) {
-              uval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
+              stageval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
             }
             else {
-              uval = u(e,kk,i);
+              stageval = u(e,kk,i);
             }
-            
-            AD u_dotval = soldot_wts(0)*uval;
-            if (soldot_wts.extent(0)>1) {
-              for (int s=1; s<soldot_wts.extent(0); s++) {
-                u_dotval += soldot_wts(s)*u_prev(e,kk,i,s);
+            if (BDF_wts.extent(0) > 1) { // transient problem
+              uval = u_prev(e,kk,i,0);
+              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - u_prev(e,kk,i,0));
+              for (int s=0; s<current_stage; s++) {
+                uval += butcher_A(current_stage,s)/butcher_b(s) * (u_stage(e,kk,i,s) - u_prev(e,kk,i,0));
               }
+              
+              u_dotval = BDF_wts(0)*stageval;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                u_dotval += BDF_wts(s)*u_prev(e,kk,i,s-1);
+              }
+              u_dotval *= 1.0/deltat;
+              u_dotval *= 1.0/butcher_b(current_stage);
+            }
+            else {// steady state
+              uval = stageval;
+              u_dotval = 0.0;
             }
             
             for (size_t j=0; j<kbasis_uw.extent(2); j++ ) {

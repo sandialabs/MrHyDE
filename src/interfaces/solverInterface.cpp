@@ -42,11 +42,11 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   final_time = settings->sublist("Solver").get<ScalarT>("final time",1.0);
   if (settings->sublist("Solver").isParameter("delta t")) {
     deltat = settings->sublist("Solver").get<ScalarT>("delta t");
-    numsteps = std::ceil((final_time - initial_time)/deltat);
+  //  numsteps = std::ceil((final_time - initial_time)/deltat);
   }
   else {
-    numsteps = settings->sublist("Solver").get<int>("numSteps",1);
-    deltat = (final_time - initial_time)/numsteps;
+    int numTimesteps = settings->sublist("Solver").get<int>("numSteps",1);
+    deltat = (final_time - initial_time)/numTimesteps;
   }
   verbosity = settings->get<int>("verbosity",0);
   usestrongDBCs = settings->sublist("Solver").get<bool>("use strong DBCs",true);
@@ -57,7 +57,15 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   NLtol = settings->sublist("Solver").get<ScalarT>("NLtol",1.0E-6);
   MaxNLiter = settings->sublist("Solver").get<int>("MaxNLiter",10);
   NLsolver = settings->sublist("Solver").get<string>("Nonlinear Solver","Newton");
-  TDsolver = settings->sublist("Solver").get<string>("Transient Solver","implicit");
+  
+  ButcherTab = settings->sublist("Solver").get<string>("Transient Butcher Tableau","BWE");
+  BDForder = settings->sublist("Solver").get<int>("Transient BDF order",1);
+  
+  // Additional parameters for higher-order BDF methods that require some startup procedure
+  startupButcherTab = settings->sublist("Solver").get<string>("Transient Startup Butcher Tableau",ButcherTab);
+  startupBDForder = settings->sublist("Solver").get<int>("Transient Startup BDF order",BDForder);
+  startupSteps = settings->sublist("Solver").get<int>("Transient Startup Steps",BDForder);
+  
   line_search = false;//settings->sublist("Solver").get<bool>("Use Line Search","false");
   store_adjPrev = false;
   isTransient = false;
@@ -67,12 +75,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   if (!isTransient) {
     deltat = 1.0;
   }
-  timeImplicit = true;
-  if (TDsolver != "implicit") {
-    timeImplicit = false;
-    this->setButcherTableau();
-  }
-  
+
   /*
   solvetimes.push_back(current_time);
   
@@ -222,6 +225,15 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   /////////////////////////////////////////////////////////////////////////////
   
   assembler->createWorkset();
+  numsteps = 0;
+  numstages = 0;
+  this->setBackwardDifference(BDForder);
+  this->setButcherTableau(ButcherTab);
+  if (BDForder > 1) {
+    this->setBackwardDifference(startupBDForder);
+    this->setButcherTableau(startupButcherTab);
+  }
+  
   this->finalizeWorkset();
   phys->setWorkset(assembler->wkset);
   params->wkset = assembler->wkset;
@@ -241,6 +253,198 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   
 }
 
+// ========================================================================================
+// ========================================================================================
+
+void solver::setButcherTableau(const string & tableau) {
+  Kokkos::View<ScalarT**,UnifiedDevice> butcher_A;
+  Kokkos::View<ScalarT*,UnifiedDevice> butcher_b, butcher_c;
+  
+  //only filling in the non-zero entries
+  if (tableau == "BWE" || tableau == "DIRK-1,1") {
+    butcher_A = Kokkos::View<ScalarT**,UnifiedDevice>("butcher_A",1,1);
+    butcher_A(0,0) = 1.0;
+    butcher_b = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_b",1);
+    butcher_b(0) = 1.0;
+    butcher_c = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_c",1);
+    butcher_c(0) = 1.0;
+  }
+  else if (tableau == "FWE") {
+    butcher_A = Kokkos::View<ScalarT**,UnifiedDevice>("butcher_A",1,1);
+    butcher_b = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_b",1);
+    butcher_b(0) = 1.0;
+    butcher_c = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_c",1);
+  }
+  else if (tableau == "CN") {
+    butcher_A = Kokkos::View<ScalarT**,UnifiedDevice>("butcher_A",2,2);
+    butcher_A(1,0) = 0.5;
+    butcher_A(1,1) = 0.5;
+    butcher_b = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_b",2);
+    butcher_b(0) = 0.5;
+    butcher_b(1) = 0.5;
+    butcher_c = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_c",2);
+    butcher_c(1) = 1.0;
+  }
+  else if (tableau == "SSPRK-3,3") {
+    butcher_A = Kokkos::View<ScalarT**,UnifiedDevice>("butcher_A",3,3);
+    butcher_A(1,0) = 1.0;
+    butcher_A(2,0) = 0.25;
+    butcher_A(2,1) = 0.25;
+    butcher_b = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_b",4);
+    butcher_b(0) = 1.0/6.0;
+    butcher_b(1) = 1.0/6.0;
+    butcher_b(2) = 2.0/3.0;
+    butcher_c = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_c",4);
+    butcher_c(1) = 1.0;
+    butcher_c(2) = 1.0/2.0;
+  }
+  else if (tableau == "RK-4,4") { // Classical RK4
+    butcher_A = Kokkos::View<ScalarT**,UnifiedDevice>("butcher_A",4,4);
+    butcher_A(1,0) = 0.5;
+    butcher_A(2,1) = 0.5;
+    butcher_A(3,2) = 1.0;
+    butcher_b = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_b",4);
+    butcher_b(0) = 1.0/6.0;
+    butcher_b(1) = 1.0/3.0;
+    butcher_b(2) = 1.0/3.0;
+    butcher_b(3) = 1.0/6.0;
+    butcher_c = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_c",4);
+    butcher_c(1) = 1.0/2.0;
+    butcher_c(2) = 1.0/2.0;
+    butcher_c(3) = 1.0;
+  }
+  else if (tableau == "DIRK-1,2") {
+    butcher_A = Kokkos::View<ScalarT**,UnifiedDevice>("butcher_A",1,1);
+    butcher_A(0,0) = 0.5;
+    butcher_b = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_b",1);
+    butcher_b(0) = 1.0;
+    butcher_c = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_c",1);
+    butcher_c(0) = 0.5;
+  }
+  else if (tableau == "DIRK-2,2") { // 2-stage, 2nd order
+    butcher_A = Kokkos::View<ScalarT**,UnifiedDevice>("butcher_A",2,2);
+    butcher_A(0,0) = 1.0/4.0;
+    butcher_A(1,0) = 1.0/2.0;
+    butcher_A(1,1) = 1.0/4.0;
+    butcher_b = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_b",2);
+    butcher_b(0) = 1.0/2.0;
+    butcher_b(1) = 1.0/2.0;
+    butcher_c = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_c",2);
+    butcher_c(0) = 1.0/4.0;
+    butcher_c(1) = 3.0/4.0;
+  }
+  else if (tableau == "DIRK-2,3") { // 2-stage, 3rd order
+    butcher_A = Kokkos::View<ScalarT**,UnifiedDevice>("butcher_A",2,2);
+    butcher_A(0,0) = 1.0/2.0 + std::sqrt(3)/6.0;
+    butcher_A(1,0) = -std::sqrt(3)/3.0;
+    butcher_A(1,1) = 1.0/2.0  + std::sqrt(3)/6.0;
+    butcher_b = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_b",2);
+    butcher_b(0) = 1.0/2.0;
+    butcher_b(1) = 1.0/2.0;
+    butcher_c = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_c",2);
+    butcher_c(0) = 1.0/2.0 + std::sqrt(3)/6.0;;
+    butcher_c(1) = 1.0/2.0 - std::sqrt(3)/6.0;;
+  }
+  for (size_t b=0; b<assembler->cells.size(); b++) {
+    assembler->wkset[b]->butcher_A = butcher_A;
+    assembler->wkset[b]->butcher_b = butcher_b;
+    assembler->wkset[b]->butcher_c = butcher_c;
+  }
+  int newnumstages = butcher_A.extent(0);
+  numstages = std::max(numstages,newnumstages);
+  
+  //KokkosTools::print(butcher_A);
+  //KokkosTools::print(butcher_b);
+  //KokkosTools::print(butcher_c);
+  // GH: commenting this out for now; it can't tell DRV from DRVint and has an overload problem
+  /*
+   if (milo_debug_level > 1) {
+   if (Comm->getRank() == 0) {
+   cout << "******** Butcher tableau: " << endl;
+   KokkosTools::print(butcher_A, "solver::setButcherTableau() - Butcher-A");
+   KokkosTools::print(butcher_b, "solver::setButcherTableau() - Butcher-b");
+   KokkosTools::print(butcher_c, "solver::setButcherTableau() - Butcher-c");
+   }
+   }*/
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void solver::setBackwardDifference(const int & order) { // using order as an input to allow for dynamic changes
+  
+  Kokkos::View<ScalarT*,UnifiedDevice> BDF_wts;
+  // Note that these do not include 1/deltat (added in wkset)
+  // Not going to work properly for adaptive time stepping if BDForder>1
+  if (isTransient) {
+    
+    if (order == 1) {
+      BDF_wts = Kokkos::View<ScalarT*,UnifiedDevice>("BDF weights to compute u_dot",2);
+      BDF_wts(0) = 1.0;
+      BDF_wts(1) = -1.0;
+    }
+    else if (order == 2) {
+      BDF_wts = Kokkos::View<ScalarT*,UnifiedDevice>("BDF weights to compute u_dot",3);
+      BDF_wts(0) = 1.5;
+      BDF_wts(1) = -2.0;
+      BDF_wts(2) = 0.5;
+    }
+    else if (order == 3) {
+      BDF_wts = Kokkos::View<ScalarT*,UnifiedDevice>("BDF weights to compute u_dot",4);
+      BDF_wts(0) = 11.0/6.0;
+      BDF_wts(1) = -3.0;
+      BDF_wts(2) = 1.5;
+      BDF_wts(3) = -1.0/3.0;
+    }
+    else if (order == 4) {
+      BDF_wts = Kokkos::View<ScalarT*,UnifiedDevice>("BDF weights to compute u_dot",5);
+      BDF_wts(0) = 25.0/12.0;
+      BDF_wts(1) = -4.0;
+      BDF_wts(2) = 3.0;
+      BDF_wts(3) = -4.0/3.0;
+      BDF_wts(4) = 1.0/4.0;
+    }
+    else if (order == 5) {
+      BDF_wts = Kokkos::View<ScalarT*,UnifiedDevice>("BDF weights to compute u_dot",6);
+      BDF_wts(0) = 137.0/60.0;
+      BDF_wts(1) = -5.0;
+      BDF_wts(2) = 5.0;
+      BDF_wts(3) = -10.0/3.0;
+      BDF_wts(4) = 75.0/60.0;
+      BDF_wts(5) = -1.0/5.0;
+    }
+    else if (order == 6) {
+      BDF_wts = Kokkos::View<ScalarT*,UnifiedDevice>("BDF weights to compute u_dot",7);
+      BDF_wts(0) = 147.0/60.0;
+      BDF_wts(1) = -6.0;
+      BDF_wts(2) = 15.0/2.0;
+      BDF_wts(3) = -20.0/3.0;
+      BDF_wts(4) = 225.0/60.0;
+      BDF_wts(5) = -72.0/60.0;
+      BDF_wts(6) = 1.0/6.0;
+    }
+    
+    int newnumsteps = BDF_wts.extent(0)-1;
+    numsteps = std::max(numsteps,newnumsteps);
+    
+  }
+  else { // for steady state solves, u_dot = 0.0*u
+    
+    BDF_wts = Kokkos::View<ScalarT*,UnifiedDevice>("BDF weights to compute u_dot",1);
+    BDF_wts(0) = 1.0;
+    //BDF_wts(1) = 0.0;
+    
+    numsteps = 1;
+  }
+  
+  for (size_t b=0; b<assembler->cells.size(); b++) {
+    assembler->wkset[b]->BDF_wts = BDF_wts;
+  }
+  
+  //KokkosTools::print(BDF_wts);
+  
+}
+
 /////////////////////////////////////////////////////////////////////////////
 // Worksets
 /////////////////////////////////////////////////////////////////////////////
@@ -250,42 +454,6 @@ void solver::finalizeWorkset() {
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting solver::finalizeWorkset ..." << endl;
-    }
-  }
-  
-  int nstages = 1; // TMW: should we distinguish between steps and stages?
-  
-  if (isTransient) { // Hard-coded for BWE for now
-    Kokkos::View<ScalarT*,AssemblyDevice> sol_wts("weights to compute u",2);
-    auto host_wts = Kokkos::create_mirror_view(sol_wts);
-    host_wts(0) = 1.0;
-    host_wts(1) = 0.0;
-    Kokkos::deep_copy(sol_wts,host_wts);
-    
-    Kokkos::View<ScalarT*,AssemblyDevice> soldot_wts("weights to compute u_dot",2);
-    auto hostdot_wts = Kokkos::create_mirror_view(soldot_wts);
-    hostdot_wts(0) = 1.0/deltat;
-    hostdot_wts(1) = -1.0/deltat;
-    Kokkos::deep_copy(soldot_wts,hostdot_wts);
-    
-    for (size_t b=0; b<assembler->cells.size(); b++) {
-      assembler->wkset[b]->sol_wts = sol_wts;
-      assembler->wkset[b]->soldot_wts = soldot_wts;
-    }
-  }
-  else { // for steady state solves, u_dot = 0.0*u
-    Kokkos::View<ScalarT*,AssemblyDevice> sol_wts("weights to compute u",1);
-    auto host_wts = Kokkos::create_mirror_view(sol_wts);
-    host_wts(0) = 1.0;
-    Kokkos::deep_copy(sol_wts,host_wts);
-    
-    Kokkos::View<ScalarT*,AssemblyDevice> soldot_wts("weights to compute u_dot",1);
-    auto hostdot_wts = Kokkos::create_mirror_view(soldot_wts);
-    hostdot_wts(0) = 0.0;
-    Kokkos::deep_copy(soldot_wts,hostdot_wts);
-    for (size_t b=0; b<assembler->cells.size(); b++) {
-      assembler->wkset[b]->sol_wts = sol_wts;
-      assembler->wkset[b]->soldot_wts = soldot_wts;
     }
   }
   
@@ -321,7 +489,6 @@ void solver::finalizeWorkset() {
         poffsets_view(i,j) = params->paramoffsets[i][j];
       }
     }
-    
     assembler->wkset[b]->usebasis = useBasis[b];
     assembler->wkset[b]->paramusebasis = params->discretized_param_usebasis;
     assembler->wkset[b]->paramoffsets = poffsets_view;//paramoffsets;
@@ -329,11 +496,10 @@ void solver::finalizeWorkset() {
     int numDOF = assembler->cells[b][0]->GIDs.extent(1);
     for (size_t e=0; e<assembler->cells[b].size(); e++) {
       assembler->cells[b][e]->wkset = assembler->wkset[b];
-      assembler->cells[b][e]->setUseBasis(useBasis[b],nstages);
+      assembler->cells[b][e]->setUseBasis(useBasis[b], numsteps, numstages);
       assembler->cells[b][e]->setUpAdjointPrev(numDOF);
       assembler->cells[b][e]->setUpSubGradient(params->num_active_params);
     }
-    
     assembler->wkset[b]->params = params->paramvals_AD;
     assembler->wkset[b]->params_AD = params->paramvals_KVAD;
     assembler->wkset[b]->paramnames = params->paramnames;
@@ -343,7 +509,7 @@ void solver::finalizeWorkset() {
       for (size_t e=0; e<assembler->boundaryCells[b].size(); e++) {
         if (assembler->boundaryCells[b][e]->numElem > 0) {
           assembler->boundaryCells[b][e]->wkset = assembler->wkset[b];
-          assembler->boundaryCells[b][e]->setUseBasis(useBasis[b],nstages);
+          assembler->boundaryCells[b][e]->setUseBasis(useBasis[b]);
           
           assembler->boundaryCells[b][e]->wksetBID = assembler->wkset[b]->addSide(assembler->boundaryCells[b][e]->nodes,
                                                                                   assembler->boundaryCells[b][e]->sidenum,
@@ -589,6 +755,7 @@ void solver::adjointModel(vector<ScalarT> & gradient) {
   if (solver_type == "steady-state") {
     vector_RCP u;
     bool fnd = soln->extract(u, current_time);
+    
     this->nonlinearSolver(u, phi);
     
     this->computeSensitivities(u, phi, gradient);
@@ -644,7 +811,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
   }
   
   // Set up a global mass matrix (possibly mass-lumped)
-  
+  /*
   vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // reset residual
   matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));
   vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
@@ -663,6 +830,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     
     this->setupMassSolver(mass, temp_rhs, temp_sol);
   }
+  */
   
   current_time = start_time;
   if (!useadjoint) { // forward solve - adaptive time stepping
@@ -675,19 +843,39 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     }
     
     assembler->performGather(0,u,0,0);
+    for (int s=0; s<numsteps; s++) {
+      assembler->resetPrevSoln();
+    }
     
+    int stepProg = 0;
     obj = 0.0;
     int numCuts = 0;
     int maxCuts = 5; // TMW: make this a user-defined input
     double timetol = end_time*1.0e-6; // just need to get close enough to final time
     while (current_time < (end_time-timetol) && numCuts<=maxCuts) {
       
-      assembler->resetPrevSoln();
+      if (BDForder > 1 && stepProg == startupSteps) {
+        this->setBackwardDifference(BDForder);
+        this->setButcherTableau(ButcherTab);
+      }
+      numstages = assembler->wkset[0]->butcher_A.extent(0);
+      
+      // Hard coded to one block for testing
+      // Make sure last step solution is gathered
+      // Last set of values is from a stage solution, which is potentially different
+      assembler->performGather(0,u,0,0);
+      
+      // Increment the previous step solutions (shift history and moves u into first spot)
+      assembler->resetPrevSoln(); //
+      
+      // Reset the stage solutions (sets all to zero)
+      assembler->resetStageSoln();
       
       ////////////////////////////////////////////////////////////////////////
       // Allow the cells to change subgrid model
       ////////////////////////////////////////////////////////////////////////
-      {
+      
+      if (multiscale_manager->subgridModels.size() > 0) {
         Teuchos::TimeMonitor localtimer(*msprojtimer);
         ScalarT my_cost = multiscale_manager->update();
         ScalarT gmin = 0.0;
@@ -695,53 +883,53 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         ScalarT gmax = 0.0;
         Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&my_cost,&gmin);
         if (Comm->getRank() == 0 && verbosity>0) {
-          cout << "***** Load Balancing Factor " << gmax/gmin <<  endl;
+          cout << "***** Multiscale Load Balancing Factor " << gmax/gmin <<  endl;
         }
       }
       
-      if(Comm->getRank() == 0 && verbosity > 0) {
+      if (Comm->getRank() == 0 && verbosity > 0) {
         cout << endl << endl << "*******************************************************" << endl;
         cout << endl << "**** Beginning Time Step " << endl;
         cout << "**** Current time is " << current_time << endl << endl;
         cout << "*******************************************************" << endl << endl << endl;
       }
       
-      int status= 1;
-      if (timeImplicit) {
-        current_time += deltat;
-        status = this->nonlinearSolver(u, zero_vec);
-      }
-      else {
-        status = this->explicitRKTimeSolver(u, zero_vec, mass);
+      vector_RCP u_prev = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+      u_prev->update(1.0,*u,0.0);
+      
+      int status = 1;
+      for (int stage = 0; stage<numstages; stage++) {
+        // Need a stage solution
+        vector_RCP u_stage = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+        // Set the initial guess for stage solution
+        u_stage->update(1.0,*u,0.0);
+        //KokkosTools::print(u, "printing u after update");
+        //KokkosTools::print(u_stage, "printing ustage after update");
+        assembler->updateStageNumber(stage); // could probably just += 1 in wksets
+        
+        status = this->nonlinearSolver(u_stage, zero_vec);
+        
+        u->update(1.0, *u_stage, 1.0);
+        u->update(-1.0, *u_prev, 1.0);
+        assembler->updateStageSoln(); // moves the stage solution into u_stage (avoids mem transfer)
       }
       
       if (status == 0) { // NL solver converged
-        
-        // TMW: currently allowing storage of all solutions
-        // Need to implement some form of checkpointing
+        current_time += deltat;
         soln->store(u, current_time, 0);
-        
-        if (allow_remesh) {
-          mesh->remesh(u, assembler->cells);
-        }
         
         if (compute_objective) { // fill in the objective function
           DFAD cobj = this->computeObjective(u, current_time, soln->times[0].size()-1);
           obj += cobj;
         }
-        if (compute_aux_sensitivity) {
-          
-        }
-        if (compute_flux) {
-          
-        }
+        stepProg += 1;
       }
       else { // something went wrong, cut time step and try again
         //soln->store(u, current_time, 0);
         
-        current_time -= deltat;
+        //current_time -= deltat;
         deltat *= 0.5;
-        current_time += deltat;
+        //current_time += deltat;
         numCuts += 1;
         
         bool fnd = soln->extract(u, current_time);
@@ -763,14 +951,13 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     vector_RCP u_prev = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
     vector_RCP phi = initial;
     
-    size_t numsteps = soln->times[0].size()-1;
+    size_t numFwdSteps = soln->times[0].size()-1;
     
     //bool fndu = soln->extract(u, numsteps);
     //assembler->performGather(0,u,0,0);
     
-    for (size_t timeiter = 0; timeiter<numsteps; timeiter++) {
-      size_t cindex = numsteps-timeiter;
-      current_time = soln->times[0][cindex];
+    for (size_t timeiter = 0; timeiter<numFwdSteps; timeiter++) {
+      size_t cindex = numFwdSteps-timeiter;
       
       if(Comm->getRank() == 0 && verbosity > 0) {
         cout << endl << endl << "*******************************************************" << endl;
@@ -789,7 +976,11 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         assembler->resetPrevSoln();
       }
       
+      current_time = soln->times[0][cindex-1];
+      
       int status = this->nonlinearSolver(u, phi);
+      
+      //current_time = soln->times[0][cindex];
       
       // Storing the adjoint solution should be made optional
       // We are computing the sensitivities as we go, so storage isn't always necessary
@@ -946,43 +1137,6 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
 // ========================================================================================
 // ========================================================================================
 
-void solver::setButcherTableau() {
-  if (time_order == 1) { // FWD Euler
-    butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",1,1);
-    butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",1);
-    butcher_b(0) = 1.0;
-    butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",1);
-  }
-  else if (time_order == 4) { // Classical RK4
-    butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",4,4);
-    butcher_A(1,0) = 0.5;
-    butcher_A(2,1) = 0.5;
-    butcher_A(3,2) = 1.0;
-    butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",4);
-    butcher_b(0) = 1.0/6.0;
-    butcher_b(1) = 1.0/3.0;
-    butcher_b(2) = 1.0/3.0;
-    butcher_b(3) = 1.0/6.0;
-    butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",4);
-    butcher_c(1) = 1.0/2.0;
-    butcher_c(2) = 1.0/2.0;
-    butcher_c(3) = 1.0;
-  }
-  // GH: commenting this out for now; it can't tell DRV from DRVint and has an overload problem
-  /*
-  if (milo_debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "******** Butcher tableau: " << endl;
-      KokkosTools::print(butcher_A, "solver::setButcherTableau() - Butcher-A");
-      KokkosTools::print(butcher_b, "solver::setButcherTableau() - Butcher-b");
-      KokkosTools::print(butcher_c, "solver::setButcherTableau() - Butcher-c");
-    }
-  }*/
-}
-
-// ========================================================================================
-// ========================================================================================
-
 int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & phi, matrix_RCP & mass) {
   
   if (milo_debug_level > 1) {
@@ -994,6 +1148,7 @@ int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & phi, matrix_RCP & 
   
   int status = 0;
   
+  /*
   size_t numStages = butcher_A.extent(0);
   std::vector<vector_RCP> stages;
   std::vector<vector_RCP> stageres;
@@ -1076,7 +1231,7 @@ int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & phi, matrix_RCP & 
       cout << "******** Finished solver::explicitRKTimeSolver" << endl;
     }
   }
-  
+  */
   return status;
 }
 
@@ -1592,6 +1747,8 @@ void solver::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   }
 }
 
+
+/*
 void solver::setupMassSolver(matrix_RCP & mass, vector_RCP & r, vector_RCP & soln)  {
   
   massProblem = Teuchos::rcp(new LA_LinearProblem(mass, soln, r));
@@ -1625,7 +1782,8 @@ void solver::setupMassSolver(matrix_RCP & mass, vector_RCP & r, vector_RCP & sol
   belosList->set("Implicit Residual Scaling", "None");
   
   massSolver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT, LA_MultiVector, LA_Operator>(massProblem, belosList));
-}
+}*/
+
 // ========================================================================================
 // Preconditioner for Tpetra stack
 // ========================================================================================
@@ -1695,7 +1853,7 @@ void solver::setBatchID(const int & bID){
 // ========================================================================================
 
 vector_RCP solver::blankState(){
-  vector_RCP F_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,numsteps+1)); // empty solution
+  vector_RCP F_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
   return F_soln;
 }
 

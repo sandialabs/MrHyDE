@@ -1,6 +1,7 @@
 %YAML 1.1
 ---
 ANONYMOUS:
+  debug level: 0
   verbosity: 0
   Mesh Settings File: input_mesh.yaml
   Physics: 
@@ -20,11 +21,13 @@ ANONYMOUS:
   Functions Settings File: input_functions.yaml
   Solver: 
     solver: transient
-    Workset size: 10
+    Transient Butcher Tableau: 'BWE'
+    Transient BDF order: 1
+    Workset size: 1
     Verbosity: 0
     NLtol: 9.99999999999999955e-07
     MaxNLiter: 4
-    finaltime: 1.00000000000000000e+00
+    final time: 1.0
     numSteps: 20
   Analysis: 
     analysis type: forward

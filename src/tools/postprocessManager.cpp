@@ -163,6 +163,9 @@ DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensor
       }
     }
   }
+  
+  BDF_wts_pp = Kokkos::View<ScalarT*,UnifiedDevice>("tmp view of BDF wts",1);
+  BDF_wts_pp(0) = 1.0;
 }
 
 // ========================================================================================
@@ -178,6 +181,12 @@ void PostprocessManager::computeError() {
   
   vector<ScalarT> solvetimes = solve->soln->times[0];
   vector_RCP u;
+  
+  // Need to replace BDF wts to use time step solution instead of stage solution
+  BDF_wts = assembler->wkset[0]->BDF_wts; // all blocks use the same BDF wts
+  for (size_t b=0; b<assembler->wkset.size(); b++) {
+    assembler->wkset[b]->BDF_wts = BDF_wts_pp;
+  }
   
   for (size_t b=0; b<cells.size(); b++) {// loop over blocks
     Kokkos::View<ScalarT***,AssemblyDevice> localerror("error",solvetimes.size(),numVars[b],error_types.size());
@@ -258,12 +267,24 @@ void PostprocessManager::computeError() {
     }
     
   }
+  
+  // Reset the BDF wts
+  for (size_t b=0; b<assembler->wkset.size(); b++) {
+    assembler->wkset[b]->BDF_wts = BDF_wts;
+  }
+  
 }
 
 // ========================================================================================
 // ========================================================================================
 
 AD PostprocessManager::computeObjective() {
+  
+  // Need to replace BDF wts to use time step solution instead of stage solution
+  BDF_wts = assembler->wkset[0]->BDF_wts; // all blocks use the same BDF wts
+  for (size_t b=0; b<assembler->wkset.size(); b++) {
+    assembler->wkset[b]->BDF_wts = BDF_wts_pp;
+  }
   
   if(Comm->getRank() == 0 ) {
     if (verbosity > 0) {
@@ -425,6 +446,11 @@ AD PostprocessManager::computeObjective() {
     objOUT.precision(16);
     objOUT << fullobj.val() << endl;
     objOUT.close();
+  }
+  
+  // Reset the BDF wts
+  for (size_t b=0; b<assembler->wkset.size(); b++) {
+    assembler->wkset[b]->BDF_wts = BDF_wts;
   }
   
   return fullobj;
@@ -661,6 +687,12 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
     cout << "*********************************************************" << endl;
   }
   
+  // Need to replace BDF wts to use time step solution instead of stage solution
+  BDF_wts = assembler->wkset[0]->BDF_wts; // all blocks use the same BDF wts
+  for (size_t b=0; b<assembler->wkset.size(); b++) {
+    assembler->wkset[b]->BDF_wts = BDF_wts_pp;
+  }
+  
   //auto E_kv = E_soln->getLocalView<HostDevice>();
   
   //vector<stk_classic::mesh::Entity*> stk_meshElems;
@@ -780,7 +812,7 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
                                         cells[b][e]->jacobianDet,cells[b][e]->orientation);
             Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
             seedwhat(0) = 0;
-            assembler->wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_prev, seedwhat);
+            assembler->wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_prev, cells[b][e]->u_stage, seedwhat);
             
             Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
             for (int p=0; p<cells[b][e]->numElem; p++) {
@@ -1139,6 +1171,12 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
   //    cells[b][e]->writeSubgridSolution(blockname);
   //  }
   //}
+  
+  // Reset the BDF wts
+  for (size_t b=0; b<assembler->wkset.size(); b++) {
+    assembler->wkset[b]->BDF_wts = BDF_wts;
+  }
+  
   if(Comm->getRank() == 0) {
     cout << endl << "*********************************************************" << endl;
     cout << "***** Finished Writing the solution to " << filename << endl;

@@ -140,9 +140,8 @@ void BoundaryCell::addAuxVars(const vector<string> & auxlist_) {
 // Define which basis each variable will use
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::setUseBasis(vector<int> & usebasis_, const int & nstages_) {
+void BoundaryCell::setUseBasis(vector<int> & usebasis_) {
   vector<int> usebasis = usebasis_;
-  //num_stages = nstages;
   
   // Set up the containers for usual solution storage
   size_t maxnbasis = 0;
@@ -151,11 +150,8 @@ void BoundaryCell::setUseBasis(vector<int> & usebasis_, const int & nstages_) {
       maxnbasis = cellData->numDOF(i);
     }
   }
-  //maxnbasis *= nstages;
   u = Kokkos::View<ScalarT***,AssemblyDevice>("u",numElem,cellData->numDOF.extent(0),maxnbasis);
-  //u_dot = Kokkos::View<ScalarT***,AssemblyDevice>("u_dot",numElem,cellData->numDOF.extent(0),maxnbasis);
   phi = Kokkos::View<ScalarT***,AssemblyDevice>("phi",numElem,cellData->numDOF.extent(0),maxnbasis);
-  //phi_dot = Kokkos::View<ScalarT***,AssemblyDevice>("phi_dot",numElem,cellData->numDOF.extent(0),maxnbasis);
   
 }
 

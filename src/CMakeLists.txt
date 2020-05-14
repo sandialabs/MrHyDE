@@ -49,6 +49,7 @@ physics/maxwells_fp.cpp
 physics/maxwell_hybridized.cpp
 physics/shallowwater.cpp
 physics/maxwell.cpp
+physics/ode.cpp
 tools/functionManager.cpp)
 TARGET_LINK_LIBRARIES(milo ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 

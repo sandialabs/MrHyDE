@@ -169,7 +169,7 @@ void cell::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const v
 // Define which basis each variable will use
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::setUseBasis(vector<int> & usebasis_, const int & nstages_) {
+void cell::setUseBasis(vector<int> & usebasis_, const int & numsteps, const int & numstages) {
   vector<int> usebasis = usebasis_;
   //num_stages = nstages;
   
@@ -185,8 +185,11 @@ void cell::setUseBasis(vector<int> & usebasis_, const int & nstages_) {
   phi = Kokkos::View<ScalarT***,AssemblyDevice>("phi",numElem,cellData->numDOF.extent(0),maxnbasis);
   
   // This does add a little extra un-used memory for steady-state problems, but not a concern
-  u_prev = Kokkos::View<ScalarT****,AssemblyDevice>("u previous",numElem,cellData->numDOF.extent(0),maxnbasis,nstages_);
-  phi_prev = Kokkos::View<ScalarT****,AssemblyDevice>("phi previous",numElem,cellData->numDOF.extent(0),maxnbasis,nstages_);
+  u_prev = Kokkos::View<ScalarT****,AssemblyDevice>("u previous",numElem,cellData->numDOF.extent(0),maxnbasis,numsteps);
+  phi_prev = Kokkos::View<ScalarT****,AssemblyDevice>("phi previous",numElem,cellData->numDOF.extent(0),maxnbasis,numsteps);
+  
+  u_stage = Kokkos::View<ScalarT****,AssemblyDevice>("u stages",numElem,cellData->numDOF.extent(0),maxnbasis,numstages);
+  phi_stage = Kokkos::View<ScalarT****,AssemblyDevice>("phi stages",numElem,cellData->numDOF.extent(0),maxnbasis,numstages);
   
 }
 
@@ -242,7 +245,7 @@ void cell::computeSolnVolIP(Kokkos::View<int*,UnifiedDevice> seedwhat) {
   
   Teuchos::TimeMonitor localtimer(*computeSolnVolTimer);
   wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
-  wkset->computeSolnVolIP(u, u_prev, seedwhat);
+  wkset->computeSolnVolIP(u, u_prev, u_stage, seedwhat);
   wkset->computeParamVolIP(param, seedwhat);
   
   /*
@@ -309,12 +312,12 @@ void cell::updateSolnWorkset(const vector_RCP & gl_u, int tindex) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Reset the data stored in the previous step/stage solutions
+// Reset the data stored in the previous step solutions
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void cell::resetPrevSoln() {
   
-  // shift previous stage solns
+  // shift previous step solns
   if (u_prev.extent(3)>1) {
     parallel_for(RangePolicy<AssemblyExec>(0,u_prev.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int i=0; i<u_prev.extent(1); i++) {
@@ -327,7 +330,7 @@ void cell::resetPrevSoln() {
     });
   }
   
-  // copy current u into first stage
+  // copy current u into first step
   parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (int i=0; i<u.extent(1); i++) {
       for (int j=0; j<u.extent(2); j++) {
@@ -335,6 +338,44 @@ void cell::resetPrevSoln() {
       }
     }
   });
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Reset the data stored in the previous stage solutions
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::resetStageSoln() {
+  
+  parallel_for(RangePolicy<AssemblyExec>(0,u_stage.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    for (int i=0; i<u_stage.extent(1); i++) {
+      for (int j=0; j<u_stage.extent(2); j++) {
+        for (int k=0; k<u_stage.extent(3); k++) {
+          u_stage(e,i,j,k) = u(e,i,j);
+        }
+      }
+    }
+  });
+  //KokkosTools::print(u_stage);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Update the data stored in the previous stage solutions
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::updateStageSoln() {
+  
+  // add u into the current stage soln (done after stage solution is computed)
+  parallel_for(RangePolicy<AssemblyExec>(0,u_stage.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    for (int i=0; i<u_stage.extent(1); i++) {
+      for (int j=0; j<u_stage.extent(2); j++) {
+        int stage = wkset->current_stage;
+        u_stage(e,i,j,stage) = u(e,i,j);
+      }
+    }
+  });
+  
+  //KokkosTools::print(u_stage);
   
 }
 
@@ -399,7 +440,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
     if (cellData->multiscale) {
       //for (int e=0; e<numElem; e++) {
         int sgindex = subgrid_model_index[subgrid_model_index.size()-1];
-        subgridModels[sgindex]->subgridSolver(u, phi, time, isTransient, isAdjoint,
+        subgridModels[sgindex]->subgridSolver(u, phi, wkset->time, isTransient, isAdjoint,
                                               compute_jacobian, compute_sens, num_active_params,
                                               compute_disc_sens, compute_aux_sens,
                                               *wkset, subgrid_usernum, 0,
@@ -843,7 +884,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::computeError(const ScalarT & solve
         wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
         Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
         seedwhat(0) = 0;
-        wkset->computeSolnVolIP(u, u_prev, seedwhat);
+        wkset->computeSolnVolIP(u, u_prev, u_stage, seedwhat);
         size_t numip = wkset->numip;
         
         Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index.extent(1),
@@ -867,7 +908,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::computeError(const ScalarT & solve
         wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
         Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
         seedwhat(0) = 0;
-        wkset->computeSolnVolIP(u, u_prev, seedwhat);
+        wkset->computeSolnVolIP(u, u_prev, u_stage, seedwhat);
         size_t numip = wkset->numip;
         
         Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index.extent(1),

@@ -117,6 +117,7 @@ class workset {
   
   void computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
                         Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
+                        Kokkos::View<ScalarT****,AssemblyDevice> u_stage,
                         Kokkos::View<int*,UnifiedDevice> seedwhat);
 
   ////////////////////////////////////////////////////////////////////////////////////
@@ -176,14 +177,15 @@ class workset {
   vector<string> varlist;
   //Teuchos::RCP<TimeIntegrator> timeInt;
   // ScalarT wts to compute u and udot for transient problems
-  Kokkos::View<ScalarT*,AssemblyDevice> sol_wts, soldot_wts;
-  
+  Kokkos::View<ScalarT**,UnifiedDevice> butcher_A;
+  Kokkos::View<ScalarT*,UnifiedDevice> butcher_b, butcher_c, BDF_wts;
+    
   vector<int> usebasis, paramusebasis;
   bool isAdjoint, onlyTransient, isTransient;
   bool isInitialized, usebcs;
   topo_RCP celltopo;
   size_t numsides, numip, numsideip, numVars, numParams, numAux, numDOF;
-  int dimension, numElem;//, num_stages;
+  int dimension, numElem, current_stage;//, num_stages;
   DRV ref_ip, ref_side_ip, ref_wts, ref_side_wts;
   vector<DRV> ref_side_ip_vec, ref_side_normals_vec, ref_side_tangents_vec, ref_side_tangentsU_vec, ref_side_tangentsV_vec;
   vector<string> basis_types;

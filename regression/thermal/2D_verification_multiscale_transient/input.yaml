@@ -10,7 +10,7 @@ ANONYMOUS:
       e:
         all boundaries: '0.0'
     true solutions:
-      e: sin(2.0*pi*x)*sin(2.0*pi*y)
+      e: sin(2*pi*t)*sin(2.0*pi*x)*sin(2.0*pi*y)
   Subgrid:
     usage: '1.0'
     Mesh: 
@@ -20,7 +20,7 @@ ANONYMOUS:
     Physics: 
       solve_thermal: true
       true solutions:
-        e: sin(2.0*pi*x)*sin(2.0*pi*y)
+        e: sin(2*pi*t)*sin(2.0*pi*x)*sin(2.0*pi*y)
     Discretization:
       order:
         e: 1
@@ -40,11 +40,10 @@ ANONYMOUS:
     solver: transient
     Workset Size: 1
     Verbosity: 0
-    NLtol: 9.99999999999999955e-6
+    NLtol: 1.0e-6
     MaxNLiter: 4
-    final time: 4.000000000000000e-01
-    ddelta t: 1.000000000000000e-01
-    numSteps: 4
+    final time: 1.0
+    numSteps: 5
   Analysis: 
     analysis type: forward
     Have Sensor Points: false

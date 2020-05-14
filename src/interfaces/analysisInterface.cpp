@@ -775,7 +775,7 @@ void analysis::run() {
   
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** FInished analysis::run" << endl;
+      cout << "**** Finished analysis::run" << endl;
     }
   }
   

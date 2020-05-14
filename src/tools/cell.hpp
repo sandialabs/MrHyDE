@@ -85,7 +85,7 @@ public:
   // Define which basis each variable will use
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void setUseBasis(vector<int> & usebasis_, const int & nstages_);
+  void setUseBasis(vector<int> & usebasis_, const int & numsteps, const int & numstages);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Define which basis each discretized parameter will use
@@ -116,6 +116,10 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   
   void resetPrevSoln();
+  
+  void resetStageSoln();
+  
+  void updateStageSoln();
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the contribution from this cell to the global res, J, Jdot
@@ -317,14 +321,14 @@ public:
   vector<size_t> cell_data_seed, cell_data_seedindex;
   vector<size_t> subgrid_model_index; // which subgrid model is used for each time step
   size_t subgrid_usernum; // what is the index for this cell in the subgrid model (should be deprecated)
-  Kokkos::View<ScalarT*,AssemblyDevice> udot_wts;
+  //Kokkos::View<ScalarT*,AssemblyDevice> udot_wts;
   
   // Data created here (Views should all be AssemblyDevice)
   size_t numElem;
   DRV ip, wts, jacobian, jacobianInv, jacobianDet;
   Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
   Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param;
-  Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev;
+  Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage;
   //Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
   
   // Aux variable Information

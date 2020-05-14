@@ -36,6 +36,7 @@
 #include "shallowwater.hpp"
 #include "maxwell.hpp"
 #include "maxwell_hybridized.hpp"
+#include "ode.hpp"
 
 // Disabled/out-of-date physics modules
 //#include "msconvdiff.hpp"
@@ -507,6 +508,13 @@ void physics::importPhysics() {
       Teuchos::RCP<maxwells_fp> maxwells_fp_RCP = Teuchos::rcp(new maxwells_fp(settings) );
       currmodules.push_back(maxwells_fp_RCP);
       currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_maxwells_freq_pot",false));
+    }
+    
+    // Scalar ODE for testing time integrators independent of spatial discretizations
+    if (blockPhysSettings[b].get<bool>("solve_ODE",false)){
+      Teuchos::RCP<ODE> ODE_RCP = Teuchos::rcp(new ODE(settings) );
+      currmodules.push_back(ODE_RCP);
+      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_ODE",false));
     }
     
     /*
