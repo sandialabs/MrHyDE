@@ -32,6 +32,7 @@ ANONYMOUS:
   Parameters Settings File: input_params.yaml
   Solver: 
     solver: transient
+    Transient Butcher Tableau: DIRK-1,2
     Workset Size: 100
     NLtol: 9.99999999999999955e-07
     MaxNLiter: 4
