@@ -33,7 +33,7 @@ int main(int argc, char * argv[]) {
     discTools->getQuadrature(sideTopo, quadorder, sip, swts);
     
     vector<string> btypes = {"HGRAD"};
-    Kokkos::View<int**,AssemblyDevice> bcs("bcs",1,1);
+    Kokkos::View<int**,UnifiedDevice> bcs("bcs",1,1);
     Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset(cellinfo, ip, wts,
                                                             sip, swts, btypes, basis, basis, cellTopo,bcs) );
     

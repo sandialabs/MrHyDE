@@ -219,7 +219,7 @@ void linearelasticity::volumeResidual() {
 
 void linearelasticity::boundaryResidual() {
   
-  Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
+  Kokkos::View<int**,UnifiedDevice> bcs = wkset->var_bcs;
   
   
   int cside = wkset->currentside;

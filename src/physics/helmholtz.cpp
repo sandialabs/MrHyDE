@@ -238,7 +238,7 @@ void helmholtz::boundaryResidual() {
   // NOTES:
   // 1. basis and basis_grad already include the integration weights
   
-  Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
+  Kokkos::View<int**,UnifiedDevice> bcs = wkset->var_bcs;
   int cside = wkset->currentside;
   
   int ur_basis_num = wkset->usebasis[ur_num];
