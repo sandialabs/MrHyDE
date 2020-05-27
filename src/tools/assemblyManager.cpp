@@ -150,7 +150,7 @@ void AssemblyManager::createCells() {
       }
       
       // Set the side information (soon to be removed)-
-      Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,eIndex);
+      Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,host_eIndex);
       
       Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", currElem, numNodesPerElem);
       

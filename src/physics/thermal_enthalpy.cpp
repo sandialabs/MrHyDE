@@ -126,6 +126,7 @@ void thermal_enthalpy::volumeResidual() {
   
   basis = wkset->basis[H_basis];
   basis_grad = wkset->basis_grad[H_basis];
+  auto off = Kokkos::subview( offsets, H_num, Kokkos::ALL());
   
   parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
@@ -139,7 +140,7 @@ void thermal_enthalpy::volumeResidual() {
       AD H = sol(e,H_num,k,0);
       
       for (int i=0; i<basis.extent(1); i++ ) {
-        int resindex = wkset->offsets(H_num,i);
+        int resindex = off(i);
         v = basis(e,i,k);
         // make cp_integral and gfunc udfuncs
         //cp_integral = 320.3*e + 0.379/2.0*e*e;

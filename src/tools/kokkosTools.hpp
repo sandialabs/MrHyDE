@@ -25,8 +25,8 @@
 #include "preferences.hpp"
 #include "Teuchos_FancyOStream.hpp"
 
-typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> DRV;
-typedef Kokkos::DynRankView<int,AssemblyDevice> DRVint;
+//typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> DRV;
+//typedef Kokkos::DynRankView<int,AssemblyDevice> DRVint;
 
 class KokkosTools {
 public:

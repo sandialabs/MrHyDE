@@ -1070,14 +1070,15 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
         for (size_t k=0; k<cells[b].size(); k++) {
           vector<size_t> cell_data_seed = cells[b][k]->cell_data_seed;
           vector<size_t> cell_data_seedindex = cells[b][k]->cell_data_seedindex;
-          Kokkos::View<ScalarT**> cell_data = cells[b][k]->cell_data;
+          Kokkos::View<ScalarT**,AssemblyDevice> cell_data = cells[b][k]->cell_data;
+          // TMW: will need to create mirror view to re-enable this
           for (int p=0; p<cells[b][k]->numElem; p++) {
             /*
             if (cell_data.extent(1) == 3) {
               cdata(eprog,0) = cell_data(p,0);//cell_data_seed[p];
             }
             else if (cell_data.extent(1) == 9) {
-              cdata(eprog,0) = cell_data(p,0);//*cell_data(p,4)*cell_data(p,8);//cell_data_seed[p];
+              cdata(eprog,0) = cell_data(p,0);//cell_data(p,4)*cell_data(p,8);//cell_data_seed[p];
             }
              */
             cdata(eprog,0) = cell_data_seedindex[p];

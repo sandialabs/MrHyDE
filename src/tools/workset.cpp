@@ -53,6 +53,7 @@ celltopo(topo), var_bcs(var_bcs_)  { //, timeInt(timeInt_) {
    }
    ref_ip = newip;
    */
+
   
   deltat = 1.0;
   current_stage = 0;

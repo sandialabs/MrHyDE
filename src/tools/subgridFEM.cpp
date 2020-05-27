@@ -251,19 +251,27 @@ void SubGridFEM::setUpSubgridModels() {
       if (prog+currElem > group.size()){
         currElem = group.size()-prog;
       }
-      Kokkos::View<int*> eIndex("element indices",currElem);
-      Kokkos::View<int*> sideIndex("local side indices",currElem);
+      Kokkos::View<int*,AssemblyDevice> eIndex("element indices",currElem);
+      Kokkos::View<int*,AssemblyDevice> sideIndex("local side indices",currElem);
       DRV currnodes("currnodes", currElem, numNodesPerElem, dimension);
+
+      auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
+      auto host_sideIndex = Kokkos::create_mirror_view(sideIndex); // mirror on host
+      auto host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
       for (int e=0; e<currElem; e++) {
-        eIndex(e) = group[e+prog];
-        sideIndex(e) = unique_local_sides[s];
+        host_eIndex(e) = group[e+prog];
+        host_sideIndex(e) = unique_local_sides[s];
         for (int n=0; n<numNodesPerElem; n++) {
           for (int m=0; m<dimension; m++) {
-            currnodes(e,n,m) = nodes[connectivity[eIndex(e)][n]][m];
+            host_currnodes(e,n,m) = nodes[connectivity[eIndex(e)][n]][m];
           }
         }
       }
       int sideID = s;
+     
+      Kokkos::deep_copy(currnodes,host_currnodes);
+      Kokkos::deep_copy(eIndex,host_eIndex);
+      Kokkos::deep_copy(sideIndex,host_sideIndex); 
       
       // Build the Kokkos View of the cell GIDs ------
       vector<vector<GO> > cellGIDs;
@@ -284,7 +292,7 @@ void SubGridFEM::setUpSubgridModels() {
       
       //-----------------------------------------------
       // Set the side information (soon to be removed)-
-      Kokkos::View<int****,HostDevice> sideinfo = sub_physics->getSideInfo(0,eIndex);
+      Kokkos::View<int****,HostDevice> sideinfo = sub_physics->getSideInfo(0,host_eIndex);
       
       //-----------------------------------------------
       // Set the cell orientation ---
@@ -2490,10 +2498,11 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
       int eprog = 0;
       vector<size_t> cell_data_seed = localData[usernum]->cell_data_seed;
       vector<size_t> cell_data_seedindex = localData[usernum]->cell_data_seedindex;
-      Kokkos::View<ScalarT**> cell_data = localData[usernum]->cell_data;
+      Kokkos::View<ScalarT**,AssemblyDevice> cell_data = localData[usernum]->cell_data;
+      // TMW: need to use a mirror view here
       for (int p=0; p<cells[0][0]->numElem; p++) {
-        cdata(eprog,0) = cell_data_seedindex[p];
-        eprog++;
+        //cdata(eprog,0) = cell_data_seedindex[p];
+        //eprog++;
       }
     }
     submesh->setCellFieldData("mesh_data_seed", blockID, myElements, cdata);

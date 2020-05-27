@@ -1451,7 +1451,7 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 Kokkos::View<int****,HostDevice> physics::getSideInfo(const size_t & block,
-                                                      Kokkos::View<int*> elem) {
+                                                     Kokkos::View<int*,HostDevice> elem) {
   size_t nelem = elem.extent(0);
   size_t nvars = side_info[block].extent(1);
   size_t nelemsides = side_info[block].extent(2);
