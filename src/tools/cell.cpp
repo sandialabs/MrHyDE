@@ -37,6 +37,7 @@ cellData(cellData_), localElemID(localID_), nodes(nodes_), GIDs(GIDs_), sideinfo
 
 void cell::setIP() {
   // ip and ref_ip will live on the assembly device
+  
   ip = DRV("ip", numElem, cellData->ref_ip.extent(0), cellData->dimension);
   CellTools::mapToPhysicalFrame(ip, cellData->ref_ip, nodes, *(cellData->cellTopo));
   

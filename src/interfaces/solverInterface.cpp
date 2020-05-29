@@ -572,11 +572,13 @@ void solver::setupLinearAlgebra() {
       }
       //vector<vector<vector<int> > > cellindices;
       Kokkos::View<LO***,AssemblyDevice> cellindices("Local DOF indices", numElem, numVars[b], maxBasis[b]);
+      auto host_cellindices = Kokkos::create_mirror_view(cellindices);
+      
       for (int p=0; p<numElem; p++) {
         for (int n=0; n<numVars[b]; n++) {
           for( int i=0; i<numBasis[b][n]; i++ ) {
             GO cgid = gids(p,curroffsets[n][i]);
-            cellindices(p,n,i) = LA_overlapped_map->getLocalElement(cgid);
+            host_cellindices(p,n,i) = LA_overlapped_map->getLocalElement(cgid);
           }
         }
         Teuchos::Array<GO> ind2(gids.extent(1));
@@ -588,6 +590,7 @@ void solver::setupLinearAlgebra() {
           LA_overlapped_graph->insertGlobalIndices(ind1,ind2);
         }
       }
+      Kokkos::deep_copy(cellindices,host_cellindices);
       assembler->cells[b][e]->setIndex(cellindices);
     }
     
