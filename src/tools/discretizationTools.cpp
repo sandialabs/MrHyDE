@@ -585,7 +585,7 @@ ScalarT DiscTools::getElementSize(const DRV & nodes, const DRV & ip, const DRV &
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
-void DiscTools::getQuadrature(const topo_RCP & cellTopo, const int & order, DRV & ip, DRV & wts) {
+void DiscTools::getQuadrature(const topo_RCP & cellTopo, const int & order, DRV ip, DRV wts) {
   
   Intrepid2::DefaultCubatureFactory cubFactory;
   Teuchos::RCP<Intrepid2::Cubature<AssemblyExec> > basisCub  = cubFactory.create<AssemblyExec, ScalarT, ScalarT>(*cellTopo, order); // TMW: the mesh sublist is not the correct place

@@ -126,7 +126,7 @@ void AssemblyManager::createCells() {
             //currnodepert(e,n,m) = blocknodepert(prog+e,n,m);
           }
         }
-        eIndex(e) = prog+e;
+        host_eIndex(e) = prog+e;
       }
       Kokkos::deep_copy(currnodes,host_currnodes);
       Kokkos::deep_copy(eIndex,host_eIndex);
