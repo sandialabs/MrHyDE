@@ -367,9 +367,10 @@ void cell::resetStageSoln() {
 
 void cell::updateStageSoln() {
   
-  int stage = wkset->current_stage;
+  
   // add u into the current stage soln (done after stage solution is computed)
   parallel_for(RangePolicy<AssemblyExec>(0,u_stage.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    int stage = wkset->current_stage_KV(0);
     for (int i=0; i<u_stage.extent(1); i++) {
       for (int j=0; j<u_stage.extent(2); j++) {
         u_stage(e,i,j,stage) = u(e,i,j);
