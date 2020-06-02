@@ -369,8 +369,9 @@ void cell::updateStageSoln() {
   
   
   // add u into the current stage soln (done after stage solution is computed)
+  Kokkos::View<int*,UnifiedDevice> snum = wkset->current_stage_KV;
   parallel_for(RangePolicy<AssemblyExec>(0,u_stage.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    int stage = wkset->current_stage_KV(0);
+    int stage = snum(0);
     for (int i=0; i<u_stage.extent(1); i++) {
       for (int j=0; j<u_stage.extent(2); j++) {
         u_stage(e,i,j,stage) = u(e,i,j);
