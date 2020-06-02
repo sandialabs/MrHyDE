@@ -179,13 +179,15 @@ class workset {
   // ScalarT wts to compute u and udot for transient problems
   Kokkos::View<ScalarT**,UnifiedDevice> butcher_A;
   Kokkos::View<ScalarT*,UnifiedDevice> butcher_b, butcher_c, BDF_wts;
-    
+  
   vector<int> usebasis, paramusebasis;
   bool isAdjoint, onlyTransient, isTransient;
   bool isInitialized, usebcs;
   topo_RCP celltopo;
   size_t numsides, numip, numsideip, numVars, numParams, numAux, numDOF;
-  int dimension, numElem, current_stage;//, num_stages;
+  int dimension, numElem, current_stage;
+  Kokkos::View<int*,UnifiedDevice> current_stage_KV; // for access on device
+  
   DRV ref_ip, ref_side_ip, ref_wts, ref_side_wts;
   vector<DRV> ref_side_ip_vec, ref_side_normals_vec, ref_side_tangents_vec, ref_side_tangentsU_vec, ref_side_tangentsV_vec;
   vector<string> basis_types;
@@ -210,6 +212,8 @@ class workset {
   // Data recomputed often (depends on physical element and time)
   ScalarT time, alpha, deltat;
   Kokkos::View<ScalarT*,AssemblyDevice> time_KV;
+  Kokkos::View<ScalarT*,AssemblyDevice> deltat_KV;
+  
   Kokkos::View<ScalarT*,AssemblyDevice> h;
   size_t block, localEID, globalEID;
   DRV ip, ip_side, wts, wts_side, normals;

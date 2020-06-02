@@ -56,7 +56,12 @@ celltopo(topo), var_bcs(var_bcs_)  { //, timeInt(timeInt_) {
 
   
   deltat = 1.0;
+  deltat_KV = Kokkos::View<ScalarT*,AssemblyDevice>("deltat",1);
+  deltat_KV(0) = deltat;
+  
   current_stage = 0;
+  current_stage_KV = Kokkos::View<int*,UnifiedDevice>("stage number on device",1);
+  current_stage_KV(0) = 0;
   // Integration information
   numip = ref_ip.extent(0);
   numsideip = ref_side_ip.extent(0);
@@ -66,7 +71,7 @@ celltopo(topo), var_bcs(var_bcs_)  { //, timeInt(timeInt_) {
   else if (dimension == 3) {
     numsides = celltopo->getFaceCount();
   }
-  time_KV = Kokkos::View<ScalarT*,AssemblyDevice>("time",1);
+  time_KV = Kokkos::View<ScalarT*,AssemblyDevice>("time",1); // defaults to 0.0
   //sidetype = Kokkos::View<int*,AssemblyDevice>("side types",numElem);
   ip = DRV("ip", numElem,numip, dimension);
   wts = DRV("wts", numElem, numip);
@@ -412,20 +417,6 @@ void workset::update(const DRV & ip_, const DRV & wts_, const DRV & jacobian,
     wts = wts_;
 
     Kokkos::deep_copy(ip_KV,ip);    
-    /*
-    parallel_for(RangePolicy<AssemblyExec>(0,ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (size_t j=0; j<ip.extent(1); j++) {
-        for (size_t k=0; k<ip.extent(2); k++) {
-          ip_KV(e,j,k) = ip(e,j,k);
-        }
-      }
-    });
-    */
-    //KokkosTools::print(jacobianDet);
-    
-    //CellTools::setJacobianDet(jacobDet, jacobian);
-    //CellTools::setJacobianInv(jacobInv, jacobian);
-    //FuncTools::computeCellMeasure(wts, jacobDet, ref_wts);
     
     parallel_for(RangePolicy<AssemblyExec>(0,ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
       ScalarT vol = 0.0;
@@ -436,8 +427,6 @@ void workset::update(const DRV & ip_, const DRV & wts_, const DRV & jacobian,
       h(e) = std::pow(vol,dimscl);
     });
   }
-  
-  //ots::modifyBasisByOrientation(basis_out, basis_in, orientations[i],basis_pointers[i]);
   
   {
     
@@ -844,17 +833,19 @@ void workset::updateFace(const DRV & nodes, Kokkos::DynRankView<Intrepid2::Orien
     parallel_for(RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int j=0; j<normals.extent(1); j++ ) {
         ScalarT normalLength = 0.0;
-        for (int sd=0; sd<dimension; sd++) {
+        for (int sd=0; sd<normals.extent(2); sd++) {
           normalLength += normals(e,j,sd)*normals(e,j,sd);
         }
-        normalLength = sqrt(normalLength);
-        for (int sd=0; sd<dimension; sd++) {
+        normalLength = std::sqrt(normalLength);
+        for (int sd=0; sd<normals.extent(2); sd++) {
           normals(e,j,sd) = normals(e,j,sd) / normalLength;
         }
       }
     });
     
-    
+    Kokkos::deep_copy(normals_KV,normals);
+    Kokkos::deep_copy(ip_side_KV,ip_side);
+    /*
     parallel_for(RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (size_t j=0; j<numsideip; j++) {
         for (size_t k=0; k<dimension; k++) {
@@ -863,7 +854,7 @@ void workset::updateFace(const DRV & nodes, Kokkos::DynRankView<Intrepid2::Orien
         }
       }
     });
-    
+    */
   }
   
   // Step 2: define basis functionsat these integration points
@@ -965,16 +956,19 @@ void workset::updateSide(const int & sidenum, const int & cnum) {
     {
       Teuchos::TimeMonitor updatetimer(*worksetSideUpdateIPTimer);
       
-    
-    parallel_for(RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (size_t j=0; j<numsideip; j++) {
-        for (size_t k=0; k<dimension; k++) {
-          ip_side_KV(e,j,k) = ip_side(e,j,k);
-          normals_KV(e,j,k) = normals(e,j,k);
-        }
-      }
-    });
+      Kokkos::deep_copy(normals_KV,normals);
+      Kokkos::deep_copy(ip_side_KV,ip_side);
       
+      /*
+      parallel_for(RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        for (size_t j=0; j<numsideip; j++) {
+          for (size_t k=0; k<dimension; k++) {
+            ip_side_KV(e,j,k) = ip_side(e,j,k);
+            normals_KV(e,j,k) = normals(e,j,k);
+          }
+        }
+      });
+      */
     }
   }
   
@@ -1226,6 +1220,8 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int e ) {
           AD uval, u_dotval, stageval;
           int kk = bind(0);
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
           for (int i=0; i<kbasis_uw.extent(1); i++ ) {
             if (seedwhat(0) == 1) {
               stageval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
@@ -1278,6 +1274,9 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         
         parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int e ) {
           AD uval, u_dotval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          
           int kk = bind(0);
           for (int i=0; i<kbasis_uw.extent(1); i++ ) {
             if (seedwhat(0) == 1) {
@@ -1323,6 +1322,9 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         
         parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int e ) {
           AD uval, u_dotval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          
           int kk = bind(0);
           for (int i=0; i<kbasis_uw.extent(1); i++ ) {
             if (seedwhat(0) == 1) {
@@ -1366,6 +1368,9 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         
         parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int e ) {
           AD uval, u_dotval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          
           int kk = bind(0);
           for (int i=0; i<kbasis_uw.extent(1); i++ ) {
             if (seedwhat(0) == 1) {

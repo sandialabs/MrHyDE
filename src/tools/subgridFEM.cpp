@@ -1128,6 +1128,7 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
         alpha = (ScalarT)time_steps/macro_deltat;
         wkset[0]->alpha = alpha;
         wkset[0]->deltat= 1.0/alpha;
+        wkset[0]->deltat_KV(0) = 1.0/alpha;
         
         Kokkos::View<ScalarT***,AssemblyDevice> currlambda = cg_u;
         
@@ -1149,6 +1150,7 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
         alpha = (ScalarT)time_steps/macro_deltat;
         wkset[0]->alpha = alpha;
         wkset[0]->deltat= 1.0/alpha;
+        wkset[0]->deltat_KV(0) = 1.0/alpha;
         
         Kokkos::View<ScalarT***,AssemblyDevice> currlambda = lambda;
         
@@ -1176,6 +1178,7 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
         
         wkset[0]->alpha = alpha;
         wkset[0]->deltat= 1.0/alpha;
+        wkset[0]->deltat_KV(0) = 1.0/alpha;
         
         Kokkos::View<ScalarT***,AssemblyDevice> currlambda = lambda;
         
@@ -1211,6 +1214,7 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
   else {
     
     wkset[0]->deltat = 1.0;
+    wkset[0]->deltat_KV(0) = 1.0;
     
     this->subGridNonlinearSolver(u, phi, Psol[0], lambda,
                                  current_time, isTransient, isAdjoint, num_active_params, alpha, usernum, false);

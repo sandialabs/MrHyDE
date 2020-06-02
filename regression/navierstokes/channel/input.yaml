@@ -26,6 +26,7 @@ ANONYMOUS:
   Parameters Settings File: input_params.yaml
   Solver:
     solver: steady-state
+    use direct solver: true
     Multigrid type: sa
     Smoother type: RELAXATION
     Workset Size: 1
