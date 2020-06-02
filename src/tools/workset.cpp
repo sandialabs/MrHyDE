@@ -432,7 +432,7 @@ void workset::update(const DRV & ip_, const DRV & wts_, const DRV & jacobian,
       for (int i=0; i<wts.extent(1); i++) {
         vol += wts(e,i);
       }
-      ScalarT dimscl = 1.0/wts.extent(1);
+      ScalarT dimscl = 1.0/(ScalarT)ip.extent(2);
       h(e) = std::pow(vol,dimscl);
     });
   }

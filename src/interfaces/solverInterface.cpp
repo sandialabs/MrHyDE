@@ -1659,11 +1659,9 @@ vector_RCP solver::setInitialParams() {
 
 vector_RCP solver::setInitial() {
  
-  cout << "here 0" << endl; 
   vector_RCP initial = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
   vector_RCP glinitial = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
   initial->putScalar(0.0);
-  cout << "here 1" << endl; 
   
   if (initial_type == "L2-projection") {
     
@@ -1672,9 +1670,7 @@ vector_RCP solver::setInitial() {
     matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));//Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
     vector_RCP glrhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
     matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));//Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
-  cout << "here 2" << endl; 
     assembler->setInitial(rhs, mass, useadjoint);
-  cout << "here 3" << endl; 
     
     glmass->setAllToScalar(0.0);
     glmass->doExport(*mass, *exporter, Tpetra::ADD);
@@ -1684,7 +1680,6 @@ vector_RCP solver::setInitial() {
     
     glmass->fillComplete();
     
-  cout << "here 4" << endl; 
     this->linearSolver(glmass, glrhs, glinitial);
     have_preconditioner = false; // resetting this because mass matrix may not have connectivity as Jacobians
     initial->doImport(*glinitial, *importer, Tpetra::ADD);
