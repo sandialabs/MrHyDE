@@ -189,13 +189,13 @@ void workset::setupBasis() {
     
     if (basis_types[i] == "HGRAD" || basis_types[i] == "HVOL") {
       DRV basisvals("basisvals",numb, numip);
+
       basis_pointers[i]->getValues(basisvals, ref_ip, Intrepid2::OPERATOR_VALUE);
       DRV basisvals_Transformed("basisvals_Transformed",numElem, numb, numip);
       FuncTools::HGRADtransformVALUE(basisvals_Transformed, basisvals);
       ref_basis.push_back(basisvals_Transformed);
       basis.push_back(DRV("basis",numElem,numb,numip));
       basis_uw.push_back(DRV("basis_uw",numElem,numb,numip));
-      
       
       DRV basisgrad("basisgrad",numb, numip, dimension);
       basis_pointers[i]->getValues(basisgrad, ref_ip, Intrepid2::OPERATOR_GRAD);
@@ -410,26 +410,30 @@ void workset::update(const DRV & ip_, const DRV & wts_, const DRV & jacobian,
     Teuchos::TimeMonitor updatetimer(*worksetUpdateIPTimer);
     ip = ip_;
     wts = wts_;
-    
-    parallel_for(RangePolicy<AssemblyExec>(0,activeElem), KOKKOS_LAMBDA (const int e ) {
-      for (size_t j=0; j<numip; j++) {
-        for (size_t k=0; k<dimension; k++) {
+
+    Kokkos::deep_copy(ip_KV,ip);    
+    /*
+    parallel_for(RangePolicy<AssemblyExec>(0,ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (size_t j=0; j<ip.extent(1); j++) {
+        for (size_t k=0; k<ip.extent(2); k++) {
           ip_KV(e,j,k) = ip(e,j,k);
         }
       }
     });
+    */
     //KokkosTools::print(jacobianDet);
     
     //CellTools::setJacobianDet(jacobDet, jacobian);
     //CellTools::setJacobianInv(jacobInv, jacobian);
     //FuncTools::computeCellMeasure(wts, jacobDet, ref_wts);
     
-    parallel_for(RangePolicy<AssemblyExec>(0,activeElem), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
       ScalarT vol = 0.0;
-      for (int i=0; i<numip; i++) {
+      for (int i=0; i<wts.extent(1); i++) {
         vol += wts(e,i);
       }
-      h(e) = pow(vol,1.0/(ScalarT)dimension);
+      ScalarT dimscl = 1.0/wts.extent(1);
+      h(e) = std::pow(vol,dimscl);
     });
   }
   
@@ -542,7 +546,7 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
   DRV bwts("wts_side", numBElem, ref_side_ip.extent(0));
   DRV bnormals("normals", numBElem, ref_side_ip.extent(0), dimension);
   DRV btangents("tangents", numBElem, ref_side_ip.extent(0), dimension);
-  
+ 
   DRV refSidePoints = ref_side_ip_vec[localSideID(0)];
   {
     //Teuchos::TimeMonitor dbgtimer(*worksetDebugTimer0);
@@ -601,11 +605,11 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
   parallel_for(RangePolicy<AssemblyExec>(0,bnormals.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (int j=0; j<bnormals.extent(1); j++ ) {
       ScalarT normalLength = 0.0;
-      for (int sd=0; sd<dimension; sd++) {
+      for (int sd=0; sd<bnormals.extent(2); sd++) {
         normalLength += bnormals(e,j,sd)*bnormals(e,j,sd);
       }
-      normalLength = sqrt(normalLength);
-      for (int sd=0; sd<dimension; sd++) {
+      normalLength = std::sqrt(normalLength);
+      for (int sd=0; sd<bnormals.extent(2); sd++) {
         bnormals(e,j,sd) = bnormals(e,j,sd) / normalLength;
       }
     }
@@ -623,12 +627,11 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
   
   {
     //Teuchos::TimeMonitor dbgtimer(*worksetDebugTimer2);
-  
+ 
   for (size_t i=0; i<basis_pointers.size(); i++) {
     if (basis_types[i] == "HGRAD"){
       int numb = basis_pointers[i]->getCardinality();
-      
-      DRV ref_basisvals("basisvals",numb, numsideip);
+      DRV ref_basisvals("side basisvals",numb, numsideip);
       basis_pointers[i]->getValues(ref_basisvals, refSidePoints, Intrepid2::OPERATOR_VALUE);
       
       DRV basisvals_trans("basisvals_Transformed",numBElem, numb, numsideip);

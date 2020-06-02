@@ -468,11 +468,13 @@ void solver::finalizeWorkset() {
     }
     // GH: this will not work if AssemblyMem is Cuda
     Kokkos::View<int**,AssemblyDevice> offsets_view("offsets on assembly device",voffsets.size(),maxoff);
+    auto host_offsets = Kokkos::create_mirror_view(offsets_view);
     for (size_t i=0; i<voffsets.size(); i++) {
       for (size_t j=0; j<voffsets[i].size(); j++) {
-        offsets_view(i,j) = voffsets[i][j];
+        host_offsets(i,j) = voffsets[i][j];
       }
     }
+    Kokkos::deep_copy(offsets_view,host_offsets);
     assembler->wkset[b]->offsets = offsets_view;//phys->voffsets[b];
     
     size_t maxpoff = 0;
@@ -484,11 +486,13 @@ void solver::finalizeWorkset() {
     }
     // GH: this will not work if AssemblyMem is Cuda
     Kokkos::View<int**,AssemblyDevice> poffsets_view("param offsets on assembly device",params->paramoffsets.size(),maxpoff);
+    auto host_poffsets = Kokkos::create_mirror_view(poffsets_view);
     for (size_t i=0; i<params->paramoffsets.size(); i++) {
       for (size_t j=0; j<params->paramoffsets[i].size(); j++) {
-        poffsets_view(i,j) = params->paramoffsets[i][j];
+        host_poffsets(i,j) = params->paramoffsets[i][j];
       }
     }
+    Kokkos::deep_copy(poffsets_view,host_poffsets);
     assembler->wkset[b]->usebasis = useBasis[b];
     assembler->wkset[b]->paramusebasis = params->discretized_param_usebasis;
     assembler->wkset[b]->paramoffsets = poffsets_view;//paramoffsets;
@@ -553,7 +557,7 @@ void solver::setupLinearAlgebra() {
   
   
   Kokkos::View<GO**,HostDevice> gids;
-  
+ 
   for (size_t b=0; b<assembler->cells.size(); b++) {
     vector<vector<int> > curroffsets = phys->offsets[b];
     Kokkos::View<LO*,UnifiedDevice> numDOF_KV("number of DOF per variable",numVars[b]);
@@ -601,11 +605,12 @@ void solver::setupLinearAlgebra() {
         
         int numElem = assembler->boundaryCells[b][e]->numElem;
         Kokkos::View<LO***,AssemblyDevice> cellindices("Local DOF indices", numElem, numVars[b], maxBasis[b]);
+        auto host_cellindices = Kokkos::create_mirror_view(cellindices);
         for (int p=0; p<numElem; p++) {
           for (int n=0; n<numVars[b]; n++) {
             for( int i=0; i<numBasis[b][n]; i++ ) {
               GO cgid = gids(p,curroffsets[n][i]);
-              cellindices(p,n,i) = LA_overlapped_map->getLocalElement(cgid);
+              host_cellindices(p,n,i) = LA_overlapped_map->getLocalElement(cgid);
             }
           }
           Teuchos::Array<GO> ind2(gids.extent(1));
@@ -617,6 +622,7 @@ void solver::setupLinearAlgebra() {
             LA_overlapped_graph->insertGlobalIndices(ind1,ind2);
           }
         }
+        Kokkos::deep_copy(cellindices,host_cellindices);
         assembler->boundaryCells[b][e]->setIndex(cellindices);
       }
     }
@@ -1652,10 +1658,12 @@ vector_RCP solver::setInitialParams() {
 // ========================================================================================
 
 vector_RCP solver::setInitial() {
-  
+ 
+  cout << "here 0" << endl; 
   vector_RCP initial = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
   vector_RCP glinitial = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
   initial->putScalar(0.0);
+  cout << "here 1" << endl; 
   
   if (initial_type == "L2-projection") {
     
@@ -1664,7 +1672,9 @@ vector_RCP solver::setInitial() {
     matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));//Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
     vector_RCP glrhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
     matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));//Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
+  cout << "here 2" << endl; 
     assembler->setInitial(rhs, mass, useadjoint);
+  cout << "here 3" << endl; 
     
     glmass->setAllToScalar(0.0);
     glmass->doExport(*mass, *exporter, Tpetra::ADD);
@@ -1674,6 +1684,7 @@ vector_RCP solver::setInitial() {
     
     glmass->fillComplete();
     
+  cout << "here 4" << endl; 
     this->linearSolver(glmass, glrhs, glinitial);
     have_preconditioner = false; // resetting this because mass matrix may not have connectivity as Jacobians
     initial->doImport(*glinitial, *importer, Tpetra::ADD);

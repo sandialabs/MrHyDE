@@ -61,14 +61,15 @@ void cell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_) {
   index = Kokkos::View<LO***,AssemblyDevice>("local index",index_.extent(0),
                                          index_.extent(1), index_.extent(2));
   
+  Kokkos::deep_copy(index,index_);
   // Need to copy the data since index_ is rewritten for each cell
-  parallel_for(RangePolicy<AssemblyExec>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    for (unsigned int j=0; j<index_.extent(1); j++) {
-      for (unsigned int k=0; k<index_.extent(2); k++) {
-        index(e,j,k) = index_(e,j,k);
-      }
-    }
-  });
+  //parallel_for(RangePolicy<AssemblyExec>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  //  for (unsigned int j=0; j<index_.extent(1); j++) {
+  //    for (unsigned int k=0; k<index_.extent(2); k++) {
+  //      index(e,j,k) = index_(e,j,k);
+  //    }
+  //  }
+  //});
   
   // This is common to all cells (within the same block), so a view copy will do
   //numDOF = numDOF_;
@@ -854,7 +855,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
     parallel_for(RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for( int i=0; i<numDOF(n); i++ ) {
         for( int j=0; j<numDOF(n); j++ ) {
-          for( size_t k=0; k<wkset->numip; k++ ) {
+          for( size_t k=0; k<basis.extent(2); k++ ) {
             mass(e,offsets(n,i),offsets(n,j)) += basis_uw(e,i,k)*basis(e,j,k);
           }
         }

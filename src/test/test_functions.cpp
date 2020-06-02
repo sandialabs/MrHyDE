@@ -13,6 +13,8 @@ int main(int argc, char * argv[]) {
   MpiComm Comm(MPI_COMM_WORLD);
   
   Kokkos::initialize();
+
+  typedef Kokkos::DynRankView<ScalarT,Kokkos::LayoutStride,AssemblyExec> DRVtst;
   
   {
     Teuchos::RCP<DiscTools> discTools = Teuchos::rcp( new DiscTools() );
@@ -28,7 +30,8 @@ int main(int argc, char * argv[]) {
     
     vector<int> cellinfo = {2,numvars,1,0,16,numElem};
     DRV ip, wts, sip, swts;
-    
+    DRVtst tst("testing",numip,2,2,2);
+ 
     discTools->getQuadrature(cellTopo, quadorder, ip, wts);
     discTools->getQuadrature(sideTopo, quadorder, sip, swts);
     
