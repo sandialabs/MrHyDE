@@ -32,29 +32,6 @@ celltopo(topo), var_bcs(var_bcs_)  { //, timeInt(timeInt_) {
   numElem = cellinfo[5];
   usebcs = true;
   
-  /*
-   num_stages = 1;//timeInt->num_stages;
-   Kokkos::View<ScalarT**> newip("ip for stages",ref_ip.extent(0)*num_stages, ref_ip.extent(1));
-   for (int i=0; i<ref_ip.extent(0); i++) {
-   for (int s=0; s<num_stages; s++) {
-   for (int d=0; d<ref_ip.extent(1); d++) {
-   newip(i*num_stages+s,d) = ref_ip(i,d);
-   }
-   }
-   }
-   ref_ip = newip;
-   Kokkos::View<ScalarT**> newsideip("ip for stages",ref_side_ip.extent(0)*num_stages, ref_side_ip.extent(1));
-   for (int i=0; i<ref_side_ip.extent(0); i++) {
-   for (int s=0; s<num_stages; s++) {
-   for (int d=0; d<ref_side_ip.extent(1); d++) {
-   newsideip(i*num_stages+s,d) = ref_side_ip(i,d);
-   }
-   }
-   }
-   ref_ip = newip;
-   */
-
-  
   deltat = 1.0;
   deltat_KV = Kokkos::View<ScalarT*,AssemblyDevice>("deltat",1);
   deltat_KV(0) = deltat;
@@ -159,16 +136,6 @@ celltopo(topo), var_bcs(var_bcs_)  { //, timeInt(timeInt_) {
   local_soln_grad_point = Kokkos::View<AD****, AssemblyDevice>("local_soln point",1, numVars, 1, dimension);
   local_param_point = Kokkos::View<AD***, AssemblyDevice>("local_soln point",1, numParams, 1);
   local_param_grad_point = Kokkos::View<AD****, AssemblyDevice>("local_soln point",1, numParams, 1, dimension);
-  
-  // Compute the basis value and basis grad values on reference element
-  // at volumetric ip
-  /*
-   int maxb = 0;
-   for (size_t i=0; i<basis_pointers.size(); i++) {
-   int numb = basis_pointers[i]->getCardinality();
-   maxb = max(maxb, numb);
-   }
-   */
   
   this->setupBasis();
   this->setupParamBasis();
@@ -426,6 +393,7 @@ void workset::update(const DRV & ip_, const DRV & wts_, const DRV & jacobian,
       ScalarT dimscl = 1.0/(ScalarT)ip.extent(2);
       h(e) = std::pow(vol,dimscl);
     });
+    AssemblyExec::execution_space().fence();
   }
   
   {
@@ -603,6 +571,7 @@ int workset::addSide(const DRV & nodes, const int & sidenum,
       }
     }
   });
+  AssemblyExec::execution_space().fence();
   
   // ----------------------------------------------------------
   // store normals
@@ -843,6 +812,8 @@ void workset::updateFace(const DRV & nodes, Kokkos::DynRankView<Intrepid2::Orien
       }
     });
     
+    AssemblyExec::execution_space().fence();
+    
     Kokkos::deep_copy(normals_KV,normals);
     Kokkos::deep_copy(ip_side_KV,ip_side);
     /*
@@ -1000,6 +971,7 @@ void workset::resetResidual() {
       res(e,n) = 0.0;
     }
   });
+  AssemblyExec::execution_space().fence();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1014,6 +986,7 @@ void workset::resetResidual(const int & numE) {
       res(e,n) = 0.0;
     }
   });
+  AssemblyExec::execution_space().fence();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1029,6 +1002,7 @@ void workset::resetFlux() {
       }
     }
   });
+  AssemblyExec::execution_space().fence();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1047,6 +1021,7 @@ void workset::resetAux() {
       }
     }
   });
+  AssemblyExec::execution_space().fence();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1065,6 +1040,7 @@ void workset::resetAuxSide() {
       }
     }
   });
+  AssemblyExec::execution_space().fence();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1078,12 +1054,14 @@ void workset::resetAdjointRHS() {
       adjrhs(e,n) = 0.0;
     }
   });
+  AssemblyExec::execution_space().fence();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Compute the solutions at the volumetric ip
 ////////////////////////////////////////////////////////////////////////////////////
 
+// TMW: This funciton should be deprecated
 void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
   
   // Reset the values
@@ -1101,6 +1079,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
         }
       }
     });
+    AssemblyExec::execution_space().fence();
   }
   
   {
@@ -1200,6 +1179,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         }
       }
     });
+    AssemblyExec::execution_space().fence();
     
   }
   
@@ -1268,6 +1248,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
             }
           }
         });
+        AssemblyExec::execution_space().fence();
       }
       else if (kutype == "HVOL") {
         DRV kbasis_uw = basis_uw[kubasis];
@@ -1315,6 +1296,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
             }
           }
         });
+        AssemblyExec::execution_space().fence();
       }
       else if (kutype == "HDIV"){
         DRV kbasis_uw = basis_uw[kubasis];
@@ -1361,6 +1343,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
             }
           }
         });
+        AssemblyExec::execution_space().fence();
       }
       else if (basis_types[usebasis[k]] == "HCURL"){
         DRV kbasis_uw = basis_uw[kubasis];
@@ -1407,6 +1390,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
             }
           }
         });
+        AssemblyExec::execution_space().fence();
       }
     }
   }
@@ -1434,6 +1418,7 @@ void workset::computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param,
           }
         }
       });
+      AssemblyExec::execution_space().fence();
     }
     
     {
@@ -1466,6 +1451,7 @@ void workset::computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param,
             }
           }
         });
+        AssemblyExec::execution_space().fence();
       }
     }
   }
@@ -1491,6 +1477,7 @@ void workset::computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         }
       }
     });
+    AssemblyExec::execution_space().fence();
   }
   
   {
@@ -1585,6 +1572,7 @@ void workset::computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       }
     }
   }
+  AssemblyExec::execution_space().fence();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1606,6 +1594,7 @@ void workset::computeSolnSideIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         }
       }
     });
+    AssemblyExec::execution_space().fence();
   }
   
   {
@@ -1685,7 +1674,7 @@ void workset::computeSolnSideIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       }
     }
   }
-  
+  AssemblyExec::execution_space().fence();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1709,6 +1698,7 @@ void workset::computeParamSideIP(const int & side, Kokkos::View<ScalarT***,Assem
           }
         }
       });
+      AssemblyExec::execution_space().fence();
     }
     
     {
@@ -1744,12 +1734,14 @@ void workset::computeParamSideIP(const int & side, Kokkos::View<ScalarT***,Assem
       }
     }
   }
+  AssemblyExec::execution_space().fence();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Compute the solutions at the side ip
 ////////////////////////////////////////////////////////////////////////////////////
 
+// TMW: this function should be deprecated
 void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDevice> u_AD,
                                 Kokkos::View<AD***,AssemblyDevice> param_AD) {
   {
@@ -1765,6 +1757,7 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
         }
       }
     });
+    AssemblyExec::execution_space().fence();
   }
   
   {

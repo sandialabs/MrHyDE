@@ -62,17 +62,6 @@ void cell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_) {
                                          index_.extent(1), index_.extent(2));
   
   Kokkos::deep_copy(index,index_);
-  // Need to copy the data since index_ is rewritten for each cell
-  //parallel_for(RangePolicy<AssemblyExec>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
-  //  for (unsigned int j=0; j<index_.extent(1); j++) {
-  //    for (unsigned int k=0; k<index_.extent(2); k++) {
-  //      index(e,j,k) = index_(e,j,k);
-  //    }
-  //  }
-  //});
-  
-  // This is common to all cells (within the same block), so a view copy will do
-  //numDOF = numDOF_;
   
 }
 
@@ -84,17 +73,7 @@ void cell::setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_) {
   paramindex = Kokkos::View<LO***,AssemblyDevice>("local param index",pindex_.extent(0),
                                               pindex_.extent(1), pindex_.extent(2));
   
-  // Need to copy the data since index_ is rewritten for each cell
-  parallel_for(RangePolicy<AssemblyExec>(0,pindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    for (unsigned int j=0; j<pindex_.extent(1); j++) {
-      for (unsigned int k=0; k<pindex_.extent(2); k++) {
-        paramindex(e,j,k) = pindex_(e,j,k);
-      }
-    }
-  });
-  
-  // This is common to all cells, so a view copy will do
-  //numParamDOF = pnumDOF_;
+  Kokkos::deep_copy(paramindex,pindex_);
   
 }
 
@@ -106,18 +85,7 @@ void cell::setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_) {
   auxindex = Kokkos::View<LO***,AssemblyDevice>("local aux index",1,aindex_.extent(1),
                                             aindex_.extent(2));
   
-  // Need to copy the data since index_ is rewritten for each cell
-  parallel_for(RangePolicy<AssemblyExec>(0,aindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    for (unsigned int j=0; j<aindex_.extent(1); j++) {
-      for (unsigned int k=0; k<aindex_.extent(2); k++) {
-        auxindex(e,j,k) = aindex_(e,j,k);
-      }
-    }
-  });
-  
-  // This is common to all cells, so a view copy will do
-  // This is excessive storage, please remove
-  //numAuxDOF = anumDOF_;
+  Kokkos::deep_copy(auxindex,aindex_);
   
   // Temp. fix
   Kokkos::View<int*,UnifiedDevice> numAuxDOF("numAuxDOF",auxindex.extent(1));
@@ -302,7 +270,7 @@ void cell::updateSolnWorkset(const vector_RCP & gl_u, int tindex) {
   Kokkos::View<ScalarT***,AssemblyDevice> ulocal("tempory u", numElem,u.extent(1),u.extent(2));
   auto u_kv = gl_u->getLocalView<HostDevice>();
   
-  for (int e=0; e<numElem; e++) {
+  for (int e=0; e<numElem; e++) { // TMW: will not work on device
     for (size_t n=0; n<index.extent(1); n++) {
       for(size_t i=0; i<cellData->numDOF(n); i++ ) {
         ulocal(e,n,i) = u_kv(index(e,n,i),tindex);
@@ -378,7 +346,7 @@ void cell::updateStageSoln() {
       }
     }
   });
-  
+  AssemblyExec::execution_space().fence();
   //KokkosTools::print(u_stage);
   
 }
@@ -678,6 +646,7 @@ void cell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,UnifiedD
       }
     });
   }
+  AssemblyExec::execution_space().fence();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -709,6 +678,7 @@ void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,U
       }
     });
   }
+  AssemblyExec::execution_space().fence();
 }
 
 
@@ -748,6 +718,7 @@ void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,UnifiedDev
       }
     });
   }
+  AssemblyExec::execution_space().fence();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -773,6 +744,7 @@ void cell::updateParamJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
       }
     }
   });
+  AssemblyExec::execution_space().fence();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -797,6 +769,7 @@ void cell::updateAuxJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
       }
     }
   });
+  AssemblyExec::execution_space().fence();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -863,6 +836,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
         }
       }
     });
+    AssemblyExec::execution_space().fence();
   }
   return mass;
 }
@@ -1731,4 +1705,5 @@ void cell::resetAdjPrev(const ScalarT & val) {
       adjPrev(i,j) = val;
     }
   });
+  AssemblyExec::execution_space().fence();
 }
