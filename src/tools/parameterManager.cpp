@@ -540,6 +540,7 @@ void ParameterManager::sacadoizeParams(const bool & seed_active) {
     }
   }
   Kokkos::deep_copy(paramvals_KVAD,host_params);
+  AssemblyExec::execution_space().fence();
   // TMW: these need to be depracated and removed
   phys->updateParameters(paramvals_AD, paramnames);
   

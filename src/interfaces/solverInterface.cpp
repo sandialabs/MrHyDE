@@ -656,7 +656,8 @@ void solver::forwardModel(DFAD & obj) {
   params->sacadoizeParams(false);
   
   vector_RCP u = this->setInitial();
-  
+ 
+   
   if (solver_type == "transient") {
     soln->store(u, current_time, 0); // copies the data
   }
@@ -669,16 +670,6 @@ void solver::forwardModel(DFAD & obj) {
       obj = this->computeObjective(u, 0.0, 0);
     }
     soln->store(u, current_time, 0);
-    /*
-    int numAuxDOF = 4;
-    vector_RCP d_u = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,numAuxDOF)); // empty solution
-    if () {
-      this->computeAuxSensitivity();
-    }
-    if () {
-      this->computeFlux(u,d_u,true);
-    }
-    */
   }
   else if (solver_type == "transient") {
     vector<ScalarT> gradient; // not really used here
@@ -1662,7 +1653,7 @@ vector_RCP solver::setInitial() {
   vector_RCP initial = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
   vector_RCP glinitial = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
   initial->putScalar(0.0);
-  
+   
   if (initial_type == "L2-projection") {
     
     // Compute the L2 projection of the initial data into the discrete space

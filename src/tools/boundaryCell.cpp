@@ -41,9 +41,10 @@ void BoundaryCell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_) {
   
   index = Kokkos::View<LO***,AssemblyDevice>("local index",index_.extent(0),
                                              index_.extent(1), index_.extent(2));
-  
+
+  Kokkos::deep_copy(index,index_);  
   // Need to copy the data since index_ is rewritten for each cell
-  
+  /*
   parallel_for(RangePolicy<AssemblyExec>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (unsigned int j=0; j<index_.extent(1); j++) {
       for (unsigned int k=0; k<index_.extent(2); k++) {
@@ -51,7 +52,7 @@ void BoundaryCell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_) {
       }
     }
   });
-  
+  */
   
   // This is common to all cells (within the same block), so a view copy will do
   //numDOF = numDOF_;
