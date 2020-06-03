@@ -502,6 +502,7 @@ vector_RCP ParameterManager::setInitialParams() {
 void ParameterManager::sacadoizeParams(const bool & seed_active) {
   
   //vector<vector<AD> > paramvals_AD;
+  auto host_params = Kokkos::create_mirror_view(paramvals_KVAD);
   if (seed_active) {
     size_t pprog = 0;
     for (size_t i=0; i<paramvals.size(); i++) {
@@ -509,7 +510,8 @@ void ParameterManager::sacadoizeParams(const bool & seed_active) {
       if (paramtypes[i] == 1) { // active parameters
         for (size_t j=0; j<paramvals[i].size(); j++) {
           //currparams.push_back(Sacado::Fad::DFad<ScalarT>(num_active_params,pprog,paramvals[i][j]));
-          paramvals_KVAD(i,j) = AD(maxDerivs,pprog,paramvals[i][j]);
+          //paramvals_KVAD(i,j) = AD(maxDerivs,pprog,paramvals[i][j]);
+          host_params(i,j) = AD(maxDerivs,pprog,paramvals[i][j]);
           currparams.push_back(AD(maxDerivs,pprog,paramvals[i][j]));
           pprog++;
         }
@@ -517,7 +519,8 @@ void ParameterManager::sacadoizeParams(const bool & seed_active) {
       else { // inactive, stochastic, or discrete parameters
         for (size_t j=0; j<paramvals[i].size(); j++) {
           //currparams.push_back(Sacado::Fad::DFad<ScalarT>(paramvals[i][j]));
-          paramvals_KVAD(i,j) = AD(paramvals[i][j]);
+          //paramvals_KVAD(i,j) = AD(paramvals[i][j]);
+          host_params(i,j) = AD(paramvals[i][j]);
           currparams.push_back(AD(paramvals[i][j]));
         }
       }
@@ -530,12 +533,13 @@ void ParameterManager::sacadoizeParams(const bool & seed_active) {
       for (size_t j=0; j<paramvals[i].size(); j++) {
         //currparams.push_back(Sacado::Fad::DFad<ScalarT>(paramvals[i][j]));
         currparams.push_back(AD(paramvals[i][j]));
-        paramvals_KVAD(i,j) = AD(paramvals[i][j]);
+        //paramvals_KVAD(i,j) = AD(paramvals[i][j]);
+        host_params(i,j) = AD(paramvals[i][j]);
       }
       *(paramvals_AD[i]) = currparams;
     }
   }
-  
+  Kokkos::deep_copy(paramvals_KVAD,host_params);
   // TMW: these need to be depracated and removed
   phys->updateParameters(paramvals_AD, paramnames);
   
