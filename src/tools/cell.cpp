@@ -779,34 +779,44 @@ void cell::updateAuxJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
 Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, const bool & isAdjoint) {
   Kokkos::View<ScalarT**,AssemblyDevice> initialvals("initial values",numElem,GIDs.extent(1));
   wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
+  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
+  Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
+  Kokkos::View<int[1],UnifiedDevice> currind("current index");
+  
   if (project) { // works for any basis
+    Kokkos::View<ScalarT***,AssemblyDevice> initialip = cellData->physics_RCP->getInitial(wkset->ip,
+                                                                                          cellData->myBlock,
+                                                                                          project,
+                                                                                          wkset);
     for (int n=0; n<wkset->varlist.size(); n++) {
-      Kokkos::View<ScalarT**,AssemblyDevice> initialip = cellData->physics_RCP->getInitial(wkset->ip,
-                                                                                           wkset->varlist[n],
-                                                                                           wkset->time,
-                                                                                           isAdjoint,
-                                                                                           wkset);
-      for (int e=0; e<numElem; e++) {
-        for( int i=0; i<cellData->numDOF(n); i++ ) {
-          for( size_t j=0; j<wkset->numip; j++ ) {
-            initialvals(e,wkset->offsets(n,i)) += initialip(e,j)*wkset->basis[wkset->usebasis[n]](e,i,j);
+      DRV basis = wkset->basis[wkset->usebasis[n]];
+      currind(0) = n;
+      parallel_for(RangePolicy<AssemblyExec>(0,initialvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        int n = currind(0);
+        for( int i=0; i<numDOF(n); i++ ) {
+          for( size_t j=0; j<initialip.extent(2); j++ ) {
+            initialvals(e,offsets(n,i)) += initialip(e,n,j)*basis(e,i,j);
           }
         }
-      }
+      });
     }
   }
   else { // only works if using HGRAD linear basis
-    for (int e=0; e<numElem; e++) {
-      for (int n=0; n<index.extent(1); n++) {
-        Kokkos::View<ScalarT**,AssemblyDevice> initialnodes = cellData->physics_RCP->getInitial(nodes,
-                                                                                                wkset->varlist[n],
-                                                                                                wkset->time,
-                                                                                                isAdjoint,
-                                                                                                wkset);
-        for( int i=0; i<cellData->numDOF(n); i++ ) {
-          initialvals(e,wkset->offsets(n,i)) = initialnodes(e,i);
+    // TMW: disabled for now
+    
+    Kokkos::View<ScalarT***,AssemblyDevice> initialnodes = cellData->physics_RCP->getInitial(nodes,
+                                                                                             cellData->myBlock,
+                                                                                             project,
+                                                                                             wkset);
+    for (int n=0; n<index.extent(1); n++) {
+      auto off = Kokkos::subview( wkset->offsets, n, Kokkos::ALL());
+      currind(0) = n;
+      parallel_for(RangePolicy<AssemblyExec>(0,initialnodes.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        int n = currind(0);
+        for( int i=0; i<numDOF(n); i++ ) {
+          initialvals(e,off(i)) = initialnodes(e,n,i);
         }
-      }
+      });
     }
   }
   return initialvals;
@@ -820,7 +830,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
   Kokkos::View<ScalarT***,AssemblyDevice> mass("local mass",numElem,GIDs.extent(1), GIDs.extent(1));
   wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
   vector<string> basis_types = wkset->basis_types;
-  Kokkos::View<LO**,AssemblyDevice> offsets= wkset->offsets;
+  Kokkos::View<LO**,AssemblyDevice> offsets = wkset->offsets;
   Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
   
   for (int n=0; n<index.extent(1); n++) {

@@ -174,10 +174,10 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
 
-  Kokkos::View<ScalarT**,AssemblyDevice> getInitial(const DRV & ip, const string var,
-                                                   const ScalarT & current_time,
-                                                   const bool & isAdjoint,
-                                                   Teuchos::RCP<workset> & wkset);
+  Kokkos::View<ScalarT***,AssemblyDevice> getInitial(const DRV & ip,
+                                                     const int & block,
+                                                     const bool & project,
+                                                     Teuchos::RCP<workset> & wkset);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////

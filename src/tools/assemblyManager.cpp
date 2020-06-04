@@ -512,12 +512,16 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
       
       Kokkos::View<ScalarT**,AssemblyDevice> localrhs = cells[b][e]->getInitial(true, useadjoint);
       Kokkos::View<ScalarT***,AssemblyDevice> localmass = cells[b][e]->getMass();
+      auto host_rhs = Kokkos::create_mirror_view(localrhs);
+      auto host_mass = Kokkos::create_mirror_view(localmass);
+      Kokkos::deep_copy(host_rhs,localrhs);
+      Kokkos::deep_copy(host_mass,localmass);
       
       // assemble into global matrix
       for (int c=0; c<numElem; c++) {
         for( size_t row=0; row<GIDs.extent(1); row++ ) {
           GO rowIndex = GIDs(c,row);
-          ScalarT val = localrhs(c,row);
+          ScalarT val = host_rhs(c,row);
           rhs->sumIntoGlobalValue(rowIndex,0, val);
           if (lumpmass) {
             Teuchos::Array<ScalarT> vals(1);
@@ -526,7 +530,7 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
             ScalarT totalval = 0.0;
             for( size_t col=0; col<GIDs.extent(1); col++ ) {
               cols[0] = GIDs(c,col);
-              totalval += localmass(c,row,col);
+              totalval += host_mass(c,row,col);
             }
             vals[0] = totalval;
             mass->sumIntoGlobalValues(rowIndex, cols, vals);

@@ -958,47 +958,62 @@ Kokkos::View<AD***,AssemblyDevice> physics::weight(const int & block, const DRV 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT**,AssemblyDevice> physics::getInitial(const DRV & ip, const string var,
-                                                          const ScalarT & current_time,
-                                                          const bool & isAdjoint,
-                                                          Teuchos::RCP<workset> & wkset) {
+Kokkos::View<ScalarT***,AssemblyDevice> physics::getInitial(const DRV & ip,
+                                                            const int & block,
+                                                            const bool & project,
+                                                            Teuchos::RCP<workset> & wkset) {
   
   
   size_t numElem = ip.extent(0);
+  size_t numVars = varlist[block].size();
   size_t numip = ip.extent(1);
-  size_t block = 0; // TMW: needs to be fixed
+  //size_t block = 0; // TMW: needs to be fixed
   
-  Kokkos::View<ScalarT**,AssemblyDevice> ivals("temp invals", numElem, numip);
+  Kokkos::View<ScalarT***,AssemblyDevice> ivals("temp invals", numElem, numVars, numip);
   
-  if (initial_type == "L2-projection") {
+  //cout << initial_type << endl;
+  if (project) {
     // ip in wkset are set in cell::getInitial
-    
-    // evaluate
-    FDATA ivals_AD = functionManagers[block]->evaluate("initial " + var,"ip");
-    
-    //copy
-    for (size_t e=0; e<numElem; e++) {
-      for (size_t i=0; i<numip; i++) {
-        ivals(e,i) = ivals_AD(e,i).val();
-      }
+    for (size_t n=0; n<varlist[block].size(); n++) {
+      // evaluate
+      FDATA ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"ip");
+      auto cvals = Kokkos::subview( ivals, Kokkos::ALL(), n, Kokkos::ALL());
+      //copy
+      parallel_for(RangePolicy<AssemblyExec>(0,cvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        for (size_t i=0; i<cvals.extent(1); i++) {
+          cvals(e,i) = ivals_AD(e,i).val();
+        }
+      });
     }
   }
   else {
+    // TMW: will not work on device yet
+    Kokkos::View<ScalarT***,AssemblyDevice> point_KV = wkset->point_KV;
+    auto host_ivals = Kokkos::create_mirror_view(ivals);
     for (size_t e=0; e<numElem; e++) {
       for (size_t i=0; i<numip; i++) {
         // set the node in wkset
-        for (size_t s=0; s<spaceDim; s++) {
-          wkset->point_KV(0,0,s) = ip(e,i,s);
+        auto node = Kokkos::subview( ip, e, i, Kokkos::ALL());
+        
+        parallel_for(RangePolicy<AssemblyExec>(0,node.extent(0)), KOKKOS_LAMBDA (const int s ) {
+          point_KV(0,0,s) = node(s);
+        });
+        
+        for (size_t n=0; n<varlist[block].size(); n++) {
+          // evaluate
+          FDATA ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"point");
+          
+          //ivals(e,n,i) = ivals_AD(0,0).val();
+          // copy
+          auto iv = Kokkos::subview( ivals, e, n, i);
+          parallel_for(RangePolicy<AssemblyExec>(0,1), KOKKOS_LAMBDA (const int s ) {
+            iv(0) = ivals_AD(0,0).val();
+          });
         }
-        
-        // evaluate
-        FDATA ivals_AD = functionManagers[block]->evaluate("initial " + var,"point");
-        
-        // copy
-        ivals(e,i) = ivals_AD(0,0).val();
       }
     }
   }
+  //KokkosTools::print(ivals);
   return ivals;
 }
 
