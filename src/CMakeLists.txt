@@ -5,7 +5,9 @@ INCLUDE_DIRECTORIES ( ./
                      ${Trilinos_INCLUDE_DIRS} ${Trilinos_TPL_INCLUDE_DIRS}
 physics
 interfaces
+managers
 tools
+subgrid
 optimization
 user
 ../sparsegrid)
@@ -19,18 +21,19 @@ interfaces/discretizationInterface.cpp
 interfaces/physicsInterface.cpp 
 interfaces/solverInterface.cpp 
 interfaces/analysisInterface.cpp 
-interfaces/uqInterface.cpp 
-interfaces/multiscaleInterface.cpp 
+managers/uqManager.cpp 
+managers/multiscaleManager.cpp 
+managers/postprocessManager.cpp 
+managers/assemblyManager.cpp
+managers/parameterManager.cpp
+managers/functionManager.cpp
 tools/discretizationTools.cpp 
-tools/postprocessManager.cpp 
-tools/assemblyManager.cpp
-tools/parameterManager.cpp
-tools/subgridMeshFactory.cpp 
 tools/cell.cpp
 tools/boundaryCell.cpp
 tools/workset.cpp
 tools/split_mpi_communicators.cpp 
-tools/subgridFEM.cpp 
+subgrid/subgridMeshFactory.cpp 
+subgrid/subgridFEM.cpp 
 physics/thermal.cpp
 physics/porous.cpp
 physics/porousHDIV.cpp
@@ -49,8 +52,7 @@ physics/maxwells_fp.cpp
 physics/maxwell_hybridized.cpp
 physics/shallowwater.cpp
 physics/maxwell.cpp
-physics/ode.cpp
-tools/functionManager.cpp)
+physics/ode.cpp)
 TARGET_LINK_LIBRARIES(milo ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
 ADD_EXECUTABLE(xml_to_yaml
@@ -65,5 +67,5 @@ ADD_EXECUTABLE(test_functions
 test/test_functions.cpp
 tools/discretizationTools.cpp
 tools/workset.cpp
-tools/functionManager.cpp)
+managers/functionManager.cpp)
 TARGET_LINK_LIBRARIES(test_functions ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 

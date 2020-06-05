@@ -23,8 +23,8 @@
 #include "solverInterface.hpp"
 #include "postprocessManager.hpp"
 #include "analysisInterface.hpp"
-#include "multiscaleInterface.hpp"
-#include "uqInterface.hpp"
+#include "multiscaleManager.hpp"
+#include "uqManager.hpp"
 
 class MILOHelp {
 public:

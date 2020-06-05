@@ -18,7 +18,7 @@
 #include "preferences.hpp"
 #include "meshInterface.hpp"
 #include "physicsInterface.hpp"
-#include "multiscaleInterface.hpp"
+#include "multiscaleManager.hpp"
 #include "discretizationInterface.hpp"
 #include "assemblyManager.hpp"
 #include "parameterManager.hpp"

@@ -10,14 +10,13 @@ Bart van Bloemen Waanders (bartv@sandia.gov)
 ***********************************************************************/
 
 #include "userInterface.hpp"
-#include "cell.hpp"
-#include "boundaryCell.hpp"
 #include "meshInterface.hpp"
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
 #include "assemblyManager.hpp"
 #include "parameterManager.hpp"
 #include "sensorManager.hpp"
+#include "multiscaleManager.hpp"
 #include "solverInterface.hpp"
 #include "postprocessManager.hpp"
 #include "analysisInterface.hpp"

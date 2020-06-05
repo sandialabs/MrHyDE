@@ -12,7 +12,7 @@
 #include "analysisInterface.hpp"
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
-#include "uqInterface.hpp"
+#include "uqManager.hpp"
 #include "CDBatchManager.hpp"
 #include "obj_milorol.hpp"
 #include "ROL_StdVector.hpp"

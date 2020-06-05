@@ -28,7 +28,7 @@
 #include "physicsInterface.hpp"
 #include "cell.hpp"
 #include "boundaryCell.hpp"
-#include "multiscaleInterface.hpp"
+#include "multiscaleManager.hpp"
 
 void static meshHelp(const string & details) {
   cout << "********** Help and Documentation for the Mesh Interface **********" << endl;

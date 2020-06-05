@@ -9,7 +9,7 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#include "multiscaleInterface.hpp"
+#include "multiscaleManager.hpp"
 
 // ========================================================================================
 /* Constructor to set up the problem */

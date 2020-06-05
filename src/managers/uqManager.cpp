@@ -9,7 +9,7 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#include "uqInterface.hpp"
+#include "uqManager.hpp"
 
 // ========================================================================================
 /* Constructor to set up the problem */

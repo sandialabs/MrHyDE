@@ -9,8 +9,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef MULTISCALE_INT_H
-#define MULTISCALE_INT_H
+#ifndef MULTISCALE_MANAGER_H
+#define MULTISCALE_MANAGER_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
