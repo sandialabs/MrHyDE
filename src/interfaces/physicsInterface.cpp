@@ -15,7 +15,6 @@
 #include "Panzer_STK_SetupUtilities.hpp"
 
 #include "rectPeriodicMatcher.hpp"
-#include "discretizationTools.hpp"
 
 // Enabled physics modules:
 #include "porous.hpp"
@@ -597,55 +596,6 @@ void physics::importPhysics() {
   
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////
-// After the mesh and the discretizations have been defined, we can create and add the physics
-// to the DOF manager
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-Teuchos::RCP<panzer::DOFManager> physics::buildDOF(Teuchos::RCP<panzer_stk::STK_Interface> & mesh) {
-  
-  if (milo_debug_level > 0) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Starting physics::buildDOF ..." << endl;
-    }
-  }
-  
-  Teuchos::RCP<DiscTools> discTools = Teuchos::rcp( new DiscTools() ) ;
-  
-  Teuchos::RCP<panzer::DOFManager> DOF = Teuchos::rcp(new panzer::DOFManager());
-  Teuchos::RCP<panzer::ConnManager> conn = Teuchos::rcp(new panzer_stk::STKConnManager(mesh));
-  DOF->setConnManager(conn,*(Commptr->getRawMpiComm()));
-  DOF->setOrientationsRequired(true);
-  
-  basis_RCP basis_pointer;
-  Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern;
-  
-  for (size_t b=0; b<blocknames.size(); b++) {
-    for (size_t j=0; j<varlist[b].size(); j++) {
-      topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
-      basis_pointer = discTools->getBasis(spaceDim, cellTopo, types[b][j], orders[b][j]);
-      
-      Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis_pointer));
-      
-      if (useDG[b][j]) {
-        DOF->addField(blocknames[b], varlist[b][j], Pattern, panzer::FieldType::DG);
-      }
-      else {
-        DOF->addField(blocknames[b], varlist[b][j], Pattern, panzer::FieldType::CG);
-      }
-    }
-  }
-  
-  DOF->buildGlobalUnknowns();
-  if (milo_debug_level > 0) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Finished physics::buildDOF" << endl;
-    }
-  }
-  
-  return DOF;
-  
-}
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////

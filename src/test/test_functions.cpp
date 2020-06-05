@@ -3,7 +3,7 @@
 #include "preferences.hpp"
 #include "functionManager.hpp"
 #include "workset.hpp"
-#include "discretizationTools.hpp"
+#include "discretizationInterface.hpp"
 
 using namespace std;
 
@@ -17,7 +17,7 @@ int main(int argc, char * argv[]) {
   typedef Kokkos::DynRankView<ScalarT,Kokkos::LayoutStride,AssemblyExec> DRVtst;
   
   {
-    Teuchos::RCP<DiscTools> discTools = Teuchos::rcp( new DiscTools() );
+    Teuchos::RCP<discretization> disc = Teuchos::rcp( new discretization() );
     
     topo_RCP cellTopo = Teuchos::rcp( new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() ) );
     topo_RCP sideTopo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() ));
@@ -30,10 +30,10 @@ int main(int argc, char * argv[]) {
     
     vector<int> cellinfo = {2,numvars,1,0,16,numElem};
     DRV ip, wts, sip, swts;
-    DRVtst tst("testing",numip,2,2,2);
+    //DRVtst tst("testing",numip,2,2,2);
  
-    discTools->getQuadrature(cellTopo, quadorder, ip, wts);
-    discTools->getQuadrature(sideTopo, quadorder, sip, swts);
+    disc->getQuadrature(cellTopo, quadorder, ip, wts);
+    disc->getQuadrature(sideTopo, quadorder, sip, swts);
     
     vector<string> btypes = {"HGRAD"};
     Kokkos::View<int**,UnifiedDevice> bcs("bcs",1,1);

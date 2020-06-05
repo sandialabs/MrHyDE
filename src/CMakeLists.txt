@@ -27,7 +27,6 @@ managers/postprocessManager.cpp
 managers/assemblyManager.cpp
 managers/parameterManager.cpp
 managers/functionManager.cpp
-tools/discretizationTools.cpp 
 tools/cell.cpp
 tools/boundaryCell.cpp
 tools/workset.cpp
@@ -65,7 +64,7 @@ TARGET_LINK_LIBRARIES(test_interpreter ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBR
 
 ADD_EXECUTABLE(test_functions
 test/test_functions.cpp
-tools/discretizationTools.cpp
 tools/workset.cpp
+interfaces/discretizationInterface.cpp 
 managers/functionManager.cpp)
 TARGET_LINK_LIBRARIES(test_functions ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 

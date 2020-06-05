@@ -146,7 +146,10 @@ int main(int argc,char * argv[]) {
     // The DOF-manager needs to be aware of the physics and the discretization(s)
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<panzer::DOFManager> DOF = phys->buildDOF(mesh->mesh);
+    Teuchos::RCP<panzer::DOFManager> DOF = disc->buildDOF(mesh->mesh, phys->varlist,
+                                                          phys->types, phys->orders,
+                                                          phys->useDG);
+    
     phys->setBCData(settings, mesh->mesh, DOF, disc->cards);
     
     ////////////////////////////////////////////////////////////////////////////////
@@ -154,7 +157,7 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<ParameterManager> params = Teuchos::rcp( new ParameterManager(Comm, settings,
-                                                                               mesh->mesh, phys));
+                                                                               mesh->mesh, phys, disc));
                                                          
     Teuchos::RCP<AssemblyManager> assembler = Teuchos::rcp( new AssemblyManager(Comm, settings, mesh->mesh,
                                                                                 disc, phys, DOF, params,

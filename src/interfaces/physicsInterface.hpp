@@ -12,14 +12,14 @@
 #ifndef PHYSICS_H
 #define PHYSICS_H
 
-#include "physics_base.hpp"
-#include "workset.hpp"
 #include "trilinos.hpp"
-#include "Panzer_STKConnManager.hpp"
-#include "Panzer_DOFManager.hpp"
-
 #include "preferences.hpp"
 
+#include "physics_base.hpp"
+#include "workset.hpp"
+
+#include "Panzer_STK_Interface.hpp"
+#include "Panzer_DOFManager.hpp"
 
 static void physicsHelp(const string & details) {
   
@@ -87,13 +87,6 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////
   
   void defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionManagers_);
-  
-  /////////////////////////////////////////////////////////////////////////////////////////////
-  // After the mesh and the discretizations have been defined, we can create and add the physics 
-  // to the DOF manager
-  /////////////////////////////////////////////////////////////////////////////////////////////
-  
-  Teuchos::RCP<panzer::DOFManager> buildDOF(Teuchos::RCP<panzer_stk::STK_Interface> & mesh);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////

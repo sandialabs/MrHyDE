@@ -92,7 +92,7 @@ public:
       ScalarT sensor_loc_tol = 1.0;
       // only needed for passing of basis pointers
       for (size_t j=0; j<assembler->cells[0].size(); j++) {
-        assembler->cells[0][j]->addSensors(sensor_points, sensor_loc_tol, sensor_data, have_sensor_data, disc->basis_pointers[0], params->discretized_param_basis);
+        assembler->cells[0][j]->addSensors(sensor_points, sensor_loc_tol, sensor_data, have_sensor_data, disc, disc->basis_pointers[0], params->discretized_param_basis);
       }
     }
     else {
@@ -117,7 +117,7 @@ public:
         ScalarT sensor_loc_tol = settings->sublist("Analysis").get("Sensor location tol",1.0E-6);
         for (size_t b=0; b<assembler->cells.size(); b++) {
           for (size_t j=0; j<assembler->cells[b].size(); j++) {
-            assembler->cells[b][j]->addSensors(sensor_points, sensor_loc_tol, sensor_data, have_sensor_data, disc->basis_pointers[b], params->discretized_param_basis);
+            assembler->cells[b][j]->addSensors(sensor_points, sensor_loc_tol, sensor_data, have_sensor_data, disc, disc->basis_pointers[b], params->discretized_param_basis);
           }
         }
       }

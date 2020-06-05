@@ -18,7 +18,8 @@
 #include "physicsInterface.hpp"
 #include "cell.hpp"
 #include "boundaryCell.hpp"
-
+#include "Panzer_STK_Interface.hpp"
+#include "discretizationInterface.hpp"
 
 void static parameterHelp(const string & details) {
   cout << "********** Help and Documentation for the Parameter Manager **********" << endl;
@@ -34,14 +35,15 @@ public:
   ParameterManager(const Teuchos::RCP<MpiComm> & Comm_,
                    Teuchos::RCP<Teuchos::ParameterList> & settings,
                    Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
-                   Teuchos::RCP<physics> & phys_);
+                   Teuchos::RCP<physics> & phys_,
+                   Teuchos::RCP<discretization> & disc_);
   
   // ========================================================================================
   // Set up the parameters (inactive, active, stochastic, discrete)
   // Communicate these parameters back to the physics interface and the enabled modules
   // ========================================================================================
   
-  void setupParameters(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  void setupParameters();
   
   void setupDiscretizedParameters(vector<vector<Teuchos::RCP<cell> > > & cells,
                                   vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells);
@@ -189,6 +191,7 @@ private:
   Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
   Teuchos::RCP<discretization> disc;
   Teuchos::RCP<physics> phys;
+  Teuchos::RCP<Teuchos::ParameterList> settings;
   
   /* // Timers
   Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MILO::ParameterManager::timer _1 - description");

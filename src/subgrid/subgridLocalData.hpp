@@ -14,6 +14,7 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
+#include "discretizationInterface.hpp"
 
 class SubGridLocalData {
 public:
@@ -53,7 +54,7 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   
   void computeMacroBasisVolIP(topo_RCP & macro_cellTopo, vector<basis_RCP> & macro_basis_pointers,
-                              Teuchos::RCP<DiscTools> & discTools) {
+                              Teuchos::RCP<discretization> & disc) {
     vector<DRV> currcell_basis, currcell_basisGrad;
     
     // Already have ip
@@ -66,9 +67,9 @@ public:
       }
     }
     for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-      currcell_basis.push_back(discTools->evaluateBasis(macro_basis_pointers[i], sref_ip, macroorientation));
-      currcell_basisGrad.push_back(discTools->evaluateBasisGrads(macro_basis_pointers[i], macronodes,
-                                                                 sref_ip, macro_cellTopo, macroorientation));
+      currcell_basis.push_back(disc->evaluateBasis(macro_basis_pointers[i], sref_ip, macroorientation));
+      currcell_basisGrad.push_back(disc->evaluateBasisGrads(macro_basis_pointers[i], macronodes,
+                                                            sref_ip, macro_cellTopo, macroorientation));
     }
     
     aux_basis.push_back(currcell_basis);
@@ -79,7 +80,7 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   
   void computeMacroBasisBoundaryIP(topo_RCP & macro_cellTopo, vector<basis_RCP> & macro_basis_pointers,
-                                   Teuchos::RCP<DiscTools> & discTools, Teuchos::RCP<workset> & wkset) {
+                                   Teuchos::RCP<discretization> & disc, Teuchos::RCP<workset> & wkset) {
     
     for (size_t e=0; e<BIDs.size(); e++) {
       
@@ -128,7 +129,7 @@ public:
         Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> corientation("tmp orientation",1);
         corientation(0) = macroorientation(mID);
         for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-          DRV bvals = discTools->evaluateBasis(macro_basis_pointers[i], sref_side_ip, corientation);
+          DRV bvals = disc->evaluateBasis(macro_basis_pointers[i], sref_side_ip, corientation);
           for (unsigned int k=0; k<bvals.extent(1); k++) {
             for (unsigned int j=0; j<bvals.extent(2); j++) {
               currside_basis[i](c,k,j) = bvals(0,k,j);

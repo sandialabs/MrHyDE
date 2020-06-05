@@ -9,21 +9,21 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#include "discretizationInterface.hpp"
-#include "discretizationTools.hpp"
 #include "workset.hpp"
 #include "parameterManager.hpp"
 #include "Panzer_IntrepidFieldPattern.hpp"
+#include "Panzer_STKConnManager.hpp"
 
 // ========================================================================================
 /* Constructor to set up the problem */
 // ========================================================================================
 
 ParameterManager::ParameterManager(const Teuchos::RCP<MpiComm> & Comm_,
-                                   Teuchos::RCP<Teuchos::ParameterList> & settings,
+                                   Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                    Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
-                                   Teuchos::RCP<physics> & phys_) :
-Comm(Comm_), mesh(mesh_), phys(phys_) {
+                                   Teuchos::RCP<physics> & phys_,
+                                   Teuchos::RCP<discretization> & disc_) :
+Comm(Comm_), mesh(mesh_), phys(phys_), settings(settings_), disc(disc_) {
   
   
   /////////////////////////////////////////////////////////////////////////////
@@ -45,7 +45,7 @@ Comm(Comm_), mesh(mesh_), phys(phys_) {
   
   use_custom_initial_param_guess = settings->sublist("Physics").get<bool>("use custom initial param guess",false);
   
-  this->setupParameters(settings);
+  this->setupParameters();
   //this->setupDiscretizedParameters(cells,boundaryCells);
   
 }
@@ -55,7 +55,7 @@ Comm(Comm_), mesh(mesh_), phys(phys_) {
 // Communicate these parameters back to the physics interface and the enabled modules
 // ========================================================================================
 
-void ParameterManager::setupParameters(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+void ParameterManager::setupParameters() {
   
   Teuchos::ParameterList parameters;
   
@@ -189,8 +189,6 @@ void ParameterManager::setupParameters(Teuchos::RCP<Teuchos::ParameterList> & se
 void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cell> > > & cells,
                                                   vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells) {
   
-  Teuchos::RCP<DiscTools> discTools = Teuchos::rcp( new DiscTools() );
-  
   if (num_discretized_params > 0) {
     // determine the unique list of basis'
     vector<int> disc_orders;
@@ -219,8 +217,8 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
     
     for (size_t n=0; n<disc_orders.size(); n++) {
       topo_RCP cellTopo = mesh->getCellTopology(blocknames[0]);
-      basis_RCP basis = discTools->getBasis(spaceDim, cellTopo, disc_types[n],
-                                            disc_orders[n]);
+      basis_RCP basis = disc->getBasis(spaceDim, cellTopo, disc_types[n],
+                                       disc_orders[n]);
       discretized_param_basis.push_back(basis);
       
     }

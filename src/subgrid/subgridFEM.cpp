@@ -118,8 +118,6 @@ void SubGridFEM::setUpSubgridModels() {
   
   Teuchos::TimeMonitor subgridsetuptimer(*sgfemTotalSetUpTimer);
   
-  Teuchos::RCP<DiscTools> discTools = Teuchos::rcp( new DiscTools() ) ;
-  
   /////////////////////////////////////////////////////////////////////////////////////
   // Define the sub-grid mesh
   /////////////////////////////////////////////////////////////////////////////////////
@@ -200,7 +198,12 @@ void SubGridFEM::setUpSubgridModels() {
   // The DOF-manager needs to be aware of the physics and the discretization(s)
   ////////////////////////////////////////////////////////////////////////////////
   
-  Teuchos::RCP<panzer::DOFManager> DOF = sub_physics->buildDOF(sub_mesh->mesh);
+  Teuchos::RCP<panzer::DOFManager> DOF = sub_disc->buildDOF(sub_mesh->mesh,
+                                                            sub_physics->varlist,
+                                                            sub_physics->types,
+                                                            sub_physics->orders,
+                                                            sub_physics->useDG);
+  
   sub_physics->setBCData(settings, sub_mesh->mesh, DOF, sub_disc->cards);
   //sub_disc->setIntegrationInfo(cells, boundaryCells, DOF, sub_physics);
   
@@ -209,7 +212,7 @@ void SubGridFEM::setUpSubgridModels() {
   /////////////////////////////////////////////////////////////////////////////////////
   
   sub_params = Teuchos::rcp( new ParameterManager(LocalComm, settings, sub_mesh->mesh,
-                                                  sub_physics));
+                                                  sub_physics, sub_disc));
   
   sub_assembler = Teuchos::rcp( new AssemblyManager(LocalComm, settings, sub_mesh->mesh,
                                                     sub_disc, sub_physics, DOF,
@@ -581,10 +584,10 @@ void SubGridFEM::setUpSubgridModels() {
       nummacroVars = macro_varlist.size();
       if (mindex == 0) {
         if (multiscale_method != "mortar" ) {
-          localData[mindex]->computeMacroBasisVolIP(macro_cellTopo, macro_basis_pointers, discTools);
+          localData[mindex]->computeMacroBasisVolIP(macro_cellTopo, macro_basis_pointers, sub_disc);
         }
         else {
-          localData[mindex]->computeMacroBasisBoundaryIP(macro_cellTopo, macro_basis_pointers, discTools, wkset[0]);
+          localData[mindex]->computeMacroBasisBoundaryIP(macro_cellTopo, macro_basis_pointers, sub_disc, wkset[0]);
         }
       }
       else {
@@ -2531,7 +2534,7 @@ void SubGridFEM::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_poin
                             const vector<basis_RCP> & basisTypes, const int & usernum) {
   for (size_t e=0; e<cells[usernum].size(); e++) {
     cells[usernum][e]->addSensors(sensor_points,sensor_loc_tol,sensor_data,
-                                  have_sensor_data, basisTypes, basisTypes);
+                                  have_sensor_data, sub_disc, basisTypes, basisTypes);
   }
 }
 
@@ -2703,8 +2706,6 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
   size_t numGIDs = cells[0][0]->GIDs.extent(1);
   Kokkos::View<int**,AssemblyDevice> owners("owners",numpts,2+numGIDs);
   
-  Teuchos::RCP<DiscTools> discTools = Teuchos::rcp( new DiscTools() );
-  
   for (size_t e=0; e<cells[0].size(); e++) {
     int numElem = cells[0][e]->numElem;
     DRV nodes = cells[0][e]->nodes;
@@ -2757,7 +2758,7 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
     vector<int> usebasis = wkset[0]->usebasis;
     DRV basisvals("basisvals",offsets.extent(0),numGIDs);
     for (size_t n=0; n<offsets.extent(0); n++) {
-      DRV bvals = discTools->evaluateBasis(sub_disc->basis_pointers[0][usebasis[n]], refpt);
+      DRV bvals = sub_disc->evaluateBasis(sub_disc->basis_pointers[0][usebasis[n]], refpt);
       for (size_t m=0; m<offsets.extent(1); m++) {
         basisvals(n,offsets(n,m)) = bvals(0,m,0);
       }

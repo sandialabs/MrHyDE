@@ -23,7 +23,6 @@
 #include "meshInterface.hpp"
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
-#include "discretizationTools.hpp"
 #include "assemblyManager.hpp"
 #include "solverInterface.hpp"
 #include "subgridTools.hpp"

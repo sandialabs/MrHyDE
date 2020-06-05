@@ -17,6 +17,7 @@
 #include "workset.hpp"
 #include "subgridModel.hpp"
 #include "cellMetaData.hpp"
+#include "discretizationInterface.hpp"
 
 #include <iostream>     
 #include <iterator>     
@@ -237,6 +238,7 @@ public:
   
   void addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, const ScalarT & sensor_loc_tol,
                   const vector<Kokkos::View<ScalarT**,HostDevice> > & sensor_data, const bool & have_sensor_data,
+                  Teuchos::RCP<discretization> & disc,
                   const vector<basis_RCP> & basis_pointers,
                   const vector<basis_RCP> & param_basis_pointers);
   
