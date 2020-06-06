@@ -7,9 +7,6 @@ ANONYMOUS:
   Functions Settings File: input_functions.yaml
   Physics: 
     solve_cdr: true
-    Dirichlet conditions:
-      c:
-        all boundaries: '0.0'
     initial conditions:
       c: 'exp(bubble)'
     true solutions:
@@ -25,8 +22,8 @@ ANONYMOUS:
     Verbosity: 0
     NLtol: 9.99999999999999955e-07
     MaxNLiter: 10
-    final time: 1.0e-1
-    delta t: 1.0e-2
+    final time: 1.0
+    delta t: 1.0e-1
     use strong DBCs: true
   Analysis: 
     analysis type: forward

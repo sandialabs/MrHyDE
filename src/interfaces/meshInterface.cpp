@@ -157,7 +157,25 @@ settings(settings_), Commptr(Commptr_) {
       }
     }
   }
+  // Syntax for periodic BCs ... must be set in the mesh input file
   
+  if (settings->sublist("Mesh").isSublist("Periodic BCs")) {
+    pl->sublist("Periodic BCs").setParameters( settings->sublist("Mesh").sublist("Periodic BCs") );
+  }
+  /*
+  Teuchos::ParameterList& per_pl = pl->sublist("Periodic BCs");
+  if (spaceDim == 3) {
+    per_pl.set("Count", 3);
+    per_pl.set("Periodic Condition 1", "xz-all 1e-10,3D: top;bottom");
+    per_pl.set("Periodic Condition 2", "yz-all 1e-10,3D: left;right");
+    per_pl.set("Periodic Condition 3", "xy-all 1e-10,3D: front;back");
+  }
+  else if (spaceDim == 2) {
+    per_pl.set("Count", 2);
+    per_pl.set("Periodic Condition 1", "x-all 1e-8: top;bottom");
+    per_pl.set("Periodic Condition 2", "y-all 1e-8: left;right");
+  }
+  }*/
   mesh_factory->setParameterList(pl);
   
   // create the mesh
