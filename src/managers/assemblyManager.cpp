@@ -93,6 +93,9 @@ void AssemblyManager::createCells() {
   
   int numElem = numElemPerCell;
   
+  vector<stk::mesh::Entity> all_meshElems;
+  mesh->getMyElements(all_meshElems);
+  
   for (size_t b=0; b<blocknames.size(); b++) {
     vector<Teuchos::RCP<cell> > blockcells;
     vector<stk::mesh::Entity> stk_meshElems;
@@ -183,7 +186,7 @@ void AssemblyManager::createCells() {
       prog += elemPerCell;
     }
     cells.push_back(blockcells);
-  
+    
     //////////////////////////////////////////////////////////////////////////////////
     // Boundary cells
     //////////////////////////////////////////////////////////////////////////////////
@@ -211,6 +214,7 @@ void AssemblyManager::createCells() {
         vector<size_t>             local_side_Ids;
         vector<stk::mesh::Entity> side_output;
         vector<size_t>             local_elem_Ids;
+        
         panzer_stk::workset_utils::getSideElements(*mesh, blocknames[b], sideEntities, local_side_Ids, side_output);
         
         int numSideElem = local_side_Ids.size();
@@ -295,7 +299,8 @@ void AssemblyManager::createCells() {
               for (int i=0; i<currElem; i++) {
                 vector<stk::mesh::EntityId> stk_nodeids;
                 size_t elemID = host_eIndex(i);
-                mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
+                mesh->getNodeIdsForElement(all_meshElems[elemID], stk_nodeids);
+                //mesh->getNodeIdsForElement(elemID, stk_nodeids);
                 for (int n=0; n<numNodesPerElem; n++) {
                   currind(i,n) = stk_nodeids[n];
                 }
@@ -894,7 +899,6 @@ void AssemblyManager::pointConstraints(matrix_RCP & J, vector_RCP & res,
         size_t eindex = boundDirichletElemIDs[e];
         size_t sindex = localDirichletSideIDs[e];
         size_t gside_index = globalDirichletSideIDs[e];
-        
         if (compute_jacobian) {
           this->updateJacDBC(J, eindex, b, fnum, sindex, compute_disc_sens);
         }

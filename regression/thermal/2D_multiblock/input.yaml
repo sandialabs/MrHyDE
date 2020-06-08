@@ -2,7 +2,7 @@
 ---
 ANONYMOUS:
   verbosity: 0
-  debug level: 2
+  debug level: 0
   Mesh: 
     dim: 2
     shape: quad
@@ -17,6 +17,7 @@ ANONYMOUS:
     blocknames: eblock-0_0 eblock-1_0 eblock-0_1 eblock-1_1
   Physics: 
     solve_thermal: true
+    assemble boundary terms: false
     Dirichlet conditions:
       e:
         top: '0.0'
@@ -40,7 +41,7 @@ ANONYMOUS:
     compute response: false
     verification: true
     compute sensitivities: false
-    write solution: true
+    write solution: false
   Parameters Settings File: input_params.yaml
   Functions Settings File: input_functions.yaml
 ...

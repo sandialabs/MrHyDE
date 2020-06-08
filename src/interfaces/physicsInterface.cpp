@@ -1269,7 +1269,8 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
             if( isDiri ) {
               curr_SideIDs.push_back(local_side_Ids[i]);
               curr_GlobalSideIDs.push_back(side);
-              curr_ElemIDs.push_back(localid);
+              //curr_ElemIDs.push_back(localid);
+              curr_ElemIDs.push_back(local_elem_Ids[i]);
               if (use_weak_dbcs) {
                 currside_info(localid, j, local_side_Ids[i], 0) = 4;
               }
