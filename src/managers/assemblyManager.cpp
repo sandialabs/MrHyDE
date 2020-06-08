@@ -43,6 +43,20 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
   // needed information from the mesh
   mesh->getElementBlockNames(blocknames);
   
+  // check if we need to assembly volumetric, boundary and face terms
+  for (int b=0; b<blocknames.size(); b++) {
+    if (settings->sublist("Physics").isSublist(blocknames[b])) {
+      assemble_volume_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).get<bool>("assemble volume terms",true));
+      assemble_boundary_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).get<bool>("assemble boundary terms",true));
+      assemble_face_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).get<bool>("assemble face terms",false));
+    }
+    else { // meaning all blocks use the same physics settings
+      assemble_volume_terms.push_back(settings->sublist("Physics").get<bool>("assemble volume terms",true));
+      assemble_boundary_terms.push_back(settings->sublist("Physics").get<bool>("assemble boundary terms",true));
+      assemble_face_terms.push_back(settings->sublist("Physics").get<bool>("assemble face terms",false));
+    }
+  }
+  
   // needed information from the physics interface
   numVars = phys->numVars; //
   varlist = phys->varlist;
@@ -176,125 +190,127 @@ void AssemblyManager::createCells() {
     
     vector<Teuchos::RCP<BoundaryCell> > bcells;
     
-    // TMW: this is just for ease of use
-    int numBoundaryElem = settings->sublist("Solver").get<int>("Workset size",1);
-    
-    ///////////////////////////////////////////////////////////////////////////////////
-    // Rules for grouping elements into boundary cells
-    //
-    // 1.  All elements must be on the same processor
-    // 2.  All elements must be on the same physical side
-    // 3.  Each edge/face on the side must have the same local ID.
-    // 4.  No more than numBoundaryElem (= numElem) in a group
-    ///////////////////////////////////////////////////////////////////////////////////
-    
-    for (size_t side=0; side<sideSets.size(); side++ ) {
-      string sideName = sideSets[side];
+    if (assemble_boundary_terms[b]) {
+      // TMW: this is just for ease of use
+      int numBoundaryElem = settings->sublist("Solver").get<int>("Workset size",1);
       
-      vector<stk::mesh::Entity> sideEntities;
-      mesh->getMySides(sideName, blocknames[b], sideEntities);
-      vector<size_t>             local_side_Ids;
-      vector<stk::mesh::Entity> side_output;
-      vector<size_t>             local_elem_Ids;
-      panzer_stk::workset_utils::getSideElements(*mesh, blocknames[b], sideEntities, local_side_Ids, side_output);
+      ///////////////////////////////////////////////////////////////////////////////////
+      // Rules for grouping elements into boundary cells
+      //
+      // 1.  All elements must be on the same processor
+      // 2.  All elements must be on the same physical side
+      // 3.  Each edge/face on the side must have the same local ID.
+      // 4.  No more than numBoundaryElem (= numElem) in a group
+      ///////////////////////////////////////////////////////////////////////////////////
       
-      int numSideElem = local_side_Ids.size();
-      
-      if (numSideElem > 0) {
-        vector<size_t> unique_sides;
-        unique_sides.push_back(local_side_Ids[0]);
-        for (size_t e=0; e<numSideElem; e++) {
-          bool found = false;
-          for (size_t j=0; j<unique_sides.size(); j++) {
-            if (unique_sides[j] == local_side_Ids[e]) {
-              found = true;
-            }
-          }
-          if (!found) {
-            unique_sides.push_back(local_side_Ids[e]);
-          }
-        }
+      for (size_t side=0; side<sideSets.size(); side++ ) {
+        string sideName = sideSets[side];
         
-        for (size_t j=0; j<unique_sides.size(); j++) {
-          vector<size_t> group;
+        vector<stk::mesh::Entity> sideEntities;
+        mesh->getMySides(sideName, blocknames[b], sideEntities);
+        vector<size_t>             local_side_Ids;
+        vector<stk::mesh::Entity> side_output;
+        vector<size_t>             local_elem_Ids;
+        panzer_stk::workset_utils::getSideElements(*mesh, blocknames[b], sideEntities, local_side_Ids, side_output);
+        
+        int numSideElem = local_side_Ids.size();
+        
+        if (numSideElem > 0) {
+          vector<size_t> unique_sides;
+          unique_sides.push_back(local_side_Ids[0]);
           for (size_t e=0; e<numSideElem; e++) {
-            if (local_side_Ids[e] == unique_sides[j]) {
-              group.push_back(e);
+            bool found = false;
+            for (size_t j=0; j<unique_sides.size(); j++) {
+              if (unique_sides[j] == local_side_Ids[e]) {
+                found = true;
+              }
+            }
+            if (!found) {
+              unique_sides.push_back(local_side_Ids[e]);
             }
           }
           
-          int prog = 0;
-          while (prog < group.size()) {
-            int currElem = numBoundaryElem;  // Avoid faults in last iteration
-            if (prog+currElem > group.size()){
-              currElem = group.size()-prog;
+          for (size_t j=0; j<unique_sides.size(); j++) {
+            vector<size_t> group;
+            for (size_t e=0; e<numSideElem; e++) {
+              if (local_side_Ids[e] == unique_sides[j]) {
+                group.push_back(e);
+              }
             }
-            Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
-            Kokkos::View<LO*,AssemblyDevice> sideIndex("local side indices",currElem);
-            DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
             
-            auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
-            auto host_sideIndex = Kokkos::create_mirror_view(sideIndex); // mirror on host
-            auto host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
-            
-            for (int e=0; e<currElem; e++) {
-              host_eIndex(e) = mesh->elementLocalId(side_output[group[e+prog]]);
-              host_sideIndex(e) = local_side_Ids[group[e+prog]];
-              for (int n=0; n<host_currnodes.extent(1); n++) {
-                for (int m=0; m<host_currnodes.extent(2); m++) {
-                  host_currnodes(e,n,m) = blocknodes(eIndex(e),n,m);
+            int prog = 0;
+            while (prog < group.size()) {
+              int currElem = numBoundaryElem;  // Avoid faults in last iteration
+              if (prog+currElem > group.size()){
+                currElem = group.size()-prog;
+              }
+              Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
+              Kokkos::View<LO*,AssemblyDevice> sideIndex("local side indices",currElem);
+              DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
+              
+              auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
+              auto host_sideIndex = Kokkos::create_mirror_view(sideIndex); // mirror on host
+              auto host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
+              
+              for (int e=0; e<currElem; e++) {
+                host_eIndex(e) = mesh->elementLocalId(side_output[group[e+prog]]);
+                host_sideIndex(e) = local_side_Ids[group[e+prog]];
+                for (int n=0; n<host_currnodes.extent(1); n++) {
+                  for (int m=0; m<host_currnodes.extent(2); m++) {
+                    host_currnodes(e,n,m) = blocknodes(eIndex(e),n,m);
+                  }
                 }
               }
-            }
-            Kokkos::deep_copy(currnodes,host_currnodes);
-            Kokkos::deep_copy(eIndex,host_eIndex);
-            Kokkos::deep_copy(sideIndex,host_sideIndex);
-            
-            // Build the Kokkos View of the cell GIDs ------
-            vector<vector<GO> > cellGIDs;
-            int numLocalDOF = 0;
-            for (int i=0; i<currElem; i++) {
-              vector<GO> GIDs;
-              size_t elemID = host_eIndex(i);
-              DOF->getElementGIDs(elemID, GIDs, blocknames[b]);
-              cellGIDs.push_back(GIDs);
-              numLocalDOF = GIDs.size(); // should be the same for all elements
-            }
-            Kokkos::View<GO**,HostDevice> hostGIDs("GIDs on host device",currElem,numLocalDOF);
-            for (int i=0; i<currElem; i++) {
-              for (int j=0; j<numLocalDOF; j++) {
-                hostGIDs(i,j) = cellGIDs[i][j];
+              Kokkos::deep_copy(currnodes,host_currnodes);
+              Kokkos::deep_copy(eIndex,host_eIndex);
+              Kokkos::deep_copy(sideIndex,host_sideIndex);
+              
+              // Build the Kokkos View of the cell GIDs ------
+              vector<vector<GO> > cellGIDs;
+              int numLocalDOF = 0;
+              for (int i=0; i<currElem; i++) {
+                vector<GO> GIDs;
+                size_t elemID = host_eIndex(i);
+                DOF->getElementGIDs(elemID, GIDs, blocknames[b]);
+                cellGIDs.push_back(GIDs);
+                numLocalDOF = GIDs.size(); // should be the same for all elements
               }
-            }
-            
-            //-----------------------------------------------
-            // Set the side information (soon to be removed)-
-            Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,host_eIndex);
-            //-----------------------------------------------
-            
-            // Set the cell orientation ---
-            
-            Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices",
-                                                                            currElem, numNodesPerElem);
-            
-            for (int i=0; i<currElem; i++) {
-              vector<stk::mesh::EntityId> stk_nodeids;
-              size_t elemID = host_eIndex(i);
-              mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
-              for (int n=0; n<numNodesPerElem; n++) {
-                currind(i,n) = stk_nodeids[n];
+              Kokkos::View<GO**,HostDevice> hostGIDs("GIDs on host device",currElem,numLocalDOF);
+              for (int i=0; i<currElem; i++) {
+                for (int j=0; j<numLocalDOF; j++) {
+                  hostGIDs(i,j) = cellGIDs[i][j];
+                }
               }
+              
+              //-----------------------------------------------
+              // Set the side information (soon to be removed)-
+              Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,host_eIndex);
+              //-----------------------------------------------
+              
+              // Set the cell orientation ---
+              
+              Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices",
+                                                                              currElem, numNodesPerElem);
+              
+              for (int i=0; i<currElem; i++) {
+                vector<stk::mesh::EntityId> stk_nodeids;
+                size_t elemID = host_eIndex(i);
+                mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
+                for (int n=0; n<numNodesPerElem; n++) {
+                  currind(i,n) = stk_nodeids[n];
+                }
+              }
+              //KokkosTools::print(currind);
+              
+              Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orient_drv("kv to orients",currElem);
+              //Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, cells[b][e]->nodeIndices, *(cells[b][e]->cellData->cellTopo));
+              Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *cellTopo);
+              
+              bcells.push_back(Teuchos::rcp(new BoundaryCell(cellData, currnodes, eIndex, sideIndex,
+                                                             side, sideName, bcells.size(),
+                                                             hostGIDs, sideinfo, orient_drv)));
+              prog += currElem;
             }
-            //KokkosTools::print(currind);
-            
-            Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orient_drv("kv to orients",currElem);
-            //Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, cells[b][e]->nodeIndices, *(cells[b][e]->cellData->cellTopo));
-            Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *cellTopo);
-            
-            bcells.push_back(Teuchos::rcp(new BoundaryCell(cellData, currnodes, eIndex, sideIndex,
-                                                           side, sideName, bcells.size(),
-                                                           hostGIDs, sideinfo, orient_drv)));
-            prog += currElem;
           }
         }
       }
@@ -726,7 +742,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
       
       cells[b][e]->computeJacRes(current_time, isTransient, useadjoint, compute_jacobian, compute_sens,
                                  num_active_params, compute_disc_sens, false, store_adjPrev,
-                                 local_res, local_J);
+                                 local_res, local_J, assemble_volume_terms[b], assemble_face_terms[b]);
       
     }
     
@@ -757,7 +773,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
   //////////////////////////////////////////////////////////////////////////////////////
   
   
-  if (!cells[0][0]->cellData->multiscale) {
+  if (!cells[0][0]->cellData->multiscale && assemble_boundary_terms[b]) {
     
     {
       Teuchos::TimeMonitor localtimer(*gathertimer);

@@ -7,6 +7,7 @@ ANONYMOUS:
   Functions Settings File: input_functions.yaml
   Physics: 
     solve_thermal: true
+    assemble boundary terms: false
     Dirichlet conditions:
       e:
         all boundaries: '0.0'

@@ -1,8 +1,19 @@
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  /Users/tmwilde/Desktop/Software/Trilinos_2/Trilinos/packages/amesos2/src/Amesos2_KLU2_def.hpp:277:
 
-*********************************************************
-***** Performing verification ******
+Throw number = 1
 
-***** L2 norm of the error for pint = 0.412319  (time = 0)
-***** L2 norm of the error for pbndry = 0.5  (time = 0)
-***** L2 norm of the error for u = 4.03052  (time = 0)
-***** L2 norm of the error for t = 4.03052  (time = 0)
+Throw test that evaluated to true: info > 0
+
+KLU2 numeric factorization failed
+[s998638:86896] *** Process received signal ***
+[s998638:86896] Signal: Abort trap: 6 (6)
+[s998638:86896] Signal code:  (0)
+[s998638:86896] *** End of error message ***
+-------------------------------------------------------
+Primary job  terminated normally, but 1 process returned
+a non-zero exit code. Per user-direction, the job has been aborted.
+-------------------------------------------------------
+--------------------------------------------------------------------------
+mpiexec noticed that process rank 0 with PID 0 on node s998638 exited on signal 6 (Abort trap: 6).
+--------------------------------------------------------------------------

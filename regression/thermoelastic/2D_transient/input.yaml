@@ -8,6 +8,7 @@ ANONYMOUS:
     eblock-0_0: 
       solve_thermal: true
       solve_linearelasticity: true
+      assemble boundary terms: false
       Dirichlet conditions:
         e:
           all boundaries: '0.0'

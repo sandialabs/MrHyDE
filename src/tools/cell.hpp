@@ -131,7 +131,9 @@ public:
                      const int & num_active_params, const bool & compute_disc_sens,
                      const bool & compute_aux_sens, const bool & store_adjPrev,
                      Kokkos::View<ScalarT***,UnifiedDevice> res,
-                     Kokkos::View<ScalarT***,UnifiedDevice> local_J);
+                     Kokkos::View<ScalarT***,UnifiedDevice> local_J,
+                     const bool & assemble_volume_terms,
+                     const bool & assemble_face_terms);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Update the solution variables in the workset

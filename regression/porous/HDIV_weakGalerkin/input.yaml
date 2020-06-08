@@ -7,6 +7,7 @@ ANONYMOUS:
   Physics: 
     eblock-0_0: 
       solve_porousHDIV_weakGalerkin: true
+      assemble face terms: true
       Dirichlet conditions:
         pbndry:
           left: '0.0'

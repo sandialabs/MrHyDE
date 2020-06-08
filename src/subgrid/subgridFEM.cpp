@@ -1438,7 +1438,9 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
         
         cells[0][e]->computeJacRes(time, isTransient, isAdjoint,
                                    true, false, num_active_params, false, false, false,
-                                   local_res, local_J);
+                                   local_res, local_J,
+                                   sub_assembler->assemble_volume_terms[0],
+                                   sub_assembler->assemble_face_terms[0]);
         
       }
       //KokkosTools::print(local_J);
@@ -1728,7 +1730,9 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
         
         cells[0][e]->computeJacRes(time, isTransient, isAdjoint,
                                    false, true, num_active_params, false, false, false,
-                                   local_res, local_J);
+                                   local_res, local_J,
+                                   sub_assembler->assemble_volume_terms[0],
+                                   sub_assembler->assemble_face_terms[0]);
         
         Kokkos::View<GO**,HostDevice>  GIDs = cells[0][e]->GIDs;
         for (unsigned int i=0; i<GIDs.extent(0); i++) {
@@ -1779,8 +1783,8 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
         }
         
         boundaryCells[0][e]->computeJacRes(time, isTransient, isAdjoint,
-                                                 false, true, num_active_params, false, false, false,
-                                                 local_res, local_J);
+                                           false, true, num_active_params, false, false, false,
+                                           local_res, local_J);
         
         Kokkos::View<GO**,HostDevice>  GIDs = boundaryCells[usernum][e]->GIDs;
         for (unsigned int i=0; i<GIDs.extent(0); i++) {
@@ -1839,7 +1843,9 @@ void SubGridFEM::computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
         
         cells[0][e]->computeJacRes(time, isTransient, isAdjoint,
                                    true, false, num_active_params, false, true, false,
-                                   local_res, local_J);
+                                   local_res, local_J,
+                                   sub_assembler->assemble_volume_terms[0],
+                                   sub_assembler->assemble_face_terms[0]);
         Kokkos::View<GO**,HostDevice> GIDs = cells[0][e]->GIDs;
         Kokkos::View<GO**,HostDevice> aGIDs = cells[0][e]->auxGIDs;
         //vector<vector<int> > aoffsets = cells[0][e]->auxoffsets;

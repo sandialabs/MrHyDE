@@ -360,7 +360,9 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
                          const int & num_active_params, const bool & compute_disc_sens,
                          const bool & compute_aux_sens, const bool & store_adjPrev,
                          Kokkos::View<ScalarT***,UnifiedDevice> local_res,
-                         Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
+                         Kokkos::View<ScalarT***,UnifiedDevice> local_J,
+                         const bool & assemble_volume_terms,
+                         const bool & assemble_face_terms) {
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Compute the local contribution to the global residual and Jacobians
@@ -407,7 +409,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   
   // Volumetric contribution
   
-  {
+  if (assemble_volume_terms) {
     Teuchos::TimeMonitor localtimer(*volumeResidualTimer);
     if (cellData->multiscale) {
       //for (int e=0; e<numElem; e++) {
@@ -426,38 +428,32 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   }
   
   // Edge/face contribution
-  
-  {
+  if (assemble_face_terms) {
     Teuchos::TimeMonitor localtimer(*faceResidualTimer);
     if (cellData->multiscale) {
       // do nothing
     }
     else {
-      // determine if we need to include edge/face terms
-      bool include_face = cellData->physics_RCP->checkFace(cellData->myBlock);
-      
-      if (include_face) {
-        for (size_t s=0; s<cellData->numSides; s++) {
-          if (compute_jacobian) {
-            if (compute_disc_sens) {
-              seedwhat(0) = 3;
-              this->computeSolnFaceIP(s,seedwhat);
-            }
-            else if (compute_aux_sens) {
-              seedwhat(0) = 4;
-              this->computeSolnFaceIP(s,seedwhat);
-            }
-            else {
-              seedwhat(0) = 1;
-              this->computeSolnFaceIP(s,seedwhat);
-            }
-          }
-          else {
-            seedwhat(0) = 0;
+      for (size_t s=0; s<cellData->numSides; s++) {
+        if (compute_jacobian) {
+          if (compute_disc_sens) {
+            seedwhat(0) = 3;
             this->computeSolnFaceIP(s,seedwhat);
           }
-          cellData->physics_RCP->faceResidual(cellData->myBlock);
+          else if (compute_aux_sens) {
+            seedwhat(0) = 4;
+            this->computeSolnFaceIP(s,seedwhat);
+          }
+          else {
+            seedwhat(0) = 1;
+            this->computeSolnFaceIP(s,seedwhat);
+          }
         }
+        else {
+          seedwhat(0) = 0;
+          this->computeSolnFaceIP(s,seedwhat);
+        }
+        cellData->physics_RCP->faceResidual(cellData->myBlock);
       }
     }
   }

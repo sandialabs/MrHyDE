@@ -184,6 +184,7 @@ public:
   
   bool usestrongDBCs, use_meas_as_dbcs, multiscale, useNewBCs;
   Teuchos::RCP<panzer::DOFManager> DOF;
+  vector<bool> assemble_volume_terms, assemble_boundary_terms, assemble_face_terms;
   
 private:
   

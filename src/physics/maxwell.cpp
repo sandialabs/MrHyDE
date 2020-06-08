@@ -61,76 +61,50 @@ void maxwell::volumeResidual() {
     epsilon = functionManager->evaluate("epsilon","ip");
   }
   
-  //KokkosTools::print(epsilon);
-  //KokkosTools::print(mu);
-  
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
-  basis = wkset->basis[B_basis];
-  //basis_curl = wkset->basis_curl[B_basis];
-  
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  {
+    basis = wkset->basis[B_basis];
     
-    // (dB/dt,V) + (curl E,V) = (S_mag,V)
-    for (int k=0; k<sol.extent(2); k++ ) {
-      for (int i=0; i<basis.extent(1); i++ ) {
-        AD dBx_dt = sol_dot(e,Bnum,k,0);
-        AD dBy_dt = sol_dot(e,Bnum,k,1);
-        AD dBz_dt = sol_dot(e,Bnum,k,2);
-        
-        ScalarT vx = basis(e,i,k,0);
-        ScalarT vy = basis(e,i,k,1);
-        ScalarT vz = basis(e,i,k,2);
-        
-        AD cEx = sol_curl(e,Enum,k,0);
-        AD cEy = sol_curl(e,Enum,k,1);
-        AD cEz = sol_curl(e,Enum,k,2);
-        
-        int resindex = offsets(Bnum,i);
-        res(e,resindex) += dBx_dt*vx + cEx*vx;
-        res(e,resindex) += dBy_dt*vy + cEy*vy;
-        res(e,resindex) += dBz_dt*vz + cEz*vz;
-        
-        
+    auto dBdt = Kokkos::subview(sol_dot, Kokkos::ALL(), Bnum, Kokkos::ALL(), Kokkos::ALL());
+    auto curlE = Kokkos::subview(sol_curl, Kokkos::ALL(), Enum, Kokkos::ALL(), Kokkos::ALL());
+    auto off = Kokkos::subview(offsets, Bnum, Kokkos::ALL());
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      
+      // (dB/dt,V) + (curl E,V) = (S_mag,V)
+      for (int k=0; k<sol.extent(2); k++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
+          res(e,off(i)) += (dBdt(e,k,0) + curlE(e,k,0))*basis(e,i,k,0) +
+          (dBdt(e,k,1) + curlE(e,k,1))*basis(e,i,k,1) +
+          (dBdt(e,k,2) + curlE(e,k,2))*basis(e,i,k,2);
+        }
       }
-    }
-    
-  });
+      
+    });
+  }
   
-  basis = wkset->basis[E_basis];
-  basis_curl = wkset->basis_curl[E_basis];
-  
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  {
+    basis = wkset->basis[E_basis];
+    basis_curl = wkset->basis_curl[E_basis];
+    auto dEdt = Kokkos::subview(sol_dot, Kokkos::ALL(), Enum, Kokkos::ALL(), Kokkos::ALL());
+    auto B = Kokkos::subview(sol, Kokkos::ALL(), Bnum, Kokkos::ALL(), Kokkos::ALL());
+    auto off = Kokkos::subview(offsets, Enum, Kokkos::ALL());
     
-    // (eps*dE/dt,V) - (1/mu B, curl V) = (S_elec,V)
-    for (int k=0; k<sol.extent(2); k++ ) {
-      for (int i=0; i<basis.extent(1); i++ ) {
-        AD dEx_dt = sol_dot(e,Enum,k,0);
-        AD dEy_dt = sol_dot(e,Enum,k,1);
-        AD dEz_dt = sol_dot(e,Enum,k,2);
-        
-        ScalarT vx = basis(e,i,k,0);
-        ScalarT vy = basis(e,i,k,1);
-        ScalarT vz = basis(e,i,k,2);
-        
-        ScalarT cvx = basis_curl(e,i,k,0);
-        ScalarT cvy = basis_curl(e,i,k,1);
-        ScalarT cvz = basis_curl(e,i,k,2);
-        
-        AD Bx = sol(e,Bnum,k,0);
-        AD By = sol(e,Bnum,k,1);
-        AD Bz = sol(e,Bnum,k,2);
-        
-        int resindex = offsets(Enum,i);
-        res(e,resindex) += epsilon(e,k)*dEx_dt*vx - Bx/mu(e,k)*cvx + current_x(e,k)*vx;
-        res(e,resindex) += epsilon(e,k)*dEy_dt*vy - By/mu(e,k)*cvy + current_y(e,k)*vy;
-        res(e,resindex) += epsilon(e,k)*dEz_dt*vz - Bz/mu(e,k)*cvz + current_z(e,k)*vz;
-        
-        
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      
+      // (eps*dE/dt,V) - (1/mu B, curl V) = (S_elec,V)
+      for (int k=0; k<sol.extent(2); k++ ) {
+        for (int i=0; i<basis.extent(1); i++ ) {
+          
+          res(e,off(i)) += epsilon(e,k)*dEdt(e,k,0)*basis(e,i,k,0) - B(e,k,0)*basis_curl(e,i,k,0) + current_x(e,k)*basis(e,i,k,0);
+          res(e,off(i)) += epsilon(e,k)*dEdt(e,k,1)*basis(e,i,k,1) - B(e,k,1)*basis_curl(e,i,k,1) + current_y(e,k)*basis(e,i,k,1);
+          res(e,off(i)) += epsilon(e,k)*dEdt(e,k,2)*basis(e,i,k,2) - B(e,k,2)*basis_curl(e,i,k,2) + current_z(e,k)*basis(e,i,k,2);
+          
+        }
       }
-    }
-    
-  });
+      
+    });
+  }
   //KokkosTools::print(res);
 }
 

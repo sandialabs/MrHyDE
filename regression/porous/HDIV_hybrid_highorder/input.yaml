@@ -11,6 +11,7 @@ ANONYMOUS:
       lambda: HFACE
     eblock-0_0: 
       solve_porousHDIV_hybrid: true
+      assemble face terms: true
       Dirichlet conditions:
         lambda:
           left: '0.0'
