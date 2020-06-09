@@ -488,7 +488,6 @@ void analysis::run() {
     }
     
     if(ROLsettings.sublist("General").get("Do grad+hessvec check",true)){
-      //if(ROLsettings.get<bool>("Do grad+hessvec check","true")){
       // Gradient and Hessian check
       // direction for gradient check
       if (ROLsettings.sublist("General").isParameter("FD Check Seed")) {

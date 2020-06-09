@@ -2,6 +2,7 @@
 ---
 ANONYMOUS:
   Mesh Settings File: input_mesh.yaml
+  verbosity: 0
   Physics: 
     solve_thermal: true
     Dirichlet conditions:

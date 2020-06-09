@@ -110,8 +110,10 @@ namespace ROL {
       //paramtimer->stop(); //DEBUG
       //Teuchos::RCP<Teuchos::Time> fwdtimer = Teuchos::rcp(new Teuchos::Time("fwd",false)); //DEBUG
       //fwdtimer->start(); //DEBUG
-      DFAD obj = 0.0;
-      solver_MILO->forwardModel(obj);
+      
+      //DFAD obj = 0.0;
+      //solver_MILO->forwardModel(obj);
+      
       //fwdtimer->stop(); //DEBUG
       //Teuchos::RCP<Teuchos::Time> adjtimer = Teuchos::rcp(new Teuchos::Time("adj",false)); //DEBUG
       //adjtimer->start(); //DEBUG
