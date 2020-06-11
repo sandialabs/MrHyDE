@@ -1,0 +1,9 @@
+p=0 | CubeHexMesh: Building sub cells
+
+*********************************************************
+***** Performing verification ******
+
+***** L2 norm of the error for pint = 0.109212  (time = 0)
+***** L2 norm of the error for pbndry = 0.353553  (time = 0)
+***** L2 norm of the error for u = 0.98109  (time = 0)
+***** L2 norm of the error for t = 0.98109  (time = 0)

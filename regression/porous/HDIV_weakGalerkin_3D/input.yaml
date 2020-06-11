@@ -1,0 +1,60 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh Settings File: input_mesh.yaml
+  Physics: 
+    eblock-0_0_0: 
+      solve_porousHDIV_weakGalerkin: true
+      assemble face terms: true
+      Dirichlet conditions:
+        pbndry:
+          left: '0.0'
+          right: '0.0'
+          top: '0.0'
+          bottom: '0.0'
+          front: '0.0'
+          back: '0.0'
+      true solutions:
+        pint: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+        pbndry: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+        ux: 2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+        uy: 2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
+        uz: 2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
+        tx: -2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+        ty: -2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
+        tz: -2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
+  Functions Settings File: input_functions.yaml
+  Solver: 
+    solver: steady-state
+    Workset Size: 1
+    Verbosity: 0
+    NLtol: 9.99999999999999955e-07
+    MaxNLiter: 2
+    finaltime: 1.00000000000000000e+00
+    numSteps: 10
+    Initial type: none
+    use direct solver: true
+    use preconditioner: false
+  Discretization:
+    eblock-0_0_0:
+      order:
+        pint: 0
+        pbndry: 0
+        u: 1
+        t: 1
+      quadrature: 2
+  Analysis:
+    analysis type: forward
+    Have Sensor Points: false
+    Have Sensor Data: false
+  Postprocess: 
+    response type: global
+    Verbosity: 0
+    verification: true
+    compute response: false
+    write solution: false
+    compute objective: false
+    compute sensitivities: false
+...
