@@ -1,8 +1,0 @@
-p=0 | CubeHexMesh: Building sub cells
-
-*********************************************************
-***** Performing verification ******
-
-***** L2 norm of the error for dx = 0.0669357  (time = 0)
-***** L2 norm of the error for dy = 0.377584  (time = 0)
-***** L2 norm of the error for dz = 0.0795866  (time = 0)

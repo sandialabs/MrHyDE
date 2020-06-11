@@ -1,8 +1,0 @@
-
-*********************************************************
-***** Performing verification ******
-
-***** L2-face norm of the error for dx = 3.31996e-15  (time = 0)
-***** L2-face norm of the error for dy = 4.04668e-15  (time = 0)
-***** Subgrid0: L2 norm of the error for dx = 1.07991e-15  (time = 0)
-***** Subgrid0: L2 norm of the error for dy = 1.29925e-15  (time = 0)
