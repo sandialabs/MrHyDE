@@ -151,8 +151,8 @@ public:
     parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
       for (unsigned int j=0; j<V.extent(1); j++) {
         //printf("   %i      %i      %f\n", i, j, V(i,j));
-        //cout << "  " << i << "  " << "  " << j << "  " << // GH: std::cout is illegal in device
-        //"  " << "  " << V(i,j) << "  " << endl;
+        cout << "  " << i << "  " << "  " << j << "  " << // GH: std::cout is illegal in device
+        "  " << "  " << V(i,j) << "  " << endl;
       }
     });
     cout << "-------------------------------" << endl;

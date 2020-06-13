@@ -12,46 +12,91 @@
 #include "postprocessManager.hpp"
 
 // ========================================================================================
-/* Constructor to set up the problem */
+/* Minimal constructor to set up the problem */
 // ========================================================================================
 
 PostprocessManager::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
-                         Teuchos::RCP<Teuchos::ParameterList> & settings,
-                         Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
-                         Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
-                         Teuchos::RCP<solver> & solve_, Teuchos::RCP<panzer::DOFManager> & DOF_,
-                         vector<vector<Teuchos::RCP<cell> > > cells_,
-                         vector<Teuchos::RCP<FunctionManager> > & functionManagers,
-                         Teuchos::RCP<AssemblyManager> & assembler_,
-                         Teuchos::RCP<ParameterManager> & params_,
-                         Teuchos::RCP<SensorManager> & sensors_) :
-Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), solve(solve_),
-DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensors_) {
+                                       Teuchos::RCP<Teuchos::ParameterList> & settings,
+                                       Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                                       Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
+                                       vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
+                                       Teuchos::RCP<AssemblyManager> & assembler_) :
+Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_),
+assembler(assembler_), functionManagers(functionManagers_) { 
+  this->setup(settings);
+}
+
+// ========================================================================================
+/* Full constructor to set up the problem */
+// ========================================================================================
+
+PostprocessManager::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
+                                       Teuchos::RCP<Teuchos::ParameterList> & settings,
+                                       Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                                       Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
+                                       vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
+                                       Teuchos::RCP<MultiScale> & multiscale_manager_,
+                                       Teuchos::RCP<AssemblyManager> & assembler_,
+                                       Teuchos::RCP<ParameterManager> & params_,
+                                       Teuchos::RCP<SensorManager> & sensors_) :
+Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_),
+assembler(assembler_), params(params_), sensors(sensors_),
+functionManagers(functionManagers_), multiscale_manager(multiscale_manager_) {
+  this->setup(settings);
+}
+
+// ========================================================================================
+// Setup function used by different constructors
+// ========================================================================================
+
+void PostprocessManager::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
-  verbosity = settings->sublist("Postprocess").get<int>("Verbosity",1);
+  verbosity = settings->get<int>("verbosity",1);
   
-  overlapped_map = solve->LA_overlapped_map;
-  param_overlapped_map = params->param_overlapped_map;
+  compute_response = settings->sublist("Postprocess").get<bool>("compute responses",false);
+  compute_error = settings->sublist("Postprocess").get<bool>("compute errors",false);
+  write_solution = settings->sublist("Postprocess").get("write solution",true);
+  write_subgrid_solution = settings->sublist("Postprocess").get("write subgrid solution",false);
+  
+  exodus_filename = settings->sublist("Postprocess").get<string>("output file","output")+".exo";
+  
+  if (write_solution && Comm->getRank() == 0) {
+    cout << endl << "*********************************************************" << endl;
+    cout << "***** Writing the solution to " << exodus_filename << endl;
+    cout << "*********************************************************" << endl;
+  }
+  
+  isTD = false;
+  if (settings->sublist("Solver").get<string>("solver","steady-state") == "transient") {
+    isTD = true;
+  }
+  
+  if (isTD) {
+    mesh->setupExodusFile(exodus_filename);
+  }
+  
+  //overlapped_map = solve->LA_overlapped_map;
+  //param_overlapped_map = params->param_overlapped_map;
   mesh->getElementBlockNames(blocknames);
   
-  numNodesPerElem = settings->sublist("Mesh").get<int>("numNodesPerElem",4);
+  numNodesPerElem = settings->sublist("Mesh").get<int>("numNodesPerElem",4); // actually set by mesh interface
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   numVars = phys->numVars; //
   
   response_type = settings->sublist("Postprocess").get("response type", "pointwise"); // or "global"
-  have_sensor_data = settings->sublist("Analysis").get("Have Sensor Data", false); // or "global"
-  save_sensor_data = settings->sublist("Analysis").get("Save Sensor Data",false);
-  sname = settings->sublist("Analysis").get("Sensor Prefix","sensor");
-  stddev = settings->sublist("Analysis").get("Additive Normal Noise Standard Dev",0.0);
-  write_dakota_output = settings->sublist("Postprocess").get("Write Dakota Output",false);
+  have_sensor_data = settings->sublist("Analysis").get("have sensor data", false); // or "global"
+  save_sensor_data = settings->sublist("Analysis").get("save sensor data",false);
+  sname = settings->sublist("Analysis").get("sensor prefix","sensor");
+  stddev = settings->sublist("Analysis").get("additive normal noise standard dev",0.0);
+  write_dakota_output = settings->sublist("Postprocess").get("write Dakota output",false);
   
-  use_sol_mod_mesh = settings->sublist("Postprocess").get<bool>("Solution Based Mesh Mod",false);
-  sol_to_mod_mesh = settings->sublist("Postprocess").get<int>("Solution For Mesh Mod",0);
-  meshmod_TOL = settings->sublist("Postprocess").get<ScalarT>("Solution Based Mesh Mod TOL",1.0);
-  layer_size = settings->sublist("Postprocess").get<ScalarT>("Solution Based Mesh Mod Layer Thickness",0.1);
+  use_sol_mod_mesh = settings->sublist("Postprocess").get<bool>("solution based mesh mod",false);
+  sol_to_mod_mesh = settings->sublist("Postprocess").get<int>("solution for mesh mod",0);
+  meshmod_TOL = settings->sublist("Postprocess").get<ScalarT>("solution based mesh mod TOL",1.0);
+  layer_size = settings->sublist("Postprocess").get<ScalarT>("solution based mesh mod layer thickness",0.1);
   
+  /*
   string error_list = settings->sublist("Postprocess").get<string>("Error type","L2"); // or "H1"
-  
   // Script to break delimited list into pieces
   {
     string delimiter = ", ";
@@ -69,8 +114,10 @@ DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensor
       error_types.push_back(error_list);
     }
   }
-  string subgrid_error_list = settings->sublist("Postprocess").get<string>("Subgrid error type","L2"); // or "H1"
+  */
   
+  /*
+  string subgrid_error_list = settings->sublist("Postprocess").get<string>("Subgrid error type","L2"); // or "H1"
   // Script to break delimited list into pieces
   {
     string delimiter = ", ";
@@ -88,20 +135,17 @@ DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensor
       subgrid_error_types.push_back(subgrid_error_list);
     }
   }
+  */
   
-  use_sol_mod_height = settings->sublist("Postprocess").get<bool>("Solution Based Height Mod",false);
-  sol_to_mod_height = settings->sublist("Postprocess").get<int>("Solution For Height Mod",0);
+  use_sol_mod_height = settings->sublist("Postprocess").get<bool>("solution based height mod",false);
+  sol_to_mod_height = settings->sublist("Postprocess").get<int>("solution for height mod",0);
   
   //have_subgrids = false;
   //if (settings->isSublist("Subgrid"))
   //have_subgrids = true;
   
-  isTD = false;
-  if (settings->sublist("Solver").get<string>("solver","steady-state") == "transient") {
-    isTD = true;
-  }
-  plot_response = settings->sublist("Postprocess").get<bool>("Plot Response",false);
-  save_height_file = settings->sublist("Postprocess").get("Save Height File",false);
+  plot_response = settings->sublist("Postprocess").get<bool>("plot response",false);
+  save_height_file = settings->sublist("Postprocess").get("save height file",false);
   
   vector<vector<int> > cards = disc->cards;
   vector<vector<string> > phys_varlist = phys->varlist;
@@ -117,7 +161,6 @@ DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensor
     int currmaxbasis = 0;
     for (int j=0; j<numVars[b]; j++) {
       string var = phys_varlist[b][j];
-      int vnum = DOF->getFieldNum(var);
       int vub = phys->getUniqueIndex(b,var);
       //currvarlist[vnum] = var;
       //curruseBasis[vnum] = vub;
@@ -162,7 +205,102 @@ DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensor
         tgt_itr++;
       }
     }
-  }
+  
+    Teuchos::ParameterList blockPhysSettings;
+    if (settings->sublist("Physics").isSublist(blocknames[b])) { // adding block overwrites the default
+      blockPhysSettings = settings->sublist("Physics").sublist(blocknames[b]);
+    }
+    else { // default
+      blockPhysSettings = settings->sublist("Physics");
+    }
+    vector<vector<string> > types = phys->types;
+    
+    // Add true solutions to the function manager for verification studies
+    Teuchos::ParameterList true_solns = blockPhysSettings.sublist("True solutions");
+    vector<std::pair<size_t,string> > block_error_list;
+    for (size_t j=0; j<varlist[b].size(); j++) {
+      if (true_solns.isParameter(varlist[b][j])) { // solution at volumetric ip
+        if (types[b][j] == "HGRAD" || types[b][j] == "HVOL") {
+          std::pair<size_t,string> newerr(j,"L2");
+          block_error_list.push_back(newerr);
+          string expression = true_solns.get<string>(varlist[b][j],"0.0");
+          functionManagers[b]->addFunction("true "+varlist[b][j],expression,"ip");
+        }
+      }
+      if (true_solns.isParameter("grad("+varlist[b][j]+")_x") || true_solns.isParameter("grad("+varlist[b][j]+")_y") || true_solns.isParameter("grad("+varlist[b][j]+")_z")) { // GRAD of the solution at volumetric ip
+        if (types[b][j] == "HGRAD") {
+          std::pair<size_t,string> newerr(j,"GRAD");
+          block_error_list.push_back(newerr);
+          
+          string expression = true_solns.get<string>("grad("+varlist[b][j]+")_x","0.0");
+          functionManagers[b]->addFunction("true grad("+varlist[b][j]+")_x",expression,"ip");
+          if (spaceDim>1) {
+            expression = true_solns.get<string>("grad("+varlist[b][j]+")_y","0.0");
+            functionManagers[b]->addFunction("true grad("+varlist[b][j]+")_y",expression,"ip");
+          }
+          if (spaceDim>2) {
+            expression = true_solns.get<string>("grad("+varlist[b][j]+")_z","0.0");
+            functionManagers[b]->addFunction("true grad("+varlist[b][j]+")_z",expression,"ip");
+          }
+        }
+      }
+      if (true_solns.isParameter(varlist[b][j]+" face")) { // solution at face/side ip
+        if (types[b][j] == "HGRAD" || types[b][j] == "HFACE") {
+          std::pair<size_t,string> newerr(j,"L2 FACE");
+          block_error_list.push_back(newerr);
+          string expression = true_solns.get<string>(varlist[b][j]+" face","0.0");
+          functionManagers[b]->addFunction("true "+varlist[b][j],expression,"side ip");
+          
+        }
+      }
+      if (true_solns.isParameter(varlist[b][j]+"_x") || true_solns.isParameter(varlist[b][j]+"_y") || true_solns.isParameter(varlist[b][j]+"_z")) { // vector solution at volumetric ip
+        if (types[b][j] == "HDIV" || types[b][j] == "HCURL") {
+          std::pair<size_t,string> newerr(j,"L2 VECTOR");
+          block_error_list.push_back(newerr);
+          
+          string expression = true_solns.get<string>(varlist[b][j]+"_x","0.0");
+          functionManagers[b]->addFunction("true "+varlist[b][j]+"_x",expression,"ip");
+          
+          if (spaceDim>1) {
+            expression = true_solns.get<string>(varlist[b][j]+"_y","0.0");
+            functionManagers[b]->addFunction("true "+varlist[b][j]+"_y",expression,"ip");
+          }
+          if (spaceDim>2) {
+            expression = true_solns.get<string>(varlist[b][j]+"_z","0.0");
+            functionManagers[b]->addFunction("true "+varlist[b][j]+"_z",expression,"ip");
+          }
+        }
+      }
+      if (true_solns.isParameter("div("+varlist[b][j]+")")) { // div of solution at volumetric ip
+        if (types[b][j] == "HDIV") {
+          std::pair<size_t,string> newerr(j,"DIV");
+          block_error_list.push_back(newerr);
+          string expression = true_solns.get<string>("div("+varlist[b][j]+")","0.0");
+          functionManagers[b]->addFunction("true div("+varlist[b][j]+")",expression,"ip");
+          
+        }
+      }
+      if (true_solns.isParameter("curl("+varlist[b][j]+")_x") || true_solns.isParameter("curl("+varlist[b][j]+")_y") || true_solns.isParameter("curl("+varlist[b][j]+")_z")) { // vector solution at volumetric ip
+        if (types[b][j] == "HCURL") {
+          std::pair<size_t,string> newerr(j,"CURL");
+          block_error_list.push_back(newerr);
+          
+          string expression = true_solns.get<string>("curl("+varlist[b][j]+")_x","0.0");
+          functionManagers[b]->addFunction("true curl("+varlist[b][j]+")_x",expression,"ip");
+          
+          if (spaceDim>1) {
+            expression = true_solns.get<string>("curl("+varlist[b][j]+")_y","0.0");
+            functionManagers[b]->addFunction("true curl("+varlist[b][j]+")_y",expression,"ip");
+          }
+          if (spaceDim>2) {
+            expression = true_solns.get<string>("curl("+varlist[b][j]+")_z","0.0");
+            functionManagers[b]->addFunction("true curl("+varlist[b][j]+")_z",expression,"ip");
+          }
+        }
+      }
+    }
+    error_list.push_back(block_error_list);
+  } // end block loop
   
   BDF_wts_pp = Kokkos::View<ScalarT*,UnifiedDevice>("tmp view of BDF wts",1);
   BDF_wts_pp(0) = 1.0;
@@ -171,102 +309,456 @@ DOF(DOF_), cells(cells_), assembler(assembler_), params(params_), sensors(sensor
 // ========================================================================================
 // ========================================================================================
 
-void PostprocessManager::computeError() {
+void PostprocessManager::record(const ScalarT & currenttime) {
+  if (compute_response) {
+    this->computeResponse(currenttime);
+  }
+  if (compute_error) {
+    this->computeError(currenttime);
+  }
+  if (write_solution) {
+    this->writeSolution(currenttime);
+  }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void PostprocessManager::report() {
   
+  ////////////////////////////////////////////////////////////////////////////
+  // The subgrid models still store everything, so we create the output after the run
+  ////////////////////////////////////////////////////////////////////////////
   
-  if(Comm->getRank() == 0) {
-    cout << endl << "*********************************************************" << endl;
-    cout << "***** Performing verification ******" << endl << endl;
+  if (write_subgrid_solution) {
+    multiscale_manager->writeSolution(exodus_filename, plot_times, Comm->getRank());
   }
   
-  vector<ScalarT> solvetimes = solve->soln->times[0];
-  vector_RCP u;
+  ////////////////////////////////////////////////////////////////////////////
+  // Report the responses
+  ////////////////////////////////////////////////////////////////////////////
   
-  // Need to replace BDF wts to use time step solution instead of stage solution
-  BDF_wts = assembler->wkset[0]->BDF_wts; // all blocks use the same BDF wts
-  for (size_t b=0; b<assembler->wkset.size(); b++) {
-    assembler->wkset[b]->BDF_wts = BDF_wts_pp;
-  }
-  
-  for (size_t b=0; b<cells.size(); b++) {// loop over blocks
-    Kokkos::View<ScalarT***,AssemblyDevice> localerror("error",solvetimes.size(),numVars[b],error_types.size());
-    for (size_t t=0; t<solvetimes.size(); t++) {
-      bool fnd = solve->soln->extract(u,t);
-      assembler->performGather(b,u,0,0);
-      for (size_t e=0; e<cells[b].size(); e++) {
-        int numElem = cells[b][e]->numElem;
-        //Kokkos::View<ScalarT**,AssemblyDevice> localerrs = cells[b][e]->computeError(solvetimes[t], t, compute_subgrid_error, error_types);
-        Kokkos::View<ScalarT***,AssemblyDevice> localerrs = cells[b][e]->computeError(solvetimes[t], t, error_types);
-        for (int p=0; p<numElem; p++) {
-          for (int n=0; n<numVars[b]; n++) {
-            for (size_t et=0; et<error_types.size(); et++){
-              localerror(t,n,et) += localerrs(p,n,et);
+  if (compute_response) {
+    if(Comm->getRank() == 0 ) {
+      if (verbosity > 0) {
+        cout << endl << "*********************************************************" << endl;
+        cout << "***** Computing Responses ******" << endl;
+        cout << "*********************************************************" << endl;
+      }
+    }
+    //int numresponses = phys->getNumResponses(b);
+    int numSensors = 1;
+    if (response_type == "pointwise" ) {
+      numSensors = sensors->numSensors;
+    }
+    
+    
+    if (response_type == "pointwise" && save_sensor_data) {
+      
+      srand(time(0)); //use current time as seed for random generator for noise
+      
+      ScalarT err = 0.0;
+      
+      
+      for (int k=0; k<numSensors; k++) {
+        stringstream ss;
+        ss << k;
+        string str = ss.str();
+        string sname2 = sname + "." + str + ".dat";
+        ofstream respOUT(sname2.c_str());
+        respOUT.precision(16);
+        for (size_t tt=0; tt<response_times.size(); tt++) { // skip the initial condition
+          if(Comm->getRank() == 0){
+            respOUT << response_times[tt] << "  ";
+          }
+          for (int n=0; n<responses[tt].extent(1); n++) {
+            ScalarT tmp1 = responses[tt](k,n);
+            ScalarT tmp2 = 0.0;
+            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&tmp1,&tmp2);
+            //Comm->SumAll(&tmp1, &tmp2, 1);
+            err = this->makeSomeNoise(stddev);
+            if(Comm->getRank() == 0) {
+              respOUT << tmp2+err << "  ";
+            }
+          }
+          if(Comm->getRank() == 0){
+            respOUT << endl;
+          }
+        }
+        respOUT.close();
+      }
+    }
+    
+    //KokkosTools::print(responses);
+    
+    if (write_dakota_output) {
+      string sname2 = "results.out";
+      ofstream respOUT(sname2.c_str());
+      respOUT.precision(16);
+      for (int k=0; k<responses[0].extent(0); k++) {// TMW: not correct
+        for (int n=0; n<responses[0].extent(1); n++) {// TMW: not correct
+          for (int m=0; m<response_times.size(); m++) {
+            ScalarT tmp1 = responses[m](k,n);
+            ScalarT tmp2 = 0.0;//globalresp(k,n,tt);
+            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&tmp1,&tmp2);
+            //Comm->SumAll(&tmp1, &tmp2, 1);
+            if(Comm->getRank() == 0) {
+              respOUT << tmp2 << "  ";
             }
           }
         }
       }
+      if(Comm->getRank() == 0){
+        respOUT << endl;
+      }
+      respOUT.close();
     }
-    for (size_t et=0; et<error_types.size(); et++){
-      for (size_t t=0; t<solvetimes.size(); t++) {
-        for (int n=0; n<numVars[b]; n++) {
-          ScalarT lerr = localerror(t,n,et);
+    
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////
+  // Report the errors for verification tests
+  ////////////////////////////////////////////////////////////////////////////
+  
+  if (compute_error) {
+    if(Comm->getRank() == 0) {
+      cout << endl << "*********************************************************" << endl;
+      cout << "***** Computing errors ******" << endl << endl;
+    }
+    
+    for (size_t block=0; block<assembler->cells.size(); block++) {// loop over blocks
+      for (size_t etype=0; etype<error_list[block].size(); etype++){
+        
+        //for (size_t et=0; et<error_types.size(); et++){
+        for (size_t time=0; time<error_times.size(); time++) {
+          //for (int n=0; n<numVars[b]; n++) {
+          
+          ScalarT lerr = errors[time][block](etype);
           ScalarT gerr = 0.0;
           Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lerr,&gerr);
           if(Comm->getRank() == 0) {
-            cout << "***** " << error_types[et] << " norm of the error for " << varlist[b][n] << " = " << sqrt(gerr) << "  (time = " << solvetimes[t] << ")" <<  endl;
+            string varname = varlist[block][error_list[block][etype].first];
+            if (error_list[block][etype].second == "L2" || error_list[block][etype].second == "L2 VECTOR") {
+              cout << "***** L2 norm of the error for " << varname << " = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+            }
+            else if (error_list[block][etype].second == "L2 FACE") {
+              cout << "***** L2-face norm of the error for " << varname << " = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+            }
+            else if (error_list[block][etype].second == "GRAD") {
+              cout << "***** L2 norm of the error for grad(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+            }
+            else if (error_list[block][etype].second == "DIV") {
+              cout << "***** L2 norm of the error for div(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+            }
+            else if (error_list[block][etype].second == "CURL") {
+              cout << "***** L2 norm of the error for curl(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+            }
+          }
+          //}
+        }
+      }
+    }
+    
+    // Error in subgrid models
+    if (multiscale_manager->subgridModels.size() > 0) {
+      
+      // Collect all of the errors for each subgrid model
+      vector<Kokkos::View<ScalarT**,AssemblyDevice> > sgerrs;
+      vector<vector<pair<size_t,string> > > subgrid_error_lists;
+      for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
+        vector<pair<size_t,string> > sub_error_list;
+        Kokkos::View<ScalarT**,AssemblyDevice> err = multiscale_manager->subgridModels[m]->computeError(sub_error_list,error_times);
+        //Kokkos::View<ScalarT**,AssemblyDevice> err = multiscale_manager->subgridModels[m]->computeError(subgrid_error_types, currenttime);
+        sgerrs.push_back(err);
+        subgrid_error_lists.push_back(sub_error_list);
+      }
+      
+      for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
+        vector<string> sgvars = multiscale_manager->subgridModels[m]->varlist;
+        
+        // A given processor may not have any elements that use this subgrid model
+        // In this case, nothing gets initialized so sgvars.size() == 0
+        // Find the global max number of sgvars over all processors
+        size_t nvars = sgvars.size();
+        
+        size_t nerrs = subgrid_error_lists[m].size();
+        size_t gnerrs = 0;
+        Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&nerrs,&gnerrs);
+        
+        
+        for (size_t etype=0; etype<gnerrs; etype++) {
+          for (size_t time=0; time<error_times.size(); time++) {
+            //for (int n=0; n<gnvars; n++) {
+              // Get the local contribution (if processor uses subgrid model)
+              ScalarT lerr = 0.0;
+              if (nvars>0) {
+                lerr = sgerrs[m](time,etype);
+              }
+              ScalarT gerr = 0.0;
+              Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lerr,&gerr);
+              
+              // Figure out who can print the information (lowest rank amongst procs using subgrid model)
+              size_t myID = Comm->getRank();
+              if (nvars == 0) {
+                myID = 100000000;
+              }
+              size_t gID = 0;
+              Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&myID,&gID);
+              
+              if(Comm->getRank() == gID) {
+                //cout << "***** Subgrid" << m << ": " << subgrid_error_types[etype] << " norm of the error for " << sgvars[n] << " = " << sqrt(gerr) << "  (time = " << error_times[t] << ")" <<  endl;
+                
+                string varname = sgvars[subgrid_error_lists[m][etype].first];
+                if (subgrid_error_lists[m][etype].second == "L2" || subgrid_error_lists[m][etype].second == "L2 VECTOR") {
+                  cout << "***** Subgrid " << m << ": L2 norm of the error for " << varname << " = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+                }
+                else if (subgrid_error_lists[m][etype].second == "L2 FACE") {
+                  cout << "***** Subgrid " << m << ": L2-face norm of the error for " << varname << " = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+                }
+                else if (subgrid_error_lists[m][etype].second == "GRAD") {
+                  cout << "***** Subgrid " << m << ": L2 norm of the error for grad(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+                }
+                else if (subgrid_error_lists[m][etype].second == "DIV") {
+                  cout << "***** Subgrid " << m << ": L2 norm of the error for div(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+                }
+                else if (subgrid_error_lists[m][etype].second == "CURL") {
+                  cout << "***** Subgrid " << m << ": L2 norm of the error for curl(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+                }
+              }
+            //}
           }
         }
       }
     }
+
+  }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void PostprocessManager::computeError(const ScalarT & currenttime) {
+  
+  Teuchos::TimeMonitor localtimer(*computeErrorTimer);
+  
+  error_times.push_back(currenttime);
+  
+  for (size_t block=0; block<assembler->wkset.size(); block++) {
+    assembler->wkset[block]->time = currenttime;
+    assembler->wkset[block]->time_KV(0) = currenttime;
+  }
+  // Need to replace BDF wts to use time step solution instead of stage solution
+  BDF_wts = assembler->wkset[0]->BDF_wts; // all blocks use the same BDF wts
+  for (size_t block=0; block<assembler->wkset.size(); block++) {
+    assembler->wkset[block]->BDF_wts = BDF_wts_pp;
   }
   
-  // Error in subgrid models
-  if (solve->multiscale_manager->subgridModels.size() > 0) {
-    // Collect all of the errors for each subgrid model
-    vector<Kokkos::View<ScalarT***,AssemblyDevice> > sgerrs;
-    for (size_t m=0; m<solve->multiscale_manager->subgridModels.size(); m++) {
-      Kokkos::View<ScalarT***,AssemblyDevice> err = solve->multiscale_manager->subgridModels[m]->computeError(subgrid_error_types, solvetimes);
-      sgerrs.push_back(err);
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > currerror;
+  Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
+  seedwhat(0) = 0;
+  
+  for (size_t block=0; block<assembler->cells.size(); block++) {// loop over blocks
+    Kokkos::View<ScalarT*,AssemblyDevice> blockerrors("error",error_list[block].size());
+    // Determine what needs to be updated in the workset
+    bool have_vol_errs = false, have_face_errs = false;
+    for (size_t etype=0; etype<error_list[block].size(); etype++){
+      if (error_list[block][etype].second == "L2" || error_list[block][etype].second == "GRAD"
+          || error_list[block][etype].second == "DIV" || error_list[block][etype].second == "CURL"
+          || error_list[block][etype].second == "L2 VECTOR") {
+        have_vol_errs = true;
+      }
+      if (error_list[block][etype].second == "L2 FACE") {
+        have_face_errs = true;
+      }
     }
     
-    for (size_t m=0; m<solve->multiscale_manager->subgridModels.size(); m++) {
-      vector<string> sgvars = solve->multiscale_manager->subgridModels[m]->varlist;
-      
-      // A given processor may not have any elements that use this subgrid model
-      // In this case, nothing gets initialized so sgvars.size() == 0
-      // Find the global max number of sgvars over all processors
-      size_t nvars = sgvars.size();
-      size_t gnvars = 0;
-      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&nvars,&gnvars);
-      
-      for (size_t et=0; et<subgrid_error_types.size(); et++) {
-        for (size_t t=0; t<solvetimes.size(); t++) {
-          for (int n=0; n<gnvars; n++) {
-            // Get the local contribution (if processor uses subgrid model)
-            ScalarT lerr = 0.0;
-            if (n < nvars) {
-              lerr = sgerrs[m](t,n,et);
+    
+    for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
+      if (have_vol_errs) {
+        assembler->cells[block][cell]->computeSolnVolIP(seedwhat);
+      }
+      for (size_t etype=0; etype<error_list[block].size(); etype++) {
+        int var = error_list[block][etype].first;
+        if (error_list[block][etype].second == "L2") {
+          // compute the true solution
+          string expression = "true " + varlist[block][var];
+          FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+          
+          // add in the L2 difference at the volumetric ip
+          for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
+            for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
+              ScalarT diff = assembler->wkset[block]->local_soln(elem,var,pt,0).val() - tsol(elem,pt).val();
+              blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
             }
-            ScalarT gerr = 0.0;
-            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lerr,&gerr);
-            
-            // Figure out who can print the information (lowest rank amongst procs using subgrid model)
-            size_t myID = Comm->getRank();
-            if (nvars == 0) {
-              myID = 100000000;
+          }
+        }
+        else if (error_list[block][etype].second == "GRAD") {
+          // compute the true x-component of grad
+          string expression = "true grad(" + varlist[block][var] + ")_x";
+          FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+          
+          // add in the L2 difference at the volumetric ip
+          for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
+            for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
+              ScalarT diff = assembler->wkset[block]->local_soln_grad(elem,var,pt,0).val() - tsol(elem,pt).val();
+              blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
             }
-            size_t gID = 0;
-            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&myID,&gID);
+          }
+          
+          if (spaceDim > 1) {
+            // compute the true y-component of grad
+            string expression = "true grad(" + varlist[block][var] + ")_y";
+            FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
             
-            if(Comm->getRank() == gID) {
-              cout << "***** Subgrid" << m << ": " << subgrid_error_types[et] << " norm of the error for " << sgvars[n] << " = " << sqrt(gerr) << "  (time = " << solvetimes[t] << ")" <<  endl;
+            // add in the L2 difference at the volumetric ip
+            for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
+              for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
+                ScalarT diff = assembler->wkset[block]->local_soln_grad(elem,var,pt,1).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+              }
+            }
+          }
+          
+          if (spaceDim >2) {
+            // compute the true z-component of grad
+            string expression = "true grad(" + varlist[block][var] + ")_z";
+            FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+            
+            // add in the L2 difference at the volumetric ip
+            for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
+              for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
+                ScalarT diff = assembler->wkset[block]->local_soln_grad(elem,var,pt,2).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+              }
+            }
+          }
+        }
+        else if (error_list[block][etype].second == "DIV") {
+          // compute the true divergence
+          string expression = "true div(" + varlist[block][var] + ")";
+          FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+          
+          // add in the L2 difference at the volumetric ip
+          for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
+            for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
+              ScalarT diff = assembler->wkset[block]->local_soln_div(elem,var,pt).val() - tsol(elem,pt).val();
+              blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+            }
+          }
+        }
+        else if (error_list[block][etype].second == "CURL") {
+          // compute the true x-component of grad
+          string expression = "true curl(" + varlist[block][var] + ")_x";
+          FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+          
+          // add in the L2 difference at the volumetric ip
+          for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
+            for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
+              ScalarT diff = assembler->wkset[block]->local_soln_curl(elem,var,pt,0).val() - tsol(elem,pt).val();
+              blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+            }
+          }
+          
+          if (spaceDim > 1) {
+            // compute the true y-component of grad
+            string expression = "true curl(" + varlist[block][var] + ")_y";
+            FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+            
+            // add in the L2 difference at the volumetric ip
+            for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
+              for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
+                ScalarT diff = assembler->wkset[block]->local_soln_curl(elem,var,pt,1).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+              }
+            }
+          }
+          
+          if (spaceDim >2) {
+            // compute the true z-component of grad
+            string expression = "true curl(" + varlist[block][var] + ")_z";
+            FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+            
+            // add in the L2 difference at the volumetric ip
+            for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
+              for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
+                ScalarT diff = assembler->wkset[block]->local_soln_curl(elem,var,pt,2).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+              }
+            }
+          }
+        }
+        else if (error_list[block][etype].second == "L2 VECTOR") {
+          // compute the true x-component of grad
+          string expression = "true " + varlist[block][var] + "_x";
+          FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+          
+          // add in the L2 difference at the volumetric ip
+          for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
+            for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
+              ScalarT diff = assembler->wkset[block]->local_soln(elem,var,pt,0).val() - tsol(elem,pt).val();
+              blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+            }
+          }
+          
+          if (spaceDim > 1) {
+            // compute the true y-component of grad
+            string expression = "true " + varlist[block][var] + "_y";
+            FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+            
+            // add in the L2 difference at the volumetric ip
+            for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
+              for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
+                ScalarT diff = assembler->wkset[block]->local_soln(elem,var,pt,1).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+              }
+            }
+          }
+          
+          if (spaceDim >2) {
+            // compute the true z-component of grad
+            string expression = "true " + varlist[block][var] + "_z";
+            FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+            
+            // add in the L2 difference at the volumetric ip
+            for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
+              for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
+                ScalarT diff = assembler->wkset[block]->local_soln(elem,var,pt,2).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+              }
+            }
+          }
+        }
+      }
+      if (have_face_errs) {
+        for (size_t face=0; face<assembler->cells[block][cell]->cellData->numSides; face++) {
+          assembler->cells[block][cell]->computeSolnFaceIP(face, seedwhat);
+          for (size_t etype=0; etype<error_list[block].size(); etype++) {
+            int var = error_list[block][etype].first;
+            if (error_list[block][etype].second == "L2 FACE") {
+              // compute the true z-component of grad
+              string expression = "true " + varlist[block][var];
+              FDATA tsol = functionManagers[block]->evaluate(expression,"side ip");
+              
+              // add in the L2 difference at the volumetric ip
+              for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
+                double facemeasure = 0.0;
+                for( size_t pt=0; pt<assembler->wkset[block]->wts_side.extent(1); pt++ ) {
+                  facemeasure += assembler->wkset[block]->wts_side(elem,pt);
+                }
+                
+                for( size_t pt=0; pt<assembler->wkset[block]->wts_side.extent(1); pt++ ) {
+                  ScalarT diff = assembler->wkset[block]->local_soln_face(elem,var,pt,0).val() - tsol(elem,pt).val();
+                  blockerrors(etype) += 0.5/facemeasure*diff*diff*assembler->wkset[block]->wts_side(elem,pt);
+                }
+              }
             }
           }
         }
       }
     }
-    
-  }
+    currerror.push_back(blockerrors);
+  } // end block loop
+  errors.push_back(currerror);
   
   // Reset the BDF wts
   for (size_t b=0; b<assembler->wkset.size(); b++) {
@@ -279,7 +771,7 @@ void PostprocessManager::computeError() {
 // ========================================================================================
 
 AD PostprocessManager::computeObjective() {
-  
+  /*
   // Need to replace BDF wts to use time step solution instead of stage solution
   BDF_wts = assembler->wkset[0]->BDF_wts; // all blocks use the same BDF wts
   for (size_t b=0; b<assembler->wkset.size(); b++) {
@@ -391,23 +883,23 @@ AD PostprocessManager::computeObjective() {
          
           
             if (numBoundaryParams > 0) {
-              /*
-              int paramIndex, rowIndex, poffset;
-              ScalarT val;
-              regBoundary = cells[b][e]->computeBoundaryRegularization(boundaryRegConstants,
-                                                                       boundaryRegTypes, boundaryRegIndices,
-                                                                       boundaryRegSides);
-              for (size_t p = 0; p < numBoundaryParams; p++) {
-                paramIndex = boundaryRegIndices[p];
-                for( size_t row=0; row<paramoffsets[paramIndex].size(); row++ ) {
-                  if (regBoundary.size() > 0) {
-                    rowIndex = paramGIDs(c,paramoffsets[paramIndex][row]);
-                    poffset = paramoffsets[paramIndex][row];
-                    val = regBoundary.fastAccessDx(poffset);
-                    regGradient[rowIndex+numClassicParams] += val;
-                  }
-                }
-              }*/
+              
+              //int paramIndex, rowIndex, poffset;
+              //ScalarT val;
+              //regBoundary = cells[b][e]->computeBoundaryRegularization(boundaryRegConstants,
+              //                                                         boundaryRegTypes, boundaryRegIndices,
+              //                                                         boundaryRegSides);
+              //for (size_t p = 0; p < numBoundaryParams; p++) {
+              //  paramIndex = boundaryRegIndices[p];
+              //  for( size_t row=0; row<paramoffsets[paramIndex].size(); row++ ) {
+              //    if (regBoundary.size() > 0) {
+              //      rowIndex = paramGIDs(c,paramoffsets[paramIndex][row]);
+              //      poffset = paramoffsets[paramIndex][row];
+              //      val = regBoundary.fastAccessDx(poffset);
+              //      regGradient[rowIndex+numClassicParams] += val;
+              //    }
+              //  }
+              //}
             }
             
             totaldiff += (regDomain + regBoundary);
@@ -454,165 +946,79 @@ AD PostprocessManager::computeObjective() {
   }
   
   return fullobj;
+   */
 }
 
 // ========================================================================================
 // ========================================================================================
 
-Kokkos::View<ScalarT***,HostDevice> PostprocessManager::computeResponse(const int & b) {
+void PostprocessManager::computeResponse(const ScalarT & currenttime) {
   
+  response_times.push_back(currenttime);
   params->sacadoizeParams(false);
-  vector<ScalarT> solvetimes = solve->soln->times[0];
+  //vector<ScalarT> solvetimes = solve->soln->times[0];
   
-  //FC responses = this->computeResponse(F_soln);
+  //Kokkos::View<ScalarT**,HostDevice> responses = this->computeResponse(b);
   
-  int numresponses = phys->getNumResponses(b);
+  //params->sacadoizeParams(false);
+  //vector<ScalarT> solvetimes = solve->soln->times[0];
+  
+  // TMW: may not work for multi-block
+  int numresponses = phys->getNumResponses(0);
   int numSensors = 1;
   if (response_type == "pointwise" ) {
     numSensors = sensors->numSensors;
   }
   
-  Kokkos::View<ScalarT***,HostDevice> responses("responses",numSensors, numresponses, solvetimes.size());
-  vector_RCP P_soln = params->Psol[0];
-  vector_RCP u;
+  Kokkos::View<ScalarT**,HostDevice> curr_response("current response",
+                                                    numSensors, numresponses);
+  //vector_RCP P_soln = params->Psol[0];
+  //vector_RCP u;
   
-  for (size_t tt=0; tt<solvetimes.size(); tt++) {
-    bool fnd = solve->soln->extract(u,tt);
-    assembler->performGather(b,u,0,0);
-    assembler->performGather(b,P_soln,4,0);
-    
-    for (size_t e=0; e<cells[b].size(); e++) {
-      assembler->wkset[b]->update(cells[b][e]->ip, cells[b][e]->wts,
-                                  cells[b][e]->jacobian, cells[b][e]->jacobianInv,
-                                  cells[b][e]->jacobianDet, cells[b][e]->orientation);
+  //  bool fnd = solve->soln->extract(u,tt);
+  //  assembler->performGather(b,u,0,0);
+  //  assembler->performGather(b,P_soln,4,0);
+  for (size_t b=0; b<assembler->cells.size(); b++) {
+    for (size_t e=0; e<assembler->cells[b].size(); e++) {
+      //assembler->wkset[b]->update(cells[b][e]->ip, cells[b][e]->wts,
+      //                            cells[b][e]->jacobian, cells[b][e]->jacobianInv,
+      //                            cells[b][e]->jacobianDet, cells[b][e]->orientation);
       
-      Kokkos::View<AD***,AssemblyDevice> responsevals = cells[b][e]->computeResponse(solvetimes[tt], tt, 0);
+      //Kokkos::View<AD***,AssemblyDevice> responsevals = cells[b][e]->computeResponse(solvetimes[tt], tt, 0);
+      Kokkos::View<AD***,AssemblyDevice> responsevals = assembler->cells[b][e]->computeResponse(0);
       
-      int numElem = cells[b][e]->numElem;
+      int numElem = assembler->cells[b][e]->numElem;
       for (int r=0; r<numresponses; r++) {
         if (response_type == "global" ) {
           DRV wts = assembler->wkset[b]->wts;
           for (int p=0; p<numElem; p++) {
             for (size_t j=0; j<wts.extent(1); j++) {
-              responses(0,r,tt) += responsevals(p,r,j).val() * wts(p,j);
+              curr_response(0,r) += responsevals(p,r,j).val() * wts(p,j);
             }
           }
         }
         else if (response_type == "pointwise" ) {
           if (responsevals.extent(1) > 0) {
-            vector<int> sensIDs = cells[b][e]->mySensorIDs;
+            vector<int> sensIDs = assembler->cells[b][e]->mySensorIDs;
             for (int p=0; p<numElem; p++) {
               for (size_t j=0; j<responsevals.extent(2); j++) {
-                responses(sensIDs[j],r,tt) += responsevals(p,r,j).val();
+                curr_response(sensIDs[j],r) += responsevals(p,r,j).val();
               }
             }
           }
         }
       }
-      
     }
   }
-  //KokkosTools::print(responses);
+  responses.push_back(curr_response);
   
-  return responses;
-}
-
-// ========================================================================================
-// ========================================================================================
-
-void PostprocessManager::computeResponse() {
-  
-  
-  if(Comm->getRank() == 0 ) {
-    if (verbosity > 0) {
-      cout << endl << "*********************************************************" << endl;
-      cout << "***** Computing Responses ******" << endl;
-      cout << "*********************************************************" << endl;
-    }
-  }
-  
-  params->sacadoizeParams(false);
-  vector<ScalarT> solvetimes = solve->soln->times[0];
-  for (size_t b=0; b<cells.size(); b++) {
-    
-    Kokkos::View<ScalarT***,HostDevice> responses = this->computeResponse(b);
-    
-    int numresponses = phys->getNumResponses(b);
-    int numSensors = 1;
-    if (response_type == "pointwise" ) {
-      numSensors = sensors->numSensors;
-    }
-    
-    
-    if (response_type == "pointwise" && save_sensor_data) {
-      
-      srand(time(0)); //use current time as seed for random generator for noise
-      
-      ScalarT err = 0.0;
-      
-      
-      for (int k=0; k<numSensors; k++) {
-        stringstream ss;
-        ss << k;
-        string str = ss.str();
-        string sname2 = sname + "." + str + ".dat";
-        ofstream respOUT(sname2.c_str());
-        respOUT.precision(16);
-        for (size_t tt=0; tt<solvetimes.size(); tt++) { // skip the initial condition
-          if(Comm->getRank() == 0){
-            respOUT << solvetimes[tt] << "  ";
-          }
-          for (int n=0; n<responses.extent(1); n++) {
-            ScalarT tmp1 = responses(k,n,tt);
-            ScalarT tmp2 = 0.0;//globalresp(k,n,tt);
-            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&tmp1,&tmp2);
-            //Comm->SumAll(&tmp1, &tmp2, 1);
-            err = this->makeSomeNoise(stddev);
-            if(Comm->getRank() == 0) {
-              respOUT << tmp2+err << "  ";
-            }
-          }
-          if(Comm->getRank() == 0){
-            respOUT << endl;
-          }
-        }
-        respOUT.close();
-      }
-    }
-    
-    //KokkosTools::print(responses);
-    
-    if (write_dakota_output) {
-      string sname2 = "results.out";
-      ofstream respOUT(sname2.c_str());
-      respOUT.precision(16);
-      for (int k=0; k<responses.extent(0); k++) {
-        for (int n=0; n<responses.extent(1); n++) {
-          for (int m=0; m<responses.extent(2); m++) {
-            ScalarT tmp1 = responses(k,n,m);
-            ScalarT tmp2 = 0.0;//globalresp(k,n,tt);
-            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&tmp1,&tmp2);
-            //Comm->SumAll(&tmp1, &tmp2, 1);
-            if(Comm->getRank() == 0) {
-              respOUT << tmp2 << "  ";
-            }
-          }
-        }
-      }
-      if(Comm->getRank() == 0){
-        respOUT << endl;
-      }
-      respOUT.close();
-    }
-    
-  }
 }
 
 // ========================================================================================
 // ========================================================================================
 
 vector<ScalarT> PostprocessManager::computeSensitivities() {
-  
+  /*
   Teuchos::RCP<Teuchos::Time> sensitivitytimer = Teuchos::rcp(new Teuchos::Time("sensitivity",false));
   sensitivitytimer->start();
   
@@ -672,20 +1078,17 @@ vector<ScalarT> PostprocessManager::computeSensitivities() {
   }
   
   return gradient;
+   */
 }
 
 // ========================================================================================
 // ========================================================================================
 
-void PostprocessManager::writeSolution(const std::string & filelabel) {
+void PostprocessManager::writeSolution(const ScalarT & currenttime) {
   
-  string filename = filelabel+".exo";
+  Teuchos::TimeMonitor localtimer(*writeSolutionTimer);
   
-  if(Comm->getRank() == 0) {
-    cout << endl << "*********************************************************" << endl;
-    cout << "***** Writing the solution to " << filename << endl;
-    cout << "*********************************************************" << endl;
-  }
+  plot_times.push_back(currenttime);
   
   // Need to replace BDF wts to use time step solution instead of stage solution
   BDF_wts = assembler->wkset[0]->BDF_wts; // all blocks use the same BDF wts
@@ -693,26 +1096,8 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
     assembler->wkset[b]->BDF_wts = BDF_wts_pp;
   }
   
-  //auto E_kv = E_soln->getLocalView<HostDevice>();
-  
-  //vector<stk_classic::mesh::Entity*> stk_meshElems;
-  //mesh->getMyElements(blockID, stk_meshElems);
-  
-  if (isTD) {
-    mesh->setupExodusFile(filename);
-  }
-  
-  //int numSteps = E_soln->getNumVectors();
-  vector<ScalarT> solvetimes = solve->soln->times[0];
-  int numSteps = solvetimes.size();
-  vector_RCP u;
-  
-  Kokkos::View<ScalarT**,HostDevice> dispz("dispz",cells[0].size(), numNodesPerElem);
-  for(int m=0; m<numSteps; m++) {
-    bool fnd = solve->soln->extract(u,m);
-    auto u_kv = u->getLocalView<HostDevice>();
-    //KokkosTools::print(u, "solution from postprocess");
-    for (size_t b=0; b<cells.size(); b++) {
+  Kokkos::View<ScalarT**,HostDevice> dispz("dispz",assembler->cells[0].size(), numNodesPerElem);
+    for (size_t b=0; b<assembler->cells.size(); b++) {
       std::string blockID = blocknames[b];
       vector<vector<int> > curroffsets = phys->offsets[b];
       vector<size_t> myElements = disc->myElements[b];
@@ -728,28 +1113,21 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
           }
           Kokkos::View<ScalarT**,HostDevice> soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
           
-          //if (varorders[n] == 1) {
-          //  soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numBasis[b][n]);
-          //}
-          //else {
-          //  soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
-          //}
           std::string var = varlist[b][n];
           size_t eprog = 0;
-          for( size_t e=0; e<cells[b].size(); e++ ) {
-            int numElem = cells[b][e]->numElem;
-            Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
+          Kokkos::View<int*,UnifiedDevice> numDOF = assembler->cells[b][0]->cellData->numDOF;
+          for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+            int numElem = assembler->cells[b][e]->numElem;
+            Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->u;
             for (int p=0; p<numElem; p++) {
-              //for( int i=0; i<numBasis[b][n]; i++ ) {
-              for( int i=0; i<numNodesPerElem; i++ ) {
-                  int pindex = overlapped_map->getLocalElement(GIDs(p,curroffsets[n][i]));
-                if (numBasis[b][n] == 1) {
+              for( int i=0; i<numDOF(n); i++ ) {
+                if (numDOF(n) == 1) {
                   for( int j=0; j<numNodesPerElem; j++ ) {
-                    soln_computed(eprog,j) = u_kv(pindex,0);
+                    soln_computed(eprog,j) = sol(p,n,0);//u_kv(pindex,0);
                   }
                 }
                 else {
-                  soln_computed(eprog,i) = u_kv(pindex,0);
+                  soln_computed(eprog,i) = sol(p,n,i);//u_kv(pindex,0);
                 }
                 if (use_sol_mod_mesh && sol_to_mod_mesh == n) {
                   if (abs(soln_computed(e,i)) >= meshmod_TOL) {
@@ -787,12 +1165,11 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
           Kokkos::View<ScalarT**,HostDevice> soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), 1);
           std::string var = varlist[b][n];
           size_t eprog = 0;
-          for( size_t e=0; e<cells[b].size(); e++ ) {
-            int numElem = cells[b][e]->numElem;
-            Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
+          for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+            int numElem = assembler->cells[b][e]->numElem;
+            Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->u;
             for (int p=0; p<numElem; p++) {
-              int pindex = overlapped_map->getLocalElement(GIDs(p,curroffsets[n][0]));
-              soln_computed(eprog,0) = u_kv(pindex,0);
+              soln_computed(eprog,0) = sol(p,n,0);//u_kv(pindex,0);
               eprog++;
             }
           }
@@ -803,42 +1180,17 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
           Kokkos::View<ScalarT**,HostDevice> soln_y = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), 1);
           Kokkos::View<ScalarT**,HostDevice> soln_z = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), 1);
           std::string var = varlist[b][n];
-          assembler->performGather(b,u,0,0);
           size_t eprog = 0;
-          //vector_RCP u_dot;
-          for( size_t e=0; e<cells[b].size(); e++ ) {
-            assembler->wkset[b]->update(cells[b][e]->ip,cells[b][e]->wts,
-                                        cells[b][e]->jacobian,cells[b][e]->jacobianInv,
-                                        cells[b][e]->jacobianDet,cells[b][e]->orientation);
-            Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
-            seedwhat(0) = 0;
-            assembler->wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_prev, cells[b][e]->u_stage, seedwhat);
-            
-            Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
-            for (int p=0; p<cells[b][e]->numElem; p++) {
-              ScalarT avgxval = 0.0;
-              ScalarT avgyval = 0.0;
-              ScalarT avgzval = 0.0;
-              ScalarT avgwt = 0.0;
-              for (int j=0; j<curroffsets[n].size(); j++) {
-                ScalarT xval = assembler->wkset[b]->local_soln(p,n,j,0).val();
-                avgxval += xval*assembler->wkset[b]->wts(p,j);
-                if (spaceDim > 1) {
-                  ScalarT yval = assembler->wkset[b]->local_soln(p,n,j,1).val();
-                  avgyval += yval*assembler->wkset[b]->wts(p,j);
-                }
-                if (spaceDim > 2) {
-                  ScalarT zval = assembler->wkset[b]->local_soln(p,n,j,2).val();
-                  avgzval += zval*assembler->wkset[b]->wts(p,j);
-                }
-                avgwt += assembler->wkset[b]->wts(p,j);
-              }
-              soln_x(eprog,0) = avgxval/avgwt;
-              soln_y(eprog,0) = avgyval/avgwt;
-              soln_z(eprog,0) = avgzval/avgwt;
+          for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+            Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->u_avg;
+            for (int p=0; p<assembler->cells[b][e]->numElem; p++) {
+              soln_x(eprog,0) = sol(p,n,0);
+              soln_y(eprog,0) = sol(p,n,1);
+              soln_z(eprog,0) = sol(p,n,2);
               eprog++;
             }
           }
+          
           mesh->setCellFieldData(var+"x", blockID, myElements, soln_x);
           mesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
           mesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
@@ -855,8 +1207,8 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
       vector<string> dpnames = params->discretized_param_names;
       vector<int> numParamBasis = params->paramNumBasis;
       if (dpnames.size() > 0) {
-        vector_RCP P_soln = params->Psol[0];
-        auto P_kv = P_soln->getLocalView<HostDevice>();
+        //vector_RCP P_soln = params->Psol[0];
+        //auto P_kv = P_soln->getLocalView<HostDevice>();
         
         for (size_t n=0; n<dpnames.size(); n++) {
           Kokkos::View<ScalarT**,HostDevice> soln_computed;
@@ -867,21 +1219,21 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
             soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
           }
           size_t eprog = 0;
-          for( size_t e=0; e<cells[b].size(); e++ ) {
-            int numElem = cells[b][e]->numElem;
-            Kokkos::View<GO**,HostDevice> paramGIDs = cells[b][e]->paramGIDs;
-            
+          for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+            int numElem = assembler->cells[b][e]->numElem;
+            //Kokkos::View<GO**,HostDevice> paramGIDs = cells[b][e]->paramGIDs;
+            Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->param;
             for (int p=0; p<numElem; p++) {
-              vector<vector<int> > paramoffsets = params->paramoffsets;
+              //vector<vector<int> > paramoffsets = params->paramoffsets;
               for( int i=0; i<numParamBasis[n]; i++ ) {
-                int pindex = param_overlapped_map->getLocalElement(paramGIDs(p,paramoffsets[n][i]));
+                //int pindex = param_overlapped_map->getLocalElement(paramGIDs(p,paramoffsets[n][i]));
                 if (numParamBasis[n] == 1) {
                   for( int j=0; j<numNodesPerElem; j++ ) {
-                    soln_computed(e,j) = P_kv(pindex,0);
+                    soln_computed(e,j) = sol(p,n,0);//P_kv(pindex,0);
                   }
                 }
                 else {
-                  soln_computed(e,i) = P_kv(pindex,0);
+                  soln_computed(e,i) = sol(p,n,i);//P_kv(pindex,0);
                 }
               }
               eprog++;
@@ -889,6 +1241,7 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
           }
           mesh->setSolutionFieldData(dpnames[n], blockID, myElements, soln_computed);
         }
+        /* // Maybe re-enable ... not ever used
         bool have_dRdP = params->have_dRdP;
         if (have_dRdP) {
           vector_RCP P_soln = params->dRdP[0];
@@ -904,13 +1257,13 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
             }
             size_t eprog = 0;
 
-            for( size_t e=0; e<cells[b].size(); e++ ) {
-              int numElem = cells[b][e]->numElem;
-              Kokkos::View<GO**,HostDevice> paramGIDs = cells[b][e]->paramGIDs;
+            for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+              int numElem = assembler->cells[b][e]->numElem;
+              //Kokkos::View<GO**,HostDevice> paramGIDs = assembler->cells[b][e]->paramGIDs;
               for (int p=0; p<numElem; p++) {
-                vector<vector<int> > paramoffsets = params->paramoffsets;
+                //vector<vector<int> > paramoffsets = params->paramoffsets;
                 for( int i=0; i<numParamBasis[n]; i++ ) {
-                  int pindex = param_overlapped_map->getLocalElement(paramGIDs(p,paramoffsets[n][i]));
+                  //int pindex = param_overlapped_map->getLocalElement(paramGIDs(p,paramoffsets[n][i]));
                   if (numParamBasis[n] == 1) {
                     for( int j=0; j<numNodesPerElem; j++ ) {
                       soln_computed(eprog,j) = P_kv(pindex,0);
@@ -925,7 +1278,8 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
             }
             mesh->setSolutionFieldData(dpnames[n]+"_dRdP", blockID, myElements, soln_computed);
           }
-        }
+         
+        }*/
         
       }
       
@@ -962,7 +1316,7 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
       // Plot response
       ////////////////////////////////////////////////////////////////
       
-      
+      /* // TMW: bring back later
       if (plot_response) {
         vector_RCP P_soln = params->Psol[0];
         vector<string> responsefieldnames = phys->getResponseFieldNames(b);
@@ -989,12 +1343,13 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
           mesh->setSolutionFieldData(responsefieldnames[j], blockID, myElements, responsefields[j]);
         }
       }
+      */
       
       ////////////////////////////////////////////////////////////////
       // Extra nodal fields
       ////////////////////////////////////////////////////////////////
       
-      
+      /* // TMW: bring back later
       vector<string> extrafieldnames = phys->getExtraFieldNames(b);
       vector<Kokkos::View<ScalarT**,HostDevice> > extrafields;
       for (size_t j=0; j<extrafieldnames.size(); j++) {
@@ -1022,12 +1377,13 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
       for (size_t j=0; j<extrafieldnames.size(); j++) {
         mesh->setSolutionFieldData(extrafieldnames[j], blockID, myElements, extrafields[j]);
       }
+      */
       
       ////////////////////////////////////////////////////////////////
       // Extra cell fields
       ////////////////////////////////////////////////////////////////
       
-      
+      /*// TMW: bring back later
       vector<string> extracellfieldnames = phys->getExtraCellFieldNames(b);
       
       vector<Kokkos::View<ScalarT**,HostDevice> > extracellfields;
@@ -1073,20 +1429,21 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
           Kokkos::View<ScalarT**,AssemblyDevice> cell_data = cells[b][k]->cell_data;
           // TMW: will need to create mirror view to re-enable this
           for (int p=0; p<cells[b][k]->numElem; p++) {
-            /*
-            if (cell_data.extent(1) == 3) {
-              cdata(eprog,0) = cell_data(p,0);//cell_data_seed[p];
-            }
-            else if (cell_data.extent(1) == 9) {
-              cdata(eprog,0) = cell_data(p,0);//cell_data(p,4)*cell_data(p,8);//cell_data_seed[p];
-            }
-             */
+       
+            //if (cell_data.extent(1) == 3) {
+            //  cdata(eprog,0) = cell_data(p,0);//cell_data_seed[p];
+            //}
+            //else if (cell_data.extent(1) == 9) {
+            //  cdata(eprog,0) = cell_data(p,0);//cell_data(p,4)*cell_data(p,8);//cell_data_seed[p];
+            //}
+       
             cdata(eprog,0) = cell_data_seedindex[p];
             eprog++;
           }
         }
         mesh->setCellFieldData("mesh_data_seed", blockID, myElements, cdata);
       }
+      */
       
       /*
       if (have_subgrids) {
@@ -1126,14 +1483,15 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
       
       
       if(isTD) {
-        mesh->writeToExodus(solvetimes[m]);
+        mesh->writeToExodus(currenttime);
       }
       else {
-        mesh->writeToExodus(filename);
+        mesh->writeToExodus(exodus_filename);
       }
-    }
+    //}
   }
   
+  /* // TMW: bring back later
   if (save_height_file) {
     ofstream hOUT("meshpert.dat");
     hOUT.precision(10);
@@ -1160,9 +1518,10 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
       }
     }
     hOUT.close();
-  }
+  }*/
   
-  solve->multiscale_manager->writeSolution(filelabel, solvetimes, Comm->getRank());
+  // TMW: bring back later
+  //multiscale_manager->writeSolution(filelabel, solvetimes, Comm->getRank());
   
   //for (size_t b=0; b<cells.size(); b++) {
   //  for (size_t e=0; e<cells[b].size(); e++) {
@@ -1178,11 +1537,11 @@ void PostprocessManager::writeSolution(const std::string & filelabel) {
     assembler->wkset[b]->BDF_wts = BDF_wts;
   }
   
-  if(Comm->getRank() == 0) {
-    cout << endl << "*********************************************************" << endl;
-    cout << "***** Finished Writing the solution to " << filename << endl;
-    cout << "*********************************************************" << endl;
-  }
+  //if(Comm->getRank() == 0) {
+  //  cout << endl << "*********************************************************" << endl;
+  //  cout << "***** Finished Writing the solution to " << filename << endl;
+  //  cout << "*********************************************************" << endl;
+  //}
 }
 
 
@@ -1199,95 +1558,11 @@ ScalarT PostprocessManager::makeSomeNoise(ScalarT stdev) {
   return stdev*sqrt(-2*log(U1))*cos(2*PI*U2);
 }
 
-
-// ========================================================================================
-// The following function is the adjoint-based error estimate
-// Not to be confused with the postprocess::computeError function which uses a true
-//   solution to perform verification studies
-// ========================================================================================
-
-// TMW Commented out due to lack of use
-/*
-ScalarT PostprocessManager::computeError() {
-  ScalarT errorest = 0.0;
-  if(Comm->getRank() == 0 && verbosity>0) {
-    cout << endl << "*********************************************************" << endl;
-    cout << "***** Computing Error Estimate ******" << endl << endl;
-  }
-  
-  auto GF_kv = GF_soln->getLocalView<HostDevice>();
-  auto GA_kv = GA_soln->getLocalView<HostDevice>();
-  
-  vector_RCP u = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
-  //LA_MultiVector A_soln(*LA_overlapped_map,1); // adjoint solution
-  vector_RCP a = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // adjoint solution
-  vector_RCP a2 = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,1)); // adjoint solution
-  vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // previous solution (can be either fwd or adj)
-  
-  auto u_kv = u->getLocalView<HostDevice>();
-  auto a_kv = a->getLocalView<HostDevice>();
-  auto a2_kv = a2->getLocalView<HostDevice>();
-  auto u_dot_kv = u_dot->getLocalView<HostDevice>();
-  
-  
-  ScalarT deltat = 0.0;
-  ScalarT alpha = 0.0;
-  ScalarT beta = 1.0;
-  if (solve->isTransient) {
-    deltat = solve->finaltime / solve->numsteps;
-    alpha = 1./deltat;
-  }
-  
-  params->sacadoizeParams(false);
-  
-  // ******************* ITERATE ON THE Parameters **********************
-  
-  double current_time = 0.0;
-  ScalarT localerror = 0.0;
-  for (int timeiter = 0; timeiter<solve->numsteps; timeiter++) {
-    
-    current_time += deltat;
-    
-    for( size_t i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
-      u_kv(i,0) = GF_kv(i,timeiter+1);
-      u_dot_kv(i,0) = alpha*(GF_kv(i,timeiter+1) - GF_kv(i,timeiter));
-    }
-    for( size_t i=0; i<solve->LA_owned.size(); i++ ) {
-      a2_kv(i,0) = GA_kv(i,numsteps-timeiter);
-    }
-    
-    vector_RCP res = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,params->num_active_params)); // reset residual
-    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,params->num_active_params)); // reset residual
-    matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(solve->LA_overlapped_map); // reset Jacobian
-    res_over->putScalar(0.0);
-    //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, false, false, false, res_over, J_over);
-    assembler->assembleJacRes(u, u_dot, u, u_dot, alpha, beta, false, false, false,
-                              res_over, J_over, solve->isTransient, current_time, false, false,
-                              params->num_active_params, params->Psol[0], false);
-    res->putScalar(0.0);
-    res->doExport(*res_over, *(solve->exporter), Tpetra::ADD);
-    auto res_kv = res->getLocalView<HostDevice>();
-    
-    ScalarT currerror = 0.0;
-    for( size_t i=0; i<solve->LA_owned.size(); i++ ) {
-      currerror += a2_kv(i,0) * res_kv(i,0);
-    }
-    localerror += currerror;
-  }
-  Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localerror,&errorest);
-  //Comm->SumAll(&localerror, &errorest, 1);
-  
-  if(Comm->getRank() == 0 && verbosity>0) {
-    cout << "Error estimate = " << errorest << endl;
-  }
-  return errorest;
-}
-*/
-
 // ========================================================================================
 // ========================================================================================
 
 vector<ScalarT> PostprocessManager::computeParameterSensitivities() {
+  /*
   if(Comm->getRank() == 0 && verbosity>0) {
     cout << endl << "*********************************************************" << endl;
     cout << "***** Computing Sensitivities ******" << endl << endl;
@@ -1393,6 +1668,7 @@ vector<ScalarT> PostprocessManager::computeParameterSensitivities() {
   }
   
   return gradient;
+   */
 }
 
 
@@ -1402,6 +1678,7 @@ vector<ScalarT> PostprocessManager::computeParameterSensitivities() {
 
 vector<ScalarT> PostprocessManager::computeDiscretizedSensitivities() {
   
+  /*
   if(Comm->getRank() == 0 && verbosity>0) {
     cout << endl << "*********************************************************" << endl;
     cout << "***** Computing Discretized Sensitivities ******" << endl << endl;
@@ -1461,16 +1738,16 @@ vector<ScalarT> PostprocessManager::computeDiscretizedSensitivities() {
         a2_kv(i,0) = phi_kv(i,0);
       }
     }
-    /*
-     current_time = solvetimes[timeiter+1];
-     for( size_t i=0; i<ownedAndShared.size(); i++ ) {
-     u[0][i] = F_soln[timeiter+1][i];
-     u_dot[0][i] = alpha*(F_soln[timeiter+1][i] - F_soln[timeiter][i]);
-     }
-     for( size_t i=0; i<owned.size(); i++ ) {
-     a2[0][i] = A_soln[nsteps-timeiter][i];
-     }
-     */
+   
+    // current_time = solvetimes[timeiter+1];
+    // for( size_t i=0; i<ownedAndShared.size(); i++ ) {
+    // u[0][i] = F_soln[timeiter+1][i];
+    // u_dot[0][i] = alpha*(F_soln[timeiter+1][i] - F_soln[timeiter][i]);
+    // }
+    // for( size_t i=0; i<owned.size(); i++ ) {
+    // a2[0][i] = A_soln[nsteps-timeiter][i];
+    // }
+    //
     
     vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // reset residual
     matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(params->param_overlapped_map); // reset Jacobian
@@ -1511,6 +1788,7 @@ vector<ScalarT> PostprocessManager::computeDiscretizedSensitivities() {
     discGradient[i] = globalval;
   }
   return discGradient;
+   */
 }
 
 

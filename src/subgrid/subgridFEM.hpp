@@ -28,6 +28,7 @@
 #include "subgridTools.hpp"
 #include "parameterManager.hpp"
 #include "subgridLocalData.hpp"
+#include "postprocessManager.hpp"
 
 // Belos
 #include <BelosConfigDefs.hpp>
@@ -156,8 +157,8 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   
   //Kokkos::View<ScalarT**,AssemblyDevice> computeError(const ScalarT & time, const int & usernum);
-  Kokkos::View<ScalarT***,AssemblyDevice> computeError(const vector<string> & error_types,
-                                                       const vector<ScalarT> & solvetimes);
+  Kokkos::View<ScalarT**,AssemblyDevice> computeError(vector<pair<size_t, string> > & sub_error_list,
+                                                      const vector<ScalarT> & times);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the objective function
@@ -317,7 +318,7 @@ public:
   Teuchos::RCP<solver> sub_solver;
   Teuchos::RCP<meshInterface> sub_mesh;
   Teuchos::RCP<discretization> sub_disc;
-  
+  Teuchos::RCP<PostprocessManager> sub_postproc;
   vector<Teuchos::RCP<LA_MultiVector> > Psol;
   
   // Dynamic - depend on the macro-element
@@ -343,6 +344,7 @@ public:
   bool store_aux_and_flux = false;
   vector<Kokkos::View<ScalarT***,AssemblyDevice> > auxdata;
   vector<Kokkos::View<AD***,AssemblyDevice> > fluxdata;
+  //vector<vector<std:pair<size_t,string> > > subgrid_error_list;
   
   // Timers
   Teuchos::RCP<Teuchos::Time> sgfemSolverTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridSolver()");

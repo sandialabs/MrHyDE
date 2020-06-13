@@ -69,7 +69,7 @@ settings(settings_), Commptr(Comm_){
   
   numBlocks = blocknames.size();
   spaceDim = settings->sublist("Mesh").get<int>("dim");
-  cellfield_reduction = settings->sublist("Postprocess").get<string>("Extra cell field reduction","mean");
+  cellfield_reduction = settings->sublist("Postprocess").get<string>("extra cell field reduction","mean");
   
   for (size_t b=0; b<blocknames.size(); b++) {
     if (settings->sublist("Physics").isSublist(blocknames[b])) { // adding block overwrites the default
@@ -111,40 +111,8 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
       modules[b][n]->defineFunctions(settings, functionManagers[b]);
     }
     
-    // Add true solutions to the function manager for verification studies
-    Teuchos::ParameterList true_solns = blockPhysSettings[b].sublist("true solutions");
-    for (size_t j=0; j<varlist[b].size(); j++) {
-      
-      if (types[b][j] == "HGRAD" || types[b][j] == "HVOL" || types[b][j] == "HFACE") {
-        string expression = true_solns.get<string>(varlist[b][j],"0.0");
-        functionManagers[b]->addFunction("true "+varlist[b][j],expression,"ip");
-        
-        functionManagers[b]->addFunction("true "+varlist[b][j],expression,"side ip");
-        
-        expression = true_solns.get<string>(varlist[b][j]+"_x","0.0");
-        functionManagers[b]->addFunction("true "+varlist[b][j]+"_x",expression,"ip");
-        
-        expression = true_solns.get<string>(varlist[b][j]+"_y","0.0");
-        functionManagers[b]->addFunction("true "+varlist[b][j]+"_y",expression,"ip");
-        
-        expression = true_solns.get<string>(varlist[b][j]+"_z","0.0");
-        functionManagers[b]->addFunction("true "+varlist[b][j]+"_z",expression,"ip");
-      }
-      else if (types[b][j] == "HDIV" || types[b][j] == "HCURL") {
-        
-        string expression = true_solns.get<string>(varlist[b][j]+"x","0.0");
-        functionManagers[b]->addFunction("true "+varlist[b][j]+"x",expression,"ip");
-        
-        expression = true_solns.get<string>(varlist[b][j]+"y","0.0");
-        functionManagers[b]->addFunction("true "+varlist[b][j]+"y",expression,"ip");
-        
-        expression = true_solns.get<string>(varlist[b][j]+"z","0.0");
-        functionManagers[b]->addFunction("true "+varlist[b][j]+"z",expression,"ip");
-      }
-    }
-    
     // Add initial conditions
-    Teuchos::ParameterList initial_conds = blockPhysSettings[b].sublist("initial conditions");
+    Teuchos::ParameterList initial_conds = blockPhysSettings[b].sublist("Initial conditions");
     for (size_t j=0; j<varlist[b].size(); j++) {
       string expression = initial_conds.get<string>(varlist[b][j],"0.0");
       functionManagers[b]->addFunction("initial "+varlist[b][j],expression,"ip");
@@ -212,7 +180,7 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
     }
     
     vector<string> block_ef;
-    Teuchos::ParameterList efields = blockPhysSettings[b].sublist("extra fields");
+    Teuchos::ParameterList efields = blockPhysSettings[b].sublist("Extra fields");
     Teuchos::ParameterList::ConstIterator ef_itr = efields.begin();
     while (ef_itr != efields.end()) {
       string entry = efields.get<string>(ef_itr->first);
@@ -224,7 +192,7 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
     extrafields_list.push_back(block_ef);
     
     vector<string> block_ecf;
-    Teuchos::ParameterList ecfields = blockPhysSettings[b].sublist("extra cell fields");
+    Teuchos::ParameterList ecfields = blockPhysSettings[b].sublist("Extra cell fields");
     Teuchos::ParameterList::ConstIterator ecf_itr = ecfields.begin();
     while (ecf_itr != ecfields.end()) {
       string entry = ecfields.get<string>(ecf_itr->first);
@@ -321,208 +289,229 @@ void physics::importPhysics() {
     std::string var;
     int default_order = 1;
     std::string default_type = "HGRAD";
-    
-    // Porous media (single phase slightly compressible)
-    if (blockPhysSettings[b].get<bool>("solve_porous",false)) {
-      Teuchos::RCP<porous> porous_RCP = Teuchos::rcp(new porous(settings) );
-      currmodules.push_back(porous_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_porous",false));
-    }
-    
-    
-    // Porous media with HDIV basis
-    if (blockPhysSettings[b].get<bool>("solve_porousHDIV",false)) {
-      Teuchos::RCP<porousHDIV> porousHDIV_RCP = Teuchos::rcp(new porousHDIV(settings) );
-      currmodules.push_back(porousHDIV_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_porousHDIV",false));
-    }
-    
-    // Hybridized porous media with HDIV basis
-    if (blockPhysSettings[b].get<bool>("solve_porousHDIV_hybrid",false)) {
-      Teuchos::RCP<porousHDIV_HYBRID> porousHDIV_HYBRID_RCP = Teuchos::rcp(new porousHDIV_HYBRID(settings) );
-      currmodules.push_back(porousHDIV_HYBRID_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_porousHDIV_HYBRID",false));
-    }
-    
-    // weak Galerkin porous media with HDIV basis
-    if (blockPhysSettings[b].get<bool>("solve_porousHDIV_weakGalerkin",false)) {
-      Teuchos::RCP<porousHDIV_WG> porousHDIV_WG_RCP = Teuchos::rcp(new porousHDIV_WG(settings) );
-      currmodules.push_back(porousHDIV_WG_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_porousHDIV_WG",false));
-    }
-    
-    // Two phase porous media
-    if (blockPhysSettings[b].get<bool>("solve_twophase",false)) {
-      string formulation = blockPhysSettings[b].get<string>("formulation","PoNo");
-      if (formulation == "PoPw"){
-        //Teuchos::RCP<twophasePoPw> twophase_RCP = Teuchos::rcp(new twophasePoPw(settings) );
-        //currmodules.push_back(twophase_RCP);
+    string module_list = blockPhysSettings[b].get<string>("modules","");
+    vector<string> enabled_modules;
+    // Script to break delimited list into pieces
+    {
+      string delimiter = ", ";
+      size_t pos = 0;
+      if (module_list.find(delimiter) == string::npos) {
+        enabled_modules.push_back(module_list);
       }
-      else if (formulation == "PoNo"){
-        Teuchos::RCP<twophasePoNo> twophase_RCP = Teuchos::rcp(new twophasePoNo(settings) );
-        currmodules.push_back(twophase_RCP);
-        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_twophase",false));
+      else {
+        string token;
+        while ((pos = module_list.find(delimiter)) != string::npos) {
+          token = module_list.substr(0, pos);
+          enabled_modules.push_back(token);
+          module_list.erase(0, pos + delimiter.length());
+        }
+        enabled_modules.push_back(module_list);
       }
-      else if (formulation == "PoPw"){
-        Teuchos::RCP<twophasePoPw> twophase_RCP = Teuchos::rcp(new twophasePoPw(settings) );
-        currmodules.push_back(twophase_RCP);
-        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_twophase",false));
+    }
+    
+    for (size_t mod=0; mod<enabled_modules.size(); mod++) {
+      string modname = enabled_modules[mod];
+      // Porous media (single phase slightly compressible)
+      if (modname == "porous") {
+        Teuchos::RCP<porous> porous_RCP = Teuchos::rcp(new porous(settings) );
+        currmodules.push_back(porous_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_porous",false));
+      }
+    
+      // Porous media with HDIV basis
+      if (modname == "porousHDIV") {
+        Teuchos::RCP<porousHDIV> porousHDIV_RCP = Teuchos::rcp(new porousHDIV(settings) );
+        currmodules.push_back(porousHDIV_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_porousHDIV",false));
       }
       
-    }
-    
-    // Convection diffusion
-    if (blockPhysSettings[b].get<bool>("solve_cdr",false)) {
-      Teuchos::RCP<cdr> cdr_RCP = Teuchos::rcp(new cdr(settings) );
-      currmodules.push_back(cdr_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_cdr",false));
-    }
-    
-    /* not setting up correctly
-     // Multiple Species convection diffusion reaction
-     if (blockPhysSettings[b].get<bool>("solve_msconvdiff",false)) {
-     //currmodules.push_back(msconvdiff_RCP);
-     }
-     */
-    
-    // Thermal
-    if (blockPhysSettings[b].get<bool>("solve_thermal",false)) {
-      Teuchos::RCP<thermal> thermal_RCP = Teuchos::rcp(new thermal(settings) );
-      currmodules.push_back(thermal_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_thermal",false));
-    }
-    
-    /*
-     // Thermal with fractional operator
-     if (blockPhysSettings[b].get<bool>("solve_thermal_fr",false)) {
-     Teuchos::RCP<thermal_fr> thermal_fr_RCP = Teuchos::rcp(new thermal_fr(settings, numip, numip_side) );
-     currmodules.push_back(thermal_fr_RCP);
-     }
-     */
-    
-    // Thermal with enthalpy variable
-    if (blockPhysSettings[b].get<bool>("solve_thermal_enthalpy",false)) {
-      Teuchos::RCP<thermal_enthalpy> thermal_enthalpy_RCP = Teuchos::rcp(new thermal_enthalpy(settings) );
-      currmodules.push_back(thermal_enthalpy_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_thermal_enthalpy",false));
-    }
-    
-    // Shallow Water
-    if (blockPhysSettings[b].get<bool>("solve_shallowwater",false)) {
-      Teuchos::RCP<shallowwater> shallowwater_RCP = Teuchos::rcp(new shallowwater(settings) );
-      currmodules.push_back(shallowwater_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_shallowwater",false));
-    }
-    
-    // Maxwell
-    if (blockPhysSettings[b].get<bool>("solve_maxwell",false)) {
-      Teuchos::RCP<maxwell> maxwell_RCP = Teuchos::rcp(new maxwell(settings) );
-      currmodules.push_back(maxwell_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_maxwell",false));
-    }
-    
-    // Maxwell hybridized
-    if (blockPhysSettings[b].get<bool>("solve_maxwell_hybrid",false)) {
-      Teuchos::RCP<maxwell_HYBRID> maxwell_HYBRID_RCP = Teuchos::rcp(new maxwell_HYBRID(settings) );
-      currmodules.push_back(maxwell_HYBRID_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_maxwell_hybrid",false));
-    }
-    
-    /* not setting up correctly
-     // Burgers (entropy viscosity)
-     if (blockPhysSettings[b].get<bool>("solve_burgers",false)) {
-     currmodules.push_back(burgers_RCP);
-     }
-     */
-    
-    /*
-     // PhaseField
-     if (blockPhysSettings[b].get<bool>("solve_phasefield",false)) {
-     Teuchos::RCP<phasefield> phasefield_RCP = Teuchos::rcp(new phasefield(settings, numip, numip_side) );
-     currmodules.push_back(phasefield_RCP);
-     }
-     
-     */
-    // Multiple Species PhaseField
-    if (blockPhysSettings[b].get<bool>("solve_msphasefield",false)) {
-      Teuchos::RCP<msphasefield> msphasefield_RCP = Teuchos::rcp(new msphasefield(settings, Commptr) );
-      currmodules.push_back(msphasefield_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_msphasefield",false));
-    }
-    
-    // Stokes
-    if (blockPhysSettings[b].get<bool>("solve_stokes",false)) {
-      Teuchos::RCP<stokes> stokes_RCP = Teuchos::rcp(new stokes(settings) );
+      // Hybridized porous media with HDIV basis
+      if (modname == "porousHDIV_hybrid") {
+        Teuchos::RCP<porousHDIV_HYBRID> porousHDIV_HYBRID_RCP = Teuchos::rcp(new porousHDIV_HYBRID(settings) );
+        currmodules.push_back(porousHDIV_HYBRID_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_porousHDIV_HYBRID",false));
+      }
       
-      currmodules.push_back(stokes_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_stokes",false));
-    }
-    
-    // Navier Stokes
-    if (blockPhysSettings[b].get<bool>("solve_navierstokes",false)) {
-      Teuchos::RCP<navierstokes> navierstokes_RCP = Teuchos::rcp(new navierstokes(settings) );
+      // weak Galerkin porous media with HDIV basis
+      if (modname == "porousHDIV_weakGalerkin") {
+        Teuchos::RCP<porousHDIV_WG> porousHDIV_WG_RCP = Teuchos::rcp(new porousHDIV_WG(settings) );
+        currmodules.push_back(porousHDIV_WG_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_porousHDIV_WG",false));
+      }
       
-      currmodules.push_back(navierstokes_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_navierstokes",false));
+      // Two phase porous media
+      if (modname == "twophase") {
+        string formulation = blockPhysSettings[b].get<string>("formulation","PoNo");
+        if (formulation == "PoPw"){
+          //Teuchos::RCP<twophasePoPw> twophase_RCP = Teuchos::rcp(new twophasePoPw(settings) );
+          //currmodules.push_back(twophase_RCP);
+        }
+        else if (formulation == "PoNo"){
+          Teuchos::RCP<twophasePoNo> twophase_RCP = Teuchos::rcp(new twophasePoNo(settings) );
+          currmodules.push_back(twophase_RCP);
+          currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_twophase",false));
+        }
+        else if (formulation == "PoPw"){
+          Teuchos::RCP<twophasePoPw> twophase_RCP = Teuchos::rcp(new twophasePoPw(settings) );
+          currmodules.push_back(twophase_RCP);
+          currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_twophase",false));
+        }
+        
+      }
+      
+      // Convection diffusion
+      if (modname == "cdr" || modname == "CDR") {
+        Teuchos::RCP<cdr> cdr_RCP = Teuchos::rcp(new cdr(settings) );
+        currmodules.push_back(cdr_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_cdr",false));
+      }
+      
+      /* not setting up correctly
+       // Multiple Species convection diffusion reaction
+       if (blockPhysSettings[b].get<bool>("solve_msconvdiff",false)) {
+       //currmodules.push_back(msconvdiff_RCP);
+       }
+       */
+      
+      // Thermal
+      if (modname == "thermal") {
+        Teuchos::RCP<thermal> thermal_RCP = Teuchos::rcp(new thermal(settings) );
+        currmodules.push_back(thermal_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_thermal",false));
+      }
+      
+      /*
+       // Thermal with fractional operator
+       if (blockPhysSettings[b].get<bool>("solve_thermal_fr",false)) {
+       Teuchos::RCP<thermal_fr> thermal_fr_RCP = Teuchos::rcp(new thermal_fr(settings, numip, numip_side) );
+       currmodules.push_back(thermal_fr_RCP);
+       }
+       */
+      
+      // Thermal with enthalpy variable
+      if (modname == "thermal enthalpy") {
+        Teuchos::RCP<thermal_enthalpy> thermal_enthalpy_RCP = Teuchos::rcp(new thermal_enthalpy(settings) );
+        currmodules.push_back(thermal_enthalpy_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_thermal_enthalpy",false));
+      }
+      
+      // Shallow Water
+      if (modname == "shallow water") {
+        Teuchos::RCP<shallowwater> shallowwater_RCP = Teuchos::rcp(new shallowwater(settings) );
+        currmodules.push_back(shallowwater_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_shallowwater",false));
+      }
+      
+      // Maxwell
+      if (modname == "maxwell") {
+        Teuchos::RCP<maxwell> maxwell_RCP = Teuchos::rcp(new maxwell(settings) );
+        currmodules.push_back(maxwell_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_maxwell",false));
+      }
+      
+      // Maxwell hybridized
+      if (modname == "maxwell hybrid") {
+        Teuchos::RCP<maxwell_HYBRID> maxwell_HYBRID_RCP = Teuchos::rcp(new maxwell_HYBRID(settings) );
+        currmodules.push_back(maxwell_HYBRID_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_maxwell_hybrid",false));
+      }
+      
+      /* not setting up correctly
+       // Burgers (entropy viscosity)
+       if (blockPhysSettings[b].get<bool>("solve_burgers",false)) {
+       currmodules.push_back(burgers_RCP);
+       }
+       */
+      
+      /*
+       // PhaseField
+       if (blockPhysSettings[b].get<bool>("solve_phasefield",false)) {
+       Teuchos::RCP<phasefield> phasefield_RCP = Teuchos::rcp(new phasefield(settings, numip, numip_side) );
+       currmodules.push_back(phasefield_RCP);
+       }
+       
+       */
+      // Multiple Species PhaseField
+      if (modname == "msphasefield") {
+        Teuchos::RCP<msphasefield> msphasefield_RCP = Teuchos::rcp(new msphasefield(settings, Commptr) );
+        currmodules.push_back(msphasefield_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_msphasefield",false));
+      }
+      
+      // Stokes
+      if (modname == "stokes" || modname == "Stokes") {
+        Teuchos::RCP<stokes> stokes_RCP = Teuchos::rcp(new stokes(settings) );
+        
+        currmodules.push_back(stokes_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_stokes",false));
+      }
+      
+      // Navier Stokes
+      if (modname == "navier stokes" || modname == "Navier Stokes") {
+        Teuchos::RCP<navierstokes> navierstokes_RCP = Teuchos::rcp(new navierstokes(settings) );
+        
+        currmodules.push_back(navierstokes_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_navierstokes",false));
+      }
+      
+      /* not setting up correctly
+       // Euler
+       if (blockPhysSettings[b].get<bool>("solve_euler",false)) {
+       currmodules.push_back(euler_RCP);
+       }
+       */
+      
+      // Linear Elasticity
+      if (modname == "linearelasticity" || modname == "linear elasticity") {
+        Teuchos::RCP<linearelasticity> linearelasticity_RCP = Teuchos::rcp(new linearelasticity(settings) );
+        currmodules.push_back(linearelasticity_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_linearelasticity",false));
+      }
+      
+      /* not setting up correctly
+       // Peridynamics
+       if (blockPhysSettings[b].get<bool>("solve_peridynamics",false)) {
+       currmodules.push_back(peridynamics_RCP);
+       }
+       */
+      
+      
+      // Helmholtz
+      if (modname == "helmholtz") {
+        Teuchos::RCP<helmholtz> helmholtz_RCP = Teuchos::rcp(new helmholtz(settings) );
+        currmodules.push_back(helmholtz_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_helmholtz",false));
+      }
+      
+      /* not setting up correctly
+       // Helmholtz with multiple wavenumbers
+       if (blocksettings.get<bool>("solve_mwhelmholtz",false)){
+       currmodules.push_back(mwhelmholtz_RCP);
+       }
+       */
+      
+      // Maxwell's (potential of electric field, curl-curl frequency domain (Boyse et al (1992))
+      if (modname == "maxwells_freq_pot"){
+        Teuchos::RCP<maxwells_fp> maxwells_fp_RCP = Teuchos::rcp(new maxwells_fp(settings) );
+        currmodules.push_back(maxwells_fp_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_maxwells_freq_pot",false));
+      }
+      
+      // Scalar ODE for testing time integrators independent of spatial discretizations
+      if (modname == "ODE"){
+        Teuchos::RCP<ODE> ODE_RCP = Teuchos::rcp(new ODE(settings) );
+        currmodules.push_back(ODE_RCP);
+        currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_ODE",false));
+      }
+      
+      /*
+       // PhaseField Solidification
+       if (blockPhysSettings[b].get<bool>("solve_phasesolidification",false)) {
+       Teuchos::RCP<phasesolidification> phasesolid_RCP = Teuchos::rcp(new phasesolidification(settings, Commptr, numip, numip_side) );
+       currmodules.push_back(phasesolid_RCP);
+       }
+       */
     }
-    
-    /* not setting up correctly
-     // Euler
-     if (blockPhysSettings[b].get<bool>("solve_euler",false)) {
-     currmodules.push_back(euler_RCP);
-     }
-     */
-    
-    // Linear Elasticity
-    if (blockPhysSettings[b].get<bool>("solve_linearelasticity",false)) {
-      Teuchos::RCP<linearelasticity> linearelasticity_RCP = Teuchos::rcp(new linearelasticity(settings) );
-      currmodules.push_back(linearelasticity_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_linearelasticity",false));
-    }
-    
-    /* not setting up correctly
-     // Peridynamics
-     if (blockPhysSettings[b].get<bool>("solve_peridynamics",false)) {
-     currmodules.push_back(peridynamics_RCP);
-     }
-     */
-    
-    
-    // Helmholtz
-    if (blockPhysSettings[b].get<bool>("solve_helmholtz",false)) {
-      Teuchos::RCP<helmholtz> helmholtz_RCP = Teuchos::rcp(new helmholtz(settings) );
-      currmodules.push_back(helmholtz_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_helmholtz",false));
-    }
-    
-    /* not setting up correctly
-     // Helmholtz with multiple wavenumbers
-     if (blocksettings.get<bool>("solve_mwhelmholtz",false)){
-     currmodules.push_back(mwhelmholtz_RCP);
-     }
-     */
-    
-    // Maxwell's (potential of electric field, curl-curl frequency domain (Boyse et al (1992))
-    if (blockPhysSettings[b].get<bool>("solve_maxwells_freq_pot",false)){
-      Teuchos::RCP<maxwells_fp> maxwells_fp_RCP = Teuchos::rcp(new maxwells_fp(settings) );
-      currmodules.push_back(maxwells_fp_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_maxwells_freq_pot",false));
-    }
-    
-    // Scalar ODE for testing time integrators independent of spatial discretizations
-    if (blockPhysSettings[b].get<bool>("solve_ODE",false)){
-      Teuchos::RCP<ODE> ODE_RCP = Teuchos::rcp(new ODE(settings) );
-      currmodules.push_back(ODE_RCP);
-      currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_ODE",false));
-    }
-    
-    /*
-     // PhaseField Solidification
-     if (blockPhysSettings[b].get<bool>("solve_phasesolidification",false)) {
-     Teuchos::RCP<phasesolidification> phasesolid_RCP = Teuchos::rcp(new phasesolidification(settings, Commptr, numip, numip_side) );
-     currmodules.push_back(phasesolid_RCP);
-     }
-     */
     
     modules.push_back(currmodules);
     useSubgrid.push_back(currSubgrid);
@@ -659,106 +648,6 @@ ScalarT physics::getInitialValue(const int & block, const ScalarT & x, const Sca
 
 int physics::getNumResponses(const int & block, const string & var) {
   return response_list[block].size();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-void physics::trueSolution(const int & block, const ScalarT & time,
-                           Kokkos::View<ScalarT****,AssemblyDevice> truesol) {
-  
-  for (int v=0; v<varlist[block].size(); v++) {
-    string btype = types[block][v];
-    if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE") {
-      string expression = "true " + varlist[block][v];
-      FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
-      for (size_t i=0; i<truesol.extent(0); i++) {
-        for (size_t j=0; j<truesol.extent(2); j++) {
-          truesol(i,v,j,0) = tsol(i,j).val();
-        }
-      }
-    }
-    else if (btype == "HDIV" || btype == "HCURL") {
-      string expression = "true " + varlist[block][v] + "x";
-      FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
-      for (size_t i=0; i<truesol.extent(0); i++) {
-        for (size_t j=0; j<truesol.extent(2); j++) {
-          truesol(i,v,j,0) = tsol(i,j).val();
-        }
-      }
-      if (spaceDim > 1){
-        string expression = "true " + varlist[block][v] + "y";
-        FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
-        for (size_t i=0; i<truesol.extent(0); i++) {
-          for (size_t j=0; j<truesol.extent(2); j++) {
-            truesol(i,v,j,1) = tsol(i,j).val();
-          }
-        }
-      }
-      if (spaceDim > 2) {
-        string expression = "true " + varlist[block][v] + "z";
-        FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
-        for (size_t i=0; i<truesol.extent(0); i++) {
-          for (size_t j=0; j<truesol.extent(2); j++) {
-            truesol(i,v,j,2) = tsol(i,j).val();
-          }
-        }
-      }
-    }
-  }
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-void physics::trueSolutionFace(const int & block, const ScalarT & time,
-                               Kokkos::View<ScalarT****,AssemblyDevice> truesol) {
-  
-  for (int v=0; v<varlist[block].size(); v++) {
-    string btype = types[block][v];
-    string expression = "true " + varlist[block][v];
-    FDATA tsol = functionManagers[block]->evaluate(expression,"side ip");
-    for (size_t i=0; i<truesol.extent(0); i++) {
-      for (size_t j=0; j<truesol.extent(2); j++) {
-        truesol(i,v,j,0) = tsol(i,j).val();
-      }
-    }
-  }
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-void physics::trueSolutionGrad(const int & block, const ScalarT & time,
-                               Kokkos::View<ScalarT****,AssemblyDevice> truesol) {
-  
-  for (int v=0; v<varlist[block].size(); v++) {
-    string expression = "true " + varlist[block][v] + "_x";
-    FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
-    for (size_t i=0; i<truesol.extent(0); i++) {
-      for (size_t j=0; j<truesol.extent(2); j++) {
-        truesol(i,v,j,0) = tsol(i,j).val();
-      }
-    }
-    if (spaceDim>1) {
-      string expression = "true " + varlist[block][v] + "_y";
-      FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
-      for (size_t i=0; i<truesol.extent(0); i++) {
-        for (size_t j=0; j<truesol.extent(2); j++) {
-          truesol(i,v,j,1) = tsol(i,j).val();
-        }
-      }
-    }
-    if (spaceDim > 2) {
-      string expression = "true " + varlist[block][v] + "_z";
-      FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
-      for (size_t i=0; i<truesol.extent(0); i++) {
-        for (size_t j=0; j<truesol.extent(2); j++) {
-          truesol(i,v,j,2) = tsol(i,j).val();
-        }
-      }
-    }
-  }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

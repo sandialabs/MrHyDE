@@ -13,21 +13,21 @@ from numpy import isnan, isinf
 # Parsing input
 
 # No reason to format the description as it will be reformatted by optparse.
-desc = '''thermal verification
+desc = '''stokes verification
        '''
 
 its = milo_test_support(desc)
 
-print 'Because of the diff test on the log file, this test needs '
-print 'to run with "-v".  There is a buffering issue.'
-print 'Setting the verbosity to True.'
+print('Because of the diff test on the log file, this test needs ')
+print('to run with "-v".  There is a buffering issue.')
+print('Setting the verbosity to True.')
 its.opts.verbose = True
 
 #-------------------------------------------------------------------------------
 # Problem Parameters
 
 root = 'milo'   # root filename for test
-aeps = 5.0e-15     # absolute error tolerance
+aeps = 1.0e-14     # absolute error tolerance
 reps = 1.0e-12     # relative error tolerance
 fdtol= 5.0e-10     # finite difference gradient tolerance
 
@@ -57,40 +57,53 @@ status += its.call('./run.sh')
 #  #status += its.call('./run.sh')
 
 # ------------------------------
-#if its.opts.diff:
-#  if its.opts.verbose != 'none': print '---> Diff %s' % (root)
-#  # Test 1
-#  fline = ''
-#  if its.opts.nprocs > 1:
-#    flog = '%s.%i.log' % (root, its.opts.nprocs)
-#  else:
-#    flog = '%s.log' % (root)
-#  for line in open(flog):
-#    #if "err w.r.t. fourth order fd" in line: fline = line
-#    if "Value of Objective Function" in  line: fline = line
-#  w = fline.split()
-#  fderr = float(w[6])
-#  if its.opts.verbose != 'none':
-#    print '\n-> Is 4th order FD error, %g, > %g?' % (abs(fderr), fdtol)
-#  if abs(fderr) > fdtol or isnan(fderr) or isinf(fderr):
-#    status += 1
-#    print '  Failure 4th order FD error too large.'
+flog = '%s.log' % (root)
+reflog = 'ref/%s.ocs' % (root)
 
-  # Test 2
-  #
-status += its.call('diff -y %s.log ./ref/%s.ocs' % (root, root))
-  #status += its.call("awk 'NR==1 {print substr($0,0,38)} NR>1 {print substr($0,0,41);}' < %s.ocs | diff - ref/%s.ocs" % (root, root))
+for line in open(flog):
+  if "L2 norm of the error for H" in  line: Hline = line
+w = Hline.split()
+Herr = float(w[9])
 
-  # Test 3
-#  cmd = 'ichos_diff.exe -aeps %g -reps %g -r1 ref/%s.rst -r2 %s.rst %s' \
-#        %(aeps, reps, root, root, root)
-#  status += its.call(cmd)
+for line in open(reflog):
+  if "L2 norm of the error for H" in  line: refHline = line
+w = refHline.split()
+refHerr = float(w[9])
 
-  # Test 4
-#  cmd = 'ichos_diff.exe -aeps %g -reps %g -r1 ref/%s.adj.rst -r2 %s.adj.rst %s'\
-#        %(aeps, reps, root, root, root)
-#  status += its.call(cmd)
+if abs(Herr-refHerr) > aeps or isnan(Herr) or isinf(Herr):
+  status += 1
+  print('  Failure: L2 error for H too large.')
 
+for line in open(flog):
+  if "L2 norm of the error for Hu" in  line: Huline = line
+w = Huline.split()
+Huerr = float(w[9])
+
+for line in open(reflog):
+  if "L2 norm of the error for Hu" in  line: refHuline = line
+w = refHuline.split()
+refHuerr = float(w[9])
+
+if abs(Huerr-refHuerr) > aeps or isnan(Huerr) or isinf(Huerr):
+  status += 1
+  print('  Failure: L2 error for uy too large.')
+
+for line in open(flog):
+  if "L2 norm of the error for Hv" in  line: Hvline = line
+w = Hvline.split()
+Hverr = float(w[9])
+
+for line in open(reflog):
+  if "L2 norm of the error for Hv" in  line: refHvline = line
+w = refHvline.split()
+refHverr = float(w[9])
+
+if abs(Hverr-refHverr) > aeps or isnan(Hverr) or isinf(Hverr):
+  status += 1
+  print('  Failure: L2 error for Hv too large.')
+
+# ------------------------------
+# ------------------------------
 # ------------------------------
 if its.opts.baseline and not status:
   if its.opts.verbose != 'none': print '---> Baseline %s' % (root)

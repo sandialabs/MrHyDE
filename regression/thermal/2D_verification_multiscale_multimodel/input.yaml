@@ -2,17 +2,17 @@
 ---
 ANONYMOUS:
   debug level: 0
-  Mesh Settings File: input_mesh.yaml
+  Mesh input file: input_mesh.yaml
   Physics: 
-    solve_thermal: true
+    modules: thermal
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
-    true solutions:
-      e: sin(2*pi*x)*sin(2*pi*y)
+    True solutions:
+      e face: sin(2*pi*x)*sin(2*pi*y)
   Subgrid:
-    Static Subgrids: true
-    Number of Models: 2
+    static subgrids: true
+    number of models: 2
     Model0:
       iusage: '(x>=0.5)*(y<=0.5)'
       usage: '1.0'
@@ -22,15 +22,12 @@ ANONYMOUS:
         dim: 2
         blocknames: eblock
       Physics: 
-        solve_thermal: true
-        true solutions:
+        modules: thermal
+        True solutions:
           e: sin(2*pi*x)*sin(2*pi*y)
       Solver:
         solver: steady-state
-        Verbosity: 0
-        NLtol: 9.99999999999999955e-07
-        MaxNLiter: 4
-      Functions Settings File: input_functions.yaml
+      Functions input file: input_functions.yaml
       Discretization:
         order:
           e: 1
@@ -43,44 +40,30 @@ ANONYMOUS:
         dim: 2
         blocknames: eblock
       Physics: 
-        solve_thermal: true
-        true solutions:
+        modules: thermal
+        True solutions:
           e: sin(2*pi*x)*sin(2*pi*y)
       Solver:
         solver: steady-state
-        Verbosity: 0
-        NLtol: 9.99999999999999955e-07
-        MaxNLiter: 4
-      Functions Settings File: input_functions.yaml
+      Functions input file: input_functions.yaml
       Discretization:
         order:
           e: 1
         quadrature: 2
-  Parameters Settings File: input_params.yaml
+  Parameters input file: input_params.yaml
   Discretization:
     order:
       e: 1
     quadrature: 2
   Solver:
     solver: steady-state
-    Workset Size: 1
-    Verbosity: 0
-    NLtol: 9.99999999999999955e-07
-    MaxNLiter: 4
-    finaltime: 1.00000000000000000e+00
-    numSteps: 10
   Analysis: 
     analysis type: forward
-    Have Sensor Points: false
-    Have Sensor Data: false
   Postprocess: 
     response type: global
-    Verbosity: 0
-    verification: true
+    compute errors: true
     write solution: false
     compute response: false
     compute objective: false
     compute sensitivities: false
-    Subgrid error type: L2
-    Error type: L2-face
 ...

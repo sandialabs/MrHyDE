@@ -3,18 +3,18 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  Mesh Settings File: input_mesh.yaml
+  Mesh input file: input_mesh.yaml
   Physics:
-    solve_linearelasticity: true
+    modules: linearelasticity
     Dirichlet conditions:
       dx:
         all boundaries: '0.0'
       dy:
         all boundaries: '0.0'
-    initial conditions:
+    Initial conditions:
       dx: '0.0'
       dy: '0.0'
-    true solutions:
+    True solutions:
       dx: sin(A*pi*x)*sin(A*pi*y)
       dy: sin(B*pi*x)*sin(B*pi*y)
   Functions:
@@ -37,14 +37,11 @@ ANONYMOUS:
     quadrature: 2
   Solver:
     solver: steady-state
-    NLtol: 9.99999999999999955e-08
-    finaltime: 1.00000000000000000e+00
-    numSteps: 100
   Postprocess: 
     response type: pointwise
     compute response: false
-    verification: true
+    compute errors: true
     write solution: false
-  Parameters Settings File: input_params.yaml
-  Analysis Settings File: input_fwd.yaml
+  Parameters input file: input_params.yaml
+  Analysis input file: input_fwd.yaml
 ...

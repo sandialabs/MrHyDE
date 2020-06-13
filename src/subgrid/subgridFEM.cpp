@@ -24,16 +24,16 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
   
   LocalComm = LocalComm_;
   dimension = settings->sublist("Mesh").get<int>("dim",2);
-  subgridverbose = settings->sublist("Solver").get<int>("Verbosity",0);
-  multiscale_method = settings->get<string>("Multiscale Method","mortar");
+  subgridverbose = settings->sublist("Solver").get<int>("verbosity",0);
+  multiscale_method = settings->get<string>("multiscale method","mortar");
   numrefine = settings->sublist("Mesh").get<int>("refinements",0);
   shape = settings->sublist("Mesh").get<string>("shape","quad");
   macroshape = settings->sublist("Mesh").get<string>("macro-shape","quad");
-  time_steps = settings->sublist("Solver").get<int>("numSteps",1);
-  initial_time = settings->sublist("Solver").get<ScalarT>("Initial time",0.0);
-  final_time = settings->sublist("Solver").get<ScalarT>("finaltime",1.0);
+  time_steps = settings->sublist("Solver").get<int>("number of steps",1);
+  initial_time = settings->sublist("Solver").get<ScalarT>("initial time",0.0);
+  final_time = settings->sublist("Solver").get<ScalarT>("final time",1.0);
   write_subgrid_state = settings->sublist("Solver").get<bool>("write subgrid state",true);
-  error_type = settings->sublist("Postprocess").get<string>("Error type","L2"); // or "H1"
+  error_type = settings->sublist("Postprocess").get<string>("error type","L2"); // or "H1"
   store_aux_and_flux = settings->sublist("Postprocess").get<bool>("store aux and flux",false);
   string solver = settings->sublist("Solver").get<string>("solver","steady-state");
   if (solver == "steady-state") {
@@ -45,16 +45,16 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
   solndot = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
   
   have_sym_factor = false;
-  sub_NLtol = settings->sublist("Solver").get<ScalarT>("NLtol",1.0E-12);
-  sub_maxNLiter = settings->sublist("Solver").get<int>("MaxNLiter",10);
+  sub_NLtol = settings->sublist("Solver").get<ScalarT>("nonlinear TOL",1.0E-12);
+  sub_maxNLiter = settings->sublist("Solver").get<int>("max nonlinear iters",10);
   useDirect = settings->sublist("Solver").get<bool>("use direct solver",true);
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Define the sub-grid physics
   /////////////////////////////////////////////////////////////////////////////////////
   
-  if (settings->isParameter("Functions Settings File")) {
-    std::string filename = settings->get<std::string>("Functions Settings File");
+  if (settings->isParameter("Functions input file")) {
+    std::string filename = settings->get<std::string>("Functions input file");
     ifstream fn(filename.c_str());
     if (fn.good()) {
       Teuchos::RCP<Teuchos::ParameterList> functions_parlist = Teuchos::rcp( new Teuchos::ParameterList() );
@@ -62,7 +62,7 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
       settings->setParameters( *functions_parlist );
     }
     else // this sublist is not required, but if you specify a file then an exception will be thrown if it cannot be found
-      TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the functions settings file: " + filename);
+      TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the functions input file: " + filename);
   }
   
   ////////////////////////////////////////////////////////////////////////////////
@@ -76,17 +76,17 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
   mesh_data_pts_tag = "mesh_data_pts";
   number_mesh_data_files = 1;
   
-  mesh_data_tag = settings->sublist("Mesh").get<string>("Data file","none");
+  mesh_data_tag = settings->sublist("Mesh").get<string>("data file","none");
   if (mesh_data_tag != "none") {
-    mesh_data_pts_tag = settings->sublist("Mesh").get<string>("Data points file","mesh_data_pts");
+    mesh_data_pts_tag = settings->sublist("Mesh").get<string>("data points file","mesh_data_pts");
     have_mesh_data = true;
-    have_rotation_phi = settings->sublist("Mesh").get<bool>("Have mesh data phi",false);
-    have_rotations = settings->sublist("Mesh").get<bool>("Have mesh data rotations",true);
-    have_multiple_data_files = settings->sublist("Mesh").get<bool>("Have multiple mesh data files",false);
-    number_mesh_data_files = settings->sublist("Mesh").get<int>("Number mesh data files",1);
+    have_rotation_phi = settings->sublist("Mesh").get<bool>("have mesh data phi",false);
+    have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",true);
+    have_multiple_data_files = settings->sublist("Mesh").get<bool>("have multiple mesh data files",false);
+    number_mesh_data_files = settings->sublist("Mesh").get<int>("number mesh data files",1);
   }
   
-  compute_mesh_data = settings->sublist("Mesh").get<bool>("Compute mesh data",false);
+  compute_mesh_data = settings->sublist("Mesh").get<bool>("compute mesh data",false);
   
 }
 
@@ -181,7 +181,7 @@ void SubGridFEM::setUpSubgridModels() {
   
   int numSubElem = connectivity.size();
   
-  settings->sublist("Solver").set<int>("Workset size",numSubElem);
+  settings->sublist("Solver").set<int>("workset size",numSubElem);
   vector<Teuchos::RCP<FunctionManager> > functionManagers;
   functionManagers.push_back(Teuchos::rcp(new FunctionManager(blockID,
                                                               numSubElem,
@@ -330,6 +330,8 @@ void SubGridFEM::setUpSubgridModels() {
   sub_solver = Teuchos::rcp( new solver(LocalComm, settings, sub_mesh, sub_disc, sub_physics,
                                         DOF, sub_assembler, sub_params) );
   
+  sub_postproc = Teuchos::rcp( new PostprocessManager(LocalComm, settings, sub_mesh->mesh, sub_disc, sub_physics,
+                                                      functionManagers, sub_assembler) );
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Create a subgrid function mananger
@@ -720,7 +722,7 @@ void SubGridFEM::addMeshData() {
     have_rotation_phi = false;
     
     Kokkos::View<ScalarT**,HostDevice> seeds;
-    int randSeed = settings->sublist("Mesh").get<int>("Random seed",1234);
+    int randSeed = settings->sublist("Mesh").get<int>("random seed",1234);
     randomSeeds.push_back(randSeed);
     
     std::default_random_engine generator(randSeed);
@@ -730,12 +732,12 @@ void SubGridFEM::addMeshData() {
     // Generate the micro-structure using seeds and nearest neighbors
     ////////////////////////////////////////////////////////////////////////////////
     
-    bool fast_and_crude = settings->sublist("Mesh").get<bool>("Fast and crude microstructure",false);
+    bool fast_and_crude = settings->sublist("Mesh").get<bool>("fast and crude microstructure",false);
     
     if (fast_and_crude) {
-      int numxSeeds = settings->sublist("Mesh").get<int>("Number of xseeds",10);
-      int numySeeds = settings->sublist("Mesh").get<int>("Number of yseeds",10);
-      int numzSeeds = settings->sublist("Mesh").get<int>("Number of zseeds",10);
+      int numxSeeds = settings->sublist("Mesh").get<int>("number of xseeds",10);
+      int numySeeds = settings->sublist("Mesh").get<int>("number of yseeds",10);
+      int numzSeeds = settings->sublist("Mesh").get<int>("number of zseeds",10);
       
       ScalarT xmin = settings->sublist("Mesh").get<ScalarT>("x min",0.0);
       ScalarT ymin = settings->sublist("Mesh").get<ScalarT>("y min",0.0);
@@ -783,7 +785,7 @@ void SubGridFEM::addMeshData() {
       }
     }
     else {
-      numSeeds = settings->sublist("Mesh").get<int>("Number of seeds",1000);
+      numSeeds = settings->sublist("Mesh").get<int>("number of seeds",1000);
       seeds = Kokkos::View<ScalarT**,HostDevice>("seeds",numSeeds,3);
       
       ScalarT xwt = settings->sublist("Mesh").get<ScalarT>("x weight",1.0);
@@ -2100,62 +2102,56 @@ void SubGridFEM::setInitial(Teuchos::RCP<LA_MultiVector> & initial,
 ///////////////////////////////////////////////////////////////////////////////////////
 
 //Kokkos::View<ScalarT**,AssemblyDevice> SubGridFEM::computeError(const ScalarT & time, const int & usernum) {
-Kokkos::View<ScalarT***,AssemblyDevice> SubGridFEM::computeError(const vector<string> & error_types,
-                                                                 const vector<ScalarT> & solvetimes) {
+Kokkos::View<ScalarT**,AssemblyDevice> SubGridFEM::computeError(vector<pair<size_t, string> > & sub_error_list,
+                                                                const vector<ScalarT> & times) {
   
   //Kokkos::View<ScalarT***,AssemblyDevice> errors("error",solvetimes.size(), sub_physics->varlist[0].size(), error_types.size());
-  Kokkos::View<ScalarT***,AssemblyDevice> errors("error",solvetimes.size(), varlist.size(), error_types.size());
-  
-  for (size_t t=0; t<solvetimes.size(); t++) {
+  Kokkos::View<ScalarT**,AssemblyDevice> errors;
+  if (localData.size() > 0) {
     
-    for (size_t b=0; b<localData.size(); b++) {// loop over coarse scale elements
-      bool compute = false;
-      if (subgrid_static) {
-        compute = true;
-      }
-      else if (active[t][b]) {
-        compute = true;
-      }
-      if (compute) {
-        size_t usernum = b;
-        this->updateLocalData(usernum);
-        Teuchos::RCP<LA_MultiVector> currsol;
-        size_t tindex = t;
-        bool found = soln->extract(currsol, usernum, solvetimes[t]);//, tindex);
-        if (found) {
+    errors = Kokkos::View<ScalarT**,AssemblyDevice>("error", times.size(), sub_postproc->error_list[0].size());
+    sub_error_list = sub_postproc->error_list[0];
+  
+    for (size_t t=0; t<times.size(); t++) {
+      for (size_t b=0; b<localData.size(); b++) {// loop over coarse scale elements
+        bool compute = false;
+        if (subgrid_static) {
+          compute = true;
+        }
+        else if (active[t][b]) {
+          compute = true;
+        }
+        if (compute) {
+          size_t usernum = b;
+          Teuchos::RCP<LA_MultiVector> currsol;
           
-          //Kokkos::View<ScalarT***,AssemblyDevice> localerror("error",solvetimes.size(),numVars[b],error_types.size());
-          //bool fnd = solve->soln->extract(u,t);
-          this->performGather(0,currsol,0,0);
-          for (size_t ee=0; ee<cells[0].size(); ee++) {
-            int numElem = cells[0][ee]->numElem;
-            //Kokkos::View<ScalarT**,AssemblyDevice> localerrs = cells[b][e]->computeError(solvetimes[t], t, compute_subgrid_error, error_types);
-            Kokkos::View<ScalarT***,AssemblyDevice> localerrs = cells[0][ee]->computeError(solvetimes[t], t, error_types);
-            for (int p=0; p<numElem; p++) {
-              for (int n=0; n<sub_physics->varlist[0].size(); n++) {
-                for (size_t et=0; et<error_types.size(); et++){
-                  errors(t,n,et) += localerrs(p,n,et);
-                }
-              }
+          //size_t tindex = t;
+          //bool found = soln->extract(currsol, usernum, solvetimes[t]);//, tindex);
+          bool found = soln->extract(currsol, usernum, times[t]);//, tindex);
+          //bool found = soln->extract(currsol, tindex, usernum);//, tindex);
+          
+          if (found) {
+            this->updateLocalData(usernum);
+            
+            //Kokkos::View<ScalarT***,AssemblyDevice> localerror("error",solvetimes.size(),numVars[b],error_types.size());
+            //bool fnd = solve->soln->extract(u,t);
+            this->performGather(0,currsol,0,0);
+            sub_postproc->computeError(times[t]);
+            
+            size_t numerrs = sub_postproc->errors.size();
+            
+            Kokkos::View<ScalarT*,AssemblyDevice> cerr = sub_postproc->errors[0][0];//sub_postproc->errors[0][numerrs-1];
+            for (size_t etype=0; etype<cerr.extent(0); etype++) {
+              errors(t,etype) += cerr(etype);
             }
+            sub_postproc->errors.clear();
+            
           }
         }
       }
     }
   }
-  /*
-   if (found) {
-   Kokkos::View<ScalarT**,AssemblyDevice> curr_errors;
-   this->performGather(usernum, currsol, 0, 0);
-   for (size_t e=0; e<cells[usernum].size(); e++) {
-   curr_errors = cells[usernum][e]->computeError(time,tindex,error_type);
-   for (unsigned int c=0; c<curr_errors.extent(0); c++) {
-   for (size_t i=0; i < numVars; i++) {
-   errors(e,i) += curr_errors(c,i);
-   }
-   }
-   }
-   }*/
+  
   return errors;
 }
 
@@ -2228,7 +2224,6 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
   
   panzer_stk::SubGridMeshFactory submeshFactory(shape, nodes, connectivity, blockID);
   Teuchos::RCP<panzer_stk::STK_Interface> submesh = submeshFactory.buildMesh(*(LocalComm->getRawMpiComm()));
-  
   
   //////////////////////////////////////////////////////////////
   // Add in the necessary fields for plotting
@@ -2320,6 +2315,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
             pprog += 1;
           }
         }
+        
         submesh->setSolutionFieldData(var, blockID, myElements, soln_computed);
       }
       else if (vartypes[n] == "HVOL") {

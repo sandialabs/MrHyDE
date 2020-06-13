@@ -35,8 +35,9 @@ void maxwell::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
   functionManager->addFunction("current x",fs.get<string>("current x","0.0"),"ip");
   functionManager->addFunction("current y",fs.get<string>("current y","0.0"),"ip");
   functionManager->addFunction("current z",fs.get<string>("current z","0.0"),"ip");
-  functionManager->addFunction("mu",fs.get<string>("mu","1.0"),"ip");
-  functionManager->addFunction("epsilon",fs.get<string>("epsilon","1.0"),"ip");
+  functionManager->addFunction("mu",fs.get<string>("permeability","1.0"),"ip");
+  functionManager->addFunction("epsilon",fs.get<string>("permittivity","1.0"),"ip");
+  functionManager->addFunction("sigma",fs.get<string>("conductivity","0.0"),"ip");
   
 }
 
@@ -59,50 +60,48 @@ void maxwell::volumeResidual() {
     current_z = functionManager->evaluate("current z","ip");
     mu = functionManager->evaluate("mu","ip");
     epsilon = functionManager->evaluate("epsilon","ip");
+    sigma = functionManager->evaluate("sigma","ip");
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
   {
-    basis = wkset->basis[B_basis];
+    // (dB/dt,V) + (curl E,V) = (S_mag,V)
     
+    basis = wkset->basis[B_basis];    
     auto dBdt = Kokkos::subview(sol_dot, Kokkos::ALL(), Bnum, Kokkos::ALL(), Kokkos::ALL());
     auto curlE = Kokkos::subview(sol_curl, Kokkos::ALL(), Enum, Kokkos::ALL(), Kokkos::ALL());
     auto off = Kokkos::subview(offsets, Bnum, Kokkos::ALL());
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      
-      // (dB/dt,V) + (curl E,V) = (S_mag,V)
-      for (int k=0; k<sol.extent(2); k++ ) {
-        for (int i=0; i<basis.extent(1); i++ ) {
-          res(e,off(i)) += (dBdt(e,k,0) + curlE(e,k,0))*basis(e,i,k,0) +
-          (dBdt(e,k,1) + curlE(e,k,1))*basis(e,i,k,1) +
-          (dBdt(e,k,2) + curlE(e,k,2))*basis(e,i,k,2);
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<sol.extent(2); pt++ ) {
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          res(elem,off(dof)) += (dBdt(elem,pt,0) + curlE(elem,pt,0))*basis(elem,dof,pt,0);
+          res(elem,off(dof)) += (dBdt(elem,pt,1) + curlE(elem,pt,1))*basis(elem,dof,pt,1);
+          res(elem,off(dof)) += (dBdt(elem,pt,2) + curlE(elem,pt,2))*basis(elem,dof,pt,2);
         }
       }
-      
     });
   }
   
   {
+    // (eps*dE/dt,V) - (1/mu B, curl V) + (sigma E,V) = -(current,V)
+    // Rewritten as: (eps*dEdt + sigam E + current, V) - (1/mu B, curl V) = 0
+    
     basis = wkset->basis[E_basis];
     basis_curl = wkset->basis_curl[E_basis];
     auto dEdt = Kokkos::subview(sol_dot, Kokkos::ALL(), Enum, Kokkos::ALL(), Kokkos::ALL());
     auto B = Kokkos::subview(sol, Kokkos::ALL(), Bnum, Kokkos::ALL(), Kokkos::ALL());
+    auto E = Kokkos::subview(sol, Kokkos::ALL(), Enum, Kokkos::ALL(), Kokkos::ALL());
     auto off = Kokkos::subview(offsets, Enum, Kokkos::ALL());
     
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      
-      // (eps*dE/dt,V) - (1/mu B, curl V) = (S_elec,V)
-      for (int k=0; k<sol.extent(2); k++ ) {
-        for (int i=0; i<basis.extent(1); i++ ) {
-          
-          res(e,off(i)) += epsilon(e,k)*dEdt(e,k,0)*basis(e,i,k,0) - B(e,k,0)*basis_curl(e,i,k,0) + current_x(e,k)*basis(e,i,k,0);
-          res(e,off(i)) += epsilon(e,k)*dEdt(e,k,1)*basis(e,i,k,1) - B(e,k,1)*basis_curl(e,i,k,1) + current_y(e,k)*basis(e,i,k,1);
-          res(e,off(i)) += epsilon(e,k)*dEdt(e,k,2)*basis(e,i,k,2) - B(e,k,2)*basis_curl(e,i,k,2) + current_z(e,k)*basis(e,i,k,2);
-          
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<sol.extent(2); pt++ ) {
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          res(elem,off(dof)) += (epsilon(elem,pt)*dEdt(elem,pt,0) + sigma(elem,pt)*E(elem,pt,0) + current_x(elem,pt))*basis(elem,dof,pt,0) - 1.0/mu(elem,pt)*B(elem,pt,0)*basis_curl(elem,dof,pt,0);
+          res(elem,off(dof)) += (epsilon(elem,pt)*dEdt(elem,pt,1) + sigma(elem,pt)*E(elem,pt,1) + current_y(elem,pt))*basis(elem,dof,pt,1) - 1.0/mu(elem,pt)*B(elem,pt,1)*basis_curl(elem,dof,pt,1);
+          res(elem,off(dof)) += (epsilon(elem,pt)*dEdt(elem,pt,2) + sigma(elem,pt)*E(elem,pt,2) + current_z(elem,pt))*basis(elem,dof,pt,2) - 1.0/mu(elem,pt)*B(elem,pt,2)*basis_curl(elem,dof,pt,2);
         }
       }
-      
     });
   }
   //KokkosTools::print(res);

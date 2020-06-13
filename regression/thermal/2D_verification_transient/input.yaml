@@ -3,42 +3,31 @@
 ANONYMOUS:
   debug level: 0
   verbosity: 0
-  Mesh Settings File: input_mesh.yaml
+  Mesh input file: input_mesh.yaml
   Physics: 
-    solve_thermal: true
+    modules: thermal
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
-    initial conditions:
+    Initial conditions:
       e: '0.0'
-    true solutions:
+    True solutions:
       e: sin(2*pi*t)*sin(2*pi*x)*sin(2*pi*y)
   Discretization:
     order:
       e: 1
     quadrature: 2
-  Parameters Settings File: input_params.yaml
-  Functions Settings File: input_functions.yaml
+  Parameters input file: input_params.yaml
+  Functions input file: input_functions.yaml
   Solver: 
     solver: transient
-    Transient Butcher Tableau: 'BWE'
-    Transient BDF order: 1
-    Workset size: 1
-    Verbosity: 0
-    NLtol: 9.99999999999999955e-07
-    MaxNLiter: 4
+    transient Butcher tableau: 'BWE'
+    transient BDF order: 1
     final time: 1.0
-    numSteps: 20
+    number of steps: 20
   Analysis: 
     analysis type: forward
-    Have Sensor Points: false
-    Have Sensor Data: false
   Postprocess: 
-    response type: global
-    Verbosity: 0
-    verification: true
+    compute errors: true
     write solution: false
-    compute response: false
-    compute objective: false
-    compute sensitivities: false
 ...

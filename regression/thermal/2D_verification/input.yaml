@@ -3,45 +3,39 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  Mesh Settings File: input_mesh.yaml
-  Functions Settings File: input_functions.yaml
+  Mesh input file: input_mesh.yaml
+  Functions input file: input_functions.yaml
   Physics: 
-    solve_thermal: true
+    modules: thermal
     assemble boundary terms: false
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
-    initial conditions:
+    Initial conditions:
       e: '0.0'
-    true solutions:
+    True solutions:
       e: sin(2*pi*x)*sin(2*pi*y)
-      e_x: 2*pi*cos(2*pi*x)*sin(2*pi*y)
-      e_y: 2*pi*sin(2*pi*x)*cos(2*pi*y)
-    extra fields:
+      e face: sin(2*pi*x)*sin(2*pi*y)
+      grad(e)_x: 2*pi*cos(2*pi*x)*sin(2*pi*y)
+      grad(e)_y: 2*pi*sin(2*pi*x)*cos(2*pi*y)
+    Extra fields:
       es: e*e
   Discretization:
     order:
       e: 1
     quadrature: 2
-  Parameters Settings File: input_params.yaml
+  Parameters input file: input_params.yaml
   Solver: 
     solver: steady-state
-    Workset size: 40
-    Verbosity: 0
-    NLtol: 9.99999999999999955e-07
-    MaxNLiter: 2
-    finaltime: 1.00000000000000000e+00
-    numSteps: 10
+    workset size: 40
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 2
     use strong DBCs: true
   Analysis: 
     analysis type: forward
-    Have Sensor Points: false
-    Have Sensor Data: false
   Postprocess: 
     response type: global
-    Error type: 'L2, H1, L2-face'
-    Verbosity: 0
-    verification: true
+    compute errors: true
     compute response: true
     compute objective: false
     compute sensitivities: false

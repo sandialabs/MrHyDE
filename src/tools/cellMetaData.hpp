@@ -43,6 +43,10 @@ public:
     writeSensorFiles = settings->sublist("Analysis").get<bool>("Write Sensor Files",false);
     mortar_objective = settings->sublist("Solver").get<bool>("Use Mortar Objective",false);
     
+    if (settings->sublist("Postprocess").get<bool>("write solution", false)) {
+      compute_sol_avg = true;
+    }
+    
     multiscale = false;
     numnodes = cellTopo->getNodeCount();
     dimension = cellTopo->getDimension();
@@ -77,7 +81,7 @@ public:
   
   bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles;
   bool mortar_objective;
-  bool exodus_sensors = false;
+  bool exodus_sensors = false, compute_sol_avg = false;
   bool multiscale, have_cell_phi, have_cell_rotation;
   
   // these are common to all elements/cells and are often used on both devices

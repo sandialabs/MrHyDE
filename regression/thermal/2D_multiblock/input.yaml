@@ -16,7 +16,7 @@ ANONYMOUS:
     Yblocks: 2
     blocknames: eblock-0_0 eblock-1_0 eblock-0_1 eblock-1_1
   Physics: 
-    solve_thermal: true
+    modules: thermal
     assemble boundary terms: false
     Dirichlet conditions:
       e:
@@ -24,7 +24,7 @@ ANONYMOUS:
         bottom: '0.0'
         left: '0.0'
         right: '0.0'
-    true solutions:
+    True solutions:
       e: sin(pi*x)*sin(pi*y)
   Discretization:
     order:
@@ -32,16 +32,14 @@ ANONYMOUS:
     quadrature: 2
   Solver: 
     solver: steady-state
-    finaltime: 1.00000000000000000e+00
-    numSteps: 1
     use strong DBCs: true
   Analysis: 
     analysis_type: forward
   Postprocess: 
     compute response: false
-    verification: true
+    compute errors: true
     compute sensitivities: false
     write solution: false
-  Parameters Settings File: input_params.yaml
-  Functions Settings File: input_functions.yaml
+  Parameters input file: input_params.yaml
+  Functions input file: input_functions.yaml
 ...

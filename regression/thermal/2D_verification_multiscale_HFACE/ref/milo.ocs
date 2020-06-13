@@ -1,6 +1,6 @@
 
 *********************************************************
-***** Performing verification ******
+***** Computing errors ******
 
 ***** L2-face norm of the error for e = 0.11084  (time = 0)
-***** Subgrid0: L2 norm of the error for e = 0.0356852  (time = 0)
+***** Subgrid 0: L2 norm of the error for e = 0.0356852  (time = 0)

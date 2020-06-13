@@ -1,11 +1,11 @@
 p=0 | CubeHexMesh: Building sub cells
 
 *********************************************************
-***** Performing verification ******
+***** Computing errors ******
 
 ***** L2-face norm of the error for dx = 0.952487  (time = 0)
 ***** L2-face norm of the error for dy = 5.25294  (time = 0)
 ***** L2-face norm of the error for dz = 1.12713  (time = 0)
-***** Subgrid0: L2 norm of the error for dx = 0.0666355  (time = 0)
-***** Subgrid0: L2 norm of the error for dy = 0.376675  (time = 0)
-***** Subgrid0: L2 norm of the error for dz = 0.0791777  (time = 0)
+***** Subgrid 0: L2 norm of the error for dx = 0.0666355  (time = 0)
+***** Subgrid 0: L2 norm of the error for dy = 0.376675  (time = 0)
+***** Subgrid 0: L2 norm of the error for dz = 0.0791777  (time = 0)

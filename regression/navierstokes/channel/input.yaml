@@ -2,9 +2,9 @@
 ---
 ANONYMOUS:
   verbosity: 0
-  Mesh Settings File: input_mesh.yaml
+  Mesh input file: input_mesh.yaml
   Physics: 
-    solve_navierstokes: true
+    modules: navier stokes
     Dirichlet conditions:
       ux:
         bottom: '0.0'
@@ -12,7 +12,7 @@ ANONYMOUS:
       uy:
         bottom: '0.0'
         top: '0.0'
-    true solutions:
+    True solutions:
       ux: '0.5*y*(1.0-y)'
       uy: '0.0'
       pr: '0.0'
@@ -23,26 +23,15 @@ ANONYMOUS:
       uy: 1
       pr: 1
     quadrature: 2
-  Parameters Settings File: input_params.yaml
+  Parameters input file: input_params.yaml
   Solver:
     solver: steady-state
     use direct solver: true
-    Multigrid type: sa
-    Smoother type: RELAXATION
-    Workset Size: 1
-    NLtol: 9.99999999999999955e-7
-    lintol: 1.0e-9
-    MaxNLiter: 4
-    finaltime: 1.00000000000000000e+00
-    numSteps: 10
   Analysis: 
     analysis type: forward
-    Have Sensor Points: false
-    Have Sensor Data: false
   Postprocess: 
     response type: global
-    Verbosity: 0
-    verification: true
+    compute errors: true
     write solution: false
     compute response: false
     compute objective: false

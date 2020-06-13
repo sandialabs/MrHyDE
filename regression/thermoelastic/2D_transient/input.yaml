@@ -3,11 +3,10 @@
 ANONYMOUS:
   debug level: 0
   verbosity: 0
-  Mesh Settings File: input_mesh.yaml
+  Mesh input file: input_mesh.yaml
   Physics: 
     eblock-0_0: 
-      solve_thermal: true
-      solve_linearelasticity: true
+      modules: thermal, linearelasticity
       assemble boundary terms: false
       Dirichlet conditions:
         e:
@@ -16,7 +15,11 @@ ANONYMOUS:
           all boundaries: '0.0'
         dy:
           all boundaries: '0.0'
-      initial conditions:
+      Initial conditions:
+        e: '0.0'
+        dx: '0.0'
+        dy: '0.0'
+      True solutions:
         e: '0.0'
         dx: '0.0'
         dy: '0.0'
@@ -27,20 +30,18 @@ ANONYMOUS:
         dx: 1
         dy: 1
       quadrature: 2
-  Parameters Settings File: input_params.yaml
-  Functions Settings File: input_functions.yaml
-  Analysis Settings File: input_fwd.yaml
+  Parameters input file: input_params.yaml
+  Functions input file: input_functions.yaml
+  Analysis input file: input_fwd.yaml
   Solver: 
     solver: transient
-    Workset size: 10
-    Verbosity: 0
-    NLtol: 9.99999999999999955e-07
-    MaxNLiter: 4
-    finaltime: 1.00000000000000000e+00
-    numSteps: 10
+    workset size: 10
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 4
+    final time: 1.0
+    number of steps: 10
   Postprocess: 
     response type: global
-    Verbosity: 0
-    verification: true
+    compute errors: true
     write solution: false
 ...

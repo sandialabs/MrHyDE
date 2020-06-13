@@ -34,10 +34,10 @@ settings(settings_), Commptr(Commptr_) {
   
   shape = settings->sublist("Mesh").get<string>("shape","quad");
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
-  verbosity = settings->sublist("Postprocess").get<int>("Verbosity",1);
+  verbosity = settings->get<int>("verbosity",1);
   
   have_mesh_data = false;
-  compute_mesh_data = settings->sublist("Mesh").get<bool>("Compute mesh data",false);
+  compute_mesh_data = settings->sublist("Mesh").get<bool>("compute mesh data",false);
   have_rotations = false;
   have_rotation_phi = false;
   have_multiple_data_files = false;
@@ -45,25 +45,25 @@ settings(settings_), Commptr(Commptr_) {
   mesh_data_pts_tag = "mesh_data_pts";
   number_mesh_data_files = 1;
   
-  mesh_data_tag = settings->sublist("Mesh").get<string>("Data file","none");
+  mesh_data_tag = settings->sublist("Mesh").get<string>("data file","none");
   if (mesh_data_tag != "none") {
-    mesh_data_pts_tag = settings->sublist("Mesh").get<string>("Data points file","mesh_data_pts");
+    mesh_data_pts_tag = settings->sublist("Mesh").get<string>("data points file","mesh_data_pts");
     
     have_mesh_data = true;
-    have_rotation_phi = settings->sublist("Mesh").get<bool>("Have mesh data phi",false);
-    have_rotations = settings->sublist("Mesh").get<bool>("Have mesh data rotations",true);
-    have_multiple_data_files = settings->sublist("Mesh").get<bool>("Have multiple mesh data files",false);
-    number_mesh_data_files = settings->sublist("Mesh").get<int>("Number mesh data files",1);
+    have_rotation_phi = settings->sublist("Mesh").get<bool>("have mesh data phi",false);
+    have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",true);
+    have_multiple_data_files = settings->sublist("Mesh").get<bool>("have multiple mesh data files",false);
+    number_mesh_data_files = settings->sublist("Mesh").get<int>("number mesh data files",1);
     
   }
   
-  meshmod_xvar = settings->sublist("Solver").get<int>("Solution For x-Mesh Mod",-1);
-  meshmod_yvar = settings->sublist("Solver").get<int>("Solution For y-Mesh Mod",-1);
-  meshmod_zvar = settings->sublist("Solver").get<int>("Solution For z-Mesh Mod",-1);
-  meshmod_TOL = settings->sublist("Solver").get<ScalarT>("Solution Based Mesh Mod TOL",1.0);
-  meshmod_usesmoother = settings->sublist("Solver").get<bool>("Solution Based Mesh Mod Smoother",false);
-  meshmod_center = settings->sublist("Solver").get<ScalarT>("Solution Based Mesh Mod Param",0.1);
-  meshmod_layer_size = settings->sublist("Solver").get<ScalarT>("Solution Based Mesh Mod Layer Thickness",0.1);
+  meshmod_xvar = settings->sublist("Solver").get<int>("solution for x-mesh mod",-1);
+  meshmod_yvar = settings->sublist("Solver").get<int>("solution for y-mesh mod",-1);
+  meshmod_zvar = settings->sublist("Solver").get<int>("solution for z-mesh mod",-1);
+  meshmod_TOL = settings->sublist("Solver").get<ScalarT>("solution based mesh mod TOL",1.0);
+  meshmod_usesmoother = settings->sublist("Solver").get<bool>("solution based mesh mod smoother",false);
+  meshmod_center = settings->sublist("Solver").get<ScalarT>("solution based mesh mod param",0.1);
+  meshmod_layer_size = settings->sublist("Solver").get<ScalarT>("solution based mesh mod layer thickness",0.1);
   
   shards::CellTopology cTopo;
   shards::CellTopology sTopo;
@@ -95,28 +95,24 @@ settings(settings_), Commptr(Commptr_) {
   }
   // Get dimensions
   numNodesPerElem = cTopo.getNodeCount();
-  settings->sublist("Mesh").set("numNodesPerElem",numNodesPerElem,"Number of nodes per element");
+  settings->sublist("Mesh").set("numNodesPerElem",numNodesPerElem,"number of nodes per element");
   sideDim = sTopo.getDimension();
-  settings->sublist("Mesh").set("sideDim",sideDim,"Dimension of the sides of each element");
+  settings->sublist("Mesh").set("sideDim",sideDim,"dimension of the sides of each element");
   numSides = cTopo.getSideCount();
   numFaces = cTopo.getFaceCount();
   if (spaceDim == 1)
-    settings->sublist("Mesh").set("numSidesPerElem",2,"Number of sides per element");
+    settings->sublist("Mesh").set("numSidesPerElem",2,"number of sides per element");
   if (spaceDim == 2)
-    settings->sublist("Mesh").set("numSidesPerElem",numSides,"Number of sides per element");
+    settings->sublist("Mesh").set("numSidesPerElem",numSides,"number of sides per element");
   if (spaceDim == 3)
-    settings->sublist("Mesh").set("numSidesPerElem",numFaces,"Number of sides per element");
+    settings->sublist("Mesh").set("numSidesPerElem",numFaces,"number of sides per element");
   
   // Define a parameter list with the required fields for the panzer_stk mesh factory
   RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
   
-  if (settings->sublist("Mesh").get<std::string>("Source","Internal") ==  "Exodus") {
+  if (settings->sublist("Mesh").get<std::string>("source","Internal") ==  "Exodus") {
     mesh_factory = Teuchos::rcp(new panzer_stk::STK_ExodusReaderFactory());
-    pl->set("File Name",settings->sublist("Mesh").get<std::string>("Mesh_File","mesh.exo"));
-  }
-  else if (settings->sublist("Mesh").get<std::string>("Source","Internal") ==  "Pamgen") { // NOT TESTED IN MILO YET
-    //mesh_factory = Teuchos::rcp(new panzer_stk::STK_PamgenReaderFactory());
-    //pl->set("File Name",settings->sublist("Mesh").get<std::string>("Mesh_File","mesh.pmg"));
+    pl->set("File Name",settings->sublist("Mesh").get<std::string>("mesh file","mesh.exo"));
   }
   else {
     pl->set("X Blocks",settings->sublist("Mesh").get("Xblocks",1));
@@ -245,7 +241,7 @@ settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), mesh(mesh_)
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   
   have_mesh_data = false;
-  compute_mesh_data = settings->sublist("Mesh").get<bool>("Compute mesh data",false);
+  compute_mesh_data = settings->sublist("Mesh").get<bool>("compute mesh data",false);
   have_rotations = false;
   have_rotation_phi = false;
   have_multiple_data_files = false;
@@ -253,25 +249,25 @@ settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), mesh(mesh_)
   mesh_data_pts_tag = "mesh_data_pts";
   number_mesh_data_files = 1;
   
-  mesh_data_tag = settings->sublist("Mesh").get<string>("Data file","none");
+  mesh_data_tag = settings->sublist("Mesh").get<string>("data file","none");
   if (mesh_data_tag != "none") {
-    mesh_data_pts_tag = settings->sublist("Mesh").get<string>("Data points file","mesh_data_pts");
+    mesh_data_pts_tag = settings->sublist("Mesh").get<string>("data points file","mesh_data_pts");
     
     have_mesh_data = true;
-    have_rotation_phi = settings->sublist("Mesh").get<bool>("Have mesh data phi",false);
-    have_rotations = settings->sublist("Mesh").get<bool>("Have mesh data rotations",true);
-    have_multiple_data_files = settings->sublist("Mesh").get<bool>("Have multiple mesh data files",false);
-    number_mesh_data_files = settings->sublist("Mesh").get<int>("Number mesh data files",1);
+    have_rotation_phi = settings->sublist("Mesh").get<bool>("have mesh data phi",false);
+    have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",true);
+    have_multiple_data_files = settings->sublist("Mesh").get<bool>("have multiple mesh data files",false);
+    number_mesh_data_files = settings->sublist("Mesh").get<int>("number mesh data files",1);
     
   }
   
-  meshmod_xvar = settings->sublist("Solver").get<int>("Solution For x-Mesh Mod",-1);
-  meshmod_yvar = settings->sublist("Solver").get<int>("Solution For y-Mesh Mod",-1);
-  meshmod_zvar = settings->sublist("Solver").get<int>("Solution For z-Mesh Mod",-1);
-  meshmod_TOL = settings->sublist("Solver").get<ScalarT>("Solution Based Mesh Mod TOL",1.0);
-  meshmod_usesmoother = settings->sublist("Solver").get<bool>("Solution Based Mesh Mod Smoother",false);
-  meshmod_center = settings->sublist("Solver").get<ScalarT>("Solution Based Mesh Mod Param",0.1);
-  meshmod_layer_size = settings->sublist("Solver").get<ScalarT>("Solution Based Mesh Mod Layer Thickness",0.1);
+  meshmod_xvar = settings->sublist("Solver").get<int>("solution for x-mesh mod",-1);
+  meshmod_yvar = settings->sublist("Solver").get<int>("solution for y-mesh mod",-1);
+  meshmod_zvar = settings->sublist("Solver").get<int>("solution for z-mesh mod",-1);
+  meshmod_TOL = settings->sublist("Solver").get<ScalarT>("solution based mesh mod TOL",1.0);
+  meshmod_usesmoother = settings->sublist("Solver").get<bool>("solution based mesh mod smoother",false);
+  meshmod_center = settings->sublist("Solver").get<ScalarT>("solution based mesh mod param",0.1);
+  meshmod_layer_size = settings->sublist("Solver").get<ScalarT>("solution based mesh mod layer thickness",0.1);
   
   vector<string> eBlocks;
   mesh->getElementBlockNames(eBlocks);
@@ -353,7 +349,7 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
     mesh->addSolutionField("dispy", eBlocks[i]);
     mesh->addSolutionField("dispz", eBlocks[i]);
     
-    bool plot_response = settings->sublist("Postprocess").get<bool>("Plot Response",false);
+    bool plot_response = settings->sublist("Postprocess").get<bool>("plot Response",false);
     if (plot_response) {
       std::vector<string> responsefields = phys->getResponseFieldNames(i);
       for (size_t j=0; j<responsefields.size(); j++) {
@@ -363,10 +359,10 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
     
     Teuchos::ParameterList efields;
     if (settings->sublist("Physics").isSublist(eBlocks[i])) {
-      efields = settings->sublist("Physics").sublist(eBlocks[i]).sublist("extra fields");
+      efields = settings->sublist("Physics").sublist(eBlocks[i]).sublist("Extra fields");
     }
     else {
-      efields = settings->sublist("Physics").sublist("extra fields");
+      efields = settings->sublist("Physics").sublist("Extra fields");
     }
     Teuchos::ParameterList::ConstIterator ef_itr = efields.begin();
     while (ef_itr != efields.end()) {
@@ -376,10 +372,10 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
     
     Teuchos::ParameterList ecfields;
     if (settings->sublist("Physics").isSublist(eBlocks[i])) {
-      ecfields = settings->sublist("Physics").sublist(eBlocks[i]).sublist("extra cell fields");
+      ecfields = settings->sublist("Physics").sublist(eBlocks[i]).sublist("Extra cell fields");
     }
     else {
-      ecfields = settings->sublist("Physics").sublist("extra cell fields");
+      ecfields = settings->sublist("Physics").sublist("Extra cell fields");
     }
     Teuchos::ParameterList::ConstIterator ecf_itr = ecfields.begin();
     while (ecf_itr != ecfields.end()) {
@@ -452,10 +448,10 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
     int numNodesPerElem = blocknodes.extent(1);
     DRV blocknodePert("blocknodePert",blocknodes.extent(0),numNodesPerElem,spaceDim);
     
-    if (settings->sublist("Mesh").get("Modify Mesh Height",false)) {
+    if (settings->sublist("Mesh").get("modify mesh height",false)) {
       vector<vector<ScalarT> > values;
       
-      string ptsfile = settings->sublist("Mesh").get("Mesh Pert File","meshpert.dat");
+      string ptsfile = settings->sublist("Mesh").get("mesh pert file","meshpert.dat");
       ifstream fin(ptsfile.c_str());
       
       for (string line; getline(fin, line); )
@@ -506,7 +502,7 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
       }
     }
     
-    if (settings->sublist("Mesh").get("Modify Mesh",false)) {
+    if (settings->sublist("Mesh").get("modify mesh",false)) {
       for (int k=0; k<blocknodes.extent(0); k++) {
         for (int i=0; i<numNodesPerElem; i++){
           blocknodePert(k,i,0) = 0.0;
@@ -682,12 +678,12 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
   // Generate the micro-structure using seeds and nearest neighbors
   ////////////////////////////////////////////////////////////////////////////////
   
-  bool fast_and_crude = settings->sublist("Mesh").get<bool>("Fast and crude microstructure",false);
+  bool fast_and_crude = settings->sublist("Mesh").get<bool>("fast and crude microstructure",false);
   
   if (fast_and_crude) {
-    int numxSeeds = settings->sublist("Mesh").get<int>("Number of xseeds",10);
-    int numySeeds = settings->sublist("Mesh").get<int>("Number of yseeds",10);
-    int numzSeeds = settings->sublist("Mesh").get<int>("Number of zseeds",10);
+    int numxSeeds = settings->sublist("Mesh").get<int>("number of xseeds",10);
+    int numySeeds = settings->sublist("Mesh").get<int>("number of yseeds",10);
+    int numzSeeds = settings->sublist("Mesh").get<int>("number of zseeds",10);
     
     ScalarT xmin = settings->sublist("Mesh").get<ScalarT>("x min",0.0);
     ScalarT ymin = settings->sublist("Mesh").get<ScalarT>("y min",0.0);
@@ -735,7 +731,7 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
     }
   }
   else {
-    numSeeds = settings->sublist("Mesh").get<int>("Number of seeds",1000);
+    numSeeds = settings->sublist("Mesh").get<int>("number of seeds",1000);
     seeds = Kokkos::View<ScalarT**,HostDevice>("seeds",numSeeds,3);
     
     ScalarT xwt = settings->sublist("Mesh").get<ScalarT>("x weight",1.0);
@@ -1019,7 +1015,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
   string exofile;
   string fname;
   
-  exofile = settings->sublist("Mesh").get<std::string>("Mesh_File","mesh.exo");
+  exofile = settings->sublist("Mesh").get<std::string>("mesh file","mesh.exo");
   
   if (Commptr->getSize() > 1) {
     stringstream ssProc, ssPID;
@@ -1067,7 +1063,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
   
   
   // get elem vars
-  if (settings->sublist("Mesh").get<bool>("Have Element Data", false)) {
+  if (settings->sublist("Mesh").get<bool>("have element data", false)) {
     int num_elem_vars;
     int var_ind;
     numResponses = 1;
@@ -1099,7 +1095,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
   }
   
   // assign nodal vars to meas multivector
-  if (settings->sublist("Mesh").get<bool>("Have Nodal Data", false)) {
+  if (settings->sublist("Mesh").get<bool>("have nodal data", false)) {
     int *connect = new int[num_el_in_blk*num_node_per_el];
     int edgeconn, faceconn;
     //exo_error = ex_get_elem_conn(exoid, id, connect);

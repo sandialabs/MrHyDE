@@ -1,9 +1,9 @@
 %YAML 1.1
 ---
 ANONYMOUS:
-  Mesh Settings File: input_mesh.yaml
+  Mesh input file: input_mesh.yaml
   Physics: 
-    solve_thermal: true
+    modules: thermal
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
@@ -13,26 +13,22 @@ ANONYMOUS:
       targ: 2.0*pi*pi*sin(pi*x)*sin(pi*y)*sin(pi*t) - pi*sin(pi*x)*sin(pi*y)*cos(pi*t)
     Weights:
       wt: '1.0'
-    simulation_number: 114
   Discretization:
     order:
       e: 1
     quadrature: 2
-  Parameters Settings File: input_params.yaml
-  Analysis Settings File: input_rol2.yaml
+  Parameters input file: input_params.yaml
+  Analysis input file: input_rol2.yaml
   Solver: 
     solver: transient
-    Verbosity: 0
-    NLtol: 1.00000000000000004e-10
-    lintol: 9.99999999999999980e-13
-    MaxNLiter: 4
-    finaltime: 1.00000000000000000e+00
-    numSteps: 3
-    Use Mortar Objective: false
+    nonlinear TOL: 1.0e-10
+    linear TOL: 1.0e-13
+    max nonlnear iters: 4
+    finaltime: 1.0
+    number of steps: 3
   Postprocess: 
     response type: pointwise
-    Verbosity: 0
-    verification: true
+    verification: compute errors
     write solution: false
     compute objective: true
   Functions:

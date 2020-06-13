@@ -18,7 +18,7 @@ ANONYMOUS:
     simulation_number: 7
     disp_response_type: false
     response type: stress
-    solve_linearelasticity: true
+    modules: linearelasticity
     Dirichlet conditions:
       dx:
         bottom: '0.0'
@@ -40,21 +40,14 @@ ANONYMOUS:
       dy: 1
     quadrature: 2
   Solver:
-    Verbosity: 0
-    Workset size: 1
     solver: steady-state
-    NLtol: 9.99999999999999955e-07
-    lintol: 1.00000000000000002e-08
-    finaltime: 1.00000000000000000e+00
-    numSteps: 100
   Postprocess: 
-    Verbosity: 0
     response type: pointwise
     compute response: true
     compute objective: true
     write solution: false
-  Parameters Settings File: input_paramsIG.yaml
-  Analysis Settings File: input_rol2.yaml
+  Parameters input file: input_paramsIG.yaml
+  Analysis input file: input_rol2.yaml
   Functions:
     mu: mufield
 ...

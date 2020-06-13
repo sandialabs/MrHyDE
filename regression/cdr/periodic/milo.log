@@ -1,6 +1,6 @@
 
 *********************************************************
-***** Performing verification ******
+***** Computing errors ******
 
 ***** L2 norm of the error for c = 0.250474  (time = 0)
 ***** L2 norm of the error for c = 0.131765  (time = 0.1)

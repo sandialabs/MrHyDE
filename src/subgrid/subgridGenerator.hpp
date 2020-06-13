@@ -34,15 +34,15 @@ vector<Teuchos::RCP<SubGridModel> > subgridGenerator(const Teuchos::RCP<MpiComm>
     // Define the subgrid models specified in the input file
     ////////////////////////////////////////////////////////////////////////////////
     
-    int nummodels = settings->sublist("Subgrid").get<int>("Number of Models",1);
-    int  num_macro_time_steps = settings->sublist("Solver").get("numSteps",1);
+    int nummodels = settings->sublist("Subgrid").get<int>("number of models",1);
+    int  num_macro_time_steps = settings->sublist("Solver").get("number of steps",1);
     ScalarT finaltime = settings->sublist("Solver").get<ScalarT>("finaltime",1.0);
     ScalarT macro_deltat = finaltime/num_macro_time_steps;
     if (nummodels == 1) { 
       Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = rcp(new Teuchos::ParameterList("Subgrid"));
       subgrid_pl->setParameters(settings->sublist("Subgrid"));
-      string subgrid_model_type = subgrid_pl->get<string>("Subgrid Model","FEM");
-      int macro_block = subgrid_pl->get<int>("Macro Block",0);
+      string subgrid_model_type = subgrid_pl->get<string>("subgrid model","FEM");
+      int macro_block = subgrid_pl->get<int>("macro block",0);
       std::vector<string> macro_blocknames;
       macromesh->getElementBlockNames(macro_blocknames);
       topo_RCP macro_topo = macromesh->getCellTopology(macro_blocknames[macro_block]);
@@ -69,8 +69,8 @@ vector<Teuchos::RCP<SubGridModel> > subgridGenerator(const Teuchos::RCP<MpiComm>
         if (settings->sublist("Subgrid").isSublist("Model" + ss.str())) {
           Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = rcp(new Teuchos::ParameterList("Subgrid"));
           subgrid_pl->setParameters(settings->sublist("Subgrid").sublist("Model" + ss.str()));
-          string subgrid_model_type = subgrid_pl->get<string>("Subgrid Model","FEM");
-          int macro_block = subgrid_pl->get<int>("Macro Block",0);
+          string subgrid_model_type = subgrid_pl->get<string>("subgrid model","FEM");
+          int macro_block = subgrid_pl->get<int>("macro block",0);
           std::vector<string> macro_blocknames;
           macromesh->getElementBlockNames(macro_blocknames);
           topo_RCP macro_topo = macromesh->getCellTopology(macro_blocknames[macro_block]);

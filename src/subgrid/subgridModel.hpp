@@ -47,8 +47,8 @@ public:
   //virtual Kokkos::View<ScalarT**,AssemblyDevice> computeError(const ScalarT & time,
   //                                                           const int & usernum) = 0;
   
-  virtual Kokkos::View<ScalarT***,AssemblyDevice> computeError(const vector<string> & error_types,
-                                                               const vector<ScalarT> & solvetimes) = 0;
+  virtual Kokkos::View<ScalarT**,AssemblyDevice> computeError(vector<pair<size_t, string> > & sub_error_list,
+                                                              const vector<ScalarT> & times) = 0;
   
   virtual Kokkos::View<AD*,AssemblyDevice> computeObjective(const string & response_type,
                                                             const int & seedwhat,

@@ -1,7 +1,7 @@
 p=0 | CubeHexMesh: Building sub cells
 
 *********************************************************
-***** Performing verification ******
+***** Computing errors ******
 
 ***** L2 norm of the error for Arx = 0.0115417  (time = 0)
 ***** L2 norm of the error for Aix = 0.013503  (time = 0)

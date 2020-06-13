@@ -38,7 +38,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
   verbosity = settings->get<int>("verbosity",0);
   usestrongDBCs = settings->sublist("Solver").get<bool>("use strong DBCs",true);
   useNewBCs = settings->sublist("Solver").get<bool>("use new BCs",true);
-  use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("Use Measurements as DBCs", false);
+  use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("use measurements as DBCs", false);
   
   // needed information from the mesh
   mesh->getElementBlockNames(blocknames);
@@ -110,8 +110,8 @@ void AssemblyManager::createCells() {
     Kokkos::DynRankView<ScalarT,HostDevice> blocknodes("nodes on block",numTotalElem,numNodesPerElem,spaceDim);
     panzer_stk::workset_utils::getIdsAndVertices(*mesh, blocknames[b], localIds, blocknodes); // fill on host
     
-    int elemPerCell = settings->sublist("Solver").get<int>("Workset size",1);
-    bool memeff = settings->sublist("Solver").get<bool>("Memory Efficient",false);
+    int elemPerCell = settings->sublist("Solver").get<int>("workset size",1);
+    bool memeff = settings->sublist("Solver").get<bool>("memory efficient",false);
     int prog = 0;
     
     vector<string> sideSets;
@@ -195,7 +195,7 @@ void AssemblyManager::createCells() {
     
     if (assemble_boundary_terms[b]) {
       // TMW: this is just for ease of use
-      int numBoundaryElem = settings->sublist("Solver").get<int>("Workset size",1);
+      int numBoundaryElem = settings->sublist("Solver").get<int>("workset size",1);
       
       ///////////////////////////////////////////////////////////////////////////////////
       // Rules for grouping elements into boundary cells

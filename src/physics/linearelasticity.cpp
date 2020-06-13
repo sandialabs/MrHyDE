@@ -36,11 +36,11 @@ linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settin
     mybasistypes = {"HGRAD","HGRAD","HGRAD"};
   }
   
-  useCE = settings->sublist("Physics").get<bool>("Use Crystal Elasticity",false);
+  useCE = settings->sublist("Physics").get<bool>("use crystal elasticity",false);
   
   
   incplanestress = settings->sublist("Physics").get<bool>("incplanestress",false);
-  useLame = settings->sublist("Physics").get<bool>("Use Lame Parameters",true);
+  useLame = settings->sublist("Physics").get<bool>("use Lame parameters",true);
   addBiot = settings->sublist("Physics").get<bool>("Biot",false);
   
   Kokkos::View<ScalarT*,HostDevice> modelparams_host("parameters for LE model", 5);

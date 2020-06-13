@@ -83,7 +83,7 @@ int main(int argc,char * argv[]) {
     
     verbosity = settings->get<int>("verbosity",0);
     profile = settings->get<bool>("profile",false);
-    int numElemPerCell = settings->sublist("Solver").get<int>("Workset size",1);
+    int numElemPerCell = settings->sublist("Solver").get<int>("workset size",1);
     
     ////////////////////////////////////////////////////////////////////////////////
     // split comm for SOL or multiscale runs (deprecated)
@@ -175,6 +175,18 @@ int main(int argc,char * argv[]) {
                                                                                assembler->cells, subgridModels,
                                                                                functionManagers) );
     
+    Teuchos::RCP<SensorManager> sensors = Teuchos::rcp( new SensorManager(settings, mesh, disc,
+                                                                          assembler, params) );
+    
+    ///////////////////////////////////////////////////////////////////////////////
+    // Create the postprocessing object
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    Teuchos::RCP<PostprocessManager>
+    postproc = Teuchos::rcp( new PostprocessManager(Comm, settings, mesh->mesh, disc, phys,
+                                                    functionManagers, multiscale_manager,
+                                                    assembler, params, sensors) );
+    
     ////////////////////////////////////////////////////////////////////////////////
     // Set up the solver and finalize some objects
     ////////////////////////////////////////////////////////////////////////////////
@@ -183,7 +195,8 @@ int main(int argc,char * argv[]) {
                                                           disc, phys, DOF, assembler, params) );
     
     solve->multiscale_manager = multiscale_manager;
-    solve->setBatchID(Comm->getRank());
+    solve->postproc = postproc;
+    //solve->setBatchID(Comm->getRank());
     
     ////////////////////////////////////////////////////////////////////////////////
     // Finalize the functions
@@ -201,17 +214,14 @@ int main(int argc,char * argv[]) {
     
     solve->finalizeMultiscale();
     
-    Teuchos::RCP<SensorManager> sensors = Teuchos::rcp( new SensorManager(settings, mesh, disc,
-                                                                          assembler, params) );
-    
     ////////////////////////////////////////////////////////////////////////////////
     // Create the postprocessing object
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<PostprocessManager>
-    postproc = Teuchos::rcp( new PostprocessManager(Comm, settings, mesh->mesh, disc, phys,
-                                                    solve, DOF, assembler->cells, functionManagers,
-                                                    assembler, params, sensors) );
+    //Teuchos::RCP<PostprocessManager>
+    //postproc = Teuchos::rcp( new PostprocessManager(Comm, settings, mesh->mesh, disc, phys,
+    //                                                solve, DOF, assembler->cells, functionManagers,
+    //                                                assembler, params, sensors) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // Perform the requested analysis (fwd solve, adj solve, dakota run, etc.)

@@ -2,42 +2,28 @@
 ---
 ANONYMOUS:
   debug level: 0
-  Mesh Settings File: input_mesh.yaml
-  Functions Settings File: input_functions.yaml
+  Mesh input file: input_mesh.yaml
+  Functions input file: input_functions.yaml
   Physics: 
-    solve_thermal: true
+    modules: thermal
     Dirichlet conditions:
       e:
         all boundaries: '1.0'
-    initial conditions:
+    Initial conditions:
       e: '0.0'
-    true solutions:
+    True solutions:
       e: 1.0+sin(2*pi*x)*sin(2*pi*y)
   Discretization:
     order:
       e: 1
     quadrature: 2
-  Parameters Settings File: input_params.yaml
+  Parameters input file: input_params.yaml
   Solver: 
     solver: steady-state
-    Workset size: 1
-    Verbosity: 0
-    NLtol: 9.99999999999999955e-07
-    MaxNLiter: 4
-    finaltime: 1.00000000000000000e+00
-    numSteps: 10
     use strong DBCs: true
   Analysis: 
     analysis type: forward
-    Have Sensor Points: false
-    Have Sensor Data: false
   Postprocess: 
-    response type: global
-    Error type: L2
-    Verbosity: 0
-    verification: true
-    compute response: false
-    compute objective: false
-    compute sensitivities: false
+    compute errors: true
     write solution: false
 ...

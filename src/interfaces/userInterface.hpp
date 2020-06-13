@@ -117,8 +117,8 @@ Teuchos::RCP<Teuchos::ParameterList> userInterface(const string & filename) {
   //////////////////////////////////////////////////////////////////////////////////////////
   
   if (!have_mesh) {
-    if (settings->isParameter("Mesh Settings File")) {
-      std::string filename = settings->get<std::string>("Mesh Settings File");
+    if (settings->isParameter("Mesh input file")) {
+      std::string filename = settings->get<std::string>("Mesh input file");
       ifstream fn(filename.c_str());
       if (fn.good()) {
         Teuchos::RCP<Teuchos::ParameterList> mesh_parlist = Teuchos::rcp( new Teuchos::ParameterList() );
@@ -139,8 +139,8 @@ Teuchos::RCP<Teuchos::ParameterList> userInterface(const string & filename) {
   }
   
   if (!have_phys) {
-    if (settings->isParameter("Physics Settings File")) {
-      std::string filename = settings->get<std::string>("Physics Settings File");
+    if (settings->isParameter("Physics input file")) {
+      std::string filename = settings->get<std::string>("Physics input file");
       ifstream fn(filename.c_str());
       if (fn.good()) {
         Teuchos::RCP<Teuchos::ParameterList> phys_parlist = Teuchos::rcp( new Teuchos::ParameterList() );
@@ -160,8 +160,8 @@ Teuchos::RCP<Teuchos::ParameterList> userInterface(const string & filename) {
   }
   
   if (!have_disc) {
-    if (settings->isParameter("Discretization Settings File")) {
-      std::string filename = settings->get<std::string>("Discretization Settings File");
+    if (settings->isParameter("Discretization input file")) {
+      std::string filename = settings->get<std::string>("Discretization input file");
       ifstream fn(filename.c_str());
       if (fn.good()) {
         Teuchos::RCP<Teuchos::ParameterList> disc_parlist = Teuchos::rcp( new Teuchos::ParameterList() );
@@ -181,8 +181,8 @@ Teuchos::RCP<Teuchos::ParameterList> userInterface(const string & filename) {
   }
   
   if (!have_solver) {
-    if (settings->isParameter("Solver Settings File")) {
-      std::string filename = settings->get<std::string>("Solver Settings File");
+    if (settings->isParameter("Solver input file")) {
+      std::string filename = settings->get<std::string>("Solver input file");
       ifstream fn(filename.c_str());
       if (fn.good()) {
         Teuchos::RCP<Teuchos::ParameterList> solver_parlist = Teuchos::rcp( new Teuchos::ParameterList() );
@@ -202,8 +202,8 @@ Teuchos::RCP<Teuchos::ParameterList> userInterface(const string & filename) {
   }
   
   if (!have_analysis) {
-    if (settings->isParameter("Analysis Settings File")) {
-      std::string filename = settings->get<std::string>("Analysis Settings File");
+    if (settings->isParameter("Analysis input file")) {
+      std::string filename = settings->get<std::string>("Analysis input file");
       ifstream fn(filename.c_str());
       if (fn.good()) {
         Teuchos::RCP<Teuchos::ParameterList> analysis_parlist = Teuchos::rcp( new Teuchos::ParameterList() );
@@ -223,8 +223,8 @@ Teuchos::RCP<Teuchos::ParameterList> userInterface(const string & filename) {
   }
   
   if (!have_pp) { // this is optional (but recommended!)
-    if (settings->isParameter("Postprocess Settings File")) {
-      std::string filename = settings->get<std::string>("Postprocess Settings File");
+    if (settings->isParameter("Postprocess input file")) {
+      std::string filename = settings->get<std::string>("Postprocess input file");
       ifstream fn(filename.c_str());
       if (fn.good()) {
         Teuchos::RCP<Teuchos::ParameterList> pp_parlist = Teuchos::rcp( new Teuchos::ParameterList() );
@@ -244,8 +244,8 @@ Teuchos::RCP<Teuchos::ParameterList> userInterface(const string & filename) {
   }
   
   if (!have_params) { // this is optional
-    if (settings->isParameter("Parameters Settings File")) {
-      std::string filename = settings->get<std::string>("Parameters Settings File");
+    if (settings->isParameter("Parameters input file")) {
+      std::string filename = settings->get<std::string>("Parameters input file");
       ifstream fn(filename.c_str());
       if (fn.good()) {
         Teuchos::RCP<Teuchos::ParameterList> param_parlist = Teuchos::rcp( new Teuchos::ParameterList() );
@@ -265,8 +265,8 @@ Teuchos::RCP<Teuchos::ParameterList> userInterface(const string & filename) {
   }
   
   if (!have_subgrid) { // this is optional
-    if (settings->isParameter("Subgrid Settings File")) {
-      std::string filename = settings->get<std::string>("Subgrid Settings File");
+    if (settings->isParameter("Subgrid input file")) {
+      std::string filename = settings->get<std::string>("Subgrid input file");
       ifstream fn(filename.c_str());
       if (fn.good()) {
         Teuchos::RCP<Teuchos::ParameterList> subgrid_parlist = Teuchos::rcp( new Teuchos::ParameterList() );
@@ -284,8 +284,8 @@ Teuchos::RCP<Teuchos::ParameterList> userInterface(const string & filename) {
   }
   
   if (!have_functions) { // this is optional
-    if (settings->isParameter("Functions Settings File")) {
-      std::string filename = settings->get<std::string>("Functions Settings File");
+    if (settings->isParameter("Functions input file")) {
+      std::string filename = settings->get<std::string>("Functions input file");
       ifstream fn(filename.c_str());
       if (fn.good()) {
         Teuchos::RCP<Teuchos::ParameterList> functions_parlist = Teuchos::rcp( new Teuchos::ParameterList() );

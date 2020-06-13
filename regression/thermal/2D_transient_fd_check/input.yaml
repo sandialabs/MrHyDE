@@ -1,14 +1,14 @@
 %YAML 1.1
 ---
 ANONYMOUS:
-  Mesh Settings File: input_mesh.yaml
+  Mesh input file: input_mesh.yaml
   verbosity: 0
   Physics: 
-    solve_thermal: true
+    modules: thermal
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
-    initial conditions:
+    Initial conditions:
       e: '0.0'
     Responses:
       resp: 'e'
@@ -16,26 +16,24 @@ ANONYMOUS:
       targ: '0.0'
     Weights:
       wt: '1.0'
-  Parameters Settings File: input_params.yaml
+  Parameters input file: input_params.yaml
   Discretization:
     order:
       e: 1
     quadrature: 2
   Solver:
     solver: transient
-    Workset Size: 1
-    Verbosity: 0
-    NLtol: 9.99999999999999980e-13
-    lintol: 1.00000000000000003e-13
-    MaxNLiter: 4
+    workset size: 1
+    nonlinear TOL: 1.0e-14
+    linear TOL: 1.0e-13
+    max nonlinear iters: 4
     final time: 5.00000000000000000e-01
-    numSteps: 4
-  Analysis Settings File: input_rol2.yaml
+    number of steps: 4
+  Analysis input file: input_rol2.yaml
   Postprocess: 
     response type: global
-    Verbosity: 0
-    verification: true
-    write solution: true
+    compute errors: true
+    write solution: false
     compute response: false
     compute objective: true
     compute sensitivities: false

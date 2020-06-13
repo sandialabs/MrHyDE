@@ -3,41 +3,36 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  Mesh Settings File: input_mesh.yaml
-  Functions Settings File: input_functions.yaml
+  Mesh input file: input_mesh.yaml
+  Functions input file: input_functions.yaml
   Physics: 
-    solve_cdr: true
+    modules: cdr
     assemble boundary terms: true
     Dirichlet conditions:
       c:
         all boundaries: '0.0'
-    initial conditions:
+    Initial conditions:
       c: 'exp(bubble)'
-    true solutions:
+    True solutions:
       c: '0.0'
   Discretization:
     order:
       c: 1
     quadrature: 2
-  Parameters Settings File: input_params.yaml
+  Parameters input file: input_params.yaml
   Solver: 
     solver: transient
-    Workset size: 40
-    Verbosity: 0
-    NLtol: 9.99999999999999955e-07
-    MaxNLiter: 10
+    workset size: 100 
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 10
     final time: 1.0e-1
     delta t: 1.0e-2
     use strong DBCs: true
   Analysis: 
     analysis type: forward
-    Have Sensor Points: false
-    Have Sensor Data: false
   Postprocess: 
     response type: global
-    Error type: L2
-    Verbosity: 0
-    verification: true
+    compute errors: true
     compute response: false
     compute objective: false
     compute sensitivities: false

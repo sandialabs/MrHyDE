@@ -3,32 +3,25 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  Mesh Settings File: input_mesh.yaml
+  Mesh input file: input_mesh.yaml
   Physics: 
     Active variables:
       lambda: HFACE
     eblock-0_0: 
-      solve_porousHDIV_hybrid: true
+      modules: porousHDIV_hybrid
       Dirichlet conditions:
         lambda:
           left: '0.0'
           right: '0.0'
           top: '0.0'
           bottom: '0.0'
-      true solutions:
-        lambda: sin(2*pi*x)*sin(2*pi*y)
-  Parameters Settings File: input_params.yaml
-  Functions Settings File: input_functions.yaml
+      True solutions:
+        lambda face: sin(2*pi*x)*sin(2*pi*y)
+  Parameters input file: input_params.yaml
+  Functions input file: input_functions.yaml
   Solver: 
     solver: steady-state
-    Workset Size: 1
-    Verbosity: 0
-    NLtol: 9.99999999999999955e-07
-    MaxNLiter: 4
-    finaltime: 1.00000000000000000e+00
-    numSteps: 10
-    Initial type: none
-    use direct solver: false
+    initial type: none
     use preconditioner: true
   Discretization:
     eblock-0_0:
@@ -36,27 +29,25 @@ ANONYMOUS:
         lambda: 0
       quadrature: 2
   Subgrid:
-    Subgrid Model: FEM
+    subgrid model: FEM
     Mesh:
       shape: quad
       refinements: 0
       dim: 2
       blocknames: eblock
     Physics:
-      solve_porousHDIV: true
+      modules: porousHDIV
       Active variables:
         p: HVOL
         u: HDIV
-      true solutions:
+      True solutions:
         p: sin(2*pi*x)*sin(2*pi*y)
-        ux: -2*pi*cos(2*pi*x)*sin(2*pi*y)
-        uy: -2*pi*sin(2*pi*x)*cos(2*pi*y)
+        u_x: -2*pi*cos(2*pi*x)*sin(2*pi*y)
+        u_y: -2*pi*sin(2*pi*x)*cos(2*pi*y)
     Solver:
       solver: steady-state
-      NLtol: 9.99999999999999955e-07
-      MaxNLiter: 4
       use direct solver: true
-    Functions Settings File: input_functions.yaml
+    Functions input file: input_functions.yaml
     Discretization:
       order:
         p: 0
@@ -66,15 +57,11 @@ ANONYMOUS:
       store aux and flux: false
   Analysis:
     analysis type: forward
-    Have Sensor Points: false
-    Have Sensor Data: false
   Postprocess: 
     response type: global
-    verification: true
+    compute errors: true
     compute response: false
     write solution: false
     compute objective: false
     compute sensitivities: false
-    Subgrid error type: L2
-    Error type: L2-face
 ...

@@ -1,6 +1,6 @@
 
 *********************************************************
-***** Performing verification ******
+***** Computing errors ******
 
 ***** L2 norm of the error for ureal = 0.000517267  (time = 0)
 ***** L2 norm of the error for uimag = 0.000222348  (time = 0)

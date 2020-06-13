@@ -10,7 +10,6 @@
  ************************************************************************/
 
 #include "cell.hpp"
-//#include "discretizationTools.hpp"
 #include "physicsInterface.hpp"
 
 #include <iostream>
@@ -160,7 +159,8 @@ void cell::setUseBasis(vector<int> & usebasis_, const int & numsteps, const int 
   
   u_stage = Kokkos::View<ScalarT****,AssemblyDevice>("u stages",numElem,cellData->numDOF.extent(0),maxnbasis,numstages);
   phi_stage = Kokkos::View<ScalarT****,AssemblyDevice>("phi stages",numElem,cellData->numDOF.extent(0),maxnbasis,numstages);
-  
+ 
+  u_avg = Kokkos::View<ScalarT***,AssemblyDevice>("u spatial average",numElem,cellData->numDOF.extent(0),cellData->dimension);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -218,6 +218,9 @@ void cell::computeSolnVolIP(Kokkos::View<int*,UnifiedDevice> seedwhat) {
   wkset->computeSolnVolIP(u, u_prev, u_stage, seedwhat);
   wkset->computeParamVolIP(param, seedwhat);
   
+  if (cellData->compute_sol_avg) {
+    this->computeSolAvg();
+  }
   /*
   if (wkset->numAux > 0) {
     wkset->resetAux();
@@ -247,6 +250,36 @@ void cell::computeSolnVolIP(Kokkos::View<int*,UnifiedDevice> seedwhat) {
       }
     }
   }*/
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::computeSolAvg() {
+  
+  // THIS FUNCTION ASSUMES THAT THE WORKSET HAS BEEN UPDATED
+  // AND THE SOLUTION HAS BEEN COMPUTED AT THE VOLUMETRIC IP
+  
+  Teuchos::TimeMonitor localtimer(*computeSolAvgTimer);
+  
+  Kokkos::View<AD****,AssemblyDevice> sol = wkset->local_soln;
+  
+  parallel_for(RangePolicy<AssemblyExec>(0,u_avg.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    ScalarT avgwt = 0.0;
+    for (int pt=0; pt<wts.extent(1); pt++) {
+      avgwt += wts(elem,pt);
+    }
+    for (int dof=0; dof<sol.extent(1); dof++) {
+      for (int dim=0; dim<sol.extent(3); dim++) {
+        ScalarT solavg = 0.0;
+        for (int pt=0; pt<sol.extent(2); pt++) {
+          solavg += sol(elem,dof,pt,dim).val();
+        }
+        u_avg(elem,dof,dim) = solavg/avgwt;
+      }
+    }
+  });
   
 }
 
@@ -515,12 +548,12 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   }
   
   {
-    Teuchos::TimeMonitor localtimer(*adjointResidualTimer);
     // Update residual (adjoint mode)
     // Adjoint residual: -dobj/du - J^T * phi + 1/dt*M^T * phi_prev
     // J = 1/dtM + A
     // adj_prev stores 1/dt*M^T * phi_prev where M is evaluated at appropriate time
     if (isAdjoint) {
+      Teuchos::TimeMonitor localtimer(*adjointResidualTimer);
       if (!(cellData->mortar_objective)) {
         for (int w=1; w < cellData->dimension+2; w++) {
           
@@ -848,119 +881,6 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Compute the error at the integration points given the solution and solve times
-///////////////////////////////////////////////////////////////////////////////////////
-
-Kokkos::View<ScalarT***,AssemblyDevice> cell::computeError(const ScalarT & solvetime,
-                                                          const size_t & tindex,
-                                                          //const bool compute_subgrid,
-                                                          const vector<string> & error_types) {
-  
-  // Assumes that u has been updated already
-  wkset->time = solvetime;
-  wkset->time_KV(0) = solvetime;
-  
-  Kokkos::View<ScalarT***,AssemblyDevice> errors("errors",numElem,index.extent(1), error_types.size());
-  //if (!compute_subgrid) {
-  
-    for (size_t et=0; et<error_types.size(); et++){
-      if (error_types[et] == "L2") {
-        wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
-        Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
-        seedwhat(0) = 0;
-        wkset->computeSolnVolIP(u, u_prev, u_stage, seedwhat);
-        size_t numip = wkset->numip;
-        
-        Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index.extent(1),
-                                                         numip,cellData->dimension);
-        cellData->physics_RCP->trueSolution(cellData->myBlock, solvetime, truesol);
-        //KokkosTools::print(truesol);
-        //KokkosTools::print(wkset->local_soln);
-        
-        for (int e=0; e<numElem; e++) {
-          for (int n=0; n<index.extent(1); n++) {
-            for( size_t j=0; j<numip; j++ ) {
-              for (size_t d=0; d<wkset->local_soln.extent(3); d++) {
-                ScalarT diff = wkset->local_soln(e,n,j,d).val() - truesol(e,n,j,d);
-                errors(e,n,et) += diff*diff*wkset->wts(e,j);
-              }
-            }
-          }
-        }
-      }
-      else if (error_types[et] == "H1") {
-        wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
-        Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
-        seedwhat(0) = 0;
-        wkset->computeSolnVolIP(u, u_prev, u_stage, seedwhat);
-        size_t numip = wkset->numip;
-        
-        Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index.extent(1),
-                                                         numip,cellData->dimension);
-        cellData->physics_RCP->trueSolutionGrad(cellData->myBlock, solvetime, truesol);
-        for (int e=0; e<numElem; e++) {
-          for (int n=0; n<index.extent(1); n++) {
-            for( size_t j=0; j<numip; j++ ) {
-              for (int s=0; s<cellData->dimension; s++) {
-                ScalarT diff = wkset->local_soln_grad(e,n,j,s).val() - truesol(e,n,j,s);
-                errors(e,n,et) += diff*diff*wkset->wts(e,j);
-              }
-            }
-          }
-        }
-      }
-      else if (error_types[et] == "L2-face") {
-        for (size_t s=0; s<cellData->numSides; s++) {
-          
-          wkset->updateFace(nodes, orientation, s);
-          Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
-          seedwhat(0) = 0;
-          wkset->computeSolnFaceIP(u, seedwhat);
-
-          size_t numip = wkset->numsideip;
-        
-          Kokkos::View<ScalarT****,AssemblyDevice> truesol("true solution",numElem,index.extent(1),
-                                                           numip,cellData->dimension);
-          cellData->physics_RCP->trueSolutionFace(cellData->myBlock, solvetime, truesol);
-          for (int e=0; e<numElem; e++) {
-            double edgelength = 0.0;
-            for( size_t j=0; j<numip; j++ ) {
-              edgelength += wkset->wts_side(e,j);
-            }
-            for (int n=0; n<index.extent(1); n++) {
-              for( size_t j=0; j<numip; j++ ) {
-                //for (size_t d=0; d<wkset->local_soln_face.extent(3); d++) { // this loop might be unnecessary ... any vector HFACE variables?
-                  ScalarT diff = wkset->local_soln_face(e,n,j,0).val() - truesol(e,n,j,0);
-                errors(e,n,et) += 0.5/edgelength*diff*diff*wkset->wts_side(e,j);
-                //}
-              }
-            }
-          }
-        }
-      }
-    }
-  //}
-  /*
-  else if (cellData->multiscale) {
-    
-    for (int e=0; e<numElem; e++) {
-      
-      Kokkos::View<ScalarT**,AssemblyDevice> currerrors = subgridModels[subgrid_model_index[e][tindex]]->computeError(solvetime, subgrid_usernum[e]);
-      
-      for (int c=0; c<currerrors.extent(0); c++) { // loop over subgrid elements
-        for (int n=0; n<index.extent(1); n++) {
-          errors(e,n) += currerrors(c,n);
-        }
-      }
-    }
-    
-  }*/
-  
-  return errors;
-}
-
-
-///////////////////////////////////////////////////////////////////////////////////////
 // Compute the response at a given set of points and time
 ///////////////////////////////////////////////////////////////////////////////////////
 Kokkos::View<AD***,AssemblyDevice> cell::computeResponseAtNodes(const DRV & nodes,
@@ -1010,8 +930,8 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponseAtNodes(const DRV & node
 // Compute the response at the integration points given the solution and solve time
 ///////////////////////////////////////////////////////////////////////////////////////
 //
-Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const ScalarT & solvetime,
-                                                         const size_t & tindex,
+Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(//const ScalarT & solvetime,
+                                                         //const size_t & tindex,
                                                          const int & seedwhat) {
   
   // Assumes that u has already been filled
@@ -1224,13 +1144,13 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const ScalarT & solveti
       if (sensorLocations.size() > 0){
         response = cellData->physics_RCP->getResponse(cellData->myBlock, u_ip, ugrad_ip, param_ip,
                                                       paramgrad_ip, sensorPoints,
-                                                      solvetime, wkset);
+                                                      wkset->time, wkset);
       }
     }
     else {
       response = cellData->physics_RCP->getResponse(cellData->myBlock, u_ip, ugrad_ip, param_ip,
                                                     paramgrad_ip, wkset->ip,
-                                                    solvetime, wkset);
+                                                    wkset->time, wkset);
     }
   }
   if (seedwhat == 1) {
@@ -1256,7 +1176,8 @@ Kokkos::View<AD**,AssemblyDevice> cell::computeObjective(const ScalarT & solveti
   
   if (!(cellData->multiscale) || cellData->mortar_objective) {
     
-    Kokkos::View<AD***,AssemblyDevice> responsevals = computeResponse(solvetime,tindex,seedwhat);
+    //Kokkos::View<AD***,AssemblyDevice> responsevals = computeResponse(solvetime,tindex,seedwhat);
+    Kokkos::View<AD***,AssemblyDevice> responsevals = computeResponse(seedwhat);
     
     if (cellData->response_type == "pointwise") { // uses sensor data
       

@@ -1,7 +1,7 @@
 
 *********************************************************
-***** Performing verification ******
+***** Computing errors ******
 
 ***** L2 norm of the error for p = 0.0161306  (time = 0)
 ***** L2 norm of the error for u = 0.101867  (time = 0)
-***** L2 norm of the error for lambda = 0.5  (time = 0)
+***** L2-face norm of the error for lambda = 0.129045  (time = 0)

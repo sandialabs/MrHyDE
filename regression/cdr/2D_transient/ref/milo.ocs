@@ -1,8 +1,8 @@
 
 *********************************************************
-***** Performing verification ******
+***** Computing errors ******
 
-***** L2 norm of the error for c = 0.375083  (time = 0)
+***** L2 norm of the error for c = 0.370794  (time = 0)
 ***** L2 norm of the error for c = 0.27001  (time = 0.01)
 ***** L2 norm of the error for c = 0.213791  (time = 0.02)
 ***** L2 norm of the error for c = 0.17325  (time = 0.03)

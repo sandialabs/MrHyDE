@@ -29,9 +29,10 @@ public:
   
   SolutionStorage(const Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
-    // Maximum number of vectors to store
+    // Maximum number of vectors to store (not used right now)
     maxStorage = settings->sublist("Solver").get<LO>("maximum storage", 100);
-    timeTOL = settings->sublist("Solver").get<ScalarT>("storage time tol", 1.0e-13);
+    // Relative tolerance for storing/extraction solution at given time
+    timeRelTOL = settings->sublist("Solver").get<ScalarT>("storage time tol", 1.0e-10);
     
   }
   
@@ -75,10 +76,20 @@ public:
   bool extract(Teuchos::RCP<V> & vec, const size_t & index, const ScalarT & currtime) {
     Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
     bool found = false;
-    for (size_t j=0; j<times[index].size(); j++) {
-      if (abs(times[index][j] - currtime) < timeTOL) {
-        vec = data[index][j];
-        found = true;
+    if (abs(currtime)>1.0e-16) { // ok to use relative tolerance
+      for (size_t j=0; j<times[index].size(); j++) {
+        if (abs(times[index][j] - currtime)/currtime < timeRelTOL) {
+          vec = data[index][j];
+          found = true;
+        }
+      }
+    }
+    else { // use as absolute tolerance
+      for (size_t j=0; j<times[index].size(); j++) {
+        if (abs(times[index][j] - currtime) < timeRelTOL) {
+          vec = data[index][j];
+          found = true;
+        }
       }
     }
     return found;
@@ -91,11 +102,22 @@ public:
     Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
     bool found = false;
     
-    for (size_t j=0; j<times[index].size(); j++) {
-      if (abs(times[index][j] - currtime) < timeTOL) {
-        vec = data[index][j];
-        timeindex = j;
-        found = true;
+    if (abs(currtime)>1.0e-16) { // ok to use relative tolerance
+      for (size_t j=0; j<times[index].size(); j++) {
+        if (abs(times[index][j] - currtime)/currtime < timeRelTOL) {
+          vec = data[index][j];
+          timeindex = j;
+          found = true;
+        }
+      }
+    }
+    else {
+      for (size_t j=0; j<times[index].size(); j++) {
+        if (abs(times[index][j] - currtime) < timeRelTOL) {
+          vec = data[index][j];
+          timeindex = j;
+          found = true;
+        }
       }
     }
     return found;
@@ -108,7 +130,7 @@ public:
     Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
     bool found = false;
     for (size_t j=0; j<times[index].size(); j++) {
-      if (abs(times[index][j] - currtime) < timeTOL) {
+      if (abs(times[index][j] - currtime)/currtime < timeRelTOL) {
         found = true;
         if (j>0) {
           vec = data[index][j-1];
@@ -130,7 +152,7 @@ public:
     Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
     bool found = false;
     for (size_t j=0; j<times[index].size(); j++) {
-      if (abs(times[index][j] - currtime) < timeTOL) {
+      if (abs(times[index][j] - currtime)/currtime < timeRelTOL) {
         found = true;
         if (j<(times[index].size()-1)) {
           vec = data[index][j+1];
@@ -177,9 +199,17 @@ public:
       size_t timeindex;
       bool foundtime = false;
       for (size_t j=0; j<times[index].size(); j++) {
-        if (abs(times[index][j] - currtime) < timeTOL) {
-          foundtime = true;
-          timeindex = j;
+        if (abs(currtime)>1.0e-16) { // ok to use relative tolerance
+          if (abs(times[index][j] - currtime)/currtime < timeRelTOL) {
+            foundtime = true;
+            timeindex = j;
+          }
+        }
+        else { // use as absolute tolerance
+          if (abs(times[index][j] - currtime) < timeRelTOL) {
+            foundtime = true;
+            timeindex = j;
+          }
         }
       }
       if (foundtime) {
@@ -231,7 +261,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
 
   LO maxStorage;
-  ScalarT timeTOL;
+  ScalarT timeRelTOL;
   
   vector<vector<ScalarT> > times;
   vector<vector<Teuchos::RCP<V> > > data;

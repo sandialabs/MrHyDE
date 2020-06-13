@@ -14,7 +14,7 @@ ANONYMOUS:
     blocknames: eblock-0_0
   Physics: 
     eblock-0_0: 
-      solve_helmholtz: true
+      modules: helmholtz
       Dirichlet conditions:
         ureal:
           left: '0.0'
@@ -29,7 +29,7 @@ ANONYMOUS:
           right: '0.0'
         uimag:
           right: '0.0'
-      true solutions:
+      True solutions:
         ureal: sin(2*pi*x)*sin(2*pi*y)
         uimag: sin(2*pi*x)*sin(2*pi*y)
     test: 4
@@ -58,20 +58,15 @@ ANONYMOUS:
   Solver: 
     use new BCs: true
     solver: steady-state
-    Multigrid type: sa
-    Smoother type: ILUT
-    Workset size: 1
-    NLtol: 1.0e-8
-    finaltime: 1.00000000000000000e+00
-    numSteps: 1
+    multigrid type: sa
+    smoother type: ILUT
+    nonlinear TOL: 1.0e-8
   Postprocess: 
-    Verbosity: 0
     response type: global
     compute response: false
     compute objective: false
     write solution: false
-    verification: true
-    Compute Difference in Objective: false
-  Parameters Settings File: input_params.yaml
-  Analysis Settings File: input_fwd.yaml
+    compute errors: true
+  Parameters input file: input_params.yaml
+  Analysis input file: input_fwd.yaml
 ...

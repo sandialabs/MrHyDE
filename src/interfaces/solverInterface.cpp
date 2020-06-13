@@ -21,7 +21,7 @@ solver::solver(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::Parame
                Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
                Teuchos::RCP<AssemblyManager> & assembler_,
                Teuchos::RCP<ParameterManager> & params_) :
-Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembler_), params(params_) { 
+Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembler_), params(params_) {
   
   milo_debug_level = settings->get<int>("debug level",0);
   
@@ -32,7 +32,11 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   }
   
   soln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
-  adj_soln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
+  string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
+  if (analysis_type == "forward+adjoint" || analysis_type == "ROL" || analysis_type == "ROL_SIMOPT") {
+    save_solution = true; // default is false
+  }
+  //adj_soln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
   
   // Get the required information from the settings
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
@@ -45,26 +49,26 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   //  numsteps = std::ceil((final_time - initial_time)/deltat);
   }
   else {
-    int numTimesteps = settings->sublist("Solver").get<int>("numSteps",1);
+    int numTimesteps = settings->sublist("Solver").get<int>("number of steps",1);
     deltat = (final_time - initial_time)/numTimesteps;
   }
   verbosity = settings->get<int>("verbosity",0);
   usestrongDBCs = settings->sublist("Solver").get<bool>("use strong DBCs",true);
-  use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("Use Measurements as DBCs", false);
+  use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("use measurements as DBCs", false);
   solver_type = settings->sublist("Solver").get<string>("solver","none"); // or "transient"
-  allow_remesh = settings->sublist("Solver").get<bool>("Remesh",false);
+  allow_remesh = settings->sublist("Solver").get<bool>("remesh",false);
   time_order = settings->sublist("Solver").get<int>("time order",1);
-  NLtol = settings->sublist("Solver").get<ScalarT>("NLtol",1.0E-6);
-  MaxNLiter = settings->sublist("Solver").get<int>("MaxNLiter",10);
-  NLsolver = settings->sublist("Solver").get<string>("Nonlinear Solver","Newton");
+  NLtol = settings->sublist("Solver").get<ScalarT>("nonlinear TOL",1.0E-6);
+  MaxNLiter = settings->sublist("Solver").get<int>("max nonlinear iters",10);
+  NLsolver = settings->sublist("Solver").get<string>("nonlinear solver","Newton");
   
-  ButcherTab = settings->sublist("Solver").get<string>("Transient Butcher Tableau","BWE");
-  BDForder = settings->sublist("Solver").get<int>("Transient BDF order",1);
+  ButcherTab = settings->sublist("Solver").get<string>("transient Butcher tableau","BWE");
+  BDForder = settings->sublist("Solver").get<int>("transient BDF order",1);
   
   // Additional parameters for higher-order BDF methods that require some startup procedure
-  startupButcherTab = settings->sublist("Solver").get<string>("Transient Startup Butcher Tableau",ButcherTab);
-  startupBDForder = settings->sublist("Solver").get<int>("Transient Startup BDF order",BDForder);
-  startupSteps = settings->sublist("Solver").get<int>("Transient Startup Steps",BDForder);
+  startupButcherTab = settings->sublist("Solver").get<string>("transient startup Butcher tableau",ButcherTab);
+  startupBDForder = settings->sublist("Solver").get<int>("transient startup BDF order",BDForder);
+  startupSteps = settings->sublist("Solver").get<int>("transient startup steps",BDForder);
   
   line_search = false;//settings->sublist("Solver").get<bool>("Use Line Search","false");
   store_adjPrev = false;
@@ -75,19 +79,6 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   if (!isTransient) {
     deltat = 1.0;
   }
-
-  /*
-  solvetimes.push_back(current_time);
-  
-  if (isTransient) {
-    ScalarT deltat = final_time / numsteps;
-    ScalarT ctime = current_time; // local current time
-    for (int timeiter = 0; timeiter < numsteps; timeiter++) {
-      ctime += deltat;
-      solvetimes.push_back(ctime);
-    }
-  }
-  */
   
   response_type = settings->sublist("Postprocess").get("response type", "pointwise"); // or "global"
   compute_objective = settings->sublist("Postprocess").get("compute objective",false);
@@ -95,9 +86,9 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   compute_aux_sensitivity = settings->sublist("Solver").get("compute aux sensitivities",false);
   compute_flux = settings->sublist("Solver").get("compute flux",false);
   
-  initial_type = settings->sublist("Solver").get<string>("Initial type","L2-projection");
-  multigrid_type = settings->sublist("Solver").get<string>("Multigrid type","sa");
-  smoother_type = settings->sublist("Solver").get<string>("Smoother type","CHEBYSHEV"); // or RELAXATION
+  initial_type = settings->sublist("Solver").get<string>("initial type","L2-projection");
+  multigrid_type = settings->sublist("Solver").get<string>("multigrid type","sa");
+  smoother_type = settings->sublist("Solver").get<string>("smoother type","CHEBYSHEV"); // or RELAXATION
   useLinearSolver = settings->sublist("Solver").get<bool>("use linear solver",true);
   lintol = settings->sublist("Solver").get<ScalarT>("lintol",1.0E-7);
   liniter = settings->sublist("Solver").get<int>("liniter",100);
@@ -118,16 +109,6 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   vector<vector<string> > phys_varlist = phys->varlist;
   //offsets = phys->offsets;
   
-  // Set up the time integrator
-  string timeinttype = settings->sublist("Solver").get<string>("Time integrator","RK");
-  string timeintmethod = settings->sublist("Solver").get<string>("Time method","Implicit");
-  int timeintorder = settings->sublist("Solver").get<int>("Time order",1);
-  bool timeintstagger = settings->sublist("Solver").get<bool>("Stagger solutions",true);
-
-  //if (timeinttype == "RK") {
-  //  timeInt = Teuchos::rcp(new RungeKutta(timeintmethod,timeintorder,timeintstagger));
-  //}
-  
   // needed information from the DOF manager
   DOF->getOwnedIndices(LA_owned);
   numUnknowns = (LO)LA_owned.size();
@@ -137,29 +118,6 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   
   DOF->getOwnedIndices(owned);
   DOF->getOwnedAndGhostedIndices(ownedAndShared);
-  
-  //int nstages = 1;//timeInt->num_stages;
-  //bool sol_staggered = true;//timeInt->sol_staggered;
-  /*
-  LA_owned = vector(numUnknowns);
-  LA_ownedAndShared = vector(numUnknownsOS);
-  for (size_t i=0; i<numUnknowns; i++) {
-    LA_owned[i] = owned[i];
-  }
-  for (size_t i=0; i<numUnknownsOS; i++) {
-    LA_ownedAndShared[i] = ownedAndShared[i];
-  }
-   */
-  //for (size_t i=0; i<numUnknowns; i++) {
-    //for (int s=0; s<nstages; s++) {
-    //  LA_owned[i*(nstages)+s] = owned[i]*nstages+s;
-    //}
-  //}
-  //for (size_t i=0; i<numUnknownsOS; i++) {
-  //  for (int s=0; s<nstages; s++) {
-  //    LA_ownedAndShared[i*(nstages)+s] = ownedAndShared[i]*nstages+s;
-  //  }
-  //}
   
   globalNumUnknowns = 0;
   Teuchos::reduceAll<LO,GO>(*Comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
@@ -238,10 +196,14 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   phys->setWorkset(assembler->wkset);
   params->wkset = assembler->wkset;
   
-  if (settings->sublist("Mesh").get<bool>("Have Element Data", false) ||
-      settings->sublist("Mesh").get<bool>("Have Nodal Data", false)) {
+  if (settings->sublist("Mesh").get<bool>("have element data", false) ||
+      settings->sublist("Mesh").get<bool>("have nodal data", false)) {
     mesh->readMeshData(LA_overlapped_map, assembler->cells);
   }
+  
+  /////////////////////////////////////////////////////////////////////////////
+  
+  this->setBatchID(Comm->getRank());
   
   /////////////////////////////////////////////////////////////////////////////
   
@@ -656,7 +618,6 @@ void solver::forwardModel(DFAD & obj) {
   params->sacadoizeParams(false);
   
   vector_RCP u = this->setInitial();
- 
    
   if (solver_type == "transient") {
     soln->store(u, current_time, 0); // copies the data
@@ -669,7 +630,10 @@ void solver::forwardModel(DFAD & obj) {
     if (compute_objective) {
       obj = this->computeObjective(u, 0.0, 0);
     }
-    soln->store(u, current_time, 0);
+    postproc->record(current_time);
+    if (save_solution) {
+      soln->store(u, current_time, 0);
+    }
   }
   else if (solver_type == "transient") {
     vector<ScalarT> gradient; // not really used here
@@ -683,53 +647,6 @@ void solver::forwardModel(DFAD & obj) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished solver::forwardModel" << endl;
     }
-  }
-}
-
-// ========================================================================================
-/* given the parameters, solve the fractional forward  problem */
-// ========================================================================================
-
-void solver::forwardModel_fr(DFAD & obj, ScalarT yt, ScalarT st) {
-  
-  current_time = initial_time;
-  
-  useadjoint = false;
-  assembler->wkset[0]->y = yt;
-  assembler->wkset[0]->s = st;
-  params->sacadoizeParams(false);
-  
-  // Set the initial condition
-  //isInitial = true;
-  
-  vector_RCP u = this->setInitial(); // TMW: this will be deprecated soon
-  if (solver_type == "transient") {
-    soln->store(u, current_time, 0);
-  }
-  vector_RCP I_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
-  //int numsols = 1;
-  //if (solver_type == "transient") {
-  //  numsols = numsteps+1;
-  //}
-  
-  //vector_RCP F_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,numsols)); // empty solution
-  //vector_RCP F_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
-  vector_RCP zero_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
-  
-  if (solver_type == "steady-state") {
-    this->nonlinearSolver(u, zero_soln);
-    soln->store(u, current_time, 0);
-    if (compute_objective) {
-      obj = this->computeObjective(u, 0.0, 0);
-    }
-    
-  }
-  else if (solver_type == "transient") {
-    vector<ScalarT> gradient; // not really used here
-    this->transientSolver(u, obj, gradient, initial_time, final_time);
-  }
-  else {
-    // print out an error message
   }
 }
 
@@ -796,53 +713,21 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     }
   }
   
-  //ScalarT deltat = 0.0;
-  ScalarT alpha = 0.0;
-  ScalarT beta = 1.0;
-  //deltat = final_time / numsteps;
-  if (time_order == 1){
-    alpha = 1./deltat;
-  }
-  else if (time_order == 2) {
-    alpha = 3.0/2.0/deltat;
-  }
-  else {
-    alpha = 0.0; // would be better to print out an error message
-  }
-  
-  // Set up a global mass matrix (possibly mass-lumped)
-  /*
-  vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // reset residual
-  matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));
-  vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-  matrix_RCP mass_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
-  
-  
-  if (!timeImplicit) {
-    assembler->setInitial(rhs, mass_over, false, false);
-    assembler->pointConstraints(mass_over, rhs, current_time, true, false);
-    //KokkosTools::print(mass_over);
-    mass->setAllToScalar(0.0);
-    mass->doExport(*mass_over, *exporter, Tpetra::ADD);
-    mass->fillComplete();
-    vector_RCP temp_rhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
-    vector_RCP temp_sol = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
-    
-    this->setupMassSolver(mass, temp_rhs, temp_sol);
-  }
-  */
-  
   current_time = start_time;
   if (!useadjoint) { // forward solve - adaptive time stepping
     is_final_time = false;
     vector_RCP u = initial;
     vector_RCP zero_vec = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
     zero_vec->putScalar(0.0);
+    
     if (usestrongDBCs) {
       this->setDirichlet(u);
     }
-    
-    assembler->performGather(0,u,0,0);
+    for (size_t b=0; b<blocknames.size(); b++) {
+      assembler->performGather(b,u,0,0);
+    }
+    postproc->record(current_time);
+        
     for (int s=0; s<numsteps; s++) {
       assembler->resetPrevSoln();
     }
@@ -859,11 +744,6 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         this->setButcherTableau(ButcherTab);
       }
       numstages = assembler->wkset[0]->butcher_A.extent(0);
-      
-      // Hard coded to one block for testing
-      // Make sure last step solution is gathered
-      // Last set of values is from a stage solution, which is potentially different
-      assembler->performGather(0,u,0,0);
       
       // Increment the previous step solutions (shift history and moves u into first spot)
       assembler->resetPrevSoln(); //
@@ -903,8 +783,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         vector_RCP u_stage = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
         // Set the initial guess for stage solution
         u_stage->update(1.0,*u,0.0);
-        //KokkosTools::print(u, "printing u after update");
-        //KokkosTools::print(u_stage, "printing ustage after update");
+        
         assembler->updateStageNumber(stage); // could probably just += 1 in wksets
         
         status = this->nonlinearSolver(u_stage, zero_vec);
@@ -916,20 +795,27 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
       
       if (status == 0) { // NL solver converged
         current_time += deltat;
-        soln->store(u, current_time, 0);
+        
+        //soln->store(u, current_time, 0);
+        
+        // Make sure last step solution is gathered
+        // Last set of values is from a stage solution, which is potentially different
+        for (size_t b=0; b<blocknames.size(); b++) {
+          assembler->performGather(b,u,0,0);
+        }
         
         if (compute_objective) { // fill in the objective function
           DFAD cobj = this->computeObjective(u, current_time, soln->times[0].size()-1);
           obj += cobj;
         }
+        postproc->record(current_time);
+        if (save_solution) {
+          soln->store(u, current_time, 0);
+        }
         stepProg += 1;
       }
       else { // something went wrong, cut time step and try again
-        //soln->store(u, current_time, 0);
-        
-        //current_time -= deltat;
         deltat *= 0.5;
-        //current_time += deltat;
         numCuts += 1;
         
         bool fnd = soln->extract(u, current_time);
@@ -971,7 +857,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
       // Also, need to implement checkpoint/recovery
       bool fndu = soln->extract(u, cindex);
       bool fndup = soln->extract(u_prev, cindex-1);
-      for (size_t b=0; b<assembler->blocknames.size(); b++) {
+      for (size_t b=0; b<blocknames.size(); b++) {
         assembler->performGather(b,u_prev,0,0);
         assembler->resetPrevSoln();
       }
@@ -979,12 +865,6 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
       current_time = soln->times[0][cindex-1];
       
       int status = this->nonlinearSolver(u, phi);
-      
-      //current_time = soln->times[0][cindex];
-      
-      // Storing the adjoint solution should be made optional
-      // We are computing the sensitivities as we go, so storage isn't always necessary
-      adj_soln->store(phi,current_time,0);
       
       this->computeSensitivities(u,phi,gradient);
       
@@ -1117,7 +997,8 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
   
   if(Comm->getRank() == 0) {
     if (!useadjoint) {
-      if( (NLiter>MaxNLiter || NLerr_scaled[0]>NLtol) && verbosity > 1) {
+      //if( (NLiter>MaxNLiter || NLerr_scaled[0]>NLtol) && verbosity > 1) {
+      if( (NLiter>MaxNLiter) && verbosity > 1) {
         status = 1;
         cout << endl << endl << "********************" << endl;
         cout << endl << "SOLVER FAILED TO CONVERGE CONVERGED in " << NLiter
@@ -1133,108 +1014,6 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
   }
   return status;
 }
-
-// ========================================================================================
-// ========================================================================================
-
-int solver::explicitRKTimeSolver(vector_RCP & u, vector_RCP & phi, matrix_RCP & mass) {
-  
-  if (milo_debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "******** Starting solver::explicitRKTimeSolver ..." << endl;
-      cout << "******** Current time = " << current_time << endl;
-    }
-  }
-  
-  int status = 0;
-  
-  /*
-  size_t numStages = butcher_A.extent(0);
-  std::vector<vector_RCP> stages;
-  std::vector<vector_RCP> stageres;
-  ScalarT alpha = 1.0, beta = 0.0;
-  
-  ScalarT prevtime = current_time;
-  for (size_t s=0; s<numStages; s++) {
-    
-    if (milo_debug_level > 1) {
-      if (Comm->getRank() == 0) {
-        cout << "******** Starting stage: " << s << endl;
-      }
-    }
-    
-    // set the current time
-    ScalarT stage_time = prevtime + deltat*butcher_c(s);
-    current_time = stage_time;
-    // set the stage solution
-    vector_RCP u_s = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    u_s->update(1.0, *u, 0.0);
-    if (s>0) {
-      for (size_t t=0; t<s-1; t++) {
-        double scale = deltat*butcher_A(s,t);
-        u_s->update(scale, *(stages[t]), 1.0);
-      }
-    }
-    if (usestrongDBCs) {
-      this->setDirichlet(u_s);
-    }
-    stages.push_back(u_s);
-    
-    vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
-    vector_RCP mwres = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
-    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    vector_RCP mwres_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
-    
-    // *********************** COMPUTE THE RESIDUAL **************************
-    
-    bool build_jacobian = false;
-    
-    res_over->putScalar(0.0);
-    J_over->setAllToScalar(0.0);
-    bool store_adjPrev = false;
-    
-    assembler->assembleJacRes(u_s, phi, build_jacobian, false, false,
-                              res_over, J_over, isTransient, stage_time, useadjoint, store_adjPrev,
-                              params->num_active_params, params->Psol[0], is_final_time, deltat);
-    
-    // Add mass matrix inversion here
-    res->putScalar(0.0);
-    res->doExport(*res_over, *exporter, Tpetra::ADD);
-    massProblem->setLHS(mwres);
-    massProblem->setRHS(res);
-    massProblem->setProblem();
-    
-    massSolver->solve();
-    //this->linearSolver(mass, res, mwres);
-    
-    mwres_over->doImport(*mwres, *importer, Tpetra::ADD);
-    
-    
-    stageres.push_back(mwres_over);
-    
-    if (milo_debug_level > 1) {
-      if (Comm->getRank() == 0) {
-        KokkosTools::print(mwres_over);
-        cout << "******** Finished stage: " << s << endl;
-      }
-    }
-    
-  }
-  for (size_t s=0; s<numStages; s++) {
-    double scale = 1.0*deltat*butcher_b(s);
-    u->update(scale, *(stageres[s]), 1.0);
-  }
-  current_time = prevtime + deltat;
-  if (milo_debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "******** Finished solver::explicitRKTimeSolver" << endl;
-    }
-  }
-  */
-  return status;
-}
-
 
 // ========================================================================================
 // ========================================================================================
@@ -1746,43 +1525,6 @@ void solver::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
     solver->solve();
   }
 }
-
-
-/*
-void solver::setupMassSolver(matrix_RCP & mass, vector_RCP & r, vector_RCP & soln)  {
-  
-  massProblem = Teuchos::rcp(new LA_LinearProblem(mass, soln, r));
-  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > Mmass = buildPreconditioner(mass);
-  
-  massProblem->setLeftPrec(Mmass);
-  massProblem->setProblem();
-  
-  Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList());
-  belosList->set("Maximum Iterations",    kspace); // Maximum number of iterations allowed
-  belosList->set("Convergence Tolerance", lintol);    // Relative convergence tolerance requested
-  if (verbosity > 9) {
-    belosList->set("Verbosity", Belos::Errors + Belos::Warnings + Belos::StatusTestDetails);
-  }
-  else {
-    belosList->set("Verbosity", Belos::Errors);
-  }
-  if (verbosity > 8) {
-    belosList->set("Output Frequency",10);
-  }
-  else {
-    belosList->set("Output Frequency",0);
-  }
-  int numEqns = 1;
-  if (assembler->cells.size() == 1) {
-    numEqns = numVars[0];
-  }
-  belosList->set("number of equations",numEqns);
-  
-  belosList->set("Output Style",          Belos::Brief);
-  belosList->set("Implicit Residual Scaling", "None");
-  
-  massSolver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT, LA_MultiVector, LA_Operator>(massProblem, belosList));
-}*/
 
 // ========================================================================================
 // Preconditioner for Tpetra stack

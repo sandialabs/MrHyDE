@@ -17,7 +17,7 @@ ANONYMOUS:
     Periodic Boundaries: ''
   Physics: 
     eblock-0_0_0: 
-      solve_maxwells_freq_pot: true
+      modules: maxwells_freq_pot
       Dirichlet conditions:
         Arx:
           all boundaries: '0.0'
@@ -35,7 +35,7 @@ ANONYMOUS:
           all boundaries: '0.0'
         phii:
           all boundaries: '0.0'
-      true solutions:
+      True solutions:
         Arx: sin(pi*x)*sin(pi*y)*sin(pi*z)
         Aix: sin(pi*x)*sin(pi*y)*sin(pi*z)
         Ary: -1.0*sin(pi*x)*sin(pi*y)*sin(pi*z)
@@ -58,25 +58,20 @@ ANONYMOUS:
         phii: 1
       quadrature: 2
   Solver:
-    Verbosity: 0
     solver: steady-state
-    NLtol: 9.99999999999999980e-13
-    finaltime: 1.00000000000000000e+00
-    numSteps: 1
-    MaxNLiter: 10
-    lintol: 9.99999999999999955e-08
-    liniter: 2500
+    nonlinear TOL: 9.99999999999999980e-13
+    max nonlinear iters: 10
+    linear TOL: 1.0e-08
+    max linear iters: 2500
     krylov vectors: 2500
     use dom decomp: true
   Postprocess: 
     response type: global
-    Verbosity: 0
     compute response: false
     compute objective: false
-    verification: true
-    Compute Difference in Objective: false
+    compute errors: true
     compute sensitivities: false
     write solution: false
-  Parameters Settings File: input_params.yaml
-  Analysis Settings File: input_fwd.yaml
+  Parameters input file: input_params.yaml
+  Analysis input file: input_fwd.yaml
 ...

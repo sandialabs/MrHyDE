@@ -58,72 +58,15 @@ void analysis::run() {
   if (analysis_type == "forward") {
     
     solve->forwardModel(objfun);
-    
-    if (settings->sublist("Postprocess").get("compute response",false))
-    postproc->computeResponse();
-    
-    //if (settings->sublist("Postprocess").get("compute objective",false))
-    //  AD objfun = postproc->computeObjective(F_soln);
-    if (settings->sublist("Postprocess").get("verification",false))
-    postproc->computeError();
-    if (settings->sublist("Postprocess").get("write solution",true))
-    postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
-    
-    
-  }
-  else if (analysis_type == "forward_fr") {
-    ScalarT s = settings->sublist("Physics").get<ScalarT>("frac_exp",0.2);
-    //      ScalarT s = 0.2;
-    
-    //      ScalarT s = 0.2;
-    ScalarT N = 100;
-    ScalarT h = 1/(sqrt(N));
-    ScalarT k = 1/(log(1/h));
-    ScalarT pi = 3.14159265359;
-    
-    int Nplus = (int) ceil(pi*pi/(4*s*k*k));
-    int Nminus = (int) ceil(pi*pi/(4*(1-s)*k*k));
-    
-    solve->forwardModel(objfun);
-    // TMW : this needs to be rewritten
-    /*
-    for (int ell = -Nminus; ell < Nplus; ell++) {
-      ScalarT y = k*ell;
-      //	vector_RCP F_soln_inter = solve->forwardModel(objfun);
-      vector_RCP F_soln_inter = solve->forwardModel_fr(objfun,y,s);
-      F_soln->update(1.0,*F_soln_inter, 1.0);
-    }
-     */
-    if (settings->sublist("Postprocess").get("compute response",false))
-    postproc->computeResponse();
-    
-    //if (settings->sublist("Postprocess").get("compute objective",false))
-    //  AD objfun = postproc->computeObjective(F_soln);
-    if (settings->sublist("Postprocess").get("verification",false))
-    postproc->computeError();
-    if (settings->sublist("Postprocess").get("write solution",true))
-    postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
+    postproc->report();
     
   }
   else if (analysis_type == "forward+adjoint") {
     solve->forwardModel(objfun);
-    if (settings->sublist("Postprocess").get<bool>("compute response",false))
-      postproc->computeResponse();
-    
-    //if (settings->sublist("Postprocess").get("compute objective",false))
-    //  AD objfun = postproc->computeObjective(F_soln);
-    if (settings->sublist("Postprocess").get<bool>("verification",false))
-      postproc->computeError();
+    postproc->report();
     
     solve->adjointModel(gradient);
-    //if (settings->sublist("Postprocess").get<bool>("compute sensitivities",false))
-    //  gradient = postproc->computeSensitivities(F_soln, A_soln);
     
-    if (settings->sublist("Postprocess").get("write solution",true)) {
-      postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
-      // TMW: commented for now
-      //postproc->writeSolution(settings->sublist("Postprocess").get<string>("Adjoint Output File","adj_output"));
-    }
   }
   else if (analysis_type == "dakota") {
     // placeholder for embedded dakota analysis
@@ -215,19 +158,19 @@ void analysis::run() {
     
     // Generate the samples for the UQ
     int numstochparams = param_types.size();
-    int numsamples = uqsettings.get<int>("Samples",100);
-    int maxsamples = uqsettings.get<int>("Max samples",numsamples); // needed for generating subsets of samples
-    int seed = uqsettings.get<int>("Seed",1234);
+    int numsamples = uqsettings.get<int>("samples",100);
+    int maxsamples = uqsettings.get<int>("max samples",numsamples); // needed for generating subsets of samples
+    int seed = uqsettings.get<int>("seed",1234);
     Kokkos::View<ScalarT**,HostDevice> samplepts = uq.generateSamples(maxsamples, seed);
     Kokkos::View<int*,HostDevice> sampleints = uq.generateIntegerSamples(maxsamples, seed);
-    bool regenerate_meshdata = uqsettings.get<bool>("Regenerate mesh data",false);
+    bool regenerate_meshdata = uqsettings.get<bool>("regenerate mesh data",false);
     // Evaluate MILO or a surrogate at these samples
     vector<Kokkos::View<ScalarT***,HostDevice> > response_values;
     vector<Kokkos::View<ScalarT****,HostDevice> > response_grads;
     Teuchos::RCP<const LA_Map> emap = solve->LA_overlapped_map;
     vector_RCP avgsoln = Teuchos::rcp(new LA_MultiVector(emap, 2));
-    int output_freq = uqsettings.get<int>("Output Frequency",1);
-    if (uqsettings.get<bool>("Use Surrogate",false)) {
+    int output_freq = uqsettings.get<int>("output frequency",1);
+    if (uqsettings.get<bool>("use surrogate",false)) {
       
     }
     else {
@@ -251,6 +194,7 @@ void analysis::run() {
          string str = ss.str();
          postproc->writeSolution(F_soln, "sampling_data/outputMC_" + str + "_.exo");
          }*/
+        /*
         if (settings->sublist("Postprocess").get<bool>("compute response",false)) {
           Kokkos::View<ScalarT***,HostDevice> currresponse = postproc->computeResponse(0);
           for (size_t i=0; i<currresponse.extent(0); i++) {
@@ -296,7 +240,7 @@ void analysis::run() {
             }
             response_grads.push_back(currgrad);
           }
-        }
+        }*/
         if (Comm->getRank() == 0 && j%output_freq == 0) {
           cout << "Finished evaluating sample number: " << j+1 << " out of " << numsamples << endl;
         }
@@ -559,7 +503,7 @@ void analysis::run() {
     if (settings->sublist("Analysis").get("Write Output",false)) {
       DFAD val = 0.0;
       solve->forwardModel(val);
-      postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
+      //postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
     }
   } //ROL
   else if (analysis_type == "ROL_SIMOPT") {
@@ -763,12 +707,12 @@ void analysis::run() {
     if (settings->sublist("Analysis").get("Write Output",false)) {
       DFAD val = 0.0;
       solve->forwardModel(val);
-      postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
+      //postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
     }
   } //ROL_SIMOPT
   else { // don't solve anything, but produce visualization
-    if (settings->sublist("Postprocess").get("write solution",true))
-    postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
+    //if (settings->sublist("Postprocess").get("write solution",true))
+    //postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
     
   }
   

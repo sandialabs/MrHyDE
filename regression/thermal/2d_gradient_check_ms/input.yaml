@@ -3,14 +3,13 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  Mesh Settings File: input_mesh.yaml
+  Mesh input file: input_mesh.yaml
   Physics: 
-    solve_thermal: true
+    modules: thermal
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
-    simulation_number: 111
-    form_param: 1.00000000000000000e+00
+    form_param: 1.0
     Responses:
       resp: 'e'
     Targets:
@@ -24,42 +23,33 @@ ANONYMOUS:
       dim: 2
       blocknames: eblock
     Physics: 
-      solve_thermal: true
+      modules: thermal
       Responses:
         resp: 'e'
       Targets:
         targ: sin(pi*x)*sin(pi*y)
       Weights:
         wt: '1.0'
-      simulation_number: 111
-      form_param: 1.00000000000000000e+00
+      form_param: 1.0
     Solver: 
       solver: steady-state
-      Verbosity: 0
-      NLtol: 9.99999999999999980e-13
-      MaxNLiter: 4
     Discretization:
       order:
         e: 1
       quadrature: 2
     Functions:
       thermal source: thermal_source(0)*2.0*pi*pi*sin(pi*x)*sin(pi*y)
-  Parameters Settings File: input_params.yaml
+  Parameters input file: input_params.yaml
   Discretization:
     order:
       e: 1
     quadrature: 2
-  Analysis Settings File: input_rol2.yaml
+  Analysis input file: input_rol2.yaml
   Solver: 
     solver: steady-state
-    NLtol: 9.99999999999999955e-07
-    MaxNLiter: 4
-    finaltime: 1.00000000000000000e+00
-    numSteps: 10
-    Use Mortar Objective: false
   Postprocess: 
     response type: global
-    verification: false
+    compute errors: false
     compute response: false
     compute objective: true
     compute sensitivities: true

@@ -3,12 +3,12 @@
 ANONYMOUS:
   Analysis: 
     analysis type: ROL
-    Have Sensor Points: true
-    Have Sensor Data: true
-    Save Sensor Data: false
-    Move Sensors to IP: false
-    Use Line Search: false
-    Write Output: false
+    have sensor points: true
+    have sensor data: true
+    save sensor data: false
+    move sensors to IP: false
+    use line search: false
+    write output: false
     ROL: 
       General: 
         Variable Objective Function: false

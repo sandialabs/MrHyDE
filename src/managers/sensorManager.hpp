@@ -39,7 +39,7 @@ public:
     have_sensor_points = false;
     numSensors = 0;
     
-    if (settings->sublist("Mesh").get<bool>("Have Element Data", false)) {
+    if (settings->sublist("Mesh").get<bool>("have element data", false)) {
       
       for (size_t i=0; i<assembler->cells[0].size(); i++) {
         vector<Kokkos::View<ScalarT**,HostDevice> > sensorLocations;
@@ -96,25 +96,25 @@ public:
       }
     }
     else {
-      if (settings->sublist("Analysis").get("Have Sensor Data",false)) {
-        data sdata("Sensor Measurements", spaceDim, settings->sublist("Analysis").get("Sensor Location File","sensor_points.dat"), settings->sublist("Analysis").get("Sensor Prefix","sensor"));
+      if (settings->sublist("Analysis").get("have sensor data",false)) {
+        data sdata("Sensor Measurements", spaceDim, settings->sublist("Analysis").get("sensor location file","sensor_points.dat"), settings->sublist("Analysis").get("sensor prefix","sensor"));
         sensor_data = sdata.getdata();
         sensor_points = sdata.getpoints();
         numSensors = sensor_points.extent(0);
         have_sensor_data = true;
         have_sensor_points = true;
       }
-      else if (settings->sublist("Analysis").get("Have Sensor Points",false)) {
-        data sdata("Sensor Points", spaceDim, settings->sublist("Analysis").get("Sensor Location File","sensor_points.dat"));
+      else if (settings->sublist("Analysis").get("have sensor points",false)) {
+        data sdata("Sensor Points", spaceDim, settings->sublist("Analysis").get("sensor location file","sensor_points.dat"));
         sensor_points = sdata.getpoints();
         numSensors = sensor_points.extent(0);
         have_sensor_data = false;
         have_sensor_points = true;
       }
       
-      if (settings->sublist("Analysis").get("Have Sensor Points",false)) {
+      if (settings->sublist("Analysis").get("have sensor points",false)) {
         //sensor_locations = FCint(sensor_points.extent(0),2);
-        ScalarT sensor_loc_tol = settings->sublist("Analysis").get("Sensor location tol",1.0E-6);
+        ScalarT sensor_loc_tol = settings->sublist("Analysis").get("sensor location TOL",1.0E-6);
         for (size_t b=0; b<assembler->cells.size(); b++) {
           for (size_t j=0; j<assembler->cells[b].size(); j++) {
             assembler->cells[b][j]->addSensors(sensor_points, sensor_loc_tol, sensor_data, have_sensor_data, disc, disc->basis_pointers[b], params->discretized_param_basis);

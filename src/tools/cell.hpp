@@ -182,15 +182,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
     
   Kokkos::View<ScalarT***,AssemblyDevice> getMass();
-  
-  ///////////////////////////////////////////////////////////////////////////////////////
-  // Compute the error at the integration points given the solution and solve times
-  ///////////////////////////////////////////////////////////////////////////////////////
-
-  Kokkos::View<ScalarT***,AssemblyDevice> computeError(const ScalarT & solvetime, const size_t & tindex,
-                                                      //const bool compute_subgrid,
-                                                      const vector<string> & error_type);
-
+    
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the response at a given set of points and time
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -203,8 +195,8 @@ public:
   // Compute the response at the integration points given the solution and solve times
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  Kokkos::View<AD***,AssemblyDevice> computeResponse(const ScalarT & solvetime,
-                                                     const size_t & tindex,
+  Kokkos::View<AD***,AssemblyDevice> computeResponse(//const ScalarT & solvetime,
+                                                     //const size_t & tindex,
                                                      const int & seedwhat);
   
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -308,6 +300,12 @@ public:
 
   void resetAdjPrev(const ScalarT & val);
 
+  
+  ///////////////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
+  void computeSolAvg();
+
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -331,8 +329,9 @@ public:
   size_t numElem;
   DRV ip, wts, jacobian, jacobianInv, jacobianDet;
   Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
-  Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param;
-  Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage;
+  Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param; // (elem,var,numdof)
+  Kokkos::View<ScalarT***,AssemblyDevice> u_avg; // (elem,var,dim)
+  Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
   //Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
   
   // Aux variable Information
@@ -367,6 +366,7 @@ public:
   Teuchos::RCP<Teuchos::Time> cellFluxWksetTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeFlux - update wkset");
   Teuchos::RCP<Teuchos::Time> cellFluxAuxTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeFlux - compute aux solution");
   Teuchos::RCP<Teuchos::Time> cellFluxEvalTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeFlux - physics evaluation");
+  Teuchos::RCP<Teuchos::Time> computeSolAvgTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeSolAvg()");
   
   
 };

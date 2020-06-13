@@ -6,19 +6,19 @@ ANONYMOUS:
   Mesh: 
     blocknames: eblock_0-0-0
     dim: 3
-    Source: Exodus
-    Mesh_File: cube.g
+    source: Exodus
+    mesh file: cube.g
     shape: hex
   Physics: 
-    solve_linearelasticity: true
+    modules: linearelasticity
     dx_point_DBCs: xfix
     dy_point_DBCs: yfix
     dz_point_DBCs: zfix
-    initial conditions:
+    Initial conditions:
       dx: '0.0'
       dy: '0.0'
       dz: '0.0'
-    true solutions:
+    True solutions:
       dx: '-0.25*x'
       dy: 'y'
       dz: '-0.25*z'
@@ -40,19 +40,14 @@ ANONYMOUS:
         dz: 1
       quadrature: 2
   Solver:
-    Verbosity: 0
     solver: steady-state
-    NLtol: 9.99999999999999955e-07
-    finaltime: 1.00000000000000000e+00
-    numSteps: 100
   Postprocess: 
     response type: pointwise
     compute response: false
-    Verbosity: 0
-    verification: true
+    compute errors: true
     write solution: false
-  Parameters Settings File: input_params.yaml
-  Analysis Settings File: input_fwd.yaml
+  Parameters input file: input_params.yaml
+  Analysis input file: input_fwd.yaml
   Functions:
     lambda: '2.0'
     mu: '2.0'

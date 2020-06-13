@@ -22,6 +22,7 @@
 #include "discretizationInterface.hpp"
 #include "assemblyManager.hpp"
 #include "parameterManager.hpp"
+#include "postprocessManager.hpp"
 #include "solutionStorage.hpp"
 
 // Belos
@@ -87,12 +88,6 @@ public:
   void forwardModel(DFAD & obj);
   
   // ========================================================================================
-  /* given the parameters, solve the fractional forward  problem */
-  // ========================================================================================
-  
-  void forwardModel_fr(DFAD & obj, ScalarT yt, ScalarT st);
-  
-  // ========================================================================================
   // ========================================================================================
   
   void adjointModel(vector<ScalarT> & gradient);
@@ -108,11 +103,6 @@ public:
   // ========================================================================================
   
   int nonlinearSolver(vector_RCP & u, vector_RCP & phi);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  int explicitRKTimeSolver(vector_RCP & u, vector_RCP & phi, matrix_RCP & mass);
   
   // ========================================================================================
   // ========================================================================================
@@ -177,6 +167,7 @@ public:
   Teuchos::RCP<AssemblyManager> assembler;
   Teuchos::RCP<ParameterManager> params;
   Teuchos::RCP<meshInterface>  mesh;
+  Teuchos::RCP<PostprocessManager> postproc;
   
   Teuchos::RCP<const LA_Map> LA_owned_map, LA_overlapped_map;
   Teuchos::RCP<LA_CrsGraph> LA_owned_graph, LA_overlapped_graph;
@@ -188,7 +179,7 @@ public:
   int verbosity, batchID, spaceDim, numsteps, numstages, gNLiter, milo_debug_level, MaxNLiter, time_order, liniter, kspace;
   
   size_t maxEntries;
-  bool have_preconditioner=false;
+  bool have_preconditioner=false, save_solution=false;
   
   int BDForder, startupBDForder, startupSteps;
   string ButcherTab, startupButcherTab;

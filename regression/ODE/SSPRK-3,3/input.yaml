@@ -3,39 +3,34 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  Mesh Settings File: input_mesh.yaml
-  Functions Settings File: input_functions.yaml
+  Mesh input file: input_mesh.yaml
+  Functions input file: input_functions.yaml
   Physics: 
-    solve_ODE: true
-    initial conditions:
+    modules: ODE
+    Initial conditions:
       q: '1.0'
-    true solutions:
+    True solutions:
       q: 1.0*exp(-1.0*t)
   Discretization:
     order:
       q: 1
     quadrature: 1
-  Parameters Settings File: input_params.yaml
+  Parameters input file: input_params.yaml
   Solver: 
     solver: transient
-    Transient BDF order: 1
-    Transient Butcher Tableau: SSPRK-3,3
-    Workset size: 1
-    Verbosity: 0
-    NLtol: 9.99999999999999955e-07
-    MaxNLiter: 2
+    transient BDF order: 1
+    transient Butcher tableau: SSPRK-3,3
+    workset size: 1
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 2
     final time: 1.0
-    numSteps: 10
+    number of steps: 10
     use direct solver: true
   Analysis: 
     analysis type: forward
-    Have Sensor Points: false
-    Have Sensor Data: false
   Postprocess: 
     response type: global
-    Error type: L2
-    Verbosity: 0
-    verification: true
+    compute errors: true
     compute response: false
     compute objective: false
     compute sensitivities: false

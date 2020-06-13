@@ -36,10 +36,10 @@ macro_functionManagers(macro_functionManagers_) {
     // Define the subgrid models specified in the input file
     ////////////////////////////////////////////////////////////////////////////////
     
-    int nummodels = settings->sublist("Subgrid").get<int>("Number of Models",1);
-    subgrid_static = settings->sublist("Subgrid").get<bool>("Static Subgrids",true);
-    macro_concurrency = settings->sublist("Subgrid").get<int>("Macro-element concurrency",1);
-    int numElem = settings->sublist("Solver").get<int>("Workset size",1);
+    int nummodels = settings->sublist("Subgrid").get<int>("number of models",1);
+    subgrid_static = settings->sublist("Subgrid").get<bool>("static subgrids",true);
+    macro_concurrency = settings->sublist("Subgrid").get<int>("macro-element concurrency",1);
+    int numElem = settings->sublist("Solver").get<int>("workset size",1);
     for (size_t n=0; n<subgridModels.size(); n++) {
       stringstream ss;
       ss << n;
@@ -399,7 +399,7 @@ void MultiScale::writeSolution(const string & macrofilename, const vector<Scalar
             
             stringstream ss;
             ss << globalPID << "." << e;
-            string filename = "subgrid_data/subgrid_"+macrofilename+".exo." + ss.str();// + ".exo";
+            string filename = "subgrid_data/subgrid_"+macrofilename + "." + ss.str();// + ".exo";
             //cells[b][e]->writeSubgridSolution(blockname);
             int sgmodelnum = cells[b][e]->subgrid_model_index[0];
             subgridModels[sgmodelnum]->writeSolution(filename, cells[b][e]->subgrid_usernum);

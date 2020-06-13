@@ -1,13 +1,19 @@
-p=0 | CubeHexMesh: Building sub cells
-[s1053598:66553] *** Process received signal ***
-[s1053598:66553] Signal: Segmentation fault: 11 (11)
-[s1053598:66553] Signal code:  (0)
-[s1053598:66553] Failing at address: 0x0
-[s1053598:66553] *** End of error message ***
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  /Users/tmwilde/Desktop/Software/MrHyDE/src/interfaces/userInterface.hpp:138:
+
+Throw number = 1
+
+Throw test that evaluated to true: true
+
+Error: the input.xml needs to contain either a Mesh sublist or a path to a mesh settings file!
+[s998638:34442] *** Process received signal ***
+[s998638:34442] Signal: Abort trap: 6 (6)
+[s998638:34442] Signal code:  (0)
+[s998638:34442] *** End of error message ***
 -------------------------------------------------------
 Primary job  terminated normally, but 1 process returned
 a non-zero exit code. Per user-direction, the job has been aborted.
 -------------------------------------------------------
 --------------------------------------------------------------------------
-mpiexec noticed that process rank 0 with PID 0 on node s1053598 exited on signal 11 (Segmentation fault: 11).
+mpiexec noticed that process rank 0 with PID 0 on node s998638 exited on signal 6 (Abort trap: 6).
 --------------------------------------------------------------------------

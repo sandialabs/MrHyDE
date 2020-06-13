@@ -1,6 +1,6 @@
 
 *********************************************************
-***** Performing verification ******
+***** Computing errors ******
 
 ***** L2 norm of the error for q = 0  (time = 0)
 ***** L2 norm of the error for q = 4.0847e-06  (time = 0.1)

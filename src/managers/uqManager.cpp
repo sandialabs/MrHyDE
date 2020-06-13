@@ -23,7 +23,7 @@ Comm(Comm_), uqsettings(uqsettings_), param_types(param_types_), param_means(par
 param_variances(param_variances_), param_mins(param_mins_), param_maxs(param_maxs_) {
   
   numstochparams = param_types.size();
-  surrogate = uqsettings.get<std::string>("Surrogate model","regression");
+  surrogate = uqsettings.get<std::string>("surrogate model","regression");
   evalprog = 0;
   if (surrogate == "regression") {
     
@@ -127,7 +127,7 @@ void uqmanager::generateSamples(const int & numsamples, int & seed,
 
 void uqmanager::computeStatistics(const std::vector<ScalarT> & values) {
   int numvals = values.size();
-  if (uqsettings.get<bool>("Compute mean",true)) {
+  if (uqsettings.get<bool>("compute mean",true)) {
     ScalarT meanval = 0.0;
     for (int j=0; j<numvals; j++) {
       meanval += values[j];
@@ -136,7 +136,7 @@ void uqmanager::computeStatistics(const std::vector<ScalarT> & values) {
     if (Comm.getRank() == 0 )
     cout << "Mean value of the response: " << meanval << endl;
   }
-  if (uqsettings.get<bool>("Compute variance",true)) {
+  if (uqsettings.get<bool>("compute variance",true)) {
     ScalarT meanval = 0.0;
     for (int j=0; j<numvals; j++) {
       meanval += values[j];
@@ -180,7 +180,7 @@ void uqmanager::computeStatistics(const vector<Kokkos::View<ScalarT***,HostDevic
   int dim1 = values[0].extent(1);
   int dim2 = values[0].extent(2);
   
-  if (uqsettings.get<bool>("Compute mean",true)) {
+  if (uqsettings.get<bool>("compute mean",true)) {
     
     Kokkos::View<ScalarT***,HostDevice> meanval("mean values",dim0,dim1,dim2);
     for (int j=0; j<numvals; j++) {

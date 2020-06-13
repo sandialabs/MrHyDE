@@ -1,10 +1,9 @@
 %YAML 1.1
 ---
 ANONYMOUS:
-  Mesh Settings File: input_mesh.yaml
+  Mesh input file: input_mesh.yaml
   Physics: 
-    simulation_name: channel
-    solve_stokes: true
+    modules: Stokes
     Dirichlet conditions:
       ux:
         bottom: '0.0'
@@ -12,20 +11,19 @@ ANONYMOUS:
       uy:
         bottom: '0.0'
         top: '0.0'
-    true solutions:
+    True solutions:
       ux: '0.5*y*(1.0-y)'
       uy: '0.0'
       pr: '0.0'
-  Parameters Settings File: input_params.yaml
+  Parameters input file: input_params.yaml
   Solver: 
     solver: steady-state
-    Workset Size: 1
-    Verbosity: 10
-    NLtol: 9.99999999999999955e-07
-    MaxNLiter: 2
-    finaltime: 1.00000000000000000e+00
-    numSteps: 10
-    Initial type: none
+    workset size: 1
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 2
+    final time: 1.0
+    number of steps: 10
+    initial type: none
     use direct solver: false
   Discretization:
     order:
@@ -35,12 +33,9 @@ ANONYMOUS:
     quadrature: 2
   Analysis:
     analysis type: forward
-    Have Sensor Points: false
-    Have Sensor Data: false
   Postprocess: 
     response type: global
-    Verbosity: 0
-    verification: true
+    compute errors: true
     compute response: false
     write solution: false
     compute objective: false

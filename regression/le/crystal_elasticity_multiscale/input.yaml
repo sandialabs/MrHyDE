@@ -16,8 +16,8 @@ ANONYMOUS:
     NY: 4
     NZ: 4
     blocknames: eblock-0_0_0
-    Data file: mesh_data_rotations
-    Data points file: mesh_data_pts
+    data file: mesh_data_rotations
+    data points file: mesh_data_pts
   Discretization:
     order:
       dx: 1
@@ -31,8 +31,8 @@ ANONYMOUS:
       refinements: 0
       dim: 3
       blocknames: eblock
-      Data file: mesh_data_rotations
-      Data points file: mesh_data_pts
+      data file: mesh_data_rotations
+      data points file: mesh_data_pts
     Discretization:
       order:
         dx: 1
@@ -40,8 +40,8 @@ ANONYMOUS:
         dz: 1
       quadrature: 2
     Physics:
-      Use Crystal Elasticity: true
-      solve_linearelasticity: true
+      use crystal elasticity: true
+      modules: linearelasticity
       form_param: -1.00000000000000000e+00
       Neumann conditions:
         dy:
@@ -50,18 +50,19 @@ ANONYMOUS:
           top: '0.0'
         dz:
           top: '0.0'
+      True solutions:
+        dx: '0.0'
+        dy: '0.0'
+        dz: '0.0'
     Solver: 
       solver: steady-state
-      Verbosity: 0
-      NLtol: 9.99999999999999955e-07
-      MaxNLiter: 4
       use direct solver: true
-    Parameters Settings File: input_params.yaml
+    Parameters input file: input_params.yaml
     Functions:
     Postprocess: 
   Physics:
-    Use Crystal Elasticity: false
-    solve_linearelasticity: true
+    use crystal elasticity: false
+    modules: linearelasticity
     Dirichlet conditions:
       dx:
         bottom: '0.0'
@@ -76,22 +77,19 @@ ANONYMOUS:
         top: '0.0'
       dz:
         top: '0.0'
+    True solutions:
+      dx face: '0.0'
+      dy face: '0.0'
+      dz face: '0.0'
   Solver:
-    Verbosity: 0
     solver: steady-state
-    NLtol: 9.99999999999999955e-07
-    finaltime: 1.00000000000000000e+00
-    numSteps: 100
     use strong DBCs: true
   Postprocess: 
-    Verbosity: 0
-    verification: true
+    compute errors: true
     response type: pointwise
     compute response: false
     write solution: false
-    Error type: L2-face
-    Subgrid error type: L2
-  Parameters Settings File: input_params.yaml
-  Analysis Settings File: input_fwd.yaml
+  Parameters input file: input_params.yaml
+  Analysis input file: input_fwd.yaml
   Functions:
 ...

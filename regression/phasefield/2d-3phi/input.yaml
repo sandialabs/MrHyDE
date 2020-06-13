@@ -2,20 +2,20 @@
 ---
 ANONYMOUS:
   verbosity: 0
-  Mesh Settings File: input_mesh.yaml
+  Mesh input file: input_mesh.yaml
   Physics: 
     number_phases: 3
     numdisks: 1
     disksize: 1.00000000000000000e+01
     uniform: true
     initialType: test
-    solve_msphasefield: true
+    modules: msphasefield
     e_DBCs: bottom
-    initial conditions:
+    Initial conditions:
       phi1: '1.0*(rone<12.5)'
       phi2: '1.0*(rtwo<12.5)'
       phi3: '1.0*(rthree<12.5)'
-    true solutions:
+    True solutions:
       phi1: sin(2*pi*x)*sin(2*pi*y)
       phi2: sin(2*pi*x)*sin(2*pi*y)
       phi3: sin(2*pi*x)*sin(2*pi*y)
@@ -27,21 +27,20 @@ ANONYMOUS:
     quadrature: 2
   Solver:
     solver: transient
-    Workset Size: 1
-    Initial type: interpolation
-    NLtol: 9.99999999999999955e-07
-    MaxNLiter: 10
+    workset Size: 1
+    initial type: interpolation
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 10
     final time: 5.00000000000000000e-01
     delta t: 5.00000000000000000e-01
   Postprocess: 
-    Verbosity: 0
     response type: global
     compute response: false
-    verification: true
+    compute errors: true
     compute measurements: false
     write solution: false
-  Parameters Settings File: input_params.yaml
-  Analysis Settings File: input_fwd.yaml
+  Parameters input file: input_params.yaml
+  Analysis input file: input_fwd.yaml
   Functions:
     rone: ((x-37.5)*(x-37.5) + (y-50.0)*(y-50.0))^(0.5)
     rtwo: ((x-61.5)*(x-61.5) + (y-50.0)*(y-50.0))^(0.5)

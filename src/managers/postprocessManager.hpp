@@ -21,7 +21,7 @@
 #include "assemblyManager.hpp"
 #include "parameterManager.hpp"
 #include "sensorManager.hpp"
-#include "solverInterface.hpp"
+//#include "solverInterface.hpp"
 
 using namespace std;
 
@@ -33,16 +33,26 @@ class PostprocessManager {
 public:
   
   // ========================================================================================
-  /* Constructor to set up the problem */
+  /* Minimal constructor to set up the problem */
   // ========================================================================================
   
   PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                      Teuchos::RCP<Teuchos::ParameterList> & settings,
                      Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
                      Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
-                     Teuchos::RCP<solver> & solve_, Teuchos::RCP<panzer::DOFManager> & DOF_,
-                     vector<vector<Teuchos::RCP<cell> > > cells_,
+                     vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
+                     Teuchos::RCP<AssemblyManager> & assembler_);
+  
+  // ========================================================================================
+  /* Full constructor to set up the problem */
+  // ========================================================================================
+  
+  PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
+                     Teuchos::RCP<Teuchos::ParameterList> & settings,
+                     Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                     Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                      vector<Teuchos::RCP<FunctionManager> > & functionManagers,
+                     Teuchos::RCP<MultiScale> & multiscale_manager_,
                      Teuchos::RCP<AssemblyManager> & assembler_,
                      Teuchos::RCP<ParameterManager> & params_,
                      Teuchos::RCP<SensorManager> & sensors_);
@@ -50,7 +60,22 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void computeError();
+  void setup(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void record(const ScalarT & currenttime);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  void report();
+    
+  // ========================================================================================
+  // ========================================================================================
+  
+  void computeError(const ScalarT & currenttime);
   
   // ========================================================================================
   // ========================================================================================
@@ -60,12 +85,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  Kokkos::View<ScalarT***,HostDevice> computeResponse(const int & b);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void computeResponse();
+  void computeResponse(const ScalarT & currenttime);
   
   // ========================================================================================
   // ========================================================================================
@@ -75,7 +95,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void writeSolution(const std::string & filelabel);
+  void writeSolution(const ScalarT & currenttime);
   
   // ========================================================================================
   // ========================================================================================
@@ -101,18 +121,22 @@ public:
   
   vector<ScalarT> computeDiscretizedSensitivities();
   
-protected:
+//protected:
   
   Teuchos::RCP<MpiComm> Comm;
   Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
   Teuchos::RCP<discretization> disc;
   Teuchos::RCP<physics> phys;
-  Teuchos::RCP<const panzer::DOFManager> DOF;
-  Teuchos::RCP<solver> solve;
+  //Teuchos::RCP<const panzer::DOFManager> DOF;
+  //Teuchos::RCP<solver> solve;
   Teuchos::RCP<AssemblyManager> assembler;
   Teuchos::RCP<ParameterManager> params;
   Teuchos::RCP<SensorManager> sensors;
+  Teuchos::RCP<MultiScale> multiscale_manager;
+  vector<Teuchos::RCP<FunctionManager> > functionManagers;
   
+  bool compute_response, compute_error, write_solution, write_subgrid_solution;
+  string exodus_filename;
   int spaceDim;                                                // spatial dimension
   //int numNodes;                                              // total number of nodes in the mesh
   int numNodesPerElem;                                         // nodes on each element
@@ -128,8 +152,11 @@ protected:
   ScalarT stddev;
   
   vector<string> blocknames, error_types, subgrid_error_types;
+  vector<vector<Kokkos::View<ScalarT*,AssemblyDevice> > > errors; // [time][block](error_list)
+  vector<Kokkos::View<ScalarT**,AssemblyDevice> > responses; // [time](sensors,response)
+  vector<vector<Kokkos::View<ScalarT**,AssemblyDevice> > > subgrid_errors; // extra vector for multiple subgrid models
   
-  vector<int> numVars;                                    // Number of variables used by the application (may not be used yet)
+  vector<int> numVars; // Number of variables used by the application (may not be used yet)
   int numsteps;
   vector<vector<string> > varlist;
   
@@ -140,14 +167,21 @@ protected:
   
   
   
-  Teuchos::RCP<const LA_Map> overlapped_map;
-  Teuchos::RCP<const LA_Map> param_overlapped_map;
+  //Teuchos::RCP<const LA_Map> overlapped_map;
+  //Teuchos::RCP<const LA_Map> param_overlapped_map;
   string response_type, error_type;
+  vector<ScalarT> plot_times, response_times, error_times; // probably always the same
   
-  vector<vector<Teuchos::RCP<cell> > > cells;
+  //vector<vector<Teuchos::RCP<cell> > > cells;
   int verbosity;
   
   Kokkos::View<ScalarT*,UnifiedDevice> BDF_wts_pp, BDF_wts;
+  vector<vector<pair<size_t,string> > > error_list;
+  
+  // Timers
+  Teuchos::RCP<Teuchos::Time> computeErrorTimer = Teuchos::TimeMonitor::getNewCounter("MILO::postprocess::computeError");
+  Teuchos::RCP<Teuchos::Time> writeSolutionTimer = Teuchos::TimeMonitor::getNewCounter("MILO::postprocess::writeSolution");
+  Teuchos::RCP<Teuchos::Time> writeSolutionSolIPTimer = Teuchos::TimeMonitor::getNewCounter("MILO::postprocess::writeSolution - solution to ip");
 };
 
 #endif

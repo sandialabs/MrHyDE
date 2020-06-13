@@ -5,13 +5,13 @@ ANONYMOUS:
   Mesh: 
     blocknames: eblock_0-0
     dim: 2
-    Source: Exodus
-    Mesh_File: tiny.g
+    source: Exodus
+    mesh file: tiny.g
   Physics: 
-    solve_linearelasticity: true
+    modules: linearelasticity
     dx_point_DBCs: xfix
     dy_point_DBCs: yfix
-    true solutions:
+    True solutions:
       dx: '-0.5*x'
       dy: 'y'
     Neumann conditions:
@@ -27,19 +27,14 @@ ANONYMOUS:
       dy: 1
     quadrature: 2
   Solver:
-    Verbosity: 0
     solver: steady-state
-    NLtol: 9.99999999999999955e-07
-    finaltime: 1.00000000000000000e+00
-    numSteps: 100
   Postprocess: 
     response type: pointwise
-    Verbosity: 0
     compute response: false
-    verification: true
+    compute errors: true
     write solution: false
-  Parameters Settings File: input_params.yaml
-  Analysis Settings File: input_fwd.yaml
+  Parameters input file: input_params.yaml
+  Analysis input file: input_fwd.yaml
   Functions:
     lambda: '1.0'
     mu: '0.5'

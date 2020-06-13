@@ -3,64 +3,51 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  Mesh Settings File: input_mesh.yaml
-  Functions Settings File: input_functions.yaml
+  Mesh input file: input_mesh.yaml
+  Functions input fileile: input_functions.yaml
   Physics:
-    solve_thermal: true
+    modules: thermal
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
-    true solutions:
-      e: sin(2*pi*x)*sin(2*pi*y)
+    True solutions:
+      e face: sin(2*pi*x)*sin(2*pi*y)
   Discretization:
     order:
       e: 1
     quadrature: 2
   Subgrid:
-    Subgrid Model: FEM
-    iSubgrid Model: Explicit FEM
+    subgrid model: FEM
     Mesh:
       shape: quad
       refinements: 2
       dim: 2
       blocknames: eblock
     Physics: 
-      solve_thermal: true
-      true solutions:
+      modules: thermal
+      True solutions:
         e: sin(2*pi*x)*sin(2*pi*y)
     Solver:
       solver: steady-state
-      Verbosity: 0
-      NLtol: 9.99999999999999955e-07
-      MaxNLiter: 4
       use direct solver: true
-    Functions Settings File: input_functions.yaml
+    Functions input file: input_functions.yaml
     Discretization:
       order:
         e: 1
       quadrature: 2
     Postprocess: 
       store aux and flux: false
-  Parameters Settings File: input_params.yaml
+  Parameters input file: input_params.yaml
   Solver: 
     solver: steady-state
-    Workset size: 1
-    Verbosity: 0
-    NLtol: 9.99999999999999955e-07
-    MaxNLiter: 4
-    finaltime: 1.00000000000000000e+00
-    numSteps: 10
   Analysis: 
     analysis type: forward
-    Have Sensor Points: false
-    Have Sensor Data: false
   Postprocess: 
     response type: global
-    verification: true
+    compute errors: true
     write solution: false
-    compute response: false
+    write subgrid solution: false
+    compute responses: false
     compute objective: false
     compute sensitivities: false
-    Error type: L2-face
-    Subgrid error type: L2
 ...
