@@ -95,7 +95,7 @@ public:
 private:
   
   int spaceDim;
-  FDATA source, bsource, kxx, kxy, kyx, kyy, kxz, kyz, kzx, kzy, kzz;
+  FDATA source, bsource, perm, kxx, kxy, kyx, kyy, kxz, kyz, kzx, kzy, kzz;
 
   int pintnum=-1, pbndrynum=-1, unum=-1, tnum=-1;
   int auxpintnum=-1, auxpbndrynum=-1, auxunum=-1, auxtnum=-1;

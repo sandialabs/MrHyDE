@@ -64,15 +64,16 @@ void porousHDIV_WG::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & setti
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
   functionManager->addFunction("source",fs.get<string>("source","0.0"),"ip");
-  functionManager->addFunction("kxx",fs.get<string>("kxx","1.0"),"ip");
-  functionManager->addFunction("kxy",fs.get<string>("kxy","0.0"),"ip");
-  functionManager->addFunction("kyx",fs.get<string>("kyx","0.0"),"ip");
-  functionManager->addFunction("kyy",fs.get<string>("kyy","1.0"),"ip");
-  functionManager->addFunction("kxz",fs.get<string>("kxz","0.0"),"ip");
-  functionManager->addFunction("kzx",fs.get<string>("kzx","0.0"),"ip");
-  functionManager->addFunction("kyz",fs.get<string>("kyz","0.0"),"ip");
-  functionManager->addFunction("kzy",fs.get<string>("kzy","0.0"),"ip");
-  functionManager->addFunction("kzz",fs.get<string>("kzz","1.0"),"ip");
+  functionManager->addFunction("perm",fs.get<string>("perm","1.0"),"ip");
+  //functionManager->addFunction("kxx",fs.get<string>("kxx","1.0"),"ip");
+  //functionManager->addFunction("kxy",fs.get<string>("kxy","0.0"),"ip");
+  //functionManager->addFunction("kyx",fs.get<string>("kyx","0.0"),"ip");
+  //functionManager->addFunction("kyy",fs.get<string>("kyy","1.0"),"ip");
+  //functionManager->addFunction("kxz",fs.get<string>("kxz","0.0"),"ip");
+  //functionManager->addFunction("kzx",fs.get<string>("kzx","0.0"),"ip");
+  //functionManager->addFunction("kyz",fs.get<string>("kyz","0.0"),"ip");
+  //functionManager->addFunction("kzy",fs.get<string>("kzy","0.0"),"ip");
+  //functionManager->addFunction("kzz",fs.get<string>("kzz","1.0"),"ip");
 }
 
 // ========================================================================================
@@ -90,15 +91,16 @@ void porousHDIV_WG::volumeResidual() {
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("source","ip");
-    kxx = functionManager->evaluate("kxx","ip");
-    kxy = functionManager->evaluate("kxy","ip");
-    kyx = functionManager->evaluate("kyx","ip");
-    kyy = functionManager->evaluate("kyy","ip");
-    kxy = functionManager->evaluate("kxz","ip");
-    kyz = functionManager->evaluate("kyz","ip");
-    kzx = functionManager->evaluate("kzx","ip");
-    kzy = functionManager->evaluate("kzy","ip");
-    kzz = functionManager->evaluate("kzz","ip");
+    perm = functionManager->evaluate("perm","ip");
+    //kxx = functionManager->evaluate("kxx","ip");
+    //kxy = functionManager->evaluate("kxy","ip");
+    //kyx = functionManager->evaluate("kyx","ip");
+    //kyy = functionManager->evaluate("kyy","ip");
+    //kxy = functionManager->evaluate("kxz","ip");
+    //kyz = functionManager->evaluate("kyz","ip");
+    //kzx = functionManager->evaluate("kzx","ip");
+    //kzy = functionManager->evaluate("kzy","ip");
+    //kzz = functionManager->evaluate("kzz","ip");
   }
   
   basis = wkset->basis[u_basis];
@@ -174,16 +176,16 @@ void porousHDIV_WG::volumeResidual() {
         }
         int resindex = offsets(tnum,i);
         // should be k_ij u_i s_j, but currently we assume K=1
-        res(e,resindex) += ux*sx + uy*sy + uz*sz;
-        //                               kxx(e,k)*ux*sx
-        //                             + kxy(e,k)*ux*sy
-        //                             + kyx(e,k)*uy*sx
-        //                             + kyy(e,k)*uy*sy
-        //                             + kxz(e,k)*ux*sz
-        //                             + kyz(e,k)*uy*sz
-        //                             + kzx(e,k)*uz*sx
-        //                             + kzy(e,k)*uz*sy
-        //                             + kzz(e,k)*uz*sz;
+        res(e,resindex) += perm(e,k)*(ux*sx + uy*sy + uz*sz);
+        //res(e,resindex) += kxx(e,k)*ux*sx
+        //                 + kxy(e,k)*ux*sy
+        //                 + kyx(e,k)*uy*sx
+        //                 + kyy(e,k)*uy*sy
+        //                 + kxz(e,k)*ux*sz
+        //                 + kyz(e,k)*uy*sz
+        //                 + kzx(e,k)*uz*sx
+        //                 + kzy(e,k)*uz*sy
+        //                 + kzz(e,k)*uz*sz;
         
         res(e,resindex) += tx*sx + ty*sy + tz*sz;
         
@@ -395,6 +397,10 @@ void porousHDIV_WG::computeFlux() {
 // ========================================================================================
 
 void porousHDIV_WG::setVars(std::vector<string> & varlist) {
+  ux_num = -1;
+  uy_num = -1;
+  uz_num = -1;
+
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "pint")
       pintnum = i;

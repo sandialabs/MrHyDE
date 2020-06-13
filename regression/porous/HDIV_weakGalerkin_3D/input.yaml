@@ -1,0 +1,47 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh input file: input_mesh.yaml
+  Physics: 
+    eblock-0_0_0: 
+      modules: porousHDIV_weakGalerkin
+      assemble face terms: true
+      Dirichlet conditions:
+        pbndry:
+          left: '0.0'
+          right: '0.0'
+          top: '0.0'
+          bottom: '0.0'
+          front: '0.0'
+          back: '0.0'
+      True solutions:
+        pint: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+        pbndry face: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+        u_x: 2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+        u_y: 2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
+        u_z: 2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
+        t_x: -2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+        t_y: -2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
+        t_z: -2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
+  Functions input file: input_functions.yaml
+  Solver: 
+    solver: steady-state
+    initial type: none
+    use direct solver: true
+    use preconditioner: false
+  Discretization:
+    eblock-0_0_0:
+      order:
+        pint: 0
+        pbndry: 0
+        u: 1
+        t: 1
+      quadrature: 2
+  Analysis:
+    analysis type: forward
+  Postprocess: 
+    compute errors: true
+    write solution: false
+...

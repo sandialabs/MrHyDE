@@ -2,6 +2,8 @@
 ._.DS_Store
 *.pyc
 *.exo
+*.exo.*
+*.log
 *._*
 *~
 
