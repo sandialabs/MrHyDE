@@ -307,7 +307,7 @@ void porousHDIV_HYBRID::computeFlux() {
           nz = normals(e,k,2);
         }
         
-        flux(e,auxlambdanum,k) += -(ux*nx+uy*ny+uz*nz);
+        flux(e,auxlambdanum,k) = -(ux*nx+uy*ny+uz*nz);
       }
     }
   }

@@ -218,10 +218,9 @@ void porousHDIV::computeFlux() {
     
     AD ux = 0.0, uy = 0.0, uz = 0.0;
     ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
-    for (int e=0; e<wkset->ip_side.extent(0); e++) {
+    for (int e=0; e<flux.extent(0); e++) {
       
-      for (size_t k=0; k<wkset->ip_side.extent(1); k++) {
-        
+      for (size_t k=0; k<normals.extent(1); k++) {
         ux = sol_side(e,unum,k,0);
         nx = normals(e,k,0);
         
@@ -233,7 +232,7 @@ void porousHDIV::computeFlux() {
           uz = sol_side(e,unum,k,2);
           nz = normals(e,k,2);
         }
-        flux(e,auxpnum,k) += (ux*nx+uy*ny+uz*nz);
+        flux(e,auxpnum,k) = (ux*nx+uy*ny+uz*nz);
       }
     }
   }

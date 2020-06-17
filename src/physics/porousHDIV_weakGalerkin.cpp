@@ -389,7 +389,7 @@ void porousHDIV_WG::computeFlux() {
           nz = normals(e,k,2);
         }
 
-        flux(e,auxpbndrynum,k) += -(tx*nx+ty*ny+tz*nz);
+        flux(e,auxpbndrynum,k) = -(tx*nx+ty*ny+tz*nz);
       }
     }
   }

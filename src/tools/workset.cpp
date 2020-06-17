@@ -3117,13 +3117,12 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
           }
         }
       }
-      /*
       else if (kutype == "HVOL") {
         DRV kbasis_uw = basis_side[kubasis];
-        for( int i=0; i<knbasis; i++ ) {
-          for (int e=0; e<numElem; e++) {
+        for( int i=0; i<kbasis_uw.extent(1); i++ ) {
+          for (int e=0; e<kbasis_uw.extent(0); e++) {
             uval = u_AD(e,k,i);
-            for( size_t j=0; j<numsideip; j++ ) {
+            for( size_t j=0; j<kbasis_uw.extent(2); j++ ) {
               local_soln_side(e,k,j,0) += uval*kbasis_uw(e,i,j);
             }
           }
@@ -3131,11 +3130,11 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
       }
       else if (kutype == "HDIV"){
         DRV kbasis_uw = basis_side[kubasis];
-        for (int i=0; i<knbasis; i++ ) {
-          for (int e=0; e<numElem; e++) {
+        for (int i=0; i<kbasis_uw.extent(1); i++ ) {
+          for (int e=0; e<kbasis_uw.extent(0); e++) {
             uval = u_AD(e,k,i);
-            for (size_t j=0; j<numsideip; j++ ) {
-              for (int s=0; s<dimension; s++ ) {
+            for (size_t j=0; j<kbasis_uw.extent(2); j++ ) {
+              for (int s=0; s<kbasis_uw.extent(3); s++ ) {
                 local_soln_side(e,k,j,s) += uval*kbasis_uw(e,i,j,s);
               }
             }
@@ -3145,17 +3144,17 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
       else if (kutype == "HCURL"){
         DRV kbasis_uw = basis_side[kubasis];
         
-        for (int i=0; i<knbasis; i++ ) {
-          for (int e=0; e<numElem; e++) {
+        for (int i=0; i<kbasis_uw.extent(1); i++ ) {
+          for (int e=0; e<kbasis_uw.extent(0); e++) {
             uval = u_AD(e,k,i);
-            for (size_t j=0; j<numsideip; j++ ) {
-              for (int s=0; s<dimension; s++ ) {
+            for (size_t j=0; j<kbasis_uw.extent(2); j++ ) {
+              for (int s=0; s<kbasis_uw.extent(3); s++ ) {
                 local_soln_side(e,k,j,s) += uval*kbasis_uw(e,i,j,s);
               }
             }
           }
         }
-      }*/
+      }
       
     }
   }

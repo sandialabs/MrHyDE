@@ -65,6 +65,7 @@ ANONYMOUS:
     compute errors: true
     compute response: false
     write solution: false
+    write subgrid solution: false
     compute objective: false
     compute sensitivities: false
 ...
