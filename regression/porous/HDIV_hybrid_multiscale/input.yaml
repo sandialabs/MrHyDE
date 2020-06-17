@@ -9,6 +9,7 @@ ANONYMOUS:
       p: HFACE
     eblock-0_0: 
       modules: porousHDIV
+      assemble face terms: true
       Dirichlet conditions:
         p:
           left: '0.0'

@@ -8,6 +8,7 @@ ANONYMOUS:
   Physics: 
     modules: thermal
     assemble boundary terms: false
+    assemble face terms: true
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
@@ -27,7 +28,7 @@ ANONYMOUS:
   Parameters input file: input_params.yaml
   Solver: 
     solver: steady-state
-    workset size: 40
+    workset size: 100
     nonlinear TOL: 1.0e-07
     max nonlinear iters: 2
     use strong DBCs: true

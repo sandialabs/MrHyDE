@@ -113,6 +113,7 @@ void helmholtz::volumeResidual() {
   offsets = wkset->offsets;
   
   res = wkset->res;
+  wts = wkset->wts;
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
@@ -155,32 +156,32 @@ void helmholtz::volumeResidual() {
         
         if(!fractional) {       // fractional exponent on time operator or i_omega in frequency mode
           int resindex = offsets(ur_num,i);
-          res(e,resindex) += -omega2r(e,k)*(ur*vr + ui*vi) + omega2i(e,k)*(ui*vr - ur*vi)
+          res(e,resindex) += (-omega2r(e,k)*(ur*vr + ui*vi) + omega2i(e,k)*(ui*vr - ur*vi)
           + (c2r_x(e,k)*(durdx*dvrdx + duidx*dvidx)
              + c2r_y(e,k)*(durdy*dvrdy + duidy*dvidy)
              + c2r_z(e,k)*(durdz*dvrdz + duidz*dvidz)
              - c2i_x(e,k)*(duidx*dvrdx - durdx*dvidx)
              - c2i_y(e,k)*(duidy*dvrdy - durdy*dvidy)
              - c2i_z(e,k)*(duidz*dvrdz - durdz*dvidz))
-          - (source_r(e,k)*vr + source_i(e,k)*vi); // TMW: how can both vr and vi appear in this equation?
+          - (source_r(e,k)*vr + source_i(e,k)*vi))*wts(e,k); // TMW: how can both vr and vi appear in this equation?
           
           resindex = offsets(ui_num,i);
           
-          res(e,resindex) += -omega2r(e,k)*(ui*vr - ur*vi) - omega2i(e,k)*(ur*vr + ui*vi)
+          res(e,resindex) += (-omega2r(e,k)*(ui*vr - ur*vi) - omega2i(e,k)*(ur*vr + ui*vi)
           + (c2r_x(e,k)*(duidx*dvrdx - durdx*dvidx)
              + c2r_y(e,k)*(duidy*dvrdy - durdy*dvidy)
              + c2r_z(e,k)*(duidz*dvrdz - durdz*dvidz)
              + c2i_x(e,k)*(durdx*dvrdx + duidx*dvidx)
              + c2i_y(e,k)*(durdy*dvrdy + duidy*dvidy)
              + c2i_z(e,k)*(durdz*dvrdz + duidz*dvidz))
-          - (source_i(e,k)*vr - source_r(e,k)*vi);
+          - (source_i(e,k)*vr - source_r(e,k)*vi))*wts(e,k);
         }
         else {
           omegar(e,k) = sqrt(omega2r(e,k));
           omegai(e,k) = sqrt(omega2i(e,k));
           int resindex = offsets(ur_num,i);
           
-          res(e,resindex) += alphaHr(e,k)*pow(omegar(e,k),2.0*freqExp(e,k))*(ur*vr + ui*vi)
+          res(e,resindex) += (alphaHr(e,k)*pow(omegar(e,k),2.0*freqExp(e,k))*(ur*vr + ui*vi)
           + alphaHr(e,k)*pow(omegar(e,k),2.0*freqExp(e,k))*(-ui*vr + ur*vi)
           + alphaHi(e,k)*pow(omegai(e,k),2.0*freqExp(e,k))*(-ui*vr + ur*vi)
           + alphaHi(e,k)*pow(omegai(e,k),2.0*freqExp(e,k))*(-ur*vr - ui*vi)
@@ -190,11 +191,11 @@ void helmholtz::volumeResidual() {
              - c2i_x(e,k)*(duidx*dvrdx - durdx*dvidx)
              - c2i_y(e,k)*(duidy*dvrdy - durdy*dvidy)
              - c2i_z(e,k)*(duidz*dvrdz - durdz*dvidz))
-          - (source_r(e,k)*vr + source_i(e,k)*vi);
+          - (source_r(e,k)*vr + source_i(e,k)*vi))*wts(e,k);
           
           resindex = offsets(ui_num,i);
           
-          res(e,resindex) += alphaHr(e,k)*pow(omegar(e,k),2.0*freqExp(e,k))*(ui*vr - ur*vi)
+          res(e,resindex) += (alphaHr(e,k)*pow(omegar(e,k),2.0*freqExp(e,k))*(ui*vr - ur*vi)
           + alphaHr(e,k)*pow(omegar(e,k),2.0*freqExp(e,k))*(ur*vr + ui*vi)
           + alphaHi(e,k)*pow(omegai(e,k),2.0*freqExp(e,k))*(ur*vr + ui*vi)
           + alphaHi(e,k)*pow(omegai(e,k),2.0*freqExp(e,k))*(-ui*vr + ur*vi)
@@ -204,7 +205,7 @@ void helmholtz::volumeResidual() {
              + c2i_x(e,k)*(durdx*dvrdx + duidx*dvidx)
              + c2i_y(e,k)*(durdy*dvrdy + duidy*dvidy)
              + c2i_z(e,k)*(durdz*dvrdz + duidz*dvidz))
-          - (source_i(e,k)*vr - source_r(e,k)*vi);
+          - (source_i(e,k)*vr - source_r(e,k)*vi))*wts(e,k);
           
           // ScalarT c = 1.0; // bvbw need to move c and omega to input_params
           // ScalarT omega = 1.0;
@@ -269,6 +270,7 @@ void helmholtz::boundaryResidual() {
   offsets = wkset->offsets;
   DRV normals = wkset->normals;
   res = wkset->res;
+  wts = wkset->wts_side;
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
@@ -322,17 +324,17 @@ void helmholtz::boundaryResidual() {
             ScalarT vr = urbasis(e,i,k);
             ScalarT vi = uibasis(e,i,k);
             
-            res(e,resindex) += ((robin_alpha_r(e,k)*(ur*vr + ui*vi) - robin_alpha_i(e,k)*(ui*vr - ur*vi))
+            res(e,resindex) += (((robin_alpha_r(e,k)*(ur*vr + ui*vi) - robin_alpha_i(e,k)*(ui*vr - ur*vi))
                                 + (durdn*vr + duidn*vi)
                                 - (source_r_side(e,k)*vr + source_i_side(e,k)*vi))
-            - (c2durdn*vr + c2duidn*vi);
+            - (c2durdn*vr + c2duidn*vi))*wts(e,k);
             
             resindex = offsets(ui_num,i);
             
-            res(e,resindex) += ((robin_alpha_r(e,k)*(ui*vr - ur*vi) + robin_alpha_i(e,k)*(ur*vr + ui*vi))
+            res(e,resindex) += (((robin_alpha_r(e,k)*(ui*vr - ur*vi) + robin_alpha_i(e,k)*(ur*vr + ui*vi))
                                 + (duidn*vr - durdn*vi)
                                 - (source_i_side(e,k)*vr - source_r_side(e,k)*vi))
-            - (c2duidn*vr - c2durdn*vi);
+            - (c2duidn*vr - c2durdn*vi))*wts(e,k);
           }
         }
         else {
@@ -345,19 +347,19 @@ void helmholtz::boundaryResidual() {
             ScalarT vr = urbasis(e,i,k);
             ScalarT vi = uibasis(e,i,k);
             
-            res(e,resindex) +=  alphaTr(e,k)*pow(omegar,freqExp(e,k))*(-ur*vr - ui*vi)
+            res(e,resindex) +=  (alphaTr(e,k)*pow(omegar,freqExp(e,k))*(-ur*vr - ui*vi)
             +  alphaTi(e,k)*pow(omegai,freqExp(e,k))*( ui*vr - ur*vi)
             + (durdn*vr + duidn*vi)
             - (source_r_side(e,k)*vr + source_i_side(e,k)*vi)
-            - (c2durdn*vr + c2duidn*vi);
+            - (c2durdn*vr + c2duidn*vi))*wts(e,k);
             
             resindex = offsets(ui_num,i);
             
-            res(e,resindex) +=  alphaTr(e,k)*pow(omegar,freqExp(e,k))*(-ui*vr + ur*vi)
+            res(e,resindex) +=  (alphaTr(e,k)*pow(omegar,freqExp(e,k))*(-ui*vr + ur*vi)
             +  alphaTi(e,k)*pow(omegai,freqExp(e,k))*(-ui*vr - ur*vi)
             + (duidn*vr - durdn*vi)
             - (source_i_side(e,k)*vr - source_r_side(e,k)*vi)
-            - (c2duidn*vr - c2durdn*vi);
+            - (c2duidn*vr - c2durdn*vi))*wts(e,k);
           }
           
         }

@@ -9,6 +9,7 @@ ANONYMOUS:
       lambda: HFACE
     eblock-0_0: 
       modules: porousHDIV_hybrid
+      assemble face terms: true
       Dirichlet conditions:
         lambda:
           left: '0.0'

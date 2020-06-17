@@ -95,6 +95,7 @@ void shallowwater::volumeResidual() {
   Hvbasis = wkset->basis[Hv_basis_num];
   Hvbasis_grad = wkset->basis_grad[Hv_basis_num];
   
+  wts = wkset->wts;
   //KokkosTools::print(bath);
   
   parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -121,7 +122,7 @@ void shallowwater::volumeResidual() {
         dvdx = Hbasis_grad(e,i,k,0);
         dvdy = Hbasis_grad(e,i,k,1);
         
-        res(e,resindex) += xi_dot*v - Hu*dvdx - Hv*dvdy;
+        res(e,resindex) += (xi_dot*v - Hu*dvdx - Hv*dvdy)*wts(e,k);
         
       }
       
@@ -133,7 +134,7 @@ void shallowwater::volumeResidual() {
         dvdx = Hubasis_grad(e,i,k,0);
         dvdy = Hubasis_grad(e,i,k,1);
         
-        res(e,resindex) += Hu_dot*v - (Hu*Hu/H + 0.5*gravity*(H*H-bath(e,k)*bath(e,k)))*dvdx - Hv*Hu/H*dvdy + gravity*xi*bath_x(e,k)*v;
+        res(e,resindex) += (Hu_dot*v - (Hu*Hu/H + 0.5*gravity*(H*H-bath(e,k)*bath(e,k)))*dvdx - Hv*Hu/H*dvdy + gravity*xi*bath_x(e,k)*v)*wts(e,k);
         
       }
       
@@ -145,7 +146,7 @@ void shallowwater::volumeResidual() {
         dvdx = Hvbasis_grad(e,i,k,0);
         dvdy = Hvbasis_grad(e,i,k,1);
         
-        res(e,resindex) += Hv_dot*v - (Hu*Hu/H)*dvdx - (Hv*Hu/H + 0.5*gravity*(H*H - bath(e,k)*bath(e,k)))*dvdy + gravity*xi*bath_y(e,k)*v;
+        res(e,resindex) += (Hv_dot*v - (Hu*Hu/H)*dvdx - (Hv*Hu/H + 0.5*gravity*(H*H - bath(e,k)*bath(e,k)))*dvdy + gravity*xi*bath_y(e,k)*v)*wts(e,k);
         
       }
       
@@ -197,6 +198,7 @@ void shallowwater::boundaryResidual() {
   Hvbasis = wkset->basis_side[Hv_basis_num];
   Hvbasis_grad = wkset->basis_grad_side[Hv_basis_num];
   
+  wts = wkset->wts_side;
   //KokkosTools::print(nsource);
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
@@ -214,7 +216,7 @@ void shallowwater::boundaryResidual() {
           int resindex = offsets(H_num,i);
           ScalarT v = Hbasis(e,i,k);
           //res(e,resindex) += (Hu*normals(e,k,0)+Hv*normals(e,k,1))*v;
-          res(e,resindex) += nsource(e,k)*H*v;
+          res(e,resindex) += (nsource(e,k)*H*v)*wts(e,k);
         }
       }
     }
@@ -229,7 +231,7 @@ void shallowwater::boundaryResidual() {
           int resindex = offsets(Hu_num,i);
           ScalarT v = Hubasis(e,i,k);
           //res(e,resindex) += (((Hu*Hu/H + 0.5*gravity*(H*H-bb*bb)))*normals(e,k,0) + Hv*Hu/H*normals(e,k,1))*v;
-          res(e,resindex) += (nsource(e,k)*Hu + 0.0*gravity*(H*H-bb*bb)*normals(e,k,0))*v;
+          res(e,resindex) += ((nsource(e,k)*Hu + 0.0*gravity*(H*H-bb*bb)*normals(e,k,0))*v)*wts(e,k);
         }
       }
     }
@@ -244,7 +246,7 @@ void shallowwater::boundaryResidual() {
           int resindex = offsets(Hv_num,i);
           ScalarT v = Hvbasis(e,i,k);
           //res(e,resindex) += (((Hu*Hu/H))*normals(e,k,0) + (Hv*Hu/H + 0.5*gravity*(H*H - bb*bb))*normals(e,k,1))*v;
-          res(e,resindex) += (nsource(e,k)*Hv + 0.0*gravity*(H*H - bb*bb)*normals(e,k,1))*v;
+          res(e,resindex) += ((nsource(e,k)*Hv + 0.0*gravity*(H*H - bb*bb)*normals(e,k,1))*v)*wts(e,k);
         }
       }
     }

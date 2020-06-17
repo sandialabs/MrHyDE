@@ -182,7 +182,7 @@ public:
   vector<vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
   vector<Teuchos::RCP<workset> > wkset;
   
-  bool usestrongDBCs, use_meas_as_dbcs, multiscale, useNewBCs;
+  bool usestrongDBCs, use_meas_as_dbcs, multiscale, useNewBCs, isTransient;
   Teuchos::RCP<panzer::DOFManager> DOF;
   vector<bool> assemble_volume_terms, assemble_boundary_terms, assemble_face_terms;
   

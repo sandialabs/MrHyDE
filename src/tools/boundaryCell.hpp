@@ -76,7 +76,7 @@ public:
   // Define which basis each variable will use
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void setUseBasis(vector<int> & usebasis_);
+  void setUseBasis(vector<int> & usebasis_, const int & numsteps, const int & numstages);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Define which basis each discretized parameter will use
@@ -91,10 +91,16 @@ public:
   void setAuxUseBasis(vector<int> & ausebasis_);
   
   ///////////////////////////////////////////////////////////////////////////////////////
+  // Update the workset
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
+  void updateWorksetBasis();
+
+  ///////////////////////////////////////////////////////////////////////////////////////
   // Map the coarse grid solution to the fine grid integration points
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void computeSoln(Kokkos::View<int*,UnifiedDevice> seedwhat);
+  void computeSoln(const int & seedwhat);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the contribution from this cell to the global res, J, Jdot
@@ -203,7 +209,9 @@ public:
   // Geometry Information
   int numElem = 0; // default value ... used to check if proc. has elements on boundary
   int sidenum, cellID, wksetBID;
-  DRV nodes, ip, wts, ijac, normals;
+  DRV nodes, ip, wts, normals, tangents;
+  Kokkos::View<ScalarT*,AssemblyDevice> hsize;
+  
   Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
   string sidename;
   
@@ -212,6 +220,10 @@ public:
   Kokkos::View<LO***,AssemblyDevice> index, paramindex, auxindex;
   //Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
   Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param;
+  Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
+  
+  // basis information
+  vector<DRV> basis, basis_grad, basis_div, basis_curl;
   
   // Aux variable Information
   vector<string> auxlist;

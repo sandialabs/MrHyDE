@@ -175,7 +175,6 @@ public:
   //vector<vector<Teuchos::RCP<cell> > > cells;
   int verbosity;
   
-  Kokkos::View<ScalarT*,UnifiedDevice> BDF_wts_pp, BDF_wts;
   vector<vector<pair<size_t,string> > > error_list;
   
   // Timers

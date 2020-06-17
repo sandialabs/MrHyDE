@@ -80,43 +80,53 @@ void thermal::volumeResidual() {
   // f(u) = rho*cp*de/dt - source
   // DF(u) = diff*grad(e)
   
+  wts = wkset->wts;
   auto T = Kokkos::subview( sol, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
   auto dTdt = Kokkos::subview( sol_dot, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
   auto gradT = Kokkos::subview( sol_grad, Kokkos::ALL(), e_num, Kokkos::ALL(), Kokkos::ALL());
   auto off = Kokkos::subview( offsets, e_num, Kokkos::ALL());
   
   if (spaceDim == 1) {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.extent(2); k++ ) {
-        AD f = rho(e,k)*cp(e,k)*dTdt(e,k) - source(e,k);
-        AD DFx = diff(e,k)*gradT(e,k,0);
-        for (int i=0; i<basis.extent(1); i++ ) {
-          res(e,off(i)) += f*basis(e,i,k) + DFx*basis_grad(e,i,k,0);
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<sol.extent(2); pt++ ) {
+        AD f = rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt);
+        AD DFx = diff(elem,pt)*gradT(elem,pt,0);
+        f *= wts(elem,pt);
+        DFx *= wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          res(elem,off(dof)) += f*basis(elem,dof,pt) + DFx*basis_grad(elem,dof,pt,0);
         }
       }
     });
   }
   else if (spaceDim == 2) {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.extent(2); k++ ) {
-        AD f = rho(e,k)*cp(e,k)*dTdt(e,k) - source(e,k);
-        AD DFx = diff(e,k)*gradT(e,k,0);
-        AD DFy = diff(e,k)*gradT(e,k,1);
-        for (int i=0; i<basis.extent(1); i++ ) {
-          res(e,off(i)) += f*basis(e,i,k) + DFx*basis_grad(e,i,k,0) + DFy*basis_grad(e,i,k,1);
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<sol.extent(2); pt++ ) {
+        AD f = rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt);
+        AD DFx = diff(elem,pt)*gradT(elem,pt,0);
+        AD DFy = diff(elem,pt)*gradT(elem,pt,1);
+        f *= wts(elem,pt);
+        DFx *= wts(elem,pt);
+        DFy *= wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          res(elem,off(dof)) += f*basis(elem,dof,pt) + DFx*basis_grad(elem,dof,pt,0) + DFy*basis_grad(elem,dof,pt,1);
         }
       }
     });
   }
   else {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.extent(2); k++ ) {
-        AD f = rho(e,k)*cp(e,k)*dTdt(e,k) - source(e,k);
-        AD DFx = diff(e,k)*gradT(e,k,0);
-        AD DFy = diff(e,k)*gradT(e,k,1);
-        AD DFz = diff(e,k)*gradT(e,k,2);
-        for (int i=0; i<basis.extent(1); i++ ) {
-          res(e,off(i)) += f*basis(e,i,k) + DFx*basis_grad(e,i,k,0) + DFy*basis_grad(e,i,k,1) + DFz*basis_grad(e,i,k,2);
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<sol.extent(2); pt++ ) {
+        AD f = rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt);
+        AD DFx = diff(elem,pt)*gradT(elem,pt,0);
+        AD DFy = diff(elem,pt)*gradT(elem,pt,1);
+        AD DFz = diff(elem,pt)*gradT(elem,pt,2);
+        f *= wts(elem,pt);
+        DFx *= wts(elem,pt);
+        DFy *= wts(elem,pt);
+        DFz *= wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          res(elem,off(dof)) += f*basis(elem,dof,pt) + DFx*basis_grad(elem,dof,pt,0) + DFy*basis_grad(elem,dof,pt,1) + DFz*basis_grad(elem,dof,pt,2);
         }
       }
     });
@@ -129,11 +139,12 @@ void thermal::volumeResidual() {
   if (have_nsvel) {
     if (spaceDim == 1) {
       auto Ux = Kokkos::subview( sol, Kokkos::ALL(), ux_num, Kokkos::ALL(), 0);
-      parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (int k=0; k<sol.extent(2); k++ ) {
-          AD f = Ux(e,k)*gradT(e,k,0);
-          for (int i=0; i<basis.extent(1); i++ ) {
-            res(e,off(i)) += f*basis(e,i,k);
+      parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int pt=0; pt<sol.extent(2); pt++ ) {
+          AD f = Ux(elem,pt)*gradT(elem,pt,0);
+          f *= wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += f*basis(elem,dof,pt);
           }
         }
       });
@@ -141,11 +152,12 @@ void thermal::volumeResidual() {
     else if (spaceDim == 2) {
       auto Ux = Kokkos::subview( sol, Kokkos::ALL(), ux_num, Kokkos::ALL(), 0);
       auto Uy = Kokkos::subview( sol, Kokkos::ALL(), uy_num, Kokkos::ALL(), 0);
-      parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (int k=0; k<sol.extent(2); k++ ) {
-          AD f = Ux(e,k)*gradT(e,k,0) + Uy(e,k)*gradT(e,k,1);
-          for (int i=0; i<basis.extent(1); i++ ) {
-            res(e,off(i)) += f*basis(e,i,k);
+      parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int pt=0; pt<sol.extent(2); pt++ ) {
+          AD f = Ux(elem,pt)*gradT(elem,pt,0) + Uy(elem,pt)*gradT(elem,pt,1);
+          f *= wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += f*basis(elem,dof,pt);
           }
         }
       });
@@ -154,11 +166,12 @@ void thermal::volumeResidual() {
       auto Ux = Kokkos::subview( sol, Kokkos::ALL(), ux_num, Kokkos::ALL(), 0);
       auto Uy = Kokkos::subview( sol, Kokkos::ALL(), uy_num, Kokkos::ALL(), 0);
       auto Uz = Kokkos::subview( sol, Kokkos::ALL(), uz_num, Kokkos::ALL(), 0);
-      parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (int k=0; k<sol.extent(2); k++ ) {
-          AD f = Ux(e,k)*gradT(e,k,0) + Uy(e,k)*gradT(e,k,1) + Uz(e,k)*gradT(e,k,2);
-          for (int i=0; i<basis.extent(1); i++ ) {
-            res(e,off(i)) += f*basis(e,i,k);
+      parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int pt=0; pt<sol.extent(2); pt++ ) {
+          AD f = Ux(elem,pt)*gradT(elem,pt,0) + Uy(elem,pt)*gradT(elem,pt,1) + Uz(elem,pt)*gradT(elem,pt,2);
+          f *= wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += f*basis(elem,dof,pt);
           }
         }
       });
@@ -207,6 +220,9 @@ void thermal::boundaryResidual() {
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
+  wts = wkset->wts_side;
+  h = wkset->h;
+  
   auto T = Kokkos::subview( sol_side, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
   auto gradT = Kokkos::subview( sol_grad_side, Kokkos::ALL(), e_num, Kokkos::ALL(), Kokkos::ALL());
   auto off = Kokkos::subview( offsets, e_num, Kokkos::ALL());
@@ -215,48 +231,55 @@ void thermal::boundaryResidual() {
   // <g(u),v> + <p(u),grad(v)\cdot n>
   
   if (bcs(e_num,cside) == 2) { // Neumann BCs
-    parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<basis.extent(2); k++ ) {
-        AD g = -nsource(e,k);
-        for (int i=0; i<basis.extent(1); i++ ) {
-          res(e,off(i)) += g*basis(e,i,k);
+    parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<basis.extent(2); pt++ ) {
+        AD g = -nsource(elem,pt);
+        g *= wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          res(elem,off(dof)) += g*basis(elem,dof,pt);
         }
       }
     });
   }
   else if (bcs(e_num,cside) == 4) {
     if (spaceDim == 1) {
-      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (int k=0; k<basis.extent(2); k++ ) {
-          AD g = 10.0*diff_side(e,k)/h(e)*(T(e,k)-nsource(e,k)) - diff_side(e,k)*gradT(e,k,0)*normals(e,k,0);
-          AD p = -sf*diff_side(e,k)*(T(e,k) - nsource(e,k));
-          for (int i=0; i<basis.extent(1); i++ ) {
-            ScalarT gradv_dot_n = basis_grad(e,i,k,0)*normals(e,k,0);
-            res(e,off(i)) += g*basis(e,i,k) + p*gradv_dot_n;
+      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int pt=0; pt<basis.extent(2); pt++ ) {
+          AD g = 10.0*diff_side(elem,pt)/h(elem)*(T(elem,pt)-nsource(elem,pt)) - diff_side(elem,pt)*gradT(elem,pt,0)*normals(elem,pt,0);
+          AD p = -sf*diff_side(elem,pt)*(T(elem,pt) - nsource(elem,pt));
+          g *= wts(elem,pt);
+          p *= wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            ScalarT gradv_dot_n = basis_grad(elem,dof,pt,0)*normals(elem,pt,0);
+            res(elem,off(dof)) += g*basis(elem,dof,pt) + p*gradv_dot_n;
           }
         }
       });
     }
     else if (spaceDim == 2) {
-      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (int k=0; k<basis.extent(2); k++ ) {
-          AD g = 10.0*diff_side(e,k)/h(e)*(T(e,k)-nsource(e,k)) - diff_side(e,k)*(gradT(e,k,0)*normals(e,k,0) + gradT(e,k,1)*normals(e,k,1));
-          AD p = -sf*diff_side(e,k)*(T(e,k) - nsource(e,k));
-          for (int i=0; i<basis.extent(1); i++ ) {
-            ScalarT gradv_dot_n = basis_grad(e,i,k,0)*normals(e,k,0) + basis_grad(e,i,k,1)*normals(e,k,1);
-            res(e,off(i)) += g*basis(e,i,k) + p*gradv_dot_n;
+      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int pt=0; pt<basis.extent(2); pt++ ) {
+          AD g = 10.0*diff_side(elem,pt)/h(elem)*(T(elem,pt)-nsource(elem,pt)) - diff_side(elem,pt)*(gradT(elem,pt,0)*normals(elem,pt,0) + gradT(elem,pt,1)*normals(elem,pt,1));
+          AD p = -sf*diff_side(elem,pt)*(T(elem,pt) - nsource(elem,pt));
+          g *= wts(elem,pt);
+          p *= wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            ScalarT gradv_dot_n = basis_grad(elem,dof,pt,0)*normals(elem,pt,0) + basis_grad(elem,dof,pt,1)*normals(elem,pt,1);
+            res(elem,off(dof)) += g*basis(elem,dof,pt) + p*gradv_dot_n;
           }
         }
       });
     }
     else if (spaceDim == 3) {
-      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (int k=0; k<basis.extent(2); k++ ) {
-          AD g = 10.0*diff_side(e,k)/h(e)*(T(e,k)-nsource(e,k)) - diff_side(e,k)*(gradT(e,k,0)*normals(e,k,0) + gradT(e,k,1)*normals(e,k,1) + gradT(e,k,2)*normals(e,k,2));
-          AD p = -sf*diff_side(e,k)*(T(e,k) - nsource(e,k));
-          for (int i=0; i<basis.extent(1); i++ ) {
-            ScalarT gradv_dot_n = basis_grad(e,i,k,0)*normals(e,k,0) + basis_grad(e,i,k,1)*normals(e,k,1) + basis_grad(e,i,k,2)*normals(e,k,2);
-            res(e,off(i)) += g*basis(e,i,k) + p*gradv_dot_n;
+      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int pt=0; pt<basis.extent(2); pt++ ) {
+          AD g = 10.0*diff_side(elem,pt)/h(elem)*(T(elem,pt)-nsource(elem,pt)) - diff_side(elem,pt)*(gradT(elem,pt,0)*normals(elem,pt,0) + gradT(elem,pt,1)*normals(elem,pt,1) + gradT(elem,pt,2)*normals(elem,pt,2));
+          AD p = -sf*diff_side(elem,pt)*(T(elem,pt) - nsource(elem,pt));
+          g *= wts(elem,pt);
+          p *= wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            ScalarT gradv_dot_n = basis_grad(elem,dof,pt,0)*normals(elem,pt,0) + basis_grad(elem,dof,pt,1)*normals(elem,pt,1) + basis_grad(elem,dof,pt,2)*normals(elem,pt,2);
+            res(elem,off(dof)) += g*basis(elem,dof,pt) + p*gradv_dot_n;
           }
         }
       });
@@ -269,37 +292,43 @@ void thermal::boundaryResidual() {
     auto lambda = Kokkos::subview( aux_side, Kokkos::ALL(), auxe_num, Kokkos::ALL());
     
     if (spaceDim == 1) {
-      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (int k=0; k<basis.extent(2); k++ ) {
-          AD g = 10.0*diff_side(e,k)/h(e)*(T(e,k)-lambda(e,k)) - diff_side(e,k)*gradT(e,k,0)*normals(e,k,0);
-          AD p = -sf*diff_side(e,k)*(T(e,k) - lambda(e,k));
-          for (int i=0; i<basis.extent(1); i++ ) {
-            ScalarT gradv_dot_n = basis_grad(e,i,k,0)*normals(e,k,0);
-            res(e,off(i)) += g*basis(e,i,k) + p*gradv_dot_n;
+      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int pt=0; pt<basis.extent(2); pt++ ) {
+          AD g = 10.0*diff_side(elem,pt)/h(elem)*(T(elem,pt)-lambda(elem,pt)) - diff_side(elem,pt)*gradT(elem,pt,0)*normals(elem,pt,0);
+          AD p = -sf*diff_side(elem,pt)*(T(elem,pt) - lambda(elem,pt));
+          g *= wts(elem,pt);
+          p *= wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            ScalarT gradv_dot_n = basis_grad(elem,dof,pt,0)*normals(elem,pt,0);
+            res(elem,off(dof)) += g*basis(elem,dof,pt) + p*gradv_dot_n;
           }
         }
       });
     }
     else if (spaceDim == 2) {
-      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (int k=0; k<basis.extent(2); k++ ) {
-          AD g = 10.0*diff_side(e,k)/h(e)*(T(e,k)-lambda(e,k)) - diff_side(e,k)*(gradT(e,k,0)*normals(e,k,0) + gradT(e,k,1)*normals(e,k,1));
-          AD p = -sf*diff_side(e,k)*(T(e,k) - lambda(e,k));
-          for (int i=0; i<basis.extent(1); i++ ) {
-            ScalarT gradv_dot_n = basis_grad(e,i,k,0)*normals(e,k,0) + basis_grad(e,i,k,1)*normals(e,k,1);
-            res(e,off(i)) += g*basis(e,i,k) + p*gradv_dot_n;
+      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int pt=0; pt<basis.extent(2); pt++ ) {
+          AD g = 10.0*diff_side(elem,pt)/h(elem)*(T(elem,pt)-lambda(elem,pt)) - diff_side(elem,pt)*(gradT(elem,pt,0)*normals(elem,pt,0) + gradT(elem,pt,1)*normals(elem,pt,1));
+          AD p = -sf*diff_side(elem,pt)*(T(elem,pt) - lambda(elem,pt));
+          g *= wts(elem,pt);
+          p *= wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            ScalarT gradv_dot_n = basis_grad(elem,dof,pt,0)*normals(elem,pt,0) + basis_grad(elem,dof,pt,1)*normals(elem,pt,1);
+            res(elem,off(dof)) += g*basis(elem,dof,pt) + p*gradv_dot_n;
           }
         }
       });
     }
     else if (spaceDim == 3) {
-      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (int k=0; k<basis.extent(2); k++ ) {
-          AD g = 10.0*diff_side(e,k)/h(e)*(T(e,k)-lambda(e,k)) - diff_side(e,k)*(gradT(e,k,0)*normals(e,k,0) + gradT(e,k,1)*normals(e,k,1) + gradT(e,k,2)*normals(e,k,2));
-          AD p = -sf*diff_side(e,k)*(T(e,k) - lambda(e,k));
-          for (int i=0; i<basis.extent(1); i++ ) {
-            ScalarT gradv_dot_n = basis_grad(e,i,k,0)*normals(e,k,0) + basis_grad(e,i,k,1)*normals(e,k,1) + basis_grad(e,i,k,2)*normals(e,k,2);
-            res(e,off(i)) += g*basis(e,i,k) + p*gradv_dot_n;
+      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int pt=0; pt<basis.extent(2); pt++ ) {
+          AD g = 10.0*diff_side(elem,pt)/h(elem)*(T(elem,pt)-lambda(elem,pt)) - diff_side(elem,pt)*(gradT(elem,pt,0)*normals(elem,pt,0) + gradT(elem,pt,1)*normals(elem,pt,1) + gradT(elem,pt,2)*normals(elem,pt,2));
+          AD p = -sf*diff_side(elem,pt)*(T(elem,pt) - lambda(elem,pt));
+          g *= wts(elem,pt);
+          p *= wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            ScalarT gradv_dot_n = basis_grad(elem,dof,pt,0)*normals(elem,pt,0) + basis_grad(elem,dof,pt,1)*normals(elem,pt,1) + basis_grad(elem,dof,pt,2)*normals(elem,pt,2);
+            res(elem,off(dof)) += g*basis(elem,dof,pt) + p*gradv_dot_n;
           }
         }
       });
@@ -330,41 +359,40 @@ void thermal::computeFlux() {
   
   // Since normals get recomputed often, this needs to be reset
   normals = wkset->normals;
+  h = wkset->h;
   
   {
-    Teuchos::TimeMonitor localtime(*fluxFill);
+    //Teuchos::TimeMonitor localtime(*fluxFill);
     
     auto T = Kokkos::subview( sol_side, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
     auto gradT = Kokkos::subview( sol_grad_side, Kokkos::ALL(), e_num, Kokkos::ALL(), Kokkos::ALL());
     auto fluxT = Kokkos::subview( flux, Kokkos::ALL(), e_num, Kokkos::ALL());
     auto lambda = Kokkos::subview( aux_side, Kokkos::ALL(), auxe_num, Kokkos::ALL());
-    
-    if (spaceDim == 1) {
-      parallel_for(RangePolicy<AssemblyExec>(0,flux.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (size_t k=0; k<normals.extent(1); k++) {
-          fluxT(e,k) += sf*diff_side(e,k)*gradT(e,k,0)*normals(e,k,0) + 10.0*diff_side(e,k)/h(e)*(lambda(e,k)-T(e,k));
-        }
-      });
-    }
-    else if (spaceDim == 2) {
-      parallel_for(RangePolicy<AssemblyExec>(0,flux.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (size_t i=0; i<normals.extent(1); i++) {
-          for (size_t k=0; k<normals.extent(1); k++) {
-            fluxT(e,k) += sf*diff_side(e,k)*(gradT(e,k,0)*normals(e,k,0) + gradT(e,k,1)*normals(e,k,1)) + 10.0*diff_side(e,k)/h(e)*(lambda(e,k)-T(e,k));
+    {
+      Teuchos::TimeMonitor localtime(*fluxFill);
+      
+      if (spaceDim == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,flux.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          for (size_t pt=0; pt<normals.extent(1); pt++) {
+            fluxT(elem,pt) = sf*diff_side(elem,pt)*gradT(elem,pt,0)*normals(elem,pt,0) + 10.0/h(elem)*diff_side(elem,pt)*(lambda(elem,pt)-T(elem,pt));
           }
-        }
-      });
-    }
-    else if (spaceDim == 3) {
-      parallel_for(RangePolicy<AssemblyExec>(0,flux.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (size_t i=0; i<normals.extent(1); i++) {
-          for (size_t k=0; k<normals.extent(1); k++) {
-            fluxT(e,k) += sf*diff_side(e,k)*(gradT(e,k,0)*normals(e,k,0) + gradT(e,k,1)*normals(e,k,1) + + gradT(e,k,2)*normals(e,k,2)) + 10.0*diff_side(e,k)/h(e)*(lambda(e,k)-T(e,k));
+        });
+      }
+      else if (spaceDim == 2) {
+        parallel_for(RangePolicy<AssemblyExec>(0,flux.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          for (size_t pt=0; pt<normals.extent(1); pt++) {
+            fluxT(elem,pt) = sf*diff_side(elem,pt)*(gradT(elem,pt,0)*normals(elem,pt,0) + gradT(elem,pt,1)*normals(elem,pt,1)) + 10.0/h(elem)*diff_side(elem,pt)*(lambda(elem,pt)-T(elem,pt));
           }
-        }
-      });
+        });
+      }
+      else if (spaceDim == 3) {
+        parallel_for(RangePolicy<AssemblyExec>(0,flux.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          for (size_t pt=0; pt<normals.extent(1); pt++) {
+            fluxT(elem,pt) = sf*diff_side(elem,pt)*(gradT(elem,pt,0)*normals(elem,pt,0) + gradT(elem,pt,1)*normals(elem,pt,1) + gradT(elem,pt,2)*normals(elem,pt,2)) + 10.0/h(elem)*diff_side(elem,pt)*(lambda(elem,pt)-T(elem,pt));
+          }
+        });
+      }
     }
-    
   }
   
 }

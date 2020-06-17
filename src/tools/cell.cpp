@@ -21,35 +21,240 @@ cell::cell(const Teuchos::RCP<CellMetaData> & cellData_,
            Kokkos::View<GO**,HostDevice> GIDs_,
            Kokkos::View<int****,HostDevice> sideinfo_,
            Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_) :
-cellData(cellData_), localElemID(localID_), nodes(nodes_), GIDs(GIDs_), sideinfo(sideinfo_), orientation(orientation_)
+cellData(cellData_), localElemID(localID_), nodes(nodes_), GIDs(GIDs_), sideinfo(sideinfo_),
+orientation(orientation_)
 {
   
   numElem = nodes.extent(0);
   useSensors = false;
   
-  this->setIP();
+  int dimension = cellData->dimension;
+  int numip = cellData->ref_ip.extent(0);
   
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////
-
-void cell::setIP() {
-  // ip and ref_ip will live on the assembly device
-  
-  ip = DRV("ip", numElem, cellData->ref_ip.extent(0), cellData->dimension);
+  ip = DRV("ip", numElem, numip, dimension);
   CellTools::mapToPhysicalFrame(ip, cellData->ref_ip, nodes, *(cellData->cellTopo));
   
-  jacobian = DRV("jacobian", numElem, cellData->ref_ip.extent(0), cellData->dimension, cellData->dimension);
+  DRV jacobian("jacobian", numElem, numip, dimension, dimension);
   CellTools::setJacobian(jacobian, cellData->ref_ip, nodes, *(cellData->cellTopo));
   
-  jacobianDet = DRV("determinant of jacobian", numElem, cellData->ref_ip.extent(0));
-  jacobianInv = DRV("inverse of jacobian", numElem, cellData->ref_ip.extent(0), cellData->dimension, cellData->dimension);
+  DRV jacobianDet("determinant of jacobian", numElem, numip);
+  DRV jacobianInv("inverse of jacobian", numElem, numip, dimension, dimension);
   CellTools::setJacobianDet(jacobianDet, jacobian);
   CellTools::setJacobianInv(jacobianInv, jacobian);
   
-  wts = DRV("ip wts", numElem, cellData->ref_ip.extent(0));
+  wts = DRV("ip wts", numElem, numip);
   FuncTools::computeCellMeasure(wts, jacobianDet, cellData->ref_wts);
+
+  hsize = Kokkos::View<ScalarT*,AssemblyDevice>("element sizes", numElem);
+  parallel_for(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    ScalarT vol = 0.0;
+    for (int i=0; i<wts.extent(1); i++) {
+      vol += wts(e,i);
+    }
+    ScalarT dimscl = 1.0/(ScalarT)ip.extent(2);
+    hsize(e) = std::pow(vol,dimscl);
+  });
+  
+  for (size_t i=0; i<cellData->basis_pointers.size(); i++) {
+    
+    int numb = cellData->basis_pointers[i]->getCardinality();
+    
+    DRV basis_vals, basis_grad_vals, basis_div_vals, basis_curl_vals;
+    
+    if (cellData->basis_types[i] == "HGRAD"){
+      basis_vals = DRV("basis",numElem,numb,numip);
+      DRV tmp_basis_vals("basis",numElem,numb,numip);
+      FuncTools::HGRADtransformVALUE(tmp_basis_vals, cellData->ref_basis[i]);
+      OrientTools::modifyBasisByOrientation(basis_vals, tmp_basis_vals, orientation,
+                                            cellData->basis_pointers[i].get());
+    
+      DRV basis_grad_tmp("basis grad tmp",numElem,numb,numip,dimension);
+      basis_grad_vals = DRV("basis grad",numElem,numb,numip,dimension);
+      FuncTools::HGRADtransformGRAD(basis_grad_tmp, jacobianInv, cellData->ref_basis_grad[i]);
+      OrientTools::modifyBasisByOrientation(basis_grad_vals, basis_grad_tmp, orientation,
+                                            cellData->basis_pointers[i].get());
+    }
+    else if (cellData->basis_types[i] == "HVOL"){
+      basis_vals = DRV("basis",numElem,numb,numip);
+      FuncTools::HGRADtransformVALUE(basis_vals, cellData->ref_basis[i]);
+    }
+    else if (cellData->basis_types[i] == "HDIV"){
+      
+      basis_vals = DRV("basis",numElem,numb,numip,dimension);
+      DRV basis_tmp("basis tmp",numElem,numb,numip,dimension);
+      FuncTools::HDIVtransformVALUE(basis_tmp, jacobian, jacobianDet, cellData->ref_basis[i]);
+      //basis_uw[i] = basis_tmp;
+      OrientTools::modifyBasisByOrientation(basis_vals, basis_tmp, orientation,
+                                            cellData->basis_pointers[i].get());
+      
+      
+      basis_div_vals = DRV("basis div",numElem,numb,numip);
+      DRV basis_div_vals_tmp("basis div tmp",numElem,numb,numip);
+      FuncTools::HDIVtransformDIV(basis_div_vals_tmp, jacobianDet, cellData->ref_basis_div[i]);
+      OrientTools::modifyBasisByOrientation(basis_div_vals, basis_div_vals_tmp, orientation,
+                                            cellData->basis_pointers[i].get());
+      
+    }
+    else if (cellData->basis_types[i] == "HCURL"){
+      
+      basis_vals = DRV("basis",numElem,numb,numip,dimension);
+      DRV basis_tmp("basis tmp",numElem,numb,numip,dimension);
+      FuncTools::HCURLtransformVALUE(basis_tmp, jacobianInv, cellData->ref_basis[i]);
+      OrientTools::modifyBasisByOrientation(basis_vals, basis_tmp, orientation,
+                                            cellData->basis_pointers[i].get());
+      
+      basis_curl_vals = DRV("basis curl",numElem,numb,numip,dimension);
+      DRV basis_curl_vals_tmp("basis curl tmp",numElem,numb,numip,dimension);
+      FuncTools::HCURLtransformCURL(basis_curl_vals_tmp, jacobian, jacobianDet, cellData->ref_basis_curl[i]);
+      OrientTools::modifyBasisByOrientation(basis_curl_vals, basis_curl_vals_tmp, orientation,
+                                            cellData->basis_pointers[i].get());
+      
+    }
+    basis.push_back(basis_vals);
+    basis_grad.push_back(basis_grad_vals);
+    basis_div.push_back(basis_div_vals);
+    basis_curl.push_back(basis_curl_vals);
+    
+  }
+  
+  if (cellData->assemble_face_terms) {
+    for (int side=0; side<cellData->numSides; side++) {
+      DRV ref_ip = cellData->ref_side_ip[side];
+      DRV ref_wts = cellData->ref_side_wts[side];
+      
+      int dimension = cellData->dimension;
+      int numip = ref_ip.extent(0);
+      
+      // Step 1: fill in ip_side, wts_side and normals
+      DRV sip("side ip", numElem, numip, dimension);
+      DRV jac("bijac", numElem, numip, dimension, dimension);
+      DRV jacDet("bijacDet", numElem, numip);
+      DRV jacInv("bijacInv", numElem, numip, dimension, dimension);
+      DRV swts = DRV("wts_side", numElem, numip);
+      DRV snormals = DRV("normals", numElem, numip, dimension);
+      DRV tangents("tangents", numElem, numip, dimension);
+      
+      {
+        //Teuchos::TimeMonitor updatetimer(*worksetFaceUpdateIPTimer);
+        
+        CellTools::mapToPhysicalFrame(sip, ref_ip, nodes, *(cellData->cellTopo));
+        CellTools::setJacobian(jac, ref_ip, nodes, *(cellData->cellTopo));
+        CellTools::setJacobianInv(jacInv, jac);
+        CellTools::setJacobianDet(jacDet, jac);
+        
+        if (dimension == 2) {
+          DRV ref_tangents = cellData->ref_side_tangents[side];
+          Intrepid2::RealSpaceTools<AssemblyExec>::matvec(tangents, jac, ref_tangents);
+          
+          DRV rotation("rotation matrix",dimension,dimension);
+          rotation(0,0) = 0;  rotation(0,1) = 1;
+          rotation(1,0) = -1; rotation(1,1) = 0;
+          Intrepid2::RealSpaceTools<AssemblyExec>::matvec(snormals, rotation, tangents);
+          
+          Intrepid2::RealSpaceTools<AssemblyExec>::vectorNorm(swts, tangents, Intrepid2::NORM_TWO);
+          Intrepid2::ArrayTools<AssemblyExec>::scalarMultiplyDataData(swts, swts, ref_wts);
+          
+        }
+        else if (dimension == 3) {
+          
+          DRV ref_tangentsU = cellData->ref_side_tangentsU[side];
+          DRV ref_tangentsV = cellData->ref_side_tangentsV[side];
+          
+          DRV faceTanU("face tangent U", numElem, numip, dimension);
+          DRV faceTanV("face tangent V", numElem, numip, dimension);
+          
+          Intrepid2::RealSpaceTools<AssemblyExec>::matvec(faceTanU, jac, ref_tangentsU);
+          Intrepid2::RealSpaceTools<AssemblyExec>::matvec(faceTanV, jac, ref_tangentsV);
+          
+          Intrepid2::RealSpaceTools<AssemblyExec>::vecprod(snormals, faceTanU, faceTanV);
+          
+          Intrepid2::RealSpaceTools<AssemblyExec>::vectorNorm(swts, snormals, Intrepid2::NORM_TWO);
+          Intrepid2::ArrayTools<AssemblyExec>::scalarMultiplyDataData(swts, swts, ref_wts);
+          
+        }
+        
+        // scale the normal vector (we need unit normal...)
+        parallel_for(RangePolicy<AssemblyExec>(0,snormals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          for (int j=0; j<snormals.extent(1); j++ ) {
+            ScalarT normalLength = 0.0;
+            for (int sd=0; sd<snormals.extent(2); sd++) {
+              normalLength += snormals(e,j,sd)*snormals(e,j,sd);
+            }
+            normalLength = std::sqrt(normalLength);
+            for (int sd=0; sd<snormals.extent(2); sd++) {
+              snormals(e,j,sd) = snormals(e,j,sd) / normalLength;
+            }
+          }
+        });
+        
+        ip_face.push_back(sip);
+        wts_face.push_back(swts);
+        normals_face.push_back(snormals);
+      }
+      
+      // Step 2: define basis functionsat these integration points
+      {
+        //Teuchos::TimeMonitor updatetimer(*worksetFaceUpdateBasisTimer);
+        vector<DRV> currbasis, currbasisgrad;
+        for (size_t i=0; i<cellData->basis_pointers.size(); i++) {
+          int numb = cellData->basis_pointers[i]->getCardinality();
+          DRV basis_vals, basis_grad_vals, basis_div_vals, basis_curl_vals;
+          
+          DRV ref_basis_vals = cellData->ref_side_basis[side][i];
+          
+          if (cellData->basis_types[i] == "HGRAD"){
+            
+            DRV basis_vals_tmp("tmp basis_vals",numElem, numb, numip);
+            basis_vals = DRV("basis_vals",numElem, numb, numip);
+            FuncTools::HGRADtransformVALUE(basis_vals_tmp, ref_basis_vals);
+            OrientTools::modifyBasisByOrientation(basis_vals, basis_vals_tmp, orientation,
+                                                  cellData->basis_pointers[i].get());
+          
+            DRV ref_basis_grad_vals = cellData->ref_side_basis_grad[side][i];
+            DRV basis_grad_vals_tmp("tmp basis_grad_vals",numElem, numb, numip, dimension);
+            basis_grad_vals = DRV("basis_grad_vals",numElem, numb, numip, dimension);
+            FuncTools::HGRADtransformGRAD(basis_grad_vals_tmp, jacInv, ref_basis_grad_vals);
+            OrientTools::modifyBasisByOrientation(basis_grad_vals, basis_grad_vals_tmp, orientation,
+                                                  cellData->basis_pointers[i].get());
+            
+          }
+          else if (cellData->basis_types[i] == "HVOL"){
+            
+            basis_vals = DRV("basis_vals",numElem, numb, numip);
+            FuncTools::HGRADtransformVALUE(basis_vals, ref_basis_vals);
+            
+          }
+          else if (cellData->basis_types[i] == "HDIV"){
+            
+            DRV basis_vals_tmp("tmp basis_vals",numElem, numb, numip, dimension);
+            basis_vals = DRV("basis_vals",numElem, numb, numip, dimension);
+            
+            FuncTools::HDIVtransformVALUE(basis_vals_tmp, jac, jacDet, ref_basis_vals);
+            OrientTools::modifyBasisByOrientation(basis_vals, basis_vals_tmp, orientation,
+                                                  cellData->basis_pointers[i].get());
+            
+          }
+          else if (cellData->basis_types[i] == "HCURL"){
+            //FunctionSpaceTools<AssemblyDevice>::multiplyMeasure(basis_side[i], wts_side, ref_basis_side[s][i]);
+          }
+          else if (cellData->basis_types[i] == "HFACE"){
+            
+            basis_vals = DRV("basis_vals",numElem, numb, numip);
+            DRV basis_vals_tmp("basisvals_Transformed",numElem, numb, numip);
+            FuncTools::HGRADtransformVALUE(basis_vals_tmp, ref_basis_vals);
+            OrientTools::modifyBasisByOrientation(basis_vals, basis_vals_tmp, orientation,
+                                                  cellData->basis_pointers[i].get());
+            
+          }
+          
+          currbasis.push_back(basis_vals);
+          currbasisgrad.push_back(basis_grad_vals);
+        }
+        basis_face.push_back(currbasis);
+        basis_grad_face.push_back(currbasisgrad);
+      }
+    }
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -206,51 +411,41 @@ void cell::setAuxUseBasis(vector<int> & ausebasis_) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
+// Update the workset
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::updateWorksetBasis() {
+  wkset->ip = ip;
+  wkset->wts = wts;
+  wkset->h = hsize;
+  
+  // TMW: can this be avoided??
+  Kokkos::deep_copy(wkset->ip_KV,ip);
+  
+  wkset->basis = basis;
+  wkset->basis_grad = basis_grad;
+  wkset->basis_div = basis_div;
+  wkset->basis_curl = basis_curl;
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
 // Map the AD degrees of freedom to integration points
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::computeSolnVolIP(Kokkos::View<int*,UnifiedDevice> seedwhat) {
+void cell::computeSolnVolIP(const int & seedwhat) {
   // seedwhat key: 0-nothing; 1-sol; 2-soldot; 3-disc.params.; 4-aux.vars
   // Note: seeding u_dot is now deprecated
   
   Teuchos::TimeMonitor localtimer(*computeSolnVolTimer);
-  wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
+  //wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
+  this->updateWorksetBasis();
   wkset->computeSolnVolIP(u, u_prev, u_stage, seedwhat);
   wkset->computeParamVolIP(param, seedwhat);
   
   if (cellData->compute_sol_avg) {
     this->computeSolAvg();
   }
-  /*
-  if (wkset->numAux > 0) {
-    wkset->resetAux();
-    
-    AD auxval;
-    for (int e=0; e<numElem; e++) {
-      if (auxindex.size() > e ) {
-        for (size_t k=0; k<auxindex.extent(1); k++) {
-          if (auxusebasis[k] < auxbasis.size()) {
-            for( int i=0; i<numAuxDOF(k); i++ ) {
-              
-              if (seedaux) {
-                auxval = AD(maxDerivs,auxoffsets[k][i],aux(e,k,i));
-              }
-              else {
-                auxval = aux(e,k,i);
-              }
-              for( size_t j=0; j<ip.extent(1); j++ ) {
-                wkset->local_aux(e,k,j) += auxval*auxbasis[auxusebasis[k]](e,i,j);
-                //for( int s=0; s<dimension; s++ ) {
-                //  wkset->local_aux_grad(e,k,j,s) += auxval*auxbasisGrad[auxusebasis[k]](e,i,j,s);
-                //}
-              }
-            }
-          }
-        }
-      }
-    }
-  }*/
-  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -258,7 +453,7 @@ void cell::computeSolnVolIP(Kokkos::View<int*,UnifiedDevice> seedwhat) {
 
 void cell::computeSolAvg() {
   
-  // THIS FUNCTION ASSUMES THAT THE WORKSET HAS BEEN UPDATED
+  // THIS FUNCTION ASSUMES THAT THE WORKSET BASIS HAS BEEN UPDATED
   // AND THE SOLUTION HAS BEEN COMPUTED AT THE VOLUMETRIC IP
   
   Teuchos::TimeMonitor localtimer(*computeSolAvgTimer);
@@ -284,15 +479,35 @@ void cell::computeSolAvg() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
+// Update the workset
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::updateWorksetFaceBasis(const size_t & facenum) {
+  
+  wkset->ip_side = ip_face[facenum];
+  wkset->wts_side = wts_face[facenum];
+  wkset->normals = normals_face[facenum];
+  wkset->h = hsize;
+  
+  // TMW: can this be avoided??
+  Kokkos::deep_copy(wkset->ip_side_KV,ip_face[facenum]);
+  Kokkos::deep_copy(wkset->normals_KV,normals_face[facenum]);
+  
+  wkset->basis_face = basis_face[facenum];
+  wkset->basis_grad_face = basis_grad_face[facenum];
+  
+}
+///////////////////////////////////////////////////////////////////////////////////////
 // Map the AD degrees of freedom to integration points
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::computeSolnFaceIP(const size_t & facenum, Kokkos::View<int*,UnifiedDevice> seedwhat) {
+void cell::computeSolnFaceIP(const size_t & facenum, const int & seedwhat) {
   
   Teuchos::TimeMonitor localtimer(*computeSolnFaceTimer);
   
-  wkset->updateFace(nodes, orientation, facenum);
-  wkset->computeSolnFaceIP(u, seedwhat);
+  this->updateWorksetFaceBasis(facenum);
+  //wkset->updateFace(nodes, orientation, facenum);
+  wkset->computeSolnFaceIP(u, u_prev, u_stage, seedwhat);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -310,7 +525,8 @@ void cell::updateSolnWorkset(const vector_RCP & gl_u, int tindex) {
       }
     }
   }
-  wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
+  this->updateWorksetBasis();
+  //wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
   wkset->computeSolnVolIP(ulocal);
 }
 
@@ -413,20 +629,21 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   // Compute the AD-seeded solutions at integration points
   //////////////////////////////////////////////////////////////
   // Putting this on UVM memory so anyone can access it
-  Kokkos::View<int*,UnifiedDevice> seedwhat("int indicating seeding",1);
+  //Kokkos::View<int*,UnifiedDevice> seedwhat("int indicating seeding",1);
+  int seedwhat;
   if (compute_jacobian) {
     if (compute_disc_sens) {
-      seedwhat(0) = 3;
+      seedwhat = 3;
     }
     else if (compute_aux_sens) {
-      seedwhat(0) = 4;
+      seedwhat = 4;
     }
     else {
-      seedwhat(0) = 1;
+      seedwhat = 1;
     }
   }
   else {
-    seedwhat(0) = 0; // seed nothing
+    seedwhat = 0; // seed nothing
   }
   
   if (cellData->multiscale) {
@@ -470,21 +687,17 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
       for (size_t s=0; s<cellData->numSides; s++) {
         if (compute_jacobian) {
           if (compute_disc_sens) {
-            seedwhat(0) = 3;
-            this->computeSolnFaceIP(s,seedwhat);
+            this->computeSolnFaceIP(s,3);
           }
           else if (compute_aux_sens) {
-            seedwhat(0) = 4;
-            this->computeSolnFaceIP(s,seedwhat);
+            this->computeSolnFaceIP(s,4);
           }
           else {
-            seedwhat(0) = 1;
-            this->computeSolnFaceIP(s,seedwhat);
+            this->computeSolnFaceIP(s,1);
           }
         }
         else {
-          seedwhat(0) = 0;
-          this->computeSolnFaceIP(s,seedwhat);
+          this->computeSolnFaceIP(s,0);
         }
         cellData->physics_RCP->faceResidual(cellData->myBlock);
       }
@@ -587,10 +800,10 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
                   for (int i=0; i<cellData->numDOF(n); i++) {
                     for (int s=0; s<wkset->numip; s++) {
                       if (w == 1) {
-                        local_res(e,wkset->offsets(n,j),0) += -obj(e,s).fastAccessDx(wkset->offsets(n,i))*wkset->ref_basis[wkset->usebasis[n]](e,j,s);
+                        local_res(e,wkset->offsets(n,j),0) += -obj(e,s).fastAccessDx(wkset->offsets(n,i))*wkset->basis[wkset->usebasis[n]](e,j,s);
                       }
                       else {
-                        local_res(e,wkset->offsets(n,j),0) += -obj(e,s).fastAccessDx(wkset->offsets(n,i))*wkset->basis_grad_uw[wkset->usebasis[n]](e,j,s,w-2);
+                        local_res(e,wkset->offsets(n,j),0) += -obj(e,s).fastAccessDx(wkset->offsets(n,i))*wkset->basis_grad[wkset->usebasis[n]](e,j,s,w-2);
                       }
                     }
                   }
@@ -613,7 +826,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
           }
         }
         if (isTransient) {
-          seedwhat(0) = 2;
+          int seedwhat = 2;
           this->computeSolnVolIP(seedwhat);
           wkset->resetResidual();
           
@@ -807,7 +1020,8 @@ void cell::updateAuxJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
 
 Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, const bool & isAdjoint) {
   Kokkos::View<ScalarT**,AssemblyDevice> initialvals("initial values",numElem,GIDs.extent(1));
-  wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
+  this->updateWorksetBasis();
+  //wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
   Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
   Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
   Kokkos::View<int[1],UnifiedDevice> currind("current index");
@@ -824,7 +1038,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, co
         int n = currind(0);
         for( int i=0; i<numDOF(n); i++ ) {
           for( size_t j=0; j<initialip.extent(2); j++ ) {
-            initialvals(e,offsets(n,i)) += initialip(e,n,j)*basis(e,i,j);
+            initialvals(e,offsets(n,i)) += initialip(e,n,j)*basis(e,i,j)*wts(e,j);
           }
         }
       });
@@ -857,20 +1071,21 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, co
 
 Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
   Kokkos::View<ScalarT***,AssemblyDevice> mass("local mass",numElem,GIDs.extent(1), GIDs.extent(1));
-  wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
+  this->updateWorksetBasis();
+  //wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
   vector<string> basis_types = wkset->basis_types;
   Kokkos::View<LO**,AssemblyDevice> offsets = wkset->offsets;
   Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
   
   for (int n=0; n<index.extent(1); n++) {
-    DRV basis_uw = wkset->basis_uw[wkset->usebasis[n]];
+    DRV basis_uw = wkset->basis[wkset->usebasis[n]];
     DRV basis = wkset->basis[wkset->usebasis[n]];
     //auto cndof = Kokkos::subview(numDOF, n);
     parallel_for(RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for( int i=0; i<numDOF(n); i++ ) {
         for( int j=0; j<numDOF(n); j++ ) {
           for( size_t k=0; k<basis.extent(2); k++ ) {
-            mass(e,offsets(n,i),offsets(n,j)) += basis_uw(e,i,k)*basis(e,j,k);
+            mass(e,offsets(n,i),offsets(n,j)) += basis(e,i,k)*basis(e,j,k)*wts(e,k);
           }
         }
       }
@@ -953,7 +1168,8 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(//const ScalarT & solve
     numip = sensorLocations.size();
   }
   
-  wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
+  this->updateWorksetBasis();
+  //wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
   
   //KokkosTools::print(u);
   if (numip > 0) {
@@ -986,7 +1202,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(//const ScalarT & solve
           }
           else {
             for( size_t j=0; j<numip; j++ ) {
-              u_ip(e,n,j,0) += u_dof(e,n,i)*wkset->ref_basis[wkset->usebasis[n]](e,i,j);
+              u_ip(e,n,j,0) += u_dof(e,n,i)*wkset->basis[wkset->usebasis[n]](e,i,j);
             }
           }
           for (int s=0; s<cellData->dimension; s++) {
@@ -1000,7 +1216,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(//const ScalarT & solve
             }
             else {
               for( size_t j=0; j<numip; j++ ) {
-                ugrad_ip(e,n,j,s) += u_dof(e,n,i)*wkset->basis_grad_uw[wkset->usebasis[n]](e,i,j,s);
+                ugrad_ip(e,n,j,s) += u_dof(e,n,i)*wkset->basis_grad[wkset->usebasis[n]](e,i,j,s);
               }
             }
           }
@@ -1272,10 +1488,11 @@ AD cell::computeDomainRegularization(const vector<ScalarT> reg_constants, const 
   //}
   //this->setLocalADParams(param_AD,seedParams);
   int numip = wkset->numip;
-  wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
-  Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
-  seedwhat(0) = 3;  
-  wkset->computeParamVolIP(param, seedwhat);
+  this->updateWorksetBasis();
+  //wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
+  //Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
+  //seedwhat(0) = 3;
+  wkset->computeParamVolIP(param, 3);
   
   AD p, dpdx, dpdy, dpdz; // parameters
   ScalarT regoffset = 1.0e-5;

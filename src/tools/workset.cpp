@@ -15,13 +15,15 @@
 // Constructors
 ////////////////////////////////////////////////////////////////////////////////////
 
-workset::workset(const vector<int> & cellinfo, const DRV & ref_ip_, const DRV & ref_wts_, const DRV & ref_side_ip_,
-                 const DRV & ref_side_wts_, const vector<string> & basis_types_,
+workset::workset(const vector<int> & cellinfo, const bool & isTransient_,
+                 const DRV & ref_ip_, const DRV & ref_wts_, const DRV & ref_side_ip_,
+                 const DRV & ref_side_wts_,
+                 const vector<string> & basis_types_,
                  const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
                  const topo_RCP & topo, Kokkos::View<int**,UnifiedDevice> & var_bcs_) : //, const Teuchos::RCP<TimeIntegrator> & timeInt_) :
-ref_ip(ref_ip_), ref_wts(ref_wts_), ref_side_ip(ref_side_ip_), ref_side_wts(ref_side_wts_),
+//ref_ip(ref_ip_), ref_wts(ref_wts_), ref_side_ip(ref_side_ip_), ref_side_wts(ref_side_wts_),
 basis_types(basis_types_), basis_pointers(basis_pointers_), param_basis_pointers(param_basis_),
-celltopo(topo), var_bcs(var_bcs_)  { //, timeInt(timeInt_) {
+celltopo(topo), var_bcs(var_bcs_), isTransient(isTransient_)  { //, timeInt(timeInt_) {
   
   // Settings that should not change
   dimension = cellinfo[0];
@@ -40,8 +42,8 @@ celltopo(topo), var_bcs(var_bcs_)  { //, timeInt(timeInt_) {
   current_stage_KV = Kokkos::View<int*,UnifiedDevice>("stage number on device",1);
   current_stage_KV(0) = 0;
   // Integration information
-  numip = ref_ip.extent(0);
-  numsideip = ref_side_ip.extent(0);
+  numip = ref_ip_.extent(0);
+  numsideip = ref_side_ip_.extent(0);
   if (dimension == 2) {
     numsides = celltopo->getSideCount();
   }
@@ -50,101 +52,100 @@ celltopo(topo), var_bcs(var_bcs_)  { //, timeInt(timeInt_) {
   }
   time_KV = Kokkos::View<ScalarT*,AssemblyDevice>("time",1); // defaults to 0.0
   //sidetype = Kokkos::View<int*,AssemblyDevice>("side types",numElem);
+  
+  // these can point to different arrays ... data must be deep copied into them
   ip = DRV("ip", numElem,numip, dimension);
   wts = DRV("wts", numElem, numip);
   ip_side = DRV("ip_side", numElem,numsideip,dimension);
   wts_side = DRV("wts_side", numElem,numsideip);
   normals = DRV("normals", numElem,numsideip,dimension);
   
+  // these cannot point to different arrays ... data must be deep copied into them
   ip_KV = Kokkos::View<ScalarT***,AssemblyDevice>("ip stored in KV",numElem,numip,dimension);
   ip_side_KV = Kokkos::View<ScalarT***,AssemblyDevice>("side ip stored in KV",numElem,numsideip,dimension);
   normals_KV = Kokkos::View<ScalarT***,AssemblyDevice>("side normals stored in normals KV",numElem,numsideip,dimension);
   point_KV = Kokkos::View<ScalarT***,AssemblyDevice>("ip stored in point KV",1,1,dimension);
   
-  for (size_t s=0; s<numsides; s++) {
-    DRV refSidePoints("refSidePoints",numsideip, dimension);
-    CellTools::mapToReferenceSubcell(refSidePoints, ref_side_ip, dimension-1, s, *celltopo);
-    ref_side_ip_vec.push_back(refSidePoints);
-    
-    DRV refSideNormals("refSideNormals",numsideip, dimension);
-    DRV refSideTangents("refSideTangents", dimension);
-    DRV refSideTangentsU("refSideTangents U", dimension);
-    DRV refSideTangentsV("refSideTangents V", dimension);
-    if (dimension == 2) {
-      CellTools::getReferenceSideNormal(refSideNormals,s,*celltopo);
-      CellTools::getReferenceEdgeTangent(refSideTangents,s,*celltopo);
-    }
-    else if (dimension == 3) {
-      //CellTools::getReferenceFaceNormal(refSideNormals,s,*celltopo);
-      CellTools::getReferenceFaceTangents(refSideTangentsU, refSideTangentsV, s, *celltopo);
-      //CellTools::getReferenceFaceTangents(refSideTangents,s,*celltopo);
-    }
-    ref_side_normals_vec.push_back(refSideNormals);
-    ref_side_tangents_vec.push_back(refSideTangents);
-    ref_side_tangentsU_vec.push_back(refSideTangentsU);
-    ref_side_tangentsV_vec.push_back(refSideTangentsV);
-  }
   
-  //ip_side_vec = vector<DRV>(numBound);
-  //wts_side_vec = vector<DRV>(numBound);
-  //normals_side_vec = vector<DRV>(numBound);
-  
-  h = Kokkos::View<ScalarT*,AssemblyDevice>("h",numElem);
+  //h = Kokkos::View<ScalarT*,AssemblyDevice>("h",numElem);
   res = Kokkos::View<AD**,AssemblyDevice>("residual",numElem,numDOF);
   adjrhs = Kokkos::View<AD**,AssemblyDevice>("adjoint RHS",numElem,numDOF);
-  
-  jacobDet = DRV("jacobDet",numElem, numip);
-  jacobInv = DRV("jacobInv",numElem, numip, dimension, dimension);
-  weightedMeasure = DRV("weightedMeasure",numElem, numip);
-  
-  sidejacobDet = DRV("sidejacobDet",numElem, numsideip);
-  sidejacobInv = DRV("sidejacobInv",numElem, numsideip, dimension, dimension);
-  sideweightedMeasure = DRV("sideweightedMeasure",numElem, numsideip);
-  
   
   have_rotation = false;
   have_rotation_phi = false;
   rotation = Kokkos::View<ScalarT***,AssemblyDevice>("rotation matrix",numElem,3,3);
   
-  // Local solution with grad, div, curl
-  local_soln = Kokkos::View<AD****, AssemblyDevice>("local_soln",numElem, numVars, numip, dimension);
-  local_soln_grad = Kokkos::View<AD****, AssemblyDevice>("local_soln_grad",numElem, numVars, numip, dimension);
-  local_soln_div = Kokkos::View<AD***, AssemblyDevice>("local_soln_div",numElem, numVars, numip);
-  local_soln_curl = Kokkos::View<AD****, AssemblyDevice>("local_soln_curl",numElem, numVars, numip, dimension);
-  local_soln_dot = Kokkos::View<AD****, AssemblyDevice>("local_soln_dot",numElem, numVars, numip, dimension);
-  local_soln_dot_grad = Kokkos::View<AD****, AssemblyDevice>("local_soln_dot_grad",numElem, numVars, numip, dimension);
-  
-  local_param = Kokkos::View<AD***, AssemblyDevice>("local_param",numElem, numParams, numip);
-  local_param_grad = Kokkos::View<AD****, AssemblyDevice>("local_param_grad",numElem, numParams, numip, dimension);
-  
-  local_aux = Kokkos::View<AD***, AssemblyDevice>("local_aux",numElem, numAux, numip);
-  //local_aux_grad = Kokkos::View<AD****, AssemblyDevice>("local_aux_grad",numElem, numAux, numip, dimension);
-  
-  local_soln_side = Kokkos::View<AD****, AssemblyDevice>("local_soln_side",numElem, numVars, numsideip, dimension);
-  local_soln_grad_side = Kokkos::View<AD****, AssemblyDevice>("local_soln_grad_side",numElem, numVars, numsideip, dimension);
-  local_soln_dot_side = Kokkos::View<AD****, AssemblyDevice>("local_soln_dot_side",numElem, numVars, numsideip, dimension);
-  
-  local_soln_face = Kokkos::View<AD****, AssemblyDevice>("local_soln_face",numElem, numVars, numsideip, dimension);
-  local_soln_grad_face = Kokkos::View<AD****, AssemblyDevice>("local_soln_grad_face",numElem, numVars, numsideip, dimension);
-  
-  local_param_side = Kokkos::View<AD***, AssemblyDevice>("local_param_side",numElem, numParams, numsideip);
-  local_param_grad_side = Kokkos::View<AD****, AssemblyDevice>("local_param_grad_side",numElem, numParams, numsideip, dimension);
-  local_aux_side = Kokkos::View<AD***, AssemblyDevice>("local_aux_side",numElem, numAux, numsideip);
-  //local_aux_grad_side = Kokkos::View<AD****, AssemblyDevice>("local_aux_grad_side",numElem, numAux, numsideip, dimension);
-  
-  local_soln_point = Kokkos::View<AD****, AssemblyDevice>("local_soln point",1, numVars, 1, dimension);
-  local_soln_grad_point = Kokkos::View<AD****, AssemblyDevice>("local_soln point",1, numVars, 1, dimension);
-  local_param_point = Kokkos::View<AD***, AssemblyDevice>("local_soln point",1, numParams, 1);
-  local_param_grad_point = Kokkos::View<AD****, AssemblyDevice>("local_soln point",1, numParams, 1, dimension);
-  
-  this->setupBasis();
-  this->setupParamBasis();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Public functions
 ////////////////////////////////////////////////////////////////////////////////////
 
+void workset::createSolns() {
+
+  for (size_t i=0; i<usebasis.size(); i++) {
+    int bind = usebasis[i];
+    if (basis_types[bind] == "HGRAD") {
+      vars_HGRAD.push_back(i);
+    }
+    else if (basis_types[bind] == "HDIV") {
+      vars_HDIV.push_back(i);
+    }
+    else if (basis_types[bind] == "HVOL") {
+      vars_HVOL.push_back(i);
+    }
+    else if (basis_types[bind] == "HCURL") {
+      vars_HCURL.push_back(i);
+    }
+    else if (basis_types[bind] == "HFACE") {
+      vars_HFACE.push_back(i);
+    }
+  }
+  
+  // Local solutions that are always used
+  local_soln = Kokkos::View<AD****, AssemblyDevice>("local_soln",numElem, numVars, numip, dimension);
+  local_soln_side = Kokkos::View<AD****, AssemblyDevice>("local_soln_side",numElem, numVars, numsideip, dimension);
+  local_soln_face = Kokkos::View<AD****, AssemblyDevice>("local_soln_face",numElem, numVars, numsideip, dimension);
+  local_param_side = Kokkos::View<AD***, AssemblyDevice>("local_param_side",numElem, numParams, numsideip);
+  local_soln_point = Kokkos::View<AD****, AssemblyDevice>("local_soln point",1, numVars, 1, dimension);
+  local_param_point = Kokkos::View<AD***, AssemblyDevice>("local_soln point",1, numParams, 1);
+  local_soln_dot = Kokkos::View<AD****, AssemblyDevice>("local_soln_dot",numElem, numVars, numip, dimension);
+  
+  //if (vars_HGRAD.size() > 0) {
+    local_soln_grad = Kokkos::View<AD****, AssemblyDevice>("local_soln_grad",numElem, numVars, numip, dimension);
+    local_soln_grad_side = Kokkos::View<AD****, AssemblyDevice>("local_soln_grad_side",numElem, numVars, numsideip, dimension);
+    local_soln_grad_face = Kokkos::View<AD****, AssemblyDevice>("local_soln_grad_face",numElem, numVars, numsideip, dimension);
+    local_soln_grad_point = Kokkos::View<AD****, AssemblyDevice>("local_soln point",1, numVars, 1, dimension);
+  //}
+  //if (vars_HDIV.size() > 0) {
+    local_soln_div = Kokkos::View<AD***, AssemblyDevice>("local_soln_div",numElem, numVars, numip);
+  //}
+  //if (vars_HCURL.size() > 0) {
+    local_soln_curl = Kokkos::View<AD****, AssemblyDevice>("local_soln_curl",numElem, numVars, numip, dimension);
+  //}
+  
+  //if (numParams>0) {
+    local_param = Kokkos::View<AD***, AssemblyDevice>("local_param",numElem, numParams, numip);
+  //}
+  
+  //if (numAux>0) {
+    local_aux = Kokkos::View<AD***, AssemblyDevice>("local_aux",numElem, numAux, numip);
+    local_aux_side = Kokkos::View<AD***, AssemblyDevice>("local_aux_side",numElem, numAux, numsideip);
+  //}
+  
+  // Arrays that are not currently used for anything
+  local_aux_grad = Kokkos::View<AD****, AssemblyDevice>("local_aux_grad",numElem, numAux, numip, dimension);
+  local_param_grad = Kokkos::View<AD****, AssemblyDevice>("local_param_grad",numElem, numParams, numip, dimension);
+  local_soln_dot_grad = Kokkos::View<AD****, AssemblyDevice>("local_soln_dot_grad",numElem, numVars, numip, dimension);
+  local_soln_dot_side = Kokkos::View<AD****, AssemblyDevice>("local_soln_dot_side",numElem, numVars, numsideip, dimension);
+  local_param_grad_side = Kokkos::View<AD****, AssemblyDevice>("local_param_grad_side",numElem, numParams, numsideip, dimension);
+  local_aux_grad_side = Kokkos::View<AD****, AssemblyDevice>("local_aux_grad_side",numElem, numAux, numsideip, dimension);
+  local_param_grad_point = Kokkos::View<AD****, AssemblyDevice>("local_soln point",1, numParams, 1, dimension);
+  
+}
+
+
+/*
 void workset::setupBasis() {
   
   for (size_t i=0; i<basis_pointers.size(); i++) {
@@ -309,10 +310,12 @@ void workset::setupBasis() {
   }
   
 }
+*/
 
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
 
+/*
 void workset::setupParamBasis() {
   
   // Compute the discretized parameter basis value and basis grad values on reference element
@@ -367,11 +370,12 @@ void workset::setupParamBasis() {
   //param_basis_side_vec = vector<vector<DRV> >(numBound);
   //param_basis_grad_side_vec = vector<vector<DRV> >(numBound);
 }
+*/
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Update the nodes and the basis functions at the volumetric ip
 ////////////////////////////////////////////////////////////////////////////////////
-
+/*
 void workset::update(const DRV & ip_, const DRV & wts_, const DRV & jacobian,
                      const DRV & jacobianInv, const DRV & jacobianDet,
                      Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation) {
@@ -472,11 +476,12 @@ void workset::update(const DRV & ip_, const DRV & wts_, const DRV & jacobian,
   }
   
 }
+*/
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Update the nodes and the basis functions at the side ip
 ////////////////////////////////////////////////////////////////////////////////////
-
+/*
 int workset::addSide(const DRV & nodes, const int & sidenum,
                      Kokkos::View<LO*,AssemblyDevice> & localSideID,
                      Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation) {
@@ -816,16 +821,7 @@ void workset::updateFace(const DRV & nodes, Kokkos::DynRankView<Intrepid2::Orien
     
     Kokkos::deep_copy(normals_KV,normals);
     Kokkos::deep_copy(ip_side_KV,ip_side);
-    /*
-    parallel_for(RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (size_t j=0; j<numsideip; j++) {
-        for (size_t k=0; k<dimension; k++) {
-          ip_side_KV(e,j,k) = ip_side(e,j,k);
-          normals_KV(e,j,k) = normals(e,j,k);
-        }
-      }
-    });
-    */
+ 
   }
   
   // Step 2: define basis functionsat these integration points
@@ -908,11 +904,11 @@ void workset::updateFace(const DRV & nodes, Kokkos::DynRankView<Intrepid2::Orien
     }
   }
 }
-
+*/
 ////////////////////////////////////////////////////////////////////////////////////
 // Update the nodes and the basis functions at the side ip
 ////////////////////////////////////////////////////////////////////////////////////
-
+/*
 void workset::updateSide(const int & sidenum, const int & cnum) {
   
   currentside = sidenum;
@@ -930,16 +926,6 @@ void workset::updateSide(const int & sidenum, const int & cnum) {
       Kokkos::deep_copy(normals_KV,normals);
       Kokkos::deep_copy(ip_side_KV,ip_side);
       
-      /*
-      parallel_for(RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (size_t j=0; j<numsideip; j++) {
-          for (size_t k=0; k<dimension; k++) {
-            ip_side_KV(e,j,k) = ip_side(e,j,k);
-            normals_KV(e,j,k) = normals(e,j,k);
-          }
-        }
-      });
-      */
     }
   }
   
@@ -957,7 +943,7 @@ void workset::updateSide(const int & sidenum, const int & cnum) {
   }
   
 }
-
+*/
 
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -966,9 +952,11 @@ void workset::updateSide(const int & sidenum, const int & cnum) {
 
 void workset::resetResidual() {
   Teuchos::TimeMonitor resettimer(*worksetResetTimer);
+  AD val = 0.0;
+  //res.assign_data(&val);
   parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (int n=0; n<res.extent(1); n++) {
-      res(e,n) = 0.0;
+      res(e,n) = val;
     }
   });
   AssemblyExec::execution_space().fence();
@@ -991,6 +979,7 @@ void workset::resetResidual(const int & numE) {
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Reset solution to zero
+// TMW: I believe this can be deprecated
 ////////////////////////////////////////////////////////////////////////////////////
 
 void workset::resetFlux() {
@@ -1091,8 +1080,8 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
       string kutype = basis_types[kubasis];
       
       if (kutype == "HGRAD") {
-        DRV kbasis_uw = basis_uw[kubasis];
-        DRV kbasis_grad_uw = basis_grad_uw[kubasis];
+        DRV kbasis_uw = basis[kubasis];
+        DRV kbasis_grad_uw = basis_grad[kubasis];
         
         for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
@@ -1107,7 +1096,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
         }
       }
       else if (kutype == "HVOL") {
-        DRV kbasis_uw = basis_uw[kubasis];
+        DRV kbasis_uw = basis[kubasis];
         for( int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             uval = u(e,k,i);
@@ -1118,8 +1107,8 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
         }
       }
       else if (basis_types[usebasis[k]] == "HDIV"){
-        DRV kbasis_uw = basis_uw[kubasis];
-        DRV kbasis_div_uw = basis_div_uw[kubasis];
+        DRV kbasis_uw = basis[kubasis];
+        DRV kbasis_div_uw = basis_div[kubasis];
         
         for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
@@ -1134,8 +1123,8 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
         }
       }
       else if (basis_types[usebasis[k]] == "HCURL"){
-        DRV kbasis_uw = basis_uw[kubasis];
-        DRV kbasis_curl_uw = basis_curl_uw[kubasis];
+        DRV kbasis_uw = basis[kubasis];
+        DRV kbasis_curl_uw = basis_curl[kubasis];
         
         for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
@@ -1160,249 +1149,647 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
 void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
                                Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
                                Kokkos::View<ScalarT****,AssemblyDevice> u_stage,
-                               Kokkos::View<int*,UnifiedDevice> seedwhat) {
-  
-  // Reset the values (may combine with next loop when parallelized)
-  {
-    Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-    parallel_for(RangePolicy<AssemblyExec>(0,local_soln.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      AD value = 0.0;
-      for (int k=0; k<local_soln.extent(1); k++) {
-        for (int i=0; i<local_soln.extent(2); i++) {
-          for (int s=0; s<local_soln.extent(3); s++) {
-            local_soln(e,k,i,s) = value;
-            local_soln_dot(e,k,i,s) = value;
-            local_soln_grad(e,k,i,s) = value;
-            local_soln_curl(e,k,i,s) = value;
-          }
-          local_soln_div(e,k,i) = value;
-        }
-      }
-    });
-    AssemblyExec::execution_space().fence();
-    
-  }
+                               const int & seedwhat) {
   
   {
     Teuchos::TimeMonitor basistimer(*worksetComputeSolnVolTimer);
-    Kokkos::View<int*,UnifiedDevice> bind("basis index",1);
     
-    for (int k=0; k<numVars; k++) {
-      int kubasis = usebasis[k];
-      int knbasis = numbasis[kubasis];
-      string kutype = basis_types[kubasis];
-      bind(0) = k;
+    // Reset/fill operations specialized for each basis type
+    
+    /////////////////////////////////////////////////////////////////////
+    // HGRAD
+    /////////////////////////////////////////////////////////////////////
+    
+    for (int i=0; i<vars_HGRAD.size(); i++) {
+      int var = vars_HGRAD[i];
+      auto csol = Kokkos::subview(local_soln,Kokkos::ALL(),var,Kokkos::ALL(),0);
+      auto csol_grad = Kokkos::subview(local_soln_grad,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        AD value = 0.0;
+        for (int k=0; k<csol.extent(1); k++) {
+          csol(e,k) = value;
+        }
+        for (int k=0; k<csol_grad.extent(1); k++) {
+          for (int j=0; j<csol_grad.extent(2); j++) {
+            csol_grad(e,k,j) = value;
+          }
+        }
+      });
+      if (isTransient) {
+        auto csol_dot = Kokkos::subview(local_soln_dot,Kokkos::ALL(),var,Kokkos::ALL(),0);
+        parallel_for(RangePolicy<AssemblyExec>(0,csol_dot.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          AD value = 0.0;
+          for (int k=0; k<csol_dot.extent(1); k++) {
+            csol_dot(e,k) = value;
+          }
+        });
+      }
       
-      if (kutype == "HGRAD") {
-        DRV kbasis_uw = basis_uw[kubasis];
-        DRV kbasis_grad_uw = basis_grad_uw[kubasis];
-        
-        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD uval, u_dotval, stageval;
-          int kk = bind(0);
-          int current_stage = current_stage_KV(0);
-          ScalarT deltat = deltat_KV(0);
-          for (int i=0; i<kbasis_uw.extent(1); i++ ) {
-            if (seedwhat(0) == 1) {
-              stageval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
-            }
-            else {
-              stageval = u(e,kk,i);
-            }
-            //cout << "prevval = " << u_prev(e,kk,i,0) << endl;
-            //cout << "stageval = " << stageval << endl;
-            // uval is the stage solution
-            // the solution that goes into the residual is slightly different
-            if (BDF_wts.extent(0) > 1) { // transient problem
-              uval = u_prev(e,kk,i,0);
-              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - u_prev(e,kk,i,0));
+      DRV cbasis = basis[usebasis[var]];
+      DRV cbasis_grad = basis_grad[usebasis[var]];
+      auto coff = Kokkos::subview(offsets,var,Kokkos::ALL());
+      auto cu = Kokkos::subview(u,Kokkos::ALL(),var,Kokkos::ALL());
+      
+      if (isTransient) { // transient problem
+        auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),0);
+        auto cu_prev = Kokkos::subview(u_prev,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+        auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+        if (seedwhat == 1) {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            AD uval, u_dotval, stageval;
+            int current_stage = current_stage_KV(0);
+            ScalarT deltat = deltat_KV(0);
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
+              uval = cu_prev(elem,dof,0);
+              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
               for (int s=0; s<current_stage; s++) {
-                uval += butcher_A(current_stage,s)/butcher_b(s) * (u_stage(e,kk,i,s) - u_prev(e,kk,i,0));
+                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              u_dotval = BDF_wts(0)*stageval;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              u_dotval *= 1.0/deltat;
+              u_dotval *= 1.0/butcher_b(current_stage);
+              
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
+                for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                  csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+                }
+              }
+            }
+          });
+          
+        }
+        else if (seedwhat == 2) {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            AD uval, u_dotval, stageval;
+            int current_stage = current_stage_KV(0);
+            ScalarT deltat = deltat_KV(0);
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              stageval = cu(elem,dof);
+              uval = cu_prev(elem,dof,0);
+              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+              for (int s=0; s<current_stage; s++) {
+                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
               }
               //cout << "uval2 = " << uval << endl;
               u_dotval = BDF_wts(0)*stageval;
               for (int s=1; s<BDF_wts.extent(0); s++) {
-                u_dotval += BDF_wts(s)*u_prev(e,kk,i,s-1);
+                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
               }
               u_dotval *= 1.0/deltat;
               u_dotval *= 1.0/butcher_b(current_stage);
-            }
-            else {// steady state
-              uval = stageval;
-              u_dotval = 0.0;
-            }
-            
-            //cout << "u_dotval = " << u_dotval << endl;
-            
-            if (seedwhat(0) == 2) {
               ScalarT val = u_dotval.val();
-              u_dotval = AD(maxDerivs,offsets(kk,i),val);
-            }
-            
-            for (size_t j=0; j<kbasis_uw.extent(2); j++ ) {
-              local_soln(e,kk,j,0) += uval*kbasis_uw(e,i,j);
-              local_soln_dot(e,kk,j,0) += u_dotval*kbasis_uw(e,i,j);
-              for (int s=0; s<kbasis_grad_uw.extent(3); s++ ) {
-                local_soln_grad(e,kk,j,s) += uval*kbasis_grad_uw(e,i,j,s);
-              }
-            }
-          }
-        });
-        AssemblyExec::execution_space().fence();
-      }
-      else if (kutype == "HVOL") {
-        DRV kbasis_uw = basis_uw[kubasis];
-        
-        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD uval, u_dotval, stageval;
-          int current_stage = current_stage_KV(0);
-          ScalarT deltat = deltat_KV(0);
-          
-          int kk = bind(0);
-          for (int i=0; i<kbasis_uw.extent(1); i++ ) {
-            if (seedwhat(0) == 1) {
-              stageval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
-            }
-            else {
-              stageval = u(e,kk,i);
-            }
-            if (BDF_wts.extent(0) > 1) { // transient problem
-              uval = u_prev(e,kk,i,0);
-              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - u_prev(e,kk,i,0));
-              for (int s=0; s<current_stage; s++) {
-                uval += butcher_A(current_stage,s)/butcher_b(s) * (u_stage(e,kk,i,s) - u_prev(e,kk,i,0));
-              }
+              u_dotval = AD(maxDerivs,coff(dof),val);
               
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
+                for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                  csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+                }
+              }
+            }
+          });
+        }
+        else {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            AD uval, u_dotval, stageval;
+            int current_stage = current_stage_KV(0);
+            ScalarT deltat = deltat_KV(0);
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              stageval = cu(elem,dof);
+              uval = cu_prev(elem,dof,0);
+              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+              for (int s=0; s<current_stage; s++) {
+                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
               u_dotval = BDF_wts(0)*stageval;
               for (int s=1; s<BDF_wts.extent(0); s++) {
-                u_dotval += BDF_wts(s)*u_prev(e,kk,i,s-1);
+                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
               }
               u_dotval *= 1.0/deltat;
               u_dotval *= 1.0/butcher_b(current_stage);
-            }
-            else {// steady state
-              uval = stageval;
-              u_dotval = 0.0;
-            }
-            
-            if (seedwhat(0) == 2) {
-              ScalarT val = u_dotval.val();
-              u_dotval = AD(maxDerivs,offsets(kk,i),val);
-            }
-            
-            for( size_t j=0; j<kbasis_uw.extent(2); j++ ) {
-              local_soln(e,kk,j,0) += uval*kbasis_uw(e,i,j);
-              local_soln_dot(e,kk,j,0) += u_dotval*kbasis_uw(e,i,j);
-            }
-          }
-        });
-        AssemblyExec::execution_space().fence();
-      }
-      else if (kutype == "HDIV"){
-        DRV kbasis_uw = basis_uw[kubasis];
-        DRV kbasis_div_uw = basis_div_uw[kubasis];
-        
-        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD uval, u_dotval, stageval;
-          int current_stage = current_stage_KV(0);
-          ScalarT deltat = deltat_KV(0);
-          
-          int kk = bind(0);
-          for (int i=0; i<kbasis_uw.extent(1); i++ ) {
-            if (seedwhat(0) == 1) {
-              stageval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
-            }
-            else {
-              stageval = u(e,kk,i);
-            }
-            if (BDF_wts.extent(0) > 1) { // transient problem
-              uval = u_prev(e,kk,i,0);
-              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - u_prev(e,kk,i,0));
-              for (int s=0; s<current_stage; s++) {
-                uval += butcher_A(current_stage,s)/butcher_b(s) * (u_stage(e,kk,i,s) - u_prev(e,kk,i,0));
-              }
               
-              u_dotval = BDF_wts(0)*stageval;
-              for (int s=1; s<BDF_wts.extent(0); s++) {
-                u_dotval += BDF_wts(s)*u_prev(e,kk,i,s-1);
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
+                for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                  csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+                }
               }
-              u_dotval *= 1.0/deltat;
-              u_dotval *= 1.0/butcher_b(current_stage);
             }
-            else {// steady state
-              uval = stageval;
-              u_dotval = 0.0;
-            }
-            
-            for (size_t j=0; j<kbasis_uw.extent(2); j++ ) {
-              for (int s=0; s<kbasis_uw.extent(3); s++ ) {
-                local_soln(e,kk,j,s) += uval*kbasis_uw(e,i,j,s);
-                local_soln_dot(e,kk,j,s) += u_dotval*kbasis_uw(e,i,j,s);
-              }
-              local_soln_div(e,kk,j) += uval*kbasis_div_uw(e,i,j);
-            }
-          }
-        });
-        AssemblyExec::execution_space().fence();
+          });
+        }
       }
-      else if (basis_types[usebasis[k]] == "HCURL"){
-        DRV kbasis_uw = basis_uw[kubasis];
-        DRV kbasis_curl_uw = basis_curl_uw[kubasis];
-        
-        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD uval, u_dotval, stageval;
-          int current_stage = current_stage_KV(0);
-          ScalarT deltat = deltat_KV(0);
-          
-          int kk = bind(0);
-          for (int i=0; i<kbasis_uw.extent(1); i++ ) {
-            if (seedwhat(0) == 1) {
-              stageval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
-            }
-            else {
-              stageval = u(e,kk,i);
-            }
-            if (BDF_wts.extent(0) > 1) { // transient problem
-              uval = u_prev(e,kk,i,0);
-              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - u_prev(e,kk,i,0));
-              for (int s=0; s<current_stage; s++) {
-                uval += butcher_A(current_stage,s)/butcher_b(s) * (u_stage(e,kk,i,s) - u_prev(e,kk,i,0));
-              }
-              
-              u_dotval = BDF_wts(0)*stageval;
-              for (int s=1; s<BDF_wts.extent(0); s++) {
-                u_dotval += BDF_wts(s)*u_prev(e,kk,i,s-1);
-              }
-              u_dotval *= 1.0/deltat;
-              u_dotval *= 1.0/butcher_b(current_stage);
-            }
-            else {// steady state
-              uval = stageval;
-              u_dotval = 0.0;
-            }
-            
-            for (size_t j=0; j<kbasis_uw.extent(2); j++ ) {
-              for (int s=0; s<kbasis_uw.extent(3); s++ ) {
-                local_soln(e,kk,j,s) += uval*kbasis_uw(e,i,j,s);
-                local_soln_dot(e,kk,j,s) += u_dotval*kbasis_uw(e,i,j,s);
-                local_soln_curl(e,kk,j,s) += uval*kbasis_curl_uw(e,i,j,s);
+      else { // steady-state
+        if (seedwhat == 1) {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              AD uval = AD(maxDerivs,coff(dof),cu(elem,dof));
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                  csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+                }
               }
             }
-          }
-        });
-        AssemblyExec::execution_space().fence();
+          });
+        }
+        else {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            AD uval;
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              uval = cu(elem,dof);
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                  csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+                }
+              }
+            }
+          });
+        }
       }
     }
+    
+    /////////////////////////////////////////////////////////////////////
+    // HVOL
+    /////////////////////////////////////////////////////////////////////
+    
+    for (int i=0; i<vars_HVOL.size(); i++) {
+      int var = vars_HVOL[i];
+      auto csol = Kokkos::subview(local_soln,Kokkos::ALL(),var,Kokkos::ALL(),0);
+      parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        AD value = 0.0;
+        for (int k=0; k<csol.extent(1); k++) {
+          csol(e,k) = value;
+        }
+      });
+      if (isTransient) {
+        auto csol_dot = Kokkos::subview(local_soln_dot,Kokkos::ALL(),var,Kokkos::ALL(),0);
+        parallel_for(RangePolicy<AssemblyExec>(0,csol_dot.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          AD value = 0.0;
+          for (int k=0; k<csol_dot.extent(1); k++) {
+            csol_dot(e,k) = value;
+          }
+        });
+      }
+      
+      DRV cbasis = basis[usebasis[var]];
+      auto coff = Kokkos::subview(offsets,var,Kokkos::ALL());
+      auto cu = Kokkos::subview(u,Kokkos::ALL(),var,Kokkos::ALL());
+      
+      if (isTransient) { // transient problem
+        auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),0);
+        auto cu_prev = Kokkos::subview(u_prev,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+        auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+        if (seedwhat == 1) {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            AD uval, u_dotval, stageval;
+            int current_stage = current_stage_KV(0);
+            ScalarT deltat = deltat_KV(0);
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
+              uval = cu_prev(elem,dof,0);
+              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+              for (int s=0; s<current_stage; s++) {
+                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              u_dotval = BDF_wts(0)*stageval;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              u_dotval *= 1.0/deltat;
+              u_dotval *= 1.0/butcher_b(current_stage);
+              
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
+              }
+            }
+          });
+          
+        }
+        else if (seedwhat == 2) {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            AD uval, u_dotval, stageval;
+            int current_stage = current_stage_KV(0);
+            ScalarT deltat = deltat_KV(0);
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              stageval = cu(elem,dof);
+              uval = cu_prev(elem,dof,0);
+              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+              for (int s=0; s<current_stage; s++) {
+                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              //cout << "uval2 = " << uval << endl;
+              u_dotval = BDF_wts(0)*stageval;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              u_dotval *= 1.0/deltat;
+              u_dotval *= 1.0/butcher_b(current_stage);
+              ScalarT val = u_dotval.val();
+              u_dotval = AD(maxDerivs,coff(dof),val);
+              
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
+              }
+            }
+          });
+        }
+        else {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            AD uval, u_dotval, stageval;
+            int current_stage = current_stage_KV(0);
+            ScalarT deltat = deltat_KV(0);
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              stageval = cu(elem,dof);
+              uval = cu_prev(elem,dof,0);
+              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+              for (int s=0; s<current_stage; s++) {
+                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              u_dotval = BDF_wts(0)*stageval;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              u_dotval *= 1.0/deltat;
+              u_dotval *= 1.0/butcher_b(current_stage);
+              
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
+              }
+            }
+          });
+        }
+      }
+      else { // steady-state
+        if (seedwhat == 1) {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            AD uval;
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              uval = AD(maxDerivs,coff(dof),cu(elem,dof));
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                csol(elem,pt) += uval*cbasis(elem,dof,pt);
+              }
+            }
+          });
+        }
+        else {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            AD uval;
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              uval = cu(elem,dof);
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                csol(elem,pt) += uval*cbasis(elem,dof,pt);
+              }
+            }
+          });
+        }
+      }
+    }
+    
+    /////////////////////////////////////////////////////////////////////
+    // HDIV
+    /////////////////////////////////////////////////////////////////////
+    
+    for (int i=0; i<vars_HDIV.size(); i++) {
+      int var = vars_HDIV[i];
+      auto csol = Kokkos::subview(local_soln,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      auto csol_div = Kokkos::subview(local_soln_div,Kokkos::ALL(),var,Kokkos::ALL());
+      parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        AD value = 0.0;
+        for (int k=0; k<csol.extent(1); k++) {
+          csol_div(e,k) = value;
+          for (int j=0; j<csol.extent(2); j++) {
+            csol(e,k,j) = value;
+          }
+        }
+      });
+      if (isTransient) {
+        auto csol_dot = Kokkos::subview(local_soln_dot,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+        parallel_for(RangePolicy<AssemblyExec>(0,csol_dot.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          AD value = 0.0;
+          for (int k=0; k<csol_dot.extent(1); k++) {
+            for (int j=0; j<csol_dot.extent(2); j++) {
+              csol_dot(e,k,j) = value;
+            }
+          }
+        });
+      }
+      
+      DRV cbasis = basis[usebasis[var]];
+      DRV cbasis_div = basis_div[usebasis[var]];
+      auto coff = Kokkos::subview(offsets,var,Kokkos::ALL());
+      auto cu = Kokkos::subview(u,Kokkos::ALL(),var,Kokkos::ALL());
+      
+      if (isTransient) { // transient problem
+        auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+        auto cu_prev = Kokkos::subview(u_prev,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+        auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+        if (seedwhat == 1) {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            AD uval, u_dotval, stageval;
+            int current_stage = current_stage_KV(0);
+            ScalarT deltat = deltat_KV(0);
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
+              uval = cu_prev(elem,dof,0);
+              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+              for (int s=0; s<current_stage; s++) {
+                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              u_dotval = BDF_wts(0)*stageval;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              u_dotval *= 1.0/deltat;
+              u_dotval *= 1.0/butcher_b(current_stage);
+              
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                for (int s=0; s<cbasis.extent(3); s++ ) {
+                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+                  csol_dot(elem,pt,s) += u_dotval*cbasis(elem,dof,pt,s);
+                }
+                csol_div(elem,pt) += uval*cbasis_div(elem,dof,pt);
+              }
+            }
+          });
+          
+        }
+        else if (seedwhat == 2) {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            AD uval, u_dotval, stageval;
+            int current_stage = current_stage_KV(0);
+            ScalarT deltat = deltat_KV(0);
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              stageval = cu(elem,dof);
+              uval = cu_prev(elem,dof,0);
+              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+              for (int s=0; s<current_stage; s++) {
+                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              //cout << "uval2 = " << uval << endl;
+              u_dotval = BDF_wts(0)*stageval;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              u_dotval *= 1.0/deltat;
+              u_dotval *= 1.0/butcher_b(current_stage);
+              ScalarT val = u_dotval.val();
+              u_dotval = AD(maxDerivs,coff(dof),val);
+              
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                for (int s=0; s<cbasis.extent(3); s++ ) {
+                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+                  csol_dot(elem,pt,s) += u_dotval*cbasis(elem,dof,pt,s);
+                }
+                csol_div(elem,pt) += uval*cbasis_div(elem,dof,pt);
+              }
+            }
+          });
+        }
+        else {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            AD uval, u_dotval, stageval;
+            int current_stage = current_stage_KV(0);
+            ScalarT deltat = deltat_KV(0);
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              stageval = cu(elem,dof);
+              uval = cu_prev(elem,dof,0);
+              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+              for (int s=0; s<current_stage; s++) {
+                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              u_dotval = BDF_wts(0)*stageval;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              u_dotval *= 1.0/deltat;
+              u_dotval *= 1.0/butcher_b(current_stage);
+              
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                for (int s=0; s<cbasis.extent(3); s++ ) {
+                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+                  csol_dot(elem,pt,s) += u_dotval*cbasis(elem,dof,pt,s);
+                }
+                csol_div(elem,pt) += uval*cbasis_div(elem,dof,pt);
+              }
+            }
+          });
+        }
+      }
+      else { // steady-state
+        if (seedwhat == 1) {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              AD uval = AD(maxDerivs,coff(dof),cu(elem,dof));
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                for (int s=0; s<cbasis.extent(3); s++ ) {
+                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+                }
+                csol_div(elem,pt) += uval*cbasis_div(elem,dof,pt);
+              }
+            }
+          });
+        }
+        else {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              AD uval = cu(elem,dof);
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                for (int s=0; s<cbasis.extent(3); s++ ) {
+                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+                }
+                csol_div(elem,pt) += uval*cbasis_div(elem,dof,pt);
+              }
+            }
+          });
+        }
+      }
+      
+    }
+    
+    /////////////////////////////////////////////////////////////////////
+    // HCURL
+    /////////////////////////////////////////////////////////////////////
+    
+    for (int i=0; i<vars_HCURL.size(); i++) {
+      int var = vars_HCURL[i];
+      auto csol = Kokkos::subview(local_soln,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      auto csol_curl = Kokkos::subview(local_soln_grad,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        AD value = 0.0;
+        for (int k=0; k<csol.extent(1); k++) {
+          for (int j=0; j<csol.extent(2); j++) {
+            csol(e,k,j) = value;
+            csol_curl(e,k,j) = value;
+          }
+        }
+      });
+      if (isTransient) {
+        auto csol_dot = Kokkos::subview(local_soln_dot,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+        parallel_for(RangePolicy<AssemblyExec>(0,csol_dot.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          AD value = 0.0;
+          for (int k=0; k<csol_dot.extent(1); k++) {
+            for (int j=0; j<csol_dot.extent(2); j++) {
+              csol_dot(e,k,j) = value;
+            }
+          }
+        });
+      }
+      
+      DRV cbasis = basis[usebasis[var]];
+      DRV cbasis_curl = basis_curl[usebasis[var]];
+      auto coff = Kokkos::subview(offsets,var,Kokkos::ALL());
+      auto cu = Kokkos::subview(u,Kokkos::ALL(),var,Kokkos::ALL());
+      
+      if (isTransient) { // transient problem
+        auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+        auto cu_prev = Kokkos::subview(u_prev,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+        auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+        if (seedwhat == 1) {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            AD uval, u_dotval, stageval;
+            int current_stage = current_stage_KV(0);
+            ScalarT deltat = deltat_KV(0);
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
+              uval = cu_prev(elem,dof,0);
+              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+              for (int s=0; s<current_stage; s++) {
+                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              u_dotval = BDF_wts(0)*stageval;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              u_dotval *= 1.0/deltat;
+              u_dotval *= 1.0/butcher_b(current_stage);
+              
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                for (int s=0; s<cbasis.extent(3); s++ ) {
+                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+                  csol_dot(elem,pt,s) += u_dotval*cbasis(elem,dof,pt,s);
+                  csol_curl(elem,pt,s) += uval*cbasis_curl(elem,dof,pt,s);
+                }
+              }
+            }
+          });
+          
+        }
+        else if (seedwhat == 2) {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            AD uval, u_dotval, stageval;
+            int current_stage = current_stage_KV(0);
+            ScalarT deltat = deltat_KV(0);
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              stageval = cu(elem,dof);
+              uval = cu_prev(elem,dof,0);
+              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+              for (int s=0; s<current_stage; s++) {
+                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              //cout << "uval2 = " << uval << endl;
+              u_dotval = BDF_wts(0)*stageval;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              u_dotval *= 1.0/deltat;
+              u_dotval *= 1.0/butcher_b(current_stage);
+              ScalarT val = u_dotval.val();
+              u_dotval = AD(maxDerivs,coff(dof),val);
+              
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                for (int s=0; s<cbasis.extent(3); s++ ) {
+                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+                  csol_dot(elem,pt,s) += u_dotval*cbasis(elem,dof,pt,s);
+                  csol_curl(elem,pt,s) += uval*cbasis_curl(elem,dof,pt,s);
+                }
+              }
+            }
+          });
+        }
+        else {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            AD uval, u_dotval, stageval;
+            int current_stage = current_stage_KV(0);
+            ScalarT deltat = deltat_KV(0);
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              stageval = cu(elem,dof);
+              uval = cu_prev(elem,dof,0);
+              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+              for (int s=0; s<current_stage; s++) {
+                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              u_dotval = BDF_wts(0)*stageval;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              u_dotval *= 1.0/deltat;
+              u_dotval *= 1.0/butcher_b(current_stage);
+              
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                for (int s=0; s<cbasis.extent(3); s++ ) {
+                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+                  csol_dot(elem,pt,s) += u_dotval*cbasis(elem,dof,pt,s);
+                  csol_curl(elem,pt,s) += uval*cbasis_curl(elem,dof,pt,s);
+                }
+              }
+            }
+          });
+        }
+      }
+      else { // steady-state
+        if (seedwhat == 1) {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              AD uval = AD(maxDerivs,coff(dof),cu(elem,dof));
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                for (int s=0; s<cbasis.extent(3); s++ ) {
+                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+                  csol_curl(elem,pt,s) += uval*cbasis_curl(elem,dof,pt,s);
+                }
+              }
+            }
+          });
+        }
+        else {
+          parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+              AD uval = cu(elem,dof);
+              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                for (int s=0; s<cbasis.extent(3); s++ ) {
+                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+                  csol_curl(elem,pt,s) += uval*cbasis_curl(elem,dof,pt,s);
+                }
+              }
+            }
+          });
+        }
+      }
+    }
+    
+    // HFACE variables have no volumetric support
+    
   }
   
 }
-
-////////////////////////////////////////////////////////////////////////////////////
-// Compute the discretized parameters at the volumetric ip
-////////////////////////////////////////////////////////////////////////////////////
+  
+  ////////////////////////////////////////////////////////////////////////////////////
+  // Compute the discretized parameters at the volumetric ip
+  ////////////////////////////////////////////////////////////////////////////////////
 
 void workset::computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param,
-                                Kokkos::View<int*,UnifiedDevice> seedwhat) {
+                                const int & seedwhat) {
   
   if (numParams > 0) {
     {
@@ -1437,7 +1824,7 @@ void workset::computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param,
           int kk = bind(0);
           for (int i=0; i<pbasis.extent(1); i++ ) {
             
-            if (seedwhat(0) == 3) {
+            if (seedwhat == 3) {
               paramval = AD(maxDerivs,paramoffsets(kk,i),param(e,kk,i));
             }
             else {
@@ -1462,8 +1849,480 @@ void workset::computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param,
 ////////////////////////////////////////////////////////////////////////////////////
 
 void workset::computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
-                                Kokkos::View<int*,UnifiedDevice> seedwhat) {
+                                Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
+                                Kokkos::View<ScalarT****,AssemblyDevice> u_stage,
+                                const int & seedwhat) {
   
+  /////////////////////////////////////////////////////////////////////
+  // HGRAD
+  /////////////////////////////////////////////////////////////////////
+  
+  for (int i=0; i<vars_HGRAD.size(); i++) {
+    int var = vars_HGRAD[i];
+    auto csol = Kokkos::subview(local_soln_face,Kokkos::ALL(),var,Kokkos::ALL(),0);
+    auto csol_grad = Kokkos::subview(local_soln_grad_face,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+    parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      AD value = 0.0;
+      for (int k=0; k<csol.extent(1); k++) {
+        csol(e,k) = value;
+      }
+      for (int k=0; k<csol_grad.extent(1); k++) {
+        for (int j=0; j<csol_grad.extent(2); j++) {
+          csol_grad(e,k,j) = value;
+        }
+      }
+    });
+    
+    DRV cbasis = basis_face[usebasis[var]];
+    DRV cbasis_grad = basis_grad_face[usebasis[var]];
+    auto coff = Kokkos::subview(offsets,var,Kokkos::ALL());
+    auto cu = Kokkos::subview(u,Kokkos::ALL(),var,Kokkos::ALL());
+    
+    if (isTransient) { // transient problem
+      auto cu_prev = Kokkos::subview(u_prev,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, u_dotval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+              for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = cu(elem,dof);
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+              for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+    }
+    else { // steady-state
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            AD uval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+              for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval;
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            uval = cu(elem,dof);
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+              for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+    }
+  }
+  
+  /////////////////////////////////////////////////////////////////////
+  // HVOL
+  /////////////////////////////////////////////////////////////////////
+  
+  for (int i=0; i<vars_HVOL.size(); i++) {
+    int var = vars_HVOL[i];
+    auto csol = Kokkos::subview(local_soln_face,Kokkos::ALL(),var,Kokkos::ALL(),0);
+    parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      AD value = 0.0;
+      for (int k=0; k<csol.extent(1); k++) {
+        csol(e,k) = value;
+      }
+    });
+    
+    DRV cbasis = basis_face[usebasis[var]];
+    auto coff = Kokkos::subview(offsets,var,Kokkos::ALL());
+    auto cu = Kokkos::subview(u,Kokkos::ALL(),var,Kokkos::ALL());
+    
+    if (isTransient) { // transient problem
+      auto cu_prev = Kokkos::subview(u_prev,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        });
+        
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = cu(elem,dof);
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        });
+      }
+    }
+    else { // steady-state
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval;
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            uval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        });
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval;
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            uval = cu(elem,dof);
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        });
+      }
+    }
+  }
+  
+  /////////////////////////////////////////////////////////////////////
+  // HDIV
+  /////////////////////////////////////////////////////////////////////
+  
+  for (int i=0; i<vars_HDIV.size(); i++) {
+    int var = vars_HDIV[i];
+    auto csol = Kokkos::subview(local_soln_face,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+    parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      AD value = 0.0;
+      for (int k=0; k<csol.extent(1); k++) {
+        for (int j=0; j<csol.extent(2); j++) {
+          csol(e,k,j) = value;
+        }
+      }
+    });
+    
+    DRV cbasis = basis_face[usebasis[var]];
+    auto coff = Kokkos::subview(offsets,var,Kokkos::ALL());
+    auto cu = Kokkos::subview(u,Kokkos::ALL(),var,Kokkos::ALL());
+    
+    if (isTransient) { // transient problem
+      auto cu_prev = Kokkos::subview(u_prev,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, u_dotval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+        
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = cu(elem,dof);
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+    }
+    else { // steady-state
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            AD uval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            AD uval = cu(elem,dof);
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+    }
+    
+  }
+  
+  /////////////////////////////////////////////////////////////////////
+  // HCURL
+  /////////////////////////////////////////////////////////////////////
+  
+  for (int i=0; i<vars_HCURL.size(); i++) {
+    int var = vars_HCURL[i];
+    auto csol = Kokkos::subview(local_soln_face,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+    parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      AD value = 0.0;
+      for (int k=0; k<csol.extent(1); k++) {
+        for (int j=0; j<csol.extent(2); j++) {
+          csol(e,k,j) = value;
+        }
+      }
+    });
+    
+    DRV cbasis = basis_face[usebasis[var]];
+    auto coff = Kokkos::subview(offsets,var,Kokkos::ALL());
+    auto cu = Kokkos::subview(u,Kokkos::ALL(),var,Kokkos::ALL());
+    
+    if (isTransient) { // transient problem
+      auto cu_prev = Kokkos::subview(u_prev,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+        
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = cu(elem,dof);
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+    }
+    else { // steady-state
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            AD uval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            AD uval = cu(elem,dof);
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+    }
+  }
+  
+  /////////////////////////////////////////////////////////////////////
+  // HFACE
+  /////////////////////////////////////////////////////////////////////
+  
+  for (int i=0; i<vars_HFACE.size(); i++) {
+    int var = vars_HFACE[i];
+    auto csol = Kokkos::subview(local_soln_face,Kokkos::ALL(),var,Kokkos::ALL(),0);
+    parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      AD value = 0.0;
+      for (int k=0; k<csol.extent(1); k++) {
+        csol(e,k) = value;
+      }
+    });
+    
+    DRV cbasis = basis_face[usebasis[var]];
+    auto coff = Kokkos::subview(offsets,var,Kokkos::ALL());
+    auto cu = Kokkos::subview(u,Kokkos::ALL(),var,Kokkos::ALL());
+    
+    if (isTransient) { // transient problem
+      auto cu_prev = Kokkos::subview(u_prev,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        });
+        
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = cu(elem,dof);
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        });
+      }
+    }
+    else { // steady-state
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval;
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            uval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        });
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval;
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            uval = cu(elem,dof);
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        });
+      }
+    }
+  }
+  
+  
+  /*
   {
     Teuchos::TimeMonitor resettimer(*worksetResetTimer);
     // Reset the values (may combine with next loop when parallelized)
@@ -1489,8 +2348,8 @@ void workset::computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       string kutype = basis_types[kubasis];
       bind(0) = k;
       if (kutype == "HGRAD") {
-        DRV kbasis_uw = basis_face_uw[kubasis];
-        DRV kbasis_grad_uw = basis_grad_face_uw[kubasis];
+        DRV kbasis_uw = basis_face[kubasis];
+        DRV kbasis_grad_uw = basis_grad_face[kubasis];
         parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
           AD uval;
           int kk = bind(0);
@@ -1511,7 +2370,7 @@ void workset::computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         });
       }
       else if (kutype == "HVOL") {
-        DRV kbasis_uw = basis_face_uw[kubasis];
+        DRV kbasis_uw = basis_face[kubasis];
         parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
           AD uval;
           int kk = bind(0);
@@ -1529,7 +2388,7 @@ void workset::computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         });
       }
       else if (kutype == "HDIV"){
-        DRV kbasis_uw = basis_face_uw[kubasis];
+        DRV kbasis_uw = basis_face[kubasis];
         parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
           AD uval;
           int kk = bind(0);
@@ -1553,7 +2412,7 @@ void workset::computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       }
       else if (kutype == "HFACE") {
         
-        DRV kbasis_uw = basis_face_uw[kubasis];
+        DRV kbasis_uw = basis_face[kubasis];
         parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
           AD uval;
           int kk = bind(0);
@@ -1573,6 +2432,7 @@ void workset::computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
     }
   }
   AssemblyExec::execution_space().fence();
+   */
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1580,8 +2440,480 @@ void workset::computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
 ////////////////////////////////////////////////////////////////////////////////////
 
 void workset::computeSolnSideIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
-                                Kokkos::View<int*,UnifiedDevice> seedwhat) {
+                                Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
+                                Kokkos::View<ScalarT****,AssemblyDevice> u_stage,
+                                const int & seedwhat) {
   
+  /////////////////////////////////////////////////////////////////////
+  // HGRAD
+  /////////////////////////////////////////////////////////////////////
+  
+  for (int i=0; i<vars_HGRAD.size(); i++) {
+    int var = vars_HGRAD[i];
+    auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
+    auto csol_grad = Kokkos::subview(local_soln_grad_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+    parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      AD value = 0.0;
+      for (int k=0; k<csol.extent(1); k++) {
+        csol(e,k) = value;
+      }
+      for (int k=0; k<csol_grad.extent(1); k++) {
+        for (int j=0; j<csol_grad.extent(2); j++) {
+          csol_grad(e,k,j) = value;
+        }
+      }
+    });
+    
+    DRV cbasis = basis_side[usebasis[var]];
+    DRV cbasis_grad = basis_grad_side[usebasis[var]];
+    auto coff = Kokkos::subview(offsets,var,Kokkos::ALL());
+    auto cu = Kokkos::subview(u,Kokkos::ALL(),var,Kokkos::ALL());
+    
+    if (isTransient) { // transient problem
+      auto cu_prev = Kokkos::subview(u_prev,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, u_dotval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+              for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = cu(elem,dof);
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+              for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+    }
+    else { // steady-state
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            AD uval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+              for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval;
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            uval = cu(elem,dof);
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+              for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+    }
+  }
+  
+  /////////////////////////////////////////////////////////////////////
+  // HVOL
+  /////////////////////////////////////////////////////////////////////
+  
+  for (int i=0; i<vars_HVOL.size(); i++) {
+    int var = vars_HVOL[i];
+    auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
+    parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      AD value = 0.0;
+      for (int k=0; k<csol.extent(1); k++) {
+        csol(e,k) = value;
+      }
+    });
+    
+    DRV cbasis = basis_side[usebasis[var]];
+    auto coff = Kokkos::subview(offsets,var,Kokkos::ALL());
+    auto cu = Kokkos::subview(u,Kokkos::ALL(),var,Kokkos::ALL());
+    
+    if (isTransient) { // transient problem
+      auto cu_prev = Kokkos::subview(u_prev,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        });
+        
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = cu(elem,dof);
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        });
+      }
+    }
+    else { // steady-state
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval;
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            uval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        });
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval;
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            uval = cu(elem,dof);
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        });
+      }
+    }
+  }
+  
+  /////////////////////////////////////////////////////////////////////
+  // HDIV
+  /////////////////////////////////////////////////////////////////////
+  
+  for (int i=0; i<vars_HDIV.size(); i++) {
+    int var = vars_HDIV[i];
+    auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+    parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      AD value = 0.0;
+      for (int k=0; k<csol.extent(1); k++) {
+        for (int j=0; j<csol.extent(2); j++) {
+          csol(e,k,j) = value;
+        }
+      }
+    });
+    
+    DRV cbasis = basis_side[usebasis[var]];
+    auto coff = Kokkos::subview(offsets,var,Kokkos::ALL());
+    auto cu = Kokkos::subview(u,Kokkos::ALL(),var,Kokkos::ALL());
+    
+    if (isTransient) { // transient problem
+      auto cu_prev = Kokkos::subview(u_prev,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, u_dotval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+        
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = cu(elem,dof);
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+    }
+    else { // steady-state
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            AD uval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            AD uval = cu(elem,dof);
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+    }
+    
+  }
+  
+  /////////////////////////////////////////////////////////////////////
+  // HCURL
+  /////////////////////////////////////////////////////////////////////
+  
+  for (int i=0; i<vars_HCURL.size(); i++) {
+    int var = vars_HCURL[i];
+    auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+    parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      AD value = 0.0;
+      for (int k=0; k<csol.extent(1); k++) {
+        for (int j=0; j<csol.extent(2); j++) {
+          csol(e,k,j) = value;
+        }
+      }
+    });
+    
+    DRV cbasis = basis_side[usebasis[var]];
+    auto coff = Kokkos::subview(offsets,var,Kokkos::ALL());
+    auto cu = Kokkos::subview(u,Kokkos::ALL(),var,Kokkos::ALL());
+    
+    if (isTransient) { // transient problem
+      auto cu_prev = Kokkos::subview(u_prev,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+        
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = cu(elem,dof);
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+    }
+    else { // steady-state
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            AD uval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            AD uval = cu(elem,dof);
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        });
+      }
+    }
+  }
+  
+  /////////////////////////////////////////////////////////////////////
+  // HFACE
+  /////////////////////////////////////////////////////////////////////
+  
+  for (int i=0; i<vars_HFACE.size(); i++) {
+    int var = vars_HFACE[i];
+    auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
+    parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      AD value = 0.0;
+      for (int k=0; k<csol.extent(1); k++) {
+        csol(e,k) = value;
+      }
+    });
+    
+    DRV cbasis = basis_side[usebasis[var]];
+    auto coff = Kokkos::subview(offsets,var,Kokkos::ALL());
+    auto cu = Kokkos::subview(u,Kokkos::ALL(),var,Kokkos::ALL());
+    
+    if (isTransient) { // transient problem
+      auto cu_prev = Kokkos::subview(u_prev,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        });
+        
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval, stageval;
+          int current_stage = current_stage_KV(0);
+          ScalarT deltat = deltat_KV(0);
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            stageval = cu(elem,dof);
+            uval = cu_prev(elem,dof,0);
+            uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
+            for (int s=0; s<current_stage; s++) {
+              uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        });
+      }
+    }
+    else { // steady-state
+      if (seedwhat == 1) {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval;
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            uval = AD(maxDerivs,coff(dof),cu(elem,dof));
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        });
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          AD uval;
+          for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+            uval = cu(elem,dof);
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        });
+      }
+    }
+  }
+  
+  
+  /*
   {// Reset the values (may combine with next loop when parallelized)
     Teuchos::TimeMonitor resettimer(*worksetResetTimer);
     parallel_for(RangePolicy<AssemblyExec>(0,local_soln_side.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -1607,8 +2939,8 @@ void workset::computeSolnSideIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       bind(0) = k;
       
       if (kutype == "HGRAD") {
-        DRV kbasis_uw = basis_side_uw[kubasis];
-        DRV kbasis_grad_uw = basis_grad_side_uw[kubasis];
+        DRV kbasis_uw = basis_side[kubasis];
+        DRV kbasis_grad_uw = basis_grad_side[kubasis];
         parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
           AD uval;
           int kk = bind(0);
@@ -1629,7 +2961,7 @@ void workset::computeSolnSideIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         });
       }
       else if (kutype == "HVOL") {
-        DRV kbasis_uw = basis_side_uw[kubasis];
+        DRV kbasis_uw = basis_side[kubasis];
         parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
           AD uval;
           int kk = bind(0);
@@ -1647,7 +2979,7 @@ void workset::computeSolnSideIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         });
       }
       else if (kutype == "HDIV"){
-        DRV kbasis_uw = basis_side_uw[kubasis];
+        DRV kbasis_uw = basis_side[kubasis];
         parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
           AD uval;
           int kk = bind(0);
@@ -1675,6 +3007,7 @@ void workset::computeSolnSideIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
     }
   }
   AssemblyExec::execution_space().fence();
+   */
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1682,7 +3015,7 @@ void workset::computeSolnSideIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
 ////////////////////////////////////////////////////////////////////////////////////
 
 void workset::computeParamSideIP(const int & side, Kokkos::View<ScalarT***,AssemblyDevice> param,
-                                 Kokkos::View<int*,UnifiedDevice> seedwhat) {
+                                 const int & seedwhat) {
   
   if (numParams>0) {
     {// reset the local params
@@ -1716,7 +3049,7 @@ void workset::computeParamSideIP(const int & side, Kokkos::View<ScalarT***,Assem
           for (int i=0; i<pbasis.extent(1); i++ ) {
             AD paramval;
             int kk = bind(0);
-            if (seedwhat(0) == 3) {
+            if (seedwhat == 3) {
               paramval = AD(maxDerivs,paramoffsets(kk,i),param(e,kk,i));
             }
             else {
@@ -1765,27 +3098,28 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
     AD uval, u_dotval;
     for (int k=0; k<numVars; k++) {
       int kubasis = usebasis[k];
-      int knbasis = numbasis[kubasis];
+      //int knbasis = numbasis[kubasis];
       string kutype = basis_types[kubasis];
       
       if (kutype == "HGRAD") {
-        DRV kbasis_uw = basis_side_uw[kubasis];
-        DRV kbasis_grad_uw = basis_grad_side_uw[kubasis];
+        DRV kbasis_uw = basis_side[kubasis];
+        DRV kbasis_grad_uw = basis_grad_side[kubasis];
         
-        for (int i=0; i<knbasis; i++ ) {
+        for (int i=0; i<kbasis_uw.extent(1); i++ ) {
           for (int e=0; e<kbasis_uw.extent(0); e++) {
             uval = u_AD(e,k,i);
-            for (size_t j=0; j<numsideip; j++ ) {
+            for (size_t j=0; j<kbasis_uw.extent(2); j++ ) {
               local_soln_side(e,k,j,0) += uval*kbasis_uw(e,i,j);
-              for (int s=0; s<dimension; s++ ) {
+              for (int s=0; s<kbasis_grad_uw.extent(3); s++ ) {
                 local_soln_grad_side(e,k,j,s) += uval*kbasis_grad_uw(e,i,j,s);
               }
             }
           }
         }
       }
+      /*
       else if (kutype == "HVOL") {
-        DRV kbasis_uw = basis_side_uw[kubasis];
+        DRV kbasis_uw = basis_side[kubasis];
         for( int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             uval = u_AD(e,k,i);
@@ -1796,7 +3130,7 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
         }
       }
       else if (kutype == "HDIV"){
-        DRV kbasis_uw = basis_side_uw[kubasis];
+        DRV kbasis_uw = basis_side[kubasis];
         for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
             uval = u_AD(e,k,i);
@@ -1809,7 +3143,7 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
         }
       }
       else if (kutype == "HCURL"){
-        DRV kbasis_uw = basis_side_uw[kubasis];
+        DRV kbasis_uw = basis_side[kubasis];
         
         for (int i=0; i<knbasis; i++ ) {
           for (int e=0; e<numElem; e++) {
@@ -1821,7 +3155,7 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
             }
           }
         }
-      }
+      }*/
       
     }
   }
@@ -1840,6 +3174,7 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
     });
   }
   
+  /*
   {
     Teuchos::TimeMonitor basistimer(*worksetComputeParamSideTimer);
     
@@ -1864,7 +3199,7 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
         }
       }
     }
-  }
+  }*/
 }
 
 //////////////////////////////////////////////////////////////

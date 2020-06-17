@@ -105,6 +105,7 @@ void porousHDIV_WG::volumeResidual() {
   
   basis = wkset->basis[u_basis];
   basis_div = wkset->basis_div[u_basis];
+  wts = wkset->wts;
   
   // (u,v) + (p_0,div(v))
   parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -137,7 +138,7 @@ void porousHDIV_WG::volumeResidual() {
         }
         divv = basis_div(e,i,k);
         int resindex = offsets(unum,i);
-        res(e,resindex) += (ux*vx+uy*vy+uz*vz) + pint*divv;
+        res(e,resindex) += ((ux*vx+uy*vy+uz*vz) + pint*divv)*wts(e,k);
         
       }
     }
@@ -176,7 +177,7 @@ void porousHDIV_WG::volumeResidual() {
         }
         int resindex = offsets(tnum,i);
         // should be k_ij u_i s_j, but currently we assume K=1
-        res(e,resindex) += perm(e,k)*(ux*sx + uy*sy + uz*sz);
+        res(e,resindex) += (perm(e,k)*(ux*sx + uy*sy + uz*sz))*wts(e,k);
         //res(e,resindex) += kxx(e,k)*ux*sx
         //                 + kxy(e,k)*ux*sy
         //                 + kyx(e,k)*uy*sx
@@ -187,7 +188,7 @@ void porousHDIV_WG::volumeResidual() {
         //                 + kzy(e,k)*uz*sy
         //                 + kzz(e,k)*uz*sz;
         
-        res(e,resindex) += tx*sx + ty*sy + tz*sz;
+        res(e,resindex) += (tx*sx + ty*sy + tz*sz)*wts(e,k);
         
       }
     }
@@ -206,7 +207,7 @@ void porousHDIV_WG::volumeResidual() {
         
         qint = basis(e,i,k);
         int resindex = offsets(pintnum,i);
-        res(e,resindex) += divt*qint - source(e,k)*qint;
+        res(e,resindex) += (divt*qint - source(e,k)*qint)*wts(e,k);
         
       }
     }
@@ -230,6 +231,7 @@ void porousHDIV_WG::boundaryResidual() {
   int t_basis = wkset->usebasis[tnum];
   
   basis = wkset->basis_side[t_basis];
+  wts = wkset->wts_side;
   
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
@@ -262,7 +264,7 @@ void porousHDIV_WG::boundaryResidual() {
             nz = normals(e,k,2);
           }
           int resindex = offsets(tnum,i);
-          res(e,resindex) -= bsource(e,k)*(vx*nx+vy*ny+vz*nz);
+          res(e,resindex) -= (bsource(e,k)*(vx*nx+vy*ny+vz*nz))*wts(e,k);
         }
       }
     }
@@ -281,7 +283,7 @@ void porousHDIV_WG::boundaryResidual() {
           }
           int resindex = offsets(unum,i);
           AD bval = aux_side(e,auxpbndrynum,k);
-          res(e,resindex) -= bval*(vx*nx+vy*ny+vz*nz);
+          res(e,resindex) -= (bval*(vx*nx+vy*ny+vz*nz))*wts(e,k);
         }
       }
     }
@@ -309,6 +311,7 @@ void porousHDIV_WG::faceResidual() {
   
   // include <pbndry, v \cdot n> in velocity equation
   basis = wkset->basis_face[u_basis];
+  wts = wkset->wts_side;
   
   for (size_t e=0; e<basis.extent(0); e++) {
     for (size_t k=0; k<basis.extent(2); k++ ) {
@@ -325,7 +328,7 @@ void porousHDIV_WG::faceResidual() {
         }
         AD pbndry = sol_face(e,pbndrynum,k,0);
         int resindex = offsets(unum,i);
-        res(e,resindex) -= pbndry*(vx*nx+vy*ny+vz*nz);
+        res(e,resindex) -= (pbndry*(vx*nx+vy*ny+vz*nz))*wts(e,k);
       }
     }
   }
@@ -349,7 +352,7 @@ void porousHDIV_WG::faceResidual() {
         }
         ScalarT qbndry = basis(e,i,k);
         int resindex = offsets(pbndrynum,i);
-        res(e,resindex) -= (tx*nx+ty*ny+tz*nz)*qbndry;
+        res(e,resindex) -= ((tx*nx+ty*ny+tz*nz)*qbndry)*wts(e,k);
       }
     }
   }
@@ -397,10 +400,7 @@ void porousHDIV_WG::computeFlux() {
 // ========================================================================================
 
 void porousHDIV_WG::setVars(std::vector<string> & varlist) {
-  ux_num = -1;
-  uy_num = -1;
-  uz_num = -1;
-
+  
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "pint")
       pintnum = i;

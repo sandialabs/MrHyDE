@@ -53,6 +53,7 @@ void porous::volumeResidual() {
   int p_basis_num = wkset->usebasis[pnum];
   basis = wkset->basis[p_basis_num];
   basis_grad = wkset->basis_grad[p_basis_num];
+  wts = wkset->wts;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -75,9 +76,9 @@ void porous::volumeResidual() {
           int resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
           AD dens = densref(e,k)*(1.0+comp(e,k)*(sol(e,pnum,k,0) - pref(e,k)));
           
-          res(e,resindex) += porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
+          res(e,resindex) += (porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
           perm(e,k)/viscosity(e,k)*dens*(sol_grad(e,pnum,k,0)*basis_grad(e,i,k,0)) // diffusion terms
-          -source(e,k)*basis(e,i,k); // source/well model
+          -source(e,k)*basis(e,i,k))*wts(e,k); // source/well model
           
         }
       }
@@ -90,9 +91,9 @@ void porous::volumeResidual() {
           int resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
           AD dens = densref(e,k)*(1.0+comp(e,k)*(sol(e,pnum,k,0) - pref(e,k)));
           
-          res(e,resindex) += porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
+          res(e,resindex) += (porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
           perm(e,k)/viscosity(e,k)*dens*(sol_grad(e,pnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,pnum,k,1)*basis_grad(e,i,k,1)) // diffusion terms
-          -source(e,k)*basis(e,i,k); // source/well model
+          -source(e,k)*basis(e,i,k))*wts(e,k); // source/well model
         }
       }
     });
@@ -105,10 +106,10 @@ void porous::volumeResidual() {
           
           AD dens = densref(e,k)*(1.0+comp(e,k)*(sol(e,pnum,k,0) - pref(e,k)));
           
-          res(e,resindex) += porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
+          res(e,resindex) += (porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
           perm(e,k)/viscosity(e,k)*dens*(sol_grad(e,pnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,pnum,k,1)*basis_grad(e,i,k,1) +
                                          (sol_grad(e,pnum,k,2) - gravity(e,k)*dens*1.0)*basis_grad(e,i,k,2)) // diffusion terms
-          -source(e,k)*basis(e,i,k); // source/well model
+          -source(e,k)*basis(e,i,k))*wts(e,k); // source/well model
           
         }
       }
@@ -160,6 +161,7 @@ void porous::boundaryResidual() {
   
   // Since normals get recomputed often, this needs to be reset
   normals = wkset->normals;
+  wts = wkset->wts_side;
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
@@ -173,7 +175,7 @@ void porous::boundaryResidual() {
       for (int k=0; k<basis.extent(2); k++ ) {
         for (int i=0; i<basis.extent(1); i++ ) {
           int resindex = offsets(pnum,i);
-          res(e,resindex) += -source(e,k)*basis(e,i,k);
+          res(e,resindex) += (-source(e,k)*basis(e,i,k))*wts(e,k);
         }
       }
     }
@@ -214,12 +216,12 @@ void porous::boundaryResidual() {
           AD Kval = perm(e,k)/viscosity(e,k)*dens;
           AD weakDiriScale = 10.0*Kval/wkset->h(e);
           
-          res(e,resindex) += -Kval*dpdx*normals(e,k,0)*v - sf*Kval*dvdx*normals(e,k,0)*(pval-lambda) + weakDiriScale*(pval-lambda)*v;
+          res(e,resindex) += (-Kval*dpdx*normals(e,k,0)*v - sf*Kval*dvdx*normals(e,k,0)*(pval-lambda) + weakDiriScale*(pval-lambda)*v)*wts(e,k);
           if (spaceDim > 1) {
-            res(e,resindex) += -Kval*dpdy*normals(e,k,1)*v - sf*Kval*dvdy*normals(e,k,1)*(pval-lambda);
+            res(e,resindex) += (-Kval*dpdy*normals(e,k,1)*v - sf*Kval*dvdy*normals(e,k,1)*(pval-lambda))*wts(e,k);
           }
           if (spaceDim > 2) {
-            res(e,resindex) += -Kval*(dpdz - gravity(e,k)*dens)*normals(e,k,2)*v - sf*Kval*dvdz*normals(e,k,2)*(pval-lambda);
+            res(e,resindex) += (-Kval*(dpdz - gravity(e,k)*dens)*normals(e,k,2)*v - sf*Kval*dvdz*normals(e,k,2)*(pval-lambda))*wts(e,k);
           }
           
           //if (wkset->isAdjoint) {

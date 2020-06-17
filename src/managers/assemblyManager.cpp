@@ -40,6 +40,12 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
   useNewBCs = settings->sublist("Solver").get<bool>("use new BCs",true);
   use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("use measurements as DBCs", false);
   
+  string solver_type = settings->sublist("Solver").get<string>("solver","none"); // or "transient"
+  isTransient = false;
+  if (solver_type == "transient") {
+    isTransient = true;
+  }
+  
   // needed information from the mesh
   mesh->getElementBlockNames(blocknames);
   
@@ -118,9 +124,11 @@ void AssemblyManager::createCells() {
     mesh->getSidesetNames(sideSets);
     
     Teuchos::RCP<CellMetaData> cellData = Teuchos::rcp( new CellMetaData(settings, cellTopo,
-                                                                         phys, b, 0, memeff,
+                                                                         phys, b, 0, assemble_face_terms[b],
                                                                          sideSets, disc->ref_ip[b],
-                                                                         disc->ref_wts[b]));
+                                                                         disc->ref_wts[b], disc->ref_side_ip[b],
+                                                                         disc->ref_side_wts[b], disc->basis_types[b],
+                                                                         disc->basis_pointers[b]));
     
     while (prog < numTotalElem) {
       int currElem = elemPerCell;  // Avoid faults in last iteration
@@ -345,9 +353,12 @@ void AssemblyManager::createWorkset() {
   }
   
   for (size_t b=0; b<cells.size(); b++) {
-    wkset.push_back(Teuchos::rcp( new workset(cells[b][0]->getInfo(), disc->ref_ip[b],
+    wkset.push_back(Teuchos::rcp( new workset(cells[b][0]->getInfo(),
+                                              isTransient,
+                                              disc->ref_ip[b],
                                               disc->ref_wts[b], disc->ref_side_ip[b],
-                                              disc->ref_side_wts[b], disc->basis_types[b],
+                                              disc->ref_side_wts[b],
+                                              disc->basis_types[b],
                                               disc->basis_pointers[b],
                                               params->discretized_param_basis,
                                               mesh->getCellTopology(blocknames[b]),
@@ -524,6 +535,11 @@ void AssemblyManager::updateResDBCsens(vector_RCP & resid, size_t & e, size_t & 
 void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
                                  const bool & lumpmass) {
   
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting AssemblyManager::setInitial ..." << endl;
+    }
+  }
   
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
@@ -573,6 +589,13 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
   }
   
   mass->fillComplete();
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished AssemblyManager::setInitial ..." << endl;
+    }
+  }
+  
 }
 
 // ========================================================================================

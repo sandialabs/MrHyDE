@@ -101,16 +101,28 @@ public:
   void setAuxUseBasis(vector<int> & ausebasis_);
   
   ///////////////////////////////////////////////////////////////////////////////////////
+  // Update the workset
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
+  void updateWorksetBasis();
+
+  ///////////////////////////////////////////////////////////////////////////////////////
   // Map the solution to the volumetric integration points
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void computeSolnVolIP(Kokkos::View<int*,UnifiedDevice> seedwhat);
+  void computeSolnVolIP(const int & seedwhat);
+  
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Update the workset
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
+  void updateWorksetFaceBasis(const size_t & facenum);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Map the solution to the face integration points
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void computeSolnFaceIP(const size_t & facenum, Kokkos::View<int*,UnifiedDevice> seedwhat);
+  void computeSolnFaceIP(const size_t & facenum, const int & seedwhat);
 
   ///////////////////////////////////////////////////////////////////////////////////////
   // Reset the data stored in the previous step/stage solutions
@@ -327,12 +339,19 @@ public:
   
   // Data created here (Views should all be AssemblyDevice)
   size_t numElem;
-  DRV ip, wts, jacobian, jacobianInv, jacobianDet;
+  DRV ip, wts;//, jacobian, jacobianInv, jacobianDet;
+  vector<DRV> ip_face, wts_face, normals_face;
+  
   Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
   Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param; // (elem,var,numdof)
   Kokkos::View<ScalarT***,AssemblyDevice> u_avg; // (elem,var,dim)
   Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
   //Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
+  
+  // basis information
+  vector<DRV> basis, basis_grad, basis_div, basis_curl;
+  vector<vector<DRV> > basis_face, basis_grad_face;
+  Kokkos::View<ScalarT*,AssemblyDevice> hsize;
   
   // Aux variable Information
   vector<string> auxlist;

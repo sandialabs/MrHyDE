@@ -27,6 +27,7 @@ managers/postprocessManager.cpp
 managers/assemblyManager.cpp
 managers/parameterManager.cpp
 managers/functionManager.cpp
+tools/cellMetaData.cpp
 tools/cell.cpp
 tools/boundaryCell.cpp
 tools/workset.cpp
@@ -61,6 +62,10 @@ TARGET_LINK_LIBRARIES(xml_to_yaml ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES
 ADD_EXECUTABLE(test_interpreter
 test/test_interpreter.cpp)
 TARGET_LINK_LIBRARIES(test_interpreter ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+
+ADD_EXECUTABLE(test_views
+test/test_views.cpp)
+TARGET_LINK_LIBRARIES(test_views ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
 ADD_EXECUTABLE(test_functions
 test/test_functions.cpp

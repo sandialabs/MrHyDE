@@ -437,8 +437,8 @@ void SubGridFEM::setUpSubgridModels() {
     
     localData[mindex]->nodes = sgt.getNewNodes(localData[mindex]->macronodes);
     
-    localData[mindex]->setIP(sub_disc->ref_ip[0], sub_disc->ref_wts[0],
-                             cells[0][0]->cellData->cellTopo);
+    localData[mindex]->setIP(cells[0][0]->cellData, cells[0][0]->orientation);
+    
     vector<size_t> gids;
     for (size_t e=0; e<cells[0][0]->numElem; e++){
       size_t id = localData[mindex]->getMacroID(e);
@@ -542,12 +542,21 @@ void SubGridFEM::setUpSubgridModels() {
      
     }
     
+    // This can only be done after the boundary nodes have been set up
+    vector<Kokkos::View<LO*,AssemblyDevice> > localSideIDs;
+    vector<Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> > borientation;
+    for (size_t bcell=0; bcell<sub_assembler->boundaryCells[0].size(); bcell++) {
+      localSideIDs.push_back(sub_assembler->boundaryCells[0][bcell]->localSideID);
+      borientation.push_back(sub_assembler->boundaryCells[0][bcell]->orientation);
+    }
+    localData[mindex]->setBoundaryIP(cells[0][0]->cellData, localSideIDs, borientation);
     
     /////////////////////////////////////////////////////////////////////////////////////
     // Add sub-grid discretizations
     /////////////////////////////////////////////////////////////////////////////////////
     
    
+    /*
     vector<int> BIDs;
     for (size_t bb=0; bb<boundaryCells[0].size(); bb++) {
       
@@ -558,6 +567,7 @@ void SubGridFEM::setUpSubgridModels() {
       
     }
     localData[mindex]->BIDs = BIDs;
+    */
     
     //////////////////////////////////////////////////////////////
     // Set the initial conditions
@@ -589,7 +599,7 @@ void SubGridFEM::setUpSubgridModels() {
           localData[mindex]->computeMacroBasisVolIP(macro_cellTopo, macro_basis_pointers, sub_disc);
         }
         else {
-          localData[mindex]->computeMacroBasisBoundaryIP(macro_cellTopo, macro_basis_pointers, sub_disc, wkset[0]);
+          localData[mindex]->computeMacroBasisBoundaryIP(macro_cellTopo, macro_basis_pointers, sub_disc);//, wkset[0]);
         }
       }
       else {
@@ -1095,8 +1105,6 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
     }
   }
   
-  //cout << "Inside subgrid dolver" << endl;
-  
   //////////////////////////////////////////////////////////////
   // Use the coarse scale solution to solve local transient/nonlinear problem
   //////////////////////////////////////////////////////////////
@@ -1590,9 +1598,13 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
           
           belosList = Teuchos::rcp(new Teuchos::ParameterList());
           belosList->set("Maximum Iterations",    50); // Maximum number of iterations allowed
-          belosList->set("Convergence Tolerance", 1.0E-7);    // Relative convergence tolerance requested
+          belosList->set("Convergence Tolerance", 1.0E-10);    // Relative convergence tolerance requested
           belosList->set("Verbosity", Belos::Errors);
           belosList->set("Output Frequency",0);
+          
+          //belosList->set("Verbosity", Belos::Errors + Belos::Warnings + Belos::StatusTestDetails);
+          //belosList->set("Output Frequency",10);
+          
           int numEqns = sub_solver->numVars[0];
           belosList->set("number of equations",numEqns);
           
@@ -1602,8 +1614,16 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
           belos_solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT, LA_MultiVector, LA_Operator>(belos_problem, belosList));
           
         }
-        belos_M = sub_solver->buildPreconditioner(J);
-        belos_problem->setRightPrec(belos_M);
+        if (have_preconditioner) {
+          //MueLu::ReuseTpetraPreconditioner(J,*belos_M);
+        }
+        else {
+          belos_M = sub_solver->buildPreconditioner(J);
+          //belos_problem->setRightPrec(belos_M);
+          belos_problem->setLeftPrec(belos_M);
+          have_preconditioner = true;
+          
+        }
         belos_problem->setProblem(du_glob, res);
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverSolveTimer);
@@ -1970,9 +1990,6 @@ void SubGridFEM::updateFlux(const Teuchos::RCP<LA_MultiVector> & u,
   
   Teuchos::TimeMonitor localtimer(*sgfemFluxTimer);
   
-  //KokkosTools::print(d_u);
-  //KokkosTools::print(lambda);
-  
   //this->updateLocalData(usernum);
   
   for (size_t e=0; e<boundaryCells[0].size(); e++) {
@@ -1980,8 +1997,11 @@ void SubGridFEM::updateFlux(const Teuchos::RCP<LA_MultiVector> & u,
     if (boundaryCells[0][e]->sidename == "interior") {
       {
         Teuchos::TimeMonitor localwktimer(*sgfemFluxWksetTimer);
-        wkset[0]->updateSide(boundaryCells[0][e]->sidenum,
-                             boundaryCells[0][e]->wksetBID);
+        boundaryCells[0][e]->updateWorksetBasis();
+        
+        //boundaryCells[0][e]->updateWorksetBasis();
+        //wkset[0]->updateSide(boundaryCells[0][e]->sidenum,
+        //                     boundaryCells[0][e]->wksetBID);
         
       }
       
@@ -2343,13 +2363,14 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
         
         this->updateLocalData(usernum);
         for( size_t e=0; e<cells[0].size(); e++ ) {
-          wkset[0]->update(cells[0][e]->ip,cells[0][e]->wts,
-                           cells[0][e]->jacobian,cells[0][e]->jacobianInv,
-                           cells[0][e]->jacobianDet,cells[0][e]->orientation);
-          Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
-          seedwhat(0) = 0;
+          cells[0][e]->updateWorksetBasis();
+          //wkset[0]->update(cells[0][e]->ip,cells[0][e]->wts,
+          //                 cells[0][e]->jacobian,cells[0][e]->jacobianInv,
+          //                 cells[0][e]->jacobianDet,cells[0][e]->orientation);
+          //Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
+          //seedwhat(0) = 0;
           wkset[0]->computeSolnVolIP(cells[0][e]->u, cells[0][e]->u_prev,
-                                     cells[0][e]->u_stage, seedwhat);
+                                     cells[0][e]->u_stage, 0);
           
           int numElem = cells[0][e]->numElem;
           Kokkos::View<GO**,HostDevice> GIDs = cells[0][e]->GIDs;
@@ -2683,7 +2704,7 @@ DRV SubGridFEM::getIPWts() {
   DRV refwts = DRV("refwts",1,totalip);
   int prog = 0;
   for (size_t e=0; e<cells[usernum].size(); e++) {
-    DRV wts = wkset[0]->ref_wts;//cells[usernum][e]->ijac;
+    DRV wts = cells[0][e]->cellData->ref_wts;//wkset[0]->ref_wts;//cells[usernum][e]->ijac;
     int numElem = cells[usernum][e]->numElem;
     for (size_t c=0; c<numElem; c++) {
       for (size_t i=0; i<wts.extent(0); i++) {
@@ -3077,17 +3098,28 @@ void SubGridFEM::updateLocalData(const int & usernum) {
     cells[0][e]->nodes = localData[usernum]->nodes;
     cells[0][e]->ip = localData[usernum]->ip;
     cells[0][e]->wts = localData[usernum]->wts;
-    cells[0][e]->jacobian = localData[usernum]->jacobian;
-    cells[0][e]->jacobianInv = localData[usernum]->jacobianInv;
-    cells[0][e]->jacobianDet = localData[usernum]->jacobianDet;
+    cells[0][e]->hsize = localData[usernum]->hsize;
+    cells[0][e]->basis = localData[usernum]->basis;
+    cells[0][e]->basis_grad = localData[usernum]->basis_grad;
+    cells[0][e]->basis_div = localData[usernum]->basis_div;
+    cells[0][e]->basis_curl = localData[usernum]->basis_curl;
+    //cells[0][e]->jacobian = localData[usernum]->jacobian;
+    //cells[0][e]->jacobianInv = localData[usernum]->jacobianInv;
+    //cells[0][e]->jacobianDet = localData[usernum]->jacobianDet;
     cells[0][e]->sideinfo = localData[usernum]->sideinfo;
     cells[0][e]->cell_data = localData[usernum]->cell_data;
   }
   
   for (size_t e=0; e<boundaryCells[0].size(); e++) {
-    boundaryCells[0][e]->wksetBID = localData[usernum]->BIDs[e];
+    //boundaryCells[0][e]->wksetBID = localData[usernum]->BIDs[e];
     boundaryCells[0][e]->nodes = localData[usernum]->boundaryNodes[e];
     boundaryCells[0][e]->sidename = localData[usernum]->boundaryNames[e];
+    boundaryCells[0][e]->ip = localData[usernum]->boundaryIP[e];
+    boundaryCells[0][e]->wts = localData[usernum]->boundaryWts[e];
+    boundaryCells[0][e]->normals = localData[usernum]->boundaryNormals[e];
+    boundaryCells[0][e]->hsize = localData[usernum]->boundaryHsize[e];
+    boundaryCells[0][e]->basis = localData[usernum]->boundaryBasis[e];
+    boundaryCells[0][e]->basis_grad = localData[usernum]->boundaryBasisGrad[e];
     
     boundaryCells[0][e]->addAuxDiscretization(macro_basis_pointers,
                                               localData[usernum]->aux_side_basis[e],
@@ -3095,7 +3127,6 @@ void SubGridFEM::updateLocalData(const int & usernum) {
     
     //boundaryCells[0][e]->setAuxIndex(localData[usernum]->macroindex);
     //boundaryCells[0][e]->auxGIDs = localData[usernum]->macroGIDs;
-    
     boundaryCells[0][e]->setAuxIndex(localData[usernum]->boundaryMacroindex[e]);
     boundaryCells[0][e]->auxGIDs = localData[usernum]->boundaryMacroGIDs[e];
     boundaryCells[0][e]->auxMIDs = localData[usernum]->boundaryMIDs[e];

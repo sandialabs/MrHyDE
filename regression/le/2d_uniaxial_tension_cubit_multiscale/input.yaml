@@ -45,6 +45,7 @@ ANONYMOUS:
       mu: '0.5'
   Physics:
     modules: linearelasticity
+    assemble face terms: true
     dx_point_DBCs: xfix
     dy_point_DBCs: yfix
     True solutions:

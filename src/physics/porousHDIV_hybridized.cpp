@@ -80,6 +80,7 @@ void porousHDIV_HYBRID::volumeResidual() {
   
   basis = wkset->basis[u_basis];
   basis_div = wkset->basis_div[u_basis];
+  wts = wkset->wts;
   
   // (K^-1 u,v) - (p,div v) - src*v (src not added yet)
   parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -112,7 +113,7 @@ void porousHDIV_HYBRID::volumeResidual() {
         }
         divv = basis_div(e,i,k);
         int resindex = offsets(unum,i);
-        res(e,resindex) += 1.0*(ux*vx+uy*vy+uz*vz) - p*divv;
+        res(e,resindex) += (1.0*(ux*vx+uy*vy+uz*vz) - p*divv)*wts(e,k);
         
       }
     }
@@ -129,7 +130,7 @@ void porousHDIV_HYBRID::volumeResidual() {
         ScalarT q = basis(e,i,k,0);
         AD divu = sol_div(e,unum,k);
         int resindex = offsets(pnum,i);
-        res(e,resindex) += divu*q - source(e,k)*q;
+        res(e,resindex) += (divu*q - source(e,k)*q)*wts(e,k);
       }
     }
   });
@@ -162,6 +163,7 @@ void porousHDIV_HYBRID::boundaryResidual() {
   
   // Since normals get recomputed often, this needs to be reset
   normals = wkset->normals;
+  wts = wkset->wts_side;
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
@@ -182,7 +184,7 @@ void porousHDIV_HYBRID::boundaryResidual() {
             nz = normals(e,k,2);
           }
           int resindex = offsets(unum,i);
-          res(e,resindex) -= bsource(e,k)*(vx*nx+vy*ny+vz*nz);
+          res(e,resindex) -= (bsource(e,k)*(vx*nx+vy*ny+vz*nz))*wts(e,k);
         }
       }
     }
@@ -201,7 +203,7 @@ void porousHDIV_HYBRID::boundaryResidual() {
           }
           int resindex = offsets(unum,i);
           AD bval = aux_side(e,auxlambdanum,k);
-          res(e,resindex) -= bval*(vx*nx+vy*ny+vz*nz);
+          res(e,resindex) -= (bval*(vx*nx+vy*ny+vz*nz))*wts(e,k);
         }
       }
     }
@@ -228,6 +230,7 @@ void porousHDIV_HYBRID::faceResidual() {
   
   // include <lambda, v \cdot n> in velocity equation
   basis = wkset->basis_face[u_basis];
+  wts = wkset->wts_side;
   
   for (int e=0; e<basis.extent(0); e++) {
     for (int k=0; k<basis.extent(2); k++ ) {
@@ -244,7 +247,7 @@ void porousHDIV_HYBRID::faceResidual() {
         }
         AD lambda = sol_face(e,lambdanum,k,0);
         int resindex = offsets(unum,i);
-        res(e,resindex) += 1.0*lambda*(vx*nx+vy*ny+vz*nz);
+        res(e,resindex) += (1.0*lambda*(vx*nx+vy*ny+vz*nz))*wts(e,k);
       }
     }
   }
@@ -267,7 +270,7 @@ void porousHDIV_HYBRID::faceResidual() {
         }
         ScalarT mu = basis(e,i,k);
         int resindex = offsets(lambdanum,i);
-        res(e,resindex) -= (ux*nx+uy*ny+uz*nz)*mu;
+        res(e,resindex) -= ((ux*nx+uy*ny+uz*nz)*mu)*wts(e,k);
       }
     }
   }

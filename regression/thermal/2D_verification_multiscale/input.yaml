@@ -7,6 +7,7 @@ ANONYMOUS:
   Functions input fileile: input_functions.yaml
   Physics:
     modules: thermal
+    assemble face terms: true
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
@@ -40,6 +41,7 @@ ANONYMOUS:
   Parameters input file: input_params.yaml
   Solver: 
     solver: steady-state
+    workset size: 4
   Analysis: 
     analysis type: forward
   Postprocess: 

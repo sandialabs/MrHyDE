@@ -99,6 +99,7 @@ void stokes::volumeResidual() {
   int ux_basis = wkset->usebasis[ux_num];
   basis = wkset->basis[ux_basis];
   basis_grad = wkset->basis_grad[ux_basis];
+  wts = wkset->wts;
   
   parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
@@ -144,7 +145,7 @@ void stokes::volumeResidual() {
           dvdz = basis_grad(e,i,k,2);
         }
         
-        res(e,resindex) += visc(e,k)*(duxdx*dvdx + duxdy*dvdy + duxdz*dvdz) - pr*dvdx - source_ux(e,k)*v;
+        res(e,resindex) += (visc(e,k)*(duxdx*dvdx + duxdy*dvdy + duxdz*dvdz) - pr*dvdx - source_ux(e,k)*v)*wts(e,k);
         
         // what is have_energy? (deleted other instances of it for now)
         //          if (have_energy) {
@@ -200,7 +201,7 @@ void stokes::volumeResidual() {
         int resindex = offsets(pr_num,i);
         v = basis(e,i,k);
         
-        res(e,resindex) += (duxdx + duydy + duzdz)*v;
+        res(e,resindex) += ((duxdx + duydy + duzdz)*v)*wts(e,k);
         
       }
     }
@@ -256,7 +257,7 @@ void stokes::volumeResidual() {
             dvdz = basis_grad(e,i,k,2);
           }
           
-          res(e,resindex) += visc(e,k)*(duydx*dvdx + duydy*dvdy + duydz*dvdz) - pr*dvdy - source_uy(e,k)*v;
+          res(e,resindex) += (visc(e,k)*(duydx*dvdx + duydy*dvdy + duydz*dvdz) - pr*dvdy - source_uy(e,k)*v)*wts(e,k);
         }
       }
     });
@@ -304,7 +305,7 @@ void stokes::volumeResidual() {
           dvdy = basis_grad(e,i,k,1);
           dvdz = basis_grad(e,i,k,2);
           
-          res(e,resindex) += visc(e,k)*(duzdx*dvdx + duzdy*dvdy + duzdz*dvdz) - pr*dvdz - source_uz(e,k)*v;
+          res(e,resindex) += (visc(e,k)*(duzdx*dvdx + duzdy*dvdy + duzdz*dvdz) - pr*dvdz - source_uz(e,k)*v)*wts(e,k);
         }
       }
     });
@@ -316,10 +317,7 @@ void stokes::volumeResidual() {
 // ========================================================================================
 
 void stokes::boundaryResidual() {
-  
-  // NOTES:
-  // 1. basis and basis_grad already include the integration weights
-  
+
 }
 
 // ========================================================================================

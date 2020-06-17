@@ -28,9 +28,158 @@ BoundaryCell::BoundaryCell(const Teuchos::RCP<CellMetaData> & cellData_,
                            Kokkos::View<int****,HostDevice> sideinfo_,
                            Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_) :
 cellData(cellData_), localElemID(localID_), localSideID(sideID_), nodes(nodes_),
-sidenum(sidenum_), sidename(sidename_), cellID(cellID_), GIDs(GIDs_), sideinfo(sideinfo_), orientation(orientation_) {
+sidenum(sidenum_), sidename(sidename_), cellID(cellID_), GIDs(GIDs_), sideinfo(sideinfo_),
+orientation(orientation_) {
   
   numElem = nodes.extent(0);
+  
+  // ----------------------------------------------------------
+  // Need to store ip, normals, basis, basis_uw, basis_grad, basis_grad_uw, param_basis, param_basis_grad
+  // ----------------------------------------------------------
+  
+  DRV ref_ip = cellData->ref_side_ip[localSideID(0)];
+  DRV ref_wts = cellData->ref_side_wts[localSideID(0)];
+  
+  int dimension = cellData->dimension;
+  int numip = ref_ip.extent(0);
+  
+  ip = DRV("boundary ip", numElem, numip, dimension);
+  DRV ijac("bijac", numElem, numip, dimension, dimension);
+  DRV ijacDet("bijacDet", numElem, numip);
+  DRV ijacInv("bijacInv", numElem, numip, dimension, dimension);
+  wts = DRV("boundary wts", numElem, numip);
+  normals = DRV("boundary normals", numElem, numip, dimension);
+  tangents = DRV("boundary tangents", numElem, numip, dimension);
+  
+  {
+    //Teuchos::TimeMonitor dbgtimer(*worksetDebugTimer0);
+    CellTools::mapToPhysicalFrame(ip, ref_ip, nodes, *(cellData->cellTopo));
+    CellTools::setJacobian(ijac, ref_ip, nodes, *(cellData->cellTopo));
+    CellTools::setJacobianInv(ijacInv, ijac);
+    CellTools::setJacobianDet(ijacDet, ijac);
+  }
+  
+  {
+    //Teuchos::TimeMonitor dbgtimer(*worksetDebugTimer1);
+    
+    if (dimension == 2) {
+      DRV ref_tangents = cellData->ref_side_tangents[localSideID(0)];
+      Intrepid2::RealSpaceTools<AssemblyExec>::matvec(tangents, ijac, ref_tangents);
+      
+      DRV rotation("rotation matrix",dimension,dimension);
+      rotation(0,0) = 0;  rotation(0,1) = 1;
+      rotation(1,0) = -1; rotation(1,1) = 0;
+      Intrepid2::RealSpaceTools<AssemblyExec>::matvec(normals, rotation, tangents);
+      
+      Intrepid2::RealSpaceTools<AssemblyExec>::vectorNorm(wts, tangents, Intrepid2::NORM_TWO);
+      Intrepid2::ArrayTools<AssemblyExec>::scalarMultiplyDataData(wts, wts, ref_wts);
+      
+    }
+    else if (dimension == 3) {
+      
+      DRV ref_tangentsU = cellData->ref_side_tangentsU[localSideID(0)];
+      DRV ref_tangentsV = cellData->ref_side_tangentsV[localSideID(0)];
+      
+      DRV faceTanU("face tangent U", numElem, numip, dimension);
+      DRV faceTanV("face tangent V", numElem, numip, dimension);
+      
+      Intrepid2::RealSpaceTools<AssemblyExec>::matvec(faceTanU, ijac, ref_tangentsU);
+      Intrepid2::RealSpaceTools<AssemblyExec>::matvec(faceTanV, ijac, ref_tangentsV);
+      
+      Intrepid2::RealSpaceTools<AssemblyExec>::vecprod(normals, faceTanU, faceTanV);
+      
+      Intrepid2::RealSpaceTools<AssemblyExec>::vectorNorm(wts, normals, Intrepid2::NORM_TWO);
+      Intrepid2::ArrayTools<AssemblyExec>::scalarMultiplyDataData(wts, wts, ref_wts);
+      
+    }
+    
+  }
+  
+  hsize = Kokkos::View<ScalarT*,AssemblyDevice>("element sizes",numElem);
+  parallel_for(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    ScalarT vol = 0.0;
+    for (int i=0; i<wts.extent(1); i++) {
+      vol += wts(e,i);
+    }
+    ScalarT dimscl = 1.0/((ScalarT)ip.extent(2)-1.0);
+    hsize(e) = std::pow(vol,dimscl);
+  });
+  
+  // TMW: this might not be needed
+  // scale the normal vector (we need unit normal...)
+  parallel_for(RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    for (int j=0; j<normals.extent(1); j++ ) {
+      ScalarT normalLength = 0.0;
+      for (int sd=0; sd<normals.extent(2); sd++) {
+        normalLength += normals(e,j,sd)*normals(e,j,sd);
+      }
+      normalLength = std::sqrt(normalLength);
+      for (int sd=0; sd<normals.extent(2); sd++) {
+        normals(e,j,sd) = normals(e,j,sd) / normalLength;
+      }
+    }
+  });
+  
+  {
+    
+    for (size_t i=0; i<cellData->basis_pointers.size(); i++) {
+      
+      int numb = cellData->basis_pointers[i]->getCardinality();
+      DRV basis_vals, basis_grad_vals, basis_div_vals, basis_curl_vals;
+      
+      DRV ref_basis_vals = cellData->ref_side_basis[localSideID(0)][i];
+      
+      if (cellData->basis_types[i] == "HGRAD"){
+        
+        DRV basis_vals_tmp("tmp basis_vals",numElem, numb, numip);
+        FuncTools::HGRADtransformVALUE(basis_vals_tmp, ref_basis_vals);
+        basis_vals = DRV("basis_vals",numElem, numb, numip);
+        OrientTools::modifyBasisByOrientation(basis_vals, basis_vals_tmp, orientation,
+                                              cellData->basis_pointers[i].get());
+        
+        DRV ref_basis_grad_vals = cellData->ref_side_basis_grad[localSideID(0)][i];
+        
+        DRV basis_grad_vals_tmp("basis_grad_side tmp",numElem,numb,numip,dimension);
+        FuncTools::HGRADtransformGRAD(basis_grad_vals_tmp, ijacInv, ref_basis_grad_vals);
+        
+        basis_grad_vals = DRV("basis_grad_vals",numElem,numb,numip,dimension);
+        OrientTools::modifyBasisByOrientation(basis_grad_vals, basis_grad_vals_tmp, orientation,
+                                              cellData->basis_pointers[i].get());
+        
+      }
+      else if (cellData->basis_types[i] == "HVOL"){ // does not require orientations
+        
+        basis_vals = DRV("basis_vals",numElem, numb, numip);
+        FuncTools::HGRADtransformVALUE(basis_vals, ref_basis_vals);
+        
+      }
+      else if (cellData->basis_types[i] == "HFACE"){
+        
+        DRV basis_vals_tmp("tmp basis_vals",numElem, numb, numip);
+        FuncTools::HGRADtransformVALUE(basis_vals_tmp, ref_basis_vals);
+        basis_vals = DRV("basis_vals",numElem, numb, numip);
+        OrientTools::modifyBasisByOrientation(basis_vals, basis_vals_tmp, orientation,
+                                              cellData->basis_pointers[i].get());
+        
+      }
+      else if (cellData->basis_types[i] == "HDIV"){
+        
+        DRV basis_vals_tmp("tmp basis_vals",numElem, numb, numip, dimension);
+        
+        FuncTools::HDIVtransformVALUE(basis_vals_tmp, ijac, ijacDet, ref_basis_vals);
+        basis_vals = DRV("basis_vals",numElem, numb, numip, dimension);
+        OrientTools::modifyBasisByOrientation(basis_vals, basis_vals_tmp, orientation,
+                                              cellData->basis_pointers[i].get());
+      }
+      else if (cellData->basis_types[i] == "HCURL"){
+      
+      }
+      basis.push_back(basis_vals);
+      basis_grad.push_back(basis_grad_vals);
+      basis_div.push_back(basis_div_vals);
+      basis_curl.push_back(basis_curl_vals);
+    }
+  }
   
 }
 
@@ -141,7 +290,7 @@ void BoundaryCell::addAuxVars(const vector<string> & auxlist_) {
 // Define which basis each variable will use
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::setUseBasis(vector<int> & usebasis_) {
+void BoundaryCell::setUseBasis(vector<int> & usebasis_, const int & numsteps, const int & numstages) {
   vector<int> usebasis = usebasis_;
   
   // Set up the containers for usual solution storage
@@ -153,6 +302,8 @@ void BoundaryCell::setUseBasis(vector<int> & usebasis_) {
   }
   u = Kokkos::View<ScalarT***,AssemblyDevice>("u",numElem,cellData->numDOF.extent(0),maxnbasis);
   phi = Kokkos::View<ScalarT***,AssemblyDevice>("phi",numElem,cellData->numDOF.extent(0),maxnbasis);
+  u_prev = Kokkos::View<ScalarT****,AssemblyDevice>("u previous",numElem,cellData->numDOF.extent(0),maxnbasis,numsteps);
+  u_stage = Kokkos::View<ScalarT****,AssemblyDevice>("u stages",numElem,cellData->numDOF.extent(0),maxnbasis,numstages);
   
 }
 
@@ -199,14 +350,33 @@ void BoundaryCell::setAuxUseBasis(vector<int> & ausebasis_) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
+// Update the workset
+///////////////////////////////////////////////////////////////////////////////////////
+
+void BoundaryCell::updateWorksetBasis() {
+  wkset->ip_side = ip;
+  wkset->wts_side = wts;
+  wkset->normals = normals;
+  wkset->h = hsize;
+  
+  // TMW: can these be avoided??
+  Kokkos::deep_copy(wkset->normals_KV,normals);
+  Kokkos::deep_copy(wkset->ip_side_KV,ip);
+  
+  wkset->basis_side = basis;
+  wkset->basis_grad_side = basis_grad;
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
 // Map the coarse grid solution to the fine grid integration points
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::computeSoln(Kokkos::View<int*,UnifiedDevice> seedwhat) {
+void BoundaryCell::computeSoln(const int & seedwhat) {
   
   Teuchos::TimeMonitor localtimer(*computeSolnSideTimer);
   
-  wkset->computeSolnSideIP(u, seedwhat);
+  wkset->computeSolnSideIP(u, u_prev, u_stage, seedwhat);
   wkset->computeParamSideIP(sidenum, param, seedwhat);
   
   if (wkset->numAux > 0) {
@@ -221,7 +391,7 @@ void BoundaryCell::computeSoln(Kokkos::View<int*,UnifiedDevice> seedwhat) {
       for (size_t k=0; k<auxindex.extent(1); k++) {
         for(size_t i=0; i<cellData->numAuxDOF(k); i++ ) {
           ScalarT auxtmp = aux(localElemID[e],k,i);
-          if (seedwhat(0) == 4) {
+          if (seedwhat == 4) {
             auxval = AD(maxDerivs,auxoffsets(k,i),auxtmp);
             //auxval = AD(maxDerivs,auxoffsets[k][i],aux(e,k,i));
           }
@@ -260,7 +430,9 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
   {
     Teuchos::TimeMonitor localtimer(*boundaryResidualTimer);
     
-    wkset->updateSide(sidenum, wksetBID);
+    this->updateWorksetBasis();
+    
+    //wkset->updateSide(sidenum, wksetBID);
     wkset->sidename = sidename;
     wkset->currentside = sidenum;
     
@@ -276,24 +448,19 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
     //    wkset->sidename = gsideid;
     //wkset->sidetype = sideinfo[e](side,0);
     // }
-    Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
     if (compute_jacobian) {
       if (compute_disc_sens) {
-        seedwhat(0) = 3;
-        this->computeSoln(seedwhat);
+        this->computeSoln(3);
       }
       else if (compute_aux_sens) {
-        seedwhat(0) = 4;
-        this->computeSoln(seedwhat);
+        this->computeSoln(4);
       }
       else {
-        seedwhat(0) = 1;
-        this->computeSoln(seedwhat);
+        this->computeSoln(1);
       }
     }
     else {
-      seedwhat(0) = 0;
-      this->computeSoln(seedwhat);
+      this->computeSoln(0);
     }
     
     //wkset->resetResidual(numElem);
@@ -537,10 +704,9 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
         found = reg_side.find(sidename);
         if (found != string::npos) {
           
-          wkset->updateSide(sidenum, cellID);
-          Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
-          seedwhat(0) = 3;
-          wkset->computeParamSideIP(sidenum, param, seedwhat);
+          //wkset->updateSide(sidenum, cellID);
+          this->updateWorksetBasis();
+          wkset->computeParamSideIP(sidenum, param, 3);
           
           AD p, dpdx, dpdy, dpdz; // parameters
           ScalarT offset = 1.0e-5;
@@ -658,6 +824,7 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
     
     wkset->computeSolnSideIP(sidenum, u_AD, param_AD);
   }
+  
   if (wkset->numAux > 0) {
     
     Teuchos::TimeMonitor localtimer(*cellFluxAuxTimer);
@@ -678,7 +845,7 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
     }
   }
   
-  wkset->resetFlux();
+  //wkset->resetFlux();
   {
     Teuchos::TimeMonitor localtimer(*cellFluxEvalTimer);
     

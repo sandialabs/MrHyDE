@@ -73,6 +73,7 @@ void porousHDIV::volumeResidual() {
   
   basis = wkset->basis[u_basis];
   basis_div = wkset->basis_div[u_basis];
+  wts = wkset->wts;
   
   // (K^-1 u,v) - (p,div v) - src*v (src not added yet)
   parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -105,7 +106,7 @@ void porousHDIV::volumeResidual() {
         }
         divv = basis_div(e,i,k);
         int resindex = offsets(unum,i);
-        res(e,resindex) += 1.0*(ux*vx+uy*vy+uz*vz) - p*divv;
+        res(e,resindex) += (1.0*(ux*vx+uy*vy+uz*vz) - p*divv)*wts(e,k);
         
       }
     }
@@ -122,7 +123,7 @@ void porousHDIV::volumeResidual() {
         ScalarT v = basis(e,i,k,0);
         AD divu = sol_div(e,unum,k);
         int resindex = offsets(pnum,i);
-        res(e,resindex) += -divu*v + source(e,k)*v;
+        res(e,resindex) += (-divu*v + source(e,k)*v)*wts(e,k);
       }
     }
   });
@@ -142,6 +143,7 @@ void porousHDIV::boundaryResidual() {
   sidetype = bcs(pnum,cside);
   
   basis = wkset->basis_side[unum];
+  wts = wkset->wts_side;
   
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
@@ -174,7 +176,7 @@ void porousHDIV::boundaryResidual() {
             nz = normals(e,k,2);
           }
           int resindex = offsets(unum,i);
-          res(e,resindex) += bsource(e,k)*(vx*nx+vy*ny+vz*nz);
+          res(e,resindex) += (bsource(e,k)*(vx*nx+vy*ny+vz*nz))*wts(e,k);
         }
       }
     }
@@ -194,7 +196,7 @@ void porousHDIV::boundaryResidual() {
             nz = normals(e,k,2);
           }
           int resindex = offsets(unum,i);
-          res(e,resindex) += lambda*(vx*nx+vy*ny+vz*nz);
+          res(e,resindex) += (lambda*(vx*nx+vy*ny+vz*nz))*wts(e,k);
         }
       }
     }

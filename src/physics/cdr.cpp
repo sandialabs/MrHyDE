@@ -65,6 +65,7 @@ void cdr::volumeResidual() {
   int c_basis_num = wkset->usebasis[cnum];
   basis = wkset->basis[c_basis_num];
   basis_grad = wkset->basis_grad[c_basis_num];
+  wts = wkset->wts;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -80,32 +81,40 @@ void cdr::volumeResidual() {
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
+  auto C = Kokkos::subview( sol, Kokkos::ALL(), cnum, Kokkos::ALL(), 0);
+  auto dCdt = Kokkos::subview( sol_dot, Kokkos::ALL(), cnum, Kokkos::ALL(), 0);
+  auto gradC = Kokkos::subview( sol_grad, Kokkos::ALL(), cnum, Kokkos::ALL(), Kokkos::ALL());
+  auto off = Kokkos::subview(offsets, cnum, Kokkos::ALL());
   
   if (spaceDim == 1) {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.extent(2); k++ ) {
-        for (int i=0; i<basis.extent(1); i++ ) {
-          int resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
-          res(e,resindex) += sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
-          1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0)) + // diffusion terms
-                                  (xvel(e,k)*sol_grad(e,cnum,k,0))*basis(e,i,k) + // convection terms
-                                  reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k)); // reaction and source terms
-          
-          //res(e,resindex) += tau(e,k)*(sol_dot(e,cnum,k,0) + 1.0/(rho(e,k)*cp(e,k))*(xvel(e,k)*sol_grad(e,cnum,k,0) + reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0)));
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<sol.extent(2); pt++ ) {
+        AD f = (dCdt(elem,pt) + xvel(elem,pt)*gradC(elem,pt,0) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
+        AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,0)*wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          res(elem,off(dof)) += f*basis(elem,dof,pt) + Fx*basis_grad(elem,dof,pt,0);
+          //sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
+          //1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0)) + // diffusion terms
+          //                        (xvel(e,k)*sol_grad(e,cnum,k,0))*basis(e,i,k) + // convection terms
+          //                        reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k)); // reaction and source terms
           
         }
       }
     });
   }
   else if (spaceDim == 2) {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.extent(2); k++ ) {
-        for (int i=0; i<basis.extent(1); i++ ) {
-          int resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
-          res(e,resindex) += sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
-          1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,cnum,k,1)*basis_grad(e,i,k,1)) + // diffusion terms
-                                  (xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1))*basis(e,i,k) + // convection terms
-                                  reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k)); // reaction and source terms
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<sol.extent(2); pt++ ) {
+        AD f = (dCdt(elem,pt) + xvel(elem,pt)*gradC(elem,pt,0) + yvel(elem,pt)*gradC(elem,pt,1) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
+        AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,0)*wts(elem,pt);
+        AD Fy = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,1)*wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          res(elem,off(dof)) += f*basis(elem,dof,pt) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1);
+          //int resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
+          //res(e,resindex) += sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
+          //1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,cnum,k,1)*basis_grad(e,i,k,1)) + // diffusion terms
+          //                        (xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1))*basis(e,i,k) + // convection terms
+          //                        reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k)); // reaction and source terms
           
           //res(e,resindex) += tau(e,k)*(sol_dot(e,cnum,k,0) + 1.0/(rho(e,k)*cp(e,k))*(xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0) + yvel(e,k)*basis_grad(e,i,k,1)));
           
@@ -114,14 +123,20 @@ void cdr::volumeResidual() {
     });
   }
   else if (spaceDim == 3) {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.extent(2); k++ ) {
-        for (int i=0; i<basis.extent(1); i++ ) {
-          int resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
-          res(e,resindex) += sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
-          1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,cnum,k,1)*basis_grad(e,i,k,1) + sol_grad(e,cnum,k,2)*basis_grad(e,i,k,2)) + // diffusion terms
-                                  (xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + zvel(e,k)*sol_grad(e,cnum,k,2))*basis(e,i,k) + // convection terms
-                                  reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k)); // reaction and source terms
+    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<sol.extent(2); pt++ ) {
+        AD f = (dCdt(elem,pt) + xvel(elem,pt)*gradC(elem,pt,0) + yvel(elem,pt)*gradC(elem,pt,1) + zvel(elem,pt)*gradC(elem,pt,2) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
+        AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,0)*wts(elem,pt);
+        AD Fy = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,1)*wts(elem,pt);
+        AD Fz = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,2)*wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          res(elem,off(dof)) += f*basis(elem,dof,pt) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2);
+          
+          //int resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
+          //res(e,resindex) += sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
+          //1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,cnum,k,1)*basis_grad(e,i,k,1) + sol_grad(e,cnum,k,2)*basis_grad(e,i,k,2)) + // diffusion terms
+                                  //(xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + zvel(e,k)*sol_grad(e,cnum,k,2))*basis(e,i,k) + // convection terms
+                                  //reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k)); // reaction and source terms
           
           //res(e,resindex) += tau(e,k)*(sol_dot(e,cnum,k,0) + 1.0/(rho(e,k)*cp(e,k))*(xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + zvel(e,k)*sol_grad(e,cnum,k,2) +reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0) + yvel(e,k)*basis_grad(e,i,k,1) + zvel(e,k)*basis_grad(e,i,k,2)));
           

@@ -31,53 +31,39 @@ public:
   CellMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settings,
                const topo_RCP & cellTopo_,
                const Teuchos::RCP<physics> & physics_RCP_, const size_t & myBlock_,
-               const size_t & myLevel_, const bool & memeff_,
-               const vector<string> & sidenames_, DRV ref_ip_, DRV ref_wts_) :
-  cellTopo(cellTopo_), physics_RCP(physics_RCP_), myBlock(myBlock_),
-  myLevel(myLevel_), memory_efficient(memeff_), sidenames(sidenames_), ref_ip(ref_ip_), ref_wts(ref_wts_) {
+               const size_t & myLevel_, const bool & assemble_face_terms_,
+               const vector<string> & sidenames_, DRV ref_ip_, DRV ref_wts_,
+               DRV ref_side_ip_, DRV ref_side_wts_, vector<string> & basis_types_,
+               vector<basis_RCP> & basis_pointers_);
   
-    
-    compute_diff = settings->sublist("Postprocess").get<bool>("Compute Difference in Objective", true);
-    useFineScale = settings->sublist("Postprocess").get<bool>("Use fine scale sensors",true);
-    loadSensorFiles = settings->sublist("Analysis").get<bool>("Load Sensor Files",false);
-    writeSensorFiles = settings->sublist("Analysis").get<bool>("Write Sensor Files",false);
-    mortar_objective = settings->sublist("Solver").get<bool>("Use Mortar Objective",false);
-    
-    if (settings->sublist("Postprocess").get<bool>("write solution", false)) {
-      compute_sol_avg = true;
-    }
-    
-    multiscale = false;
-    numnodes = cellTopo->getNodeCount();
-    dimension = cellTopo->getDimension();
-    
-    if (dimension == 2) {
-      numSides = cellTopo->getSideCount();
-    }
-    else if (dimension == 3) {
-      numSides = cellTopo->getFaceCount();
-    }
-    response_type = "global";
-    
-    have_cell_phi = false;
-    have_cell_rotation = false;
-    
-  }
+  ///////////////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////////
   
-  
+  void setupReferenceBasis();
+
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  bool memory_efficient;
+  bool assemble_face_terms;
   size_t myBlock, myLevel;
   Teuchos::RCP<physics> physics_RCP;
   string response_type;
   vector<string> sidenames;
   
   // Geometry Information
-  size_t numnodes, numSides, dimension;
+  size_t numnodes, numSides, dimension, numip, numsideip;
   topo_RCP cellTopo;
+  
+  // Reference element integration and basis data
   DRV ref_ip, ref_wts;
+  vector<DRV> ref_side_ip, ref_side_wts, ref_side_normals, ref_side_tangents, ref_side_tangentsU, ref_side_tangentsV;
+  vector<DRV> ref_side_ip_vec, ref_side_normals_vec, ref_side_tangents_vec, ref_side_tangentsU_vec, ref_side_tangentsV_vec;
+  
+  vector<string> basis_types, disc_param_basis_types;
+  vector<basis_RCP> basis_pointers;
+  vector<DRV> ref_basis, ref_basis_grad, ref_basis_div, ref_basis_curl;
+  vector<vector<DRV> > ref_side_basis, ref_side_basis_grad, ref_side_basis_div, ref_side_basis_curl;
+  vector<vector<DRV> > param_basis_side_ref, param_basis_grad_side_ref;
   
   bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles;
   bool mortar_objective;

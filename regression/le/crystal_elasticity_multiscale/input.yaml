@@ -63,6 +63,7 @@ ANONYMOUS:
   Physics:
     use crystal elasticity: false
     modules: linearelasticity
+    assemble face terms: true
     Dirichlet conditions:
       dx:
         bottom: '0.0'

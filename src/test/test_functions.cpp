@@ -37,7 +37,7 @@ int main(int argc, char * argv[]) {
     
     vector<string> btypes = {"HGRAD"};
     Kokkos::View<int**,UnifiedDevice> bcs("bcs",1,1);
-    Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset(cellinfo, ip, wts,
+    Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset(cellinfo, false, ip, wts,
                                                             sip, swts, btypes, basis, basis, cellTopo,bcs) );
     
     Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager("eblock",numElem,numip,numip));

@@ -302,6 +302,8 @@ public:
   Teuchos::RCP<Teuchos::ParameterList> belosList;
   Teuchos::RCP<Belos::SolverManager<ScalarT, LA_MultiVector, LA_Operator> > belos_solver;
   bool have_belos = false;
+  bool have_preconditioner = false;
+  
   
   vector<string> stoch_param_types;
   vector<ScalarT> stoch_param_means, stoch_param_vars, stoch_param_mins, stoch_param_maxs;
@@ -345,6 +347,7 @@ public:
   vector<Kokkos::View<ScalarT***,AssemblyDevice> > auxdata;
   vector<Kokkos::View<AD***,AssemblyDevice> > fluxdata;
   //vector<vector<std:pair<size_t,string> > > subgrid_error_list;
+  
   
   // Timers
   Teuchos::RCP<Teuchos::Time> sgfemSolverTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridSolver()");

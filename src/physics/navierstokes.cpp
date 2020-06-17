@@ -103,6 +103,7 @@ void navierstokes::volumeResidual() {
   int ux_basis = wkset->usebasis[ux_num];
   basis = wkset->basis[ux_basis];
   basis_grad = wkset->basis_grad[ux_basis];
+  wts = wkset->wts;
   
   parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
@@ -148,10 +149,10 @@ void navierstokes::volumeResidual() {
           dvdz = basis_grad(e,i,k,2);
         }
         
-        res(e,resindex) += dens(e,k)*ux_dot*v + visc(e,k)*(duxdx*dvdx + duxdy*dvdy + duxdz*dvdz) + dens(e,k)*(ux*duxdx + uy*duxdy + uz*duxdz)*v - pr*dvdx - dens(e,k)*source_ux(e,k)*v;
+        res(e,resindex) += (dens(e,k)*ux_dot*v + visc(e,k)*(duxdx*dvdx + duxdy*dvdy + duxdz*dvdz) + dens(e,k)*(ux*duxdx + uy*duxdy + uz*duxdz)*v - pr*dvdx - dens(e,k)*source_ux(e,k)*v)*wts(e,k);
         
         if (have_energy) {
-          res(e,resindex) += dens(e,k)*beta*(eval-T_ambient)*source_ux(e,k)*v;
+          res(e,resindex) += (dens(e,k)*beta*(eval-T_ambient)*source_ux(e,k)*v)*wts(e,k);
         }
         
         if(useSUPG) {
@@ -162,7 +163,7 @@ void navierstokes::volumeResidual() {
           if (have_energy) {
             stabres += dens(e,k)*beta*(e-T_ambient)*source_ux(e,k);
           }
-          res(e,resindex) += tau*(stabres)*(ux*dvdx + uy*dvdy + uz*dvdz);
+          res(e,resindex) += (tau*(stabres)*(ux*dvdx + uy*dvdy + uz*dvdz))*wts(e,k);
           
         }
       }
@@ -214,7 +215,7 @@ void navierstokes::volumeResidual() {
         int resindex = offsets(pr_num,i);
         v = basis(e,i,k);
         
-        res(e,resindex) += (duxdx + duydy + duzdz)*v;
+        res(e,resindex) += ((duxdx + duydy + duzdz)*v)*wts(e,k);
         
         if(usePSPG) {
           dvdx = basis_grad(e,i,k,0);
@@ -227,7 +228,7 @@ void navierstokes::volumeResidual() {
             stabres += dens(e,k)*(eval-T_ambient)*source_ux(e,k);
           }
           
-          res(e,resindex) += tau*(stabres)*dvdx;
+          res(e,resindex) += (tau*(stabres)*dvdx)*wts(e,k);
           
           if (spaceDim > 1) {
             dvdy = basis_grad(e,i,k,1);
@@ -240,7 +241,7 @@ void navierstokes::volumeResidual() {
             if (have_energy) {
               stabres += dens(e,k)*(eval-T_ambient)*source_uy(e,k);
             }
-            res(e,resindex) += tau*(stabres)*dvdy;
+            res(e,resindex) += (tau*(stabres)*dvdy)*wts(e,k);
           }
           
           if (spaceDim > 2) {
@@ -254,7 +255,7 @@ void navierstokes::volumeResidual() {
             if (have_energy) {
               stabres += dens(e,k)*(eval-T_ambient)*source_uz(e,k);
             }
-            res(e,resindex) += tau*(stabres)*dvdz;
+            res(e,resindex) += (tau*(stabres)*dvdz)*wts(e,k);
             
           }
         }
@@ -312,10 +313,10 @@ void navierstokes::volumeResidual() {
             dvdz = basis_grad(e,i,k,2);
           }
           
-          res(e,resindex) += dens(e,k)*uy_dot*v + visc(e,k)*(duydx*dvdx + duydy*dvdy + duydz*dvdz) + dens(e,k)*(ux*duydx + uy*duydy + uz*duydz)*v - pr*dvdy - dens(e,k)*source_uy(e,k)*v;
+          res(e,resindex) += (dens(e,k)*uy_dot*v + visc(e,k)*(duydx*dvdx + duydy*dvdy + duydz*dvdz) + dens(e,k)*(ux*duydx + uy*duydy + uz*duydz)*v - pr*dvdy - dens(e,k)*source_uy(e,k)*v)*wts(e,k);
           
           if (have_energy) {
-            res(e,resindex) += dens(e,k)*beta*(eval-T_ambient)*source_uy(e,k)*v;
+            res(e,resindex) += (dens(e,k)*beta*(eval-T_ambient)*source_uy(e,k)*v)*wts(e,k);
           }
           
           if(useSUPG) {
@@ -327,7 +328,7 @@ void navierstokes::volumeResidual() {
               stabres += dens(e,k)*beta*(eval-T_ambient)*source_uy(e,k);
             }
             
-            res(e,resindex) += tau*(stabres)*(ux*dvdx + uy*dvdy + uz*dvdz);
+            res(e,resindex) += (tau*(stabres)*(ux*dvdx + uy*dvdy + uz*dvdz))*wts(e,k);
             
           }
         }
@@ -377,10 +378,10 @@ void navierstokes::volumeResidual() {
           dvdy = basis_grad(e,i,k,1);
           dvdz = basis_grad(e,i,k,2);
           
-          res(e,resindex) += dens(e,k)*uz_dot*v + visc(e,k)*(duzdx*dvdx + duzdy*dvdy + duzdz*dvdz) + dens(e,k)*(ux*duzdx + uy*duzdy + uz*duzdz)*v - pr*dvdz - dens(e,k)*source_uz(e,k)*v;
+          res(e,resindex) += (dens(e,k)*uz_dot*v + visc(e,k)*(duzdx*dvdx + duzdy*dvdy + duzdz*dvdz) + dens(e,k)*(ux*duzdx + uy*duzdy + uz*duzdz)*v - pr*dvdz - dens(e,k)*source_uz(e,k)*v)*wts(e,k);
           
           if (have_energy) {
-            res(e,resindex) += dens(e,k)*(eval-T_ambient)*source_uz(e,k)*v;
+            res(e,resindex) += (dens(e,k)*(eval-T_ambient)*source_uz(e,k)*v)*wts(e,k);
           }
           
           if(useSUPG) {
@@ -392,7 +393,7 @@ void navierstokes::volumeResidual() {
               stabres += dens(e,k)*(e-T_ambient)*source_uz(e,k);
             }
             
-            res(e,resindex) += tau*(stabres)*(ux*dvdx + uy*dvdy + uz*dvdz);
+            res(e,resindex) += (tau*(stabres)*(ux*dvdx + uy*dvdy + uz*dvdz))*wts(e,k);
             
           }
         }

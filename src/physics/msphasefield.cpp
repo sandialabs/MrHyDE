@@ -217,6 +217,7 @@ void msphasefield::volumeResidual() {
   offsets = wkset->offsets;
   DRV ip = wkset->ip;
   res = wkset->res;
+  wts = wkset->wts;
   
   for (size_t e=0; e<res.extent(0); e++) {
     for( int k=0; k<ip.extent(1); k++ ) {
@@ -277,21 +278,21 @@ void msphasefield::volumeResidual() {
           if (spaceDim == 2) {
             //	    if(variableMobility) L[0] = Lvar[j];
             if(variableMobility) {
-              res(e,resindex) += mobility*(16.0*A[0]*phi[j]*(-phi[j]+ sumphi)*v +
-                                           diff_FAD[0]*diff_FAD[0]*(dphidx[j]*dvdx + dphidy[j]*dvdy ));
+              res(e,resindex) += (mobility*(16.0*A[0]*phi[j]*(-phi[j]+ sumphi)*v +
+                                           diff_FAD[0]*diff_FAD[0]*(dphidx[j]*dvdx + dphidy[j]*dvdy )))*wts(e,k);
             }else {
-              res(e,resindex) += L[0]*(16.0*A[0]*phi[j]*(-phi[j]+ sumphi)*v +
-                                       diff_FAD[0]*diff_FAD[0]*(dphidx[j]*dvdx + dphidy[j]*dvdy ));
+              res(e,resindex) += (L[0]*(16.0*A[0]*phi[j]*(-phi[j]+ sumphi)*v +
+                                       diff_FAD[0]*diff_FAD[0]*(dphidx[j]*dvdx + dphidy[j]*dvdy )))*wts(e,k);
             }
             //	      wkset->res(resindex) += L[0]*(4.0*A[0]*(-phi[j]+ phi[j]*phi[j]*phi[j])*v +
             //					   diff_FAD[0]*diff_FAD[0]*(dphidx[j]*dvdx + dphidy[j]*dvdy ));
             
           }
           if (spaceDim == 3) {
-            res(e,resindex) += L[0]*(4.0*A[0]*phi[j]*(-phi[j]+ sumphi)*v +
-                                     diff_FAD[0]*diff_FAD[0]*(dphidx[j]*dvdx + dphidy[j]*dvdy + dphidz[j]*dvdz ));
+            res(e,resindex) += (L[0]*(4.0*A[0]*phi[j]*(-phi[j]+ sumphi)*v +
+                                     diff_FAD[0]*diff_FAD[0]*(dphidx[j]*dvdx + dphidy[j]*dvdy + dphidz[j]*dvdz )))*wts(e,k);
           }
-          res(e,resindex) += phi_dot[j]*v;
+          res(e,resindex) += phi_dot[j]*v*wts(e,k);
         }
       }
     }

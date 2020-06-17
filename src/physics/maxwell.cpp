@@ -72,12 +72,16 @@ void maxwell::volumeResidual() {
     auto dBdt = Kokkos::subview(sol_dot, Kokkos::ALL(), Bnum, Kokkos::ALL(), Kokkos::ALL());
     auto curlE = Kokkos::subview(sol_curl, Kokkos::ALL(), Enum, Kokkos::ALL(), Kokkos::ALL());
     auto off = Kokkos::subview(offsets, Bnum, Kokkos::ALL());
+    wts = wkset->wts;
     parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<sol.extent(2); pt++ ) {
+        AD f0 = (dBdt(elem,pt,0) + curlE(elem,pt,0))*wts(elem,pt);
+        AD f1 = (dBdt(elem,pt,1) + curlE(elem,pt,1))*wts(elem,pt);
+        AD f2 = (dBdt(elem,pt,2) + curlE(elem,pt,2))*wts(elem,pt);
         for (int dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += (dBdt(elem,pt,0) + curlE(elem,pt,0))*basis(elem,dof,pt,0);
-          res(elem,off(dof)) += (dBdt(elem,pt,1) + curlE(elem,pt,1))*basis(elem,dof,pt,1);
-          res(elem,off(dof)) += (dBdt(elem,pt,2) + curlE(elem,pt,2))*basis(elem,dof,pt,2);
+          res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
+          res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
+          res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
         }
       }
     });
@@ -96,10 +100,16 @@ void maxwell::volumeResidual() {
     
     parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<sol.extent(2); pt++ ) {
+        AD f0 = (epsilon(elem,pt)*dEdt(elem,pt,0) + sigma(elem,pt)*E(elem,pt,0) + current_x(elem,pt))*wts(elem,pt);
+        AD f1 = (epsilon(elem,pt)*dEdt(elem,pt,1) + sigma(elem,pt)*E(elem,pt,1) + current_y(elem,pt))*wts(elem,pt);
+        AD f2 = (epsilon(elem,pt)*dEdt(elem,pt,2) + sigma(elem,pt)*E(elem,pt,2) + current_z(elem,pt))*wts(elem,pt);
+        AD c0 = - 1.0/mu(elem,pt)*B(elem,pt,0)*wts(elem,pt);
+        AD c1 = - 1.0/mu(elem,pt)*B(elem,pt,1)*wts(elem,pt);
+        AD c2 = - 1.0/mu(elem,pt)*B(elem,pt,2)*wts(elem,pt);
         for (int dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += (epsilon(elem,pt)*dEdt(elem,pt,0) + sigma(elem,pt)*E(elem,pt,0) + current_x(elem,pt))*basis(elem,dof,pt,0) - 1.0/mu(elem,pt)*B(elem,pt,0)*basis_curl(elem,dof,pt,0);
-          res(elem,off(dof)) += (epsilon(elem,pt)*dEdt(elem,pt,1) + sigma(elem,pt)*E(elem,pt,1) + current_y(elem,pt))*basis(elem,dof,pt,1) - 1.0/mu(elem,pt)*B(elem,pt,1)*basis_curl(elem,dof,pt,1);
-          res(elem,off(dof)) += (epsilon(elem,pt)*dEdt(elem,pt,2) + sigma(elem,pt)*E(elem,pt,2) + current_z(elem,pt))*basis(elem,dof,pt,2) - 1.0/mu(elem,pt)*B(elem,pt,2)*basis_curl(elem,dof,pt,2);
+          res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0);
+          res(elem,off(dof)) += f1*basis(elem,dof,pt,1) + c1*basis_curl(elem,dof,pt,1);
+          res(elem,off(dof)) += f2*basis(elem,dof,pt,2) + c2*basis_curl(elem,dof,pt,2);
         }
       }
     });

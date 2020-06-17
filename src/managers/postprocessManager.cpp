@@ -22,7 +22,7 @@ PostprocessManager::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                                        vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
                                        Teuchos::RCP<AssemblyManager> & assembler_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_),
-assembler(assembler_), functionManagers(functionManagers_) { 
+assembler(assembler_), functionManagers(functionManagers_) {
   this->setup(settings);
 }
 
@@ -302,8 +302,6 @@ void PostprocessManager::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) 
     error_list.push_back(block_error_list);
   } // end block loop
   
-  BDF_wts_pp = Kokkos::View<ScalarT*,UnifiedDevice>("tmp view of BDF wts",1);
-  BDF_wts_pp(0) = 1.0;
 }
 
 // ========================================================================================
@@ -547,15 +545,16 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
     assembler->wkset[block]->time = currenttime;
     assembler->wkset[block]->time_KV(0) = currenttime;
   }
-  // Need to replace BDF wts to use time step solution instead of stage solution
-  BDF_wts = assembler->wkset[0]->BDF_wts; // all blocks use the same BDF wts
+  
+  // Need to use time step solution instead of stage solution
+  bool isTransient = assembler->wkset[0]->isTransient;
   for (size_t block=0; block<assembler->wkset.size(); block++) {
-    assembler->wkset[block]->BDF_wts = BDF_wts_pp;
+    assembler->wkset[block]->isTransient = false;
   }
   
   vector<Kokkos::View<ScalarT*,AssemblyDevice> > currerror;
-  Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
-  seedwhat(0) = 0;
+  //Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
+  int seedwhat = 0;
   
   for (size_t block=0; block<assembler->cells.size(); block++) {// loop over blocks
     Kokkos::View<ScalarT*,AssemblyDevice> blockerrors("error",error_list[block].size());
@@ -760,9 +759,9 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
   } // end block loop
   errors.push_back(currerror);
   
-  // Reset the BDF wts
+  // Reset
   for (size_t b=0; b<assembler->wkset.size(); b++) {
-    assembler->wkset[b]->BDF_wts = BDF_wts;
+    assembler->wkset[b]->isTransient = isTransient;
   }
   
 }
@@ -772,11 +771,6 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
 
 AD PostprocessManager::computeObjective() {
   /*
-  // Need to replace BDF wts to use time step solution instead of stage solution
-  BDF_wts = assembler->wkset[0]->BDF_wts; // all blocks use the same BDF wts
-  for (size_t b=0; b<assembler->wkset.size(); b++) {
-    assembler->wkset[b]->BDF_wts = BDF_wts_pp;
-  }
   
   if(Comm->getRank() == 0 ) {
     if (verbosity > 0) {
@@ -940,10 +934,6 @@ AD PostprocessManager::computeObjective() {
     objOUT.close();
   }
   
-  // Reset the BDF wts
-  for (size_t b=0; b<assembler->wkset.size(); b++) {
-    assembler->wkset[b]->BDF_wts = BDF_wts;
-  }
   
   return fullobj;
    */
@@ -1090,10 +1080,10 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
   
   plot_times.push_back(currenttime);
   
-  // Need to replace BDF wts to use time step solution instead of stage solution
-  BDF_wts = assembler->wkset[0]->BDF_wts; // all blocks use the same BDF wts
+  // Need to use time step solution instead of stage solution
+  bool isTransient = assembler->wkset[0]->isTransient;
   for (size_t b=0; b<assembler->wkset.size(); b++) {
-    assembler->wkset[b]->BDF_wts = BDF_wts_pp;
+    assembler->wkset[b]->isTransient = false;
   }
   
   Kokkos::View<ScalarT**,HostDevice> dispz("dispz",assembler->cells[0].size(), numNodesPerElem);
@@ -1532,9 +1522,9 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
   //  }
   //}
   
-  // Reset the BDF wts
+  // Reset
   for (size_t b=0; b<assembler->wkset.size(); b++) {
-    assembler->wkset[b]->BDF_wts = BDF_wts;
+    assembler->wkset[b]->isTransient = isTransient;
   }
   
   //if(Comm->getRank() == 0) {

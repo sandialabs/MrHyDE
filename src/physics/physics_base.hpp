@@ -133,7 +133,7 @@ public:
   Kokkos::View<ScalarT*,AssemblyDevice> h;
   
   // The basis functions change depending on the variable, so these cannot be set just once
-  DRV basis, basis_grad, basis_div, basis_curl, normals;
+  DRV basis, basis_grad, basis_div, basis_curl, normals, wts;
   
   
 };

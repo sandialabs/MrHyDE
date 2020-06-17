@@ -90,8 +90,8 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   multigrid_type = settings->sublist("Solver").get<string>("multigrid type","sa");
   smoother_type = settings->sublist("Solver").get<string>("smoother type","CHEBYSHEV"); // or RELAXATION
   useLinearSolver = settings->sublist("Solver").get<bool>("use linear solver",true);
-  lintol = settings->sublist("Solver").get<ScalarT>("lintol",1.0E-7);
-  liniter = settings->sublist("Solver").get<int>("liniter",100);
+  lintol = settings->sublist("Solver").get<ScalarT>("linear TOL",1.0E-7);
+  liniter = settings->sublist("Solver").get<int>("max linear iters",100);
   kspace = settings->sublist("Solver").get<int>("krylov vectors",100);
   useDomDecomp = settings->sublist("Solver").get<bool>("use dom decomp",false);
   useDirect = settings->sublist("Solver").get<bool>("use direct solver",false);
@@ -459,6 +459,7 @@ void solver::finalizeWorkset() {
     assembler->wkset[b]->paramusebasis = params->discretized_param_usebasis;
     assembler->wkset[b]->paramoffsets = poffsets_view;//paramoffsets;
     assembler->wkset[b]->varlist = varlist[b];
+    assembler->wkset[b]->createSolns();
     int numDOF = assembler->cells[b][0]->GIDs.extent(1);
     for (size_t e=0; e<assembler->cells[b].size(); e++) {
       assembler->cells[b][e]->wkset = assembler->wkset[b];
@@ -475,12 +476,14 @@ void solver::finalizeWorkset() {
       for (size_t e=0; e<assembler->boundaryCells[b].size(); e++) {
         if (assembler->boundaryCells[b][e]->numElem > 0) {
           assembler->boundaryCells[b][e]->wkset = assembler->wkset[b];
-          assembler->boundaryCells[b][e]->setUseBasis(useBasis[b]);
+          assembler->boundaryCells[b][e]->setUseBasis(useBasis[b], numsteps, numstages);
           
+          /*
           assembler->boundaryCells[b][e]->wksetBID = assembler->wkset[b]->addSide(assembler->boundaryCells[b][e]->nodes,
                                                                                   assembler->boundaryCells[b][e]->sidenum,
                                                                                   assembler->boundaryCells[b][e]->localSideID,
                                                                                   assembler->boundaryCells[b][e]->orientation);
+           */
         }
       }
     }
@@ -618,7 +621,7 @@ void solver::forwardModel(DFAD & obj) {
   params->sacadoizeParams(false);
   
   vector_RCP u = this->setInitial();
-   
+  
   if (solver_type == "transient") {
     soln->store(u, current_time, 0); // copies the data
   }
@@ -1429,6 +1432,12 @@ vector_RCP solver::setInitialParams() {
 
 vector_RCP solver::setInitial() {
  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting solver::setInitial ..." << endl;
+    }
+  }
+  
   vector_RCP initial = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
   vector_RCP glinitial = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
   initial->putScalar(0.0);
@@ -1459,6 +1468,12 @@ vector_RCP solver::setInitial() {
     
     assembler->setInitial(initial, useadjoint);
     
+  }
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished solver::setInitial ..." << endl;
+    }
   }
   
   return initial;

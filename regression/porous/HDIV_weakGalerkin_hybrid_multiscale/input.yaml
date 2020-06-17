@@ -9,6 +9,7 @@ ANONYMOUS:
       pbndry: HFACE
     eblock-0_0: 
       modules: porousHDIV_weakGalerkin
+      assemble face terms: true
       Dirichlet conditions:
         pbndry:
           left: '0.0'

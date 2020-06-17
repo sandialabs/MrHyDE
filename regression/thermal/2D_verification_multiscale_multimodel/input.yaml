@@ -5,6 +5,7 @@ ANONYMOUS:
   Mesh input file: input_mesh.yaml
   Physics: 
     modules: thermal
+    assemble face terms: true
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
