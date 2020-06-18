@@ -375,15 +375,6 @@ void cell::setUseBasis(vector<int> & usebasis_, const int & numsteps, const int 
 void cell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasis_) {
   vector<int> paramusebasis = pusebasis_;
   
-  /*
-  Kokkos::View<int*,HostDevice> numParamDOF_host("numParamDOF on host",paramusebasis.size());
-  for (int i=0; i<paramusebasis.size(); i++) {
-    numParamDOF_host(i) = paramnumbasis_[paramusebasis[i]];
-  }
-  numParamDOF = Kokkos::create_mirror_view(numParamDOF_host);
-  Kokkos::deep_copy(numParamDOF_host, numParamDOF);
-  */
-  
   size_t maxnbasis = 0;
   for (size_t i=0; i<cellData->numParamDOF.extent(0); i++) {
     if (cellData->numParamDOF(i) > maxnbasis) {

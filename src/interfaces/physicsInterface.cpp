@@ -568,6 +568,35 @@ void physics::importPhysics() {
       }
     }
     
+    vector<string> discretized_param_basis_types;
+    vector<int> discretized_param_basis_orders;
+    if (settings->isSublist("Parameters")) {
+      Teuchos::ParameterList parameters = settings->sublist("Parameters");
+      Teuchos::ParameterList::ConstIterator pl_itr = parameters.begin();
+      while (pl_itr != parameters.end()) {
+        Teuchos::ParameterList newparam = parameters.sublist(pl_itr->first);
+        if (newparam.get<string>("usage") == "discretized") {
+          discretized_param_basis_types.push_back(newparam.get<string>("type","HGRAD"));
+          discretized_param_basis_orders.push_back(newparam.get<int>("order",1));
+        }
+        pl_itr++;
+      }
+    }
+    
+    for (size_t j=0; j<discretized_param_basis_orders.size(); j++) {
+      bool is_unique = true;
+      for (size_t k=0; k<currunique_orders.size(); k++) {
+        if (currunique_orders[k] == discretized_param_basis_orders[j] && currunique_types[k] == discretized_param_basis_types[j]) {
+          is_unique = false;
+          //currunique_index.push_back(k);
+        }
+      }
+      if (is_unique) {
+        currunique_orders.push_back(discretized_param_basis_orders[j]);
+        currunique_types.push_back(discretized_param_basis_types[j]);
+      //  currunique_index.push_back(currunique_orders.size()-1);
+      }
+    }
     orders.push_back(currorders);
     types.push_back(currtypes);
     varlist.push_back(currvarlist);

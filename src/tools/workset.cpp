@@ -1815,8 +1815,8 @@ void workset::computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param,
       for (int k=0; k<numParams; k++) {
         int kpbasis = paramusebasis[k];
         
-        DRV pbasis = param_basis[kpbasis];
-        DRV pbasis_grad = param_basis_grad[kpbasis];
+        DRV pbasis = basis[kpbasis];
+        DRV pbasis_grad = basis_grad[kpbasis];
         bind(0) = k;
         
         parallel_for(RangePolicy<AssemblyExec>(0,pbasis.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -3042,8 +3042,8 @@ void workset::computeParamSideIP(const int & side, Kokkos::View<ScalarT***,Assem
       for (int k=0; k<numParams; k++) {
         int kpbasis = paramusebasis[k];
         bind(0) = k;
-        DRV pbasis = param_basis_side[kpbasis];
-        DRV pbasis_grad = param_basis_grad_side[kpbasis];
+        DRV pbasis = basis_side[kpbasis];
+        DRV pbasis_grad = basis_grad_side[kpbasis];
         
         parallel_for(RangePolicy<AssemblyExec>(0,pbasis.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (int i=0; i<pbasis.extent(1); i++ ) {

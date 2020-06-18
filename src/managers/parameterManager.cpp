@@ -191,10 +191,19 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
   
   if (num_discretized_params > 0) {
     // determine the unique list of basis'
-    vector<int> disc_orders;
-    vector<string> disc_types;
+    vector<int> disc_orders = phys->unique_orders[0];
+    vector<string> disc_types = phys->unique_types[0];
     vector<int> disc_usebasis;
     
+    for (size_t j=0; j<discretized_param_basis_orders.size(); j++) {
+      for (size_t k=0; k<disc_orders.size(); k++) {
+        if (discretized_param_basis_orders[j] == disc_orders[k] && discretized_param_basis_types[j] == disc_types[k]) {
+          disc_usebasis.push_back(k);
+        }
+      }
+    }
+    
+    /*
     for (size_t j=0; j<discretized_param_basis_orders.size(); j++) {
       bool is_unique = true;
       for (size_t k=0; k<disc_orders.size(); k++) {
@@ -210,11 +219,12 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
         disc_usebasis.push_back(disc_orders.size()-1);
       }
     }
+    */
     
     discretized_param_basis_types = disc_types;
     discretized_param_basis_orders = disc_orders;
     discretized_param_usebasis = disc_usebasis;
-    
+    /*
     for (size_t n=0; n<disc_orders.size(); n++) {
       topo_RCP cellTopo = mesh->getCellTopology(blocknames[0]);
       basis_RCP basis = disc->getBasis(spaceDim, cellTopo, disc_types[n],
@@ -222,7 +232,8 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
       discretized_param_basis.push_back(basis);
       
     }
-    
+    */
+    discretized_param_basis = disc->basis_pointers[0];
     paramDOF = Teuchos::rcp(new panzer::DOFManager());
     Teuchos::RCP<panzer::ConnManager> conn = Teuchos::rcp(new panzer_stk::STKConnManager(mesh));
     paramDOF->setConnManager(conn,*(Comm->getRawMpiComm()));
@@ -261,6 +272,8 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
         numDOF_KV(k) = paramNumBasis[k];
       }
       cells[b][0]->cellData->numParamDOF = numDOF_KV;
+      //cells[b][0]->cellData->discretized_param_basis = discretized_param_basis;
+      //cells[b][0]->cellData->disc_param_basis_types = disc_param_basis_types;
       
       for (size_t e=0; e<cells[b].size(); e++) {
         vector<vector<GO> > GIDs;
