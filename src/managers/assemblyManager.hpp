@@ -184,7 +184,8 @@ public:
   
   bool usestrongDBCs, use_meas_as_dbcs, multiscale, useNewBCs, isTransient;
   Teuchos::RCP<panzer::DOFManager> DOF;
-  vector<bool> assemble_volume_terms, assemble_boundary_terms, assemble_face_terms;
+  vector<bool> assemble_volume_terms, assemble_boundary_terms, assemble_face_terms; // use basis functions in assembly
+  vector<bool> build_volume_terms, build_boundary_terms, build_face_terms; // set up basis function
   
 private:
   

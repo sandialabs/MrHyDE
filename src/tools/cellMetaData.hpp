@@ -31,7 +31,8 @@ public:
   CellMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settings,
                const topo_RCP & cellTopo_,
                const Teuchos::RCP<physics> & physics_RCP_, const size_t & myBlock_,
-               const size_t & myLevel_, const bool & assemble_face_terms_,
+               const size_t & myLevel_, const bool & build_face_terms_,
+               const bool & assemble_face_terms_,
                const vector<string> & sidenames_, DRV ref_ip_, DRV ref_wts_,
                DRV ref_side_ip_, DRV ref_side_wts_, vector<string> & basis_types_,
                vector<basis_RCP> & basis_pointers_);
@@ -44,7 +45,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  bool assemble_face_terms;
+  bool assemble_face_terms, build_face_terms;
   size_t myBlock, myLevel;
   Teuchos::RCP<physics> physics_RCP;
   string response_type;

@@ -490,9 +490,9 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
               AD uval = AD(maxDerivs,coff(dof),cu(elem,dof));
               for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                csol(elem,pt) += cbasis(elem,dof,pt)*uval;
                 for (int s=0; s<cbasis_grad.extent(3); s++ ) {
-                  csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+                  csol_grad(elem,pt,s) += cbasis_grad(elem,dof,pt,s)*uval;
                 }
               }
             }

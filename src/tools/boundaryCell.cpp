@@ -33,154 +33,153 @@ orientation(orientation_) {
   
   numElem = nodes.extent(0);
   
-  // ----------------------------------------------------------
-  // Need to store ip, normals, basis, basis_uw, basis_grad, basis_grad_uw, param_basis, param_basis_grad
-  // ----------------------------------------------------------
-  
-  DRV ref_ip = cellData->ref_side_ip[localSideID(0)];
-  DRV ref_wts = cellData->ref_side_wts[localSideID(0)];
-  
-  int dimension = cellData->dimension;
-  int numip = ref_ip.extent(0);
-  
-  ip = DRV("boundary ip", numElem, numip, dimension);
-  DRV ijac("bijac", numElem, numip, dimension, dimension);
-  DRV ijacDet("bijacDet", numElem, numip);
-  DRV ijacInv("bijacInv", numElem, numip, dimension, dimension);
-  wts = DRV("boundary wts", numElem, numip);
-  normals = DRV("boundary normals", numElem, numip, dimension);
-  tangents = DRV("boundary tangents", numElem, numip, dimension);
-  
   {
-    //Teuchos::TimeMonitor dbgtimer(*worksetDebugTimer0);
-    CellTools::mapToPhysicalFrame(ip, ref_ip, nodes, *(cellData->cellTopo));
-    CellTools::setJacobian(ijac, ref_ip, nodes, *(cellData->cellTopo));
-    CellTools::setJacobianInv(ijacInv, ijac);
-    CellTools::setJacobianDet(ijacDet, ijac);
-  }
-  
-  {
-    //Teuchos::TimeMonitor dbgtimer(*worksetDebugTimer1);
+    Teuchos::TimeMonitor localtimer(*buildBasisTimer);
     
-    if (dimension == 2) {
-      DRV ref_tangents = cellData->ref_side_tangents[localSideID(0)];
-      Intrepid2::RealSpaceTools<AssemblyExec>::matvec(tangents, ijac, ref_tangents);
-      
-      DRV rotation("rotation matrix",dimension,dimension);
-      rotation(0,0) = 0;  rotation(0,1) = 1;
-      rotation(1,0) = -1; rotation(1,1) = 0;
-      Intrepid2::RealSpaceTools<AssemblyExec>::matvec(normals, rotation, tangents);
-      
-      Intrepid2::RealSpaceTools<AssemblyExec>::vectorNorm(wts, tangents, Intrepid2::NORM_TWO);
-      Intrepid2::ArrayTools<AssemblyExec>::scalarMultiplyDataData(wts, wts, ref_wts);
-      
-    }
-    else if (dimension == 3) {
-      
-      DRV ref_tangentsU = cellData->ref_side_tangentsU[localSideID(0)];
-      DRV ref_tangentsV = cellData->ref_side_tangentsV[localSideID(0)];
-      
-      DRV faceTanU("face tangent U", numElem, numip, dimension);
-      DRV faceTanV("face tangent V", numElem, numip, dimension);
-      
-      Intrepid2::RealSpaceTools<AssemblyExec>::matvec(faceTanU, ijac, ref_tangentsU);
-      Intrepid2::RealSpaceTools<AssemblyExec>::matvec(faceTanV, ijac, ref_tangentsV);
-      
-      Intrepid2::RealSpaceTools<AssemblyExec>::vecprod(normals, faceTanU, faceTanV);
-      
-      Intrepid2::RealSpaceTools<AssemblyExec>::vectorNorm(wts, normals, Intrepid2::NORM_TWO);
-      Intrepid2::ArrayTools<AssemblyExec>::scalarMultiplyDataData(wts, wts, ref_wts);
-      
+    DRV ref_ip = cellData->ref_side_ip[localSideID(0)];
+    DRV ref_wts = cellData->ref_side_wts[localSideID(0)];
+    
+    int dimension = cellData->dimension;
+    int numip = ref_ip.extent(0);
+    
+    ip = DRV("boundary ip", numElem, numip, dimension);
+    DRV ijac("bijac", numElem, numip, dimension, dimension);
+    DRV ijacDet("bijacDet", numElem, numip);
+    DRV ijacInv("bijacInv", numElem, numip, dimension, dimension);
+    wts = DRV("boundary wts", numElem, numip);
+    normals = DRV("boundary normals", numElem, numip, dimension);
+    tangents = DRV("boundary tangents", numElem, numip, dimension);
+    
+    {
+      //Teuchos::TimeMonitor dbgtimer(*worksetDebugTimer0);
+      CellTools::mapToPhysicalFrame(ip, ref_ip, nodes, *(cellData->cellTopo));
+      CellTools::setJacobian(ijac, ref_ip, nodes, *(cellData->cellTopo));
+      CellTools::setJacobianInv(ijacInv, ijac);
+      CellTools::setJacobianDet(ijacDet, ijac);
     }
     
-  }
-  
-  hsize = Kokkos::View<ScalarT*,AssemblyDevice>("element sizes",numElem);
-  parallel_for(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    ScalarT vol = 0.0;
-    for (int i=0; i<wts.extent(1); i++) {
-      vol += wts(e,i);
-    }
-    ScalarT dimscl = 1.0/((ScalarT)ip.extent(2)-1.0);
-    hsize(e) = std::pow(vol,dimscl);
-  });
-  
-  // TMW: this might not be needed
-  // scale the normal vector (we need unit normal...)
-  parallel_for(RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    for (int j=0; j<normals.extent(1); j++ ) {
-      ScalarT normalLength = 0.0;
-      for (int sd=0; sd<normals.extent(2); sd++) {
-        normalLength += normals(e,j,sd)*normals(e,j,sd);
+    {
+      //Teuchos::TimeMonitor dbgtimer(*worksetDebugTimer1);
+      
+      if (dimension == 2) {
+        DRV ref_tangents = cellData->ref_side_tangents[localSideID(0)];
+        Intrepid2::RealSpaceTools<AssemblyExec>::matvec(tangents, ijac, ref_tangents);
+        
+        DRV rotation("rotation matrix",dimension,dimension);
+        rotation(0,0) = 0;  rotation(0,1) = 1;
+        rotation(1,0) = -1; rotation(1,1) = 0;
+        Intrepid2::RealSpaceTools<AssemblyExec>::matvec(normals, rotation, tangents);
+        
+        Intrepid2::RealSpaceTools<AssemblyExec>::vectorNorm(wts, tangents, Intrepid2::NORM_TWO);
+        Intrepid2::ArrayTools<AssemblyExec>::scalarMultiplyDataData(wts, wts, ref_wts);
+        
       }
-      normalLength = std::sqrt(normalLength);
-      for (int sd=0; sd<normals.extent(2); sd++) {
-        normals(e,j,sd) = normals(e,j,sd) / normalLength;
+      else if (dimension == 3) {
+        
+        DRV ref_tangentsU = cellData->ref_side_tangentsU[localSideID(0)];
+        DRV ref_tangentsV = cellData->ref_side_tangentsV[localSideID(0)];
+        
+        DRV faceTanU("face tangent U", numElem, numip, dimension);
+        DRV faceTanV("face tangent V", numElem, numip, dimension);
+        
+        Intrepid2::RealSpaceTools<AssemblyExec>::matvec(faceTanU, ijac, ref_tangentsU);
+        Intrepid2::RealSpaceTools<AssemblyExec>::matvec(faceTanV, ijac, ref_tangentsV);
+        
+        Intrepid2::RealSpaceTools<AssemblyExec>::vecprod(normals, faceTanU, faceTanV);
+        
+        Intrepid2::RealSpaceTools<AssemblyExec>::vectorNorm(wts, normals, Intrepid2::NORM_TWO);
+        Intrepid2::ArrayTools<AssemblyExec>::scalarMultiplyDataData(wts, wts, ref_wts);
+        
       }
+      
     }
-  });
-  
-  {
     
-    for (size_t i=0; i<cellData->basis_pointers.size(); i++) {
+    hsize = Kokkos::View<ScalarT*,AssemblyDevice>("element sizes",numElem);
+    parallel_for(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      ScalarT vol = 0.0;
+      for (int i=0; i<wts.extent(1); i++) {
+        vol += wts(e,i);
+      }
+      ScalarT dimscl = 1.0/((ScalarT)ip.extent(2)-1.0);
+      hsize(e) = std::pow(vol,dimscl);
+    });
+    
+    // TMW: this might not be needed
+    // scale the normal vector (we need unit normal...)
+    parallel_for(RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int j=0; j<normals.extent(1); j++ ) {
+        ScalarT normalLength = 0.0;
+        for (int sd=0; sd<normals.extent(2); sd++) {
+          normalLength += normals(e,j,sd)*normals(e,j,sd);
+        }
+        normalLength = std::sqrt(normalLength);
+        for (int sd=0; sd<normals.extent(2); sd++) {
+          normals(e,j,sd) = normals(e,j,sd) / normalLength;
+        }
+      }
+    });
+    
+    {
       
-      int numb = cellData->basis_pointers[i]->getCardinality();
-      DRV basis_vals, basis_grad_vals, basis_div_vals, basis_curl_vals;
-      
-      DRV ref_basis_vals = cellData->ref_side_basis[localSideID(0)][i];
-      
-      if (cellData->basis_types[i] == "HGRAD"){
+      for (size_t i=0; i<cellData->basis_pointers.size(); i++) {
         
-        DRV basis_vals_tmp("tmp basis_vals",numElem, numb, numip);
-        FuncTools::HGRADtransformVALUE(basis_vals_tmp, ref_basis_vals);
-        basis_vals = DRV("basis_vals",numElem, numb, numip);
-        OrientTools::modifyBasisByOrientation(basis_vals, basis_vals_tmp, orientation,
-                                              cellData->basis_pointers[i].get());
+        int numb = cellData->basis_pointers[i]->getCardinality();
+        DRV basis_vals, basis_grad_vals, basis_div_vals, basis_curl_vals;
         
-        DRV ref_basis_grad_vals = cellData->ref_side_basis_grad[localSideID(0)][i];
+        DRV ref_basis_vals = cellData->ref_side_basis[localSideID(0)][i];
         
-        DRV basis_grad_vals_tmp("basis_grad_side tmp",numElem,numb,numip,dimension);
-        FuncTools::HGRADtransformGRAD(basis_grad_vals_tmp, ijacInv, ref_basis_grad_vals);
-        
-        basis_grad_vals = DRV("basis_grad_vals",numElem,numb,numip,dimension);
-        OrientTools::modifyBasisByOrientation(basis_grad_vals, basis_grad_vals_tmp, orientation,
-                                              cellData->basis_pointers[i].get());
-        
+        if (cellData->basis_types[i] == "HGRAD"){
+          
+          DRV basis_vals_tmp("tmp basis_vals",numElem, numb, numip);
+          FuncTools::HGRADtransformVALUE(basis_vals_tmp, ref_basis_vals);
+          basis_vals = DRV("basis_vals",numElem, numb, numip);
+          OrientTools::modifyBasisByOrientation(basis_vals, basis_vals_tmp, orientation,
+                                                cellData->basis_pointers[i].get());
+          
+          DRV ref_basis_grad_vals = cellData->ref_side_basis_grad[localSideID(0)][i];
+          
+          DRV basis_grad_vals_tmp("basis_grad_side tmp",numElem,numb,numip,dimension);
+          FuncTools::HGRADtransformGRAD(basis_grad_vals_tmp, ijacInv, ref_basis_grad_vals);
+          
+          basis_grad_vals = DRV("basis_grad_vals",numElem,numb,numip,dimension);
+          OrientTools::modifyBasisByOrientation(basis_grad_vals, basis_grad_vals_tmp, orientation,
+                                                cellData->basis_pointers[i].get());
+          
+        }
+        else if (cellData->basis_types[i] == "HVOL"){ // does not require orientations
+          
+          basis_vals = DRV("basis_vals",numElem, numb, numip);
+          FuncTools::HGRADtransformVALUE(basis_vals, ref_basis_vals);
+          
+        }
+        else if (cellData->basis_types[i] == "HFACE"){
+          
+          DRV basis_vals_tmp("tmp basis_vals",numElem, numb, numip);
+          FuncTools::HGRADtransformVALUE(basis_vals_tmp, ref_basis_vals);
+          basis_vals = DRV("basis_vals",numElem, numb, numip);
+          OrientTools::modifyBasisByOrientation(basis_vals, basis_vals_tmp, orientation,
+                                                cellData->basis_pointers[i].get());
+          
+        }
+        else if (cellData->basis_types[i] == "HDIV"){
+          
+          DRV basis_vals_tmp("tmp basis_vals",numElem, numb, numip, dimension);
+          
+          FuncTools::HDIVtransformVALUE(basis_vals_tmp, ijac, ijacDet, ref_basis_vals);
+          basis_vals = DRV("basis_vals",numElem, numb, numip, dimension);
+          OrientTools::modifyBasisByOrientation(basis_vals, basis_vals_tmp, orientation,
+                                                cellData->basis_pointers[i].get());
+        }
+        else if (cellData->basis_types[i] == "HCURL"){
+          
+        }
+        basis.push_back(basis_vals);
+        basis_grad.push_back(basis_grad_vals);
+        basis_div.push_back(basis_div_vals);
+        basis_curl.push_back(basis_curl_vals);
       }
-      else if (cellData->basis_types[i] == "HVOL"){ // does not require orientations
-        
-        basis_vals = DRV("basis_vals",numElem, numb, numip);
-        FuncTools::HGRADtransformVALUE(basis_vals, ref_basis_vals);
-        
-      }
-      else if (cellData->basis_types[i] == "HFACE"){
-        
-        DRV basis_vals_tmp("tmp basis_vals",numElem, numb, numip);
-        FuncTools::HGRADtransformVALUE(basis_vals_tmp, ref_basis_vals);
-        basis_vals = DRV("basis_vals",numElem, numb, numip);
-        OrientTools::modifyBasisByOrientation(basis_vals, basis_vals_tmp, orientation,
-                                              cellData->basis_pointers[i].get());
-        
-      }
-      else if (cellData->basis_types[i] == "HDIV"){
-        
-        DRV basis_vals_tmp("tmp basis_vals",numElem, numb, numip, dimension);
-        
-        FuncTools::HDIVtransformVALUE(basis_vals_tmp, ijac, ijacDet, ref_basis_vals);
-        basis_vals = DRV("basis_vals",numElem, numb, numip, dimension);
-        OrientTools::modifyBasisByOrientation(basis_vals, basis_vals_tmp, orientation,
-                                              cellData->basis_pointers[i].get());
-      }
-      else if (cellData->basis_types[i] == "HCURL"){
-      
-      }
-      basis.push_back(basis_vals);
-      basis_grad.push_back(basis_grad_vals);
-      basis_div.push_back(basis_div_vals);
-      basis_curl.push_back(basis_curl_vals);
     }
   }
-  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -190,18 +189,18 @@ void BoundaryCell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_) {
   
   index = Kokkos::View<LO***,AssemblyDevice>("local index",index_.extent(0),
                                              index_.extent(1), index_.extent(2));
-
-  Kokkos::deep_copy(index,index_);  
+  
+  Kokkos::deep_copy(index,index_);
   // Need to copy the data since index_ is rewritten for each cell
   /*
-  parallel_for(RangePolicy<AssemblyExec>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    for (unsigned int j=0; j<index_.extent(1); j++) {
-      for (unsigned int k=0; k<index_.extent(2); k++) {
-        index(e,j,k) = index_(e,j,k);
-      }
-    }
-  });
-  */
+   parallel_for(RangePolicy<AssemblyExec>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
+   for (unsigned int j=0; j<index_.extent(1); j++) {
+   for (unsigned int k=0; k<index_.extent(2); k++) {
+   index(e,j,k) = index_(e,j,k);
+   }
+   }
+   });
+   */
   
   // This is common to all cells (within the same block), so a view copy will do
   //numDOF = numDOF_;
@@ -315,13 +314,13 @@ void BoundaryCell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & para
   vector<int> paramusebasis = pusebasis_;
   
   /*
-  Kokkos::View<int*,HostDevice> numParamDOF_host("numParamDOF on host",paramusebasis.size());
-  for (unsigned int i=0; i<paramusebasis.size(); i++) {
-    numParamDOF_host(i) = paramnumbasis_[paramusebasis[i]];
-  }
-  numParamDOF = Kokkos::create_mirror_view(numParamDOF_host);
-  Kokkos::deep_copy(numParamDOF_host, numParamDOF);
-  */
+   Kokkos::View<int*,HostDevice> numParamDOF_host("numParamDOF on host",paramusebasis.size());
+   for (unsigned int i=0; i<paramusebasis.size(); i++) {
+   numParamDOF_host(i) = paramnumbasis_[paramusebasis[i]];
+   }
+   numParamDOF = Kokkos::create_mirror_view(numParamDOF_host);
+   Kokkos::deep_copy(numParamDOF_host, numParamDOF);
+   */
   
   size_t maxnbasis = 0;
   for (size_t i=0; i<cellData->numParamDOF.extent(0); i++) {
@@ -671,94 +670,94 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
   //int numip = wkset->numip;
   int numParams = reg_indices.size();
   /*
-  for (int side=0; side<cellData->numSides; side++) {
-    for (int e=0; e<numElem; e++) {
-      if (sideinfo(e,0,side,0) > 0) { // Just checking the first variable should be sufficient
-        onside = true;
-        sname = sidenames[sideinfo(e,0,side,1)];
-      }
-    }
-    
-    if (onside) {*/
+   for (int side=0; side<cellData->numSides; side++) {
+   for (int e=0; e<numElem; e++) {
+   if (sideinfo(e,0,side,0) > 0) { // Just checking the first variable should be sufficient
+   onside = true;
+   sname = sidenames[sideinfo(e,0,side,1)];
+   }
+   }
+   
+   if (onside) {*/
   
-      //int sidetype = sideinfo[e](side,0); // 0-not on bndry, 1-Dirichlet bndry, 2-Neumann bndry
-      //if (sidetype > 0) {
-      //wkset->updateSide(nodes, sideip[side], sideijac[side], side);
-      
+  //int sidetype = sideinfo[e](side,0); // 0-not on bndry, 1-Dirichlet bndry, 2-Neumann bndry
+  //if (sidetype > 0) {
+  //wkset->updateSide(nodes, sideip[side], sideijac[side], side);
+  
   //    wkset->updateSide(nodes, sideip[side], sidewts[side],normals[side],sideijac[side], side);
+  
+  int numip = wkset->numsideip;
+  //int gside = sideinfo[e](side,1); // =-1 if is an interior edge
+  
+  DRV side_weights = wkset->wts_side;
+  int paramIndex, reg_type;
+  ScalarT reg_constant;
+  string reg_side;
+  size_t found;
+  
+  for (int i = 0; i < numParams; i++) {
+    paramIndex = reg_indices[i];
+    reg_constant = reg_constants[i];
+    reg_type = reg_types[i];
+    reg_side = reg_sides[i];
+    found = reg_side.find(sidename);
+    if (found != string::npos) {
       
-      int numip = wkset->numsideip;
-      //int gside = sideinfo[e](side,1); // =-1 if is an interior edge
+      //wkset->updateSide(sidenum, cellID);
+      this->updateWorksetBasis();
+      wkset->computeParamSideIP(sidenum, param, 3);
       
-      DRV side_weights = wkset->wts_side;
-      int paramIndex, reg_type;
-      ScalarT reg_constant;
-      string reg_side;
-      size_t found;
-      
-      for (int i = 0; i < numParams; i++) {
-        paramIndex = reg_indices[i];
-        reg_constant = reg_constants[i];
-        reg_type = reg_types[i];
-        reg_side = reg_sides[i];
-        found = reg_side.find(sidename);
-        if (found != string::npos) {
-          
-          //wkset->updateSide(sidenum, cellID);
-          this->updateWorksetBasis();
-          wkset->computeParamSideIP(sidenum, param, 3);
-          
-          AD p, dpdx, dpdy, dpdz; // parameters
-          ScalarT offset = 1.0e-5;
-          for (int e=0; e<numElem; e++) {
-            //if (sideinfo(e,0,side,0) > 0) {
-              for (int k = 0; k < numip; k++) {
-                p = wkset->local_param_side(e,paramIndex,k);
-                // L2
-                if (reg_type == 0) {
-                  reg += 0.5*reg_constant*p*p*side_weights(e,k);
-                }
-                else {
-                  AD sx, sy ,sz;
-                  AD normal_dot;
-                  dpdx = wkset->local_param_grad_side(e,paramIndex,k,0); // param 0 in single trac inversion
-                  if (cellData->dimension > 1) {
-                    dpdy = wkset->local_param_grad_side(e,paramIndex,k,1);
-                  }
-                  if (cellData->dimension > 2) {
-                    dpdz = wkset->local_param_grad_side(e,paramIndex,k,2);
-                  }
-                  if (cellData->dimension == 1) {
-                    normal_dot = dpdx*wkset->normals(e,k,0);
-                    sx = dpdx - normal_dot*wkset->normals(e,k,0);
-                  }
-                  else if (cellData->dimension == 2) {
-                    normal_dot = dpdx*wkset->normals(e,k,0) + dpdy*wkset->normals(e,k,1);
-                    sx = dpdx - normal_dot*wkset->normals(e,k,0);
-                    sy = dpdy - normal_dot*wkset->normals(e,k,1);
-                  }
-                  else if (cellData->dimension == 3) {
-                    normal_dot = dpdx*wkset->normals(e,k,0) + dpdy*wkset->normals(e,k,1) + dpdz*wkset->normals(e,k,2);
-                    sx = dpdx - normal_dot*wkset->normals(e,k,0);
-                    sy = dpdy - normal_dot*wkset->normals(e,k,1);
-                    sz = dpdz - normal_dot*wkset->normals(e,k,2);
-                  }
-                  // H1
-                  if (reg_type == 1) {
-                    reg += 0.5*reg_constant*(sx*sx + sy*sy + sz*sz)*side_weights(e,k);
-                  }
-                  // TV
-                  else if (reg_type == 2) {
-                    reg += reg_constant*sqrt(sx*sx + sy*sy + sz*sz + offset*offset)*side_weights(e,k);
-                  }
-                }
-              }
-            //}
+      AD p, dpdx, dpdy, dpdz; // parameters
+      ScalarT offset = 1.0e-5;
+      for (int e=0; e<numElem; e++) {
+        //if (sideinfo(e,0,side,0) > 0) {
+        for (int k = 0; k < numip; k++) {
+          p = wkset->local_param_side(e,paramIndex,k);
+          // L2
+          if (reg_type == 0) {
+            reg += 0.5*reg_constant*p*p*side_weights(e,k);
+          }
+          else {
+            AD sx, sy ,sz;
+            AD normal_dot;
+            dpdx = wkset->local_param_grad_side(e,paramIndex,k,0); // param 0 in single trac inversion
+            if (cellData->dimension > 1) {
+              dpdy = wkset->local_param_grad_side(e,paramIndex,k,1);
+            }
+            if (cellData->dimension > 2) {
+              dpdz = wkset->local_param_grad_side(e,paramIndex,k,2);
+            }
+            if (cellData->dimension == 1) {
+              normal_dot = dpdx*wkset->normals(e,k,0);
+              sx = dpdx - normal_dot*wkset->normals(e,k,0);
+            }
+            else if (cellData->dimension == 2) {
+              normal_dot = dpdx*wkset->normals(e,k,0) + dpdy*wkset->normals(e,k,1);
+              sx = dpdx - normal_dot*wkset->normals(e,k,0);
+              sy = dpdy - normal_dot*wkset->normals(e,k,1);
+            }
+            else if (cellData->dimension == 3) {
+              normal_dot = dpdx*wkset->normals(e,k,0) + dpdy*wkset->normals(e,k,1) + dpdz*wkset->normals(e,k,2);
+              sx = dpdx - normal_dot*wkset->normals(e,k,0);
+              sy = dpdy - normal_dot*wkset->normals(e,k,1);
+              sz = dpdz - normal_dot*wkset->normals(e,k,2);
+            }
+            // H1
+            if (reg_type == 1) {
+              reg += 0.5*reg_constant*(sx*sx + sy*sy + sz*sz)*side_weights(e,k);
+            }
+            // TV
+            else if (reg_type == 2) {
+              reg += reg_constant*sqrt(sx*sx + sy*sy + sz*sz + offset*offset)*side_weights(e,k);
+            }
           }
         }
+        //}
       }
-      //}
-    //}
+    }
+  }
+  //}
+  //}
   //}
   
   //cout << "reg = " << reg << endl;

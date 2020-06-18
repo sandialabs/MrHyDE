@@ -3,12 +3,13 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
+  profile: false
   Mesh input file: input_mesh.yaml
   Functions input file: input_functions.yaml
   Physics: 
     modules: thermal
     assemble boundary terms: false
-    assemble face terms: true
+    build face terms: true
     Dirichlet conditions:
       e:
         all boundaries: '0.0'

@@ -62,6 +62,53 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
       assemble_face_terms.push_back(settings->sublist("Physics").get<bool>("assemble face terms",false));
     }
   }
+  // overwrite assemble_face_terms if HFACE vars are used
+  for (size_t b=0; b<blocknames.size(); b++) {
+    vector<string> ctypes = phys->unique_types[b];
+    for (size_t n=0; n<ctypes.size(); n++) {
+      if (ctypes[n] == "HFACE") {
+        assemble_face_terms[b] = true;
+      }
+    }
+  }
+  
+  // determine if we need to build basis functions
+  for (int b=0; b<blocknames.size(); b++) {
+    if (assemble_volume_terms[b]) {
+      build_volume_terms.push_back(true);
+    }
+    else {
+      if (settings->sublist("Physics").isSublist(blocknames[b])) {
+        build_volume_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).get<bool>("build volume terms",true));
+      }
+      else { // meaning all blocks use the same physics settings
+        build_volume_terms.push_back(settings->sublist("Physics").get<bool>("build volume terms",true));
+      }
+    }
+    if (assemble_boundary_terms[b]) {
+      build_boundary_terms.push_back(true);
+    }
+    else {
+      if (settings->sublist("Physics").isSublist(blocknames[b])) {
+        build_boundary_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).get<bool>("build boundary terms",true));
+      }
+      else { // meaning all blocks use the same physics settings
+        build_boundary_terms.push_back(settings->sublist("Physics").get<bool>("build boundary terms",true));
+      }
+    }
+    if (assemble_face_terms[b]) {
+      build_face_terms.push_back(true);
+    }
+    else {
+      if (settings->sublist("Physics").isSublist(blocknames[b])) {
+        build_face_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).get<bool>("build face terms",false));
+      }
+      else { // meaning all blocks use the same physics settings
+        build_face_terms.push_back(settings->sublist("Physics").get<bool>("build face terms",false));
+      }
+    }
+    
+  }
   
   // needed information from the physics interface
   numVars = phys->numVars; //
@@ -124,7 +171,9 @@ void AssemblyManager::createCells() {
     mesh->getSidesetNames(sideSets);
     
     Teuchos::RCP<CellMetaData> cellData = Teuchos::rcp( new CellMetaData(settings, cellTopo,
-                                                                         phys, b, 0, assemble_face_terms[b],
+                                                                         phys, b, 0,
+                                                                         build_face_terms[b],
+                                                                         assemble_face_terms[b],
                                                                          sideSets, disc->ref_ip[b],
                                                                          disc->ref_wts[b], disc->ref_side_ip[b],
                                                                          disc->ref_side_wts[b], disc->basis_types[b],
