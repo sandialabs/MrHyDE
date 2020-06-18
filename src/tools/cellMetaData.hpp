@@ -59,11 +59,10 @@ public:
   vector<DRV> ref_side_ip, ref_side_wts, ref_side_normals, ref_side_tangents, ref_side_tangentsU, ref_side_tangentsV;
   vector<DRV> ref_side_ip_vec, ref_side_normals_vec, ref_side_tangents_vec, ref_side_tangentsU_vec, ref_side_tangentsV_vec;
   
-  vector<string> basis_types, disc_param_basis_types;
-  vector<basis_RCP> basis_pointers, disc_param_basis_pointers;
+  vector<string> basis_types;
+  vector<basis_RCP> basis_pointers;
   vector<DRV> ref_basis, ref_basis_grad, ref_basis_div, ref_basis_curl;
   vector<vector<DRV> > ref_side_basis, ref_side_basis_grad, ref_side_basis_div, ref_side_basis_curl;
-  vector<vector<DRV> > param_basis_side_ref, param_basis_grad_side_ref;
   
   bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles;
   bool mortar_objective;

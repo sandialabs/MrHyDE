@@ -1299,7 +1299,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(//const ScalarT & solve
             }
             else {
               for( size_t j=0; j<numip; j++ ) {
-                param_ip(e,n,j,0) += param_dof(e,n,i)*wkset->param_basis[wkset->paramusebasis[n]](e,i,j);
+                param_ip(e,n,j,0) += param_dof(e,n,i)*wkset->basis[wkset->paramusebasis[n]](e,i,j);
               }
             }
             for (int s=0; s<cellData->dimension; s++) {
@@ -1313,7 +1313,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(//const ScalarT & solve
               }
               else {
                 for( size_t j=0; j<numip; j++ ) {
-                  paramgrad_ip(e,n,j,s) += param_dof(e,n,i)*wkset->param_basis_grad[wkset->paramusebasis[n]](e,i,j,s);
+                  paramgrad_ip(e,n,j,s) += param_dof(e,n,i)*wkset->basis_grad[wkset->paramusebasis[n]](e,i,j,s);
                 }
               }
             }

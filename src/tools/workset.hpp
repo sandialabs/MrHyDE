@@ -180,11 +180,8 @@ class workset {
   ////////////////////////////////////////////////////////////////////////////////////
   
   // Data filled by constructor
-  //vector<vector<int> > offsets, paramoffsets;
   Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets;
   vector<string> varlist;
-  //Teuchos::RCP<TimeIntegrator> timeInt;
-  // ScalarT wts to compute u and udot for transient problems
   Kokkos::View<ScalarT**,UnifiedDevice> butcher_A;
   Kokkos::View<ScalarT*,UnifiedDevice> butcher_b, butcher_c, BDF_wts;
   
@@ -197,28 +194,14 @@ class workset {
   int dimension, numElem, current_stage;
   Kokkos::View<int*,UnifiedDevice> current_stage_KV; // for access on device
   
-  //DRV ref_ip, ref_side_ip, ref_wts, ref_side_wts;
-  //vector<DRV> ref_side_ip_vec, ref_side_normals_vec, ref_side_tangents_vec, ref_side_tangentsU_vec, ref_side_tangentsV_vec;
   vector<string> basis_types;
-  vector<int> numbasis, numparambasis;
-  vector<basis_RCP> basis_pointers, param_basis_pointers;
-  vector<DRV> param_basis, param_basis_grad;
-  vector<DRV> param_basis_ref, param_basis_grad_ref;
-  vector<DRV> param_basis_grad_side, param_basis_side;
+  vector<int> numbasis;
+  vector<basis_RCP> basis_pointers;
   
-  // Scalar and vector parameters
-  // Stored as a vector of pointers (vector does not change but the data does)
   vector<Teuchos::RCP<vector<AD> > > params;
   Kokkos::View<AD**,AssemblyDevice> params_AD;
-  
   vector<string> paramnames;
   
-  // Data computed after construction (depends only on reference element)
-  //vector<DRV> ref_basis, ref_basis_grad, ref_basis_div, ref_basis_curl;
-  //vector<vector<DRV> > ref_basis_side, ref_basis_grad_side, ref_basis_div_side, ref_basis_curl_side;
-  //vector<vector<DRV> > param_basis_side_ref, param_basis_grad_side_ref;
-  
-  // Data recomputed often (depends on physical element and time)
   ScalarT time, alpha, deltat;
   Kokkos::View<ScalarT*,AssemblyDevice> time_KV;
   Kokkos::View<ScalarT*,AssemblyDevice> deltat_KV;
@@ -228,25 +211,12 @@ class workset {
   DRV ip, ip_side, wts, wts_side, normals;
   Kokkos::View<ScalarT***,AssemblyDevice> ip_KV, ip_side_KV, normals_KV, point_KV;
   
-  // experimental data structures
-  //vector<DRV> ip_side_vec, wts_side_vec, normals_side_vec;
-  //vector<vector<DRV> > param_basis_grad_side_vec, param_basis_side_vec;
-  //vector<vector<DRV> > basis_side_vec, basis_side_uw_vec, basis_grad_side_vec, basis_grad_side_uw_vec;
   Kokkos::View<int**,UnifiedDevice> var_bcs;
   
-  vector<DRV> basis; // weighted by volumetric integration weights
-  //vector<DRV> basis_uw; // un-weighted
-  vector<DRV> basis_grad; // weighted by volumetric integration weights
-  //vector<DRV> basis_grad_uw; // un-weighted
-  vector<DRV> basis_div; // weighted by volumetric integration weights
-  //vector<DRV> basis_div_uw; // un-weighted
-  vector<DRV> basis_curl; // weighted by volumetric integration weights
-  //vector<DRV> basis_curl_uw; // un-weighted
-  
-  //vector<DRV> basis_side, basis_side_uw, basis_grad_side, basis_grad_side_uw;
-  //vector<DRV> basis_face, basis_face_uw, basis_grad_face, basis_grad_face_uw;
-  //vector<DRV> basis_div_side, basis_div_side_uw, basis_curl_side, basis_curl_side_uw;
-  
+  vector<DRV> basis;
+  vector<DRV> basis_grad;
+  vector<DRV> basis_div;
+  vector<DRV> basis_curl;
   vector<DRV> basis_side, basis_grad_side;
   vector<DRV> basis_face, basis_grad_face;
   vector<DRV> basis_div_side, basis_curl_side;
@@ -263,26 +233,16 @@ class workset {
   Kokkos::View<AD****, AssemblyDevice> local_soln_point, local_soln_grad_point, local_param_grad_point;
   Kokkos::View<AD***, AssemblyDevice> local_param_point;
   
-  //DRV jacobian, jacobDet, jacobInv, weightedMeasure;
-  //DRV sidejacobian, sidejacobDet, sidejacobInv, sideweightedMeasure;
-  DRV jacobDet, jacobInv, weightedMeasure;
-  DRV sidejacobDet, sidejacobInv, sideweightedMeasure;
-  //vector<DRV> param_basis_grad; // parameter basis function are never weighted
-  // Dynamic data (changes multiple times per element)
   int sidetype;
   Kokkos::View<int****,AssemblyDevice> sideinfo;
   string sidename, var;
   int currentside;
   Kokkos::View<AD**,AssemblyDevice> res, adjrhs;
   Kokkos::View<AD***,AssemblyDevice> flux;
-  //FCAD scratch, sidescratch;
   
   bool have_rotation, have_rotation_phi;
   Kokkos::View<ScalarT***,AssemblyDevice> rotation;
   Kokkos::View<ScalarT**,AssemblyDevice> rotation_phi;
-  
-  ScalarT y; // index parameter for fractional operators
-  ScalarT s; // fractional exponent
   
   // Profile timers
   Teuchos::RCP<Teuchos::Time> worksetUpdateIPTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::update - integration data");
