@@ -106,42 +106,44 @@ void workset::createSolns() {
   local_soln = Kokkos::View<AD****, AssemblyDevice>("local_soln",numElem, numVars, numip, dimension);
   local_soln_side = Kokkos::View<AD****, AssemblyDevice>("local_soln_side",numElem, numVars, numsideip, dimension);
   local_soln_face = Kokkos::View<AD****, AssemblyDevice>("local_soln_face",numElem, numVars, numsideip, dimension);
-  local_param_side = Kokkos::View<AD***, AssemblyDevice>("local_param_side",numElem, numParams, numsideip);
   local_soln_point = Kokkos::View<AD****, AssemblyDevice>("local_soln point",1, numVars, 1, dimension);
-  local_param_point = Kokkos::View<AD***, AssemblyDevice>("local_soln point",1, numParams, 1);
   local_soln_dot = Kokkos::View<AD****, AssemblyDevice>("local_soln_dot",numElem, numVars, numip, dimension);
   
-  //if (vars_HGRAD.size() > 0) {
+  if (vars_HGRAD.size() > 0) {
     local_soln_grad = Kokkos::View<AD****, AssemblyDevice>("local_soln_grad",numElem, numVars, numip, dimension);
     local_soln_grad_side = Kokkos::View<AD****, AssemblyDevice>("local_soln_grad_side",numElem, numVars, numsideip, dimension);
     local_soln_grad_face = Kokkos::View<AD****, AssemblyDevice>("local_soln_grad_face",numElem, numVars, numsideip, dimension);
     local_soln_grad_point = Kokkos::View<AD****, AssemblyDevice>("local_soln point",1, numVars, 1, dimension);
-  //}
-  //if (vars_HDIV.size() > 0) {
+  }
+  if (vars_HDIV.size() > 0) {
     local_soln_div = Kokkos::View<AD***, AssemblyDevice>("local_soln_div",numElem, numVars, numip);
-  //}
-  //if (vars_HCURL.size() > 0) {
+  }
+  if (vars_HCURL.size() > 0) {
     local_soln_curl = Kokkos::View<AD****, AssemblyDevice>("local_soln_curl",numElem, numVars, numip, dimension);
-  //}
+  }
   
-  //if (numParams>0) {
+  if (numParams>0) {
     local_param = Kokkos::View<AD***, AssemblyDevice>("local_param",numElem, numParams, numip);
-  //}
+    local_param_side = Kokkos::View<AD***, AssemblyDevice>("local_param_side",numElem, numParams, numsideip);
+    local_param_point = Kokkos::View<AD***, AssemblyDevice>("local_soln point",1, numParams, 1);
+    local_param_grad = Kokkos::View<AD****, AssemblyDevice>("local_param_grad",numElem, numParams, numip, dimension);
+    local_param_grad_side = Kokkos::View<AD****, AssemblyDevice>("local_param_grad_side",numElem, numParams, numsideip, dimension);
+    local_param_grad_point = Kokkos::View<AD****, AssemblyDevice>("local_soln point",1, numParams, 1, dimension);
+    
+  }
   
-  //if (numAux>0) {
+  if (numAux>0) {
     local_aux = Kokkos::View<AD***, AssemblyDevice>("local_aux",numElem, numAux, numip);
     local_aux_side = Kokkos::View<AD***, AssemblyDevice>("local_aux_side",numElem, numAux, numsideip);
-  //}
+  }
   
   // Arrays that are not currently used for anything
+  /*
   local_aux_grad = Kokkos::View<AD****, AssemblyDevice>("local_aux_grad",numElem, numAux, numip, dimension);
-  local_param_grad = Kokkos::View<AD****, AssemblyDevice>("local_param_grad",numElem, numParams, numip, dimension);
+  local_aux_grad_side = Kokkos::View<AD****, AssemblyDevice>("local_aux_grad_side",numElem, numAux, numsideip, dimension);
   local_soln_dot_grad = Kokkos::View<AD****, AssemblyDevice>("local_soln_dot_grad",numElem, numVars, numip, dimension);
   local_soln_dot_side = Kokkos::View<AD****, AssemblyDevice>("local_soln_dot_side",numElem, numVars, numsideip, dimension);
-  local_param_grad_side = Kokkos::View<AD****, AssemblyDevice>("local_param_grad_side",numElem, numParams, numsideip, dimension);
-  local_aux_grad_side = Kokkos::View<AD****, AssemblyDevice>("local_aux_grad_side",numElem, numAux, numsideip, dimension);
-  local_param_grad_point = Kokkos::View<AD****, AssemblyDevice>("local_soln point",1, numParams, 1, dimension);
-  
+  */
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -823,7 +825,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
     for (int i=0; i<vars_HCURL.size(); i++) {
       int var = vars_HCURL[i];
       auto csol = Kokkos::subview(local_soln,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-      auto csol_curl = Kokkos::subview(local_soln_grad,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      auto csol_curl = Kokkos::subview(local_soln_curl,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
       parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
         AD value = 0.0;
         for (int k=0; k<csol.extent(1); k++) {
@@ -2283,11 +2285,23 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
         for (int i=0; i<local_soln_side.extent(2); i++) {
           for (int s=0; s<local_soln_side.extent(3); s++) {
             local_soln_side(e,k,i,s) = 0.0;
-            local_soln_grad_side(e,k,i,s) = 0.0;
           }
         }
       }
     });
+    
+    if (vars_HGRAD.size() > 0) {
+      parallel_for(RangePolicy<AssemblyExec>(0,local_soln_side.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        for (int k=0; k<local_soln_side.extent(1); k++) {
+          for (int i=0; i<local_soln_side.extent(2); i++) {
+            for (int s=0; s<local_soln_side.extent(3); s++) {
+              local_soln_grad_side(e,k,i,s) = 0.0;
+            }
+          }
+        }
+      });
+    }
+    
     AssemblyExec::execution_space().fence();
   }
   

@@ -1,6 +1,7 @@
 %YAML 1.1
 ---
 ANONYMOUS:
+  debug level: 0
   Mesh: 
     blocknames: eblock-0_0
     dim: 2

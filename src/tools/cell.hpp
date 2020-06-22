@@ -265,20 +265,7 @@ public:
   // Get the discretization/physics info (used for workset construction)
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  vector<int> getInfo() {
-    vector<int> info;
-    int nparams = 0;
-    if (paramindex.extent(0)>0) {
-      nparams = paramindex.extent(1);
-    }
-    info.push_back(cellData->dimension);
-    info.push_back(cellData->numDOF.extent(0));
-    info.push_back(nparams);
-    info.push_back(auxindex.extent(1));
-    info.push_back(GIDs.extent(1));
-    info.push_back(numElem);
-    return info;
-  }
+  vector<int> getInfo();
 
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////

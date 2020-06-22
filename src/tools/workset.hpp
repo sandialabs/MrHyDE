@@ -37,42 +37,6 @@ class workset {
   
   void createSolns();
   
-  //void setupBasis();
-  
-  ////////////////////////////////////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////////////////////////////////////
-  
-  //void setupParamBasis();
-  
-  ////////////////////////////////////////////////////////////////////////////////////
-  // Update the nodes and the basis functions at the volumetric ip
-  ////////////////////////////////////////////////////////////////////////////////////
-  /*
-  void update(const DRV & ip_, const DRV & wts_, const DRV & jacobian,
-              const DRV & jacobianInv, const DRV & jacobianDet,
-              Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation);
-  */
-  ////////////////////////////////////////////////////////////////////////////////////
-  // Add a side information
-  ////////////////////////////////////////////////////////////////////////////////////
-  /*
-  int addSide(const DRV & nodes, const int & sidenum, Kokkos::View<LO*,AssemblyDevice> & localSideID,
-              Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation);
-  */
-  ////////////////////////////////////////////////////////////////////////////////////
-  // Update the nodes and the basis functions at the side ip
-  ////////////////////////////////////////////////////////////////////////////////////
-  /*
-  void updateFace(const DRV & nodes,
-                  Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation,
-                  const size_t & sidenum);
-  */
-  ////////////////////////////////////////////////////////////////////////////////////
-  // Update the nodes and the basis functions at the side ip
-  ////////////////////////////////////////////////////////////////////////////////////
-  
-  //void updateSide(const int & sidenum, const int & cnum);
-
   ////////////////////////////////////////////////////////////////////////////////////
   // Reset solution to zero
   ////////////////////////////////////////////////////////////////////////////////////
@@ -227,8 +191,8 @@ class workset {
   Kokkos::View<AD****, AssemblyDevice> local_soln_side, local_soln_grad_side, local_soln_dot_side;
   Kokkos::View<AD****, AssemblyDevice> local_soln_face, local_soln_grad_face;
   
-  Kokkos::View<AD****, AssemblyDevice> local_soln_reset, local_soln_grad_reset, local_soln_dot_reset, local_soln_curl_reset;
-  Kokkos::View<AD***, AssemblyDevice> local_soln_div_reset;
+  //Kokkos::View<AD****, AssemblyDevice> local_soln_reset, local_soln_grad_reset, local_soln_dot_reset, local_soln_curl_reset;
+  //Kokkos::View<AD***, AssemblyDevice> local_soln_div_reset;
   
   Kokkos::View<AD****, AssemblyDevice> local_soln_point, local_soln_grad_point, local_param_grad_point;
   Kokkos::View<AD***, AssemblyDevice> local_param_point;

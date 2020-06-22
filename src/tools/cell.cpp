@@ -467,7 +467,7 @@ void cell::computeSolAvg() {
         for (int pt=0; pt<sol.extent(2); pt++) {
           solavg += sol(elem,dof,pt,dim).val();
         }
-        u_avg(elem,dof,dim) = solavg/avgwt;
+        u_avg(elem,dof,dim) = solavg;///avgwt;
       }
     }
   });
@@ -1845,4 +1845,20 @@ void cell::resetAdjPrev(const ScalarT & val) {
     }
   });
   AssemblyExec::execution_space().fence();
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Get the discretization/physics info (used for workset construction)
+///////////////////////////////////////////////////////////////////////////////////////
+
+vector<int> cell::getInfo() {
+  vector<int> info;
+  info.push_back(cellData->dimension);
+  info.push_back(cellData->numDOF.extent(0));
+  info.push_back((int)cellData->numDiscParams);
+  info.push_back(auxindex.extent(1));
+  info.push_back(GIDs.extent(1));
+  info.push_back(numElem);
+  return info;
 }

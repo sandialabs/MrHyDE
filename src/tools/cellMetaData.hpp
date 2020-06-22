@@ -35,7 +35,8 @@ public:
                const bool & assemble_face_terms_,
                const vector<string> & sidenames_, DRV ref_ip_, DRV ref_wts_,
                DRV ref_side_ip_, DRV ref_side_wts_, vector<string> & basis_types_,
-               vector<basis_RCP> & basis_pointers_);
+               vector<basis_RCP> & basis_pointers_,
+               const size_t & num_params);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -52,7 +53,7 @@ public:
   vector<string> sidenames;
   
   // Geometry Information
-  size_t numnodes, numSides, dimension, numip, numsideip;
+  size_t numnodes, numSides, dimension, numip, numsideip, numDiscParams;
   topo_RCP cellTopo;
   
   // Reference element integration and basis data

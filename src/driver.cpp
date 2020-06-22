@@ -175,9 +175,6 @@ int main(int argc,char * argv[]) {
                                                                                assembler->cells, subgridModels,
                                                                                functionManagers) );
     
-    Teuchos::RCP<SensorManager> sensors = Teuchos::rcp( new SensorManager(settings, mesh, disc,
-                                                                          assembler, params) );
-    
     ///////////////////////////////////////////////////////////////////////////////
     // Create the postprocessing object
     ////////////////////////////////////////////////////////////////////////////////
@@ -185,7 +182,7 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<PostprocessManager>
     postproc = Teuchos::rcp( new PostprocessManager(Comm, settings, mesh->mesh, disc, phys,
                                                     functionManagers, multiscale_manager,
-                                                    assembler, params, sensors) );
+                                                    assembler, params) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // Set up the solver and finalize some objects
@@ -197,6 +194,11 @@ int main(int argc,char * argv[]) {
     solve->multiscale_manager = multiscale_manager;
     solve->postproc = postproc;
     //solve->setBatchID(Comm->getRank());
+    
+    Teuchos::RCP<SensorManager> sensors = Teuchos::rcp( new SensorManager(settings, mesh, disc,
+                                                                          assembler, params) );
+    
+    postproc->sensors = sensors;
     
     ////////////////////////////////////////////////////////////////////////////////
     // Finalize the functions

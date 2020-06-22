@@ -54,8 +54,7 @@ public:
                      vector<Teuchos::RCP<FunctionManager> > & functionManagers,
                      Teuchos::RCP<MultiScale> & multiscale_manager_,
                      Teuchos::RCP<AssemblyManager> & assembler_,
-                     Teuchos::RCP<ParameterManager> & params_,
-                     Teuchos::RCP<SensorManager> & sensors_);
+                     Teuchos::RCP<ParameterManager> & params_);
   
   // ========================================================================================
   // ========================================================================================

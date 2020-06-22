@@ -169,7 +169,6 @@ void AssemblyManager::createCells() {
     
     vector<string> sideSets;
     mesh->getSidesetNames(sideSets);
-    
     Teuchos::RCP<CellMetaData> cellData = Teuchos::rcp( new CellMetaData(settings, cellTopo,
                                                                          phys, b, 0,
                                                                          build_face_terms[b],
@@ -177,7 +176,8 @@ void AssemblyManager::createCells() {
                                                                          sideSets, disc->ref_ip[b],
                                                                          disc->ref_wts[b], disc->ref_side_ip[b],
                                                                          disc->ref_side_wts[b], disc->basis_types[b],
-                                                                         disc->basis_pointers[b]));
+                                                                         disc->basis_pointers[b],
+                                                                         params->num_discretized_params));
     
     while (prog < numTotalElem) {
       int currElem = elemPerCell;  // Avoid faults in last iteration
@@ -762,7 +762,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
   if (compute_disc_sens) {
     local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",numElem,numDOF,numParamDOF);
   }
-  else {
+  else { // note that this does increase memory as numElem increases
     local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",numElem,numDOF,numDOF);
   }
   

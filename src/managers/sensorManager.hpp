@@ -34,6 +34,12 @@ public:
                 Teuchos::RCP<AssemblyManager> & assembler,
                 Teuchos::RCP<ParameterManager> & params) {
     
+    int milo_debug_level = settings->get<int>("debug level",0);
+    
+    if (milo_debug_level > 0) {
+      cout << "**** Starting SensorManager::constructor ..." << endl;
+    }
+    
     spaceDim = settings->sublist("Mesh").get<int>("dim",2);
     have_sensor_data = false;
     have_sensor_points = false;
@@ -45,6 +51,7 @@ public:
         vector<Kokkos::View<ScalarT**,HostDevice> > sensorLocations;
         vector<Kokkos::View<ScalarT**,HostDevice> > sensorData;
         int numSensorsInCell = mesh->efield_vals[0][i];
+        
         if (numSensorsInCell > 0) {
           assembler->cells[0][i]->mySensorIDs.push_back(numSensors); // hack for dakota
           for (size_t j=0; j<numSensorsInCell; j++) {
@@ -122,6 +129,11 @@ public:
         }
       }
     }
+    
+    if (milo_debug_level > 0) {
+      cout << "**** Finished SensorManager::constructor ..." << endl;
+    }
+    
   }
 
   

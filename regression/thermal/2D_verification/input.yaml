@@ -29,7 +29,7 @@ ANONYMOUS:
   Parameters input file: input_params.yaml
   Solver: 
     solver: steady-state
-    workset size: 100
+    workset size: 40
     nonlinear TOL: 1.0e-07
     max nonlinear iters: 2
     use strong DBCs: true

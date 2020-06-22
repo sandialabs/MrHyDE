@@ -37,10 +37,9 @@ PostprocessManager::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                                        vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
                                        Teuchos::RCP<MultiScale> & multiscale_manager_,
                                        Teuchos::RCP<AssemblyManager> & assembler_,
-                                       Teuchos::RCP<ParameterManager> & params_,
-                                       Teuchos::RCP<SensorManager> & sensors_) :
+                                       Teuchos::RCP<ParameterManager> & params_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_),
-assembler(assembler_), params(params_), sensors(sensors_),
+assembler(assembler_), params(params_), //sensors(sensors_),
 functionManagers(functionManagers_), multiscale_manager(multiscale_manager_) {
   this->setup(settings);
 }
