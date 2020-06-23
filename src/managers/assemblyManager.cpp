@@ -179,6 +179,9 @@ void AssemblyManager::createCells() {
                                                                          disc->basis_pointers[b],
                                                                          params->num_discretized_params));
     
+    // May need to be PHX::Device
+    Kokkos::View<const LO**,Kokkos::LayoutRight,HostDevice> LIDs = DOF->getLIDs();
+    
     while (prog < numTotalElem) {
       int currElem = elemPerCell;  // Avoid faults in last iteration
       if (prog+currElem > numTotalElem){
@@ -212,6 +215,10 @@ void AssemblyManager::createCells() {
         vector<GO> GIDs;
         size_t elemID = disc->myElements[b][prog+i]; // TMW: why here?
         DOF->getElementGIDs(elemID, GIDs, blocknames[b]);
+        
+        //vector<LO> LIDs;
+        //DOF->getElementLIDs(elemID, LIDs);
+        
         cellGIDs.push_back(GIDs);
         numLocalDOF = GIDs.size(); // should be the same for all elements
       }
@@ -220,6 +227,14 @@ void AssemblyManager::createCells() {
       for (int i=0; i<currElem; i++) {
         for (int j=0; j<numLocalDOF; j++) {
           hostGIDs(i,j) = cellGIDs[i][j];
+        }
+      }
+      
+      Kokkos::View<LO**,HostDevice> hostLIDs("LIDs on host device",currElem,numLocalDOF);
+      for (int i=0; i<currElem; i++) {
+        size_t elemID = disc->myElements[b][prog+i]; // TMW: why here?
+        for (int j=0; j<numLocalDOF; j++) {
+          hostLIDs(i,j) = LIDs(elemID,j);
         }
       }
       
@@ -239,7 +254,8 @@ void AssemblyManager::createCells() {
       Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orient_drv("kv to orients",currElem);
       Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *cellTopo);
       
-      blockcells.push_back(Teuchos::rcp(new cell(cellData, currnodes, eIndex, hostGIDs, sideinfo, orient_drv)));
+      blockcells.push_back(Teuchos::rcp(new cell(cellData, currnodes, eIndex, hostGIDs, hostLIDs,
+                                                 sideinfo, orient_drv)));
       prog += elemPerCell;
     }
     cells.push_back(blockcells);
@@ -343,6 +359,14 @@ void AssemblyManager::createCells() {
                 }
               }
               
+              Kokkos::View<LO**,HostDevice> hostLIDs("LIDs on host device",currElem,numLocalDOF);
+              for (int i=0; i<currElem; i++) {
+                size_t elemID = host_eIndex(i);
+                for (int j=0; j<numLocalDOF; j++) {
+                  hostLIDs(i,j) = LIDs(elemID,j);
+                }
+              }
+              
               //-----------------------------------------------
               // Set the side information (soon to be removed)-
               Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,host_eIndex);
@@ -370,7 +394,8 @@ void AssemblyManager::createCells() {
               
               bcells.push_back(Teuchos::rcp(new BoundaryCell(cellData, currnodes, eIndex, sideIndex,
                                                              side, sideName, bcells.size(),
-                                                             hostGIDs, sideinfo, orient_drv)));
+                                                             hostGIDs, hostLIDs,
+                                                             sideinfo, orient_drv)));
               prog += currElem;
             }
           }
@@ -839,7 +864,8 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
     ///////////////////////////////////////////////////////////////////////////
     
     this->insert(J, res, local_res, local_J,
-                 cells[b][e]->GIDs, cells[b][e]->paramGIDs,
+                 cells[b][e]->GIDs, cells[b][e]->LIDs,
+                 cells[b][e]->paramGIDs,
                  compute_jacobian, compute_disc_sens);
     
     
@@ -936,7 +962,9 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
         ///////////////////////////////////////////////////////////////////////////
         
         this->insert(J, res, local_res, local_J,
-                     boundaryCells[b][e]->GIDs, boundaryCells[b][e]->paramGIDs,
+                     boundaryCells[b][e]->GIDs,
+                     boundaryCells[b][e]->LIDs,
+                     boundaryCells[b][e]->paramGIDs,
                      compute_jacobian, compute_disc_sens);
         
         
@@ -1177,39 +1205,88 @@ void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP &
 ////////////////////////////////////////////////////////////////////////////////
 
 void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
-                             Kokkos::View<ScalarT***,UnifiedDevice> & local_res,
-                             Kokkos::View<ScalarT***,UnifiedDevice> & local_J,
-                             Kokkos::View<GO**,HostDevice> & GIDs,
-                             Kokkos::View<GO**,HostDevice> & paramGIDs,
+                             Kokkos::View<ScalarT***,UnifiedDevice> local_res,
+                             Kokkos::View<ScalarT***,UnifiedDevice> local_J,
+                             Kokkos::View<GO**,HostDevice> GIDs,
+                             Kokkos::View<LO**,HostDevice> LIDs,
+                             Kokkos::View<GO**,HostDevice> paramGIDs,
                              const bool & compute_jacobian,
                              const bool & compute_disc_sens) {
 
   Teuchos::TimeMonitor localtimer(*inserttimer);
   
-  for (int i=0; i<GIDs.extent(0); i++) {
+  bool useLocal = true;
+  if (compute_jacobian && compute_disc_sens) { // fix later
+    useLocal = false;
+  }
+  
+  if (useLocal) {
+    /////////////////////////////////////
+    // Using LIDs
+    /////////////////////////////////////
+    
+    auto localMatrix = J->getLocalMatrix();
+    
+    const int numVals = static_cast<int>(LIDs.extent(1));
+    
+    LO cols[numVals];
+    ScalarT vals[numVals];
+    
+    for (int i=0; i<LIDs.extent(0); i++) {
+      for( size_t row=0; row<LIDs.extent(1); row++ ) {
+        LO rowIndex = LIDs(i,row);
+        for (LO g=0; g<local_res.extent(2); g++) {
+          ScalarT val = local_res(i,row,g);
+          res->sumIntoLocalValue(rowIndex,g, val);
+        }
+      }
+    }
+    if (compute_jacobian) {
+      for (int i=0; i<LIDs.extent(0); i++) { // this should be changed to a Kokkos::parallel_for on host
+        for( size_t row=0; row<LIDs.extent(1); row++ ) {
+          LO rowIndex = LIDs(i,row);
+          for( size_t col=0; col<LIDs.extent(1); col++ ) {
+            vals[col] = local_J(i,row,col);
+            cols[col] = LIDs(i,col);
+          }
+          localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, false); // isSorted, useAtomics
+          // the LIDs are actually not sorted, but this appears to run a little faster
+        }
+      }
+    }
+    
+  }
+  else {
+    /////////////////////////////////////
+    // Using GIDs
+    /////////////////////////////////////
+    
     Teuchos::Array<ScalarT> vals(GIDs.extent(1));
     Teuchos::Array<GO> cols(GIDs.extent(1));
     
-    for( size_t row=0; row<GIDs.extent(1); row++ ) {
-      GO rowIndex = GIDs(i,row);
-      for (int g=0; g<local_res.extent(2); g++) {
-        ScalarT val = local_res(i,row,g);
-        res->sumIntoGlobalValue(rowIndex,g, val);
-      }
-      if (compute_jacobian) {
-        if (compute_disc_sens) {
-          for( size_t col=0; col<paramGIDs.extent(1); col++ ) {
-            GO colIndex = paramGIDs(i,col);
-            ScalarT val = local_J(i,row,col);
-            J->insertGlobalValues(colIndex, 1, &val, &rowIndex);
-          }
+    for (int i=0; i<GIDs.extent(0); i++) {
+      
+      for( size_t row=0; row<GIDs.extent(1); row++ ) {
+        GO rowIndex = GIDs(i,row);
+        for (int g=0; g<local_res.extent(2); g++) {
+          ScalarT val = local_res(i,row,g);
+          res->sumIntoGlobalValue(rowIndex,g, val);
         }
-        else {
-          for( size_t col=0; col<GIDs.extent(1); col++ ) {
-            vals[col] = local_J(i,row,col);
-            cols[col] = GIDs(i,col);
+        if (compute_jacobian) {
+          if (compute_disc_sens) {
+            for( size_t col=0; col<paramGIDs.extent(1); col++ ) {
+              GO colIndex = paramGIDs(i,col);
+              ScalarT val = local_J(i,row,col);
+              J->insertGlobalValues(colIndex, 1, &val, &rowIndex);
+            }
           }
-          J->sumIntoGlobalValues(rowIndex, cols, vals);
+          else {
+            for( size_t col=0; col<GIDs.extent(1); col++ ) {
+              vals[col] = local_J(i,row,col);
+              cols[col] = GIDs(i,col);
+            }
+            J->sumIntoGlobalValues(rowIndex, cols, vals);
+          }
         }
       }
     }

@@ -175,6 +175,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   else if (spaceDim == 3) {
     maxEntries = 8*maxDerivs;
   }
+  //maxEntries = 256;
   
   this->setupLinearAlgebra();
   
@@ -934,6 +935,8 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     
     res_over->putScalar(0.0);
     J_over->setAllToScalar(0.0);
+    J_over->fillComplete();
+    J_over->resumeFill();
     if ( useadjoint && (NLiter == 1))
       store_adjPrev = true;
     else

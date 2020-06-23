@@ -19,10 +19,11 @@ cell::cell(const Teuchos::RCP<CellMetaData> & cellData_,
            const DRV & nodes_,
            const Kokkos::View<LO*,AssemblyDevice> & localID_,
            Kokkos::View<GO**,HostDevice> GIDs_,
+           Kokkos::View<LO**,HostDevice> LIDs_,
            Kokkos::View<int****,HostDevice> sideinfo_,
            Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_) :
-cellData(cellData_), localElemID(localID_), nodes(nodes_), GIDs(GIDs_), sideinfo(sideinfo_),
-orientation(orientation_)
+cellData(cellData_), localElemID(localID_), nodes(nodes_), GIDs(GIDs_), LIDs(LIDs_),
+sideinfo(sideinfo_), orientation(orientation_)
 {
   
   numElem = nodes.extent(0);

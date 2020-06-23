@@ -16,6 +16,8 @@ LINK_DIRECTORIES (${Trilinos_LIBRARY_DIRS} ${Trilinos_TPL_LIBRARY_DIRS})
 
 ADD_EXECUTABLE(milo
 driver.cpp
+subgrid/subgridMeshFactory.cpp 
+subgrid/subgridFEM.cpp 
 interfaces/meshInterface.cpp 
 interfaces/discretizationInterface.cpp 
 interfaces/physicsInterface.cpp 
@@ -32,8 +34,6 @@ tools/cell.cpp
 tools/boundaryCell.cpp
 tools/workset.cpp
 tools/split_mpi_communicators.cpp 
-subgrid/subgridMeshFactory.cpp 
-subgrid/subgridFEM.cpp 
 physics/thermal.cpp
 physics/porous.cpp
 physics/porousHDIV.cpp

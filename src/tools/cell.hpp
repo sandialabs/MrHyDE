@@ -38,6 +38,7 @@ public:
        const DRV & nodes_,
        const Kokkos::View<LO*,AssemblyDevice> & localID_,
        Kokkos::View<GO**,HostDevice> GIDs_,
+       Kokkos::View<LO**,HostDevice> LIDs_,
        Kokkos::View<int****,HostDevice> sideinfo_,
        Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_);
   
@@ -312,6 +313,7 @@ public:
   
   // Data created elsewhere
   Kokkos::View<GO**,HostDevice> GIDs, paramGIDs, auxGIDs; // scatter on host
+  Kokkos::View<LO**,HostDevice> LIDs; // scatter on host
   Kokkos::View<LO***,AssemblyDevice> index, paramindex, auxindex; // gather on device
   Teuchos::RCP<CellMetaData> cellData;
   Teuchos::RCP<workset> wkset;

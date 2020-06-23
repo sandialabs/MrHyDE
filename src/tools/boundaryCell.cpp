@@ -25,10 +25,11 @@ BoundaryCell::BoundaryCell(const Teuchos::RCP<CellMetaData> & cellData_,
                            const int & sidenum_, const string & sidename_,
                            const int & cellID_,
                            Kokkos::View<GO**,HostDevice> GIDs_,
+                           Kokkos::View<LO**,HostDevice> LIDs_,
                            Kokkos::View<int****,HostDevice> sideinfo_,
                            Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_) :
 cellData(cellData_), localElemID(localID_), localSideID(sideID_), nodes(nodes_),
-sidenum(sidenum_), sidename(sidename_), cellID(cellID_), GIDs(GIDs_), sideinfo(sideinfo_),
+sidenum(sidenum_), sidename(sidename_), cellID(cellID_), GIDs(GIDs_), LIDs(LIDs_), sideinfo(sideinfo_),
 orientation(orientation_) {
   
   numElem = nodes.extent(0);

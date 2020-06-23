@@ -243,6 +243,9 @@ void SubGridFEM::setUpSubgridModels() {
   vector<stk::mesh::Entity> stk_meshElems;
   sub_mesh->mesh->getMyElements(blockID, stk_meshElems);
   
+  // May need to be PHX::Device
+  Kokkos::View<const LO**,Kokkos::LayoutRight,HostDevice> LIDs = DOF->getLIDs();
+  
   for (size_t s=0; s<unique_sides.size(); s++) {
     
     string sidename = unique_names[s];
@@ -293,6 +296,14 @@ void SubGridFEM::setUpSubgridModels() {
         }
       }
       
+      Kokkos::View<LO**,HostDevice> hostLIDs("LIDs on host device",currElem,numLocalDOF);
+      for (int i=0; i<currElem; i++) {
+        size_t elemID = eIndex(i);
+        for (int j=0; j<numLocalDOF; j++) {
+          hostLIDs(i,j) = LIDs(elemID,j);
+        }
+      }
+      
       //-----------------------------------------------
       // Set the side information (soon to be removed)-
       Kokkos::View<int****,HostDevice> sideinfo = sub_physics->getSideInfo(0,host_eIndex);
@@ -315,7 +326,7 @@ void SubGridFEM::setUpSubgridModels() {
       
       newbcells.push_back(Teuchos::rcp(new BoundaryCell(cellData,currnodes,eIndex,sideIndex,
                                                         sideID,sidename, newbcells.size(),
-                                                        hostGIDs, sideinfo, orient_drv)));
+                                                        hostGIDs, hostLIDs, sideinfo, orient_drv)));
       
       prog += currElem;
     }
@@ -1455,8 +1466,28 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
       }
       //KokkosTools::print(local_J);
       //KokkosTools::print(local_res);
+      
       {
         Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverInsertTimer);
+        auto localMatrix = sub_J_over->getLocalMatrix();
+        Kokkos::View<LO**,HostDevice> LIDs = cells[0][e]->LIDs;
+        LO numentries = static_cast<LO>(LIDs.extent(1));
+        ScalarT vals[numentries];
+        LO cols[numentries];
+        for (unsigned int i=0; i<LIDs.extent(0); i++) { // should be Kokkos::parallel_for on SubgridExec
+          for( size_t row=0; row<LIDs.extent(1); row++ ) {
+            LO rowIndex = LIDs(i,row);
+            ScalarT val = local_res(i,row,0);
+            res_over->sumIntoLocalValue(rowIndex,0, val);
+            for( size_t col=0; col<numentries; col++ ) {
+              vals[col] = local_J(i,row,col);
+              cols[col] = LIDs(i,col);
+            }
+            localMatrix.sumIntoValues(rowIndex, cols, numentries, vals, true, false); // bools: isSorted, useAtomics
+            // may need to set useAtomics = true if subgridexec is not Serial
+          }
+        }
+        /*
         Kokkos::View<GO**,HostDevice> GIDs = cells[0][e]->GIDs;
         //Teuchos::Array<ScalarT> vals(GIDs.extent(1));
         //Teuchos::Array<GO> cols(GIDs.extent(1));
@@ -1479,7 +1510,7 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
             //sub_J_over->sumIntoGlobalValues(rowIndex, cols, vals);
             sub_J_over->sumIntoGlobalValues(rowIndex, numentries, vals, cols, false);
           }
-        }
+        }*/
       }
     }
     

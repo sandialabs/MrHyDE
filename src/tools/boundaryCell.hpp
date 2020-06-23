@@ -39,6 +39,7 @@ public:
                const int & sidenum_, const string & sidename_,
                const int & cellID_,
                Kokkos::View<GO**,HostDevice> GIDs_,
+               Kokkos::View<LO**,HostDevice> LIDs_,
                Kokkos::View<int****,HostDevice> sideinfo_,
                Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_);
   
@@ -217,6 +218,7 @@ public:
   
   // DOF information
   Kokkos::View<GO**,HostDevice> GIDs, paramGIDs, auxGIDs;
+  Kokkos::View<LO**,HostDevice> LIDs, paramLIDs, auxLIDs;
   Kokkos::View<LO***,AssemblyDevice> index, paramindex, auxindex;
   //Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
   Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param;
