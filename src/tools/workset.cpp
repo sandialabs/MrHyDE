@@ -364,26 +364,6 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       int var = vars_HGRAD[i];
       auto csol = Kokkos::subview(local_soln,Kokkos::ALL(),var,Kokkos::ALL(),0);
       auto csol_grad = Kokkos::subview(local_soln_grad,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-      parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        AD value = 0.0;
-        for (int k=0; k<csol.extent(1); k++) {
-          csol(e,k) = value;
-        }
-        for (int k=0; k<csol_grad.extent(1); k++) {
-          for (int j=0; j<csol_grad.extent(2); j++) {
-            csol_grad(e,k,j) = value;
-          }
-        }
-      });
-      if (isTransient) {
-        auto csol_dot = Kokkos::subview(local_soln_dot,Kokkos::ALL(),var,Kokkos::ALL(),0);
-        parallel_for(RangePolicy<AssemblyExec>(0,csol_dot.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD value = 0.0;
-          for (int k=0; k<csol_dot.extent(1); k++) {
-            csol_dot(e,k) = value;
-          }
-        });
-      }
       
       DRV cbasis = basis[usebasis[var]];
       DRV cbasis_grad = basis_grad[usebasis[var]];
@@ -396,28 +376,48 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
         if (seedwhat == 1) {
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            AD uval, u_dotval, stageval;
+            ScalarT beta_u, beta_t;
             int current_stage = current_stage_KV(0);
             ScalarT deltat = deltat_KV(0);
+            ScalarT alpha_u = butcher_A(current_stage,current_stage)/butcher_b(current_stage);
+            ScalarT timewt = 1.0/deltat/butcher_b(current_stage);
+            ScalarT alpha_t = BDF_wts(0)*timewt;
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
-              stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
-              uval = cu_prev(elem,dof,0);
-              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
-              for (int s=0; s<current_stage; s++) {
-                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
-              }
-              u_dotval = BDF_wts(0)*stageval;
-              for (int s=1; s<BDF_wts.extent(0); s++) {
-                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
-              }
-              u_dotval *= 1.0/deltat;
-              u_dotval *= 1.0/butcher_b(current_stage);
+              // Seed the stage solution
+              AD stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
               
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol(elem,pt) += uval*cbasis(elem,dof,pt);
-                csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
-                for (int s=0; s<cbasis_grad.extent(3); s++ ) {
-                  csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+              // Compute the evaluating solution
+              beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
+              for (int s=0; s<current_stage; s++) {
+                beta_u += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              AD uval = alpha_u*stageval+beta_u;
+              
+              // Compute the time derivative
+              beta_t = 0.0;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                beta_t += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              beta_t *= timewt;
+              AD u_dotval = alpha_t*stageval + beta_t;
+              
+              // Compute the evaluation solution and derivatives at quadrature points
+              if (dof == 0) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) = uval*cbasis(elem,dof,pt);
+                  csol_dot(elem,pt) = u_dotval*cbasis(elem,dof,pt);
+                  for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                    csol_grad(elem,pt,s) = uval*cbasis_grad(elem,dof,pt,s);
+                  }
+                }
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                  csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
+                  for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                    csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+                  }
                 }
               }
             }
@@ -426,31 +426,48 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         }
         else if (seedwhat == 2) {
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            AD uval, u_dotval, stageval;
+            ScalarT beta_u, beta_t;
             int current_stage = current_stage_KV(0);
             ScalarT deltat = deltat_KV(0);
+            ScalarT alpha_u = butcher_A(current_stage,current_stage)/butcher_b(current_stage);
+            ScalarT timewt = 1.0/deltat/butcher_b(current_stage);
+            ScalarT alpha_t = BDF_wts(0)*timewt;
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
-              stageval = cu(elem,dof);
-              uval = cu_prev(elem,dof,0);
-              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
-              for (int s=0; s<current_stage; s++) {
-                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
-              }
-              //cout << "uval2 = " << uval << endl;
-              u_dotval = BDF_wts(0)*stageval;
-              for (int s=1; s<BDF_wts.extent(0); s++) {
-                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
-              }
-              u_dotval *= 1.0/deltat;
-              u_dotval *= 1.0/butcher_b(current_stage);
-              ScalarT val = u_dotval.val();
-              u_dotval = AD(maxDerivs,coff(dof),val);
+              // Get the stage solution
+              ScalarT stageval = cu(elem,dof);
               
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol(elem,pt) += uval*cbasis(elem,dof,pt);
-                csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
-                for (int s=0; s<cbasis_grad.extent(3); s++ ) {
-                  csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+              // Compute the evaluating solution
+              beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
+              for (int s=0; s<current_stage; s++) {
+                beta_u += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              ScalarT uval = alpha_u*stageval+beta_u;
+              
+              // Compute and seed the time derivative
+              beta_t = 0.0;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                beta_t += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              beta_t *= timewt;
+              AD u_dotval = AD(maxDerivs,coff(dof),alpha_t*stageval + beta_t);
+              
+              // Compute the evaluation solution and derivatives at quadrature points
+              if (dof == 0) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) = uval*cbasis(elem,dof,pt);
+                  csol_dot(elem,pt) = u_dotval*cbasis(elem,dof,pt);
+                  for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                    csol_grad(elem,pt,s) = uval*cbasis_grad(elem,dof,pt,s);
+                  }
+                }
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                  csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
+                  for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                    csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+                  }
                 }
               }
             }
@@ -458,28 +475,48 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         }
         else {
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            AD uval, u_dotval, stageval;
+            ScalarT beta_u, beta_t;
             int current_stage = current_stage_KV(0);
             ScalarT deltat = deltat_KV(0);
+            ScalarT alpha_u = butcher_A(current_stage,current_stage)/butcher_b(current_stage);
+            ScalarT timewt = 1.0/deltat/butcher_b(current_stage);
+            ScalarT alpha_t = BDF_wts(0)*timewt;
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
-              stageval = cu(elem,dof);
-              uval = cu_prev(elem,dof,0);
-              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
-              for (int s=0; s<current_stage; s++) {
-                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
-              }
-              u_dotval = BDF_wts(0)*stageval;
-              for (int s=1; s<BDF_wts.extent(0); s++) {
-                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
-              }
-              u_dotval *= 1.0/deltat;
-              u_dotval *= 1.0/butcher_b(current_stage);
+              // Get the stage solution
+              ScalarT stageval = cu(elem,dof);
               
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol(elem,pt) += uval*cbasis(elem,dof,pt);
-                csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
-                for (int s=0; s<cbasis_grad.extent(3); s++ ) {
-                  csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+              // Compute the evaluating solution
+              beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
+              for (int s=0; s<current_stage; s++) {
+                beta_u += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              ScalarT uval = alpha_u*stageval+beta_u;
+              
+              // Compute the time derivative
+              beta_t = 0.0;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                beta_t += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              beta_t *= timewt;
+              ScalarT u_dotval = alpha_t*stageval + beta_t;
+              
+              // Compute the evaluation solution and derivatives at quadrature points
+              if ( dof == 0) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) = uval*cbasis(elem,dof,pt);
+                  csol_dot(elem,pt) = u_dotval*cbasis(elem,dof,pt);
+                  for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                    csol_grad(elem,pt,s) = uval*cbasis_grad(elem,dof,pt,s);
+                  }
+                }
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                  csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
+                  for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                    csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+                  }
                 }
               }
             }
@@ -491,10 +528,20 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
               AD uval = AD(maxDerivs,coff(dof),cu(elem,dof));
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol(elem,pt) += cbasis(elem,dof,pt)*uval;
-                for (int s=0; s<cbasis_grad.extent(3); s++ ) {
-                  csol_grad(elem,pt,s) += cbasis_grad(elem,dof,pt,s)*uval;
+              if (dof == 0) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) = cbasis(elem,dof,pt)*uval;
+                  for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                    csol_grad(elem,pt,s) = cbasis_grad(elem,dof,pt,s)*uval;
+                  }
+                }
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) += cbasis(elem,dof,pt)*uval;
+                  for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                    csol_grad(elem,pt,s) += cbasis_grad(elem,dof,pt,s)*uval;
+                  }
                 }
               }
             }
@@ -502,13 +549,23 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         }
         else {
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            AD uval;
+            ScalarT uval;
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
               uval = cu(elem,dof);
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol(elem,pt) += uval*cbasis(elem,dof,pt);
-                for (int s=0; s<cbasis_grad.extent(3); s++ ) {
-                  csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+              if (dof == 0) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) = uval*cbasis(elem,dof,pt);
+                  for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                    csol_grad(elem,pt,s) = uval*cbasis_grad(elem,dof,pt,s);
+                  }
+                }
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                  for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                    csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+                  }
                 }
               }
             }
@@ -524,21 +581,6 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
     for (int i=0; i<vars_HVOL.size(); i++) {
       int var = vars_HVOL[i];
       auto csol = Kokkos::subview(local_soln,Kokkos::ALL(),var,Kokkos::ALL(),0);
-      parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        AD value = 0.0;
-        for (int k=0; k<csol.extent(1); k++) {
-          csol(e,k) = value;
-        }
-      });
-      if (isTransient) {
-        auto csol_dot = Kokkos::subview(local_soln_dot,Kokkos::ALL(),var,Kokkos::ALL(),0);
-        parallel_for(RangePolicy<AssemblyExec>(0,csol_dot.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD value = 0.0;
-          for (int k=0; k<csol_dot.extent(1); k++) {
-            csol_dot(e,k) = value;
-          }
-        });
-      }
       
       DRV cbasis = basis[usebasis[var]];
       auto coff = Kokkos::subview(offsets,var,Kokkos::ALL());
@@ -550,26 +592,43 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
         if (seedwhat == 1) {
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            AD uval, u_dotval, stageval;
+            ScalarT beta_u, beta_t;
             int current_stage = current_stage_KV(0);
             ScalarT deltat = deltat_KV(0);
+            ScalarT alpha_u = butcher_A(current_stage,current_stage)/butcher_b(current_stage);
+            ScalarT timewt = 1.0/deltat/butcher_b(current_stage);
+            ScalarT alpha_t = BDF_wts(0)*timewt;
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
-              stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
-              uval = cu_prev(elem,dof,0);
-              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
-              for (int s=0; s<current_stage; s++) {
-                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
-              }
-              u_dotval = BDF_wts(0)*stageval;
-              for (int s=1; s<BDF_wts.extent(0); s++) {
-                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
-              }
-              u_dotval *= 1.0/deltat;
-              u_dotval *= 1.0/butcher_b(current_stage);
+              // Seed the stage solution
+              AD stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
               
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol(elem,pt) += uval*cbasis(elem,dof,pt);
-                csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
+              // Compute the evaluating solution
+              beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
+              for (int s=0; s<current_stage; s++) {
+                beta_u += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              AD uval = alpha_u*stageval+beta_u;
+              
+              // Compute the time derivative
+              beta_t = 0.0;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                beta_t += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              beta_t *= timewt;
+              AD u_dotval = alpha_t*stageval + beta_t;
+              
+              // Compute the evaluation solution and derivatives at quadrature points
+              if (dof == 0) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) = uval*cbasis(elem,dof,pt);
+                  csol_dot(elem,pt) = u_dotval*cbasis(elem,dof,pt);
+                }
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                  csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
+                }
               }
             }
           });
@@ -577,55 +636,86 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         }
         else if (seedwhat == 2) {
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            AD uval, u_dotval, stageval;
+            ScalarT beta_u, beta_t;
             int current_stage = current_stage_KV(0);
             ScalarT deltat = deltat_KV(0);
+            ScalarT alpha_u = butcher_A(current_stage,current_stage)/butcher_b(current_stage);
+            ScalarT timewt = 1.0/deltat/butcher_b(current_stage);
+            ScalarT alpha_t = BDF_wts(0)*timewt;
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
-              stageval = cu(elem,dof);
-              uval = cu_prev(elem,dof,0);
-              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
-              for (int s=0; s<current_stage; s++) {
-                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
-              }
-              //cout << "uval2 = " << uval << endl;
-              u_dotval = BDF_wts(0)*stageval;
-              for (int s=1; s<BDF_wts.extent(0); s++) {
-                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
-              }
-              u_dotval *= 1.0/deltat;
-              u_dotval *= 1.0/butcher_b(current_stage);
-              ScalarT val = u_dotval.val();
-              u_dotval = AD(maxDerivs,coff(dof),val);
+              // Get the stage solution
+              ScalarT stageval = cu(elem,dof);
               
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol(elem,pt) += uval*cbasis(elem,dof,pt);
-                csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
+              // Compute the evaluating solution
+              beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
+              for (int s=0; s<current_stage; s++) {
+                beta_u += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              ScalarT uval = alpha_u*stageval+beta_u;
+              
+              // Compute and seed the time derivative
+              beta_t = 0.0;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                beta_t += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              beta_t *= timewt;
+              AD u_dotval = AD(maxDerivs,coff(dof),alpha_t*stageval + beta_t);
+              
+              // Compute the evaluation solution and derivatives at quadrature points
+              if (dof == 0) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) = uval*cbasis(elem,dof,pt);
+                  csol_dot(elem,pt) = u_dotval*cbasis(elem,dof,pt);
+                }
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                  csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
+                }
               }
             }
           });
         }
         else {
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            AD uval, u_dotval, stageval;
+            ScalarT beta_u, beta_t;
             int current_stage = current_stage_KV(0);
             ScalarT deltat = deltat_KV(0);
+            ScalarT alpha_u = butcher_A(current_stage,current_stage)/butcher_b(current_stage);
+            ScalarT timewt = 1.0/deltat/butcher_b(current_stage);
+            ScalarT alpha_t = BDF_wts(0)*timewt;
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
-              stageval = cu(elem,dof);
-              uval = cu_prev(elem,dof,0);
-              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
-              for (int s=0; s<current_stage; s++) {
-                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
-              }
-              u_dotval = BDF_wts(0)*stageval;
-              for (int s=1; s<BDF_wts.extent(0); s++) {
-                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
-              }
-              u_dotval *= 1.0/deltat;
-              u_dotval *= 1.0/butcher_b(current_stage);
+              // Get the stage solution
+              ScalarT stageval = cu(elem,dof);
               
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol(elem,pt) += uval*cbasis(elem,dof,pt);
-                csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
+              // Compute the evaluating solution
+              beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
+              for (int s=0; s<current_stage; s++) {
+                beta_u += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              ScalarT uval = alpha_u*stageval+beta_u;
+              
+              // Compute the time derivative
+              beta_t = 0.0;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                beta_t += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              beta_t *= timewt;
+              ScalarT u_dotval = alpha_t*stageval + beta_t;
+              
+              // Compute the evaluation solution and derivatives at quadrature points
+              if (dof == 0 ) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) = uval*cbasis(elem,dof,pt);
+                  csol_dot(elem,pt) = u_dotval*cbasis(elem,dof,pt);
+                }
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                  csol_dot(elem,pt) += u_dotval*cbasis(elem,dof,pt);
+                }
               }
             }
           });
@@ -637,19 +727,33 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
             AD uval;
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
               uval = AD(maxDerivs,coff(dof),cu(elem,dof));
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol(elem,pt) += uval*cbasis(elem,dof,pt);
+              if (dof == 0) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) = uval*cbasis(elem,dof,pt);
+                }
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                }
               }
             }
           });
         }
         else {
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            AD uval;
+            ScalarT uval;
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
               uval = cu(elem,dof);
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol(elem,pt) += uval*cbasis(elem,dof,pt);
+              if (dof == 0) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) = uval*cbasis(elem,dof,pt);
+                }
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  csol(elem,pt) += uval*cbasis(elem,dof,pt);
+                }
               }
             }
           });
@@ -665,26 +769,6 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       int var = vars_HDIV[i];
       auto csol = Kokkos::subview(local_soln,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
       auto csol_div = Kokkos::subview(local_soln_div,Kokkos::ALL(),var,Kokkos::ALL());
-      parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        AD value = 0.0;
-        for (int k=0; k<csol.extent(1); k++) {
-          csol_div(e,k) = value;
-          for (int j=0; j<csol.extent(2); j++) {
-            csol(e,k,j) = value;
-          }
-        }
-      });
-      if (isTransient) {
-        auto csol_dot = Kokkos::subview(local_soln_dot,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        parallel_for(RangePolicy<AssemblyExec>(0,csol_dot.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD value = 0.0;
-          for (int k=0; k<csol_dot.extent(1); k++) {
-            for (int j=0; j<csol_dot.extent(2); j++) {
-              csol_dot(e,k,j) = value;
-            }
-          }
-        });
-      }
       
       DRV cbasis = basis[usebasis[var]];
       DRV cbasis_div = basis_div[usebasis[var]];
@@ -697,29 +781,49 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
         if (seedwhat == 1) {
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            AD uval, u_dotval, stageval;
+            ScalarT beta_u, beta_t;
             int current_stage = current_stage_KV(0);
             ScalarT deltat = deltat_KV(0);
+            ScalarT alpha_u = butcher_A(current_stage,current_stage)/butcher_b(current_stage);
+            ScalarT timewt = 1.0/deltat/butcher_b(current_stage);
+            ScalarT alpha_t = BDF_wts(0)*timewt;
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
-              stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
-              uval = cu_prev(elem,dof,0);
-              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
-              for (int s=0; s<current_stage; s++) {
-                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
-              }
-              u_dotval = BDF_wts(0)*stageval;
-              for (int s=1; s<BDF_wts.extent(0); s++) {
-                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
-              }
-              u_dotval *= 1.0/deltat;
-              u_dotval *= 1.0/butcher_b(current_stage);
+              // Seed the stage solution
+              AD stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
               
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (int s=0; s<cbasis.extent(3); s++ ) {
-                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
-                  csol_dot(elem,pt,s) += u_dotval*cbasis(elem,dof,pt,s);
+              // Compute the evaluating solution
+              beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
+              for (int s=0; s<current_stage; s++) {
+                beta_u += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              AD uval = alpha_u*stageval+beta_u;
+              
+              // Compute the time derivative
+              beta_t = 0.0;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                beta_t += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              beta_t *= timewt;
+              AD u_dotval = alpha_t*stageval + beta_t;
+              
+              // Compute the evaluation solution and derivatives at quadrature points
+              if (dof == 0) { //avoid resets
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) = cbasis(elem,dof,pt,s)*uval;
+                    csol_dot(elem,pt,s) = cbasis(elem,dof,pt,s)*u_dotval;
+                  }
+                  csol_div(elem,pt) = cbasis_div(elem,dof,pt)*uval;
                 }
-                csol_div(elem,pt) += uval*cbasis_div(elem,dof,pt);
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) += cbasis(elem,dof,pt,s)*uval;
+                    csol_dot(elem,pt,s) += cbasis(elem,dof,pt,s)*u_dotval;
+                  }
+                  csol_div(elem,pt) += cbasis_div(elem,dof,pt)*uval;
+                }
               }
             }
           });
@@ -727,61 +831,98 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         }
         else if (seedwhat == 2) {
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            AD uval, u_dotval, stageval;
+            ScalarT beta_u, beta_t;
             int current_stage = current_stage_KV(0);
             ScalarT deltat = deltat_KV(0);
+            ScalarT alpha_u = butcher_A(current_stage,current_stage)/butcher_b(current_stage);
+            ScalarT timewt = 1.0/deltat/butcher_b(current_stage);
+            ScalarT alpha_t = BDF_wts(0)*timewt;
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
-              stageval = cu(elem,dof);
-              uval = cu_prev(elem,dof,0);
-              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
-              for (int s=0; s<current_stage; s++) {
-                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
-              }
-              //cout << "uval2 = " << uval << endl;
-              u_dotval = BDF_wts(0)*stageval;
-              for (int s=1; s<BDF_wts.extent(0); s++) {
-                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
-              }
-              u_dotval *= 1.0/deltat;
-              u_dotval *= 1.0/butcher_b(current_stage);
-              ScalarT val = u_dotval.val();
-              u_dotval = AD(maxDerivs,coff(dof),val);
+              // Get the stage solution
+              ScalarT stageval = cu(elem,dof);
               
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (int s=0; s<cbasis.extent(3); s++ ) {
-                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
-                  csol_dot(elem,pt,s) += u_dotval*cbasis(elem,dof,pt,s);
+              // Compute the evaluating solution
+              beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
+              for (int s=0; s<current_stage; s++) {
+                beta_u += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              ScalarT uval = alpha_u*stageval+beta_u;
+              
+              // Compute and seed the time derivative
+              beta_t = 0.0;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                beta_t += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              beta_t *= timewt;
+              AD u_dotval = AD(maxDerivs,coff(dof),alpha_t*stageval + beta_t);
+              
+              // Compute the evaluation solution and derivatives at quadrature points
+              if (dof == 0) { //avoid resets
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) = cbasis(elem,dof,pt,s)*uval;
+                    csol_dot(elem,pt,s) = cbasis(elem,dof,pt,s)*u_dotval;
+                  }
+                  csol_div(elem,pt) = cbasis_div(elem,dof,pt)*uval;
                 }
-                csol_div(elem,pt) += uval*cbasis_div(elem,dof,pt);
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) += cbasis(elem,dof,pt,s)*uval;
+                    csol_dot(elem,pt,s) += cbasis(elem,dof,pt,s)*u_dotval;
+                  }
+                  csol_div(elem,pt) += cbasis_div(elem,dof,pt)*uval;
+                }
               }
             }
           });
         }
         else {
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            AD uval, u_dotval, stageval;
+            ScalarT beta_u, beta_t;
             int current_stage = current_stage_KV(0);
             ScalarT deltat = deltat_KV(0);
+            ScalarT alpha_u = butcher_A(current_stage,current_stage)/butcher_b(current_stage);
+            ScalarT timewt = 1.0/deltat/butcher_b(current_stage);
+            ScalarT alpha_t = BDF_wts(0)*timewt;
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
-              stageval = cu(elem,dof);
-              uval = cu_prev(elem,dof,0);
-              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
-              for (int s=0; s<current_stage; s++) {
-                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
-              }
-              u_dotval = BDF_wts(0)*stageval;
-              for (int s=1; s<BDF_wts.extent(0); s++) {
-                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
-              }
-              u_dotval *= 1.0/deltat;
-              u_dotval *= 1.0/butcher_b(current_stage);
+              // Get the stage solution
+              ScalarT stageval = cu(elem,dof);
               
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (int s=0; s<cbasis.extent(3); s++ ) {
-                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
-                  csol_dot(elem,pt,s) += u_dotval*cbasis(elem,dof,pt,s);
+              // Compute the evaluating solution
+              beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
+              for (int s=0; s<current_stage; s++) {
+                beta_u += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              ScalarT uval = alpha_u*stageval+beta_u;
+              
+              // Compute the time derivative
+              beta_t = 0.0;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                beta_t += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              beta_t *= timewt;
+              ScalarT u_dotval = alpha_t*stageval + beta_t;
+              
+              // Compute the evaluation solution and derivative at quadrature points
+              if (dof == 0) { //avoid resets
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) = cbasis(elem,dof,pt,s)*uval;
+                    csol_dot(elem,pt,s) = cbasis(elem,dof,pt,s)*u_dotval;
+                  }
+                  csol_div(elem,pt) = cbasis_div(elem,dof,pt)*uval;
                 }
-                csol_div(elem,pt) += uval*cbasis_div(elem,dof,pt);
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) += cbasis(elem,dof,pt,s)*uval;
+                    csol_dot(elem,pt,s) += cbasis(elem,dof,pt,s)*u_dotval;
+                  }
+                  csol_div(elem,pt) += cbasis_div(elem,dof,pt)*uval;
+                }
               }
             }
           });
@@ -792,11 +933,21 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
               AD uval = AD(maxDerivs,coff(dof),cu(elem,dof));
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (int s=0; s<cbasis.extent(3); s++ ) {
-                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              if (dof == 0) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) = uval*cbasis(elem,dof,pt,s);
+                  }
+                  csol_div(elem,pt) = uval*cbasis_div(elem,dof,pt);
                 }
-                csol_div(elem,pt) += uval*cbasis_div(elem,dof,pt);
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+                  }
+                  csol_div(elem,pt) += uval*cbasis_div(elem,dof,pt);
+                }
               }
             }
           });
@@ -804,12 +955,22 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         else {
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
-              AD uval = cu(elem,dof);
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (int s=0; s<cbasis.extent(3); s++ ) {
-                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              ScalarT uval = cu(elem,dof);
+              if (dof == 0) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) = uval*cbasis(elem,dof,pt,s);
+                  }
+                  csol_div(elem,pt) = uval*cbasis_div(elem,dof,pt);
                 }
-                csol_div(elem,pt) += uval*cbasis_div(elem,dof,pt);
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+                  }
+                  csol_div(elem,pt) += uval*cbasis_div(elem,dof,pt);
+                }
               }
             }
           });
@@ -826,26 +987,6 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       int var = vars_HCURL[i];
       auto csol = Kokkos::subview(local_soln,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
       auto csol_curl = Kokkos::subview(local_soln_curl,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-      parallel_for(RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        AD value = 0.0;
-        for (int k=0; k<csol.extent(1); k++) {
-          for (int j=0; j<csol.extent(2); j++) {
-            csol(e,k,j) = value;
-            csol_curl(e,k,j) = value;
-          }
-        }
-      });
-      if (isTransient) {
-        auto csol_dot = Kokkos::subview(local_soln_dot,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        parallel_for(RangePolicy<AssemblyExec>(0,csol_dot.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD value = 0.0;
-          for (int k=0; k<csol_dot.extent(1); k++) {
-            for (int j=0; j<csol_dot.extent(2); j++) {
-              csol_dot(e,k,j) = value;
-            }
-          }
-        });
-      }
       
       DRV cbasis = basis[usebasis[var]];
       DRV cbasis_curl = basis_curl[usebasis[var]];
@@ -858,28 +999,49 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         auto cu_stage = Kokkos::subview(u_stage,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
         if (seedwhat == 1) {
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            AD uval, u_dotval, stageval;
+            ScalarT beta_u, beta_t;
             int current_stage = current_stage_KV(0);
             ScalarT deltat = deltat_KV(0);
+            ScalarT alpha_u = butcher_A(current_stage,current_stage)/butcher_b(current_stage);
+            ScalarT timewt = 1.0/deltat/butcher_b(current_stage);
+            ScalarT alpha_t = BDF_wts(0)*timewt;
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
-              stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
-              uval = cu_prev(elem,dof,0);
-              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
-              for (int s=0; s<current_stage; s++) {
-                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
-              }
-              u_dotval = BDF_wts(0)*stageval;
-              for (int s=1; s<BDF_wts.extent(0); s++) {
-                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
-              }
-              u_dotval *= 1.0/deltat;
-              u_dotval *= 1.0/butcher_b(current_stage);
+              // Seed the stage solution
+              AD stageval = AD(maxDerivs,coff(dof),cu(elem,dof));
               
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (int s=0; s<cbasis.extent(3); s++ ) {
-                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
-                  csol_dot(elem,pt,s) += u_dotval*cbasis(elem,dof,pt,s);
-                  csol_curl(elem,pt,s) += uval*cbasis_curl(elem,dof,pt,s);
+              // Compute the evaluating solution
+              beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
+              for (int s=0; s<current_stage; s++) {
+                beta_u += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              AD uval = alpha_u*stageval+beta_u;
+              
+              // Compute the time derivative
+              beta_t = 0.0;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                beta_t += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              beta_t *= timewt;
+              AD u_dotval = alpha_t*stageval + beta_t;
+              
+              // Compute the evaluation solution and derivatives at quadrature points
+              
+              if (dof == 0) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) = cbasis(elem,dof,pt,s)*uval;
+                    csol_dot(elem,pt,s) = cbasis(elem,dof,pt,s)*u_dotval;
+                    csol_curl(elem,pt,s) = cbasis_curl(elem,dof,pt,s)*uval;
+                  }
+                }
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) += cbasis(elem,dof,pt,s)*uval;
+                    csol_dot(elem,pt,s) += cbasis(elem,dof,pt,s)*u_dotval;
+                    csol_curl(elem,pt,s) += cbasis_curl(elem,dof,pt,s)*uval;
+                  }
                 }
               }
             }
@@ -888,31 +1050,48 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         }
         else if (seedwhat == 2) {
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            AD uval, u_dotval, stageval;
+            ScalarT beta_u, beta_t;
             int current_stage = current_stage_KV(0);
             ScalarT deltat = deltat_KV(0);
+            ScalarT alpha_u = butcher_A(current_stage,current_stage)/butcher_b(current_stage);
+            ScalarT timewt = 1.0/deltat/butcher_b(current_stage);
+            ScalarT alpha_t = BDF_wts(0)*timewt;
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
-              stageval = cu(elem,dof);
-              uval = cu_prev(elem,dof,0);
-              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
-              for (int s=0; s<current_stage; s++) {
-                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
-              }
-              //cout << "uval2 = " << uval << endl;
-              u_dotval = BDF_wts(0)*stageval;
-              for (int s=1; s<BDF_wts.extent(0); s++) {
-                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
-              }
-              u_dotval *= 1.0/deltat;
-              u_dotval *= 1.0/butcher_b(current_stage);
-              ScalarT val = u_dotval.val();
-              u_dotval = AD(maxDerivs,coff(dof),val);
+              // Get the stage solution
+              ScalarT stageval = cu(elem,dof);
               
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (int s=0; s<cbasis.extent(3); s++ ) {
-                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
-                  csol_dot(elem,pt,s) += u_dotval*cbasis(elem,dof,pt,s);
-                  csol_curl(elem,pt,s) += uval*cbasis_curl(elem,dof,pt,s);
+              // Compute the evaluating solution
+              beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
+              for (int s=0; s<current_stage; s++) {
+                beta_u += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              ScalarT uval = alpha_u*stageval+beta_u;
+              
+              // Compute and seed the time derivative
+              beta_t = 0.0;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                beta_t += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              beta_t *= timewt;
+              AD u_dotval = AD(maxDerivs,coff(dof),alpha_t*stageval + beta_t);
+              
+              // Compute the evaluation solution and derivatives at quadrature points
+              if (dof == 0) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) = uval*cbasis(elem,dof,pt,s);
+                    csol_dot(elem,pt,s) = u_dotval*cbasis(elem,dof,pt,s);
+                    csol_curl(elem,pt,s) = uval*cbasis_curl(elem,dof,pt,s);
+                  }
+                }
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+                    csol_dot(elem,pt,s) += u_dotval*cbasis(elem,dof,pt,s);
+                    csol_curl(elem,pt,s) += uval*cbasis_curl(elem,dof,pt,s);
+                  }
                 }
               }
             }
@@ -920,28 +1099,48 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         }
         else {
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            AD uval, u_dotval, stageval;
+            ScalarT beta_u, beta_t;
             int current_stage = current_stage_KV(0);
             ScalarT deltat = deltat_KV(0);
+            ScalarT alpha_u = butcher_A(current_stage,current_stage)/butcher_b(current_stage);
+            ScalarT timewt = 1.0/deltat/butcher_b(current_stage);
+            ScalarT alpha_t = BDF_wts(0)*timewt;
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
-              stageval = cu(elem,dof);
-              uval = cu_prev(elem,dof,0);
-              uval += butcher_A(current_stage,current_stage)/butcher_b(current_stage)*(stageval - cu_prev(elem,dof,0));
-              for (int s=0; s<current_stage; s++) {
-                uval += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
-              }
-              u_dotval = BDF_wts(0)*stageval;
-              for (int s=1; s<BDF_wts.extent(0); s++) {
-                u_dotval += BDF_wts(s)*cu_prev(elem,dof,s-1);
-              }
-              u_dotval *= 1.0/deltat;
-              u_dotval *= 1.0/butcher_b(current_stage);
+              // Get the stage solution
+              ScalarT stageval = cu(elem,dof);
               
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (int s=0; s<cbasis.extent(3); s++ ) {
-                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
-                  csol_dot(elem,pt,s) += u_dotval*cbasis(elem,dof,pt,s);
-                  csol_curl(elem,pt,s) += uval*cbasis_curl(elem,dof,pt,s);
+              // Compute the evaluating solution
+              beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
+              for (int s=0; s<current_stage; s++) {
+                beta_u += butcher_A(current_stage,s)/butcher_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              ScalarT uval = alpha_u*stageval+beta_u;
+              
+              // Compute the time derivative
+              beta_t = 0.0;
+              for (int s=1; s<BDF_wts.extent(0); s++) {
+                beta_t += BDF_wts(s)*cu_prev(elem,dof,s-1);
+              }
+              beta_t *= timewt;
+              ScalarT u_dotval = alpha_t*stageval + beta_t;
+              
+              // Compute the evaluation solution and derivatives at quadrature points
+              if (dof == 0) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) = uval*cbasis(elem,dof,pt,s);
+                    csol_dot(elem,pt,s) = u_dotval*cbasis(elem,dof,pt,s);
+                    csol_curl(elem,pt,s) = uval*cbasis_curl(elem,dof,pt,s);
+                  }
+                }
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+                    csol_dot(elem,pt,s) += u_dotval*cbasis(elem,dof,pt,s);
+                    csol_curl(elem,pt,s) += uval*cbasis_curl(elem,dof,pt,s);
+                  }
                 }
               }
             }
@@ -953,10 +1152,20 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
               AD uval = AD(maxDerivs,coff(dof),cu(elem,dof));
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (int s=0; s<cbasis.extent(3); s++ ) {
-                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
-                  csol_curl(elem,pt,s) += uval*cbasis_curl(elem,dof,pt,s);
+              if (dof == 0) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) = uval*cbasis(elem,dof,pt,s);
+                    csol_curl(elem,pt,s) = uval*cbasis_curl(elem,dof,pt,s);
+                  }
+                }
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+                    csol_curl(elem,pt,s) += uval*cbasis_curl(elem,dof,pt,s);
+                  }
                 }
               }
             }
@@ -965,11 +1174,21 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
         else {
           parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
             for (int dof=0; dof<cbasis.extent(1); dof++ ) {
-              AD uval = cu(elem,dof);
-              for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (int s=0; s<cbasis.extent(3); s++ ) {
-                  csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
-                  csol_curl(elem,pt,s) += uval*cbasis_curl(elem,dof,pt,s);
+              ScalarT uval = cu(elem,dof);
+              if (dof == 0) {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) = uval*cbasis(elem,dof,pt,s);
+                    csol_curl(elem,pt,s) = uval*cbasis_curl(elem,dof,pt,s);
+                  }
+                }
+              }
+              else {
+                for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+                  for (int s=0; s<cbasis.extent(3); s++ ) {
+                    csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+                    csol_curl(elem,pt,s) += uval*cbasis_curl(elem,dof,pt,s);
+                  }
                 }
               }
             }
