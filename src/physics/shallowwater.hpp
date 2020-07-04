@@ -70,7 +70,7 @@ private:
   int spaceDim;
   int H_num, Hu_num, Hv_num;
   ScalarT alpha;
-  ScalarT gravity;
+  //ScalarT gravity;
   
   FDATA bath, bath_x, bath_y, visc, cor, bfric, source_Hu, source_Hv, nsource, nsource_Hu, nsource_Hv, bath_side;
   Kokkos::View<int****,AssemblyDevice> sideinfo;

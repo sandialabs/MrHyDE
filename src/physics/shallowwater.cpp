@@ -28,7 +28,7 @@ shallowwater::shallowwater(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   mybasistypes.push_back("HGRAD");
   
   
-  gravity = settings->sublist("Physics").get<ScalarT>("gravity",9.8);
+  //gravity = settings->sublist("Physics").get<ScalarT>("gravity",9.8);
   
   formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
   
@@ -98,56 +98,51 @@ void shallowwater::volumeResidual() {
   wts = wkset->wts;
   //KokkosTools::print(bath);
   
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  auto xi = Kokkos::subview( sol, Kokkos::ALL(), H_num, Kokkos::ALL(), 0);
+  auto xi_dot = Kokkos::subview( sol_dot, Kokkos::ALL(), H_num, Kokkos::ALL(), 0);
+  
+  auto Hu = Kokkos::subview( sol, Kokkos::ALL(), Hu_num, Kokkos::ALL(), 0);
+  auto Hu_dot = Kokkos::subview( sol_dot, Kokkos::ALL(), Hu_num, Kokkos::ALL(), 0);
+  
+  auto Hv = Kokkos::subview( sol, Kokkos::ALL(), Hv_num, Kokkos::ALL(), 0);
+  auto Hv_dot = Kokkos::subview( sol_dot, Kokkos::ALL(), Hv_num, Kokkos::ALL(), 0);
+  
+  auto Hoff = Kokkos::subview(offsets, H_num, Kokkos::ALL());
+  auto Huoff = Kokkos::subview(offsets, Hu_num, Kokkos::ALL());
+  auto Hvoff = Kokkos::subview(offsets, Hv_num, Kokkos::ALL());
+  
+  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
     ScalarT v = 0.0;
     ScalarT dvdx = 0.0;
     ScalarT dvdy = 0.0;
-    for (int k=0; k<sol.extent(2); k++ ) {
+    ScalarT gravity = 9.8;
+    for (int pt=0; pt<sol.extent(2); pt++ ) {
       
-      AD xi = sol(e,H_num,k,0);
-      AD xi_dot = sol_dot(e,H_num,k,0);
-      AD H = xi + bath(e,k);
-      AD Hu = sol(e,Hu_num,k,0);
-      AD Hu_dot = sol_dot(e,Hu_num,k,0);
-      
-      AD Hv = sol(e,Hv_num,k,0);
-      AD Hv_dot = sol_dot(e,Hv_num,k,0);
-      
-      
-      for (int i=0; i<Hbasis.extent(1); i++ ) {
-        
-        int resindex = offsets(H_num,i);
-        v = Hbasis(e,i,k);
-        
-        dvdx = Hbasis_grad(e,i,k,0);
-        dvdy = Hbasis_grad(e,i,k,1);
-        
-        res(e,resindex) += (xi_dot*v - Hu*dvdx - Hv*dvdy)*wts(e,k);
-        
+      AD f = xi_dot(elem,pt)*wts(elem,pt);
+      AD Fx = -Hu(elem,pt)*wts(elem,pt);
+      AD Fy = -Hv(elem,pt)*wts(elem,pt);
+      for (int dof=0; dof<Hbasis.extent(1); dof++ ) {
+        res(elem,Hoff(dof)) += f*Hbasis(elem,dof,pt) + Fx*Hbasis_grad(elem,dof,pt,0) + Fy*Hbasis_grad(elem,dof,pt,1);
       }
       
-      for (int i=0; i<Hubasis.extent(1); i++ ) {
-        
-        int resindex = offsets(Hu_num,i);
-        v = Hubasis(e,i,k);
-        
-        dvdx = Hubasis_grad(e,i,k,0);
-        dvdy = Hubasis_grad(e,i,k,1);
-        
-        res(e,resindex) += (Hu_dot*v - (Hu*Hu/H + 0.5*gravity*(H*H-bath(e,k)*bath(e,k)))*dvdx - Hv*Hu/H*dvdy + gravity*xi*bath_x(e,k)*v)*wts(e,k);
-        
+      AD H = xi(elem,pt) + bath(elem,pt);
+      AD uHu = Hu(elem,pt)*Hu(elem,pt)/H;
+      AD uHv = Hu(elem,pt)*Hv(elem,pt)/H;
+      AD vHv = Hv(elem,pt)*Hv(elem,pt)/H;
+      
+      f = (Hu_dot(elem,pt) - gravity*xi(elem,pt)*bath_x(elem,pt))*wts(elem,pt);
+      Fx = -(uHu + 0.5*gravity*(H*H-bath(elem,pt)*bath(elem,pt)))*wts(elem,pt);
+      Fy = -uHv*wts(elem,pt);
+      for (int dof=0; dof<Hubasis.extent(1); dof++ ) {
+        res(elem,Huoff(dof)) += f*Hubasis(elem,dof,pt) + Fx*Hubasis_grad(elem,dof,pt,0) + Fy*Hubasis_grad(elem,dof,pt,1);
       }
       
-      for (int i=0; i<Hvbasis.extent(1); i++ ) {
-        
-        int resindex = offsets(Hv_num,i);
-        v = Hvbasis(e,i,k);
-        
-        dvdx = Hvbasis_grad(e,i,k,0);
-        dvdy = Hvbasis_grad(e,i,k,1);
-        
-        res(e,resindex) += (Hv_dot*v - (Hu*Hu/H)*dvdx - (Hv*Hu/H + 0.5*gravity*(H*H - bath(e,k)*bath(e,k)))*dvdy + gravity*xi*bath_y(e,k)*v)*wts(e,k);
-        
+      f = (Hv_dot(elem,pt) - gravity*xi(elem,pt)*bath_y(elem,pt))*wts(elem,pt);
+      Fx = -uHv*wts(elem,pt);
+      Fy = -(vHv + 0.5*gravity*(H*H-bath(elem,pt)*bath(elem,pt)))*wts(elem,pt);
+      
+      for (int dof=0; dof<Hvbasis.extent(1); dof++ ) {
+        res(elem,Hvoff(dof)) += f*Hubasis(elem,dof,pt) + Fx*Hubasis_grad(elem,dof,pt,0) + Fy*Hubasis_grad(elem,dof,pt,1);
       }
       
     }
@@ -203,6 +198,7 @@ void shallowwater::boundaryResidual() {
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   ScalarT bb = 1.0;
+  ScalarT gravity = 9.8;
   int cside = wkset->currentside;
   for (int e=0; e<sideinfo.extent(0); e++) {
     if (sideinfo(e,H_num,cside,0) == 2) { // Element e is on the side

@@ -1,11 +1,15 @@
 %YAML 1.1
 ---
 ANONYMOUS:
-  verbosity: 0
+  verbosity: 10
+  profile: false
   Mesh input file: input_mesh.yaml
   Physics: 
     eblock-0_0: 
       modules: shallow water
+      assemble boundary terms: false
+      compute boundary terms: false
+      compute face terms: false
       Dirichlet conditions:
         Hu:
           left: '0.0'
