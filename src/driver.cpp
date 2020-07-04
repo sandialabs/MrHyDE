@@ -43,8 +43,8 @@ int main(int argc,char * argv[]) {
   
   Kokkos::initialize();
   
-  Teuchos::RCP<Teuchos::Time> totalTimer = Teuchos::TimeMonitor::getNewCounter("driver::total setup and execution time");
-  Teuchos::RCP<Teuchos::Time> runTimer = Teuchos::TimeMonitor::getNewCounter("driver::total run time");
+  Teuchos::RCP<Teuchos::Time> totalTimer = Teuchos::TimeMonitor::getNewCounter("MILO::driver::total setup and execution time");
+  Teuchos::RCP<Teuchos::Time> runTimer = Teuchos::TimeMonitor::getNewCounter("MILO::driver::total run time");
   
   string input_file_name = "input.yaml";
   if (argc > 1) {
