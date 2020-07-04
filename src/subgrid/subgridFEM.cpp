@@ -1484,33 +1484,10 @@ void SubGridFEM::subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
               cols[col] = LIDs(i,col);
             }
             localMatrix.sumIntoValues(rowIndex, cols, numentries, vals, true, false); // bools: isSorted, useAtomics
+            // indices are not actually sorted, but this seems to run faster
             // may need to set useAtomics = true if subgridexec is not Serial
           }
         }
-        /*
-        Kokkos::View<GO**,HostDevice> GIDs = cells[0][e]->GIDs;
-        //Teuchos::Array<ScalarT> vals(GIDs.extent(1));
-        //Teuchos::Array<GO> cols(GIDs.extent(1));
-        LO numentries = static_cast<LO>(GIDs.extent(1));
-        ScalarT vals[numentries];
-        GO cols[numentries];
-        for (unsigned int i=0; i<GIDs.extent(0); i++) {
-          //auto cols = Kokkos::subview(GIDs,i,Kokkos::ALL());
-          for( size_t row=0; row<GIDs.extent(1); row++ ) {
-            //auto vals = Kokkos::subview(local_J,i,row,Kokkos::ALL());
-            GO rowIndex = GIDs(i,row);
-            ScalarT val = local_res(i,row,0);
-            res_over->sumIntoGlobalValue(rowIndex,0, val);
-            //res_over->sumIntoLocalValue(rowIndex,0, val);
-            for( size_t col=0; col<numentries; col++ ) {
-              vals[col] = local_J(i,row,col);
-              cols[col] = GIDs(i,col);
-            }
-            //sub_J_over->sumIntoLocalValues(rowIndex, cols, vals);
-            //sub_J_over->sumIntoGlobalValues(rowIndex, cols, vals);
-            sub_J_over->sumIntoGlobalValues(rowIndex, numentries, vals, cols, false);
-          }
-        }*/
       }
     }
     
