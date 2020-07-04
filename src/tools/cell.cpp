@@ -466,9 +466,9 @@ void cell::computeSolAvg() {
       for (int dim=0; dim<sol.extent(3); dim++) {
         ScalarT solavg = 0.0;
         for (int pt=0; pt<sol.extent(2); pt++) {
-          solavg += sol(elem,dof,pt,dim).val();
+          solavg += sol(elem,dof,pt,dim).val()*wts(elem,pt);
         }
-        u_avg(elem,dof,dim) = solavg;///avgwt;
+        u_avg(elem,dof,dim) = solavg/avgwt;
       }
     }
   });
