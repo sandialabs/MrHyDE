@@ -175,7 +175,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   else if (spaceDim == 3) {
     maxEntries = 8*maxDerivs;
   }
-  //maxEntries = 256;
+  //maxEntries = 512;
   
   this->setupLinearAlgebra();
   
@@ -307,6 +307,24 @@ void solver::setButcherTableau(const string & tableau) {
     butcher_c = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_c",2);
     butcher_c(0) = 1.0/2.0 + std::sqrt(3)/6.0;;
     butcher_c(1) = 1.0/2.0 - std::sqrt(3)/6.0;;
+  }
+  else if (tableau == "DIRK-3,3") { // 3-stage, 3rd order
+    ScalarT p = 0.4358665215;
+    butcher_A = Kokkos::View<ScalarT**,UnifiedDevice>("butcher_A",3,3);
+    butcher_A(0,0) = p;
+    butcher_A(1,0) = (1.0-p)/2.0;
+    butcher_A(1,1) = p;
+    butcher_A(2,0) = -3.0*p*p/2.0+4.0*p-1.0/4.0;
+    butcher_A(2,1) = 3.0*p*p/2.0 - 5.0*p + 5.0/4.0;
+    butcher_A(2,2) = p;
+    butcher_b = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_b",3);
+    butcher_b(0) = -3.0*p*p/2.0+4.0*p-1.0/4.0;
+    butcher_b(1) = 3.0*p*p/2.0-5.0*p+5.0/4.0;
+    butcher_b(2) = p;
+    butcher_c = Kokkos::View<ScalarT*,UnifiedDevice>("butcher_c",3);
+    butcher_c(0) = p;
+    butcher_c(1) = (1.0+p)/2.0;
+    butcher_c(2) = 1.0;
   }
   for (size_t b=0; b<assembler->cells.size(); b++) {
     assembler->wkset[b]->butcher_A = butcher_A;
@@ -1343,6 +1361,8 @@ void solver::computeSensitivities(vector_RCP & u,
 
 void solver::setDirichlet(vector_RCP & initial) {
   
+  Teuchos::TimeMonitor localtimer(*initdbctimer);
+  
   auto init_kv = initial->getLocalView<HostDevice>();
   //auto meas_kv = meas->getLocalView<HostDevice>();
   
@@ -1515,7 +1535,7 @@ void solver::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
     Problem->setProblem();
     
     Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList());
-    belosList->set("Maximum Iterations",    kspace); // Maximum number of iterations allowed
+    belosList->set("Maximum Iterations",    liniter); // Maximum number of iterations allowed
     belosList->set("Convergence Tolerance", lintol);    // Relative convergence tolerance requested
     if (verbosity > 9) {
       belosList->set("Verbosity", Belos::Errors + Belos::Warnings + Belos::StatusTestDetails);
@@ -1536,7 +1556,7 @@ void solver::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
     belosList->set("number of equations",numEqns);
     
     belosList->set("Output Style",          Belos::Brief);
-    belosList->set("Implicit Residual Scaling", "None");
+    belosList->set("Implicit Residual Scaling", "Norm of Preconditioned Initial Residual");//None");
     
     Teuchos::RCP<Belos::SolverManager<ScalarT, LA_MultiVector, LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT, LA_MultiVector, LA_Operator>(Problem, belosList));
     

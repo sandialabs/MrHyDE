@@ -228,6 +228,7 @@ private:
   Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - strong Dirichlet BCs");
   Teuchos::RCP<Teuchos::Time> completetimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - fill complete");
   Teuchos::RCP<Teuchos::Time> msprojtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - multiscale projection");
+  Teuchos::RCP<Teuchos::Time> initdbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::setDirichlet()");
   
 };
 
