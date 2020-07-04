@@ -18,11 +18,11 @@ nargs = len(sys.argv)
 profile_time = False
 profile_timepereval = True
 profile_counts = True
-filter = "MILO"
+filters = ["MILO","panzer"]
 chart_type = "bar"
 chart_orient = "vertical"
 
-memotol = 0.05 # only use labels for the functions that take over a certain proportion of the total time
+memotol = 0.1 # only use labels for the functions that take over a certain proportion of the total time
 if nargs > 1:
   for k in range(1,nargs) :
     if sys.argv[k] == "time" :
@@ -52,8 +52,6 @@ scale_timers = False
 if chart_type == "donut" :
   scale_timers = True
 
-numfilt = len(filter)
-
 timer_tags = []
 timer_mins = []
 timer_maxs = []
@@ -81,40 +79,48 @@ while (ll < numlines):
     
   if intimers and not tstart :
     if (line[0:2] == "  ") :
-      if (line[3:numfilt+3] == filter) :
-        tag = line[numfilt+5]
-        intag = True
-        for i in range(numfilt+6,len(line)) :
-          if intag :
-            if line[i] == ":":
-              intag = False
-              memo = line[i+2:len(line)-4]
-            else :
-              tag += line[i]
-        timer_tags.append(tag)
-        timer_memos.append(memo)
+      for filter in filters :
+
+        numfilt = len(filter)
+
+        if (line[3:numfilt+3] == filter) :
+          tag = line[numfilt+5]
+          intag = True
+          for i in range(numfilt+6,len(line)) :
+            if intag :
+              if line[i] == ":":
+                intag = False
+                memo = line[i+2:len(line)-4]
+              elif line[i] == "-" :
+                intag = False
+                memo = line[i+2:len(line)-4]
+              else :
+                tag += line[i]
+
+          timer_tags.append(tag)
+          timer_memos.append(memo)
           
-        line = lines[ll]
-        timer_mins.append(float(line[17:len(line)-1]))
-        ll += 1
+          line = lines[ll]
+          timer_mins.append(float(line[17:len(line)-1]))
+          ll += 1
           
-        line = lines[ll]
-        timer_means.append(float(line[18:len(line)-1]))
-        ll += 1
+          line = lines[ll]
+          timer_means.append(float(line[18:len(line)-1]))
+          ll += 1
           
-        line = lines[ll]
-        timer_maxs.append(float(line[17:len(line)-1]))
-        ll += 1
+          line = lines[ll]
+          timer_maxs.append(float(line[17:len(line)-1]))
+          ll += 1
           
-        line = lines[ll]
-        timer_meanocs.append(float(line[23:len(line)-1]))
-        ll += 1
+          line = lines[ll]
+          timer_meanocs.append(float(line[23:len(line)-1]))
+          ll += 1
           
-        havetimer = True
-        inlabel = True
-      else :
-        inlabel = False
-        havetimer = True
+          havetimer = True
+          inlabel = True
+        else :
+          inlabel = False
+          havetimer = True
     else :
       intimers = False
 
@@ -184,11 +190,14 @@ if chart_type == "donut" :
 elif chart_type == "bar" :
   barWidth = 0.7
 
-  barcolors=[plt.cm.Blues, plt.cm.Reds, plt.cm.Greens, plt.cm.Purples, plt.cm.Oranges]
+  #barcolors=[plt.cm.Blues, plt.cm.Reds, plt.cm.Greens, plt.cm.Purples, plt.cm.Oranges]
+  cmap = plt.get_cmap('gist_rainbow')
+  barcolors = cmap(np.linspace(0, 1.0, len(timer_groups)))
   colors=[]
   for k in range(len(timer_groups)) :
-    ii = k%4
-    colors.append(barcolors[ii](0.6))
+    #ii = k%4
+    #colors.append(barcolors[ii](0.6))
+    colors.append(barcolors[k])
   
   prog = 0
 
@@ -209,7 +218,7 @@ elif chart_type == "bar" :
         prog += 1
 
     if chart_orient == "horizontal" :
-      plt.barh(x, bars, height=barWidth, color = colors[k], edgecolor = 'black', yerr=errs, capsize=7, label=timer_groups[k])
+      plt.barh(x, bars, height=barWidth, color = colors[k], edgecolor = 'black', capsize=7, label=timer_groups[k])
     else :
       plt.bar(x, bars, width = barWidth, color = colors[k], edgecolor = 'black', yerr=errs, capsize=7, label=timer_groups[k])
 
@@ -220,8 +229,9 @@ elif chart_type == "bar" :
     plt.subplots_adjust(bottom= 0.5, top = 0.98)
 
   plt.ylabel('height')
-  plt.legend()
+  plt.legend(fontsize=10)
 
+  plt.rcParams.update({'font.size': 10})
   # Show graphic
   plt.show()
 
