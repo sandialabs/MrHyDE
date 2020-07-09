@@ -1,30 +1,30 @@
 %YAML 1.1
 ---
 ANONYMOUS:
-  verbosity: 10
+  verbosity: 0
   profile: false
   Mesh input file: input_mesh.yaml
   Physics: 
-    eblock-0_0: 
-      modules: shallow water
-      assemble boundary terms: false
-      compute boundary terms: false
-      compute face terms: false
-      Dirichlet conditions:
-        Hu:
-          left: '0.0'
-          right: '0.0'
-        Hv:
-          top: '0.0'
-          bottom: '0.0'
-      Initial conditions:
-        H: 1.0 + 0.1*exp(hump)
-        Hu: '0.0'
-        Hv: '0.0'
-      True solutions:
-        H: '0.0'
-        Hu: '0.0'
-        Hv: '0.0'
+    modules: shallow water
+    assemble boundary terms: false
+    compute boundary terms: false
+    compute face terms: false
+    Dirichlet conditions:
+      scalar data: true
+      Hu:
+        left: 0.0
+        right: 0.0
+      Hv:
+        top: 0.0
+        bottom: 0.0
+    Initial conditions:
+      H: 1.0 + 0.1*exp(hump)
+      Hu: '0.0'
+      Hv: '0.0'
+    True solutions:
+      H: '0.0'
+      Hu: '0.0'
+      Hv: '0.0'
   Discretization:
     eblock-0_0:
       order:

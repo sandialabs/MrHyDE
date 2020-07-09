@@ -4,23 +4,24 @@ ANONYMOUS:
   verbosity: 0
   Mesh input file: input_mesh.yaml
   Physics:
-    eblock-0_0_0:
-      modules: linearelasticity
-      Dirichlet conditions:
-        dx:
-          all boundaries: '0.0'
-        dy:
-          all boundaries: '0.0'
-        dz:
-          all boundaries: '0.0'
-      Initial conditions:
-        dx: '0.0'
-        dy: '0.0'
-        dz: '0.0'
-      True solutions:
-        dx: sin(A*pi*x)*sin(A*pi*y)*sin(A*pi*z)
-        dy: sin(B*pi*x)*sin(B*pi*y)*sin(B*pi*z)
-        dz: sin(C*pi*x)*sin(C*pi*y)*sin(C*pi*z)
+    modules: linearelasticity
+    Dirichlet conditions:
+      scalar data: true
+      dx:
+        all boundaries: 0.0
+      dy:
+        all boundaries: 0.0
+      dz:
+        all boundaries: 0.0
+    Initial conditions:
+      scalar data: true
+      dx: 0.0
+      dy: 0.0
+      dz: 0.0
+    True solutions:
+      dx: sin(A*pi*x)*sin(A*pi*y)*sin(A*pi*z)
+      dy: sin(B*pi*x)*sin(B*pi*y)*sin(B*pi*z)
+      dz: sin(C*pi*x)*sin(C*pi*y)*sin(C*pi*z)
   Functions:
     lambda: '1.0'
     mu: '1.0'
@@ -56,9 +57,9 @@ ANONYMOUS:
         dz: 1
       quadrature: 2
   Solver:
-    workset size: 10
+    workset size: 100
     solver: steady-state
-    use direct solver: true
+    use direct solver: false
   Postprocess: 
     response type: pointwise
     compute response: false

@@ -592,7 +592,6 @@ void cell::updateStageSoln() {
       }
     }
   });
-  AssemblyExec::execution_space().fence();
   //KokkosTools::print(u_stage);
   
 }
@@ -1843,7 +1842,6 @@ void cell::resetAdjPrev(const ScalarT & val) {
       adjPrev(i,j) = val;
     }
   });
-  AssemblyExec::execution_space().fence();
 }
 
 

@@ -341,6 +341,7 @@ public:
   
   Teuchos::RCP<Teuchos::Time> bctimer = Teuchos::TimeMonitor::getNewCounter("MILO::physics::setBCData()");
   Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::physics::setDirichletData()");
+  Teuchos::RCP<Teuchos::Time> sideinfotimer = Teuchos::TimeMonitor::getNewCounter("MILO::physics::getSideInfo()");
   
 };
 

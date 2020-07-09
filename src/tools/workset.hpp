@@ -86,18 +86,15 @@ class workset {
   void computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
                                   Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
                                   Kokkos::View<ScalarT****,AssemblyDevice> u_stage,
-                                  const int & seedwhat,
-                                  Kokkos::View<AD***,AssemblyDevice> uvals,
-                                  Kokkos::View<AD***,AssemblyDevice> u_dotvals);
-
+                                  const int & seedwhat);
+  
   ////////////////////////////////////////////////////////////////////////////////////
   // Compute the seeded solutions for steady-state problems
   ////////////////////////////////////////////////////////////////////////////////////
   
   void computeSolnSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
-                               const int & seedwhat,
-                               Kokkos::View<AD***,AssemblyDevice> uvals);
-
+                               const int & seedwhat);
+                               
   ////////////////////////////////////////////////////////////////////////////////////
   // Compute the solutions at the volumetric ip
   ////////////////////////////////////////////////////////////////////////////////////
@@ -195,6 +192,7 @@ class workset {
   Kokkos::View<ScalarT***,AssemblyDevice> ip_KV, ip_side_KV, normals_KV, point_KV;
   
   Kokkos::View<int**,UnifiedDevice> var_bcs;
+  Kokkos::View<AD***,AssemblyDevice> uvals, u_dotvals;
   
   vector<DRV> basis;
   vector<DRV> basis_grad;

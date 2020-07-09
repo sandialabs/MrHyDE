@@ -7,13 +7,15 @@ ANONYMOUS:
   Physics:
     modules: linearelasticity
     Dirichlet conditions:
+      scalar data: true
       dx:
-        all boundaries: '0.0'
+        all boundaries: 0.0
       dy:
-        all boundaries: '0.0'
+        all boundaries: 0.0
     Initial conditions:
-      dx: '0.0'
-      dy: '0.0'
+      scalar data: true
+      dx: 0.0
+      dy: 0.0
     True solutions:
       dx: sin(A*pi*x)*sin(A*pi*y)
       dy: sin(B*pi*x)*sin(B*pi*y)
@@ -37,6 +39,7 @@ ANONYMOUS:
     quadrature: 2
   Solver:
     solver: steady-state
+    workset size: 100
   Postprocess: 
     response type: pointwise
     compute response: false

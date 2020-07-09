@@ -15,15 +15,20 @@ ANONYMOUS:
     use log E: false
     modules: linearelasticity
     Dirichlet conditions:
+      scalar data: true
       dx:
-        bottom: '0.0'
+        bottom: 0.0
       dy:
-        bottom: '0.0'
+        bottom: 0.0
     Neumann conditions:
       dx:
         top: 'xtrac'
       dy:
         top: 'ytrac'
+    Initial conditions:
+      scalar data: true
+      dx: 0.0
+      dy: 0.0
     Responses:
       rdx: 'dx'
       rdy: 'dy'

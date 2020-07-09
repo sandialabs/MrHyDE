@@ -149,6 +149,8 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
 
 void AssemblyManager::createCells() {
   
+  Teuchos::TimeMonitor localtimer(*celltimer);
+  
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::createCells ..." << endl;
@@ -430,6 +432,8 @@ void AssemblyManager::createCells() {
 /////////////////////////////////////////////////////////////////////////////
 
 void AssemblyManager::createWorkset() {
+  
+  Teuchos::TimeMonitor localtimer(*wksettimer);
   
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -839,18 +843,8 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
     
     {
       Teuchos::TimeMonitor localtimer(*phystimer);
-      
-      // This could be done on either host or device
-      parallel_for(RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int p ) {
-        for (int n=0; n<local_res.extent(1); n++) {
-          for (int s=0; s<local_res.extent(2); s++) {
-            local_res(p,n,s) = 0.0;
-          }
-          for (int s=0; s<local_J.extent(2); s++) {
-            local_J(p,n,s) = 0.0;
-          }
-        }
-      });
+      Kokkos::deep_copy(local_res,0.0);
+      Kokkos::deep_copy(local_J,0.0);
       
       cells[b][e]->computeJacRes(current_time, isTransient, useadjoint, compute_jacobian, compute_sens,
                                  num_active_params, compute_disc_sens, false, store_adjPrev,
@@ -938,18 +932,8 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
         {
           Teuchos::TimeMonitor localtimer(*phystimer);
           
-          parallel_for(RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int p ) {
-            for (int n=0; n<local_res.extent(1); n++) {
-              for (int s=0; s<local_res.extent(2); s++) {
-                local_res(p,n,s) = 0.0;
-              }
-            }
-            for (int n=0; n<local_J.extent(1); n++) {
-              for (int s=0; s<local_J.extent(2); s++) {
-                local_J(p,n,s) = 0.0;
-              }
-            }
-          });
+          Kokkos::deep_copy(local_res,0.0);
+          Kokkos::deep_copy(local_J,0.0);
           
           boundaryCells[b][e]->computeJacRes(current_time, isTransient, useadjoint, compute_jacobian, compute_sens,
                                              num_active_params, compute_disc_sens, false, store_adjPrev,

@@ -74,6 +74,7 @@ public:
   // these are common to all elements/cells and are often used on both devices
   Kokkos::View<int*,UnifiedDevice> numDOF, numParamDOF, numAuxDOF;
   
+  Teuchos::RCP<Teuchos::Time> celltimer = Teuchos::TimeMonitor::getNewCounter("MILO::cellMetaData::constructor()");
 };
 
 #endif

@@ -28,6 +28,8 @@ myLevel(myLevel_), build_face_terms(build_face_terms_), assemble_face_terms(asse
 sidenames(sidenames_), ref_ip(ref_ip_), ref_wts(ref_wts_),
 basis_types(basis_types_), basis_pointers(basis_pointers_), numDiscParams(num_params) {
   
+  Teuchos::TimeMonitor localtimer(*celltimer);
+  
   compute_diff = settings->sublist("Postprocess").get<bool>("Compute Difference in Objective", true);
   useFineScale = settings->sublist("Postprocess").get<bool>("Use fine scale sensors",true);
   loadSensorFiles = settings->sublist("Analysis").get<bool>("Load Sensor Files",false);

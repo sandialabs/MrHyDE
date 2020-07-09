@@ -27,7 +27,7 @@ ANONYMOUS:
     quadrature: 2
   Solver:
     solver: transient
-    workset Size: 1
+    workset size: 1
     initial type: interpolation
     nonlinear TOL: 1.0e-07
     max nonlinear iters: 10

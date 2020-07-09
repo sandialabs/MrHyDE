@@ -1423,6 +1423,9 @@ void physics::setDirichletData(Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
 
 Kokkos::View<int****,HostDevice> physics::getSideInfo(const size_t & block,
                                                      Kokkos::View<int*,HostDevice> elem) {
+  
+  Teuchos::TimeMonitor localtimer(*sideinfotimer);
+  
   size_t nelem = elem.extent(0);
   size_t nvars = side_info[block].extent(1);
   size_t nelemsides = side_info[block].extent(2);

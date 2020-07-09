@@ -51,9 +51,8 @@ celltopo(topo), var_bcs(var_bcs_), isTransient(isTransient_)  { //, timeInt(time
     numsides = celltopo->getFaceCount();
   }
   time_KV = Kokkos::View<ScalarT*,AssemblyDevice>("time",1); // defaults to 0.0
-  //sidetype = Kokkos::View<int*,AssemblyDevice>("side types",numElem);
   
-  // these can point to different arrays ... data must be deep copied into them
+  // these can point to different arrays
   ip = DRV("ip", numElem,numip, dimension);
   wts = DRV("wts", numElem, numip);
   ip_side = DRV("ip_side", numElem,numsideip,dimension);
@@ -75,6 +74,15 @@ celltopo(topo), var_bcs(var_bcs_), isTransient(isTransient_)  { //, timeInt(time
   have_rotation_phi = false;
   rotation = Kokkos::View<ScalarT***,AssemblyDevice>("rotation matrix",numElem,3,3);
   
+  int maxb = 0;
+  for (size_t i=0; i<basis_pointers.size(); i++) {
+    int numb = basis_pointers[i]->getCardinality();
+    maxb = std::max(maxb,numb);
+  }
+  uvals = Kokkos::View<AD***,AssemblyDevice>("seeded uvals",numElem, numVars, maxb);
+  if (isTransient) {
+    u_dotvals = Kokkos::View<AD***,AssemblyDevice>("seeded uvals",numElem, numVars, maxb);
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -295,10 +303,8 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
 void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
                                          Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
                                          Kokkos::View<ScalarT****,AssemblyDevice> u_stage,
-                                         const int & seedwhat,
-                                         Kokkos::View<AD***,AssemblyDevice> uvals,
-                                         Kokkos::View<AD***,AssemblyDevice> u_dotvals) {
-
+                                         const int & seedwhat) {
+                                         
   if (seedwhat == 1) {
     parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       
@@ -402,8 +408,7 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
 ////////////////////////////////////////////////////////////////////////////////////
 
 void workset::computeSolnSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
-                                      const int & seedwhat,
-                                      Kokkos::View<AD***,AssemblyDevice> uvals) {
+                                      const int & seedwhat) {
   
   if (seedwhat == 1) {
     parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
@@ -435,18 +440,14 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
                                const int & seedwhat) {
   
   // Reset/fill operations specialized for each basis type
-  Kokkos::View<AD***,AssemblyDevice> uvals, u_dotvals;
   
   {
     Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
     if (isTransient) {
-      uvals = Kokkos::View<AD***,AssemblyDevice>("seeded uvals",u.extent(0),u.extent(1),u.extent(2)); //(elem,var,dof)
-      u_dotvals = Kokkos::View<AD***,AssemblyDevice>("seeded uvals",u.extent(0),u.extent(1),u.extent(2)); //(elem,var,dof)
-      this->computeSolnTransientSeeded(u, u_prev, u_stage, seedwhat, uvals, u_dotvals);
+      this->computeSolnTransientSeeded(u, u_prev, u_stage, seedwhat);
     }
     else { // steady-state
-      uvals = Kokkos::View<AD***,AssemblyDevice>("seeded uvals",u.extent(0),u.extent(1),u.extent(2)); //(elem,var,dof)
-      this->computeSolnSteadySeeded(u, seedwhat, uvals);
+      this->computeSolnSteadySeeded(u, seedwhat);
     }
   }
   

@@ -13,25 +13,29 @@ ANONYMOUS:
     NY: 100
     blocknames: eblock-0_0
   Physics: 
-    eblock-0_0: 
-      modules: helmholtz
-      Dirichlet conditions:
-        ureal:
-          left: '0.0'
-          top: '0.0'
-          bottom: '0.0'
-        uimag:
-          left: '0.0'
-          top: '0.0'
-          bottom: '0.0'
-      Neumann conditions:
-        ureal:
-          right: '0.0'
-        uimag:
-          right: '0.0'
-      True solutions:
-        ureal: sin(2*pi*x)*sin(2*pi*y)
-        uimag: sin(2*pi*x)*sin(2*pi*y)
+    modules: helmholtz
+    Dirichlet conditions:
+      scalar data: true
+      ureal:
+        left: 0.0
+        top: 0.0
+        bottom: 0.0
+      uimag:
+        left: 0.0
+        top: 0.0
+        bottom: 0.0
+    Neumann conditions:
+      ureal:
+        right: '0.0'
+      uimag:
+        right: '0.0'
+    Initial conditions:
+      scalar data: true
+      ureal: 0.0
+      uimag: 0.0
+    True solutions:
+      ureal: sin(2*pi*x)*sin(2*pi*y)
+      uimag: sin(2*pi*x)*sin(2*pi*y)
     test: 4
   Functions:
     source_r_side: 2.0*pi*cos(2*pi*x)*sin(2*pi*y)
