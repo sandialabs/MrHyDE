@@ -1,0 +1,45 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  profile: true
+  Mesh input file: input_mesh.yaml
+  Functions input file: input_functions.yaml
+  Physics: 
+    modules: thermal
+    assemble boundary terms: false
+    build face terms: true
+    Dirichlet conditions:
+      e:
+        all boundaries: sin(x)*sin(y)
+    Initial conditions:
+      e: '0.0'
+    True solutions:
+      e: sin(x)*sin(y)
+      e face: sin(x)*sin(y)
+      grad(e)_x: cos(x)*sin(y)
+      grad(e)_y: sin(x)*cos(y)
+    Extra fields:
+      es: e*e
+  Discretization:
+    order:
+      e: 1
+    quadrature: 2
+  Parameters input file: input_params.yaml
+  Solver: 
+    solver: steady-state
+    workset size: 40
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 2
+    use strong DBCs: true
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    response type: global
+    compute errors: true
+    compute response: true
+    compute objective: false
+    compute sensitivities: false
+    write solution: true
+...

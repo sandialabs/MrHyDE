@@ -1,0 +1,11 @@
+
+*********************************************************
+***** Writing the solution to output.exo
+*********************************************************
+
+*********************************************************
+***** Computing errors ******
+
+***** L2 norm of the error for e = 1.42006e-05  (time = 0)
+***** L2 norm of the error for grad(e) = 0.00278284  (time = 0)
+***** L2-face norm of the error for e = 6.31725e-06  (time = 0)
