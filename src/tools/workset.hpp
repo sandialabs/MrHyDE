@@ -80,6 +80,25 @@ class workset {
   void computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u);
   
   ////////////////////////////////////////////////////////////////////////////////////
+  // Compute the seeded solutions for general transient problems
+  ////////////////////////////////////////////////////////////////////////////////////
+  
+  void computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
+                                  Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
+                                  Kokkos::View<ScalarT****,AssemblyDevice> u_stage,
+                                  const int & seedwhat,
+                                  Kokkos::View<AD***,AssemblyDevice> uvals,
+                                  Kokkos::View<AD***,AssemblyDevice> u_dotvals);
+
+  ////////////////////////////////////////////////////////////////////////////////////
+  // Compute the seeded solutions for steady-state problems
+  ////////////////////////////////////////////////////////////////////////////////////
+  
+  void computeSolnSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
+                               const int & seedwhat,
+                               Kokkos::View<AD***,AssemblyDevice> uvals);
+
+  ////////////////////////////////////////////////////////////////////////////////////
   // Compute the solutions at the volumetric ip
   ////////////////////////////////////////////////////////////////////////////////////
   
@@ -218,7 +237,8 @@ class workset {
   Teuchos::RCP<Teuchos::Time> worksetFaceUpdateIPTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::updateFace - integration data");
   Teuchos::RCP<Teuchos::Time> worksetFaceUpdateBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::updateFace - basis data");
   Teuchos::RCP<Teuchos::Time> worksetResetTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::reset*");
-  Teuchos::RCP<Teuchos::Time> worksetComputeSolnVolTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::computeSolnVolIP");
+  Teuchos::RCP<Teuchos::Time> worksetComputeSolnVolTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::computeSolnVolIP - compute seeded sol at ip");
+  Teuchos::RCP<Teuchos::Time> worksetComputeSolnSeededTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::computeSolnVolIP - allocate/compute seeded");
   Teuchos::RCP<Teuchos::Time> worksetComputeSolnSideTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::computeSolnSideIP");
   Teuchos::RCP<Teuchos::Time> worksetComputeParamVolTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::computeParamVolIP");
   Teuchos::RCP<Teuchos::Time> worksetComputeParamSideTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::computeParamSideIP");

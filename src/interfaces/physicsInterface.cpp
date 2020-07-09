@@ -114,7 +114,17 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
     // Add initial conditions
     Teuchos::ParameterList initial_conds = blockPhysSettings[b].sublist("Initial conditions");
     for (size_t j=0; j<varlist[b].size(); j++) {
-      string expression = initial_conds.get<string>(varlist[b][j],"0.0");
+      string expression;
+      if (initial_conds.isType<string>(varlist[b][j])) {
+        expression = initial_conds.get<string>(varlist[b][j]);
+      }
+      else if (initial_conds.isType<double>(varlist[b][j])) {
+        double value = initial_conds.get<double>(varlist[b][j]);
+        expression = std::to_string(value);
+      }
+      else {
+        expression = "0.0";
+      }
       functionManagers[b]->addFunction("initial "+varlist[b][j],expression,"ip");
       functionManagers[b]->addFunction("initial "+varlist[b][j],expression,"point");
     }
@@ -124,31 +134,36 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
     bool weak_dbcs = dbcs.get<bool>("use weak Dirichlet",false);
     for (size_t j=0; j<varlist[b].size(); j++) {
       if (dbcs.isSublist(varlist[b][j])) {
-        if (dbcs.sublist(varlist[b][j]).isParameter("all boundaries")) {
+        if (dbcs.sublist(varlist[b][j]).isType<string>("all boundaries")) {
           string entry = dbcs.sublist(varlist[b][j]).get<string>("all boundaries");
           for (size_t s=0; s<sideNames.size(); s++) {
             string label = "Dirichlet " + varlist[b][j] + " " + sideNames[s];
-            //if (weak_dbcs) {
-              functionManagers[b]->addFunction(label,entry,"side ip");
-            //}
-            //else {
-              functionManagers[b]->addFunction(label,entry,"point");
-            //}
+            functionManagers[b]->addFunction(label,entry,"side ip");
           }
-          
+        }
+        else if (dbcs.sublist(varlist[b][j]).isType<double>("all boundaries")) {
+          double value = dbcs.sublist(varlist[b][j]).get<double>("all boundaries");
+          string entry = std::to_string(value);
+          for (size_t s=0; s<sideNames.size(); s++) {
+            string label = "Dirichlet " + varlist[b][j] + " " + sideNames[s];
+            functionManagers[b]->addFunction(label,entry,"side ip");
+          }
         }
         else {
           Teuchos::ParameterList currdbcs = dbcs.sublist(varlist[b][j]);
           Teuchos::ParameterList::ConstIterator d_itr = currdbcs.begin();
           while (d_itr != currdbcs.end()) {
-            string entry = currdbcs.get<string>(d_itr->first);
-            string label = "Dirichlet " + varlist[b][j] + " " + d_itr->first;
-            //if (weak_dbcs) {
+            if (currdbcs.isType<string>(d_itr->first)) {
+              string entry = currdbcs.get<string>(d_itr->first);
+              string label = "Dirichlet " + varlist[b][j] + " " + d_itr->first;
               functionManagers[b]->addFunction(label,entry,"side ip");
-            //}
-            //else {
-              functionManagers[b]->addFunction(label,entry,"point");
-            //}
+            }
+            else if (currdbcs.isType<double>(d_itr->first)) {
+              double value = currdbcs.get<double>(d_itr->first);
+              string entry = std::to_string(value);
+              string label = "Dirichlet " + varlist[b][j] + " " + d_itr->first;
+              functionManagers[b]->addFunction(label,entry,"side ip");
+            }
             d_itr++;
           }
         }
@@ -885,6 +900,33 @@ Kokkos::View<ScalarT***,AssemblyDevice> physics::getInitial(const DRV & ip,
   return ivals;
 }
 
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+Kokkos::View<ScalarT**,AssemblyDevice> physics::getDirichlet(const DRV & ip, const int & var,
+                                                              const int & block,
+                                                              const std::string & sidename,
+                                                              Teuchos::RCP<workset> & wkset) {
+  
+  
+  size_t numElem = ip.extent(0);
+  size_t numip = ip.extent(1);
+  
+  Kokkos::View<ScalarT**,AssemblyDevice> dvals("temp dnvals", numElem, numip);
+  
+  // evaluate
+  FDATA dvals_AD = functionManagers[block]->evaluate("Dirichlet " + varlist[block][var] + " " + sidename,"side ip");
+  
+  // copy values
+  parallel_for(RangePolicy<AssemblyExec>(0,dvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    for (size_t i=0; i<dvals.extent(1); i++) {
+      dvals(e,i) = dvals_AD(e,i).val();
+    }
+  });
+  return dvals;
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1046,6 +1088,8 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
                         Teuchos::RCP<panzer::DOFManager> & DOF,
                         std::vector<std::vector<int> > cards) {
   
+  Teuchos::TimeMonitor localtimer(*bctimer);
+  
   if (milo_debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Starting physics::setBCData ..." << endl;
@@ -1117,8 +1161,8 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
     Kokkos::View<int****,HostDevice> currside_info("side info",numElem[b],numVars[b],numSidesPerElem,2);
     
     
-    std::vector<std::vector<size_t> > block_SideIDs, block_GlobalSideIDs;
-    std::vector<std::vector<size_t> > block_ElemIDs;
+    //std::vector<std::vector<size_t> > block_SideIDs, block_GlobalSideIDs;
+    //std::vector<std::vector<size_t> > block_ElemIDs;
     std::vector<int> block_dbc_dofs;
     
     std::string perBCs = settings->sublist("Mesh").get<string>("Periodic Boundaries","");
@@ -1127,118 +1171,76 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
       string var = varlist[b][j];
       int num = DOF->getFieldNum(var);
       vector<int> var_offsets = DOF->getGIDFieldOffsets(blockID,num);
-      //std::sort(var_offsets.begin(), var_offsets.end());
       
       celloffsets.push_back(var_offsets);
       
-      //if (dbc_settings.isSublist(var)) {
+      //vector<size_t> curr_SideIDs;
+      //vector<size_t> curr_GlobalSideIDs;
+      //vector<size_t> curr_ElemIDs;
+      
+      for( size_t side=0; side<sideSets.size(); side++ ) {
+        string sideName = sideSets[side];
         
-        //numBasis[num] = cards[b][getUniqueIndex(b,var)];
-        vector<size_t> curr_SideIDs;
-        vector<size_t> curr_GlobalSideIDs;
-        vector<size_t> curr_ElemIDs;
+        vector<stk::mesh::Entity> sideEntities;
+        mesh->getMySides(sideName, blockID, sideEntities);
         
-        //std::string DBCs = blocksettings.get<std::string>(var+"_DBCs","");
-        
-        for( size_t side=0; side<sideSets.size(); side++ ) {
-          string sideName = sideSets[side];
-          
-          vector<stk::mesh::Entity> sideEntities;
-          mesh->getMySides(sideName, blockID, sideEntities);
-          
-          bool isDiri = false;
-          //bool isPeri = false;
-          bool isNeum = false;
-          if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
-            isDiri = true;
-            if (use_weak_dbcs) {
-              currbcs(j,side) = 4;
-            }
-            else {
-              currbcs(j,side) = 1;
-            }
+        bool isDiri = false;
+        //bool isPeri = false;
+        bool isNeum = false;
+        if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
+          isDiri = true;
+          if (use_weak_dbcs) {
+            currbcs(j,side) = 4;
           }
-          if (nbc_settings.sublist(var).isParameter("all boundaries") || nbc_settings.sublist(var).isParameter(sideName)) {
-            isNeum = true;
-            currbcs(j,side) = 2;
-          }
-          
-          //else if (pbc_settings.sublist(var).isParameter("all boundaries") || pbc_settings.sublist(var).isParameter(sideName)) {
-          //  isPeri = true;
-          //}
-          /*
-          std::size_t found = DBCs.find(sideName);
-          if (found!=std::string::npos) {
-            isDiri = true;
-          }
-          std::size_t foundp = perBCs.find(sideName);
-          if (foundp!=std::string::npos){
-            isPeri = true;
-          }
-           */
-          vector<size_t>             local_side_Ids;
-          vector<stk::mesh::Entity> side_output;
-          vector<size_t>             local_elem_Ids;
-          panzer_stk::workset_utils::getSideElements(*mesh, blockID, sideEntities, local_side_Ids, side_output);
-          
-          for( size_t i=0; i<side_output.size(); i++ ) {
-            local_elem_Ids.push_back(mesh->elementLocalId(side_output[i]));
-            size_t localid = localelemmap[local_elem_Ids[i]];
-            if( isDiri ) {
-              curr_SideIDs.push_back(local_side_Ids[i]);
-              curr_GlobalSideIDs.push_back(side);
-              //curr_ElemIDs.push_back(localid);
-              curr_ElemIDs.push_back(local_elem_Ids[i]);
-              if (use_weak_dbcs) {
-                currside_info(localid, j, local_side_Ids[i], 0) = 4;
-              }
-              else {
-                currside_info(localid, j, local_side_Ids[i], 0) = 1;
-              }
-              currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
-            }
-            else if (isNeum) { // Neumann or Robin
-              currside_info(localid, j, local_side_Ids[i], 0) = 2;
-              currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
-            }
-            //else if (isPeri) {
-            //  currside_info(localid, j, local_side_Ids[i], 0) = 3;
-            //  currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
-            //}
-            /*
-             if( isDiri ) {
-             curr_SideIDs.push_back(local_side_Ids[j]);
-             curr_ElemIDs.push_back(localid);
-             currside_info(localid, num, local_side_Ids[j], 0) = 1;
-             currside_info(localid, num, local_side_Ids[j], 1) = (int)side;
-             }
-             else if (isPeri){
-             currside_info(localid, num, local_side_Ids[j], 0) = 3;
-             currside_info(localid, num, local_side_Ids[j], 1) = (int)side;
-             }
-             else { //neither Dirichlet not periodic
-             currside_info(localid, num, local_side_Ids[j], 0) = 2;
-             currside_info(localid, num, local_side_Ids[j], 1) = (int)side;
-             }*/
+          else {
+            currbcs(j,side) = 1;
           }
         }
-        block_SideIDs.push_back(curr_SideIDs);
-        block_GlobalSideIDs.push_back(curr_GlobalSideIDs);
+        if (nbc_settings.sublist(var).isParameter("all boundaries") || nbc_settings.sublist(var).isParameter(sideName)) {
+          isNeum = true;
+          currbcs(j,side) = 2;
+        }
         
-        block_ElemIDs.push_back(curr_ElemIDs);
-     // }
-      //for (int i=0;i<var_offsets.size(); i++) {
-      //  //curroffsets(num,j) = var_offsets[j];
-      //  curroffsets(j,i) = var_offsets[i];
-      //}
-    
+        vector<size_t>             local_side_Ids;
+        vector<stk::mesh::Entity> side_output;
+        vector<size_t>             local_elem_Ids;
+        panzer_stk::workset_utils::getSideElements(*mesh, blockID, sideEntities, local_side_Ids, side_output);
+        
+        for( size_t i=0; i<side_output.size(); i++ ) {
+          local_elem_Ids.push_back(mesh->elementLocalId(side_output[i]));
+          size_t localid = localelemmap[local_elem_Ids[i]];
+          if( isDiri ) {
+            //curr_SideIDs.push_back(local_side_Ids[i]);
+            //curr_GlobalSideIDs.push_back(side);
+            //curr_ElemIDs.push_back(localid);
+            //curr_ElemIDs.push_back(local_elem_Ids[i]);
+            if (use_weak_dbcs) {
+              currside_info(localid, j, local_side_Ids[i], 0) = 4;
+            }
+            else {
+              currside_info(localid, j, local_side_Ids[i], 0) = 1;
+            }
+            currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
+          }
+          else if (isNeum) { // Neumann or Robin
+            currside_info(localid, j, local_side_Ids[i], 0) = 2;
+            currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
+          }
+        }
+      }
+      //block_SideIDs.push_back(curr_SideIDs);
+      //block_GlobalSideIDs.push_back(curr_GlobalSideIDs);
+      
+      //block_ElemIDs.push_back(curr_ElemIDs);
+     
+      
       // nodeset loop
-      string DBCs = blocksettings.get<std::string>(var+"_point_DBCs","");
+      string point_DBCs = blocksettings.get<std::string>(var+"_point_DBCs","");
       
       vector<int> dbc_nodes;
       for( size_t node=0; node<nodeSets.size(); node++ ) {
         string nodeName = nodeSets[node];
-        std::size_t found = DBCs.find(nodeName);
+        std::size_t found = point_DBCs.find(nodeName);
         bool isDiri = false;
         if (found!=std::string::npos) {
           isDiri = true;
@@ -1269,6 +1271,11 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
     
     offsets.push_back(celloffsets);
     var_bcs.push_back(currbcs);
+    
+    side_info.push_back(currside_info);
+    //localDirichletSideIDs.push_back(block_SideIDs);
+    //globalDirichletSideIDs.push_back(block_GlobalSideIDs);
+    //boundDirichletElemIDs.push_back(block_ElemIDs);
     
     std::sort(block_dbc_dofs.begin(), block_dbc_dofs.end());
     block_dbc_dofs.erase(std::unique(block_dbc_dofs.begin(),
@@ -1315,11 +1322,7 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
                      back_inserter(dbc_final));
     
     
-    side_info.push_back(currside_info);
-    localDirichletSideIDs.push_back(block_SideIDs);
-    globalDirichletSideIDs.push_back(block_GlobalSideIDs);
-    boundDirichletElemIDs.push_back(block_ElemIDs);
-    dbc_dofs.push_back(dbc_final);
+    point_dofs.push_back(dbc_final);
     //offsets.push_back(curroffsets);
     
   }
@@ -1330,6 +1333,90 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
     }
   }
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+void physics::setDirichletData(Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
+                               Teuchos::RCP<panzer::DOFManager> & DOF) {
+  
+  Teuchos::TimeMonitor localtimer(*dbctimer);
+  
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting physics::setDirichletData ..." << endl;
+    }
+  }
+  
+  haveDirichlet = false;
+  for (size_t b=0; b<blocknames.size(); b++) {
+    
+    std::string blockID = blocknames[b];
+    
+    Teuchos::ParameterList dbc_settings;
+    if (settings->sublist("Physics").isSublist(blockID)) {
+      dbc_settings = settings->sublist("Physics").sublist(blockID).sublist("Dirichlet conditions");
+    }
+    else {
+      dbc_settings = settings->sublist("Physics").sublist("Dirichlet conditions");
+    }
+    
+    std::vector<std::vector<LO> > block_dbc_dofs;
+    
+    for (size_t j=0; j<varlist[b].size(); j++) {
+      std::string var = varlist[b][j];
+      int fieldnum = DOF->getFieldNum(var);
+      std::vector<LO> var_dofs;
+      for (size_t side=0; side<sideNames.size(); side++ ) {
+        std::string sideName = sideNames[side];
+        vector<stk::mesh::Entity> sideEntities;
+        mesh->getMySides(sideName, blockID, sideEntities);
+        
+        bool isDiri = false;
+        if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
+          isDiri = true;
+          haveDirichlet = true;
+        }
+        
+        if (isDiri) {
+          
+          vector<size_t>             local_side_Ids;
+          vector<stk::mesh::Entity>  side_output;
+          vector<size_t>             local_elem_Ids;
+          panzer_stk::workset_utils::getSideElements(*mesh, blockID, sideEntities,
+                                                     local_side_Ids, side_output);
+        
+          for( size_t i=0; i<side_output.size(); i++ ) {
+            LO local_EID = mesh->elementLocalId(side_output[i]);
+            auto elemLIDs = DOF->getElementLIDs(local_EID);
+            const pair<vector<int>,vector<int> > SideIndex = DOF->getGIDFieldOffsets_closure(blockID, fieldnum,
+                                                                                             spaceDim-1,
+                                                                                             local_side_Ids[i]);
+            const vector<int> sideOffset = SideIndex.first;
+            
+            for( size_t i=0; i<sideOffset.size(); i++ ) { // for each node
+              var_dofs.push_back(elemLIDs(sideOffset[i]));
+            }
+          }
+        }
+      }
+      std::sort(var_dofs.begin(), var_dofs.end());
+      var_dofs.erase(std::unique(var_dofs.begin(), var_dofs.end()), var_dofs.end());
+      
+      block_dbc_dofs.push_back(var_dofs);
+    }
+    
+    dbc_dofs.push_back(block_dbc_dofs);
+    
+  }
+  
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished physics::setDirichletData" << endl;
+    }
+  }
+}
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1370,70 +1457,18 @@ vector<vector<int> > physics::getOffsets(const int & block, Teuchos::RCP<panzer:
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 Kokkos::View<int**,HostDevice> physics::getSideInfo(const int & block, int & num, size_t & e) {
-  Kokkos::View<int**,HostDevice> local_side_info("side info",numSidesPerElem, 2);
+  Kokkos::View<int**,HostDevice> local_side_info = Kokkos::subview(side_info[block],e,num,Kokkos::ALL(),Kokkos::ALL());
+  /*
   for (int j=0; j<numSidesPerElem; j++) {
     for (int k=0; k<2; k++) {
       Teuchos::Array<int> fcindex(4);
-      fcindex[0] = e;
-      fcindex[1] = num;
-      fcindex[2] = j;
-      fcindex[3] = k;
       local_side_info(j,k) = side_info[block](e,num,j,k);//(e,num,j,k);
     }
   }
-  
+  */
   return local_side_info;
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-/*
-void physics::setPeriBCs(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<panzer_stk::STK_Interface> & mesh){
-  //set periodic BCs...
-  std::string perBCs = settings->sublist("Mesh").get<string>("Periodic Boundaries","");
-  std::stringstream ss(perBCs);
-  std::string perSideName;
-  char delim = ',';
-  std::vector<string> periSides;
-  //bool hasPeri = false; //DEBUG
-  while (std::getline(ss, perSideName, delim)){
-    periSides.push_back(perSideName);
-    //hasPeri = true; //DEBUG
-  }
-  
-  if(periSides.size()%2 != 0) { //check that there are an even number of periodic sides
-    std::cout << "Can't have " << periSides.size() << " periodic sides...need pairs..." << endl;
-  }
-  
-  mesh->getSidesetNames(sideSets);
-  for (int i=0; i<periSides.size(); i++){ //check that periodic sides have been correctly named
-    if (std::find(sideSets.begin(), sideSets.end(), periSides[i]) == sideSets.end()){
-      std::cout << "Incorrectly named periodic side...no side named '" << periSides[i] << "'..." << endl;
-    }
-  }
-  
-  //indicate periodic boundaries to mesh
-  int numPairs = round(periSides.size()/2.0);
-  rectPeriodicMatcher matcher;
-  
-  for (int i=0; i<numPairs; i++){
-    matcher.setTol(1.e-8);
-    Teuchos::RCP<panzer_stk::PeriodicBC_Matcher<rectPeriodicMatcher> > pBC_matcher = Teuchos::rcp( new panzer_stk::PeriodicBC_Matcher<rectPeriodicMatcher>(periSides[2*i],periSides[2*i+1],matcher,"coord") );
-    mesh->addPeriodicBC(pBC_matcher);
-  }
- 
-   if(hasPeri){ //DEBUG
-   std::pair<Teuchos::RCP<std::vector<std::pair<std::size_t,std::size_t> > >, Teuchos::RCP<std::vector<unsigned int> > > meep =
-   mesh->getPeriodicNodePairing();
-   Teuchos::RCP<std::vector<std::pair<std::size_t,std::size_t> > > eep = meep.first;
-   for(int i=0; i<(*eep).size(); i++){
-   std::pair<std::size_t,std::size_t> sheep = (*eep)[i];
-   cout << sheep.first << " " << sheep.second << endl;
-   }
-   }
-}
-*/
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 

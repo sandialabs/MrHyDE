@@ -106,6 +106,7 @@ void porousHDIV::volumeResidual() {
         }
         divv = basis_div(e,i,k);
         int resindex = offsets(unum,i);
+        
         res(e,resindex) += (1.0*(ux*vx+uy*vy+uz*vz) - p*divv)*wts(e,k);
         
       }

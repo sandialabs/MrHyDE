@@ -853,3 +853,115 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
   }
   
 }
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Get the initial condition
+///////////////////////////////////////////////////////////////////////////////////////
+
+Kokkos::View<ScalarT**,AssemblyDevice> BoundaryCell::getDirichlet() {
+  
+  Kokkos::View<ScalarT**,AssemblyDevice> dvals("initial values",numElem,GIDs.extent(1));
+  this->updateWorksetBasis();
+  //wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
+  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
+  Kokkos::View<int**,AssemblyDevice> offsets = wkset->offsets;
+  Kokkos::View<int[1],UnifiedDevice> currind("current index");
+  Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
+  
+  for (int n=0; n<wkset->varlist.size(); n++) {
+    if (bcs(n,sidenum) == 1) { // is this a strong DBC for this variable
+      Kokkos::View<ScalarT**,AssemblyDevice> dip = cellData->physics_RCP->getDirichlet(ip,n,
+                                                                                        cellData->myBlock,
+                                                                                        sidename,
+                                                                                        wkset);
+      int bind = wkset->usebasis[n];
+      std::string btype = cellData->basis_types[bind];
+      currind(0) = n;
+      DRV cbasis = basis[bind];
+      
+      if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE"){
+        parallel_for(RangePolicy<AssemblyExec>(0,dvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          int n = currind(0);
+          for( int i=0; i<numDOF(n); i++ ) {
+            for( size_t j=0; j<dip.extent(1); j++ ) {
+              dvals(e,offsets(n,i)) += dip(e,j)*cbasis(e,i,j)*wts(e,j);
+            }
+          }
+        });
+      }
+      else if (btype == "HDIV"){
+        parallel_for(RangePolicy<AssemblyExec>(0,dvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          int n = currind(0);
+          for( int i=0; i<numDOF(n); i++ ) {
+            for( size_t j=0; j<dip.extent(1); j++ ) {
+              for (size_t s=0; s<cbasis.extent(3); s++) {
+                dvals(e,offsets(n,i)) += dip(e,j)*cbasis(e,i,j,s)*normals(e,j,s)*wts(e,j);
+              }
+            }
+          }
+        });
+      }
+      else if (btype == "HCURL"){
+        // not implemented yet
+      }
+    }
+  }
+  return dvals;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Get the mass matrix
+///////////////////////////////////////////////////////////////////////////////////////
+
+Kokkos::View<ScalarT***,AssemblyDevice> BoundaryCell::getMass() {
+  
+  Kokkos::View<ScalarT***,AssemblyDevice> mass("local mass",numElem,GIDs.extent(1), GIDs.extent(1));
+  
+  vector<string> basis_types = wkset->basis_types;
+  Kokkos::View<LO**,AssemblyDevice> offsets = wkset->offsets;
+  Kokkos::View<LO*,UnifiedDevice> numDOF = cellData->numDOF;
+  Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
+  Kokkos::View<int[1],UnifiedDevice> currind("current index");
+  
+  for (int n=0; n<index.extent(1); n++) {
+    if (bcs(n,sidenum) == 1) { // is this a strong DBC for this variable
+      currind(0) = n;
+      int bind = wkset->usebasis[n];
+      
+      DRV cbasis = basis[bind];
+      std::string btype = cellData->basis_types[bind];
+      
+      if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE"){
+        parallel_for(RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          int n = currind(0);
+          for( int i=0; i<numDOF(n); i++ ) {
+            for( int j=0; j<numDOF(n); j++ ) {
+              for( size_t k=0; k<cbasis.extent(2); k++ ) {
+                mass(e,offsets(n,i),offsets(n,j)) += cbasis(e,i,k)*cbasis(e,j,k)*wts(e,k);
+              }
+            }
+          }
+        });
+      }
+      else if (btype == "HDIV"){
+        parallel_for(RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          int n = currind(0);
+          for( int i=0; i<numDOF(n); i++ ) {
+            for( int j=0; j<numDOF(n); j++ ) {
+              for( size_t k=0; k<cbasis.extent(2); k++ ) {
+                for (size_t s=0; s<cbasis.extent(3); s++) {
+                  mass(e,offsets(n,i),offsets(n,j)) += cbasis(e,i,k,s)*normals(e,k,s)*cbasis(e,j,k)*normals(e,k,s)*wts(e,k);
+                }
+              }
+            }
+          }
+        });
+      }
+      else if (btype == "HCURL"){
+        // not implemented yet
+      }
+    }
+  }
+  return mass;
+}
+

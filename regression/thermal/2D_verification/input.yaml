@@ -3,7 +3,7 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  profile: false
+  profile: true
   Mesh input file: input_mesh.yaml
   Functions input file: input_functions.yaml
   Physics: 
@@ -11,10 +11,12 @@ ANONYMOUS:
     assemble boundary terms: false
     build face terms: true
     Dirichlet conditions:
+      scalar data: true
       e:
-        all boundaries: '0.0'
+        all boundaries: 0.0
     Initial conditions:
-      e: '0.0'
+      scalar data: true
+      e: 0.0
     True solutions:
       e: sin(2*pi*x)*sin(2*pi*y)
       e face: sin(2*pi*x)*sin(2*pi*y)
@@ -29,7 +31,7 @@ ANONYMOUS:
   Parameters input file: input_params.yaml
   Solver: 
     solver: steady-state
-    workset size: 40
+    workset size: 100
     nonlinear TOL: 1.0e-07
     max nonlinear iters: 2
     use strong DBCs: true

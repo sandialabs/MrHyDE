@@ -19,11 +19,12 @@ ANONYMOUS:
     modules: thermal
     assemble boundary terms: false
     Dirichlet conditions:
+      scalar data: true
       e:
-        top: '0.0'
-        bottom: '0.0'
-        left: '0.0'
-        right: '0.0'
+        top: 0.0
+        bottom: 0.0
+        left: 0.0
+        right: 0.0
     True solutions:
       e: sin(pi*x)*sin(pi*y)
   Discretization:

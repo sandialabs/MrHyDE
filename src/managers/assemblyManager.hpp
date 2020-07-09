@@ -55,43 +55,22 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void updateJacDBC(matrix_RCP & J, size_t & e, size_t & block, int & fieldNum,
-                    size_t & localSideId, const bool & compute_disc_sens);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
   void updateJacDBC(matrix_RCP & J, const vector<GO> & dofs, const bool & compute_disc_sens);
   
-  // ========================================================================================
-  // ========================================================================================
-  
-  void updateResDBC(vector_RCP & resid, size_t & e, size_t & block, int & fieldNum,
-                    size_t & localSideId);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void updateResDBC(vector_RCP & resid, const vector<GO> & dofs);
-  
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void updateResDBCsens(vector_RCP & resid, size_t & e, size_t & block, int & fieldNum, size_t & localSideId,
-                        const std::string & gside, const ScalarT & current_time);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  //void setDirichlet(vector_RCP & initial);
-
+  void updateJacDBC(matrix_RCP & J, const vector<LO> & dofs, const bool & compute_disc_sens);
+    
   // ========================================================================================
   // ========================================================================================
 
   void setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
                   const bool & lumpmass=false);
 
+  // ========================================================================================
+  // ========================================================================================
+  
+  void setDirichlet(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
+                    const ScalarT & time, const bool & lumpmass=false);
+  
   void setInitial(vector_RCP & initial, const bool & useadjoint);
 
   // ========================================================================================
@@ -122,9 +101,8 @@ public:
   //
   // ========================================================================================
   
-  void pointConstraints(matrix_RCP & J, vector_RCP & res,
-                        const ScalarT & current_time, const bool & compute_jacobian,
-                        const bool & compute_disc_sens);
+  void dofConstraints(matrix_RCP & J, vector_RCP & res, const ScalarT & current_time,
+                      const bool & compute_jacobian, const bool & compute_disc_sens);
   
   // ========================================================================================
   //
@@ -189,6 +167,7 @@ public:
   Teuchos::RCP<panzer::DOFManager> DOF;
   vector<bool> assemble_volume_terms, assemble_boundary_terms, assemble_face_terms; // use basis functions in assembly
   vector<bool> build_volume_terms, build_boundary_terms, build_face_terms; // set up basis function
+  Kokkos::View<bool*,HostDevice> isFixedDOF;
   
 private:
   
@@ -200,9 +179,11 @@ private:
   Teuchos::RCP<Teuchos::Time> phystimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - physics evaluation");
   Teuchos::RCP<Teuchos::Time> boundarytimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - boundary evaluation");
   Teuchos::RCP<Teuchos::Time> inserttimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - insert");
-  Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - strong Dirichlet BCs");
+  Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::dofConstraints()");
   Teuchos::RCP<Teuchos::Time> completetimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - fill complete");
   Teuchos::RCP<Teuchos::Time> msprojtimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - multiscale projection");
+  Teuchos::RCP<Teuchos::Time> setinittimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::setInitial()");
+  Teuchos::RCP<Teuchos::Time> setdbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::setDirichlet()");
   
 };
 

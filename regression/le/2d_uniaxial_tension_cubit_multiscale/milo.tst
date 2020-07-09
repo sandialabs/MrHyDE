@@ -13,21 +13,21 @@ from numpy import isnan, isinf
 # Parsing input
 
 # No reason to format the description as it will be reformatted by optparse.
-desc = '''2d le verification w/ cubit
+desc = '''stokes verification
        '''
 
 its = milo_test_support(desc)
 
-print 'Because of the diff test on the log file, this test needs '
-print 'to run with "-v".  There is a buffering issue.'
-print 'Setting the verbosity to True.'
+print('Because of the diff test on the log file, this test needs ')
+print('to run with "-v".  There is a buffering issue.')
+print('Setting the verbosity to True.')
 its.opts.verbose = True
 
 #-------------------------------------------------------------------------------
 # Problem Parameters
 
 root = 'milo'   # root filename for test
-aeps = 5.0e-15     # absolute error tolerance
+aeps = 1.0e-14     # absolute error tolerance
 reps = 1.0e-12     # relative error tolerance
 fdtol= 5.0e-10     # finite difference gradient tolerance
 
@@ -57,40 +57,68 @@ status += its.call('./run.sh')
 #  #status += its.call('./run.sh')
 
 # ------------------------------
-#if its.opts.diff:
-#  if its.opts.verbose != 'none': print '---> Diff %s' % (root)
-#  # Test 1
-#  fline = ''
-#  if its.opts.nprocs > 1:
-#    flog = '%s.%i.log' % (root, its.opts.nprocs)
-#  else:
-#    flog = '%s.log' % (root)
-#  for line in open(flog):
-#    #if "err w.r.t. fourth order fd" in line: fline = line
-#    if "Value of Objective Function" in  line: fline = line
-#  w = fline.split()
-#  fderr = float(w[6])
-#  if its.opts.verbose != 'none':
-#    print '\n-> Is 4th order FD error, %g, > %g?' % (abs(fderr), fdtol)
-#  if abs(fderr) > fdtol or isnan(fderr) or isinf(fderr):
-#    status += 1
-#    print '  Failure 4th order FD error too large.'
+flog = '%s.log' % (root)
+reflog = 'ref/%s.ocs' % (root)
 
-  # Test 2
-  #
-status += its.call('diff -y %s.log ./ref/%s.ocs' % (root, root))
-  #status += its.call("awk 'NR==1 {print substr($0,0,38)} NR>1 {print substr($0,0,41);}' < %s.ocs | diff - ref/%s.ocs" % (root, root))
+for line in open(flog):
+  if "L2-face norm of the error for dx" in  line: dxline = line
+w = dxline.split()
+dxerr = float(w[9])
 
-  # Test 3
-#  cmd = 'ichos_diff.exe -aeps %g -reps %g -r1 ref/%s.rst -r2 %s.rst %s' \
-#        %(aeps, reps, root, root, root)
-#  status += its.call(cmd)
+for line in open(reflog):
+  if "L2-face norm of the error for dx" in  line: refdxline = line
+w = refdxline.split()
+refdxerr = float(w[9])
 
-  # Test 4
-#  cmd = 'ichos_diff.exe -aeps %g -reps %g -r1 ref/%s.adj.rst -r2 %s.adj.rst %s'\
-#        %(aeps, reps, root, root, root)
-#  status += its.call(cmd)
+if abs(dxerr-refdxerr) > aeps or isnan(dxerr) or isinf(dxerr):
+  status += 1
+  print('  Failure: L2-face error for dx too large.')
 
+for line in open(flog):
+  if "L2-face norm of the error for dy" in  line: dyline = line
+w = dyline.split()
+dyerr = float(w[9])
+
+for line in open(reflog):
+  if "L2-face norm of the error for dy" in  line: refdyline = line
+w = refdyline.split()
+refdyerr = float(w[9])
+
+if abs(dyerr-refdyerr) > aeps or isnan(dyerr) or isinf(dyerr):
+  status += 1
+  print('  Failure: L2-face error for dy too large.')
+
+
+for line in open(flog):
+  if "L2 norm of the error for dx" in  line: dxline = line
+w = dxline.split()
+dxerr = float(w[11])
+
+for line in open(reflog):
+  if "L2 norm of the error for dx" in  line: refdxline = line
+w = refdxline.split()
+refdxerr = float(w[11])
+
+if abs(dxerr-refdxerr) > aeps or isnan(dxerr) or isinf(dxerr):
+  status += 1
+  print('  Failure: L2 error for dx too large.')
+
+for line in open(flog):
+  if "L2 norm of the error for dy" in  line: dyline = line
+w = dyline.split()
+dyerr = float(w[11])
+
+for line in open(reflog):
+  if "L2 norm of the error for dy" in  line: refdyline = line
+w = refdyline.split()
+refdyerr = float(w[11])
+
+if abs(dyerr-refdyerr) > aeps or isnan(dyerr) or isinf(dyerr):
+  status += 1
+  print('  Failure: L2 error for dy too large.')
+
+# ------------------------------
+# ------------------------------
 # ------------------------------
 if its.opts.baseline and not status:
   if its.opts.verbose != 'none': print '---> Baseline %s' % (root)

@@ -77,6 +77,8 @@ public:
   
   void setupLinearAlgebra();
   
+  void setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
@@ -119,7 +121,9 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void setDirichlet(vector_RCP & initial);
+  void setDirichlet(vector_RCP & u);
+  
+  void projectDirichlet();
   
   // ========================================================================================
   // ========================================================================================
@@ -164,10 +168,15 @@ public:
   // Public data members
   ///////////////////////////////////////////////////////////////////////////////////////////
   
+  Teuchos::RCP<MpiComm> Comm;
+  Teuchos::RCP<discretization> disc;
+  Teuchos::RCP<physics> phys;
+  Teuchos::RCP<const panzer::DOFManager> DOF;
   Teuchos::RCP<AssemblyManager> assembler;
   Teuchos::RCP<ParameterManager> params;
   Teuchos::RCP<meshInterface>  mesh;
   Teuchos::RCP<PostprocessManager> postproc;
+  Teuchos::RCP<MultiScale> multiscale_manager;
   
   Teuchos::RCP<const LA_Map> LA_owned_map, LA_overlapped_map;
   Teuchos::RCP<LA_CrsGraph> LA_owned_graph, LA_overlapped_graph;
@@ -194,12 +203,13 @@ public:
   bool line_search, useL2proj, allow_remesh, useDomDecomp, useDirect, usePrec, discretized_stochastic;
   bool isInitial, isTransient, useadjoint, is_final_time, usestrongDBCs, compute_flux, useLinearSolver, timeImplicit;
   bool compute_objective, compute_sensitivity, compute_aux_sensitivity, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
-  
+  bool scalarDirichletData, transientDirichletData, scalarInitialData;
   Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver;
   bool have_symbolic_factor;
   
+  vector<vector<ScalarT> > scalarDirichletValues, scalarInitialValues; //[block][var]
   Teuchos::RCP<SolutionStorage<LA_MultiVector> > soln, adj_soln;
-  
+  Teuchos::RCP<LA_MultiVector> fixedDOF_soln;
   //vector<vector_RCP> fwdsol;
   //vector<vector_RCP> adjsol;
   vector<string> blocknames;
@@ -208,16 +218,7 @@ public:
   vector<vector<LO> > numBasis, useBasis;
   vector<LO> maxBasis, numVars;
   
-  Teuchos::RCP<MultiScale> multiscale_manager;
-  
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > M;
-  
-private:
-  
-  Teuchos::RCP<MpiComm> Comm;
-  Teuchos::RCP<discretization> disc;
-  Teuchos::RCP<physics> phys;
-  Teuchos::RCP<const panzer::DOFManager> DOF;
   
   Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - total assembly");
   Teuchos::RCP<Teuchos::Time> linearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::linearSolver()");
@@ -225,10 +226,13 @@ private:
   Teuchos::RCP<Teuchos::Time> phystimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - physics evaluation");
   Teuchos::RCP<Teuchos::Time> boundarytimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - boundary evaluation");
   Teuchos::RCP<Teuchos::Time> inserttimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - insert");
-  Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - strong Dirichlet BCs");
   Teuchos::RCP<Teuchos::Time> completetimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - fill complete");
   Teuchos::RCP<Teuchos::Time> msprojtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - multiscale projection");
-  Teuchos::RCP<Teuchos::Time> initdbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::setDirichlet()");
+  Teuchos::RCP<Teuchos::Time> initsettimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::setInitial()");
+  Teuchos::RCP<Teuchos::Time> dbcsettimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::setDirichlet()");
+  Teuchos::RCP<Teuchos::Time> dbcprojtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::projectDirichlet()");
+  Teuchos::RCP<Teuchos::Time> fixeddofsetuptimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::setupFixedDOFs()");
+  Teuchos::RCP<Teuchos::Time> LAsetuptimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::setupLinearAlgebra()");
   
 };
 

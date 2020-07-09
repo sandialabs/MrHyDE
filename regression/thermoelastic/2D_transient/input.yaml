@@ -9,6 +9,7 @@ ANONYMOUS:
       modules: thermal, linearelasticity
       assemble boundary terms: false
       Dirichlet conditions:
+        scalar data: false
         e:
           all boundaries: '0.0'
         dx:

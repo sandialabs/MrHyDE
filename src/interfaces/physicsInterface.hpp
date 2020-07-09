@@ -175,6 +175,14 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
+  Kokkos::View<ScalarT**,AssemblyDevice> getDirichlet(const DRV & ip, const int & var,
+                                                       const int & block,
+                                                       const std::string & sidename,
+                                                       Teuchos::RCP<workset> & wkset);
+  
+  /////////////////////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////
+  
   void setVars(size_t & block, vector<string> & vars);
   
   void setAuxVars(size_t & block, vector<string> & vars);
@@ -225,8 +233,16 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
-  void setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<panzer_stk::STK_Interface> & mesh, 
-                 Teuchos::RCP<panzer::DOFManager> & DOF, std::vector<std::vector<int> > cards);
+  void setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
+                 Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
+                 Teuchos::RCP<panzer::DOFManager> & DOF,
+                 std::vector<std::vector<int> > cards);
+  
+  /////////////////////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////
+  
+  void setDirichletData(Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
+                        Teuchos::RCP<panzer::DOFManager> & DOF);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
@@ -295,6 +311,7 @@ public:
   vector<int> numVars;
   vector<vector<bool> > useSubgrid;
   vector<vector<bool> > useDG;
+  bool haveDirichlet;
   
   vector<vector<string> > varlist;
   vector<vector<int> > varowned;
@@ -305,9 +322,11 @@ public:
   vector<vector<int> > unique_index;
   
   vector<Kokkos::View<int****,HostDevice> > side_info;
-  vector<vector<vector<size_t> > > localDirichletSideIDs, globalDirichletSideIDs;
-  vector<vector<vector<size_t> > > boundDirichletElemIDs;
-  vector<vector<GO> > dbc_dofs;
+  //vector<vector<vector<size_t> > > localDirichletSideIDs, globalDirichletSideIDs;
+  //vector<vector<vector<size_t> > > boundDirichletElemIDs;
+  vector<vector<GO> > point_dofs;
+  vector<vector<vector<LO> > > dbc_dofs;
+  
   vector<Kokkos::View<int**,UnifiedDevice> > var_bcs;
   
   //vector<FCint> offsets;
@@ -319,6 +338,9 @@ public:
   string initial_type, cellfield_reduction;
   
   vector<vector<string> > extrafields_list, extracellfields_list, response_list, target_list, weight_list;
+  
+  Teuchos::RCP<Teuchos::Time> bctimer = Teuchos::TimeMonitor::getNewCounter("MILO::physics::setBCData()");
+  Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::physics::setDirichletData()");
   
 };
 

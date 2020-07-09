@@ -1042,7 +1042,6 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, co
     }
   }
   else { // only works if using HGRAD linear basis
-    // TMW: disabled for now
     
     Kokkos::View<ScalarT***,AssemblyDevice> initialnodes = cellData->physics_RCP->getInitial(nodes,
                                                                                              cellData->myBlock,
@@ -1095,6 +1094,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
 ///////////////////////////////////////////////////////////////////////////////////////
 // Compute the response at a given set of points and time
 ///////////////////////////////////////////////////////////////////////////////////////
+
 Kokkos::View<AD***,AssemblyDevice> cell::computeResponseAtNodes(const DRV & nodes,
                                                                 const int tindex,
                                                                 const ScalarT & time) {
@@ -1141,10 +1141,8 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponseAtNodes(const DRV & node
 ///////////////////////////////////////////////////////////////////////////////////////
 // Compute the response at the integration points given the solution and solve time
 ///////////////////////////////////////////////////////////////////////////////////////
-//
-Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(//const ScalarT & solvetime,
-                                                         //const size_t & tindex,
-                                                         const int & seedwhat) {
+
+Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
   
   // Assumes that u has already been filled
   

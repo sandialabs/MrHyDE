@@ -151,6 +151,7 @@ int main(int argc,char * argv[]) {
                                                           phys->useDG);
     
     phys->setBCData(settings, mesh->mesh, DOF, disc->cards);
+    phys->setDirichletData(mesh->mesh, DOF);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Create the solver object

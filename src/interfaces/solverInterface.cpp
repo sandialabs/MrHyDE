@@ -55,6 +55,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   verbosity = settings->get<int>("verbosity",0);
   usestrongDBCs = settings->sublist("Solver").get<bool>("use strong DBCs",true);
   use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("use measurements as DBCs", false);
+  
   solver_type = settings->sublist("Solver").get<string>("solver","none"); // or "transient"
   allow_remesh = settings->sublist("Solver").get<bool>("remesh",false);
   time_order = settings->sublist("Solver").get<int>("time order",1);
@@ -207,6 +208,40 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   this->setBatchID(Comm->getRank());
   
   /////////////////////////////////////////////////////////////////////////////
+  
+  this->setupFixedDOFs(settings);
+  
+  /////////////////////////////////////////////////////////////////////////////
+  scalarInitialData = settings->sublist("Physics").sublist("Initial conditions").get<bool>("scalar data", false);
+  
+  if (scalarInitialData) {
+    for (size_t b=0; b<blocknames.size(); b++) {
+      
+      std::string blockID = blocknames[b];
+      Teuchos::ParameterList init_settings;
+      if (settings->sublist("Physics").isSublist(blockID)) {
+        init_settings = settings->sublist("Physics").sublist(blockID).sublist("Initial conditions");
+      }
+      else {
+        init_settings = settings->sublist("Physics").sublist("Initial conditions");
+      }
+      vector<ScalarT> blockInitialValues;
+      
+      for (size_t var=0; var<varlist[b].size(); var++ ) {
+        ScalarT value = 0.0;
+        if (init_settings.isSublist(varlist[b][var])) {
+          Teuchos::ParameterList currinit = init_settings.sublist(varlist[b][var]);
+          Teuchos::ParameterList::ConstIterator i_itr = currinit.begin();
+          while (i_itr != currinit.end()) {
+            value = currinit.get<ScalarT>(i_itr->first);
+            i_itr++;
+          }
+        }
+        blockInitialValues.push_back(value);
+      }
+      scalarInitialValues.push_back(blockInitialValues);
+    }
+  }
   
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -490,19 +525,13 @@ void solver::finalizeWorkset() {
     assembler->wkset[b]->params_AD = params->paramvals_KVAD;
     assembler->wkset[b]->paramnames = params->paramnames;
     //assembler->wkset[b]->setupParamBasis(discretized_param_basis);
-    
+    assembler->wkset[b]->time = current_time;
+    assembler->wkset[b]->time_KV(0) = current_time;
     if (assembler->boundaryCells.size() > b) { // avoid seg faults
       for (size_t e=0; e<assembler->boundaryCells[b].size(); e++) {
         if (assembler->boundaryCells[b][e]->numElem > 0) {
           assembler->boundaryCells[b][e]->wkset = assembler->wkset[b];
           assembler->boundaryCells[b][e]->setUseBasis(useBasis[b], numsteps, numstages);
-          
-          /*
-          assembler->boundaryCells[b][e]->wksetBID = assembler->wkset[b]->addSide(assembler->boundaryCells[b][e]->nodes,
-                                                                                  assembler->boundaryCells[b][e]->sidenum,
-                                                                                  assembler->boundaryCells[b][e]->localSideID,
-                                                                                  assembler->boundaryCells[b][e]->orientation);
-           */
         }
       }
     }
@@ -522,6 +551,8 @@ void solver::finalizeWorkset() {
 // ========================================================================================
 
 void solver::setupLinearAlgebra() {
+  
+  Teuchos::TimeMonitor localtimer(*LAsetuptimer);
   
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -623,6 +654,170 @@ void solver::setupLinearAlgebra() {
 }
 
 // ========================================================================================
+// Set up the logicals and data structures for the fixed DOF (Dirichlet and point constraints)
+// ========================================================================================
+
+void solver::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+  
+  Teuchos::TimeMonitor localtimer(*fixeddofsetuptimer);
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting solver::setupFixedDOFs()" << endl;
+    }
+  }
+  
+  if (!phys->haveDirichlet) {
+    usestrongDBCs = false;
+  }
+  
+  if (usestrongDBCs) {
+    fixedDOF_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    
+    
+    scalarDirichletData = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("scalar data", false);
+    transientDirichletData = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("transient data", false);
+    
+    if (scalarDirichletData && transientDirichletData) {
+      if (Comm->getRank() == 0) {
+        cout << "Warning: Both scalar data and transient data were set to true.  This should not happen." << endl;
+      }
+    }
+    
+    if (scalarDirichletData) {
+      for (size_t b=0; b<blocknames.size(); b++) {
+        
+        std::string blockID = blocknames[b];
+        Teuchos::ParameterList dbc_settings;
+        if (settings->sublist("Physics").isSublist(blockID)) {
+          dbc_settings = settings->sublist("Physics").sublist(blockID).sublist("Dirichlet conditions");
+        }
+        else {
+          dbc_settings = settings->sublist("Physics").sublist("Dirichlet conditions");
+        }
+        vector<ScalarT> blockDirichletValues;
+        
+        for (size_t var=0; var<varlist[b].size(); var++ ) {
+          ScalarT value = 0.0;
+          if (dbc_settings.isSublist(varlist[b][var])) {
+            if (dbc_settings.sublist(varlist[b][var]).isParameter("all boundaries")) {
+              value = dbc_settings.sublist(varlist[b][var]).get<ScalarT>("all boundaries");
+            }
+            else {
+              Teuchos::ParameterList currdbcs = dbc_settings.sublist(varlist[b][var]);
+              Teuchos::ParameterList::ConstIterator d_itr = currdbcs.begin();
+              while (d_itr != currdbcs.end()) {
+                value = currdbcs.get<ScalarT>(d_itr->first);
+                d_itr++;
+              }
+            }
+          }
+          blockDirichletValues.push_back(value);
+        }
+        scalarDirichletValues.push_back(blockDirichletValues);
+      }
+    }
+  }
+    
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished solver::setupFixedDOFs()" << endl;
+    }
+  }
+  
+}
+
+// ========================================================================================
+// Set up the logicals and data structures for the fixed DOF (Dirichlet and point constraints)
+// ========================================================================================
+
+void solver::projectDirichlet() {
+
+  Teuchos::TimeMonitor localtimer(*dbcprojtimer);
+  
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting solver::projectDirichlet()" << endl;
+    }
+  }
+  if (usestrongDBCs) {
+    fixedDOF_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    vector_RCP glfixedDOF_soln = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+    
+    vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
+    vector_RCP glrhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+    matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));
+    
+    assembler->setDirichlet(rhs, mass, useadjoint, current_time);
+    
+    glmass->setAllToScalar(0.0);
+    glmass->doExport(*mass, *exporter, Tpetra::ADD);
+    glrhs->putScalar(0.0);
+    glrhs->doExport(*rhs, *exporter, Tpetra::ADD);
+    
+    glmass->fillComplete();
+    
+    if (milo_debug_level>2) {
+      KokkosTools::print(glmass,"L2-projection matrix for DBCs");
+      KokkosTools::print(glrhs,"L2-projections RHS for DBCs");
+    }
+    
+    if (useDirect) {
+      Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > L2Solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>("KLU2", glmass, glrhs, glfixedDOF_soln);
+      L2Solver->symbolicFactorization();
+      L2Solver->setA(glmass, Amesos2::SYMBFACT);
+      L2Solver->setX(glfixedDOF_soln);
+      L2Solver->setB(glrhs);
+      L2Solver->numericFactorization().solve();
+    }
+    else {
+      Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(glmass, glfixedDOF_soln, glrhs));
+      if (usePrec) {
+        Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > P = this->buildPreconditioner(glmass);
+        Problem->setLeftPrec(P);
+      }
+      Problem->setProblem();
+      
+      Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList());
+      belosList->set("Maximum Iterations",    liniter); // Maximum number of iterations allowed
+      belosList->set("Convergence Tolerance", lintol);    // Relative convergence tolerance requested
+      if (verbosity > 9) {
+        belosList->set("Verbosity", Belos::Errors + Belos::Warnings + Belos::StatusTestDetails);
+      }
+      else {
+        belosList->set("Verbosity", Belos::Errors);
+      }
+      if (verbosity > 8) {
+        belosList->set("Output Frequency",10);
+      }
+      else {
+        belosList->set("Output Frequency",0);
+      }
+      int numEqns = 1;
+      if (assembler->cells.size() == 1) {
+        numEqns = numVars[0];
+      }
+      belosList->set("number of equations",numEqns);
+      
+      belosList->set("Output Style",          Belos::Brief);
+      belosList->set("Implicit Residual Scaling", "Norm of Preconditioned Initial Residual");//None");
+      
+      Teuchos::RCP<Belos::SolverManager<ScalarT, LA_MultiVector, LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT, LA_MultiVector, LA_Operator>(Problem, belosList));
+      
+      solver->solve();
+    }
+    fixedDOF_soln->doImport(*glfixedDOF_soln, *importer, Tpetra::ADD);
+  }
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished solver::projectDirichlet()" << endl;
+    }
+  }
+  
+}
+
+// ========================================================================================
 /* given the parameters, solve the forward  problem */
 // ========================================================================================
 
@@ -639,6 +834,9 @@ void solver::forwardModel(DFAD & obj) {
   useadjoint = false;
   params->sacadoizeParams(false);
   
+  if (!scalarDirichletData && !transientDirichletData) {
+    this->projectDirichlet();
+  }
   vector_RCP u = this->setInitial();
   
   if (solver_type == "transient") {
@@ -974,8 +1172,8 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     res->doExport(*res_over, *exporter, Tpetra::ADD);
     
     if (milo_debug_level>2) {
-      KokkosTools::print(J);
-      KokkosTools::print(res);
+      KokkosTools::print(J,"Jacobian from solver interface");
+      KokkosTools::print(res,"residual from solver interface");
     }
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
     if (NLiter == 0) {
@@ -1359,16 +1557,53 @@ void solver::computeSensitivities(vector_RCP & u,
 // ========================================================================================
 // ========================================================================================
 
-void solver::setDirichlet(vector_RCP & initial) {
+void solver::setDirichlet(vector_RCP & u) {
   
-  Teuchos::TimeMonitor localtimer(*initdbctimer);
+  Teuchos::TimeMonitor localtimer(*dbcsettimer);
   
-  auto init_kv = initial->getLocalView<HostDevice>();
-  //auto meas_kv = meas->getLocalView<HostDevice>();
-  
-  // TMW: this function needs to be fixed
-  vector<vector<GO> > fixedDOFs = phys->dbc_dofs;
-  
+  if (usestrongDBCs) {
+    auto u_kv = u->getLocalView<HostDevice>();
+    //auto meas_kv = meas->getLocalView<HostDevice>();
+    
+    if (!scalarDirichletData && transientDirichletData) {
+      this->projectDirichlet();
+    }
+    
+    vector<vector<vector<LO> > > dbcDOFs = phys->dbc_dofs;
+    if (scalarDirichletData) {
+      for (size_t b=0; b<dbcDOFs.size(); b++) {
+        for (size_t v=0; v<dbcDOFs[b].size(); v++) {
+          ScalarT value = scalarDirichletValues[b][v];
+          for (size_t i=0; i<dbcDOFs[b][v].size(); i++) {
+            LO ind = dbcDOFs[b][v][i];
+            u_kv(ind,0) = value;
+          }
+        }
+      }
+    }
+    else {
+      auto dbc_kv = fixedDOF_soln->getLocalView<HostDevice>();
+      for (size_t b=0; b<dbcDOFs.size(); b++) {
+        for (size_t v=0; v<dbcDOFs[b].size(); v++) {
+          for (size_t i=0; i<dbcDOFs[b][v].size(); i++) {
+            LO ind = dbcDOFs[b][v][i];
+            u_kv(ind,0) = dbc_kv(ind,0);
+          }
+        }
+      }
+    }
+    
+    // set point dbcs
+    vector<vector<GO> > pointDOFs = phys->point_dofs;
+    for (size_t b=0; b<blocknames.size(); b++) {
+      vector<GO> pt_dofs = pointDOFs[b];
+      for (int i = 0; i < pt_dofs.size(); i++) {
+        LO row = LA_overlapped_map->getLocalElement(pt_dofs[i]);
+        u_kv(row,0) = 0.0; // fix to zero for now
+      }
+    }
+  }
+  /*
   for (size_t b=0; b<blocknames.size(); b++) {
     string blockID = blocknames[b];
     Kokkos::View<int**,HostDevice> side_info;
@@ -1401,7 +1636,7 @@ void solver::setDirichlet(vector_RCP & initial) {
             const vector<int> basisIdMap = SideIndex.second;
             // for each node that is on the boundary side
             for( size_t j=0; j<elmtOffset.size(); j++ ) {
-              // get the global row and coordinate
+              // get the global row and oordinate
               LO row =  LA_overlapped_map->getLocalElement(elemGIDs[elmtOffset[j]]);
               ScalarT x = I_elemNodes(0,basisIdMap[j],0);
               ScalarT y = 0.0;
@@ -1428,17 +1663,10 @@ void solver::setDirichlet(vector_RCP & initial) {
         }
       }
     }
-    // set point dbcs
-    vector<GO> dbc_dofs = fixedDOFs[b];
-    
-    for (int i = 0; i < dbc_dofs.size(); i++) {
-      LO row = LA_overlapped_map->getLocalElement(dbc_dofs[i]);
-      init_kv(row,0) = 0.0; // fix to zero for now
-    }
-    
-  }
+   */
   
 }
+
 
 // ========================================================================================
 // ========================================================================================
@@ -1455,6 +1683,8 @@ vector_RCP solver::setInitialParams() {
 
 vector_RCP solver::setInitial() {
  
+  Teuchos::TimeMonitor localtimer(*initsettimer);
+  
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting solver::setInitial ..." << endl;
@@ -1462,35 +1692,56 @@ vector_RCP solver::setInitial() {
   }
   
   vector_RCP initial = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-  vector_RCP glinitial = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
-  initial->putScalar(0.0);
-   
-  if (initial_type == "L2-projection") {
-    
-    // Compute the L2 projection of the initial data into the discrete space
-    vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // reset residual
-    matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));//Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
-    vector_RCP glrhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
-    matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));//Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
-    assembler->setInitial(rhs, mass, useadjoint);
-    
-    glmass->setAllToScalar(0.0);
-    glmass->doExport(*mass, *exporter, Tpetra::ADD);
-    
-    glrhs->putScalar(0.0);
-    glrhs->doExport(*rhs, *exporter, Tpetra::ADD);
-    
-    glmass->fillComplete();
-    
-    this->linearSolver(glmass, glrhs, glinitial);
-    have_preconditioner = false; // resetting this because mass matrix may not have connectivity as Jacobians
-    initial->doImport(*glinitial, *importer, Tpetra::ADD);
-    
+  
+  if (scalarInitialData) {
+    auto initial_kv = initial->getLocalView<HostDevice>();
+    for (size_t block=0; block<assembler->cells.size(); block++) {
+      for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
+        Kokkos::View<LO***,AssemblyDevice> index = assembler->cells[block][cell]->index;
+        Kokkos::View<LO*,UnifiedDevice> numDOF = assembler->cells[block][cell]->cellData->numDOF;
+        parallel_for(RangePolicy<AssemblyExec>(0,index.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          for (size_t n=0; n<index.extent(1); n++) {
+            for (size_t i=0; i<numDOF(n); i++ ) {
+              initial_kv(index(e,n,i),0) = scalarInitialValues[block][n];
+            }
+          }
+        });
+      }
+    }
   }
-  else if (initial_type == "interpolation") {
+  else {
+  
+    initial->putScalar(0.0);
     
-    assembler->setInitial(initial, useadjoint);
+    vector_RCP glinitial = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
     
+    if (initial_type == "L2-projection") {
+      
+      // Compute the L2 projection of the initial data into the discrete space
+      vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // reset residual
+      matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));//Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
+      vector_RCP glrhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
+      matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));//Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
+      assembler->setInitial(rhs, mass, useadjoint);
+      
+      glmass->setAllToScalar(0.0);
+      glmass->doExport(*mass, *exporter, Tpetra::ADD);
+      
+      glrhs->putScalar(0.0);
+      glrhs->doExport(*rhs, *exporter, Tpetra::ADD);
+      
+      glmass->fillComplete();
+      
+      this->linearSolver(glmass, glrhs, glinitial);
+      have_preconditioner = false; // resetting this because mass matrix may not have connectivity as Jacobians
+      initial->doImport(*glinitial, *importer, Tpetra::ADD);
+      
+    }
+    else if (initial_type == "interpolation") {
+      
+      assembler->setInitial(initial, useadjoint);
+      
+    }
   }
   
   if (milo_debug_level > 0) {

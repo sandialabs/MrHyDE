@@ -129,7 +129,18 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
   // Create worksets
   //this->createWorkset();
   
-  
+  // create fixedDOF View of bools
+  vector<vector<vector<LO> > > dbc_dofs = phys->dbc_dofs; // [block][var][dof]
+  int numLocalDof = DOF->getNumOwnedAndGhosted();
+  isFixedDOF = Kokkos::View<bool*,HostDevice>("logicals for fixed DOFs",numLocalDof);
+  for (size_t block=0; block<dbc_dofs.size(); block++) {
+    for (size_t var=0; var<dbc_dofs[block].size(); var++) {
+      for (size_t i=0; i<dbc_dofs[block][var].size(); i++) {
+        LO dof = dbc_dofs[block][var][i];
+        isFixedDOF(dof) = true;
+      }
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -266,7 +277,7 @@ void AssemblyManager::createCells() {
     
     vector<Teuchos::RCP<BoundaryCell> > bcells;
     
-    if (assemble_boundary_terms[b]) {
+    if (build_boundary_terms[b]) {
       // TMW: this is just for ease of use
       int numBoundaryElem = settings->sublist("Solver").get<int>("workset size",1);
       
@@ -456,63 +467,14 @@ void AssemblyManager::createWorkset() {
 // ========================================================================================
 // ========================================================================================
 
-void AssemblyManager::updateJacDBC(matrix_RCP & J, size_t & e, size_t & block, int & fieldNum,
-                                   size_t & localSideId, const bool & compute_disc_sens) {
+void AssemblyManager::updateJacDBC(matrix_RCP & J,
+                                   const vector<GO> & dofs, const bool & compute_disc_sens) {
   
   // given a "block" and the unknown field update jacobian to enforce Dirichlet BCs
-  
-  string blockID = blocknames[block];
-  vector<GO> GIDs;// = cells[block][e]->GIDs;
-  DOF->getElementGIDs(e, GIDs, blockID);
-  
-  const pair<vector<int>,vector<int> > SideIndex = DOF->getGIDFieldOffsets_closure(blockID, fieldNum,
-                                                                                   (phys->spaceDim)-1, localSideId);
-  
-  const vector<int> elmtOffset = SideIndex.first; // local nodes on that side
-  const vector<int> basisIdMap = SideIndex.second;
-  
-  Teuchos::Array<ScalarT> vals(1);
-  Teuchos::Array<GO> cols(1);
-  
-  for( size_t i=0; i<elmtOffset.size(); i++ ) { // for each node
-    GO row = GIDs[elmtOffset[i]]; // global row
-    if (compute_disc_sens) {
-      vector<GO> paramGIDs;// = cells[block][e]->paramGIDs;
-      params->paramDOF->getElementGIDs(e, paramGIDs, blockID);
-      for( size_t col=0; col<paramGIDs.size(); col++ ) {
-        GO ind = paramGIDs[col];
-        ScalarT m_val = 0.0; // set ALL of the entries to 0 in the Jacobian
-        //J.ReplaceGlobalValues(row, 1, &m_val, &ind);
-        J->replaceGlobalValues(ind, 1, &m_val, &row);
-      }
-    }
-    else {
-      for( size_t col=0; col<GIDs.size(); col++ ) {
-        cols[0] = GIDs[col];
-        vals[0] = 0.0; // set ALL of the entries to 0 in the Jacobian
-        //J->replaceGlobalValues(row, 1, &m_val, &ind);
-        J->replaceGlobalValues(row, cols, vals);
-      }
-      cols[0] = row;
-      vals[0] = 1.0; // set diagonal entry to 1
-      //J->replaceGlobalValues(row, 1, &val, &row);
-      J->replaceGlobalValues(row, cols, vals);
-      //cout << Comm->getRank() << "  " << row << "  " << vals[0] << endl;
-    }
-  }
-}
-
-// ========================================================================================
-// ========================================================================================
-
-void AssemblyManager::updateJacDBC(matrix_RCP & J, const vector<GO> & dofs, const bool & compute_disc_sens) {
-  
-  // given a "block" and the unknown field update jacobian to enforce Dirichlet BCs
-  
   //size_t numcols = J->getGlobalNumCols();
   for( int i=0; i<dofs.size(); i++ ) { // for each node
     if (compute_disc_sens) {
-      int numcols = globalParamUnknowns; // TMW
+      int numcols = globalParamUnknowns; // TMW fix this!
       for( int col=0; col<numcols; col++ ) {
         ScalarT m_val = 0.0; // set ALL of the entries to 0 in the Jacobian
         //J.ReplaceGlobalValues(row, 1, &m_val, &ind);
@@ -520,7 +482,7 @@ void AssemblyManager::updateJacDBC(matrix_RCP & J, const vector<GO> & dofs, cons
       }
     }
     else {
-      GO numcols = J->getGlobalNumCols();
+      GO numcols = J->getGlobalNumCols(); // TMW fix this!
       for( GO col=0; col<numcols; col++ ) {
         ScalarT m_val = 0.0; // set ALL of the entries to 0 in the Jacobian
         J->replaceGlobalValues(dofs[i], 1, &m_val, &col);
@@ -534,71 +496,16 @@ void AssemblyManager::updateJacDBC(matrix_RCP & J, const vector<GO> & dofs, cons
 // ========================================================================================
 // ========================================================================================
 
-void AssemblyManager::updateResDBC(vector_RCP & resid, size_t & e, size_t & block, int & fieldNum,
-                  size_t & localSideId) {
-  // given a "block" and the unknown field update resid to enforce Dirichlet BCs
+void AssemblyManager::updateJacDBC(matrix_RCP & J,
+                                   const vector<LO> & dofs, const bool & compute_disc_sens) {
   
-  string blockID = blocknames[block];
-  vector<GO> elemGIDs;
-  DOF->getElementGIDs(e, elemGIDs, blockID); // compute element global IDs
-  
-  int numRes = resid->getNumVectors();
-  const pair<vector<int>,vector<int> > SideIndex = DOF->getGIDFieldOffsets_closure(blockID, fieldNum,
-                                                                                   (phys->spaceDim)-1,
-                                                                                   localSideId);
-  const vector<int> elmtOffset = SideIndex.first; // local nodes on that side
-  const vector<int> basisIdMap = SideIndex.second;
-  
-  for( size_t i=0; i<elmtOffset.size(); i++ ) { // for each node
-    GO row = elemGIDs[elmtOffset[i]]; // global row
-    ScalarT r_val = 0.0; // set residual to 0
-    for( int j=0; j<numRes; j++ ) {
-      resid->replaceGlobalValue(row, j, r_val); // replace the value
-    }
+  if (compute_disc_sens) {
+    // nothing to do here
   }
-}
-
-// ========================================================================================
-// ========================================================================================
-
-void AssemblyManager::updateResDBC(vector_RCP & resid, const vector<GO> & dofs) {
-  // given a "block" and the unknown field update resid to enforce Dirichlet BCs
-  
-  int numRes = resid->getNumVectors();
-  
-  for( size_t i=0; i<dofs.size(); i++ ) { // for each node
-    ScalarT r_val = 0.0; // set residual to 0
-    for( int j=0; j<numRes; j++ ) {
-      resid->replaceGlobalValue(dofs[i], j, r_val); // replace the value
-    }
-  }
-}
-
-
-// ========================================================================================
-// ========================================================================================
-
-void AssemblyManager::updateResDBCsens(vector_RCP & resid, size_t & e, size_t & block, int & fieldNum, size_t & localSideId,
-                      const std::string & gside, const ScalarT & current_time) {
-  
-  
-  int fnum = DOF->getFieldNum(varlist[block][fieldNum]);
-  string blockID = blocknames[block];
-  vector<GO> elemGIDs;// = cells[block][e]->GIDs[p];
-  DOF->getElementGIDs(e, elemGIDs, blockID);
-  
-  int numRes = resid->getNumVectors();
-  const pair<vector<int>,vector<int> > SideIndex = DOF->getGIDFieldOffsets_closure(blockID, fnum,
-                                                                                   (phys->spaceDim)-1,
-                                                                                   localSideId);
-  const vector<int> elmtOffset = SideIndex.first; // local nodes on that side
-  const vector<int> basisIdMap = SideIndex.second;
-  
-  for( size_t i=0; i<elmtOffset.size(); i++ ) { // for each node
-    GO row = elemGIDs[elmtOffset[i]]; // global row
-    ScalarT r_val = 0.0;
-    for( int j=0; j<numRes; j++ ) {
-      resid->replaceGlobalValue(row, j, r_val); // replace the value
+  else {
+    for( int i=0; i<dofs.size(); i++ ) {
+      ScalarT val = 1.0; // set diagonal entry to 1
+      J->replaceLocalValues(dofs[i], 1, &val, &dofs[i]);
     }
   }
 }
@@ -608,6 +515,8 @@ void AssemblyManager::updateResDBCsens(vector_RCP & resid, size_t & e, size_t & 
 
 void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
                                  const bool & lumpmass) {
+  
+  Teuchos::TimeMonitor localtimer(*setinittimer);
   
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -693,6 +602,107 @@ void AssemblyManager::setInitial(vector_RCP & initial, const bool & useadjoint) 
   }
   
 }
+
+// ========================================================================================
+// ========================================================================================
+
+void AssemblyManager::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
+                                   const bool & useadjoint,
+                                   const ScalarT & time,
+                                   const bool & lumpmass) {
+  
+  Teuchos::TimeMonitor localtimer(*setdbctimer);
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting AssemblyManager::setDirichlet ..." << endl;
+    }
+  }
+  
+  auto localMatrix = mass->getLocalMatrix();
+  
+  for (size_t b=0; b<boundaryCells.size(); b++) {
+    wkset[b]->time = time;
+    wkset[b]->time_KV(0) = time;
+    for (size_t e=0; e<boundaryCells[b].size(); e++) {
+      
+      int numElem = boundaryCells[b][e]->numElem;
+      Kokkos::View<LO**,HostDevice> LIDs = boundaryCells[b][e]->LIDs;
+      
+      Kokkos::View<ScalarT**,AssemblyDevice> localrhs = boundaryCells[b][e]->getDirichlet();
+      Kokkos::View<ScalarT***,AssemblyDevice> localmass = boundaryCells[b][e]->getMass();
+      auto host_rhs = Kokkos::create_mirror_view(localrhs);
+      auto host_mass = Kokkos::create_mirror_view(localmass);
+      Kokkos::deep_copy(host_rhs,localrhs);
+      Kokkos::deep_copy(host_mass,localmass);
+      
+      const int numVals = static_cast<int>(LIDs.extent(1));
+      
+      // assemble into global matrix
+      for (int c=0; c<numElem; c++) {
+        for( size_t row=0; row<LIDs.extent(1); row++ ) {
+          LO rowIndex = LIDs(c,row);
+          if (isFixedDOF(rowIndex)) {
+            ScalarT val = host_rhs(c,row);
+            rhs->sumIntoLocalValue(rowIndex,0, val);
+            if (lumpmass) {
+              LO cols[1];
+              ScalarT vals[1];
+              
+              ScalarT totalval = 0.0;
+              for( size_t col=0; col<LIDs.extent(1); col++ ) {
+                cols[0] = LIDs(c,col);
+                totalval += host_mass(c,row,col);
+              }
+              vals[0] = totalval;
+              //mass->sumIntoGlobalValues(rowIndex, cols, vals);
+              localMatrix.sumIntoValues(rowIndex, cols, 1, vals, true, false);
+            }
+            else {
+              LO cols[numVals];
+              ScalarT vals[numVals];
+              for( size_t col=0; col<LIDs.extent(1); col++ ) {
+                cols[col] = LIDs(c,col);
+                vals[col] = localmass(c,row,col);
+              }
+              localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, false);
+              
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // Loop over the cells to put ones on the diagonal for DOFs not on Dirichlet boundaries
+  for (size_t b=0; b<cells.size(); b++) {
+    for (size_t e=0; e<cells[b].size(); e++) {
+      Kokkos::View<LO**,HostDevice> LIDs = cells[b][e]->LIDs;
+      for (int c=0; c<cells[b][e]->numElem; c++) {
+        for( size_t row=0; row<LIDs.extent(1); row++ ) {
+          LO rowIndex = LIDs(c,row);
+          if (!isFixedDOF(rowIndex)) {
+            ScalarT vals[1];
+            LO cols[1];
+            vals[0] = 1.0;
+            cols[0] = rowIndex;
+            localMatrix.replaceValues(rowIndex, cols, 1, vals, true, false);
+          }
+        }
+      }
+    }
+  }
+  
+  mass->fillComplete();
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished AssemblyManager::setDirichlet ..." << endl;
+    }
+  }
+  
+}
+
 
 // ========================================================================================
 // Wrapper to the main assembly routine to assemble over all blocks (most common use case)
@@ -971,45 +981,42 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
       }
     } // element loop
   }
-  if (usestrongDBCs) {
-    this->pointConstraints(J, res, current_time, compute_jacobian, compute_disc_sens);
-  }
+
+  // Apply constraints, e.g., strongly imposed Dirichlet
+  this->dofConstraints(J, res, current_time, compute_jacobian, compute_disc_sens);
+  
 }
 
 
-// ************************** STRONGLY ENFORCE DIRICHLET BCs *******************************************
-void AssemblyManager::pointConstraints(matrix_RCP & J, vector_RCP & res,
-                                       const ScalarT & current_time,
-                                       const bool & compute_jacobian,
-                                       const bool & compute_disc_sens) {
+// ========================================================================================
+// Enforce DOF constraints - includes strong Dirichlet
+// ========================================================================================
+
+void AssemblyManager::dofConstraints(matrix_RCP & J, vector_RCP & res,
+                                     const ScalarT & current_time,
+                                     const bool & compute_jacobian,
+                                     const bool & compute_disc_sens) {
+  
   Teuchos::TimeMonitor localtimer(*dbctimer);
-  vector<vector<GO> > fixedDOFs = phys->dbc_dofs;
-  for (size_t b=0; b<cells.size(); b++) {
-    vector<size_t> boundDirichletElemIDs;   // list of elements on the Dirichlet boundary
-    vector<size_t> localDirichletSideIDs;   // local side numbers for Dirichlet boundary sides
-    vector<size_t> globalDirichletSideIDs;   // local side numbers for Dirichlet boundary sides
-    for (int n=0; n<numVars[b]; n++) {
-      int fnum = DOF->getFieldNum(varlist[b][n]);
-      boundDirichletElemIDs = phys->boundDirichletElemIDs[b][n];
-      localDirichletSideIDs = phys->localDirichletSideIDs[b][n];
-      globalDirichletSideIDs = phys->globalDirichletSideIDs[b][n];
-      
-      size_t numDBC = boundDirichletElemIDs.size();
-      for (size_t e=0; e<numDBC; e++) {
-        size_t eindex = boundDirichletElemIDs[e];
-        size_t sindex = localDirichletSideIDs[e];
-        size_t gside_index = globalDirichletSideIDs[e];
+  
+  if (usestrongDBCs) {
+    vector<vector<vector<LO> > > dbcDOFs = phys->dbc_dofs;
+    for (size_t block=0; block<dbcDOFs.size(); block++) {
+      for (size_t var=0; var<dbcDOFs[block].size(); var++) {
         if (compute_jacobian) {
-          this->updateJacDBC(J, eindex, b, fnum, sindex, compute_disc_sens);
+          this->updateJacDBC(J,dbcDOFs[block][var],compute_disc_sens);
         }
-        std::string gside = phys->sideSets[gside_index];
-        this->updateResDBCsens(res, eindex, b, n, sindex, gside, current_time);
+        //this->updateResDBC(res,dbcDOFs[block][var]);
       }
     }
+  }
+  
+  vector<vector<GO> > fixedDOFs = phys->point_dofs;
+  for (size_t block=0; block<fixedDOFs.size(); block++) {
     if (compute_jacobian) {
-      this->updateJacDBC(J,fixedDOFs[b],compute_disc_sens);
+      this->updateJacDBC(J,fixedDOFs[block],compute_disc_sens);
     }
-    this->updateResDBC(res,fixedDOFs[b]);
+    //this->updateResDBC(res,fixedDOFs[block]);
   }
   
 }
@@ -1235,9 +1242,12 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
     for (int i=0; i<LIDs.extent(0); i++) {
       for( size_t row=0; row<LIDs.extent(1); row++ ) {
         LO rowIndex = LIDs(i,row);
-        for (LO g=0; g<local_res.extent(2); g++) {
-          ScalarT val = local_res(i,row,g);
-          res->sumIntoLocalValue(rowIndex,g, val);
+        // add check here for fixedDOF
+        if (!isFixedDOF(rowIndex)) {
+          for (LO g=0; g<local_res.extent(2); g++) {
+            ScalarT val = local_res(i,row,g);
+            res->sumIntoLocalValue(rowIndex,g, val);
+          }
         }
       }
     }
@@ -1245,12 +1255,15 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
       for (int i=0; i<LIDs.extent(0); i++) { // this should be changed to a Kokkos::parallel_for on host
         for( size_t row=0; row<LIDs.extent(1); row++ ) {
           LO rowIndex = LIDs(i,row);
-          for( size_t col=0; col<LIDs.extent(1); col++ ) {
-            vals[col] = local_J(i,row,col);
-            cols[col] = LIDs(i,col);
+          // add check here for fixedDOF
+          if (!isFixedDOF(rowIndex)) {
+            for( size_t col=0; col<LIDs.extent(1); col++ ) {
+              vals[col] = local_J(i,row,col);
+              cols[col] = LIDs(i,col);
+            }
+            localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, false); // isSorted, useAtomics
+            // the LIDs are actually not sorted, but this appears to run a little faster
           }
-          localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, false); // isSorted, useAtomics
-          // the LIDs are actually not sorted, but this appears to run a little faster
         }
       }
     }
