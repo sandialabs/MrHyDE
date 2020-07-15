@@ -56,86 +56,38 @@ namespace ROL {
     ////////////////////////////////////////////////////////////////////////////////
     
     Real value(const Vector<Real> &Params, Real &tol){
-      
-      //Real val = 0;
-      //Teuchos::RCP<Teuchos::Time> valtimer = Teuchos::rcp(new Teuchos::Time("val",false)); //DEBUG
-      //valtimer->start(); //DEBUG
+            
       Teuchos::RCP<const std::vector<Real> > Paramsp =
       (Teuchos::dyn_cast<StdVector<Real> >(const_cast<Vector<Real> &>(Params))).getVector();
-      //Teuchos::RCP<Teuchos::Time> paramtimer = Teuchos::rcp(new Teuchos::Time("param",false)); //DEBUG
-      //paramtimer->start(); //DEBUG
+      
       params->updateParams(*Paramsp, 1);
       params->updateParams(*Paramsp, 4);
-      //paramtimer->stop(); //DEBUG
-      //Teuchos::RCP<Teuchos::Time> fwdtimer = Teuchos::rcp(new Teuchos::Time("fwd",false)); //DEBUG
-      //fwdtimer->start(); //DEBUG
-      DFAD val= 0.0;
       
+      DFAD val= 0.0;
       solver_MILO->forwardModel(val);
-      // do we want to write the solution each time
-      // if not, then when?
-      //fwdtimer->stop(); //DEBUG
-      //Teuchos::RCP<Teuchos::Time> posttimer = Teuchos::rcp(new Teuchos::Time("post",false)); //DEBUG
-      //posttimer->start(); //DEBUG
-      //AD val = postproc_MILO->computeObjective(F_soln);
-      //posttimer->stop(); //DEBUG
-      //Teuchos::RCP<Teuchos::Time> stashtimer = Teuchos::rcp(new Teuchos::Time("stash",false)); //DEBUG
-      //stashtimer->start(); //DEBUG
+      
       params->stashParams(); //dumping to file, for long runs...
-      //stashtimer->stop(); //DEBUG
-      //valtimer->stop(); //DEBUG
-      //cout << "obj fx - set: " << paramtimer->totalElapsedTime()
-      //    << " fwd: " << fwdtimer->totalElapsedTime()
-      //    << " post: " << posttimer->totalElapsedTime()
-      //    << " stash: " << stashtimer->totalElapsedTime()
-      //    << " total: " << valtimer->totalElapsedTime() << " seconds" << endl; //DEBUG
-      //postproc_MILO->writeSolution(F_soln,"output_fwd_val.exo"); //DEBUG
       
       return val.val();
     }
     
     //! Compute gradient of objective function with respect to parameters
     void gradient(Vector<Real> &g, const Vector<Real> &Params, Real &tol){
-      //Teuchos::RCP<Teuchos::Time> gtimer = Teuchos::rcp(new Teuchos::Time("grad",false)); //DEBUG
-      //gtimer->start(); //DEBUG
       
       Teuchos::RCP<std::vector<Real> > gp =
       Teuchos::rcp_const_cast<std::vector<Real> >((Teuchos::dyn_cast<StdVector<Real> >(g)).getVector());
       Teuchos::RCP<const std::vector<Real> > Paramsp =
       (Teuchos::dyn_cast<StdVector<Real> >(const_cast<Vector<Real> &>(Params))).getVector();
-      //Teuchos::RCP<Teuchos::Time> paramtimer = Teuchos::rcp(new Teuchos::Time("param",false)); //DEBUG
-      //paramtimer->start(); //DEBUG
+      
       params->updateParams(*Paramsp, 1);
       params->updateParams(*Paramsp, 4);
-      //paramtimer->stop(); //DEBUG
-      //Teuchos::RCP<Teuchos::Time> fwdtimer = Teuchos::rcp(new Teuchos::Time("fwd",false)); //DEBUG
-      //fwdtimer->start(); //DEBUG
       
-      //DFAD obj = 0.0;
-      //solver_MILO->forwardModel(obj);
-      
-      //fwdtimer->stop(); //DEBUG
-      //Teuchos::RCP<Teuchos::Time> adjtimer = Teuchos::rcp(new Teuchos::Time("adj",false)); //DEBUG
-      //adjtimer->start(); //DEBUG
       std::vector<ScalarT> sens;
-      
       solver_MILO->adjointModel(sens);
-      //adjtimer->stop(); //DEBUG
-      //Teuchos::RCP<Teuchos::Time> senstimer = Teuchos::rcp(new Teuchos::Time("sens",false)); //DEBUG
-      //senstimer->start(); //DEBUG
-      //std::vector<ScalarT> sens2 = postproc_MILO->computeSensitivities(F_soln, A_soln);
-      //for (size_t i=0; i<sens.size(); i++)
-      //  cout << i << "  " << abs(sens[i]-sens2[i]) << endl;
       
-      //senstimer->stop(); //DEBUG
-      for (size_t i=0; i<sens.size(); i++)
+      for (size_t i=0; i<sens.size(); i++) {
         (*gp)[i] = sens[i];
-      //gtimer->stop(); //DEBUG
-      //cout << "grad fx - set: " << paramtimer->totalElapsedTime()
-      //    << " fwd: " << fwdtimer->totalElapsedTime()
-      //    << " adjoint: " << adjtimer->totalElapsedTime()
-      //    << " sens: " << senstimer->totalElapsedTime()
-      //    << " total: " << gtimer->totalElapsedTime() << " seconds" << endl; //DEBUG
+      }
       
     }
     

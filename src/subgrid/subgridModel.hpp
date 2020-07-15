@@ -26,9 +26,9 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  virtual int addMacro(DRV & macronodes_, Kokkos::View<int****,HostDevice> & macrosideinfo_,
-                       Kokkos::View<GO**,HostDevice> & macroGIDs,
-                       Kokkos::View<LO***,AssemblyDevice> & macroindex,
+  virtual int addMacro(DRV & macronodes_,
+                       Kokkos::View<int****,HostDevice> & macrosideinfo_,
+                       LIDView macroLIDs,
                        Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & macroorientation) = 0;
 
   
@@ -80,7 +80,7 @@ public:
   
   virtual matrix_RCP getEvaluationMatrix(const DRV & newip, Teuchos::RCP<LA_Map> & ip_map) = 0;
   
-  virtual Kokkos::View<GO**,HostDevice> getCellGIDs(const int & cellnum) = 0;
+  virtual LIDView getCellLIDs(const int & cellnum) = 0;
   
   virtual void updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames) = 0;
   
@@ -102,6 +102,8 @@ public:
   vector<int> macro_usebasis;
   //vector<vector<int> > macro_offsets;
   Kokkos::View<LO**,AssemblyDevice> macro_offsets;
+  Kokkos::View<int*,UnifiedDevice> macro_numDOF;
+  
   vector<string> macro_paramnames, macro_disc_paramnames, macrosidenames;
   int macro_block;
   ScalarT cost_estimate;

@@ -25,6 +25,9 @@ ANONYMOUS:
         bottom: 0.0
         left: 0.0
         right: 0.0
+    Initial conditions:
+      scalar data: true
+      e: 0.0
     True solutions:
       e: sin(pi*x)*sin(pi*y)
   Discretization:

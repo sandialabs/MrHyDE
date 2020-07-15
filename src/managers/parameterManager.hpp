@@ -133,6 +133,7 @@ public:
   
   Teuchos::RCP<const LA_Map> param_owned_map;
   Teuchos::RCP<const LA_Map> param_overlapped_map;
+  Teuchos::RCP<LA_CrsGraph> param_overlapped_graph;
   
   Teuchos::RCP<LA_Export> param_exporter;
   Teuchos::RCP<LA_Import> param_importer;
@@ -163,8 +164,8 @@ public:
   vector<GO> paramOwnedAndShared;				 // GIDs that live or are shared on the local processor.
   
   vector<int> paramtypes;
-  vector<vector<int>> paramNodes;  // for distinguishing between parameter fields when setting initial
-  vector<vector<int>> paramNodesOS;// values and bounds
+  vector<vector<GO>> paramNodes;  // for distinguishing between parameter fields when setting initial
+  vector<vector<GO>> paramNodesOS;// values and bounds
   int num_inactive_params, num_active_params, num_stochastic_params, num_discrete_params, num_discretized_params;
   vector<ScalarT> initialParamValues, lowerParamBounds, upperParamBounds, discparamVariance;
   vector<ScalarT> domainRegConstants, boundaryRegConstants;

@@ -35,10 +35,9 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   
   cell(const Teuchos::RCP<CellMetaData> & cellData_,
-       const DRV & nodes_,
-       const Kokkos::View<LO*,AssemblyDevice> & localID_,
-       Kokkos::View<GO**,HostDevice> GIDs_,
-       Kokkos::View<LO**,HostDevice> LIDs_,
+       const DRV nodes_,
+       const Kokkos::View<LO*,AssemblyDevice> localID_,
+       LIDView LIDs_,
        Kokkos::View<int****,HostDevice> sideinfo_,
        Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_);
   
@@ -47,6 +46,11 @@ public:
   
   void setIP();
   
+  ///////////////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
+  void setWorkset(Teuchos::RCP<workset> & wkset_);
+
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
@@ -152,7 +156,7 @@ public:
   // Update the solution variables in the workset
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateSolnWorkset(const vector_RCP & gl_u, const int tindex);
+  //void updateSolnWorkset(const vector_RCP & gl_u, const int tindex);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT res
@@ -163,8 +167,12 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   // Update the adjoint res
   ///////////////////////////////////////////////////////////////////////////////////////
-  
   void updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,UnifiedDevice> local_res);
+
+  void updateAdjointRes(const bool & compute_jacobian, const bool & isTransient,
+                        const bool & compute_aux_sens, const bool & store_adjPrev,
+                        Kokkos::View<ScalarT***,UnifiedDevice> local_J,
+                        Kokkos::View<ScalarT***,UnifiedDevice> local_res);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT J
@@ -172,6 +180,9 @@ public:
   
   void updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,UnifiedDevice> local_J);
   
+  void fixDiagJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J,
+                  Kokkos::View<ScalarT***,UnifiedDevice> local_res);
+
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT Jparam
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -195,22 +206,12 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
     
   Kokkos::View<ScalarT***,AssemblyDevice> getMass();
-    
-  ///////////////////////////////////////////////////////////////////////////////////////
-  // Compute the response at a given set of points and time
-  ///////////////////////////////////////////////////////////////////////////////////////
-
-  Kokkos::View<AD***,AssemblyDevice> computeResponseAtNodes(const DRV & nodes,
-                                                            const int tindex,
-                                                            const ScalarT & time);
-
+  
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the response at the integration points given the solution and solve times
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  Kokkos::View<AD***,AssemblyDevice> computeResponse(//const ScalarT & solvetime,
-                                                     //const size_t & tindex,
-                                                     const int & seedwhat);
+  Kokkos::View<AD***,AssemblyDevice> computeResponse(const int & seedwhat);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute volumetric contribution to the regularization
@@ -312,9 +313,11 @@ public:
   // Public data
   
   // Data created elsewhere
-  Kokkos::View<GO**,HostDevice> GIDs, paramGIDs, auxGIDs; // scatter on host
-  Kokkos::View<LO**,HostDevice> LIDs; // scatter on host
-  Kokkos::View<LO***,AssemblyDevice> index, paramindex, auxindex; // gather on device
+  LIDView LIDs, paramLIDs, auxLIDs;
+  
+  // The GIDs are "mostly" deprecated
+  Kokkos::View<GO**,AssemblyDevice> GIDs, paramGIDs;
+  
   Teuchos::RCP<CellMetaData> cellData;
   Teuchos::RCP<workset> wkset;
   vector<Teuchos::RCP<SubGridModel> > subgridModels;
@@ -324,7 +327,6 @@ public:
   vector<size_t> cell_data_seed, cell_data_seedindex;
   vector<size_t> subgrid_model_index; // which subgrid model is used for each time step
   size_t subgrid_usernum; // what is the index for this cell in the subgrid model (should be deprecated)
-  //Kokkos::View<ScalarT*,AssemblyDevice> udot_wts;
   
   // Data created here (Views should all be AssemblyDevice)
   size_t numElem;
@@ -336,6 +338,11 @@ public:
   Kokkos::View<ScalarT***,AssemblyDevice> u_avg; // (elem,var,dim)
   Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
   //Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
+  
+  // Frequently used Views (None of these are allocated in the cells)
+  Kokkos::View<AD**,AssemblyDevice> res_AD;
+  Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets;
+  Kokkos::View<LO*,UnifiedDevice> numDOF, numParamDOF, numAuxDOF;
   
   // basis information
   vector<DRV> basis, basis_grad, basis_div, basis_curl;

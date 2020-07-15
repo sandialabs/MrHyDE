@@ -67,6 +67,7 @@ void MultiScale::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
                               vector<vector<string> > & macro_varlist,
                               vector<vector<int> > macro_usebasis,
                               vector<vector<vector<int> > > & macro_offsets,
+                              Kokkos::View<int*,UnifiedDevice> & macro_numDOF,
                               vector<string> & macro_paramnames,
                               vector<string> & macro_disc_paramnames) {
   
@@ -76,7 +77,8 @@ void MultiScale::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
     subgridModels[j]->macro_basis_types = macro_basis_types[mblock];
     subgridModels[j]->macro_varlist = macro_varlist[mblock];
     subgridModels[j]->macro_usebasis = macro_usebasis[mblock];
-    subgridModels[j]->macro_offsets = macro_wkset[mblock]->offsets;//macro_offsets[mblock];
+    subgridModels[j]->macro_offsets = macro_wkset[mblock]->offsets;
+    subgridModels[j]->macro_numDOF = macro_numDOF;
     subgridModels[j]->macro_paramnames = macro_paramnames;
     subgridModels[j]->macro_disc_paramnames = macro_disc_paramnames;
     subgridModels[j]->subgrid_static = subgrid_static;
@@ -148,21 +150,15 @@ ScalarT MultiScale::initialize() {
         
         sgusernum = subgridModels[sgwinner]->addMacro(cells[b][e]->nodes,
                                                       cells[b][e]->sideinfo,
-                                                      cells[b][e]->GIDs,
-                                                      cells[b][e]->index,
+                                                      cells[b][e]->LIDs,
                                                       cells[b][e]->orientation);
-        
-        //int cnum = subgridModels[sgnum[c]]->addMacro(cnodes, csideinfo,
-        //                                             cGIDs, cindex, orientation);
-        
         
       }
       else {
         for (size_t s=0; s<subgridModels.size(); s++) { // needs to add this cell info to all of them (sgusernum is same for all)
           sgusernum = subgridModels[s]->addMacro(cells[b][e]->nodes,
                                                  cells[b][e]->sideinfo,
-                                                 cells[b][e]->GIDs,
-                                                 cells[b][e]->index,
+                                                 cells[b][e]->LIDs,
                                                  cells[b][e]->orientation);
         }
       }

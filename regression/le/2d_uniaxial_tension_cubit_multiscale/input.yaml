@@ -72,7 +72,7 @@ ANONYMOUS:
   Postprocess: 
     response type: pointwise
     compute response: false
-    write solution: false
+    write solution: true
     compute errors: true
   Parameters input file: input_params.yaml
   Analysis input file: input_fwd.yaml

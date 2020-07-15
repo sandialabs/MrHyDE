@@ -45,6 +45,7 @@ class MultiScale {
                     vector<vector<string> > & macro_varlist,
                     vector<vector<int> > macro_usebasis,
                     vector<vector<vector<int> > > & macro_offsets,
+                    Kokkos::View<int*,UnifiedDevice> & macro_numDOF,
                     vector<string> & macro_paramnames,
                     vector<string> & macro_disc_paramnames);
   

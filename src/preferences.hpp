@@ -97,6 +97,7 @@ typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> DRV;
 typedef Kokkos::DynRankView<int,AssemblyDevice> DRVint;
 typedef Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> FDATA;
 typedef Kokkos::View<ScalarT**,Kokkos::LayoutStride,AssemblyDevice> FDATAd;
+typedef Kokkos::View<LO**,AssemblyDevice> LIDView;
 
 // Intrepid and shards typedefs
 //typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;

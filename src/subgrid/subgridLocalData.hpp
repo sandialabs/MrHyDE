@@ -24,11 +24,10 @@ public:
   ~SubGridLocalData() {} ;
   
   SubGridLocalData(DRV & macronodes_, Kokkos::View<int****,HostDevice> & macrosideinfo_,
-                   Kokkos::View<GO**,HostDevice> & macroGIDs_,
-                   Kokkos::View<LO***,AssemblyDevice> & macroindex_,
+                   LIDView macroLIDs_,
                    Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & macroorientation_)
-  : macronodes(macronodes_), macrosideinfo(macrosideinfo_), macroGIDs(macroGIDs_),
-  macroindex(macroindex_), macroorientation(macroorientation_) {
+  : macronodes(macronodes_), macrosideinfo(macrosideinfo_), macroLIDs(macroLIDs_),
+  macroorientation(macroorientation_) {
     
   }
   
@@ -432,24 +431,24 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  void setBoundaryIndexGIDs() {
+  void setBoundaryIndexLIDs() {
     for (size_t b=0; b<boundaryMIDs.size(); b++) {
-      Kokkos::View<GO**,HostDevice> cGIDs("boundary macro GIDs",boundaryMIDs[b].size(),macroGIDs.extent(1));
-      Kokkos::View<LO***,AssemblyDevice> cindex("boundary macro GIDs",boundaryMIDs[b].size(),macroindex.extent(1),
-                                            macroindex.extent(2));
+      LIDView cLIDs("boundary macro LIDs",boundaryMIDs[b].size(),macroLIDs.extent(1));
+      //Kokkos::View<LO***,AssemblyDevice> cindex("boundary macro GIDs",boundaryMIDs[b].size(),macroindex.extent(1),
+      //                                      macroindex.extent(2));
       for (size_t e=0; e<boundaryMIDs[b].size(); e++) {
         size_t mid = boundaryMIDs[b][e];
-        for (size_t i=0; i<cGIDs.extent(1); i++) {
-          cGIDs(e,i) = macroGIDs(mid,i);
+        for (size_t i=0; i<cLIDs.extent(1); i++) {
+          cLIDs(e,i) = macroLIDs(mid,i);
         }
-        for (size_t i=0; i<cindex.extent(1); i++) {
-          for (size_t j=0; j<cindex.extent(2); j++) {
-            cindex(e,i,j) = macroindex(mid,i,j);
-          }
-        }
+        //for (size_t i=0; i<cindex.extent(1); i++) {
+        //  for (size_t j=0; j<cindex.extent(2); j++) {
+        //    cindex(e,i,j) = macroindex(mid,i,j);
+        //  }
+        //}
       }
-      boundaryMacroGIDs.push_back(cGIDs);
-      boundaryMacroindex.push_back(cindex);
+      boundaryMacroLIDs.push_back(cLIDs);
+      //boundaryMacroindex.push_back(cindex);
     }
   }
   ////////////////////////////////////////////////////////////////////////////////
@@ -461,9 +460,8 @@ public:
   vector<Kokkos::View<ScalarT*,AssemblyDevice> > boundaryHsize;
   
   Kokkos::View<int****,HostDevice> macrosideinfo, sideinfo;
-  Kokkos::View<GO**,HostDevice> macroGIDs;
-  Kokkos::View<LO***,AssemblyDevice> macroindex;
-  vector<Kokkos::View<GO**,HostDevice> > boundaryMacroGIDs;
+  LIDView macroLIDs;
+  vector<LIDView> boundaryMacroLIDs;
   vector<Kokkos::View<LO***,AssemblyDevice> > boundaryMacroindex;
   
   Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> macroorientation;

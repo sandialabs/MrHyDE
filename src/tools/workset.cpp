@@ -699,7 +699,6 @@ void workset::computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param,
         DRV pbasis = basis[kpbasis];
         DRV pbasis_grad = basis_grad[kpbasis];
         bind(0) = k;
-        
         parallel_for(RangePolicy<AssemblyExec>(0,pbasis.extent(0)), KOKKOS_LAMBDA (const int e ) {
           AD paramval;
           int kk = bind(0);

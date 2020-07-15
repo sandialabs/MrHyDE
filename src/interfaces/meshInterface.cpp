@@ -942,7 +942,7 @@ DRV meshInterface::getElemNodes(const int & block, const int & elemID) {
 
 void meshInterface::remesh(const vector_RCP & u, vector<vector<Teuchos::RCP<cell> > > & cells) {
   
-  
+  /*
   auto u_kv = u->getLocalView<HostDevice>();
   
   for (size_t b=0; b<cells.size(); b++) {
@@ -997,6 +997,7 @@ void meshInterface::remesh(const vector_RCP & u, vector<vector<Teuchos::RCP<cell
       }
     }
   }
+   */
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1128,16 +1129,21 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
     //meas.modify_host();
     int index, dindex;
     //vector<vector<int> > curroffsets = phys->offsets[b];
-    Kokkos::View<LO***,AssemblyDevice> cindex;
+    //Kokkos::View<LO***,AssemblyDevice> cindex;
+    Kokkos::View<int**,AssemblyDevice> offsets;
+    Kokkos::View<LO**,AssemblyDevice> LIDs;
+    
     Kokkos::View<LO*,UnifiedDevice> nDOF;
     for( size_t e=0; e<cells[b].size(); e++ ) {
-      cindex = cells[b][e]->index;
+      //cindex = cells[b][e]->index;
+      LIDs = cells[b][e]->LIDs;
+      offsets = cells[b][e]->offsets;
       nDOF = cells[b][e]->cellData->numDOF;
-      for (int n=0; n<cindex.extent(1); n++) {
+      for (int n=0; n<nDOF(0); n++) {
         //Kokkos::View<GO**,HostDevice> GIDs = assembler->cells[b][e]->GIDs;
         for (int p=0; p<cells[b][e]->numElem; p++) {
           for( int i=0; i<nDOF(n); i++ ) {
-            index = cindex(p,n,i);//LA_overlapped_map->getLocalElement(GIDs(p,curroffsets[n][i]));
+            index = LIDs(p,offsets(n,i));//cindex(p,n,i);//LA_overlapped_map->getLocalElement(GIDs(p,curroffsets[n][i]));
             dindex = connect[e*num_node_per_el + i] - 1;
             meas_kv(index,0) = nfield_vals[n][dindex];
             //(*meas)[0][index] = nfield_vals[n][dindex];

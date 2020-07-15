@@ -379,6 +379,7 @@ void analysis::run() {
     
     ROL::StdVector<RealT> x(x_rcp);
     
+    
     //bound contraint
     Teuchos::RCP<ROL::Bounds<RealT> > con;
     bool bound_vars = ROLsettings.sublist("General").get("Bound Optimization Variables",false);
@@ -404,7 +405,6 @@ void analysis::run() {
       //read in bounds for parameters...
       vector<vector<ScalarT> > classicBnds = params->getParamBounds("active");
       vector<vector<ScalarT> > discBnds = params->getParamBounds("discretized");
-      
       pprog = 0;
       
       if (classicBnds[0].size() > 0) {
@@ -460,13 +460,14 @@ void analysis::run() {
       
     }
     
+    
     Teuchos::Time timer("Optimization Time",true);
     
     // Run algorithm.
     vector<std::string> output;
-    if(bound_vars)
-    output = algo.run(x, *obj, *con, (Comm->getRank() == 0 )); //only processor of rank 0 print outs
-    else
+    //if(bound_vars)
+    //output = algo.run(x, *obj, *con, (Comm->getRank() == 0 )); //only processor of rank 0 print outs
+    //else
     output = algo.run(x, *obj, (Comm->getRank() == 0)); //only processor of rank 0 prints out
     
     ScalarT optTime = timer.stop();

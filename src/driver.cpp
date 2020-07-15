@@ -194,7 +194,6 @@ int main(int argc,char * argv[]) {
     
     solve->multiscale_manager = multiscale_manager;
     solve->postproc = postproc;
-    //solve->setBatchID(Comm->getRank());
     
     Teuchos::RCP<SensorManager> sensors = Teuchos::rcp( new SensorManager(settings, mesh, disc,
                                                                           assembler, params) );

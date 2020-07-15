@@ -38,11 +38,15 @@ public:
                const Kokkos::View<LO*,AssemblyDevice> & sideID_,
                const int & sidenum_, const string & sidename_,
                const int & cellID_,
-               Kokkos::View<GO**,HostDevice> GIDs_,
-               Kokkos::View<LO**,HostDevice> LIDs_,
+               LIDView LIDs_,
                Kokkos::View<int****,HostDevice> sideinfo_,
                Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_);
   
+  ///////////////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
+  void setWorkset(Teuchos::RCP<workset> & wkset_);
+
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
   
@@ -184,15 +188,11 @@ public:
 
   vector<int> getInfo() {
     vector<int> info;
-    int nparams = 0;
-    if (paramindex.extent(0)>0) {
-      nparams = paramindex.extent(1);
-    }
     info.push_back(cellData->dimension);
-    info.push_back(cellData->numDOF.extent(0));
-    info.push_back(nparams);
-    info.push_back(auxindex.extent(1));
-    info.push_back(GIDs.extent(1));
+    info.push_back(numDOF.extent(0));
+    info.push_back(numParamDOF.extent(0));
+    info.push_back(numAuxDOF.extent(0));
+    info.push_back(LIDs.extent(1));
     info.push_back(numElem);
     return info;
   }
@@ -226,11 +226,16 @@ public:
   Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
   string sidename;
   
+  // Frequently used Views (None of these are allocated in the cells)
+  Kokkos::View<AD**,AssemblyDevice> res_AD;
+  Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets;
+  Kokkos::View<LO*,UnifiedDevice> numDOF, numParamDOF, numAuxDOF;
+  
   // DOF information
-  Kokkos::View<GO**,HostDevice> GIDs, paramGIDs, auxGIDs;
-  Kokkos::View<LO**,HostDevice> LIDs, paramLIDs, auxLIDs;
-  Kokkos::View<LO***,AssemblyDevice> index, paramindex, auxindex;
-  //Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
+  // The GIDs are "mostly" deprecated
+  Kokkos::View<GO**,AssemblyDevice> GIDs, paramGIDs;
+  
+  LIDView LIDs, paramLIDs, auxLIDs;
   Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param;
   Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
   
