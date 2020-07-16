@@ -867,8 +867,6 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
     this->insert(J, res, local_res, local_J,
                  cells[b][e]->LIDs,
                  cells[b][e]->paramLIDs,
-                 cells[b][e]->GIDs,
-                 cells[b][e]->paramGIDs,
                  compute_jacobian, compute_disc_sens);
   
   } // element loop
@@ -956,8 +954,6 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
         this->insert(J, res, local_res, local_J,
                      boundaryCells[b][e]->LIDs,
                      boundaryCells[b][e]->paramLIDs,
-                     boundaryCells[b][e]->GIDs,
-                     boundaryCells[b][e]->paramGIDs,
                      compute_jacobian, compute_disc_sens);
         
       }
@@ -1185,113 +1181,57 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
                              Kokkos::View<ScalarT***,UnifiedDevice> local_res,
                              Kokkos::View<ScalarT***,UnifiedDevice> local_J,
                              LIDView LIDs, LIDView paramLIDs,
-                             Kokkos::View<GO**,AssemblyDevice> GIDs,
-                             Kokkos::View<GO**,AssemblyDevice> paramGIDs,
                              const bool & compute_jacobian,
                              const bool & compute_disc_sens) {
 
   Teuchos::TimeMonitor localtimer(*inserttimer);
   
-  bool useLocal = true;
-  if (compute_jacobian && compute_disc_sens) { // fix later
-    //useLocal = false;
-  }
+  /////////////////////////////////////
+  // Using LIDs
+  /////////////////////////////////////
   
-  if (useLocal) {
-    /////////////////////////////////////
-    // Using LIDs
-    /////////////////////////////////////
-    
-    auto localMatrix = J->getLocalMatrix();
-    
-    for (int i=0; i<LIDs.extent(0); i++) {
-      for( size_t row=0; row<LIDs.extent(1); row++ ) {
-        LO rowIndex = LIDs(i,row);
-        // add check here for fixedDOF
-        if (!isFixedDOF(rowIndex)) {
-          for (LO g=0; g<local_res.extent(2); g++) {
-            ScalarT val = local_res(i,row,g);
-            res->sumIntoLocalValue(rowIndex,g, val);
-          }
-        }
-      }
-    }
-    if (compute_jacobian) {
-      if (compute_disc_sens) {
-        //KokkosTools::print(local_J);
-        const int numVals = static_cast<int>(paramLIDs.extent(1));
-        LO cols[numVals];
-        ScalarT vals[numVals];
-        for (int i=0; i<LIDs.extent(0); i++) { // this should be changed to a Kokkos::parallel_for on assemblydevice
-          for( size_t row=0; row<LIDs.extent(1); row++ ) {
-            LO rowIndex = LIDs(i,row);
-            //if (!isFixedDOF(rowIndex)) {
-              for( size_t col=0; col<paramLIDs.extent(1); col++ ) {
-                LO colIndex = paramLIDs(i,col);
-                ScalarT val = local_J(i,row,col);
-                //J->sumIntoLocalValues(colIndex, 1, &val, &rowIndex, false);
-                localMatrix.sumIntoValues(colIndex, &rowIndex, 1, &val, true, false); // isSorted, useAtomics
-                //vals[col] = local_J(i,row,col);
-                //cols[col] = paramLIDs(i,col);
-              }
-              //J->sumIntoLocalValues(rowIndex, numVals, vals, cols, false); // isSorted, useAtomics
-              //localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, false); // isSorted, useAtomics
-            //}
-          }
-        }
-      }
-      else {
-        const int numVals = static_cast<int>(LIDs.extent(1));
-        LO cols[numVals];
-        ScalarT vals[numVals];
-        for (int i=0; i<LIDs.extent(0); i++) { // this should be changed to a Kokkos::parallel_for on host
-          for( size_t row=0; row<LIDs.extent(1); row++ ) {
-            LO rowIndex = LIDs(i,row);
-            // add check here for fixedDOF
-            if (!isFixedDOF(rowIndex)) {
-              for( size_t col=0; col<LIDs.extent(1); col++ ) {
-                vals[col] = local_J(i,row,col);
-                cols[col] = LIDs(i,col);
-              }
-              localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, false); // isSorted, useAtomics
-              // the LIDs are actually not sorted, but this appears to run a little faster
-            }
-          }
-        }
-      }
-    }
-    
-  }
-  else {
-    /////////////////////////////////////
-    // Using GIDs
-    /////////////////////////////////////
-    
-    Teuchos::Array<ScalarT> vals(GIDs.extent(1));
-    Teuchos::Array<GO> cols(GIDs.extent(1));
-    
-    for (int i=0; i<GIDs.extent(0); i++) {
-      
-      for( size_t row=0; row<GIDs.extent(1); row++ ) {
-        GO rowIndex = GIDs(i,row);
-        for (int g=0; g<local_res.extent(2); g++) {
+  auto localMatrix = J->getLocalMatrix();
+  
+  for (int i=0; i<LIDs.extent(0); i++) {
+    for( size_t row=0; row<LIDs.extent(1); row++ ) {
+      LO rowIndex = LIDs(i,row);
+      if (!isFixedDOF(rowIndex)) {
+        for (LO g=0; g<local_res.extent(2); g++) {
           ScalarT val = local_res(i,row,g);
-          res->sumIntoGlobalValue(rowIndex,g, val);
+          res->sumIntoLocalValue(rowIndex,g, val);
         }
-        if (compute_jacobian) {
-          if (compute_disc_sens) {
-            for( size_t col=0; col<paramGIDs.extent(1); col++ ) {
-              GO colIndex = paramGIDs(i,col);
-              ScalarT val = local_J(i,row,col);
-              J->insertGlobalValues(colIndex, 1, &val, &rowIndex);
-            }
+      }
+    }
+  }
+  if (compute_jacobian) {
+    if (compute_disc_sens) {
+      const int numVals = static_cast<int>(paramLIDs.extent(1));
+      LO cols[numVals];
+      ScalarT vals[numVals];
+      for (int i=0; i<LIDs.extent(0); i++) { // this should be changed to a Kokkos::parallel_for on assemblydevice
+        for( size_t row=0; row<LIDs.extent(1); row++ ) {
+          LO rowIndex = LIDs(i,row);
+          for( size_t col=0; col<paramLIDs.extent(1); col++ ) {
+            LO colIndex = paramLIDs(i,col);
+            ScalarT val = local_J(i,row,col);
+            localMatrix.sumIntoValues(colIndex, &rowIndex, 1, &val, true, false); // isSorted, useAtomics
           }
-          else {
-            for( size_t col=0; col<GIDs.extent(1); col++ ) {
+        }
+      }
+    }
+    else {
+      const int numVals = static_cast<int>(LIDs.extent(1));
+      LO cols[numVals];
+      ScalarT vals[numVals];
+      for (int i=0; i<LIDs.extent(0); i++) { // this should be changed to a Kokkos::parallel_for on host
+        for( size_t row=0; row<LIDs.extent(1); row++ ) {
+          LO rowIndex = LIDs(i,row);
+          if (!isFixedDOF(rowIndex)) {
+            for( size_t col=0; col<LIDs.extent(1); col++ ) {
               vals[col] = local_J(i,row,col);
-              cols[col] = GIDs(i,col);
+              cols[col] = LIDs(i,col);
             }
-            J->sumIntoGlobalValues(rowIndex, cols, vals);
+            localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, false); // isSorted, useAtomics
           }
         }
       }

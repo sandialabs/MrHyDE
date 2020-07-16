@@ -137,8 +137,6 @@ public:
               Kokkos::View<ScalarT***,UnifiedDevice> local_res,
               Kokkos::View<ScalarT***,UnifiedDevice> local_J,
               LIDView LIDs, LIDView paramLIDs,
-              Kokkos::View<GO**,AssemblyDevice> GIDs,
-              Kokkos::View<GO**,AssemblyDevice> paramGIDs,
               const bool & compute_jacobian, const bool & compute_disc_sens);
     
   ///////////////////////////////////////////////////////////////////////////////////////////

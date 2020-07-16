@@ -232,9 +232,6 @@ public:
   Kokkos::View<LO*,UnifiedDevice> numDOF, numParamDOF, numAuxDOF;
   
   // DOF information
-  // The GIDs are "mostly" deprecated
-  Kokkos::View<GO**,AssemblyDevice> GIDs, paramGIDs;
-  
   LIDView LIDs, paramLIDs, auxLIDs;
   Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param;
   Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)

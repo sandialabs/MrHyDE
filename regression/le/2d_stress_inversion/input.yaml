@@ -29,6 +29,10 @@ ANONYMOUS:
         top: '0.0'
       dy:
         top: 'nbcy'
+    Initial conditions:
+      scalar data: true
+      dx: 1.0
+      dy: 1.0
     Responses:
       sxx: 4.0*mufield*dx_x + 2.0*mufield*dy_y
       sxy: mufield*(dx_y+dy_x)

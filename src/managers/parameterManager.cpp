@@ -563,7 +563,7 @@ void ParameterManager::updateParams(const vector<ScalarT> & newparams, const int
       }
     }
   }
-  //KokkosTools::print(Psol[0],"pman");
+  
   if ((type == 4) && (globalParamUnknowns > 0)) {
     int numClassicParams = this->getNumParams(1); // offset for ROL param vector
     for (size_t i = 0; i < paramOwnedAndShared.size(); i++) {
@@ -579,8 +579,6 @@ void ParameterManager::updateParams(const vector<ScalarT> & newparams, const int
       Psol[0]->replaceGlobalValue(gid,0,newparams[i+numClassicParams]);
     }
   }
-  
-  //KokkosTools::print(Psol[0],"after update");
   
 }
 

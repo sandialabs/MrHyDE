@@ -192,10 +192,10 @@ void BoundaryCell::setWorkset(Teuchos::RCP<workset> & wkset_) {
   // Frequently used Views
   res_AD = wkset->res;
   offsets = wkset->offsets;
-  paramoffsets = wkset->paramoffsets;
+  //paramoffsets = wkset->paramoffsets;
   
   numDOF = cellData->numDOF;
-  numParamDOF = cellData->numParamDOF;
+  //numParamDOF = cellData->numParamDOF;
   numAuxDOF = cellData->numAuxDOF;
   
 }
@@ -610,6 +610,9 @@ void BoundaryCell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,Un
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void BoundaryCell::updateParamJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
+  
+  paramoffsets = wkset->paramoffsets;
+  numParamDOF = cellData->numParamDOF;
   
   parallel_for(RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (unsigned int n=0; n<numDOF.extent(0); n++) {

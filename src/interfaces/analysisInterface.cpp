@@ -465,9 +465,9 @@ void analysis::run() {
     
     // Run algorithm.
     vector<std::string> output;
-    //if(bound_vars)
-    //output = algo.run(x, *obj, *con, (Comm->getRank() == 0 )); //only processor of rank 0 print outs
-    //else
+    if(bound_vars)
+    output = algo.run(x, *obj, *con, (Comm->getRank() == 0 )); //only processor of rank 0 print outs
+    else
     output = algo.run(x, *obj, (Comm->getRank() == 0)); //only processor of rank 0 prints out
     
     ScalarT optTime = timer.stop();

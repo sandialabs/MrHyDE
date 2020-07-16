@@ -272,10 +272,10 @@ void cell::setWorkset(Teuchos::RCP<workset> & wkset_) {
   // Frequently used Views 
   res_AD = wkset->res;
   offsets = wkset->offsets;
-  paramoffsets = wkset->paramoffsets;
+  //paramoffsets = wkset->paramoffsets;
   
   numDOF = cellData->numDOF;
-  numParamDOF = cellData->numParamDOF;
+  //numParamDOF = cellData->numParamDOF;
   numAuxDOF = cellData->numAuxDOF;
 
 }

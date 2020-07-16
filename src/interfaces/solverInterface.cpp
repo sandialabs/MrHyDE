@@ -605,49 +605,6 @@ void solver::setupLinearAlgebra() {
     
     params->param_overlapped_graph->fillComplete(LA_owned_map, params->param_owned_map);
     
-    for (size_t b=0; b<blocknames.size(); b++) {
-      for (size_t e=0; e<assembler->cells[b].size(); e++) {
-        vector<vector<GO> > GIDs;
-        int numElem = assembler->cells[b][e]->numElem;
-        int numLocalDOF = 0;
-        for (int p=0; p<numElem; p++) {
-          size_t elemID = assembler->cells[b][e]->localElemID(p);//disc->myElements[b][eprog+p];
-          vector<GO> localGIDs;
-          DOF->getElementGIDs(elemID, localGIDs, blocknames[b]);
-          GIDs.push_back(localGIDs);
-          numLocalDOF = localGIDs.size(); // should be the same for all elements
-        }
-        Kokkos::View<GO**,HostDevice> hostGIDs("GIDs on host device",numElem,numLocalDOF);
-        for (int i=0; i<numElem; i++) {
-          for (int j=0; j<numLocalDOF; j++) {
-            hostGIDs(i,j) = GIDs[i][j];
-          }
-        }
-        assembler->cells[b][e]->GIDs = hostGIDs;
-        //cells[b][e]->setParamUseBasis(disc_usebasis, paramNumBasis);
-      }
-      
-      for (size_t e=0; e<assembler->cells[b].size(); e++) {
-        vector<vector<GO> > GIDs;
-        int numElem = assembler->cells[b][e]->numElem;
-        int numLocalDOF = 0;
-        for (int p=0; p<numElem; p++) {
-          size_t elemID = assembler->cells[b][e]->localElemID(p);//disc->myElements[b][eprog+p];
-          vector<GO> localGIDs;
-          params->paramDOF->getElementGIDs(elemID, localGIDs, blocknames[b]);
-          GIDs.push_back(localGIDs);
-          numLocalDOF = localGIDs.size(); // should be the same for all elements
-        }
-        Kokkos::View<GO**,HostDevice> hostGIDs("GIDs on host device",numElem,numLocalDOF);
-        for (int i=0; i<numElem; i++) {
-          for (int j=0; j<numLocalDOF; j++) {
-            hostGIDs(i,j) = GIDs[i][j];
-          }
-        }
-        assembler->cells[b][e]->paramGIDs = hostGIDs;
-        //cells[b][e]->setParamUseBasis(disc_usebasis, paramNumBasis);
-      }
-    }
   }
   
   if (milo_debug_level > 0) {
@@ -1269,20 +1226,19 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
     assembler->performBoundaryGather(b, F_soln, 0, 0);
     assembler->performBoundaryGather(b, params->Psol[0], 4, 0);
     
-    vector<size_t> EIDs = disc->myElements[b];
-    
     for (size_t e=0; e<assembler->cells[b].size(); e++) {
       
       Kokkos::View<AD**,AssemblyDevice> obj = assembler->cells[b][e]->computeObjective(time, tindex, 0);
-      Kokkos::View<GO**,HostDevice> paramGIDs = assembler->cells[b][e]->paramGIDs;
       
       int numElem = assembler->cells[b][e]->numElem;
       
       if (obj.extent(1) > 0) {
         for (int c=0; c<numElem; c++) {
-          //vector<GO> paramGIDs;
-          //params->paramDOF->getElementGIDs(EIDs[assembler->cells[b][e]->localElemID[c]],
-          //                                 paramGIDs, blocknames[b]);
+          vector<GO> paramGIDs;
+          if (params->globalParamUnknowns > 0) {
+            params->paramDOF->getElementGIDs(assembler->cells[b][e]->localElemID[c],
+                                             paramGIDs, blocknames[b]);
+          }
           for (size_t i=0; i<obj.extent(1); i++) {
             totaldiff += obj(c,i);
             if (params->num_active_params > 0) {
@@ -1296,8 +1252,7 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
             if (params->globalParamUnknowns > 0) {
               
               for (int row=0; row<params->paramoffsets[0].size(); row++) {
-                GO rowIndex = paramGIDs(c,params->paramoffsets[0][row]);
-                //GO rowIndex = paramGIDs[params->paramoffsets[0][row]];
+                GO rowIndex = paramGIDs[params->paramoffsets[0][row]];
                 
                 int poffset = params->paramoffsets[0][row];
                 ScalarT val;
@@ -1311,119 +1266,73 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
         }
       }
       
-      if ((numDomainParams > 0)){// || (numBoundaryParams > 0)) {
+      if (numDomainParams > 0){
+        int paramIndex, rowIndex, poffset;
+        ScalarT val;
+        regDomain = assembler->cells[b][e]->computeDomainRegularization(params->domainRegConstants,
+                                                                        params->domainRegTypes,
+                                                                        params->domainRegIndices);
         
-        Kokkos::View<GO**,HostDevice> paramGIDs = assembler->cells[b][e]->paramGIDs;
-        
-        if (numDomainParams > 0) {
-          int paramIndex, rowIndex, poffset;
-          ScalarT val;
-          regDomain = assembler->cells[b][e]->computeDomainRegularization(params->domainRegConstants,
-                                                                          params->domainRegTypes,
-                                                                          params->domainRegIndices);
+        for (int c=0; c<numElem; c++) {
+          vector<GO> paramGIDs;
+          params->paramDOF->getElementGIDs(assembler->cells[b][e]->localElemID[c],
+                                           paramGIDs, blocknames[b]);
           
-          for (int c=0; c<numElem; c++) {
-            //vector<GO> paramGIDs;
-            //params->paramDOF->getElementGIDs(EIDs[assembler->cells[b][e]->localElemID[c]],
-            //                                 paramGIDs, blocknames[b]);
-            
-            for (size_t p = 0; p < numDomainParams; p++) {
-              paramIndex = params->domainRegIndices[p];
-              for( size_t row=0; row<params->paramoffsets[paramIndex].size(); row++ ) {
-                if (regDomain.size() > 0) {
-                  
-                  rowIndex = paramGIDs(c,params->paramoffsets[paramIndex][row]);
-                  //rowIndex = paramGIDs[params->paramoffsets[paramIndex][row]];
-                  poffset = params->paramoffsets[paramIndex][row];
-                  val = regDomain.fastAccessDx(poffset);
-                  regGradient[rowIndex+params->num_active_params] += val;
-                  
-                }
+          for (size_t p = 0; p < numDomainParams; p++) {
+            paramIndex = params->domainRegIndices[p];
+            for( size_t row=0; row<params->paramoffsets[paramIndex].size(); row++ ) {
+              if (regDomain.size() > 0) {
+                rowIndex = paramGIDs[params->paramoffsets[paramIndex][row]];
+                poffset = params->paramoffsets[paramIndex][row];
+                val = regDomain.fastAccessDx(poffset);
+                regGradient[rowIndex+params->num_active_params] += val;
               }
             }
           }
+          
         }
       }
     }
-    bool usenewbcs = true;
-    if (usenewbcs) {
+    if (numBoundaryParams > 0) {
       for (size_t e=0; e<assembler->boundaryCells[b].size(); e++) {
-        if (numBoundaryParams > 0) {
+        
+        int paramIndex, rowIndex, poffset;
+        ScalarT val;
+        
+        regBoundary = assembler->boundaryCells[b][e]->computeBoundaryRegularization(params->boundaryRegConstants,
+                                                                                    params->boundaryRegTypes,
+                                                                                    params->boundaryRegIndices,
+                                                                                    params->boundaryRegSides);
+        
+        for (int c=0; c<assembler->boundaryCells[b][e]->numElem; c++) {
+          vector<GO> paramGIDs;
+          params->paramDOF->getElementGIDs(assembler->boundaryCells[b][e]->localElemID[c],
+                                           paramGIDs, blocknames[b]);
           
-          
-          //Kokkos::View<GO**,HostDevice> paramGIDs = assembler->boundaryCells[b][e]->paramGIDs;
-          
-          int paramIndex, rowIndex, poffset;
-          ScalarT val;
-          
-          regBoundary = assembler->boundaryCells[b][e]->computeBoundaryRegularization(params->boundaryRegConstants,
-                                                                                      params->boundaryRegTypes,
-                                                                                      params->boundaryRegIndices,
-                                                                                      params->boundaryRegSides);
-          
-          for (int c=0; c<assembler->boundaryCells[b][e]->numElem; c++) {
-            vector<GO> paramGIDs;
-            params->paramDOF->getElementGIDs(assembler->boundaryCells[b][e]->localElemID[c],
-                                             paramGIDs, blocknames[b]);
-            
-            for (size_t p = 0; p < numBoundaryParams; p++) {
-              paramIndex = params->boundaryRegIndices[p];
-              for( size_t row=0; row<params->paramoffsets[paramIndex].size(); row++ ) {
-                if (regBoundary.size() > 0) {
-                  
-                  //rowIndex = paramGIDs(c,params->paramoffsets[paramIndex][row]);
-                  rowIndex = paramGIDs[params->paramoffsets[paramIndex][row]];
-                  poffset = params->paramoffsets[paramIndex][row];
-                  val = regBoundary.fastAccessDx(poffset);
-                  regGradient[rowIndex+params->num_active_params] += val;
-                  
-                }
+          for (size_t p = 0; p < numBoundaryParams; p++) {
+            paramIndex = params->boundaryRegIndices[p];
+            for( size_t row=0; row<params->paramoffsets[paramIndex].size(); row++ ) {
+              if (regBoundary.size() > 0) {
+                
+                //rowIndex = paramGIDs(c,params->paramoffsets[paramIndex][row]);
+                rowIndex = paramGIDs[params->paramoffsets[paramIndex][row]];
+                poffset = params->paramoffsets[paramIndex][row];
+                val = regBoundary.fastAccessDx(poffset);
+                regGradient[rowIndex+params->num_active_params] += val;
+                
               }
             }
           }
         }
       }
-    }
-    else {
-      /*
-      for (size_t e=0; e<assembler->cells[b].size(); e++) {
-        if (numBoundaryParams > 0) {
-          
-          Kokkos::View<GO**,HostDevice> paramGIDs = assembler->cells[b][e]->paramGIDs;
-          
-          int paramIndex, rowIndex, poffset;
-          ScalarT val;
-          
-          regBoundary = assembler->cells[b][e]->computeBoundaryRegularization(params->boundaryRegConstants,
-                                                                                      params->boundaryRegTypes,
-                                                                                      params->boundaryRegIndices,
-                                                                                      params->boundaryRegSides);
-          
-          for (int c=0; c<assembler->cells[b][e]->numElem; c++) {
-            for (size_t p = 0; p < numBoundaryParams; p++) {
-              paramIndex = params->boundaryRegIndices[p];
-              for( size_t row=0; row<params->paramoffsets[paramIndex].size(); row++ ) {
-                if (regBoundary.size() > 0) {
-                  rowIndex = paramGIDs(c,params->paramoffsets[paramIndex][row]);
-                  poffset = params->paramoffsets[paramIndex][row];
-                  val = regBoundary.fastAccessDx(poffset);
-                  regGradient[rowIndex+params->num_active_params] += val;
-                }
-              }
-            }
-          }
-        }
-      }*/
     }
     
     totaldiff += (regDomain + regBoundary);
-    //totaldiff += phys->computeTopoResp(b);
   }
   
   //to gather contributions across processors
   ScalarT meep = 0.0;
   Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&totaldiff.val(),&meep);
-  //Comm->SumAll(&totaldiff.val(), &meep, 1);
   totaldiff.val() = meep;
   
   DFAD fullobj(numParams,meep);
@@ -1432,7 +1341,6 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
     ScalarT dval;
     ScalarT ldval = dmGradient[j] + regGradient[j];
     Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&ldval,&dval);
-    //Comm->SumAll(&ldval,&dval,1);
     fullobj.fastAccessDx(j) = dval;
   }
   
@@ -1459,10 +1367,10 @@ void solver::computeSensitivities(vector_RCP & u,
     
     vector<ScalarT> localsens(params->num_active_params);
     
-    vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,params->num_active_params)); // reset residual
-    matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));//Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
-    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,params->num_active_params)); // reset residual
-    matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));;//Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
+    vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,params->num_active_params));
+    matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));
+    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,params->num_active_params));
+    matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
     
     auto res_kv = res->getLocalView<HostDevice>();
     
@@ -1534,32 +1442,23 @@ void solver::computeSensitivities(vector_RCP & u,
       ao_kv(i,0) = a2_kv(i,0);
     }
     
-    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // reset residual
+    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
     matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(params->param_owned_map,
                                                                               maxEntries));
-    //matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(params->param_overlapped_map,
-    //                                                                               LA_overlapped_map,
-    //                                                                               maxEntries));
     matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(params->param_overlapped_graph));
     res_over->putScalar(0.0);
     J->setAllToScalar(0.0);
     
-    //J_over->fillComplete();
-    //J_over->fillComplete(LA_owned_map, params->param_owned_map);
-    //J_over->resumeFill();
     J_over->setAllToScalar(0.0);
     
-    //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, true, false, true, res_over, J_over);
     assembler->assembleJacRes(u, u, true, false, true,
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
                               params->num_active_params, params->Psol[0], is_final_time, deltat);
     
-    //J_over->fillComplete();
-    
     J_over->fillComplete(LA_owned_map, params->param_owned_map);
     
-    vector_RCP sens_over = Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1)); // reset residual
-    vector_RCP sens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1)); // reset residual
+    vector_RCP sens_over = Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1));
+    vector_RCP sens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1));
     auto sens_kv = sens->getLocalView<HostDevice>();
     
     J->setAllToScalar(0.0);
@@ -1578,7 +1477,6 @@ void solver::computeSensitivities(vector_RCP & u,
       ScalarT globalval = 0.0;
       ScalarT localval = discLocalGradient[i];
       Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
-      //Comm->SumAll(&localval, &globalval, 1);
       ScalarT cobj = 0.0;
       if ((i+params->num_active_params)<obj_sens.size()) {
         cobj = obj_sens.fastAccessDx(i+params->num_active_params);

@@ -315,9 +315,6 @@ public:
   // Data created elsewhere
   LIDView LIDs, paramLIDs, auxLIDs;
   
-  // The GIDs are "mostly" deprecated
-  Kokkos::View<GO**,AssemblyDevice> GIDs, paramGIDs;
-  
   Teuchos::RCP<CellMetaData> cellData;
   Teuchos::RCP<workset> wkset;
   vector<Teuchos::RCP<SubGridModel> > subgridModels;
