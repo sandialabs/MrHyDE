@@ -315,6 +315,9 @@ public:
   // Data created elsewhere
   LIDView LIDs, paramLIDs, auxLIDs;
   
+  // Creating LIDs on host device for host assembly
+  LIDView_host LIDs_host, paramLIDs_host, auxLIDs_host;
+  
   Teuchos::RCP<CellMetaData> cellData;
   Teuchos::RCP<workset> wkset;
   vector<Teuchos::RCP<SubGridModel> > subgridModels;

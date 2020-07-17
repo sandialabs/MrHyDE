@@ -233,6 +233,10 @@ public:
   
   // DOF information
   LIDView LIDs, paramLIDs, auxLIDs;
+  
+  // Creating LIDs on host device for host assembly
+  LIDView_host LIDs_host, paramLIDs_host, auxLIDs_host;
+  
   Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param;
   Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
   

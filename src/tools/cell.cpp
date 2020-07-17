@@ -25,6 +25,9 @@ cellData(cellData_), localElemID(localID_), nodes(nodes_),
 LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_)
 {
   
+  LIDs_host = Kokkos::create_mirror_view(LIDs);
+  Kokkos::deep_copy(LIDs_host,LIDs);
+  
   numElem = nodes.extent(0);
   useSensors = false;
   

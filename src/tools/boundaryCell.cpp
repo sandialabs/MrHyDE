@@ -33,6 +33,9 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_) {
   
   numElem = nodes.extent(0);
   
+  LIDs_host = Kokkos::create_mirror_view(LIDs);
+  Kokkos::deep_copy(LIDs_host,LIDs);
+  
   {
     Teuchos::TimeMonitor localtimer(*buildBasisTimer);
     
