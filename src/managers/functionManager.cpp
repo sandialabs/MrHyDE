@@ -609,7 +609,7 @@ FDATA FunctionManager::evaluate(const string & fname, const string & location) {
   FDATA output = functions[findex].terms[0].data;
   if (!functions[findex].terms[0].isAD) {
     FDATAd doutput = functions[findex].terms[0].ddata;
-    parallel_for(RangePolicy<AssemblyExec>(0,output.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman copy double to AD",RangePolicy<AssemblyExec>(0,output.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (unsigned int n=0; n<output.extent(1); n++) {
         output(e,n) = doutput(e,n);
       }
@@ -636,7 +636,7 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex) {
       if (functions[findex].terms[tindex].isAD) {
         FDATA data0 = functions[findex].terms[tindex].data;
         Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> data1 = functions[findex].terms[tindex].scalar_data;
-        parallel_for(RangePolicy<AssemblyExec>(0,data0.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        parallel_for("funcman copy constant to AD",RangePolicy<AssemblyExec>(0,data0.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (unsigned int n=0; n<data0.extent(1); n++) {
             data0(e,n) = data1(0);
           }
@@ -645,7 +645,7 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex) {
       else {
         FDATAd data0 = functions[findex].terms[tindex].ddata;
         Kokkos::View<double*,Kokkos::LayoutStride,AssemblyDevice> data1 = functions[findex].terms[tindex].scalar_ddata;
-        parallel_for(RangePolicy<AssemblyExec>(0,data0.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        parallel_for("funcman copy constant to constant",RangePolicy<AssemblyExec>(0,data0.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (unsigned int n=0; n<data0.extent(1); n++) {
             data0(e,n) = data1(0);
           }
@@ -663,7 +663,7 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex) {
       else {
         FDATA data0 = functions[findex].terms[tindex].data;
         FDATAd data1 = functions[funcIndex].terms[0].ddata;
-        parallel_for(RangePolicy<AssemblyExec>(0,data0.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        parallel_for("funcman copy scalar to AD",RangePolicy<AssemblyExec>(0,data0.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (unsigned int n=0; n<data0.extent(1); n++) {
             data0(e,n) = data1(e,n);
           }
@@ -714,7 +714,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   //size_t dim1 = std::min(data.extent(1),tdata.extent(1));
   
   if (op == "") {
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate equals",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = tdata(e,n);
@@ -722,7 +722,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "plus") {
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate plus",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) += tdata(e,n);
@@ -730,7 +730,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "minus") {
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate minus",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) += -tdata(e,n);
@@ -738,7 +738,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "times") {
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate times",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) *= tdata(e,n);
@@ -746,7 +746,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "divide") {
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate divide",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) /= tdata(e,n);
@@ -754,7 +754,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "power") {
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate power",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = pow(data(e,n),tdata(e,n));
@@ -762,7 +762,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "sin") {
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate sin",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = sin(tdata(e,n));
@@ -770,7 +770,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "cos") {
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate cos",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = cos(tdata(e,n));
@@ -778,7 +778,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "tan") {
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate tan",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = tan(tdata(e,n));
@@ -786,7 +786,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "exp") {
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate exp",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = exp(tdata(e,n));
@@ -794,7 +794,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "log") {
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate log",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         data(e,n) = log(tdata(e,n));
@@ -802,7 +802,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "abs") {
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate abs",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         if (tdata(e,n) < 0.0) {
@@ -815,7 +815,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "max") { // maximum over rows ... usually corr. to max over element/face at ip
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate max",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       data(e,0) = tdata(e,0);
       for (unsigned int n=0; n<dim1; n++) {
@@ -829,7 +829,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "min") { // minimum over rows ... usually corr. to min over element/face at ip
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate min",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       data(e,0) = tdata(e,0);
       for (unsigned int n=0; n<dim1; n++) {
@@ -843,7 +843,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "mean") { // mean over rows ... usually corr. to mean over element/face
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate mean",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       double scale = (double)dim1;
       data(e,0) = tdata(e,0)/scale;
@@ -856,7 +856,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "lt") {
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate lt",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         if (data(e,n) < tdata(e,n)) {
@@ -882,7 +882,7 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }*/
   else if (op == "gt") {
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate gt",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       for (unsigned int n=0; n<dim1; n++) {
         if (data(e,n) > tdata(e,n)) {

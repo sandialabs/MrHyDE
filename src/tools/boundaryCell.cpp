@@ -98,7 +98,7 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_) {
     }
     
     hsize = Kokkos::View<ScalarT*,AssemblyDevice>("element sizes",numElem);
-    parallel_for(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("bcell hsize",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
       ScalarT vol = 0.0;
       for (int i=0; i<wts.extent(1); i++) {
         vol += wts(e,i);
@@ -109,7 +109,7 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_) {
     
     // TMW: this might not be needed
     // scale the normal vector (we need unit normal...)
-    parallel_for(RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("bcell normal rescale",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int j=0; j<normals.extent(1); j++ ) {
         ScalarT normalLength = 0.0;
         for (int sd=0; sd<normals.extent(2); sd++) {
@@ -206,82 +206,14 @@ void BoundaryCell::setWorkset(Teuchos::RCP<workset> & wkset_) {
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::setIndex(Kokkos::View<LO***,AssemblyDevice> & index_) {
+void BoundaryCell::setParams(LIDView paramLIDs_) {
+  paramLIDs = paramLIDs_;
+  paramLIDs_host = Kokkos::create_mirror_view(paramLIDs);
+  Kokkos::deep_copy(paramLIDs_host, paramLIDs);
   
-  //index = Kokkos::View<LO***,AssemblyDevice>("local index",index_.extent(0),
-  //                                           index_.extent(1), index_.extent(2));
+  // This has now been set
+  numParamDOF = cellData->numParamDOF;
   
-  //Kokkos::deep_copy(index,index_);
-  // Need to copy the data since index_ is rewritten for each cell
-  /*
-   parallel_for(RangePolicy<AssemblyExec>(0,index_.extent(0)), KOKKOS_LAMBDA (const int e ) {
-   for (unsigned int j=0; j<index_.extent(1); j++) {
-   for (unsigned int k=0; k<index_.extent(2); k++) {
-   index(e,j,k) = index_(e,j,k);
-   }
-   }
-   });
-   */
-  
-  // This is common to all cells (within the same block), so a view copy will do
-  //numDOF = numDOF_;
-  
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////
-
-void BoundaryCell::setParamIndex(Kokkos::View<LO***,AssemblyDevice> & pindex_) {
-  
-  //paramindex = Kokkos::View<LO***,AssemblyDevice>("local param index",pindex_.extent(0),
-  //                                                pindex_.extent(1), pindex_.extent(2));
-  
-  // Need to copy the data since index_ is rewritten for each cell
-  
-  //parallel_for(RangePolicy<AssemblyExec>(0,pindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
-  //  for (unsigned int j=0; j<pindex_.extent(1); j++) {
-  //    for (unsigned int k=0; k<pindex_.extent(2); k++) {
-  //      paramindex(e,j,k) = pindex_(e,j,k);
-  //    }
-  //  }
-  //});
-  
-  // This is common to all cells, so a view copy will do
-  //numParamDOF = pnumDOF_;
-  
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////
-
-void BoundaryCell::setAuxIndex(Kokkos::View<LO***,AssemblyDevice> & aindex_) {
-  
-  //auxindex = Kokkos::View<LO***,AssemblyDevice>("local aux index",
-  //                                              aindex_.extent(0),
-  //                                              aindex_.extent(1),
-  //                                              aindex_.extent(2));
-  
-  // Need to copy the data since index_ is rewritten for each cell
-  //Kokkos::deep_copy(auxindex,aindex_);
-  
-  //parallel_for(RangePolicy<AssemblyExec>(0,aindex_.extent(0)), KOKKOS_LAMBDA (const int e ) {
-  //  for (unsigned int j=0; j<aindex_.extent(1); j++) {
-  //    for (unsigned int k=0; k<aindex_.extent(2); k++) {
-  //      auxindex(e,j,k) = aindex_(e,j,k);
-  //    }
-  //  }
-  //});
-  
-  // This is common to all cells, so a view copy will do
-  // This is excessive storage, please remove
-  //numAuxDOF = anumDOF_;
-  
-  // Temp. fix
-  //Kokkos::View<int*,UnifiedDevice> numAuxDOF("numAuxDOF",aindex_.extent(1));
-  //for (unsigned int i=0; i<aindex_.extent(1); i++) {
-  //  numAuxDOF(i) = aindex_.extent(2);
-  //}
-  //cellData->numAuxDOF = numAuxDOF;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -523,7 +455,7 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
 void BoundaryCell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,UnifiedDevice> local_res) {
   
   if (compute_sens) {
-    parallel_for(RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("bcell update res sens",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (unsigned int r=0; r<local_res.extent(2); r++) {
         for (unsigned int n=0; n<numDOF.extent(0); n++) {
           for (int j=0; j<numDOF(n); j++) {
@@ -534,7 +466,7 @@ void BoundaryCell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,
     });
   }
   else {
-    parallel_for(RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("bcell update res",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (unsigned int n=0; n<numDOF.extent(0); n++) {
         for (int j=0; j<numDOF(n); j++) {
           local_res(e,offsets(n,j),0) -= res_AD(e,offsets(n,j)).val();
@@ -552,7 +484,7 @@ void BoundaryCell::updateAdjointRes(const bool & compute_sens, Kokkos::View<Scal
   Kokkos::View<AD**,AssemblyDevice> adjres_AD = wkset->adjrhs;
   
   if (compute_sens) {
-    parallel_for(RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("bcell update res adjoint sens",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int r=0; r<maxDerivs; r++) {
         for (unsigned int n=0; n<numDOF.extent(0); n++) {
           for (int j=0; j<numDOF(n); j++) {
@@ -563,7 +495,7 @@ void BoundaryCell::updateAdjointRes(const bool & compute_sens, Kokkos::View<Scal
     });
   }
   else {
-    parallel_for(RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("bcell update adjoint res",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (unsigned int n=0; n<numDOF.extent(0); n++) {
         for (int j=0; j<numDOF(n); j++) {
           local_res(e,offsets(n,j),0) -= adjres_AD(e,offsets(n,j)).val();
@@ -581,7 +513,7 @@ void BoundaryCell::updateAdjointRes(const bool & compute_sens, Kokkos::View<Scal
 void BoundaryCell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
   
   if (useadjoint) {
-    parallel_for(RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("bcell update jac adjoint",RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (unsigned int n=0; n<numDOF.extent(0); n++) {
         for (int j=0; j<numDOF(n); j++) {
           for (unsigned int m=0; m<numDOF.extent(0); m++) {
@@ -594,7 +526,7 @@ void BoundaryCell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,Un
     });
   }
   else {
-    parallel_for(RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("bcell update jac",RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (unsigned int n=0; n<numDOF.extent(0); n++) {
         for (int j=0; j<numDOF(n); j++) {
           for (unsigned int m=0; m<numDOF.extent(0); m++) {
@@ -617,7 +549,7 @@ void BoundaryCell::updateParamJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J
   paramoffsets = wkset->paramoffsets;
   numParamDOF = cellData->numParamDOF;
   
-  parallel_for(RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for("bcell update param jac",RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (unsigned int n=0; n<numDOF.extent(0); n++) {
       for (int j=0; j<numDOF(n); j++) {
         for (unsigned int m=0; m<numParamDOF.extent(0); m++) {
@@ -638,7 +570,7 @@ void BoundaryCell::updateAuxJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J) 
   
   numAuxDOF = cellData->numAuxDOF;
   
-  parallel_for(RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for("bcell update aux jac",RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (unsigned int n=0; n<numDOF.extent(0); n++) {
       for (int j=0; j<numDOF(n); j++) {
         for (unsigned int m=0; m<numAuxDOF.extent(0); m++) {
@@ -874,7 +806,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> BoundaryCell::getDirichlet() {
       DRV cbasis = basis[bind];
       
       if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE"){
-        parallel_for(RangePolicy<AssemblyExec>(0,dvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        parallel_for("bcell fill Dirichlet",RangePolicy<AssemblyExec>(0,dvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
           int n = currind(0);
           for( int i=0; i<numDOF(n); i++ ) {
             for( size_t j=0; j<dip.extent(1); j++ ) {
@@ -884,7 +816,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> BoundaryCell::getDirichlet() {
         });
       }
       else if (btype == "HDIV"){
-        parallel_for(RangePolicy<AssemblyExec>(0,dvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        parallel_for("bcell fill Dirichlet HDIV",RangePolicy<AssemblyExec>(0,dvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
           int n = currind(0);
           for( int i=0; i<numDOF(n); i++ ) {
             for( size_t j=0; j<dip.extent(1); j++ ) {
@@ -924,7 +856,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> BoundaryCell::getMass() {
       std::string btype = cellData->basis_types[bind];
       
       if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE"){
-        parallel_for(RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        parallel_for("bcell compute mass",RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
           int n = currind(0);
           for( int i=0; i<numDOF(n); i++ ) {
             for( int j=0; j<numDOF(n); j++ ) {
@@ -936,7 +868,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> BoundaryCell::getMass() {
         });
       }
       else if (btype == "HDIV"){
-        parallel_for(RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        parallel_for("bcell compute mass HDIV",RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
           int n = currind(0);
           for( int i=0; i<numDOF(n); i++ ) {
             for( int j=0; j<numDOF(n); j++ ) {

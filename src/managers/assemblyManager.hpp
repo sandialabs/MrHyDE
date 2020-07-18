@@ -157,6 +157,8 @@ public:
   
   size_t globalParamUnknowns;
   int verbosity, milo_debug_level;
+  
+  vector<Teuchos::RCP<CellMetaData> > cellData;
   vector<vector<Teuchos::RCP<cell> > > cells;
   vector<vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
   vector<Teuchos::RCP<workset> > wkset;

@@ -72,7 +72,8 @@ public:
   bool multiscale, have_cell_phi, have_cell_rotation;
   
   // these are common to all elements/cells and are often used on both devices
-  Kokkos::View<int*,UnifiedDevice> numDOF, numParamDOF, numAuxDOF;
+  Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
+  Kokkos::View<int*,HostDevice> numDOF_host, numParamDOF_host;
   
   Teuchos::RCP<Teuchos::Time> celltimer = Teuchos::TimeMonitor::getNewCounter("MILO::cellMetaData::constructor()");
 };

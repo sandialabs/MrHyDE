@@ -1632,14 +1632,14 @@ vector_RCP solver::setInitial() {
   vector_RCP initial = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
   
   if (scalarInitialData) {
+    // This will be done on the host for now
     auto initial_kv = initial->getLocalView<HostDevice>();
     for (size_t block=0; block<assembler->cells.size(); block++) {
       for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
-        //Kokkos::View<LO***,AssemblyDevice> index = assembler->cells[block][cell]->index;
-        Kokkos::View<LO**,HostDevice> LIDs = assembler->cells[block][cell]->LIDs;
+        Kokkos::View<LO**,HostDevice> LIDs = assembler->cells[block][cell]->LIDs_host;
         Kokkos::View<int**,AssemblyDevice> offsets = assembler->wkset[block]->offsets;
-        Kokkos::View<LO*,UnifiedDevice> numDOF = assembler->cells[block][cell]->cellData->numDOF;
-        parallel_for(RangePolicy<AssemblyExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        Kokkos::View<LO*,UnifiedDevice> numDOF = assembler->cells[block][cell]->cellData->numDOF_host;
+        parallel_for("solver initial scalar",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (size_t n=0; n<numDOF.extent(0); n++) {
             for (size_t i=0; i<numDOF(n); i++ ) {
               initial_kv(LIDs(e,offsets(n,i)),0) = scalarInitialValues[block][n];

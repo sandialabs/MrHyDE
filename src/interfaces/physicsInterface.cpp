@@ -850,19 +850,17 @@ Kokkos::View<ScalarT***,AssemblyDevice> physics::getInitial(const DRV & ip,
   size_t numElem = ip.extent(0);
   size_t numVars = varlist[block].size();
   size_t numip = ip.extent(1);
-  //size_t block = 0; // TMW: needs to be fixed
   
   Kokkos::View<ScalarT***,AssemblyDevice> ivals("temp invals", numElem, numVars, numip);
   
-  //cout << initial_type << endl;
   if (project) {
     // ip in wkset are set in cell::getInitial
     for (size_t n=0; n<varlist[block].size(); n++) {
-      // evaluate
+  
       FDATA ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"ip");
       auto cvals = Kokkos::subview( ivals, Kokkos::ALL(), n, Kokkos::ALL());
       //copy
-      parallel_for(RangePolicy<AssemblyExec>(0,cvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      parallel_for("physics fill initial values",RangePolicy<AssemblyExec>(0,cvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (size_t i=0; i<cvals.extent(1); i++) {
           cvals(e,i) = ivals_AD(e,i).val();
         }
@@ -878,7 +876,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> physics::getInitial(const DRV & ip,
         // set the node in wkset
         auto node = Kokkos::subview( ip, e, i, Kokkos::ALL());
         
-        parallel_for(RangePolicy<AssemblyExec>(0,node.extent(0)), KOKKOS_LAMBDA (const int s ) {
+        parallel_for("physics initial set point",RangePolicy<AssemblyExec>(0,node.extent(0)), KOKKOS_LAMBDA (const int s ) {
           point_KV(0,0,s) = node(s);
         });
         
@@ -889,7 +887,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> physics::getInitial(const DRV & ip,
           //ivals(e,n,i) = ivals_AD(0,0).val();
           // copy
           auto iv = Kokkos::subview( ivals, e, n, i);
-          parallel_for(RangePolicy<AssemblyExec>(0,1), KOKKOS_LAMBDA (const int s ) {
+          parallel_for("physics initial set point",RangePolicy<AssemblyExec>(0,1), KOKKOS_LAMBDA (const int s ) {
             iv(0) = ivals_AD(0,0).val();
           });
         }
@@ -919,7 +917,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> physics::getDirichlet(const DRV & ip, con
   FDATA dvals_AD = functionManagers[block]->evaluate("Dirichlet " + varlist[block][var] + " " + sidename,"side ip");
   
   // copy values
-  parallel_for(RangePolicy<AssemblyExec>(0,dvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for("physics fill Dirichlet values",RangePolicy<AssemblyExec>(0,dvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (size_t i=0; i<dvals.extent(1); i++) {
       dvals(e,i) = dvals_AD(e,i).val();
     }

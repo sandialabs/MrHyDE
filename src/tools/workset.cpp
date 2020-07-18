@@ -306,7 +306,7 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
                                          const int & seedwhat) {
                                          
   if (seedwhat == 1) {
-    parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("wkset transient soln 1",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       
       ScalarT beta_u, beta_t;
       int current_stage = current_stage_KV(0);
@@ -338,7 +338,7 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
     });
   }
   else if (seedwhat == 2) {
-    parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("wkset transient soln 2",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       ScalarT beta_u, beta_t;
       int current_stage = current_stage_KV(0);
       ScalarT deltat = deltat_KV(0);
@@ -369,7 +369,7 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
     });
   }
   else {
-    parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("wkset transient soln",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       
       ScalarT beta_u, beta_t;
       int current_stage = current_stage_KV(0);
@@ -411,7 +411,7 @@ void workset::computeSolnSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
                                       const int & seedwhat) {
   
   if (seedwhat == 1) {
-    parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("wkset steady soln 1",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int var=0; var<u.extent(1); var++ ) {
         for (int dof=0; dof<u.extent(2); dof++ ) {
           uvals(elem,var,dof) = AD(maxDerivs,offsets(var,dof),u(elem,var,dof));
@@ -420,7 +420,7 @@ void workset::computeSolnSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
     });
   }
   else {
-    parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("wkset steady soln",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int var=0; var<u.extent(1); var++ ) {
         for (int dof=0; dof<u.extent(2); dof++ ) {
           uvals(elem,var,dof) = u(elem,var,dof);
@@ -465,7 +465,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       auto cuvals = Kokkos::subview(uvals,Kokkos::ALL(),var,Kokkos::ALL());
       DRV cbasis = basis[usebasis[var]];
       DRV cbasis_grad = basis_grad[usebasis[var]];
-      parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("wkset soln ip HGRAD",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int dof=0; dof<cbasis.extent(1); dof++ ) {
           AD uval = cuvals(elem,dof);
           if ( dof == 0) {
@@ -490,7 +490,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       if (isTransient) {
         auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),0);
         auto cu_dotvals = Kokkos::subview(u_dotvals,Kokkos::ALL(),var,Kokkos::ALL());
-        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("wkset soln ip HGRAD transient",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (int dof=0; dof<cbasis.extent(1); dof++ ) {
             if ( dof == 0) {
               for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
@@ -516,7 +516,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       auto csol = Kokkos::subview(local_soln,Kokkos::ALL(),var,Kokkos::ALL(),0);
       auto cuvals = Kokkos::subview(uvals,Kokkos::ALL(),var,Kokkos::ALL());
       DRV cbasis = basis[usebasis[var]];
-      parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("wkset soln ip HVOL",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int dof=0; dof<cbasis.extent(1); dof++ ) {
           if ( dof == 0) {
             for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
@@ -534,7 +534,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       if (isTransient) {
         auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),0);
         auto cu_dotvals = Kokkos::subview(u_dotvals,Kokkos::ALL(),var,Kokkos::ALL());
-        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("wkset soln ip HVOL transient",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (int dof=0; dof<cbasis.extent(1); dof++ ) {
             if ( dof == 0) {
               for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
@@ -562,7 +562,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       auto cuvals = Kokkos::subview(uvals,Kokkos::ALL(),var,Kokkos::ALL());
       DRV cbasis = basis[usebasis[var]];
       DRV cbasis_div = basis_div[usebasis[var]];
-      parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("wkset soln ip HDIV",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int dof=0; dof<cbasis.extent(1); dof++ ) {
           if ( dof == 0) {
             for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
@@ -586,7 +586,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       if (isTransient) {
         auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
         auto cu_dotvals = Kokkos::subview(u_dotvals,Kokkos::ALL(),var,Kokkos::ALL());
-        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("wkset soln ip HDIV transient",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (int dof=0; dof<cbasis.extent(1); dof++ ) {
             if ( dof == 0) {
               for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
@@ -618,7 +618,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       auto cuvals = Kokkos::subview(uvals,Kokkos::ALL(),var,Kokkos::ALL());
       DRV cbasis = basis[usebasis[var]];
       DRV cbasis_curl = basis_curl[usebasis[var]];
-      parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("wkset soln ip HCURL",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int dof=0; dof<cbasis.extent(1); dof++ ) {
           if ( dof == 0) {
             for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
@@ -642,7 +642,7 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       if (isTransient) {
         auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
         auto cu_dotvals = Kokkos::subview(u_dotvals,Kokkos::ALL(),var,Kokkos::ALL());
-        parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("wkset soln ip HCURL transient",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (int dof=0; dof<cbasis.extent(1); dof++ ) {
             if ( dof == 0) {
               for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
@@ -675,18 +675,8 @@ void workset::computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param,
   if (numParams > 0) {
     {
       Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-      // Reset the values (may combine with next loop when parallelized)
-      parallel_for(RangePolicy<AssemblyExec>(0,local_param.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (int k=0; k<local_param.extent(1); k++) {
-          for (int i=0; i<local_param.extent(2); i++) {
-            local_param(e,k,i) = 0.0;
-            for (int s=0; s<local_param_grad.extent(3); s++) {
-              local_param_grad(e,k,i,s) = 0.0;
-            }
-          }
-        }
-      });
-      AssemblyExec::execution_space().fence();
+      Kokkos::deep_copy(local_param, 0.0);
+      Kokkos::deep_copy(local_param_grad, 0.0);
     }
     
     {
@@ -699,7 +689,7 @@ void workset::computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param,
         DRV pbasis = basis[kpbasis];
         DRV pbasis_grad = basis_grad[kpbasis];
         bind(0) = k;
-        parallel_for(RangePolicy<AssemblyExec>(0,pbasis.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        parallel_for("wkset param ip",RangePolicy<AssemblyExec>(0,pbasis.extent(0)), KOKKOS_LAMBDA (const int e ) {
           AD paramval;
           int kk = bind(0);
           for (int i=0; i<pbasis.extent(1); i++ ) {
@@ -728,6 +718,7 @@ void workset::computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param,
 // Compute the solutions at the side ip
 ////////////////////////////////////////////////////////////////////////////////////
 
+// TMW: this is not updated because it needs to be rewritten
 void workset::computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
                                 Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
                                 Kokkos::View<ScalarT****,AssemblyDevice> u_stage,
@@ -1200,125 +1191,13 @@ void workset::computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
       }
     }
   }
-  
-  
-  /*
-  {
-    Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-    // Reset the values (may combine with next loop when parallelized)
-    parallel_for(RangePolicy<AssemblyExec>(0,local_soln_face.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<local_soln_face.extent(1); k++) {
-        for (int i=0; i<local_soln_face.extent(2); i++) {
-          for (int s=0; s<local_soln_face.extent(3); s++) {
-            local_soln_face(e,k,i,s) = 0.0;
-            local_soln_grad_face(e,k,i,s) = 0.0;
-          }
-        }
-      }
-    });
-    AssemblyExec::execution_space().fence();
-  }
-  
-  {
-    Teuchos::TimeMonitor basistimer(*worksetComputeSolnSideTimer);
-    Kokkos::View<int*,UnifiedDevice> bind("basis index",1);
-    
-    for (int k=0; k<numVars; k++) {
-      int kubasis = usebasis[k];
-      string kutype = basis_types[kubasis];
-      bind(0) = k;
-      if (kutype == "HGRAD") {
-        DRV kbasis_uw = basis_face[kubasis];
-        DRV kbasis_grad_uw = basis_grad_face[kubasis];
-        parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD uval;
-          int kk = bind(0);
-          for (int i=0; i<kbasis_uw.extent(1); i++ ) {
-            if (seedwhat(0) == 1) {
-              uval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
-            }
-            else {
-              uval = u(e,kk,i);
-            }
-            for (size_t j=0; j<kbasis_uw.extent(2); j++ ) {
-              local_soln_face(e,kk,j,0) += uval*kbasis_uw(e,i,j);
-              for (int s=0; s<kbasis_grad_uw.extent(3); s++ ) {
-                local_soln_grad_face(e,kk,j,s) += uval*kbasis_grad_uw(e,i,j,s);
-              }
-            }
-          }
-        });
-      }
-      else if (kutype == "HVOL") {
-        DRV kbasis_uw = basis_face[kubasis];
-        parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD uval;
-          int kk = bind(0);
-          for( int i=0; i<kbasis_uw.extent(1); i++ ) {
-            if (seedwhat(0) == 1) {
-              uval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
-            }
-            else {
-              uval = u(e,kk,i);
-            }
-            for( size_t j=0; j<kbasis_uw.extent(2); j++ ) {
-              local_soln_face(e,kk,j,0) += uval*kbasis_uw(e,i,j);
-            }
-          }
-        });
-      }
-      else if (kutype == "HDIV"){
-        DRV kbasis_uw = basis_face[kubasis];
-        parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD uval;
-          int kk = bind(0);
-          for( int i=0; i<kbasis_uw.extent(1); i++ ) {
-            if (seedwhat(0) == 1) {
-              uval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
-            }
-            else {
-              uval = u(e,kk,i);
-            }
-            for( size_t j=0; j<kbasis_uw.extent(2); j++ ) {
-              for (size_t s=0; s<kbasis_uw.extent(3); s++) {
-                local_soln_face(e,kk,j,s) += uval*kbasis_uw(e,i,j,s);
-              }
-            }
-          }
-        });
-      }
-      else if (kutype == "HCURL"){
-        
-      }
-      else if (kutype == "HFACE") {
-        
-        DRV kbasis_uw = basis_face[kubasis];
-        parallel_for(RangePolicy<AssemblyExec>(0,kbasis_uw.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          AD uval;
-          int kk = bind(0);
-          for( int i=0; i<kbasis_uw.extent(1); i++ ) {
-            if (seedwhat(0) == 1) {
-              uval = AD(maxDerivs,offsets(kk,i),u(e,kk,i));
-            }
-            else {
-              uval = u(e,kk,i);
-            }
-            for( size_t j=0; j<kbasis_uw.extent(2); j++ ) {
-              local_soln_face(e,kk,j,0) += uval*kbasis_uw(e,i,j);
-            }
-          }
-        });
-      }
-    }
-  }
-  AssemblyExec::execution_space().fence();
-   */
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Compute the solutions at the side ip
 ////////////////////////////////////////////////////////////////////////////////////
 
+// TMW: this is not updated because it needs to be rewritten
 void workset::computeSolnSideIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
                                 Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
                                 Kokkos::View<ScalarT****,AssemblyDevice> u_stage,
@@ -1900,18 +1779,8 @@ void workset::computeParamSideIP(const int & side, Kokkos::View<ScalarT***,Assem
   if (numParams>0) {
     {// reset the local params
       Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-      // Reset the values (may combine with next loop when parallelized)
-      parallel_for(RangePolicy<AssemblyExec>(0,local_param_side.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (int k=0; k<local_param_side.extent(1); k++) {
-          for (int i=0; i<local_param_side.extent(2); i++) {
-            local_param_side(e,k,i) = 0.0;
-            for (int s=0; s<local_param_grad_side.extent(3); s++) {
-              local_param_grad_side(e,k,i,s) = 0.0;
-            }
-          }
-        }
-      });
-      AssemblyExec::execution_space().fence();
+      Kokkos::deep_copy(local_param_side, 0.0);
+      Kokkos::deep_copy(local_param_grad_side, 0.0);
     }
     
     {
@@ -1925,7 +1794,7 @@ void workset::computeParamSideIP(const int & side, Kokkos::View<ScalarT***,Assem
         DRV pbasis = basis_side[kpbasis];
         DRV pbasis_grad = basis_grad_side[kpbasis];
         
-        parallel_for(RangePolicy<AssemblyExec>(0,pbasis.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        parallel_for("wkset param side ip",RangePolicy<AssemblyExec>(0,pbasis.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (int i=0; i<pbasis.extent(1); i++ ) {
             AD paramval;
             int kk = bind(0);
@@ -1955,34 +1824,14 @@ void workset::computeParamSideIP(const int & side, Kokkos::View<ScalarT***,Assem
 ////////////////////////////////////////////////////////////////////////////////////
 
 // TMW: this function should be deprecated
+// Gets used only in the boundaryCell flux calculation
+// Will not work properly for multi-stage or multi-step
 void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDevice> u_AD,
                                 Kokkos::View<AD***,AssemblyDevice> param_AD) {
   {
     Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-    // Reset the values (may combine with next loop when parallelized)
-    parallel_for(RangePolicy<AssemblyExec>(0,local_soln_side.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<local_soln_side.extent(1); k++) {
-        for (int i=0; i<local_soln_side.extent(2); i++) {
-          for (int s=0; s<local_soln_side.extent(3); s++) {
-            local_soln_side(e,k,i,s) = 0.0;
-          }
-        }
-      }
-    });
-    
-    if (vars_HGRAD.size() > 0) {
-      parallel_for(RangePolicy<AssemblyExec>(0,local_soln_side.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (int k=0; k<local_soln_side.extent(1); k++) {
-          for (int i=0; i<local_soln_side.extent(2); i++) {
-            for (int s=0; s<local_soln_side.extent(3); s++) {
-              local_soln_grad_side(e,k,i,s) = 0.0;
-            }
-          }
-        }
-      });
-    }
-    
-    AssemblyExec::execution_space().fence();
+    Kokkos::deep_copy(local_soln_side, 0.0);
+    Kokkos::deep_copy(local_soln_grad_side, 0.0);
   }
   
   {
@@ -2052,17 +1901,7 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
   }
   {
     Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-    // Reset the values (may combine with next loop when parallelized)
-    parallel_for(RangePolicy<AssemblyExec>(0,local_param_side.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<local_param_side.extent(1); k++) {
-        for (int i=0; i<local_param_side.extent(2); i++) {
-          local_param_side(e,k,i) = 0.0;
-          //for (int s=0; s<local_param_grad_side.extent(3); s++) {
-          //  local_param_grad_side(e,k,i,s) = 0.0;
-          //}
-        }
-      }
-    });
+    Kokkos::deep_copy(local_param_side, 0.0);
   }
   
   /*

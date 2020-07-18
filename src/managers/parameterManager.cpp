@@ -245,23 +245,26 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
     
     for (size_t b=0; b<cells.size(); b++) {
       int numLocalDOF = 0;
-      Kokkos::View<LO*,UnifiedDevice> numDOF_KV("number of param DOF per variable",num_discretized_params);
+      Kokkos::View<LO*,AssemblyDevice> numDOF_KV("number of param DOF per variable",num_discretized_params);
       for (int k=0; k<num_discretized_params; k++) {
         numDOF_KV(k) = paramNumBasis[k];
         numLocalDOF += paramNumBasis[k];
       }
       cells[b][0]->cellData->numParamDOF = numDOF_KV;
+      Kokkos::View<LO*,AssemblyDevice> numDOF_host = Kokkos::create_mirror_view(numDOF_KV);
+      Kokkos::deep_copy(numDOF_host, numDOF_KV);
+      cells[b][0]->cellData->numParamDOF_host = numDOF_host;
       
       for (size_t e=0; e<cells[b].size(); e++) {
         LIDView cellLIDs("cell parameter LIDs",cells[b][e]->numElem, LIDs.extent(1));
         Kokkos::View<LO*> EIDs = cells[b][e]->localElemID;
-        parallel_for(RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int c ) {
+        parallel_for("paramman copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int c ) {
           size_t elemID = EIDs(c);
           for (int j=0; j<LIDs.extent(1); j++) {
             cellLIDs(c,j) = LIDs(elemID,j);
           }
         });
-        cells[b][e]->paramLIDs = cellLIDs;
+        cells[b][e]->setParams(cellLIDs);
         cells[b][e]->setParamUseBasis(disc_usebasis, paramNumBasis);
       }
     }
@@ -274,13 +277,13 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
       for (size_t e=0; e<boundaryCells[b].size(); e++) {
         LIDView cellLIDs("bcell parameter LIDs",boundaryCells[b][e]->numElem, LIDs.extent(1));
         Kokkos::View<LO*> EIDs = boundaryCells[b][e]->localElemID;
-        parallel_for(RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        parallel_for("paramman copy LIDs bcells",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
           size_t elemID = EIDs(e);
           for (int j=0; j<LIDs.extent(1); j++) {
             cellLIDs(e,j) = LIDs(elemID,j);
           }
         });
-        boundaryCells[b][e]->paramLIDs = cellLIDs;
+        boundaryCells[b][e]->setParams(cellLIDs);
         boundaryCells[b][e]->setParamUseBasis(disc_usebasis, paramNumBasis);
       }
     }
