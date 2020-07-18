@@ -573,7 +573,8 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
     
     for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
       if (have_vol_errs) {
-        assembler->cells[block][cell]->computeSolnVolIP(seedwhat);
+        assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
+        assembler->cells[block][cell]->computeSolnVolIP();
       }
       for (size_t etype=0; etype<error_list[block].size(); etype++) {
         int var = error_list[block][etype].first;
@@ -729,7 +730,9 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
       }
       if (have_face_errs) {
         for (size_t face=0; face<assembler->cells[block][cell]->cellData->numSides; face++) {
-          assembler->cells[block][cell]->computeSolnFaceIP(face, seedwhat);
+          assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
+          assembler->cells[block][cell]->computeSolnFaceIP(face);
+          //assembler->cells[block][cell]->computeSolnFaceIP(face, seedwhat);
           for (size_t etype=0; etype<error_list[block].size(); etype++) {
             int var = error_list[block][etype].first;
             if (error_list[block][etype].second == "L2 FACE") {

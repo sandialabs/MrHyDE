@@ -113,8 +113,12 @@ ScalarT MultiScale::initialize() {
       //                       cells[b][e]->jacobianDet,cells[b][e]->orientation);
       //Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
       //seedwhat(0) = 0;
-      macro_wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_prev, cells[b][e]->u_stage, 0);
+      macro_wkset[b]->computeSolnSteadySeeded(cells[b][e]->u, 0);
       macro_wkset[b]->computeParamVolIP(cells[b][e]->param, 0);
+      cells[b][e]->computeSolnVolIP();
+      
+      //macro_wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_prev, cells[b][e]->u_stage, 0);
+      //macro_wkset[b]->computeParamVolIP(cells[b][e]->param, 0);
       
       //vector<size_t> sgnum(numElem,0);
       vector<int> sgvotes(subgridModels.size(),0);
@@ -273,8 +277,12 @@ ScalarT MultiScale::update() {
           //                       cells[b][e]->jacobianDet,cells[b][e]->orientation);
           //Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
           //seedwhat(0) = 0;
-          macro_wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_prev, cells[b][e]->u_stage, 0);
+          macro_wkset[b]->computeSolnSteadySeeded(cells[b][e]->u, 0);
           macro_wkset[b]->computeParamVolIP(cells[b][e]->param, 0);
+          cells[b][e]->computeSolnVolIP();
+          
+          //macro_wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_prev, cells[b][e]->u_stage, 0);
+          //macro_wkset[b]->computeParamVolIP(cells[b][e]->param, 0);
           
           vector<int> sgvotes(subgridModels.size(),0);
           

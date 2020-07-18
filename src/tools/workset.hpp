@@ -94,15 +94,18 @@ class workset {
   
   void computeSolnSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
                                const int & seedwhat);
-                               
+  
+  ////////////////////////////////////////////////////////////////////////////////////
+  // Compute the solutions at general set of points
+  ////////////////////////////////////////////////////////////////////////////////////
+  
+  void computeSoln(const int & type);
+  
   ////////////////////////////////////////////////////////////////////////////////////
   // Compute the solutions at the volumetric ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
-                        Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
-                        Kokkos::View<ScalarT****,AssemblyDevice> u_stage,
-                        const int & seedwhat);
+  void computeSolnVolIP();
 
   ////////////////////////////////////////////////////////////////////////////////////
   // Compute the discretized parameters at the volumetric ip
@@ -115,19 +118,13 @@ class workset {
   // Compute the solutions at the side ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void computeSolnSideIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
-                         Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
-                         Kokkos::View<ScalarT****,AssemblyDevice> u_stage,
-                         const int & seedwhat);
+  void computeSolnSideIP();
   
   ////////////////////////////////////////////////////////////////////////////////////
   // Compute the solutions at the face ip
   ////////////////////////////////////////////////////////////////////////////////////
   
-  void computeSolnFaceIP(Kokkos::View<ScalarT***,AssemblyDevice> u,
-                         Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
-                         Kokkos::View<ScalarT****,AssemblyDevice> u_stage,
-                         const int & seedwhat);
+  void computeSolnFaceIP();
   
   ////////////////////////////////////////////////////////////////////////////////////
   // Compute the discretized parameters at the side ip

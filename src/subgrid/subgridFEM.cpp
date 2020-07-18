@@ -2391,8 +2391,17 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
           //                 cells[0][e]->jacobianDet,cells[0][e]->orientation);
           //Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
           //seedwhat(0) = 0;
-          wkset[0]->computeSolnVolIP(cells[0][e]->u, cells[0][e]->u_prev,
-                                     cells[0][e]->u_stage, 0);
+          if (isTD) {
+            wkset[0]->computeSolnTransientSeeded(cells[0][e]->u,
+                                                 cells[0][e]->u_prev,
+                                                 cells[0][e]->u_stage, 0);
+          }
+          else { // steady-state
+            wkset[0]->computeSolnSteadySeeded(cells[0][e]->u, 0);
+          }
+          cells[0][e]->computeSolnVolIP();
+          //wkset[0]->computeSolnVolIP(cells[0][e]->u, cells[0][e]->u_prev,
+          //                           cells[0][e]->u_stage, 0);
           
           int numElem = cells[0][e]->numElem;
           LIDView LIDs = cells[0][e]->LIDs;

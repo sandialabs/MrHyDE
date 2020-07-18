@@ -322,8 +322,8 @@ void BoundaryCell::computeSoln(const int & seedwhat) {
   
   Teuchos::TimeMonitor localtimer(*computeSolnSideTimer);
   
-  wkset->computeSolnSideIP(u, u_prev, u_stage, seedwhat);
-  wkset->computeParamSideIP(sidenum, param, seedwhat);
+  wkset->computeSolnSideIP();
+  //wkset->computeParamSideIP(sidenum, param, seedwhat);
   
   if (wkset->numAux > 0) {
     
@@ -379,36 +379,31 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
     
     this->updateWorksetBasis();
     
-    //wkset->updateSide(sidenum, wksetBID);
     wkset->sidename = sidename;
     wkset->currentside = sidenum;
     
-    
-    //    wkset->sideinfo = sideinfo;
-    //    wkset->currentside = side;
-    //    wkset->sidetype = sidetype;
-    // if (sideinfo[e](side,1) == -1) {
-    //   wkset->sidename = "interior";
-    //   wkset->sidetype = -1;
-    // }
-    // else {
-    //    wkset->sidename = gsideid;
-    //wkset->sidetype = sideinfo[e](side,0);
-    // }
+    int seedwhat = 0;
     if (compute_jacobian) {
       if (compute_disc_sens) {
-        this->computeSoln(3);
+        seedwhat = 3;
       }
       else if (compute_aux_sens) {
-        this->computeSoln(4);
+        seedwhat = 4;
       }
       else {
-        this->computeSoln(1);
+        seedwhat = 1;
       }
     }
-    else {
-      this->computeSoln(0);
+    
+    if (isTransient) {
+      wkset->computeSolnTransientSeeded(u, u_prev, u_stage, seedwhat);
     }
+    else { // steady-state
+      wkset->computeSolnSteadySeeded(u, seedwhat);
+    }
+    
+    this->computeSoln(seedwhat);
+    wkset->computeParamSideIP(sidenum, param, seedwhat);
     
     //wkset->resetResidual(numElem);
     wkset->resetResidual();

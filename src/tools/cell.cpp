@@ -423,16 +423,16 @@ void cell::updateWorksetBasis() {
 // Map the AD degrees of freedom to integration points
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::computeSolnVolIP(const int & seedwhat) {
+void cell::computeSolnVolIP() {
   // seedwhat key: 0-nothing; 1-sol; 2-soldot; 3-disc.params.; 4-aux.vars
   // Note: seeding u_dot is now deprecated
   
   Teuchos::TimeMonitor localtimer(*computeSolnVolTimer);
   //wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
   this->updateWorksetBasis();
-  wkset->computeSolnVolIP(u, u_prev, u_stage, seedwhat);
+  wkset->computeSolnVolIP();
   
-  wkset->computeParamVolIP(param, seedwhat);
+  //wkset->computeParamVolIP(param, seedwhat);
   if (cellData->compute_sol_avg) {
     this->computeSolAvg();
   }
@@ -487,17 +487,18 @@ void cell::updateWorksetFaceBasis(const size_t & facenum) {
   wkset->basis_grad_face = basis_grad_face[facenum];
   
 }
+
 ///////////////////////////////////////////////////////////////////////////////////////
 // Map the AD degrees of freedom to integration points
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::computeSolnFaceIP(const size_t & facenum, const int & seedwhat) {
+void cell::computeSolnFaceIP(const size_t & facenum) {
   
   Teuchos::TimeMonitor localtimer(*computeSolnFaceTimer);
   
   this->updateWorksetFaceBasis(facenum);
   //wkset->updateFace(nodes, orientation, facenum);
-  wkset->computeSolnFaceIP(u, u_prev, u_stage, seedwhat);
+  wkset->computeSolnFaceIP();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -593,12 +594,12 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   if (isAdjoint) {
     wkset->resetAdjointRHS();
   }
+  
   //////////////////////////////////////////////////////////////
   // Compute the AD-seeded solutions at integration points
   //////////////////////////////////////////////////////////////
-  // Putting this on UVM memory so anyone can access it
-  //Kokkos::View<int*,UnifiedDevice> seedwhat("int indicating seeding",1);
-  int seedwhat;
+  
+  int seedwhat = 0;
   if (compute_jacobian) {
     if (compute_disc_sens) {
       seedwhat = 3;
@@ -610,15 +611,18 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
       seedwhat = 1;
     }
   }
-  else {
-    seedwhat = 0; // seed nothing
-  }
   
-  if (cellData->multiscale) {
-    // do nothing }
-  }
-  else {
-    this->computeSolnVolIP(seedwhat);
+  if (!(cellData->multiscale)) {
+    if (isTransient) {
+      wkset->computeSolnTransientSeeded(u, u_prev, u_stage, seedwhat);
+    }
+    else { // steady-state
+      wkset->computeSolnSteadySeeded(u, seedwhat);
+    }
+    
+    this->computeSolnVolIP();
+    wkset->computeParamVolIP(param, seedwhat);
+    
   }
   
   //////////////////////////////////////////////////////////////
@@ -651,20 +655,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
     }
     else {
       for (size_t s=0; s<cellData->numSides; s++) {
-        if (compute_jacobian) {
-          if (compute_disc_sens) {
-            this->computeSolnFaceIP(s,3);
-          }
-          else if (compute_aux_sens) {
-            this->computeSolnFaceIP(s,4);
-          }
-          else {
-            this->computeSolnFaceIP(s,1);
-          }
-        }
-        else {
-          this->computeSolnFaceIP(s,0);
-        }
+        this->computeSolnFaceIP(s);
         cellData->physics_RCP->faceResidual(cellData->myBlock);
       }
     }
@@ -885,7 +876,11 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
     });
     if (isTransient) {
       int seedwhat = 2;
-      this->computeSolnVolIP(seedwhat);
+      //this->computeSolnVolIP(seedwhat);
+      wkset->computeSolnTransientSeeded(u, u_prev, u_stage, seedwhat);
+      wkset->computeParamVolIP(param, seedwhat);
+      this->computeSolnVolIP();
+      
       wkset->resetResidual();
       
       cellData->physics_RCP->volumeResidual(cellData->myBlock);
