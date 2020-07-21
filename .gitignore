@@ -5,6 +5,9 @@
 *.exo.*
 *.log
 *.dat
+*.bak
 *._*
 *~
-
+*-Host.memspace_usage
+*.mem_events
+build*

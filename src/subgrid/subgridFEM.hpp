@@ -28,6 +28,7 @@
 #include "subgridTools.hpp"
 #include "parameterManager.hpp"
 #include "subgridLocalData.hpp"
+#include "subgridFEM_solver.hpp"
 #include "postprocessManager.hpp"
 
 // Belos
@@ -255,15 +256,15 @@ public:
   //
   // ========================================================================================
   
-  void performGather(const size_t & block, const Teuchos::RCP<LA_MultiVector> & vec, const size_t & type,
-                     const size_t & index) const ;
+  //void performGather(const size_t & block, const Teuchos::RCP<LA_MultiVector> & vec, const size_t & type,
+  //                   const size_t & index) const ;
   
   // ========================================================================================
   //
   // ========================================================================================
   
-  void performBoundaryGather(const size_t & block, const Teuchos::RCP<LA_MultiVector> & vec, const size_t & type,
-                             const size_t & index) const ;
+  //void performBoundaryGather(const size_t & block, const Teuchos::RCP<LA_MultiVector> & vec, const size_t & type,
+  //                           const size_t & index) const ;
   
   // ========================================================================================
   //
@@ -318,7 +319,7 @@ public:
   Teuchos::RCP<physics> sub_physics;
   Teuchos::RCP<AssemblyManager> sub_assembler;
   Teuchos::RCP<ParameterManager> sub_params;
-  Teuchos::RCP<solver> sub_solver;
+  Teuchos::RCP<SubGridFEM_Solver> sub_solver;
   Teuchos::RCP<meshInterface> sub_mesh;
   Teuchos::RCP<discretization> sub_disc;
   Teuchos::RCP<PostprocessManager> sub_postproc;

@@ -200,7 +200,7 @@ public:
   ScalarT NLtol, final_time, lintol, dropTol, fillParam, current_time, initial_time, deltat;
   
   string solver_type, NLsolver, initial_type, response_type, multigrid_type, smoother_type;
-  string TDsolver;
+  string TDsolver, preconditioner_reuse_type;
   
   bool line_search, useL2proj, allow_remesh, useDomDecomp, useDirect, usePrec, discretized_stochastic;
   bool isInitial, isTransient, useadjoint, is_final_time, usestrongDBCs, compute_flux, useLinearSolver, timeImplicit;

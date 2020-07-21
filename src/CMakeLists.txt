@@ -18,6 +18,7 @@ ADD_EXECUTABLE(milo
 driver.cpp
 subgrid/subgridMeshFactory.cpp 
 subgrid/subgridFEM.cpp 
+subgrid/subgridFEM_solver.cpp 
 interfaces/meshInterface.cpp 
 interfaces/discretizationInterface.cpp 
 interfaces/physicsInterface.cpp 

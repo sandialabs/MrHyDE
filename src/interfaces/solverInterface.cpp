@@ -90,6 +90,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   initial_type = settings->sublist("Solver").get<string>("initial type","L2-projection");
   multigrid_type = settings->sublist("Solver").get<string>("multigrid type","sa");
   smoother_type = settings->sublist("Solver").get<string>("smoother type","CHEBYSHEV"); // or RELAXATION
+  preconditioner_reuse_type = settings->sublist("Solver").get<string>("preconditioner reuse type","none"); // or RELAXATION
   useLinearSolver = settings->sublist("Solver").get<bool>("use linear solver",true);
   lintol = settings->sublist("Solver").get<ScalarT>("linear TOL",1.0E-7);
   liniter = settings->sublist("Solver").get<int>("max linear iters",100);
@@ -1805,6 +1806,8 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > solver::buildPre
   mueluParams.set("repartition: min rows per proc",800);
   mueluParams.set("repartition: max imbalance", 1.1);
   mueluParams.set("repartition: remap parts",false);
+  
+  mueluParams.set("reuse: type",preconditioner_reuse_type);
   
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > Mnew = MueLu::CreateTpetraPreconditioner((Teuchos::RCP<LA_Operator>)J, mueluParams);
 

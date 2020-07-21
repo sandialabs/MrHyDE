@@ -4,7 +4,7 @@ ANONYMOUS:
   verbosity: 0
   debug level: 0
   Mesh input file: input_mesh.yaml
-  Functions input fileile: input_functions.yaml
+  Functions input file: input_functions.yaml
   Physics:
     modules: thermal
     assemble face terms: true
@@ -29,6 +29,7 @@ ANONYMOUS:
       True solutions:
         e: sin(2*pi*x)*sin(2*pi*y)
     Solver:
+      verbosity: 0
       solver: steady-state
       use direct solver: true
     Functions input file: input_functions.yaml
