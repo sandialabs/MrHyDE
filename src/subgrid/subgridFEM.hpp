@@ -13,7 +13,6 @@
 #define SUBGRIDFEM_H
 
 #include "trilinos.hpp"
-#include "Teuchos_XMLParameterListHelpers.hpp"
 #include "Teuchos_YamlParameterListCoreHelpers.hpp"
 
 #include "preferences.hpp"
@@ -24,29 +23,11 @@
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
 #include "assemblyManager.hpp"
-#include "solverInterface.hpp"
 #include "subgridTools.hpp"
 #include "parameterManager.hpp"
 #include "subgridLocalData.hpp"
 #include "subgridFEM_solver.hpp"
 #include "postprocessManager.hpp"
-
-// Belos
-#include <BelosConfigDefs.hpp>
-#include <BelosLinearProblem.hpp>
-#include <BelosTpetraAdapter.hpp>
-#include <BelosBlockGmresSolMgr.hpp>
-
-// MueLu
-#include <MueLu.hpp>
-#include <MueLu_TpetraOperator.hpp>
-#include <MueLu_CreateTpetraPreconditioner.hpp>
-#include <MueLu_Utilities.hpp>
-
-// Amesos includes
-#include "Amesos2.hpp"
-
-typedef Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator> LA_LinearProblem;
 
 class SubGridFEM : public SubGridModel {
 public:
@@ -105,43 +86,7 @@ public:
   
   
   void sacadoizeParams(const bool & seed_active, const int & num_active_params);
-  
-  ///////////////////////////////////////////////////////////////////////////////////////
-  // Subgrid Nonlinear Solver
-  ///////////////////////////////////////////////////////////////////////////////////////
-  
-  void subGridNonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
-                              Teuchos::RCP<LA_MultiVector> & sub_phi,
-                              Teuchos::RCP<LA_MultiVector> & sub_params, Kokkos::View<ScalarT***,AssemblyDevice> lambda,
-                              const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
-                              const int & num_active_params, const ScalarT & alpha, const int & usernum,
-                              const bool & store_adjPrev);
-  
-  //////////////////////////////////////////////////////////////
-  // Compute the derivative of the local solution w.r.t coarse
-  // solution or w.r.t parameters
-  //////////////////////////////////////////////////////////////
-  
-  void computeSubGridSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u, const bool & compute_sens,
-                              Teuchos::RCP<LA_MultiVector> & sub_u,
-                              Teuchos::RCP<LA_MultiVector> & sub_phi,
-                              Teuchos::RCP<LA_MultiVector> & sub_param, Kokkos::View<ScalarT***,AssemblyDevice> lambda,
-                              const ScalarT & time,
-                              const bool & isTransient, const bool & isAdjoint, const int & num_active_params, const ScalarT & alpha,
-                              const ScalarT & lambda_scale, const int & usernum,
-                              Kokkos::View<ScalarT**,AssemblyDevice> subgradient);
-  
-  //////////////////////////////////////////////////////////////
-  // Update the flux
-  //////////////////////////////////////////////////////////////
-  
-  void updateFlux(const Teuchos::RCP<LA_MultiVector> & u,
-                  const Teuchos::RCP<LA_MultiVector> & d_u,
-                  Kokkos::View<ScalarT***,AssemblyDevice> lambda,
-                  const bool & compute_sens, const int macroelemindex,
-                  const ScalarT & time, workset & macrowkset,
-                  const int & usernum, const ScalarT & fwt);
-  
+    
   ///////////////////////////////////////////////////////////////////////////////////////
   // Store macro-dofs and flux (for ML-based subgrid)
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -289,31 +234,10 @@ public:
   int nummacroVars, subgridverbose, numrefine, assemble_together;
   topo_RCP cellTopo, macro_cellTopo;
   
-  // Linear algebra / solver objects
-  Teuchos::RCP<LA_Map> param_overlapped_map;
-  Teuchos::RCP<LA_MultiVector> res, res_over, d_um, du, du_glob;
-  Teuchos::RCP<LA_MultiVector> u, phi;
-  Teuchos::RCP<LA_MultiVector> d_sub_res_overm, d_sub_resm, d_sub_u_prevm, d_sub_u_overm;
-  Teuchos::RCP<LA_CrsMatrix>  J, sub_J_over;
-  
-  Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver;
-  Teuchos::RCP<LA_MultiVector> LA_rhs, LA_lhs;
-  
-  Teuchos::RCP<LA_LinearProblem> belos_problem;
-  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > belos_M;
-  Teuchos::RCP<Teuchos::ParameterList> belosList;
-  Teuchos::RCP<Belos::SolverManager<ScalarT, LA_MultiVector, LA_Operator> > belos_solver;
-  bool have_belos = false;
-  bool have_preconditioner = false;
-  
-  
   vector<string> stoch_param_types;
   vector<ScalarT> stoch_param_means, stoch_param_vars, stoch_param_mins, stoch_param_maxs;
   int num_stochclassic_params, num_active_params;
   vector<string> stochclassic_param_names;
-  ScalarT sub_NLtol;
-  int sub_maxNLiter;
-  bool have_sym_factor, useDirect;
     
   vector<string> discparamnames;
   Teuchos::RCP<physics> sub_physics;
