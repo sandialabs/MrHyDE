@@ -483,7 +483,7 @@ void workset::computeSoln(const int & type) {
         cbasis_grad = basis_grad_face[usebasis[var]];
       }
       
-      parallel_for("wkset soln ip HGRAD",RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("wkset soln ip HGRAD",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int dof=0; dof<cbasis.extent(1); dof++ ) {
           AD uval = cuvals(elem,dof);
           if ( dof == 0) {
@@ -508,7 +508,7 @@ void workset::computeSoln(const int & type) {
       if (isTransient && type == 1) { // transient terms only need at volumetric ip
         auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),0);
         auto cu_dotvals = Kokkos::subview(u_dotvals,Kokkos::ALL(),var,Kokkos::ALL());
-        parallel_for("wkset soln ip HGRAD transient",RangePolicy<AssemblyExec>(0,csol_dot.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("wkset soln ip HGRAD transient",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (int dof=0; dof<cbasis.extent(1); dof++ ) {
             if ( dof == 0) {
               for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
@@ -547,7 +547,7 @@ void workset::computeSoln(const int & type) {
       }
       auto cuvals = Kokkos::subview(uvals,Kokkos::ALL(),var,Kokkos::ALL());
       
-      parallel_for("wkset soln ip HVOL",RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("wkset soln ip HVOL",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int dof=0; dof<cbasis.extent(1); dof++ ) {
           if ( dof == 0) {
             for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
@@ -565,7 +565,7 @@ void workset::computeSoln(const int & type) {
       if (isTransient && type == 1) {
         auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),0);
         auto cu_dotvals = Kokkos::subview(u_dotvals,Kokkos::ALL(),var,Kokkos::ALL());
-        parallel_for("wkset soln ip HVOL transient",RangePolicy<AssemblyExec>(0,csol_dot.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("wkset soln ip HVOL transient",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (int dof=0; dof<cbasis.extent(1); dof++ ) {
             if ( dof == 0) {
               for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
@@ -607,7 +607,7 @@ void workset::computeSoln(const int & type) {
       }
       auto cuvals = Kokkos::subview(uvals,Kokkos::ALL(),var,Kokkos::ALL());
       
-      parallel_for("wkset soln ip HDIV",RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("wkset soln ip HDIV",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int dof=0; dof<cbasis.extent(1); dof++ ) {
           if ( dof == 0) {
             for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
@@ -627,7 +627,7 @@ void workset::computeSoln(const int & type) {
       });
       
       if (type == 1) {
-        parallel_for("wkset soln ip HDIV",RangePolicy<AssemblyExec>(0,csol_div.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("wkset soln ip HDIV",RangePolicy<AssemblyExec>(0,cbasis_div.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (int dof=0; dof<cbasis_div.extent(1); dof++ ) {
             if ( dof == 0) {
               for (size_t pt=0; pt<cbasis_div.extent(2); pt++ ) {
@@ -646,7 +646,7 @@ void workset::computeSoln(const int & type) {
       if (isTransient && type == 1) {
         auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
         auto cu_dotvals = Kokkos::subview(u_dotvals,Kokkos::ALL(),var,Kokkos::ALL());
-        parallel_for("wkset soln ip HDIV transient",RangePolicy<AssemblyExec>(0,csol_dot.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("wkset soln ip HDIV transient",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (int dof=0; dof<cbasis.extent(1); dof++ ) {
             if ( dof == 0) {
               for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
@@ -691,7 +691,7 @@ void workset::computeSoln(const int & type) {
       }
       auto cuvals = Kokkos::subview(uvals,Kokkos::ALL(),var,Kokkos::ALL());
       
-      parallel_for("wkset soln ip HCURL",RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("wkset soln ip HCURL",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int dof=0; dof<cbasis.extent(1); dof++ ) {
           if ( dof == 0) {
             for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
@@ -711,7 +711,7 @@ void workset::computeSoln(const int & type) {
       });
       
       if (type == 1) {
-        parallel_for("wkset soln ip HCURL",RangePolicy<AssemblyExec>(0,csol_curl.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("wkset soln ip HCURL",RangePolicy<AssemblyExec>(0,cbasis_curl.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (int dof=0; dof<cbasis.extent(1); dof++ ) {
             if ( dof == 0) {
               for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
@@ -733,7 +733,7 @@ void workset::computeSoln(const int & type) {
       if (isTransient && type == 1) {
         auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
         auto cu_dotvals = Kokkos::subview(u_dotvals,Kokkos::ALL(),var,Kokkos::ALL());
-        parallel_for("wkset soln ip HCURL transient",RangePolicy<AssemblyExec>(0,csol_dot.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("wkset soln ip HCURL transient",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (int dof=0; dof<cbasis.extent(1); dof++ ) {
             if ( dof == 0) {
               for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
@@ -776,7 +776,7 @@ void workset::computeSoln(const int & type) {
       auto cuvals = Kokkos::subview(uvals,Kokkos::ALL(),var,Kokkos::ALL());
       
       if (type == 2 || type == 3) {
-        parallel_for("wkset soln ip HFACE",RangePolicy<AssemblyExec>(0,csol.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("wkset soln ip HFACE",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (int dof=0; dof<cbasis.extent(1); dof++ ) {
             if ( dof == 0) {
               for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
