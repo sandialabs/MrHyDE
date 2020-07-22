@@ -28,24 +28,27 @@ ANONYMOUS:
   Discretization:
     eblock-0_0:
       order:
-        pbndry: 0
+        pbndry: 1
       quadrature: 2
   Subgrid:
     subgrid model: FEM
     Mesh:
       shape: quad
-      refinements: 0
+      refinements: 2
       dim: 2
       blocknames: eblock
     Physics:
-      modules: porousHDIV
+      modules: porousHDIV_weakGalerkin
       Active variables:
-        p: HVOL
+        pint: HVOL
         u: HDIV
+        t: HDIV
       True solutions:
         p: sin(2*pi*x)*sin(2*pi*y)
-        u_x: -2*pi*cos(2*pi*x)*sin(2*pi*y)
-        u_y: -2*pi*sin(2*pi*x)*cos(2*pi*y)
+        u_x: 2*pi*cos(2*pi*x)*sin(2*pi*y)
+        u_y: 2*pi*sin(2*pi*x)*cos(2*pi*y)
+        t_x: -2*pi*cos(2*pi*x)*sin(2*pi*y)
+        t_y: -2*pi*sin(2*pi*x)*cos(2*pi*y)
     Solver:
       solver: steady-state
       use direct solver: true
@@ -54,6 +57,7 @@ ANONYMOUS:
       order:
         p: 0
         u: 1
+        t: 1
       quadrature: 2
     Postprocess:
       store aux and flux: false
@@ -64,6 +68,7 @@ ANONYMOUS:
     compute errors: true
     compute response: false
     write solution: false
+    write subgrid solution: false
     compute objective: false
     compute sensitivities: false
 ...

@@ -30,13 +30,13 @@ ANONYMOUS:
   Discretization:
     eblock-0_0:
       order:
-        p: 0
+        p: 1
       quadrature: 2
   Subgrid:
     subgrid model: FEM
     Mesh:
       shape: quad
-      refinements: 0
+      refinements: 2
       dim: 2
       blocknames: eblock
     Physics:

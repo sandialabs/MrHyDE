@@ -2,6 +2,6 @@
 *********************************************************
 ***** Computing errors ******
 
-***** L2-face norm of the error for p = 0.431541  (time = 0)
-***** Subgrid 0: L2 norm of the error for p = 0.158697  (time = 0)
-***** Subgrid 0: L2 norm of the error for u = 1.02259  (time = 0)
+***** L2-face norm of the error for p = 0.0170789  (time = 0)
+***** Subgrid 0: L2 norm of the error for p = 0.0322694  (time = 0)
+***** Subgrid 0: L2 norm of the error for u = 0.338954  (time = 0)

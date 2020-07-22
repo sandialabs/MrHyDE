@@ -1379,6 +1379,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
         size_t pprog = 0;
         
         this->updateLocalData(usernum);
+        sub_solver->performGather(0,u,0,0);
         for( size_t e=0; e<cells[0].size(); e++ ) {
           cells[0][e]->updateWorksetBasis();
           wkset[0]->computeSolnSteadySeeded(cells[0][e]->u, 0);
