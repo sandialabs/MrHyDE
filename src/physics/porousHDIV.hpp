@@ -69,11 +69,11 @@ public:
 private:
   
   int spaceDim;
-  FDATA source, bsource;
+  FDATA source, bsource, Kinv_xx, Kinv_yy, Kinv_zz;
   
   int pnum=-1, unum=-1, auxpnum=-1, auxunum=-1;
   int dxnum,dynum,dznum;
-  bool isTD, addBiot;
+  bool isTD, addBiot, usePermData;
   ScalarT biot_alpha;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV::volumeResidual() - function evaluation");
