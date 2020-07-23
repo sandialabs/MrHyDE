@@ -98,7 +98,7 @@ int main(int argc, char * argv[]) {
     ////////////////////////////////////////////////
     
     {
-      View3 sol_ip("solution at ip",numElem,numvars,numip,dimension);
+      View4 sol_ip("solution at ip",numElem,numvars,numip,dimension);
       Kokkos::View<ScalarT****,AssemblyExec> basis("basis",numElem,numdof,numip,dimension);
       Kokkos::View<ScalarT***,AssemblyExec> sol_dof("sol at dof",numElem,numvars,numdof);
       
@@ -218,7 +218,7 @@ int main(int argc, char * argv[]) {
     {
       Kokkos::View<ScalarT****,AssemblyExec> sol_ip("solution at ip",numElem,numvars,numip,dimension);
       Kokkos::View<ScalarT****,AssemblyExec> basis("basis",numElem,numdof,numip,dimension);
-      Kokkos::View<ScalarT**,AssemblyExec> sol_dof("sol at dof",numElem,numvars,numdof);
+      Kokkos::View<ScalarT***,AssemblyExec> sol_dof("sol at dof",numElem,numvars,numdof);
       
       for (int elem=0; elem<numElem; elem++) {
         for (int pt=0; pt<numip; pt++) {
