@@ -17,6 +17,7 @@ ANONYMOUS:
     blocknames: eblock-0_0_0
     data file: mesh_data_rotations
     data points file: mesh_data_pts
+    have mesh data rotations: true
   Discretization:
     order:
       dx: 1
