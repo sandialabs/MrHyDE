@@ -76,7 +76,7 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
     mesh_data_pts_tag = settings->sublist("Mesh").get<string>("data points file","mesh_data_pts");
     have_mesh_data = true;
     have_rotation_phi = settings->sublist("Mesh").get<bool>("have mesh data phi",false);
-    have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",true);
+    have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",false);
     have_multiple_data_files = settings->sublist("Mesh").get<bool>("have multiple mesh data files",false);
     number_mesh_data_files = settings->sublist("Mesh").get<int>("number mesh data files",1);
   }
@@ -572,7 +572,7 @@ void SubGridFEM::addMeshData() {
   
   if (have_mesh_data) {
     
-    int numdata = 0;
+    int numdata = 1;
     if (have_rotations) {
       numdata = 9;
     }
@@ -648,7 +648,7 @@ void SubGridFEM::addMeshData() {
               for (unsigned int i=0; i<cdata.extent(1); i++) {
                 localData[b]->cell_data(c,i) = cdata(0,i);
               }
-              
+              cells[0][0]->cellData->have_extra_data = true;
               if (have_rotations)
                 cells[0][0]->cellData->have_cell_rotation = true;
               if (have_rotation_phi)
@@ -899,9 +899,6 @@ void SubGridFEM::addMeshData() {
           for (int i=0; i<9; i++) {
             localData[b]->cell_data(c,i) = rotation_data(cnode,i);
           }
-          
-          cells[0][0]->cellData->have_cell_rotation = true;
-          cells[0][0]->cellData->have_cell_phi = false;
           
           localData[b]->cell_data_seed[c] = cnode;
           localData[b]->cell_data_seedindex[c] = seedIndex(cnode);
@@ -1292,6 +1289,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
     submesh->addCellField(subextracellfields[j], subeBlocks[0]);
   }
   submesh->addCellField("mesh_data_seed", subeBlocks[0]);
+  submesh->addCellField("mesh_data", subeBlocks[0]);
   
   if (discparamnames.size() > 0) {
     for (size_t n=0; n<discparamnames.size(); n++) {
@@ -1418,144 +1416,29 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
       }
     }
     
-    ////////////////////////////////////////////////////////////////
-    // Discretized Parameters
-    ////////////////////////////////////////////////////////////////
-    
     /*
-     if (discparamnames.size() > 0) {
-     for (size_t n=0; n<discparamnames.size(); n++) {
-     FC soln_computed;
-     bool isConstant = false;
-     DRV subnodes = cells[usernum][0]->nodes;
-     int numSubNodes = subnodes.extent(0);
-     int paramnumbasis =cells[usernum][0]->paramindex[n].size();
-     if (paramnumbasis>1)
-     soln_computed = FC(cells[usernum].size(), paramnumbasis);
-     else {
-     isConstant = true;
-     soln_computed = FC(cells[usernum].size(), numSubNodes);
-     }
-     for( size_t e=0; e<cells[usernum].size(); e++ ) {
-     vector<int> paramGIDs = cells[usernum][e]->paramGIDs;
-     vector<vector<int> > paramoffsets = wkset[0]->paramoffsets;
-     for( int i=0; i<paramnumbasis; i++ ) {
-     int pindex = param_overlapped_map->LID(paramGIDs[paramoffsets[n][i]]);
-     if (isConstant) {
-     for( int j=0; j<numSubNodes; j++ ) {
-     soln_computed(e,j) = (*(Psol[0]))[0][pindex];
-     }
-     }
-     else
-     soln_computed(e,i) = (*(Psol[0]))[0][pindex];
-     }
-     }
-     if (isConstant) {
-     submesh->setCellFieldData(discparamnames[n], blockID, myElements, soln_computed);
-     }
-     else {
-     submesh->setSolutionFieldData(discparamnames[n], blockID, myElements, soln_computed);
-     }
-     }
-     }
-     */
-    
-    // Collect the subgrid extra fields (material coefficients)
-    //TMW: ADD
-    
-    // vector<FC> subextrafields;// = phys->getExtraFields(b);
-    // DRV rnodes = cells[b][0]->nodes;
-    // for (size_t j=0; j<subextrafieldnames.size(); j++) {
-    // FC efdata(cells[b].size(), rnodes.extent(1));
-    // subextrafields.push_back(efdata);
-    // }
-    
-    // vector<FC> cfields;
-    // for (size_t k=0; k<cells[b].size(); k++) {
-    // DRV snodes = cells[b][k]->nodes;
-    // cfields = sub_physics->getExtraFields(b, snodes, solvetimes[m]);
-    // for (size_t j=0; j<subextrafieldnames.size(); j++) {
-    // for (size_t i=0; i<snodes.extent(1); i++) {
-    // subextrafields[j](k,i) = cfields[j](0,i);
-    // }
-    // }
-    // //vcfields.push_back(cfields[0]);
-    // }
-    
-    //bvbw added block to pushd extrafields to a vector<FC>,
-    //     originally cfields did not have more than one vector
-    //	vector<FC> vcfields;
-    //	vector<FC> cfields;
-    //	for (size_t j=0; j<subextrafieldnames.size(); j++) {
-    //	  for (size_t k=0; k<subcells[level][b].size(); k++) {
-    //	    DRV snodes = subcells[level][b][k]->getNodes();
-    //	    cfields = sub_sub_physics[level]->getExtraFields(b, snodes, 0.0);
-    //	  }
-    //	  vcfields.push_back(cfields[0]);
-    //	}
-    
-    //        for (size_t k=0; k<subcells[level][b].size(); k++) {
-    //         DRV snodes = subcells[level][b][k]->getNodes();
-    //vector<FC> newbasis, newbasisGrad;
-    //for (size_t b=0; b<basisTypes.size(); b++) {
-    //  newbasis.push_back(DiscTools::evaluateBasis(basisTypes[b], snodes));
-    //  newbasisGrad.push_back(DiscTools::evaluateBasisGrads(basisTypes[b], snodes, snodes, cellTopo));
-    //}
-    //          vector<FC> cfields = sub_sub_physics[level]->getExtraFields(b, snodes, 0.0);//subgrid_solvetimes[m]);
-    //          for (size_t j=0; j<subextrafieldnames.size(); j++) {
-    //            for (size_t i=0; i<snodes.extent(1); i++) {
-    //              subextrafields[j](k,i) = vcfields[j](i);
-    //            }
-    //          }
-    //        }
-    
-    /*
-     vector<string> extracellfieldnames = sub_physics->getExtraCellFieldNames(0);
-     vector<FC> extracellfields;// = phys->getExtraFields(b);
-     for (size_t j=0; j<extracellfieldnames.size(); j++) {
-     FC efdata(cells[usernum].size(), 1);
-     extracellfields.push_back(efdata);
-     }
-     for (size_t k=0; k<cells[usernum].size(); k++) {
-     cells[usernum][k]->updateSolnWorkset(soln[usernum][m].second, 0); // also updates ip, ijac
-     cells[usernum][k]->updateData();
-     wkset[0]->time = soln[usernum][m].first;
-     vector<FC> cfields = sub_physics->getExtraCellFields(0);
-     size_t j = 0;
-     for (size_t g=0; g<cfields.size(); g++) {
-     for (size_t h=0; h<cfields[g].extent(0); h++) {
-     extracellfields[j](k,0) = cfields[g](h,0);
-     ++j;
-     }
-     }
-     }
-     for (size_t j=0; j<extracellfieldnames.size(); j++) {
-     submesh->setCellFieldData(extracellfieldnames[j], blockID, myElements, extracellfields[j]);
-     }
-     */
-    
-    
-    //Kokkos::View<ScalarT**,HostDevice> cdata("cell data",cells[usernum][0]->numElem, 1);
+    Kokkos::View<ScalarT**,HostDevice> cseeds("cell data seeds",cells[0].size(), 1);
     Kokkos::View<ScalarT**,HostDevice> cdata("cell data",cells[0].size(), 1);
-    if (cells[0][0]->cellData->have_cell_phi || cells[0][0]->cellData->have_cell_rotation) {
+    if (cells[0][0]->cellData->have_cell_phi || cells[0][0]->cellData->have_cell_rotation || cells[0][0]->cellData->have_extra_data) {
       int eprog = 0;
       vector<size_t> cell_data_seed = localData[usernum]->cell_data_seed;
       vector<size_t> cell_data_seedindex = localData[usernum]->cell_data_seedindex;
       Kokkos::View<ScalarT**,AssemblyDevice> cell_data = localData[usernum]->cell_data;
       // TMW: need to use a mirror view here
       for (int p=0; p<cells[0][0]->numElem; p++) {
-        //cdata(eprog,0) = cell_data_seedindex[p];
-        //eprog++;
+        cseeds(eprog,0) = cell_data_seedindex[p];
+        cdata(eprog,0) = cell_data(p,0);
+        eprog++;
       }
     }
-    submesh->setCellFieldData("mesh_data_seed", blockID, myElements, cdata);
-  
+    submesh->setCellFieldData("mesh_data_seed", blockID, myElements, cseeds);
+    submesh->setCellFieldData("mesh_data", blockID, myElements, cdata);
     if(isTD) {
       submesh->writeToExodus(soln->times[usernum][m]);
     }
     else {
       submesh->writeToExodus(filename);
-    }
+    }*/
     
   }
   
