@@ -884,12 +884,12 @@ Kokkos::View<ScalarT***,AssemblyDevice> physics::getInitial(const DRV & ip,
           // evaluate
           FDATA ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"point");
           
-          //ivals(e,n,i) = ivals_AD(0,0).val();
+          ivals(e,n,i) = ivals_AD(0,0).val();
           // copy
-          auto iv = Kokkos::subview( ivals, e, n, i);
-          parallel_for("physics initial set point",RangePolicy<AssemblyExec>(0,1), KOKKOS_LAMBDA (const int s ) {
-            iv(0) = ivals_AD(0,0).val();
-          });
+          //auto iv = Kokkos::subview( ivals, e, n, i);
+          //parallel_for("physics initial set point",RangePolicy<AssemblyExec>(0,1), KOKKOS_LAMBDA (const int s ) {
+          //  iv(0) = ivals_AD(0,0).val();
+          //});
         }
       }
     }
