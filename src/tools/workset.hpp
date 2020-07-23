@@ -220,7 +220,7 @@ class workset {
   
   bool have_rotation, have_rotation_phi;
   Kokkos::View<ScalarT***,AssemblyDevice> rotation;
-  Kokkos::View<ScalarT**,AssemblyDevice> rotation_phi;
+  Kokkos::View<ScalarT**,AssemblyDevice> rotation_phi, extra_data;
   
   // Profile timers
   Teuchos::RCP<Teuchos::Time> worksetUpdateIPTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::update - integration data");

@@ -69,48 +69,49 @@ void porous::volumeResidual() {
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
+  auto psol = Kokkos::subview(sol, Kokkos::ALL(), pnum, Kokkos::ALL(), 0);
+  auto pdot = Kokkos::subview(sol_dot, Kokkos::ALL(), pnum, Kokkos::ALL(), 0);
+  auto pgrad = Kokkos::subview(sol_grad, Kokkos::ALL(), pnum, Kokkos::ALL(), Kokkos::ALL());
+  auto off = Kokkos::subview(offsets, pnum, Kokkos::ALL());
+  
   if (spaceDim == 1) {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.extent(2); k++ ) {
-        for (int i=0; i<basis.extent(1); i++ ) {
-          int resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
-          AD dens = densref(e,k)*(1.0+comp(e,k)*(sol(e,pnum,k,0) - pref(e,k)));
-          
-          res(e,resindex) += (porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
-          perm(e,k)/viscosity(e,k)*dens*(sol_grad(e,pnum,k,0)*basis_grad(e,i,k,0)) // diffusion terms
-          -source(e,k)*basis(e,i,k))*wts(e,k); // source/well model
-          
+    parallel_for("porous HGRAD volume resid 1D",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<psol.extent(1); pt++ ) {
+        AD Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
+        AD M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
+        M *= wts(elem,pt);
+        AD Kx = Kdens*pgrad(elem,pt,0)*wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          res(elem,off(dof)) += M*basis(elem,dof,pt) + Kx*basis_grad(elem,dof,pt,0);
         }
       }
     });
   }
   else if (spaceDim == 2) {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.extent(2); k++ ) {
-        for (int i=0; i<basis.extent(1); i++ ) {
-          int resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
-          AD dens = densref(e,k)*(1.0+comp(e,k)*(sol(e,pnum,k,0) - pref(e,k)));
-          
-          res(e,resindex) += (porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
-          perm(e,k)/viscosity(e,k)*dens*(sol_grad(e,pnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,pnum,k,1)*basis_grad(e,i,k,1)) // diffusion terms
-          -source(e,k)*basis(e,i,k))*wts(e,k); // source/well model
+    parallel_for("porous HGRAD volume resid 2D",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<psol.extent(1); pt++ ) {
+        AD Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
+        AD M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
+        M *= wts(elem,pt);
+        AD Kx = Kdens*pgrad(elem,pt,0)*wts(elem,pt);
+        AD Ky = Kdens*pgrad(elem,pt,1)*wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          res(elem,off(dof)) += M*basis(elem,dof,pt) + Kx*basis_grad(elem,dof,pt,0) + Ky*basis_grad(elem,dof,pt,1);
         }
       }
     });
   }
   else if (spaceDim == 3) {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int k=0; k<sol.extent(2); k++ ) {
-        for (int i=0; i<basis.extent(1); i++ ) {
-          int resindex = offsets(pnum,i); // TMW: e_num is not on the assembly device
-          
-          AD dens = densref(e,k)*(1.0+comp(e,k)*(sol(e,pnum,k,0) - pref(e,k)));
-          
-          res(e,resindex) += (porosity(e,k)*densref(e,k)*comp(e,k)*sol_dot(e,pnum,k,0)*basis(e,i,k) + // transient term
-          perm(e,k)/viscosity(e,k)*dens*(sol_grad(e,pnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,pnum,k,1)*basis_grad(e,i,k,1) +
-                                         (sol_grad(e,pnum,k,2) - gravity(e,k)*dens*1.0)*basis_grad(e,i,k,2)) // diffusion terms
-          -source(e,k)*basis(e,i,k))*wts(e,k); // source/well model
-          
+    parallel_for("porous HGRAD volume resid 3D",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<psol.extent(1); pt++ ) {
+        AD Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
+        AD M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
+        M *= wts(elem,pt);
+        AD Kx = Kdens*pgrad(elem,pt,0)*wts(elem,pt);
+        AD Ky = Kdens*pgrad(elem,pt,1)*wts(elem,pt);
+        AD Kz = Kdens*pgrad(elem,pt,2)*wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          res(elem,off(dof)) += M*basis(elem,dof,pt) + Kx*basis_grad(elem,dof,pt,0) + Ky*basis_grad(elem,dof,pt,1) + Kz*basis_grad(elem,dof,pt,2);
         }
       }
     });
@@ -159,82 +160,75 @@ void porous::boundaryResidual() {
     adjrhs = wkset->adjrhs;
   }
   
-  // Since normals get recomputed often, this needs to be reset
+  // Since normals, wts and h get re-directed often, these need to be reset
   normals = wkset->normals;
   wts = wkset->wts_side;
+  h = wkset->h;
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
-  ScalarT v = 0.0;
-  ScalarT dvdx = 0.0;
-  ScalarT dvdy = 0.0;
-  ScalarT dvdz = 0.0;
+  auto psol = Kokkos::subview(sol, Kokkos::ALL(), pnum, Kokkos::ALL(), 0);
+  auto pgrad = Kokkos::subview(sol_grad, Kokkos::ALL(), pnum, Kokkos::ALL(), Kokkos::ALL());
+  auto off = Kokkos::subview(offsets, pnum, Kokkos::ALL());
   
-  for (int e=0; e<basis.extent(0); e++) {
-    if (bcs(pnum,cside) == 2) {
-      for (int k=0; k<basis.extent(2); k++ ) {
-        for (int i=0; i<basis.extent(1); i++ ) {
-          int resindex = offsets(pnum,i);
-          res(e,resindex) += (-source(e,k)*basis(e,i,k))*wts(e,k);
+  if (bcs(pnum,cside) == 2) { //Neumann
+    parallel_for("porous HGRAD bndry resid Neumann",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<basis.extent(2); pt++ ) {
+        AD s = -source(elem,pt)*wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          res(elem,off(dof)) += s*basis(elem,dof,pt);
         }
       }
-    }
-    
-    if (bcs(pnum,cside) == 4 || bcs(pnum,cside) == 5) {
-      
-      for (int k=0; k<basis.extent(2); k++ ) {
-        
-        AD pval = sol_side(e,pnum,k,0);
-        AD dpdx = sol_grad_side(e,pnum,k,0);
-        AD dpdy, dpdz;
-        if (spaceDim > 1) {
-          dpdy = sol_grad_side(e,pnum,k,1);
+    });
+  }
+  else if (bcs(pnum,cside) == 4) { // weak Dirichlet
+    parallel_for("porous HGRAD bndry resid weak Dirichlet",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<basis.extent(2); pt++ ) {
+        AD pval = psol(elem,pt);
+        AD dens = densref(elem,pt)*(1.0+comp(elem,pt)*(pval - pref(elem,pt)));
+        AD Kval = perm(elem,pt)/viscosity(elem,pt)*dens;
+        AD weakDiriScale = 10.0*Kval/h(elem);
+        AD Kgradp_dot_n = 0.0;
+        for (int dim=0; dim<normals.extent(2); dim++) {
+          Kgradp_dot_n += Kval*pgrad(elem,pt,dim)*normals(elem,pt,dim);
         }
-        if (spaceDim > 2) {
-          dpdz = sol_grad_side(e,pnum,k,2);
-        }
-        
-        AD lambda;
-        
-        if (bcs(pnum,cside) == 5) {
-          lambda = aux_side(e,pnum,k);
-        }
-        else {
-          lambda = source(e,k);
-        }
-        
-        for (int i=0; i<basis.extent(1); i++ ) {
-          int resindex = offsets(pnum,i);
-          v = basis(e,i,k);
-          dvdx = basis_grad(e,i,k,0);
-          if (spaceDim > 1)
-            dvdy = basis_grad(e,i,k,1);
-          if (spaceDim > 2)
-            dvdz = basis_grad(e,i,k,2);
-          
-          AD dens = densref(e,k)*(1.0+comp(e,k)*(pval - pref(e,k)));
-          AD Kval = perm(e,k)/viscosity(e,k)*dens;
-          AD weakDiriScale = 10.0*Kval/wkset->h(e);
-          
-          res(e,resindex) += (-Kval*dpdx*normals(e,k,0)*v - sf*Kval*dvdx*normals(e,k,0)*(pval-lambda) + weakDiriScale*(pval-lambda)*v)*wts(e,k);
-          if (spaceDim > 1) {
-            res(e,resindex) += (-Kval*dpdy*normals(e,k,1)*v - sf*Kval*dvdy*normals(e,k,1)*(pval-lambda))*wts(e,k);
+        Kgradp_dot_n *= wts(elem,pt);
+        AD pdiff = (pval - source(elem,pt))*wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          ScalarT v = basis(elem,dof,pt);
+          AD Kgradv_dot_n = 0.0;
+          for (int dim=0; dim<normals.extent(2); dim++) {
+            Kgradv_dot_n += Kval*basis_grad(elem,dof,pt,dim)*normals(elem,pt,dim);
           }
-          if (spaceDim > 2) {
-            res(e,resindex) += (-Kval*(dpdz - gravity(e,k)*dens)*normals(e,k,2)*v - sf*Kval*dvdz*normals(e,k,2)*(pval-lambda))*wts(e,k);
-          }
-          
-          //if (wkset->isAdjoint) {
-          //  adjrhs(e,resindex) += sf*diff_side(e,k)*dvdx*normals(e,k,0)*lambda - weakDiriScale*lambda*v;
-          //  if (spaceDim > 1)
-          //  adjrhs(e,resindex) += sf*diff_side(e,k)*dvdy*normals(e,k,1)*lambda;
-          //  if (spaceDim > 2)
-          //  adjrhs(e,resindex) += sf*diff_side(e,k)*dvdz*normals(e,k,2)*lambda;
-          //}
+          res(elem,off(dof)) += -Kgradp_dot_n*v - sf*Kgradv_dot_n*pdiff + weakDiriScale*pdiff*v;
         }
-        
       }
-    }
+    });
+  }
+  else if (bcs(pnum,cside) == 5) { // multiscale weak Dirichlet
+    auto lambda = Kokkos::subview(aux_side,Kokkos::ALL(), pnum, Kokkos::ALL());
+    parallel_for("porous HGRAD bndry resid MS weak Dirichlet",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<basis.extent(2); pt++ ) {
+        AD pval = psol(elem,pt);
+        AD dens = densref(elem,pt)*(1.0+comp(elem,pt)*(pval - pref(elem,pt)));
+        AD Kval = perm(elem,pt)/viscosity(elem,pt)*dens;
+        AD weakDiriScale = 10.0*Kval/h(elem);
+        AD Kgradp_dot_n = 0.0;
+        for (int dim=0; dim<normals.extent(2); dim++) {
+          Kgradp_dot_n += Kval*pgrad(elem,pt,dim)*normals(elem,pt,dim);
+        }
+        Kgradp_dot_n *= wts(elem,pt);
+        AD pdiff = (pval - lambda(elem,pt))*wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          ScalarT v = basis(elem,dof,pt);
+          AD Kgradv_dot_n = 0.0;
+          for (int dim=0; dim<normals.extent(2); dim++) {
+            Kgradv_dot_n += Kval*basis_grad(elem,dof,pt,dim)*normals(elem,pt,dim);
+          }
+          res(elem,off(dof)) += -Kgradp_dot_n*v - sf*Kgradv_dot_n*pdiff + weakDiriScale*pdiff*v;
+        }
+      }
+    });
   }
 }
 
@@ -251,7 +245,7 @@ void porous::edgeResidual() {
 
 void porous::computeFlux() {
   
-  ScalarT sf = 1.0;
+  ScalarT sf = 1.0; // TMW: not on device
   if (wkset->isAdjoint) {
     sf = formparam;
   }
@@ -269,27 +263,32 @@ void porous::computeFlux() {
   
   // Since normals get recomputed often, this needs to be reset
   normals = wkset->normals;
+  h = wkset->h;
   
   {
     Teuchos::TimeMonitor localtime(*fluxFill);
-    
-    for (int e=0; e<flux.extent(0); e++) {
+    auto pflux = Kokkos::subview(flux, Kokkos::ALL(), pnum, Kokkos::ALL());
+    auto psol = Kokkos::subview(sol_side, Kokkos::ALL(), pnum, Kokkos::ALL(), 0);
+    auto pgrad = Kokkos::subview(sol_grad_side, Kokkos::ALL(), pnum, Kokkos::ALL(), Kokkos::ALL());
+    auto lambda = Kokkos::subview(aux_side, Kokkos::ALL(), pnum, Kokkos::ALL());
+    parallel_for("porous HGRAD flux",RangePolicy<AssemblyExec>(0,pflux.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       
-      for (size_t k=0; k<wkset->ip_side.extent(1); k++) {
-        AD dens = densref(e,k)*(1.0+comp(e,k)*(sol_side(e,pnum,k,0) - pref(e,k)));
-        AD Kval = perm(e,k)/viscosity(e,k)*dens;
+      for (size_t pt=0; pt<pflux.extent(1); pt++) {
+        AD dens = densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
+        AD Kval = perm(elem,pt)/viscosity(elem,pt)*dens;
         
-        AD penalty = 10.0*Kval/wkset->h(e);
-        flux(e,pnum,k) += sf*Kval*sol_grad_side(e,pnum,k,0)*normals(e,k,0) +
-        penalty*(aux_side(e,pnum,k)-sol_side(e,pnum,k,0));
-        if (spaceDim > 1) {
-          flux(e,pnum,k) += sf*Kval*sol_grad_side(e,pnum,k,1)*normals(e,k,1);
+        AD penalty = 10.0*Kval/h(elem);
+        AD Kgradp_dot_n  = 0.0;
+        for (int dim=0; dim<normals.extent(2); dim++) {
+          Kgradp_dot_n += Kval*pgrad(elem,pt,dim)*normals(elem,pt,dim);
         }
-        if (spaceDim > 2) {
-          flux(e,pnum,k) += sf*Kval*(sol_grad_side(e,pnum,k,2) - gravity(e,k)*dens)*normals(e,k,2);
+        if (normals.extent(2)>2) {
+          Kgradp_dot_n += -Kval*gravity(elem,pt)*dens*normals(elem,pt,2);
         }
+        pflux(elem,pt) += sf*Kgradp_dot_n + penalty*(lambda(elem,pt)-psol(elem,pt));
+        
       }
-    }
+    });
   }
   
 }
@@ -303,4 +302,20 @@ void porous::setVars(std::vector<string> & varlist) {
       pnum = i;
     }
   }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void porous::updatePerm() {
+  
+  wts = wkset->wts;
+  perm = Kokkos::View<AD**,AssemblyDevice>("K inverse xx",wts.extent(0),wts.extent(1));
+  Kokkos::View<ScalarT**,AssemblyDevice> data = wkset->extra_data;
+  
+  parallel_for("porous HGRAD update perm",RangePolicy<AssemblyExec>(0,perm.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    for (int pt=0; pt<perm.extent(1); pt++) {
+      perm(elem,pt) = data(elem,0);
+    }
+  });
 }

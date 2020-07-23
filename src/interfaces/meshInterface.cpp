@@ -404,6 +404,7 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
      */
     if (have_mesh_data || compute_mesh_data) {
       mesh->addCellField("mesh_data_seed", eBlocks[i]);
+      mesh->addCellField("mesh_data", eBlocks[i]);
     }
     
     mesh->addCellField("subgrid model", eBlocks[i]);
@@ -555,7 +556,7 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
   Teuchos::Time meshimporttimer("mesh import", false);
   meshimporttimer.start();
   
-  int numdata = 0;
+  int numdata = 1;
   if (have_rotations) {
     numdata = 9;
   }
@@ -625,6 +626,7 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
             for (int i=0; i<cdata.extent(1); i++) {
               cells[b][e]->cell_data(c,i) = cdata(0,i);
             }
+            cells[b][e]->cellData->have_extra_data = true;
             if (have_rotations)
               cells[b][e]->cellData->have_cell_rotation = true;
             if (have_rotation_phi)

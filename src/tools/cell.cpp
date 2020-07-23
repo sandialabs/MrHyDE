@@ -1800,6 +1800,10 @@ void cell::updateData() {
      }*/
     //wkset->rotation = rotmat;
   }
+  else if (cellData->have_extra_data) {
+    wkset->extra_data = cell_data;
+  }
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

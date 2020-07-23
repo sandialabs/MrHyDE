@@ -39,6 +39,8 @@ porousHDIV_HYBRID::porousHDIV_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & sett
     mybasistypes.push_back("HDIV-DG");
     mybasistypes.push_back("HFACE");
   }
+  usePermData = settings->sublist("Physics").get<bool>("use permeability data",false);
+  
   dxnum = 0;
   dynum = 0;
   dznum = 0;
@@ -57,8 +59,10 @@ void porousHDIV_HYBRID::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & s
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
   functionManager->addFunction("source",fs.get<string>("source","0.0"),"ip");
-  
-  
+  functionManager->addFunction("Kinv_xx",fs.get<string>("Kinv_xx","1.0"),"ip");
+  functionManager->addFunction("Kinv_yy",fs.get<string>("Kinv_yy","1.0"),"ip");
+  functionManager->addFunction("Kinv_zz",fs.get<string>("Kinv_zz","1.0"),"ip");
+    
 }
 
 // ========================================================================================
@@ -76,65 +80,96 @@ void porousHDIV_HYBRID::volumeResidual() {
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("source","ip");
+    if (usePermData) {
+      this->updatePerm();
+    }
+    else {
+      Kinv_xx = functionManager->evaluate("Kinv_xx","ip");
+      Kinv_yy = functionManager->evaluate("Kinv_yy","ip");
+      Kinv_zz = functionManager->evaluate("Kinv_zz","ip");
+    }
   }
   
   basis = wkset->basis[u_basis];
   basis_div = wkset->basis_div[u_basis];
   wts = wkset->wts;
   
-  // (K^-1 u,v) - (p,div v) - src*v (src not added yet)
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  {
+    // (K^-1 u,v) - (p,div v) - src*v (src not added yet)
     
-    ScalarT vx = 0.0;
-    ScalarT vy = 0.0;
-    ScalarT vz = 0.0;
-    ScalarT divv = 0.0;
-    AD uy = 0.0, uz = 0.0;
+    basis = wkset->basis[u_basis];
+    basis_div = wkset->basis_div[u_basis];
+    auto psol = Kokkos::subview(sol,Kokkos::ALL(), pnum, Kokkos::ALL(), 0);
+    auto usol = Kokkos::subview(sol,Kokkos::ALL(), unum, Kokkos::ALL(), Kokkos::ALL());
+    auto off = Kokkos::subview(offsets, unum, Kokkos::ALL());
     
-    for (int k=0; k<sol.extent(2); k++ ) {
-      for (int i=0; i<basis.extent(1); i++ ) {
-        AD p = sol(e,pnum,k,0);
-        AD ux = sol(e,unum,k,0);
-        
-        if (spaceDim > 1) {
-          uy = sol(e,unum,k,1);
+    if (spaceDim == 1) { // easier to place conditional here than on device
+      parallel_for("porous HDIV-HY volume resid u 1D",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int pt=0; pt<psol.extent(1); pt++ ) {
+          AD p = psol(elem,pt)*wts(elem,pt);
+          AD Kiux = Kinv_xx(elem,pt)*usol(elem,pt,0)*wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            ScalarT vx = basis(elem,dof,pt,0);
+            ScalarT divv = basis_div(elem,dof,pt);
+            res(elem,off(dof)) += Kiux*vx - p*divv;
+          }
         }
-        if (spaceDim > 2) {
-          uz = sol(e,unum,k,2);
-        }
-        
-        vx = basis(e,i,k,0);
-        
-        if (spaceDim > 1) {
-          vy = basis(e,i,k,1);
-        }
-        if (spaceDim > 2) {
-          vz = basis(e,i,k,2);
-        }
-        divv = basis_div(e,i,k);
-        int resindex = offsets(unum,i);
-        res(e,resindex) += (1.0*(ux*vx+uy*vy+uz*vz) - p*divv)*wts(e,k);
-        
-      }
+      });
     }
-    
-  });
-  
-  basis = wkset->basis[p_basis];
-  
-  // -(div u,q) + src*q (src not added yet)
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    
-    for (int k=0; k<sol.extent(2); k++ ) {
-      for (int i=0; i<basis.extent(1); i++ ) {
-        ScalarT q = basis(e,i,k,0);
-        AD divu = sol_div(e,unum,k);
-        int resindex = offsets(pnum,i);
-        res(e,resindex) += (divu*q - source(e,k)*q)*wts(e,k);
-      }
+    else if (spaceDim == 2) {
+      parallel_for("porous HDIV-HY volume resid u 2D",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int pt=0; pt<psol.extent(1); pt++ ) {
+          AD p = psol(elem,pt)*wts(elem,pt);
+          AD Kiux = Kinv_xx(elem,pt)*usol(elem,pt,0)*wts(elem,pt);
+          AD Kiuy = Kinv_yy(elem,pt)*usol(elem,pt,1)*wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            ScalarT vx = basis(elem,dof,pt,0);
+            ScalarT vy = basis(elem,dof,pt,1);
+            ScalarT divv = basis_div(elem,dof,pt);
+            res(elem,off(dof)) += Kiux*vx + Kiuy*vy - p*divv;
+          }
+        }
+      });
     }
-  });
+    else {
+      parallel_for("porous HDIV-HY volume resid u 3D",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int pt=0; pt<psol.extent(1); pt++ ) {
+          AD p = psol(elem,pt)*wts(elem,pt);
+          AD Kiux = Kinv_xx(elem,pt)*usol(elem,pt,0)*wts(elem,pt);
+          AD Kiuy = Kinv_yy(elem,pt)*usol(elem,pt,1)*wts(elem,pt);
+          AD Kiuz = Kinv_zz(elem,pt)*usol(elem,pt,2)*wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            ScalarT vx = basis(elem,dof,pt,0);
+            ScalarT vy = basis(elem,dof,pt,1);
+            ScalarT vz = basis(elem,dof,pt,2);
+            ScalarT divv = basis_div(elem,dof,pt);
+            res(elem,off(dof)) += Kiux*vx + Kiuy*vy + Kiuz*vz - p*divv;
+          }
+        }
+      });
+    }
+  }
   
+  {
+    // -(div u,q) + (src,q) (src not added yet)
+    
+    basis = wkset->basis[p_basis];
+    
+    auto udiv = Kokkos::subview(sol_div,Kokkos::ALL(), unum, Kokkos::ALL());
+    auto off = Kokkos::subview(offsets,pnum, Kokkos::ALL());
+    
+    parallel_for("porous HDIV-HY volume resid div(u)",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      
+      for (int pt=0; pt<udiv.extent(1); pt++ ) {
+        AD divu = udiv(elem,pt)*wts(elem,pt);
+        AD src = source(elem,pt)*wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          ScalarT v = basis(elem,dof,pt,0);
+          res(elem,off(dof)) += -divu*v + src*v;
+        }
+      }
+    });
+  }
 }
 
 
@@ -167,48 +202,37 @@ void porousHDIV_HYBRID::boundaryResidual() {
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
-  ScalarT vx = 0.0, vy = 0.0, vz = 0.0;
-  ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
-  for (int e=0; e<basis.extent(0); e++) {
-    if (bcs(pnum,cside) == 1) {
-      for (int k=0; k<basis.extent(2); k++ ) {
-        for (int i=0; i<basis.extent(1); i++ ) {
-          vx = basis(e,i,k,0);
-          nx = normals(e,k,0);
-          if (spaceDim>1) {
-            vy = basis(e,i,k,1);
-            ny = normals(e,k,1);
-          }
-          if (spaceDim>2) {
-            vz = basis(e,i,k,2);
-            nz = normals(e,k,2);
-          }
-          int resindex = offsets(unum,i);
-          res(e,resindex) -= (bsource(e,k)*(vx*nx+vy*ny+vz*nz))*wts(e,k);
-        }
-      }
-    }
-    else if (bcs(pnum,cside) == 5) {
-      for (int k=0; k<basis.extent(2); k++ ) {
-        for (int i=0; i<basis.extent(1); i++ ) {
-          vx = basis(e,i,k,0);
-          nx = normals(e,k,0);
-          if (spaceDim>1) {
-            vy = basis(e,i,k,1);
-            ny = normals(e,k,1);
-          }
-          if (spaceDim>2) {
-            vz = basis(e,i,k,2);
-            nz = normals(e,k,2);
-          }
-          int resindex = offsets(unum,i);
-          AD bval = aux_side(e,auxlambdanum,k);
-          res(e,resindex) -= (bval*(vx*nx+vy*ny+vz*nz))*wts(e,k);
-        }
-      }
-    }
-  }
+  auto off = Kokkos::subview(offsets, unum, Kokkos::ALL());
+  auto lambda = Kokkos::subview(aux_side, Kokkos::ALL(), auxlambdanum, Kokkos::ALL());
   
+  if (bcs(pnum,cside) == 1) {
+    parallel_for("porous HDIV-HY bndry resid Dirichlet",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<basis.extent(2); pt++ ) {
+        AD src = bsource(elem,pt)*wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          ScalarT vdotn = 0.0;
+          for (int dim=0; dim<normals.extent(2); dim++) {
+            vdotn += basis(elem,dof,pt,dim)*normals(elem,pt,dim);
+          }
+          res(elem,off(dof)) += src*vdotn;
+        }
+      }
+    });
+  }
+  else if (bcs(pnum,cside) == 5) {
+    parallel_for("porous HDIV-HY bndry resid MS Dirichlet",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<basis.extent(2); pt++ ) {
+        AD lam = lambda(elem,pt)*wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          ScalarT vdotn = 0.0;
+          for (int dim=0; dim<normals.extent(2); dim++) {
+            vdotn += basis(elem,dof,pt,dim)*normals(elem,pt,dim);
+          }
+          res(elem,off(dof)) += lam*vdotn;
+        }
+      }
+    });
+  }
 }
 
 // ========================================================================================
@@ -225,56 +249,47 @@ void porousHDIV_HYBRID::faceResidual() {
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
-  ScalarT vx = 0.0, vy = 0.0, vz = 0.0;
-  ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
-  
-  // include <lambda, v \cdot n> in velocity equation
-  basis = wkset->basis_face[u_basis];
-  wts = wkset->wts_side;
-  
-  for (int e=0; e<basis.extent(0); e++) {
-    for (int k=0; k<basis.extent(2); k++ ) {
-      for (int i=0; i<basis.extent(1); i++ ) {
-        vx = basis(e,i,k,0);
-        nx = normals(e,k,0);
-        if (spaceDim>1) {
-          vy = basis(e,i,k,1);
-          ny = normals(e,k,1);
+  {
+    // include <lambda, v \cdot n> in velocity equation
+    basis = wkset->basis_face[u_basis];
+    wts = wkset->wts_side;
+    
+    auto lambda = Kokkos::subview(sol_face,Kokkos::ALL(), lambdanum, Kokkos::ALL(), 0);
+    auto off = Kokkos::subview(offsets, unum, Kokkos::ALL());
+    
+    parallel_for("porous HDIV-HY face resid lambda",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<basis.extent(2); pt++ ) {
+        AD lam = lambda(elem,pt)*wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          ScalarT vdotn = 0.0;
+          for (int dim=0; dim<normals.extent(2); dim++) {
+            vdotn += basis(elem,dof,pt,dim)*normals(elem,pt,dim);
+          }
+          res(elem,off(dof)) += lam*vdotn;
         }
-        if (spaceDim>2) {
-          vz = basis(e,i,k,2);
-          nz = normals(e,k,2);
-        }
-        AD lambda = sol_face(e,lambdanum,k,0);
-        int resindex = offsets(unum,i);
-        res(e,resindex) += (1.0*lambda*(vx*nx+vy*ny+vz*nz))*wts(e,k);
       }
-    }
+    });
   }
   
-  // include -<u \cdot n, mu> in interface equation
-  AD ux = 0.0, uy = 0.0, uz = 0.0;
-  basis = wkset->basis_face[lambda_basis];
-  for (int e=0; e<basis.extent(0); e++) {
-    for (int k=0; k<basis.extent(2); k++ ) {
-      for (int i=0; i<basis.extent(1); i++ ) {
-        ux = sol_face(e,unum,k,0);
-        nx = normals(e,k,0);
-        if (spaceDim>1) {
-          uy = sol_face(e,unum,k,1);
-          ny = normals(e,k,1);
+  {
+    // include -<u \cdot n, mu> in interface equation
+    basis = wkset->basis_face[lambda_basis];
+    auto usol = Kokkos::subview(sol_face, Kokkos::ALL(), unum, Kokkos::ALL(), Kokkos::ALL());
+    auto off = Kokkos::subview(offsets, lambdanum, Kokkos::ALL());
+    
+    parallel_for("porous HDIV-HY face resid u dot n",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (int pt=0; pt<basis.extent(2); pt++ ) {
+        AD udotn = 0.0;
+        for (int dim=0; dim<normals.extent(2); dim++) {
+          udotn += usol(elem,pt,dim)*normals(elem,pt,dim);
         }
-        if (spaceDim>2) {
-          uz = sol_face(e,unum,k,2);
-          nz = normals(e,k,2);
+        udotn *= wts(elem,pt);
+        for (int dof=0; dof<basis.extent(1); dof++ ) {
+          res(elem,off(dof)) -= udotn*basis(elem,dof,pt);
         }
-        ScalarT mu = basis(e,i,k);
-        int resindex = offsets(lambdanum,i);
-        res(e,resindex) -= ((ux*nx+uy*ny+uz*nz)*mu)*wts(e,k);
       }
-    }
+    });
   }
-  
 }
 
 // ========================================================================================
@@ -289,27 +304,18 @@ void porousHDIV_HYBRID::computeFlux() {
   {
     Teuchos::TimeMonitor localtime(*fluxFill);
     
-    AD ux = 0.0, uy = 0.0, uz = 0.0;
-    ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
-    for (int e=0; e<flux.extent(0); e++) {
-      
-      for (size_t k=0; k<wkset->ip_side.extent(1); k++) {
-        
-        ux = sol_side(e,unum,k,0);
-        nx = normals(e,k,0);
-        
-        if (spaceDim > 1) {
-          uy = sol_side(e,unum,k,1);
-          ny = normals(e,k,1);
+    auto usol = Kokkos::subview(sol_side, Kokkos::ALL(), unum, Kokkos::ALL(), Kokkos::ALL());
+    auto uflux = Kokkos::subview(flux, Kokkos::ALL(), auxlambdanum, Kokkos::ALL());
+    
+    parallel_for("porous HDIV-HY flux",RangePolicy<AssemblyExec>(0,uflux.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for (size_t pt=0; pt<uflux.extent(1); pt++) {
+        AD udotn = 0.0;
+        for (int dim=0; dim<normals.extent(2); dim++) {
+          udotn += usol(elem,pt,dim)*normals(elem,pt,dim);
         }
-        if (spaceDim > 2) {
-          uz = sol_side(e,unum,k,2);
-          nz = normals(e,k,2);
-        }
-        
-        flux(e,auxlambdanum,k) = -(ux*nx+uy*ny+uz*nz);
+        uflux(elem,pt) = -udotn;
       }
-    }
+    });
   }
   
 }
@@ -347,4 +353,24 @@ void porousHDIV_HYBRID::setAuxVars(std::vector<string> & auxvarlist) {
     if (auxvarlist[i] == "lambda")
       auxlambdanum = i;
   }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void porousHDIV_HYBRID::updatePerm() {
+  
+  wts = wkset->wts;
+  Kinv_xx = Kokkos::View<AD**,AssemblyDevice>("K inverse xx",wts.extent(0),wts.extent(1));
+  Kinv_yy = Kokkos::View<AD**,AssemblyDevice>("K inverse yy",wts.extent(0),wts.extent(1));
+  Kinv_zz = Kokkos::View<AD**,AssemblyDevice>("K inverse zz",wts.extent(0),wts.extent(1));
+  Kokkos::View<ScalarT**,AssemblyDevice> data = wkset->extra_data;
+  
+  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    for (int pt=0; pt<Kinv_xx.extent(1); pt++) {
+      Kinv_xx(elem,pt) = data(elem,0);
+      Kinv_yy(elem,pt) = data(elem,0);
+      Kinv_zz(elem,pt) = data(elem,0);
+    }
+  });
 }

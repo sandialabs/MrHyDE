@@ -110,7 +110,7 @@ public:
     adjrhs = wkset->adjrhs;
     flux = wkset->flux;
     bcs = wkset->var_bcs;
-    h = wkset->h;
+    
     
   }
   

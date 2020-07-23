@@ -1,0 +1,45 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  profile: false
+  Mesh input file: input_mesh.yaml
+  Functions input file: input_functions.yaml
+  Physics: 
+    modules: porous
+    assemble boundary terms: false
+    build face terms: true
+    Dirichlet conditions:
+      scalar data: true
+      p:
+        all boundaries: 0.0
+    Initial conditions:
+      scalar data: true
+      p: 0.0
+    True solutions:
+      p: sin(2*pi*x)*sin(2*pi*y)
+      p face: sin(2*pi*x)*sin(2*pi*y)
+      grad(p)_x: 2*pi*cos(2*pi*x)*sin(2*pi*y)
+      grad(p)_y: 2*pi*sin(2*pi*x)*cos(2*pi*y)
+  Discretization:
+    order:
+      p: 1
+    quadrature: 2
+  Parameters input file: input_params.yaml
+  Solver: 
+    solver: steady-state
+    workset size: 100
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 2
+    use strong DBCs: true
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    response type: global
+    compute errors: true
+    compute response: false
+    compute objective: false
+    compute sensitivities: false
+    write solution: false
+...

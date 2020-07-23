@@ -72,15 +72,20 @@ public:
   
   void setAuxVars(std::vector<string> & auxvarlist);
   
+  // ========================================================================================
+  // ========================================================================================
+  
+  void updatePerm();
+  
 private:
   
   int spaceDim;
-  FDATA source, bsource;
+  FDATA source, bsource, Kinv_xx, Kinv_yy, Kinv_zz;
   
   int pnum=-1, unum=-1, lambdanum=-1;
   int auxpnum=-1, auxunum=-1, auxlambdanum=-1;
   int dxnum=-1, dynum=-1, dznum=-1;
-  bool isTD, addBiot;
+  bool isTD, addBiot, usePermData;
   ScalarT biot_alpha;
     
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::volumeResidual() - function evaluation");

@@ -92,6 +92,11 @@ public:
 
   void setAuxVars(std::vector<string> & auxvarlist);
 
+  // ========================================================================================
+  // ========================================================================================
+  
+  void updatePerm();
+
 private:
   
   int spaceDim;
@@ -102,6 +107,7 @@ private:
   int dxnum=-1,dynum=-1,dznum=-1;
 
 
+  bool usePermData;
 
   vector<string> varlist;
   Kokkos::View<int****,AssemblyDevice> sideinfo;

@@ -69,7 +69,7 @@ public:
   bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles;
   bool mortar_objective;
   bool exodus_sensors = false, compute_sol_avg = false;
-  bool multiscale, have_cell_phi, have_cell_rotation;
+  bool multiscale, have_cell_phi, have_cell_rotation, have_extra_data;
   
   // these are common to all elements/cells and are often used on both devices
   Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
