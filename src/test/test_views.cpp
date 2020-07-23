@@ -28,8 +28,8 @@ int main(int argc, char * argv[]) {
     int numdof = 9;
     
     //View2 A("test",numElem,numvars);
-    View3 A("test",numElem,numvars,numdof);
-    //View4 A("test",numElem,numvars,numip,dimension);
+    //View3 A("test",numElem,numvars,numdof);
+    View4 A("test",numElem,numvars,numip,dimension);
     // Run some performance comparisons
     Kokkos::Timer timer;
     
@@ -37,8 +37,8 @@ int main(int argc, char * argv[]) {
     timer.reset();
     for (int r=0; r<numrepeats; r++) {
       //A = View2("test",numElem,numvars);
-      A = View3("test",numElem,numvars,numdof);
-      //A = View4("test",numElem,numvars,numip,dimension);
+      //A = View3("test",numElem,numvars,numdof);
+      A = View4("test",numElem,numvars,numip,dimension);
     }
     Kokkos::fence();
     double allocate_time = timer.seconds();
@@ -156,7 +156,7 @@ int main(int argc, char * argv[]) {
     ///////////////////////////////////////
     
     {
-      View3 sol_ip("solution at ip",numElem,numvars,numip,dimension);
+      View4 sol_ip("solution at ip",numElem,numvars,numip,dimension);
       DRV basis("basis",numElem,numdof,numip,dimension);
       Kokkos::View<ScalarT***,AssemblyExec> sol_dof("sol at dof",numElem,numvars,numdof);
       
@@ -216,7 +216,7 @@ int main(int argc, char * argv[]) {
     ////////////////////////////////////////////////
     
     {
-      Kokkos::View<ScalarT***,AssemblyExec> sol_ip("solution at ip",numElem,numvars,numip,dimension);
+      Kokkos::View<ScalarT****,AssemblyExec> sol_ip("solution at ip",numElem,numvars,numip,dimension);
       Kokkos::View<ScalarT****,AssemblyExec> basis("basis",numElem,numdof,numip,dimension);
       Kokkos::View<ScalarT**,AssemblyExec> sol_dof("sol at dof",numElem,numvars,numdof);
       
@@ -274,7 +274,7 @@ int main(int argc, char * argv[]) {
     ////////////////////////////////////////////////
     
     {
-      View3 sol_ip("solution at ip",numElem,numvars,numip,dimension);
+      View4 sol_ip("solution at ip",numElem,numvars,numip,dimension);
       Kokkos::View<ScalarT****,AssemblyExec> basis("basis",numElem,numdof,numip,dimension);
       Kokkos::View<ScalarT***,AssemblyExec> sol_dof("sol at dof",numElem,numvars,numdof);
       View3 sol_dof_AD("seeded solution at dof",numElem,numvars,numdof);
