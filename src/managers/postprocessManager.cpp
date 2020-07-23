@@ -1414,6 +1414,7 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
       */
       
       if (assembler->cells[b][0]->cellData->have_cell_phi || assembler->cells[b][0]->cellData->have_cell_rotation || assembler->cells[b][0]->cellData->have_extra_data) {
+        
         Kokkos::View<ScalarT**,HostDevice> cdata("cell data",myElements.size(), 1);
         Kokkos::View<ScalarT**,HostDevice> cseed("cell data seed",myElements.size(), 1);
         int eprog = 0;
