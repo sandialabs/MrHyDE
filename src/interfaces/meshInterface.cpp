@@ -51,7 +51,7 @@ settings(settings_), Commptr(Commptr_) {
     
     have_mesh_data = true;
     have_rotation_phi = settings->sublist("Mesh").get<bool>("have mesh data phi",false);
-    have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",true);
+    have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",false);
     have_multiple_data_files = settings->sublist("Mesh").get<bool>("have multiple mesh data files",false);
     number_mesh_data_files = settings->sublist("Mesh").get<int>("number mesh data files",1);
     
