@@ -54,6 +54,7 @@ basis_types(basis_types_), basis_pointers(basis_pointers_), numDiscParams(num_pa
   
   have_cell_phi = false;
   have_cell_rotation = false;
+  have_extra_data = false;
   
   numsideip = ref_side_ip_.extent(0);
   for (size_t s=0; s<numSides; s++) {
