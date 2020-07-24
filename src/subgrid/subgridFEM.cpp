@@ -158,6 +158,8 @@ void SubGridFEM::setUpSubgridModels() {
     sub_mesh->mesh = mesh;
   }
   
+  cout << "subgrid 161" << endl;
+  
   /////////////////////////////////////////////////////////////////////////////////////
   // Define the sub-grid physics
   /////////////////////////////////////////////////////////////////////////////////////
@@ -172,6 +174,12 @@ void SubGridFEM::setUpSubgridModels() {
                                               sub_physics->unique_types) );
   
   
+  /////////////////////////////////////////////////////////////////////////////////////
+  // Set up the function managers
+  /////////////////////////////////////////////////////////////////////////////////////
+  
+  // Note that the workset size is determined by the number of elements per macro-element
+  // times te number of macro-elements
   int numSubElem = connectivity.size();
   
   settings->sublist("Solver").set<int>("workset size",numSubElem);
@@ -1303,27 +1311,34 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
     }
   }
   
+  //////////////////////////////////////////////////////////////
+  // Finalize the mesh
+  //////////////////////////////////////////////////////////////
+  
   submeshFactory.completeMeshConstruction(*submesh,*(LocalComm->getRawMpiComm()));
   
   //////////////////////////////////////////////////////////////
-  // Add fields to mesh
+  // Fill in the fields
   //////////////////////////////////////////////////////////////
   
-  if(isTD) {
+  if (isTD) {
     submesh->setupExodusFile(filename);
   }
   int numSteps = soln->times[usernum].size();
   
+  vector<size_t> myElements;
+  size_t eprog = 0;
+  for (size_t e=0; e<cells[0].size(); e++) {
+    for (size_t p=0; p<cells[0][e]->numElem; p++) {
+      myElements.push_back(eprog);
+      eprog++;
+    }
+  }
+  this->updateLocalData(usernum);
+  
   for (int m=0; m<numSteps; m++) {
     
-    vector<size_t> myElements;
-    size_t eprog = 0;
-    for (size_t e=0; e<cells[0].size(); e++) {
-      for (size_t p=0; p<cells[0][e]->numElem; p++) {
-        myElements.push_back(eprog);
-        eprog++;
-      }
-    }
+    ScalarT currtime = soln->times[usernum][m];
     
     vector_RCP u;
     bool fnd = soln->extract(u,usernum,soln->times[usernum][m],m);
@@ -1334,7 +1349,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
     for (int n = 0; n<sub_physics->varlist[0].size(); n++) {
       if (vartypes[n] == "HGRAD") {
         //size_t numsb = cells[usernum][0]->numDOF(n);//index[0][n].size();
-        Kokkos::View<ScalarT**,HostDevice> soln_computed("soln",cells[0][0]->numElem, numNodesPerElem); // TMW temp. fix
+        Kokkos::View<ScalarT**,HostDevice> soln_computed("soln",myElements.size(), numNodesPerElem);
         string var = sub_physics->varlist[0][n];
         size_t pprog = 0;
         
@@ -1354,7 +1369,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
         submesh->setSolutionFieldData(var, blockID, myElements, soln_computed);
       }
       else if (vartypes[n] == "HVOL") {
-        Kokkos::View<ScalarT**,HostDevice> soln_computed("soln",cells[0][0]->numElem, 1);
+        Kokkos::View<ScalarT*,HostDevice> soln_computed("soln",myElements.size());
         string var = sub_physics->varlist[0][n];
         size_t pprog = 0;
         
@@ -1363,20 +1378,19 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
           LIDView LIDs = cells[0][e]->LIDs;
           for (int p=0; p<numElem; p++) {
             LO pindex = LIDs(p,suboffsets[n][0]);
-            soln_computed(pprog,0) = u_kv(pindex,0);
+            soln_computed(pprog) = u_kv(pindex,0);
             pprog += 1;
           }
         }
         submesh->setCellFieldData(var, blockID, myElements, soln_computed);
       }
       else if (vartypes[n] == "HDIV" || vartypes[n] == "HCURL") {
-        Kokkos::View<ScalarT**,HostDevice> soln_x("soln",cells[0][0]->numElem, 1);
-        Kokkos::View<ScalarT**,HostDevice> soln_y("soln",cells[0][0]->numElem, 1);
-        Kokkos::View<ScalarT**,HostDevice> soln_z("soln",cells[0][0]->numElem, 1);
+        Kokkos::View<ScalarT*,HostDevice> soln_x("soln",myElements.size());
+        Kokkos::View<ScalarT*,HostDevice> soln_y("soln",myElements.size());
+        Kokkos::View<ScalarT*,HostDevice> soln_z("soln",myElements.size());
         string var = sub_physics->varlist[0][n];
         size_t pprog = 0;
         
-        this->updateLocalData(usernum);
         sub_solver->performGather(0,u,0,0);
         for( size_t e=0; e<cells[0].size(); e++ ) {
           cells[0][e]->updateWorksetBasis();
@@ -1404,9 +1418,9 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
               }
               avgwt += wkset[0]->wts(p,j);
             }
-            soln_x(pprog,0) = avgxval/avgwt;
-            soln_y(pprog,0) = avgyval/avgwt;
-            soln_z(pprog,0) = avgzval/avgwt;
+            soln_x(pprog) = avgxval/avgwt;
+            soln_y(pprog) = avgyval/avgwt;
+            soln_z(pprog) = avgzval/avgwt;
             pprog += 1;
           }
         }
@@ -1416,9 +1430,12 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
       }
     }
     
+    ////////////////////////////////////////////////////////////////
+    // Mesh data
+    ////////////////////////////////////////////////////////////////
     
-    Kokkos::View<ScalarT**,HostDevice> cseeds("cell data seeds",cells[0][0]->numElem, 1);
-    Kokkos::View<ScalarT**,HostDevice> cdata("cell data",cells[0][0]->numElem, 1);
+    Kokkos::View<ScalarT*,HostDevice> cseeds("cell data seeds",myElements.size());
+    Kokkos::View<ScalarT*,HostDevice> cdata("cell data",myElements.size());
     
     if (cells[0][0]->cellData->have_cell_phi || cells[0][0]->cellData->have_cell_rotation || cells[0][0]->cellData->have_extra_data) {
       int eprog = 0;
@@ -1427,15 +1444,70 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
       Kokkos::View<ScalarT**,AssemblyDevice> cell_data = localData[usernum]->cell_data;
       // TMW: need to use a mirror view here
       for (int p=0; p<cells[0][0]->numElem; p++) {
-        cseeds(eprog,0) = cell_data_seedindex[p];
-        cdata(eprog,0) = cell_data(p,0);
+        cseeds(eprog) = cell_data_seedindex[p];
+        cdata(eprog) = cell_data(p,0);
         eprog++;
       }
     }
     submesh->setCellFieldData("mesh_data_seed", blockID, myElements, cseeds);
     submesh->setCellFieldData("mesh_data", blockID, myElements, cdata);
+    
+    ////////////////////////////////////////////////////////////////
+    // Extra nodal fields
+    ////////////////////////////////////////////////////////////////
+    
+    vector<string> extrafieldnames = sub_physics->getExtraFieldNames(0);
+    for (size_t j=0; j<extrafieldnames.size(); j++) {
+      Kokkos::View<ScalarT**,HostDevice> efdata("field data",myElements.size(), numNodesPerElem);
+      size_t eprog = 0;
+      for (size_t k=0; k<cells[0].size(); k++) {
+        DRV nodes = cells[0][k]->nodes;
+        Kokkos::View<ScalarT**,AssemblyDevice> cfields = sub_physics->getExtraFields(0, 0, nodes, currtime, wkset[0]);
+        auto host_cfields = Kokkos::create_mirror_view(cfields);
+        Kokkos::deep_copy(host_cfields,cfields);
+        for (int p=0; p<cells[0][k]->numElem; p++) {
+          for (size_t i=0; i<host_cfields.extent(1); i++) {
+            efdata(eprog,i) = host_cfields(p,i);
+          }
+          eprog++;
+        }
+      }
+      submesh->setSolutionFieldData(extrafieldnames[j], blockID, myElements, efdata);
+    }
+    
+    ////////////////////////////////////////////////////////////////
+    // Extra cell fields
+    ////////////////////////////////////////////////////////////////
+    
+    vector<string> extracellfieldnames = sub_physics->getExtraCellFieldNames(0);
+    
+    for (size_t j=0; j<extracellfieldnames.size(); j++) {
+      Kokkos::View<ScalarT*,HostDevice> efdata("cell data",myElements.size());
+      
+      int eprog = 0;
+      for (size_t k=0; k<cells[0].size(); k++) {
+        
+        cells[0][k]->updateData();
+        cells[0][k]->updateWorksetBasis();
+        wkset[0]->time = currtime;
+        wkset[0]->computeSolnSteadySeeded(cells[0][k]->u, 0);
+        wkset[0]->computeSolnVolIP();
+        wkset[0]->computeParamVolIP(cells[0][k]->param, 0);
+        
+        Kokkos::View<ScalarT*,AssemblyDevice> cfields = sub_physics->getExtraCellFields(0, j, cells[0][k]->wts);
+        
+        auto host_cfields = Kokkos::create_mirror_view(cfields);
+        Kokkos::deep_copy(host_cfields, cfields);
+        for (int p=0; p<host_cfields.extent(0); p++) {
+          efdata(eprog) = host_cfields(p);
+          eprog++;
+        }
+      }
+      submesh->setCellFieldData(extracellfieldnames[j], blockID, myElements, efdata);
+    }
+    
     if (isTD) {
-      submesh->writeToExodus(soln->times[usernum][m]);
+      submesh->writeToExodus(currtime);
     }
     else {
       submesh->writeToExodus(filename);

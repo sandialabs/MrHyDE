@@ -1253,7 +1253,7 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
         auto host_cfields = Kokkos::create_mirror_view(cfields);
         Kokkos::deep_copy(host_cfields,cfields);
         for (int p=0; p<assembler->cells[b][k]->numElem; p++) {
-          for (size_t i=0; i<host_cfields.extent(2); i++) {
+          for (size_t i=0; i<host_cfields.extent(1); i++) {
             efdata(eprog,i) = host_cfields(p,i);
           }
           eprog++;

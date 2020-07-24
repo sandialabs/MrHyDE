@@ -18,10 +18,15 @@ ANONYMOUS:
           bottom: '0.0'
       True solutions:
         p face: sin(2*pi*x)*sin(2*pi*y)
+      Extra fields:
+        ptrue: 'sin(2*pi*x)*sin(2*pi*y)'
+      Extra cell fields:
+        ptrue: 'sin(2*pi*x)*sin(2*pi*y)'
   Parameters input file: input_params.yaml
   Functions input file: input_functions.yaml
   Solver: 
     solver: steady-state
+    workset size: 10
     initial type: none
     nonlinear TOL: 1.0e-7
     max nonlinear iters: 3
@@ -39,8 +44,11 @@ ANONYMOUS:
       refinements: 2
       dim: 2
       blocknames: eblock
+      data file: perm
+      data points file: perm_xy
     Physics:
       modules: porousHDIV
+      use permeability data: false
       True solutions:
         p: sin(2*pi*x)*sin(2*pi*y)
         u_x: -2*pi*cos(2*pi*x)*sin(2*pi*y)

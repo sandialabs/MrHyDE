@@ -82,360 +82,360 @@ Timer names:
   - "panzer::SquareQuadMeshFactory::completeMeshConstruction()"
 Total times: 
   "Belos: BlockGmresSolMgr total solve time": 
-    MinOverProcs: 0.00979495
-    MeanOverProcs: 0.00986773
-    MaxOverProcs: 0.00991893
-    MeanOverCallCounts: 0.00328924
+    MinOverProcs: 0.00906634
+    MeanOverProcs: 0.00916779
+    MaxOverProcs: 0.009233
+    MeanOverCallCounts: 0.00305593
   "Belos: DGKS[2]: Ortho (Inner Product)": 
-    MinOverProcs: 0.00041461
-    MeanOverProcs: 0.000424206
-    MaxOverProcs: 0.000431061
-    MeanOverCallCounts: 1.92821e-05
+    MinOverProcs: 0.000394821
+    MeanOverProcs: 0.000407934
+    MaxOverProcs: 0.000428677
+    MeanOverCallCounts: 1.85425e-05
   "Belos: DGKS[2]: Ortho (Norm)": 
-    MinOverProcs: 0.000563383
-    MeanOverProcs: 0.000613332
-    MaxOverProcs: 0.000720024
-    MeanOverCallCounts: 1.7037e-05
+    MinOverProcs: 0.000661612
+    MeanOverProcs: 0.000800788
+    MaxOverProcs: 0.000890493
+    MeanOverCallCounts: 2.22441e-05
   "Belos: DGKS[2]: Ortho (Update)": 
-    MinOverProcs: 0.000210524
-    MeanOverProcs: 0.000239909
-    MaxOverProcs: 0.000267029
-    MeanOverCallCounts: 1.09049e-05
+    MinOverProcs: 0.000170231
+    MeanOverProcs: 0.000199318
+    MaxOverProcs: 0.000252008
+    MeanOverCallCounts: 9.05991e-06
   "Belos: DGKS[2]: Orthogonalization": 
-    MinOverProcs: 0.00132132
-    MeanOverProcs: 0.00141358
-    MaxOverProcs: 0.00151491
-    MeanOverCallCounts: 0.00010097
+    MinOverProcs: 0.00146174
+    MeanOverProcs: 0.00152022
+    MaxOverProcs: 0.00156283
+    MeanOverCallCounts: 0.000108587
   "Belos: Operation Op*x": 
-    MinOverProcs: 0.000927925
-    MeanOverProcs: 0.00109273
-    MaxOverProcs: 0.00125074
-    MeanOverCallCounts: 6.07073e-05
+    MinOverProcs: 0.000499249
+    MeanOverProcs: 0.00089097
+    MaxOverProcs: 0.00119185
+    MeanOverCallCounts: 4.94983e-05
   "Belos: Operation Prec*x": 
-    MinOverProcs: 0.0128055
-    MeanOverProcs: 0.0128209
-    MaxOverProcs: 0.0128379
-    MeanOverCallCounts: 0.000915779
+    MinOverProcs: 0.0116136
+    MeanOverProcs: 0.0119811
+    MaxOverProcs: 0.012296
+    MeanOverCallCounts: 0.000855795
   "Ifpack2::Chebyshev::apply": 
-    MinOverProcs: 0.00249028
-    MeanOverProcs: 0.00251269
-    MaxOverProcs: 0.00253868
-    MeanOverCallCounts: 8.97391e-05
+    MinOverProcs: 0.00222564
+    MeanOverProcs: 0.00232941
+    MaxOverProcs: 0.00243449
+    MeanOverCallCounts: 8.31932e-05
   "Ifpack2::Chebyshev::compute": 
-    MinOverProcs: 0.00563216
-    MeanOverProcs: 0.00649571
-    MaxOverProcs: 0.00811291
-    MeanOverCallCounts: 0.00216524
+    MinOverProcs: 0.00537515
+    MeanOverProcs: 0.00806677
+    MaxOverProcs: 0.0100269
+    MeanOverCallCounts: 0.00268892
   "MILO::assembly::computeJacRes() - gather": 
-    MinOverProcs: 6.91414e-05
-    MeanOverProcs: 8.13603e-05
-    MaxOverProcs: 9.29832e-05
-    MeanOverCallCounts: 4.06802e-05
+    MinOverProcs: 6.8903e-05
+    MeanOverProcs: 7.67708e-05
+    MaxOverProcs: 8.41618e-05
+    MeanOverCallCounts: 3.83854e-05
   "MILO::assembly::computeJacRes() - insert": 
-    MinOverProcs: 0.000225306
-    MeanOverProcs: 0.00025177
-    MaxOverProcs: 0.000313997
-    MeanOverCallCounts: 1.25885e-05
+    MinOverProcs: 0.000188112
+    MeanOverProcs: 0.000218093
+    MaxOverProcs: 0.000247717
+    MeanOverCallCounts: 1.09047e-05
   "MILO::assembly::computeJacRes() - physics evaluation": 
-    MinOverProcs: 0.00666714
-    MeanOverProcs: 0.00730222
-    MaxOverProcs: 0.00897074
-    MeanOverCallCounts: 0.000365111
+    MinOverProcs: 0.00624657
+    MeanOverProcs: 0.00714284
+    MaxOverProcs: 0.00821114
+    MeanOverCallCounts: 0.000357142
   "MILO::assembly::computeJacRes() - total assembly": 
-    MinOverProcs: 0.00702405
-    MeanOverProcs: 0.007689
-    MaxOverProcs: 0.00943708
-    MeanOverCallCounts: 0.0038445
+    MinOverProcs: 0.0065608
+    MeanOverProcs: 0.0074895
+    MaxOverProcs: 0.00858998
+    MeanOverCallCounts: 0.00374475
   "MILO::assembly::createCells()": 
-    MinOverProcs: 0.00593901
-    MeanOverProcs: 0.00765371
-    MaxOverProcs: 0.0094409
-    MeanOverCallCounts: 0.00765371
+    MinOverProcs: 0.00641108
+    MeanOverProcs: 0.00823784
+    MaxOverProcs: 0.0105951
+    MeanOverCallCounts: 0.00823784
   "MILO::assembly::createWorkset()": 
-    MinOverProcs: 0.000175953
-    MeanOverProcs: 0.000195026
-    MaxOverProcs: 0.000230074
-    MeanOverCallCounts: 0.000195026
+    MinOverProcs: 0.000174999
+    MeanOverProcs: 0.000198305
+    MaxOverProcs: 0.000240088
+    MeanOverCallCounts: 0.000198305
   "MILO::assembly::dofConstraints()": 
-    MinOverProcs: 1.3113e-05
-    MeanOverProcs: 1.45435e-05
-    MaxOverProcs: 1.69277e-05
-    MeanOverCallCounts: 7.27177e-06
+    MinOverProcs: 1.09673e-05
+    MeanOverProcs: 1.32322e-05
+    MaxOverProcs: 1.50204e-05
+    MeanOverCallCounts: 6.61612e-06
   "MILO::assembly::setDirichlet()": 
-    MinOverProcs: 0.000154972
-    MeanOverProcs: 0.000478387
-    MaxOverProcs: 0.000604868
-    MeanOverCallCounts: 0.000478387
+    MinOverProcs: 0.000188828
+    MeanOverProcs: 0.000616491
+    MaxOverProcs: 0.000777006
+    MeanOverCallCounts: 0.000616491
   "MILO::assembly::setInitial()": 
-    MinOverProcs: 0.000486851
-    MeanOverProcs: 0.000576794
-    MaxOverProcs: 0.000758171
-    MeanOverCallCounts: 0.000576794
+    MinOverProcs: 0.000454903
+    MeanOverProcs: 0.000547171
+    MaxOverProcs: 0.000699997
+    MeanOverCallCounts: 0.000547171
   "MILO::boundaryCell - build basis": 
-    MinOverProcs: 7.79629e-05
-    MeanOverProcs: 0.000156462
-    MaxOverProcs: 0.000276804
-    MeanOverCallCounts: 6.25849e-05
-  "MILO::cell::computeJacRes() - fill local Jacobian": 
-    MinOverProcs: 7.53403e-05
-    MeanOverProcs: 9.05991e-05
-    MaxOverProcs: 0.000110149
-    MeanOverCallCounts: 4.52995e-06
-  "MILO::cell::computeJacRes() - fill local residual": 
-    MinOverProcs: 3.57628e-05
-    MeanOverProcs: 4.56572e-05
-    MaxOverProcs: 5.79357e-05
-    MeanOverCallCounts: 2.28286e-06
-  "MILO::cell::computeJacRes() - volume residual": 
-    MinOverProcs: 0.00282001
-    MeanOverProcs: 0.00310183
-    MaxOverProcs: 0.00378156
-    MeanOverCallCounts: 0.000155091
-  "MILO::cell::computeSolAvg()": 
-    MinOverProcs: 0.000120163
-    MeanOverProcs: 0.000130117
-    MaxOverProcs: 0.000157118
-    MeanOverCallCounts: 4.33723e-06
-  "MILO::cell::computeSolnFaceIP()": 
-    MinOverProcs: 0.00413394
-    MeanOverProcs: 0.0043996
-    MaxOverProcs: 0.00475883
-    MeanOverCallCounts: 0.00010999
-  "MILO::cell::computeSolnVolIP()": 
-    MinOverProcs: 0.00538063
-    MeanOverProcs: 0.00582272
-    MaxOverProcs: 0.00688291
-    MeanOverCallCounts: 0.000194091
-  "MILO::cell::constructor - build basis": 
-    MinOverProcs: 0.00116515
-    MeanOverProcs: 0.00144708
-    MaxOverProcs: 0.00177574
-    MeanOverCallCounts: 0.000144708
-  "MILO::cell::constructor - build face basis": 
-    MinOverProcs: 0.00310874
-    MeanOverProcs: 0.00404572
-    MaxOverProcs: 0.00513554
-    MeanOverCallCounts: 0.000404572
-  "MILO::cellMetaData::constructor()": 
-    MinOverProcs: 0.000665903
-    MeanOverProcs: 0.000940979
-    MaxOverProcs: 0.00120997
-    MeanOverCallCounts: 0.000940979
-  "MILO::driver::total run time": 
-    MinOverProcs: 0.140401
-    MeanOverProcs: 0.140703
-    MaxOverProcs: 0.140824
-    MeanOverCallCounts: 0.140703
-  "MILO::driver::total setup and execution time": 
-    MinOverProcs: 0.241825
-    MeanOverProcs: 0.242176
-    MaxOverProcs: 0.242641
-    MeanOverCallCounts: 0.242176
-  "MILO::function::decompose": 
-    MinOverProcs: 0.000720024
-    MeanOverProcs: 0.000789523
-    MaxOverProcs: 0.000938892
-    MeanOverCallCounts: 0.000789523
-  "MILO::function::evaluate": 
-    MinOverProcs: 0.00163269
-    MeanOverProcs: 0.00178409
-    MaxOverProcs: 0.0019784
-    MeanOverCallCounts: 1.0979e-05
-  "MILO::physics::getSideInfo()": 
-    MinOverProcs: 2.90871e-05
-    MeanOverProcs: 3.85642e-05
-    MaxOverProcs: 4.98295e-05
-    MeanOverCallCounts: 3.08514e-06
-  "MILO::physics::setBCData()": 
-    MinOverProcs: 0.000288963
-    MeanOverProcs: 0.000721753
-    MaxOverProcs: 0.00115204
-    MeanOverCallCounts: 0.000721753
-  "MILO::physics::setDirichletData()": 
-    MinOverProcs: 5.50747e-05
-    MeanOverProcs: 9.35197e-05
-    MaxOverProcs: 0.000147104
-    MeanOverCallCounts: 9.35197e-05
-  "MILO::postprocess::computeError": 
-    MinOverProcs: 0.00751495
-    MeanOverProcs: 0.00800544
-    MaxOverProcs: 0.00864005
-    MeanOverCallCounts: 0.00800544
-  "MILO::postprocess::writeSolution": 
-    MinOverProcs: 0.014982
-    MeanOverProcs: 0.0156038
-    MaxOverProcs: 0.016067
-    MeanOverCallCounts: 0.0156038
-  "MILO::solver::linearSolver()": 
-    MinOverProcs: 0.0637391
-    MeanOverProcs: 0.0637686
-    MaxOverProcs: 0.063796
-    MeanOverCallCounts: 0.0318843
-  "MILO::solver::projectDirichlet()": 
-    MinOverProcs: 0.0373139
-    MeanOverProcs: 0.0375533
-    MaxOverProcs: 0.037734
-    MeanOverCallCounts: 0.0375533
-  "MILO::solver::setDirichlet()": 
-    MinOverProcs: 1.21593e-05
-    MeanOverProcs: 1.50204e-05
-    MaxOverProcs: 2.09808e-05
-    MeanOverCallCounts: 1.50204e-05
-  "MILO::solver::setInitial()": 
-    MinOverProcs: 0.03197
-    MeanOverProcs: 0.0320507
-    MaxOverProcs: 0.032191
-    MeanOverCallCounts: 0.0320507
-  "MILO::solver::setupFixedDOFs()": 
-    MinOverProcs: 2.21729e-05
-    MeanOverProcs: 2.65241e-05
-    MaxOverProcs: 3.48091e-05
-    MeanOverCallCounts: 2.65241e-05
-  "MILO::solver::setupLinearAlgebra()": 
-    MinOverProcs: 0.00214601
-    MeanOverProcs: 0.00215334
-    MaxOverProcs: 0.00216007
-    MeanOverCallCounts: 0.00215334
-  "MILO::thermal::volumeResidual() - evaluation of residual": 
-    MinOverProcs: 0.00205088
-    MeanOverProcs: 0.00229472
-    MaxOverProcs: 0.00285935
-    MeanOverCallCounts: 0.000114736
-  "MILO::thermal::volumeResidual() - function evaluation": 
-    MinOverProcs: 0.000732422
-    MeanOverProcs: 0.000779033
-    MaxOverProcs: 0.000893831
-    MeanOverCallCounts: 3.89516e-05
-  "MILO::workset::computeSolnVolIP - allocate/compute seeded": 
-    MinOverProcs: 0.00053525
-    MeanOverProcs: 0.000572979
-    MaxOverProcs: 0.000644445
-    MeanOverCallCounts: 8.18542e-06
-  "MILO::workset::computeSolnVolIP - compute seeded sol at ip": 
-    MinOverProcs: 0.00926471
-    MeanOverProcs: 0.00992763
-    MaxOverProcs: 0.0113068
-    MeanOverCallCounts: 0.000141823
-  "MILO::workset::reset*": 
-    MinOverProcs: 8.08239e-05
-    MeanOverProcs: 9.10759e-05
-    MaxOverProcs: 0.000104189
-    MeanOverCallCounts: 4.55379e-06
-  "MueLu: ParameterListInterpreter (ParameterList)": 
-    MinOverProcs: 0.0439627
-    MeanOverProcs: 0.0457484
-    MaxOverProcs: 0.0469649
-    MeanOverCallCounts: 0.0152495
-  "STK_Interface::setupExodusFile(filename)": 
-    MinOverProcs: 0.00087285
-    MeanOverProcs: 0.00144553
-    MaxOverProcs: 0.00191212
-    MeanOverCallCounts: 0.00144553
-  "STK_Interface::writeToExodus(timestep)": 
-    MinOverProcs: 0.0139251
-    MeanOverProcs: 0.0139522
-    MaxOverProcs: 0.0139849
-    MeanOverCallCounts: 0.0139522
-  "UtilitiesBase::GetMatrixDiagonalInverse": 
-    MinOverProcs: 0.000473976
-    MeanOverProcs: 0.000618339
-    MaxOverProcs: 0.000798941
-    MeanOverCallCounts: 0.000206113
-  "panzer::DOFManager::buildGlobalUnknowns": 
-    MinOverProcs: 0.0028131
-    MeanOverProcs: 0.00318104
-    MaxOverProcs: 0.00355005
-    MeanOverCallCounts: 0.00318104
-  "panzer::DOFManager::buildGlobalUnknowns::build_ghosted_array": 
-    MinOverProcs: 8.79765e-05
-    MeanOverProcs: 0.000119328
-    MaxOverProcs: 0.000150919
-    MeanOverCallCounts: 0.000119328
-  "panzer::DOFManager::buildGlobalUnknowns::build_local_ids": 
-    MinOverProcs: 0.000154972
-    MeanOverProcs: 0.000226259
+    MinOverProcs: 9.29832e-05
+    MeanOverProcs: 0.00016737
     MaxOverProcs: 0.000296116
-    MeanOverCallCounts: 0.000226259
+    MeanOverCallCounts: 6.69479e-05
+  "MILO::cell::computeJacRes() - fill local Jacobian": 
+    MinOverProcs: 7.03335e-05
+    MeanOverProcs: 8.52942e-05
+    MaxOverProcs: 0.000105143
+    MeanOverCallCounts: 4.26471e-06
+  "MILO::cell::computeJacRes() - fill local residual": 
+    MinOverProcs: 3.52859e-05
+    MeanOverProcs: 4.20809e-05
+    MaxOverProcs: 5.10216e-05
+    MeanOverCallCounts: 2.10404e-06
+  "MILO::cell::computeJacRes() - volume residual": 
+    MinOverProcs: 0.00267529
+    MeanOverProcs: 0.00305998
+    MaxOverProcs: 0.00350595
+    MeanOverCallCounts: 0.000152999
+  "MILO::cell::computeSolAvg()": 
+    MinOverProcs: 0.000106096
+    MeanOverProcs: 0.000118613
+    MaxOverProcs: 0.000128031
+    MeanOverCallCounts: 3.95377e-06
+  "MILO::cell::computeSolnFaceIP()": 
+    MinOverProcs: 0.00361562
+    MeanOverProcs: 0.00399965
+    MaxOverProcs: 0.00453377
+    MeanOverCallCounts: 9.99913e-05
+  "MILO::cell::computeSolnVolIP()": 
+    MinOverProcs: 0.00484824
+    MeanOverProcs: 0.00556278
+    MaxOverProcs: 0.00638843
+    MeanOverCallCounts: 0.000185426
+  "MILO::cell::constructor - build basis": 
+    MinOverProcs: 0.001266
+    MeanOverProcs: 0.00157112
+    MaxOverProcs: 0.00196719
+    MeanOverCallCounts: 0.000157112
+  "MILO::cell::constructor - build face basis": 
+    MinOverProcs: 0.00345016
+    MeanOverProcs: 0.00434899
+    MaxOverProcs: 0.00549865
+    MeanOverCallCounts: 0.000434899
+  "MILO::cellMetaData::constructor()": 
+    MinOverProcs: 0.000688791
+    MeanOverProcs: 0.000995159
+    MaxOverProcs: 0.00129795
+    MeanOverCallCounts: 0.000995159
+  "MILO::driver::total run time": 
+    MinOverProcs: 0.135021
+    MeanOverProcs: 0.135414
+    MaxOverProcs: 0.135563
+    MeanOverCallCounts: 0.135414
+  "MILO::driver::total setup and execution time": 
+    MinOverProcs: 0.241507
+    MeanOverProcs: 0.242029
+    MaxOverProcs: 0.242563
+    MeanOverCallCounts: 0.242029
+  "MILO::function::decompose": 
+    MinOverProcs: 0.000742912
+    MeanOverProcs: 0.000823259
+    MaxOverProcs: 0.00101209
+    MeanOverCallCounts: 0.000823259
+  "MILO::function::evaluate": 
+    MinOverProcs: 0.0031538
+    MeanOverProcs: 0.00358015
+    MaxOverProcs: 0.00464773
+    MeanOverCallCounts: 2.03129e-06
+  "MILO::physics::getSideInfo()": 
+    MinOverProcs: 3.12328e-05
+    MeanOverProcs: 4.41074e-05
+    MaxOverProcs: 5.72205e-05
+    MeanOverCallCounts: 3.52859e-06
+  "MILO::physics::setBCData()": 
+    MinOverProcs: 0.000333071
+    MeanOverProcs: 0.000803053
+    MaxOverProcs: 0.00114512
+    MeanOverCallCounts: 0.000803053
+  "MILO::physics::setDirichletData()": 
+    MinOverProcs: 5.6982e-05
+    MeanOverProcs: 0.000110984
+    MaxOverProcs: 0.000180006
+    MeanOverCallCounts: 0.000110984
+  "MILO::postprocess::computeError": 
+    MinOverProcs: 0.00658512
+    MeanOverProcs: 0.00726151
+    MaxOverProcs: 0.00814891
+    MeanOverCallCounts: 0.00726151
+  "MILO::postprocess::writeSolution": 
+    MinOverProcs: 0.0127912
+    MeanOverProcs: 0.0136731
+    MaxOverProcs: 0.014364
+    MeanOverCallCounts: 0.0136731
+  "MILO::solver::linearSolver()": 
+    MinOverProcs: 0.061023
+    MeanOverProcs: 0.0610375
+    MaxOverProcs: 0.0610549
+    MeanOverCallCounts: 0.0305187
+  "MILO::solver::projectDirichlet()": 
+    MinOverProcs: 0.036607
+    MeanOverProcs: 0.0369688
+    MaxOverProcs: 0.0371771
+    MeanOverCallCounts: 0.0369688
+  "MILO::solver::setDirichlet()": 
+    MinOverProcs: 1.3113e-05
+    MeanOverProcs: 1.57952e-05
+    MaxOverProcs: 2.09808e-05
+    MeanOverCallCounts: 1.57952e-05
+  "MILO::solver::setInitial()": 
+    MinOverProcs: 0.029496
+    MeanOverProcs: 0.029592
+    MaxOverProcs: 0.029722
+    MeanOverCallCounts: 0.029592
+  "MILO::solver::setupFixedDOFs()": 
+    MinOverProcs: 2.40803e-05
+    MeanOverProcs: 2.8789e-05
+    MaxOverProcs: 4.19617e-05
+    MeanOverCallCounts: 2.8789e-05
+  "MILO::solver::setupLinearAlgebra()": 
+    MinOverProcs: 0.00203991
+    MeanOverProcs: 0.002042
+    MaxOverProcs: 0.00204301
+    MeanOverCallCounts: 0.002042
+  "MILO::thermal::volumeResidual() - evaluation of residual": 
+    MinOverProcs: 0.00192642
+    MeanOverProcs: 0.00224853
+    MaxOverProcs: 0.0026319
+    MeanOverCallCounts: 0.000112426
+  "MILO::thermal::volumeResidual() - function evaluation": 
+    MinOverProcs: 0.000718594
+    MeanOverProcs: 0.000782132
+    MaxOverProcs: 0.000840902
+    MeanOverCallCounts: 3.91066e-05
+  "MILO::workset::computeSolnVolIP - allocate/compute seeded": 
+    MinOverProcs: 0.000516176
+    MeanOverProcs: 0.000541389
+    MaxOverProcs: 0.000592947
+    MeanOverCallCounts: 7.73413e-06
+  "MILO::workset::computeSolnVolIP - compute seeded sol at ip": 
+    MinOverProcs: 0.00828171
+    MeanOverProcs: 0.00930738
+    MaxOverProcs: 0.0106401
+    MeanOverCallCounts: 0.000132963
+  "MILO::workset::reset*": 
+    MinOverProcs: 9.03606e-05
+    MeanOverProcs: 9.80496e-05
+    MaxOverProcs: 0.000101328
+    MeanOverCallCounts: 4.90248e-06
+  "MueLu: ParameterListInterpreter (ParameterList)": 
+    MinOverProcs: 0.0409079
+    MeanOverProcs: 0.0424783
+    MaxOverProcs: 0.044935
+    MeanOverCallCounts: 0.0141594
+  "STK_Interface::setupExodusFile(filename)": 
+    MinOverProcs: 0.00114417
+    MeanOverProcs: 0.00339502
+    MaxOverProcs: 0.00460815
+    MeanOverCallCounts: 0.00339502
+  "STK_Interface::writeToExodus(timestep)": 
+    MinOverProcs: 0.00747395
+    MeanOverProcs: 0.00748175
+    MaxOverProcs: 0.00749803
+    MeanOverCallCounts: 0.00748175
+  "UtilitiesBase::GetMatrixDiagonalInverse": 
+    MinOverProcs: 0.000458956
+    MeanOverProcs: 0.000608921
+    MaxOverProcs: 0.000912905
+    MeanOverCallCounts: 0.000202974
+  "panzer::DOFManager::buildGlobalUnknowns": 
+    MinOverProcs: 0.00317001
+    MeanOverProcs: 0.00363773
+    MaxOverProcs: 0.00405502
+    MeanOverCallCounts: 0.00363773
+  "panzer::DOFManager::buildGlobalUnknowns::build_ghosted_array": 
+    MinOverProcs: 9.29832e-05
+    MeanOverProcs: 0.000134468
+    MaxOverProcs: 0.000181913
+    MeanOverCallCounts: 0.000134468
+  "panzer::DOFManager::buildGlobalUnknowns::build_local_ids": 
+    MinOverProcs: 0.000181198
+    MeanOverProcs: 0.000247002
+    MaxOverProcs: 0.000316858
+    MeanOverCallCounts: 0.000247002
   "panzer::DOFManager::buildGlobalUnknowns::build_orientation": 
-    MinOverProcs: 0.00018096
-    MeanOverProcs: 0.000250578
-    MaxOverProcs: 0.000323057
-    MeanOverCallCounts: 0.000250578
+    MinOverProcs: 0.000195026
+    MeanOverProcs: 0.000269711
+    MaxOverProcs: 0.000340939
+    MeanOverCallCounts: 0.000269711
   "panzer::DOFManager::buildGlobalUnknowns::build_owned_vector": 
-    MinOverProcs: 0.000196934
-    MeanOverProcs: 0.00028199
-    MaxOverProcs: 0.000386953
-    MeanOverCallCounts: 0.00028199
+    MinOverProcs: 0.000217915
+    MeanOverProcs: 0.000309467
+    MaxOverProcs: 0.000398874
+    MeanOverCallCounts: 0.000309467
   "panzer::DOFManager::buildGlobalUnknowns_GUN": 
-    MinOverProcs: 0.00114608
-    MeanOverProcs: 0.0012055
-    MaxOverProcs: 0.0012641
-    MeanOverCallCounts: 0.0012055
+    MinOverProcs: 0.0013721
+    MeanOverProcs: 0.00140154
+    MaxOverProcs: 0.0014472
+    MeanOverCallCounts: 0.00140154
   "panzer::DOFManager::buildGlobalUnknowns_GUN::line_04 createOneToOne": 
-    MinOverProcs: 0.000542164
-    MeanOverProcs: 0.000583291
-    MaxOverProcs: 0.000625849
-    MeanOverCallCounts: 0.000583291
+    MinOverProcs: 0.00058794
+    MeanOverProcs: 0.00062871
+    MaxOverProcs: 0.00067091
+    MeanOverCallCounts: 0.00062871
   "panzer::DOFManager::buildGlobalUnknowns_GUN::line_05 alloc_unique_mv": 
     MinOverProcs: 9.05991e-06
-    MeanOverProcs: 1.20401e-05
+    MeanOverProcs: 1.22786e-05
     MaxOverProcs: 1.50204e-05
-    MeanOverCallCounts: 1.20401e-05
+    MeanOverCallCounts: 1.22786e-05
   "panzer::DOFManager::buildGlobalUnknowns_GUN::line_06 export": 
-    MinOverProcs: 0.000337124
-    MeanOverProcs: 0.000373781
-    MaxOverProcs: 0.000396013
-    MeanOverCallCounts: 0.000373781
+    MinOverProcs: 0.000506878
+    MeanOverProcs: 0.000530005
+    MaxOverProcs: 0.000544071
+    MeanOverCallCounts: 0.000530005
   "panzer::DOFManager::buildGlobalUnknowns_GUN::line_07-09 local_count": 
-    MinOverProcs: 1.90735e-06
-    MeanOverProcs: 3.69549e-06
+    MinOverProcs: 3.09944e-06
+    MeanOverProcs: 3.8147e-06
     MaxOverProcs: 5.00679e-06
-    MeanOverCallCounts: 3.69549e-06
+    MeanOverCallCounts: 3.8147e-06
   "panzer::DOFManager::buildGlobalUnknowns_GUN::line_10 prefix_sum": 
-    MinOverProcs: 8.58307e-05
-    MeanOverProcs: 0.00014025
-    MaxOverProcs: 0.000206947
-    MeanOverCallCounts: 0.00014025
+    MinOverProcs: 7.51019e-05
+    MeanOverProcs: 0.000121891
+    MaxOverProcs: 0.000162125
+    MeanOverCallCounts: 0.000121891
   "panzer::DOFManager::buildGlobalUnknowns_GUN::line_13-21 gid_assignment": 
-    MinOverProcs: 1.00136e-05
-    MeanOverProcs: 1.2517e-05
+    MinOverProcs: 1.12057e-05
+    MeanOverProcs: 1.35303e-05
     MaxOverProcs: 1.5974e-05
-    MeanOverCallCounts: 1.2517e-05
+    MeanOverCallCounts: 1.35303e-05
   "panzer::DOFManager::buildGlobalUnknowns_GUN::line_23 final_import": 
-    MinOverProcs: 3.48091e-05
-    MeanOverProcs: 3.79086e-05
-    MaxOverProcs: 4.19617e-05
-    MeanOverCallCounts: 3.79086e-05
-  "panzer::DOFManager::buildTaggedMultiVector": 
-    MinOverProcs: 0.000484943
-    MeanOverProcs: 0.000539541
-    MaxOverProcs: 0.000597
-    MeanOverCallCounts: 0.000539541
-  "panzer::DOFManager::buildTaggedMultiVector::allocate_tagged_multivector": 
-    MinOverProcs: 4.98295e-05
-    MeanOverProcs: 5.61476e-05
+    MinOverProcs: 2.7895e-05
+    MeanOverProcs: 4.66704e-05
     MaxOverProcs: 6.29425e-05
-    MeanOverCallCounts: 5.61476e-05
+    MeanOverCallCounts: 4.66704e-05
+  "panzer::DOFManager::buildTaggedMultiVector": 
+    MinOverProcs: 0.00049901
+    MeanOverProcs: 0.000607967
+    MaxOverProcs: 0.00069499
+    MeanOverCallCounts: 0.000607967
+  "panzer::DOFManager::buildTaggedMultiVector::allocate_tagged_multivector": 
+    MinOverProcs: 4.48227e-05
+    MeanOverProcs: 5.16772e-05
+    MaxOverProcs: 5.79357e-05
+    MeanOverCallCounts: 5.16772e-05
   "panzer::DOFManager::buildTaggedMultiVector::fill_tagged_multivector": 
-    MinOverProcs: 4.69685e-05
-    MeanOverProcs: 6.17504e-05
-    MaxOverProcs: 7.60555e-05
-    MeanOverCallCounts: 6.17504e-05
+    MinOverProcs: 5.10216e-05
+    MeanOverProcs: 6.49691e-05
+    MaxOverProcs: 7.79629e-05
+    MeanOverCallCounts: 6.49691e-05
   "panzer::DOFManager::builderOverlapMapFromElements": 
-    MinOverProcs: 0.000310898
-    MeanOverProcs: 0.000390708
-    MaxOverProcs: 0.000473976
-    MeanOverCallCounts: 0.000390708
+    MinOverProcs: 0.00032711
+    MeanOverProcs: 0.000459075
+    MaxOverProcs: 0.000571012
+    MeanOverCallCounts: 0.000459075
   "panzer::SquareQuadMeshFactory::buildUncomittedMesh()": 
-    MinOverProcs: 0.000174046
-    MeanOverProcs: 0.000221729
-    MaxOverProcs: 0.000240088
-    MeanOverCallCounts: 0.000221729
+    MinOverProcs: 0.000166893
+    MeanOverProcs: 0.000184238
+    MaxOverProcs: 0.000225067
+    MeanOverCallCounts: 0.000184238
   "panzer::SquareQuadMeshFactory::completeMeshConstruction()": 
-    MinOverProcs: 0.0573869
-    MeanOverProcs: 0.0574477
-    MaxOverProcs: 0.057611
-    MeanOverCallCounts: 0.0574477
+    MinOverProcs: 0.0596011
+    MeanOverProcs: 0.0597085
+    MaxOverProcs: 0.059746
+    MeanOverCallCounts: 0.0597085
 Call counts:
   "Belos: BlockGmresSolMgr total solve time": 
     MinOverProcs: 3
@@ -593,14 +593,14 @@ Call counts:
     MaxOverProcs: 1
     MeanOverCallCounts: 1
   "MILO::function::evaluate": 
-    MinOverProcs: 163
-    MeanOverProcs: 162.5
-    MaxOverProcs: 162
-    MeanOverCallCounts: 162.5
+    MinOverProcs: 1762
+    MeanOverProcs: 1762.5
+    MaxOverProcs: 1763
+    MeanOverCallCounts: 1762.5
   "MILO::physics::getSideInfo()": 
     MinOverProcs: 12
     MeanOverProcs: 12.5
-    MaxOverProcs: 12
+    MaxOverProcs: 13
     MeanOverCallCounts: 12.5
   "MILO::physics::setBCData()": 
     MinOverProcs: 1
