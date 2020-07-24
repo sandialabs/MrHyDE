@@ -336,7 +336,7 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
         //mesh->addSolutionField(varlist[j], eBlocks[i]);
         //mesh->addCellField(varlist[j], eBlocks[i]);
       }
-      else { // HDIV or HCURL
+      else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL") { // HDIV or HCURL
         mesh->addSolutionField(varlist[j]+"x", eBlocks[i]);
         mesh->addSolutionField(varlist[j]+"y", eBlocks[i]);
         mesh->addSolutionField(varlist[j]+"z", eBlocks[i]);
@@ -349,13 +349,6 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
     mesh->addSolutionField("dispy", eBlocks[i]);
     mesh->addSolutionField("dispz", eBlocks[i]);
     
-    bool plot_response = settings->sublist("Postprocess").get<bool>("plot Response",false);
-    if (plot_response) {
-      std::vector<string> responsefields = phys->getResponseFieldNames(i);
-      for (size_t j=0; j<responsefields.size(); j++) {
-        mesh->addSolutionField(responsefields[j], eBlocks[i]);
-      }
-    }
     
     Teuchos::ParameterList efields;
     if (settings->sublist("Physics").isSublist(eBlocks[i])) {
@@ -415,8 +408,17 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
       while (pl_itr != parameters.end()) {
         Teuchos::ParameterList newparam = parameters.sublist(pl_itr->first);
         if (newparam.get<string>("usage") == "discretized") {
-          mesh->addSolutionField(pl_itr->first, eBlocks[i]);
-          mesh->addSolutionField(pl_itr->first + "_dRdP", eBlocks[i]);
+          if (newparam.get<string>("type") == "HGRAD") {
+            mesh->addSolutionField(pl_itr->first, eBlocks[i]);
+          }
+          else if (newparam.get<string>("usage") == "HVOL") {
+            mesh->addCellField(pl_itr->first, eBlocks[i]);
+          }
+          else if (newparam.get<string>("usage") == "HDIV" || newparam.get<string>("usage") == "HCURL") {
+            mesh->addCellField(pl_itr->first+"_x", eBlocks[i]);
+            mesh->addCellField(pl_itr->first+"_y", eBlocks[i]);
+            mesh->addCellField(pl_itr->first+"_z", eBlocks[i]);
+          }
         }
         pl_itr++;
       }

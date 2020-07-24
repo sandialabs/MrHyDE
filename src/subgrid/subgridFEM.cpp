@@ -1416,9 +1416,10 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
       }
     }
     
-    /*
-    Kokkos::View<ScalarT**,HostDevice> cseeds("cell data seeds",cells[0].size(), 1);
-    Kokkos::View<ScalarT**,HostDevice> cdata("cell data",cells[0].size(), 1);
+    
+    Kokkos::View<ScalarT**,HostDevice> cseeds("cell data seeds",cells[0][0]->numElem, 1);
+    Kokkos::View<ScalarT**,HostDevice> cdata("cell data",cells[0][0]->numElem, 1);
+    
     if (cells[0][0]->cellData->have_cell_phi || cells[0][0]->cellData->have_cell_rotation || cells[0][0]->cellData->have_extra_data) {
       int eprog = 0;
       vector<size_t> cell_data_seed = localData[usernum]->cell_data_seed;
@@ -1433,12 +1434,12 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
     }
     submesh->setCellFieldData("mesh_data_seed", blockID, myElements, cseeds);
     submesh->setCellFieldData("mesh_data", blockID, myElements, cdata);
-    if(isTD) {
+    if (isTD) {
       submesh->writeToExodus(soln->times[usernum][m]);
     }
     else {
       submesh->writeToExodus(filename);
-    }*/
+    }
     
   }
   

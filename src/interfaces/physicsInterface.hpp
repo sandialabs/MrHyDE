@@ -215,15 +215,18 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
-  Kokkos::View<ScalarT***,AssemblyDevice> getExtraFields(const int & block, const DRV & ip,
-                                                        const ScalarT & time,
-                                                        Teuchos::RCP<workset> & wkset);
+  Kokkos::View<ScalarT**,AssemblyDevice> getExtraFields(const int & block,
+                                                         const int & fnum,
+                                                         const DRV & ip,
+                                                         const ScalarT & time,
+                                                         Teuchos::RCP<workset> & wkset);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
-  Kokkos::View<ScalarT***,AssemblyDevice> getExtraCellFields(const int & block,
-                                                            const size_t & numElem);
+  Kokkos::View<ScalarT*,AssemblyDevice> getExtraCellFields(const int & block,
+                                                           const int & fnum,
+                                                           DRV wts);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////

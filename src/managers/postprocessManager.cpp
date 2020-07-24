@@ -95,46 +95,46 @@ void PostprocessManager::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) 
   layer_size = settings->sublist("Postprocess").get<ScalarT>("solution based mesh mod layer thickness",0.1);
   
   /*
-  string error_list = settings->sublist("Postprocess").get<string>("Error type","L2"); // or "H1"
-  // Script to break delimited list into pieces
-  {
-    string delimiter = ", ";
-    size_t pos = 0;
-    if (error_list.find(delimiter) == string::npos) {
-      error_types.push_back(error_list);
-    }
-    else {
-      string token;
-      while ((pos = error_list.find(delimiter)) != string::npos) {
-        token = error_list.substr(0, pos);
-        error_types.push_back(token);
-        error_list.erase(0, pos + delimiter.length());
-      }
-      error_types.push_back(error_list);
-    }
-  }
-  */
+   string error_list = settings->sublist("Postprocess").get<string>("Error type","L2"); // or "H1"
+   // Script to break delimited list into pieces
+   {
+   string delimiter = ", ";
+   size_t pos = 0;
+   if (error_list.find(delimiter) == string::npos) {
+   error_types.push_back(error_list);
+   }
+   else {
+   string token;
+   while ((pos = error_list.find(delimiter)) != string::npos) {
+   token = error_list.substr(0, pos);
+   error_types.push_back(token);
+   error_list.erase(0, pos + delimiter.length());
+   }
+   error_types.push_back(error_list);
+   }
+   }
+   */
   
   /*
-  string subgrid_error_list = settings->sublist("Postprocess").get<string>("Subgrid error type","L2"); // or "H1"
-  // Script to break delimited list into pieces
-  {
-    string delimiter = ", ";
-    size_t pos = 0;
-    if (subgrid_error_list.find(delimiter) == string::npos) {
-      subgrid_error_types.push_back(subgrid_error_list);
-    }
-    else {
-      string token;
-      while ((pos = subgrid_error_list.find(delimiter)) != string::npos) {
-        token = subgrid_error_list.substr(0, pos);
-        subgrid_error_types.push_back(token);
-        subgrid_error_list.erase(0, pos + delimiter.length());
-      }
-      subgrid_error_types.push_back(subgrid_error_list);
-    }
-  }
-  */
+   string subgrid_error_list = settings->sublist("Postprocess").get<string>("Subgrid error type","L2"); // or "H1"
+   // Script to break delimited list into pieces
+   {
+   string delimiter = ", ";
+   size_t pos = 0;
+   if (subgrid_error_list.find(delimiter) == string::npos) {
+   subgrid_error_types.push_back(subgrid_error_list);
+   }
+   else {
+   string token;
+   while ((pos = subgrid_error_list.find(delimiter)) != string::npos) {
+   token = subgrid_error_list.substr(0, pos);
+   subgrid_error_types.push_back(token);
+   subgrid_error_list.erase(0, pos + delimiter.length());
+   }
+   subgrid_error_types.push_back(subgrid_error_list);
+   }
+   }
+   */
   
   use_sol_mod_height = settings->sublist("Postprocess").get<bool>("solution based height mod",false);
   sol_to_mod_height = settings->sublist("Postprocess").get<int>("solution for height mod",0);
@@ -204,7 +204,7 @@ void PostprocessManager::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) 
         tgt_itr++;
       }
     }
-  
+    
     Teuchos::ParameterList blockPhysSettings;
     if (settings->sublist("Physics").isSublist(blocknames[b])) { // adding block overwrites the default
       blockPhysSettings = settings->sublist("Physics").sublist(blocknames[b]);
@@ -486,48 +486,48 @@ void PostprocessManager::report() {
         for (size_t etype=0; etype<gnerrs; etype++) {
           for (size_t time=0; time<error_times.size(); time++) {
             //for (int n=0; n<gnvars; n++) {
-              // Get the local contribution (if processor uses subgrid model)
-              ScalarT lerr = 0.0;
-              if (nvars>0) {
-                lerr = sgerrs[m](time,etype);
-              }
-              ScalarT gerr = 0.0;
-              Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lerr,&gerr);
+            // Get the local contribution (if processor uses subgrid model)
+            ScalarT lerr = 0.0;
+            if (nvars>0) {
+              lerr = sgerrs[m](time,etype);
+            }
+            ScalarT gerr = 0.0;
+            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lerr,&gerr);
+            
+            // Figure out who can print the information (lowest rank amongst procs using subgrid model)
+            size_t myID = Comm->getRank();
+            if (nvars == 0) {
+              myID = 100000000;
+            }
+            size_t gID = 0;
+            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&myID,&gID);
+            
+            if(Comm->getRank() == gID) {
+              //cout << "***** Subgrid" << m << ": " << subgrid_error_types[etype] << " norm of the error for " << sgvars[n] << " = " << sqrt(gerr) << "  (time = " << error_times[t] << ")" <<  endl;
               
-              // Figure out who can print the information (lowest rank amongst procs using subgrid model)
-              size_t myID = Comm->getRank();
-              if (nvars == 0) {
-                myID = 100000000;
+              string varname = sgvars[subgrid_error_lists[m][etype].first];
+              if (subgrid_error_lists[m][etype].second == "L2" || subgrid_error_lists[m][etype].second == "L2 VECTOR") {
+                cout << "***** Subgrid " << m << ": L2 norm of the error for " << varname << " = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
               }
-              size_t gID = 0;
-              Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&myID,&gID);
-              
-              if(Comm->getRank() == gID) {
-                //cout << "***** Subgrid" << m << ": " << subgrid_error_types[etype] << " norm of the error for " << sgvars[n] << " = " << sqrt(gerr) << "  (time = " << error_times[t] << ")" <<  endl;
-                
-                string varname = sgvars[subgrid_error_lists[m][etype].first];
-                if (subgrid_error_lists[m][etype].second == "L2" || subgrid_error_lists[m][etype].second == "L2 VECTOR") {
-                  cout << "***** Subgrid " << m << ": L2 norm of the error for " << varname << " = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
-                }
-                else if (subgrid_error_lists[m][etype].second == "L2 FACE") {
-                  cout << "***** Subgrid " << m << ": L2-face norm of the error for " << varname << " = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
-                }
-                else if (subgrid_error_lists[m][etype].second == "GRAD") {
-                  cout << "***** Subgrid " << m << ": L2 norm of the error for grad(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
-                }
-                else if (subgrid_error_lists[m][etype].second == "DIV") {
-                  cout << "***** Subgrid " << m << ": L2 norm of the error for div(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
-                }
-                else if (subgrid_error_lists[m][etype].second == "CURL") {
-                  cout << "***** Subgrid " << m << ": L2 norm of the error for curl(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
-                }
+              else if (subgrid_error_lists[m][etype].second == "L2 FACE") {
+                cout << "***** Subgrid " << m << ": L2-face norm of the error for " << varname << " = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
               }
+              else if (subgrid_error_lists[m][etype].second == "GRAD") {
+                cout << "***** Subgrid " << m << ": L2 norm of the error for grad(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+              }
+              else if (subgrid_error_lists[m][etype].second == "DIV") {
+                cout << "***** Subgrid " << m << ": L2 norm of the error for div(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+              }
+              else if (subgrid_error_lists[m][etype].second == "CURL") {
+                cout << "***** Subgrid " << m << ": L2 norm of the error for curl(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+              }
+            }
             //}
           }
         }
       }
     }
-
+    
   }
 }
 
@@ -773,171 +773,171 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
 
 AD PostprocessManager::computeObjective() {
   /*
-  
-  if(Comm->getRank() == 0 ) {
-    if (verbosity > 0) {
-      cout << endl << "*********************************************************" << endl;
-      cout << "***** Computing Objective Function ******" << endl << endl;
-    }
-  }
-  
-  AD totaldiff = 0.0;
-  AD regDomain = 0.0;
-  AD regBoundary = 0.0;
-  //bvbw    AD classicParamPenalty = 0.0;
-  vector<ScalarT> solvetimes = solve->soln->times[0];
-  vector<int> domainRegTypes = params->domainRegTypes;
-  vector<ScalarT> domainRegConstants = params->domainRegConstants;
-  vector<int> domainRegIndices = params->domainRegIndices;
-  int numDomainParams = domainRegIndices.size();
-  vector<int> boundaryRegTypes = params->boundaryRegTypes;
-  vector<ScalarT> boundaryRegConstants = params->boundaryRegConstants;
-  vector<int> boundaryRegIndices = params->boundaryRegIndices;
-  int numBoundaryParams = boundaryRegIndices.size();
-  vector<string> boundaryRegSides = params->boundaryRegSides;
-  
-  
-  params->sacadoizeParams(true);
-  int numClassicParams = params->getNumParams(1);
-  int numDiscParams = params->getNumParams(4);
-  int numParams = numClassicParams + numDiscParams;
-  vector<ScalarT> regGradient(numParams);
-  vector<ScalarT> dmGradient(numParams);
-  vector_RCP P_soln = params->Psol[0];
-  vector_RCP u;
-  //cout << solvetimes.size() << endl;
-  //for (int i=0; i<solvetimes.size(); i++) {
-  //  cout << solvetimes[i] << endl;
-  //}
-  for (size_t tt=0; tt<solvetimes.size(); tt++) {
-    for (size_t b=0; b<cells.size(); b++) {
-      
-      bool fnd = solve->soln->extract(u,tt);
-      assembler->performGather(b,u,0,0);
-      assembler->performGather(b,P_soln,4,0);
-      
-      for (size_t e=0; e<cells[b].size(); e++) {
-        //cout << e << endl;
-        
-        Kokkos::View<AD**,AssemblyDevice> obj = cells[b][e]->computeObjective(solvetimes[tt], tt, 0);
-        
-        int numElem = cells[b][e]->numElem;
-        
-        vector<vector<int> > paramoffsets = params->paramoffsets;
-        //for (size_t tt=0; tt<solvetimes.size(); tt++) { // skip initial condition in 0th position
-        if (obj.extent(1) > 0) {
-          for (int c=0; c<numElem; c++) {
-            for (size_t i=0; i<obj.extent(1); i++) {
-              totaldiff += obj(c,i);
-              if (numClassicParams > 0) {
-                if (obj(c,i).size() > 0) {
-                  ScalarT val;
-                  val = obj(c,i).fastAccessDx(0);
-                  dmGradient[0] += val;
-                }
-              }
-              if (numDiscParams > 0) {
-                Kokkos::View<GO**,HostDevice> paramGIDs = cells[b][e]->paramGIDs;
-                
-                for (int row=0; row<paramoffsets[0].size(); row++) {
-                  int rowIndex = paramGIDs(c,paramoffsets[0][row]);
-                  int poffset = paramoffsets[0][row];
-                  ScalarT val;
-                  if (obj(c,i).size() > numClassicParams) {
-                    val = obj(c,i).fastAccessDx(poffset+numClassicParams);
-                    dmGradient[rowIndex+numClassicParams] += val;
-                  }
-                }
-              }
-            }
-          }
-        }
-        //}
-        if ((numDomainParams > 0) || (numBoundaryParams > 0)) {
-          for (int c=0; c<numElem; c++) {
-            Kokkos::View<GO**,HostDevice> paramGIDs = cells[b][e]->paramGIDs;
-            vector<vector<int> > paramoffsets = params->paramoffsets;
-            
-            if (numDomainParams > 0) {
-              int paramIndex, rowIndex, poffset;
-              ScalarT val;
-              regDomain = cells[b][e]->computeDomainRegularization(domainRegConstants,
-                                                                   domainRegTypes, domainRegIndices);
-              
-              for (size_t p = 0; p < numDomainParams; p++) {
-                paramIndex = domainRegIndices[p];
-                for( size_t row=0; row<paramoffsets[paramIndex].size(); row++ ) {
-                  if (regDomain.size() > 0) {
-                    rowIndex = paramGIDs(c,paramoffsets[paramIndex][row]);
-                    poffset = paramoffsets[paramIndex][row];
-                    val = regDomain.fastAccessDx(poffset);
-                    regGradient[rowIndex+numClassicParams] += val;
-                  }
-                }
-              }
-            }
-         
-          
-            if (numBoundaryParams > 0) {
-              
-              //int paramIndex, rowIndex, poffset;
-              //ScalarT val;
-              //regBoundary = cells[b][e]->computeBoundaryRegularization(boundaryRegConstants,
-              //                                                         boundaryRegTypes, boundaryRegIndices,
-              //                                                         boundaryRegSides);
-              //for (size_t p = 0; p < numBoundaryParams; p++) {
-              //  paramIndex = boundaryRegIndices[p];
-              //  for( size_t row=0; row<paramoffsets[paramIndex].size(); row++ ) {
-              //    if (regBoundary.size() > 0) {
-              //      rowIndex = paramGIDs(c,paramoffsets[paramIndex][row]);
-              //      poffset = paramoffsets[paramIndex][row];
-              //      val = regBoundary.fastAccessDx(poffset);
-              //      regGradient[rowIndex+numClassicParams] += val;
-              //    }
-              //  }
-              //}
-            }
-            
-            totaldiff += (regDomain + regBoundary);
-          }
-        }
-      }
-      totaldiff += phys->computeTopoResp(b);
-    }
-  }
-  
-  //to gather contributions across processors
-  ScalarT meep = 0.0;
-  Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&totaldiff.val(),&meep);
-  //Comm->SumAll(&totaldiff.val(), &meep, 1);
-  totaldiff.val() = meep;
-  AD fullobj(numParams,meep);
-  
-  for (size_t j=0; j< numParams; j++) {
-    ScalarT dval;
-    ScalarT ldval = dmGradient[j] + regGradient[j];
-    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&ldval,&dval);
-    //Comm->SumAll(&ldval,&dval,1);
-    fullobj.fastAccessDx(j) = dval;
-  }
-  
-  if(Comm->getRank() == 0 ) {
-    if (verbosity > 0) {
-      cout << "********** Value of Objective Function = " << std::setprecision(16) << fullobj.val() << endl;
-      cout << "*********************************************************" << endl;
-    }
-  }
-  
-  if(Comm->getRank() == 0) {
-    std::string sname2 = "obj.dat";
-    ofstream objOUT(sname2.c_str());
-    objOUT.precision(16);
-    objOUT << fullobj.val() << endl;
-    objOUT.close();
-  }
-  
-  
-  return fullobj;
+   
+   if(Comm->getRank() == 0 ) {
+   if (verbosity > 0) {
+   cout << endl << "*********************************************************" << endl;
+   cout << "***** Computing Objective Function ******" << endl << endl;
+   }
+   }
+   
+   AD totaldiff = 0.0;
+   AD regDomain = 0.0;
+   AD regBoundary = 0.0;
+   //bvbw    AD classicParamPenalty = 0.0;
+   vector<ScalarT> solvetimes = solve->soln->times[0];
+   vector<int> domainRegTypes = params->domainRegTypes;
+   vector<ScalarT> domainRegConstants = params->domainRegConstants;
+   vector<int> domainRegIndices = params->domainRegIndices;
+   int numDomainParams = domainRegIndices.size();
+   vector<int> boundaryRegTypes = params->boundaryRegTypes;
+   vector<ScalarT> boundaryRegConstants = params->boundaryRegConstants;
+   vector<int> boundaryRegIndices = params->boundaryRegIndices;
+   int numBoundaryParams = boundaryRegIndices.size();
+   vector<string> boundaryRegSides = params->boundaryRegSides;
+   
+   
+   params->sacadoizeParams(true);
+   int numClassicParams = params->getNumParams(1);
+   int numDiscParams = params->getNumParams(4);
+   int numParams = numClassicParams + numDiscParams;
+   vector<ScalarT> regGradient(numParams);
+   vector<ScalarT> dmGradient(numParams);
+   vector_RCP P_soln = params->Psol[0];
+   vector_RCP u;
+   //cout << solvetimes.size() << endl;
+   //for (int i=0; i<solvetimes.size(); i++) {
+   //  cout << solvetimes[i] << endl;
+   //}
+   for (size_t tt=0; tt<solvetimes.size(); tt++) {
+   for (size_t b=0; b<cells.size(); b++) {
+   
+   bool fnd = solve->soln->extract(u,tt);
+   assembler->performGather(b,u,0,0);
+   assembler->performGather(b,P_soln,4,0);
+   
+   for (size_t e=0; e<cells[b].size(); e++) {
+   //cout << e << endl;
+   
+   Kokkos::View<AD**,AssemblyDevice> obj = cells[b][e]->computeObjective(solvetimes[tt], tt, 0);
+   
+   int numElem = cells[b][e]->numElem;
+   
+   vector<vector<int> > paramoffsets = params->paramoffsets;
+   //for (size_t tt=0; tt<solvetimes.size(); tt++) { // skip initial condition in 0th position
+   if (obj.extent(1) > 0) {
+   for (int c=0; c<numElem; c++) {
+   for (size_t i=0; i<obj.extent(1); i++) {
+   totaldiff += obj(c,i);
+   if (numClassicParams > 0) {
+   if (obj(c,i).size() > 0) {
+   ScalarT val;
+   val = obj(c,i).fastAccessDx(0);
+   dmGradient[0] += val;
+   }
+   }
+   if (numDiscParams > 0) {
+   Kokkos::View<GO**,HostDevice> paramGIDs = cells[b][e]->paramGIDs;
+   
+   for (int row=0; row<paramoffsets[0].size(); row++) {
+   int rowIndex = paramGIDs(c,paramoffsets[0][row]);
+   int poffset = paramoffsets[0][row];
+   ScalarT val;
+   if (obj(c,i).size() > numClassicParams) {
+   val = obj(c,i).fastAccessDx(poffset+numClassicParams);
+   dmGradient[rowIndex+numClassicParams] += val;
+   }
+   }
+   }
+   }
+   }
+   }
+   //}
+   if ((numDomainParams > 0) || (numBoundaryParams > 0)) {
+   for (int c=0; c<numElem; c++) {
+   Kokkos::View<GO**,HostDevice> paramGIDs = cells[b][e]->paramGIDs;
+   vector<vector<int> > paramoffsets = params->paramoffsets;
+   
+   if (numDomainParams > 0) {
+   int paramIndex, rowIndex, poffset;
+   ScalarT val;
+   regDomain = cells[b][e]->computeDomainRegularization(domainRegConstants,
+   domainRegTypes, domainRegIndices);
+   
+   for (size_t p = 0; p < numDomainParams; p++) {
+   paramIndex = domainRegIndices[p];
+   for( size_t row=0; row<paramoffsets[paramIndex].size(); row++ ) {
+   if (regDomain.size() > 0) {
+   rowIndex = paramGIDs(c,paramoffsets[paramIndex][row]);
+   poffset = paramoffsets[paramIndex][row];
+   val = regDomain.fastAccessDx(poffset);
+   regGradient[rowIndex+numClassicParams] += val;
+   }
+   }
+   }
+   }
+   
+   
+   if (numBoundaryParams > 0) {
+   
+   //int paramIndex, rowIndex, poffset;
+   //ScalarT val;
+   //regBoundary = cells[b][e]->computeBoundaryRegularization(boundaryRegConstants,
+   //                                                         boundaryRegTypes, boundaryRegIndices,
+   //                                                         boundaryRegSides);
+   //for (size_t p = 0; p < numBoundaryParams; p++) {
+   //  paramIndex = boundaryRegIndices[p];
+   //  for( size_t row=0; row<paramoffsets[paramIndex].size(); row++ ) {
+   //    if (regBoundary.size() > 0) {
+   //      rowIndex = paramGIDs(c,paramoffsets[paramIndex][row]);
+   //      poffset = paramoffsets[paramIndex][row];
+   //      val = regBoundary.fastAccessDx(poffset);
+   //      regGradient[rowIndex+numClassicParams] += val;
+   //    }
+   //  }
+   //}
+   }
+   
+   totaldiff += (regDomain + regBoundary);
+   }
+   }
+   }
+   totaldiff += phys->computeTopoResp(b);
+   }
+   }
+   
+   //to gather contributions across processors
+   ScalarT meep = 0.0;
+   Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&totaldiff.val(),&meep);
+   //Comm->SumAll(&totaldiff.val(), &meep, 1);
+   totaldiff.val() = meep;
+   AD fullobj(numParams,meep);
+   
+   for (size_t j=0; j< numParams; j++) {
+   ScalarT dval;
+   ScalarT ldval = dmGradient[j] + regGradient[j];
+   Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&ldval,&dval);
+   //Comm->SumAll(&ldval,&dval,1);
+   fullobj.fastAccessDx(j) = dval;
+   }
+   
+   if(Comm->getRank() == 0 ) {
+   if (verbosity > 0) {
+   cout << "********** Value of Objective Function = " << std::setprecision(16) << fullobj.val() << endl;
+   cout << "*********************************************************" << endl;
+   }
+   }
+   
+   if(Comm->getRank() == 0) {
+   std::string sname2 = "obj.dat";
+   ofstream objOUT(sname2.c_str());
+   objOUT.precision(16);
+   objOUT << fullobj.val() << endl;
+   objOUT.close();
+   }
+   
+   
+   return fullobj;
    */
 }
 
@@ -963,7 +963,7 @@ void PostprocessManager::computeResponse(const ScalarT & currenttime) {
   }
   
   Kokkos::View<ScalarT**,HostDevice> curr_response("current response",
-                                                    numSensors, numresponses);
+                                                   numSensors, numresponses);
   //vector_RCP P_soln = params->Psol[0];
   //vector_RCP u;
   
@@ -1011,65 +1011,65 @@ void PostprocessManager::computeResponse(const ScalarT & currenttime) {
 
 vector<ScalarT> PostprocessManager::computeSensitivities() {
   /*
-  Teuchos::RCP<Teuchos::Time> sensitivitytimer = Teuchos::rcp(new Teuchos::Time("sensitivity",false));
-  sensitivitytimer->start();
-  
-  vector<string> active_paramnames = params->getParamsNames(1);
-  vector<size_t> active_paramlengths = params->getParamsLengths(1);
-  
-  vector<ScalarT> dwr_sens;
-  vector<ScalarT> disc_sens;
-  
-  int numClassicParams = params->getNumParams(1);
-  int numDiscParams = params->getNumParams(4);
-  int numParams = numClassicParams + numDiscParams;
-  
-  vector<ScalarT> gradient(numParams);
-  
-  AD obj_sens = this->computeObjective();
-  
-  if (numClassicParams > 0 ) {
-    dwr_sens = this->computeParameterSensitivities();
-  }
-  if (numDiscParams > 0) {
-    disc_sens = this->computeDiscretizedSensitivities();
-  }
-  size_t pprog  = 0;
-  for (size_t i=0; i<numClassicParams; i++) {
-    ScalarT cobj = 0.0;
-    if (i<obj_sens.size()) {
-      cobj = obj_sens.fastAccessDx(i);
-    }
-    gradient[pprog] = cobj + dwr_sens[i];
-    pprog++;
-  }
-  for (size_t i=0; i<numDiscParams; i++) {
-    ScalarT cobj = 0.0;
-    if (i<obj_sens.size()) {
-      cobj = obj_sens.fastAccessDx(i+numClassicParams);
-    }
-    gradient[pprog] = cobj + disc_sens[i];
-    pprog++;
-  }
-  
-  sensitivitytimer->stop();
-  
-  if(Comm->getRank() == 0 ) {
-    if (verbosity > 0) {
-      int pprog = 0;
-      for (size_t p=0; p < active_paramnames.size(); p++) {
-        for (size_t p2=0; p2 < active_paramlengths[p]; p2++) {
-          cout << "Sensitivity of the response w.r.t " << active_paramnames[p] << " component " << p2 << " = " << gradient[pprog] << endl;
-          pprog++;
-        }
-      }
-      for (size_t p =0; p < numDiscParams; p++)
-      cout << "sens w.r.t. discretized param " << p << " is " << gradient[p+numClassicParams] << endl;
-      cout << "Sensitivity Calculation Time: " << sensitivitytimer->totalElapsedTime() << endl;
-    }
-  }
-  
-  return gradient;
+   Teuchos::RCP<Teuchos::Time> sensitivitytimer = Teuchos::rcp(new Teuchos::Time("sensitivity",false));
+   sensitivitytimer->start();
+   
+   vector<string> active_paramnames = params->getParamsNames(1);
+   vector<size_t> active_paramlengths = params->getParamsLengths(1);
+   
+   vector<ScalarT> dwr_sens;
+   vector<ScalarT> disc_sens;
+   
+   int numClassicParams = params->getNumParams(1);
+   int numDiscParams = params->getNumParams(4);
+   int numParams = numClassicParams + numDiscParams;
+   
+   vector<ScalarT> gradient(numParams);
+   
+   AD obj_sens = this->computeObjective();
+   
+   if (numClassicParams > 0 ) {
+   dwr_sens = this->computeParameterSensitivities();
+   }
+   if (numDiscParams > 0) {
+   disc_sens = this->computeDiscretizedSensitivities();
+   }
+   size_t pprog  = 0;
+   for (size_t i=0; i<numClassicParams; i++) {
+   ScalarT cobj = 0.0;
+   if (i<obj_sens.size()) {
+   cobj = obj_sens.fastAccessDx(i);
+   }
+   gradient[pprog] = cobj + dwr_sens[i];
+   pprog++;
+   }
+   for (size_t i=0; i<numDiscParams; i++) {
+   ScalarT cobj = 0.0;
+   if (i<obj_sens.size()) {
+   cobj = obj_sens.fastAccessDx(i+numClassicParams);
+   }
+   gradient[pprog] = cobj + disc_sens[i];
+   pprog++;
+   }
+   
+   sensitivitytimer->stop();
+   
+   if(Comm->getRank() == 0 ) {
+   if (verbosity > 0) {
+   int pprog = 0;
+   for (size_t p=0; p < active_paramnames.size(); p++) {
+   for (size_t p2=0; p2 < active_paramlengths[p]; p2++) {
+   cout << "Sensitivity of the response w.r.t " << active_paramnames[p] << " component " << p2 << " = " << gradient[pprog] << endl;
+   pprog++;
+   }
+   }
+   for (size_t p =0; p < numDiscParams; p++)
+   cout << "sens w.r.t. discretized param " << p << " is " << gradient[p+numClassicParams] << endl;
+   cout << "Sensitivity Calculation Time: " << sensitivitytimer->totalElapsedTime() << endl;
+   }
+   }
+   
+   return gradient;
    */
 }
 
@@ -1082,103 +1082,150 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
   
   plot_times.push_back(currenttime);
   
-  // Need to use time step solution instead of stage solution
-  bool isTransient = assembler->wkset[0]->isTransient;
-  for (size_t b=0; b<assembler->wkset.size(); b++) {
-    assembler->wkset[b]->isTransient = false;
-  }
-  
-  Kokkos::View<ScalarT**,HostDevice> dispz("dispz",assembler->cells[0].size(), numNodesPerElem);
-    for (size_t b=0; b<assembler->cells.size(); b++) {
-      std::string blockID = blocknames[b];
-      vector<vector<int> > curroffsets = phys->offsets[b];
-      vector<size_t> myElements = disc->myElements[b];
-      vector<string> vartypes = phys->types[b];
-      vector<int> varorders = phys->orders[b];
+  for (size_t b=0; b<assembler->cells.size(); b++) {
+    std::string blockID = blocknames[b];
+    vector<vector<int> > curroffsets = phys->offsets[b];
+    vector<size_t> myElements = disc->myElements[b];
+    vector<string> vartypes = phys->types[b];
+    vector<int> varorders = phys->orders[b];
+    
+    for (int n = 0; n<numVars[b]; n++) {
       
-      for (int n = 0; n<numVars[b]; n++) {
+      if (vartypes[n] == "HGRAD") {
         
-        if (vartypes[n] == "HGRAD") {
+        if (varorders[n] > 1) { // project to PWlinear for plotting
           
-          if (varorders[n] > 1) { // project to PWlinear for plotting
-            
+        }
+        Kokkos::View<ScalarT**,HostDevice> soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
+        
+        std::string var = varlist[b][n];
+        size_t eprog = 0;
+        Kokkos::View<int*,UnifiedDevice> numDOF = assembler->cells[b][0]->cellData->numDOF;
+        for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+          int numElem = assembler->cells[b][e]->numElem;
+          Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->u;
+          auto host_sol = Kokkos::create_mirror_view(sol);
+          Kokkos::deep_copy(host_sol,sol);
+          for (int p=0; p<numElem; p++) {
+            for( int i=0; i<numNodesPerElem; i++ ) {
+              soln_computed(eprog,i) = host_sol(p,n,i);
+            }
+            eprog++;
           }
+        }
+        if (var == "dx") {
+          mesh->setSolutionFieldData("dispx", blockID, myElements, soln_computed);
+        }
+        if (var == "dy") {
+          mesh->setSolutionFieldData("dispy", blockID, myElements, soln_computed);
+        }
+        if (var == "dz" || var == "H") {
+          mesh->setSolutionFieldData("dispz", blockID, myElements, soln_computed);
+        }
+        
+        mesh->setSolutionFieldData(var, blockID, myElements, soln_computed);
+      }
+      else if (vartypes[n] == "HVOL") {
+        Kokkos::View<ScalarT*,HostDevice> soln_computed("solution",myElements.size());
+        std::string var = varlist[b][n];
+        size_t eprog = 0;
+        for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+          int numElem = assembler->cells[b][e]->numElem;
+          Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->u;
+          auto host_sol = Kokkos::create_mirror_view(sol);
+          Kokkos::deep_copy(host_sol,sol);
+          for (int p=0; p<numElem; p++) {
+            soln_computed(eprog) = host_sol(p,n,0);//u_kv(pindex,0);
+            eprog++;
+          }
+        }
+        mesh->setCellFieldData(var, blockID, myElements, soln_computed);
+      }
+      else if (vartypes[n] == "HDIV" || vartypes[n] == "HCURL") { // need to project each component onto PW-linear basis and PW constant basis
+        Kokkos::View<ScalarT*,HostDevice> soln_x("solution",myElements.size());
+        Kokkos::View<ScalarT*,HostDevice> soln_y("solution",myElements.size());
+        Kokkos::View<ScalarT*,HostDevice> soln_z("solution",myElements.size());
+        std::string var = varlist[b][n];
+        size_t eprog = 0;
+        for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+          Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->u_avg;
+          auto host_sol = Kokkos::create_mirror_view(sol);
+          Kokkos::deep_copy(host_sol,sol);
+          for (int p=0; p<assembler->cells[b][e]->numElem; p++) {
+            soln_x(eprog) = host_sol(p,n,0);
+            soln_y(eprog) = host_sol(p,n,1);
+            soln_z(eprog) = host_sol(p,n,2);
+            eprog++;
+          }
+        }
+        
+        mesh->setCellFieldData(var+"x", blockID, myElements, soln_x);
+        mesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
+        mesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
+      }
+      else if (vartypes[n] == "HFACE") { // need to project each component onto PW-linear basis and PW constant basis
+        
+      }
+    }
+    
+    ////////////////////////////////////////////////////////////////
+    // Discretized Parameters
+    ////////////////////////////////////////////////////////////////
+    
+    vector<string> dpnames = params->discretized_param_names;
+    vector<int> numParamBasis = params->paramNumBasis;
+    vector<string> discParamTypes = params->discretized_param_basis_types;
+    if (dpnames.size() > 0) {
+      for (size_t n=0; n<dpnames.size(); n++) {
+        if (discParamTypes[n] == "HGRAD") {
           Kokkos::View<ScalarT**,HostDevice> soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
-          
-          std::string var = varlist[b][n];
           size_t eprog = 0;
-          Kokkos::View<int*,UnifiedDevice> numDOF = assembler->cells[b][0]->cellData->numDOF;
           for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
             int numElem = assembler->cells[b][e]->numElem;
-            Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->u;
+            Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->param;
+            auto host_sol = Kokkos::create_mirror_view(sol);
+            Kokkos::deep_copy(host_sol,sol);
             for (int p=0; p<numElem; p++) {
-              for( int i=0; i<numDOF(n); i++ ) {
-                if (numDOF(n) == 1) {
-                  for( int j=0; j<numNodesPerElem; j++ ) {
-                    soln_computed(eprog,j) = sol(p,n,0);//u_kv(pindex,0);
-                  }
-                }
-                else {
-                  soln_computed(eprog,i) = sol(p,n,i);//u_kv(pindex,0);
-                }
-                if (use_sol_mod_mesh && sol_to_mod_mesh == n) {
-                  if (abs(soln_computed(e,i)) >= meshmod_TOL) {
-                    dispz(eprog,i) += layer_size;
-                  }
-                }
-                else if (use_sol_mod_height && sol_to_mod_height == n) {
-                  dispz(eprog,i) = 10.0*soln_computed(eprog,i);
-                }
+              for( int i=0; i<numNodesPerElem; i++ ) {
+                soln_computed(e,i) = host_sol(p,n,i);
               }
               eprog++;
             }
           }
-          if (use_sol_mod_mesh && sol_to_mod_mesh == n) {
-            mesh->setSolutionFieldData("dispz", blockID, myElements, dispz);
-          }
-          else if (use_sol_mod_height && sol_to_mod_height == n) {
-            mesh->setSolutionFieldData("dispz", blockID, myElements, dispz);
-          }
-          else {
-            if (var == "dx") {
-              mesh->setSolutionFieldData("dispx", blockID, myElements, soln_computed);
-            }
-            if (var == "dy") {
-              mesh->setSolutionFieldData("dispy", blockID, myElements, soln_computed);
-            }
-            if (var == "dz" || var == "H") {
-              mesh->setSolutionFieldData("dispz", blockID, myElements, soln_computed);
-            }
-          }
-          
-          mesh->setSolutionFieldData(var, blockID, myElements, soln_computed);
+          mesh->setSolutionFieldData(dpnames[n], blockID, myElements, soln_computed);
         }
-        else if (vartypes[n] == "HVOL") {
-          Kokkos::View<ScalarT**,HostDevice> soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), 1);
+        else if (discParamTypes[n] == "HVOL") {
+          Kokkos::View<ScalarT*,HostDevice> soln_computed("solution",myElements.size());
           std::string var = varlist[b][n];
           size_t eprog = 0;
           for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
             int numElem = assembler->cells[b][e]->numElem;
-            Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->u;
+            Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->param;
+            auto host_sol = Kokkos::create_mirror_view(sol);
+            Kokkos::deep_copy(host_sol,sol);
             for (int p=0; p<numElem; p++) {
-              soln_computed(eprog,0) = sol(p,n,0);//u_kv(pindex,0);
+              soln_computed(eprog) = host_sol(p,n,0);//u_kv(pindex,0);
               eprog++;
             }
           }
           mesh->setCellFieldData(var, blockID, myElements, soln_computed);
         }
-        else if (vartypes[n] == "HDIV" || vartypes[n] == "HCURL") { // need to project each component onto PW-linear basis and PW constant basis
-          Kokkos::View<ScalarT**,HostDevice> soln_x = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), 1);
-          Kokkos::View<ScalarT**,HostDevice> soln_y = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), 1);
-          Kokkos::View<ScalarT**,HostDevice> soln_z = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), 1);
+        else if (discParamTypes[n] == "HDIV" || discParamTypes[n] == "HCURL") {
+          // TMW: this is not actually implemented yet ... not hard to do though
+          /*
+          Kokkos::View<ScalarT*,HostDevice> soln_x("solution",myElements.size());
+          Kokkos::View<ScalarT*,HostDevice> soln_y("solution",myElements.size());
+          Kokkos::View<ScalarT*,HostDevice> soln_z("solution",myElements.size());
           std::string var = varlist[b][n];
           size_t eprog = 0;
           for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-            Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->u_avg;
+            Kokkos::View<ScalarT**,AssemblyDevice> sol = assembler->cells[b][e]->param_avg;
+            auto host_sol = Kokkos::create_mirror_view(sol);
+            Kokkos::deep_copy(host_sol,sol);
             for (int p=0; p<assembler->cells[b][e]->numElem; p++) {
-              soln_x(eprog,0) = sol(p,n,0);
-              soln_y(eprog,0) = sol(p,n,1);
-              soln_z(eprog,0) = sol(p,n,2);
+              soln_x(eprog) = host_sol(p,n,0);
+              soln_y(eprog) = host_sol(p,n,1);
+              soln_z(eprog) = host_sol(p,n,2);
               eprog++;
             }
           }
@@ -1186,358 +1233,107 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
           mesh->setCellFieldData(var+"x", blockID, myElements, soln_x);
           mesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
           mesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
-        }
-        else if (vartypes[n] == "HFACE") { // need to project each component onto PW-linear basis and PW constant basis
-          
+           */
         }
       }
       
-      ////////////////////////////////////////////////////////////////
-      // Discretized Parameters
-      ////////////////////////////////////////////////////////////////
-      
-      vector<string> dpnames = params->discretized_param_names;
-      vector<int> numParamBasis = params->paramNumBasis;
-      if (dpnames.size() > 0) {
-        //vector_RCP P_soln = params->Psol[0];
-        //auto P_kv = P_soln->getLocalView<HostDevice>();
-        
-        for (size_t n=0; n<dpnames.size(); n++) {
-          Kokkos::View<ScalarT**,HostDevice> soln_computed;
-          if (numParamBasis[n]>1) {
-            soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numParamBasis[n]);
-          }
-          else {
-            soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
-          }
-          size_t eprog = 0;
-          for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-            int numElem = assembler->cells[b][e]->numElem;
-            //Kokkos::View<GO**,HostDevice> paramGIDs = cells[b][e]->paramGIDs;
-            Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->param;
-            for (int p=0; p<numElem; p++) {
-              //vector<vector<int> > paramoffsets = params->paramoffsets;
-              for( int i=0; i<numParamBasis[n]; i++ ) {
-                //int pindex = param_overlapped_map->getLocalElement(paramGIDs(p,paramoffsets[n][i]));
-                if (numParamBasis[n] == 1) {
-                  for( int j=0; j<numNodesPerElem; j++ ) {
-                    soln_computed(e,j) = sol(p,n,0);//P_kv(pindex,0);
-                  }
-                }
-                else {
-                  soln_computed(e,i) = sol(p,n,i);//P_kv(pindex,0);
-                }
-              }
-              eprog++;
-            }
-          }
-          mesh->setSolutionFieldData(dpnames[n], blockID, myElements, soln_computed);
-        }
-        /* // Maybe re-enable ... not ever used
-        bool have_dRdP = params->have_dRdP;
-        if (have_dRdP) {
-          vector_RCP P_soln = params->dRdP[0];
-          auto P_kv = P_soln->getLocalView<HostDevice>();
-          
-          for (size_t n=0; n<dpnames.size(); n++) {
-            Kokkos::View<ScalarT**,HostDevice> soln_computed;
-            if (numParamBasis[n]>1) {
-              soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numParamBasis[n]);
-            }
-            else {
-              soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
-            }
-            size_t eprog = 0;
-
-            for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-              int numElem = assembler->cells[b][e]->numElem;
-              //Kokkos::View<GO**,HostDevice> paramGIDs = assembler->cells[b][e]->paramGIDs;
-              for (int p=0; p<numElem; p++) {
-                //vector<vector<int> > paramoffsets = params->paramoffsets;
-                for( int i=0; i<numParamBasis[n]; i++ ) {
-                  //int pindex = param_overlapped_map->getLocalElement(paramGIDs(p,paramoffsets[n][i]));
-                  if (numParamBasis[n] == 1) {
-                    for( int j=0; j<numNodesPerElem; j++ ) {
-                      soln_computed(eprog,j) = P_kv(pindex,0);
-                    }
-                  }
-                  else {
-                    soln_computed(eprog,i) = P_kv(pindex,0);
-                  }
-                }
-                eprog++;
-              }
-            }
-            mesh->setSolutionFieldData(dpnames[n]+"_dRdP", blockID, myElements, soln_computed);
-          }
-         
-        }*/
-        
-      }
-      
-      ////////////////////////////////////////////////////////////////
-      // Mesh movement
-      ////////////////////////////////////////////////////////////////
-      
-      bool meshpert = false;
-      if (meshpert) {
-        Kokkos::View<ScalarT**,HostDevice> dispx("dispx",myElements.size(), numNodesPerElem);
-        Kokkos::View<ScalarT**,HostDevice> dispy("dispy",myElements.size(), numNodesPerElem);
-        Kokkos::View<ScalarT**,HostDevice> dispz("dispz",myElements.size(), numNodesPerElem);
-        /* // TMW: commented out for now.  Need a better way to store this data
-        size_t eprog = 0;
-        for( size_t e=0; e<cells[b].size(); e++ ) {
-          DRV nodePert = cells[b][e]->nodepert;
-          for (int p=0; p<cells[b][e]->numElem; p++) {
-            for( int j=0; j<numNodesPerElem; j++ ) {
-              dispx(eprog,j) = nodePert(p,j,0);
-              if (spaceDim > 1)
-                dispy(eprog,j) = nodePert(p,j,1);
-              if (spaceDim > 2)
-                dispz(eprog,j) = nodePert(p,j,2);
-            }
-            eprog++;
-          }
-        }*/
-        mesh->setSolutionFieldData("dispx", blockID, myElements, dispx);
-        mesh->setSolutionFieldData("dispy", blockID, myElements, dispy);
-        mesh->setSolutionFieldData("dispz", blockID, myElements, dispz);
-      }
-      
-      ////////////////////////////////////////////////////////////////
-      // Plot response
-      ////////////////////////////////////////////////////////////////
-      
-      /* // TMW: bring back later
-      if (plot_response) {
-        vector_RCP P_soln = params->Psol[0];
-        vector<string> responsefieldnames = phys->getResponseFieldNames(b);
-        vector<Kokkos::View<ScalarT**,HostDevice> > responsefields;
-        for (size_t j=0; j<responsefieldnames.size(); j++) {
-          Kokkos::View<ScalarT**,HostDevice> rfdata("response data",myElements.size(), numNodesPerElem);
-          responsefields.push_back(rfdata);
-        }
-        Kokkos::View<AD***,AssemblyDevice> rfields; // response for each cell
-        size_t eprog = 0;
-        for (size_t k=0; k<cells[b].size(); k++) {
-          DRV nodes = cells[b][k]->nodes;
-          rfields = cells[b][k]->computeResponseAtNodes(nodes, m, solvetimes[m]);
-          for (int p=0; p<cells[b][k]->numElem; p++) {
-            for (size_t j=0; j<responsefieldnames.size(); j++) {
-              for (size_t i=0; i<nodes.extent(1); i++) {
-                responsefields[j](eprog,i) = rfields(p,j,i).val();
-              }
-            }
-            eprog++;
-          }
-        }
-        for (size_t j=0; j<responsefieldnames.size(); j++) {
-          mesh->setSolutionFieldData(responsefieldnames[j], blockID, myElements, responsefields[j]);
-        }
-      }
-      */
-      
-      ////////////////////////////////////////////////////////////////
-      // Extra nodal fields
-      ////////////////////////////////////////////////////////////////
-      
-      /* // TMW: bring back later
-      vector<string> extrafieldnames = phys->getExtraFieldNames(b);
-      vector<Kokkos::View<ScalarT**,HostDevice> > extrafields;
-      for (size_t j=0; j<extrafieldnames.size(); j++) {
-        Kokkos::View<ScalarT**,HostDevice> efdata("field data",myElements.size(), numNodesPerElem);
-        extrafields.push_back(efdata);
-      }
-      
-      Kokkos::View<ScalarT***,AssemblyDevice> cfields;
-      size_t eprog = 0;
-      for (size_t k=0; k<cells[b].size(); k++) {
-        DRV nodes = cells[b][k]->nodes;
-        cfields = phys->getExtraFields(b, nodes, solvetimes[m], assembler->wkset[b]);
-        for (int p=0; p<cells[b][k]->numElem; p++) {
-          size_t j = 0;
-          for (size_t h=0; h<cfields.extent(1); h++) {
-            for (size_t i=0; i<cfields.extent(2); i++) {
-              extrafields[j](eprog,i) = cfields(p,h,i);
-            }
-            ++j;
-          }
-          eprog++;
-        }
-      }
-      
-      for (size_t j=0; j<extrafieldnames.size(); j++) {
-        mesh->setSolutionFieldData(extrafieldnames[j], blockID, myElements, extrafields[j]);
-      }
-      */
-      
-      ////////////////////////////////////////////////////////////////
-      // Extra cell fields
-      ////////////////////////////////////////////////////////////////
-      
-      /*// TMW: bring back later
-      vector<string> extracellfieldnames = phys->getExtraCellFieldNames(b);
-      
-      vector<Kokkos::View<ScalarT**,HostDevice> > extracellfields;
-      for (size_t j=0; j<extracellfieldnames.size(); j++) {
-        Kokkos::View<ScalarT**,HostDevice> efdata("cell data",myElements.size(), 1);
-        extracellfields.push_back(efdata);
-      }
-      eprog = 0;
-      for (size_t k=0; k<cells[b].size(); k++) {
-        DRV nodes = cells[b][k]->nodes;
-        Kokkos::View<ScalarT***,HostDevice> center("center",nodes.extent(0),1,spaceDim);
-        int numnodes = nodes.extent(1);
-        for (int p=0; p<cells[b][k]->numElem; p++) {
-          for (int i=0; i<numnodes; i++) {
-            for (int d=0; d<spaceDim; d++) {
-              center(p,0,d) += nodes(p,i,d) / numnodes;
-            }
-          }
-        }
-        cells[b][k]->updateSolnWorkset(u,0); // also updates ip, ijac
-        cells[b][k]->updateData();
-        assembler->wkset[b]->time = solvetimes[m];
-        Kokkos::View<ScalarT***,AssemblyDevice> cfields = phys->getExtraCellFields(b, cells[b][k]->numElem);
-        for (int p=0; p<cells[b][k]->numElem; p++) {
-          size_t j = 0;
-          for (size_t h=0; h<cfields.extent(1); h++) {
-            extracellfields[j](eprog,0) = cfields(p,h,0);
-            ++j;
-          }
-          eprog++;
-        }
-      }
-      for (size_t j=0; j<extracellfieldnames.size(); j++) {
-        mesh->setCellFieldData(extracellfieldnames[j], blockID, myElements, extracellfields[j]);
-      }
-      */
-      
-      if (assembler->cells[b][0]->cellData->have_cell_phi || assembler->cells[b][0]->cellData->have_cell_rotation || assembler->cells[b][0]->cellData->have_extra_data) {
-        
-        Kokkos::View<ScalarT**,HostDevice> cdata("cell data",myElements.size(), 1);
-        Kokkos::View<ScalarT**,HostDevice> cseed("cell data seed",myElements.size(), 1);
-        int eprog = 0;
-        for (size_t k=0; k<assembler->cells[b].size(); k++) {
-          vector<size_t> cell_data_seed = assembler->cells[b][k]->cell_data_seed;
-          vector<size_t> cell_data_seedindex = assembler->cells[b][k]->cell_data_seedindex;
-          Kokkos::View<ScalarT**,AssemblyDevice> cell_data = assembler->cells[b][k]->cell_data;
-          // TMW: will need to create mirror view to re-enable this
-          for (int p=0; p<assembler->cells[b][k]->numElem; p++) {
-       
-            if (cell_data.extent(1) == 1) {
-              cdata(eprog,0) = cell_data(p,0);//cell_data_seed[p];
-            }
-            //else if (cell_data.extent(1) == 9) {
-            //  cdata(eprog,0) = cell_data(p,0);//cell_data(p,4)*cell_data(p,8);//cell_data_seed[p];
-            //}
-       
-            cseed(eprog,0) = cell_data_seedindex[p];
-            eprog++;
-          }
-        }
-        mesh->setCellFieldData("mesh_data_seed", blockID, myElements, cseed);
-        mesh->setCellFieldData("mesh_data", blockID, myElements, cdata);
-      }
-      
-      
-      /*
-      if (have_subgrids) {
-        Kokkos::View<ScalarT**,HostDevice> cdata("cell data",myElements.size(), 1);
-        int eprog = 0;
-        for (size_t k=0; k<cells[b].size(); k++) {
-          vector<vector<size_t> > subgrid_model_index = cells[b][k]->subgrid_model_index;
-
-          for (int p=0; p<cells[b][k]->numElem; p++) {
-            cdata(eprog,0) = subgrid_model_index[p][m];
-            eprog++;
-          }
-        }
-        mesh->setCellFieldData("subgrid model", blockID, myElements, cdata);
-      }
-       */
-      /*
-      if (have_subgrids) {
-        Kokkos::View<ScalarT**,HostDevice> subgrid_mean_fields = solve->multiscale_manager->getMeanCellFields(b, m,
-                                                                                                             solvetimes[m],
-                                                                                                             extracellfieldnames.size());
-        Kokkos::View<ScalarT**,HostDevice> csf("csf",myElements.size(),1);
-        int eprog = 0;
-        for (size_t j=0; j<extracellfieldnames.size(); j++) {
-          for (size_t e=0; e<cells[b].size(); e++) {
-            for (int p=0; p<cells[b][e]->numElem; p++) {
-              csf(eprog,0) = subgrid_mean_fields(e,j);
-              eprog++;
-            }
-          }
-          string sgfn = "subgrid_mean_" + extracellfieldnames[j];
-          mesh->setCellFieldData(sgfn, blockID, myElements, csf);
-        }
-       
-      }
-       */
-      
-      
-      if(isTD) {
-        mesh->writeToExodus(currenttime);
-      }
-      else {
-        mesh->writeToExodus(exodus_filename);
-      }
-    //}
-  }
-  
-  /* // TMW: bring back later
-  if (save_height_file) {
-    ofstream hOUT("meshpert.dat");
-    hOUT.precision(10);
-    //int numsteps = E_soln->getNumVectors();
-    ScalarT finalt = 0.0;
-    bool fnd = solve->soln->extractLast(u,0,finalt);
-    auto u_kv = u->getLocalView<HostDevice>();
-    for (size_t b=0; b<numBlocks; b++) {
-      std::string blockID = blocknames[b];
-      vector<vector<int> > curroffsets = phys->offsets[b];
-      vector<size_t> myElements = disc->myElements[b];
-      for (int n = 0; n<numVars[b]; n++) {
-        for( size_t e=0; e<cells[b].size(); e++ ) {
-          DRV nodes = cells[b][e]->nodes;
-          Kokkos::View<GO**,HostDevice> GIDs = cells[b][e]->GIDs;
-          for (int p=0; p<cells[b][e]->numElem; p++) {
-            for( int i=0; i<numBasis[b][n]; i++ ) {
-              int pindex = overlapped_map->getLocalElement(GIDs(p,curroffsets[n][i]));
-              ScalarT soln = u_kv(pindex,0);
-              hOUT << nodes(p,i,0) << "  " << nodes(p,i,1) << "  " << soln << endl;
-            }
-          }
-        }
-      }
     }
-    hOUT.close();
-  }*/
-  
-  // TMW: bring back later
-  //multiscale_manager->writeSolution(filelabel, solvetimes, Comm->getRank());
-  
-  //for (size_t b=0; b<cells.size(); b++) {
-  //  for (size_t e=0; e<cells[b].size(); e++) {
-  //    stringstream ss;
-  //    ss << Comm->getRank() << "." << e;
-  //    string blockname = "subgrid_data/subgrid.exo." + ss.str();// + ".exo";
-  //    cells[b][e]->writeSubgridSolution(blockname);
-  //  }
-  //}
-  
-  // Reset
-  for (size_t b=0; b<assembler->wkset.size(); b++) {
-    assembler->wkset[b]->isTransient = isTransient;
+    
+    ////////////////////////////////////////////////////////////////
+    // Extra nodal fields
+    ////////////////////////////////////////////////////////////////
+    
+    vector<string> extrafieldnames = phys->getExtraFieldNames(b);
+    for (size_t j=0; j<extrafieldnames.size(); j++) {
+      Kokkos::View<ScalarT**,HostDevice> efdata("field data",myElements.size(), numNodesPerElem);
+      size_t eprog = 0;
+      for (size_t k=0; k<assembler->cells[b].size(); k++) {
+        DRV nodes = assembler->cells[b][k]->nodes;
+        Kokkos::View<ScalarT**,AssemblyDevice> cfields = phys->getExtraFields(b, 0, nodes, currenttime, assembler->wkset[b]);
+        auto host_cfields = Kokkos::create_mirror_view(cfields);
+        Kokkos::deep_copy(host_cfields,cfields);
+        for (int p=0; p<assembler->cells[b][k]->numElem; p++) {
+          for (size_t i=0; i<host_cfields.extent(2); i++) {
+            efdata(eprog,i) = host_cfields(p,i);
+          }
+          eprog++;
+        }
+      }
+      mesh->setSolutionFieldData(extrafieldnames[j], blockID, myElements, efdata);
+    }
+    
+    ////////////////////////////////////////////////////////////////
+    // Extra cell fields
+    ////////////////////////////////////////////////////////////////
+    
+    vector<string> extracellfieldnames = phys->getExtraCellFieldNames(b);
+    
+    for (size_t j=0; j<extracellfieldnames.size(); j++) {
+      Kokkos::View<ScalarT*,HostDevice> efdata("cell data",myElements.size());
+      
+      int eprog = 0;
+      for (size_t k=0; k<assembler->cells[b].size(); k++) {
+        
+        assembler->cells[b][k]->updateData();
+        assembler->cells[b][k]->updateWorksetBasis();
+        assembler->wkset[b]->time = currenttime;
+        assembler->wkset[b]->computeSolnSteadySeeded(assembler->cells[b][k]->u, 0);
+        assembler->wkset[b]->computeSolnVolIP();
+        assembler->wkset[b]->computeParamVolIP(assembler->cells[b][k]->param, 0);
+        
+        Kokkos::View<ScalarT*,AssemblyDevice> cfields = phys->getExtraCellFields(b, j,
+                                                                                 assembler->cells[b][k]->wts);
+        
+        auto host_cfields = Kokkos::create_mirror_view(cfields);
+        Kokkos::deep_copy(host_cfields, cfields);
+        for (int p=0; p<host_cfields.extent(0); p++) {
+          efdata(eprog) = host_cfields(p);
+          eprog++;
+        }
+      }
+      mesh->setCellFieldData(extracellfieldnames[j], blockID, myElements, efdata);
+    }
+    
+    ////////////////////////////////////////////////////////////////
+    // Mesh data
+    ////////////////////////////////////////////////////////////////
+    
+    if (assembler->cells[b][0]->cellData->have_cell_phi || assembler->cells[b][0]->cellData->have_cell_rotation || assembler->cells[b][0]->cellData->have_extra_data) {
+      
+      Kokkos::View<ScalarT*,HostDevice> cdata("cell data",myElements.size());
+      Kokkos::View<ScalarT*,HostDevice> cseed("cell data seed",myElements.size());
+      int eprog = 0;
+      for (size_t k=0; k<assembler->cells[b].size(); k++) {
+        vector<size_t> cell_data_seed = assembler->cells[b][k]->cell_data_seed;
+        vector<size_t> cell_data_seedindex = assembler->cells[b][k]->cell_data_seedindex;
+        Kokkos::View<ScalarT**,AssemblyDevice> cell_data = assembler->cells[b][k]->cell_data;
+        // TMW: will need to create mirror view to re-enable this
+        for (int p=0; p<assembler->cells[b][k]->numElem; p++) {
+          
+          if (cell_data.extent(1) == 1) {
+            cdata(eprog) = cell_data(p,0);//cell_data_seed[p];
+          }
+          //else if (cell_data.extent(1) == 9) {
+          //  cdata(eprog,0) = cell_data(p,0);//cell_data(p,4)*cell_data(p,8);//cell_data_seed[p];
+          //}
+          
+          cseed(eprog) = cell_data_seedindex[p];
+          eprog++;
+        }
+      }
+      mesh->setCellFieldData("mesh_data_seed", blockID, myElements, cseed);
+      mesh->setCellFieldData("mesh_data", blockID, myElements, cdata);
+    }
+    
+    if (isTD) {
+      mesh->writeToExodus(currenttime);
+    }
+    else {
+      mesh->writeToExodus(exodus_filename);
+    }
+    
   }
   
-  //if(Comm->getRank() == 0) {
-  //  cout << endl << "*********************************************************" << endl;
-  //  cout << "***** Finished Writing the solution to " << filename << endl;
-  //  cout << "*********************************************************" << endl;
-  //}
 }
 
 
@@ -1559,111 +1355,111 @@ ScalarT PostprocessManager::makeSomeNoise(ScalarT stdev) {
 
 vector<ScalarT> PostprocessManager::computeParameterSensitivities() {
   /*
-  if(Comm->getRank() == 0 && verbosity>0) {
-    cout << endl << "*********************************************************" << endl;
-    cout << "***** Computing Sensitivities ******" << endl << endl;
-  }
-  
-  vector_RCP u = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
-  vector_RCP phi = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
-  vector_RCP a2 = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,1)); // adjoint solution
-  vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // previous solution (can be either fwd or adj)
-  
-  //auto u_kv = u->getLocalView<HostDevice>();
-  auto a2_kv = a2->getLocalView<HostDevice>();
-  //auto u_dot_kv = u_dot->getLocalView<HostDevice>();
-  
-  ScalarT alpha = 0.0;
-  ScalarT beta = 1.0;
-  
-  vector<ScalarT> gradient(params->num_active_params);
-  
-  params->sacadoizeParams(true);
-  
-  vector<ScalarT> localsens(params->num_active_params);
-  int nsteps = 1;
-  if (solve->isTransient) {
-    nsteps = solve->soln->times[0].size()-1;
-  }
-  double current_time = 0.0;
-  
-  for (int timeiter = 0; timeiter<nsteps; timeiter++) {
-    if (solve->isTransient) {
-      current_time = solve->soln->times[0][timeiter+1];
-      bool fnd = solve->soln->extract(u,timeiter+1);
-      bool fndadj = solve->adj_soln->extract(phi,nsteps-timeiter);
-      auto phi_kv = phi->getLocalView<HostDevice>();
-      
-      //for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
-      //  u_dot_kv(i,0) = alpha*(GF_kv(i,timeiter+1) - GF_kv(i,timeiter));
-      //  u_kv(i,0) = GF_kv(i,timeiter+1);
-      //}
-      for( LO i=0; i<solve->LA_owned.size(); i++ ) {
-        a2_kv(i,0) = phi_kv(i,0);
-      }
-    }
-    else {
-      current_time = solve->soln->times[0][timeiter];
-      bool fnd = solve->soln->extract(u,0);
-      bool fndadj = solve->adj_soln->extract(phi,0);
-      auto phi_kv = phi->getLocalView<HostDevice>();
-      
-      //for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
-      //  u_kv(i,0) = GF_kv(i,timeiter);
-      //}
-      for( LO i=0; i<solve->LA_owned.size(); i++ ) {
-        a2_kv(i,0) = phi_kv(i,0);
-      }
-    }
-    
-    
-    vector_RCP res = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,params->num_active_params)); // reset residual
-    matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(solve->LA_owned_map); // reset Jacobian
-    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,params->num_active_params)); // reset residual
-    matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(solve->LA_overlapped_map); // reset Jacobian
-    res_over->putScalar(0.0);
-    
-    //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, false, true, false, res_over, J_over);
-    assembler->assembleJacRes(u, u, false, true, false,
-                              res_over, J_over, solve->isTransient, current_time, false, false,
-                              params->num_active_params, params->Psol[0], false, solve->deltat);
-    
-    res->putScalar(0.0);
-    res->doExport(*res_over, *(solve->exporter), Tpetra::ADD);
-    
-    auto res_kv = res->getLocalView<HostDevice>();
-    
-    for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
-      ScalarT currsens = 0.0;
-      for( LO i=0; i<solve->LA_owned.size(); i++ ) {
-        currsens += a2_kv(i,0) * res_kv(i,paramiter);
-      }
-      localsens[paramiter] -= currsens;
-    }
-  }
-  
-  ScalarT localval = 0.0;
-  ScalarT globalval = 0.0;
-  for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
-    localval = localsens[paramiter];
-    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
-    //Comm->SumAll(&localval, &globalval, 1);
-    gradient[paramiter] = globalval;
-  }
-  
-  if(Comm->getRank() == 0 && solve->batchID == 0) {
-    stringstream ss;
-    std::string sname2 = "sens.dat";
-    ofstream sensOUT(sname2.c_str());
-    sensOUT.precision(16);
-    for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
-      sensOUT << gradient[paramiter] << "  ";
-    }
-    sensOUT << endl;
-    sensOUT.close();
-  }
-  
-  return gradient;
+   if(Comm->getRank() == 0 && verbosity>0) {
+   cout << endl << "*********************************************************" << endl;
+   cout << "***** Computing Sensitivities ******" << endl << endl;
+   }
+   
+   vector_RCP u = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
+   vector_RCP phi = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
+   vector_RCP a2 = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,1)); // adjoint solution
+   vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // previous solution (can be either fwd or adj)
+   
+   //auto u_kv = u->getLocalView<HostDevice>();
+   auto a2_kv = a2->getLocalView<HostDevice>();
+   //auto u_dot_kv = u_dot->getLocalView<HostDevice>();
+   
+   ScalarT alpha = 0.0;
+   ScalarT beta = 1.0;
+   
+   vector<ScalarT> gradient(params->num_active_params);
+   
+   params->sacadoizeParams(true);
+   
+   vector<ScalarT> localsens(params->num_active_params);
+   int nsteps = 1;
+   if (solve->isTransient) {
+   nsteps = solve->soln->times[0].size()-1;
+   }
+   double current_time = 0.0;
+   
+   for (int timeiter = 0; timeiter<nsteps; timeiter++) {
+   if (solve->isTransient) {
+   current_time = solve->soln->times[0][timeiter+1];
+   bool fnd = solve->soln->extract(u,timeiter+1);
+   bool fndadj = solve->adj_soln->extract(phi,nsteps-timeiter);
+   auto phi_kv = phi->getLocalView<HostDevice>();
+   
+   //for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
+   //  u_dot_kv(i,0) = alpha*(GF_kv(i,timeiter+1) - GF_kv(i,timeiter));
+   //  u_kv(i,0) = GF_kv(i,timeiter+1);
+   //}
+   for( LO i=0; i<solve->LA_owned.size(); i++ ) {
+   a2_kv(i,0) = phi_kv(i,0);
+   }
+   }
+   else {
+   current_time = solve->soln->times[0][timeiter];
+   bool fnd = solve->soln->extract(u,0);
+   bool fndadj = solve->adj_soln->extract(phi,0);
+   auto phi_kv = phi->getLocalView<HostDevice>();
+   
+   //for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
+   //  u_kv(i,0) = GF_kv(i,timeiter);
+   //}
+   for( LO i=0; i<solve->LA_owned.size(); i++ ) {
+   a2_kv(i,0) = phi_kv(i,0);
+   }
+   }
+   
+   
+   vector_RCP res = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,params->num_active_params)); // reset residual
+   matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(solve->LA_owned_map); // reset Jacobian
+   vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,params->num_active_params)); // reset residual
+   matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(solve->LA_overlapped_map); // reset Jacobian
+   res_over->putScalar(0.0);
+   
+   //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, false, true, false, res_over, J_over);
+   assembler->assembleJacRes(u, u, false, true, false,
+   res_over, J_over, solve->isTransient, current_time, false, false,
+   params->num_active_params, params->Psol[0], false, solve->deltat);
+   
+   res->putScalar(0.0);
+   res->doExport(*res_over, *(solve->exporter), Tpetra::ADD);
+   
+   auto res_kv = res->getLocalView<HostDevice>();
+   
+   for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
+   ScalarT currsens = 0.0;
+   for( LO i=0; i<solve->LA_owned.size(); i++ ) {
+   currsens += a2_kv(i,0) * res_kv(i,paramiter);
+   }
+   localsens[paramiter] -= currsens;
+   }
+   }
+   
+   ScalarT localval = 0.0;
+   ScalarT globalval = 0.0;
+   for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
+   localval = localsens[paramiter];
+   Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
+   //Comm->SumAll(&localval, &globalval, 1);
+   gradient[paramiter] = globalval;
+   }
+   
+   if(Comm->getRank() == 0 && solve->batchID == 0) {
+   stringstream ss;
+   std::string sname2 = "sens.dat";
+   ofstream sensOUT(sname2.c_str());
+   sensOUT.precision(16);
+   for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
+   sensOUT << gradient[paramiter] << "  ";
+   }
+   sensOUT << endl;
+   sensOUT.close();
+   }
+   
+   return gradient;
    */
 }
 
@@ -1675,115 +1471,115 @@ vector<ScalarT> PostprocessManager::computeParameterSensitivities() {
 vector<ScalarT> PostprocessManager::computeDiscretizedSensitivities() {
   
   /*
-  if(Comm->getRank() == 0 && verbosity>0) {
-    cout << endl << "*********************************************************" << endl;
-    cout << "***** Computing Discretized Sensitivities ******" << endl << endl;
-  }
-  //auto F_kv = F_soln->getLocalView<HostDevice>();
-  //auto A_kv = A_soln->getLocalView<HostDevice>();
-  
-  vector_RCP u = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
-  vector_RCP phi = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
-  vector_RCP a2 = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,1)); // adjoint solution
-  
-  //auto u_kv = u->getLocalView<HostDevice>();
-  auto a2_kv = a2->getLocalView<HostDevice>();
-  //auto u_dot_kv = u_dot->getLocalView<HostDevice>();
-  
-  ScalarT alpha = 0.0;
-  ScalarT beta = 1.0;
-  
-  params->sacadoizeParams(false);
-  
-  int nsteps = 1;
-  if (solve->isTransient) {
-    nsteps = solve->soln->times[0].size()-1;
-  }
-  
-  vector_RCP totalsens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1));
-  auto tsens_kv = totalsens->getLocalView<HostDevice>();
-  
-  double current_time =0.0;
-  
-  for (int timeiter = 0; timeiter<nsteps; timeiter++) {
-    
-    if (solve->isTransient) {
-      current_time = solve->soln->times[0][timeiter+1];
-      bool fnd = solve->soln->extract(u,timeiter+1);
-      bool fndadj = solve->adj_soln->extract(phi,nsteps-timeiter);
-      auto phi_kv = phi->getLocalView<HostDevice>();
-      
-      //for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
-      //  u_dot_kv(i,0) = alpha*(F_kv(i,timeiter+1) - F_kv(i,timeiter));
-      //  u_kv(i,0) = F_kv(i,timeiter+1);
-      //}
-      for( LO i=0; i<solve->LA_owned.size(); i++ ) {
-        a2_kv(i,0) = phi_kv(i,0);
-      }
-    }
-    else {
-      current_time = solve->soln->times[0][timeiter];
-      bool fnd = solve->soln->extract(u,0);
-      bool fndadj = solve->adj_soln->extract(phi,0);
-      auto phi_kv = phi->getLocalView<HostDevice>();
-      
-      //for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
-      //  u_kv(i,0) = F_kv(i,timeiter);
-      //}
-      for( LO i=0; i<solve->LA_owned.size(); i++ ) {
-        a2_kv(i,0) = phi_kv(i,0);
-      }
-    }
+   if(Comm->getRank() == 0 && verbosity>0) {
+   cout << endl << "*********************************************************" << endl;
+   cout << "***** Computing Discretized Sensitivities ******" << endl << endl;
+   }
+   //auto F_kv = F_soln->getLocalView<HostDevice>();
+   //auto A_kv = A_soln->getLocalView<HostDevice>();
    
-    // current_time = solvetimes[timeiter+1];
-    // for( size_t i=0; i<ownedAndShared.size(); i++ ) {
-    // u[0][i] = F_soln[timeiter+1][i];
-    // u_dot[0][i] = alpha*(F_soln[timeiter+1][i] - F_soln[timeiter][i]);
-    // }
-    // for( size_t i=0; i<owned.size(); i++ ) {
-    // a2[0][i] = A_soln[nsteps-timeiter][i];
-    // }
-    //
-    
-    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // reset residual
-    matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(params->param_overlapped_map); // reset Jacobian
-    matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(params->param_owned_map); // reset Jacobian
-    //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, true, false, true, res_over, J_over);
-    assembler->assembleJacRes(u, u, true, false, true,
-                              res_over, J_over, solve->isTransient, current_time, false, false,
-                              params->num_active_params, params->Psol[0], false, solve->deltat);
-    
-    J_over->fillComplete(solve->LA_owned_map, params->param_owned_map);
-    vector_RCP sens_over = Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1)); // reset residual
-    vector_RCP sens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1)); // reset residual
-    
-    J->setAllToScalar(0.0);
-    J->doExport(*J_over, *(params->param_exporter), Tpetra::ADD);
-    J->fillComplete(solve->LA_owned_map, params->param_owned_map);
-    
-    J->apply(*a2,*sens);
-    
-    totalsens->update(1.0, *sens, 1.0);
-  }
-  
-  params->dRdP.push_back(totalsens);
-  params->have_dRdP = true;
-  
-  int numParams = params->getNumParams(4);
-  vector<ScalarT> discLocalGradient(numParams);
-  vector<ScalarT> discGradient(numParams);
-  for (size_t i = 0; i < params->paramOwned.size(); i++) {
-    GO gid = params->paramOwned[i];
-    discLocalGradient[gid] = tsens_kv(i,0);
-  }
-  for (size_t i = 0; i < numParams; i++) {
-    ScalarT globalval = 0.0;
-    ScalarT localval = discLocalGradient[i];
-    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
-    //Comm->SumAll(&localval, &globalval, 1);
-    discGradient[i] = globalval;
-  }
-  return discGradient;
+   vector_RCP u = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
+   vector_RCP phi = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
+   vector_RCP a2 = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,1)); // adjoint solution
+   
+   //auto u_kv = u->getLocalView<HostDevice>();
+   auto a2_kv = a2->getLocalView<HostDevice>();
+   //auto u_dot_kv = u_dot->getLocalView<HostDevice>();
+   
+   ScalarT alpha = 0.0;
+   ScalarT beta = 1.0;
+   
+   params->sacadoizeParams(false);
+   
+   int nsteps = 1;
+   if (solve->isTransient) {
+   nsteps = solve->soln->times[0].size()-1;
+   }
+   
+   vector_RCP totalsens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1));
+   auto tsens_kv = totalsens->getLocalView<HostDevice>();
+   
+   double current_time =0.0;
+   
+   for (int timeiter = 0; timeiter<nsteps; timeiter++) {
+   
+   if (solve->isTransient) {
+   current_time = solve->soln->times[0][timeiter+1];
+   bool fnd = solve->soln->extract(u,timeiter+1);
+   bool fndadj = solve->adj_soln->extract(phi,nsteps-timeiter);
+   auto phi_kv = phi->getLocalView<HostDevice>();
+   
+   //for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
+   //  u_dot_kv(i,0) = alpha*(F_kv(i,timeiter+1) - F_kv(i,timeiter));
+   //  u_kv(i,0) = F_kv(i,timeiter+1);
+   //}
+   for( LO i=0; i<solve->LA_owned.size(); i++ ) {
+   a2_kv(i,0) = phi_kv(i,0);
+   }
+   }
+   else {
+   current_time = solve->soln->times[0][timeiter];
+   bool fnd = solve->soln->extract(u,0);
+   bool fndadj = solve->adj_soln->extract(phi,0);
+   auto phi_kv = phi->getLocalView<HostDevice>();
+   
+   //for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
+   //  u_kv(i,0) = F_kv(i,timeiter);
+   //}
+   for( LO i=0; i<solve->LA_owned.size(); i++ ) {
+   a2_kv(i,0) = phi_kv(i,0);
+   }
+   }
+   
+   // current_time = solvetimes[timeiter+1];
+   // for( size_t i=0; i<ownedAndShared.size(); i++ ) {
+   // u[0][i] = F_soln[timeiter+1][i];
+   // u_dot[0][i] = alpha*(F_soln[timeiter+1][i] - F_soln[timeiter][i]);
+   // }
+   // for( size_t i=0; i<owned.size(); i++ ) {
+   // a2[0][i] = A_soln[nsteps-timeiter][i];
+   // }
+   //
+   
+   vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // reset residual
+   matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(params->param_overlapped_map); // reset Jacobian
+   matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(params->param_owned_map); // reset Jacobian
+   //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, true, false, true, res_over, J_over);
+   assembler->assembleJacRes(u, u, true, false, true,
+   res_over, J_over, solve->isTransient, current_time, false, false,
+   params->num_active_params, params->Psol[0], false, solve->deltat);
+   
+   J_over->fillComplete(solve->LA_owned_map, params->param_owned_map);
+   vector_RCP sens_over = Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1)); // reset residual
+   vector_RCP sens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1)); // reset residual
+   
+   J->setAllToScalar(0.0);
+   J->doExport(*J_over, *(params->param_exporter), Tpetra::ADD);
+   J->fillComplete(solve->LA_owned_map, params->param_owned_map);
+   
+   J->apply(*a2,*sens);
+   
+   totalsens->update(1.0, *sens, 1.0);
+   }
+   
+   params->dRdP.push_back(totalsens);
+   params->have_dRdP = true;
+   
+   int numParams = params->getNumParams(4);
+   vector<ScalarT> discLocalGradient(numParams);
+   vector<ScalarT> discGradient(numParams);
+   for (size_t i = 0; i < params->paramOwned.size(); i++) {
+   GO gid = params->paramOwned[i];
+   discLocalGradient[gid] = tsens_kv(i,0);
+   }
+   for (size_t i = 0; i < numParams; i++) {
+   ScalarT globalval = 0.0;
+   ScalarT localval = discLocalGradient[i];
+   Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
+   //Comm->SumAll(&localval, &globalval, 1);
+   discGradient[i] = globalval;
+   }
+   return discGradient;
    */
 }
 

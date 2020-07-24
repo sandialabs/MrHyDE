@@ -1014,20 +1014,23 @@ vector<Kokkos::View<ScalarT***,AssemblyDevice> > physics::getExtraFields(const i
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT***,AssemblyDevice> physics::getExtraFields(const int & block, const DRV & ip,
-                                                               const ScalarT & time, Teuchos::RCP<workset> & wkset) {
+Kokkos::View<ScalarT**,AssemblyDevice> physics::getExtraFields(const int & block,
+                                                                const int & fnum,
+                                                                const DRV & ip,
+                                                                const ScalarT & time,
+                                                                Teuchos::RCP<workset> & wkset) {
   
-  Kokkos::View<ScalarT***,AssemblyDevice> fields("field data",ip.extent(0),extrafields_list[block].size(),ip.extent(1));
+  Kokkos::View<ScalarT**,AssemblyDevice> fields("field data",ip.extent(0),ip.extent(1));
   
-  for (size_t k=0; k<extrafields_list[block].size(); k++) {
-    for (size_t e=0; e<ip.extent(0); e++) {
-      for (size_t j=0; j<ip.extent(1); j++) {
-        for (size_t s=0; s<spaceDim; s++) {
-          wkset->point_KV(0,0,s) = ip(e,j,s);
-        }
-        FDATA efdata = functionManagers[block]->evaluate(extrafields_list[block][k],"point");
-        fields(e,k,j) = efdata(0,0).val();
+  for (size_t e=0; e<ip.extent(0); e++) {
+    for (size_t j=0; j<ip.extent(1); j++) {
+      for (size_t s=0; s<spaceDim; s++) {
+        wkset->point_KV(0,0,s) = ip(e,j,s);
       }
+      FDATA efdata = functionManagers[block]->evaluate(extrafields_list[block][fnum],"point");
+      parallel_for("physics get extra fields",RangePolicy<AssemblyExec>(0,1), KOKKOS_LAMBDA (const int elem ) {
+        fields(e,j) = efdata(0,0).val();
+      });
     }
   }
   return fields;
@@ -1036,33 +1039,40 @@ Kokkos::View<ScalarT***,AssemblyDevice> physics::getExtraFields(const int & bloc
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT***,AssemblyDevice> physics::getExtraCellFields(const int & block,
-                                                                   const size_t & numElem) {
-  Kokkos::View<ScalarT***,AssemblyDevice> fields("cell field data",numElem,extracellfields_list[block].size(),1);
+Kokkos::View<ScalarT*,AssemblyDevice> physics::getExtraCellFields(const int & block,
+                                                                    const int & fnum,
+                                                                    DRV wts) {
   
-  for (size_t k=0; k<extracellfields_list[block].size(); k++) {
-    FDATA efdata = functionManagers[block]->evaluate(extracellfields_list[block][k],"ip");
-    size_t numip = efdata.extent(1);
-    for (size_t e=0; e<numElem; e++) {
-      for (size_t j=0; j<numip; j++) {
-        ScalarT val = efdata(e,k).val();
-        if (cellfield_reduction == "mean") { // default
-          fields(e,k,0) += val/(ScalarT)numip;
-        }
-        if (cellfield_reduction == "max") {
-          if (val>fields(e,k,0)) {
-            fields(e,k,0) = val;
-          }
-        }
-        if (cellfield_reduction == "min") {
-          if (val<fields(e,k,0)) {
-            fields(e,k,0) = val;
-          }
-        }
-        
-      }
+  int numElem = wts.extent(0);
+  Kokkos::View<ScalarT*,AssemblyDevice> fields("cell field data",numElem);
+  
+  FDATA efdata = functionManagers[block]->evaluate(extracellfields_list[block][fnum],"ip");
+  size_t numip = wts.extent(1);
+  
+  parallel_for("physics get extra cell fields",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    ScalarT cellmeas = 0.0;
+    for (size_t pt=0; pt<wts.extent(1); pt++) {
+      cellmeas += wts(e,pt);
     }
-  }
+    for (size_t j=0; j<wts.extent(1); j++) {
+      ScalarT val = efdata(e,j).val();
+      if (cellfield_reduction == "mean") { // default
+        fields(e) += val*wts(e,j)/cellmeas;
+      }
+      if (cellfield_reduction == "max") {
+        if (val>fields(e)) {
+          fields(e) = val;
+        }
+      }
+      if (cellfield_reduction == "min") {
+        if (val<fields(e)) {
+          fields(e) = val;
+        }
+      }
+      
+    }
+  });
+  
   return fields;
 }
 

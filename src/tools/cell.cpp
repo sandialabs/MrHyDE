@@ -381,6 +381,7 @@ void cell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasi
     }
   }
   param = Kokkos::View<ScalarT***,AssemblyDevice>("param",numElem,cellData->numParamDOF.extent(0),maxnbasis);
+  param_avg = Kokkos::View<ScalarT**,AssemblyDevice>("param",numElem,cellData->numParamDOF.extent(0));
   
 }
 
@@ -466,6 +467,23 @@ void cell::computeSolAvg() {
     }
   });
   
+  if (param_avg.extent(1) > 0) {
+    Kokkos::View<AD***,AssemblyDevice> psol = wkset->local_param;
+    
+    parallel_for("cell param avg",RangePolicy<AssemblyExec>(0,param_avg.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      ScalarT avgwt = 0.0;
+      for (int pt=0; pt<wts.extent(1); pt++) {
+        avgwt += wts(elem,pt);
+      }
+      for (int dof=0; dof<psol.extent(1); dof++) {
+        ScalarT solavg = 0.0;
+        for (int pt=0; pt<psol.extent(2); pt++) {
+          solavg += psol(elem,dof,pt).val()*wts(elem,pt);
+        }
+        param_avg(elem,dof) = solavg/avgwt;
+      }
+    });
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
