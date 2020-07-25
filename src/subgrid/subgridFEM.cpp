@@ -158,8 +158,6 @@ void SubGridFEM::setUpSubgridModels() {
     sub_mesh->mesh = mesh;
   }
   
-  cout << "subgrid 161" << endl;
-  
   /////////////////////////////////////////////////////////////////////////////////////
   // Define the sub-grid physics
   /////////////////////////////////////////////////////////////////////////////////////
@@ -1344,7 +1342,10 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
     bool fnd = soln->extract(u,usernum,soln->times[usernum][m],m);
     auto u_kv = u->getLocalView<HostDevice>();
     
-    vector<vector<int> > suboffsets = sub_physics->offsets[0];
+    //vector<vector<int> > suboffsets = sub_physics->offsets[0];
+    Kokkos::View<int**,AssemblyDevice> offsets = wkset[0]->offsets;
+    Kokkos::View<int*,AssemblyDevice> numDOF = sub_assembler->cellData[0]->numDOF;
+    
     // Collect the subgrid solution
     for (int n = 0; n<sub_physics->varlist[0].size(); n++) {
       if (vartypes[n] == "HGRAD") {
@@ -1359,7 +1360,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
           for (int p=0; p<numElem; p++) {
             
             for( int i=0; i<numNodesPerElem; i++ ) {
-              int pindex = LIDs(p,suboffsets[n][i]);
+              int pindex = LIDs(p,offsets(n,i));
               soln_computed(pprog,i) = u_kv(pindex,0);
             }
             pprog += 1;
@@ -1369,22 +1370,25 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
         submesh->setSolutionFieldData(var, blockID, myElements, soln_computed);
       }
       else if (vartypes[n] == "HVOL") {
+        
         Kokkos::View<ScalarT*,HostDevice> soln_computed("soln",myElements.size());
         string var = sub_physics->varlist[0][n];
         size_t pprog = 0;
-        
         for( size_t e=0; e<cells[0].size(); e++ ) {
           int numElem = cells[0][e]->numElem;
           LIDView LIDs = cells[0][e]->LIDs;
           for (int p=0; p<numElem; p++) {
-            LO pindex = LIDs(p,suboffsets[n][0]);
+            LO pindex = LIDs(p,offsets(n,0));
             soln_computed(pprog) = u_kv(pindex,0);
             pprog += 1;
           }
         }
+        
         submesh->setCellFieldData(var, blockID, myElements, soln_computed);
+        
       }
       else if (vartypes[n] == "HDIV" || vartypes[n] == "HCURL") {
+        
         Kokkos::View<ScalarT*,HostDevice> soln_x("soln",myElements.size());
         Kokkos::View<ScalarT*,HostDevice> soln_y("soln",myElements.size());
         Kokkos::View<ScalarT*,HostDevice> soln_z("soln",myElements.size());
@@ -1405,7 +1409,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
             ScalarT avgyval = 0.0;
             ScalarT avgzval = 0.0;
             ScalarT avgwt = 0.0;
-            for (int j=0; j<suboffsets[n].size(); j++) {
+            for (int j=0; j<numDOF(n); j++) {
               ScalarT xval = wkset[0]->local_soln(p,n,j,0).val();
               avgxval += xval*wkset[0]->wts(p,j);
               if (dimension > 1) {
@@ -1427,6 +1431,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
         submesh->setCellFieldData(var+"x", blockID, myElements, soln_x);
         submesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
         submesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
+        
       }
     }
     

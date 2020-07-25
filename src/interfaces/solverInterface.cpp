@@ -98,6 +98,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembl
   useDomDecomp = settings->sublist("Solver").get<bool>("use dom decomp",false);
   useDirect = settings->sublist("Solver").get<bool>("use direct solver",false);
   usePrec = settings->sublist("Solver").get<bool>("use preconditioner",true);
+  usePrecDBC = settings->sublist("Solver").get<bool>("use preconditioner for DBCs",true);
   dropTol = settings->sublist("Solver").get<ScalarT>("ILU drop tol",0.0); //defaults to AztecOO default
   fillParam = settings->sublist("Solver").get<ScalarT>("ILU fill param",3.0); //defaults to AztecOO default
   
@@ -736,7 +737,7 @@ void solver::projectDirichlet() {
     }
     else {
       Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(glmass, glfixedDOF_soln, glrhs));
-      if (usePrec) {
+      if (usePrecDBC) {
         Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > P = this->buildPreconditioner(glmass);
         Problem->setLeftPrec(P);
       }

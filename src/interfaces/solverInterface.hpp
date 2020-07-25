@@ -202,7 +202,7 @@ public:
   string solver_type, NLsolver, initial_type, response_type, multigrid_type, smoother_type;
   string TDsolver, preconditioner_reuse_type;
   
-  bool line_search, useL2proj, allow_remesh, useDomDecomp, useDirect, usePrec, discretized_stochastic;
+  bool line_search, useL2proj, allow_remesh, useDomDecomp, useDirect, usePrec, usePrecDBC, discretized_stochastic;
   bool isInitial, isTransient, useadjoint, is_final_time, usestrongDBCs, compute_flux, useLinearSolver, timeImplicit;
   bool compute_objective, compute_sensitivity, compute_aux_sensitivity, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
   bool scalarDirichletData, transientDirichletData, scalarInitialData;
