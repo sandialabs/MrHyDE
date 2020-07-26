@@ -1256,9 +1256,13 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
   SubGridTools sgt(LocalComm, macroshape, shape, localData[usernum]->macronodes,
                    localData[usernum]->macrosideinfo);
   sgt.createSubMesh(numrefine);
-  vector<vector<ScalarT> > nodes = sgt.getSubNodes();
-  vector<vector<GO> > connectivity = sgt.getSubConnectivity();
-  Kokkos::View<int****,HostDevice> sideinfo = sgt.getSubSideinfo();
+  vector<vector<ScalarT> > nodes = sgt.getNodes(localData[usernum]->macronodes);
+  int reps = localData[usernum]->macronodes.extent(0);
+  vector<vector<GO> > connectivity = sgt.getSubConnectivity(reps);
+  Kokkos::View<int****,HostDevice>sideinfo = sgt.getNewSideinfo(localData[usernum]->macrosideinfo);
+  
+  //vector<vector<GO> > connectivity = sgt.getSubConnectivity();
+  //Kokkos::View<int****,HostDevice> sideinfo = sgt.getSubSideinfo();
   
   size_t numNodesPerElem = connectivity[0].size();
   
@@ -1319,9 +1323,10 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
   // Fill in the fields
   //////////////////////////////////////////////////////////////
   
-  if (isTD) {
+  //if (isTD) {
     submesh->setupExodusFile(filename);
-  }
+  //}
+  
   int numSteps = soln->times[usernum].size();
   
   vector<size_t> myElements;
@@ -1333,6 +1338,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
     }
   }
   this->updateLocalData(usernum);
+  
   
   for (int m=0; m<numSteps; m++) {
     
