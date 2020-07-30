@@ -134,7 +134,7 @@ public:
   Teuchos::RCP<MultiScale> multiscale_manager;
   vector<Teuchos::RCP<FunctionManager> > functionManagers;
   
-  bool compute_response, compute_error, write_solution, write_subgrid_solution;
+  bool compute_response, compute_error, compute_subgrid_error, write_solution, write_subgrid_solution;
   string exodus_filename;
   int spaceDim;                                                // spatial dimension
   //int numNodes;                                              // total number of nodes in the mesh
@@ -153,7 +153,7 @@ public:
   vector<string> blocknames, error_types, subgrid_error_types;
   vector<vector<Kokkos::View<ScalarT*,AssemblyDevice> > > errors; // [time][block](error_list)
   vector<Kokkos::View<ScalarT**,AssemblyDevice> > responses; // [time](sensors,response)
-  vector<vector<Kokkos::View<ScalarT**,AssemblyDevice> > > subgrid_errors; // extra vector for multiple subgrid models
+  vector<vector<vector<Kokkos::View<ScalarT*,AssemblyDevice> > > > subgrid_errors; // extra vector for multiple subgrid models [time][block][sgmodel](error_list)
   
   vector<int> numVars; // Number of variables used by the application (may not be used yet)
   int numsteps;
@@ -172,9 +172,10 @@ public:
   vector<ScalarT> plot_times, response_times, error_times; // probably always the same
   
   //vector<vector<Teuchos::RCP<cell> > > cells;
-  int verbosity;
+  int verbosity, milo_debug_level;
   
-  vector<vector<pair<size_t,string> > > error_list;
+  vector<vector<pair<size_t,string> > > error_list; // [block][errors]
+  vector<vector<vector<pair<size_t,string> > > > subgrid_error_lists; // [block][sgmodel][errors]
   
   // Timers
   Teuchos::RCP<Teuchos::Time> computeErrorTimer = Teuchos::TimeMonitor::getNewCounter("MILO::postprocess::computeError");

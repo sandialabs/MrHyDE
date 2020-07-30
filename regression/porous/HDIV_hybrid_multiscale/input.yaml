@@ -18,15 +18,11 @@ ANONYMOUS:
           bottom: '0.0'
       True solutions:
         p face: sin(2*pi*x)*sin(2*pi*y)
-      Extra fields:
-        ptrue: 'sin(2*pi*x)*sin(2*pi*y)'
-      Extra cell fields:
-        ptrue: 'sin(2*pi*x)*sin(2*pi*y)'
   Parameters input file: input_params.yaml
   Functions input file: input_functions.yaml
   Solver: 
     solver: steady-state
-    workset size: 10
+    workset size: 1
     initial type: none
     nonlinear TOL: 1.0e-7
     max nonlinear iters: 3
@@ -64,6 +60,7 @@ ANONYMOUS:
       quadrature: 2
     Postprocess:
       store aux and flux: false
+      write solution: false
   Analysis:
     analysis type: forward
     Have Sensor Points: false

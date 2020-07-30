@@ -50,11 +50,20 @@ functionManagers(functionManagers_), multiscale_manager(multiscale_manager_) {
 
 void PostprocessManager::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
+  
+  milo_debug_level = settings->get<int>("debug level",0);
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting PostprocessManager::setup()" << endl;
+    }
+  }
+  
   verbosity = settings->get<int>("verbosity",1);
   
   compute_response = settings->sublist("Postprocess").get<bool>("compute responses",false);
   compute_error = settings->sublist("Postprocess").get<bool>("compute errors",false);
-  write_solution = settings->sublist("Postprocess").get("write solution",true);
+  write_solution = settings->sublist("Postprocess").get("write solution",false);
   write_subgrid_solution = settings->sublist("Postprocess").get("write subgrid solution",false);
   
   exodus_filename = settings->sublist("Postprocess").get<string>("output file","output")+".exo";
@@ -299,7 +308,15 @@ void PostprocessManager::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) 
       }
     }
     error_list.push_back(block_error_list);
+    
   } // end block loop
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished PostprocessManager::setup()" << endl;
+    }
+  }
+  
   
 }
 
@@ -327,9 +344,9 @@ void PostprocessManager::report() {
   // The subgrid models still store everything, so we create the output after the run
   ////////////////////////////////////////////////////////////////////////////
   
-  if (write_subgrid_solution) {
-    multiscale_manager->writeSolution(exodus_filename, plot_times, Comm->getRank());
-  }
+  //if (write_subgrid_solution) {
+  //  multiscale_manager->writeSolution(exodus_filename, plot_times, Comm->getRank());
+  //}
   
   ////////////////////////////////////////////////////////////////////////////
   // Report the responses
@@ -457,72 +474,66 @@ void PostprocessManager::report() {
     }
     
     // Error in subgrid models
-    if (multiscale_manager->subgridModels.size() > 0) {
-      
-      // Collect all of the errors for each subgrid model
-      vector<Kokkos::View<ScalarT**,AssemblyDevice> > sgerrs;
-      vector<vector<pair<size_t,string> > > subgrid_error_lists;
-      for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
-        vector<pair<size_t,string> > sub_error_list;
-        Kokkos::View<ScalarT**,AssemblyDevice> err = multiscale_manager->subgridModels[m]->computeError(sub_error_list,error_times);
-        //Kokkos::View<ScalarT**,AssemblyDevice> err = multiscale_manager->subgridModels[m]->computeError(subgrid_error_types, currenttime);
-        sgerrs.push_back(err);
-        subgrid_error_lists.push_back(sub_error_list);
-      }
-      
-      for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
-        vector<string> sgvars = multiscale_manager->subgridModels[m]->varlist;
+    if (!(Teuchos::is_null(multiscale_manager))) {
+      if (multiscale_manager->subgridModels.size() > 0) {
         
-        // A given processor may not have any elements that use this subgrid model
-        // In this case, nothing gets initialized so sgvars.size() == 0
-        // Find the global max number of sgvars over all processors
-        size_t nvars = sgvars.size();
-        
-        size_t nerrs = subgrid_error_lists[m].size();
-        size_t gnerrs = 0;
-        Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&nerrs,&gnerrs);
-        
-        
-        for (size_t etype=0; etype<gnerrs; etype++) {
-          for (size_t time=0; time<error_times.size(); time++) {
-            //for (int n=0; n<gnvars; n++) {
-            // Get the local contribution (if processor uses subgrid model)
-            ScalarT lerr = 0.0;
-            if (nvars>0) {
-              lerr = sgerrs[m](time,etype);
-            }
-            ScalarT gerr = 0.0;
-            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lerr,&gerr);
-            
-            // Figure out who can print the information (lowest rank amongst procs using subgrid model)
-            size_t myID = Comm->getRank();
-            if (nvars == 0) {
-              myID = 100000000;
-            }
-            size_t gID = 0;
-            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&myID,&gID);
-            
-            if(Comm->getRank() == gID) {
-              //cout << "***** Subgrid" << m << ": " << subgrid_error_types[etype] << " norm of the error for " << sgvars[n] << " = " << sqrt(gerr) << "  (time = " << error_times[t] << ")" <<  endl;
+        for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
+          vector<string> sgvars = multiscale_manager->subgridModels[m]->varlist;
+          vector<pair<size_t,string> > sg_error_list;
+          // A given processor may not have any elements that use this subgrid model
+          // In this case, nothing gets initialized so sgvars.size() == 0
+          // Find the global max number of sgvars over all processors
+          size_t nvars = sgvars.size();
+          if (nvars>0) {
+            sg_error_list = multiscale_manager->subgridModels[m]->getErrorList();
+          }
+          // really only works on one block
+          size_t nerrs = sg_error_list.size();
+          size_t gnerrs = 0;
+          Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&nerrs,&gnerrs);
+          
+          
+          for (size_t etype=0; etype<gnerrs; etype++) {
+            for (size_t time=0; time<error_times.size(); time++) {
+              //for (int n=0; n<gnvars; n++) {
+              // Get the local contribution (if processor uses subgrid model)
+              ScalarT lerr = 0.0;
+              if (subgrid_errors[time][0][m].extent(0)>0) {
+                lerr = subgrid_errors[time][0][m](etype); // block is not relevant
+              }
+              ScalarT gerr = 0.0;
+              Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lerr,&gerr);
               
-              string varname = sgvars[subgrid_error_lists[m][etype].first];
-              if (subgrid_error_lists[m][etype].second == "L2" || subgrid_error_lists[m][etype].second == "L2 VECTOR") {
-                cout << "***** Subgrid " << m << ": L2 norm of the error for " << varname << " = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+              // Figure out who can print the information (lowest rank amongst procs using subgrid model)
+              size_t myID = Comm->getRank();
+              if (nvars == 0) {
+                myID = 100000000;
               }
-              else if (subgrid_error_lists[m][etype].second == "L2 FACE") {
-                cout << "***** Subgrid " << m << ": L2-face norm of the error for " << varname << " = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+              size_t gID = 0;
+              Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&myID,&gID);
+              
+              if(Comm->getRank() == gID) {
+                //cout << "***** Subgrid" << m << ": " << subgrid_error_types[etype] << " norm of the error for " << sgvars[n] << " = " << sqrt(gerr) << "  (time = " << error_times[t] << ")" <<  endl;
+                
+                string varname = sgvars[sg_error_list[etype].first];
+                if (sg_error_list[etype].second == "L2" || sg_error_list[etype].second == "L2 VECTOR") {
+                  cout << "***** Subgrid " << m << ": L2 norm of the error for " << varname << " = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+                }
+                else if (sg_error_list[etype].second == "L2 FACE") {
+                  cout << "***** Subgrid " << m << ": L2-face norm of the error for " << varname << " = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+                }
+                else if (sg_error_list[etype].second == "GRAD") {
+                  cout << "***** Subgrid " << m << ": L2 norm of the error for grad(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+                }
+                else if (sg_error_list[etype].second == "DIV") {
+                  cout << "***** Subgrid " << m << ": L2 norm of the error for div(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+                }
+                else if (sg_error_list[etype].second == "CURL") {
+                  cout << "***** Subgrid " << m << ": L2 norm of the error for curl(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
+                }
               }
-              else if (subgrid_error_lists[m][etype].second == "GRAD") {
-                cout << "***** Subgrid " << m << ": L2 norm of the error for grad(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
-              }
-              else if (subgrid_error_lists[m][etype].second == "DIV") {
-                cout << "***** Subgrid " << m << ": L2 norm of the error for div(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
-              }
-              else if (subgrid_error_lists[m][etype].second == "CURL") {
-                cout << "***** Subgrid " << m << ": L2 norm of the error for curl(" << varname << ") = " << sqrt(gerr) << "  (time = " << error_times[time] << ")" <<  endl;
-              }
+              //}
             }
-            //}
           }
         }
       }
@@ -535,6 +546,12 @@ void PostprocessManager::report() {
 // ========================================================================================
 
 void PostprocessManager::computeError(const ScalarT & currenttime) {
+  
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting PostprocessManager::computeError(time)" << endl;
+    }
+  }
   
   Teuchos::TimeMonitor localtimer(*computeErrorTimer);
   
@@ -556,173 +573,182 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
   int seedwhat = 0;
   
   for (size_t block=0; block<assembler->cells.size(); block++) {// loop over blocks
-    Kokkos::View<ScalarT*,AssemblyDevice> blockerrors("error",error_list[block].size());
+    
+    int altblock; // Needed for subgrid error calculations
+    if (assembler->wkset.size()>block) {
+      altblock = block;
+    }
+    else {
+      altblock = 0;
+    }
+    
+    Kokkos::View<ScalarT*,AssemblyDevice> blockerrors("error",error_list[altblock].size());
     // Determine what needs to be updated in the workset
     bool have_vol_errs = false, have_face_errs = false;
-    for (size_t etype=0; etype<error_list[block].size(); etype++){
-      if (error_list[block][etype].second == "L2" || error_list[block][etype].second == "GRAD"
-          || error_list[block][etype].second == "DIV" || error_list[block][etype].second == "CURL"
-          || error_list[block][etype].second == "L2 VECTOR") {
+    for (size_t etype=0; etype<error_list[altblock].size(); etype++){
+      if (error_list[altblock][etype].second == "L2" || error_list[altblock][etype].second == "GRAD"
+          || error_list[altblock][etype].second == "DIV" || error_list[altblock][etype].second == "CURL"
+          || error_list[altblock][etype].second == "L2 VECTOR") {
         have_vol_errs = true;
       }
-      if (error_list[block][etype].second == "L2 FACE") {
+      if (error_list[altblock][etype].second == "L2 FACE") {
         have_face_errs = true;
       }
     }
     
-    
     for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
       if (have_vol_errs) {
-        assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
+        assembler->wkset[altblock]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
         assembler->cells[block][cell]->computeSolnVolIP();
       }
-      for (size_t etype=0; etype<error_list[block].size(); etype++) {
-        int var = error_list[block][etype].first;
-        if (error_list[block][etype].second == "L2") {
+      for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
+        int var = error_list[altblock][etype].first;
+        
+        if (error_list[altblock][etype].second == "L2") {
           // compute the true solution
-          string expression = "true " + varlist[block][var];
-          FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+          string expression = "true " + varlist[altblock][var];
+          FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
           
           // add in the L2 difference at the volumetric ip
           for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-            for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
-              ScalarT diff = assembler->wkset[block]->local_soln(elem,var,pt,0).val() - tsol(elem,pt).val();
-              blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+            for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
+              ScalarT diff = assembler->wkset[altblock]->local_soln(elem,var,pt,0).val() - tsol(elem,pt).val();
+              blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
             }
           }
         }
-        else if (error_list[block][etype].second == "GRAD") {
+        else if (error_list[altblock][etype].second == "GRAD") {
           // compute the true x-component of grad
-          string expression = "true grad(" + varlist[block][var] + ")_x";
-          FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+          string expression = "true grad(" + varlist[altblock][var] + ")_x";
+          FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
           
           // add in the L2 difference at the volumetric ip
           for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-            for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
-              ScalarT diff = assembler->wkset[block]->local_soln_grad(elem,var,pt,0).val() - tsol(elem,pt).val();
-              blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+            for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
+              ScalarT diff = assembler->wkset[altblock]->local_soln_grad(elem,var,pt,0).val() - tsol(elem,pt).val();
+              blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
             }
           }
           
           if (spaceDim > 1) {
             // compute the true y-component of grad
-            string expression = "true grad(" + varlist[block][var] + ")_y";
-            FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+            string expression = "true grad(" + varlist[altblock][var] + ")_y";
+            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
             
             // add in the L2 difference at the volumetric ip
             for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-              for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
-                ScalarT diff = assembler->wkset[block]->local_soln_grad(elem,var,pt,1).val() - tsol(elem,pt).val();
-                blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+              for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
+                ScalarT diff = assembler->wkset[altblock]->local_soln_grad(elem,var,pt,1).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
               }
             }
           }
           
           if (spaceDim >2) {
             // compute the true z-component of grad
-            string expression = "true grad(" + varlist[block][var] + ")_z";
-            FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+            string expression = "true grad(" + varlist[altblock][var] + ")_z";
+            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
             
             // add in the L2 difference at the volumetric ip
             for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-              for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
-                ScalarT diff = assembler->wkset[block]->local_soln_grad(elem,var,pt,2).val() - tsol(elem,pt).val();
-                blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+              for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
+                ScalarT diff = assembler->wkset[altblock]->local_soln_grad(elem,var,pt,2).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
               }
             }
           }
         }
-        else if (error_list[block][etype].second == "DIV") {
+        else if (error_list[altblock][etype].second == "DIV") {
           // compute the true divergence
-          string expression = "true div(" + varlist[block][var] + ")";
-          FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+          string expression = "true div(" + varlist[altblock][var] + ")";
+          FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
           
           // add in the L2 difference at the volumetric ip
           for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-            for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
-              ScalarT diff = assembler->wkset[block]->local_soln_div(elem,var,pt).val() - tsol(elem,pt).val();
-              blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+            for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
+              ScalarT diff = assembler->wkset[altblock]->local_soln_div(elem,var,pt).val() - tsol(elem,pt).val();
+              blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
             }
           }
         }
-        else if (error_list[block][etype].second == "CURL") {
+        else if (error_list[altblock][etype].second == "CURL") {
           // compute the true x-component of grad
-          string expression = "true curl(" + varlist[block][var] + ")_x";
-          FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+          string expression = "true curl(" + varlist[altblock][var] + ")_x";
+          FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
           
           // add in the L2 difference at the volumetric ip
           for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-            for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
-              ScalarT diff = assembler->wkset[block]->local_soln_curl(elem,var,pt,0).val() - tsol(elem,pt).val();
-              blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+            for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
+              ScalarT diff = assembler->wkset[altblock]->local_soln_curl(elem,var,pt,0).val() - tsol(elem,pt).val();
+              blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
             }
           }
           
           if (spaceDim > 1) {
             // compute the true y-component of grad
-            string expression = "true curl(" + varlist[block][var] + ")_y";
-            FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+            string expression = "true curl(" + varlist[altblock][var] + ")_y";
+            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
             
             // add in the L2 difference at the volumetric ip
             for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-              for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
-                ScalarT diff = assembler->wkset[block]->local_soln_curl(elem,var,pt,1).val() - tsol(elem,pt).val();
-                blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+              for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
+                ScalarT diff = assembler->wkset[altblock]->local_soln_curl(elem,var,pt,1).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
               }
             }
           }
           
           if (spaceDim >2) {
             // compute the true z-component of grad
-            string expression = "true curl(" + varlist[block][var] + ")_z";
-            FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+            string expression = "true curl(" + varlist[altblock][var] + ")_z";
+            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
             
             // add in the L2 difference at the volumetric ip
             for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-              for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
-                ScalarT diff = assembler->wkset[block]->local_soln_curl(elem,var,pt,2).val() - tsol(elem,pt).val();
-                blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+              for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
+                ScalarT diff = assembler->wkset[altblock]->local_soln_curl(elem,var,pt,2).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
               }
             }
           }
         }
-        else if (error_list[block][etype].second == "L2 VECTOR") {
+        else if (error_list[altblock][etype].second == "L2 VECTOR") {
           // compute the true x-component of grad
-          string expression = "true " + varlist[block][var] + "_x";
-          FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+          string expression = "true " + varlist[altblock][var] + "_x";
+          FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
           
           // add in the L2 difference at the volumetric ip
           for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-            for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
-              ScalarT diff = assembler->wkset[block]->local_soln(elem,var,pt,0).val() - tsol(elem,pt).val();
-              blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+            for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
+              ScalarT diff = assembler->wkset[altblock]->local_soln(elem,var,pt,0).val() - tsol(elem,pt).val();
+              blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
             }
           }
           
           if (spaceDim > 1) {
             // compute the true y-component of grad
-            string expression = "true " + varlist[block][var] + "_y";
-            FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+            string expression = "true " + varlist[altblock][var] + "_y";
+            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
             
             // add in the L2 difference at the volumetric ip
             for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-              for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
-                ScalarT diff = assembler->wkset[block]->local_soln(elem,var,pt,1).val() - tsol(elem,pt).val();
-                blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+              for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
+                ScalarT diff = assembler->wkset[altblock]->local_soln(elem,var,pt,1).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
               }
             }
           }
           
           if (spaceDim >2) {
             // compute the true z-component of grad
-            string expression = "true " + varlist[block][var] + "_z";
-            FDATA tsol = functionManagers[block]->evaluate(expression,"ip");
+            string expression = "true " + varlist[altblock][var] + "_z";
+            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
             
             // add in the L2 difference at the volumetric ip
             for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-              for( size_t pt=0; pt<assembler->wkset[block]->wts.extent(1); pt++ ) {
-                ScalarT diff = assembler->wkset[block]->local_soln(elem,var,pt,2).val() - tsol(elem,pt).val();
-                blockerrors(etype) += diff*diff*assembler->wkset[block]->wts(elem,pt);
+              for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
+                ScalarT diff = assembler->wkset[altblock]->local_soln(elem,var,pt,2).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
               }
             }
           }
@@ -730,26 +756,26 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
       }
       if (have_face_errs) {
         for (size_t face=0; face<assembler->cells[block][cell]->cellData->numSides; face++) {
-          assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
+          assembler->wkset[altblock]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
           assembler->cells[block][cell]->computeSolnFaceIP(face);
           //assembler->cells[block][cell]->computeSolnFaceIP(face, seedwhat);
-          for (size_t etype=0; etype<error_list[block].size(); etype++) {
-            int var = error_list[block][etype].first;
-            if (error_list[block][etype].second == "L2 FACE") {
+          for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
+            int var = error_list[altblock][etype].first;
+            if (error_list[altblock][etype].second == "L2 FACE") {
               // compute the true z-component of grad
-              string expression = "true " + varlist[block][var];
-              FDATA tsol = functionManagers[block]->evaluate(expression,"side ip");
+              string expression = "true " + varlist[altblock][var];
+              FDATA tsol = functionManagers[altblock]->evaluate(expression,"side ip");
               
               // add in the L2 difference at the volumetric ip
               for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
                 double facemeasure = 0.0;
-                for( size_t pt=0; pt<assembler->wkset[block]->wts_side.extent(1); pt++ ) {
-                  facemeasure += assembler->wkset[block]->wts_side(elem,pt);
+                for( size_t pt=0; pt<assembler->wkset[altblock]->wts_side.extent(1); pt++ ) {
+                  facemeasure += assembler->wkset[altblock]->wts_side(elem,pt);
                 }
                 
-                for( size_t pt=0; pt<assembler->wkset[block]->wts_side.extent(1); pt++ ) {
-                  ScalarT diff = assembler->wkset[block]->local_soln_face(elem,var,pt,0).val() - tsol(elem,pt).val();
-                  blockerrors(etype) += 0.5/facemeasure*diff*diff*assembler->wkset[block]->wts_side(elem,pt);
+                for( size_t pt=0; pt<assembler->wkset[altblock]->wts_side.extent(1); pt++ ) {
+                  ScalarT diff = assembler->wkset[altblock]->local_soln_face(elem,var,pt,0).val() - tsol(elem,pt).val();
+                  blockerrors(etype) += 0.5/facemeasure*diff*diff*assembler->wkset[altblock]->wts_side(elem,pt);
                 }
               }
             }
@@ -764,6 +790,33 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
   // Reset
   for (size_t b=0; b<assembler->wkset.size(); b++) {
     assembler->wkset[b]->isTransient = isTransient;
+  }
+  
+  if (!(Teuchos::is_null(multiscale_manager))) {
+    if (multiscale_manager->subgridModels.size() > 0) {
+      // Collect all of the errors for each subgrid model
+      vector<vector<Kokkos::View<ScalarT*,AssemblyDevice> > > blocksgerrs;
+      
+      for (size_t block=0; block<assembler->cells.size(); block++) {// loop over blocks
+        
+        vector<Kokkos::View<ScalarT*,AssemblyDevice> > sgerrs;
+        for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
+          //vector<pair<size_t,string> > sub_error_list;
+          Kokkos::View<ScalarT*,AssemblyDevice> err = multiscale_manager->subgridModels[m]->computeError(currenttime);
+          //Kokkos::View<ScalarT**,AssemblyDevice> err = multiscale_manager->subgridModels[m]->computeError(subgrid_error_types, currenttime);
+          sgerrs.push_back(err);
+          //subgrid_error_lists.push_back(sub_error_list);
+        }
+        blocksgerrs.push_back(sgerrs);
+      }
+      subgrid_errors.push_back(blocksgerrs);
+    }
+  }
+  
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished PostprocessManager::computeError(time)" << endl;
+    }
   }
   
 }
@@ -1153,8 +1206,12 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
           Kokkos::deep_copy(host_sol,sol);
           for (int p=0; p<assembler->cells[b][e]->numElem; p++) {
             soln_x(eprog) = host_sol(p,n,0);
-            soln_y(eprog) = host_sol(p,n,1);
-            soln_z(eprog) = host_sol(p,n,2);
+            if (spaceDim > 1) {
+              soln_y(eprog) = host_sol(p,n,1);
+            }
+            if (spaceDim > 2) {
+              soln_z(eprog) = host_sol(p,n,2);
+            }
             eprog++;
           }
         }
@@ -1334,6 +1391,11 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
     
   }
   
+  if (write_subgrid_solution && multiscale_manager->subgridModels.size() > 0) {
+    for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
+      multiscale_manager->subgridModels[m]->writeSolution(currenttime);
+    }
+  }
 }
 
 

@@ -221,7 +221,6 @@ void linearelasticity::boundaryResidual() {
   
   Kokkos::View<int**,UnifiedDevice> bcs = wkset->var_bcs;
   
-  
   int cside = wkset->currentside;
   
   //TMW : will be an error using formparam \neq 1.0 with adjoints

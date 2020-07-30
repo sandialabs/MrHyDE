@@ -82,7 +82,7 @@ void SubGridFEM_Solver::solve(Kokkos::View<ScalarT***,AssemblyDevice> coarse_u,
                               Teuchos::RCP<LA_MultiVector> & u,
                               Teuchos::RCP<LA_MultiVector> & phi,
                               Teuchos::RCP<LA_MultiVector> & disc_params,
-                              Teuchos::RCP<SubGridLocalData> & localData,
+                              Teuchos::RCP<SubGridMacroData> & macroData,
                               const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                               const bool & compute_jacobian, const bool & compute_sens,
                               const int & num_active_params,
@@ -132,7 +132,7 @@ void SubGridFEM_Solver::solve(Kokkos::View<ScalarT***,AssemblyDevice> coarse_u,
   auto u_kv = u->getLocalView<HostDevice>();
   Kokkos::deep_copy(u_kv, prev_u_kv);
   
-  this->performGather(0, prev_u, 0, 0);
+  this->performGather(usernum, prev_u, 0, 0);
   for (size_t b=0; b<assembler->cells.size(); b++) {
     for (size_t e=0; e<assembler->cells[b].size(); e++) {
       assembler->cells[b][e]->resetPrevSoln();
@@ -209,7 +209,7 @@ void SubGridFEM_Solver::solve(Kokkos::View<ScalarT***,AssemblyDevice> coarse_u,
                               phi, disc_params, currlambda,
                               sgtime, isTransient, isAdjoint, num_active_params, alpha, lambda_scale, usernum, subgradient);
         
-        this->updateFlux(phi, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0/(ScalarT)time_steps, localData);
+        this->updateFlux(phi, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0/(ScalarT)time_steps, macroData);
         
       }
     }
@@ -245,7 +245,7 @@ void SubGridFEM_Solver::solve(Kokkos::View<ScalarT***,AssemblyDevice> coarse_u,
                               phi, disc_params, currlambda,
                               sgtime, isTransient, isAdjoint, num_active_params, alpha, lambda_scale, usernum, subgradient);
         
-        this->updateFlux(u, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0/(ScalarT)time_steps, localData);
+        this->updateFlux(u, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0/(ScalarT)time_steps, macroData);
       }
     }
     
@@ -263,10 +263,10 @@ void SubGridFEM_Solver::solve(Kokkos::View<ScalarT***,AssemblyDevice> coarse_u,
                           current_time, isTransient, isAdjoint, num_active_params, alpha, 1.0, usernum, subgradient);
     
     if (isAdjoint) {
-      this->updateFlux(phi, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0, localData);
+      this->updateFlux(phi, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0, macroData);
     }
     else {
-      this->updateFlux(u, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0, localData);
+      this->updateFlux(u, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0, macroData);
     }
     
   }
@@ -347,8 +347,8 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
     assembler->wkset[0]->isTransient = isTransient;
     assembler->wkset[0]->isAdjoint = isAdjoint;
     
-    int numElem = assembler->cells[0][0]->numElem;
-    int numDOF = assembler->cells[0][0]->LIDs.extent(1);
+    int numElem = assembler->cells[usernum][0]->numElem;
+    int numDOF = assembler->cells[usernum][0]->LIDs.extent(1);
     
     Kokkos::View<ScalarT***,UnifiedDevice> local_res, local_J, local_Jdot;
     
@@ -359,19 +359,19 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
     }
     {
       Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverSetSolnTimer);
-      this->performGather(0, sub_u, 0, 0);
+      this->performGather(usernum, sub_u, 0, 0);
       if (isAdjoint) {
-        this->performGather(0, sub_phi, 2, 0);
+        this->performGather(usernum, sub_phi, 2, 0);
       }
       //this->performGather(usernum, sub_params, 4, 0);
       
-      this->performBoundaryGather(0, sub_u, 0, 0);
+      this->performBoundaryGather(usernum, sub_u, 0, 0);
       if (isAdjoint) {
-        this->performBoundaryGather(0, sub_phi, 2, 0);
+        this->performBoundaryGather(usernum, sub_phi, 2, 0);
       }
       
-      for (size_t e=0; e < assembler->boundaryCells[0].size(); e++) {
-        assembler->boundaryCells[0][e]->aux = lambda;
+      for (size_t e=0; e < assembler->boundaryCells[usernum].size(); e++) {
+        assembler->boundaryCells[usernum][e]->aux = lambda;
       }
     }
     
@@ -380,15 +380,15 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
     ////////////////////////////////////////////////
     auto localMatrix = sub_J_over->getLocalMatrix();
     
-    for (size_t e=0; e<assembler->cells[0].size(); e++) {
+    for (size_t e=0; e<assembler->cells[usernum].size(); e++) {
       if (isAdjoint) {
         if (is_final_time) {
-          Kokkos::deep_copy(assembler->cells[0][e]->adjPrev, 0.0);
+          Kokkos::deep_copy(assembler->cells[usernum][e]->adjPrev, 0.0);
         }
       }
       
       assembler->wkset[0]->localEID = e;
-      assembler->cells[0][e]->updateData();
+      assembler->cells[usernum][e]->updateData();
       
       Kokkos::deep_copy(local_res, 0.0);
       Kokkos::deep_copy(local_J, 0.0);
@@ -396,7 +396,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
       {
         Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverJacResTimer);
         
-        assembler->cells[0][e]->computeJacRes(time, isTransient, isAdjoint,
+        assembler->cells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
                                               true, false, num_active_params, false, false, false,
                                               local_res, local_J,
                                               assembler->assemble_volume_terms[0],
@@ -404,9 +404,11 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
         
       }
       
+      //KokkosTools::print(local_res);
+      //KokkosTools::print(local_J);
       {
         Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverInsertTimer);
-        LIDView LIDs = assembler->cells[0][e]->LIDs;
+        LIDView LIDs = assembler->cells[usernum][e]->LIDs;
         LO numentries = static_cast<LO>(LIDs.extent(1));
         ScalarT vals[numentries];
         LO cols[numentries];
@@ -431,29 +433,30 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
     // boundary assembly
     ////////////////////////////////////////////////
     
-    for (size_t e=0; e<assembler->boundaryCells[0].size(); e++) {
+    for (size_t e=0; e<assembler->boundaryCells[usernum].size(); e++) {
       
-      if (assembler->boundaryCells[0][e]->numElem > 0) {
+      if (assembler->boundaryCells[usernum][e]->numElem > 0) {
         assembler->wkset[0]->localEID = e;
         
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverAllocateTimer);
-          local_res = Kokkos::View<ScalarT***,UnifiedDevice>("local residual",assembler->boundaryCells[0][e]->numElem,numDOF,1);
-          local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",assembler->boundaryCells[0][e]->numElem,numDOF,numDOF);
+          local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",assembler->boundaryCells[usernum][e]->numElem,numDOF,1);
+          local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",assembler->boundaryCells[usernum][e]->numElem,numDOF,numDOF);
         }
         
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverJacResTimer);
           
-          assembler->boundaryCells[0][e]->computeJacRes(time, isTransient, isAdjoint,
-                                             true, false, num_active_params, false, false, false,
-                                             local_res, local_J);
+          assembler->boundaryCells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
+                                                              true, false, num_active_params,
+                                                              false, false, false,
+                                                              local_res, local_J);
           
         }
         
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverInsertTimer);
-          LIDView LIDs = assembler->boundaryCells[0][e]->LIDs;
+          LIDView LIDs = assembler->boundaryCells[usernum][e]->LIDs;
           LO numentries = static_cast<LO>(LIDs.extent(1));
           ScalarT vals[numentries];
           LO cols[numentries];
@@ -643,21 +646,21 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
   ScalarT scale = -1.0*lambda_scale;
   
   if (multiscale_method != "mortar") {
-    this->performGather(0, sub_u, 0, 0);
+    this->performGather(usernum, sub_u, 0, 0);
     if (isAdjoint) {
-      this->performGather(0, sub_phi, 2, 0);
+      this->performGather(usernum, sub_phi, 2, 0);
     }
-    for (size_t e=0; e < assembler->cells[0].size(); e++) {
-      assembler->cells[0][e]->aux = lambda;
+    for (size_t e=0; e < assembler->cells[usernum].size(); e++) {
+      assembler->cells[usernum][e]->aux = lambda;
     }
   }
   else {
-    this->performBoundaryGather(0, sub_u, 0, 0);
+    this->performBoundaryGather(usernum, sub_u, 0, 0);
     if (isAdjoint) {
-      this->performBoundaryGather(0, sub_phi, 2, 0);
+      this->performBoundaryGather(usernum, sub_phi, 2, 0);
     }
-    for (size_t e=0; e < assembler->boundaryCells[0].size(); e++) {
-      assembler->boundaryCells[0][e]->aux = lambda;
+    for (size_t e=0; e < assembler->boundaryCells[usernum].size(); e++) {
+      assembler->boundaryCells[usernum][e]->aux = lambda;
     }
   }
   //this->performGather(usernum, sub_param, 4, 0);
@@ -670,9 +673,9 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
     assembler->wkset[0]->isAdjoint = isAdjoint;
     
     if (multiscale_method != "mortar") {
-      int numElem = assembler->cells[0][0]->numElem;
+      int numElem = assembler->cells[usernum][0]->numElem;
       
-      int snumDOF = assembler->cells[0][0]->LIDs.extent(1);
+      int snumDOF = assembler->cells[usernum][0]->LIDs.extent(1);
       
       Kokkos::View<ScalarT***,UnifiedDevice> local_res, local_J, local_Jdot;
       
@@ -680,21 +683,21 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
       
       local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",numElem,snumDOF,snumDOF);
       
-      for (size_t e=0; e<assembler->cells[0].size(); e++) {
+      for (size_t e=0; e<assembler->cells[usernum].size(); e++) {
         
         assembler->wkset[0]->localEID = e;
-        assembler->cells[0][e]->updateData();
+        assembler->cells[usernum][e]->updateData();
         
         Kokkos::deep_copy(local_res, 0.0);
         Kokkos::deep_copy(local_J, 0.0);
         
-        assembler->cells[0][e]->computeJacRes(time, isTransient, isAdjoint,
+        assembler->cells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
                                    false, true, num_active_params, false, false, false,
                                    local_res, local_J,
                                    assembler->assemble_volume_terms[0],
                                    assembler->assemble_face_terms[0]);
         
-        LIDView LIDs = assembler->cells[0][e]->LIDs;
+        LIDView LIDs = assembler->cells[usernum][e]->LIDs;
         for (unsigned int i=0; i<LIDs.extent(0); i++) {
           for( size_t row=0; row<LIDs.extent(1); row++ ) {
             LO rowIndex = LIDs(i,row);
@@ -716,9 +719,9 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
     }
     else {
       
-      for (size_t e=0; e<assembler->boundaryCells[0].size(); e++) {
-        int numElem = assembler->boundaryCells[0][e]->numElem;
-        int snumDOF = assembler->boundaryCells[0][e]->LIDs.extent(1);
+      for (size_t e=0; e<assembler->boundaryCells[usernum].size(); e++) {
+        int numElem = assembler->boundaryCells[usernum][e]->numElem;
+        int snumDOF = assembler->boundaryCells[usernum][e]->LIDs.extent(1);
         
         Kokkos::View<ScalarT***,UnifiedDevice> local_res, local_J, local_Jdot;
         
@@ -729,13 +732,13 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
         assembler->wkset[0]->localEID = e;
         //wkset[0]->var_bcs = subgridbcs[usernum];
         
-        assembler->cells[0][e]->updateData();
+        assembler->cells[usernum][e]->updateData();
         
-        assembler->boundaryCells[0][e]->computeJacRes(time, isTransient, isAdjoint,
+        assembler->boundaryCells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
                                            false, true, num_active_params, false, false, false,
                                            local_res, local_J);
         
-        LIDView  LIDs = assembler->boundaryCells[0][e]->LIDs;
+        LIDView  LIDs = assembler->boundaryCells[usernum][e]->LIDs;
         for (unsigned int i=0; i<LIDs.extent(0); i++) {
           for (size_t row=0; row<LIDs.extent(1); row++ ) {
             LO rowIndex = LIDs(i,row);
@@ -765,11 +768,11 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
     
     if (multiscale_method != "mortar") {
       
-      for (size_t e=0; e<assembler->cells[0].size(); e++) {
+      for (size_t e=0; e<assembler->cells[usernum].size(); e++) {
         
-        int numElem = assembler->cells[0][e]->numElem;
-        int snumDOF = assembler->cells[0][e]->LIDs.extent(1);
-        int anumDOF = assembler->cells[0][e]->auxLIDs.extent(1);
+        int numElem = assembler->cells[usernum][e]->numElem;
+        int snumDOF = assembler->cells[usernum][e]->LIDs.extent(1);
+        int anumDOF = assembler->cells[usernum][e]->auxLIDs.extent(1);
         
         local_res = Kokkos::View<ScalarT***,UnifiedDevice>("local residual",numElem,snumDOF,1);
         local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",numElem,snumDOF,anumDOF);
@@ -777,15 +780,15 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
         assembler->wkset[0]->localEID = e;
         
         // TMW: this may not work properly with new version
-        assembler->cells[0][e]->updateData();
+        assembler->cells[usernum][e]->updateData();
         
-        assembler->cells[0][e]->computeJacRes(time, isTransient, isAdjoint,
+        assembler->cells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
                                               true, false, num_active_params, false, true, false,
                                               local_res, local_J,
                                               assembler->assemble_volume_terms[0],
                                               assembler->assemble_face_terms[0]);
-        LIDView LIDs = assembler->cells[0][e]->LIDs;
-        LIDView aLIDs = assembler->cells[0][e]->auxLIDs;
+        LIDView LIDs = assembler->cells[usernum][e]->LIDs;
+        LIDView aLIDs = assembler->cells[usernum][e]->auxLIDs;
         //vector<vector<int> > aoffsets = cells[0][e]->auxoffsets;
         
         for (unsigned int i=0; i<LIDs.extent(0); i++) {
@@ -802,20 +805,20 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
     }
     else {
       
-      for (size_t e=0; e<assembler->boundaryCells[0].size(); e++) {
+      for (size_t e=0; e<assembler->boundaryCells[usernum].size(); e++) {
         
-        int numElem = assembler->boundaryCells[0][e]->numElem;
-        int snumDOF = assembler->boundaryCells[0][e]->LIDs.extent(1);
-        int anumDOF = assembler->boundaryCells[0][e]->auxLIDs.extent(1);
+        int numElem = assembler->boundaryCells[usernum][e]->numElem;
+        int snumDOF = assembler->boundaryCells[usernum][e]->LIDs.extent(1);
+        int anumDOF = assembler->boundaryCells[usernum][e]->auxLIDs.extent(1);
         
         local_res = Kokkos::View<ScalarT***,UnifiedDevice>("local residual",numElem,snumDOF,1);
         local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",numElem,snumDOF,anumDOF);
         
-        assembler->boundaryCells[0][e]->computeJacRes(time, isTransient, isAdjoint,
+        assembler->boundaryCells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
                                                       true, false, num_active_params, false, true, false,
                                                       local_res, local_J);
-        LIDView LIDs = assembler->boundaryCells[0][e]->LIDs;
-        LIDView aLIDs = assembler->boundaryCells[0][e]->auxLIDs;
+        LIDView LIDs = assembler->boundaryCells[usernum][e]->LIDs;
+        LIDView aLIDs = assembler->boundaryCells[usernum][e]->auxLIDs;
         for (unsigned int i=0; i<LIDs.extent(0); i++) {
           for (size_t row=0; row<LIDs.extent(1); row++ ) {
             LO rowIndex = LIDs(i,row);
@@ -894,18 +897,18 @@ void SubGridFEM_Solver::updateFlux(const Teuchos::RCP<LA_MultiVector> & u,
                                    const bool & compute_sens, const int macroelemindex,
                                    const ScalarT & time, workset & macrowkset,
                                    const int & usernum, const ScalarT & fwt,
-                                   Teuchos::RCP<SubGridLocalData> & localData) {
+                                   Teuchos::RCP<SubGridMacroData> & macroData) {
   
   Teuchos::TimeMonitor localtimer(*sgfemFluxTimer);
   
   //this->updateLocalData(usernum);
   
-  for (size_t e=0; e<assembler->boundaryCells[0].size(); e++) {
+  for (size_t e=0; e<assembler->boundaryCells[usernum].size(); e++) {
     
-    if (assembler->boundaryCells[0][e]->sidename == "interior") {
+    if (assembler->boundaryCells[usernum][e]->sidename == "interior") {
       {
         Teuchos::TimeMonitor localwktimer(*sgfemFluxWksetTimer);
-        assembler->boundaryCells[0][e]->updateWorksetBasis();
+        assembler->boundaryCells[usernum][e]->updateWorksetBasis();
       }
       
       DRV cwts = assembler->wkset[0]->wts_side;
@@ -913,14 +916,14 @@ void SubGridFEM_Solver::updateFlux(const Teuchos::RCP<LA_MultiVector> & u,
       assembler->wkset[0]->sidename = "interior";
       {
         Teuchos::TimeMonitor localcelltimer(*sgfemFluxCellTimer);
-        assembler->boundaryCells[0][e]->computeFlux(u, d_u, disc_params, lambda, time,
+        assembler->boundaryCells[usernum][e]->computeFlux(u, d_u, disc_params, lambda, time,
                                                     0, h, compute_sens);
       }
       
-      vector<size_t> bMIDs = localData->boundaryMIDs[e];
-      for (int c=0; c<assembler->boundaryCells[0][e]->numElem; c++) {
+      vector<size_t> bMIDs = assembler->boundaryCells[usernum][e]->auxMIDs;//localData->boundaryMIDs[e];
+      for (int c=0; c<assembler->boundaryCells[usernum][e]->numElem; c++) {
         for (int n=0; n<macrowkset.offsets.extent(0); n++) {
-          DRV macrobasis_ip = assembler->boundaryCells[0][e]->auxside_basis[macrowkset.usebasis[n]];
+          DRV macrobasis_ip = assembler->boundaryCells[usernum][e]->auxside_basis[macrowkset.usebasis[n]];
           for (unsigned int j=0; j<macrobasis_ip.extent(1); j++) {
             for (unsigned int i=0; i<macrobasis_ip.extent(2); i++) {
               macrowkset.res(bMIDs[c],macrowkset.offsets(n,j)) += macrobasis_ip(c,j,i)*(assembler->wkset[0]->flux(c,n,i))*cwts(c,i)*fwt;

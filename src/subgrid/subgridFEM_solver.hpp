@@ -18,7 +18,7 @@
 #include "assemblyManager.hpp"
 #include "solverInterface.hpp"
 #include "parameterManager.hpp"
-#include "subgridLocalData.hpp"
+#include "subgridMacroData.hpp"
 
 // Belos
 #include <BelosConfigDefs.hpp>
@@ -68,7 +68,7 @@ public:
              Teuchos::RCP<LA_MultiVector> & u,
              Teuchos::RCP<LA_MultiVector> & phi,
              Teuchos::RCP<LA_MultiVector> & disc_params,
-             Teuchos::RCP<SubGridLocalData> & localData,
+             Teuchos::RCP<SubGridMacroData> & macroData,
              const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
              const bool & compute_jacobian, const bool & compute_sens,
              const int & num_active_params,
@@ -113,7 +113,7 @@ public:
                   const bool & compute_sens, const int macroelemindex,
                   const ScalarT & time, workset & macrowkset,
                   const int & usernum, const ScalarT & fwt,
-                  Teuchos::RCP<SubGridLocalData> & localData);
+                  Teuchos::RCP<SubGridMacroData> & macroData);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Store macro-dofs and flux (for ML-based subgrid)

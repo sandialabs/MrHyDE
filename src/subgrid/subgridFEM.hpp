@@ -25,7 +25,7 @@
 #include "assemblyManager.hpp"
 #include "subgridTools.hpp"
 #include "parameterManager.hpp"
-#include "subgridLocalData.hpp"
+#include "subgridMacroData.hpp"
 #include "subgridFEM_solver.hpp"
 #include "postprocessManager.hpp"
 
@@ -60,7 +60,7 @@ public:
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  void finalize();
+  void finalize(const int & globalSize, const int & globalPID);
   
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
@@ -102,11 +102,15 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the error for verification
   ///////////////////////////////////////////////////////////////////////////////////////
-  
+
+  vector<pair<size_t, string> > getErrorList();
+
   //Kokkos::View<ScalarT**,AssemblyDevice> computeError(const ScalarT & time, const int & usernum);
   Kokkos::View<ScalarT**,AssemblyDevice> computeError(vector<pair<size_t, string> > & sub_error_list,
                                                       const vector<ScalarT> & times);
   
+  Kokkos::View<ScalarT*,AssemblyDevice> computeError(const ScalarT & times);
+    
   ///////////////////////////////////////////////////////////////////////////////////////
   // Compute the objective function
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -118,7 +122,13 @@ public:
   // Write the solution to a file
   ///////////////////////////////////////////////////////////////////////////////////////
   
+  void setupCombinedExodus();
+  
   void writeSolution(const string & filename, const int & usernum);
+  
+  void writeSolution(const string & filename);
+  
+  void writeSolution(const ScalarT & time);
   
   ////////////////////////////////////////////////////////////////////////////////
   // Add in the sensor data
@@ -230,7 +240,7 @@ public:
   int dimension, time_steps;
   ScalarT initial_time, final_time;
   Teuchos::RCP<Teuchos::ParameterList> settings;
-  string macroshape, shape, multiscale_method, error_type;
+  string macroshape, shape, multiscale_method, error_type, combined_mesh_filename;
   int nummacroVars, subgridverbose, numrefine, assemble_together;
   topo_RCP cellTopo, macro_cellTopo;
   
@@ -245,16 +255,18 @@ public:
   Teuchos::RCP<ParameterManager> sub_params;
   Teuchos::RCP<SubGridFEM_Solver> sub_solver;
   Teuchos::RCP<meshInterface> sub_mesh;
+  Teuchos::RCP<panzer_stk::STK_Interface> combined_mesh;
   Teuchos::RCP<discretization> sub_disc;
   Teuchos::RCP<PostprocessManager> sub_postproc;
   vector<Teuchos::RCP<LA_MultiVector> > Psol;
   
   // Dynamic - depend on the macro-element
-  vector<Teuchos::RCP<SubGridLocalData> > localData;
+  //vector<Teuchos::RCP<SubGridLocalData> > localData;
+  vector<Teuchos::RCP<SubGridMacroData> > macroData;
   
   int num_macro_time_steps;
   ScalarT macro_deltat;
-  bool write_subgrid_state;
+  bool write_subgrid_state, combined_outputfile;
   
   // Collection of users
   vector<vector<Teuchos::RCP<cell> > > cells;

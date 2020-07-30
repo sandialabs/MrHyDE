@@ -36,9 +36,9 @@ basis_types(basis_types_), basis_pointers(basis_pointers_), numDiscParams(num_pa
   writeSensorFiles = settings->sublist("Analysis").get<bool>("Write Sensor Files",false);
   mortar_objective = settings->sublist("Solver").get<bool>("Use Mortar Objective",false);
   
-  if (settings->sublist("Postprocess").get<bool>("write solution", false)) {
+  //if (settings->sublist("Postprocess").get<bool>("write solution", false)) {
     compute_sol_avg = true;
-  }
+  //}
   
   multiscale = false;
   numnodes = cellTopo->getNodeCount();

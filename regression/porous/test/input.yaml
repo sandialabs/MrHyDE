@@ -16,8 +16,6 @@ ANONYMOUS:
           right: '0.0'
 #          top: '0.0'
 #          bottom: '0.0'
-      True solutions:
-        pbndry face: '0.0'
   Parameters input file: input_params.yaml
   Functions input file: input_functions.yaml
   Solver: 
@@ -29,13 +27,13 @@ ANONYMOUS:
   Discretization:
     eblock-0_0:
       order:
-        pbndry: 1
+        pbndry: 0
       quadrature: 2
   Subgrid:
     subgrid model: FEM
     Mesh:
       shape: quad
-      refinements: 1
+      refinements: 0
       dim: 2
       blocknames: eblock
       data file: perm
@@ -47,19 +45,13 @@ ANONYMOUS:
         pint: HVOL
         u: HDIV
         t: HDIV
-      True solutions:
-        p: '0.0'
-        u_x: '0.0'
-        u_y: '0.0'
-        t_x: '0.0'
-        t_y: '0.0'
     Solver:
       solver: steady-state
       use direct solver: false
     Functions input file: input_functions.yaml
     Discretization:
       order:
-        p: 0
+        pint: 0
         u: 1
         t: 1
       quadrature: 2
@@ -69,10 +61,9 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     response type: global
-    compute errors: true
     compute response: false
-    write solution: false
-    write subgrid solution: false
+    write solution: true
+    write subgrid solution: true
     compute objective: false
     compute sensitivities: false
 ...

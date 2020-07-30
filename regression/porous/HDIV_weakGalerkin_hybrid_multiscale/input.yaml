@@ -25,6 +25,7 @@ ANONYMOUS:
     initial type: none
     use direct solver: false
     use preconditioner: true
+    use preconditioner for DBCs: false
   Discretization:
     eblock-0_0:
       order:

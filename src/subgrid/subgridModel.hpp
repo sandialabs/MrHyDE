@@ -32,7 +32,7 @@ public:
                        Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & macroorientation) = 0;
 
   
-  virtual void finalize() = 0;
+  virtual void finalize(const int & globalSize, const int & globalPID) = 0;
   
   virtual void subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
                              Kokkos::View<ScalarT***,AssemblyDevice> gl_phi,
@@ -47,8 +47,12 @@ public:
   //virtual Kokkos::View<ScalarT**,AssemblyDevice> computeError(const ScalarT & time,
   //                                                           const int & usernum) = 0;
   
+  virtual vector<pair<size_t, string> > getErrorList() = 0;
+
   virtual Kokkos::View<ScalarT**,AssemblyDevice> computeError(vector<pair<size_t, string> > & sub_error_list,
                                                               const vector<ScalarT> & times) = 0;
+  
+  virtual Kokkos::View<ScalarT*,AssemblyDevice> computeError(const ScalarT & times) = 0;
   
   virtual Kokkos::View<AD*,AssemblyDevice> computeObjective(const string & response_type,
                                                             const int & seedwhat,
@@ -56,6 +60,8 @@ public:
                                                             const int & usernum) = 0;
   
   virtual void writeSolution(const string & filename, const int & usernum) = 0;
+  
+  virtual void writeSolution(const ScalarT & time) = 0;
 
   virtual void addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points,
                           const ScalarT & sensor_loc_tol,

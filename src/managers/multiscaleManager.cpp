@@ -176,7 +176,7 @@ ScalarT MultiScale::initialize() {
   }
   
   for (size_t s=0; s<subgridModels.size(); s++) {
-    subgridModels[s]->finalize();
+    subgridModels[s]->finalize(MacroComm->getSize(), MacroComm->getRank());
   }
   
   ////////////////////////////////////////////////////////////////////////////////
