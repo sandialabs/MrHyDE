@@ -134,7 +134,7 @@ public:
   Teuchos::RCP<MultiScale> multiscale_manager;
   vector<Teuchos::RCP<FunctionManager> > functionManagers;
   
-  bool compute_response, compute_error, compute_subgrid_error, write_solution, write_subgrid_solution;
+  bool compute_response, compute_error, compute_subgrid_error, write_solution, write_subgrid_solution, write_HFACE_variables;
   string exodus_filename;
   int spaceDim;                                                // spatial dimension
   //int numNodes;                                              // total number of nodes in the mesh

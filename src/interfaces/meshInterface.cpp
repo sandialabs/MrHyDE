@@ -334,7 +334,7 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
       }
       else if (vartypes[j] == "HFACE") { // hybridized variable
         //mesh->addSolutionField(varlist[j], eBlocks[i]);
-        //mesh->addCellField(varlist[j], eBlocks[i]);
+        mesh->addCellField(varlist[j], eBlocks[i]);
       }
       else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL") { // HDIV or HCURL
         mesh->addSolutionField(varlist[j]+"x", eBlocks[i]);

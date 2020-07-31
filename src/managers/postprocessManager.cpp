@@ -53,10 +53,8 @@ void PostprocessManager::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) 
   
   milo_debug_level = settings->get<int>("debug level",0);
   
-  if (milo_debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting PostprocessManager::setup()" << endl;
-    }
+  if (milo_debug_level > 0 && Comm->getRank() == 0) {
+    cout << "**** Starting PostprocessManager::setup()" << endl;
   }
   
   verbosity = settings->get<int>("verbosity",1);
@@ -65,8 +63,25 @@ void PostprocessManager::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) 
   compute_error = settings->sublist("Postprocess").get<bool>("compute errors",false);
   write_solution = settings->sublist("Postprocess").get("write solution",false);
   write_subgrid_solution = settings->sublist("Postprocess").get("write subgrid solution",false);
-  
+  write_HFACE_variables = settings->sublist("Postprocess").get("write HFACE variables",false);
   exodus_filename = settings->sublist("Postprocess").get<string>("output file","output")+".exo";
+  
+  if (verbosity > 0 && Comm->getRank() == 0) {
+    if (write_solution && !write_HFACE_variables) {
+      bool have_HFACE_vars = false;
+      vector<vector<string> > types = phys->types;
+      for (size_t b=0; b<types.size(); b++) {
+        for (size_t var=0; var<types[b].size(); var++) {
+          if (types[b][var] == "HFACE") {
+            have_HFACE_vars = true;
+          }
+        }
+      }
+      if (have_HFACE_vars) {
+        cout << "**** MrHyDE Warning: Visualization is enabled and at least one HFACE variable was found, but Postprocess-> write_HFACE_variables is set to false." << endl;
+      }
+    }
+  }
   
   if (write_solution && Comm->getRank() == 0) {
     cout << endl << "*********************************************************" << endl;
@@ -1220,8 +1235,28 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
         mesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
         mesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
       }
-      else if (vartypes[n] == "HFACE") { // need to project each component onto PW-linear basis and PW constant basis
-        
+      else if (vartypes[n] == "HFACE" && write_HFACE_variables) {
+        Kokkos::View<ScalarT*,HostDevice> soln_faceavg("solution",myElements.size());
+        size_t eprog = 0;
+        for( size_t c=0; c<assembler->cells[b].size(); c++ ) {
+          for (int elem=0; elem<assembler->cells[b][c]->numElem; elem++) {
+            double facemeasure = 0.0;
+            double solint = 0.0;
+            for (size_t face=0; face<assembler->cellData[b]->numSides; face++) {
+              int seedwhat = 0;
+              assembler->wkset[b]->computeSolnSteadySeeded(assembler->cells[b][c]->u, seedwhat);
+              assembler->cells[b][c]->computeSolnFaceIP(face);
+              
+              for( size_t pt=0; pt<assembler->wkset[b]->wts_side.extent(1); pt++ ) {
+                facemeasure += assembler->wkset[b]->wts_side(elem,pt);
+                solint += assembler->wkset[b]->local_soln_face(elem,n,pt,0).val()*assembler->wkset[b]->wts_side(elem,pt);
+              }
+            }
+            soln_faceavg(eprog) = solint/facemeasure;
+            eprog++;
+          }
+        }
+        mesh->setCellFieldData(varlist[b][n], blockID, myElements, soln_faceavg);
       }
     }
     
