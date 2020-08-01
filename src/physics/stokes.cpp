@@ -101,7 +101,7 @@ void stokes::volumeResidual() {
   basis_grad = wkset->basis_grad[ux_basis];
   wts = wkset->wts;
   
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for("Stokes ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     ScalarT v = 0.0;
     ScalarT dvdx = 0.0;
@@ -164,7 +164,7 @@ void stokes::volumeResidual() {
   basis = wkset->basis[pr_basis];
   basis_grad = wkset->basis_grad[pr_basis];
   
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     ScalarT v = 0.0;
     ScalarT dvdx = 0.0;
@@ -217,7 +217,7 @@ void stokes::volumeResidual() {
     basis = wkset->basis[uy_basis];
     basis_grad = wkset->basis_grad[uy_basis];
     
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("Stokes uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
       
       ScalarT v = 0.0;
       ScalarT dvdx = 0.0;
@@ -272,7 +272,7 @@ void stokes::volumeResidual() {
     basis = wkset->basis[uz_basis];
     basis_grad = wkset->basis_grad[uz_basis];
     
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("Stokes uz volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
       
       ScalarT v = 0.0;
       ScalarT dvdx = 0.0;

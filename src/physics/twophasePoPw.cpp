@@ -104,7 +104,7 @@ void twophasePoPw::volumeResidual() {
   //AD dS_w_dx, dP_w_dx, dS_w_dy, dP_w_dy, dS_w_dz, dP_w_dz;
   
   if (spaceDim == 1) {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int k=0; k<sol.extent(2); k++ ) { // loop over integration points
         AD Po = sol(e,Ponum,k,0);
         AD Pw = sol(e,Pwnum,k,0);
@@ -149,7 +149,7 @@ void twophasePoPw::volumeResidual() {
     });
   }
   else if (spaceDim == 2) {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int k=0; k<sol.extent(2); k++ ) {
         AD Po = sol(e,Ponum,k,0);
         AD Pw = sol(e,Pwnum,k,0);
@@ -196,7 +196,7 @@ void twophasePoPw::volumeResidual() {
     });
   }
   else if (spaceDim == 3) {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int k=0; k<sol.extent(2); k++ ) {
         AD Po = sol(e,Ponum,k,0);
         AD Pw = sol(e,Pwnum,k,0);

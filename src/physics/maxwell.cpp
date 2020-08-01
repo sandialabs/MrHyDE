@@ -73,7 +73,7 @@ void maxwell::volumeResidual() {
     auto curlE = Kokkos::subview(sol_curl, Kokkos::ALL(), Enum, Kokkos::ALL(), Kokkos::ALL());
     auto off = Kokkos::subview(offsets, Bnum, Kokkos::ALL());
     wts = wkset->wts;
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("Maxwells B volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<sol.extent(2); pt++ ) {
         AD f0 = (dBdt(elem,pt,0) + curlE(elem,pt,0))*wts(elem,pt);
         AD f1 = (dBdt(elem,pt,1) + curlE(elem,pt,1))*wts(elem,pt);
@@ -98,7 +98,7 @@ void maxwell::volumeResidual() {
     auto E = Kokkos::subview(sol, Kokkos::ALL(), Enum, Kokkos::ALL(), Kokkos::ALL());
     auto off = Kokkos::subview(offsets, Enum, Kokkos::ALL());
     
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("Maxwells E volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<sol.extent(2); pt++ ) {
         AD f0 = (epsilon(elem,pt)*dEdt(elem,pt,0) + sigma(elem,pt)*E(elem,pt,0) + current_x(elem,pt))*wts(elem,pt);
         AD f1 = (epsilon(elem,pt)*dEdt(elem,pt,1) + sigma(elem,pt)*E(elem,pt,1) + current_y(elem,pt))*wts(elem,pt);

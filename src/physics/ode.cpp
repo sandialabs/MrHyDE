@@ -42,14 +42,16 @@ void ODE::volumeResidual() {
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("ODE source","ip");
- }
+  }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
+  int q_basis = wkset->usebasis[qnum];
+  basis = wkset->basis[q_basis];
   
   // Simply solves q_dot = f(q,t)
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    int resindex = offsets(qnum,0);
-    res(e,resindex) += sol_dot(e,qnum,0,0) - source(e,0);
+  auto off = Kokkos::subview(offsets,qnum,Kokkos::ALL());
+  parallel_for("ODE volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    res(e,off(0)) += sol_dot(e,qnum,0,0) - source(e,0);
   });
 }
 

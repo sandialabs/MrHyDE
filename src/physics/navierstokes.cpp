@@ -105,7 +105,7 @@ void navierstokes::volumeResidual() {
   basis_grad = wkset->basis_grad[ux_basis];
   wts = wkset->wts;
   
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     ScalarT v = 0.0;
     ScalarT dvdx = 0.0;
@@ -178,7 +178,7 @@ void navierstokes::volumeResidual() {
   basis = wkset->basis[pr_basis];
   basis_grad = wkset->basis_grad[pr_basis];
   
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for("NS pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     ScalarT v = 0.0;
     ScalarT dvdx = 0.0;
@@ -273,7 +273,7 @@ void navierstokes::volumeResidual() {
     basis = wkset->basis[uy_basis];
     basis_grad = wkset->basis_grad[uy_basis];
     
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("NS uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
       
       ScalarT v = 0.0;
       ScalarT dvdx = 0.0;
@@ -345,7 +345,7 @@ void navierstokes::volumeResidual() {
     basis = wkset->basis[uz_basis];
     basis_grad = wkset->basis_grad[uz_basis];
     
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("NS uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
       
       ScalarT v = 0.0;
       ScalarT dvdx = 0.0;

@@ -87,7 +87,7 @@ void thermal::volumeResidual() {
   auto off = Kokkos::subview( offsets, e_num, Kokkos::ALL());
   
   if (spaceDim == 1) {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("Thermal volume resid 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<sol.extent(2); pt++ ) {
         AD f = rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt);
         AD DFx = diff(elem,pt)*gradT(elem,pt,0);
@@ -100,7 +100,7 @@ void thermal::volumeResidual() {
     });
   }
   else if (spaceDim == 2) {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("Thermal volume resid 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<sol.extent(2); pt++ ) {
         AD f = rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt);
         AD DFx = diff(elem,pt)*gradT(elem,pt,0);
@@ -115,7 +115,7 @@ void thermal::volumeResidual() {
     });
   }
   else {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("Thermal volume resid 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<sol.extent(2); pt++ ) {
         AD f = rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt);
         AD DFx = diff(elem,pt)*gradT(elem,pt,0);
@@ -139,7 +139,7 @@ void thermal::volumeResidual() {
   if (have_nsvel) {
     if (spaceDim == 1) {
       auto Ux = Kokkos::subview( sol, Kokkos::ALL(), ux_num, Kokkos::ALL(), 0);
-      parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Thermal volume resid NS 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int pt=0; pt<sol.extent(2); pt++ ) {
           AD f = Ux(elem,pt)*gradT(elem,pt,0);
           f *= wts(elem,pt);
@@ -152,7 +152,7 @@ void thermal::volumeResidual() {
     else if (spaceDim == 2) {
       auto Ux = Kokkos::subview( sol, Kokkos::ALL(), ux_num, Kokkos::ALL(), 0);
       auto Uy = Kokkos::subview( sol, Kokkos::ALL(), uy_num, Kokkos::ALL(), 0);
-      parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Thermal volume resid NS 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int pt=0; pt<sol.extent(2); pt++ ) {
           AD f = Ux(elem,pt)*gradT(elem,pt,0) + Uy(elem,pt)*gradT(elem,pt,1);
           f *= wts(elem,pt);
@@ -166,7 +166,7 @@ void thermal::volumeResidual() {
       auto Ux = Kokkos::subview( sol, Kokkos::ALL(), ux_num, Kokkos::ALL(), 0);
       auto Uy = Kokkos::subview( sol, Kokkos::ALL(), uy_num, Kokkos::ALL(), 0);
       auto Uz = Kokkos::subview( sol, Kokkos::ALL(), uz_num, Kokkos::ALL(), 0);
-      parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Thermal volume resid NS 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int pt=0; pt<sol.extent(2); pt++ ) {
           AD f = Ux(elem,pt)*gradT(elem,pt,0) + Uy(elem,pt)*gradT(elem,pt,1) + Uz(elem,pt)*gradT(elem,pt,2);
           f *= wts(elem,pt);
@@ -231,7 +231,7 @@ void thermal::boundaryResidual() {
   // <g(u),v> + <p(u),grad(v)\cdot n>
   
   if (bcs(e_num,cside) == 2) { // Neumann BCs
-    parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("Thermal bndry resid N",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<basis.extent(2); pt++ ) {
         AD g = -nsource(elem,pt);
         g *= wts(elem,pt);
@@ -243,7 +243,7 @@ void thermal::boundaryResidual() {
   }
   else if (bcs(e_num,cside) == 4) {
     if (spaceDim == 1) {
-      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Thermal bndry resid wD 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int pt=0; pt<basis.extent(2); pt++ ) {
           AD g = 10.0*diff_side(elem,pt)/h(elem)*(T(elem,pt)-nsource(elem,pt)) - diff_side(elem,pt)*gradT(elem,pt,0)*normals(elem,pt,0);
           AD p = -sf*diff_side(elem,pt)*(T(elem,pt) - nsource(elem,pt));
@@ -257,7 +257,7 @@ void thermal::boundaryResidual() {
       });
     }
     else if (spaceDim == 2) {
-      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Thermal bndry resid wD 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int pt=0; pt<basis.extent(2); pt++ ) {
           AD g = 10.0*diff_side(elem,pt)/h(elem)*(T(elem,pt)-nsource(elem,pt)) - diff_side(elem,pt)*(gradT(elem,pt,0)*normals(elem,pt,0) + gradT(elem,pt,1)*normals(elem,pt,1));
           AD p = -sf*diff_side(elem,pt)*(T(elem,pt) - nsource(elem,pt));
@@ -271,7 +271,7 @@ void thermal::boundaryResidual() {
       });
     }
     else if (spaceDim == 3) {
-      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Thermal bndry resid wD 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int pt=0; pt<basis.extent(2); pt++ ) {
           AD g = 10.0*diff_side(elem,pt)/h(elem)*(T(elem,pt)-nsource(elem,pt)) - diff_side(elem,pt)*(gradT(elem,pt,0)*normals(elem,pt,0) + gradT(elem,pt,1)*normals(elem,pt,1) + gradT(elem,pt,2)*normals(elem,pt,2));
           AD p = -sf*diff_side(elem,pt)*(T(elem,pt) - nsource(elem,pt));
@@ -292,7 +292,7 @@ void thermal::boundaryResidual() {
     auto lambda = Kokkos::subview( aux_side, Kokkos::ALL(), auxe_num, Kokkos::ALL());
     
     if (spaceDim == 1) {
-      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Thermal bndry resid wD-ms 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int pt=0; pt<basis.extent(2); pt++ ) {
           AD g = 10.0*diff_side(elem,pt)/h(elem)*(T(elem,pt)-lambda(elem,pt)) - diff_side(elem,pt)*gradT(elem,pt,0)*normals(elem,pt,0);
           AD p = -sf*diff_side(elem,pt)*(T(elem,pt) - lambda(elem,pt));
@@ -306,7 +306,7 @@ void thermal::boundaryResidual() {
       });
     }
     else if (spaceDim == 2) {
-      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Thermal bndry resid wD-ms 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int pt=0; pt<basis.extent(2); pt++ ) {
           AD g = 10.0*diff_side(elem,pt)/h(elem)*(T(elem,pt)-lambda(elem,pt)) - diff_side(elem,pt)*(gradT(elem,pt,0)*normals(elem,pt,0) + gradT(elem,pt,1)*normals(elem,pt,1));
           AD p = -sf*diff_side(elem,pt)*(T(elem,pt) - lambda(elem,pt));
@@ -320,7 +320,7 @@ void thermal::boundaryResidual() {
       });
     }
     else if (spaceDim == 3) {
-      parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Thermal bndry resid wD-ms 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int pt=0; pt<basis.extent(2); pt++ ) {
           AD g = 10.0*diff_side(elem,pt)/h(elem)*(T(elem,pt)-lambda(elem,pt)) - diff_side(elem,pt)*(gradT(elem,pt,0)*normals(elem,pt,0) + gradT(elem,pt,1)*normals(elem,pt,1) + gradT(elem,pt,2)*normals(elem,pt,2));
           AD p = -sf*diff_side(elem,pt)*(T(elem,pt) - lambda(elem,pt));
@@ -372,21 +372,21 @@ void thermal::computeFlux() {
       Teuchos::TimeMonitor localtime(*fluxFill);
       
       if (spaceDim == 1) {
-        parallel_for(RangePolicy<AssemblyExec>(0,flux.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("Thermal flux 1D",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (size_t pt=0; pt<normals.extent(1); pt++) {
             fluxT(elem,pt) = sf*diff_side(elem,pt)*gradT(elem,pt,0)*normals(elem,pt,0) + 10.0/h(elem)*diff_side(elem,pt)*(lambda(elem,pt)-T(elem,pt));
           }
         });
       }
       else if (spaceDim == 2) {
-        parallel_for(RangePolicy<AssemblyExec>(0,flux.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("Thermal flux 2D",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (size_t pt=0; pt<normals.extent(1); pt++) {
             fluxT(elem,pt) = sf*diff_side(elem,pt)*(gradT(elem,pt,0)*normals(elem,pt,0) + gradT(elem,pt,1)*normals(elem,pt,1)) + 10.0/h(elem)*diff_side(elem,pt)*(lambda(elem,pt)-T(elem,pt));
           }
         });
       }
       else if (spaceDim == 3) {
-        parallel_for(RangePolicy<AssemblyExec>(0,flux.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("Thermal flux 3D",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (size_t pt=0; pt<normals.extent(1); pt++) {
             fluxT(elem,pt) = sf*diff_side(elem,pt)*(gradT(elem,pt,0)*normals(elem,pt,0) + gradT(elem,pt,1)*normals(elem,pt,1) + gradT(elem,pt,2)*normals(elem,pt,2)) + 10.0/h(elem)*diff_side(elem,pt)*(lambda(elem,pt)-T(elem,pt));
           }

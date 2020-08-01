@@ -111,7 +111,7 @@ void shallowwater::volumeResidual() {
   auto Huoff = Kokkos::subview(offsets, Hu_num, Kokkos::ALL());
   auto Hvoff = Kokkos::subview(offsets, Hv_num, Kokkos::ALL());
   
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+  parallel_for("SW volume resid",RangePolicy<AssemblyExec>(0,Hbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
     ScalarT v = 0.0;
     ScalarT dvdx = 0.0;
     ScalarT dvdy = 0.0;

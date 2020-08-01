@@ -351,12 +351,12 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
     int maxElem = assembler->cells[0][0]->numElem;
     int numDOF = assembler->cells[usernum][0]->LIDs.extent(1);
     
-    Kokkos::View<ScalarT***,UnifiedDevice> local_res, local_J, local_Jdot;
+    Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J;
     
     {
       Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverAllocateTimer);
-      local_res = Kokkos::View<ScalarT***,UnifiedDevice>("local residual",numElem,numDOF,1);
-      local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",numElem,numDOF,numDOF);
+      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,1);
+      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numDOF);
     }
     
     {
@@ -397,7 +397,6 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
       
       {
         Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverJacResTimer);
-        
         assembler->cells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
                                               true, false, num_active_params, false, false, false,
                                               local_res, local_J,
@@ -479,6 +478,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
         }
       }
     }
+    
     if (maxElem > numElem) {
       LIDView LIDs = assembler->cells[0][0]->LIDs;
       ScalarT vals[1];

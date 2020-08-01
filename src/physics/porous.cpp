@@ -75,7 +75,7 @@ void porous::volumeResidual() {
   auto off = Kokkos::subview(offsets, pnum, Kokkos::ALL());
   
   if (spaceDim == 1) {
-    parallel_for("porous HGRAD volume resid 1D",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HGRAD volume resid 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<psol.extent(1); pt++ ) {
         AD Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
         AD M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
@@ -88,7 +88,7 @@ void porous::volumeResidual() {
     });
   }
   else if (spaceDim == 2) {
-    parallel_for("porous HGRAD volume resid 2D",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HGRAD volume resid 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<psol.extent(1); pt++ ) {
         AD Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
         AD M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
@@ -102,7 +102,7 @@ void porous::volumeResidual() {
     });
   }
   else if (spaceDim == 3) {
-    parallel_for("porous HGRAD volume resid 3D",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HGRAD volume resid 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<psol.extent(1); pt++ ) {
         AD Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
         AD M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
@@ -172,7 +172,7 @@ void porous::boundaryResidual() {
   auto off = Kokkos::subview(offsets, pnum, Kokkos::ALL());
   
   if (bcs(pnum,cside) == 2) { //Neumann
-    parallel_for("porous HGRAD bndry resid Neumann",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HGRAD bndry resid Neumann",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<basis.extent(2); pt++ ) {
         AD s = -source(elem,pt)*wts(elem,pt);
         for (int dof=0; dof<basis.extent(1); dof++ ) {
@@ -182,7 +182,7 @@ void porous::boundaryResidual() {
     });
   }
   else if (bcs(pnum,cside) == 4) { // weak Dirichlet
-    parallel_for("porous HGRAD bndry resid weak Dirichlet",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HGRAD bndry resid weak Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<basis.extent(2); pt++ ) {
         AD pval = psol(elem,pt);
         AD dens = densref(elem,pt)*(1.0+comp(elem,pt)*(pval - pref(elem,pt)));
@@ -207,7 +207,7 @@ void porous::boundaryResidual() {
   }
   else if (bcs(pnum,cside) == 5) { // multiscale weak Dirichlet
     auto lambda = Kokkos::subview(aux_side,Kokkos::ALL(), pnum, Kokkos::ALL());
-    parallel_for("porous HGRAD bndry resid MS weak Dirichlet",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HGRAD bndry resid MS weak Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<basis.extent(2); pt++ ) {
         AD pval = psol(elem,pt);
         AD dens = densref(elem,pt)*(1.0+comp(elem,pt)*(pval - pref(elem,pt)));
@@ -271,7 +271,7 @@ void porous::computeFlux() {
     auto psol = Kokkos::subview(sol_side, Kokkos::ALL(), pnum, Kokkos::ALL(), 0);
     auto pgrad = Kokkos::subview(sol_grad_side, Kokkos::ALL(), pnum, Kokkos::ALL(), Kokkos::ALL());
     auto lambda = Kokkos::subview(aux_side, Kokkos::ALL(), pnum, Kokkos::ALL());
-    parallel_for("porous HGRAD flux",RangePolicy<AssemblyExec>(0,pflux.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HGRAD flux",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       
       for (size_t pt=0; pt<pflux.extent(1); pt++) {
         AD dens = densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));

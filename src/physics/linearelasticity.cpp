@@ -119,7 +119,7 @@ void linearelasticity::volumeResidual() {
     basis_grad = wkset->basis_grad[dx_basis];
     auto off = Kokkos::subview( offsets, dx_num, Kokkos::ALL());
     
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("LE volume resid 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (size_t pt=0; pt<basis.extent(2); pt++ ) {
         for (int dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += (stress(elem,pt,0,0)*basis_grad(elem,dof,pt,0) - source_dx(elem,pt)*basis(elem,dof,pt))*wts(elem,pt);
@@ -136,7 +136,7 @@ void linearelasticity::volumeResidual() {
       basis_grad = wkset->basis_grad[dx_basis];
       auto off = Kokkos::subview( offsets, dx_num, Kokkos::ALL());
       
-      parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("LE ux volume resid 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (size_t pt=0; pt<basis.extent(2); pt++ ) {
           for (int dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += (stress(elem,pt,0,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,0,1)*basis_grad(elem,dof,pt,1) - source_dx(elem,pt)*basis(elem,dof,pt))*wts(elem,pt);
@@ -152,7 +152,7 @@ void linearelasticity::volumeResidual() {
       basis_grad = wkset->basis_grad[dy_basis];
       auto off = Kokkos::subview( offsets, dy_num, Kokkos::ALL());
       
-      parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("LE uy volume resid 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (size_t pt=0; pt<basis.extent(2); pt++ ) {
           for (int dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += (stress(elem,pt,1,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,1,1)*basis_grad(elem,dof,pt,1) - source_dy(elem,pt)*basis(elem,dof,pt))*wts(elem,pt);
@@ -170,7 +170,7 @@ void linearelasticity::volumeResidual() {
       basis_grad = wkset->basis_grad[dx_basis];
       auto off = Kokkos::subview( offsets, dx_num, Kokkos::ALL());
       
-      parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("LE ux volume resid 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (size_t pt=0; pt<basis.extent(2); pt++ ) {
           for (int dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += (stress(elem,pt,0,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,0,1)*basis_grad(elem,dof,pt,1) + stress(elem,pt,0,2)*basis_grad(elem,dof,pt,2) - source_dx(elem,pt)*basis(elem,dof,pt))*wts(elem,pt);
@@ -186,7 +186,7 @@ void linearelasticity::volumeResidual() {
       basis_grad = wkset->basis_grad[dy_basis];
       auto off = Kokkos::subview( offsets, dy_num, Kokkos::ALL());
       
-      parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("LE uy volume resid 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (size_t pt=0; pt<basis.extent(2); pt++ ) {
           for (int dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += (stress(elem,pt,1,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,1,1)*basis_grad(elem,dof,pt,1) + stress(elem,pt,1,2)*basis_grad(elem,dof,pt,2) - source_dy(elem,pt)*basis(elem,dof,pt))*wts(elem,pt);
@@ -202,7 +202,7 @@ void linearelasticity::volumeResidual() {
       basis_grad = wkset->basis_grad[dz_basis];
       auto off = Kokkos::subview( offsets, dz_num, Kokkos::ALL());
       
-      parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("LE uz volume resid 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (size_t pt=0; pt<basis.extent(2); pt++ ) {
           for (int dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += (stress(elem,pt,2,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,2,1)*basis_grad(elem,dof,pt,1) + stress(elem,pt,2,2)*basis_grad(elem,dof,pt,2) - source_dz(elem,pt)*basis(elem,dof,pt))*wts(elem,pt);
@@ -274,7 +274,7 @@ void linearelasticity::boundaryResidual() {
       auto off = Kokkos::subview( offsets, dx_num, Kokkos::ALL());
       
       if (dx_sidetype == 2) { // Neumann
-        parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        parallel_for("LE ux bndry resid 1D N",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (size_t k=0; k<basis.extent(2); k++ ) {
             for (int i=0; i<basis.extent(1); i++ ) {
               res(e,off(i)) += (-sourceN_dx(e,k)*basis(e,i,k))*wts(e,k);
@@ -284,7 +284,7 @@ void linearelasticity::boundaryResidual() {
       }
       else if (dx_sidetype == 4) { // weak Dirichlet
         auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
-        parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        parallel_for("LE ux bndry resid 1D wD",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (int k=0; k<basis.extent(2); k++ ) {
             AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
             AD deltadx = dx(e,k); // should be - dval(e,k), but this is set to 0.0
@@ -298,7 +298,7 @@ void linearelasticity::boundaryResidual() {
       else if (dx_sidetype == 5) { // weak Dirichlet for multiscale
         auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
         auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
-        parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        parallel_for("LE ux bndry resid 1D wD-ms",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (int k=0; k<basis.extent(2); k++ ) {
             AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
             AD deltadx = dx(e,k) - lambdax(e,k);
@@ -319,7 +319,7 @@ void linearelasticity::boundaryResidual() {
         basis_grad = wkset->basis_grad_side[dx_basis];
         auto off = Kokkos::subview( offsets, dx_num, Kokkos::ALL());
         if (dx_sidetype == 2) { // traction (Neumann)
-          parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("LE ux bndry resid 2D N",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_t k=0; k<basis.extent(2); k++ ) {
               for (int i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += (-sourceN_dx(e,k)*basis(e,i,k))*wts(e,k);
@@ -330,7 +330,7 @@ void linearelasticity::boundaryResidual() {
         else if (dx_sidetype == 4) { // weak Dirichlet (set to 0.0)
           auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
           auto dy = Kokkos::subview( sol_side, Kokkos::ALL(), dy_num, Kokkos::ALL(), 0);
-          parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("LE ux bndry resid 2D wD",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (int k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               AD deltadx = dx(e,k); // should be - dval(e,k), but this is set to 0.0
@@ -349,7 +349,7 @@ void linearelasticity::boundaryResidual() {
           auto dy = Kokkos::subview( sol_side, Kokkos::ALL(), dy_num, Kokkos::ALL(), 0);
           auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
           auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL());
-          parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("LE ux bndry resid 1D wD-ms",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (int k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               AD deltadx = dx(e,k) - lambdax(e,k);
@@ -371,7 +371,7 @@ void linearelasticity::boundaryResidual() {
         basis_grad = wkset->basis_grad_side[dy_basis];
         auto off = Kokkos::subview( offsets, dy_num, Kokkos::ALL());
         if (dy_sidetype == 2) { // traction (Neumann)
-          parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("LE uy bndry resid 2D N",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_t k=0; k<basis.extent(2); k++ ) {
               for (int i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += (-sourceN_dy(e,k)*basis(e,i,k))*wts(e,k);
@@ -382,7 +382,7 @@ void linearelasticity::boundaryResidual() {
         else if (dy_sidetype == 4) { // weak Dirichlet (set to 0.0)
           auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
           auto dy = Kokkos::subview( sol_side, Kokkos::ALL(), dy_num, Kokkos::ALL(), 0);
-          parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("LE uy bndry resid 2D wD",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (int k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               AD deltadx = dx(e,k); // should be - dval(e,k), but this is set to 0.0
@@ -400,7 +400,7 @@ void linearelasticity::boundaryResidual() {
           auto dy = Kokkos::subview( sol_side, Kokkos::ALL(), dy_num, Kokkos::ALL(), 0);
           auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
           auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL());
-          parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("LE uy bndry resid 2D wD-ms",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (int k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               AD deltadx = dx(e,k) - lambdax(e,k);
@@ -425,7 +425,7 @@ void linearelasticity::boundaryResidual() {
         basis_grad = wkset->basis_grad_side[dx_basis];
         auto off = Kokkos::subview( offsets, dx_num, Kokkos::ALL());
         if (dx_sidetype == 2) { // traction (Neumann)
-          parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("LE ux bndry resid 3D N",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_t k=0; k<basis.extent(2); k++ ) {
               for (int i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += (-sourceN_dx(e,k)*basis(e,i,k))*wts(e,k);
@@ -437,7 +437,7 @@ void linearelasticity::boundaryResidual() {
           auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
           auto dy = Kokkos::subview( sol_side, Kokkos::ALL(), dy_num, Kokkos::ALL(), 0);
           auto dz = Kokkos::subview( sol_side, Kokkos::ALL(), dz_num, Kokkos::ALL(), 0);
-          parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("LE ux bndry resid 3D wD",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (int k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               AD deltadx = dx(e,k); // should be - dval(e,k), but this is set to 0.0
@@ -459,7 +459,7 @@ void linearelasticity::boundaryResidual() {
           auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
           auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL());
           auto lambdaz = Kokkos::subview( aux_side, Kokkos::ALL(), auxdz_num, Kokkos::ALL());
-          parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("LE ux bndry resid 3D wD-ms",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (int k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               AD deltadx = dx(e,k) - lambdax(e,k);
@@ -483,7 +483,7 @@ void linearelasticity::boundaryResidual() {
         basis_grad = wkset->basis_grad_side[dy_basis];
         auto off = Kokkos::subview( offsets, dy_num, Kokkos::ALL());
         if (dy_sidetype == 2) { // traction (Neumann)
-          parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("LE uy bndry resid 3D N",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_t k=0; k<basis.extent(2); k++ ) {
               for (int i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += (-sourceN_dy(e,k)*basis(e,i,k))*wts(e,k);
@@ -495,7 +495,7 @@ void linearelasticity::boundaryResidual() {
           auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
           auto dy = Kokkos::subview( sol_side, Kokkos::ALL(), dy_num, Kokkos::ALL(), 0);
           auto dz = Kokkos::subview( sol_side, Kokkos::ALL(), dz_num, Kokkos::ALL(), 0);
-          parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("LE uy bndry resid 3D wD",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (int k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               AD deltadx = dx(e,k); // should be - dval(e,k), but this is set to 0.0
@@ -517,7 +517,7 @@ void linearelasticity::boundaryResidual() {
           auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
           auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL());
           auto lambdaz = Kokkos::subview( aux_side, Kokkos::ALL(), auxdz_num, Kokkos::ALL());
-          parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("LE uy bndry resid 3D wD-ms",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (int k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               AD deltadx = dx(e,k) - lambdax(e,k);
@@ -540,7 +540,7 @@ void linearelasticity::boundaryResidual() {
         basis_grad = wkset->basis_grad_side[dz_basis];
         auto off = Kokkos::subview( offsets, dz_num, Kokkos::ALL());
         if (dz_sidetype == 2) { // traction (Neumann)
-          parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("LE uz bndry resid 3D N",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_t k=0; k<basis.extent(2); k++ ) {
               for (int i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += (-sourceN_dz(e,k)*basis(e,i,k))*wts(e,k);
@@ -552,7 +552,7 @@ void linearelasticity::boundaryResidual() {
           auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
           auto dy = Kokkos::subview( sol_side, Kokkos::ALL(), dy_num, Kokkos::ALL(), 0);
           auto dz = Kokkos::subview( sol_side, Kokkos::ALL(), dz_num, Kokkos::ALL(), 0);
-          parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("LE uz bndry resid 3D wD",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (int k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               AD deltadx = dx(e,k); // should be - dval(e,k), but this is set to 0.0
@@ -574,7 +574,7 @@ void linearelasticity::boundaryResidual() {
           auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
           auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL());
           auto lambdaz = Kokkos::subview( aux_side, Kokkos::ALL(), auxdz_num, Kokkos::ALL());
-          parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("LE uz bndry resid 3D wD-ms",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (int k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               AD deltadx = dx(e,k) - lambdax(e,k);
@@ -633,7 +633,7 @@ void linearelasticity::computeFlux() {
       auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
       auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
       auto flux_x = Kokkos::subview( flux, Kokkos::ALL(), dx_num, Kokkos::ALL());
-      parallel_for(RangePolicy<AssemblyExec>(0,flux_x.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      parallel_for("LE flux 1D",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (size_t k=0; k<flux_x.extent(1); k++) {
           AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
           flux_x(e,k) = 1.0*stress_side(e,k,0,0)*normals(e,k,0) + penalty*(lambdax(e,k)-dx(e,k));
@@ -647,7 +647,7 @@ void linearelasticity::computeFlux() {
       auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL());
       auto flux_x = Kokkos::subview( flux, Kokkos::ALL(), dx_num, Kokkos::ALL());
       auto flux_y = Kokkos::subview( flux, Kokkos::ALL(), dy_num, Kokkos::ALL());
-      parallel_for(RangePolicy<AssemblyExec>(0,flux_x.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      parallel_for("LE flux 2D",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (size_t k=0; k<flux_x.extent(1); k++) {
           AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
           flux_x(e,k) = 1.0*(stress_side(e,k,0,0)*normals(e,k,0) + stress_side(e,k,0,1)*normals(e,k,1)) + penalty*(lambdax(e,k)-dx(e,k));
@@ -665,7 +665,7 @@ void linearelasticity::computeFlux() {
       auto flux_x = Kokkos::subview( flux, Kokkos::ALL(), dx_num, Kokkos::ALL());
       auto flux_y = Kokkos::subview( flux, Kokkos::ALL(), dy_num, Kokkos::ALL());
       auto flux_z = Kokkos::subview( flux, Kokkos::ALL(), dz_num, Kokkos::ALL());
-      parallel_for(RangePolicy<AssemblyExec>(0,flux_x.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      parallel_for("LE flux 3D",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (size_t k=0; k<flux_x.extent(1); k++) {
           AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
           flux_x(e,k) = 1.0*(stress_side(e,k,0,0)*normals(e,k,0) + stress_side(e,k,0,1)*normals(e,k,1) + stress_side(e,k,0,2)*normals(e,k,2)) + penalty*(lambdax(e,k)-dx(e,k));

@@ -219,7 +219,7 @@ void msphasefield::volumeResidual() {
   res = wkset->res;
   wts = wkset->wts;
   
-  for (size_t e=0; e<res.extent(0); e++) {
+  for (size_t e=0; e<basis.extent(0); e++) {
     for( int k=0; k<ip.extent(1); k++ ) {
       x = ip(e,k,0);
       

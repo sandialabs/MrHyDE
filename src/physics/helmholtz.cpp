@@ -117,7 +117,7 @@ void helmholtz::volumeResidual() {
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for("helmholtz volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (int k=0; k<sol.extent(2); k++ ) {
       AD ur = sol(e,ur_num,k,0);
       AD durdx = sol_grad(e,ur_num,k,0);

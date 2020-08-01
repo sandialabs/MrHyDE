@@ -93,7 +93,7 @@ void maxwell_HYBRID::volumeResidual() {
   // using the basis for v as the same in each component
   basis = wkset->basis[Ex_basis_num];
 
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e) {
+  parallel_for("Maxwells hybrid E volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e) {
 
     ScalarT v = 0.0;
 
@@ -130,7 +130,7 @@ void maxwell_HYBRID::volumeResidual() {
   // using the basis for v as the same in each component
   basis = wkset->basis[Hx_basis_num];
 
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e) {
+  parallel_for("Maxwells hybrid H volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e) {
 
     ScalarT v = 0.0;
 
@@ -172,7 +172,7 @@ void maxwell_HYBRID::volumeResidual() {
   basis = wkset->basis[Hx_basis_num];
   basis_grad = wkset->basis_grad[Hx_basis_num];
 
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e) {
+  parallel_for("Maxwells hybrid extra volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e) {
 
     ScalarT dvdx = 0.0;
     ScalarT dvdy = 0.0;
@@ -219,7 +219,7 @@ void maxwell_HYBRID::volumeResidual() {
   // (curl(E_h), v)_{T_h} = - (vx * (dEz_dy - dEy_dz) + vy * (dEx_dz - dEz_dx) + vz * (dEy_dx - dEx_dy))
   basis = wkset->basis[Ex_basis_num];
 
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e) {
+  parallel_for("Maxwells hybrid E volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e) {
 
     ScalarT v = 0.0;
 

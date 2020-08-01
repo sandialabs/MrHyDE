@@ -648,7 +648,6 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   //////////////////////////////////////////////////////////////
   
   // Volumetric contribution
-  
   if (assemble_volume_terms) {
     Teuchos::TimeMonitor localtimer(*volumeResidualTimer);
     if (cellData->multiscale) {

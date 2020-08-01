@@ -71,7 +71,7 @@ void thermal_enthalpy::volumeResidual() {
   basis = wkset->basis[e_basis];
   basis_grad = wkset->basis_grad[e_basis];
   
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for("Thermal enth E volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     ScalarT v = 0.0;
     ScalarT dvdx = 0.0;
@@ -128,7 +128,7 @@ void thermal_enthalpy::volumeResidual() {
   basis_grad = wkset->basis_grad[H_basis];
   auto off = Kokkos::subview( offsets, H_num, Kokkos::ALL());
   
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for("Thermal enth H voluem resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
     
     ScalarT v = 0.0;
     ScalarT dvdx = 0.0;

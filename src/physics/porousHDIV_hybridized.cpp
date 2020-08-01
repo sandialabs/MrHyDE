@@ -104,7 +104,7 @@ void porousHDIV_HYBRID::volumeResidual() {
     auto off = Kokkos::subview(offsets, unum, Kokkos::ALL());
     
     if (spaceDim == 1) { // easier to place conditional here than on device
-      parallel_for("porous HDIV-HY volume resid u 1D",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("porous HDIV-HY volume resid u 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int pt=0; pt<psol.extent(1); pt++ ) {
           AD p = psol(elem,pt)*wts(elem,pt);
           AD Kiux = Kinv_xx(elem,pt)*usol(elem,pt,0)*wts(elem,pt);
@@ -117,7 +117,7 @@ void porousHDIV_HYBRID::volumeResidual() {
       });
     }
     else if (spaceDim == 2) {
-      parallel_for("porous HDIV-HY volume resid u 2D",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("porous HDIV-HY volume resid u 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int pt=0; pt<psol.extent(1); pt++ ) {
           AD p = psol(elem,pt)*wts(elem,pt);
           AD Kiux = Kinv_xx(elem,pt)*usol(elem,pt,0)*wts(elem,pt);
@@ -132,7 +132,7 @@ void porousHDIV_HYBRID::volumeResidual() {
       });
     }
     else {
-      parallel_for("porous HDIV-HY volume resid u 3D",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("porous HDIV-HY volume resid u 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (int pt=0; pt<psol.extent(1); pt++ ) {
           AD p = psol(elem,pt)*wts(elem,pt);
           AD Kiux = Kinv_xx(elem,pt)*usol(elem,pt,0)*wts(elem,pt);
@@ -158,7 +158,7 @@ void porousHDIV_HYBRID::volumeResidual() {
     auto udiv = Kokkos::subview(sol_div,Kokkos::ALL(), unum, Kokkos::ALL());
     auto off = Kokkos::subview(offsets,pnum, Kokkos::ALL());
     
-    parallel_for("porous HDIV-HY volume resid div(u)",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HDIV-HY volume resid div(u)",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       
       for (int pt=0; pt<udiv.extent(1); pt++ ) {
         AD divu = udiv(elem,pt)*wts(elem,pt);
@@ -206,7 +206,7 @@ void porousHDIV_HYBRID::boundaryResidual() {
   auto lambda = Kokkos::subview(aux_side, Kokkos::ALL(), auxlambdanum, Kokkos::ALL());
   
   if (bcs(pnum,cside) == 1) {
-    parallel_for("porous HDIV-HY bndry resid Dirichlet",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HDIV-HY bndry resid Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<basis.extent(2); pt++ ) {
         AD src = bsource(elem,pt)*wts(elem,pt);
         for (int dof=0; dof<basis.extent(1); dof++ ) {
@@ -220,7 +220,7 @@ void porousHDIV_HYBRID::boundaryResidual() {
     });
   }
   else if (bcs(pnum,cside) == 5) {
-    parallel_for("porous HDIV-HY bndry resid MS Dirichlet",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HDIV-HY bndry resid MS Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<basis.extent(2); pt++ ) {
         AD lam = lambda(elem,pt)*wts(elem,pt);
         for (int dof=0; dof<basis.extent(1); dof++ ) {
@@ -257,7 +257,7 @@ void porousHDIV_HYBRID::faceResidual() {
     auto lambda = Kokkos::subview(sol_face,Kokkos::ALL(), lambdanum, Kokkos::ALL(), 0);
     auto off = Kokkos::subview(offsets, unum, Kokkos::ALL());
     
-    parallel_for("porous HDIV-HY face resid lambda",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HDIV-HY face resid lambda",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<basis.extent(2); pt++ ) {
         AD lam = lambda(elem,pt)*wts(elem,pt);
         for (int dof=0; dof<basis.extent(1); dof++ ) {
@@ -277,7 +277,7 @@ void porousHDIV_HYBRID::faceResidual() {
     auto usol = Kokkos::subview(sol_face, Kokkos::ALL(), unum, Kokkos::ALL(), Kokkos::ALL());
     auto off = Kokkos::subview(offsets, lambdanum, Kokkos::ALL());
     
-    parallel_for("porous HDIV-HY face resid u dot n",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HDIV-HY face resid u dot n",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<basis.extent(2); pt++ ) {
         AD udotn = 0.0;
         for (int dim=0; dim<normals.extent(2); dim++) {
@@ -307,7 +307,7 @@ void porousHDIV_HYBRID::computeFlux() {
     auto usol = Kokkos::subview(sol_side, Kokkos::ALL(), unum, Kokkos::ALL(), Kokkos::ALL());
     auto uflux = Kokkos::subview(flux, Kokkos::ALL(), auxlambdanum, Kokkos::ALL());
     
-    parallel_for("porous HDIV-HY flux",RangePolicy<AssemblyExec>(0,uflux.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HDIV-HY flux",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (size_t pt=0; pt<uflux.extent(1); pt++) {
         AD udotn = 0.0;
         for (int dim=0; dim<normals.extent(2); dim++) {

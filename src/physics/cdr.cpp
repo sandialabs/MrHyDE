@@ -87,43 +87,30 @@ void cdr::volumeResidual() {
   auto off = Kokkos::subview(offsets, cnum, Kokkos::ALL());
   
   if (spaceDim == 1) {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("cdr volume resid 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<sol.extent(2); pt++ ) {
         AD f = (dCdt(elem,pt) + xvel(elem,pt)*gradC(elem,pt,0) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,0)*wts(elem,pt);
         for (int dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f*basis(elem,dof,pt) + Fx*basis_grad(elem,dof,pt,0);
-          //sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
-          //1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0)) + // diffusion terms
-          //                        (xvel(e,k)*sol_grad(e,cnum,k,0))*basis(e,i,k) + // convection terms
-          //                        reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k)); // reaction and source terms
-          
         }
       }
     });
   }
   else if (spaceDim == 2) {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("cdr volume resid 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<sol.extent(2); pt++ ) {
         AD f = (dCdt(elem,pt) + xvel(elem,pt)*gradC(elem,pt,0) + yvel(elem,pt)*gradC(elem,pt,1) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,0)*wts(elem,pt);
         AD Fy = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,1)*wts(elem,pt);
         for (int dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f*basis(elem,dof,pt) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1);
-          //int resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
-          //res(e,resindex) += sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
-          //1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,cnum,k,1)*basis_grad(e,i,k,1)) + // diffusion terms
-          //                        (xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1))*basis(e,i,k) + // convection terms
-          //                        reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k)); // reaction and source terms
-          
-          //res(e,resindex) += tau(e,k)*(sol_dot(e,cnum,k,0) + 1.0/(rho(e,k)*cp(e,k))*(xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0) + yvel(e,k)*basis_grad(e,i,k,1)));
-          
         }
       }
     });
   }
   else if (spaceDim == 3) {
-    parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("cdr volume resid 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int pt=0; pt<sol.extent(2); pt++ ) {
         AD f = (dCdt(elem,pt) + xvel(elem,pt)*gradC(elem,pt,0) + yvel(elem,pt)*gradC(elem,pt,1) + zvel(elem,pt)*gradC(elem,pt,2) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,0)*wts(elem,pt);
@@ -131,15 +118,6 @@ void cdr::volumeResidual() {
         AD Fz = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,2)*wts(elem,pt);
         for (int dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f*basis(elem,dof,pt) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2);
-          
-          //int resindex = offsets(cnum,i); // TMW: e_num is not on the assembly device
-          //res(e,resindex) += sol_dot(e,cnum,k,0)*basis(e,i,k) + // transient term
-          //1.0/(rho(e,k)*cp(e,k))*(diff(e,k)*(sol_grad(e,cnum,k,0)*basis_grad(e,i,k,0) + sol_grad(e,cnum,k,1)*basis_grad(e,i,k,1) + sol_grad(e,cnum,k,2)*basis_grad(e,i,k,2)) + // diffusion terms
-                                  //(xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + zvel(e,k)*sol_grad(e,cnum,k,2))*basis(e,i,k) + // convection terms
-                                  //reax(e,k)*basis(e,i,k) - source(e,k)*basis(e,i,k)); // reaction and source terms
-          
-          //res(e,resindex) += tau(e,k)*(sol_dot(e,cnum,k,0) + 1.0/(rho(e,k)*cp(e,k))*(xvel(e,k)*sol_grad(e,cnum,k,0) + yvel(e,k)*sol_grad(e,cnum,k,1) + zvel(e,k)*sol_grad(e,cnum,k,2) +reax(e,k) - source(e,k))*(xvel(e,k)*basis_grad(e,i,k,0) + yvel(e,k)*basis_grad(e,i,k,1) + zvel(e,k)*basis_grad(e,i,k,2)));
-          
         }
       }
     });
@@ -150,169 +128,7 @@ void cdr::volumeResidual() {
 // ========================================================================================
 
 void cdr::boundaryResidual() {
-  
-  /*
-   // NOTES:
-   // 1. basis and basis_grad already include the integration weights
-   
-   int c_basis = wkset->usebasis[cnum];
-   int numBasis = wkset->basis_side[c_basis].extent(1);
-   int numSideCubPoints = wkset->ip_side.extent(1);
-   
-   // Set the parameters
-   ScalarT x = 0.0;
-   ScalarT y = 0.0;
-   ScalarT z = 0.0;
-   ScalarT current_time = wkset->time;
-   
-   ScalarT v, dvdx, dvdy, dvdz;
-   AD source, robin_alpha;
-   AD c, dcdx, dcdy, dcdz;
-   AD diff;
-   AD xconv, yconv, zconv; //for no-flux boundary conditions
-   AD lambda;
-   
-   AD wx,wy,wz;
-   
-   int resindex;
-   ScalarT nx,ny,nz;
-   
-   if (wkset->sidetype > 1) {
-   
-   for (int nPt=0; nPt<numSideCubPoints; nPt++ ) {
-   x = wkset->ip_side(0,nPt,0);
-   c = wkset->local_soln_side(cnum,nPt,0);
-   dcdx = wkset->local_soln_grad_side(cnum,nPt,0);
-   nx = wkset->normals(0,nPt,0);
-   if (spaceDim > 1) {
-   y = wkset->ip_side(0,nPt,1);
-   dcdy = wkset->local_soln_grad_side(cnum,nPt,1);
-   ny = wkset->normals(0,nPt,1);
-   }
-   if (spaceDim > 2) {
-   z = wkset->ip_side(0,nPt,2);
-   dcdz = wkset->local_soln_grad_side(cnum,nPt,2);
-   nz = wkset->normals(0,nPt,2);
-   }
-   
-   if(velFromNS){
-   xconv = wkset->local_soln_side(ux_num,nPt,0);
-   if (spaceDim > 1)
-   yconv = wkset->local_soln_side(uy_num,nPt,0);
-   if (spaceDim > 2)
-   zconv = wkset->local_soln_side(uz_num,nPt,0);
-   }
-   else {
-   xconv = this->convectionTerm(x, y, z, current_time, 1);
-   yconv = this->convectionTerm(x, y, z, current_time, 2);
-   zconv = this->convectionTerm(x, y, z, current_time, 3);
-   }
-   
-   for (int i=0; i<numBasis; i++ ) {
-   v = wkset->basis_side[c_basis](0,i,nPt);
-   
-   source = this->boundarySource(x, y, z, current_time, wkset->sidename);
-   source += -(xconv*nx+yconv*ny+zconv*nz)*c;
-   resindex = wkset->offsets[cnum][i];
-   
-   wkset->res(resindex) += -source*v;
-   }
-   }
-   }
-   else {
-   for (int nPt=0; nPt<numSideCubPoints; nPt++ ) {
-   x = wkset->ip_side(0,nPt,0);
-   c = wkset->local_soln_side(cnum,nPt,0);
-   dcdx = wkset->local_soln_grad_side(cnum,nPt,0);
-   nx = wkset->normals(0,nPt,0);
-   if (spaceDim > 1) {
-   y = wkset->ip_side(0,nPt,1);
-   dcdy = wkset->local_soln_grad_side(cnum,nPt,1);
-   ny = wkset->normals(0,nPt,1);
-   }
-   if (spaceDim > 2) {
-   z = wkset->ip_side(0,nPt,2);
-   dcdz = wkset->local_soln_grad_side(cnum,nPt,2);
-   nz = wkset->normals(0,nPt,2);
-   }
-   
-   if(velFromNS){
-   xconv = wkset->local_soln_side(ux_num,nPt,0);
-   if (spaceDim > 1)
-   yconv = wkset->local_soln_side(uy_num,nPt,0);
-   if (spaceDim > 2)
-   zconv = wkset->local_soln_side(uz_num,nPt,0);
-   }
-   else {
-   xconv = this->convectionTerm(x, y, z, current_time, 1);
-   yconv = this->convectionTerm(x, y, z, current_time, 2);
-   zconv = this->convectionTerm(x, y, z, current_time, 3);
-   }
-   diff = getDiff(x, y, z);
-   
-   if (wkset->sidetype == -1)
-   lambda = wkset->local_aux_side(cnum,nPt);
-   else
-   lambda = this->boundarySource(x, y, z, current_time, wkset->sidename);
-   
-   ScalarT sf = 1.0;
-   if (wkset->isAdjoint) {
-   sf = 1.0;
-   }
-   
-   AD convscale = 0.0;
-   if (spaceDim == 1) {
-   convscale = abs(xconv*nx + 1.0e-14);
-   }
-   else if (spaceDim == 2) {
-   convscale = abs(xconv*nx + 1.0e-14) + abs(yconv*ny + 1.0e-14);
-   }
-   else if (spaceDim == 3) {
-   convscale = abs(xconv*nx + 1.0e-14) + abs(yconv*ny + 1.0e-14) + abs(zconv*ny + 1.0e-14);
-   }
-   AD weakDiriScale = diff*10.0/(wkset->h) + convscale;
-   
-   AD weakburgscale = 0.0;
-   if (burgersflux) {
-   wx = 1.0;
-   wy = 0.0;
-   wz = 0.0;
-   if (spaceDim == 1) {
-   weakburgscale = abs(c*wx*nx);
-   }
-   else if (spaceDim == 2) {
-   weakburgscale = abs(c*wx*nx) + abs(c*wy*ny);
-   }
-   else if (spaceDim == 3) {
-   weakburgscale = abs(c*wx*nx) + abs(c*wy*ny) + abs(c*wz*nz);
-   }
-   }
-   
-   for (int i=0; i<numBasis; i++ ) {
-   resindex = wkset->offsets[cnum][i];
-   v = wkset->basis_side[c_basis](0,i,nPt);
-   dvdx = wkset->basis_grad_side[c_basis](0,i,nPt,0);
-   if (spaceDim > 1)
-   dvdy = wkset->basis_grad_side[c_basis](0,i,nPt,1);
-   if (spaceDim > 2)
-   dvdz = wkset->basis_grad_side[c_basis](0,i,nPt,2);
-   
-   wkset->res(resindex) += (-diff*dcdx + xconv*c)*nx*v - sf*(diff*dvdx)*nx*(c-lambda) + weakDiriScale*(c-lambda)*v;//(dedx*normals(0,nPt,0) - source + robin_alpha*e)*v;
-   if (spaceDim > 1) {
-   wkset->res(resindex) += (-diff*dcdy+yconv*c)*ny*v - sf*(diff*dvdy)*ny*(c-lambda);// + dedy*normals(0,nPt,1)*v;
-   }
-   if (spaceDim > 2)
-   wkset->res(resindex) += (-diff*dcdz+zconv*c)*nz*v - sf*(diff*dvdz)*nz*(c-lambda);
-   
-   if (burgersflux) {
-   wkset->res(resindex) += 0.5*c*c*(wx*nx+wy*ny+wz*nz)*v+10.0*weakburgscale*(c-lambda)*v;
-   //wkset->res(resindex) += 1.0*(c-lambda)*(c-lambda)*(c-lambda)*v;
-   }
-   
-   }
-   }
-   }
-   */
+  // not re-implemented yet
 }
 
 // ========================================================================================
@@ -321,81 +137,10 @@ void cdr::boundaryResidual() {
 void cdr::edgeResidual() {}
 
 // ========================================================================================
-// The boundary/edge flux
 // ========================================================================================
 
 void cdr::computeFlux() {
-  
-  /*
-   ScalarT x = 0.0;
-   ScalarT y = 0.0;
-   ScalarT z = 0.0;
-   
-   ScalarT current_time = wkset->time;
-   ScalarT sf = 1.0;
-   if (wkset->isAdjoint) {
-   sf = 1.0;
-   }
-   
-   AD xconv, yconv, zconv;
-   AD c, dcdx, dcdy, dcdz, lambda;
-   for (size_t i=0; i<wkset->ip_side.extent(1); i++) {
-   x = wkset->ip_side(0,i,0);
-   c = wkset->local_soln_side(cnum,i,0);
-   dcdx = wkset->local_soln_grad_side(cnum,i,0);
-   lambda = wkset->local_aux_side(cnum,i);
-   if (spaceDim > 1) {
-   y = wkset->ip_side(0,i,1);
-   dcdy = wkset->local_soln_grad_side(cnum,i,1);
-   }
-   if (spaceDim > 2) {
-   z = wkset->ip_side(0,i,2);
-   dcdz = wkset->local_soln_grad_side(cnum,i,2);
-   }
-   
-   if(velFromNS){
-   xconv = wkset->local_soln_side(ux_num,i,0);
-   if (spaceDim > 1)
-   yconv = wkset->local_soln_side(uy_num,i,0);
-   if (spaceDim > 2)
-   zconv = wkset->local_soln_side(uz_num,i,0);
-   }
-   else {
-   xconv = this->convectionTerm(x, y, z, current_time, 1);
-   yconv = this->convectionTerm(x, y, z, current_time, 2);
-   zconv = this->convectionTerm(x, y, z, current_time, 3);
-   }
-   
-   AD diff = getDiff(x,y,z);
-   ScalarT convscale = 0.0;
-   if (spaceDim == 1) {
-   convscale = abs(xconv.val()*wkset->normals(0,i,0));
-   }
-   else if (spaceDim == 2) {
-   convscale = abs(xconv.val()*wkset->normals(0,i,0)) + abs(yconv.val()*wkset->normals(0,i,1));
-   }
-   else if (spaceDim == 3) {
-   convscale = abs(xconv.val()*wkset->normals(0,i,0)) + abs(yconv.val()*wkset->normals(0,i,1)) + abs(zconv.val()*wkset->normals(0,i,2));
-   }
-   AD burgscale = 0.0;
-   if (burgersflux) {
-   if (spaceDim == 2) {
-   burgscale = abs(c*1.0*wkset->normals(0,i,0));
-   }
-   
-   }
-   AD penalty = 10.0*(diff/wkset->h + convscale + burgscale);
-   
-   wkset->flux(cnum,i) += (sf*diff*dcdx-xconv*c)*wkset->normals(0,i,0) + penalty*(lambda-c);
-   if (spaceDim > 1)
-   wkset->flux(cnum,i) += (sf*diff*dcdy-yconv*c)*wkset->normals(0,i,1);
-   if (spaceDim > 2)
-   wkset->flux(cnum,i) += (sf*diff*dcdz-zconv*c)*wkset->normals(0,i,2);
-   if (burgersflux) {
-   wkset->flux(cnum,i) += -0.5*c*c*wkset->normals(0,i,0);
-   }
-   }
-   */
+  // not re-implemented yet
 }
 
 // ========================================================================================
