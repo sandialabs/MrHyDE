@@ -348,6 +348,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
     assembler->wkset[0]->isAdjoint = isAdjoint;
     
     int numElem = assembler->cells[usernum][0]->numElem;
+    int maxElem = assembler->cells[0][0]->numElem;
     int numDOF = assembler->cells[usernum][0]->LIDs.extent(1);
     
     Kokkos::View<ScalarT***,UnifiedDevice> local_res, local_J, local_Jdot;
@@ -357,6 +358,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
       local_res = Kokkos::View<ScalarT***,UnifiedDevice>("local residual",numElem,numDOF,1);
       local_J = Kokkos::View<ScalarT***,UnifiedDevice>("local Jacobian",numElem,numDOF,numDOF);
     }
+    
     {
       Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverSetSolnTimer);
       this->performGather(usernum, sub_u, 0, 0);
@@ -474,6 +476,19 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
               // may need to set useAtomics = true if subgridexec is not Serial
             }
           }
+        }
+      }
+    }
+    if (maxElem > numElem) {
+      LIDView LIDs = assembler->cells[0][0]->LIDs;
+      ScalarT vals[1];
+      LO cols[1];
+      for (unsigned int i=numElem; i<LIDs.extent(0); i++) { // should be Kokkos::parallel_for on SubgridExec
+        for( size_t row=0; row<LIDs.extent(1); row++ ) {
+          LO rowIndex = LIDs(i,row);
+          vals[0] = 1.0;
+          cols[0] = rowIndex;
+          localMatrix.sumIntoValues(rowIndex, cols, 1, vals, true, false); // bools: isSorted, useAtomics
         }
       }
     }

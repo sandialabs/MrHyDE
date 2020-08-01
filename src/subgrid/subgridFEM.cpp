@@ -464,12 +464,40 @@ void SubGridFEM::setUpSubgridModels() {
       ///////////////////////////////////////////////////////////
       
       vector<Teuchos::RCP<cell> > newcells;
+      int numElem = newnodes.extent(0);
+      int maxElem = cells[0][0]->numElem;
+      Kokkos::View<LO*,AssemblyDevice> localID;
+      LIDView LIDs;
+      Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
+      
+      if (numElem == maxElem) { // reuse if possible
+        localID = cells[0][0]->localElemID;
+        LIDs = cells[0][0]->LIDs;
+        orientation = cells[0][0]->orientation;
+      }
+      else { // subviews do not work, so performing a deep copy (should only be on last cell)
+        //localID = Kokkos::subview(cells[0][0]->localElemID,std::make_pair(0,numElem));
+        //LIDs = Kokkos::subview(cells[0][0]->LIDs,std::make_pair(0,numElem), Kokkos::ALL());
+        //orientation = Kokkos::subview(cells[0][0]->orientation,std::make_pair(0,numElem));
+        localID = Kokkos::View<LO*,AssemblyDevice>("local elem ids",numElem);
+        LIDs = LIDView("LIDs",numElem,cells[0][0]->LIDs.extent(1));
+        orientation = Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice>("orientation",numElem);
+        Kokkos::View<LO*,AssemblyDevice> localID_0 = cells[0][0]->localElemID;
+        LIDView LIDs_0 = cells[0][0]->LIDs;
+        Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_0 = cells[0][0]->orientation;
+        parallel_for("cell hsize",RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int e ) {
+          localID(e) = localID_0(e);
+          orientation(e) = orientation_0(e);
+          for (size_t j=0; j<LIDs.extent(1); j++) {
+            LIDs(e,j) = LIDs_0(e,j);
+          }
+        });
+          
+      }
       newcells.push_back(Teuchos::rcp(new cell(sub_assembler->cellData[0],
-                                               newnodes,
-                                               cells[0][0]->localElemID,
-                                               cells[0][0]->LIDs,
-                                               subsideinfo,
-                                               cells[0][0]->orientation)));
+                                               newnodes, localID,
+                                               LIDs, subsideinfo,
+                                               orientation)));
       
       cells.push_back(newcells);
       
@@ -502,17 +530,45 @@ void SubGridFEM::setUpSubgridModels() {
             }
           }
         }
+        int numElem = currnodes.extent(0);
+        int maxElem = boundaryCells[0][s]->numElem;
+        Kokkos::View<LO*,AssemblyDevice> localID;
+        LIDView LIDs;
+        Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
+        Kokkos::View<LO*,AssemblyDevice> sideID;
+        int sidenum = boundaryCells[0][s]->sidenum;
         
-        newbcells.push_back(Teuchos::rcp(new BoundaryCell(sub_assembler->cellData[0],
-                                                          currnodes,
-                                                          boundaryCells[0][s]->localElemID,
-                                                          boundaryCells[0][s]->localSideID,
-                                                          boundaryCells[0][s]->sidenum,
-                                                          unique_names[s],//boundaryCells[0][s]->sidename,
-                                                          newbcells.size(),
-                                                          boundaryCells[0][s]->LIDs,
-                                                          subsideinfo,
-                                                          boundaryCells[0][s]->orientation)));
+        if (numElem == maxElem) { // reuse if possible
+          localID = boundaryCells[0][s]->localElemID;
+          LIDs = boundaryCells[0][s]->LIDs;
+          orientation = boundaryCells[0][s]->orientation;
+          sideID = boundaryCells[0][s]->localSideID;
+        }
+        else { // subviews do not work, so performing a deep copy (should only be on last cell)
+          localID = Kokkos::View<LO*,AssemblyDevice>("local elem ids",numElem);
+          LIDs = LIDView("LIDs",numElem,boundaryCells[0][s]->LIDs.extent(1));
+          orientation = Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice>("orientation",numElem);
+          sideID = Kokkos::View<LO*,AssemblyDevice>("side IDs",numElem);
+          
+          Kokkos::View<LO*,AssemblyDevice> localID_0 = boundaryCells[0][s]->localElemID;
+          LIDView LIDs_0 = boundaryCells[0][s]->LIDs;
+          Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_0 = boundaryCells[0][s]->orientation;
+          Kokkos::View<LO*,AssemblyDevice> sideID_0 = boundaryCells[0][s]->localSideID;
+          
+          parallel_for("cell hsize",RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int e ) {
+            localID(e) = localID_0(e);
+            orientation(e) = orientation_0(e);
+            sideID(e) = sideID_0(e);
+            for (size_t j=0; j<LIDs.extent(1); j++) {
+              LIDs(e,j) = LIDs_0(e,j);
+            }
+          });
+          
+        }
+        
+        newbcells.push_back(Teuchos::rcp(new BoundaryCell(sub_assembler->cellData[0], currnodes,
+                                                          localID, sideID, sidenum, unique_names[s],
+                                                          newbcells.size(), LIDs, subsideinfo, orientation)));
         
       
         //for(size_t e=0; e<boundaryCells[0].size(); e++) {
@@ -582,20 +638,18 @@ void SubGridFEM::setUpSubgridModels() {
         mIDs.push_back(mID);
       }
       boundaryCells[mindex][e]->auxMIDs = mIDs;
-      
+      size_t numElem = boundaryCells[mindex][e]->numElem;
       // define the macro LIDs
-      LIDView cLIDs("boundary macro LIDs",mIDs.size(),
+      LIDView cLIDs("boundary macro LIDs",numElem,
                     macroData[mindex]->macroLIDs.extent(1));
-      
-      for (size_t e=0; e<mIDs.size(); e++) {
-        size_t mid = mIDs[e];
+      for (size_t c=0; c<numElem; c++) {
+        size_t mid = mIDs[c];
         for (size_t i=0; i<cLIDs.extent(1); i++) {
-          cLIDs(e,i) = macroData[mindex]->macroLIDs(mid,i);
+          cLIDs(c,i) = macroData[mindex]->macroLIDs(mid,i);
         }
       }
       boundaryCells[mindex][e]->auxLIDs = cLIDs;
     }
-    
     
     //////////////////////////////////////////////////////////////
     // Set the initial conditions
