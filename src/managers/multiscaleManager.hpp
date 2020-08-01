@@ -104,6 +104,10 @@ class MultiScale {
   vector<vector<Teuchos::RCP<LA_CrsMatrix> > > subgrid_projection_maps;
   vector<Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > > subgrid_projection_solvers;
   vector<Teuchos::RCP<FunctionManager> > macro_functionManagers;
+  
+  Teuchos::RCP<Teuchos::Time> resettimer = Teuchos::TimeMonitor::getNewCounter("MILO::multiscale::reset()");
+  Teuchos::RCP<Teuchos::Time> initializetimer = Teuchos::TimeMonitor::getNewCounter("MILO::multiscale::initialize()");
+  Teuchos::RCP<Teuchos::Time> updatetimer = Teuchos::TimeMonitor::getNewCounter("MILO::multiscale::update()");
 };
 
 #endif

@@ -536,11 +536,6 @@ void meshInterface::setMeshData(vector<vector<Teuchos::RCP<cell> > > & cells) {
   else if (compute_mesh_data) {
     this->computeMeshData(cells);
   }
-  if (milo_debug_level > 0) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Finished mesh::createCells" << endl;
-    }
-  }
 }
 
 
@@ -578,11 +573,7 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
   }
   
   for (int p=0; p<number_mesh_data_files; p++) {
-    
-    if (verbosity>5) {
-      cout << Commptr->getRank() << "  " << p << endl;
-    }
-    
+        
     Teuchos::RCP<data> mesh_data;
     
     string mesh_data_pts_file;

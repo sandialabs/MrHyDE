@@ -888,6 +888,8 @@ void solver::adjointModel(vector<ScalarT> & gradient) {
 void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> & gradient,
                              ScalarT & start_time, ScalarT & end_time) {
   
+  Teuchos::TimeMonitor localtimer(*transientsolvertimer);
+  
   if (milo_debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "******** Starting solver::transientSolver ..." << endl;
@@ -1071,6 +1073,8 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
 
 int solver::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
   
+  Teuchos::TimeMonitor localtimer(*nonlinearsolvertimer);
+  
   if (milo_debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "******** Starting solver::nonlinearSolver ..." << endl;
@@ -1129,13 +1133,14 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
                               params->num_active_params, params->Psol[0], is_final_time, deltat);
     
     J_over->fillComplete();
-    
     //J->setAllToScalar(0.0);
     J->doExport(*J_over, *exporter, Tpetra::ADD);
+    
     J->fillComplete();
     
     res->putScalar(0.0);
     res->doExport(*res_over, *exporter, Tpetra::ADD);
+    
     
     if (milo_debug_level>2) {
       KokkosTools::print(J,"Jacobian from solver interface");

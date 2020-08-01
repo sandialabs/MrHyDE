@@ -266,7 +266,7 @@ public:
   
   int num_macro_time_steps;
   ScalarT macro_deltat;
-  bool write_subgrid_state, combined_outputfile;
+  bool write_subgrid_state, combined_outputfile, save_solution;
   
   // Collection of users
   vector<vector<Teuchos::RCP<cell> > > cells;
@@ -312,6 +312,8 @@ public:
   Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverJacResTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver - Jacobian/residual");
   Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverInsertTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver - insert");
   Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverSolveTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver - solve");
+  Teuchos::RCP<Teuchos::Time> sgfemCombinedMeshSetupTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::setupCombinedExodus()");
+  Teuchos::RCP<Teuchos::Time> sgfemCombinedMeshOutputTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::writeSolution() - combined version");
   
   
   

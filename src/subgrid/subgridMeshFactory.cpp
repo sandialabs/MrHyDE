@@ -13,10 +13,16 @@
 
 namespace panzer_stk{
   
+  ///////////////////////////////////////////////////////////////
   //! Destructor
+  ///////////////////////////////////////////////////////////////
+  
   SubGridMeshFactory::~SubGridMeshFactory() {};
   
+  ///////////////////////////////////////////////////////////////
   // Add block
+  ///////////////////////////////////////////////////////////////
+  
   void SubGridMeshFactory::addElems(std::vector<std::vector<ScalarT> > & newnodes,
                 std::vector<std::vector<GO> > & newconn) {
     nodes.push_back(newnodes);
@@ -25,7 +31,10 @@ namespace panzer_stk{
   }
   
   
+  ///////////////////////////////////////////////////////////////
   //! Build the mesh object
+  ///////////////////////////////////////////////////////////////
+  
   Teuchos::RCP<STK_Interface> SubGridMeshFactory::buildMesh(stk::ParallelMachine parallelMach) const
   {
     
@@ -66,9 +75,30 @@ namespace panzer_stk{
     return mesh;
   }
   
+  ///////////////////////////////////////////////////////////////
+  // Finalize
+  ///////////////////////////////////////////////////////////////
+  
   void SubGridMeshFactory::completeMeshConstruction(STK_Interface & mesh,stk::ParallelMachine parallelMach) const {
     
     mesh.initialize(parallelMach);
+    
+    this->modifyMesh(mesh);
+    
+    // build bulk data
+    mesh.buildSubcells();
+    
+    mesh.buildLocalElementIDs();
+    
+    // calls Stk_MeshFactory::rebalance
+    this->rebalance(mesh);
+  }
+  
+  ///////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////
+  
+  void SubGridMeshFactory::modifyMesh(STK_Interface & mesh) const {
+    
     mesh.beginModification();
     
     int nprog = 0;
@@ -81,9 +111,6 @@ namespace panzer_stk{
       }
     }
     
-    //std::cout << conn.size() << "  " << conn[0].size() << " " << conn[0][0].size() << std::endl;
-    //std::cout << "cmc 0 " << nprog << std::endl;
-    
     // build the elements
     stk::mesh::Part * block = mesh.getElementBlockPart(blockname);
     
@@ -95,47 +122,43 @@ namespace panzer_stk{
         stk::mesh::EntityId gid = eprog+1;
         eprog++;
         std::vector<stk::mesh::EntityId> elem(conn[b][e].size());
-        //std::cout << "elem size = " << elem.size() << std::endl;
         
         for (int j=0; j<conn[b][e].size(); j++) {
           elem[j] = conn[b][e][j]+cprog;
-          //std::cout << b << " " << e << " " << elem[j]<< std::endl;
         }
-        //std::cout << "herehere 0" << std::endl;
         ccprog++;
-        //cprog += conn[b][e].size()-1;
         Teuchos::RCP<ElementDescriptor> ed = Teuchos::rcp(new ElementDescriptor(gid,elem));
-        //std::cout << "herehere 1" << std::endl;
         mesh.addElement(ed,block);
-        //std::cout << "herehere 2" << std::endl;
         
       }
       cprog += ccprog;
-      //std::cout << cprog << std::endl;
     }
-    
-    //std::cout << "cmc 1" << std::endl;
     
     mesh.endModification();
     
-    // build bulk data
-    mesh.buildSubcells();
-    mesh.buildLocalElementIDs();
-    
-    // calls Stk_MeshFactory::rebalance
-    this->rebalance(mesh);
-    
   }
+  
+  ///////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////
   
   Teuchos::RCP<STK_Interface> SubGridMeshFactory::buildUncommitedMesh(stk::ParallelMachine parallelMach) const {};
   
+  ///////////////////////////////////////////////////////////////
   //! From ParameterListAcceptor
+  ///////////////////////////////////////////////////////////////
+  
   void SubGridMeshFactory::setParameterList(const Teuchos::RCP<Teuchos::ParameterList> & paramList) {};
   
+  ///////////////////////////////////////////////////////////////
   //! From ParameterListAcceptor
+  ///////////////////////////////////////////////////////////////
+  
   Teuchos::RCP<const Teuchos::ParameterList> SubGridMeshFactory::getValidParameters() const {};
   
+  ///////////////////////////////////////////////////////////////
   //! what is the 2D tuple describe this processor distribution
+  ///////////////////////////////////////////////////////////////
+  
   Teuchos::Tuple<std::size_t,2> SubGridMeshFactory::procRankToProcTuple(std::size_t procRank) const {};
 }
 

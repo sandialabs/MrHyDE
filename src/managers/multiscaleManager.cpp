@@ -92,6 +92,9 @@ void MultiScale::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
 ////////////////////////////////////////////////////////////////////////////////
 
 ScalarT MultiScale::initialize() {
+  
+  Teuchos::TimeMonitor localtimer(*initializetimer);
+  
   if (milo_debug_level > 0) {
     if (MacroComm->getRank() == 0) {
       cout << "**** Starting multiscale manager initialize" << endl;
@@ -249,6 +252,9 @@ ScalarT MultiScale::initialize() {
 ////////////////////////////////////////////////////////////////////////////////
 
 ScalarT MultiScale::update() {
+  
+  Teuchos::TimeMonitor localtimer(*updatetimer);
+  
   ScalarT my_cost = 1.0;
   
   if (subgrid_static) {
@@ -372,6 +378,8 @@ ScalarT MultiScale::update() {
 ////////////////////////////////////////////////////////////////////////////////
 
 void MultiScale::reset() {
+  Teuchos::TimeMonitor localtimer(*resettimer);
+  
   //for (size_t j=0; j<subgridModels.size(); j++) {
   //  subgridModels[j]->reset();
   //}

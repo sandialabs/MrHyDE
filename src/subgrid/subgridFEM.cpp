@@ -40,10 +40,15 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
   if (solver == "steady-state") {
     final_time = 0.0;
   }
-  
-  soln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
-  adjsoln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
-  solndot = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
+  save_solution = false;
+  string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
+  if (analysis_type == "forward+adjoint" || analysis_type == "ROL" || analysis_type == "ROL_SIMOPT") {
+    save_solution = true;
+  }
+  //if (save_solution) {
+    soln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
+    adjsoln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
+  //}
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Define the sub-grid physics
@@ -1138,7 +1143,6 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
                     macrowkset, usernum, macroelemindex, subgradient, store_adjPrev);
   
   // Store the subgrid fwd or adj solution
-  
   if (isAdjoint) {
     adjsoln->store(curr_adjsoln,time,usernum);
   }
@@ -1678,6 +1682,8 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
 
 void SubGridFEM::setupCombinedExodus() {
   
+  Teuchos::TimeMonitor meshsetuptimer(*sgfemCombinedMeshSetupTimer);
+  
   if (macroData.size() > 0) {
     bool isTD = false;
     string solver = settings->sublist("Solver").get<string>("solver","steady-state");
@@ -1771,7 +1777,9 @@ void SubGridFEM::setupCombinedExodus() {
     // Finalize the mesh
     //////////////////////////////////////////////////////////////
     
-    submeshFactory.completeMeshConstruction(*combined_mesh,*(LocalComm->getRawMpiComm()));
+    combined_mesh->initialize(*(LocalComm->getRawMpiComm()));
+    submeshFactory.modifyMesh(*combined_mesh);
+    combined_mesh->buildLocalElementIDs();
     
     //////////////////////////////////////////////////////////////
     // Set up the output for transient data
@@ -1780,6 +1788,7 @@ void SubGridFEM::setupCombinedExodus() {
     if (isTD) {
       combined_mesh->setupExodusFile(combined_mesh_filename);
     }
+    
   }
 }
 
@@ -1789,6 +1798,8 @@ void SubGridFEM::setupCombinedExodus() {
 
 void SubGridFEM::writeSolution(const ScalarT & time) {
 
+  Teuchos::TimeMonitor outputtimer(*sgfemCombinedMeshOutputTimer);
+  
   if (macroData.size()>0 && combined_outputfile) {
     
     bool isTD = false;
