@@ -823,45 +823,97 @@ void SubGridFEM::addMeshData() {
         mesh_data_file = mesh_data_tag + ".dat";
       }
       
-      mesh_data = Teuchos::rcp(new data("mesh data", dimension, mesh_data_pts_file,
-                                        mesh_data_file, false));
+      bool have_grid_data = settings->sublist("Mesh").get<bool>("data on grid",false);
+      if (have_grid_data) {
+        int Nx = settings->sublist("Mesh").get<int>("data grid Nx",0);
+        int Ny = settings->sublist("Mesh").get<int>("data grid Ny",0);
+        int Nz = settings->sublist("Mesh").get<int>("data grid Nz",0);
+        mesh_data = Teuchos::rcp(new data("mesh data", dimension, mesh_data_pts_file,
+                                          mesh_data_file, false, Nx, Ny, Nz));
+        
+        for (size_t b=0; b<cells.size(); b++) {
+          for (size_t e=0; e<cells[b].size(); e++) {
+            int numElem = cells[b][e]->numElem;
+            DRV nodes = cells[b][e]->nodes;
+            for (int c=0; c<numElem; c++) {
+              Kokkos::View<ScalarT**,AssemblyDevice> center("center",1,3);
+              int numnodes = nodes.extent(1);
+              for (size_t i=0; i<numnodes; i++) {
+                for (size_t j=0; j<dimension; j++) {
+                  center(0,j) += nodes(c,i,j)/(ScalarT)numnodes;
+                }
+              }
+              ScalarT distance = 0.0;
+              
+              int cnode = mesh_data->findClosestGridNode(center(0,0), center(0,1), center(0,2), distance);
+              
+              bool iscloser = true;
+              if (p>0){
+                if (cells[b][e]->cell_data_distance[c] < distance) {
+                  iscloser = false;
+                }
+              }
+              if (iscloser) {
+                Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
+                
+                for (unsigned int i=0; i<cdata.extent(1); i++) {
+                  cells[b][e]->cell_data(c,i) = cdata(0,i);
+                }
+                cells[b][e]->cellData->have_extra_data = true;
+                if (have_rotations)
+                  cells[b][e]->cellData->have_cell_rotation = true;
+                if (have_rotation_phi)
+                  cells[b][e]->cellData->have_cell_phi = true;
+                
+                cells[b][e]->cell_data_seed[c] = cnode % 50;
+                cells[b][e]->cell_data_distance[c] = distance;
+              }
+            }
+          }
+        }
+      }
+      else {
       
-      for (size_t b=0; b<cells.size(); b++) {
-        for (size_t e=0; e<cells[b].size(); e++) {
-          int numElem = cells[b][e]->numElem;
-          DRV nodes = cells[b][e]->nodes;
-          for (int c=0; c<numElem; c++) {
-            Kokkos::View<ScalarT**,AssemblyDevice> center("center",1,3);
-            int numnodes = nodes.extent(1);
-            for (size_t i=0; i<numnodes; i++) {
-              for (size_t j=0; j<dimension; j++) {
-                center(0,j) += nodes(c,i,j)/(ScalarT)numnodes;
+        mesh_data = Teuchos::rcp(new data("mesh data", dimension, mesh_data_pts_file,
+                                          mesh_data_file, false));
+        
+        for (size_t b=0; b<cells.size(); b++) {
+          for (size_t e=0; e<cells[b].size(); e++) {
+            int numElem = cells[b][e]->numElem;
+            DRV nodes = cells[b][e]->nodes;
+            for (int c=0; c<numElem; c++) {
+              Kokkos::View<ScalarT**,AssemblyDevice> center("center",1,3);
+              int numnodes = nodes.extent(1);
+              for (size_t i=0; i<numnodes; i++) {
+                for (size_t j=0; j<dimension; j++) {
+                  center(0,j) += nodes(c,i,j)/(ScalarT)numnodes;
+                }
               }
-            }
-            ScalarT distance = 0.0;
-            
-            int cnode = mesh_data->findClosestNode(center(0,0), center(0,1), center(0,2), distance);
-            
-            bool iscloser = true;
-            if (p>0){
-              if (cells[b][e]->cell_data_distance[c] < distance) {
-                iscloser = false;
-              }
-            }
-            if (iscloser) {
-              Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
+              ScalarT distance = 0.0;
               
-              for (unsigned int i=0; i<cdata.extent(1); i++) {
-                cells[b][e]->cell_data(c,i) = cdata(0,i);
-              }
-              cells[b][e]->cellData->have_extra_data = true;
-              if (have_rotations)
-                cells[b][e]->cellData->have_cell_rotation = true;
-              if (have_rotation_phi)
-                cells[b][e]->cellData->have_cell_phi = true;
+              int cnode = mesh_data->findClosestNode(center(0,0), center(0,1), center(0,2), distance);
               
-              cells[b][e]->cell_data_seed[c] = cnode % 50;
-              cells[b][e]->cell_data_distance[c] = distance;
+              bool iscloser = true;
+              if (p>0){
+                if (cells[b][e]->cell_data_distance[c] < distance) {
+                  iscloser = false;
+                }
+              }
+              if (iscloser) {
+                Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
+                
+                for (unsigned int i=0; i<cdata.extent(1); i++) {
+                  cells[b][e]->cell_data(c,i) = cdata(0,i);
+                }
+                cells[b][e]->cellData->have_extra_data = true;
+                if (have_rotations)
+                  cells[b][e]->cellData->have_cell_rotation = true;
+                if (have_rotation_phi)
+                  cells[b][e]->cellData->have_cell_phi = true;
+                
+                cells[b][e]->cell_data_seed[c] = cnode % 50;
+                cells[b][e]->cell_data_distance[c] = distance;
+              }
             }
           }
         }
@@ -1143,10 +1195,12 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
       }
     }
   }
-  for (int e=0; e<coarse_phi.extent(0); e++) {
-    for (unsigned int i=0; i<coarse_phi.extent(1); i++) {
-      for (unsigned int j=0; j<coarse_phi.extent(2); j++) {
-        coarse_phi(e,i,j) = coarse_adjsoln(macroData[usernum]->macroIDs(e),i,j);
+  if (isAdjoint) {
+    for (int e=0; e<coarse_phi.extent(0); e++) {
+      for (unsigned int i=0; i<coarse_phi.extent(1); i++) {
+        for (unsigned int j=0; j<coarse_phi.extent(2); j++) {
+          coarse_phi(e,i,j) = coarse_adjsoln(macroData[usernum]->macroIDs(e),i,j);
+        }
       }
     }
   }
@@ -1186,22 +1240,23 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
   }
   
   // Containers for current forward/adjoint solutions
-  Teuchos::RCP<LA_MultiVector> curr_fwdsoln = Teuchos::rcp(new LA_MultiVector(sub_solver->milo_solver->LA_overlapped_map,1));
-  Teuchos::RCP<LA_MultiVector> curr_adjsoln = Teuchos::rcp(new LA_MultiVector(sub_solver->milo_solver->LA_overlapped_map,1));
+  //Teuchos::RCP<LA_MultiVector> curr_fwdsoln = Teuchos::rcp(new LA_MultiVector(sub_solver->milo_solver->LA_overlapped_map,1));
+  //Teuchos::RCP<LA_MultiVector> curr_adjsoln = Teuchos::rcp(new LA_MultiVector(sub_solver->milo_solver->LA_overlapped_map,1));
   
   // Solve the local subgrid problem and fill in the coarse macrowkset->res;
   sub_solver->solve(coarse_u, coarse_phi,
-                    prev_fwdsoln, prev_adjsoln, curr_fwdsoln, curr_adjsoln, Psol[0],
+                    prev_fwdsoln, prev_adjsoln, //curr_fwdsoln, curr_adjsoln,
+                    Psol[0],
                     macroData[usernum], time, isTransient, isAdjoint, compute_jacobian,
                     compute_sens, num_active_params, compute_disc_sens, compute_aux_sens,
                     macrowkset, usernum, macroelemindex, subgradient, store_adjPrev);
   
   // Store the subgrid fwd or adj solution
   if (isAdjoint) {
-    adjsoln->store(curr_adjsoln,time,usernum);
+    adjsoln->store(sub_solver->phi,time,usernum);
   }
   else if (!compute_sens) {
-    soln->store(curr_fwdsoln,time,usernum);
+    soln->store(sub_solver->u,time,usernum);
   }
   
 }

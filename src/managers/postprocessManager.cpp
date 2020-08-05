@@ -1161,24 +1161,21 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
       
       if (vartypes[n] == "HGRAD") {
         
-        if (varorders[n] > 1) { // project to PWlinear for plotting
-          
-        }
         Kokkos::View<ScalarT**,HostDevice> soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
         
         std::string var = varlist[b][n];
-        size_t eprog = 0;
-        Kokkos::View<int*,UnifiedDevice> numDOF = assembler->cells[b][0]->cellData->numDOF;
         for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-          int numElem = assembler->cells[b][e]->numElem;
+          Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][e]->localElemID;
+          auto host_eID = Kokkos::create_mirror_view(eID);
+          Kokkos::deep_copy(host_eID,eID);
+          
           Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->u;
           auto host_sol = Kokkos::create_mirror_view(sol);
           Kokkos::deep_copy(host_sol,sol);
-          for (int p=0; p<numElem; p++) {
+          for (int p=0; p<host_eID.extent(0); p++) {
             for( int i=0; i<numNodesPerElem; i++ ) {
-              soln_computed(eprog,i) = host_sol(p,n,i);
+              soln_computed(host_eID(p),i) = host_sol(p,n,i);
             }
-            eprog++;
           }
         }
         if (var == "dx") {
@@ -1196,15 +1193,16 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
       else if (vartypes[n] == "HVOL") {
         Kokkos::View<ScalarT*,HostDevice> soln_computed("solution",myElements.size());
         std::string var = varlist[b][n];
-        size_t eprog = 0;
         for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-          int numElem = assembler->cells[b][e]->numElem;
+          Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][e]->localElemID;
+          auto host_eID = Kokkos::create_mirror_view(eID);
+          Kokkos::deep_copy(host_eID,eID);
+          
           Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->u;
           auto host_sol = Kokkos::create_mirror_view(sol);
           Kokkos::deep_copy(host_sol,sol);
-          for (int p=0; p<numElem; p++) {
-            soln_computed(eprog) = host_sol(p,n,0);//u_kv(pindex,0);
-            eprog++;
+          for (int p=0; p<host_eID.extent(0); p++) {
+            soln_computed(host_eID(p)) = host_sol(p,n,0);//u_kv(pindex,0);
           }
         }
         mesh->setCellFieldData(var, blockID, myElements, soln_computed);
@@ -1216,18 +1214,21 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
         std::string var = varlist[b][n];
         size_t eprog = 0;
         for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+          Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][e]->localElemID;
+          auto host_eID = Kokkos::create_mirror_view(eID);
+          Kokkos::deep_copy(host_eID,eID);
+          
           Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->u_avg;
           auto host_sol = Kokkos::create_mirror_view(sol);
           Kokkos::deep_copy(host_sol,sol);
-          for (int p=0; p<assembler->cells[b][e]->numElem; p++) {
-            soln_x(eprog) = host_sol(p,n,0);
+          for (int p=0; p<host_eID.extent(0); p++) {
+            soln_x(host_eID(p)) = host_sol(p,n,0);
             if (spaceDim > 1) {
-              soln_y(eprog) = host_sol(p,n,1);
+              soln_y(host_eID(p)) = host_sol(p,n,1);
             }
             if (spaceDim > 2) {
-              soln_z(eprog) = host_sol(p,n,2);
+              soln_z(host_eID(p)) = host_sol(p,n,2);
             }
-            eprog++;
           }
         }
         
@@ -1237,9 +1238,12 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
       }
       else if (vartypes[n] == "HFACE" && write_HFACE_variables) {
         Kokkos::View<ScalarT*,HostDevice> soln_faceavg("solution",myElements.size());
-        size_t eprog = 0;
         for( size_t c=0; c<assembler->cells[b].size(); c++ ) {
-          for (int elem=0; elem<assembler->cells[b][c]->numElem; elem++) {
+          Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][c]->localElemID;
+          auto host_eID = Kokkos::create_mirror_view(eID);
+          Kokkos::deep_copy(host_eID,eID);
+          
+          for (int elem=0; elem<host_eID.extent(0); elem++) {
             double facemeasure = 0.0;
             double solint = 0.0;
             for (size_t face=0; face<assembler->cellData[b]->numSides; face++) {
@@ -1252,8 +1256,7 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
                 solint += assembler->wkset[b]->local_soln_face(elem,n,pt,0).val()*assembler->wkset[b]->wts_side(elem,pt);
               }
             }
-            soln_faceavg(eprog) = solint/facemeasure;
-            eprog++;
+            soln_faceavg(host_eID(elem)) = solint/facemeasure;
           }
         }
         mesh->setCellFieldData(varlist[b][n], blockID, myElements, soln_faceavg);
@@ -1271,17 +1274,18 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
       for (size_t n=0; n<dpnames.size(); n++) {
         if (discParamTypes[n] == "HGRAD") {
           Kokkos::View<ScalarT**,HostDevice> soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
-          size_t eprog = 0;
           for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-            int numElem = assembler->cells[b][e]->numElem;
+            Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][e]->localElemID;
+            auto host_eID = Kokkos::create_mirror_view(eID);
+            Kokkos::deep_copy(host_eID,eID);
+            
             Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->param;
             auto host_sol = Kokkos::create_mirror_view(sol);
             Kokkos::deep_copy(host_sol,sol);
-            for (int p=0; p<numElem; p++) {
+            for (int p=0; p<host_eID.extent(0); p++) {
               for( int i=0; i<numNodesPerElem; i++ ) {
-                soln_computed(e,i) = host_sol(p,n,i);
+                soln_computed(host_eID(p),i) = host_sol(p,n,i);
               }
-              eprog++;
             }
           }
           mesh->setSolutionFieldData(dpnames[n], blockID, myElements, soln_computed);
@@ -1291,12 +1295,15 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
           std::string var = varlist[b][n];
           size_t eprog = 0;
           for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-            int numElem = assembler->cells[b][e]->numElem;
+            Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][e]->localElemID;
+            auto host_eID = Kokkos::create_mirror_view(eID);
+            Kokkos::deep_copy(host_eID,eID);
+            
             Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->param;
             auto host_sol = Kokkos::create_mirror_view(sol);
             Kokkos::deep_copy(host_sol,sol);
-            for (int p=0; p<numElem; p++) {
-              soln_computed(eprog) = host_sol(p,n,0);//u_kv(pindex,0);
+            for (int p=0; p<host_eID.extent(0); p++) {
+              soln_computed(host_eID(p)) = host_sol(p,n,0);//u_kv(pindex,0);
               eprog++;
             }
           }
@@ -1338,17 +1345,19 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
     vector<string> extrafieldnames = phys->getExtraFieldNames(b);
     for (size_t j=0; j<extrafieldnames.size(); j++) {
       Kokkos::View<ScalarT**,HostDevice> efdata("field data",myElements.size(), numNodesPerElem);
-      size_t eprog = 0;
       for (size_t k=0; k<assembler->cells[b].size(); k++) {
         DRV nodes = assembler->cells[b][k]->nodes;
+        Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][k]->localElemID;
+        auto host_eID = Kokkos::create_mirror_view(eID);
+        Kokkos::deep_copy(host_eID,eID);
+        
         Kokkos::View<ScalarT**,AssemblyDevice> cfields = phys->getExtraFields(b, 0, nodes, currenttime, assembler->wkset[b]);
         auto host_cfields = Kokkos::create_mirror_view(cfields);
         Kokkos::deep_copy(host_cfields,cfields);
-        for (int p=0; p<assembler->cells[b][k]->numElem; p++) {
+        for (int p=0; p<host_eID.extent(0); p++) {
           for (size_t i=0; i<host_cfields.extent(1); i++) {
-            efdata(eprog,i) = host_cfields(p,i);
+            efdata(host_eID(p),i) = host_cfields(p,i);
           }
-          eprog++;
         }
       }
       mesh->setSolutionFieldData(extrafieldnames[j], blockID, myElements, efdata);
@@ -1363,8 +1372,11 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
     for (size_t j=0; j<extracellfieldnames.size(); j++) {
       Kokkos::View<ScalarT*,HostDevice> efdata("cell data",myElements.size());
       
-      int eprog = 0;
       for (size_t k=0; k<assembler->cells[b].size(); k++) {
+        
+        Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][k]->localElemID;
+        auto host_eID = Kokkos::create_mirror_view(eID);
+        Kokkos::deep_copy(host_eID,eID);
         
         assembler->cells[b][k]->updateData();
         assembler->cells[b][k]->updateWorksetBasis();
@@ -1379,8 +1391,7 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
         auto host_cfields = Kokkos::create_mirror_view(cfields);
         Kokkos::deep_copy(host_cfields, cfields);
         for (int p=0; p<host_cfields.extent(0); p++) {
-          efdata(eprog) = host_cfields(p);
-          eprog++;
+          efdata(host_eID(p)) = host_cfields(p);
         }
       }
       mesh->setCellFieldData(extracellfieldnames[j], blockID, myElements, efdata);
@@ -1394,28 +1405,49 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
       
       Kokkos::View<ScalarT*,HostDevice> cdata("cell data",myElements.size());
       Kokkos::View<ScalarT*,HostDevice> cseed("cell data seed",myElements.size());
-      int eprog = 0;
       for (size_t k=0; k<assembler->cells[b].size(); k++) {
         vector<size_t> cell_data_seed = assembler->cells[b][k]->cell_data_seed;
         vector<size_t> cell_data_seedindex = assembler->cells[b][k]->cell_data_seedindex;
         Kokkos::View<ScalarT**,AssemblyDevice> cell_data = assembler->cells[b][k]->cell_data;
         // TMW: will need to create mirror view to re-enable this
-        for (int p=0; p<assembler->cells[b][k]->numElem; p++) {
+        Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][k]->localElemID;
+        auto host_eID = Kokkos::create_mirror_view(eID);
+        Kokkos::deep_copy(host_eID,eID);
+        
+        for (int p=0; p<host_eID.extent(0); p++) {
           
           if (cell_data.extent(1) == 1) {
-            cdata(eprog) = cell_data(p,0);//cell_data_seed[p];
+            cdata(host_eID(p)) = cell_data(p,0);//cell_data_seed[p];
           }
           //else if (cell_data.extent(1) == 9) {
           //  cdata(eprog,0) = cell_data(p,0);//cell_data(p,4)*cell_data(p,8);//cell_data_seed[p];
           //}
           
-          cseed(eprog) = cell_data_seedindex[p];
-          eprog++;
+          cseed(host_eID(p)) = cell_data_seedindex[p];
         }
       }
       mesh->setCellFieldData("mesh_data_seed", blockID, myElements, cseed);
       mesh->setCellFieldData("mesh_data", blockID, myElements, cdata);
     }
+    
+    ////////////////////////////////////////////////////////////////
+    // Cell number
+    ////////////////////////////////////////////////////////////////
+    
+    Kokkos::View<ScalarT*,HostDevice> cellnum("cell number",myElements.size());
+    for (size_t k=0; k<assembler->cells[b].size(); k++) {
+      Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][k]->localElemID;
+      auto host_eID = Kokkos::create_mirror_view(eID);
+      Kokkos::deep_copy(host_eID,eID);
+      for (int p=0; p<assembler->cells[b][k]->numElem; p++) {
+        cellnum(host_eID(p)) = static_cast<ScalarT>(k);
+      }
+    }
+    mesh->setCellFieldData("cell number", blockID, myElements, cellnum);
+    
+    ////////////////////////////////////////////////////////////////
+    // Write to Exodus
+    ////////////////////////////////////////////////////////////////
     
     if (isTD) {
       mesh->writeToExodus(currenttime);

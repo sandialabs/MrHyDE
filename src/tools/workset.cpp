@@ -943,13 +943,143 @@ void workset::computeParamSideIP(const int & side, Kokkos::View<ScalarT***,Assem
 void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDevice> u_AD,
                                 Kokkos::View<AD***,AssemblyDevice> param_AD) {
   {
-    Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-    Kokkos::deep_copy(local_soln_side, 0.0);
-    Kokkos::deep_copy(local_soln_grad_side, 0.0);
+    //Teuchos::TimeMonitor resettimer(*worksetResetTimer);
+    //Kokkos::deep_copy(local_soln_side, 0.0);
+    //Kokkos::deep_copy(local_soln_grad_side, 0.0);
   }
   
   {
     Teuchos::TimeMonitor basistimer(*worksetComputeSolnSideTimer);
+    
+    /////////////////////////////////////////////////////////////////////
+    // HGRAD
+    /////////////////////////////////////////////////////////////////////
+    
+    for (int i=0; i<vars_HGRAD.size(); i++) {
+      int var = vars_HGRAD[i];
+      
+      auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
+      auto csol_grad = Kokkos::subview(local_soln_grad_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      DRV cbasis = basis_side[usebasis[var]];
+      DRV cbasis_grad = basis_grad_side[usebasis[var]];
+      auto cuvals = Kokkos::subview(u_AD,Kokkos::ALL(),var,Kokkos::ALL());
+      
+      parallel_for("wkset flux soln ip HGRAD",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+          AD uval = cuvals(elem,dof);
+          if ( dof == 0) {
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) = uval*cbasis(elem,dof,pt);
+              for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                csol_grad(elem,pt,s) = uval*cbasis_grad(elem,dof,pt,s);
+              }
+            }
+          }
+          else {
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+              for (int s=0; s<cbasis_grad.extent(3); s++ ) {
+                csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+              }
+            }
+          }
+        }
+      });
+    }
+      
+    /////////////////////////////////////////////////////////////////////
+    // HVOL
+    /////////////////////////////////////////////////////////////////////
+    
+    for (int i=0; i<vars_HVOL.size(); i++) {
+      int var = vars_HVOL[i];
+      
+      auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
+      DRV cbasis = basis_side[usebasis[var]];
+      auto cuvals = Kokkos::subview(u_AD,Kokkos::ALL(),var,Kokkos::ALL());
+      
+      parallel_for("wkset flux soln ip HVOL",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+          AD uval = cuvals(elem,dof);
+          if ( dof == 0) {
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) = uval*cbasis(elem,dof,pt);
+            }
+          }
+          else {
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol(elem,pt) += uval*cbasis(elem,dof,pt);
+            }
+          }
+        }
+      });
+    }
+    
+    /////////////////////////////////////////////////////////////////////
+    // HDIV
+    /////////////////////////////////////////////////////////////////////
+    
+    for (int i=0; i<vars_HDIV.size(); i++) {
+      int var = vars_HDIV[i];
+      
+      auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      DRV cbasis = basis_side[usebasis[var]];
+      auto cuvals = Kokkos::subview(u_AD,Kokkos::ALL(),var,Kokkos::ALL());
+      
+      parallel_for("wkset flux soln ip HDIV",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+          AD uval = cuvals(elem,dof);
+          if ( dof == 0) {
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) = uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+          else {
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    /////////////////////////////////////////////////////////////////////
+    // HCURL
+    /////////////////////////////////////////////////////////////////////
+    
+    for (int i=0; i<vars_HCURL.size(); i++) {
+      int var = vars_HCURL[i];
+      
+      auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+      DRV cbasis = basis_side[usebasis[var]];
+      auto cuvals = Kokkos::subview(u_AD,Kokkos::ALL(),var,Kokkos::ALL());
+      
+      parallel_for("wkset flux soln ip HCURL",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+          AD uval = cuvals(elem,dof);
+          if ( dof == 0) {
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) = uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+          else {
+            for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+              for (int s=0; s<cbasis.extent(3); s++ ) {
+                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    /*
     AD uval, u_dotval;
     for (int k=0; k<numVars; k++) {
       int kubasis = usebasis[k];
@@ -1011,11 +1141,11 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
         }
       }
       
-    }
+    }*/
   }
   {
-    Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-    Kokkos::deep_copy(local_param_side, 0.0);
+    //Teuchos::TimeMonitor resettimer(*worksetResetTimer);
+    //Kokkos::deep_copy(local_param_side, 0.0);
   }
   
   /*

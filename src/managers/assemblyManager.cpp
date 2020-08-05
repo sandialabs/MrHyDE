@@ -40,6 +40,9 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
   useNewBCs = settings->sublist("Solver").get<bool>("use new BCs",true);
   use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("use measurements as DBCs", false);
   
+  assembly_partitioning = settings->sublist("Solver").get<string>("assembly partitioning","sequential"); // "neighbor-avoiding"
+  use_atomics = settings->sublist("Solver").get<bool>("use atomics",false); // not need if assembly partitioning is done correctly
+  
   string solver_type = settings->sublist("Solver").get<string>("solver","none"); // or "transient"
   isTransient = false;
   if (solver_type == "transient") {
@@ -212,66 +215,124 @@ void AssemblyManager::createCells() {
     
     TEUCHOS_TEST_FOR_EXCEPTION(LIDs.extent(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element times the number of time stages.");
     
-    while (prog < numTotalElem) {
-      int currElem = elemPerCell;  // Avoid faults in last iteration
-      if (prog+currElem > numTotalElem){
-        currElem = numTotalElem-prog;
-      }
-      
-      Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
-      DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
-      LIDView cellLIDs("LIDs on host device",currElem,LIDs.extent(1));
-      
-      auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
-      //auto host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
-
-      auto nodes_sub = Kokkos::subview(blocknodes,std::make_pair(prog, prog+currElem), Kokkos::ALL(), Kokkos::ALL());
-      Kokkos::deep_copy(currnodes,nodes_sub);
-      
-      for (size_t e=0; e<host_eIndex.extent(0); e++) {
-        //for (int n=0; n<currnodes.extent(1); n++) {
-        //  for (int m=0; m<currnodes.extent(2); m++) {
-        //    currnodes(e,n,m) = blocknodes(prog+e,n,m);
-        //  }
-        //}
-        host_eIndex(e) = prog+e;//disc->myElements[b][prog+e]; // TMW: why here?;prog+e;
-      }
-      //Kokkos::deep_copy(currnodes,host_currnodes);
-      Kokkos::deep_copy(eIndex,host_eIndex);
-      
-      // This subview only works if the cells use a continuous ordering of elements
-      // Considering generalizing this to reduce atomic overhead, so performing manual deep copy for now
-      //LIDView cellLIDs = Kokkos::subview(LIDs, std::make_pair(prog,prog+currElem), Kokkos::ALL());
-      
-      parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        size_t elemID = disc->myElements[b][prog+e]; // TMW: why here?
-        for (int j=0; j<LIDs.extent(1); j++) {
-          cellLIDs(e,j) = LIDs(elemID,j);
+    if (assembly_partitioning == "sequential") {
+      while (prog < numTotalElem) {
+        int currElem = elemPerCell;  // Avoid faults in last iteration
+        if (prog+currElem > numTotalElem){
+          currElem = numTotalElem-prog;
         }
-      });
-      
-      // Set the side information (soon to be removed)-
-      Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,host_eIndex);
-      
-      Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", currElem, numNodesPerElem);
-      auto host_currind = Kokkos::create_mirror_view(currind);
-      
-      for (int i=0; i<currElem; i++) {
-        vector<stk::mesh::EntityId> stk_nodeids;
-        size_t elemID = prog+i;//host_eIndex(i);
-        mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
-        for (int n=0; n<numNodesPerElem; n++) {
-          host_currind(i,n) = stk_nodeids[n];
+        
+        Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
+        DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
+        LIDView cellLIDs("LIDs on host device",currElem,LIDs.extent(1));
+        
+        auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
+        //auto host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
+        
+        auto nodes_sub = Kokkos::subview(blocknodes,std::make_pair(prog, prog+currElem), Kokkos::ALL(), Kokkos::ALL());
+        Kokkos::deep_copy(currnodes,nodes_sub);
+        
+        for (size_t e=0; e<host_eIndex.extent(0); e++) {
+          //for (int n=0; n<currnodes.extent(1); n++) {
+          //  for (int m=0; m<currnodes.extent(2); m++) {
+          //    currnodes(e,n,m) = blocknodes(prog+e,n,m);
+          //  }
+          //}
+          host_eIndex(e) = prog+e;//disc->myElements[b][prog+e]; // TMW: why here?;prog+e;
         }
+        //Kokkos::deep_copy(currnodes,host_currnodes);
+        Kokkos::deep_copy(eIndex,host_eIndex);
+        
+        // This subview only works if the cells use a continuous ordering of elements
+        // Considering generalizing this to reduce atomic overhead, so performing manual deep copy for now
+        //LIDView cellLIDs = Kokkos::subview(LIDs, std::make_pair(prog,prog+currElem), Kokkos::ALL());
+        
+        parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          size_t elemID = disc->myElements[b][prog+e]; // TMW: why here?
+          for (int j=0; j<LIDs.extent(1); j++) {
+            cellLIDs(e,j) = LIDs(elemID,j);
+          }
+        });
+        
+        // Set the side information (soon to be removed)-
+        Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,host_eIndex);
+        
+        Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", currElem, numNodesPerElem);
+        auto host_currind = Kokkos::create_mirror_view(currind);
+        
+        for (int i=0; i<currElem; i++) {
+          vector<stk::mesh::EntityId> stk_nodeids;
+          size_t elemID = prog+i;//host_eIndex(i);
+          mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
+          for (int n=0; n<numNodesPerElem; n++) {
+            host_currind(i,n) = stk_nodeids[n];
+          }
+        }
+        Kokkos::deep_copy(currind, host_currind);
+        
+        Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orient_drv("kv to orients",currElem);
+        Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *cellTopo);
+        
+        blockcells.push_back(Teuchos::rcp(new cell(blockCellData, currnodes, eIndex,
+                                                   cellLIDs, sideinfo, orient_drv)));
+        prog += elemPerCell;
       }
-      Kokkos::deep_copy(currind, host_currind);
+    }
+    else if (assembly_partitioning == "random") { // not implemented yet
+      vector<bool> done(numTotalElem,false);
       
-      Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orient_drv("kv to orients",currElem);
-      Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *cellTopo);
-      
-      blockcells.push_back(Teuchos::rcp(new cell(blockCellData, currnodes, eIndex,
-                                                 cellLIDs, sideinfo, orient_drv)));
-      prog += elemPerCell;
+      while (prog < numTotalElem) {
+        int currElem = elemPerCell;
+        if (prog+currElem > numTotalElem){
+          currElem = numTotalElem-prog;
+        }
+        
+        Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
+        auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
+        for (size_t e=0; e<host_eIndex.extent(0); e++) {
+          host_eIndex(e) = prog+e;
+        }
+        Kokkos::deep_copy(eIndex,host_eIndex);
+        
+        DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
+        LIDView cellLIDs("LIDs on host device",currElem,LIDs.extent(1));
+        
+        auto nodes_sub = Kokkos::subview(blocknodes,std::make_pair(prog, prog+currElem), Kokkos::ALL(), Kokkos::ALL());
+        Kokkos::deep_copy(currnodes,nodes_sub);
+        
+        parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          size_t elemID = disc->myElements[b][prog+e]; // TMW: why here?
+          for (int j=0; j<LIDs.extent(1); j++) {
+            cellLIDs(e,j) = LIDs(elemID,j);
+          }
+        });
+        
+        // Set the side information (soon to be removed)-
+        Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,host_eIndex);
+        
+        Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", currElem, numNodesPerElem);
+        auto host_currind = Kokkos::create_mirror_view(currind);
+        
+        for (int i=0; i<currElem; i++) {
+          vector<stk::mesh::EntityId> stk_nodeids;
+          size_t elemID = prog+i;//host_eIndex(i);
+          mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
+          for (int n=0; n<numNodesPerElem; n++) {
+            host_currind(i,n) = stk_nodeids[n];
+          }
+        }
+        Kokkos::deep_copy(currind, host_currind);
+        
+        Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orient_drv("kv to orients",currElem);
+        Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *cellTopo);
+        
+        blockcells.push_back(Teuchos::rcp(new cell(blockCellData, currnodes, eIndex,
+                                                   cellLIDs, sideinfo, orient_drv)));
+        prog += elemPerCell;
+      }
+    }
+    else if (assembly_partitioning == "neighbor-avoiding") { // not implemented yet
+     // need neighbor information
     }
     cells.push_back(blockcells);
     
@@ -1131,9 +1192,6 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
 
   Teuchos::TimeMonitor localtimer(*inserttimer);
   
-  bool useAtomics = false;
-  // Add a mechnism to check if ExecSpace == Kokkos::Serial
-  
   /////////////////////////////////////
   // Using LIDs
   /////////////////////////////////////
@@ -1161,7 +1219,7 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
           for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
             LO colIndex = paramLIDs(elem,col);
             ScalarT val = local_J(elem,row,col);
-            localMatrix.sumIntoValues(colIndex, &rowIndex, 1, &val, true, useAtomics); // isSorted, useAtomics
+            localMatrix.sumIntoValues(colIndex, &rowIndex, 1, &val, true, use_atomics); // isSorted, useAtomics
           }
         }
       });
@@ -1178,7 +1236,7 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
               vals[col] = local_J(elem,row,col);
               cols[col] = LIDs(elem,col);
             }
-            localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, useAtomics); // isSorted, useAtomics
+            localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics); // isSorted, useAtomics
           }
         }
       });

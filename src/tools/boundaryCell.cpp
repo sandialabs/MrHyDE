@@ -19,9 +19,9 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 
 BoundaryCell::BoundaryCell(const Teuchos::RCP<CellMetaData> & cellData_,
-                           const DRV & nodes_,
-                           const Kokkos::View<LO*,AssemblyDevice> & localID_,
-                           const Kokkos::View<LO*,AssemblyDevice> & sideID_,
+                           const DRV nodes_,
+                           const Kokkos::View<LO*,AssemblyDevice> localID_,
+                           const Kokkos::View<LO*,AssemblyDevice> sideID_,
                            const int & sidenum_, const string & sidename_,
                            const int & cellID_,
                            LIDView LIDs_,
@@ -708,8 +708,8 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
   wkset->time = time;
   wkset->time_KV(0) = time;
   
-  auto u_kv = gl_u->getLocalView<HostDevice>();
-  auto du_kv = gl_du->getLocalView<HostDevice>();
+  auto u_kv = gl_u->getLocalView<AssemblyDevice>();
+  auto du_kv = gl_du->getLocalView<AssemblyDevice>();
   
   Kokkos::View<AD***,AssemblyDevice> u_AD("temp u AD",u.extent(0),u.extent(1),u.extent(2));
   Kokkos::View<AD***,AssemblyDevice> param_AD("temp u AD",1,1,1);
@@ -718,26 +718,25 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
     Teuchos::TimeMonitor localtimer(*cellFluxGatherTimer);
     
     if (compute_sens) {
-      for (int e=0; e<numElem; e++) {
-        for (size_t n=0; n<numDOF.extent(0); n++) {
-          for( size_t i=0; i<numDOF(n); i++ ) {
-            u_AD(e,n,i) = AD(u_kv(LIDs(e,offsets(n,i)),0));
+      parallel_for("bcell flux gather",RangePolicy<AssemblyExec>(0,u_AD.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (size_t var=0; var<u_AD.extent(1); var++) {
+          for( size_t dof=0; dof<u_AD.extent(2); dof++ ) {
+            u_AD(elem,var,dof) = AD(u_kv(LIDs(elem,offsets(var,dof)),0));
           }
         }
-      }
+      });
     }
     else {
-      size_t numDerivs = gl_du->getNumVectors();
-      for (int e=0; e<numElem; e++) {
-        for (size_t n=0; n<numDOF.extent(0); n++) {
-          for( size_t i=0; i<numDOF(n); i++ ) {
-            u_AD(e,n,i) = AD(maxDerivs, 0, u_kv(LIDs(e,offsets(n,i)),0));
-            for( size_t p=0; p<numDerivs; p++ ) {
-              u_AD(e,n,i).fastAccessDx(p) = du_kv(LIDs(e,offsets(n,i)),p);
+      parallel_for("bcell flux gather",RangePolicy<AssemblyExec>(0,u_AD.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (size_t var=0; var<u_AD.extent(1); var++) {
+          for( size_t dof=0; dof<u_AD.extent(2); dof++ ) {
+            u_AD(elem,var,dof) = AD(maxDerivs, 0, u_kv(LIDs(elem,offsets(var,dof)),0));
+            for( size_t p=0; p<du_kv.extent(1); p++ ) {
+              u_AD(elem,var,dof).fastAccessDx(p) = du_kv(LIDs(elem,offsets(var,dof)),p);
             }
           }
         }
-      }
+      });
     }
   }
   

@@ -33,9 +33,9 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   
   BoundaryCell(const Teuchos::RCP<CellMetaData> & cellData_,
-               const DRV & nodes_,
-               const Kokkos::View<LO*,AssemblyDevice> & localID_,
-               const Kokkos::View<LO*,AssemblyDevice> & sideID_,
+               const DRV nodes_,
+               const Kokkos::View<LO*,AssemblyDevice> localID_,
+               const Kokkos::View<LO*,AssemblyDevice> sideID_,
                const int & sidenum_, const string & sidename_,
                const int & cellID_,
                LIDView LIDs_,

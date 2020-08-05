@@ -86,6 +86,7 @@ void porousHDIV::volumeResidual() {
   }
   
   wts = wkset->wts;
+  Teuchos::TimeMonitor funceval(*volumeResidualFill);
   
   {
     // (K^-1 u,v) - (p,div v) - src*v (src not added yet)
@@ -154,11 +155,11 @@ void porousHDIV::volumeResidual() {
     parallel_for("porous HDIV volume resid div(u)",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       
       for (int pt=0; pt<udiv.extent(1); pt++ ) {
-        AD divu = udiv(elem,pt)*wts(elem,pt);
-        AD src = source(elem,pt)*wts(elem,pt);
+        AD F = source(elem,pt) - udiv(elem,pt);
+        F *= wts(elem,pt);
         for (int dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT v = basis(elem,dof,pt,0);
-          res(elem,off(dof)) += -divu*v + src*v;
+          res(elem,off(dof)) += F*v;
         }
       }
     });
@@ -189,7 +190,6 @@ void porousHDIV::boundaryResidual() {
     }
     
   }
-  
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
@@ -301,11 +301,11 @@ void porousHDIV::updatePerm() {
   Kinv_zz = Kokkos::View<AD**,AssemblyDevice>("K inverse zz",wts.extent(0),wts.extent(1));
   Kokkos::View<ScalarT**,AssemblyDevice> data = wkset->extra_data;
   
-  parallel_for("porous HDIV update perm",RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+  parallel_for("porous HDIV update perm",RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_LAMBDA (const int elem ) {
     for (int pt=0; pt<Kinv_xx.extent(1); pt++) {
-      Kinv_xx(elem,pt) = data(elem,0);
-      Kinv_yy(elem,pt) = data(elem,0);
-      Kinv_zz(elem,pt) = data(elem,0);
+      Kinv_xx(elem,pt) = 1.0/data(elem,0);
+      Kinv_yy(elem,pt) = 1.0/data(elem,0);
+      Kinv_zz(elem,pt) = 1.0/data(elem,0);
     }
   });
 }

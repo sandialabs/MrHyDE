@@ -163,7 +163,8 @@ public:
   vector<vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
   vector<Teuchos::RCP<workset> > wkset;
   
-  bool usestrongDBCs, use_meas_as_dbcs, multiscale, useNewBCs, isTransient;
+  bool usestrongDBCs, use_meas_as_dbcs, multiscale, useNewBCs, isTransient, use_atomics;
+  string assembly_partitioning;
   Teuchos::RCP<panzer::DOFManager> DOF;
   vector<bool> assemble_volume_terms, assemble_boundary_terms, assemble_face_terms; // use basis functions in assembly
   vector<bool> build_volume_terms, build_boundary_terms, build_face_terms; // set up basis function

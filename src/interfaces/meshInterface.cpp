@@ -402,6 +402,8 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
     
     mesh->addCellField("subgrid model", eBlocks[i]);
     
+    mesh->addCellField("cell number", eBlocks[i]);
+    
     if (settings->isSublist("Parameters")) {
       Teuchos::ParameterList parameters = settings->sublist("Parameters");
       Teuchos::ParameterList::ConstIterator pl_itr = parameters.begin();
@@ -590,44 +592,94 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
       mesh_data_file = mesh_data_tag + ".dat";
     }
     
-    mesh_data = Teuchos::rcp(new data("mesh data", spaceDim, mesh_data_pts_file,
-                                      mesh_data_file, false));
-    
-    for (size_t b=0; b<cells.size(); b++) {
-      for (size_t e=0; e<cells[b].size(); e++) {
-        DRV nodes = cells[b][e]->nodes;
-        int numElem = cells[b][e]->numElem;
-        
-        for (int c=0; c<numElem; c++) {
-          Kokkos::View<ScalarT[1][3],HostDevice> center("center");
-          for (size_t i=0; i<nodes.extent(1); i++) {
-            for (size_t j=0; j<spaceDim; j++) {
-              center(0,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
-            }
-          }
-          ScalarT distance = 0.0;
+    bool have_grid_data = settings->sublist("Mesh").get<bool>("data on grid",false);
+    if (have_grid_data) {
+      int Nx = settings->sublist("Mesh").get<int>("data grid Nx",0);
+      int Ny = settings->sublist("Mesh").get<int>("data grid Ny",0);
+      int Nz = settings->sublist("Mesh").get<int>("data grid Nz",0);
+      mesh_data = Teuchos::rcp(new data("mesh data", spaceDim, mesh_data_pts_file,
+                                        mesh_data_file, false, Nx, Ny, Nz));
+      
+      for (size_t b=0; b<cells.size(); b++) {
+        for (size_t e=0; e<cells[b].size(); e++) {
+          DRV nodes = cells[b][e]->nodes;
+          int numElem = cells[b][e]->numElem;
           
-          int cnode = mesh_data->findClosestNode(center(0,0), center(0,1), center(0,2), distance);
-          bool iscloser = true;
-          if (p>0){
-            if (cells[b][e]->cell_data_distance[c] < distance) {
-              iscloser = false;
+          for (int c=0; c<numElem; c++) {
+            Kokkos::View<ScalarT[1][3],HostDevice> center("center");
+            for (size_t i=0; i<nodes.extent(1); i++) {
+              for (size_t j=0; j<spaceDim; j++) {
+                center(0,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
+              }
+            }
+            ScalarT distance = 0.0;
+            
+            int cnode = mesh_data->findClosestGridNode(center(0,0), center(0,1), center(0,2), distance);
+            bool iscloser = true;
+            if (p>0){
+              if (cells[b][e]->cell_data_distance[c] < distance) {
+                iscloser = false;
+              }
+            }
+            if (iscloser) {
+              Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
+              for (int i=0; i<cdata.extent(1); i++) {
+                cells[b][e]->cell_data(c,i) = cdata(0,i);
+              }
+              cells[b][e]->cellData->have_extra_data = true;
+              if (have_rotations)
+                cells[b][e]->cellData->have_cell_rotation = true;
+              if (have_rotation_phi)
+                cells[b][e]->cellData->have_cell_phi = true;
+              
+              cells[b][e]->cell_data_seed[c] = cnode;
+              cells[b][e]->cell_data_seedindex[c] = cnode % 50;
+              cells[b][e]->cell_data_distance[c] = distance;
             }
           }
-          if (iscloser) {
-            Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
-            for (int i=0; i<cdata.extent(1); i++) {
-              cells[b][e]->cell_data(c,i) = cdata(0,i);
+        }
+      }
+    }
+    else {
+      mesh_data = Teuchos::rcp(new data("mesh data", spaceDim, mesh_data_pts_file,
+                                        mesh_data_file, false));
+      
+      for (size_t b=0; b<cells.size(); b++) {
+        for (size_t e=0; e<cells[b].size(); e++) {
+          DRV nodes = cells[b][e]->nodes;
+          int numElem = cells[b][e]->numElem;
+          
+          for (int c=0; c<numElem; c++) {
+            Kokkos::View<ScalarT[1][3],HostDevice> center("center");
+            for (size_t i=0; i<nodes.extent(1); i++) {
+              for (size_t j=0; j<spaceDim; j++) {
+                center(0,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
+              }
             }
-            cells[b][e]->cellData->have_extra_data = true;
-            if (have_rotations)
-              cells[b][e]->cellData->have_cell_rotation = true;
-            if (have_rotation_phi)
-              cells[b][e]->cellData->have_cell_phi = true;
+            ScalarT distance = 0.0;
             
-            cells[b][e]->cell_data_seed[c] = cnode;
-            cells[b][e]->cell_data_seedindex[c] = cnode % 50;
-            cells[b][e]->cell_data_distance[c] = distance;
+            int cnode = mesh_data->findClosestNode(center(0,0), center(0,1), center(0,2), distance);
+            bool iscloser = true;
+            if (p>0){
+              if (cells[b][e]->cell_data_distance[c] < distance) {
+                iscloser = false;
+              }
+            }
+            if (iscloser) {
+              Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
+              for (int i=0; i<cdata.extent(1); i++) {
+                cells[b][e]->cell_data(c,i) = cdata(0,i);
+              }
+              cells[b][e]->cellData->have_extra_data = true;
+              if (have_rotations)
+                cells[b][e]->cellData->have_cell_rotation = true;
+              if (have_rotation_phi)
+                cells[b][e]->cellData->have_cell_phi = true;
+              
+              cells[b][e]->cell_data_seed[c] = cnode;
+              cells[b][e]->cell_data_seedindex[c] = cnode % 50;
+              cells[b][e]->cell_data_distance[c] = distance;
+            }
           }
         }
       }

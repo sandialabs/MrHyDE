@@ -30,6 +30,7 @@ managers/postprocessManager.cpp
 managers/assemblyManager.cpp
 managers/parameterManager.cpp
 managers/functionManager.cpp
+tools/data.cpp
 tools/cellMetaData.cpp
 tools/cell.cpp
 tools/boundaryCell.cpp
