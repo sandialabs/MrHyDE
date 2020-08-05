@@ -275,7 +275,7 @@ void data::importGridPoints(const std::string & ptsfile, const int & spaceDim,
     
     sensorGrid_y = Kokkos::View<ScalarT*,HostDevice>("sensor grid y pts",Ny);
     for (int k=0; k<Ny; k++) {
-      sensorGrid_y(k) = yvec[(k-1)*Nx];
+      sensorGrid_y(k) = yvec[(k)*Nx];
     }
   }
   else if (spaceDim == 3) {
@@ -286,12 +286,12 @@ void data::importGridPoints(const std::string & ptsfile, const int & spaceDim,
     
     sensorGrid_y = Kokkos::View<ScalarT*,HostDevice>("sensor grid y pts",Ny);
     for (int k=0; k<Ny; k++) {
-      sensorGrid_y(k) = yvec[(k-1)*Nx];
+      sensorGrid_y(k) = yvec[(k)*Nx];
     }
     
     sensorGrid_z = Kokkos::View<ScalarT*,HostDevice>("sensor grid z pts",Nz);
     for (int k=0; k<Nz; k++) {
-      sensorGrid_z(k) = zvec[(k-1)*Nx*Ny];
+      sensorGrid_z(k) = zvec[(k)*Nx*Ny];
     }
   }
   
