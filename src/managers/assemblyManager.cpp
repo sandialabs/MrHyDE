@@ -185,6 +185,21 @@ void AssemblyManager::createCells() {
     panzer_stk::workset_utils::getIdsAndVertices(*mesh, blocknames[b], localIds, host_blocknodes); // fill on host
     Kokkos::deep_copy(blocknodes, host_blocknodes);
     
+    Kokkos::DynRankView<ScalarT,AssemblyDevice> tmprefnodes("nodes on reference element 0",1,numNodesPerElem,spaceDim);
+    Kokkos::DynRankView<ScalarT,AssemblyDevice> tmpnodes("nodes on first element",1,numNodesPerElem,spaceDim);
+    for (size_t i=0; i<tmpnodes.extent(1); i++) {
+      for (size_t j=0; j<tmpnodes.extent(2); j++) {
+        tmpnodes(0,i,j) = host_blocknodes(0,i,j);
+      }
+    }
+    CellTools::mapToReferenceFrame(tmprefnodes, tmpnodes, tmpnodes, *cellTopo);
+    Kokkos::DynRankView<ScalarT,AssemblyDevice> refnodes("nodes on reference element",numNodesPerElem,spaceDim);
+    for (size_t i=0; i<tmprefnodes.extent(1); i++) {
+      for (size_t j=0; j<tmprefnodes.extent(2); j++) {
+        refnodes(i,j) = tmprefnodes(0,i,j);
+      }
+    }
+    
     int elemPerCell = settings->sublist("Solver").get<int>("workset size",1);
     int prog = 0;
     
@@ -198,8 +213,11 @@ void AssemblyManager::createCells() {
                                                                               disc->ref_wts[b], disc->ref_side_ip[b],
                                                                               disc->ref_side_wts[b], disc->basis_types[b],
                                                                               disc->basis_pointers[b],
-                                                                              params->num_discretized_params));
+                                                                              params->num_discretized_params,
+                                                                              refnodes));
     
+    
+    blockCellData->requireBasisAtNodes = settings->sublist("Postprocess").get<bool>("plot solution at nodes",false);
     
     vector<vector<int> > curroffsets = phys->offsets[b];
     Kokkos::View<LO*,AssemblyDevice> numDOF_KV("number of DOF per variable",curroffsets.size());

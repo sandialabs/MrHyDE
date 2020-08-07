@@ -297,6 +297,8 @@ public:
   
   void computeSolAvg();
 
+  Kokkos::View<ScalarT***,AssemblyDevice> getSolutionAtNodes(const int & var);
+  
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -336,7 +338,7 @@ public:
   Kokkos::View<LO*,UnifiedDevice> numDOF, numParamDOF, numAuxDOF;
   
   // basis information
-  vector<DRV> basis, basis_grad, basis_div, basis_curl;
+  vector<DRV> basis, basis_grad, basis_div, basis_curl, basis_nodes;
   vector<vector<DRV> > basis_face, basis_grad_face;
   Kokkos::View<ScalarT*,AssemblyDevice> hsize;
   
@@ -373,6 +375,7 @@ public:
   Teuchos::RCP<Teuchos::Time> cellFluxAuxTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeFlux - compute aux solution");
   Teuchos::RCP<Teuchos::Time> cellFluxEvalTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeFlux - physics evaluation");
   Teuchos::RCP<Teuchos::Time> computeSolAvgTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::computeSolAvg()");
+  Teuchos::RCP<Teuchos::Time> computeNodeSolTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::getSolutionAtNodes()");
   Teuchos::RCP<Teuchos::Time> buildBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::constructor - build basis");
   Teuchos::RCP<Teuchos::Time> buildFaceBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::constructor - build face basis");
   

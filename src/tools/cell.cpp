@@ -65,7 +65,7 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_)
       
       int numb = cellData->basis_pointers[i]->getCardinality();
       
-      DRV basis_vals, basis_grad_vals, basis_div_vals, basis_curl_vals;
+      DRV basis_vals, basis_grad_vals, basis_div_vals, basis_curl_vals, basis_node_vals;
       
       if (cellData->basis_types[i] == "HGRAD"){
         basis_vals = DRV("basis",numElem,numb,numip);
@@ -89,10 +89,16 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_)
         basis_vals = DRV("basis",numElem,numb,numip,dimension);
         DRV basis_tmp("basis tmp",numElem,numb,numip,dimension);
         FuncTools::HDIVtransformVALUE(basis_tmp, jacobian, jacobianDet, cellData->ref_basis[i]);
-        //basis_uw[i] = basis_tmp;
         OrientTools::modifyBasisByOrientation(basis_vals, basis_tmp, orientation,
                                               cellData->basis_pointers[i].get());
         
+        if (cellData->requireBasisAtNodes) {
+          basis_node_vals = DRV("basis",numElem,numb,nodes.extent(1),dimension);
+          DRV basis_tmp("basis tmp",numElem,numb,nodes.extent(1),dimension);
+          FuncTools::HDIVtransformVALUE(basis_tmp, jacobian, jacobianDet, cellData->ref_basis_nodes[i]);
+          OrientTools::modifyBasisByOrientation(basis_node_vals, basis_tmp, orientation,
+                                                cellData->basis_pointers[i].get());
+        }
         
         basis_div_vals = DRV("basis div",numElem,numb,numip);
         DRV basis_div_vals_tmp("basis div tmp",numElem,numb,numip);
@@ -109,6 +115,15 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_)
         OrientTools::modifyBasisByOrientation(basis_vals, basis_tmp, orientation,
                                               cellData->basis_pointers[i].get());
         
+        if (cellData->requireBasisAtNodes) {
+          basis_node_vals = DRV("basis",numElem,numb,nodes.extent(1),dimension);
+          DRV basis_tmp("basis tmp",numElem,numb,nodes.extent(1),dimension);
+          FuncTools::HCURLtransformVALUE(basis_tmp, jacobianInv, cellData->ref_basis_nodes[i]);
+          OrientTools::modifyBasisByOrientation(basis_node_vals, basis_tmp, orientation,
+                                                cellData->basis_pointers[i].get());
+          
+        }
+        
         basis_curl_vals = DRV("basis curl",numElem,numb,numip,dimension);
         DRV basis_curl_vals_tmp("basis curl tmp",numElem,numb,numip,dimension);
         FuncTools::HCURLtransformCURL(basis_curl_vals_tmp, jacobian, jacobianDet, cellData->ref_basis_curl[i]);
@@ -120,7 +135,7 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_)
       basis_grad.push_back(basis_grad_vals);
       basis_div.push_back(basis_div_vals);
       basis_curl.push_back(basis_curl_vals);
-      
+      basis_nodes.push_back(basis_node_vals);
     }
   }
   
@@ -1845,4 +1860,32 @@ vector<int> cell::getInfo() {
   info.push_back(LIDs.extent(1));
   info.push_back(numElem);
   return info;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Get the solution at the nodes
+///////////////////////////////////////////////////////////////////////////////////////
+
+Kokkos::View<ScalarT***,AssemblyDevice> cell::getSolutionAtNodes(const int & var) {
+  
+  Teuchos::TimeMonitor nodesoltimer(*computeNodeSolTimer);
+  
+  int bnum = wkset->usebasis[var];
+  DRV cbasis = basis_nodes[bnum];
+  Kokkos::View<ScalarT***,AssemblyDevice> nodesol("solution at nodes",
+                                                  cbasis.extent(0), cbasis.extent(2), cellData->dimension);
+  auto uvals = Kokkos::subview(u,Kokkos::ALL(), var, Kokkos::ALL());
+  parallel_for("cell node sol",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    for (int dof=0; dof<cbasis.extent(1); dof++ ) {
+      ScalarT uval = uvals(elem,dof);
+      for (size_t pt=0; pt<cbasis.extent(2); pt++ ) {
+        for (int s=0; s<cbasis.extent(3); s++ ) {
+          nodesol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
+        }
+      }
+    }
+  });
+  
+  return nodesol;
+  
 }

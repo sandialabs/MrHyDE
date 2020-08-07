@@ -41,6 +41,7 @@ settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
   sub_maxNLiter = settings->sublist("Solver").get<int>("max nonlinear iters",10);
   useDirect = settings->sublist("Solver").get<bool>("use direct solver",true);
 
+  store_aux_and_flux = settings->sublist("Postprocess").get<bool>("store aux and flux",false);
   
   milo_solver = Teuchos::rcp( new solver(LocalComm, settings, mesh, disc, physics, DOF, assembler, params) );
   
@@ -261,9 +262,13 @@ void SubGridFEM_Solver::solve(Kokkos::View<ScalarT***,AssemblyDevice> coarse_u,
     this->nonlinearSolver(u, phi, disc_params, lambda,
                           current_time, isTransient, isAdjoint, num_active_params, alpha, usernum, false);
     
+    //KokkosTools::print(u);
+    
     this->computeSolnSens(d_u, compute_sens, u,
                           phi, disc_params, lambda,
                           current_time, isTransient, isAdjoint, num_active_params, alpha, 1.0, usernum, subgradient);
+    
+    //KokkosTools::print(d_u);
     
     if (isAdjoint) {
       this->updateFlux(phi, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0, macroData);
@@ -274,6 +279,9 @@ void SubGridFEM_Solver::solve(Kokkos::View<ScalarT***,AssemblyDevice> coarse_u,
     
   }
   
+  if (store_aux_and_flux) {
+    this->storeFluxData(lambda, macrowkset.res);
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -289,14 +297,14 @@ void SubGridFEM_Solver::storeFluxData(Kokkos::View<ScalarT***,AssemblyDevice> la
   // Input data - macro DOFs
   ofs.open ("input_data.txt", std::ofstream::out | std::ofstream::app);
   ofs.precision(10);
-  for (size_t e=0; e<lambda.extent(0); e++) {
+  //for (size_t e=0; e<lambda.extent(0); e++) {
     for (size_t i=0; i<lambda.extent(1); i++) {
       for (size_t j=0; j<lambda.extent(2); j++) {
-        ofs << lambda(e,i,j) << "  ";
+        ofs << lambda(0,i,j) << "  ";
       }
     }
     ofs << endl;
-  }
+  //}
   ofs.close();
   
   // Output data - upscaled flux

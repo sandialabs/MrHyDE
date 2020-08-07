@@ -22,11 +22,12 @@ CellMetaData::CellMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settings
                            const vector<string> & sidenames_, DRV ref_ip_, DRV ref_wts_,
                            DRV ref_side_ip_, DRV ref_side_wts_, vector<string> & basis_types_,
                            vector<basis_RCP> & basis_pointers_,
-                           const size_t & num_params) :
+                           const size_t & num_params,
+                           DRV refnodes_) :
 cellTopo(cellTopo_), physics_RCP(physics_RCP_), myBlock(myBlock_),
 myLevel(myLevel_), build_face_terms(build_face_terms_), assemble_face_terms(assemble_face_terms_),
 sidenames(sidenames_), ref_ip(ref_ip_), ref_wts(ref_wts_),
-basis_types(basis_types_), basis_pointers(basis_pointers_), numDiscParams(num_params) {
+basis_types(basis_types_), basis_pointers(basis_pointers_), numDiscParams(num_params), refnodes(refnodes_) {
   
   Teuchos::TimeMonitor localtimer(*celltimer);
   
@@ -96,11 +97,15 @@ void CellMetaData::setupReferenceBasis() {
     int numip = ref_ip.extent(0);
     
     DRV basisvals, basisgrad, basisdiv, basiscurl;
+    DRV basisnodes;
     
     if (basis_types[i] == "HGRAD" || basis_types[i] == "HVOL") {
       
       basisvals = DRV("basisvals",numb, numip);
       basis_pointers[i]->getValues(basisvals, ref_ip, Intrepid2::OPERATOR_VALUE);
+    
+      basisnodes = DRV("basisvals",numb, refnodes.extent(0));
+      basis_pointers[i]->getValues(basisnodes, refnodes, Intrepid2::OPERATOR_VALUE);
       
       basisgrad = DRV("basisgrad",numb, numip, dimension);
       basis_pointers[i]->getValues(basisgrad, ref_ip, Intrepid2::OPERATOR_GRAD);
@@ -111,6 +116,9 @@ void CellMetaData::setupReferenceBasis() {
       basisvals = DRV("basisvals",numb, numip, dimension);
       basis_pointers[i]->getValues(basisvals, ref_ip, Intrepid2::OPERATOR_VALUE);
       
+      basisnodes = DRV("basisvals",numb, refnodes.extent(0), dimension);
+      basis_pointers[i]->getValues(basisnodes, refnodes, Intrepid2::OPERATOR_VALUE);
+      
       basisdiv = DRV("basisdiv",numb, numip);
       basis_pointers[i]->getValues(basisdiv, ref_ip, Intrepid2::OPERATOR_DIV);
       
@@ -119,6 +127,9 @@ void CellMetaData::setupReferenceBasis() {
       
       basisvals = DRV("basisvals",numb, numip, dimension);
       basis_pointers[i]->getValues(basisvals, ref_ip, Intrepid2::OPERATOR_VALUE);
+      
+      basisnodes = DRV("basisvals",numb, refnodes.extent(0), dimension);
+      basis_pointers[i]->getValues(basisnodes, refnodes, Intrepid2::OPERATOR_VALUE);
       
       basiscurl = DRV("basiscurl",numb, numip, dimension);
       basis_pointers[i]->getValues(basiscurl, ref_ip, Intrepid2::OPERATOR_CURL);
@@ -131,7 +142,7 @@ void CellMetaData::setupReferenceBasis() {
     ref_basis_curl.push_back(basiscurl);
     ref_basis_grad.push_back(basisgrad);
     ref_basis_div.push_back(basisdiv);
-    
+    ref_basis_nodes.push_back(basisnodes);
   }
   
   // Compute the basis value and basis grad values on reference element

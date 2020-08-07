@@ -1235,6 +1235,7 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
         mesh->setCellFieldData(var+"x", blockID, myElements, soln_x);
         mesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
         mesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
+        
       }
       else if (vartypes[n] == "HFACE" && write_HFACE_variables) {
         Kokkos::View<ScalarT*,HostDevice> soln_faceavg("solution",myElements.size());

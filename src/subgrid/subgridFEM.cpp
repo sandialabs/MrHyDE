@@ -1857,6 +1857,10 @@ void SubGridFEM::setupCombinedExodus() {
         combined_mesh->addCellField(sub_physics->varlist[0][j]+"x", subeBlocks[0]);
         combined_mesh->addCellField(sub_physics->varlist[0][j]+"y", subeBlocks[0]);
         combined_mesh->addCellField(sub_physics->varlist[0][j]+"z", subeBlocks[0]);
+        
+        combined_mesh->addSolutionField(sub_physics->varlist[0][j]+"x", subeBlocks[0]);
+        combined_mesh->addSolutionField(sub_physics->varlist[0][j]+"y", subeBlocks[0]);
+        combined_mesh->addSolutionField(sub_physics->varlist[0][j]+"z", subeBlocks[0]);
       }
     }
     vector<string> subextrafieldnames = sub_physics->getExtraFieldNames(0);
@@ -1941,7 +1945,6 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
     for (int n = 0; n<varlist.size(); n++) {
       
       if (vartypes[n] == "HGRAD") {
-        //size_t numsb = cells[usernum][0]->numDOF(n);//index[0][n].size();
         Kokkos::View<ScalarT**,HostDevice> soln_computed("soln",myElements.size(), numNodesPerElem);
         
         size_t pprog = 0;
@@ -2006,6 +2009,35 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
         combined_mesh->setCellFieldData(varlist[n]+"y", blockID, myElements, soln_y);
         combined_mesh->setCellFieldData(varlist[n]+"z", blockID, myElements, soln_z);
         
+        if (sub_assembler->cellData[0]->requireBasisAtNodes) {
+          Kokkos::View<ScalarT**,HostDevice> soln_nx("soln",myElements.size(), numNodesPerElem);
+          Kokkos::View<ScalarT**,HostDevice> soln_ny("soln",myElements.size(), numNodesPerElem);
+          Kokkos::View<ScalarT**,HostDevice> soln_nz("soln",myElements.size(), numNodesPerElem);
+          
+          pprog = 0;
+          for (size_t usernum=0; usernum<cells.size(); usernum++) {
+            for( size_t e=0; e<cells[usernum].size(); e++ ) {
+              Kokkos::View<ScalarT***,AssemblyDevice> sol = cells[usernum][e]->getSolutionAtNodes(n);
+              auto host_sol = Kokkos::create_mirror_view(sol);
+              Kokkos::deep_copy(host_sol,sol);
+              for (int p=0; p<cells[usernum][e]->numElem; p++) {
+                for( int i=0; i<numNodesPerElem; i++ ) {
+                  soln_nx(pprog,i) = host_sol(p,i,0);
+                  if (dimension > 1) {
+                    soln_ny(pprog,i) = host_sol(p,i,1);
+                  }
+                  if (dimension > 2) {
+                    soln_nz(pprog,i) = host_sol(p,i,2);
+                  }
+                }
+                pprog += 1;
+              }
+            }
+          }
+          combined_mesh->setSolutionFieldData(varlist[n]+"x", blockID, myElements, soln_nx);
+          combined_mesh->setSolutionFieldData(varlist[n]+"y", blockID, myElements, soln_ny);
+          combined_mesh->setSolutionFieldData(varlist[n]+"z", blockID, myElements, soln_nz);
+        }
       }
     }
     

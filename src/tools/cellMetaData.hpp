@@ -36,7 +36,8 @@ public:
                const vector<string> & sidenames_, DRV ref_ip_, DRV ref_wts_,
                DRV ref_side_ip_, DRV ref_side_wts_, vector<string> & basis_types_,
                vector<basis_RCP> & basis_pointers_,
-               const size_t & num_params);
+               const size_t & num_params,
+               DRV refnodes_);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -46,7 +47,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  bool assemble_face_terms, build_face_terms;
+  bool assemble_face_terms, build_face_terms, requireBasisAtNodes = false;
   size_t myBlock, myLevel;
   Teuchos::RCP<physics> physics_RCP;
   string response_type;
@@ -55,6 +56,7 @@ public:
   // Geometry Information
   size_t numnodes, numSides, dimension, numip, numsideip, numDiscParams;
   topo_RCP cellTopo;
+  DRV refnodes;
   
   // Reference element integration and basis data
   DRV ref_ip, ref_wts;
@@ -65,6 +67,7 @@ public:
   vector<basis_RCP> basis_pointers;
   vector<DRV> ref_basis, ref_basis_grad, ref_basis_div, ref_basis_curl;
   vector<vector<DRV> > ref_side_basis, ref_side_basis_grad, ref_side_basis_div, ref_side_basis_curl;
+  vector<DRV> ref_basis_nodes; // basis functions at nodes (mostly for plotting)
   
   bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles;
   bool mortar_objective;
