@@ -1,0 +1,83 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh input file: input_mesh.yaml
+  Physics: 
+    Active variables:
+      p: HFACE
+    modules: porousHDIV
+    assemble face terms: true
+    Dirichlet conditions:
+      scalar data: true
+      p:
+        left: 0.0
+        right: 0.0
+        top: 0.0
+        bottom: 0.0
+        front: 0.0
+        back: 0.0
+    Initial conditions:
+      scalar data: true
+      p: 0.0
+    True solutions:
+      p face: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+  Parameters input file: input_params.yaml
+  Functions input file: input_functions.yaml
+  Solver: 
+    solver: steady-state
+    workset size: 10
+    initial type: none
+    nonlinear TOL: 1.0e-7
+    max nonlinear iters: 3
+    use direct solver: false
+    use preconditioner: true
+    use preconditioner for DBCs: false
+  Discretization:
+    eblock-0_0_0:
+      order:
+        p: 0
+      quadrature: 2
+  Subgrid:
+    subgrid model: FEM
+    Mesh:
+      shape: tet
+      macro-shape: tet
+      refinements: 0
+      dim: 3
+      blocknames: eblock
+    Physics:
+      modules: porousHDIV
+      True solutions:
+        p: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+        u_x: -2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+        u_y: -2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
+        u_z: -2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
+    Solver:
+      solver: steady-state
+      use direct solver: true
+    Functions input file: input_functions.yaml
+    Discretization:
+      order:
+        p: 0
+        u: 1
+      quadrature: 2
+    Postprocess:
+      store aux and flux: false
+      write solution: false
+      plot solution at nodes: false
+  Analysis:
+    analysis type: forward
+    Have Sensor Points: false
+    Have Sensor Data: false
+  Postprocess: 
+    response type: global
+    compute errors: true
+    compute response: false
+    write solution: false
+    write subgrid solution: false
+    write HFACE variables: false
+    compute objective: false
+    compute sensitivities: false
+...

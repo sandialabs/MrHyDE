@@ -51,6 +51,7 @@
 #include "Intrepid2_HFACE_QUAD_In_FEM.hpp"
 #include "Intrepid2_HFACE_TRI_In_FEM.hpp"
 #include "Intrepid2_HFACE_HEX_In_FEM.hpp"
+#include "Intrepid2_HFACE_TET_In_FEM.hpp"
 
 #include "Intrepid2_PointTools.hpp"
 //#include "Intrepid2_FunctionSpaceTools.hpp"
@@ -357,7 +358,7 @@ basis_RCP discretization::getBasis(const int & spaceDim, const topo_RCP & cellTo
         basis = Teuchos::rcp(new Basis_HFACE_HEX_In_FEM<AssemblyExec>(degree,POINTTYPE_EQUISPACED) );
       }
       if (shape == "Tetrahedron_4") {
-        
+        basis = Teuchos::rcp(new Basis_HFACE_TET_In_FEM<AssemblyExec>(degree,POINTTYPE_EQUISPACED) );
       }
     }
   }

@@ -162,7 +162,6 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_) {
           basis_vals = DRV("basis_vals",numElem, numb, numip);
           OrientTools::modifyBasisByOrientation(basis_vals, basis_vals_tmp, orientation,
                                                 cellData->basis_pointers[i].get());
-          
         }
         else if (cellData->basis_types[i] == "HDIV"){
           
