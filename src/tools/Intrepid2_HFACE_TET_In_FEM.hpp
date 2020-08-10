@@ -50,7 +50,7 @@
 #define __INTREPID2_HFACE_TET_IN_FEM_HPP__
 
 #include "Intrepid2_Basis.hpp"
-#include "Intrepid2_HGRAD_Tri_Cn_FEM.hpp"
+#include "Intrepid2_HGRAD_TRI_Cn_FEM.hpp"
 
 namespace Intrepid2 {
   
