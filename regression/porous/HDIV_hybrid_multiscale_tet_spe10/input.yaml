@@ -1,0 +1,72 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 10
+  debug level: 2
+  Mesh input file: input_mesh.yaml
+  Physics: 
+    Active variables:
+      p: HFACE
+    modules: porousHDIV
+    assemble face terms: false
+    Dirichlet conditions:
+      scalar data: false
+      p:
+        top: '1.0'
+        bottom: '0.0'
+  Parameters input file: input_params.yaml
+  Functions input file: input_functions.yaml
+  Solver: 
+    solver: steady-state
+    workset size: 800
+    initial type: none
+    nonlinear TOL: 1.0e-6
+    max nonlinear iters: 2
+    max linear iters: 200
+    use direct solver: false
+    use preconditioner: true
+    use preconditioner for DBCs: false
+  Discretization:
+    order:
+      p: 0
+    quadrature: 2
+  Subgrid:
+    subgrid model: FEM
+    Mesh:
+      shape: tet
+      macro-shape: tet
+      refinements: 0
+      dim: 3
+      blocknames: eblock
+      data file: spe_xperm
+      data points file: spe_xyz
+      data on grid: true
+      data grid Nx: 60
+      data grid Ny: 220
+      data grid Nz: 50
+    Physics:
+      modules: porousHDIV
+      use permeability data: true
+    Solver:
+      solver: steady-state
+      use direct solver: true
+    Functions input file: input_functions.yaml
+    Discretization:
+      order:
+        p: 0
+        u: 1
+      quadrature: 2
+    Postprocess:
+      store aux and flux: false
+      plot solution at nodes: true
+  Analysis:
+    analysis type: forward
+  Postprocess: 
+    response type: global
+    compute errors: false
+    compute response: false
+    write solution: true
+    write subgrid solution: true
+    compute objective: false
+    compute sensitivities: false
+...

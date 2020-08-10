@@ -1,0 +1,15 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh: 
+    dim: 3
+    shape: tet
+    source: Exodus
+    mesh file: spe10_TET_r3.e
+    data file: spe_xperm
+    data points file: spe_xyz
+    data on grid: true
+    data grid Nx: 60
+    data grid Ny: 220
+    data grid Nz: 50
+...
