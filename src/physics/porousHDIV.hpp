@@ -78,7 +78,7 @@ private:
   
   int pnum=-1, unum=-1, auxpnum=-1, auxunum=-1;
   int dxnum,dynum,dznum;
-  bool isTD, addBiot, usePermData;
+  bool isTD, addBiot, usePermData, useWells;
   ScalarT biot_alpha;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV::volumeResidual() - function evaluation");

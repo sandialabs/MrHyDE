@@ -2,5 +2,26 @@
 ---
 ANONYMOUS:
   Functions: 
-    source: '0.0' 
+    isource: '(p-pwone)*Ione + (p-pwtwo)*Itwo'
+    source: '(p-pwone)*Ione + (p-pwtwo)*Itwo + (p-pwthree)*Ithree + (p-pwfour)*Ifour + (p-pwfive)*Ifive'
+    pwone: '2.0'
+    pwtwo: '1.8'
+    pwthree: '1.9'
+    pwfour: '1.9'
+    pwfive: '0.0'
+    Ione: 'Ionex*Ioney'
+    Ionex: '(x-5.0)*(x-5.0)<200.0'
+    Ioney: '(y-10.0)*(y-10.0)<800.0'
+    Itwo: 'Itwox*Itwoy' 
+    Itwox: '(x-1195.0)*(x-1195.0)<200.0' 
+    Itwoy: '(y-10.0)*(y-10.0)<800.0' 
+    Ithree: 'Ithreex*Ithreey' 
+    Ithreex: '(x-5.0)*(x-5.0)<200.0' 
+    Ithreey: '(y-2190.0)*(y-2190.0)<800.0' 
+    Ifour: 'Ifourx*Ifoury' 
+    Ifourx: '(x-1195.0)*(x-1195.0)<200.0' 
+    Ifoury: '(y-2190.0)*(y-2190.0)<800.0' 
+    Ifive: 'Ifivex*Ifivey' 
+    Ifivex: '(x-595.0)*(x-595.0)<200.0' 
+    Ifivey: '(y-1110.0)*(y-1110.0)<800.0' 
 ...

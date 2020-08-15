@@ -14,8 +14,8 @@ ANONYMOUS:
       p:
         ileft: '1.0'
         iright: '0.0'
-        top: '1.0'
-        bottom: '0.0'
+        itop: '1.0'
+        ibottom: '0.0'
         ifront: '1.0'
         iback: '0.0'
   Parameters input file: input_params.yaml
@@ -51,6 +51,7 @@ ANONYMOUS:
     Physics:
       modules: porousHDIV
       use permeability data: true
+      use well source: true
     Solver:
       solver: steady-state
       use direct solver: true
@@ -62,6 +63,7 @@ ANONYMOUS:
       quadrature: 2
     Postprocess:
       store aux and flux: false
+      plot solution at nodes: true
   Analysis:
     analysis type: forward
   Postprocess: 

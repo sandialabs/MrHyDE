@@ -12,7 +12,7 @@ ANONYMOUS:
     zmax: 100.0
     NX: 60
     NY: 220
-    NZ: 10
+    NZ: 5
     Xprocs: 1
     Yprocs: 4
     Zprocs: 1

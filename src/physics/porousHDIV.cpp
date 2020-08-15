@@ -34,7 +34,7 @@ porousHDIV::porousHDIV(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   }
   
   usePermData = settings->sublist("Physics").get<bool>("use permeability data",false);
-  
+  useWells = settings->sublist("Physics").get<bool>("use well source",false);
   dxnum = 0;
   dynum = 0;
   dznum = 0;
@@ -83,7 +83,19 @@ void porousHDIV::volumeResidual() {
       Kinv_yy = functionManager->evaluate("Kinv_yy","ip");
       Kinv_zz = functionManager->evaluate("Kinv_zz","ip");
     }
+    
+    if (useWells) {
+      h = wkset->h;
+      parallel_for("porous HDIV update well source",RangePolicy<AssemblyExec>(0,Kinv_xx.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        ScalarT C = std::log(0.25*std::exp(-0.5772)*h(elem)/2.0);
+        for (size_t pt=0; pt<source.extent(1); pt++) {
+          ScalarT Kval = 1.0/Kinv_xx(elem,pt).val();
+          source(elem,pt) *= 2.0*PI/C*Kval;
+        }
+      });
+    }
   }
+  
   
   wts = wkset->wts;
   Teuchos::TimeMonitor funceval(*volumeResidualFill);
