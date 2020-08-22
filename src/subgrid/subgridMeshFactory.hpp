@@ -32,14 +32,16 @@ namespace panzer_stk {
     }
     
     SubGridMeshFactory(const std::string & shape_, //const shards::CellTopology & cellTopo_,
-                       std::vector<std::vector<ScalarT> > & nodes_,
-                       std::vector<std::vector<GO> > & conn_, std::string & blockname_)
+                       //std::vector<std::vector<ScalarT> > & nodes_,
+                       DRV nodes_,
+                       std::vector<std::vector<GO> > & conn_,
+                       std::string & blockname_)
     {
       shape = shape_;
       blockname = blockname_;
       nodes.push_back(nodes_);
       conn.push_back(conn_);
-      dimension = nodes[0][0].size();
+      dimension = nodes_.extent(1);
     }
     
     
@@ -47,7 +49,9 @@ namespace panzer_stk {
     virtual ~SubGridMeshFactory();
     
     // Add block
-    void addElems(std::vector<std::vector<ScalarT> > & newnodes, std::vector<std::vector<GO> > & newconn);
+    void addElems(DRV newnodes,
+                  //std::vector<std::vector<ScalarT> > & newnodes,
+                  std::vector<std::vector<GO> > & newconn);
     
     //! Build the mesh object
     Teuchos::RCP<STK_Interface> buildMesh(stk::ParallelMachine parallelMach) const;
@@ -71,7 +75,8 @@ namespace panzer_stk {
     
     std::string shape;
     std::string blockname;
-    std::vector<std::vector<std::vector<ScalarT> > > nodes;
+    //std::vector<std::vector<std::vector<ScalarT> > > nodes;
+    std::vector<DRV> nodes;
     std::vector<std::vector<std::vector<GO> > > conn;
     int dimension;
     

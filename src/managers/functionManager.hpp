@@ -14,7 +14,7 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "function.hpp"
+#include "function_class.hpp"
 
 class FunctionManager {
   public:

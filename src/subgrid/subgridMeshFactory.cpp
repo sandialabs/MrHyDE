@@ -22,14 +22,21 @@ namespace panzer_stk{
   ///////////////////////////////////////////////////////////////
   // Add block
   ///////////////////////////////////////////////////////////////
-  
+  /*
   void SubGridMeshFactory::addElems(std::vector<std::vector<ScalarT> > & newnodes,
                 std::vector<std::vector<GO> > & newconn) {
     nodes.push_back(newnodes);
     conn.push_back(newconn);
     dimension = nodes[0][0].size();
   }
+  */
   
+  void SubGridMeshFactory::addElems(DRV newnodes,
+                                    std::vector<std::vector<GO> > & newconn) {
+    nodes.push_back(newnodes);
+    conn.push_back(newconn);
+    dimension = newnodes.extent(1);
+  }
   
   ///////////////////////////////////////////////////////////////
   //! Build the mesh object
@@ -105,8 +112,12 @@ namespace panzer_stk{
     
     // build the nodes
     for (int b=0; b<nodes.size(); b++) {
-      for(int p=0; p<nodes[b].size(); p++) {
-        mesh.addNode(nprog+1,nodes[b][p]);
+      for (int e=0; e<nodes[b].extent(0); e++) {
+        vector<ScalarT> newnode;
+        for (size_t n=0; n<nodes[b].extent(1); n++) {
+          newnode.push_back(nodes[b](e,n));
+        }
+        mesh.addNode(nprog+1,newnode);
         nprog++;
       }
     }

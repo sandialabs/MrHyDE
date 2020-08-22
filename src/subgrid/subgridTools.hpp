@@ -26,7 +26,15 @@ public:
   
   SubGridTools(const Teuchos::RCP<MpiComm> & LocalComm_, const string & shape_,
                const string & subshape_, const DRV nodes_, Kokkos::View<int****,HostDevice> sideinfo_) :
-  LocalComm(LocalComm_), shape(shape_), subshape(subshape_), nodes(nodes_), sideinfo(sideinfo_) {
+  LocalComm(LocalComm_), shape(shape_), subshape(subshape_), sideinfo(sideinfo_) {
+    
+    //nodes = nodes_;
+    nodes = DRV("reference cell nodes",1,nodes_.extent(0),nodes_.extent(1));
+    for (size_t i=0; i<nodes_.extent(0); i++) {
+      for (size_t j=0; j<nodes_.extent(1); j++) {
+        nodes(0,i,j) = nodes_(i,j);
+      }
+    }
     
     dimension = nodes.extent(2);
   }
@@ -418,6 +426,13 @@ public:
       subsidemap.erase(subsidemap.begin(), subsidemap.begin()+numelem);
     }
     
+    subnodes_DRV = DRV("DRV of subgrid nodes on ref elem",subnodes.size(), subnodes[0].size());
+    
+    for (size_t node=0; node<subnodes.size(); node++) {
+      for (size_t dim=0; dim<subnodes[0].size(); dim++) {
+        subnodes_DRV(node,dim) = subnodes[node][dim];
+      }
+    }
     //this->checkNodeMap();
     //this->checkSideMap();
     
@@ -1836,7 +1851,7 @@ public:
   // Get the sub-grid nodes
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  vector<vector<ScalarT> > getNodes(DRV & newmacronodes) {
+  vector<vector<ScalarT> > getNodes(DRV newmacronodes) {
     vector<vector<ScalarT> > newnodes;
     
     for (size_t e=0; e<newmacronodes.extent(0); e++) {
@@ -1857,7 +1872,62 @@ public:
   // Get the sub-grid nodes
   ///////////////////////////////////////////////////////////////////////////////////////
   
+  DRV getListOfNodes(DRV newmacronodes, topo_RCP & macro_topo) {
+    
+    DRV newnodes("nodes on phys elem", newmacronodes.extent(0), subnodes_DRV.extent(0), dimension);
+    CellTools::mapToPhysicalFrame(newnodes, subnodes_DRV, newmacronodes, *macro_topo);
+    
+    DRV currnodes("currnodes",newmacronodes.extent(0)*subnodes_DRV.extent(0), dimension);
+    size_t eprog = 0;
+    
+    for (size_t melem=0; melem<newmacronodes.extent(0); melem++) {
+      for (size_t elem=0; elem<subnodes_DRV.extent(0); elem++) {
+        for (size_t dim=0; dim<dimension; dim++) {
+          size_t index = melem*subnodes_DRV.extent(0)+elem;
+          currnodes(index,dim) = newnodes(melem,elem,dim);
+        }
+      }
+    }
+    
+    return currnodes;
+    
+  }
+  
+  ///////////////////////////////////////////////////////////////////////////////////////
+  // Get the sub-grid nodes
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
+  DRV getPhysicalNodes(DRV newmacronodes, topo_RCP & macro_topo) {
+    
+    DRV newnodes("nodes on phys elem", newmacronodes.extent(0), subnodes_DRV.extent(0), subnodes_DRV.extent(1));
+    CellTools::mapToPhysicalFrame(newnodes, subnodes_DRV, newmacronodes, *macro_topo);
+    
+    DRV currnodes("currnodes",newmacronodes.extent(0)*subconnectivity.size(),
+                  subconnectivity[0].size(),
+                  dimension);
+    size_t eprog = 0;
+    
+    for (size_t melem=0; melem<newmacronodes.extent(0); melem++) {
+      for (size_t elem=0; elem<subconnectivity.size(); elem++) {
+        for (size_t node=0; node<subconnectivity[elem].size(); node++) {
+          for (size_t dim=0; dim<dimension; dim++) {
+            size_t index = melem*subconnectivity.size()+elem;
+            currnodes(index,node,dim) = newnodes(melem,subconnectivity[elem][node],dim);
+          }
+        }
+      }
+    }
+  
+    return currnodes;
+    
+  }
+  
+  ///////////////////////////////////////////////////////////////////////////////////////
+  // Get the sub-grid nodes
+  ///////////////////////////////////////////////////////////////////////////////////////
+  
   DRV getNewNodes(DRV & newmacronodes) {
+    
     vector<vector<ScalarT> > newnodes;
     //KokkosTools::print(newmacronodes,"new macro nodes");
     for (size_t e=0; e<newmacronodes.extent(0); e++) {
@@ -2044,14 +2114,14 @@ public:
     }
   }
   
-protected:
-  
+
   int dimension;
   Teuchos::RCP<MpiComm> LocalComm;
   string shape, subshape;
   DRV nodes;
   Kokkos::View<int****,HostDevice> sideinfo;
   vector<vector<ScalarT> > subnodes;
+  DRV subnodes_DRV;
   vector<Kokkos::View<ScalarT**,AssemblyDevice> > subnodemap;
   vector<Kokkos::View<int***,AssemblyDevice> > subsidemap;
   vector<vector<GO> > subconnectivity;

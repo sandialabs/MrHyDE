@@ -130,13 +130,17 @@ void SubGridFEM::setUpSubgridModels() {
   
   string blockID = "eblock";
   
-  vector<vector<ScalarT> > nodes;
+  //vector<vector<ScalarT> > nodes;
+  DRV nodes;
   vector<vector<GO> > connectivity;
   Kokkos::View<int****,HostDevice> sideinfo;
   
   vector<string> eBlocks;
   
-  SubGridTools sgt(LocalComm, macroshape, shape, macroData[0]->macronodes,
+  DRV refnodes("nodes on reference element",macroData[0]->macronodes.extent(1), dimension);
+  CellTools::getReferenceSubcellVertices(refnodes, dimension, 0, *macro_cellTopo);
+
+  SubGridTools sgt(LocalComm, macroshape, shape, refnodes,//macroData[0]->macronodes, //refnodes,
                    macroData[0]->macrosideinfo);
   
   {
@@ -144,9 +148,12 @@ void SubGridFEM::setUpSubgridModels() {
     
     sgt.createSubMesh(numrefine);
     
-    nodes = sgt.getNodes(macroData[0]->macronodes);
+    //nodes = sgt.getNodes(macroData[0]->macronodes);
+    nodes = sgt.getListOfNodes(macroData[0]->macronodes, macro_cellTopo);
+    
     int reps = macroData[0]->macronodes.extent(0);
     connectivity = sgt.getSubConnectivity(reps);
+    
     sideinfo = sgt.getNewSideinfo(macroData[0]->macrosideinfo);
     
     for (size_t c=0; c<sideinfo.extent(0); c++) { // number of elem in cell
@@ -162,18 +169,20 @@ void SubGridFEM::setUpSubgridModels() {
     
     panzer_stk::SubGridMeshFactory meshFactory(shape, nodes, connectivity, blockID);
     
-    Teuchos::RCP<panzer_stk::STK_Interface> mesh = meshFactory.buildMesh(*(LocalComm->getRawMpiComm()));
+    Teuchos::RCP<panzer_stk::STK_Interface> ref_mesh = meshFactory.buildMesh(*(LocalComm->getRawMpiComm()));
     
-    mesh->getElementBlockNames(eBlocks);
+    ref_mesh->getElementBlockNames(eBlocks);
     
-    meshFactory.completeMeshConstruction(*mesh,*(LocalComm->getRawMpiComm()));
+    meshFactory.completeMeshConstruction(*ref_mesh,*(LocalComm->getRawMpiComm()));
+    
     sub_mesh = Teuchos::rcp(new meshInterface(settings, LocalComm) );
-    sub_mesh->mesh = mesh;
+    sub_mesh->mesh = ref_mesh;
   }
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Define the sub-grid physics
   /////////////////////////////////////////////////////////////////////////////////////
+  
   sub_physics = Teuchos::rcp( new physics(settings, LocalComm, sub_mesh->cellTopo,
                                           sub_mesh->sideTopo, sub_mesh->mesh) );
   
@@ -281,7 +290,7 @@ void SubGridFEM::setUpSubgridModels() {
         host_sideIndex(e) = unique_local_sides[s];
         for (int n=0; n<numNodesPerElem; n++) {
           for (int m=0; m<dimension; m++) {
-            host_currnodes(e,n,m) = nodes[connectivity[eIndex(e)][n]][m];
+            host_currnodes(e,n,m) = nodes(connectivity[eIndex(e)][n],m);
           }
         }
       }
@@ -433,7 +442,8 @@ void SubGridFEM::setUpSubgridModels() {
     if (mindex > 0) {
     
       // Use the subgrid mesh interface to define new nodes
-      DRV newnodes = sgt.getNewNodes(macroData[mindex]->macronodes);
+      DRV newnodes = sgt.getPhysicalNodes(macroData[mindex]->macronodes, macro_cellTopo);
+      //DRV newnodes = sgt.getNewNodes(macroData[mindex]->macronodes);
       
       int sprog = 0;
       
@@ -466,6 +476,7 @@ void SubGridFEM::setUpSubgridModels() {
       vector<Teuchos::RCP<cell> > newcells;
       int numElem = newnodes.extent(0);
       int maxElem = cells[0][0]->numElem;
+      
       Kokkos::View<LO*,AssemblyDevice> localID;
       LIDView LIDs;
       Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
@@ -625,7 +636,7 @@ void SubGridFEM::setUpSubgridModels() {
         }
       }
       
-    }
+    } // if mindex == 0
     
     macroData[mindex]->setMacroIDs(cells[mindex][0]->numElem);
     
@@ -775,6 +786,7 @@ void SubGridFEM::finalize(const int & globalSize, const int & globalPID) {
     combined_mesh_filename = "subgrid_data/subgrid_combined_output." + ss.str();
     
     this->setupCombinedExodus();
+    
   }
 }
 
@@ -1496,7 +1508,7 @@ Kokkos::View<AD*,AssemblyDevice> SubGridFEM::computeObjective(const string & res
 ///////////////////////////////////////////////////////////////////////////////////////
 // Write the solution to a file
 ///////////////////////////////////////////////////////////////////////////////////////
-
+/*
 void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
   
   bool isTD = false;
@@ -1784,7 +1796,7 @@ void SubGridFEM::writeSolution(const string & filename, const int & usernum) {
   
 }
 
-
+*/
 ///////////////////////////////////////////////////////////////////////////////////////
 // Write the solution to a file
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -1807,19 +1819,38 @@ void SubGridFEM::setupCombinedExodus() {
     //////////////////////////////////////////////////////////////
     
     // Create an initial mesh using the first macroelem
-    SubGridTools sgt(LocalComm, macroshape, shape, macroData[0]->macronodes,
+    DRV refnodes("nodes on reference element",macroData[0]->macronodes.extent(1), dimension);
+    CellTools::getReferenceSubcellVertices(refnodes, dimension, 0, *macro_cellTopo);
+    
+    SubGridTools sgt(LocalComm, macroshape, shape, refnodes,//macroData[0]->macronodes,
                      macroData[0]->macrosideinfo);
     sgt.createSubMesh(numrefine);
     
-    vector<vector<ScalarT> > comb_nodes;
-    vector<vector<GO> > comb_connectivity;
-    
-    for (int usernum=0; usernum<macroData.size(); usernum++) {
-      vector<vector<ScalarT> > nodes = sgt.getNodes(macroData[usernum]->macronodes);
-      GO num_prev_nodes = static_cast<GO>(comb_nodes.size());
-      for (size_t n=0; n<nodes.size(); n++) {
-        comb_nodes.push_back(nodes[n]);
+    size_t numRefNodes = sgt.subnodes_DRV.extent(0);
+    size_t numTotalNodes = 0;
+    for (size_t usernum=0; usernum<macroData.size(); usernum++) {
+      for (size_t e=0; e<macroData[usernum]->macronodes.extent(0); e++) {
+        numTotalNodes += numRefNodes;
       }
+    }
+    //vector<vector<ScalarT> > comb_nodes;
+    DRV comb_nodes("combined nodes",numTotalNodes,dimension);
+    vector<vector<GO> > comb_connectivity;
+    size_t nprog = 0;
+    for (int usernum=0; usernum<macroData.size(); usernum++) {
+      //vector<vector<ScalarT> > nodes = sgt.getNodes(macroData[usernum]->macronodes);
+      DRV nodes = sgt.getPhysicalNodes(macroData[usernum]->macronodes, macro_cellTopo);
+      for (size_t n=0; n<nodes.extent(0); n++) {
+        for (size_t s=0; s<dimension; s++) {
+          comb_nodes(nprog+n,s) = nodes(n,s);
+        }
+      }
+      GO num_prev_nodes = nprog;
+      nprog += nodes.extent(0);
+      //GO num_prev_nodes = static_cast<GO>(comb_nodes.size());
+      //for (size_t n=0; n<nodes.size(); n++) {
+      //  comb_nodes.push_back(nodes[n]);
+      //}
       
       int reps = macroData[usernum]->macronodes.extent(0);
       vector<vector<GO> > connectivity = sgt.getSubConnectivity(reps);

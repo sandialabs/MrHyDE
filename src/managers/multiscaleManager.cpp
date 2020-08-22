@@ -416,7 +416,7 @@ void MultiScale::writeSolution(const string & macrofilename, const vector<Scalar
             string filename = "subgrid_data/subgrid_"+macrofilename + "." + ss.str();// + ".exo";
             //cells[b][e]->writeSubgridSolution(blockname);
             int sgmodelnum = cells[b][e]->subgrid_model_index[0];
-            subgridModels[sgmodelnum]->writeSolution(filename, cells[b][e]->subgrid_usernum);
+            //subgridModels[sgmodelnum]->writeSolution(filename, cells[b][e]->subgrid_usernum);
           //}
         }
       }

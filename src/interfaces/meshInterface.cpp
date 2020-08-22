@@ -430,6 +430,11 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
   //mesh_factory->completeMeshConstruction(*mesh,Commptr->Comm());
   mesh_factory->completeMeshConstruction(*mesh,*(Commptr->getRawMpiComm()));
   
+  //int refinements = settings->sublist("Mesh").get<int>("refinements",0);
+  //if (refinements>0) {
+  //  mesh->refineMesh(refinements, true);
+  //}
+  
   //this->perturbMesh();
   
 }

@@ -124,7 +124,7 @@ public:
   
   void setupCombinedExodus();
   
-  void writeSolution(const string & filename, const int & usernum);
+  //void writeSolution(const string & filename, const int & usernum);
   
   void writeSolution(const string & filename);
   

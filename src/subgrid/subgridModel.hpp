@@ -59,7 +59,7 @@ public:
                                                             const ScalarT & time,
                                                             const int & usernum) = 0;
   
-  virtual void writeSolution(const string & filename, const int & usernum) = 0;
+  //virtual void writeSolution(const string & filename, const int & usernum) = 0;
   
   virtual void writeSolution(const ScalarT & time) = 0;
 
