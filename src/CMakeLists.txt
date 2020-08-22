@@ -69,6 +69,11 @@ ADD_EXECUTABLE(test_views
 test/test_views.cpp)
 TARGET_LINK_LIBRARIES(test_views ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
+ADD_EXECUTABLE(test_percept
+test/test_percept.cpp
+subgrid/subgridMeshFactory.cpp) 
+TARGET_LINK_LIBRARIES(test_percept ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+
 ADD_EXECUTABLE(test_functions
 test/test_functions.cpp
 tools/workset.cpp
