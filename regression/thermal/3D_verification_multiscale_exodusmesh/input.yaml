@@ -1,0 +1,53 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh input file: input_mesh.yaml
+  Physics: 
+    modules: thermal
+    assemble face terms: true
+    Dirichlet conditions:
+      e:
+        all boundaries: '0.0'
+    Initial conditions:
+      e: '0.0'
+    True solutions:
+      e face: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+  Subgrid:
+    Mesh:
+      mesh type: Exodus
+      mesh file: cube_tet.e 
+      shape: tet
+      macro-shape: hex
+      refinements: 0
+      dim: 3
+      blocknames: eblock
+    Physics: 
+      modules: thermal
+      True solutions:
+        e: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+    Solver: 
+      solver: steady-state
+    Parameters input file: input_params.yaml
+    Functions input file: input_functions.yaml
+    Discretization:
+      order:
+        e: 1
+      quadrature: 2
+  Parameters input file: input_params.yaml
+  Functions input file: input_functions.yaml
+  Discretization:
+    order:
+      e: 1
+    quadrature: 2
+  Solver:
+    solver: steady-state
+    workset size: 16
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    compute errors: true
+    write solution: false
+    write subgrid solution: false
+...

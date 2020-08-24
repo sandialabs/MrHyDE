@@ -1,0 +1,48 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh input file: input_mesh.yaml
+  Physics: 
+    modules: thermal
+    assemble face terms: true
+    Dirichlet conditions:
+      e:
+        all boundaries: '0.0'
+    Initial conditions:
+      e: '0.0'
+    True solutions:
+      e face: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+  Subgrid:
+    Mesh:
+      mesh type: panzer 
+      shape: hex
+      macro-shape: hex
+      refinements: 2
+      dim: 3
+      blocknames: eblock
+    Physics: 
+      modules: thermal
+      True solutions:
+        e: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+    Solver: 
+      solver: steady-state
+    Parameters input file: input_params.yaml
+    Functions input file: input_functions.yaml
+    Discretization:
+      order:
+        e: 1
+      quadrature: 2
+  Parameters input file: input_params.yaml
+  Functions input file: input_functions.yaml
+  Discretization:
+    order:
+      e: 1
+    quadrature: 2
+  Solver:
+    solver: steady-state
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    compute errors: true
+    write solution: false
+...

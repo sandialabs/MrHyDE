@@ -1,0 +1,58 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh input file: input_mesh.yaml
+  Functions input file: input_functions.yaml
+  Physics:
+    modules: thermal
+    assemble face terms: true
+    Dirichlet conditions:
+      e:
+        all boundaries: '0.0'
+    True solutions:
+      e face: sin(2*pi*x)*sin(2*pi*y)
+  Discretization:
+    order:
+      e: 1
+    quadrature: 2
+  Subgrid:
+    subgrid model: FEM
+    Mesh:
+      mesh type: panzer
+      shape: quad
+      refinements: 2
+      dim: 2
+      blocknames: eblock
+    Physics: 
+      modules: thermal
+      True solutions:
+        e: sin(2*pi*x)*sin(2*pi*y)
+    Solver:
+      verbosity: 0
+      solver: steady-state
+      use direct solver: true
+      write subgrid to one file: false
+    Functions input file: input_functions.yaml
+    Discretization:
+      order:
+        e: 1
+      quadrature: 2
+    Postprocess: 
+      store aux and flux: false
+  Parameters input file: input_params.yaml
+  Solver: 
+    solver: steady-state
+    workset size: 4
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    response type: global
+    compute errors: true
+    write solution: false
+    write subgrid solution: false
+    compute responses: false
+    compute objective: false
+    compute sensitivities: false
+...
