@@ -1826,7 +1826,7 @@ void SubGridFEM::setupCombinedExodus() {
                      macroData[0]->macrosideinfo, mesh_type, mesh_file);
     sgt.createSubMesh(numrefine);
     
-    size_t numRefNodes = sgt.subnodes_DRV.extent(0);
+    size_t numRefNodes = sgt.subnodes_list.extent(0);
     size_t numTotalNodes = 0;
     for (size_t usernum=0; usernum<macroData.size(); usernum++) {
       for (size_t e=0; e<macroData[usernum]->macronodes.extent(0); e++) {

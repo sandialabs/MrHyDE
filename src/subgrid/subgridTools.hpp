@@ -63,6 +63,10 @@ public:
       }
       else {
         
+        if (shape == "tri" || shape == "tet") {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: the panzer subgrid meshes cannot be used for triangles or tetrahedrons.");
+        }
+        
         Teuchos::RCP<Teuchos::ParameterList> pl = Teuchos::rcp(new Teuchos::ParameterList);
         
         int numEPerD = static_cast<int>(std::pow(2,numrefine));
@@ -134,7 +138,7 @@ public:
       // extract the nodes
       size_t numTotalNodes = ref_mesh->getMaxEntityId(0);
       
-      subnodes_DRV = DRV("DRV of subgrid nodes on ref elem", numTotalNodes, dimension);
+      subnodes_list = DRV("DRV of subgrid nodes on ref elem", numTotalNodes, dimension);
       vector<bool> beenAdded(numTotalNodes,false);
       
       // Extract the connectivity
@@ -146,7 +150,7 @@ public:
           conn.push_back(nodeIds[i]-1);
           if (!beenAdded[nodeIds[i]-1]) {
             for (size_t s=0; s<dimension; s++) {
-              subnodes_DRV(nodeIds[i]-1,s) = vertices(elem,i,s);
+              subnodes_list(nodeIds[i]-1,s) = vertices(elem,i,s);
             }
             beenAdded[nodeIds[i]-1] = true;
           }
@@ -160,6 +164,17 @@ public:
       
       vector<string> sideSets;
       ref_mesh->getSidesetNames(sideSets);
+      
+      if (dimension == 2) {
+        if (sideSets.size() < 4) {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: the subgrid mesh requires at least 4 sidesets.");
+        }
+      }
+      else if (dimension == 3) {
+        if (sideSets.size() < 6) {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: the subgrid mesh requires at least 6 sidesets.");
+        }
+      }
       for( size_t side=0; side<sideSets.size(); side++ ) {
         string sideName = sideSets[side];
         
@@ -364,20 +379,19 @@ public:
           refineSubCell(e); // adds new nodes and new elements (does not delete old elements)
         }
         subconnectivity.erase(subconnectivity.begin(), subconnectivity.begin()+numelem);
-        //subsideinfo.erase(subsideinfo.begin(), subsideinfo.begin()+numelem);
         subsidemap.erase(subsidemap.begin(), subsidemap.begin()+numelem);
       }
       
       // Create the DRV list of nodes
-      subnodes_DRV = DRV("DRV of subgrid nodes on ref elem",subnodes.size(), subnodes[0].size());
+      subnodes_list = DRV("DRV of subgrid nodes on ref elem",subnodes.size(), subnodes[0].size());
       for (size_t node=0; node<subnodes.size(); node++) {
         for (size_t dim=0; dim<subnodes[0].size(); dim++) {
-          subnodes_DRV(node,dim) = subnodes[node][dim];
+          subnodes_list(node,dim) = subnodes[node][dim];
         }
       }
     }
     else {
-      // error for unrecognized mesh type
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: unrecognized subgrid mesh type: " + mesh_type);
     }
   }
   
@@ -1216,16 +1230,16 @@ public:
   
   DRV getListOfPhysicalNodes(DRV newmacronodes, topo_RCP & macro_topo) {
     
-    DRV newnodes("nodes on phys elem", newmacronodes.extent(0), subnodes_DRV.extent(0), dimension);
-    CellTools::mapToPhysicalFrame(newnodes, subnodes_DRV, newmacronodes, *macro_topo);
+    DRV newnodes("nodes on phys elem", newmacronodes.extent(0), subnodes_list.extent(0), dimension);
+    CellTools::mapToPhysicalFrame(newnodes, subnodes_list, newmacronodes, *macro_topo);
     
-    DRV currnodes("currnodes",newmacronodes.extent(0)*subnodes_DRV.extent(0), dimension);
+    DRV currnodes("currnodes",newmacronodes.extent(0)*subnodes_list.extent(0), dimension);
     size_t eprog = 0;
     
     for (size_t melem=0; melem<newmacronodes.extent(0); melem++) {
-      for (size_t elem=0; elem<subnodes_DRV.extent(0); elem++) {
+      for (size_t elem=0; elem<subnodes_list.extent(0); elem++) {
         for (size_t dim=0; dim<dimension; dim++) {
-          size_t index = melem*subnodes_DRV.extent(0)+elem;
+          size_t index = melem*subnodes_list.extent(0)+elem;
           currnodes(index,dim) = newnodes(melem,elem,dim);
         }
       }
@@ -1241,8 +1255,8 @@ public:
   
   DRV getPhysicalNodes(DRV newmacronodes, topo_RCP & macro_topo) {
     
-    DRV newnodes("nodes on phys elem", newmacronodes.extent(0), subnodes_DRV.extent(0), subnodes_DRV.extent(1));
-    CellTools::mapToPhysicalFrame(newnodes, subnodes_DRV, newmacronodes, *macro_topo);
+    DRV newnodes("nodes on phys elem", newmacronodes.extent(0), subnodes_list.extent(0), subnodes_list.extent(1));
+    CellTools::mapToPhysicalFrame(newnodes, subnodes_list, newmacronodes, *macro_topo);
     
     DRV currnodes("currnodes",newmacronodes.extent(0)*subconnectivity.size(),
                   subconnectivity[0].size(),
@@ -1316,7 +1330,7 @@ public:
         }
         newconn.push_back(cc);
       }
-      prog += subnodes_DRV.extent(0);//.size();
+      prog += subnodes_list.extent(0);//.size();
     }
     return newconn;
   }
@@ -1388,11 +1402,9 @@ public:
   DRV nodes;
   Kokkos::View<int****,HostDevice> sideinfo;
   vector<vector<ScalarT> > subnodes;
-  DRV subnodes_DRV;
-  //vector<Kokkos::View<ScalarT**,AssemblyDevice> > subnodemap;
+  DRV subnodes_list;
   vector<Kokkos::View<int**,AssemblyDevice> > subsidemap;
   vector<vector<GO> > subconnectivity;
-  //vector<Kokkos::View<int****,AssemblyDevice> > subsideinfo;
   
   Teuchos::RCP<panzer_stk::STK_Interface> ref_mesh; // used for Exodus and panzer meshes
   
