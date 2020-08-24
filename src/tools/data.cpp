@@ -431,7 +431,7 @@ int data::findClosestNode(const ScalarT & x, const ScalarT & y, const ScalarT & 
   if (spaceDim == 1) {
     for( int i=0; i<numSensors; i++ ) {
       ScalarT xhat = sensorlocations(i,0);
-      ScalarT d = sqrt((x-xhat)*(x-xhat));
+      ScalarT d = (x-xhat)*(x-xhat);
       if( d<dist ) {
         node = i;
         dist = d;
@@ -442,7 +442,7 @@ int data::findClosestNode(const ScalarT & x, const ScalarT & y, const ScalarT & 
     for( int i=0; i<numSensors; i++ ) {
       ScalarT xhat = sensorlocations(i,0);
       ScalarT yhat = sensorlocations(i,1);
-      ScalarT d = sqrt((x-xhat)*(x-xhat) + (y-yhat)*(y-yhat));
+      ScalarT d = (x-xhat)*(x-xhat) + (y-yhat)*(y-yhat);
       if( d<dist ) {
         node = i;
         dist = d;
@@ -454,7 +454,7 @@ int data::findClosestNode(const ScalarT & x, const ScalarT & y, const ScalarT & 
       ScalarT xhat = sensorlocations(i,0);
       ScalarT yhat = sensorlocations(i,1);
       ScalarT zhat = sensorlocations(i,2);
-      ScalarT d = sqrt((x-xhat)*(x-xhat) + (y-yhat)*(y-yhat) + (z-zhat)*(z-zhat));
+      ScalarT d = (x-xhat)*(x-xhat) + (y-yhat)*(y-yhat) + (z-zhat)*(z-zhat);
       if( d<dist ) {
         node = i;
         dist = d;
