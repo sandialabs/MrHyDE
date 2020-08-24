@@ -240,7 +240,7 @@ public:
   int dimension, time_steps;
   ScalarT initial_time, final_time;
   Teuchos::RCP<Teuchos::ParameterList> settings;
-  string macroshape, shape, multiscale_method, error_type, combined_mesh_filename;
+  string macroshape, shape, multiscale_method, error_type, combined_mesh_filename, mesh_type, mesh_file;
   int nummacroVars, subgridverbose, numrefine, assemble_together;
   topo_RCP cellTopo, macro_cellTopo;
   

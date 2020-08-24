@@ -26,6 +26,8 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
   dimension = settings->sublist("Mesh").get<int>("dim",2);
   subgridverbose = settings->sublist("Solver").get<int>("verbosity",0);
   multiscale_method = settings->get<string>("multiscale method","mortar");
+  mesh_type = settings->sublist("Mesh").get<string>("mesh type","inline"); // or "Exodus" or "panzer"
+  mesh_file = settings->sublist("Mesh").get<string>("mesh file","mesh.exo"); // or "Exodus" or "panzer"
   numrefine = settings->sublist("Mesh").get<int>("refinements",0);
   shape = settings->sublist("Mesh").get<string>("shape","quad");
   macroshape = settings->sublist("Mesh").get<string>("macro-shape","quad");
@@ -130,7 +132,6 @@ void SubGridFEM::setUpSubgridModels() {
   
   string blockID = "eblock";
   
-  //vector<vector<ScalarT> > nodes;
   DRV nodes;
   vector<vector<GO> > connectivity;
   Kokkos::View<int****,HostDevice> sideinfo;
@@ -140,21 +141,20 @@ void SubGridFEM::setUpSubgridModels() {
   DRV refnodes("nodes on reference element",macroData[0]->macronodes.extent(1), dimension);
   CellTools::getReferenceSubcellVertices(refnodes, dimension, 0, *macro_cellTopo);
 
-  SubGridTools sgt(LocalComm, macroshape, shape, refnodes,//macroData[0]->macronodes, //refnodes,
-                   macroData[0]->macrosideinfo);
+  SubGridTools sgt(LocalComm, macroshape, shape, refnodes,
+                   macroData[0]->macrosideinfo, mesh_type, mesh_file);
   
   {
     Teuchos::TimeMonitor localmeshtimer(*sgfemSubMeshTimer);
     
     sgt.createSubMesh(numrefine);
     
-    //nodes = sgt.getNodes(macroData[0]->macronodes);
-    nodes = sgt.getListOfNodes(macroData[0]->macronodes, macro_cellTopo);
+    nodes = sgt.getListOfPhysicalNodes(macroData[0]->macronodes, macro_cellTopo);
     
     int reps = macroData[0]->macronodes.extent(0);
-    connectivity = sgt.getSubConnectivity(reps);
+    connectivity = sgt.getPhysicalConnectivity(reps);
     
-    sideinfo = sgt.getNewSideinfo(macroData[0]->macrosideinfo);
+    sideinfo = sgt.getPhysicalSideinfo(macroData[0]->macrosideinfo);
     
     for (size_t c=0; c<sideinfo.extent(0); c++) { // number of elem in cell
       for (size_t i=0; i<sideinfo.extent(1); i++) { // number of variables
@@ -169,14 +169,14 @@ void SubGridFEM::setUpSubgridModels() {
     
     panzer_stk::SubGridMeshFactory meshFactory(shape, nodes, connectivity, blockID);
     
-    Teuchos::RCP<panzer_stk::STK_Interface> ref_mesh = meshFactory.buildMesh(*(LocalComm->getRawMpiComm()));
+    Teuchos::RCP<panzer_stk::STK_Interface> mesh = meshFactory.buildMesh(*(LocalComm->getRawMpiComm()));
     
-    ref_mesh->getElementBlockNames(eBlocks);
+    mesh->getElementBlockNames(eBlocks);
     
-    meshFactory.completeMeshConstruction(*ref_mesh,*(LocalComm->getRawMpiComm()));
+    meshFactory.completeMeshConstruction(*mesh,*(LocalComm->getRawMpiComm()));
     
     sub_mesh = Teuchos::rcp(new meshInterface(settings, LocalComm) );
-    sub_mesh->mesh = ref_mesh;
+    sub_mesh->mesh = mesh;
   }
   
   /////////////////////////////////////////////////////////////////////////////////////
@@ -448,7 +448,7 @@ void SubGridFEM::setUpSubgridModels() {
       int sprog = 0;
       
       // Redefine the sideinfo for the subcells
-      Kokkos::View<int****,HostDevice> newsideinfo = sgt.getNewSideinfo(macroData[mindex]->macrosideinfo);
+      Kokkos::View<int****,HostDevice> newsideinfo = sgt.getPhysicalSideinfo(macroData[mindex]->macrosideinfo);
       
       Kokkos::View<int****,HostDevice> subsideinfo("subcell side info", newsideinfo.extent(0), newsideinfo.extent(1),
                                                    newsideinfo.extent(2), newsideinfo.extent(3));
@@ -1823,7 +1823,7 @@ void SubGridFEM::setupCombinedExodus() {
     CellTools::getReferenceSubcellVertices(refnodes, dimension, 0, *macro_cellTopo);
     
     SubGridTools sgt(LocalComm, macroshape, shape, refnodes,//macroData[0]->macronodes,
-                     macroData[0]->macrosideinfo);
+                     macroData[0]->macrosideinfo, mesh_type, mesh_file);
     sgt.createSubMesh(numrefine);
     
     size_t numRefNodes = sgt.subnodes_DRV.extent(0);
@@ -1839,13 +1839,14 @@ void SubGridFEM::setupCombinedExodus() {
     size_t nprog = 0;
     for (int usernum=0; usernum<macroData.size(); usernum++) {
       //vector<vector<ScalarT> > nodes = sgt.getNodes(macroData[usernum]->macronodes);
-      DRV nodes = sgt.getPhysicalNodes(macroData[usernum]->macronodes, macro_cellTopo);
+      DRV nodes = sgt.getListOfPhysicalNodes(macroData[usernum]->macronodes, macro_cellTopo);
       for (size_t n=0; n<nodes.extent(0); n++) {
         for (size_t s=0; s<dimension; s++) {
           comb_nodes(nprog+n,s) = nodes(n,s);
         }
       }
       GO num_prev_nodes = nprog;
+      
       nprog += nodes.extent(0);
       //GO num_prev_nodes = static_cast<GO>(comb_nodes.size());
       //for (size_t n=0; n<nodes.size(); n++) {
@@ -1853,7 +1854,7 @@ void SubGridFEM::setupCombinedExodus() {
       //}
       
       int reps = macroData[usernum]->macronodes.extent(0);
-      vector<vector<GO> > connectivity = sgt.getSubConnectivity(reps);
+      vector<vector<GO> > connectivity = sgt.getPhysicalConnectivity(reps);
       for (size_t c=0; c<connectivity.size(); c++) {
         vector<GO> mod_elem;
         for (size_t n=0; n<connectivity[c].size(); n++) {

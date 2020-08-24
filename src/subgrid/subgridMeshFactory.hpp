@@ -31,8 +31,7 @@ namespace panzer_stk {
       shape = shape_;
     }
     
-    SubGridMeshFactory(const std::string & shape_, //const shards::CellTopology & cellTopo_,
-                       //std::vector<std::vector<ScalarT> > & nodes_,
+    SubGridMeshFactory(const std::string & shape_,
                        DRV nodes_,
                        std::vector<std::vector<GO> > & conn_,
                        std::string & blockname_)
@@ -50,7 +49,6 @@ namespace panzer_stk {
     
     // Add block
     void addElems(DRV newnodes,
-                  //std::vector<std::vector<ScalarT> > & newnodes,
                   std::vector<std::vector<GO> > & newconn);
     
     //! Build the mesh object
@@ -75,7 +73,6 @@ namespace panzer_stk {
     
     std::string shape;
     std::string blockname;
-    //std::vector<std::vector<std::vector<ScalarT> > > nodes;
     std::vector<DRV> nodes;
     std::vector<std::vector<std::vector<GO> > > conn;
     int dimension;

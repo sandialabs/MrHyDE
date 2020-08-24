@@ -22,14 +22,6 @@ namespace panzer_stk{
   ///////////////////////////////////////////////////////////////
   // Add block
   ///////////////////////////////////////////////////////////////
-  /*
-  void SubGridMeshFactory::addElems(std::vector<std::vector<ScalarT> > & newnodes,
-                std::vector<std::vector<GO> > & newconn) {
-    nodes.push_back(newnodes);
-    conn.push_back(newconn);
-    dimension = nodes[0][0].size();
-  }
-  */
   
   void SubGridMeshFactory::addElems(DRV newnodes,
                                     std::vector<std::vector<GO> > & newconn) {
