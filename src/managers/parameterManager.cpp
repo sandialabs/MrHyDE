@@ -239,7 +239,7 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
       paramNumBasis.push_back(discretized_param_basis[discretized_param_usebasis[j]]->getCardinality());
     }
     
-    Kokkos::View<const LO**,AssemblyDevice> LIDs = paramDOF->getLIDs();
+    Kokkos::View<const LO**,Kokkos::LayoutRight,PHX::Device> LIDs = paramDOF->getLIDs();
     
     TEUCHOS_TEST_FOR_EXCEPTION(LIDs.extent(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of parameter degrees of freedom per element.");
     
