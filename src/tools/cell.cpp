@@ -1152,7 +1152,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
     useSensors = true;
   }
   
-  size_t numip = wkset->ip.extent(1);
+  size_t numip = ip.extent(1);
   if (useSensors) {
     numip = sensorLocations.size();
   }
@@ -1164,11 +1164,11 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
     
     // Extract the local solution at this time
     // We automatically seed the AD and adjust it below
-    Kokkos::View<AD***,AssemblyDevice> u_dof("u_dof",numElem,numDOF.extent(0),LIDs.extent(1));
+    Kokkos::View<AD***,AssemblyDevice> u_dof("u_dof",numElem,numDOF.extent(0),LIDs.extent(1)); //(numElem, numVars, numDOF)
     parallel_for("cell response get u",RangePolicy<AssemblyExec>(0,u_dof.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<numDOF.extent(0); n++) {
+      for (int n=0; n<numDOF.extent(0); n++) { // numDOF is on device
         for( int i=0; i<numDOF(n); i++ ) {
-          u_dof(e,n,i) = AD(maxDerivs,offsets(n,i),u(e,n,i));
+          u_dof(e,n,i) = AD(maxDerivs,offsets(n,i),u(e,n,i)); // offsets is on device
         }
       }
     });
@@ -1187,47 +1187,57 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
     Kokkos::deep_copy(iscratch,iscratch_host);
     
     // Need to rewrite this using useSensors on outside
-    
-    parallel_for(RangePolicy<AssemblyExec>(0,u_ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int n=0; n<numDOF.extent(0); n++) {
-        for( int i=0; i<numDOF(n); i++ ) {
-          if (useSensors) {
-            for (int ee=0; ee<iscratch.extent(0); ee++) {
-              int eind = iscratch(ee);
-              if (eind == e) {
-                u_ip(eind,n,ee,0) += u_dof(eind,n,i)*sensorBasis[ee][wkset->usebasis[n]](0,i,0);
-              }
+    if (useSensors) {
+      for (int ee=0; ee<sensorElem.size(); ee++) {
+        int eind = sensorElem[ee];
+        for (int var=0; var<numDOF.extent(0); var++) {
+          DRV cbasis = sensorBasis[ee][wkset->usebasis[var]];
+          DRV cbasis_grad = sensorBasisGrad[ee][wkset->usebasis[var]];
+          auto u_sv = Kokkos::subview(u_ip, eind, var, ee, Kokkos::ALL());
+          auto u_dof_sv = Kokkos::subview(u_dof, eind, var, Kokkos::ALL());
+          auto ugrad_sv = Kokkos::subview(ugrad_ip, eind, var, ee, Kokkos::ALL());
+          
+          parallel_for(RangePolicy<AssemblyExec>(0,cbasis.extent(1)), KOKKOS_LAMBDA (const int dof ) {
+            u_sv(0) += u_dof_sv(dof)*cbasis(0,dof,0);
+            for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+              ugrad_sv(dim) += u_dof_sv(dof)*cbasis_grad(0,dof,0,dim);
             }
-          }
-          else {
-            for( size_t j=0; j<numip; j++ ) {
-              u_ip(e,n,j,0) += u_dof(e,n,i)*wkset->basis[wkset->usebasis[n]](e,i,j);
-            }
-          }
-          for (int s=0; s<cellData->dimension; s++) {
-            if (useSensors) {
-              for (int ee=0; ee<numSensors; ee++) {
-                int eind = sensorElem[ee];
-                if (eind == e) {
-                  ugrad_ip(eind,n,ee,s) += u_dof(eind,n,i)*sensorBasisGrad[ee][wkset->usebasis[n]](0,i,0,s);
-                }
-              }
-            }
-            else {
-              for( size_t j=0; j<numip; j++ ) {
-                ugrad_ip(e,n,j,s) += u_dof(e,n,i)*wkset->basis_grad[wkset->usebasis[n]](e,i,j,s);
-              }
-            }
-          }
+          });
         }
       }
-    });
     
+    }
+    else {
+      for (int var=0; var<numDOF.extent(0); var++) {
+        
+        DRV cbasis = basis[wkset->usebasis[var]];
+        DRV cbasis_grad = basis_grad[wkset->usebasis[var]];
+        
+        auto u_sv = Kokkos::subview(u_ip, Kokkos::ALL(), var, Kokkos::ALL(), 0);
+        auto u_dof_sv = Kokkos::subview(u_dof, Kokkos::ALL(), var, Kokkos::ALL());
+        auto ugrad_sv = Kokkos::subview(ugrad_ip, Kokkos::ALL(), var, Kokkos::ALL(), Kokkos::ALL());
+        
+        parallel_for(RangePolicy<AssemblyExec>(0,u_ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          
+          for (int i=0; i<cbasis.extent(1); i++ ) {
+            for (size_t j=0; j<cbasis.extent(2); j++ ) {
+              u_sv(e,j) += u_dof_sv(e,i)*cbasis(e,i,j);
+              for (int s=0; s<cbasis_grad.extent(3); s++) {
+                ugrad_sv(e,j,s) += u_dof_sv(e,i)*cbasis_grad(e,i,j,s);
+              }
+            }
+          }
+          
+        });
+      }
+      
+    }
+        
     // Adjust the AD based on seedwhat
     if (seedwhat == 0) { // remove all seeding
       parallel_for(RangePolicy<AssemblyExec>(0,ugrad_ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (int n=0; n<numDOF.extent(0); n++) {
-          for( size_t j=0; j<numip; j++ ) {
+          for( size_t j=0; j<u_ip.extent(2); j++ ) {
             u_ip(e,n,j,0) = u_ip(e,n,j,0).val();
             for (int s=0; s<ugrad_ip.extent(3); s++) {
               ugrad_ip(e,n,j,s) = ugrad_ip(e,n,j,s).val();
@@ -1239,7 +1249,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
     else if (seedwhat == 1) { // remove seeding on gradient
       parallel_for(RangePolicy<AssemblyExec>(0,ugrad_ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (int n=0; n<numDOF.extent(0); n++) {
-          for( size_t j=0; j<numip; j++ ) {
+          for( size_t j=0; j<ugrad_ip.extent(2); j++ ) {
             for (int s=0; s<ugrad_ip.extent(3); s++) {
               ugrad_ip(e,n,j,s) = ugrad_ip(e,n,j,s).val();
             }
@@ -1249,23 +1259,37 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
       
     }
     else {
-      for (int e=0; e<numElem; e++) {
-        for (int n=0; n<numDOF.extent(0); n++) {
-          for( size_t j=0; j<numip; j++ ) {
-            for (int s=0; s<cellData->dimension; s++) {
-              if ((seedwhat-2) == s) {
-                ScalarT tmp = ugrad_ip(e,n,j,s).val();
-                ugrad_ip(e,n,j,s) = u_ip(e,n,j,0);
-                ugrad_ip(e,n,j,s) += -u_ip(e,n,j,0).val() + tmp;
-              }
-              else {
-                ugrad_ip(e,n,j,s) = ugrad_ip(e,n,j,s).val();
+      for (int s=0; s<cellData->dimension; s++) {
+        auto ugrad_sv = Kokkos::subview(ugrad_ip, Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), s);
+        if ((seedwhat-2) == s) {
+          parallel_for(RangePolicy<AssemblyExec>(0,ugrad_ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
+            for (int n=0; n<numDOF.extent(0); n++) {
+              for( size_t j=0; j<ugrad_sv.extent(2); j++ ) {
+                ScalarT tmp = ugrad_sv(e,n,j).val();
+                ugrad_sv(e,n,j) = u_ip(e,n,j,0);
+                ugrad_sv(e,n,j) += -u_ip(e,n,j,0).val() + tmp;
               }
             }
+          });
+        }
+        else {
+          parallel_for(RangePolicy<AssemblyExec>(0,ugrad_ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
+            for (int n=0; n<numDOF.extent(0); n++) {
+              for( size_t j=0; j<ugrad_sv.extent(2); j++ ) {
+                ugrad_sv(e,n,j) = ugrad_sv(e,n,j).val();
+              }
+            }
+          });
+        }
+       
+      }
+      parallel_for(RangePolicy<AssemblyExec>(0,ugrad_ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        for (int n=0; n<numDOF.extent(0); n++) {
+          for( size_t j=0; j<u_ip.extent(2); j++ ) {
             u_ip(e,n,j,0) = u_ip(e,n,j,0).val();
           }
         }
-      }
+      });
     }
     
     bool seedParams = false;
@@ -1280,90 +1304,102 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
       // Extract the local solution at this time
       // We automatically seed the AD and adjust it below
       Kokkos::View<AD***,AssemblyDevice> param_dof("param dof",numElem,numParamDOF.extent(0),paramLIDs.extent(1));
-      for (int e=0; e<numElem; e++) {
+      parallel_for("cell response get p",RangePolicy<AssemblyExec>(0,u_dof.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (int n=0; n<numParamDOF.extent(0); n++) {
           for( int i=0; i<numParamDOF(n); i++ ) {
             param_dof(e,n,i) = AD(maxDerivs,paramoffsets(n,i),param(e,n,i));
           }
         }
-      }
+      });
       
       // Map the local solution to the solution and gradient at ip
       param_ip = Kokkos::View<AD****,AssemblyDevice>("u_ip",numElem,numParamDOF.extent(0),
                                                      numip,cellData->dimension);
       paramgrad_ip = Kokkos::View<AD****,AssemblyDevice>("ugrad_ip",numElem,numParamDOF.extent(0),
                                                          numip,cellData->dimension);
-      for (int e=0; e<numElem; e++) {
-        for (int n=0; n<numParamDOF.extent(0); n++) {
-          for( int i=0; i<numParamDOF(n); i++ ) {
-            if (useSensors) {
-              for (int ee=0; ee<numSensors; ee++) {
-                int eind = sensorElem[ee];
-                if (eind ==e) {
-                  param_ip(eind,n,ee,0) += param_dof(eind,n,i)*param_sensorBasis[ee][wkset->paramusebasis[n]](0,i,0);
-                }
-              }
-            }
-            else {
-              for( size_t j=0; j<numip; j++ ) {
-                param_ip(e,n,j,0) += param_dof(e,n,i)*basis[wkset->paramusebasis[n]](e,i,j);
-              }
-            }
-            for (int s=0; s<cellData->dimension; s++) {
-              if (useSensors) {
-                for (int ee=0; ee<numSensors; ee++) {
-                  int eind = sensorElem[ee];
-                  if (eind == e) {
-                    paramgrad_ip(eind,n,ee,s) += param_dof(eind,n,i)*param_sensorBasisGrad[ee][wkset->paramusebasis[n]](0,i,0,s);
-                  }
-                }
-              }
-              else {
-                for( size_t j=0; j<numip; j++ ) {
-                  paramgrad_ip(e,n,j,s) += param_dof(e,n,i)*basis_grad[wkset->paramusebasis[n]](e,i,j,s);
-                }
-              }
-            }
-          }
-        }
-      }
       
-      // Adjust the AD based on seedwhat
-      if (seedwhat == 0) { // remove seeding on grad
-        for (int e=0; e<numElem; e++) {
-          for (int n=0; n<numParamDOF.extent(0); n++) {
-            for( size_t j=0; j<numip; j++ ) {
-              for (int s=0; s<cellData->dimension; s++) {
-                paramgrad_ip(e,n,j,s) = paramgrad_ip(e,n,j,s).val();
+      if (useSensors) {
+        for (int ee=0; ee<sensorElem.size(); ee++) {
+          int eind = sensorElem[ee];
+          for (int var=0; var<numParamDOF.extent(0); var++) {
+            DRV cbasis = param_sensorBasis[ee][wkset->paramusebasis[var]];
+            DRV cbasis_grad = param_sensorBasisGrad[ee][wkset->paramusebasis[var]];
+            auto p_sv = Kokkos::subview(param_ip, eind, var, ee, Kokkos::ALL());
+            auto p_dof_sv = Kokkos::subview(param_dof, eind, var, Kokkos::ALL());
+            auto pgrad_sv = Kokkos::subview(paramgrad_ip, eind, var, ee, Kokkos::ALL());
+            
+            parallel_for(RangePolicy<AssemblyExec>(0,cbasis.extent(1)), KOKKOS_LAMBDA (const int dof ) {
+              p_sv(0) += p_dof_sv(dof)*cbasis(0,dof,0);
+              for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+                pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(0,dof,0,dim);
               }
-            }
+            });
           }
         }
       }
       else {
-        for (int e=0; e<numElem; e++) {
+        for (int var=0; var<numParamDOF.extent(0); var++) {
+          
+          DRV cbasis = basis[wkset->paramusebasis[var]];
+          DRV cbasis_grad = basis_grad[wkset->paramusebasis[var]];
+          
+          auto p_sv = Kokkos::subview(param_ip, Kokkos::ALL(), var, Kokkos::ALL(), 0);
+          auto p_dof_sv = Kokkos::subview(param_dof, Kokkos::ALL(), var, Kokkos::ALL());
+          auto pgrad_sv = Kokkos::subview(paramgrad_ip, Kokkos::ALL(), var, Kokkos::ALL(), Kokkos::ALL());
+          
+          parallel_for(RangePolicy<AssemblyExec>(0,param_ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
+            
+            for (int i=0; i<cbasis.extent(1); i++ ) {
+              for (size_t j=0; j<cbasis.extent(2); j++ ) {
+                p_sv(e,j) += p_dof_sv(e,i)*cbasis(e,i,j);
+                for (int s=0; s<cbasis_grad.extent(3); s++) {
+                  pgrad_sv(e,j,s) += p_dof_sv(e,i)*cbasis_grad(e,i,j,s);
+                }
+              }
+            }
+            
+          });
+        }
+        
+      }
+      
+      
+      // Adjust the AD based on seedwhat
+      if (seedwhat == 0) { // remove seeding on grad
+        parallel_for(RangePolicy<AssemblyExec>(0,paramgrad_ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (int n=0; n<numParamDOF.extent(0); n++) {
-            for( size_t j=0; j<numip; j++ ) {
-              param_ip(e,n,j,0) = param_ip(e,n,j,0).val();
+            for( size_t j=0; j<paramgrad_ip.extent(2); j++ ) {
               for (int s=0; s<cellData->dimension; s++) {
                 paramgrad_ip(e,n,j,s) = paramgrad_ip(e,n,j,s).val();
               }
             }
           }
-        }
+        });
+      }
+      else {
+        parallel_for(RangePolicy<AssemblyExec>(0,param_ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          for (int n=0; n<numParamDOF.extent(0); n++) {
+            for( size_t j=0; j<param_ip.extent(2); j++ ) {
+              param_ip(e,n,j,0) = param_ip(e,n,j,0).val();
+              for (int s=0; s<paramgrad_ip.extent(3); s++) {
+                paramgrad_ip(e,n,j,s) = paramgrad_ip(e,n,j,s).val();
+              }
+            }
+          }
+        });
       }
     }
     
     if (useSensors) {
       if (sensorLocations.size() > 0){
-        response = cellData->physics_RCP->getResponse(cellData->myBlock, u_ip, ugrad_ip, param_ip,
-                                                      paramgrad_ip, sensorPoints,
-                                                      wkset->time, wkset);
+        response = cellData->physics_RCP->getPointResponse(cellData->myBlock, u_ip, ugrad_ip, param_ip,
+                                                           paramgrad_ip, sensorPoints,
+                                                           wkset->time, wkset);
       }
     }
     else {
       response = cellData->physics_RCP->getResponse(cellData->myBlock, u_ip, ugrad_ip, param_ip,
-                                                    paramgrad_ip, wkset->ip,
+                                                    paramgrad_ip, ip,
                                                     wkset->time, wkset);
     }
   }

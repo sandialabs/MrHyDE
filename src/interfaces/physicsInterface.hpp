@@ -137,12 +137,24 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////
   
+  Kokkos::View<AD***,AssemblyDevice> getPointResponse(const int & block,
+                                                      Kokkos::View<AD****,AssemblyDevice> u_ip,
+                                                      Kokkos::View<AD****,AssemblyDevice> ugrad_ip,
+                                                      Kokkos::View<AD****,AssemblyDevice> p_ip,
+                                                      Kokkos::View<AD****,AssemblyDevice> pgrad_ip,
+                                                      const DRV ip, const ScalarT & time,
+                                                      Teuchos::RCP<workset> & wkset);
+  
+  
+  /////////////////////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////
+  
   Kokkos::View<AD***,AssemblyDevice> getResponse(const int & block,
                                                  Kokkos::View<AD****,AssemblyDevice> u_ip,
                                                  Kokkos::View<AD****,AssemblyDevice> ugrad_ip,
                                                  Kokkos::View<AD****,AssemblyDevice> p_ip,
                                                  Kokkos::View<AD****,AssemblyDevice> pgrad_ip,
-                                                 const DRV & ip, const ScalarT & time,
+                                                 const DRV ip, const ScalarT & time,
                                                  Teuchos::RCP<workset> & wkset);
   
   /////////////////////////////////////////////////////////////////////////////////////////////
@@ -345,6 +357,8 @@ public:
   Teuchos::RCP<Teuchos::Time> bctimer = Teuchos::TimeMonitor::getNewCounter("MILO::physics::setBCData()");
   Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::physics::setDirichletData()");
   Teuchos::RCP<Teuchos::Time> sideinfotimer = Teuchos::TimeMonitor::getNewCounter("MILO::physics::getSideInfo()");
+  Teuchos::RCP<Teuchos::Time> responsetimer = Teuchos::TimeMonitor::getNewCounter("MILO::physics:computeResponse()");
+  Teuchos::RCP<Teuchos::Time> pointreponsetimer = Teuchos::TimeMonitor::getNewCounter("MILO::physics::computePointResponse()");
   
 };
 

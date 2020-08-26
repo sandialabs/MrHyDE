@@ -151,9 +151,9 @@ public:
   ScalarT stddev;
   
   vector<string> blocknames, error_types, subgrid_error_types;
-  vector<vector<Kokkos::View<ScalarT*,AssemblyDevice> > > errors; // [time][block](error_list)
-  vector<Kokkos::View<ScalarT**,AssemblyDevice> > responses; // [time](sensors,response)
-  vector<vector<vector<Kokkos::View<ScalarT*,AssemblyDevice> > > > subgrid_errors; // extra vector for multiple subgrid models [time][block][sgmodel](error_list)
+  vector<vector<Kokkos::View<ScalarT*,HostDevice> > > errors; // [time][block](error_list)
+  vector<Kokkos::View<ScalarT**,HostDevice> > responses; // [time](sensors,response)
+  vector<vector<vector<Kokkos::View<ScalarT*,HostDevice> > > > subgrid_errors; // extra vector for multiple subgrid models [time][block][sgmodel](error_list)
   
   vector<int> numVars; // Number of variables used by the application (may not be used yet)
   int numsteps;

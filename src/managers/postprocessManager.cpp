@@ -1016,12 +1016,6 @@ void PostprocessManager::computeResponse(const ScalarT & currenttime) {
   
   response_times.push_back(currenttime);
   params->sacadoizeParams(false);
-  //vector<ScalarT> solvetimes = solve->soln->times[0];
-  
-  //Kokkos::View<ScalarT**,HostDevice> responses = this->computeResponse(b);
-  
-  //params->sacadoizeParams(false);
-  //vector<ScalarT> solvetimes = solve->soln->times[0];
   
   // TMW: may not work for multi-block
   int numresponses = phys->getNumResponses(0);
@@ -1032,37 +1026,32 @@ void PostprocessManager::computeResponse(const ScalarT & currenttime) {
   
   Kokkos::View<ScalarT**,HostDevice> curr_response("current response",
                                                    numSensors, numresponses);
-  //vector_RCP P_soln = params->Psol[0];
-  //vector_RCP u;
-  
-  //  bool fnd = solve->soln->extract(u,tt);
-  //  assembler->performGather(b,u,0,0);
-  //  assembler->performGather(b,P_soln,4,0);
   for (size_t b=0; b<assembler->cells.size(); b++) {
     for (size_t e=0; e<assembler->cells[b].size(); e++) {
-      //assembler->wkset[b]->update(cells[b][e]->ip, cells[b][e]->wts,
-      //                            cells[b][e]->jacobian, cells[b][e]->jacobianInv,
-      //                            cells[b][e]->jacobianDet, cells[b][e]->orientation);
-      
-      //Kokkos::View<AD***,AssemblyDevice> responsevals = cells[b][e]->computeResponse(solvetimes[tt], tt, 0);
+  
       Kokkos::View<AD***,AssemblyDevice> responsevals = assembler->cells[b][e]->computeResponse(0);
+      auto host_response = Kokkos::create_mirror_view(responsevals);
+      Kokkos::deep_copy(host_response,responsevals);
       
       int numElem = assembler->cells[b][e]->numElem;
       for (int r=0; r<numresponses; r++) {
         if (response_type == "global" ) {
-          DRV wts = assembler->wkset[b]->wts;
-          for (int p=0; p<numElem; p++) {
-            for (size_t j=0; j<wts.extent(1); j++) {
-              curr_response(0,r) += responsevals(p,r,j).val() * wts(p,j);
+          DRV wts = assembler->cells[b][e]->wts;
+          auto host_wts = Kokkos::create_mirror_view(wts);
+          Kokkos::deep_copy(host_wts,wts);
+          
+          for (int p=0; p<host_response.extent(0); p++) {
+            for (size_t j=0; j<host_wts.extent(1); j++) {
+              curr_response(0,r) += host_response(p,r,j).val() * host_wts(p,j);
             }
           }
         }
         else if (response_type == "pointwise" ) {
-          if (responsevals.extent(1) > 0) {
+          if (host_response.extent(1) > 0) {
             vector<int> sensIDs = assembler->cells[b][e]->mySensorIDs;
-            for (int p=0; p<numElem; p++) {
-              for (size_t j=0; j<responsevals.extent(2); j++) {
-                curr_response(sensIDs[j],r) += responsevals(p,r,j).val();
+            for (int p=0; p<host_response.extent(0); p++) {
+              for (size_t j=0; j<host_response.extent(2); j++) {
+                curr_response(sensIDs[j],r) += host_response(p,r,j).val();
               }
             }
           }

@@ -78,7 +78,8 @@ namespace panzer_stk{
   // Finalize
   ///////////////////////////////////////////////////////////////
   
-  void SubGridMeshFactory::completeMeshConstruction(STK_Interface & mesh,stk::ParallelMachine parallelMach) const {
+  void SubGridMeshFactory::completeMeshConstruction(STK_Interface & mesh,
+                                                    stk::ParallelMachine parallelMach) const {
     
     mesh.initialize(parallelMach);
     

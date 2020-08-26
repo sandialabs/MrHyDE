@@ -224,6 +224,7 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
       string entry = rfields.get<string>(r_itr->first);
       block_resp.push_back(r_itr->first);
       functionManagers[b]->addFunction(r_itr->first,entry,"point");
+      functionManagers[b]->addFunction(r_itr->first,entry,"ip");
       r_itr++;
     }
     response_list.push_back(block_resp);
@@ -235,6 +236,7 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
       string entry = tfields.get<string>(t_itr->first);
       block_targ.push_back(t_itr->first);
       functionManagers[b]->addFunction(t_itr->first,entry,"point");
+      functionManagers[b]->addFunction(t_itr->first,entry,"ip");
       t_itr++;
     }
     target_list.push_back(block_targ);
@@ -246,6 +248,7 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
       string entry = wfields.get<string>(w_itr->first);
       block_wts.push_back(w_itr->first);
       functionManagers[b]->addFunction(w_itr->first,entry,"point");
+      functionManagers[b]->addFunction(w_itr->first,entry,"ip");
       w_itr++;
     }
     weight_list.push_back(block_wts);
@@ -702,6 +705,69 @@ int physics::getNumResponses(const int & block) {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
+// Really designed for sensor responses, but can be used for ip responses (global)
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+Kokkos::View<AD***,AssemblyDevice> physics::getPointResponse(const int & block,
+                                                             Kokkos::View<AD****,AssemblyDevice> u_ip,
+                                                             Kokkos::View<AD****,AssemblyDevice> ugrad_ip,
+                                                             Kokkos::View<AD****,AssemblyDevice> p_ip,
+                                                             Kokkos::View<AD****,AssemblyDevice> pgrad_ip,
+                                                             const DRV ip, const ScalarT & time,
+                                                             Teuchos::RCP<workset> & wkset) {
+  
+  size_t numElem = u_ip.extent(0);
+  size_t numip = ip.extent(1);
+  size_t numResponses = response_list[block].size();
+  
+  Kokkos::View<AD***,AssemblyDevice> responsetotal("responses",numElem,numResponses,numip);
+  
+  auto point = Kokkos::subview(wkset->point_KV, 0, 0, Kokkos::ALL());
+  auto sol = Kokkos::subview(wkset->local_soln_point, 0, Kokkos::ALL(), 0, Kokkos::ALL());
+  auto sol_grad = Kokkos::subview(wkset->local_soln_grad_point, 0, Kokkos::ALL(), 0, Kokkos::ALL());
+  
+  // This is very clumsy
+  Kokkos::View<size_t*, AssemblyDevice> indices("view to hold indices",3);
+  auto host_indices = Kokkos::create_mirror_view(indices);
+  for (size_t e=0; e<numElem; e++) {
+    host_indices(0) = e;
+    for (size_t k=0; k<numip; k++) {
+      host_indices(1) = k;
+      auto ip_sv = Kokkos::subview(ip, e, k, Kokkos::ALL());
+      auto u_sv = Kokkos::subview(u_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
+      auto ugrad_sv = Kokkos::subview(ugrad_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
+      
+      Kokkos::deep_copy(point, ip_sv);
+      Kokkos::deep_copy(sol, u_sv);
+      Kokkos::deep_copy(sol_grad, ugrad_sv);
+      
+      if (p_ip.extent(0) > 0) {
+        auto param = Kokkos::subview(wkset->local_param_point, 0, Kokkos::ALL(), 0);
+        auto param_grad = Kokkos::subview(wkset->local_param_grad_point, 0, Kokkos::ALL(), 0, Kokkos::ALL());
+        auto p_sv = Kokkos::subview(p_ip, e, Kokkos::ALL(), k, 0);
+        auto pgrad_sv = Kokkos::subview(pgrad_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
+        Kokkos::deep_copy(param, p_sv);
+        Kokkos::deep_copy(param_grad, pgrad_sv);
+      }
+      
+      for (size_t r=0; r<numResponses; r++) {
+        host_indices(2) = r;
+        Kokkos::deep_copy(indices,host_indices);
+        // evaluate the response
+        FDATA rdata = functionManagers[block]->evaluate(response_list[block][r],"point");
+        // copy data into responsetotal
+        // again clumsy
+        parallel_for("physics point response",RangePolicy<AssemblyExec>(0,1), KOKKOS_LAMBDA (const int elem ) {
+          responsetotal(indices(0),indices(2),indices(1)) = rdata(0,0);
+        });
+      }
+    }
+  }
+  
+  return responsetotal;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
@@ -709,7 +775,7 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
                                                         Kokkos::View<AD****,AssemblyDevice> ugrad_ip,
                                                         Kokkos::View<AD****,AssemblyDevice> p_ip,
                                                         Kokkos::View<AD****,AssemblyDevice> pgrad_ip,
-                                                        const DRV & ip, const ScalarT & time,
+                                                        const DRV ip, const ScalarT & time,
                                                         Teuchos::RCP<workset> & wkset) {
   
   size_t numElem = u_ip.extent(0);
@@ -718,35 +784,23 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
   
   Kokkos::View<AD***,AssemblyDevice> responsetotal("responses",numElem,numResponses,numip);
   
-  for (size_t e=0; e<numElem; e++) {
-    for (size_t k=0; k<numip; k++) {
-      
-      // update wkset->point_KV and point solutions
-      for (size_t s=0; s<spaceDim; s++) {
-        wkset->point_KV(0,0,s) = ip(e,k,s);
-      }
-      for (size_t v=0; v<u_ip.extent(1); v++) {
-        wkset->local_soln_point(0,v,0,0) = u_ip(e,v,k,0);
-        for (size_t s=0; s<spaceDim; s++) {
-          wkset->local_soln_grad_point(0,v,0,s) = ugrad_ip(e,v,k,s);
-        }
-      }
-      
-      for (size_t v=0; v<p_ip.extent(1); v++) {
-        wkset->local_param_point(0,v,0) = p_ip(e,v,k,0);
-        for (size_t s=0; s<spaceDim; s++) {
-          wkset->local_param_grad_point(0,v,0,s) = pgrad_ip(e,v,k,s);
-        }
-      }
-      
-      for (size_t r=0; r<numResponses; r++) {
-        
-        // evaluate the response
-        FDATA rdata = functionManagers[block]->evaluate(response_list[block][r],"point");
-        // copy data into responsetotal
-        responsetotal(e,r,k) = rdata(0,0);
-      }
-    }
+  //wkset->ip_KV = ip;
+  Kokkos::deep_copy(wkset->ip_KV,ip);
+  Kokkos::deep_copy(wkset->local_soln,u_ip);
+  Kokkos::deep_copy(wkset->local_soln_grad, ugrad_ip);
+  if (p_ip.extent(0) > 0) {
+    auto p_sv = Kokkos::subview(p_ip, Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(),0);
+    Kokkos::deep_copy(wkset->local_param,p_sv);
+    Kokkos::deep_copy(wkset->local_param_grad, pgrad_ip);
+  }
+  for (size_t r=0; r<numResponses; r++) {
+    
+    // evaluate the response
+    FDATA rdata = functionManagers[block]->evaluate(response_list[block][r],"ip");
+    
+    auto cresp = Kokkos::subview(responsetotal,Kokkos::ALL(), r, Kokkos::ALL());
+    Kokkos::deep_copy(cresp,rdata);
+    
   }
   
   return responsetotal;
