@@ -437,6 +437,9 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
   
   //this->perturbMesh();
   
+  if (verbosity>1) {
+    mesh->printMetaData(std::cout);
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
