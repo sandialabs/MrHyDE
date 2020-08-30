@@ -584,7 +584,6 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
   }
   
   vector<Kokkos::View<ScalarT*,AssemblyDevice> > currerror;
-  //Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
   int seedwhat = 0;
   
   for (size_t block=0; block<assembler->cells.size(); block++) {// loop over blocks

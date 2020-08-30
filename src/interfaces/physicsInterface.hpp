@@ -342,7 +342,7 @@ public:
   vector<vector<GO> > point_dofs;
   vector<vector<vector<LO> > > dbc_dofs;
   
-  vector<Kokkos::View<int**,UnifiedDevice> > var_bcs;
+  vector<Kokkos::View<int**,HostDevice> > var_bcs;
   
   //vector<FCint> offsets;
   vector<vector<vector<int> > > offsets;

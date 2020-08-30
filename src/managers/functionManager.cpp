@@ -21,13 +21,6 @@ FunctionManager::FunctionManager() {
   known_vars = {"x","y","z","t","nx","ny","nz","pi","h"};
   known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean"};
   
-  /*
-  vector<string> known_vars_str = {"x","y","z","t","nx","ny","nz","pi","h"};
-  vector<string> known_ops_str = {"sin","cos","exp","log","tan","abs","max","min","mean"};
-  
-  known_vars = Kokkos::View<string*,UnifiedDevice>("known variables",known_vars_str.size());
-  known_ops = Kokkos::View<string*,UnifiedDevice>("known operators",known_ops_str.size());
-   */
 }
 
 

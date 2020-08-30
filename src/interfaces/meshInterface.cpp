@@ -1183,17 +1183,16 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
     
     //meas.modify_host();
     int index, dindex;
-    //vector<vector<int> > curroffsets = phys->offsets[b];
-    //Kokkos::View<LO***,AssemblyDevice> cindex;
-    Kokkos::View<int**,AssemblyDevice> offsets;
-    Kokkos::View<LO**,AssemblyDevice> LIDs;
     
-    Kokkos::View<LO*,UnifiedDevice> nDOF;
+    Kokkos::View<int**,AssemblyDevice> dev_offsets = cells[b][0]->offsets;
+    auto offsets = Kokkos::create_mirror_view(dev_offsets);
+    Kokkos::deep_copy(offsets,dev_offsets);
+    
     for( size_t e=0; e<cells[b].size(); e++ ) {
       //cindex = cells[b][e]->index;
-      LIDs = cells[b][e]->LIDs;
-      offsets = cells[b][e]->offsets;
-      nDOF = cells[b][e]->cellData->numDOF;
+      LIDView_host LIDs = cells[b][e]->LIDs_host;
+      Kokkos::View<LO*,HostDevice> nDOF = cells[b][e]->cellData->numDOF_host;
+      
       for (int n=0; n<nDOF(0); n++) {
         //Kokkos::View<GO**,HostDevice> GIDs = assembler->cells[b][e]->GIDs;
         for (int p=0; p<cells[b][e]->numElem; p++) {

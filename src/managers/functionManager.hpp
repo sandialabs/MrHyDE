@@ -96,11 +96,9 @@ class FunctionManager {
   int numElem, numip, numip_side;
   
   vector<function_class> functions;
-  //Kokkos::View<function_class*,AssemblyDevice> functions;
   
   vector<string> variables, parameters, disc_parameters;
   vector<string> known_vars, known_ops;
-  //Kokkos::View<string*,UnifiedDevice> known_vars, known_ops;
   Teuchos::RCP<workset> wkset;
   Teuchos::RCP<Teuchos::Time> decomposeTimer = Teuchos::TimeMonitor::getNewCounter("MILO::function::decompose");
   Teuchos::RCP<Teuchos::Time> evaluateTimer = Teuchos::TimeMonitor::getNewCounter("MILO::function::evaluate");

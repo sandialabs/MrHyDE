@@ -3,7 +3,7 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  profile: true
+  profile: false
   Mesh input file: input_mesh.yaml
   Functions input file: input_functions.yaml
   Physics: 

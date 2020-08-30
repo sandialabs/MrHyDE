@@ -22,7 +22,7 @@ ANONYMOUS:
   Functions input file: input_functions.yaml
   Solver: 
     solver: steady-state
-    workset size: 1
+    workset size: 10
     initial type: none
     nonlinear TOL: 1.0e-7
     max nonlinear iters: 3
@@ -36,6 +36,7 @@ ANONYMOUS:
   Subgrid:
     subgrid model: FEM
     Mesh:
+      mesh type: panzer
       shape: quad
       refinements: 2
       dim: 2
@@ -61,6 +62,7 @@ ANONYMOUS:
     Postprocess:
       store aux and flux: false
       write solution: false
+      plot solution at nodes: true
   Analysis:
     analysis type: forward
     Have Sensor Points: false
@@ -71,6 +73,7 @@ ANONYMOUS:
     compute response: false
     write solution: false
     write subgrid solution: false
+    write HFACE variables: false
     compute objective: false
     compute sensitivities: false
 ...

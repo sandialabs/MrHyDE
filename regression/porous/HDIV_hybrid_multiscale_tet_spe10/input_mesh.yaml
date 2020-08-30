@@ -5,7 +5,7 @@ ANONYMOUS:
     dim: 3
     shape: tet
     source: Exodus
-    mesh file: spe10_TET_r1.e
+    mesh file: spe10_TET_r3.e
     data file: spe_xperm
     data points file: spe_xyz
     data on grid: true

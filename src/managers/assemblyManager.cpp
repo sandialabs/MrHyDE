@@ -681,8 +681,7 @@ void AssemblyManager::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
   auto localMatrix = mass->getLocalMatrix();
   
   for (size_t b=0; b<boundaryCells.size(); b++) {
-    wkset[b]->time = time;
-    wkset[b]->time_KV(0) = time;
+    wkset[b]->setTime(time);
     for (size_t e=0; e<boundaryCells[b].size(); e++) {
       
       int numElem = boundaryCells[b][e]->numElem;
@@ -821,18 +820,15 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
   // Set up the worksets and allocate the local residual and Jacobians
   //////////////////////////////////////////////////////////////////////////////////////
   
-  // TMW: this won't really work on GPU, need to fix once working
   if (isTransient) {
     ScalarT timeval = current_time + wkset[b]->butcher_c(wkset[b]->current_stage)*deltat;
     
-    wkset[b]->time = timeval;
-    wkset[b]->time_KV(0) = timeval;
+    wkset[b]->setTime(timeval);
+    wkset[b]->setDeltat(deltat);
+    wkset[b]->alpha = 1.0/deltat;
   }
   wkset[b]->isTransient = isTransient;
   wkset[b]->isAdjoint = useadjoint;
-  wkset[b]->deltat = deltat;
-  wkset[b]->deltat_KV(0) = deltat;
-  wkset[b]->alpha = 1.0/deltat;
   
   int numElem = cells[b][0]->numElem;
   int numDOF = cells[b][0]->LIDs.extent(1);
@@ -1019,7 +1015,6 @@ void AssemblyManager::dofConstraints(matrix_RCP & J, vector_RCP & res,
         if (compute_jacobian) {
           this->updateJacDBC(J,dbcDOFs[block][var],compute_disc_sens);
         }
-        //this->updateResDBC(res,dbcDOFs[block][var]);
       }
     }
   }
@@ -1029,7 +1024,6 @@ void AssemblyManager::dofConstraints(matrix_RCP & J, vector_RCP & res,
     if (compute_jacobian) {
       this->updateJacDBC(J,fixedDOFs[block],compute_disc_sens);
     }
-    //this->updateResDBC(res,fixedDOFs[block]);
   }
   
 }
@@ -1057,8 +1051,7 @@ void AssemblyManager::resetStageSoln() {
 
 void AssemblyManager::updateStageNumber(const int & stage) {
   for (size_t b=0; b<wkset.size(); b++) {
-    wkset[b]->current_stage = stage;
-    wkset[b]->current_stage_KV(0) = stage;
+    wkset[b]->setStage(stage);
   }
 }
 

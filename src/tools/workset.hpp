@@ -152,15 +152,36 @@ class workset {
   
   vector<AD> getParam(const string & name, bool & found);
   
+  //////////////////////////////////////////////////////////////
+  // Set the time
+  //////////////////////////////////////////////////////////////
+  
+  void setTime(const ScalarT & newtime);
+  
+  //////////////////////////////////////////////////////////////
+  // Set deltat
+  //////////////////////////////////////////////////////////////
+  
+  void setDeltat(const ScalarT & newdt);
+  
+  //////////////////////////////////////////////////////////////
+  // Set the stage index
+  //////////////////////////////////////////////////////////////
+  
+  void setStage(const int & newstage);
+  
   ////////////////////////////////////////////////////////////////////////////////////
   // Public data
   ////////////////////////////////////////////////////////////////////////////////////
   
-  // Data filled by constructor
+  // Should be the only view stored on Host
+  // Used by physics modules to determine the proper contribution to the boundary residual
+  Kokkos::View<int**,HostDevice> var_bcs;
+  
   Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets;
   vector<string> varlist;
-  Kokkos::View<ScalarT**,UnifiedDevice> butcher_A;
-  Kokkos::View<ScalarT*,UnifiedDevice> butcher_b, butcher_c, BDF_wts;
+  Kokkos::View<ScalarT**,AssemblyDevice> butcher_A;
+  Kokkos::View<ScalarT*,AssemblyDevice> butcher_b, butcher_c, BDF_wts;
   
   vector<int> usebasis, paramusebasis;
   vector<int> vars_HGRAD, vars_HVOL, vars_HDIV, vars_HCURL, vars_HFACE;
@@ -169,7 +190,7 @@ class workset {
   topo_RCP celltopo;
   size_t numsides, numip, numsideip, numVars, numParams, numAux, numDOF;
   int dimension, numElem, current_stage;
-  Kokkos::View<int*,UnifiedDevice> current_stage_KV; // for access on device
+  Kokkos::View<int*,AssemblyDevice> current_stage_KV; // for access on device
   
   vector<string> basis_types;
   vector<int> numbasis;
@@ -188,7 +209,6 @@ class workset {
   DRV ip, ip_side, wts, wts_side, normals;
   Kokkos::View<ScalarT***,AssemblyDevice> ip_KV, ip_side_KV, normals_KV, point_KV;
   
-  Kokkos::View<int**,UnifiedDevice> var_bcs;
   Kokkos::View<AD***,AssemblyDevice> uvals, u_dotvals;
   
   vector<DRV> basis;

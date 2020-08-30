@@ -36,11 +36,10 @@ celltopo(topo), var_bcs(var_bcs_), isTransient(isTransient_)  { //, timeInt(time
   
   deltat = 1.0;
   deltat_KV = Kokkos::View<ScalarT*,AssemblyDevice>("deltat",1);
-  deltat_KV(0) = deltat;
+  Kokkos::deep_copy(deltat_KV,deltat);
   
-  current_stage = 0;
-  current_stage_KV = Kokkos::View<int*,UnifiedDevice>("stage number on device",1);
-  current_stage_KV(0) = 0;
+  current_stage_KV = Kokkos::View<int*,AssemblyDevice>("stage number on device",1);
+  Kokkos::deep_copy(current_stage_KV,0);
   // Integration information
   numip = ref_ip_.extent(0);
   numsideip = ref_side_ip_.extent(0);
@@ -213,7 +212,7 @@ void workset::resetAdjointRHS() {
 // Compute the solutions at the volumetric ip
 ////////////////////////////////////////////////////////////////////////////////////
 
-// TMW: This funciton should be deprecated
+// TMW: This function should be deprecated
 void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
   
   // Reset the values
@@ -1211,4 +1210,32 @@ vector<AD> workset::getParam(const string & name, bool & found) {
     pvec = vector<AD>(1);
   }
   return pvec;
+}
+
+
+//////////////////////////////////////////////////////////////
+// Set the time
+//////////////////////////////////////////////////////////////
+
+void workset::setTime(const ScalarT & newtime) {
+  time = newtime;
+  Kokkos::deep_copy(time_KV,time);
+}
+
+//////////////////////////////////////////////////////////////
+// Set deltat
+//////////////////////////////////////////////////////////////
+
+void workset::setDeltat(const ScalarT & newdt) {
+  deltat = newdt;
+  Kokkos::deep_copy(deltat_KV,deltat);
+}
+
+//////////////////////////////////////////////////////////////
+// Set the stage index
+//////////////////////////////////////////////////////////////
+
+void workset::setStage(const int & newstage) {
+  current_stage = newstage;
+  Kokkos::deep_copy(current_stage_KV, newstage);
 }

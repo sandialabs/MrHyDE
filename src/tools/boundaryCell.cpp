@@ -365,8 +365,8 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
                                  const bool & compute_jacobian, const bool & compute_sens,
                                  const int & num_active_params, const bool & compute_disc_sens,
                                  const bool & compute_aux_sens, const bool & store_adjPrev,
-                                 Kokkos::View<ScalarT***,UnifiedDevice> local_res,
-                                 Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
+                                 Kokkos::View<ScalarT***,AssemblyDevice> local_res,
+                                 Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Compute the local contribution to the global residual and Jacobians
@@ -446,7 +446,7 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
 // Use the AD res to update the scalarT res
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,UnifiedDevice> local_res) {
+void BoundaryCell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
   
   if (compute_sens) {
     parallel_for("bcell update res sens",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -474,7 +474,7 @@ void BoundaryCell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,
 // Use the AD res to update the scalarT res
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,UnifiedDevice> local_res) {
+void BoundaryCell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
   Kokkos::View<AD**,AssemblyDevice> adjres_AD = wkset->adjrhs;
   
   if (compute_sens) {
@@ -504,7 +504,7 @@ void BoundaryCell::updateAdjointRes(const bool & compute_sens, Kokkos::View<Scal
 // Use the AD res to update the scalarT J
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
+void BoundaryCell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   
   if (useadjoint) {
     parallel_for("bcell update jac adjoint",RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -538,7 +538,7 @@ void BoundaryCell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,Un
 // Use the AD res to update the scalarT Jparam
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::updateParamJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
+void BoundaryCell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   
   paramoffsets = wkset->paramoffsets;
   numParamDOF = cellData->numParamDOF;
@@ -560,7 +560,7 @@ void BoundaryCell::updateParamJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J
 // Use the AD res to update the scalarT Jaux
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::updateAuxJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
+void BoundaryCell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   
   numAuxDOF = cellData->numAuxDOF;
   
@@ -704,8 +704,7 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
                                const ScalarT & time, const int & side, const ScalarT & coarse_h,
                                const bool & compute_sens) {
   
-  wkset->time = time;
-  wkset->time_KV(0) = time;
+  wkset->setTime(time);
   
   auto u_kv = gl_u->getLocalView<AssemblyDevice>();
   auto du_kv = gl_du->getLocalView<AssemblyDevice>();
@@ -784,8 +783,10 @@ Kokkos::View<ScalarT**,AssemblyDevice> BoundaryCell::getDirichlet() {
   Kokkos::View<ScalarT**,AssemblyDevice> dvals("initial values",numElem,LIDs.extent(1));
   this->updateWorksetBasis();
   //wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
-  Kokkos::View<int[1],UnifiedDevice> currind("current index");
-  Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
+  Kokkos::View<int[1],AssemblyDevice> currind("current index");
+  auto currind_host = Kokkos::create_mirror_view(currind);
+  
+  Kokkos::View<int**,HostDevice> bcs = wkset->var_bcs;
   
   for (int n=0; n<wkset->varlist.size(); n++) {
     if (bcs(n,sidenum) == 1) { // is this a strong DBC for this variable
@@ -795,7 +796,8 @@ Kokkos::View<ScalarT**,AssemblyDevice> BoundaryCell::getDirichlet() {
                                                                                         wkset);
       int bind = wkset->usebasis[n];
       std::string btype = cellData->basis_types[bind];
-      currind(0) = n;
+      currind_host(0) = n;
+      Kokkos::deep_copy(currind,currind_host);
       DRV cbasis = basis[bind];
       
       if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE"){
@@ -838,11 +840,13 @@ Kokkos::View<ScalarT***,AssemblyDevice> BoundaryCell::getMass() {
                                                LIDs.extent(1), LIDs.extent(1));
   
   Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
-  Kokkos::View<int[1],UnifiedDevice> currind("current index");
+  Kokkos::View<int[1],AssemblyDevice> currind("current index");
+  auto currind_host = Kokkos::create_mirror_view(currind);
   
   for (int n=0; n<numDOF.extent(0); n++) {
     if (bcs(n,sidenum) == 1) { // is this a strong DBC for this variable
-      currind(0) = n;
+      currind_host(0) = n;
+      Kokkos::deep_copy(currind,currind_host);
       int bind = wkset->usebasis[n];
       
       DRV cbasis = basis[bind];

@@ -1172,7 +1172,7 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
     mesh->getSidesetNames(sideSets);
     mesh->getNodesetNames(nodeSets);
     
-    Kokkos::View<int**,UnifiedDevice> currbcs("boundary conditions",varlist[b].size(),sideSets.size());
+    Kokkos::View<int**,HostDevice> currbcs("boundary conditions",varlist[b].size(),sideSets.size());
     topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
     if (spaceDim == 1) {
       numSidesPerElem = 2;

@@ -137,8 +137,8 @@ public:
                      const bool & compute_jacobian, const bool & compute_sens,
                      const int & num_active_params, const bool & compute_disc_sens,
                      const bool & compute_aux_sens, const bool & store_adjPrev,
-                     Kokkos::View<ScalarT***,UnifiedDevice> res,
-                     Kokkos::View<ScalarT***,UnifiedDevice> local_J,
+                     Kokkos::View<ScalarT***,AssemblyDevice> res,
+                     Kokkos::View<ScalarT***,AssemblyDevice> local_J,
                      const bool & assemble_volume_terms,
                      const bool & assemble_face_terms);
   
@@ -152,38 +152,38 @@ public:
   // Use the AD res to update the scalarT res
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,UnifiedDevice> local_res);
+  void updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res);
 
   ///////////////////////////////////////////////////////////////////////////////////////
   // Update the adjoint res
   ///////////////////////////////////////////////////////////////////////////////////////
-  void updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,UnifiedDevice> local_res);
+  void updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res);
 
   void updateAdjointRes(const bool & compute_jacobian, const bool & isTransient,
                         const bool & compute_aux_sens, const bool & store_adjPrev,
-                        Kokkos::View<ScalarT***,UnifiedDevice> local_J,
-                        Kokkos::View<ScalarT***,UnifiedDevice> local_res);
+                        Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                        Kokkos::View<ScalarT***,AssemblyDevice> local_res);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT J
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,UnifiedDevice> local_J);
+  void updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J);
   
-  void fixDiagJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J,
-                  Kokkos::View<ScalarT***,UnifiedDevice> local_res);
+  void fixDiagJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                  Kokkos::View<ScalarT***,AssemblyDevice> local_res);
 
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT Jparam
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateParamJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J);
+  void updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Use the AD res to update the scalarT Jaux
   ///////////////////////////////////////////////////////////////////////////////////////
   
-  void updateAuxJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J);
+  void updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J);
   
   ///////////////////////////////////////////////////////////////////////////////////////
   // Get the initial condition 
@@ -335,7 +335,7 @@ public:
   // Frequently used Views (None of these are allocated in the cells)
   Kokkos::View<AD**,AssemblyDevice> res_AD;
   Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets;
-  Kokkos::View<LO*,UnifiedDevice> numDOF, numParamDOF, numAuxDOF;
+  Kokkos::View<LO*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
   
   // basis information
   vector<DRV> basis, basis_grad, basis_div, basis_curl, basis_nodes;

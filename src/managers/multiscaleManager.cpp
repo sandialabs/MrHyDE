@@ -67,7 +67,7 @@ void MultiScale::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
                               vector<vector<string> > & macro_varlist,
                               vector<vector<int> > macro_usebasis,
                               vector<vector<vector<int> > > & macro_offsets,
-                              Kokkos::View<int*,UnifiedDevice> & macro_numDOF,
+                              Kokkos::View<int*,HostDevice> & macro_numDOF,
                               vector<string> & macro_paramnames,
                               vector<string> & macro_disc_paramnames) {
   
@@ -114,8 +114,6 @@ ScalarT MultiScale::initialize() {
       //macro_wkset[b]->update(cells[b][e]->ip,cells[b][e]->wts,
       //                       cells[b][e]->jacobian,cells[b][e]->jacobianInv,
       //                       cells[b][e]->jacobianDet,cells[b][e]->orientation);
-      //Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
-      //seedwhat(0) = 0;
       macro_wkset[b]->computeSolnSteadySeeded(cells[b][e]->u, 0);
       macro_wkset[b]->computeParamVolIP(cells[b][e]->param, 0);
       cells[b][e]->computeSolnVolIP();

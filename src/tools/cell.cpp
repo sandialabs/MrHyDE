@@ -590,7 +590,7 @@ void cell::updateStageSoln() {
   
   
   // add u into the current stage soln (done after stage solution is computed)
-  Kokkos::View<int*,UnifiedDevice> snum = wkset->current_stage_KV;
+  Kokkos::View<int*,AssemblyDevice> snum = wkset->current_stage_KV;
   parallel_for("cell update stage soln",RangePolicy<AssemblyExec>(0,u_stage.extent(0)), KOKKOS_LAMBDA (const int e ) {
     int stage = snum(0);
     for (int i=0; i<u_stage.extent(1); i++) {
@@ -611,8 +611,8 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
                          const bool & compute_jacobian, const bool & compute_sens,
                          const int & num_active_params, const bool & compute_disc_sens,
                          const bool & compute_aux_sens, const bool & store_adjPrev,
-                         Kokkos::View<ScalarT***,UnifiedDevice> local_res,
-                         Kokkos::View<ScalarT***,UnifiedDevice> local_J,
+                         Kokkos::View<ScalarT***,AssemblyDevice> local_res,
+                         Kokkos::View<ScalarT***,AssemblyDevice> local_J,
                          const bool & assemble_volume_terms,
                          const bool & assemble_face_terms) {
   
@@ -743,7 +743,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
 // Use the AD res to update the scalarT res
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,UnifiedDevice> local_res) {
+void cell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
   
   if (compute_sens) {
     parallel_for("cell update res sens",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -771,7 +771,7 @@ void cell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,UnifiedD
 // Use the AD res to update the scalarT res
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,UnifiedDevice> local_res) {
+void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
   Kokkos::View<AD**,AssemblyDevice> adjres_AD = wkset->adjrhs;
   
   if (compute_sens) {
@@ -803,8 +803,8 @@ void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,U
 
 void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransient,
                             const bool & compute_aux_sens, const bool & store_adjPrev,
-                            Kokkos::View<ScalarT***,UnifiedDevice> local_J,
-                            Kokkos::View<ScalarT***,UnifiedDevice> local_res) {
+                            Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                            Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
   
   // Update residual (adjoint mode)
   // Adjoint residual: -dobj/du - J^T * phi + 1/dt*M^T * phi_prev
@@ -919,31 +919,30 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
       Kokkos::View<ScalarT***,AssemblyDevice> Jdot("temporary fix for transient adjoint",
                                                    local_J.extent(0), local_J.extent(1), local_J.extent(2));
       this->updateJac(true, Jdot);
-      Kokkos::View<ScalarT[1],AssemblyDevice> dscratch("double scratch pad");
-      Kokkos::View<bool[2],AssemblyDevice> bscratch("bool scratch pad");
-      auto dscratch_host = Kokkos::create_mirror_view(dscratch);
-      auto bscratch_host = Kokkos::create_mirror_view(bscratch);
-      dscratch_host(0) = wkset->alpha;
-      bscratch_host(0) = compute_aux_sens;
-      bscratch_host(1) = store_adjPrev;
-      Kokkos::deep_copy(dscratch,dscratch_host);
-      Kokkos::deep_copy(bscratch,bscratch_host);
+      
       parallel_for("cell adjust transient adjoint jac",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (int n=0; n<numDOF.extent(0); n++) {
           for (int j=0; j<numDOF(n); j++) {
-            ScalarT aPrev = 0.0;
-            for (int m=0; m<numDOF.extent(0); m++) {
-              for (int k=0; k<numDOF(m); k++) {
-                aPrev += dscratch(0)*Jdot(e,offsets(n,j),offsets(m,k))*phi(e,m,k);
-              }
-            }
             local_res(e,offsets(n,j),0) += adjPrev(e,offsets(n,j));
-            if (!bscratch(0) && bscratch(1)) {
-              adjPrev(e,offsets(n,j)) = aPrev;
-            }
           }
         }
       });
+      if (!compute_aux_sens && store_adjPrev) {
+        parallel_for("cell adjust transient adjoint jac 2",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          for (int n=0; n<numDOF.extent(0); n++) {
+            for (int j=0; j<numDOF(n); j++) {
+              ScalarT aPrev = 0.0;
+              ScalarT dt = wkset->deltat_KV(0);
+              for (int m=0; m<numDOF.extent(0); m++) {
+                for (int k=0; k<numDOF(m); k++) {
+                  aPrev += 1.0/dt*Jdot(e,offsets(n,j),offsets(m,k))*phi(e,m,k);
+                }
+              }
+              adjPrev(e,offsets(n,j)) = aPrev;
+            }
+          }
+        });
+      }
     }
   }
 }
@@ -953,7 +952,7 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
 // Use the AD res to update the scalarT J
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
+void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   
   if (useadjoint) {
     parallel_for("cell update jac adj",RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -988,8 +987,8 @@ void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,UnifiedDev
 // Place ones on the diagonal of the Jacobian if
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::fixDiagJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J,
-                      Kokkos::View<ScalarT***,UnifiedDevice> local_res) {
+void cell::fixDiagJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                      Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
   
   ScalarT JTOL = 1.0E-14;
   
@@ -1016,7 +1015,7 @@ void cell::fixDiagJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J,
 // Use the AD res to update the scalarT Jparam
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateParamJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
+void cell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   paramoffsets = wkset->paramoffsets;
   numParamDOF = cellData->numParamDOF;
   
@@ -1037,7 +1036,7 @@ void cell::updateParamJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
 // Use the AD res to update the scalarT Jaux
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateAuxJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
+void cell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   
   parallel_for("cell update aux jac",RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (int n=0; n<numDOF.extent(0); n++) {
@@ -1059,7 +1058,7 @@ void cell::updateAuxJac(Kokkos::View<ScalarT***,UnifiedDevice> local_J) {
 Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, const bool & isAdjoint) {
   Kokkos::View<ScalarT**,AssemblyDevice> initialvals("initial values",numElem,LIDs.extent(1));
   this->updateWorksetBasis();
-  Kokkos::View<int[1],UnifiedDevice> iscratch("current index");
+  Kokkos::View<int[1],AssemblyDevice> iscratch("current index");
   auto iscratch_host = Kokkos::create_mirror_view(iscratch);
   if (project) { // works for any basis
     Kokkos::View<ScalarT***,AssemblyDevice> initialip = cellData->physics_RCP->getInitial(wkset->ip,
@@ -1109,7 +1108,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
   Kokkos::View<ScalarT***,AssemblyDevice> mass("local mass",numElem,
                                                LIDs.extent(1),
                                                LIDs.extent(1));
-  Kokkos::View<int[1],UnifiedDevice> iscratch("current index");
+  Kokkos::View<int[1],AssemblyDevice> iscratch("current index");
   auto iscratch_host = Kokkos::create_mirror_view(iscratch);
   
   for (int n=0; n<numDOF.extent(0); n++) {
