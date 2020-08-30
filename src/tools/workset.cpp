@@ -20,10 +20,9 @@ workset::workset(const vector<int> & cellinfo, const bool & isTransient_,
                  const DRV & ref_side_wts_,
                  const vector<string> & basis_types_,
                  const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
-                 const topo_RCP & topo, Kokkos::View<int**,UnifiedDevice> & var_bcs_) : //, const Teuchos::RCP<TimeIntegrator> & timeInt_) :
-//ref_ip(ref_ip_), ref_wts(ref_wts_), ref_side_ip(ref_side_ip_), ref_side_wts(ref_side_wts_),
+                 const topo_RCP & topo, Kokkos::View<int**,AssemblyDevice> & var_bcs_) :
 basis_types(basis_types_), basis_pointers(basis_pointers_), 
-celltopo(topo), var_bcs(var_bcs_), isTransient(isTransient_)  { //, timeInt(timeInt_) {
+celltopo(topo), var_bcs(var_bcs_), isTransient(isTransient_)  {
   
   // Settings that should not change
   dimension = cellinfo[0];

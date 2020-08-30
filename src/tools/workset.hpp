@@ -29,7 +29,7 @@ class workset {
           const DRV & ref_side_wts_,
           const vector<string> & basis_types_,
           const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
-          const topo_RCP & topo, Kokkos::View<int**,UnifiedDevice> & var_bcs_);
+          const topo_RCP & topo, Kokkos::View<int**,AssemblyDevice> & var_bcs_);
   
   ////////////////////////////////////////////////////////////////////////////////////
   // Public functions
