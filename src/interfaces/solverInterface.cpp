@@ -15,13 +15,13 @@
 /* Constructor to set up the problem */
 // ========================================================================================
 
-solver::solver(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
+solver::solver(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings_,
                Teuchos::RCP<meshInterface> & mesh_,
                Teuchos::RCP<discretization> & disc_,
                Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
                Teuchos::RCP<AssemblyManager> & assembler_,
                Teuchos::RCP<ParameterManager> & params_) :
-Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembler_), params(params_) {
+Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembler_), params(params_) {
   
   milo_debug_level = settings->get<int>("debug level",0);
   
@@ -362,9 +362,106 @@ void solver::setButcherTableau(const string & tableau) {
     butcher_c(1) = (1.0+p)/2.0;
     butcher_c(2) = 1.0;
   }
-  
+  else if (tableau == "custom") {
+    
+    string delimiter = ", ";
+    string line_delimiter = "; ";
+    size_t pos = 0;
+    string b_A = settings->sublist("Solver").get<string>("transient Butcher A","1.0");
+    string b_b = settings->sublist("Solver").get<string>("transient Butcher b","1.0");
+    string b_c = settings->sublist("Solver").get<string>("transient Butcher c","1.0");
+    vector<vector<double>> A_vals;
+    if (b_A.find(delimiter) == string::npos) {
+      vector<double> row;
+      row.push_back(std::stod(b_A));
+      A_vals.push_back(row);
+    }
+    else {
+      string token;
+      size_t linepos = 0;
+      vector<string> lines;
+      while ((linepos = b_A.find(line_delimiter)) != string::npos) {
+        string line = b_A.substr(0,linepos);
+        lines.push_back(line);
+        b_A.erase(0, linepos + line_delimiter.length());
+      }
+      lines.push_back(b_A);
+      for (size_t k=0; k<lines.size(); k++) {
+        string line = lines[k];
+        vector<double> row;
+        while ((pos = line.find(delimiter)) != string::npos) {
+          token = line.substr(0, pos);
+          row.push_back(std::stod(token));
+          line.erase(0, pos + delimiter.length());
+        }
+        row.push_back(std::stod(line));
+        A_vals.push_back(row);
+      }
+    }
+    // Make sure A is square
+    size_t A_nrows = A_vals.size();
+    for (size_t i=0; i<A_nrows; i++) {
+      if (A_vals[i].size() != A_nrows) {
+        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: custom Butcher A is not a square matrix");
+      }
+    }
+    
+    vector<double> b_vals;
+    if (b_b.find(delimiter) == string::npos) {
+      b_vals.push_back(std::stod(b_b));
+    }
+    else {
+      string token;
+      while ((pos = b_b.find(delimiter)) != string::npos) {
+        token = b_b.substr(0, pos);
+        b_vals.push_back(std::stod(token));
+        b_b.erase(0, pos + delimiter.length());
+      }
+      b_vals.push_back(std::stod(b_b));
+    }
+    
+    // Make sure size of b matches A
+    if (b_vals.size() != A_nrows) {
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: custom Butcher b does not match size of A");
+    }
+    
+    vector<double> c_vals;
+    if (b_c.find(delimiter) == string::npos) {
+      c_vals.push_back(std::stod(b_c));
+    }
+    else {
+      string token;
+      while ((pos = b_c.find(delimiter)) != string::npos) {
+        token = b_c.substr(0, pos);
+        c_vals.push_back(std::stod(token));
+        b_c.erase(0, pos + delimiter.length());
+      }
+      c_vals.push_back(std::stod(b_c));
+    }
+    
+    // Make sure size of c matches A
+    if (c_vals.size() != A_nrows) {
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: custom Butcher c does not match size of A");
+    }
+    
+    // Create the views
+    butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",A_nrows,A_nrows);
+    butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",A_nrows);
+    butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",A_nrows);
+    for (size_t i=0; i<A_nrows; i++) {
+      for (size_t j=0; j<A_nrows; j++) {
+        butcher_A(i,j) = A_vals[i][j];
+      }
+      butcher_b(i) = b_vals[i];
+      butcher_c(i) = c_vals[i]; 
+    }
+    
+  }
+  else {
+    TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: unrecognized Butcher tableau:" + tableau);
+  }
   dev_butcher_A = Kokkos::View<ScalarT**,AssemblyDevice>("butcher_A on device",butcher_A.extent(0),butcher_A.extent(1));
-  dev_butcher_b = Kokkos::View<ScalarT*,AssemblyDevice>("butcherPb on device",butcher_b.extent(0));
+  dev_butcher_b = Kokkos::View<ScalarT*,AssemblyDevice>("butcher_b on device",butcher_b.extent(0));
   dev_butcher_c = Kokkos::View<ScalarT*,AssemblyDevice>("butcher_c on device",butcher_c.extent(0));
   
   Kokkos::deep_copy(dev_butcher_A, butcher_A);

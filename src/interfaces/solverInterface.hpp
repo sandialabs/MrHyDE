@@ -53,7 +53,7 @@ public:
   /* Constructor to set up the problem */
   // ========================================================================================
   
-  solver(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
+  solver(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings_,
          Teuchos::RCP<meshInterface> & mesh_,
          Teuchos::RCP<discretization> & disc_,
          Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
@@ -171,6 +171,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////////
   
   Teuchos::RCP<MpiComm> Comm;
+  Teuchos::RCP<Teuchos::ParameterList> settings;
   Teuchos::RCP<discretization> disc;
   Teuchos::RCP<physics> phys;
   Teuchos::RCP<const panzer::DOFManager> DOF;
