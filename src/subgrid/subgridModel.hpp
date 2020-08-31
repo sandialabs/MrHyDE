@@ -52,7 +52,7 @@ public:
   virtual Kokkos::View<ScalarT**,AssemblyDevice> computeError(vector<pair<size_t, string> > & sub_error_list,
                                                               const vector<ScalarT> & times) = 0;
   
-  virtual Kokkos::View<ScalarT*,AssemblyDevice> computeError(const ScalarT & times) = 0;
+  virtual Kokkos::View<ScalarT*,HostDevice> computeError(const ScalarT & times) = 0;
   
   virtual Kokkos::View<AD*,AssemblyDevice> computeObjective(const string & response_type,
                                                             const int & seedwhat,
@@ -108,7 +108,7 @@ public:
   vector<int> macro_usebasis;
   //vector<vector<int> > macro_offsets;
   Kokkos::View<LO**,AssemblyDevice> macro_offsets;
-  Kokkos::View<int*,HostDevice> macro_numDOF;
+  Kokkos::View<int*,AssemblyDevice> macro_numDOF;
   
   vector<string> macro_paramnames, macro_disc_paramnames, macrosidenames;
   int macro_block;

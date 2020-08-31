@@ -53,7 +53,7 @@ public:
   Kokkos::View<int****,HostDevice> macrosideinfo;
   LIDView macroLIDs;
   Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> macroorientation;
-  Kokkos::View<int**,UnifiedDevice> bcs;
+  Kokkos::View<int**,HostDevice> bcs;
   Kokkos::View<int*,AssemblyDevice> macroIDs;
 };
 #endif

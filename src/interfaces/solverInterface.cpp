@@ -488,7 +488,8 @@ void solver::setBackwardDifference(const int & order) { // using order as an inp
   
   Kokkos::View<ScalarT*,AssemblyDevice> dev_BDF_wts;
   //Kokkos::View<ScalarT*,HostDevice> BDF_wts; // not using a mirror view on purpose
-  auto BDF_wts = Kokkos::create_mirror_view(dev_BDF_wts);
+  //auto BDF_wts = Kokkos::create_mirror_view(dev_BDF_wts);
+  Kokkos::View<ScalarT*,HostDevice> BDF_wts;
   // Note that these do not include 1/deltat (added in wkset)
   // Not going to work properly for adaptive time stepping if BDForder>1
   if (isTransient) {
@@ -1956,7 +1957,7 @@ void solver::finalizeMultiscale() {
     
     multiscale_manager->setMacroInfo(disc->basis_pointers, disc->basis_types,
                                      phys->varlist, useBasis, phys->offsets,
-                                     assembler->cells[0][0]->cellData->numDOF_host,
+                                     assembler->cells[0][0]->cellData->numDOF,
                                      params->paramnames, params->discretized_param_names);
     
     ScalarT my_cost = multiscale_manager->initialize();

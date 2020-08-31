@@ -67,7 +67,7 @@ void MultiScale::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
                               vector<vector<string> > & macro_varlist,
                               vector<vector<int> > macro_usebasis,
                               vector<vector<vector<int> > > & macro_offsets,
-                              Kokkos::View<int*,HostDevice> & macro_numDOF,
+                              Kokkos::View<int*,AssemblyDevice> & macro_numDOF,
                               vector<string> & macro_paramnames,
                               vector<string> & macro_disc_paramnames) {
   

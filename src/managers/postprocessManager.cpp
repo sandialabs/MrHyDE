@@ -828,20 +828,27 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
   if (!(Teuchos::is_null(multiscale_manager))) {
     if (multiscale_manager->subgridModels.size() > 0) {
       // Collect all of the errors for each subgrid model
-      vector<vector<Kokkos::View<ScalarT*,AssemblyDevice> > > blocksgerrs;
+      vector<vector<Kokkos::View<ScalarT*,HostDevice> > > blocksgerrs;
       
       for (size_t block=0; block<assembler->cells.size(); block++) {// loop over blocks
         
-        vector<Kokkos::View<ScalarT*,AssemblyDevice> > sgerrs;
+        vector<Kokkos::View<ScalarT*,HostDevice> > sgerrs;
         for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
-          //vector<pair<size_t,string> > sub_error_list;
-          Kokkos::View<ScalarT*,AssemblyDevice> err = multiscale_manager->subgridModels[m]->computeError(currenttime);
-          //Kokkos::View<ScalarT**,AssemblyDevice> err = multiscale_manager->subgridModels[m]->computeError(subgrid_error_types, currenttime);
+          Kokkos::View<ScalarT*,HostDevice> err = multiscale_manager->subgridModels[m]->computeError(currenttime);
           sgerrs.push_back(err);
-          //subgrid_error_lists.push_back(sub_error_list);
         }
         blocksgerrs.push_back(sgerrs);
       }
+      /*
+      vector<vector<Kokkos::View<ScalarT*,HostDevice> > > host_blocksgerrs;
+      for (size_t k=0; k<blocksgerrs.size(); k++) {
+        vector<Kokkos::View<ScalarT*,HostDevice> > host_sgerrs;
+        for (size_t j=0; j<blocksgerrs[k].size(); j++) {
+          Kokkos::View<ScalarT*,HostDevice> host_err("subgrid error on host",blocksgerrs[k][j].extent(0));
+          Kokkos::deep_copy(host_err,blocksgerrs[k][j]);
+        }
+        host_blocksgerrs.push_back(host_sgerrs);
+      }*/
       subgrid_errors.push_back(blocksgerrs);
     }
   }

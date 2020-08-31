@@ -167,7 +167,7 @@ void AssemblyManager::createCells() {
   mesh->getMyElements(all_meshElems);
   
   // May need to be PHX::Device
-  Kokkos::View<const LO**,PHX::Device> LIDs = DOF->getLIDs();
+  Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> LIDs = DOF->getLIDs();
   
   for (size_t b=0; b<blocknames.size(); b++) {
     vector<Teuchos::RCP<cell> > blockcells;
@@ -225,7 +225,7 @@ void AssemblyManager::createCells() {
       numDOF_KV(k) = curroffsets[k].size();
     }
     blockCellData->numDOF = numDOF_KV;
-    Kokkos::View<LO*,HostDevice> numDOF_host = Kokkos::create_mirror_view(numDOF_KV);
+    Kokkos::View<LO*,HostDevice> numDOF_host("numDOF on host",curroffsets.size());// = Kokkos::create_mirror_view(numDOF_KV);
     Kokkos::deep_copy(numDOF_host, numDOF_KV);
     blockCellData->numDOF_host = numDOF_host;
     
@@ -610,10 +610,10 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
       Kokkos::deep_copy(host_rhs,localrhs);
       Kokkos::deep_copy(host_mass,localmass);
       
-      
       parallel_for("assembly copy LIDs",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
         //const int numVals = static_cast<int>(LIDs.extent(1));
-        int numVals = LIDs.extent(1);
+        const int numVals = LIDs.extent(1);
+        //int numVals = LIDs.extent(1);
         LO cols[numVals];
         ScalarT vals[numVals];
         
@@ -1240,7 +1240,7 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
     else {
       parallel_for("assembly insert Jac",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         //const int numVals = static_cast<int>(LIDs.extent(1));
-        int numVals = LIDs.extent(1);
+        const int numVals = LIDs.extent(1);
         LO cols[numVals];
         ScalarT vals[numVals];
         

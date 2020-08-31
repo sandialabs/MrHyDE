@@ -265,7 +265,7 @@ void SubGridFEM::setUpSubgridModels() {
   sub_mesh->mesh->getMyElements(blockID, stk_meshElems);
   
   // May need to be PHX::Device
-  Kokkos::View<const LO**,Kokkos::LayoutRight,HostDevice> LIDs = DOF->getLIDs();
+  Kokkos::View<const LO**,Kokkos::LayoutRight, PHX::Device> LIDs = DOF->getLIDs();
   
   for (size_t s=0; s<unique_sides.size(); s++) {
     
@@ -283,6 +283,7 @@ void SubGridFEM::setUpSubgridModels() {
       DRV currnodes("currnodes", currElem, numNodesPerElem, dimension);
 
       auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
+      Kokkos::View<int*,HostDevice> host_eIndex2("element indices",currElem);
       auto host_sideIndex = Kokkos::create_mirror_view(sideIndex); // mirror on host
       auto host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
       for (int e=0; e<currElem; e++) {
@@ -298,11 +299,12 @@ void SubGridFEM::setUpSubgridModels() {
      
       Kokkos::deep_copy(currnodes,host_currnodes);
       Kokkos::deep_copy(eIndex,host_eIndex);
+      Kokkos::deep_copy(host_eIndex2,host_eIndex);
       Kokkos::deep_copy(sideIndex,host_sideIndex); 
       
       // Build the Kokkos View of the cell GIDs ------
       
-      LIDView hostLIDs("LIDs on host device", currElem,LIDs.extent(1));
+      LIDView_host hostLIDs("LIDs on host device", currElem,LIDs.extent(1));
       for (int i=0; i<currElem; i++) {
         size_t elemID = eIndex(i);
         for (int j=0; j<LIDs.extent(1); j++) {
@@ -312,7 +314,7 @@ void SubGridFEM::setUpSubgridModels() {
       
       //-----------------------------------------------
       // Set the side information (soon to be removed)-
-      Kokkos::View<int****,HostDevice> sideinfo = sub_physics->getSideInfo(0,host_eIndex);
+      Kokkos::View<int****,HostDevice> sideinfo = sub_physics->getSideInfo(0,host_eIndex2);
       
       //-----------------------------------------------
       // Set the cell orientation ---
