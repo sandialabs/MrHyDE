@@ -106,8 +106,8 @@ public:
   vector<pair<size_t, string> > getErrorList();
 
   //Kokkos::View<ScalarT**,AssemblyDevice> computeError(const ScalarT & time, const int & usernum);
-  Kokkos::View<ScalarT**,AssemblyDevice> computeError(vector<pair<size_t, string> > & sub_error_list,
-                                                      const vector<ScalarT> & times);
+  Kokkos::View<ScalarT**,HostDevice> computeError(vector<pair<size_t, string> > & sub_error_list,
+                                                  const vector<ScalarT> & times);
   
   Kokkos::View<ScalarT*,HostDevice> computeError(const ScalarT & times);
     

@@ -595,9 +595,9 @@ void SubGridFEM::setUpSubgridModels() {
       }
       boundaryCells.push_back(newbcells);
       
-      Kokkos::View<int**,UnifiedDevice> currbcs("boundary conditions",
-                                                subsideinfo.extent(1),
-                                                macroData[mindex]->macrosideinfo.extent(2));
+      Kokkos::View<int**,HostDevice> currbcs("boundary conditions",
+                                             subsideinfo.extent(1),
+                                             macroData[mindex]->macrosideinfo.extent(2));
       for (size_t i=0; i<subsideinfo.extent(1); i++) { // number of variables
         for (size_t j=0; j<macroData[mindex]->macrosideinfo.extent(2); j++) { // number of sides per element
           currbcs(i,j) = 5;
@@ -1409,7 +1409,7 @@ vector<pair<size_t, string> > SubGridFEM::getErrorList() {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 Kokkos::View<ScalarT*,HostDevice> SubGridFEM::computeError(const ScalarT & time) {
-  Kokkos::View<ScalarT*,AssemblyDevice> errors;
+  Kokkos::View<ScalarT*,HostDevice> errors;
   
   if (macroData.size() > 0) {
     
@@ -1437,13 +1437,13 @@ Kokkos::View<ScalarT*,HostDevice> SubGridFEM::computeError(const ScalarT & time)
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT**,AssemblyDevice> SubGridFEM::computeError(vector<pair<size_t, string> > & sub_error_list,
-                                                                const vector<ScalarT> & times) {
+Kokkos::View<ScalarT**,HostDevice> SubGridFEM::computeError(vector<pair<size_t, string> > & sub_error_list,
+                                                            const vector<ScalarT> & times) {
   
-  Kokkos::View<ScalarT**,AssemblyDevice> errors;
+  Kokkos::View<ScalarT**,HostDevice> errors;
   if (macroData.size() > 0) {
     
-    errors = Kokkos::View<ScalarT**,AssemblyDevice>("error", times.size(), sub_postproc->error_list[0].size());
+    errors = Kokkos::View<ScalarT**,HostDevice>("error", times.size(), sub_postproc->error_list[0].size());
     
     
     for (size_t t=0; t<times.size(); t++) {
@@ -1454,7 +1454,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> SubGridFEM::computeError(vector<pair<size
       if (compute) {
         sub_postproc->computeError(times[t]);
         for (size_t b=0; b<sub_postproc->errors[0].size(); b++) {
-          Kokkos::View<ScalarT*,AssemblyDevice> cerr = sub_postproc->errors[0][b];
+          Kokkos::View<ScalarT*,HostDevice> cerr = sub_postproc->errors[0][b];
           for (size_t etype=0; etype<cerr.extent(0); etype++) {
             errors(t,etype) += cerr(etype);
           }

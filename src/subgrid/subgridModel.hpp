@@ -49,8 +49,8 @@ public:
   
   virtual vector<pair<size_t, string> > getErrorList() = 0;
 
-  virtual Kokkos::View<ScalarT**,AssemblyDevice> computeError(vector<pair<size_t, string> > & sub_error_list,
-                                                              const vector<ScalarT> & times) = 0;
+  virtual Kokkos::View<ScalarT**,HostDevice> computeError(vector<pair<size_t, string> > & sub_error_list,
+                                                          const vector<ScalarT> & times) = 0;
   
   virtual Kokkos::View<ScalarT*,HostDevice> computeError(const ScalarT & times) = 0;
   

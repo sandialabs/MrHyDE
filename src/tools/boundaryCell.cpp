@@ -89,30 +89,7 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_) {
       
     }
     
-    hsize = Kokkos::View<ScalarT*,AssemblyDevice>("element sizes",numElem);
-    parallel_for("bcell hsize",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      ScalarT vol = 0.0;
-      for (int i=0; i<wts.extent(1); i++) {
-        vol += wts(e,i);
-      }
-      ScalarT dimscl = 1.0/((ScalarT)ip.extent(2)-1.0);
-      hsize(e) = std::pow(vol,dimscl);
-    });
-    
-    // TMW: this might not be needed
-    // scale the normal vector (we need unit normal...)
-    parallel_for("bcell normal rescale",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int j=0; j<normals.extent(1); j++ ) {
-        ScalarT normalLength = 0.0;
-        for (int sd=0; sd<normals.extent(2); sd++) {
-          normalLength += normals(e,j,sd)*normals(e,j,sd);
-        }
-        normalLength = std::sqrt(normalLength);
-        for (int sd=0; sd<normals.extent(2); sd++) {
-          normals(e,j,sd) = normals(e,j,sd) / normalLength;
-        }
-      }
-    });
+  this->computeSizeNormals();
     
     {
       
@@ -174,6 +151,37 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_) {
       }
     }
   //}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void BoundaryCell::computeSizeNormals() {
+
+  hsize = Kokkos::View<ScalarT*,AssemblyDevice>("element sizes",numElem);
+  parallel_for("bcell hsize",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    ScalarT vol = 0.0;
+    for (int i=0; i<wts.extent(1); i++) {
+      vol += wts(e,i);
+    }
+    ScalarT dimscl = 1.0/((ScalarT)ip.extent(2)-1.0);
+    hsize(e) = std::pow(vol,dimscl);
+  });
+  
+  // TMW: this might not be needed
+  // scale the normal vector (we need unit normal...)
+  parallel_for("bcell normal rescale",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    for (int j=0; j<normals.extent(1); j++ ) {
+      ScalarT normalLength = 0.0;
+      for (int sd=0; sd<normals.extent(2); sd++) {
+        normalLength += normals(e,j,sd)*normals(e,j,sd);
+      }
+      normalLength = std::sqrt(normalLength);
+      for (int sd=0; sd<normals.extent(2); sd++) {
+        normals(e,j,sd) = normals(e,j,sd) / normalLength;
+      }
+    }
+  });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

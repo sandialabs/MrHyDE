@@ -308,10 +308,12 @@ void AssemblyManager::createCells() {
         
         Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
         auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
+        Kokkos::View<LO*,HostDevice> host_eIndex2("element indices",currElem);
         for (size_t e=0; e<host_eIndex.extent(0); e++) {
           host_eIndex(e) = prog+e;
         }
         Kokkos::deep_copy(eIndex,host_eIndex);
+        Kokkos::deep_copy(host_eIndex2,host_eIndex);
         
         DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
         LIDView cellLIDs("LIDs on host device",currElem,LIDs.extent(1));
@@ -327,7 +329,7 @@ void AssemblyManager::createCells() {
         });
         
         // Set the side information (soon to be removed)-
-        Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,host_eIndex);
+        Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,host_eIndex2);
         
         Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", currElem, numNodesPerElem);
         auto host_currind = Kokkos::create_mirror_view(currind);
