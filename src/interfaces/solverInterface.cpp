@@ -255,9 +255,12 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
 void solver::setButcherTableau(const string & tableau) {
   Kokkos::View<ScalarT**,AssemblyDevice> dev_butcher_A;
   Kokkos::View<ScalarT*,AssemblyDevice> dev_butcher_b, dev_butcher_c;
-  auto butcher_A = Kokkos::create_mirror_view(dev_butcher_A);
-  auto butcher_b = Kokkos::create_mirror_view(dev_butcher_b);
-  auto butcher_c = Kokkos::create_mirror_view(dev_butcher_c);
+  //auto butcher_A = Kokkos::create_mirror_view(dev_butcher_A);
+  //auto butcher_b = Kokkos::create_mirror_view(dev_butcher_b);
+  //auto butcher_c = Kokkos::create_mirror_view(dev_butcher_c);
+  
+  Kokkos::View<ScalarT**,HostDevice> butcher_A;
+  Kokkos::View<ScalarT*,HostDevice> butcher_b, butcher_c;
   
   //only filling in the non-zero entries
   if (tableau == "BWE" || tableau == "DIRK-1,1") {

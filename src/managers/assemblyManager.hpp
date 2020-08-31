@@ -136,7 +136,7 @@ public:
   void insert(matrix_RCP & J, vector_RCP & res,
               Kokkos::View<ScalarT***,HostDevice> local_res,
               Kokkos::View<ScalarT***,HostDevice> local_J,
-              LIDView LIDs, LIDView paramLIDs,
+              LIDView_host LIDs, LIDView_host paramLIDs,
               const bool & compute_jacobian, const bool & compute_disc_sens);
     
   ///////////////////////////////////////////////////////////////////////////////////////////

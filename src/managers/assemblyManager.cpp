@@ -167,7 +167,7 @@ void AssemblyManager::createCells() {
   mesh->getMyElements(all_meshElems);
   
   // May need to be PHX::Device
-  Kokkos::View<const LO**,AssemblyDevice> LIDs = DOF->getLIDs();
+  Kokkos::View<const LO**,PHX::Device> LIDs = DOF->getLIDs();
   
   for (size_t b=0; b<blocknames.size(); b++) {
     vector<Teuchos::RCP<cell> > blockcells;
@@ -225,7 +225,7 @@ void AssemblyManager::createCells() {
       numDOF_KV(k) = curroffsets[k].size();
     }
     blockCellData->numDOF = numDOF_KV;
-    Kokkos::View<LO*,AssemblyDevice> numDOF_host = Kokkos::create_mirror_view(numDOF_KV);
+    Kokkos::View<LO*,HostDevice> numDOF_host = Kokkos::create_mirror_view(numDOF_KV);
     Kokkos::deep_copy(numDOF_host, numDOF_KV);
     blockCellData->numDOF_host = numDOF_host;
     
@@ -244,7 +244,7 @@ void AssemblyManager::createCells() {
         DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
         LIDView cellLIDs("LIDs on host device",currElem,LIDs.extent(1));
         
-        auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
+        Kokkos::View<LO*,HostDevice> host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
         //auto host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
         
         auto nodes_sub = Kokkos::subview(blocknodes,std::make_pair(prog, prog+currElem), Kokkos::ALL(), Kokkos::ALL());
@@ -610,8 +610,10 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
       Kokkos::deep_copy(host_rhs,localrhs);
       Kokkos::deep_copy(host_mass,localmass);
       
+      
       parallel_for("assembly copy LIDs",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        const int numVals = static_cast<int>(LIDs.extent(1));
+        //const int numVals = static_cast<int>(LIDs.extent(1));
+        int numVals = LIDs.extent(1);
         LO cols[numVals];
         ScalarT vals[numVals];
         
@@ -856,8 +858,8 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
     local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian on device",numElem,numDOF,numDOF);
   }
   
-  Kokkos::View<ScalarT***,HostDevice> local_res_host = create_mirror_view(local_res);
-  Kokkos::View<ScalarT***,HostDevice> local_J_host = create_mirror_view(local_J);
+  Kokkos::View<ScalarT***,HostDevice> local_res_host("local residual on host",numElem,numDOF,local_res.extent(2));// = create_mirror_view(local_res);
+  Kokkos::View<ScalarT***,HostDevice> local_J_host("local J on host",numElem,numDOF,local_J.extent(2));// = create_mirror_view(local_J);
   
   //Kokkos::View<ScalarT**,AssemblyDevice> aPrev;
   
@@ -951,8 +953,8 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
       local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numDOF);
     }
     
-    Kokkos::View<ScalarT***,HostDevice> local_res_host = create_mirror_view(local_res);
-    Kokkos::View<ScalarT***,HostDevice> local_J_host = create_mirror_view(local_J);
+    Kokkos::View<ScalarT***,HostDevice> local_res_host("local residual on host",numElem,numDOF,local_res.extent(2));// = create_mirror_view(local_res);
+    Kokkos::View<ScalarT***,HostDevice> local_J_host("local J on host",numElem,numDOF,local_J.extent(2));// = create_mirror_view(local_J);
     
     for (size_t e=0; e < boundaryCells[b].size(); e++) {
       
@@ -1237,9 +1239,11 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
     }
     else {
       parallel_for("assembly insert Jac",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        const int numVals = static_cast<int>(LIDs.extent(1));
+        //const int numVals = static_cast<int>(LIDs.extent(1));
+        int numVals = LIDs.extent(1);
         LO cols[numVals];
         ScalarT vals[numVals];
+        
         for (size_t row=0; row<LIDs.extent(1); row++ ) {
           LO rowIndex = LIDs(elem,row);
           if (!isFixedDOF(rowIndex)) {

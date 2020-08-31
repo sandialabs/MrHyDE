@@ -622,27 +622,29 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
           // compute the true solution
           string expression = "true " + varlist[altblock][var];
           FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
-          
+          auto sol = assembler->wkset[altblock]->local_soln;
+          auto wts = assembler->cells[block][cell]->wts;
           // add in the L2 difference at the volumetric ip
-          for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-            for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
-              ScalarT diff = assembler->wkset[altblock]->local_soln(elem,var,pt,0).val() - tsol(elem,pt).val();
-              blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
+          parallel_for("postproc L2 error",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+              ScalarT diff = sol(elem,var,pt,0).val() - tsol(elem,pt).val();
+              blockerrors(etype) += diff*diff*wts(elem,pt);
             }
-          }
+          });
         }
         else if (error_list[altblock][etype].second == "GRAD") {
           // compute the true x-component of grad
           string expression = "true grad(" + varlist[altblock][var] + ")_x";
           FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
-          
+          auto sol_grad = assembler->wkset[altblock]->local_soln_grad;
+          auto wts = assembler->cells[block][cell]->wts;
           // add in the L2 difference at the volumetric ip
-          for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-            for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
-              ScalarT diff = assembler->wkset[altblock]->local_soln_grad(elem,var,pt,0).val() - tsol(elem,pt).val();
-              blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
+          parallel_for("postproc L2 error",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+              ScalarT diff = sol_grad(elem,var,pt,0).val() - tsol(elem,pt).val();
+              blockerrors(etype) += diff*diff*wts(elem,pt);
             }
-          }
+          });
           
           if (spaceDim > 1) {
             // compute the true y-component of grad
@@ -650,12 +652,12 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
             FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
             
             // add in the L2 difference at the volumetric ip
-            for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-              for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
-                ScalarT diff = assembler->wkset[altblock]->local_soln_grad(elem,var,pt,1).val() - tsol(elem,pt).val();
-                blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
+            parallel_for("postproc L2 error",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                ScalarT diff = sol_grad(elem,var,pt,1).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*wts(elem,pt);
               }
-            }
+            });
           }
           
           if (spaceDim >2) {
@@ -664,39 +666,43 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
             FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
             
             // add in the L2 difference at the volumetric ip
-            for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-              for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
-                ScalarT diff = assembler->wkset[altblock]->local_soln_grad(elem,var,pt,2).val() - tsol(elem,pt).val();
-                blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
+            parallel_for("postproc L2 error",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                ScalarT diff = sol_grad(elem,var,pt,2).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*wts(elem,pt);
               }
-            }
+            });
           }
         }
         else if (error_list[altblock][etype].second == "DIV") {
           // compute the true divergence
           string expression = "true div(" + varlist[altblock][var] + ")";
           FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+          auto sol_div = assembler->wkset[altblock]->local_soln_div;
+          auto wts = assembler->cells[block][cell]->wts;
           
           // add in the L2 difference at the volumetric ip
-          for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-            for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
-              ScalarT diff = assembler->wkset[altblock]->local_soln_div(elem,var,pt).val() - tsol(elem,pt).val();
-              blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
+          parallel_for("postproc L2 error",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+              ScalarT diff = sol_div(elem,var,pt).val() - tsol(elem,pt).val();
+              blockerrors(etype) += diff*diff*wts(elem,pt);
             }
-          }
+          });
         }
         else if (error_list[altblock][etype].second == "CURL") {
           // compute the true x-component of grad
           string expression = "true curl(" + varlist[altblock][var] + ")_x";
           FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+          auto sol_curl = assembler->wkset[altblock]->local_soln_curl;
+          auto wts = assembler->cells[block][cell]->wts;
           
           // add in the L2 difference at the volumetric ip
-          for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-            for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
-              ScalarT diff = assembler->wkset[altblock]->local_soln_curl(elem,var,pt,0).val() - tsol(elem,pt).val();
-              blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
+          parallel_for("postproc L2 error",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+              ScalarT diff = sol_curl(elem,var,pt,0).val() - tsol(elem,pt).val();
+              blockerrors(etype) += diff*diff*wts(elem,pt);
             }
-          }
+          });
           
           if (spaceDim > 1) {
             // compute the true y-component of grad
@@ -704,12 +710,12 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
             FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
             
             // add in the L2 difference at the volumetric ip
-            for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-              for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
-                ScalarT diff = assembler->wkset[altblock]->local_soln_curl(elem,var,pt,1).val() - tsol(elem,pt).val();
-                blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
+            parallel_for("postproc L2 error",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                ScalarT diff = sol_curl(elem,var,pt,1).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*wts(elem,pt);
               }
-            }
+            });
           }
           
           if (spaceDim >2) {
@@ -718,26 +724,28 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
             FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
             
             // add in the L2 difference at the volumetric ip
-            for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-              for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
-                ScalarT diff = assembler->wkset[altblock]->local_soln_curl(elem,var,pt,2).val() - tsol(elem,pt).val();
-                blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
+            parallel_for("postproc L2 error",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                ScalarT diff = sol_curl(elem,var,pt,2).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*wts(elem,pt);
               }
-            }
+            });
           }
         }
         else if (error_list[altblock][etype].second == "L2 VECTOR") {
           // compute the true x-component of grad
           string expression = "true " + varlist[altblock][var] + "_x";
           FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+          auto sol = assembler->wkset[altblock]->local_soln;
+          auto wts = assembler->cells[block][cell]->wts;
           
           // add in the L2 difference at the volumetric ip
-          for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-            for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
-              ScalarT diff = assembler->wkset[altblock]->local_soln(elem,var,pt,0).val() - tsol(elem,pt).val();
-              blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
+          parallel_for("postproc L2 error",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+              ScalarT diff = sol(elem,var,pt,0).val() - tsol(elem,pt).val();
+              blockerrors(etype) += diff*diff*wts(elem,pt);
             }
-          }
+          });
           
           if (spaceDim > 1) {
             // compute the true y-component of grad
@@ -745,12 +753,12 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
             FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
             
             // add in the L2 difference at the volumetric ip
-            for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-              for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
-                ScalarT diff = assembler->wkset[altblock]->local_soln(elem,var,pt,1).val() - tsol(elem,pt).val();
-                blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
+            parallel_for("postproc L2 error",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                ScalarT diff = sol(elem,var,pt,1).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*wts(elem,pt);
               }
-            }
+            });
           }
           
           if (spaceDim >2) {
@@ -759,12 +767,12 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
             FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
             
             // add in the L2 difference at the volumetric ip
-            for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
-              for( size_t pt=0; pt<assembler->wkset[altblock]->wts.extent(1); pt++ ) {
-                ScalarT diff = assembler->wkset[altblock]->local_soln(elem,var,pt,2).val() - tsol(elem,pt).val();
-                blockerrors(etype) += diff*diff*assembler->wkset[altblock]->wts(elem,pt);
+            parallel_for("postproc L2 error",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                ScalarT diff = sol(elem,var,pt,2).val() - tsol(elem,pt).val();
+                blockerrors(etype) += diff*diff*wts(elem,pt);
               }
-            }
+            });
           }
         }
       }
@@ -779,19 +787,21 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
               // compute the true z-component of grad
               string expression = "true " + varlist[altblock][var];
               FDATA tsol = functionManagers[altblock]->evaluate(expression,"side ip");
+              auto sol = assembler->wkset[altblock]->local_soln_face;
+              auto wts = assembler->cells[block][cell]->wts_face[face];
               
               // add in the L2 difference at the volumetric ip
-              for (int elem=0; elem<assembler->cells[block][cell]->numElem; elem++) {
+              parallel_for("postproc L2 error",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem ) {
                 double facemeasure = 0.0;
-                for( size_t pt=0; pt<assembler->wkset[altblock]->wts_side.extent(1); pt++ ) {
-                  facemeasure += assembler->wkset[altblock]->wts_side(elem,pt);
+                for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                  facemeasure += wts(elem,pt);
                 }
                 
-                for( size_t pt=0; pt<assembler->wkset[altblock]->wts_side.extent(1); pt++ ) {
-                  ScalarT diff = assembler->wkset[altblock]->local_soln_face(elem,var,pt,0).val() - tsol(elem,pt).val();
-                  blockerrors(etype) += 0.5/facemeasure*diff*diff*assembler->wkset[altblock]->wts_side(elem,pt);
+                for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                  ScalarT diff = sol(elem,var,pt,0).val() - tsol(elem,pt).val();
+                  blockerrors(etype) += 0.5/facemeasure*diff*diff*wts(elem,pt);
                 }
-              }
+              });
             }
           }
         }
@@ -799,7 +809,16 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
     }
     currerror.push_back(blockerrors);
   } // end block loop
-  errors.push_back(currerror);
+  
+  // Need to move currerrors to Host
+  vector<Kokkos::View<ScalarT*,HostDevice> > host_error;
+  for (size_t k=0; k<currerror.size(); k++) {
+    Kokkos::View<ScalarT*,HostDevice> host_cerr("error on host",currerror[k].extent(0));
+    Kokkos::deep_copy(host_cerr,currerror[k]);
+    host_error.push_back(host_cerr);
+  }
+  
+  errors.push_back(host_error);
   
   // Reset
   for (size_t b=0; b<assembler->wkset.size(); b++) {

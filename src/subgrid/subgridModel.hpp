@@ -108,7 +108,7 @@ public:
   vector<int> macro_usebasis;
   //vector<vector<int> > macro_offsets;
   Kokkos::View<LO**,AssemblyDevice> macro_offsets;
-  Kokkos::View<int*,UnifiedDevice> macro_numDOF;
+  Kokkos::View<int*,HostDevice> macro_numDOF;
   
   vector<string> macro_paramnames, macro_disc_paramnames, macrosidenames;
   int macro_block;

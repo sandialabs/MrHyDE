@@ -251,7 +251,7 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
         numLocalDOF += paramNumBasis[k];
       }
       cells[b][0]->cellData->numParamDOF = numDOF_KV;
-      Kokkos::View<LO*,AssemblyDevice> numDOF_host = Kokkos::create_mirror_view(numDOF_KV);
+      Kokkos::View<LO*,HostDevice> numDOF_host = Kokkos::create_mirror_view(numDOF_KV);
       Kokkos::deep_copy(numDOF_host, numDOF_KV);
       cells[b][0]->cellData->numParamDOF_host = numDOF_host;
       
