@@ -182,21 +182,9 @@ void AssemblyManager::createCells() {
     auto host_blocknodes = Kokkos::create_mirror_view(blocknodes);
     panzer_stk::workset_utils::getIdsAndVertices(*mesh, blocknames[b], localIds, host_blocknodes); // fill on host
     Kokkos::deep_copy(blocknodes, host_blocknodes);
-    
-    Kokkos::DynRankView<ScalarT,AssemblyDevice> tmprefnodes("nodes on reference element 0",1,numNodesPerElem,spaceDim);
-    Kokkos::DynRankView<ScalarT,AssemblyDevice> tmpnodes("nodes on first element",1,numNodesPerElem,spaceDim);
-    for (size_t i=0; i<tmpnodes.extent(1); i++) {
-      for (size_t j=0; j<tmpnodes.extent(2); j++) {
-        tmpnodes(0,i,j) = host_blocknodes(0,i,j);
-      }
-    }
-    CellTools::mapToReferenceFrame(tmprefnodes, tmpnodes, tmpnodes, *cellTopo);
-    Kokkos::DynRankView<ScalarT,AssemblyDevice> refnodes("nodes on reference element",numNodesPerElem,spaceDim);
-    for (size_t i=0; i<tmprefnodes.extent(1); i++) {
-      for (size_t j=0; j<tmprefnodes.extent(2); j++) {
-        refnodes(i,j) = tmprefnodes(0,i,j);
-      }
-    }
+        
+    DRV refnodes("nodes on reference element",numNodesPerElem,spaceDim);
+    CellTools::getReferenceSubcellVertices(refnodes, spaceDim, 0, *cellTopo);
     
     int elemPerCell = settings->sublist("Solver").get<int>("workset size",1);
     int prog = 0;
