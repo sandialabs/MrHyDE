@@ -244,7 +244,8 @@ void AssemblyManager::createCells() {
         DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
         LIDView cellLIDs("LIDs on host device",currElem,LIDs.extent(1));
         
-        Kokkos::View<LO*,HostDevice> host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
+        auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
+        Kokkos::View<LO*,HostDevice> host_eIndex2("element indices on host",currElem);
         //auto host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
         
         auto nodes_sub = Kokkos::subview(blocknodes,std::make_pair(prog, prog+currElem), Kokkos::ALL(), Kokkos::ALL());
@@ -260,7 +261,7 @@ void AssemblyManager::createCells() {
         }
         //Kokkos::deep_copy(currnodes,host_currnodes);
         Kokkos::deep_copy(eIndex,host_eIndex);
-        
+        Kokkos::deep_copy(host_eIndex2,host_eIndex);
         // This subview only works if the cells use a continuous ordering of elements
         // Considering generalizing this to reduce atomic overhead, so performing manual deep copy for now
         //LIDView cellLIDs = Kokkos::subview(LIDs, std::make_pair(prog,prog+currElem), Kokkos::ALL());
@@ -273,7 +274,7 @@ void AssemblyManager::createCells() {
         });
         
         // Set the side information (soon to be removed)-
-        Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,host_eIndex);
+        Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,host_eIndex2);
         
         Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", currElem, numNodesPerElem);
         auto host_currind = Kokkos::create_mirror_view(currind);
@@ -610,25 +611,28 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
       Kokkos::deep_copy(host_rhs,localrhs);
       Kokkos::deep_copy(host_mass,localmass);
       
+      // Would prefer to rewrite this
       parallel_for("assembly copy LIDs",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
         //const int numVals = static_cast<int>(LIDs.extent(1));
-        const int numVals = LIDs.extent(1);
+        //const int numVals = LIDs.extent(1);
         //int numVals = LIDs.extent(1);
-        LO cols[numVals];
-        ScalarT vals[numVals];
+        //LO cols[numVals];
+        //ScalarT vals[numVals];
         
         for( size_t row=0; row<LIDs.extent(1); row++ ) {
           LO rowIndex = LIDs(e,row);
           ScalarT val = host_rhs(e,row);
           rhs->sumIntoLocalValue(rowIndex, 0, val);
           for( size_t col=0; col<LIDs.extent(1); col++ ) {
-            vals[col] = host_mass(e,row,col);
-            cols[col] = LIDs(e,col);
+            ScalarT vals = host_mass(e,row,col);
+            LO cols = LIDs(e,col);
+            localMatrix.sumIntoValues(rowIndex, &cols, 1, &vals, true, false); // isSorted, useAtomics
+            // the LIDs are actually not sorted, but this appears to run a little faster
           }
-          localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, false); // isSorted, useAtomics
-          // the LIDs are actually not sorted, but this appears to run a little faster
+          
         }
       });
+      //});
     }
   }
   
@@ -1240,18 +1244,19 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
     else {
       parallel_for("assembly insert Jac",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         //const int numVals = static_cast<int>(LIDs.extent(1));
-        const int numVals = LIDs.extent(1);
-        LO cols[numVals];
-        ScalarT vals[numVals];
+        //const int numVals = LIDs.extent(1);
+        //LO cols[numVals];
+        //ScalarT vals[numVals];
         
         for (size_t row=0; row<LIDs.extent(1); row++ ) {
           LO rowIndex = LIDs(elem,row);
           if (!isFixedDOF(rowIndex)) {
             for (size_t col=0; col<LIDs.extent(1); col++ ) {
-              vals[col] = local_J(elem,row,col);
-              cols[col] = LIDs(elem,col);
+              ScalarT vals = local_J(elem,row,col);
+              LO cols = LIDs(elem,col);
+              localMatrix.sumIntoValues(rowIndex, &cols, 1, &vals, true, use_atomics); // isSorted, useAtomics
             }
-            localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics); // isSorted, useAtomics
+            //localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics); // isSorted, useAtomics
           }
         }
       });

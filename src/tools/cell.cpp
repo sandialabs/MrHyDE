@@ -25,13 +25,13 @@ cellData(cellData_), localElemID(localID_), nodes(nodes_),
 LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_)
 {
   
-  LIDs_host = Kokkos::create_mirror_view(LIDs);
+  LIDs_host = LIDView_host("LIDs on host",LIDs.extent(0), LIDs.extent(1)); //Kokkos::create_mirror_view(LIDs);
   Kokkos::deep_copy(LIDs_host,LIDs);
   
   numElem = nodes.extent(0);
   useSensors = false;
   
-  {
+  //{
     Teuchos::TimeMonitor localtimer(*buildBasisTimer);
     
     int dimension = cellData->dimension;
@@ -137,7 +137,7 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_)
       basis_curl.push_back(basis_curl_vals);
       basis_nodes.push_back(basis_node_vals);
     }
-  }
+  //}
   
   if (cellData->build_face_terms) {
     Teuchos::TimeMonitor localtimer(*buildFaceBasisTimer);
@@ -157,7 +157,7 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_)
       DRV snormals = DRV("normals", numElem, numip, dimension);
       DRV tangents("tangents", numElem, numip, dimension);
       
-      {
+      //{
         //Teuchos::TimeMonitor updatetimer(*worksetFaceUpdateIPTimer);
         
         CellTools::mapToPhysicalFrame(sip, ref_ip, nodes, *(cellData->cellTopo));
@@ -213,10 +213,10 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_)
         ip_face.push_back(sip);
         wts_face.push_back(swts);
         normals_face.push_back(snormals);
-      }
+      //}
       
       // Step 2: define basis functionsat these integration points
-      {
+      //{
         //Teuchos::TimeMonitor updatetimer(*worksetFaceUpdateBasisTimer);
         vector<DRV> currbasis, currbasisgrad;
         for (size_t i=0; i<cellData->basis_pointers.size(); i++) {
@@ -275,7 +275,7 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_)
         }
         basis_face.push_back(currbasis);
         basis_grad_face.push_back(currbasisgrad);
-      }
+      //}
     }
   }
 }

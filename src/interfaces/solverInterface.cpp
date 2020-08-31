@@ -495,7 +495,7 @@ void solver::setBackwardDifference(const int & order) { // using order as an inp
   if (isTransient) {
     
     if (order == 1) {
-      BDF_wts = Kokkos::View<ScalarT*,AssemblyDevice>("BDF weights to compute u_dot",2);
+      BDF_wts = Kokkos::View<ScalarT*,HostDevice>("BDF weights to compute u_dot",2);
       BDF_wts(0) = 1.0;
       BDF_wts(1) = -1.0;
     }

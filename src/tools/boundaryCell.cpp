@@ -33,10 +33,10 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_) {
   
   numElem = nodes.extent(0);
   
-  LIDs_host = Kokkos::create_mirror_view(LIDs);
+  LIDs_host = LIDView_host("LIDs on host",LIDs.extent(0), LIDs.extent(1)); //Kokkos::create_mirror_view(LIDs);
   Kokkos::deep_copy(LIDs_host,LIDs);
   
-  {
+  //{
     Teuchos::TimeMonitor localtimer(*buildBasisTimer);
     
     DRV ref_ip = cellData->ref_side_ip[localSideID(0)];
@@ -53,47 +53,39 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_) {
     normals = DRV("boundary normals", numElem, numip, dimension);
     tangents = DRV("boundary tangents", numElem, numip, dimension);
     
-    {
-      //Teuchos::TimeMonitor dbgtimer(*worksetDebugTimer0);
-      CellTools::mapToPhysicalFrame(ip, ref_ip, nodes, *(cellData->cellTopo));
-      CellTools::setJacobian(ijac, ref_ip, nodes, *(cellData->cellTopo));
-      CellTools::setJacobianInv(ijacInv, ijac);
-      CellTools::setJacobianDet(ijacDet, ijac);
-    }
+    CellTools::mapToPhysicalFrame(ip, ref_ip, nodes, *(cellData->cellTopo));
+    CellTools::setJacobian(ijac, ref_ip, nodes, *(cellData->cellTopo));
+    CellTools::setJacobianInv(ijacInv, ijac);
+    CellTools::setJacobianDet(ijacDet, ijac);
     
-    {
-      //Teuchos::TimeMonitor dbgtimer(*worksetDebugTimer1);
+    if (dimension == 2) {
+      DRV ref_tangents = cellData->ref_side_tangents[localSideID(0)];
+      Intrepid2::RealSpaceTools<AssemblyExec>::matvec(tangents, ijac, ref_tangents);
       
-      if (dimension == 2) {
-        DRV ref_tangents = cellData->ref_side_tangents[localSideID(0)];
-        Intrepid2::RealSpaceTools<AssemblyExec>::matvec(tangents, ijac, ref_tangents);
-        
-        DRV rotation("rotation matrix",dimension,dimension);
-        rotation(0,0) = 0;  rotation(0,1) = 1;
-        rotation(1,0) = -1; rotation(1,1) = 0;
-        Intrepid2::RealSpaceTools<AssemblyExec>::matvec(normals, rotation, tangents);
-        
-        Intrepid2::RealSpaceTools<AssemblyExec>::vectorNorm(wts, tangents, Intrepid2::NORM_TWO);
-        Intrepid2::ArrayTools<AssemblyExec>::scalarMultiplyDataData(wts, wts, ref_wts);
-        
-      }
-      else if (dimension == 3) {
-        
-        DRV ref_tangentsU = cellData->ref_side_tangentsU[localSideID(0)];
-        DRV ref_tangentsV = cellData->ref_side_tangentsV[localSideID(0)];
-        
-        DRV faceTanU("face tangent U", numElem, numip, dimension);
-        DRV faceTanV("face tangent V", numElem, numip, dimension);
-        
-        Intrepid2::RealSpaceTools<AssemblyExec>::matvec(faceTanU, ijac, ref_tangentsU);
-        Intrepid2::RealSpaceTools<AssemblyExec>::matvec(faceTanV, ijac, ref_tangentsV);
-        
-        Intrepid2::RealSpaceTools<AssemblyExec>::vecprod(normals, faceTanU, faceTanV);
-        
-        Intrepid2::RealSpaceTools<AssemblyExec>::vectorNorm(wts, normals, Intrepid2::NORM_TWO);
-        Intrepid2::ArrayTools<AssemblyExec>::scalarMultiplyDataData(wts, wts, ref_wts);
-        
-      }
+      DRV rotation("rotation matrix",dimension,dimension);
+      rotation(0,0) = 0;  rotation(0,1) = 1;
+      rotation(1,0) = -1; rotation(1,1) = 0;
+      Intrepid2::RealSpaceTools<AssemblyExec>::matvec(normals, rotation, tangents);
+      
+      Intrepid2::RealSpaceTools<AssemblyExec>::vectorNorm(wts, tangents, Intrepid2::NORM_TWO);
+      Intrepid2::ArrayTools<AssemblyExec>::scalarMultiplyDataData(wts, wts, ref_wts);
+      
+    }
+    else if (dimension == 3) {
+      
+      DRV ref_tangentsU = cellData->ref_side_tangentsU[localSideID(0)];
+      DRV ref_tangentsV = cellData->ref_side_tangentsV[localSideID(0)];
+      
+      DRV faceTanU("face tangent U", numElem, numip, dimension);
+      DRV faceTanV("face tangent V", numElem, numip, dimension);
+      
+      Intrepid2::RealSpaceTools<AssemblyExec>::matvec(faceTanU, ijac, ref_tangentsU);
+      Intrepid2::RealSpaceTools<AssemblyExec>::matvec(faceTanV, ijac, ref_tangentsV);
+      
+      Intrepid2::RealSpaceTools<AssemblyExec>::vecprod(normals, faceTanU, faceTanV);
+      
+      Intrepid2::RealSpaceTools<AssemblyExec>::vectorNorm(wts, normals, Intrepid2::NORM_TWO);
+      Intrepid2::ArrayTools<AssemblyExec>::scalarMultiplyDataData(wts, wts, ref_wts);
       
     }
     
@@ -181,7 +173,7 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_) {
         basis_curl.push_back(basis_curl_vals);
       }
     }
-  }
+  //}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

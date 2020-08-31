@@ -304,13 +304,13 @@ void SubGridFEM::setUpSubgridModels() {
       
       // Build the Kokkos View of the cell GIDs ------
       
-      LIDView_host hostLIDs("LIDs on host device", currElem,LIDs.extent(1));
-      for (int i=0; i<currElem; i++) {
+      LIDView cellLIDs("LIDs on host device", currElem,LIDs.extent(1));
+      parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int i ) {
         size_t elemID = eIndex(i);
         for (int j=0; j<LIDs.extent(1); j++) {
-          hostLIDs(i,j) = LIDs(elemID,j);
+          cellLIDs(i,j) = LIDs(elemID,j);
         }
-      }
+      });
       
       //-----------------------------------------------
       // Set the side information (soon to be removed)-
@@ -334,7 +334,7 @@ void SubGridFEM::setUpSubgridModels() {
       
       newbcells.push_back(Teuchos::rcp(new BoundaryCell(cellData,currnodes,eIndex,sideIndex,
                                                         sideID, sidename, newbcells.size(),
-                                                        hostLIDs, sideinfo, orient_drv)));
+                                                        cellLIDs, sideinfo, orient_drv)));
       
       prog += currElem;
     }
@@ -347,9 +347,9 @@ void SubGridFEM::setUpSubgridModels() {
   sub_assembler->boundaryCells = boundaryCells;
   
   
-  Kokkos::View<int**,UnifiedDevice> currbcs("boundary conditions",
-                                            sideinfo.extent(1),
-                                            macroData[0]->macrosideinfo.extent(2));
+  Kokkos::View<int**,HostDevice> currbcs("boundary conditions",
+                                         sideinfo.extent(1),
+                                         macroData[0]->macrosideinfo.extent(2));
   for (size_t i=0; i<sideinfo.extent(1); i++) { // number of variables
     for (size_t j=0; j<macroData[0]->macrosideinfo.extent(2); j++) { // number of sides per element
       currbcs(i,j) = 5;
@@ -1405,14 +1405,15 @@ vector<pair<size_t, string> > SubGridFEM::getErrorList() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
+// These views are on the Host since we are using the postproc mananger
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT*,AssemblyDevice> SubGridFEM::computeError(const ScalarT & time) {
+Kokkos::View<ScalarT*,HostDevice> SubGridFEM::computeError(const ScalarT & time) {
   Kokkos::View<ScalarT*,AssemblyDevice> errors;
   
   if (macroData.size() > 0) {
     
-    errors = Kokkos::View<ScalarT*,AssemblyDevice>("error", sub_postproc->error_list[0].size());
+    errors = Kokkos::View<ScalarT*,HostDevice>("error", sub_postproc->error_list[0].size());
     
     bool compute = false;
     if (subgrid_static) {
@@ -1421,7 +1422,7 @@ Kokkos::View<ScalarT*,AssemblyDevice> SubGridFEM::computeError(const ScalarT & t
     if (compute) {
       sub_postproc->computeError(time);
       for (size_t b=0; b<sub_postproc->errors[0].size(); b++) {
-        Kokkos::View<ScalarT*,AssemblyDevice> cerr = sub_postproc->errors[0][b];
+        Kokkos::View<ScalarT*,HostDevice> cerr = sub_postproc->errors[0][b];
         for (size_t etype=0; etype<cerr.extent(0); etype++) {
           errors(etype) += cerr(etype);
         }
