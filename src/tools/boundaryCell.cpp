@@ -170,6 +170,7 @@ void BoundaryCell::computeSizeNormals() {
   
   // TMW: this might not be needed
   // scale the normal vector (we need unit normal...)
+  
   parallel_for("bcell normal rescale",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (int j=0; j<normals.extent(1); j++ ) {
       ScalarT normalLength = 0.0;
@@ -182,6 +183,7 @@ void BoundaryCell::computeSizeNormals() {
       }
     }
   });
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -207,7 +209,7 @@ void BoundaryCell::setWorkset(Teuchos::RCP<workset> & wkset_) {
 
 void BoundaryCell::setParams(LIDView paramLIDs_) {
   paramLIDs = paramLIDs_;
-  paramLIDs_host = Kokkos::create_mirror_view(paramLIDs);
+  paramLIDs_host = LIDView_host("param LIDs on host", paramLIDs.extent(0), paramLIDs.extent(1)); //Kokkos::create_mirror_view(paramLIDs);
   Kokkos::deep_copy(paramLIDs_host, paramLIDs);
   
   // This has now been set
@@ -706,8 +708,18 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
   
   wkset->setTime(time);
   
-  auto u_kv = gl_u->getLocalView<AssemblyDevice>();
-  auto du_kv = gl_du->getLocalView<AssemblyDevice>();
+  auto u_host = gl_u->getLocalView<HostDevice>();
+  auto du_host = gl_du->getLocalView<HostDevice>();
+  Kokkos::View<ScalarT**,AssemblyDevice> u_kv("tpetra vector on device",u_host.extent(0),u_host.extent(1));
+  Kokkos::View<ScalarT**,AssemblyDevice> du_kv("tpetra vector on device",du_host.extent(0),du_host.extent(1));
+  auto vec_host = Kokkos::create_mirror_view(u_kv);
+  auto dvec_host = Kokkos::create_mirror_view(du_kv);
+  
+  Kokkos::deep_copy(vec_host,u_host);
+  Kokkos::deep_copy(u_kv,vec_host);
+  
+  Kokkos::deep_copy(dvec_host,du_host);
+  Kokkos::deep_copy(du_kv,dvec_host);
   
   Kokkos::View<AD***,AssemblyDevice> u_AD("temp u AD",u.extent(0),u.extent(1),u.extent(2));
   Kokkos::View<AD***,AssemblyDevice> param_AD("temp u AD",1,1,1);
@@ -717,8 +729,8 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
     
     if (compute_sens) {
       parallel_for("bcell flux gather",RangePolicy<AssemblyExec>(0,u_AD.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for (size_t var=0; var<u_AD.extent(1); var++) {
-          for( size_t dof=0; dof<u_AD.extent(2); dof++ ) {
+        for (size_t var=0; var<u_kv.extent(1); var++) {
+          for( size_t dof=0; dof<u_kv.extent(2); dof++ ) {
             u_AD(elem,var,dof) = AD(u_kv(LIDs(elem,offsets(var,dof)),0));
           }
         }
@@ -839,7 +851,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> BoundaryCell::getMass() {
   Kokkos::View<ScalarT***,AssemblyDevice> mass("local mass",numElem,
                                                LIDs.extent(1), LIDs.extent(1));
   
-  Kokkos::View<int**,AssemblyDevice> bcs = wkset->var_bcs;
+  Kokkos::View<int**,HostDevice> bcs = wkset->var_bcs;
   Kokkos::View<int[1],AssemblyDevice> currind("current index");
   auto currind_host = Kokkos::create_mirror_view(currind);
   
@@ -871,7 +883,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> BoundaryCell::getMass() {
             for( int j=0; j<numDOF(n); j++ ) {
               for( size_t k=0; k<cbasis.extent(2); k++ ) {
                 for (size_t s=0; s<cbasis.extent(3); s++) {
-                  mass(e,offsets(n,i),offsets(n,j)) += cbasis(e,i,k,s)*normals(e,k,s)*cbasis(e,j,k)*normals(e,k,s)*wts(e,k);
+                  mass(e,offsets(n,i),offsets(n,j)) += cbasis(e,i,k,s)*normals(e,k,s)*cbasis(e,j,k,s)*normals(e,k,s)*wts(e,k);
                 }
               }
             }

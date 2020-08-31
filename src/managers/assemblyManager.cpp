@@ -161,8 +161,6 @@ void AssemblyManager::createCells() {
     }
   }
   
-  int numElem = numElemPerCell;
-  
   vector<stk::mesh::Entity> all_meshElems;
   mesh->getMyElements(all_meshElems);
   
@@ -345,7 +343,8 @@ void AssemblyManager::createCells() {
         Kokkos::deep_copy(currind, host_currind);
         
         Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orient_drv("kv to orients",currElem);
-        Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *cellTopo);
+        //Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *cellTopo);
+        OrientTools::getOrientation(orient_drv, currind, *cellTopo);
         
         blockcells.push_back(Teuchos::rcp(new cell(blockCellData, currnodes, eIndex,
                                                    cellLIDs, sideinfo, orient_drv)));
@@ -423,6 +422,7 @@ void AssemblyManager::createCells() {
               DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
               
               auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
+              Kokkos::View<LO*,HostDevice> host_eIndex2("element indices",currElem);
               auto host_sideIndex = Kokkos::create_mirror_view(sideIndex); // mirror on host
               auto host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
               
@@ -437,6 +437,7 @@ void AssemblyManager::createCells() {
               }
               Kokkos::deep_copy(currnodes,host_currnodes);
               Kokkos::deep_copy(eIndex,host_eIndex);
+              Kokkos::deep_copy(host_eIndex2,host_eIndex);
               Kokkos::deep_copy(sideIndex,host_sideIndex);
               
               // Build the Kokkos View of the cell GIDs ------
@@ -451,7 +452,7 @@ void AssemblyManager::createCells() {
               
               //-----------------------------------------------
               // Set the side information (soon to be removed)-
-              Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,host_eIndex);
+              Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,host_eIndex2);
               //-----------------------------------------------
               
               // Set the cell orientation ---
