@@ -159,31 +159,37 @@ LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_) {
 void BoundaryCell::computeSizeNormals() {
 
   hsize = Kokkos::View<ScalarT*,AssemblyDevice>("element sizes",numElem);
-  parallel_for("bcell hsize",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  auto host_hsize = Kokkos::create_mirror_view(hsize);
+  auto host_wts = Kokkos::create_mirror_view(wts);
+  Kokkos::deep_copy(host_wts,wts);
+
+  parallel_for("bcell hsize",RangePolicy<HostExec>(0,host_wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
     ScalarT vol = 0.0;
-    for (int i=0; i<wts.extent(1); i++) {
-      vol += wts(e,i);
+    for (int i=0; i<host_wts.extent(1); i++) {
+      vol += host_wts(e,i);
     }
     ScalarT dimscl = 1.0/((ScalarT)ip.extent(2)-1.0);
-    hsize(e) = std::pow(vol,dimscl);
+    host_hsize(e) = std::pow(vol,dimscl);
   });
-  
+  Kokkos::deep_copy(hsize,host_hsize);
+
   // TMW: this might not be needed
   // scale the normal vector (we need unit normal...)
-  
-  parallel_for("bcell normal rescale",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    for (int j=0; j<normals.extent(1); j++ ) {
+
+  auto host_normals = Kokkos::create_mirror_view(normals);  
+  parallel_for("bcell normal rescale",RangePolicy<HostExec>(0,host_normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    for (int j=0; j<host_normals.extent(1); j++ ) {
       ScalarT normalLength = 0.0;
-      for (int sd=0; sd<normals.extent(2); sd++) {
-        normalLength += normals(e,j,sd)*normals(e,j,sd);
+      for (int sd=0; sd<host_normals.extent(2); sd++) {
+        normalLength += host_normals(e,j,sd)*host_normals(e,j,sd);
       }
       normalLength = std::sqrt(normalLength);
-      for (int sd=0; sd<normals.extent(2); sd++) {
-        normals(e,j,sd) = normals(e,j,sd) / normalLength;
+      for (int sd=0; sd<host_normals.extent(2); sd++) {
+        host_normals(e,j,sd) = host_normals(e,j,sd) / normalLength;
       }
     }
   });
-  
+  Kokkos::deep_copy(normals, host_normals);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

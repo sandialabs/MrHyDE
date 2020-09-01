@@ -299,7 +299,11 @@ void AssemblyManager::createCells() {
      // need neighbor information
     }
     cells.push_back(blockcells);
-    
+   
+    for (size_t e=0; e<cells[b].size(); e++) {
+      cells[b][e]->computeSize();
+    }
+ 
     //////////////////////////////////////////////////////////////////////////////////
     // Boundary cells
     //////////////////////////////////////////////////////////////////////////////////
