@@ -284,8 +284,8 @@ void AssemblyManager::createCells() {
         }
         Kokkos::deep_copy(currind, host_currind);
         
-        Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orient_drv("kv to orients",currElem);
-        Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *cellTopo);
+        Kokkos::DynRankView<Intrepid2::Orientation,AssemblyExec> orient_drv("kv to orients",currElem);
+        OrientTools::getOrientation(orient_drv, currind, *cellTopo);
         
         blockcells.push_back(Teuchos::rcp(new cell(blockCellData, currnodes, eIndex,
                                                    cellLIDs, sideinfo, orient_drv)));
@@ -416,8 +416,8 @@ void AssemblyManager::createCells() {
               }
               Kokkos::deep_copy(currind, host_currind);
                             
-              Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orient_drv("kv to orients",currElem);
-              Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *cellTopo);
+              Kokkos::DynRankView<Intrepid2::Orientation,AssemblyExec> orient_drv("kv to orients",currElem);
+              OrientTools::getOrientation(orient_drv, currind, *cellTopo);
               
               bcells.push_back(Teuchos::rcp(new BoundaryCell(blockCellData, currnodes, eIndex, sideIndex,
                                                              side, sideName, bcells.size(),
