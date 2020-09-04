@@ -715,6 +715,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
       cellData->physics_RCP->volumeResidual(cellData->myBlock);
     }
   }
+  Kokkos::fence();
   
   // Edge/face contribution
   if (assemble_face_terms) {

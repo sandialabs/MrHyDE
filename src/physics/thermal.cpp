@@ -74,13 +74,16 @@ void thermal::volumeResidual() {
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
-  
+ 
+  Kokkos::fence();
+ 
   // Contributes:
   // (f(u),v) + (DF(u),nabla v)
   // f(u) = rho*cp*de/dt - source
   // DF(u) = diff*grad(e)
   
   wts = wkset->wts;
+  res = wkset->res;
   auto T = Kokkos::subview( sol, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
   auto dTdt = Kokkos::subview( sol_dot, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
   auto gradT = Kokkos::subview( sol_grad, Kokkos::ALL(), e_num, Kokkos::ALL(), Kokkos::ALL());
@@ -101,7 +104,7 @@ void thermal::volumeResidual() {
   }
   else if (spaceDim == 2) {
     parallel_for("Thermal volume resid 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (int pt=0; pt<sol.extent(2); pt++ ) {
+      for (int pt=0; pt<basis.extent(2); pt++ ) {
         AD f = rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt);
         AD DFx = diff(elem,pt)*gradT(elem,pt,0);
         AD DFy = diff(elem,pt)*gradT(elem,pt,1);
@@ -116,7 +119,7 @@ void thermal::volumeResidual() {
   }
   else {
     parallel_for("Thermal volume resid 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (int pt=0; pt<sol.extent(2); pt++ ) {
+      for (int pt=0; pt<basis.extent(2); pt++ ) {
         AD f = rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt);
         AD DFx = diff(elem,pt)*gradT(elem,pt,0);
         AD DFy = diff(elem,pt)*gradT(elem,pt,1);
@@ -131,6 +134,7 @@ void thermal::volumeResidual() {
       }
     });
   }
+  Kokkos::fence();
   
   // Contributes:
   // (f(u),v)
