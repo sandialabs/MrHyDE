@@ -1103,29 +1103,38 @@ Kokkos::View<ScalarT*,AssemblyDevice> physics::getExtraCellFields(const int & bl
   FDATA efdata = functionManagers[block]->evaluate(extracellfields_list[block][fnum],"ip");
   size_t numip = wts.extent(1);
   
-  parallel_for("physics get extra cell fields",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    ScalarT cellmeas = 0.0;
-    for (size_t pt=0; pt<wts.extent(1); pt++) {
-      cellmeas += wts(e,pt);
-    }
-    for (size_t j=0; j<wts.extent(1); j++) {
-      ScalarT val = efdata(e,j).val();
-      if (cellfield_reduction == "mean") { // default
+  if (cellfield_reduction == "mean") { // default
+    parallel_for("physics get extra cell fields",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      ScalarT cellmeas = 0.0;
+      for (size_t pt=0; pt<wts.extent(1); pt++) {
+        cellmeas += wts(e,pt);
+      }
+      for (size_t j=0; j<wts.extent(1); j++) {
+        ScalarT val = efdata(e,j).val();
         fields(e) += val*wts(e,j)/cellmeas;
       }
-      if (cellfield_reduction == "max") {
+    });
+  }
+  else if (cellfield_reduction == "max") {
+    parallel_for("physics get extra cell fields",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (size_t j=0; j<wts.extent(1); j++) {
+        ScalarT val = efdata(e,j).val();
         if (val>fields(e)) {
           fields(e) = val;
         }
       }
-      if (cellfield_reduction == "min") {
+    });
+  }
+  if (cellfield_reduction == "min") {
+    parallel_for("physics get extra cell fields",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (size_t j=0; j<wts.extent(1); j++) {
+        ScalarT val = efdata(e,j).val();
         if (val<fields(e)) {
           fields(e) = val;
         }
       }
-      
-    }
-  });
+    });
+  }
   
   return fields;
 }

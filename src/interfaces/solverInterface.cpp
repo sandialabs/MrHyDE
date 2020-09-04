@@ -1733,17 +1733,20 @@ vector_RCP solver::setInitial() {
     // This will be done on the host for now
     auto initial_kv = initial->getLocalView<HostDevice>();
     for (size_t block=0; block<assembler->cells.size(); block++) {
+      Kokkos::View<int**,AssemblyDevice> offsets = assembler->wkset[block]->offsets;
+      auto host_offsets = Kokkos::create_mirror_view(offsets);
+      Kokkos::deep_copy(host_offsets,offsets);
       for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
         Kokkos::View<LO**,HostDevice> LIDs = assembler->cells[block][cell]->LIDs_host;
-        Kokkos::View<int**,AssemblyDevice> offsets = assembler->wkset[block]->offsets;
         Kokkos::View<LO*,HostDevice> numDOF = assembler->cells[block][cell]->cellData->numDOF_host;
-        parallel_for("solver initial scalar",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        //parallel_for("solver initial scalar",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        for (int e=0; e<LIDs.extent(0); e++) {
           for (size_t n=0; n<numDOF.extent(0); n++) {
             for (size_t i=0; i<numDOF(n); i++ ) {
-              initial_kv(LIDs(e,offsets(n,i)),0) = scalarInitialValues[block][n];
+              initial_kv(LIDs(e,host_offsets(n,i)),0) = scalarInitialValues[block][n];
             }
           }
-        });
+        }
       }
     }
   }
