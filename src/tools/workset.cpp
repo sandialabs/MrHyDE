@@ -32,14 +32,6 @@ celltopo(topo), var_bcs(var_bcs_), isTransient(isTransient_)  {
   numDOF = cellinfo[4];
   numElem = cellinfo[5];
   usebcs = true;
-  
-  deltat = 1.0;
-  deltat_KV = Kokkos::View<ScalarT*,AssemblyDevice>("deltat",1);
-  Kokkos::deep_copy(deltat_KV,deltat);
-  
-  current_stage_KV = Kokkos::View<int*,AssemblyDevice>("stage number on device",1);
-  Kokkos::deep_copy(current_stage_KV,0);
-  // Integration information
   numip = ref_ip_.extent(0);
   numsideip = ref_side_ip_.extent(0);
   if (dimension == 2) {
@@ -48,6 +40,18 @@ celltopo(topo), var_bcs(var_bcs_), isTransient(isTransient_)  {
   else if (dimension == 3) {
     numsides = celltopo->getFaceCount();
   }
+  //this->createViews();
+}
+
+//KOKKOS_INLINE_FUNCTION
+void workset::createViews() { 
+  deltat = 1.0;
+  deltat_KV = Kokkos::View<ScalarT*,AssemblyDevice>("deltat",1);
+  Kokkos::deep_copy(deltat_KV,deltat);
+  
+  current_stage_KV = Kokkos::View<int*,AssemblyDevice>("stage number on device",1);
+  Kokkos::deep_copy(current_stage_KV,0);
+  // Integration information
   time_KV = Kokkos::View<ScalarT*,AssemblyDevice>("time",1); // defaults to 0.0
   
   // these can point to different arrays
@@ -77,11 +81,13 @@ celltopo(topo), var_bcs(var_bcs_), isTransient(isTransient_)  {
     int numb = basis_pointers[i]->getCardinality();
     maxb = std::max(maxb,numb);
   }
-  uvals = Kokkos::View<AD***,AssemblyDevice>("seeded uvals",numElem, numVars, maxb);
+  
+  uvals = Kokkos::View<AD***,AssemblyDevice>("seeded uvals",numElem, numVars, maxb, maxDerivs);
   if (isTransient) {
     u_dotvals = Kokkos::View<AD***,AssemblyDevice>("seeded uvals",numElem, numVars, maxb);
   }
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Public functions
@@ -305,34 +311,44 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
   
   Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
   
+  auto u_AD = uvals;
+  auto u_dot_AD = u_dotvals;
+  auto off = offsets;
+  auto dt = deltat_KV;
+  auto curr_stage = current_stage_KV;
+  auto b_A = butcher_A;
+  auto b_b = butcher_b;
+  auto b_c = butcher_c;
+  auto BDF = BDF_wts;
+
   if (seedwhat == 1) {
     parallel_for("wkset transient soln 1",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       
       ScalarT beta_u, beta_t;
-      int current_stage = current_stage_KV(0);
-      ScalarT deltat = deltat_KV(0);
-      ScalarT alpha_u = butcher_A(current_stage,current_stage)/butcher_b(current_stage);
-      ScalarT timewt = 1.0/deltat/butcher_b(current_stage);
-      ScalarT alpha_t = BDF_wts(0)*timewt;
+      int stage = curr_stage(0);
+      ScalarT deltat = dt(0);
+      ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+      ScalarT timewt = 1.0/deltat/b_b(stage);
+      ScalarT alpha_t = BDF(0)*timewt;
       for (int var=0; var<u.extent(1); var++ ) {
         for (int dof=0; dof<u.extent(2); dof++ ) {
           // Seed the stage solution
-          AD stageval = AD(maxDerivs,offsets(var,dof),u(elem,var,dof));
+          AD stageval = AD(maxDerivs,off(var,dof),u(elem,var,dof));
           
           // Compute the evaluating solution
           beta_u = (1.0-alpha_u)*u_prev(elem,var,dof,0);
-          for (int s=0; s<current_stage; s++) {
-            beta_u += butcher_A(current_stage,s)/butcher_b(s) * (u_stage(elem,var,dof,s) - u_prev(elem,var,dof,0));
+          for (int s=0; s<stage; s++) {
+            beta_u += b_A(stage,s)/b_b(s) * (u_stage(elem,var,dof,s) - u_prev(elem,var,dof,0));
           }
           uvals(elem,var,dof) = alpha_u*stageval+beta_u;
           
           // Compute the time derivative
           beta_t = 0.0;
-          for (int s=1; s<BDF_wts.extent(0); s++) {
-            beta_t += BDF_wts(s)*u_prev(elem,var,dof,s-1);
+          for (int s=1; s<BDF.extent(0); s++) {
+            beta_t += BDF(s)*u_prev(elem,var,dof,s-1);
           }
           beta_t *= timewt;
-          u_dotvals(elem,var,dof) = alpha_t*stageval + beta_t;
+          u_dot_AD(elem,var,dof) = alpha_t*stageval + beta_t;
         }
       }
     });
@@ -340,11 +356,11 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
   else if (seedwhat == 2) {
     parallel_for("wkset transient soln 2",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       ScalarT beta_u, beta_t;
-      int current_stage = current_stage_KV(0);
-      ScalarT deltat = deltat_KV(0);
-      ScalarT alpha_u = butcher_A(current_stage,current_stage)/butcher_b(current_stage);
-      ScalarT timewt = 1.0/deltat/butcher_b(current_stage);
-      ScalarT alpha_t = BDF_wts(0)*timewt;
+      int stage = curr_stage(0);
+      ScalarT deltat = dt(0);
+      ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+      ScalarT timewt = 1.0/deltat/b_b(stage);
+      ScalarT alpha_t = BDF(0)*timewt;
       for (int var=0; var<u.extent(1); var++ ) {
         for (int dof=0; dof<u.extent(2); dof++ ) {
           // Get the stage solution
@@ -352,18 +368,18 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
           
           // Compute the evaluating solution
           beta_u = (1.0-alpha_u)*u_prev(elem,var,dof,0);
-          for (int s=0; s<current_stage; s++) {
-            beta_u += butcher_A(current_stage,s)/butcher_b(s) * (u_stage(elem,var,dof,s) - u_prev(elem,var,dof,0));
+          for (int s=0; s<stage; s++) {
+            beta_u += b_A(stage,s)/b_b(s) * (u_stage(elem,var,dof,s) - u_prev(elem,var,dof,0));
           }
-          uvals(elem,var,dof) = alpha_u*stageval+beta_u;
+          u_AD(elem,var,dof) = alpha_u*stageval+beta_u;
           
           // Compute and seed the time derivative
           beta_t = 0.0;
-          for (int s=1; s<BDF_wts.extent(0); s++) {
-            beta_t += BDF_wts(s)*u_prev(elem,var,dof,s-1);
+          for (int s=1; s<BDF.extent(0); s++) {
+            beta_t += BDF(s)*u_prev(elem,var,dof,s-1);
           }
           beta_t *= timewt;
-          u_dotvals(elem,var,dof) = AD(maxDerivs,offsets(var,dof),alpha_t*stageval + beta_t);
+          u_dot_AD(elem,var,dof) = AD(maxDerivs,off(var,dof),alpha_t*stageval + beta_t);
         }
       }
     });
@@ -372,11 +388,11 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
     parallel_for("wkset transient soln",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       
       ScalarT beta_u, beta_t;
-      int current_stage = current_stage_KV(0);
-      ScalarT deltat = deltat_KV(0);
-      ScalarT alpha_u = butcher_A(current_stage,current_stage)/butcher_b(current_stage);
-      ScalarT timewt = 1.0/deltat/butcher_b(current_stage);
-      ScalarT alpha_t = BDF_wts(0)*timewt;
+      int stage = curr_stage(0);
+      ScalarT deltat = dt(0);
+      ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+      ScalarT timewt = 1.0/deltat/b_b(stage);
+      ScalarT alpha_t = BDF(0)*timewt;
       for (int var=0; var<u.extent(1); var++ ) {
         for (int dof=0; dof<u.extent(2); dof++ ) {
           // Get the stage solution
@@ -384,18 +400,18 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
           
           // Compute the evaluating solution
           beta_u = (1.0-alpha_u)*u_prev(elem,var,dof,0);
-          for (int s=0; s<current_stage; s++) {
-            beta_u += butcher_A(current_stage,s)/butcher_b(s) * (u_stage(elem,var,dof,s) - u_prev(elem,var,dof,0));
+          for (int s=0; s<stage; s++) {
+            beta_u += b_A(stage,s)/b_b(s) * (u_stage(elem,var,dof,s) - u_prev(elem,var,dof,0));
           }
-          uvals(elem,var,dof) = alpha_u*stageval+beta_u;
+          u_AD(elem,var,dof) = alpha_u*stageval+beta_u;
           
           // Compute the time derivative
           beta_t = 0.0;
-          for (int s=1; s<BDF_wts.extent(0); s++) {
-            beta_t += BDF_wts(s)*u_prev(elem,var,dof,s-1);
+          for (int s=1; s<BDF.extent(0); s++) {
+            beta_t += BDF(s)*u_prev(elem,var,dof,s-1);
           }
           beta_t *= timewt;
-          u_dotvals(elem,var,dof) = alpha_t*stageval + beta_t;
+          u_dot_AD(elem,var,dof) = alpha_t*stageval + beta_t;
         }
       }
     });
@@ -411,12 +427,16 @@ void workset::computeSolnSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
                                       const int & seedwhat) {
   
   Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
-  
+
+  // Needed so the device can access data-members (may be a better way)
+  auto u_AD = uvals;
+  auto off = offsets;
+
   if (seedwhat == 1) {
-    parallel_for("wkset steady soln 1",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int var=0; var<u.extent(1); var++ ) {
         for (int dof=0; dof<u.extent(2); dof++ ) {
-          uvals(elem,var,dof) = AD(maxDerivs,offsets(var,dof),u(elem,var,dof));
+          u_AD(elem,var,dof) = AD(maxDerivs,off(var,dof),u(elem,var,dof));
         }
       }
     });
@@ -425,11 +445,12 @@ void workset::computeSolnSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
     parallel_for("wkset steady soln",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (int var=0; var<u.extent(1); var++ ) {
         for (int dof=0; dof<u.extent(2); dof++ ) {
-          uvals(elem,var,dof) = u(elem,var,dof);
+          u_AD(elem,var,dof) = u(elem,var,dof);
         }
       }
     });
   }
+  Kokkos::fence();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

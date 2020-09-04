@@ -468,6 +468,8 @@ void AssemblyManager::createWorkset() {
     
     wkset[b]->isInitialized = true;
     wkset[b]->block = b;
+    wkset[b]->createViews();
+
   }
   
   //phys->setWorkset(wkset);
@@ -559,7 +561,8 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
       Kokkos::deep_copy(host_mass,localmass);
       
       // Would prefer to rewrite this
-      parallel_for("assembly copy LIDs",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      //parallel_for("assembly copy LIDs",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int e=0; e<LIDs.extent(0); e++) {
         //const int numVals = static_cast<int>(LIDs.extent(1));
         //const int numVals = LIDs.extent(1);
         //int numVals = LIDs.extent(1);
@@ -578,7 +581,7 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
           }
           
         }
-      });
+      }
       //});
     }
   }
@@ -829,13 +832,14 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
       this->performGather(b,phi,2,0);
     }
   }
-  
+  Kokkos::fence(); 
+ 
   /////////////////////////////////////////////////////////////////////////////
   // Volume contribution
   /////////////////////////////////////////////////////////////////////////////
   
   for (size_t e=0; e < cells[b].size(); e++) {
-    
+
     wkset[b]->localEID = e;
     cells[b][e]->updateData();
     
@@ -844,7 +848,9 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
         cells[b][e]->resetAdjPrev(0.0);
       }
     }
-    
+ 
+    Kokkos::fence();
+
     /////////////////////////////////////////////////////////////////////////////
     // Compute the local residual and Jacobian on this cell
     /////////////////////////////////////////////////////////////////////////////
@@ -870,14 +876,14 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
                  cells[b][e]->LIDs_host,
                  cells[b][e]->paramLIDs_host,
                  compute_jacobian, compute_disc_sens);
-  
+    
   } // element loop
   
   //////////////////////////////////////////////////////////////////////////////////////
   // Boundary terms
   //////////////////////////////////////////////////////////////////////////////////////
   
-  
+  /*
   if (!cells[0][0]->cellData->multiscale && assemble_boundary_terms[b]) {
     
     {
@@ -891,7 +897,8 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
         this->performBoundaryGather(b,phi,2,0);
       }
     }
-    
+    Kokkos::fence();   
+ 
     if (compute_sens) {
       local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,num_active_params);
     }
@@ -944,7 +951,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
         
       }
     } // element loop
-  }
+  }*/
 
   // Apply constraints, e.g., strongly imposed Dirichlet
   this->dofConstraints(J, res, current_time, compute_jacobian, compute_disc_sens);
@@ -1029,9 +1036,11 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
   // TMW: this double deep copy is a hack.  There should be a better way to do this.
 
   auto vec_kv = vec->getLocalView<HostDevice>();
-  Kokkos::View<ScalarT**,AssemblyDevice> vec_dev("tpetra vector on device",vec_kv.extent(0),vec_kv.extent(1));
+  auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), entry);
+
+  Kokkos::View<ScalarT*,AssemblyDevice> vec_dev("tpetra vector on device",vec_kv.extent(0));
   auto vec_host = Kokkos::create_mirror_view(vec_dev);
-  Kokkos::deep_copy(vec_host,vec_kv);
+  Kokkos::deep_copy(vec_host,vec_slice);
   Kokkos::deep_copy(vec_dev,vec_host);
   
   Kokkos::View<LO*,AssemblyDevice> numDOF;
@@ -1071,7 +1080,7 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
     parallel_for("assembly gather",RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (size_t var=0; var<offsets.extent(0); var++) {
         for(size_t dof=0; dof<numDOF(var); dof++ ) {
-          data(elem,var,dof) = vec_dev(LIDs(elem,offsets(var,dof)),entry);
+          data(elem,var,dof) = vec_dev(LIDs(elem,offsets(var,dof)));
         }
       }
     });
@@ -1162,7 +1171,8 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
   // Using LIDs
   /////////////////////////////////////
   
-  parallel_for("assembly insert res",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+  //parallel_for("assembly insert res",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+  for( size_t elem=0; elem<LIDs.extent(0); elem++ ) {
     for( size_t row=0; row<LIDs.extent(1); row++ ) {
       LO rowIndex = LIDs(elem,row);
       if (!isFixedDOF(rowIndex)) {
@@ -1172,14 +1182,15 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
         }
       }
     }
-  });
+  }
   
   if (compute_jacobian) {
     
     auto localMatrix = J->getLocalMatrix();
     
     if (compute_disc_sens) {
-      parallel_for("assembly insert Jac sens",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      //parallel_for("assembly insert Jac sens",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for( size_t elem=0; elem<LIDs.extent(0); elem++ ) {
         for (size_t row=0; row<LIDs.extent(1); row++ ) {
           LO rowIndex = LIDs(elem,row);
           for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
@@ -1188,10 +1199,11 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
             localMatrix.sumIntoValues(colIndex, &rowIndex, 1, &val, true, use_atomics); // isSorted, useAtomics
           }
         }
-      });
+      }
     }
     else {
-      parallel_for("assembly insert Jac",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      //parallel_for("assembly insert Jac",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      for( size_t elem=0; elem<LIDs.extent(0); elem++ ) {
         //const int numVals = static_cast<int>(LIDs.extent(1));
         //const int numVals = LIDs.extent(1);
         //LO cols[numVals];
@@ -1208,7 +1220,7 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
             //localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics); // isSorted, useAtomics
           }
         }
-      });
+      }
     }
   }
 }

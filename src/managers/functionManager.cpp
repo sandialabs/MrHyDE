@@ -594,7 +594,7 @@ FDATA FunctionManager::evaluate(const string & fname, const string & location) {
       findex = i;
     }
   }
-  
+ 
   if (findex == -1) { // meaning that the requested function was not registered at this location
     TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: function manager could not evaluate: " + fname + " at " + location);
   }
@@ -622,7 +622,7 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex) {
   //  cout << "------- Evaluating: " << functions[findex].terms[tindex].expression << endl;
   //}
   
-  //functions[block][findex].terms[tindex].print();
+  //functions[findex].terms[tindex].print();
   
   if (functions[findex].terms[tindex].isRoot) {
     if (functions[findex].terms[tindex].isScalar && !functions[findex].terms[tindex].isConstant) {

@@ -24,12 +24,16 @@ cell::cell(const Teuchos::RCP<CellMetaData> & cellData_,
 cellData(cellData_), localElemID(localID_), nodes(nodes_), 
 LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_)
 {
-  
-  LIDs_host = LIDView_host("LIDs on host",LIDs.extent(0), LIDs.extent(1)); //Kokkos::create_mirror_view(LIDs);
-  Kokkos::deep_copy(LIDs_host,LIDs);
-  
   numElem = nodes.extent(0);
   useSensors = false;
+  this->buildBasis();
+}
+
+
+void cell::buildBasis() {
+ 
+  LIDs_host = LIDView_host("LIDs on host",LIDs.extent(0), LIDs.extent(1)); //Kokkos::create_mirror_view(LIDs);
+  Kokkos::deep_copy(LIDs_host,LIDs);
   
   Teuchos::TimeMonitor localtimer(*buildBasisTimer);
   
@@ -497,7 +501,6 @@ void cell::updateWorksetBasis() {
   wkset->wts = wts;
   wkset->h = hsize;
   
-  // TMW: can this be avoided??
   Kokkos::deep_copy(wkset->ip_KV,ip);
   
   wkset->basis = basis;
@@ -518,12 +521,19 @@ void cell::computeSolnVolIP() {
   Teuchos::TimeMonitor localtimer(*computeSolnVolTimer);
   //wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
   this->updateWorksetBasis();
+  Kokkos::fence();
+  cout << "cell here 0" << endl;
+
   wkset->computeSolnVolIP();
+  Kokkos::fence();
+  cout << "cell here 1" << endl;
   
   //wkset->computeParamVolIP(param, seedwhat);
   if (cellData->compute_sol_avg) {
     this->computeSolAvg();
   }
+  Kokkos::fence();
+  cout << "cell here 2" << endl;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -537,37 +547,41 @@ void cell::computeSolAvg() {
   Teuchos::TimeMonitor localtimer(*computeSolAvgTimer);
   
   Kokkos::View<AD****,AssemblyDevice> sol = wkset->local_soln;
-  
-  parallel_for("cell sol avg",RangePolicy<AssemblyExec>(0,u_avg.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+ 
+  auto cwts = wts;
+  auto avg = u_avg; 
+
+  parallel_for("cell sol avg",RangePolicy<AssemblyExec>(0,avg.extent(0)), KOKKOS_LAMBDA (const int elem ) {
     ScalarT avgwt = 0.0;
-    for (int pt=0; pt<wts.extent(1); pt++) {
-      avgwt += wts(elem,pt);
+    for (int pt=0; pt<cwts.extent(1); pt++) {
+      avgwt += cwts(elem,pt);
     }
     for (int dof=0; dof<sol.extent(1); dof++) {
       for (int dim=0; dim<sol.extent(3); dim++) {
         ScalarT solavg = 0.0;
         for (int pt=0; pt<sol.extent(2); pt++) {
-          solavg += sol(elem,dof,pt,dim).val()*wts(elem,pt);
+          solavg += sol(elem,dof,pt,dim).val()*cwts(elem,pt);
         }
-        u_avg(elem,dof,dim) = solavg/avgwt;
+        avg(elem,dof,dim) = solavg/avgwt;
       }
     }
   });
   
   if (param_avg.extent(1) > 0) {
     Kokkos::View<AD***,AssemblyDevice> psol = wkset->local_param;
-    
-    parallel_for("cell param avg",RangePolicy<AssemblyExec>(0,param_avg.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    auto pavg = param_avg;
+
+    parallel_for("cell param avg",RangePolicy<AssemblyExec>(0,pavg.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       ScalarT avgwt = 0.0;
-      for (int pt=0; pt<wts.extent(1); pt++) {
-        avgwt += wts(elem,pt);
+      for (int pt=0; pt<cwts.extent(1); pt++) {
+        avgwt += cwts(elem,pt);
       }
       for (int dof=0; dof<psol.extent(1); dof++) {
         ScalarT solavg = 0.0;
         for (int pt=0; pt<psol.extent(2); pt++) {
-          solavg += psol(elem,dof,pt).val()*wts(elem,pt);
+          solavg += psol(elem,dof,pt).val()*cwts(elem,pt);
         }
-        param_avg(elem,dof) = solavg/avgwt;
+        pavg(elem,dof) = solavg/avgwt;
       }
     });
   }
@@ -699,7 +713,8 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   if (isAdjoint) {
     wkset->resetAdjointRHS();
   }
-  
+ 
+ 
   //////////////////////////////////////////////////////////////
   // Compute the AD-seeded solutions at integration points
   //////////////////////////////////////////////////////////////
@@ -716,7 +731,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
       seedwhat = 1;
     }
   }
-  
+   
   if (!(cellData->multiscale)) {
     if (isTransient) {
       wkset->computeSolnTransientSeeded(u, u_prev, u_stage, seedwhat);
@@ -724,11 +739,12 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
     else { // steady-state
       wkset->computeSolnSteadySeeded(u, seedwhat);
     }
-    
+    Kokkos::fence();
     this->computeSolnVolIP();
     wkset->computeParamVolIP(param, seedwhat);
     
   }
+  Kokkos::fence();
   
   //////////////////////////////////////////////////////////////
   // Compute res and J=dF/du
@@ -1000,11 +1016,12 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
         }
       });
       if (!compute_aux_sens && store_adjPrev) {
+        auto deltat = wkset->deltat_KV;
         parallel_for("cell adjust transient adjoint jac 2",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (int n=0; n<numDOF.extent(0); n++) {
             for (int j=0; j<numDOF(n); j++) {
               ScalarT aPrev = 0.0;
-              ScalarT dt = wkset->deltat_KV(0);
+              ScalarT dt = deltat(0);
               for (int m=0; m<numDOF.extent(0); m++) {
                 for (int k=0; k<numDOF(m); k++) {
                   aPrev += 1.0/dt*Jdot(e,offsets(n,j),offsets(m,k))*phi(e,m,k);
@@ -1440,7 +1457,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
         parallel_for(RangePolicy<AssemblyExec>(0,paramgrad_ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (int n=0; n<numParamDOF.extent(0); n++) {
             for( size_t j=0; j<paramgrad_ip.extent(2); j++ ) {
-              for (int s=0; s<cellData->dimension; s++) {
+              for (int s=0; s<paramgrad_ip.extent(3); s++) {
                 paramgrad_ip(e,n,j,s) = paramgrad_ip(e,n,j,s).val();
               }
             }
