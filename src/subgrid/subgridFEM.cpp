@@ -402,7 +402,7 @@ void SubGridFEM::setUpSubgridModels() {
   for(size_t e=0; e<boundaryCells[0].size(); e++) {
     boundaryCells[0][e]->addAuxVars(macro_varlist);
     boundaryCells[0][e]->cellData->numAuxDOF = macro_numDOF;
-    boundaryCells[0][e]->numAuxDOF = macro_numDOF;
+    //boundaryCells[0][e]->cellData->numAuxDOF = macro_numDOF;
     boundaryCells[0][e]->setAuxUseBasis(macro_usebasis);
     boundaryCells[0][e]->auxoffsets = macro_offsets;
     boundaryCells[0][e]->wkset = wkset[0];
@@ -587,7 +587,7 @@ void SubGridFEM::setUpSubgridModels() {
         //for(size_t e=0; e<boundaryCells[0].size(); e++) {
           newbcells[s]->addAuxVars(macro_varlist);
           newbcells[s]->cellData->numAuxDOF = macro_numDOF;
-          newbcells[s]->numAuxDOF = macro_numDOF;
+          //newbcells[s]->numAuxDOF = macro_numDOF;
           newbcells[s]->setAuxUseBasis(macro_usebasis);
           newbcells[s]->auxoffsets = macro_offsets;
           newbcells[s]->wkset = wkset[0];
@@ -1911,7 +1911,7 @@ void SubGridFEM::setupCombinedExodus() {
     
     if (discparamnames.size() > 0) {
       for (size_t n=0; n<discparamnames.size(); n++) {
-        int paramnumbasis = cells[0][0]->numParamDOF.extent(0);
+        int paramnumbasis = cells[0][0]->cellData->numParamDOF.extent(0);
         if (paramnumbasis==1) {
           combined_mesh->addCellField(discparamnames[n], subeBlocks[0]);
         }

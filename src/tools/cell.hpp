@@ -44,8 +44,6 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  void buildBasis();
-  
   void computeSize();
   
   void rescaleNormals(DRV snormals);
@@ -342,9 +340,9 @@ public:
   //Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
   
   // Frequently used Views (None of these are allocated in the cells)
-  Kokkos::View<AD**,AssemblyDevice> res_AD;
-  Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets;
-  Kokkos::View<LO*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
+  //Kokkos::View<AD**,AssemblyDevice> res_AD;
+  //Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets;
+  //Kokkos::View<LO*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
   
   // basis information
   vector<DRV> basis, basis_grad, basis_div, basis_curl, basis_nodes;
@@ -353,6 +351,7 @@ public:
   
   // Aux variable Information
   vector<string> auxlist;
+  //Kokkos::View<LO*,AssemblyDevice> numAuxDOF;
   Kokkos::View<LO**,AssemblyDevice> auxoffsets;
   vector<int> auxusebasis;
   vector<basis_RCP> auxbasisPointers;

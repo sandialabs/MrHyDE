@@ -1184,7 +1184,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
     //meas.modify_host();
     int index, dindex;
     
-    Kokkos::View<int**,AssemblyDevice> dev_offsets = cells[b][0]->offsets;
+    Kokkos::View<int**,AssemblyDevice> dev_offsets = cells[b][0]->wkset->offsets;
     auto offsets = Kokkos::create_mirror_view(dev_offsets);
     Kokkos::deep_copy(offsets,dev_offsets);
     

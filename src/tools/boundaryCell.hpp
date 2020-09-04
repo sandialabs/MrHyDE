@@ -184,9 +184,9 @@ public:
   vector<int> getInfo() {
     vector<int> info;
     info.push_back(cellData->dimension);
-    info.push_back(numDOF.extent(0));
-    info.push_back(numParamDOF.extent(0));
-    info.push_back(numAuxDOF.extent(0));
+    info.push_back(cellData->numDOF.extent(0));
+    info.push_back(cellData->numParamDOF.extent(0));
+    info.push_back(cellData->numAuxDOF.extent(0));
     info.push_back(LIDs.extent(1));
     info.push_back(numElem);
     return info;
@@ -222,9 +222,9 @@ public:
   string sidename;
   
   // Frequently used Views (None of these are allocated in the cells)
-  Kokkos::View<AD**,AssemblyDevice> res_AD;
-  Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets;
-  Kokkos::View<LO*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
+  //Kokkos::View<AD**,AssemblyDevice> res_AD;
+  //Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets;
+  //Kokkos::View<LO*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
   
   // DOF information
   LIDView LIDs, paramLIDs, auxLIDs;

@@ -200,13 +200,13 @@ void BoundaryCell::setWorkset(Teuchos::RCP<workset> & wkset_) {
   wkset = wkset_;
   
   // Frequently used Views
-  res_AD = wkset->res;
-  offsets = wkset->offsets;
+  //res_AD = wkset->res;
+  //offsets = wkset->offsets;
   //paramoffsets = wkset->paramoffsets;
   
-  numDOF = cellData->numDOF;
+  //numDOF = cellData->numDOF;
   //numParamDOF = cellData->numParamDOF;
-  numAuxDOF = cellData->numAuxDOF;
+  //numAuxDOF = cellData->numAuxDOF;
   
 }
 
@@ -219,7 +219,7 @@ void BoundaryCell::setParams(LIDView paramLIDs_) {
   Kokkos::deep_copy(paramLIDs_host, paramLIDs);
   
   // This has now been set
-  numParamDOF = cellData->numParamDOF;
+  //numParamDOF = cellData->numParamDOF;
   
 }
 
@@ -273,7 +273,7 @@ void BoundaryCell::setUseBasis(vector<int> & usebasis_, const int & numsteps, co
 void BoundaryCell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasis_) {
   vector<int> paramusebasis = pusebasis_;
   
-  numParamDOF = cellData->numParamDOF;
+  auto numParamDOF = cellData->numParamDOF;
   
   size_t maxnbasis = 0;
   for (size_t i=0; i<numParamDOF.extent(0); i++) {
@@ -338,6 +338,8 @@ void BoundaryCell::computeSoln(const int & seedwhat) {
     
     size_t numip = wkset->numsideip;
     AD auxval;
+  
+    auto numAuxDOF = cellData->numAuxDOF;
     
     // TMW: this will not work on GPU
     for (int e=0; e<numElem; e++) {
@@ -456,6 +458,10 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
 
 void BoundaryCell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
   
+  auto res_AD = wkset->res;
+  auto offsets = wkset->offsets;
+  auto numDOF = cellData->numDOF;
+  
   if (compute_sens) {
     parallel_for("bcell update res sens",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (unsigned int r=0; r<local_res.extent(2); r++) {
@@ -484,6 +490,8 @@ void BoundaryCell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,
 
 void BoundaryCell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
   Kokkos::View<AD**,AssemblyDevice> adjres_AD = wkset->adjrhs;
+  auto offsets = wkset->offsets;
+  auto numDOF = cellData->numDOF;
   
   if (compute_sens) {
     parallel_for("bcell update res adjoint sens",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -513,6 +521,10 @@ void BoundaryCell::updateAdjointRes(const bool & compute_sens, Kokkos::View<Scal
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void BoundaryCell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
+  
+  auto res_AD = wkset->res;
+  auto offsets = wkset->offsets;
+  auto numDOF = cellData->numDOF;
   
   if (useadjoint) {
     parallel_for("bcell update jac adjoint",RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -548,8 +560,11 @@ void BoundaryCell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,As
 
 void BoundaryCell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   
-  paramoffsets = wkset->paramoffsets;
-  numParamDOF = cellData->numParamDOF;
+  auto res_AD = wkset->res;
+  auto offsets = wkset->offsets;
+  auto numDOF = cellData->numDOF;
+  auto paramoffsets = wkset->paramoffsets;
+  auto numParamDOF = cellData->numParamDOF;
   
   parallel_for("bcell update param jac",RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (unsigned int n=0; n<numDOF.extent(0); n++) {
@@ -570,14 +585,18 @@ void BoundaryCell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_
 
 void BoundaryCell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   
-  numAuxDOF = cellData->numAuxDOF;
+  auto res_AD = wkset->res;
+  auto offsets = wkset->offsets;
+  auto numDOF = cellData->numDOF;
+  auto aoffsets = auxoffsets;
+  auto numAuxDOF = cellData->numAuxDOF;
   
   parallel_for("bcell update aux jac",RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (unsigned int n=0; n<numDOF.extent(0); n++) {
       for (int j=0; j<numDOF(n); j++) {
         for (unsigned int m=0; m<numAuxDOF.extent(0); m++) {
           for (int k=0; k<numAuxDOF(m); k++) {
-            local_J(e,offsets(n,j),auxoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(auxoffsets(m,k));
+            local_J(e,offsets(n,j),aoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(aoffsets(m,k));
           }
         }
       }
@@ -730,6 +749,8 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
   Kokkos::View<AD***,AssemblyDevice> u_AD("temp u AD",u.extent(0),u.extent(1),u.extent(2));
   Kokkos::View<AD***,AssemblyDevice> param_AD("temp u AD",1,1,1);
   
+  auto offsets = wkset->offsets;
+  
   {
     Teuchos::TimeMonitor localtimer(*cellFluxGatherTimer);
     
@@ -761,20 +782,20 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
     
     wkset->computeSolnSideIP(sidenum, u_AD, param_AD);
   }
-  numAuxDOF = cellData->numAuxDOF;
+  auto numAuxDOF = cellData->numAuxDOF;
   
   if (wkset->numAux > 0) {
     
     Teuchos::TimeMonitor localtimer(*cellFluxAuxTimer);
     
     wkset->resetAuxSide();
-    
+    auto aoffsets = auxoffsets;
     size_t numip = wkset->numsideip;
     AD auxval;
     for (int e=0; e<numElem; e++) {
       for (size_t k=0; k<numAuxDOF.extent(0); k++) {
         for(size_t i=0; i<numAuxDOF(k); i++ ) {
-          auxval = AD(maxDerivs, auxoffsets(k,i), lambda(localElemID[e],k,i));
+          auxval = AD(maxDerivs, aoffsets(k,i), lambda(localElemID[e],k,i));
           for( size_t j=0; j<numip; j++ ) {
             wkset->local_aux_side(e,k,j) += auxval*auxside_basis[auxusebasis[k]](e,i,j);
           }
@@ -805,6 +826,8 @@ Kokkos::View<ScalarT**,AssemblyDevice> BoundaryCell::getDirichlet() {
   auto currind_host = Kokkos::create_mirror_view(currind);
   
   Kokkos::View<int**,HostDevice> bcs = wkset->var_bcs;
+  auto offsets = wkset->offsets;
+  auto numDOF = cellData->numDOF;
   
   for (int n=0; n<wkset->varlist.size(); n++) {
     if (bcs(n,sidenum) == 1) { // is this a strong DBC for this variable
@@ -860,6 +883,8 @@ Kokkos::View<ScalarT***,AssemblyDevice> BoundaryCell::getMass() {
   Kokkos::View<int**,HostDevice> bcs = wkset->var_bcs;
   Kokkos::View<int[1],AssemblyDevice> currind("current index");
   auto currind_host = Kokkos::create_mirror_view(currind);
+  auto offsets = wkset->offsets;
+  auto numDOF = cellData->numDOF;
   
   for (int n=0; n<numDOF.extent(0); n++) {
     if (bcs(n,sidenum) == 1) { // is this a strong DBC for this variable

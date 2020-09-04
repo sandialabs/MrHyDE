@@ -40,11 +40,7 @@ celltopo(topo), var_bcs(var_bcs_), isTransient(isTransient_)  {
   else if (dimension == 3) {
     numsides = celltopo->getFaceCount();
   }
-  //this->createViews();
-}
-
-//KOKKOS_INLINE_FUNCTION
-void workset::createViews() { 
+  
   deltat = 1.0;
   deltat_KV = Kokkos::View<ScalarT*,AssemblyDevice>("deltat",1);
   Kokkos::deep_copy(deltat_KV,deltat);
@@ -82,7 +78,7 @@ void workset::createViews() {
     maxb = std::max(maxb,numb);
   }
   
-  uvals = Kokkos::View<AD***,AssemblyDevice>("seeded uvals",numElem, numVars, maxb, maxDerivs);
+  uvals = Kokkos::View<AD***,AssemblyDevice>("seeded uvals",numElem, numVars, maxb);//, maxDerivs);
   if (isTransient) {
     u_dotvals = Kokkos::View<AD***,AssemblyDevice>("seeded uvals",numElem, numVars, maxb);
   }

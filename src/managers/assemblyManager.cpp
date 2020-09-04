@@ -468,8 +468,7 @@ void AssemblyManager::createWorkset() {
     
     wkset[b]->isInitialized = true;
     wkset[b]->block = b;
-    wkset[b]->createViews();
-
+    
   }
   
   //phys->setWorkset(wkset);
@@ -883,7 +882,6 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
   // Boundary terms
   //////////////////////////////////////////////////////////////////////////////////////
   
-  /*
   if (!cells[0][0]->cellData->multiscale && assemble_boundary_terms[b]) {
     
     {
@@ -951,7 +949,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
         
       }
     } // element loop
-  }*/
+  }
 
   // Apply constraints, e.g., strongly imposed Dirichlet
   this->dofConstraints(J, res, current_time, compute_jacobian, compute_disc_sens);

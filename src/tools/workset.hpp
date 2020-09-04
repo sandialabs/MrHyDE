@@ -31,69 +31,6 @@ class workset {
           const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
           const topo_RCP & topo, Kokkos::View<int**,HostDevice> & var_bcs_);
 
-  //KOKKOS_INLINE_FUNCTION
-  void createViews();// {
-  /*
-  deltat = 1.0;
-  deltat_KV = Kokkos::View<ScalarT*,AssemblyDevice>("deltat",1);
-  Kokkos::deep_copy(deltat_KV,deltat);
-  
-  current_stage_KV = Kokkos::View<int*,AssemblyDevice>("stage number on device",1);
-  Kokkos::deep_copy(current_stage_KV,0);
-  // Integration information
-  time_KV = Kokkos::View<ScalarT*,AssemblyDevice>("time",1); // defaults to 0.0
-  
-  // these can point to different arrays
-  ip = DRV("ip", numElem,numip, dimension);
-  wts = DRV("wts", numElem, numip);
-  ip_side = DRV("ip_side", numElem,numsideip,dimension);
-  wts_side = DRV("wts_side", numElem,numsideip);
-  normals = DRV("normals", numElem,numsideip,dimension);
-  
-  // these cannot point to different arrays ... data must be deep copied into them
-  ip_KV = Kokkos::View<ScalarT***,AssemblyDevice>("ip stored in KV",numElem,numip,dimension);
-  ip_side_KV = Kokkos::View<ScalarT***,AssemblyDevice>("side ip stored in KV",numElem,numsideip,dimension);
-  normals_KV = Kokkos::View<ScalarT***,AssemblyDevice>("side normals stored in normals KV",numElem,numsideip,dimension);
-  point_KV = Kokkos::View<ScalarT***,AssemblyDevice>("ip stored in point KV",1,1,dimension);
-  
-  
-  //h = Kokkos::View<ScalarT*,AssemblyDevice>("h",numElem);
-  res = Kokkos::View<AD**,AssemblyDevice>("residual",numElem,numDOF);
-  adjrhs = Kokkos::View<AD**,AssemblyDevice>("adjoint RHS",numElem,numDOF);
-  auto host_res = Kokkos::create_mirror_view(res);
-  parallel_for(RangePolicy<HostExec>(0,host_res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-    for (int dof=0; dof<host_res.extent(1); dof++) {
-      host_res(elem,dof) = 0.0;
-    }
-  });
-  Kokkos::deep_copy(res,host_res);
-
-  have_rotation = false;
-  have_rotation_phi = false;
-  rotation = Kokkos::View<ScalarT***,AssemblyDevice>("rotation matrix",numElem,3,3);
-  
-  int maxb = 0;
-  for (size_t i=0; i<basis_pointers.size(); i++) {
-    int numb = basis_pointers[i]->getCardinality();
-    maxb = std::max(maxb,numb);
-  }
-  
-  uvals = Kokkos::View<AD***,AssemblyDevice>("seeded uvals",numElem, numVars, maxb);
-  auto host_uvals = Kokkos::create_mirror_view(uvals);
-  parallel_for(RangePolicy<HostExec>(0,host_uvals.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-    for (int var=0; var<host_uvals.extent(1); var++) {
-      for (int dof=0; dof<host_uvals.extent(2); dof++) {
-        host_uvals(elem,var,dof) = 0.0;
-      }
-    }
-  });
-  Kokkos::deep_copy(uvals,host_uvals);
-  if (isTransient) {
-    u_dotvals = Kokkos::View<AD***,AssemblyDevice>("seeded uvals",numElem, numVars, maxb);
-  }
-  }
-i */
-
   ////////////////////////////////////////////////////////////////////////////////////
   // Public functions
   ////////////////////////////////////////////////////////////////////////////////////
