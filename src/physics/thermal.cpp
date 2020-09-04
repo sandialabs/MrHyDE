@@ -63,8 +63,9 @@ void thermal::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
 void thermal::volumeResidual() {
   
   int e_basis_num = wkset->usebasis[e_num];
-  basis = wkset->basis[e_basis_num];
-  basis_grad = wkset->basis_grad[e_basis_num];
+  DRV basis = wkset->basis[e_basis_num];
+  DRV basis_grad = wkset->basis_grad[e_basis_num];
+  FDATA source, diff, cp, rho;
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("thermal source","ip");
@@ -82,8 +83,8 @@ void thermal::volumeResidual() {
   // f(u) = rho*cp*de/dt - source
   // DF(u) = diff*grad(e)
   
-  wts = wkset->wts;
-  res = wkset->res;
+  auto wts = wkset->wts;
+  auto res = wkset->res;
   auto T = Kokkos::subview( sol, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
   auto dTdt = Kokkos::subview( sol_dot, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
   auto gradT = Kokkos::subview( sol_grad, Kokkos::ALL(), e_num, Kokkos::ALL(), Kokkos::ALL());
@@ -91,7 +92,7 @@ void thermal::volumeResidual() {
   
   if (spaceDim == 1) {
     parallel_for("Thermal volume resid 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (int pt=0; pt<sol.extent(2); pt++ ) {
+      for (int pt=0; pt<basis.extent(2); pt++ ) {
         AD f = rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt);
         AD DFx = diff(elem,pt)*gradT(elem,pt,0);
         f *= wts(elem,pt);
@@ -144,7 +145,7 @@ void thermal::volumeResidual() {
     if (spaceDim == 1) {
       auto Ux = Kokkos::subview( sol, Kokkos::ALL(), ux_num, Kokkos::ALL(), 0);
       parallel_for("Thermal volume resid NS 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for (int pt=0; pt<sol.extent(2); pt++ ) {
+        for (int pt=0; pt<basis.extent(2); pt++ ) {
           AD f = Ux(elem,pt)*gradT(elem,pt,0);
           f *= wts(elem,pt);
           for (int dof=0; dof<basis.extent(1); dof++ ) {
@@ -157,7 +158,7 @@ void thermal::volumeResidual() {
       auto Ux = Kokkos::subview( sol, Kokkos::ALL(), ux_num, Kokkos::ALL(), 0);
       auto Uy = Kokkos::subview( sol, Kokkos::ALL(), uy_num, Kokkos::ALL(), 0);
       parallel_for("Thermal volume resid NS 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for (int pt=0; pt<sol.extent(2); pt++ ) {
+        for (int pt=0; pt<basis.extent(2); pt++ ) {
           AD f = Ux(elem,pt)*gradT(elem,pt,0) + Uy(elem,pt)*gradT(elem,pt,1);
           f *= wts(elem,pt);
           for (int dof=0; dof<basis.extent(1); dof++ ) {
@@ -171,7 +172,7 @@ void thermal::volumeResidual() {
       auto Uy = Kokkos::subview( sol, Kokkos::ALL(), uy_num, Kokkos::ALL(), 0);
       auto Uz = Kokkos::subview( sol, Kokkos::ALL(), uz_num, Kokkos::ALL(), 0);
       parallel_for("Thermal volume resid NS 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for (int pt=0; pt<sol.extent(2); pt++ ) {
+        for (int pt=0; pt<basis.extent(2); pt++ ) {
           AD f = Ux(elem,pt)*gradT(elem,pt,0) + Uy(elem,pt)*gradT(elem,pt,1) + Uz(elem,pt)*gradT(elem,pt,2);
           f *= wts(elem,pt);
           for (int dof=0; dof<basis.extent(1); dof++ ) {
@@ -196,9 +197,10 @@ void thermal::boundaryResidual() {
   int sidetype = bcs(e_num,cside);
   
   int e_basis_num = wkset->usebasis[e_num];
-  basis = wkset->basis_side[e_basis_num];
-  basis_grad = wkset->basis_grad_side[e_basis_num];
+  DRV basis = wkset->basis_side[e_basis_num];
+  DRV basis_grad = wkset->basis_grad_side[e_basis_num];
   
+  FDATA nsource, diff_side, robin_alpha;
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
@@ -219,14 +221,12 @@ void thermal::boundaryResidual() {
     adjrhs = wkset->adjrhs;
   }
   
-  // Since normals get recomputed often, this needs to be reset
-  normals = wkset->normals;
-  
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
-  wts = wkset->wts_side;
-  h = wkset->h;
-  
+  auto normals = wkset->normals;
+  auto wts = wkset->wts_side;
+  auto h = wkset->h;
+  auto res = wkset->res;
   auto T = Kokkos::subview( sol_side, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
   auto gradT = Kokkos::subview( sol_grad_side, Kokkos::ALL(), e_num, Kokkos::ALL(), Kokkos::ALL());
   auto off = Kokkos::subview( offsets, e_num, Kokkos::ALL());
@@ -308,14 +308,15 @@ void thermal::computeFlux() {
     sf = formparam;
   }
   
+  FDATA diff_side;
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
     diff_side = functionManager->evaluate("thermal diffusion","side ip");
   }
   
   // Since normals get recomputed often, this needs to be reset
-  normals = wkset->normals;
-  h = wkset->h;
+  auto normals = wkset->normals;
+  auto h = wkset->h;
   
   {
     //Teuchos::TimeMonitor localtime(*fluxFill);

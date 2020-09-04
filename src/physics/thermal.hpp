@@ -71,7 +71,7 @@ private:
   int e_num, ux_num, uy_num, uz_num;
   int auxe_num = -1;
   
-  FDATA diff, rho, cp, source, nsource, diff_side, robin_alpha;
+  // FDATA diff, rho, cp, source, nsource, diff_side, robin_alpha;
   
   bool have_nsvel;
   ScalarT formparam;

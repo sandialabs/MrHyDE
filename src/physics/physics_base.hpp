@@ -106,7 +106,7 @@ public:
     aux_side = wkset->local_aux_side;
     
     offsets = wkset->offsets;
-    res = wkset->res;
+    //res = wkset->res;
     adjrhs = wkset->adjrhs;
     flux = wkset->flux;
     bcs = wkset->var_bcs;
@@ -124,16 +124,22 @@ public:
   int spaceDim;
   vector<string> myvars, mybasistypes;
   bool include_face = false;
-  // All of these point to specific information in the workset
+  
+  // All of these point to specific information in the workset - AND - 
+  // We always take subviews, so these are ok on device
   Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad, sol_side, sol_grad_side, aux_grad_side, sol_curl, sol_face, sol_grad_face;
   Kokkos::View<AD***,AssemblyDevice> aux, aux_side, sol_div, flux;
-  Kokkos::View<AD**,AssemblyDevice> res, adjrhs;
   Kokkos::View<int**,AssemblyDevice> offsets;
+  
+  // Probably not used much
+  Kokkos::View<AD**,AssemblyDevice> adjrhs;
+  
+  // On host, so ok
   Kokkos::View<int**,HostDevice> bcs;
-  Kokkos::View<ScalarT*,AssemblyDevice> h;
+  //Kokkos::View<ScalarT*,AssemblyDevice> h;
   
   // The basis functions change depending on the variable, so these cannot be set just once
-  DRV basis, basis_grad, basis_div, basis_curl, normals, wts;
+  // DRV basis, basis_grad, basis_div, basis_curl, normals, wts;
   
   
 };
