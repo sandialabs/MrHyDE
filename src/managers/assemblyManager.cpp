@@ -1097,13 +1097,13 @@ void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP &
     
     // Get a view of the vector on the HostDevice
     auto vec_kv = vec->getLocalView<HostDevice>();
-    Kokkos::View<ScalarT**,AssemblyDevice> vec_dev("tpetra vector on device",vec_kv.extent(0),vec_kv.extent(1));
+    auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), entry);
+    
+    Kokkos::View<ScalarT*,AssemblyDevice> vec_dev("tpetra vector on device",vec_kv.extent(0));
     auto vec_host = Kokkos::create_mirror_view(vec_dev);
-    Kokkos::deep_copy(vec_host,vec_kv);
+    Kokkos::deep_copy(vec_host,vec_slice);
     Kokkos::deep_copy(vec_dev,vec_host);
     
-    // TMW: need to move this to the device
-
     // Get a corresponding view on the AssemblyDevice
     
     Kokkos::View<LO*,AssemblyDevice> numDOF;
@@ -1141,10 +1141,10 @@ void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP &
             cout << "ERROR - NOTHING WAS GATHERED" << endl;
         }
         
-        parallel_for("assembly boundary gather",RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          for (size_t n=0; n<numDOF.extent(0); n++) {
-            for(size_t i=0; i<numDOF(n); i++ ) {
-              data(e,n,i) = vec_kv(LIDs(e,offsets(n,i)),entry);
+        parallel_for("assembly boundary gather",RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          for (size_t var=0; var<numDOF.extent(0); var++) {
+            for(size_t dof=0; dof<numDOF(var); dof++ ) {
+              data(elem,var,dof) = vec_dev(LIDs(elem,offsets(var,dof)));
             }
           }
         });
