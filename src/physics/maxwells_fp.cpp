@@ -120,12 +120,13 @@ void maxwells_fp::volumeResidual() {
   
   ScalarT current_time = wkset->time;
   
-  phir_basis = wkset->basis[phir_basis_num];
-  phir_basis_grad = wkset->basis_grad[phir_basis_num];
-  phii_basis = wkset->basis[phii_basis_num];
-  phii_basis_grad = wkset->basis_grad[phii_basis_num];
+  auto phir_basis = wkset->basis[phir_basis_num];
+  auto phir_basis_grad = wkset->basis_grad[phir_basis_num];
+  auto phii_basis = wkset->basis[phii_basis_num];
+  auto phii_basis_grad = wkset->basis_grad[phii_basis_num];
   
   DRV ip = wkset->ip;
+  auto res = wkset->res;
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
@@ -459,7 +460,8 @@ void maxwells_fp::boundaryResidual() {
   //sideinfo = wkset->sideinfo;
   DRV ip = wkset->ip_side;
   // Since normals get recomputed often, this needs to be reset
-  normals  = wkset->normals;
+  auto normals  = wkset->normals;
+  auto res = wkset->res;
   
   phir_basis = wkset->basis_side[phir_basis_num];
   phir_basis_grad = wkset->basis_grad_side[phir_basis_num];

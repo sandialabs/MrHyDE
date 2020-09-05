@@ -63,10 +63,11 @@ void cdr::volumeResidual() {
   // 1. basis and basis_grad already include the integration weights
   
   int c_basis_num = wkset->usebasis[cnum];
-  basis = wkset->basis[c_basis_num];
-  basis_grad = wkset->basis_grad[c_basis_num];
-  wts = wkset->wts;
+  DRV basis = wkset->basis[c_basis_num];
+  DRV basis_grad = wkset->basis_grad[c_basis_num];
+  auto wts = wkset->wts;
   
+  FDATA source, diff, cp, rho, reax, xvel, yvel, zvel, tau;
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("source","ip");
@@ -85,10 +86,11 @@ void cdr::volumeResidual() {
   auto dCdt = Kokkos::subview( sol_dot, Kokkos::ALL(), cnum, Kokkos::ALL(), 0);
   auto gradC = Kokkos::subview( sol_grad, Kokkos::ALL(), cnum, Kokkos::ALL(), Kokkos::ALL());
   auto off = Kokkos::subview(offsets, cnum, Kokkos::ALL());
+  auto res = wkset->res;
   
   if (spaceDim == 1) {
     parallel_for("cdr volume resid 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (int pt=0; pt<sol.extent(2); pt++ ) {
+      for (int pt=0; pt<basis.extent(2); pt++ ) {
         AD f = (dCdt(elem,pt) + xvel(elem,pt)*gradC(elem,pt,0) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,0)*wts(elem,pt);
         for (int dof=0; dof<basis.extent(1); dof++ ) {
@@ -99,7 +101,7 @@ void cdr::volumeResidual() {
   }
   else if (spaceDim == 2) {
     parallel_for("cdr volume resid 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (int pt=0; pt<sol.extent(2); pt++ ) {
+      for (int pt=0; pt<basis.extent(2); pt++ ) {
         AD f = (dCdt(elem,pt) + xvel(elem,pt)*gradC(elem,pt,0) + yvel(elem,pt)*gradC(elem,pt,1) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,0)*wts(elem,pt);
         AD Fy = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,1)*wts(elem,pt);
@@ -111,7 +113,7 @@ void cdr::volumeResidual() {
   }
   else if (spaceDim == 3) {
     parallel_for("cdr volume resid 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (int pt=0; pt<sol.extent(2); pt++ ) {
+      for (int pt=0; pt<basis.extent(2); pt++ ) {
         AD f = (dCdt(elem,pt) + xvel(elem,pt)*gradC(elem,pt,0) + yvel(elem,pt)*gradC(elem,pt,1) + zvel(elem,pt)*gradC(elem,pt,2) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,0)*wts(elem,pt);
         AD Fy = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,1)*wts(elem,pt);

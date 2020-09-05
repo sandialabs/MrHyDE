@@ -95,13 +95,12 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void updatePerm();
+  void updatePerm(FDATA perm);
 
 private:
   
   int spaceDim;
-  FDATA source, bsource, perm, kxx, kxy, kyx, kyy, kxz, kyz, kzx, kzy, kzz;
-
+  
   int pintnum=-1, pbndrynum=-1, unum=-1, tnum=-1;
   int auxpintnum=-1, auxpbndrynum=-1, auxunum=-1, auxtnum=-1;
   int dxnum=-1,dynum=-1,dznum=-1;

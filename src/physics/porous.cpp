@@ -51,9 +51,12 @@ void porous::volumeResidual() {
   // 1. basis and basis_grad already include the integration weights
   
   int p_basis_num = wkset->usebasis[pnum];
-  basis = wkset->basis[p_basis_num];
-  basis_grad = wkset->basis_grad[p_basis_num];
-  wts = wkset->wts;
+  auto basis = wkset->basis[p_basis_num];
+  auto basis_grad = wkset->basis_grad[p_basis_num];
+  auto wts = wkset->wts;
+  auto res = wkset->res;
+  
+  FDATA perm, porosity, viscosity, densref, pref, comp, gravity, source;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -133,8 +136,10 @@ void porous::boundaryResidual() {
   
   int basis_num = wkset->usebasis[pnum];
   int numBasis = wkset->basis_side[basis_num].extent(1);
-  basis = wkset->basis_side[basis_num];
-  basis_grad = wkset->basis_grad_side[basis_num];
+  auto basis = wkset->basis_side[basis_num];
+  auto basis_grad = wkset->basis_grad_side[basis_num];
+  
+  FDATA perm, porosity, viscosity, densref, pref, comp, gravity, source;
   
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
@@ -161,9 +166,10 @@ void porous::boundaryResidual() {
   }
   
   // Since normals, wts and h get re-directed often, these need to be reset
-  normals = wkset->normals;
-  wts = wkset->wts_side;
-  h = wkset->h;
+  auto normals = wkset->normals;
+  auto wts = wkset->wts_side;
+  auto h = wkset->h;
+  auto res = wkset->res;
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
@@ -250,6 +256,8 @@ void porous::computeFlux() {
     sf = formparam;
   }
   
+  FDATA perm, porosity, viscosity, densref, pref, comp, gravity, source;
+  
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
     perm = functionManager->evaluate("permeability","side ip");
@@ -262,8 +270,8 @@ void porous::computeFlux() {
   }
   
   // Since normals get recomputed often, this needs to be reset
-  normals = wkset->normals;
-  h = wkset->h;
+  auto normals = wkset->normals;
+  auto h = wkset->h;
   
   {
     Teuchos::TimeMonitor localtime(*fluxFill);
@@ -307,10 +315,8 @@ void porous::setVars(std::vector<string> & varlist) {
 // ========================================================================================
 // ========================================================================================
 
-void porous::updatePerm() {
+void porous::updatePerm(FDATA perm) {
   
-  wts = wkset->wts;
-  perm = Kokkos::View<AD**,AssemblyDevice>("K inverse xx",wts.extent(0),wts.extent(1));
   Kokkos::View<ScalarT**,AssemblyDevice> data = wkset->extra_data;
   
   parallel_for("porous HGRAD update perm",RangePolicy<AssemblyExec>(0,perm.extent(0)), KOKKOS_LAMBDA (const int elem ) {

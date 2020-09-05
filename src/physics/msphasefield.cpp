@@ -208,16 +208,16 @@ void msphasefield::volumeResidual() {
   std::vector<AD>  phi_dot;
   AD  sumphi;
   
-  sol = wkset->local_soln;
-  sol_dot = wkset->local_soln_dot;
-  sol_grad = wkset->local_soln_grad;
+  auto sol = wkset->local_soln;
+  auto sol_dot = wkset->local_soln_dot;
+  auto sol_grad = wkset->local_soln_grad;
   
-  basis = wkset->basis[phi_basis];
-  basis_grad = wkset->basis_grad[phi_basis];
-  offsets = wkset->offsets;
+  auto basis = wkset->basis[phi_basis];
+  auto basis_grad = wkset->basis_grad[phi_basis];
+  auto offsets = wkset->offsets;
   DRV ip = wkset->ip;
-  res = wkset->res;
-  wts = wkset->wts;
+  auto res = wkset->res;
+  auto wts = wkset->wts;
   
   for (size_t e=0; e<basis.extent(0); e++) {
     for( int k=0; k<ip.extent(1); k++ ) {

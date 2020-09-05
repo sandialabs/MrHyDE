@@ -86,11 +86,7 @@ public:
   void setVars(std::vector<string> & varlist_);
   
 private:
-  
-  FDATA mu, epsilon;
-  FDATA current_x, current_y, current_z;
-  FDATA bsourcex, bsourcey, bsourcez;
-  
+    
   int spaceDim;
   
   int Ex_num, Ey_num, Ez_num,

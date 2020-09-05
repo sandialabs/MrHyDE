@@ -63,7 +63,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void updatePerm();
+  void updatePerm(FDATA perm);
   
 private:
 
@@ -72,8 +72,7 @@ private:
   bool addBiot;
   ScalarT biot_alpha, formparam;
   
-  FDATA perm, porosity, viscosity, densref, pref, comp, gravity, source;
-  Kokkos::View<int****,AssemblyDevice> sideinfo;
+  //Kokkos::View<int****,AssemblyDevice> sideinfo;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porous::volumeResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porous::volumeResidual() - evaluation of residual");

@@ -72,9 +72,8 @@ private:
   ScalarT alpha;
   //ScalarT gravity;
   
-  FDATA bath, bath_x, bath_y, visc, cor, bfric, source_Hu, source_Hv, nsource, nsource_Hu, nsource_Hv, bath_side;
-  Kokkos::View<int****,AssemblyDevice> sideinfo;
-  DRV Hbasis, Hbasis_grad, Hubasis, Hubasis_grad, Hvbasis, Hvbasis_grad;
+  //Kokkos::View<int****,AssemblyDevice> sideinfo;
+  //DRV Hbasis, Hbasis_grad, Hubasis, Hubasis_grad, Hvbasis, Hvbasis_grad;
   
   ScalarT formparam;
   

@@ -71,25 +71,18 @@ private:
   
   int verbosity;
   
-  Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad;
-  Kokkos::View<AD**,AssemblyDevice> res, adjrhs;
-  Kokkos::View<int**,AssemblyDevice> offsets;
-  Kokkos::View<int****,AssemblyDevice> sideinfo;
-  DRV urbasis, uibasis, urbasis_grad, uibasis_grad;
+  //Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad;
+  //Kokkos::View<AD**,AssemblyDevice> res, adjrhs;
+  //Kokkos::View<int**,AssemblyDevice> offsets;
+  //Kokkos::View<int****,AssemblyDevice> sideinfo;
+  //DRV urbasis, uibasis, urbasis_grad, uibasis_grad;
   
   
   AD ur, durdx, durdy, durdz, durdn, c2durdn;
   AD ui, duidx, duidy, duidz, duidn, c2duidn;
   ScalarT vr, dvrdx, dvrdy, dvrdz;
   ScalarT vi, dvidx, dvidy, dvidz;
-  
-  FDATA source_r, source_i, source_r_side, source_i_side;
-  FDATA omega2r, omega2i, omegar, omegai;
-  FDATA c2r_x, c2i_x, c2r_y, c2i_y, c2r_z, c2i_z;
-  FDATA alphaHr, alphaHi,alphaTr, alphaTi, freqExp; //fractional
-  FDATA c2r_side_x, c2i_side_x, c2r_side_y, c2i_side_y, c2r_side_z, c2i_side_z;
-  FDATA robin_alpha_r, robin_alpha_i;
-  
+    
   bool fractional;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::helmholtz::volumeResidual() - function evaluation");

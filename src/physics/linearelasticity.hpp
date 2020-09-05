@@ -77,7 +77,7 @@ public:
   // return the stress
   // ========================================================================================
   
-  void computeStress(const bool & onside);
+  void computeStress(FDATA lambda, FDATA mu, const bool & onside);
   
   // ========================================================================================
   /* return the SIPG / IIPG term for a given node and component at an integration point */
@@ -101,10 +101,7 @@ private:
   int dx_num, dy_num, dz_num, e_num, p_num;
   int auxdx_num = -1, auxdy_num = -1, auxdz_num = -1, auxe_num = -1, auxp_num = -1;
   
-  FDATA lambda, mu, source_dx, source_dy, source_dz;
-  FDATA lambda_side, mu_side, sourceN_dx, sourceN_dy, sourceN_dz;
-  
-  Kokkos::View<AD****,AssemblyDevice> stress, stress_side;
+  Kokkos::View<AD****,AssemblyDevice> stress_vol, stress_side;
   
   bool useLame, addBiot, useCE, incplanestress, disp_response_type;
   //ScalarT formparam, biot_alpha, e_ref, alpha_T, epen;

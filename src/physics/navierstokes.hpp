@@ -80,8 +80,6 @@ private:
   
   int verbosity;
   
-  FDATA dens, visc, source_ux, source_pr, source_uy, source_uz;
-  
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::navierstokes::volumeResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::navierstokes::volumeResidual() - evaluation of residual");
   Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::navierstokes::boundaryResidual() - function evaluation");

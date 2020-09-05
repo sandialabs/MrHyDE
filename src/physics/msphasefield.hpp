@@ -120,7 +120,7 @@ private:
   std::vector<ScalarT> disk;
   std::string initialType;
   
-  DRV basis, basis_grad;
+  //DRV basis, basis_grad;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::msphasefield::volumeResidual() - function evaluation");
   Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::msphasefield::volumeResidual() - evaluation of residual");

@@ -82,6 +82,11 @@ void helmholtz::volumeResidual() {
   int ur_basis_num = wkset->usebasis[ur_num];
   int ui_basis_num = wkset->usebasis[ui_num];
   
+  FDATA source_r, source_i;
+  FDATA omega2r, omega2i, omegar, omegai;
+  FDATA c2r_x, c2i_x, c2r_y, c2i_y, c2r_z, c2i_z;
+  FDATA alphaHr, alphaHi,alphaTr, alphaTi, freqExp; //fractional
+  
   c2r_x = functionManager->evaluate("c2r_x","ip");
   c2i_x = functionManager->evaluate("c2i_x","ip");
   c2r_y = functionManager->evaluate("c2r_y","ip");
@@ -101,22 +106,22 @@ void helmholtz::volumeResidual() {
   source_r = functionManager->evaluate("source_r","ip");
   source_i = functionManager->evaluate("source_i","ip");
   
-  sol = wkset->local_soln;
-  sol_dot = wkset->local_soln_dot;
-  sol_grad = wkset->local_soln_grad;
+  DRV urbasis = wkset->basis[ur_basis_num];
+  DRV urbasis_grad = wkset->basis_grad[ur_basis_num];
+  DRV uibasis = wkset->basis[ui_basis_num];
+  DRV uibasis_grad = wkset->basis_grad[ui_basis_num];
   
-  urbasis = wkset->basis[ur_basis_num];
-  urbasis_grad = wkset->basis_grad[ur_basis_num];
-  uibasis = wkset->basis[ui_basis_num];
-  uibasis_grad = wkset->basis_grad[ui_basis_num];
+  auto offsets = wkset->offsets;
   
-  offsets = wkset->offsets;
-  
-  res = wkset->res;
-  wts = wkset->wts;
+  auto res = wkset->res;
+  auto wts = wkset->wts;
+  auto sol = wkset->local_soln;
+  auto sol_grad = wkset->local_soln_grad;
+  auto sol_dot = wkset->local_soln_dot;
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
+  // TMW: this won't actually work on a GPU ... need to use subviews of sol, etc. and remove conditionals
   parallel_for("helmholtz volume resid",RangePolicy<AssemblyExec>(0,urbasis.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (int k=0; k<sol.extent(2); k++ ) {
       AD ur = sol(e,ur_num,k,0);
@@ -239,13 +244,19 @@ void helmholtz::boundaryResidual() {
   // NOTES:
   // 1. basis and basis_grad already include the integration weights
   
-  Kokkos::View<int**,HostDevice> bcs = wkset->var_bcs;
+  bcs = wkset->var_bcs;
   int cside = wkset->currentside;
   
   int ur_basis_num = wkset->usebasis[ur_num];
   int ui_basis_num = wkset->usebasis[ui_num];
   
   // Set the parameters
+  
+  FDATA c2r_side_x, c2i_side_x, c2r_side_y, c2i_side_y, c2r_side_z, c2i_side_z;
+  FDATA robin_alpha_r, robin_alpha_i;
+  FDATA source_r_side, source_i_side;
+  FDATA omega2r, omega2i;
+  FDATA alphaHr, alphaHi,alphaTr, alphaTi, freqExp; //fractional
   
   c2r_side_x = functionManager->evaluate("c2r_x","side ip");
   c2i_side_x = functionManager->evaluate("c2i_x","side ip");
@@ -265,19 +276,20 @@ void helmholtz::boundaryResidual() {
   freqExp = functionManager->evaluate("freqExp","side ip");
   
   //sideinfo = wkset->sideinfo;
-  sol = wkset->local_soln_side;
-  sol_grad = wkset->local_soln_grad_side;
-  offsets = wkset->offsets;
-  DRV normals = wkset->normals;
-  res = wkset->res;
-  wts = wkset->wts_side;
+  auto offsets = wkset->offsets;
+  auto normals = wkset->normals;
+  auto res = wkset->res;
+  auto wts = wkset->wts_side;
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
-  urbasis = wkset->basis_side[ur_basis_num];
-  urbasis_grad = wkset->basis_grad_side[ur_basis_num];
-  uibasis = wkset->basis_side[ui_basis_num];
-  uibasis_grad = wkset->basis_grad_side[ui_basis_num];
+  DRV urbasis = wkset->basis_side[ur_basis_num];
+  DRV urbasis_grad = wkset->basis_grad_side[ur_basis_num];
+  DRV uibasis = wkset->basis_side[ui_basis_num];
+  DRV uibasis_grad = wkset->basis_grad_side[ui_basis_num];
+  
+  auto sol = wkset->local_soln_side;
+  auto sol_grad = wkset->local_soln_grad_side;
   
   //Robin boundary condition of form alpha*u + dudn - source = 0, where u is the state and dudn is its normal derivative
   if (bcs(ur_num,cside) == 2) {

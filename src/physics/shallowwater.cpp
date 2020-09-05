@@ -69,6 +69,7 @@ void shallowwater::volumeResidual() {
   // NOTES:
   // 1. basis and basis_grad already include the integration weights
   
+  FDATA bath, bath_x, bath_y, visc, cor, bfric, source_Hu, source_Hv;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -84,18 +85,20 @@ void shallowwater::volumeResidual() {
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
   int H_basis_num = wkset->usebasis[H_num];
-  Hbasis = wkset->basis[H_basis_num];
-  Hbasis_grad = wkset->basis_grad[H_basis_num];
+  auto Hbasis = wkset->basis[H_basis_num];
+  auto Hbasis_grad = wkset->basis_grad[H_basis_num];
   
   int Hu_basis_num = wkset->usebasis[Hu_num];
-  Hubasis = wkset->basis[Hu_basis_num];
-  Hubasis_grad = wkset->basis_grad[Hu_basis_num];
+  auto Hubasis = wkset->basis[Hu_basis_num];
+  auto Hubasis_grad = wkset->basis_grad[Hu_basis_num];
   
   int Hv_basis_num = wkset->usebasis[Hv_num];
-  Hvbasis = wkset->basis[Hv_basis_num];
-  Hvbasis_grad = wkset->basis_grad[Hv_basis_num];
+  auto Hvbasis = wkset->basis[Hv_basis_num];
+  auto Hvbasis_grad = wkset->basis_grad[Hv_basis_num];
   
-  wts = wkset->wts;
+  auto wts = wkset->wts;
+  auto res = wkset->res;
+  
   //KokkosTools::print(bath);
   
   auto xi = Kokkos::subview( sol, Kokkos::ALL(), H_num, Kokkos::ALL(), 0);
@@ -116,7 +119,7 @@ void shallowwater::volumeResidual() {
     ScalarT dvdx = 0.0;
     ScalarT dvdy = 0.0;
     ScalarT gravity = 9.8;
-    for (int pt=0; pt<sol.extent(2); pt++ ) {
+    for (int pt=0; pt<Hbasis.extent(2); pt++ ) {
       
       AD f = xi_dot(elem,pt)*wts(elem,pt);
       AD Fx = -Hu(elem,pt)*wts(elem,pt);
@@ -162,6 +165,8 @@ void shallowwater::boundaryResidual() {
   
   string sidename = wkset->sidename;
   
+  FDATA nsource, nsource_Hu, nsource_Hv, bath_side;
+  
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     if (sidename == "left") {
@@ -179,23 +184,27 @@ void shallowwater::boundaryResidual() {
     
   }
   
-  sideinfo = wkset->sideinfo;
+  auto sideinfo = wkset->sideinfo;
   
   int H_basis_num = wkset->usebasis[H_num];
-  Hbasis = wkset->basis_side[H_basis_num];
-  Hbasis_grad = wkset->basis_grad_side[H_basis_num];
+  auto Hbasis = wkset->basis_side[H_basis_num];
+  auto Hbasis_grad = wkset->basis_grad_side[H_basis_num];
   
   int Hu_basis_num = wkset->usebasis[Hu_num];
-  Hubasis = wkset->basis_side[Hu_basis_num];
-  Hubasis_grad = wkset->basis_grad_side[Hu_basis_num];
+  auto Hubasis = wkset->basis_side[Hu_basis_num];
+  auto Hubasis_grad = wkset->basis_grad_side[Hu_basis_num];
   
   int Hv_basis_num = wkset->usebasis[Hv_num];
-  Hvbasis = wkset->basis_side[Hv_basis_num];
-  Hvbasis_grad = wkset->basis_grad_side[Hv_basis_num];
+  auto Hvbasis = wkset->basis_side[Hv_basis_num];
+  auto Hvbasis_grad = wkset->basis_grad_side[Hv_basis_num];
   
-  wts = wkset->wts_side;
+  auto wts = wkset->wts_side;
+  auto res = wkset->res;
+  auto normals = wkset->normals;
+  
   //KokkosTools::print(nsource);
   
+  //TMW: this needs to be rewritten for device and without sideinfo
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   ScalarT bb = 1.0;
   ScalarT gravity = 9.8;

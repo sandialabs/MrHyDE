@@ -63,8 +63,6 @@ public:
   
 private:
   
-  FDATA mu, epsilon, sigma;
-  FDATA current_x, current_y, current_z;
   
   int spaceDim;
   

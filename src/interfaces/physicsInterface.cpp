@@ -17,25 +17,25 @@
 #include "rectPeriodicMatcher.hpp"
 
 // Enabled physics modules:
-//#include "porous.hpp"
-//#include "porousHDIV.hpp"
-//#include "porousHDIV_hybridized.hpp"
-//#include "porousHDIV_weakGalerkin.hpp"
+#include "porous.hpp"
+#include "porousHDIV.hpp"
+#include "porousHDIV_hybridized.hpp"
+#include "porousHDIV_weakGalerkin.hpp"
 //#include "twophasePoNo.hpp"
 //#include "twophasePoPw.hpp"
-//#include "cdr.hpp"
+#include "cdr.hpp"
 #include "thermal.hpp"
 //#include "thermal_enthalpy.hpp"
-//#include "msphasefield.hpp"
-//#include "stokes.hpp"
-//#include "navierstokes.hpp"
-//#include "linearelasticity.hpp"
-//#include "helmholtz.hpp"
-//#include "maxwells_fp.hpp"
-//#include "shallowwater.hpp"
-//#include "maxwell.hpp"
-//#include "maxwell_hybridized.hpp"
-//#include "ode.hpp"
+#include "msphasefield.hpp"
+#include "stokes.hpp"
+#include "navierstokes.hpp"
+#include "linearelasticity.hpp"
+#include "helmholtz.hpp"
+#include "maxwells_fp.hpp"
+#include "shallowwater.hpp"
+#include "maxwell.hpp"
+#include "maxwell_hybridized.hpp"
+#include "ode.hpp"
 
 // Disabled/out-of-date physics modules
 //#include "msconvdiff.hpp"
@@ -329,7 +329,7 @@ void physics::importPhysics() {
     
     for (size_t mod=0; mod<enabled_modules.size(); mod++) {
       string modname = enabled_modules[mod];
-      /*
+      
       // Porous media (single phase slightly compressible)
       if (modname == "porous") {
         Teuchos::RCP<porous> porous_RCP = Teuchos::rcp(new porous(settings) );
@@ -358,6 +358,7 @@ void physics::importPhysics() {
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_porousHDIV_WG",false));
       }
       
+      /*
       // Two phase porous media
       if (modname == "twophase") {
         string formulation = blockPhysSettings[b].get<string>("formulation","PoNo");
@@ -377,14 +378,14 @@ void physics::importPhysics() {
         }
         
       }
-      
+      */
       // Convection diffusion
       if (modname == "cdr" || modname == "CDR") {
         Teuchos::RCP<cdr> cdr_RCP = Teuchos::rcp(new cdr(settings) );
         currmodules.push_back(cdr_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_cdr",false));
       }
-      */
+      
       /* not setting up correctly
        // Multiple Species convection diffusion reaction
        if (blockPhysSettings[b].get<bool>("solve_msconvdiff",false)) {
@@ -413,7 +414,7 @@ void physics::importPhysics() {
         currmodules.push_back(thermal_enthalpy_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_thermal_enthalpy",false));
       }
-      
+      */
       // Shallow Water
       if (modname == "shallow water") {
         Teuchos::RCP<shallowwater> shallowwater_RCP = Teuchos::rcp(new shallowwater(settings) );
@@ -434,7 +435,7 @@ void physics::importPhysics() {
         currmodules.push_back(maxwell_HYBRID_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_maxwell_hybrid",false));
       }
-      */
+      
       /* not setting up correctly
        // Burgers (entropy viscosity)
        if (blockPhysSettings[b].get<bool>("solve_burgers",false)) {
@@ -451,7 +452,6 @@ void physics::importPhysics() {
        
        */
       
-      /*
       // Multiple Species PhaseField
       if (modname == "msphasefield") {
         Teuchos::RCP<msphasefield> msphasefield_RCP = Teuchos::rcp(new msphasefield(settings, Commptr) );
@@ -474,7 +474,6 @@ void physics::importPhysics() {
         currmodules.push_back(navierstokes_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_navierstokes",false));
       }
-      */
       
       /* not setting up correctly
        // Euler
@@ -482,14 +481,14 @@ void physics::importPhysics() {
        currmodules.push_back(euler_RCP);
        }
        */
-      /*
+      
       // Linear Elasticity
       if (modname == "linearelasticity" || modname == "linear elasticity") {
         Teuchos::RCP<linearelasticity> linearelasticity_RCP = Teuchos::rcp(new linearelasticity(settings) );
         currmodules.push_back(linearelasticity_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_linearelasticity",false));
       }
-      */
+      
       /* not setting up correctly
        // Peridynamics
        if (blockPhysSettings[b].get<bool>("solve_peridynamics",false)) {
@@ -497,14 +496,14 @@ void physics::importPhysics() {
        }
        */
       
-      /*
+      
       // Helmholtz
       if (modname == "helmholtz") {
         Teuchos::RCP<helmholtz> helmholtz_RCP = Teuchos::rcp(new helmholtz(settings) );
         currmodules.push_back(helmholtz_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_helmholtz",false));
       }
-      */
+      
       
       /* not setting up correctly
        // Helmholtz with multiple wavenumbers
@@ -512,7 +511,7 @@ void physics::importPhysics() {
        currmodules.push_back(mwhelmholtz_RCP);
        }
        */
-      /*
+      
       // Maxwell's (potential of electric field, curl-curl frequency domain (Boyse et al (1992))
       if (modname == "maxwells_freq_pot"){
         Teuchos::RCP<maxwells_fp> maxwells_fp_RCP = Teuchos::rcp(new maxwells_fp(settings) );
@@ -526,7 +525,6 @@ void physics::importPhysics() {
         currmodules.push_back(ODE_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_ODE",false));
       }
-      */
       
       /*
        // PhaseField Solidification

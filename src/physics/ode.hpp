@@ -60,8 +60,6 @@ public:
   
 private:
   
-  FDATA source;
-  
   int qnum;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::ODE::volumeResidual() - function evaluation");

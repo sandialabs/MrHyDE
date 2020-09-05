@@ -55,7 +55,7 @@ void stokes::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
                              Teuchos::RCP<FunctionManager> & functionManager_) {
   
   functionManager = functionManager_;
-
+  
   Teuchos::ParameterList fs = settings->sublist("Functions");
   
   functionManager->addFunction("source ux",fs.get<string>("source ux","0.0"),"ip");
@@ -63,7 +63,7 @@ void stokes::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
   functionManager->addFunction("source uy",fs.get<string>("source uy","0.0"),"ip");
   functionManager->addFunction("source uz",fs.get<string>("source uz","0.0"),"ip");
   functionManager->addFunction("viscosity",fs.get<string>("viscosity","1.0"),"ip");
-    
+  
 }
 
 // ========================================================================================
@@ -76,6 +76,8 @@ void stokes::volumeResidual() {
   
   int numip = wkset->ip.extent(1);
   int numBasis;
+  
+  FDATA visc, source_ux, source_pr, source_uy, source_uz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -91,121 +93,126 @@ void stokes::volumeResidual() {
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
+  auto wts = wkset->wts;
+  auto res = wkset->res;
   
   /////////////////////////////
   // ux equation
   /////////////////////////////
   
-  int ux_basis = wkset->usebasis[ux_num];
-  basis = wkset->basis[ux_basis];
-  basis_grad = wkset->basis_grad[ux_basis];
-  wts = wkset->wts;
-  
-  parallel_for("Stokes ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  {
+    int ux_basis = wkset->usebasis[ux_num];
+    auto basis = wkset->basis[ux_basis];
+    auto basis_grad = wkset->basis_grad[ux_basis];
     
-    ScalarT v = 0.0;
-    ScalarT dvdx = 0.0;
-    ScalarT dvdy = 0.0;
-    ScalarT dvdz = 0.0;
-    
-    for (int k=0; k<sol.extent(2); k++ ) {
+    parallel_for("Stokes ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
       
-      AD ux = sol(e,ux_num,k,0);
-      //AD ux_dot = sol_dot(e,ux_num,k,0);
-      AD duxdx = sol_grad(e,ux_num,k,0);
+      ScalarT v = 0.0;
+      ScalarT dvdx = 0.0;
+      ScalarT dvdy = 0.0;
+      ScalarT dvdz = 0.0;
       
-      AD pr = sol(e,pr_num,k,0);
-      AD dprdx = sol_grad(e,pr_num,k,0);
-      
-      AD uy, duxdy, uz, duxdz, eval;
-      
-      if (spaceDim > 1) {
-        uy = sol(e,uy_num,k,0);
-        duxdy = sol_grad(e,ux_num,k,1);
-      }
-      
-      if (spaceDim > 2) {
-        uz = sol(e,uz_num,k,0);
-        duxdz = sol_grad(e,ux_num,k,2);
-      }
-      
-      //        if (have_energy) {
-      //          eval = sol(e,e_num,k,0);
-      //        }
-      
-      
-      for( int i=0; i<basis.extent(1); i++ ) {
-        int resindex = offsets(ux_num,i);
-        v = basis(e,i,k);
-        dvdx = basis_grad(e,i,k,0);
+      for (int k=0; k<basis.extent(2); k++ ) {
+        
+        AD ux = sol(e,ux_num,k,0);
+        //AD ux_dot = sol_dot(e,ux_num,k,0);
+        AD duxdx = sol_grad(e,ux_num,k,0);
+        
+        AD pr = sol(e,pr_num,k,0);
+        AD dprdx = sol_grad(e,pr_num,k,0);
+        
+        AD uy, duxdy, uz, duxdz, eval;
+        
         if (spaceDim > 1) {
-          dvdy = basis_grad(e,i,k,1);
+          uy = sol(e,uy_num,k,0);
+          duxdy = sol_grad(e,ux_num,k,1);
         }
+        
         if (spaceDim > 2) {
-          dvdz = basis_grad(e,i,k,2);
+          uz = sol(e,uz_num,k,0);
+          duxdz = sol_grad(e,ux_num,k,2);
         }
         
-        res(e,resindex) += (visc(e,k)*(duxdx*dvdx + duxdy*dvdy + duxdz*dvdz) - pr*dvdx - source_ux(e,k)*v)*wts(e,k);
+        //        if (have_energy) {
+        //          eval = sol(e,e_num,k,0);
+        //        }
         
-        // what is have_energy? (deleted other instances of it for now)
-        //          if (have_energy) {
-        //            res(e,resindex) += dens(e,k)*beta*(eval-T_ambient)*source_ux(e,k)*v;
-        //          }
-        // deleted SUPG stabilization since no need for it for linear equations
+        
+        for( int i=0; i<basis.extent(1); i++ ) {
+          int resindex = offsets(ux_num,i);
+          v = basis(e,i,k);
+          dvdx = basis_grad(e,i,k,0);
+          if (spaceDim > 1) {
+            dvdy = basis_grad(e,i,k,1);
+          }
+          if (spaceDim > 2) {
+            dvdz = basis_grad(e,i,k,2);
+          }
+          
+          res(e,resindex) += (visc(e,k)*(duxdx*dvdx + duxdy*dvdy + duxdz*dvdz) - pr*dvdx - source_ux(e,k)*v)*wts(e,k);
+          
+          // what is have_energy? (deleted other instances of it for now)
+          //          if (have_energy) {
+          //            res(e,resindex) += dens(e,k)*beta*(eval-T_ambient)*source_ux(e,k)*v;
+          //          }
+          // deleted SUPG stabilization since no need for it for linear equations
+        }
       }
-    }
-  });
+    });
+  }
   
   /////////////////////////////
   // pressure equation
   /////////////////////////////
   
-  int pr_basis = wkset->usebasis[pr_num];
-  basis = wkset->basis[pr_basis];
-  basis_grad = wkset->basis_grad[pr_basis];
-  
-  parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  {
+    int pr_basis = wkset->usebasis[pr_num];
+    auto basis = wkset->basis[pr_basis];
+    auto basis_grad = wkset->basis_grad[pr_basis];
     
-    ScalarT v = 0.0;
-    ScalarT dvdx = 0.0;
-    ScalarT dvdy = 0.0;
-    ScalarT dvdz = 0.0;
-    
-    for( int k=0; k<sol.extent(2); k++ ) {
-      AD ux = sol(e,ux_num,k,0);
-      //AD ux_dot = sol_dot(e,ux_num,k,0);
-      AD duxdx = sol_grad(e,ux_num,k,0);
-      AD pr = sol(e,pr_num,k,0);
-      AD dprdx = sol_grad(e,pr_num,k,0);
+    parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
       
-      AD uy, duxdy, duydy, uz, duxdz, duzdz, eval;
+      ScalarT v = 0.0;
+      ScalarT dvdx = 0.0;
+      ScalarT dvdy = 0.0;
+      ScalarT dvdz = 0.0;
       
-      if (spaceDim > 1) {
-        uy = sol(e,uy_num,k,0);
-        duxdy = sol_grad(e,ux_num,k,1);
-        duydy = sol_grad(e,uy_num,k,1);
-      }
-      
-      if (spaceDim > 2) {
-        uz = sol(e,uz_num,k,0);
-        duxdz = sol_grad(e,ux_num,k,2);
-        duzdz = sol_grad(e,uz_num,k,2);
-      }
-      
-      //        if (have_energy) {
-      //          eval = sol(e,e_num,k,0);
-      //        }
-      
-      for( int i=0; i<basis.extent(1); i++ ) {
+      for( int k=0; k<basis.extent(2); k++ ) {
+        AD ux = sol(e,ux_num,k,0);
+        //AD ux_dot = sol_dot(e,ux_num,k,0);
+        AD duxdx = sol_grad(e,ux_num,k,0);
+        AD pr = sol(e,pr_num,k,0);
+        AD dprdx = sol_grad(e,pr_num,k,0);
         
-        int resindex = offsets(pr_num,i);
-        v = basis(e,i,k);
+        AD uy, duxdy, duydy, uz, duxdz, duzdz, eval;
         
-        res(e,resindex) += ((duxdx + duydy + duzdz)*v)*wts(e,k);
+        if (spaceDim > 1) {
+          uy = sol(e,uy_num,k,0);
+          duxdy = sol_grad(e,ux_num,k,1);
+          duydy = sol_grad(e,uy_num,k,1);
+        }
         
+        if (spaceDim > 2) {
+          uz = sol(e,uz_num,k,0);
+          duxdz = sol_grad(e,ux_num,k,2);
+          duzdz = sol_grad(e,uz_num,k,2);
+        }
+        
+        //        if (have_energy) {
+        //          eval = sol(e,e_num,k,0);
+        //        }
+        
+        for( int i=0; i<basis.extent(1); i++ ) {
+          
+          int resindex = offsets(pr_num,i);
+          v = basis(e,i,k);
+          
+          res(e,resindex) += ((duxdx + duydy + duzdz)*v)*wts(e,k);
+          
+        }
       }
-    }
-  });
+    });
+  }
   
   /////////////////////////////
   // uy equation
@@ -214,8 +221,8 @@ void stokes::volumeResidual() {
   if (spaceDim > 1) {
     
     int uy_basis = wkset->usebasis[uy_num];
-    basis = wkset->basis[uy_basis];
-    basis_grad = wkset->basis_grad[uy_basis];
+    auto basis = wkset->basis[uy_basis];
+    auto basis_grad = wkset->basis_grad[uy_basis];
     
     parallel_for("Stokes uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
       
@@ -224,7 +231,7 @@ void stokes::volumeResidual() {
       ScalarT dvdy = 0.0;
       ScalarT dvdz = 0.0;
       
-      for( int k=0; k<sol.extent(2); k++ ) {
+      for( int k=0; k<basis.extent(2); k++ ) {
         
         AD ux = sol(e,ux_num,k,0);
         //AD uy_dot = sol_dot(e,uy_num,k,0);
@@ -269,8 +276,8 @@ void stokes::volumeResidual() {
   
   if (spaceDim > 2) {
     int uz_basis = wkset->usebasis[uz_num];
-    basis = wkset->basis[uz_basis];
-    basis_grad = wkset->basis_grad[uz_basis];
+    auto basis = wkset->basis[uz_basis];
+    auto basis_grad = wkset->basis_grad[uz_basis];
     
     parallel_for("Stokes uz volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
       
@@ -279,7 +286,7 @@ void stokes::volumeResidual() {
       ScalarT dvdy = 0.0;
       ScalarT dvdz = 0.0;
       
-      for( int k=0; k<sol.extent(2); k++ ) {
+      for( int k=0; k<basis.extent(2); k++ ) {
         
         AD ux = sol(e,ux_num,k,0);
         //AD uz_dot = sol_dot(e,uz_num,k,0);
@@ -317,7 +324,7 @@ void stokes::volumeResidual() {
 // ========================================================================================
 
 void stokes::boundaryResidual() {
-
+  
 }
 
 // ========================================================================================

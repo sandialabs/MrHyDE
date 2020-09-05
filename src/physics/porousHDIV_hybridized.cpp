@@ -76,12 +76,20 @@ void porousHDIV_HYBRID::volumeResidual() {
   int resindex;
   int p_basis = wkset->usebasis[pnum];
   int u_basis = wkset->usebasis[unum];
+  auto wts = wkset->wts;
+  auto res = wkset->res;
+  
+  FDATA source, bsource, Kinv_xx, Kinv_yy, Kinv_zz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("source","ip");
     if (usePermData) {
-      this->updatePerm();
+      auto wts = wkset->wts;
+      Kinv_xx = Kokkos::View<AD**,AssemblyDevice>("K inverse xx",wts.extent(0),wts.extent(1));
+      Kinv_yy = Kokkos::View<AD**,AssemblyDevice>("K inverse yy",wts.extent(0),wts.extent(1));
+      Kinv_zz = Kokkos::View<AD**,AssemblyDevice>("K inverse zz",wts.extent(0),wts.extent(1));
+      this->updatePerm(Kinv_xx, Kinv_yy, Kinv_zz);
     }
     else {
       Kinv_xx = functionManager->evaluate("Kinv_xx","ip");
@@ -90,22 +98,18 @@ void porousHDIV_HYBRID::volumeResidual() {
     }
   }
   
-  basis = wkset->basis[u_basis];
-  basis_div = wkset->basis_div[u_basis];
-  wts = wkset->wts;
-  
   {
     // (K^-1 u,v) - (p,div v) - src*v (src not added yet)
     
-    basis = wkset->basis[u_basis];
-    basis_div = wkset->basis_div[u_basis];
+    auto basis = wkset->basis[u_basis];
+    auto basis_div = wkset->basis_div[u_basis];
     auto psol = Kokkos::subview(sol,Kokkos::ALL(), pnum, Kokkos::ALL(), 0);
     auto usol = Kokkos::subview(sol,Kokkos::ALL(), unum, Kokkos::ALL(), Kokkos::ALL());
     auto off = Kokkos::subview(offsets, unum, Kokkos::ALL());
     
     if (spaceDim == 1) { // easier to place conditional here than on device
       parallel_for("porous HDIV-HY volume resid u 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for (int pt=0; pt<psol.extent(1); pt++ ) {
+        for (int pt=0; pt<basis.extent(2); pt++ ) {
           AD p = psol(elem,pt)*wts(elem,pt);
           AD Kiux = Kinv_xx(elem,pt)*usol(elem,pt,0)*wts(elem,pt);
           for (int dof=0; dof<basis.extent(1); dof++ ) {
@@ -118,7 +122,7 @@ void porousHDIV_HYBRID::volumeResidual() {
     }
     else if (spaceDim == 2) {
       parallel_for("porous HDIV-HY volume resid u 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for (int pt=0; pt<psol.extent(1); pt++ ) {
+        for (int pt=0; pt<basis.extent(2); pt++ ) {
           AD p = psol(elem,pt)*wts(elem,pt);
           AD Kiux = Kinv_xx(elem,pt)*usol(elem,pt,0)*wts(elem,pt);
           AD Kiuy = Kinv_yy(elem,pt)*usol(elem,pt,1)*wts(elem,pt);
@@ -133,7 +137,7 @@ void porousHDIV_HYBRID::volumeResidual() {
     }
     else {
       parallel_for("porous HDIV-HY volume resid u 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for (int pt=0; pt<psol.extent(1); pt++ ) {
+        for (int pt=0; pt<basis.extent(2); pt++ ) {
           AD p = psol(elem,pt)*wts(elem,pt);
           AD Kiux = Kinv_xx(elem,pt)*usol(elem,pt,0)*wts(elem,pt);
           AD Kiuy = Kinv_yy(elem,pt)*usol(elem,pt,1)*wts(elem,pt);
@@ -153,14 +157,13 @@ void porousHDIV_HYBRID::volumeResidual() {
   {
     // -(div u,q) + (src,q) (src not added yet)
     
-    basis = wkset->basis[p_basis];
+    auto basis = wkset->basis[p_basis];
     
     auto udiv = Kokkos::subview(sol_div,Kokkos::ALL(), unum, Kokkos::ALL());
     auto off = Kokkos::subview(offsets,pnum, Kokkos::ALL());
     
     parallel_for("porous HDIV-HY volume resid div(u)",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      
-      for (int pt=0; pt<udiv.extent(1); pt++ ) {
+      for (int pt=0; pt<basis.extent(2); pt++ ) {
         AD divu = udiv(elem,pt)*wts(elem,pt);
         AD src = source(elem,pt)*wts(elem,pt);
         for (int dof=0; dof<basis.extent(1); dof++ ) {
@@ -185,8 +188,9 @@ void porousHDIV_HYBRID::boundaryResidual() {
   
   int u_basis = wkset->usebasis[unum];
   
-  basis = wkset->basis_side[u_basis];
+  auto basis = wkset->basis_side[u_basis];
   
+  FDATA bsource;
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
@@ -197,8 +201,9 @@ void porousHDIV_HYBRID::boundaryResidual() {
   }
   
   // Since normals get recomputed often, this needs to be reset
-  normals = wkset->normals;
-  wts = wkset->wts_side;
+  auto normals = wkset->normals;
+  auto wts = wkset->wts_side;
+  auto res = wkset->res;
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
@@ -245,15 +250,15 @@ void porousHDIV_HYBRID::faceResidual() {
   int u_basis = wkset->usebasis[unum];
   
   // Since normals get recomputed often, this needs to be reset
-  normals = wkset->normals;
+  auto normals = wkset->normals;
+  auto res = wkset->res;
+  auto wts = wkset->wts_side;
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
   {
     // include <lambda, v \cdot n> in velocity equation
-    basis = wkset->basis_face[u_basis];
-    wts = wkset->wts_side;
-    
+    auto basis = wkset->basis_face[u_basis];
     auto lambda = Kokkos::subview(sol_face,Kokkos::ALL(), lambdanum, Kokkos::ALL(), 0);
     auto off = Kokkos::subview(offsets, unum, Kokkos::ALL());
     
@@ -273,7 +278,7 @@ void porousHDIV_HYBRID::faceResidual() {
   
   {
     // include -<u \cdot n, mu> in interface equation
-    basis = wkset->basis_face[lambda_basis];
+    auto basis = wkset->basis_face[lambda_basis];
     auto usol = Kokkos::subview(sol_face, Kokkos::ALL(), unum, Kokkos::ALL(), Kokkos::ALL());
     auto off = Kokkos::subview(offsets, lambdanum, Kokkos::ALL());
     
@@ -299,7 +304,7 @@ void porousHDIV_HYBRID::faceResidual() {
 void porousHDIV_HYBRID::computeFlux() {
   
   // Since normals get recomputed often, this needs to be reset
-  normals = wkset->normals;
+  auto normals = wkset->normals;
   
   {
     Teuchos::TimeMonitor localtime(*fluxFill);
@@ -358,15 +363,11 @@ void porousHDIV_HYBRID::setAuxVars(std::vector<string> & auxvarlist) {
 // ========================================================================================
 // ========================================================================================
 
-void porousHDIV_HYBRID::updatePerm() {
+void porousHDIV_HYBRID::updatePerm(FDATA Kinv_xx, FDATA Kinv_yy, FDATA Kinv_zz) {
   
-  wts = wkset->wts;
-  Kinv_xx = Kokkos::View<AD**,AssemblyDevice>("K inverse xx",wts.extent(0),wts.extent(1));
-  Kinv_yy = Kokkos::View<AD**,AssemblyDevice>("K inverse yy",wts.extent(0),wts.extent(1));
-  Kinv_zz = Kokkos::View<AD**,AssemblyDevice>("K inverse zz",wts.extent(0),wts.extent(1));
   Kokkos::View<ScalarT**,AssemblyDevice> data = wkset->extra_data;
   
-  parallel_for(RangePolicy<AssemblyExec>(0,res.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+  parallel_for(RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_LAMBDA (const int elem ) {
     for (int pt=0; pt<Kinv_xx.extent(1); pt++) {
       Kinv_xx(elem,pt) = data(elem,0);
       Kinv_yy(elem,pt) = data(elem,0);

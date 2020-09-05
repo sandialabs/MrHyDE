@@ -80,6 +80,8 @@ void navierstokes::volumeResidual() {
   int numip = wkset->ip.extent(1);
   int numBasis;
   
+  FDATA dens, visc, source_ux, source_pr, source_uy, source_uz;
+  
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source_ux = functionManager->evaluate("source ux","ip");
@@ -101,9 +103,13 @@ void navierstokes::volumeResidual() {
   /////////////////////////////
   
   int ux_basis = wkset->usebasis[ux_num];
-  basis = wkset->basis[ux_basis];
-  basis_grad = wkset->basis_grad[ux_basis];
-  wts = wkset->wts;
+  auto basis = wkset->basis[ux_basis];
+  auto basis_grad = wkset->basis_grad[ux_basis];
+  auto wts = wkset->wts;
+  auto res =wkset->res;
+  auto sol = wkset->local_soln;
+  auto sol_grad = wkset->local_soln_grad;
+  auto offsets = wkset->offsets;
   
   parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
     

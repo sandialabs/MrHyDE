@@ -80,6 +80,8 @@ void maxwell_HYBRID::volumeResidual() {
   int Ex_basis_num = wkset->usebasis[Ex_num];
   int Hx_basis_num = wkset->usebasis[Hx_num];
   
+  FDATA mu, epsilon;
+  
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     mu = functionManager->evaluate("mu","ip");
@@ -91,13 +93,18 @@ void maxwell_HYBRID::volumeResidual() {
 
   // (\varepsilon \partial_t E_h, v)_{T_h} = \varepsilon (dEx_dt * vx + dEy_dt * vy + dEz_dt * vz)
   // using the basis for v as the same in each component
-  basis = wkset->basis[Ex_basis_num];
-
+  auto basis = wkset->basis[Ex_basis_num];
+  auto wts = wkset->wts;
+  auto res = wkset->res;
+  auto sol = wkset->local_soln;
+  auto sol_dot = wkset->local_soln_dot;
+  auto offsets = wkset->offsets;
+  
   parallel_for("Maxwells hybrid E volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e) {
 
     ScalarT v = 0.0;
 
-    for (int k=0; k<sol.extent(2); k++ ) {
+    for (int k=0; k<basis.extent(2); k++ ) {
 
       AD dEx_dt = sol_dot(e,Ex_num,k,0);
       AD dEy_dt, dEz_dt;
@@ -134,7 +141,7 @@ void maxwell_HYBRID::volumeResidual() {
 
     ScalarT v = 0.0;
 
-    for (int k=0; k<sol.extent(2); k++ ) {
+    for (int k=0; k<basis.extent(2); k++ ) {
 
       AD dHx_dt = sol_dot(e,Hx_num,k,0);
       AD dHy_dt, dHz_dt;
@@ -170,7 +177,7 @@ void maxwell_HYBRID::volumeResidual() {
   //                                       + Hx*dvdy - Hy*dvdx into resindex for Hz
   // this avoids needing dvx_dx, dvx_dy, dvx_dz, etc., which make it more complicated
   basis = wkset->basis[Hx_basis_num];
-  basis_grad = wkset->basis_grad[Hx_basis_num];
+  auto basis_grad = wkset->basis_grad[Hx_basis_num];
 
   parallel_for("Maxwells hybrid extra volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e) {
 
@@ -178,7 +185,7 @@ void maxwell_HYBRID::volumeResidual() {
     ScalarT dvdy = 0.0;
     ScalarT dvdz = 0.0;
 
-    for (int k=0; k<sol.extent(2); k++ ) {
+    for (int k=0; k<basis.extent(2); k++ ) {
 
       AD Hx = sol(e,Hx_num,k,0);
       AD Hy, Hz;
@@ -223,7 +230,7 @@ void maxwell_HYBRID::volumeResidual() {
 
     ScalarT v = 0.0;
 
-    for (int k=0; k<sol.extent(2); k++ ) {
+    for (int k=0; k<basis.extent(2); k++ ) {
 
       AD dEx_dx = sol_grad(e,Ex_num,k,0);
       AD dEy_dx = sol_grad(e,Ey_num,k,0);
@@ -272,8 +279,9 @@ void maxwell_HYBRID::boundaryResidual() {
   int sidetype = bcs(lambdax_num,cside);
 
   int lambdax_basis = wkset->usebasis[lambdax_num];
-  basis = wkset->basis_side[lambdax_basis];
+  auto basis = wkset->basis_side[lambdax_basis];
 
+  FDATA bsourcex, bsourcey, bsourcez, current_x, current_y, current_z;
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
 
@@ -289,8 +297,10 @@ void maxwell_HYBRID::boundaryResidual() {
   }
 
   // Since normals get recomputed often, this needs to be reset
-  normals = wkset->normals;
-
+  auto normals = wkset->normals;
+  auto res = wkset->res;
+  auto offsets = wkset->offsets;
+  
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
 
   // - (\lambda_h, \eta)_{\Gamma_a} = - (lambdax * etax + lambday * etay + lambdaz * etaz)
@@ -337,8 +347,10 @@ void maxwell_HYBRID::faceResidual() {
   int Ex_basis = wkset->usebasis[Ex_num];
 
   // Since normals get recomputed often, this needs to be reset
-  normals = wkset->normals;
-
+  auto normals = wkset->normals;
+  auto res = wkset->res;
+  
+  FDATA mu, epsilon;
   {
     // It should still be possible to evaluate and use these, right?
     // TODO: add a timer for this
@@ -352,7 +364,7 @@ void maxwell_HYBRID::faceResidual() {
   ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
 
   // (lambda_h, n x v)_{\partial T_h} = lambdax*(ny*vz - nz*vy) + lambday*(nz*vx - nx*vz) + lambdaz*(nx*vy - vx*ny)
-  basis = wkset->basis_face[Ex_basis];
+  auto basis = wkset->basis_face[Ex_basis];
 
   AD lambdax, lambday, lambdaz;
   for (int e=0; e<basis.extent(0); e++) {

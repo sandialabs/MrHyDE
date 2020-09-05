@@ -75,12 +75,11 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void updatePerm();
+  void updatePerm(FDATA Kinv_xx, FDATA Kinv_yy, FDATA Kinv_zz);
   
 private:
   
   int spaceDim;
-  FDATA source, bsource, Kinv_xx, Kinv_yy, Kinv_zz;
   
   int pnum=-1, unum=-1, lambdanum=-1;
   int auxpnum=-1, auxunum=-1, auxlambdanum=-1;

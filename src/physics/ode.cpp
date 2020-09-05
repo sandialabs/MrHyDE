@@ -39,6 +39,8 @@ void ODE::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
 
 void ODE::volumeResidual() {
   
+  FDATA source;
+  
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("ODE source","ip");
@@ -46,7 +48,8 @@ void ODE::volumeResidual() {
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   int q_basis = wkset->usebasis[qnum];
-  basis = wkset->basis[q_basis];
+  auto basis = wkset->basis[q_basis];
+  auto res = wkset->res;
   
   // Simply solves q_dot = f(q,t)
   auto off = Kokkos::subview(offsets,qnum,Kokkos::ALL());
