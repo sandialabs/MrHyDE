@@ -1005,11 +1005,11 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
     if (usestrongDBCs) {
       this->setDirichlet(u);
     }
-    for (size_t b=0; b<blocknames.size(); b++) {
-      assembler->performGather(b,u,0,0);
+    {
+      assembler->performGather(u,0,0);
+      postproc->record(current_time);
     }
-    postproc->record(current_time);
-        
+    
     for (int s=0; s<numsteps; s++) {
       assembler->resetPrevSoln();
     }
@@ -1080,9 +1080,7 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         
         // Make sure last step solution is gathered
         // Last set of values is from a stage solution, which is potentially different
-        for (size_t b=0; b<blocknames.size(); b++) {
-          assembler->performGather(b,u,0,0);
-        }
+        assembler->performGather(u,0,0);
         
         if (compute_objective) { // fill in the objective function
           DFAD cobj = this->computeObjective(u, current_time, soln->times[0].size()-1);
@@ -1137,10 +1135,8 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
       // Also, need to implement checkpoint/recovery
       bool fndu = soln->extract(u, cindex);
       bool fndup = soln->extract(u_prev, cindex-1);
-      for (size_t b=0; b<blocknames.size(); b++) {
-        assembler->performGather(b,u_prev,0,0);
-        assembler->resetPrevSoln();
-      }
+      assembler->performGather(u_prev,0,0);
+      assembler->resetPrevSoln();
       
       current_time = soln->times[0][cindex-1];
       
@@ -1318,11 +1314,11 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
   
   for (size_t b=0; b<assembler->cells.size(); b++) {
     
-    assembler->performGather(b, F_soln, 0, 0);
-    assembler->performGather(b, params->Psol[0], 4, 0);
+    assembler->performGather(F_soln, 0, 0);
+    assembler->performGather(params->Psol[0], 4, 0);
     
-    assembler->performBoundaryGather(b, F_soln, 0, 0);
-    assembler->performBoundaryGather(b, params->Psol[0], 4, 0);
+    //assembler->performBoundaryGather(b, F_soln, 0, 0);
+    //assembler->performBoundaryGather(b, params->Psol[0], 4, 0);
     
     for (size_t e=0; e<assembler->cells[b].size(); e++) {
       

@@ -87,13 +87,12 @@ public:
                       const ScalarT & deltat);
   
   
-  void assembleJacRes(vector_RCP & u, vector_RCP & phi,
-                      const bool & compute_jacobian, const bool & compute_sens,
+  void assembleJacRes(const bool & compute_jacobian, const bool & compute_sens,
                       const bool & compute_disc_sens,
                       vector_RCP & res, matrix_RCP & J, const bool & isTransient,
                       const ScalarT & current_time, const bool & useadjoint,
                       const bool & store_adjPrev,
-                      const int & num_active_params, vector_RCP & Psol,
+                      const int & num_active_params,
                       const bool & is_final_time, const int & block,
                       const ScalarT & deltat);
   
@@ -120,20 +119,21 @@ public:
   //
   // ========================================================================================
   
-  void performGather(const size_t & block, const vector_RCP & vec, const int & type,
-                     const size_t & index);
+  void performGather(const vector_RCP & vec, const int & type, const size_t & index);
+  
+  void performGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, const int & type);
   
   // ========================================================================================
   //
   // ========================================================================================
   
-  void performBoundaryGather(const size_t & block, const vector_RCP & vec, const int & type,
-                             const size_t & index);
+  void performBoundaryGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, const int & type);
   
   ////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////////////////////////////////////////
   
-  void insert(matrix_RCP & J, vector_RCP & res,
+  template<class T>
+  void insert(T J_view, vector_RCP & res,
               Kokkos::View<ScalarT***,HostDevice> local_res,
               Kokkos::View<ScalarT***,HostDevice> local_J,
               LIDView_host LIDs, LIDView_host paramLIDs,

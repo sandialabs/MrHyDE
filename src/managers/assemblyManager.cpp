@@ -739,11 +739,24 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
     }
   }
   
+  {
+    Teuchos::TimeMonitor localtimer(*gathertimer);
+    
+    // Local gather of solutions
+    this->performGather(u,0,0);
+    if (params->num_discretized_params > 0) {
+      this->performGather(Psol,4,0);
+    }
+    if (useadjoint) {
+      this->performGather(phi,2,0);
+    }
+  }
+  
   for (size_t b=0; b<cells.size(); b++) {
-    this->assembleJacRes(u, phi, compute_jacobian,
+    this->assembleJacRes(compute_jacobian,
                          compute_sens, compute_disc_sens, res, J, isTransient,
                          current_time, useadjoint, store_adjPrev, num_active_params,
-                         Psol, is_final_time, b, deltat);
+                         is_final_time, b, deltat);
   }
   
   if (milo_debug_level > 1) {
@@ -757,14 +770,13 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
 // Main assembly routine ... only assembles on a given block (b)
 // ========================================================================================
 
-void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
-                                     const bool & compute_jacobian, const bool & compute_sens,
+void AssemblyManager::assembleJacRes(const bool & compute_jacobian, const bool & compute_sens,
                                      const bool & compute_disc_sens,
                                      vector_RCP & res, matrix_RCP & J, const bool & isTransient,
                                      const ScalarT & current_time,
                                      const bool & useadjoint, const bool & store_adjPrev,
                                      const int & num_active_params,
-                                     vector_RCP & Psol, const bool & is_final_time,
+                                     const bool & is_final_time,
                                      const int & b, const ScalarT & deltat) {
     
   
@@ -772,6 +784,8 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
   int numRes = res->getNumVectors();
   
   Teuchos::TimeMonitor localassemblytimer(*assemblytimer);
+  
+  auto J_view = J->getLocalMatrix();
   
   //////////////////////////////////////////////////////////////////////////////////////
   // Set up the worksets and allocate the local residual and Jacobians
@@ -821,18 +835,42 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
   /////////////////////////////////////////////////////////////////////////////
   // Perform gather to cells
   /////////////////////////////////////////////////////////////////////////////
+  /*
+  Kokkos::View<ScalarT*,AssemblyDevice> u_dev, phi_dev, P_dev;
   {
     Teuchos::TimeMonitor localtimer(*gathertimer);
     
     // Local gather of solutions
-    this->performGather(b,u,0,0);
-    this->performGather(b,Psol,4,0);
+    auto u_kv = u->getLocalView<HostDevice>();
+    auto u_slice = Kokkos::subview(u_kv, Kokkos::ALL(), 0);
+    u_dev = Kokkos::View<ScalarT*,AssemblyDevice>("tpetra vector on device",u_kv.extent(0));
+    auto u_host = Kokkos::create_mirror_view(u_dev);
+    Kokkos::deep_copy(u_host,u_slice);
+    Kokkos::deep_copy(u_dev,u_host);
+    this->performGather(b,u_dev,0,0);
+    
+    if (params->num_discretized_params > 0) {
+      auto P_kv = Psol->getLocalView<HostDevice>();
+      auto P_slice = Kokkos::subview(P_kv, Kokkos::ALL(), 0);
+      P_dev = Kokkos::View<ScalarT*,AssemblyDevice>("tpetra vector on device",P_kv.extent(0));
+      auto P_host = Kokkos::create_mirror_view(P_dev);
+      Kokkos::deep_copy(P_host,P_slice);
+      Kokkos::deep_copy(P_dev,P_host);
+      this->performGather(b,P_dev,4,0);
+    }
     if (useadjoint) {
+      auto phi_kv = phi->getLocalView<HostDevice>();
+      auto phi_slice = Kokkos::subview(phi_kv, Kokkos::ALL(), 0);
+      phi_dev = Kokkos::View<ScalarT*,AssemblyDevice>("tpetra vector on device",phi_kv.extent(0));
+      auto phi_host = Kokkos::create_mirror_view(phi_dev);
+      Kokkos::deep_copy(phi_host,phi_slice);
+      Kokkos::deep_copy(phi_dev,phi_host);
       this->performGather(b,phi,2,0);
     }
   }
   Kokkos::fence(); 
- 
+ */
+  
   /////////////////////////////////////////////////////////////////////////////
   // Volume contribution
   /////////////////////////////////////////////////////////////////////////////
@@ -871,7 +909,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
     ///////////////////////////////////////////////////////////////////////////
     // Insert into global matrix/vector
     ///////////////////////////////////////////////////////////////////////////
-    this->insert(J, res, local_res_host, local_J_host,
+    this->insert(J_view, res, local_res_host, local_J_host,
                  cells[b][e]->LIDs_host,
                  cells[b][e]->paramLIDs_host,
                  compute_jacobian, compute_disc_sens);
@@ -883,20 +921,22 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
   //////////////////////////////////////////////////////////////////////////////////////
   
   if (!cells[0][0]->cellData->multiscale && assemble_boundary_terms[b]) {
-    
+    /*
     {
       Teuchos::TimeMonitor localtimer(*gathertimer);
       
       // Local gather of solutions
-      // Do not need to gather u_dot or phi_dot on boundaries (for now)
-      this->performBoundaryGather(b,u,0,0);
-      this->performBoundaryGather(b,Psol,4,0);
+      this->performBoundaryGather(b,u_dev,0,0);
+      if (params->num_discretized_params > 0) {
+        this->performBoundaryGather(b,P_dev,4,0);
+      }
       if (useadjoint) {
-        this->performBoundaryGather(b,phi,2,0);
+        this->performBoundaryGather(b,phi_dev,2,0);
       }
     }
     Kokkos::fence();   
- 
+    */
+    
     if (compute_sens) {
       local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,num_active_params);
     }
@@ -942,7 +982,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
         // Insert into global matrix/vector
         ///////////////////////////////////////////////////////////////////////////
         
-        this->insert(J, res, local_res_host, local_J_host,
+        this->insert(J_view, res, local_res_host, local_J_host,
                      boundaryCells[b][e]->LIDs_host,
                      boundaryCells[b][e]->paramLIDs_host,
                      compute_jacobian, compute_disc_sens);
@@ -1027,62 +1067,68 @@ void AssemblyManager::updateStageSoln()  {
 //
 // ========================================================================================
 
-void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
-                                    const int & type, const size_t & entry) {
-  
-  // Get a view of the vector on the AssemblyDevice
-  // TMW: this double deep copy is a hack.  There should be a better way to do this.
+// ========================================================================================
+//
+// ========================================================================================
 
+void AssemblyManager::performGather(const vector_RCP & vec, const int & type, const size_t & entry) {
+  
   auto vec_kv = vec->getLocalView<HostDevice>();
   auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), entry);
-
   Kokkos::View<ScalarT*,AssemblyDevice> vec_dev("tpetra vector on device",vec_kv.extent(0));
   auto vec_host = Kokkos::create_mirror_view(vec_dev);
   Kokkos::deep_copy(vec_host,vec_slice);
   Kokkos::deep_copy(vec_dev,vec_host);
+  this->performGather(vec_dev, type);
+  this->performBoundaryGather(vec_dev, type);
+  
+}
+
+void AssemblyManager::performGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, const int & type) {
   
   Kokkos::View<LO*,AssemblyDevice> numDOF;
   Kokkos::View<ScalarT***,AssemblyDevice> data;
   Kokkos::View<int**,AssemblyDevice> offsets;
   LIDView LIDs;
   
-  // TMW: Does this need to be executed on Device?
-  for (size_t c=0; c < cells[b].size(); c++) {
-    switch(type) {
-      case 0 :
-        LIDs = cells[b][c]->LIDs;
-        numDOF = cells[b][c]->cellData->numDOF;
-        data = cells[b][c]->u;
-        offsets = wkset[b]->offsets;
-        break;
-      case 1 : // deprecated (u_dot)
-        break;
-      case 2 :
-        LIDs = cells[b][c]->LIDs;
-        numDOF = cells[b][c]->cellData->numDOF;
-        data = cells[b][c]->phi;
-        offsets = wkset[b]->offsets;
-        break;
-      case 3 : // deprecated (phi_dot)
-        break;
-      case 4:
-        LIDs = cells[b][c]->paramLIDs;
-        numDOF = cells[b][c]->cellData->numParamDOF;
-        data = cells[b][c]->param;
-        offsets = wkset[b]->paramoffsets;
-        break;
-      default :
-        cout << "ERROR - NOTHING WAS GATHERED" << endl;
-    }
-    
-    parallel_for("assembly gather",RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (size_t var=0; var<offsets.extent(0); var++) {
-        for(size_t dof=0; dof<numDOF(var); dof++ ) {
-          data(elem,var,dof) = vec_dev(LIDs(elem,offsets(var,dof)));
-        }
+  for (size_t b=0; b<cells.size(); b++) {
+    for (size_t c=0; c<cells[b].size(); c++) {
+      switch(type) {
+        case 0 :
+          LIDs = cells[b][c]->LIDs;
+          numDOF = cells[b][c]->cellData->numDOF;
+          data = cells[b][c]->u;
+          offsets = wkset[b]->offsets;
+          break;
+        case 1 : // deprecated (u_dot)
+          break;
+        case 2 :
+          LIDs = cells[b][c]->LIDs;
+          numDOF = cells[b][c]->cellData->numDOF;
+          data = cells[b][c]->phi;
+          offsets = wkset[b]->offsets;
+          break;
+        case 3 : // deprecated (phi_dot)
+          break;
+        case 4:
+          LIDs = cells[b][c]->paramLIDs;
+          numDOF = cells[b][c]->cellData->numParamDOF;
+          data = cells[b][c]->param;
+          offsets = wkset[b]->paramoffsets;
+          break;
+        default :
+          cout << "ERROR - NOTHING WAS GATHERED" << endl;
       }
-    });
-    
+      
+      parallel_for("assembly gather",RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (size_t var=0; var<offsets.extent(0); var++) {
+          for(size_t dof=0; dof<numDOF(var); dof++ ) {
+            data(elem,var,dof) = vec_dev(LIDs(elem,offsets(var,dof)));
+          }
+        }
+      });
+      
+    }
   }
 }
 
@@ -1090,21 +1136,9 @@ void AssemblyManager::performGather(const size_t & b, const vector_RCP & vec,
 //
 // ========================================================================================
 
-void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP & vec,
-                                            const int & type, const size_t & entry) {
+void AssemblyManager::performBoundaryGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, const int & type) {
   
-  if (boundaryCells.size() > b) {
-    
-    // Get a view of the vector on the HostDevice
-    auto vec_kv = vec->getLocalView<HostDevice>();
-    auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), entry);
-    
-    Kokkos::View<ScalarT*,AssemblyDevice> vec_dev("tpetra vector on device",vec_kv.extent(0));
-    auto vec_host = Kokkos::create_mirror_view(vec_dev);
-    Kokkos::deep_copy(vec_host,vec_slice);
-    Kokkos::deep_copy(vec_dev,vec_host);
-    
-    // Get a corresponding view on the AssemblyDevice
+  for (size_t b=0; b<boundaryCells.size(); b++) {
     
     Kokkos::View<LO*,AssemblyDevice> numDOF;
     Kokkos::View<ScalarT***,AssemblyDevice> data;
@@ -1156,7 +1190,8 @@ void AssemblyManager::performBoundaryGather(const size_t & b, const vector_RCP &
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
+template<class T>
+void AssemblyManager::insert(T J_view, vector_RCP & res,
                              Kokkos::View<ScalarT***,HostDevice> local_res,
                              Kokkos::View<ScalarT***,HostDevice> local_J,
                              LIDView_host LIDs, LIDView_host paramLIDs,
@@ -1184,7 +1219,7 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
   
   if (compute_jacobian) {
     
-    auto localMatrix = J->getLocalMatrix();
+    //auto localMatrix = J->getLocalMatrix();
     
     if (compute_disc_sens) {
       //parallel_for("assembly insert Jac sens",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
@@ -1194,7 +1229,8 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
           for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
             LO colIndex = paramLIDs(elem,col);
             ScalarT val = local_J(elem,row,col);
-            localMatrix.sumIntoValues(colIndex, &rowIndex, 1, &val, true, use_atomics); // isSorted, useAtomics
+            //localMatrix.sumIntoValues(colIndex, &rowIndex, 1, &val, true, use_atomics); // isSorted, useAtomics
+            J_view.sumIntoValues(colIndex, &rowIndex, 1, &val, true, use_atomics); // isSorted, useAtomics
           }
         }
       }
@@ -1203,19 +1239,22 @@ void AssemblyManager::insert(matrix_RCP & J, vector_RCP & res,
       //parallel_for("assembly insert Jac",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for( size_t elem=0; elem<LIDs.extent(0); elem++ ) {
         //const int numVals = static_cast<int>(LIDs.extent(1));
-        //const int numVals = LIDs.extent(1);
-        //LO cols[numVals];
-        //ScalarT vals[numVals];
+        const int numVals = LIDs.extent(1);
+        LO cols[numVals];
+        ScalarT vals[numVals];
         
         for (size_t row=0; row<LIDs.extent(1); row++ ) {
           LO rowIndex = LIDs(elem,row);
           if (!isFixedDOF(rowIndex)) {
             for (size_t col=0; col<LIDs.extent(1); col++ ) {
-              ScalarT vals = local_J(elem,row,col);
-              LO cols = LIDs(elem,col);
-              localMatrix.sumIntoValues(rowIndex, &cols, 1, &vals, true, use_atomics); // isSorted, useAtomics
+              vals[col] = local_J(elem,row,col);
+              cols[col] = LIDs(elem,col);
+              //ScalarT vals = local_J(elem,row,col);
+              //LO cols = LIDs(elem,col);
+              //localMatrix.sumIntoValues(rowIndex, &cols, 1, &vals, true, use_atomics); // isSorted, useAtomics
             }
             //localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics); // isSorted, useAtomics
+            J_view.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics); // isSorted, useAtomics
           }
         }
       }
