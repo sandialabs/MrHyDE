@@ -596,7 +596,7 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
       altblock = 0;
     }
     
-    Kokkos::View<ScalarT*,AssemblyDevice> blockerrors("error",error_list[altblock].size());
+    Kokkos::View<ScalarT*,HostDevice> blockerrors("error",error_list[altblock].size());
     // Determine what needs to be updated in the workset
     bool have_vol_errs = false, have_face_errs = false;
     for (size_t etype=0; etype<error_list[altblock].size(); etype++){
@@ -625,12 +625,24 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
           auto sol = assembler->wkset[altblock]->local_soln;
           auto wts = assembler->cells[block][cell]->wts;
           // add in the L2 difference at the volumetric ip
+          /*
           parallel_for("postproc L2 error",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem ) {
             for( size_t pt=0; pt<wts.extent(1); pt++ ) {
               ScalarT diff = sol(elem,var,pt,0).val() - tsol(elem,pt).val();
               blockerrors(etype) += diff*diff*wts(elem,pt);
             }
           });
+          cout << "Error using for = " << blockerrors(etype) << endl;
+           */
+          ScalarT error = 0.0;
+          parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, double& update) {
+            for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+              ScalarT diff = sol(elem,var,pt,0).val() - tsol(elem,pt).val();
+              update += diff*diff*wts(elem,pt);
+            }
+          }, error);
+          blockerrors(etype) += error;
+          //cout << "Error using reduce = " << error << endl;
         }
         else if (error_list[altblock][etype].second == "GRAD") {
           // compute the true x-component of grad

@@ -21,6 +21,7 @@
 
 using namespace std;
 using Kokkos::parallel_for;
+using Kokkos::parallel_reduce;
 using Kokkos::RangePolicy;
 
 #define MILO_VERSION "1.0"
@@ -29,7 +30,7 @@ typedef double ScalarT;
 typedef int LO;
 typedef panzer::GlobalOrdinal GO; // this should really be panzer::GlobalOrdinal
 
-#define maxDerivs 64 // adjust this to improve performance
+#define maxDerivs 24 // adjust this to improve performance
 #define PI 3.141592653589793238463
 #define MILO_DEBUG false
 typedef Teuchos::MpiComm<int> MpiComm;
