@@ -1198,23 +1198,27 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
       
       if (vartypes[n] == "HGRAD") {
         
-        Kokkos::View<ScalarT**,HostDevice> soln_computed = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
-        
+        Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
+        auto soln_computed = Kokkos::create_mirror_view(soln_dev);
         std::string var = varlist[b][n];
         for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-          Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][e]->localElemID;
-          auto host_eID = Kokkos::create_mirror_view(eID);
-          Kokkos::deep_copy(host_eID,eID);
-          
-          Kokkos::View<ScalarT***,AssemblyDevice> sol = assembler->cells[b][e]->u;
-          auto host_sol = Kokkos::create_mirror_view(sol);
-          Kokkos::deep_copy(host_sol,sol);
-          for (int p=0; p<host_eID.extent(0); p++) {
-            for( int i=0; i<numNodesPerElem; i++ ) {
-              soln_computed(host_eID(p),i) = host_sol(p,n,i);
-            }
-          }
+          auto eID = assembler->cells[b][e]->localElemID;
+          auto sol = Kokkos::subview(assembler->cells[b][e]->u, Kokkos::ALL(), n, Kokkos::ALL());
+        
+          parallel_for("wkset transient soln 1",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            //for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+            //auto host_eID = Kokkos::create_mirror_view(eID);
+            //Kokkos::deep_copy(host_eID,eID);
+            
+            //auto host_sol = Kokkos::create_mirror_view(sol);
+            //Kokkos::deep_copy(host_sol,sol);
+              for( int i=0; i<soln_dev.extent(1); i++ ) {
+                soln_dev(eID(elem),i) = sol(elem,i);
+              }
+          });
         }
+        Kokkos::deep_copy(soln_computed, soln_dev);
+        
         if (var == "dx") {
           mesh->setSolutionFieldData("dispx", blockID, myElements, soln_computed);
         }
