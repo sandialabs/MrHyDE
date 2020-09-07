@@ -1198,7 +1198,7 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
       
       if (vartypes[n] == "HGRAD") {
         
-        Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(), numNodesPerElem);
+        Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(), numNodesPerElem);
         auto soln_computed = Kokkos::create_mirror_view(soln_dev);
         std::string var = varlist[b][n];
         for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
