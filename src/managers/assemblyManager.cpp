@@ -1067,10 +1067,6 @@ void AssemblyManager::updateStageSoln()  {
 //
 // ========================================================================================
 
-// ========================================================================================
-//
-// ========================================================================================
-
 void AssemblyManager::performGather(const vector_RCP & vec, const int & type, const size_t & entry) {
   
   auto vec_kv = vec->getLocalView<HostDevice>();
@@ -1083,6 +1079,10 @@ void AssemblyManager::performGather(const vector_RCP & vec, const int & type, co
   this->performBoundaryGather(vec_dev, type);
   
 }
+
+// ========================================================================================
+//
+// ========================================================================================
 
 void AssemblyManager::performGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, const int & type) {
   
