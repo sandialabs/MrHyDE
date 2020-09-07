@@ -50,11 +50,11 @@ void ODE::volumeResidual() {
   int q_basis = wkset->usebasis[qnum];
   auto basis = wkset->basis[q_basis];
   auto res = wkset->res;
-  
+  auto sol_dot = Kokkos::subview(wkset->local_soln_dot,Kokkos::ALL(),qnum,0,0);  
   // Simply solves q_dot = f(q,t)
   auto off = Kokkos::subview(offsets,qnum,Kokkos::ALL());
   parallel_for("ODE volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    res(e,off(0)) += sol_dot(e,qnum,0,0) - source(e,0);
+    res(e,off(0)) += sol_dot(e) - source(e,0);
   });
 }
 
