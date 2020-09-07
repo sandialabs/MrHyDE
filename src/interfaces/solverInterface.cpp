@@ -898,7 +898,9 @@ void solver::forwardModel(DFAD & obj) {
     this->projectDirichlet();
   }
   vector_RCP u = this->setInitial();
-  
+ 
+  Kokkos::fence();
+ 
   if (solver_type == "transient") {
     soln->store(u, current_time, 0); // copies the data
   }
@@ -1009,7 +1011,8 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
       assembler->performGather(u,0,0);
       postproc->record(current_time);
     }
-    
+    Kokkos::fence();
+ 
     for (int s=0; s<numsteps; s++) {
       assembler->resetPrevSoln();
     }
