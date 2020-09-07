@@ -1120,8 +1120,7 @@ void cell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
 Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, const bool & isAdjoint) {
   Kokkos::View<ScalarT**,AssemblyDevice> initialvals("initial values",numElem,LIDs.extent(1));
   this->updateWorksetBasis();
-  Kokkos::View<int[1],AssemblyDevice> iscratch("current index");
-  auto iscratch_host = Kokkos::create_mirror_view(iscratch);
+  
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
   auto cwts = wts;
@@ -1133,13 +1132,12 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, co
                                                                                           wkset);
     for (int n=0; n<numDOF.extent(0); n++) {
       DRV cbasis = basis[wkset->usebasis[n]];
-      iscratch_host(0) = n;
-      Kokkos::deep_copy(iscratch,iscratch_host);
-      parallel_for("cell get init",RangePolicy<AssemblyExec>(0,initialvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        int nn = iscratch(0);
-        for( int i=0; i<numDOF(nn); i++ ) {
-          for( size_t j=0; j<initialip.extent(2); j++ ) {
-            initialvals(e,offsets(nn,i)) += initialip(e,nn,j)*cbasis(e,i,j)*cwts(e,j);
+      auto off = Kokkos::subview(offsets, n, Kokkos::ALL());
+      auto initvar = Kokkos::subview(initialip, Kokkos::ALL(), n, Kokkos::ALL());
+      parallel_for("cell get init",RangePolicy<AssemblyExec>(0,initvar.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for( int dof=0; dof<cbasis.extent(1); dof++ ) {
+          for( size_t pt=0; pt<cwts.extent(1); pt++ ) {
+            initialvals(elem,off(dof)) += initvar(elem,pt)*cbasis(elem,dof,pt)*cwts(elem,pt);
           }
         }
       });
@@ -1153,12 +1151,10 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, co
                                                                                              wkset);
     for (int n=0; n<numDOF.extent(0); n++) {
       auto off = Kokkos::subview( offsets, n, Kokkos::ALL());
-      iscratch_host(0) = n;
-      Kokkos::deep_copy(iscratch,iscratch_host);
-      parallel_for("cell get init interp",RangePolicy<AssemblyExec>(0,initialnodes.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        int nn = iscratch(0);
-        for( int i=0; i<numDOF(nn); i++ ) {
-          initialvals(e,off(i)) = initialnodes(e,nn,i);
+      auto initvar = Kokkos::subview(initialnodes, Kokkos::ALL(), n, Kokkos::ALL());
+      parallel_for("cell get init interp",RangePolicy<AssemblyExec>(0,initialnodes.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for( int dof=0; dof<initvar.extent(1); dof++ ) {
+          initialvals(elem,off(dof)) = initvar(elem,dof);
         }
       });
     }
@@ -1174,22 +1170,19 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
   Kokkos::View<ScalarT***,AssemblyDevice> mass("local mass",numElem,
                                                LIDs.extent(1),
                                                LIDs.extent(1));
-  Kokkos::View<int[1],AssemblyDevice> iscratch("current index");
-  auto iscratch_host = Kokkos::create_mirror_view(iscratch);
+  
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
   auto cwts = wts;
   
   for (int n=0; n<numDOF.extent(0); n++) {
     DRV cbasis = basis[wkset->usebasis[n]];
-    iscratch_host(0) = n;
-    Kokkos::deep_copy(iscratch,iscratch_host);
+    auto off = Kokkos::subview(offsets,n,Kokkos::ALL());
     parallel_for("cell get mass",RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      int nn  = iscratch(0);
-      for( int i=0; i<numDOF(nn); i++ ) {
-        for( int j=0; j<numDOF(nn); j++ ) {
+      for( int i=0; i<cbasis.extent(1); i++ ) {
+        for( int j=0; j<cbasis.extent(1); j++ ) {
           for( size_t k=0; k<cbasis.extent(2); k++ ) {
-            mass(e,offsets(nn,i),offsets(nn,j)) += cbasis(e,i,k)*cbasis(e,j,k)*cwts(e,k);
+            mass(e,off(i),off(j)) += cbasis(e,i,k)*cbasis(e,j,k)*cwts(e,k);
           }
         }
       }
