@@ -1308,8 +1308,8 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
     if (dpnames.size() > 0) {
       for (size_t n=0; n<dpnames.size(); n++) {
         if (discParamTypes[n] == "HGRAD") {
-          Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,HostDevice>("solution",myElements.size(),
-                                                                                               numNodesPerElem);
+          Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(),
+                                                                                                   numNodesPerElem);
           auto soln_computed = Kokkos::create_mirror_view(soln_dev);
           for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
             auto eID = assembler->cells[b][e]->localElemID;
