@@ -575,13 +575,16 @@ void cell::computeSolnFaceIP(const size_t & facenum) {
 
 void cell::resetPrevSoln() {
   
+  auto sol = u;
+  auto sol_prev = u_prev;
+  
   // shift previous step solns
-  if (u_prev.extent(3)>1) {
-    parallel_for("cell shift prev soln",RangePolicy<AssemblyExec>(0,u_prev.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int i=0; i<u_prev.extent(1); i++) {
-        for (int j=0; j<u_prev.extent(2); j++) {
-          for (int s=u_prev.extent(3)-1; s>0; s--) {
-            u_prev(e,i,j,s) = u_prev(e,i,j,s-1);
+  if (sol_prev.extent(3)>1) {
+    parallel_for("cell shift prev soln",RangePolicy<AssemblyExec>(0,sol_prev.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      for (int i=0; i<sol_prev.extent(1); i++) {
+        for (int j=0; j<sol_prev.extent(2); j++) {
+          for (int s=sol_prev.extent(3)-1; s>0; s--) {
+            sol_prev(e,i,j,s) = sol_prev(e,i,j,s-1);
           }
         }
       }
@@ -589,10 +592,10 @@ void cell::resetPrevSoln() {
   }
   
   // copy current u into first step
-  parallel_for("cell copy prev soln",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    for (int i=0; i<u.extent(1); i++) {
-      for (int j=0; j<u.extent(2); j++) {
-        u_prev(e,i,j,0) = u(e,i,j);
+  parallel_for("cell copy prev soln",RangePolicy<AssemblyExec>(0,sol.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    for (int i=0; i<sol.extent(1); i++) {
+      for (int j=0; j<sol.extent(2); j++) {
+        sol_prev(e,i,j,0) = sol(e,i,j);
       }
     }
   });
@@ -605,11 +608,14 @@ void cell::resetPrevSoln() {
 
 void cell::resetStageSoln() {
   
-  parallel_for("cell reset stage soln",RangePolicy<AssemblyExec>(0,u_stage.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    for (int i=0; i<u_stage.extent(1); i++) {
-      for (int j=0; j<u_stage.extent(2); j++) {
-        for (int k=0; k<u_stage.extent(3); k++) {
-          u_stage(e,i,j,k) = u(e,i,j);
+  auto sol = u;
+  auto sol_stage = u_stage;
+  
+  parallel_for("cell reset stage soln",RangePolicy<AssemblyExec>(0,sol_stage.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    for (int i=0; i<sol_stage.extent(1); i++) {
+      for (int j=0; j<sol_stage.extent(2); j++) {
+        for (int k=0; k<sol_stage.extent(3); k++) {
+          sol_stage(e,i,j,k) = sol(e,i,j);
         }
       }
     }
@@ -623,14 +629,16 @@ void cell::resetStageSoln() {
 
 void cell::updateStageSoln() {
   
+  auto sol = u;
+  auto sol_stage = u_stage;
   
   // add u into the current stage soln (done after stage solution is computed)
-  Kokkos::View<int*,AssemblyDevice> snum = wkset->current_stage_KV;
-  parallel_for("cell update stage soln",RangePolicy<AssemblyExec>(0,u_stage.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  auto snum = wkset->current_stage_KV;
+  parallel_for("cell update stage soln",RangePolicy<AssemblyExec>(0,sol_stage.extent(0)), KOKKOS_LAMBDA (const int e ) {
     int stage = snum(0);
-    for (int i=0; i<u_stage.extent(1); i++) {
-      for (int j=0; j<u_stage.extent(2); j++) {
-        u_stage(e,i,j,stage) = u(e,i,j);
+    for (int i=0; i<sol_stage.extent(1); i++) {
+      for (int j=0; j<sol_stage.extent(2); j++) {
+        sol_stage(e,i,j,stage) = sol(e,i,j);
       }
     }
   });
