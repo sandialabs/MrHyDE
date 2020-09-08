@@ -822,12 +822,12 @@ Kokkos::View<ScalarT**,AssemblyDevice> BoundaryCell::getDirichlet() {
   Kokkos::View<ScalarT**,AssemblyDevice> dvals("initial values",numElem,LIDs.extent(1));
   this->updateWorksetBasis();
   //wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
-  Kokkos::View<int[1],AssemblyDevice> currind("current index");
-  auto currind_host = Kokkos::create_mirror_view(currind);
   
   Kokkos::View<int**,HostDevice> bcs = wkset->var_bcs;
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
+  auto cwts = wts;
+  auto cnormals = normals;
   
   for (int n=0; n<wkset->varlist.size(); n++) {
     if (bcs(n,sidenum) == 1) { // is this a strong DBC for this variable
@@ -837,27 +837,23 @@ Kokkos::View<ScalarT**,AssemblyDevice> BoundaryCell::getDirichlet() {
                                                                                         wkset);
       int bind = wkset->usebasis[n];
       std::string btype = cellData->basis_types[bind];
-      currind_host(0) = n;
-      Kokkos::deep_copy(currind,currind_host);
       DRV cbasis = basis[bind];
-      
+      auto off = Kokkos::subview(offsets,n,Kokkos::ALL());
       if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE"){
         parallel_for("bcell fill Dirichlet",RangePolicy<AssemblyExec>(0,dvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          int n = currind(0);
-          for( int i=0; i<numDOF(n); i++ ) {
-            for( size_t j=0; j<dip.extent(1); j++ ) {
-              dvals(e,offsets(n,i)) += dip(e,j)*cbasis(e,i,j)*wts(e,j);
+          for( int i=0; i<cbasis.extent(1); i++ ) {
+            for( size_t j=0; j<cwts.extent(1); j++ ) {
+              dvals(e,off(i)) += dip(e,j)*cbasis(e,i,j)*cwts(e,j);
             }
           }
         });
       }
       else if (btype == "HDIV"){
         parallel_for("bcell fill Dirichlet HDIV",RangePolicy<AssemblyExec>(0,dvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          int n = currind(0);
-          for( int i=0; i<numDOF(n); i++ ) {
-            for( size_t j=0; j<dip.extent(1); j++ ) {
+          for( int i=0; i<cbasis.extent(1); i++ ) {
+            for( size_t j=0; j<cwts.extent(1); j++ ) {
               for (size_t s=0; s<cbasis.extent(3); s++) {
-                dvals(e,offsets(n,i)) += dip(e,j)*cbasis(e,i,j,s)*normals(e,j,s)*wts(e,j);
+                dvals(e,off(i)) += dip(e,j)*cbasis(e,i,j,s)*cnormals(e,j,s)*cwts(e,j);
               }
             }
           }
