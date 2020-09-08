@@ -336,7 +336,7 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
           for (int s=0; s<stage; s++) {
             beta_u += b_A(stage,s)/b_b(s) * (u_stage(elem,var,dof,s) - u_prev(elem,var,dof,0));
           }
-          uvals(elem,var,dof) = alpha_u*stageval+beta_u;
+          u_AD(elem,var,dof) = alpha_u*stageval+beta_u;
           
           // Compute the time derivative
           beta_t = 0.0;
@@ -412,7 +412,7 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
       }
     });
   }
-               
+  Kokkos::fence();         
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
