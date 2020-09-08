@@ -877,40 +877,36 @@ Kokkos::View<ScalarT***,AssemblyDevice> BoundaryCell::getMass() {
                                                LIDs.extent(1), LIDs.extent(1));
   
   Kokkos::View<int**,HostDevice> bcs = wkset->var_bcs;
-  Kokkos::View<int[1],AssemblyDevice> currind("current index");
-  auto currind_host = Kokkos::create_mirror_view(currind);
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
+  auto cwts = wts;
   
   for (int n=0; n<numDOF.extent(0); n++) {
     if (bcs(n,sidenum) == 1) { // is this a strong DBC for this variable
-      currind_host(0) = n;
-      Kokkos::deep_copy(currind,currind_host);
       int bind = wkset->usebasis[n];
-      
       DRV cbasis = basis[bind];
+      auto off = Kokkos::subview(offsets,n,Kokkos::ALL());
       std::string btype = cellData->basis_types[bind];
       
       if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE"){
         parallel_for("bcell compute mass",RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          int n = currind(0);
-          for( int i=0; i<numDOF(n); i++ ) {
-            for( int j=0; j<numDOF(n); j++ ) {
+          for( int i=0; i<cbasis.extent(1); i++ ) {
+            for( int j=0; j<cbasis.extent(1); j++ ) {
               for( size_t k=0; k<cbasis.extent(2); k++ ) {
-                mass(e,offsets(n,i),offsets(n,j)) += cbasis(e,i,k)*cbasis(e,j,k)*wts(e,k);
+                mass(e,off(i),off(j)) += cbasis(e,i,k)*cbasis(e,j,k)*cwts(e,k);
               }
             }
           }
         });
       }
       else if (btype == "HDIV"){
+        auto cnormals = normals;
         parallel_for("bcell compute mass HDIV",RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          int n = currind(0);
-          for( int i=0; i<numDOF(n); i++ ) {
-            for( int j=0; j<numDOF(n); j++ ) {
+          for( int i=0; i<cbasis.extent(1); i++ ) {
+            for( int j=0; j<cbasis.extent(1); j++ ) {
               for( size_t k=0; k<cbasis.extent(2); k++ ) {
                 for (size_t s=0; s<cbasis.extent(3); s++) {
-                  mass(e,offsets(n,i),offsets(n,j)) += cbasis(e,i,k,s)*normals(e,k,s)*cbasis(e,j,k,s)*normals(e,k,s)*wts(e,k);
+                  mass(e,off(i),off(j)) += cbasis(e,i,k,s)*cnormals(e,k,s)*cbasis(e,j,k,s)*cnormals(e,k,s)*cwts(e,k);
                 }
               }
             }
