@@ -100,224 +100,188 @@ void stokes::volumeResidual() {
   // ux equation
   /////////////////////////////
   
-  {
-    int ux_basis = wkset->usebasis[ux_num];
-    auto basis = wkset->basis[ux_basis];
-    auto basis_grad = wkset->basis_grad[ux_basis];
+  if (spaceDim == 1) {
+    auto gradUx = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),ux_num,Kokkos::ALL(),Kokkos::ALL());
+    auto Pr = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),pr_num,Kokkos::ALL(),0);
+    {
+      int ux_basis = wkset->usebasis[ux_num];
+      auto basis = wkset->basis[ux_basis];
+      auto basis_grad = wkset->basis_grad[ux_basis];
+      auto off = Kokkos::subview(wkset->offsets,ux_num,Kokkos::ALL());
+      parallel_for("Stokes ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int pt=0; pt<basis.extent(2); pt++ ) {
+          AD Fx = visc(elem,pt)*gradUx(elem,pt,0) - Pr(elem,pt);
+          Fx *= wts(elem,pt);
+          AD g = -source_ux(elem,pt)*wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + g*basis(elem,dof,pt);
+          }
+        }
+      });
+    }
     
-    parallel_for("Stokes ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    {
+      int pr_basis = wkset->usebasis[pr_num];
+      auto basis = wkset->basis[pr_basis];
+      auto basis_grad = wkset->basis_grad[pr_basis];
+      auto off = Kokkos::subview(wkset->offsets,pr_num,Kokkos::ALL());
       
-      ScalarT v = 0.0;
-      ScalarT dvdx = 0.0;
-      ScalarT dvdy = 0.0;
-      ScalarT dvdz = 0.0;
-      
-      for (int k=0; k<basis.extent(2); k++ ) {
-        
-        AD ux = sol(e,ux_num,k,0);
-        //AD ux_dot = sol_dot(e,ux_num,k,0);
-        AD duxdx = sol_grad(e,ux_num,k,0);
-        
-        AD pr = sol(e,pr_num,k,0);
-        AD dprdx = sol_grad(e,pr_num,k,0);
-        
-        AD uy, duxdy, uz, duxdz, eval;
-        
-        if (spaceDim > 1) {
-          uy = sol(e,uy_num,k,0);
-          duxdy = sol_grad(e,ux_num,k,1);
-        }
-        
-        if (spaceDim > 2) {
-          uz = sol(e,uz_num,k,0);
-          duxdz = sol_grad(e,ux_num,k,2);
-        }
-        
-        //        if (have_energy) {
-        //          eval = sol(e,e_num,k,0);
-        //        }
-        
-        
-        for( int i=0; i<basis.extent(1); i++ ) {
-          int resindex = offsets(ux_num,i);
-          v = basis(e,i,k);
-          dvdx = basis_grad(e,i,k,0);
-          if (spaceDim > 1) {
-            dvdy = basis_grad(e,i,k,1);
+      parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for( int pt=0; pt<basis.extent(2); pt++ ) {
+          AD divu = gradUx(elem,pt,0);
+          divu *= wts(elem,pt);
+          for( int dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += divu*basis(elem,dof,pt);
           }
-          if (spaceDim > 2) {
-            dvdz = basis_grad(e,i,k,2);
-          }
-          
-          res(e,resindex) += (visc(e,k)*(duxdx*dvdx + duxdy*dvdy + duxdz*dvdz) - pr*dvdx - source_ux(e,k)*v)*wts(e,k);
-          
-          // what is have_energy? (deleted other instances of it for now)
-          //          if (have_energy) {
-          //            res(e,resindex) += dens(e,k)*beta*(eval-T_ambient)*source_ux(e,k)*v;
-          //          }
-          // deleted SUPG stabilization since no need for it for linear equations
         }
-      }
-    });
+      });
+    }
   }
   
-  /////////////////////////////
-  // pressure equation
-  /////////////////////////////
-  
-  {
-    int pr_basis = wkset->usebasis[pr_num];
-    auto basis = wkset->basis[pr_basis];
-    auto basis_grad = wkset->basis_grad[pr_basis];
-    
-    parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      
-      ScalarT v = 0.0;
-      ScalarT dvdx = 0.0;
-      ScalarT dvdy = 0.0;
-      ScalarT dvdz = 0.0;
-      
-      for( int k=0; k<basis.extent(2); k++ ) {
-        AD ux = sol(e,ux_num,k,0);
-        //AD ux_dot = sol_dot(e,ux_num,k,0);
-        AD duxdx = sol_grad(e,ux_num,k,0);
-        AD pr = sol(e,pr_num,k,0);
-        AD dprdx = sol_grad(e,pr_num,k,0);
-        
-        AD uy, duxdy, duydy, uz, duxdz, duzdz, eval;
-        
-        if (spaceDim > 1) {
-          uy = sol(e,uy_num,k,0);
-          duxdy = sol_grad(e,ux_num,k,1);
-          duydy = sol_grad(e,uy_num,k,1);
-        }
-        
-        if (spaceDim > 2) {
-          uz = sol(e,uz_num,k,0);
-          duxdz = sol_grad(e,ux_num,k,2);
-          duzdz = sol_grad(e,uz_num,k,2);
-        }
-        
-        //        if (have_energy) {
-        //          eval = sol(e,e_num,k,0);
-        //        }
-        
-        for( int i=0; i<basis.extent(1); i++ ) {
-          
-          int resindex = offsets(pr_num,i);
-          v = basis(e,i,k);
-          
-          res(e,resindex) += ((duxdx + duydy + duzdz)*v)*wts(e,k);
-          
-        }
-      }
-    });
-  }
-  
-  /////////////////////////////
-  // uy equation
-  /////////////////////////////
-  
-  if (spaceDim > 1) {
-    
-    int uy_basis = wkset->usebasis[uy_num];
-    auto basis = wkset->basis[uy_basis];
-    auto basis_grad = wkset->basis_grad[uy_basis];
-    
-    parallel_for("Stokes uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      
-      ScalarT v = 0.0;
-      ScalarT dvdx = 0.0;
-      ScalarT dvdy = 0.0;
-      ScalarT dvdz = 0.0;
-      
-      for( int k=0; k<basis.extent(2); k++ ) {
-        
-        AD ux = sol(e,ux_num,k,0);
-        //AD uy_dot = sol_dot(e,uy_num,k,0);
-        AD duydx = sol_grad(e,uy_num,k,0);
-        
-        AD pr = sol(e,pr_num,k,0);
-        AD dprdy = sol_grad(e,pr_num,k,1);
-        
-        AD uy = sol(e,uy_num,k,0);
-        AD duydy = sol_grad(e,uy_num,k,1);
-        
-        AD uz, duydz, eval;
-        if (spaceDim > 2) {
-          uz = sol(e,uz_num,k,0);
-          duydz = sol_grad(e,uy_num,k,2);
-        }
-        
-        //          if (have_energy) {
-        //            eval = sol(e,e_num,k,0);
-        //          }
-        
-        for( int i=0; i<basis.extent(1); i++ ) {
-          int resindex = offsets(uy_num,i);
-          v = basis(e,i,k);
-          dvdx = basis_grad(e,i,k,0);
-          if (spaceDim > 1) {
-            dvdy = basis_grad(e,i,k,1);
+  if (spaceDim == 2) {
+    auto gradUx = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),ux_num,Kokkos::ALL(),Kokkos::ALL());
+    auto gradUy = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),uy_num,Kokkos::ALL(),Kokkos::ALL());
+    auto Pr = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),pr_num,Kokkos::ALL(),0);
+    {
+      int ux_basis = wkset->usebasis[ux_num];
+      auto basis = wkset->basis[ux_basis];
+      auto basis_grad = wkset->basis_grad[ux_basis];
+      auto off = Kokkos::subview(wkset->offsets,ux_num,Kokkos::ALL());
+      parallel_for("Stokes ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int pt=0; pt<basis.extent(2); pt++ ) {
+          AD Fx = visc(elem,pt)*gradUx(elem,pt,0) - Pr(elem,pt);
+          Fx *= wts(elem,pt);
+          AD Fy = visc(elem,pt)*gradUx(elem,pt,1);
+          Fy *= wts(elem,pt);
+          AD g = -source_ux(elem,pt)*wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + g*basis(elem,dof,pt);
           }
-          if (spaceDim > 2) {
-            dvdz = basis_grad(e,i,k,2);
-          }
-          
-          res(e,resindex) += (visc(e,k)*(duydx*dvdx + duydy*dvdy + duydz*dvdz) - pr*dvdy - source_uy(e,k)*v)*wts(e,k);
         }
-      }
-    });
-  }
-  
-  /////////////////////////////
-  // uz equation
-  /////////////////////////////
-  
-  if (spaceDim > 2) {
-    int uz_basis = wkset->usebasis[uz_num];
-    auto basis = wkset->basis[uz_basis];
-    auto basis_grad = wkset->basis_grad[uz_basis];
+      });
+    }
     
-    parallel_for("Stokes uz volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      
-      ScalarT v = 0.0;
-      ScalarT dvdx = 0.0;
-      ScalarT dvdy = 0.0;
-      ScalarT dvdz = 0.0;
-      
-      for( int k=0; k<basis.extent(2); k++ ) {
-        
-        AD ux = sol(e,ux_num,k,0);
-        //AD uz_dot = sol_dot(e,uz_num,k,0);
-        AD duzdx = sol_grad(e,uz_num,k,0);
-        
-        AD pr = sol(e,pr_num,k,0);
-        AD dprdz = sol_grad(e,pr_num,k,2);
-        AD uy = sol(e,uy_num,k,0);
-        AD duzdy = sol_grad(e,uz_num,k,1);
-        AD uz = sol(e,uz_num,k,0);
-        AD duzdz = sol_grad(e,uz_num,k,2);
-        
-        AD eval;
-        //          if (have_energy) {
-        //            eval = sol(e,e_num,k,0);
-        //          }
-        
-        for( int i=0; i<basis.extent(1); i++ ) {
-          
-          int resindex = offsets(uz_num,i);
-          v = basis(e,i,k);
-          dvdx = basis_grad(e,i,k,0);
-          dvdy = basis_grad(e,i,k,1);
-          dvdz = basis_grad(e,i,k,2);
-          
-          res(e,resindex) += (visc(e,k)*(duzdx*dvdx + duzdy*dvdy + duzdz*dvdz) - pr*dvdz - source_uz(e,k)*v)*wts(e,k);
+    {
+      int uy_basis = wkset->usebasis[uy_num];
+      auto basis = wkset->basis[uy_basis];
+      auto basis_grad = wkset->basis_grad[uy_basis];
+      auto off = Kokkos::subview(wkset->offsets,uy_num,Kokkos::ALL());
+      parallel_for("Stokes uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for( int pt=0; pt<basis.extent(2); pt++ ) {
+          AD Fx = visc(elem,pt)*gradUy(elem,pt,0);
+          Fx *= wts(elem,pt);
+          AD Fy = visc(elem,pt)*gradUy(elem,pt,1) - Pr(elem,pt);
+          Fy *= wts(elem,pt);
+          AD g = -source_uy(elem,pt)*wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + g*basis(elem,dof,pt);
+          }
         }
-      }
-    });
+      });
+    }
+    
+    {
+      int pr_basis = wkset->usebasis[pr_num];
+      auto basis = wkset->basis[pr_basis];
+      auto basis_grad = wkset->basis_grad[pr_basis];
+      auto off = Kokkos::subview(wkset->offsets,pr_num,Kokkos::ALL());
+      
+      parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for( int pt=0; pt<basis.extent(2); pt++ ) {
+          AD divu = gradUx(elem,pt,0) + gradUy(elem,pt,1);
+          divu *= wts(elem,pt);
+          for( int dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += divu*basis(elem,dof,pt);
+          }
+        }
+      });
+    }
   }
   
+  if (spaceDim == 3) {
+    auto gradUx = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),ux_num,Kokkos::ALL(),Kokkos::ALL());
+    auto gradUy = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),uy_num,Kokkos::ALL(),Kokkos::ALL());
+    auto gradUz = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),uz_num,Kokkos::ALL(),Kokkos::ALL());
+    auto Pr = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),pr_num,Kokkos::ALL(),0);
+    {
+      int ux_basis = wkset->usebasis[ux_num];
+      auto basis = wkset->basis[ux_basis];
+      auto basis_grad = wkset->basis_grad[ux_basis];
+      auto off = Kokkos::subview(wkset->offsets,ux_num,Kokkos::ALL());
+      parallel_for("Stokes ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int pt=0; pt<basis.extent(2); pt++ ) {
+          AD Fx = visc(elem,pt)*gradUx(elem,pt,0) - Pr(elem,pt);
+          Fx *= wts(elem,pt);
+          AD Fy = visc(elem,pt)*gradUx(elem,pt,1);
+          Fy *= wts(elem,pt);
+          AD Fz = visc(elem,pt)*gradUx(elem,pt,2);
+          Fz *= wts(elem,pt);
+          AD g = -source_ux(elem,pt)*wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + g*basis(elem,dof,pt);
+          }
+        }
+      });
+    }
+    
+    {
+      int uy_basis = wkset->usebasis[uy_num];
+      auto basis = wkset->basis[uy_basis];
+      auto basis_grad = wkset->basis_grad[uy_basis];
+      auto off = Kokkos::subview(wkset->offsets,uy_num,Kokkos::ALL());
+      parallel_for("Stokes uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for( int pt=0; pt<basis.extent(2); pt++ ) {
+          AD Fx = visc(elem,pt)*gradUy(elem,pt,0);
+          Fx *= wts(elem,pt);
+          AD Fy = visc(elem,pt)*gradUy(elem,pt,1) - Pr(elem,pt);
+          Fy *= wts(elem,pt);
+          AD Fz = visc(elem,pt)*gradUy(elem,pt,2);
+          Fz *= wts(elem,pt);
+          AD g = -source_uy(elem,pt)*wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + g*basis(elem,dof,pt);
+          }
+        }
+      });
+    }
+    
+    {
+      int uz_basis = wkset->usebasis[uz_num];
+      auto basis = wkset->basis[uz_basis];
+      auto basis_grad = wkset->basis_grad[uz_basis];
+      auto off = Kokkos::subview(wkset->offsets,uz_num,Kokkos::ALL());
+      parallel_for("Stokes uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for( int pt=0; pt<basis.extent(2); pt++ ) {
+          AD Fx = visc(elem,pt)*gradUz(elem,pt,0);
+          Fx *= wts(elem,pt);
+          AD Fy = visc(elem,pt)*gradUz(elem,pt,1);
+          Fy *= wts(elem,pt);
+          AD Fz = visc(elem,pt)*gradUz(elem,pt,2) - Pr(elem,pt);
+          Fz *= wts(elem,pt);
+          AD g = -source_uz(elem,pt)*wts(elem,pt);
+          for (int dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + g*basis(elem,dof,pt);
+          }
+        }
+      });
+    }
+    {
+      int pr_basis = wkset->usebasis[pr_num];
+      auto basis = wkset->basis[pr_basis];
+      auto basis_grad = wkset->basis_grad[pr_basis];
+      auto off = Kokkos::subview(wkset->offsets,pr_num,Kokkos::ALL());
+      
+      parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for( int pt=0; pt<basis.extent(2); pt++ ) {
+          AD divu = gradUx(elem,pt,0) + gradUy(elem,pt,1) + gradUz(elem,pt,2);
+          divu *= wts(elem,pt);
+          for( int dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += divu*basis(elem,dof,pt);
+          }
+        }
+      });
+    }
+  }
 }
 
 // ========================================================================================
