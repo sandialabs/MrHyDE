@@ -43,17 +43,16 @@ linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settin
   useLame = settings->sublist("Physics").get<bool>("use Lame parameters",true);
   addBiot = settings->sublist("Physics").get<bool>("Biot",false);
   
-  Kokkos::View<ScalarT*,HostDevice> modelparams_host("parameters for LE model", 5);
-  
+  modelparams = Kokkos::View<ScalarT*,AssemblyDevice>("parameters for LE",5); 
+  auto modelparams_host = Kokkos::create_mirror_view(modelparams); 
+ 
   modelparams_host(0) = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
   modelparams_host(1) = settings->sublist("Physics").get<ScalarT>("penalty",10.0);
   modelparams_host(2) = settings->sublist("Physics").get<ScalarT>("Biot alpha",0.0);
   modelparams_host(3) = settings->sublist("Physics").get<ScalarT>("T_ambient",0.0);
   modelparams_host(4) = settings->sublist("Physics").get<ScalarT>("alpha_T",1.0e-6);
   
-  modelparams = modelparams_host;//Kokkos::create_mirror_view(modelparams_host);
-  
-  //Kokkos::deep_copy(modelparams, modelparams_host);
+  Kokkos::deep_copy(modelparams, modelparams_host);
 }
 
 // ========================================================================================
@@ -741,6 +740,8 @@ void linearelasticity::setAuxVars(std::vector<string> & auxvarlist) {
 void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside) {
   
   Teuchos::TimeMonitor localtime(*fillStress);
+           
+  auto mp = modelparams;
   
   if (useCE) {
     vector<int> indices = {dx_num, dy_num, dz_num, e_num};
@@ -767,7 +768,7 @@ void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside
             auto T = Kokkos::subview( sol_side, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
             parallel_for(RangePolicy<AssemblyExec>(0,stress.extent(0)), KOKKOS_LAMBDA (const int e ) {
               for (size_t k=0; k<stress.extent(1); k++) {
-                stress(e,k,0,0) += -modelparams(4)*(T(e,k) - modelparams(3))*(5.0*mu(e,k));
+                stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(5.0*mu(e,k));
               }
             });
           }
@@ -782,7 +783,7 @@ void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside
             auto T = Kokkos::subview( sol_side, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
             parallel_for(RangePolicy<AssemblyExec>(0,stress.extent(0)), KOKKOS_LAMBDA (const int e ) {
               for (size_t k=0; k<stress.extent(1); k++) {
-                stress(e,k,0,0) += -modelparams(4)*(T(e,k) - modelparams(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
+                stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
               }
             });
           }
@@ -791,7 +792,7 @@ void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside
           auto pres = Kokkos::subview( sol_side, Kokkos::ALL(), p_num, Kokkos::ALL(), 0);
           parallel_for(RangePolicy<AssemblyExec>(0,stress.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_t k=0; k<stress.extent(1); k++) {
-              stress(e,k,0,0) += modelparams(2)*pres(e,k);
+              stress(e,k,0,0) += mp(2)*pres(e,k);
             }
           });
         }
@@ -813,8 +814,8 @@ void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside
             auto T = Kokkos::subview( sol_side, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
             parallel_for(RangePolicy<AssemblyExec>(0,stress.extent(0)), KOKKOS_LAMBDA (const int e ) {
               for (size_t k=0; k<stress.extent(1); k++) {
-                stress(e,k,0,0) += -modelparams(4)*(T(e,k) - modelparams(3))*(5.0*mu(e,k));
-                stress(e,k,1,1) += -modelparams(4)*(T(e,k) - modelparams(3))*(5.0*mu(e,k));
+                stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(5.0*mu(e,k));
+                stress(e,k,1,1) += -mp(4)*(T(e,k) - mp(3))*(5.0*mu(e,k));
               }
             });
           }
@@ -832,8 +833,8 @@ void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside
             auto T = Kokkos::subview( sol_side, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
             parallel_for(RangePolicy<AssemblyExec>(0,stress.extent(0)), KOKKOS_LAMBDA (const int e ) {
               for (size_t k=0; k<stress.extent(1); k++) {
-                stress(e,k,0,0) += -modelparams(4)*(T(e,k) - modelparams(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
-                stress(e,k,1,1) += -modelparams(4)*(T(e,k) - modelparams(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
+                stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
+                stress(e,k,1,1) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
               }
             });
           }
@@ -842,8 +843,8 @@ void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside
           auto pres = Kokkos::subview( sol_side, Kokkos::ALL(), p_num, Kokkos::ALL(), 0);
           parallel_for(RangePolicy<AssemblyExec>(0,stress.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_t k=0; k<stress.extent(1); k++) {
-              stress(e,k,0,0) += -modelparams(2)*pres(e,k);
-              stress(e,k,1,1) += -modelparams(2)*pres(e,k);
+              stress(e,k,0,0) += -mp(2)*pres(e,k);
+              stress(e,k,1,1) += -mp(2)*pres(e,k);
             }
           });
         }
@@ -870,9 +871,9 @@ void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside
           auto T = Kokkos::subview( sol_side, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
           parallel_for(RangePolicy<AssemblyExec>(0,stress.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_t k=0; k<stress.extent(1); k++) {
-              stress(e,k,0,0) += -modelparams(4)*(T(e,k) - modelparams(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
-              stress(e,k,1,1) += -modelparams(4)*(T(e,k) - modelparams(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
-              stress(e,k,2,2) += -modelparams(4)*(T(e,k) - modelparams(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
+              stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
+              stress(e,k,1,1) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
+              stress(e,k,2,2) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
             }
           });
         }
@@ -881,9 +882,9 @@ void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside
         auto pres = Kokkos::subview( sol_side, Kokkos::ALL(), p_num, Kokkos::ALL(), 0);
         parallel_for(RangePolicy<AssemblyExec>(0,stress.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (size_t k=0; k<stress.extent(1); k++) {
-            stress(e,k,0,0) += -modelparams(2)*pres(e,k);
-            stress(e,k,1,1) += -modelparams(2)*pres(e,k);
-            stress(e,k,2,2) += -modelparams(2)*pres(e,k);
+            stress(e,k,0,0) += -mp(2)*pres(e,k);
+            stress(e,k,1,1) += -mp(2)*pres(e,k);
+            stress(e,k,2,2) += -mp(2)*pres(e,k);
           }
         });
       }
@@ -902,7 +903,7 @@ void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside
             auto T = Kokkos::subview( sol, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
             parallel_for(RangePolicy<AssemblyExec>(0,stress.extent(0)), KOKKOS_LAMBDA (const int e ) {
               for (size_t k=0; k<stress.extent(1); k++) {
-                stress(e,k,0,0) += -modelparams(4)*(T(e,k) - modelparams(3))*(5.0*mu(e,k));
+                stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(5.0*mu(e,k));
               }
             });
           }
@@ -917,7 +918,7 @@ void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside
             auto T = Kokkos::subview( sol, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
             parallel_for(RangePolicy<AssemblyExec>(0,stress.extent(0)), KOKKOS_LAMBDA (const int e ) {
               for (size_t k=0; k<stress.extent(1); k++) {
-                stress(e,k,0,0) += -modelparams(4)*(T(e,k) - modelparams(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
+                stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
               }
             });
           }
@@ -926,7 +927,7 @@ void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside
           auto pres = Kokkos::subview( sol, Kokkos::ALL(), p_num, Kokkos::ALL(), 0);
           parallel_for(RangePolicy<AssemblyExec>(0,stress.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_t k=0; k<stress.extent(1); k++) {
-              stress(e,k,0,0) += modelparams(2)*pres(e,k);
+              stress(e,k,0,0) += mp(2)*pres(e,k);
             }
           });
         }
@@ -948,8 +949,8 @@ void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside
             auto T = Kokkos::subview( sol, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
             parallel_for(RangePolicy<AssemblyExec>(0,stress.extent(0)), KOKKOS_LAMBDA (const int e ) {
               for (size_t k=0; k<stress.extent(1); k++) {
-                stress(e,k,0,0) += -modelparams(4)*(T(e,k) - modelparams(3))*(5.0*mu(e,k));
-                stress(e,k,1,1) += -modelparams(4)*(T(e,k) - modelparams(3))*(5.0*mu(e,k));
+                stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(5.0*mu(e,k));
+                stress(e,k,1,1) += -mp(4)*(T(e,k) - mp(3))*(5.0*mu(e,k));
               }
             });
           }
@@ -967,8 +968,8 @@ void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside
             auto T = Kokkos::subview( sol, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
             parallel_for(RangePolicy<AssemblyExec>(0,stress.extent(0)), KOKKOS_LAMBDA (const int e ) {
               for (size_t k=0; k<stress.extent(1); k++) {
-                stress(e,k,0,0) += -modelparams(4)*(T(e,k) - modelparams(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
-                stress(e,k,1,1) += -modelparams(4)*(T(e,k) - modelparams(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
+                stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
+                stress(e,k,1,1) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
               }
             });
           }
@@ -977,8 +978,8 @@ void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside
           auto pres = Kokkos::subview( sol, Kokkos::ALL(), p_num, Kokkos::ALL(), 0);
           parallel_for(RangePolicy<AssemblyExec>(0,stress.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_t k=0; k<stress.extent(1); k++) {
-              stress(e,k,0,0) += -modelparams(2)*pres(e,k);
-              stress(e,k,1,1) += -modelparams(2)*pres(e,k);
+              stress(e,k,0,0) += -mp(2)*pres(e,k);
+              stress(e,k,1,1) += -mp(2)*pres(e,k);
             }
           });
         }
@@ -1005,9 +1006,9 @@ void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside
           auto T = Kokkos::subview( sol, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
           parallel_for(RangePolicy<AssemblyExec>(0,stress.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_t k=0; k<stress.extent(1); k++) {
-              stress(e,k,0,0) += -modelparams(4)*(T(e,k) - modelparams(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
-              stress(e,k,1,1) += -modelparams(4)*(T(e,k) - modelparams(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
-              stress(e,k,2,2) += -modelparams(4)*(T(e,k) - modelparams(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
+              stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
+              stress(e,k,1,1) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
+              stress(e,k,2,2) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
             }
           });
         }
@@ -1016,9 +1017,9 @@ void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside
         auto pres = Kokkos::subview( sol, Kokkos::ALL(), p_num, Kokkos::ALL(), 0);
         parallel_for(RangePolicy<AssemblyExec>(0,stress.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (size_t k=0; k<stress.extent(1); k++) {
-            stress(e,k,0,0) += -modelparams(2)*pres(e,k);
-            stress(e,k,1,1) += -modelparams(2)*pres(e,k);
-            stress(e,k,2,2) += -modelparams(2)*pres(e,k);
+            stress(e,k,0,0) += -mp(2)*pres(e,k);
+            stress(e,k,1,1) += -mp(2)*pres(e,k);
+            stress(e,k,2,2) += -mp(2)*pres(e,k);
           }
         });
       }

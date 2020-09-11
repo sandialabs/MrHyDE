@@ -105,7 +105,7 @@ private:
   
   bool useLame, addBiot, useCE, incplanestress, disp_response_type;
   //ScalarT formparam, biot_alpha, e_ref, alpha_T, epen;
-  Kokkos::View<ScalarT*,HostDevice> modelparams;
+  Kokkos::View<ScalarT*,AssemblyDevice> modelparams;
   
   Teuchos::RCP<CrystalElastic> crystalelast;
   
