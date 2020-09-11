@@ -77,7 +77,7 @@ private:
   vector<ScalarT> pik;
   bool pin_pr, have_energy;
   ScalarT pin_tol, pin_scale, T_ambient, beta;
-  
+  Kokkos::View<ScalarT*,AssemblyDevice> model_params;
   int verbosity;
   
   Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::navierstokes::volumeResidual() - function evaluation");
