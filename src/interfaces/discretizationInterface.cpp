@@ -222,7 +222,7 @@ basis_RCP discretization::getBasis(const int & spaceDim, const topo_RCP & cellTo
   
   if (type == "HGRAD") {
     if (spaceDim == 1) {
-      basis = Teuchos::rcp(new Basis_HGRAD_LINE_C1_FEM<AssemblyExec>() );
+      basis = Teuchos::rcp(new Basis_HGRAD_LINE_C1_FEM<PHX::Device::execution_space>() );
     }
     if (spaceDim == 2) {
       if (shape == "Quadrilateral_4") {

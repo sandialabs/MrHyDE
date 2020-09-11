@@ -18,6 +18,7 @@
 #include "Intrepid2_CellTools.hpp"
 #include "Intrepid2_Orientation.hpp"
 #include "Intrepid2_OrientationTools.hpp"
+#include "Phalanx_DataLayout.hpp"
 
 using namespace std;
 using Kokkos::parallel_for;
@@ -48,11 +49,11 @@ typedef Sacado::Fad::SFad<ScalarT,maxDerivs> AD;
 // Format: Kokkos::*
 // Options: Serial, OpenMP, Threads, Cuda
 typedef Kokkos::Serial HostExec; // cannot be Cuda right now
-#if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
-  typedef Kokkos::Cuda AssemblyExec;
-#else
+//#if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+//  typedef Kokkos::Cuda AssemblyExec;
+//#else
   typedef Kokkos::Serial AssemblyExec;
-#endif
+//#endif
 #if defined(MrHyDE_SUBGRIDSPACE_CUDA)
   typedef Kokkos::Cuda SubgridExec;
 #else
@@ -63,11 +64,11 @@ typedef Kokkos::Serial HostExec; // cannot be Cuda right now
 // Format: Kokkos::*
 // Options: HostSpace, CudaSpace, CudaUVMSpace
 typedef Kokkos::HostSpace HostMem; // cannot be CudaSpace right now
-#if defined(MrHyDE_ASSEMBLYMEM_CUDAUVM)
-  typedef Kokkos::CudaUVMSpace AssemblyMem;
-#else
+//#if defined(MrHyDE_ASSEMBLYMEM_CUDAUVM)
+//  typedef Kokkos::CudaUVMSpace AssemblyMem;
+//#else
   typedef Kokkos::HostSpace AssemblyMem;
-#endif
+//#endif
 #if defined(MrHyDE_SUBGRIDMEM_CUDAUVM)
   typedef Kokkos::CudaUVMSpace SubgridMem;
 #else
@@ -77,6 +78,7 @@ typedef Kokkos::HostSpace HostMem; // cannot be CudaSpace right now
 // Define a unified memory space for data required on Host and Device
 // If HostMem == AssemblyMem == HostSpace, then UnifiedMem = HostSpace
 // If HostMem == HostSpace and AssemblyMem == CudaSpace, then UnifiedMem = CudaUVMSpace
+//typedef Kokkos::HostSpace UnifiedMem;
 typedef Kokkos::HostSpace UnifiedMem;
 
 // Kokkos Node typedefs
@@ -104,7 +106,7 @@ typedef Kokkos::View<LO**,HostDevice> LIDView_host;
 // Intrepid and shards typedefs
 //typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
-typedef Teuchos::RCP<Intrepid2::Basis<AssemblyExec, ScalarT, ScalarT > > basis_RCP;
+typedef Teuchos::RCP<Intrepid2::Basis<PHX::Device::execution_space, ScalarT, ScalarT > > basis_RCP;
 typedef Intrepid2::CellTools<AssemblyExec> CellTools;
 typedef Intrepid2::FunctionSpaceTools<AssemblyExec> FuncTools;
 typedef Intrepid2::OrientationTools<AssemblyExec> OrientTools;
