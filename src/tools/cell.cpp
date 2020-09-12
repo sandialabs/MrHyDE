@@ -1536,6 +1536,7 @@ Kokkos::View<AD**,AssemblyDevice> cell::computeObjective(const ScalarT & solveti
     }
     else if (cellData->response_type == "global") { // uses physicsmodules->target
       objective = Kokkos::View<AD**,AssemblyDevice>("objective",numElem,wkset->ip.extent(1));
+      Kokkos::deep_copy(wkset->ip_KV,ip);
       Kokkos::View<AD***,AssemblyDevice> ctarg = computeTarget(solvetime);
       Kokkos::View<AD***,AssemblyDevice> cweight = computeWeight(solvetime);
       
