@@ -847,31 +847,13 @@ Kokkos::View<AD***,AssemblyDevice> physics::target(const int & block, const DRV 
                                                    const ScalarT & current_time,
                                                    Teuchos::RCP<workset> & wkset) {
   
-  
-  size_t numip = ip.extent(1);
-  size_t numElem = ip.extent(0);
-  
-  Kokkos::View<AD***,AssemblyDevice> targettotal("target",numElem,target_list[block].size(),numip);
+  Kokkos::View<AD***,AssemblyDevice> targettotal("target",ip.extent(0),
+                                                 target_list[block].size(),ip.extent(1));
   
   for (size_t t=0; t<target_list[block].size(); t++) {
-    // evaluate the response
     FDATA tdata = functionManagers[block]->evaluate(target_list[block][t],"ip");
-    
     auto ctarg = Kokkos::subview(targettotal,Kokkos::ALL(), t, Kokkos::ALL());
     Kokkos::deep_copy(ctarg,tdata);
-    
-    /*
-    for (size_t e=0; e<numElem; e++) {
-      for (size_t k=0; k<numip; k++) {
-        // update wkset->point_KV and point solutions
-        for (size_t s=0; s<spaceDim; s++) {
-          wkset->point_KV(0,0,s) = ip(e,k,s);
-        }
-        
-        FDATA tdata = functionManagers[block]->evaluate(target_list[block][t],"point");
-        targettotal(e,t,k) = tdata(0,0);
-      }
-    }*/
   }
   return targettotal;
 }
@@ -883,30 +865,13 @@ Kokkos::View<AD***,AssemblyDevice> physics::weight(const int & block, const DRV 
                                                    const ScalarT & current_time,
                                                    Teuchos::RCP<workset> & wkset) {
   
-  size_t numip = ip.extent(1);
-  size_t numElem = ip.extent(0);
-  
-  Kokkos::View<AD***,AssemblyDevice> weighttotal("weight",numElem,weight_list[block].size(),numip);
+  Kokkos::View<AD***,AssemblyDevice> weighttotal("weight",ip.extent(0),
+                                                 weight_list[block].size(),ip.extent(1));
   
   for (size_t t=0; t<weight_list[block].size(); t++) {
-    
-    // evaluate the response
     FDATA wdata = functionManagers[block]->evaluate(weight_list[block][t],"ip");
-    
     auto cwt = Kokkos::subview(weighttotal,Kokkos::ALL(), t, Kokkos::ALL());
     Kokkos::deep_copy(cwt,wdata);
-    
-    /*
-    for (size_t e=0; e<numElem; e++) {
-      for (size_t k=0; k<numip; k++) {
-        // update wkset->point_KV and point solutions
-        for (size_t s=0; s<spaceDim; s++) {
-          wkset->point_KV(0,0,s) = ip(e,k,s);
-        }
-        FDATA wdata = functionManagers[block]->evaluate(weight_list[block][t],"point");
-        weighttotal(e,t,k) = wdata(0,0);
-      }
-    }*/
   }
   return weighttotal;
 }

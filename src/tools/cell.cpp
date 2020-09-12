@@ -1250,14 +1250,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
                                              numip,cellData->dimension);
     Kokkos::View<AD****,AssemblyDevice> ugrad_ip("ugrad_ip",numElem,numDOF.extent(0),
                                                  numip,cellData->dimension);
-    
-    Kokkos::View<int*,AssemblyDevice> iscratch("int scratch",sensorElem.size());
-    auto iscratch_host = Kokkos::create_mirror_view(iscratch);
-    for (size_t i=0; i<sensorElem.size(); i++) {
-      iscratch_host(i) = sensorElem[i];
-    }
-    Kokkos::deep_copy(iscratch,iscratch_host);
-    
+        
     // Need to rewrite this using useSensors on outside
     if (useSensors) {
       for (int ee=0; ee<sensorElem.size(); ee++) {
@@ -1537,20 +1530,29 @@ Kokkos::View<AD**,AssemblyDevice> cell::computeObjective(const ScalarT & solveti
     else if (cellData->response_type == "global") { // uses physicsmodules->target
       objective = Kokkos::View<AD**,AssemblyDevice>("objective",numElem,wkset->ip.extent(1));
       Kokkos::deep_copy(wkset->ip_KV,ip);
-      Kokkos::View<AD***,AssemblyDevice> ctarg = computeTarget(solvetime);
-      Kokkos::View<AD***,AssemblyDevice> cweight = computeWeight(solvetime);
+      Kokkos::View<AD***,AssemblyDevice> targ = computeTarget(solvetime);
+      Kokkos::View<AD***,AssemblyDevice> weight = computeWeight(solvetime);
       
-      for (int e=0; e<numElem; e++) {
-        for (size_t r=0; r<responsevals.extent(1); r++) {
-          for (size_t k=0; k<ip.extent(1); k++) {
-            AD diff = responsevals(e,r,k)-ctarg(e,r,k);
-            if(cellData->compute_diff) {
-              objective(e,k) += 0.5*wkset->deltat*cweight(e,r,k)*(diff)*(diff)*cwts(e,k);
+      for (size_t r=0; r<responsevals.extent(1); r++) {
+        auto cresp = Kokkos::subview(responsevals,Kokkos::ALL(),r,Kokkos::ALL());
+        auto ctarg = Kokkos::subview(targ,Kokkos::ALL(),r,Kokkos::ALL());
+        auto cweight = Kokkos::subview(weight,Kokkos::ALL(),r,Kokkos::ALL());
+        auto dt = wkset->deltat_KV;
+        
+        if(cellData->compute_diff) {
+          parallel_for("cell objective",RangePolicy<AssemblyExec>(0,cresp.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            for (size_t pt=0; pt<cresp.extent(1); pt++) {
+              AD diff = cresp(elem,pt)-ctarg(elem,pt);
+              objective(elem,pt) += 0.5*dt(0)*cweight(elem,pt)*(diff)*(diff)*cwts(elem,pt);
             }
-            else {
-              objective(e,k) += wkset->deltat*responsevals(e,r,k)*cwts(e,k);
+          });
+        }
+        else {
+          parallel_for("cell objective",RangePolicy<AssemblyExec>(0,cresp.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            for (size_t pt=0; pt<cresp.extent(1); pt++) {
+              objective(elem,pt) += dt(0)*cresp(elem,pt)*cwts(elem,pt);
             }
-          }
+          });
         }
       }
     }
@@ -1563,9 +1565,9 @@ Kokkos::View<AD**,AssemblyDevice> cell::computeObjective(const ScalarT & solveti
                                                                                      solvetime,subgrid_usernum);
     
     objective = Kokkos::View<AD**,AssemblyDevice>("objective",numElem,cobj.extent(0));
-    for (int i=0; i<cobj.extent(0); i++) {
+    parallel_for("cell objective",RangePolicy<AssemblyExec>(0,cobj.extent(0)), KOKKOS_LAMBDA (const int i ) {
       objective(0,i) += cobj(i); // TMW: tempory fix
-    }
+    });
   }
   
   return objective;
