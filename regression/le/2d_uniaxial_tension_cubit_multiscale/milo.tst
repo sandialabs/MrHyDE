@@ -6,7 +6,7 @@ import subprocess as sp
 import string
 import shutil
 from milo_test_support import *
-from numpy import isnan, isinf
+#from numpy import isnan, isinf
 #from math import isnan, isinf
 
 # ==============================================================================
@@ -70,7 +70,7 @@ for line in open(reflog):
 w = refdxline.split()
 refdxerr = float(w[9])
 
-if abs(dxerr-refdxerr) > aeps or isnan(dxerr) or isinf(dxerr):
+if abs(dxerr-refdxerr) > aeps :
   status += 1
   print('  Failure: L2-face error for dx too large.')
 
@@ -84,7 +84,7 @@ for line in open(reflog):
 w = refdyline.split()
 refdyerr = float(w[9])
 
-if abs(dyerr-refdyerr) > aeps or isnan(dyerr) or isinf(dyerr):
+if abs(dyerr-refdyerr) > aeps :
   status += 1
   print('  Failure: L2-face error for dy too large.')
 
@@ -99,7 +99,7 @@ for line in open(reflog):
 w = refdxline.split()
 refdxerr = float(w[11])
 
-if abs(dxerr-refdxerr) > aeps or isnan(dxerr) or isinf(dxerr):
+if abs(dxerr-refdxerr) > aeps :
   status += 1
   print('  Failure: L2 error for dx too large.')
 
@@ -113,7 +113,7 @@ for line in open(reflog):
 w = refdyline.split()
 refdyerr = float(w[11])
 
-if abs(dyerr-refdyerr) > aeps or isnan(dyerr) or isinf(dyerr):
+if abs(dyerr-refdyerr) > aeps :
   status += 1
   print('  Failure: L2 error for dy too large.')
 

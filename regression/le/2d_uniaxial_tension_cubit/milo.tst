@@ -6,7 +6,7 @@ import subprocess as sp
 import string
 import shutil
 from milo_test_support import *
-from numpy import isnan, isinf
+#from numpy import isnan, isinf
 #from math import isnan, isinf
 
 # ==============================================================================
@@ -70,7 +70,7 @@ for line in open(reflog):
 w = refuxline.split()
 refuxerr = float(w[9])
 
-if abs(uxerr-refuxerr) > aeps or isnan(uxerr) or isinf(uxerr):
+if abs(uxerr-refuxerr) > aeps :
   status += 1
   print('  Failure: L2 error for dx too large.')
 
@@ -84,7 +84,7 @@ for line in open(reflog):
 w = refuyline.split()
 refuyerr = float(w[9])
 
-if abs(uyerr-refuyerr) > aeps or isnan(uyerr) or isinf(uyerr):
+if abs(uyerr-refuyerr) > aeps :
   status += 1
   print('  Failure: L2 error for dy too large.')
 

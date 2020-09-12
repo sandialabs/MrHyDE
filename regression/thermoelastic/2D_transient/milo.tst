@@ -6,7 +6,7 @@ import subprocess as sp
 import string
 import shutil
 from milo_test_support import *
-from numpy import isnan, isinf
+#from numpy import isnan, isinf
 #from math import isnan, isinf
 
 # ==============================================================================

@@ -6,7 +6,7 @@ import subprocess as sp
 import string
 import shutil
 from milo_test_support import *
-from numpy import isnan, isinf
+#from numpy import isnan, isinf
 #from math import isnan, isinf
 
 # ==============================================================================
@@ -70,7 +70,7 @@ for line in open(reflog):
 w = refHline.split()
 refHerr = float(w[9])
 
-if abs(Herr-refHerr) > aeps or isnan(Herr) or isinf(Herr):
+if abs(Herr-refHerr) > aeps :
   status += 1
   print('  Failure: L2 error for H too large.')
 
@@ -84,7 +84,7 @@ for line in open(reflog):
 w = refHuline.split()
 refHuerr = float(w[9])
 
-if abs(Huerr-refHuerr) > aeps or isnan(Huerr) or isinf(Huerr):
+if abs(Huerr-refHuerr) > aeps :
   status += 1
   print('  Failure: L2 error for uy too large.')
 
@@ -98,7 +98,7 @@ for line in open(reflog):
 w = refHvline.split()
 refHverr = float(w[9])
 
-if abs(Hverr-refHverr) > aeps or isnan(Hverr) or isinf(Hverr):
+if abs(Hverr-refHverr) > aeps :
   status += 1
   print('  Failure: L2 error for Hv too large.')
 
