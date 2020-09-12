@@ -34,12 +34,8 @@ int main(int argc, char * argv[]) {
     View4_host host_A("test",numElem,numvars,numip,dimension,64);
     View4_host host_A2("test",numElem,numvars,numip,dimension);
 
-    std::cout << host_A(0,0,0,0) << std::endl;
-    std::cout << host_A2(0,0,0,0) << std::endl;
-
-    auto host_A_sv = Kokkos::subview(host_A,10,0,Kokkos::ALL(), Kokkos::ALL());
-    std::cout << host_A_sv(0,0) << std::endl;
     
+    auto host_A_sv = Kokkos::subview(host_A,10,0,Kokkos::ALL(), Kokkos::ALL());
     
     // Run some performance comparisons
     Kokkos::Timer timer;
@@ -135,13 +131,13 @@ int main(int argc, char * argv[]) {
       });
       
       timer.reset();
-      for (int r=0; r<numrepeats; r++) {
+      for (int r=0; r<100; r++) {
         
         parallel_for(RangePolicy<AssemblyExec>(0,A.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         //for (int elem=0; elem<numElem; elem++) {
           for (int var=0; var<sol_dof.extent(1); var++) {
             for (int dof=0; dof<sol_dof.extent(2); dof++) {
-              AD uval = AD(18,dof,sol_dof(elem,var,dof));
+              AD uval = AD(64,dof,sol_dof(elem,var,dof));
               
               if (dof == 0) {
                 for (size_t pt=0; pt<basis.extent(2); pt++ ) {
@@ -164,7 +160,39 @@ int main(int argc, char * argv[]) {
       }
       Kokkos::fence();
       double sol_time1 = timer.seconds();
-      printf("GPU time 1:   %e \n", sol_time1);
+      printf("GPU time (multiple calls):   %e \n", sol_time1);
+      
+      timer.reset();
+      
+      parallel_for(RangePolicy<AssemblyExec>(0,A.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        for (int r=0; r<100; r++) {
+          //for (int elem=0; elem<numElem; elem++) {
+          for (int var=0; var<sol_dof.extent(1); var++) {
+            for (int dof=0; dof<sol_dof.extent(2); dof++) {
+              AD uval = AD(64,dof,sol_dof(elem,var,dof));
+              
+              if (dof == 0) {
+                for (size_t pt=0; pt<basis.extent(2); pt++ ) {
+                  for (int s=0; s<basis.extent(3); s++ ) {
+                    sol_ip(elem,var,pt,s) = uval*basis(elem,dof,pt,s);
+                  }
+                }
+              }
+              else {
+                for (size_t pt=0; pt<basis.extent(2); pt++ ) {
+                  for (int s=0; s<basis.extent(3); s++ ) {
+                    sol_ip(elem,var,pt,s) += uval*basis(elem,dof,pt,s);
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+      
+      Kokkos::fence();
+      sol_time1 = timer.seconds();
+      printf("GPU time (inner repeats):   %e \n", sol_time1);
     }
     
     {
@@ -198,7 +226,7 @@ int main(int argc, char * argv[]) {
         //for (int elem=0; elem<numElem; elem++) {
           for (int var=0; var<sol_dof.extent(1); var++) {
             for (int dof=0; dof<sol_dof.extent(2); dof++) {
-              AD uval = AD(18,dof,sol_dof(elem,var,dof));
+              AD uval = AD(64,dof,sol_dof(elem,var,dof));
               
               if (dof == 0) {
                 for (size_t pt=0; pt<basis.extent(2); pt++ ) {
