@@ -386,6 +386,8 @@ public:
   Teuchos::RCP<Teuchos::Time> computeNodeSolTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::getSolutionAtNodes()");
   Teuchos::RCP<Teuchos::Time> buildBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::constructor - build basis");
   Teuchos::RCP<Teuchos::Time> buildFaceBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::constructor - build face basis");
+  Teuchos::RCP<Teuchos::Time> objectiveTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::objective");
+  Teuchos::RCP<Teuchos::Time> responseTimer = Teuchos::TimeMonitor::getNewCounter("MILO::cell::response");
   
 };
 

@@ -822,7 +822,7 @@ void cell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,Assembly
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
-  Kokkos::View<AD**,AssemblyDevice> adjres_AD = wkset->adjrhs;
+  auto adjres_AD = wkset->adjrhs;
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
   
@@ -1205,6 +1205,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getMass() {
 
 Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
   
+  Teuchos::TimeMonitor localtimer(*responseTimer);
   // Assumes that u has already been filled
   
   // seedwhat indicates what needs to be seeded
@@ -1488,6 +1489,7 @@ Kokkos::View<AD**,AssemblyDevice> cell::computeObjective(const ScalarT & solveti
                                                          const size_t & tindex,
                                                          const int & seedwhat) {
   
+  Teuchos::TimeMonitor localtimer(*objectiveTimer);
   // assumes the params have been seeded elsewhere (solver, postprocess interfaces)
   Kokkos::View<AD**,AssemblyDevice> objective;
   auto cwts = wts;
