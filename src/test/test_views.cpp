@@ -111,7 +111,10 @@ int main(int argc, char * argv[]) {
       //parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       parallel_for(TeamPolicy(basis.extent(0),team_size,vector_size), KOKKOS_LAMBDA (const typename TeamPolicy::member_type& team) {
         const size_t elem = team.league_rank();
-        //const int team_index = team.team_rank();
+        cout << elem << endl;
+        const int team_index = team.team_rank();
+        cout << team_index << endl;
+        
         for (int var=0; var<sol_dof.extent(1); var++) {
           auto csol = Kokkos::subview(sol_dof,elem,var,Kokkos::ALL());
           auto cbasis = Kokkos::subview(basis,elem,Kokkos::ALL(),Kokkos::ALL(),Kokkos::ALL());

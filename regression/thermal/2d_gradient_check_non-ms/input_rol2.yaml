@@ -14,7 +14,7 @@ ANONYMOUS:
         Variable Objective Function: false
         Scale for Epsilon Active Sets: 1.00000000000000000e+00
         Use Scaling For Epsilon-Active Sets: false
-        Do grad+hessvec check: false
+        Do grad+hessvec check: true
         Bound Optimization Variables: false
         Inexact Objective Function: false
         Inexact Gradient: false

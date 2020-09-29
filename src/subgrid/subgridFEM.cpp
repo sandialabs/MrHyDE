@@ -624,7 +624,9 @@ void SubGridFEM::setUpSubgridModels() {
         cells[mindex][e]->setUseBasis(sub_solver->milo_solver->useBasis[0],
                                       sub_solver->milo_solver->numsteps,
                                       sub_solver->milo_solver->numstages);
-        cells[mindex][e]->setUpAdjointPrev(numDOF);
+        cells[mindex][e]->setUpAdjointPrev(numDOF,
+                                           sub_solver->milo_solver->numsteps,
+                                           sub_solver->milo_solver->numstages);
         cells[mindex][e]->setUpSubGradient(sub_solver->milo_solver->params->num_active_params);
       }
       if (boundaryCells.size() > mindex) { // should always be true here

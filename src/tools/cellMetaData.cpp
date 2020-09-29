@@ -51,8 +51,8 @@ basis_types(basis_types_), basis_pointers(basis_pointers_), numDiscParams(num_pa
   else if (dimension == 3) {
     numSides = cellTopo->getFaceCount();
   }
-  response_type = "global";
-  
+  //response_type = "global";
+  response_type = settings->sublist("Postprocess").get("response type", "pointwise");
   have_cell_phi = false;
   have_cell_rotation = false;
   have_extra_data = false;

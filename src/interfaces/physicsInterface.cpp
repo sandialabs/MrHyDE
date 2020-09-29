@@ -781,7 +781,6 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
                                                         Kokkos::View<AD****,AssemblyDevice> pgrad_ip,
                                                         const DRV ip, const ScalarT & time,
                                                         Teuchos::RCP<workset> & wkset) {
-  
   size_t numElem = u_ip.extent(0);
   size_t numip = ip.extent(1);
   size_t numResponses = response_list[block].size();
@@ -791,11 +790,11 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
   //wkset->ip_KV = ip;
   Kokkos::deep_copy(wkset->ip_KV,ip);
   Kokkos::deep_copy(wkset->local_soln,u_ip);
-  Kokkos::deep_copy(wkset->local_soln_grad, ugrad_ip);
+  //Kokkos::deep_copy(wkset->local_soln_grad, ugrad_ip);
   if (p_ip.extent(0) > 0) {
     auto p_sv = Kokkos::subview(p_ip, Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(),0);
     Kokkos::deep_copy(wkset->local_param,p_sv);
-    Kokkos::deep_copy(wkset->local_param_grad, pgrad_ip);
+    //Kokkos::deep_copy(wkset->local_param_grad, pgrad_ip);
   }
   for (size_t r=0; r<numResponses; r++) {
     

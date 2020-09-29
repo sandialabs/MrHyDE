@@ -86,7 +86,8 @@ class workset {
   void computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
                                   Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
                                   Kokkos::View<ScalarT****,AssemblyDevice> u_stage,
-                                  const int & seedwhat);
+                                  const int & seedwhat,
+                                  const int & index=0);
   
   ////////////////////////////////////////////////////////////////////////////////////
   // Compute the seeded solutions for steady-state problems

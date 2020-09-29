@@ -396,7 +396,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
     for (size_t e=0; e<assembler->cells[usernum].size(); e++) {
       if (isAdjoint) {
         if (is_final_time) {
-          Kokkos::deep_copy(assembler->cells[usernum][e]->adjPrev, 0.0);
+          Kokkos::deep_copy(assembler->cells[usernum][e]->adj_prev, 0.0);
         }
       }
       

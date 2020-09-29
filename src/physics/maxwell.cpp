@@ -66,10 +66,39 @@ void maxwell::volumeResidual() {
     sigma = functionManager->evaluate("sigma","ip");
   }
   
+  /*
+  Kokkos::deep_copy(current_x,0.0);
+  auto ip = wkset->ip;
+  ScalarT zmin = -1.599e-6;
+  ScalarT zmax = 1.599e-6;
+  ScalarT wl_center = 3.0e-6;
+  ScalarT wl_band = 1.0e-6;
+  ScalarT toff = 20.0e-15;
+  ScalarT amp = 1.0;
+  ScalarT epsilon_ = 8.854187817e-12;
+  ScalarT mu_ = 1.2566370614e-6;
+  ScalarT c = std::sqrt(1.0/epsilon_/mu_);
+  ScalarT fr_center = c / wl_center;
+  ScalarT fr_band   = c / (std::pow(wl_center,2) - std::pow(wl_band,2)/4) * wl_band;
+    
+  ScalarT sigma_ = fr_band/(2.0*std::sqrt(2.0*std::log(2.0)));
+  ScalarT time = wkset->time_KV(0);
+  parallel_for("Maxwells B volume resid",RangePolicy<AssemblyExec>(0,sigma.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    for (int pt=0; pt<sigma.extent(1); pt++) {
+      ScalarT z = ip(elem,pt,2);
+      if (z>=zmin && z<=zmax) {
+        current_x(elem,pt) = amp*std::cos(2.0*PI*fr_center*(time - toff))*std::exp(-2.0*std::pow(PI*sigma_*(time-toff),2.0));
+      }
+    }
+  });
+  */
+  
+  //KokkosTools::print(current_x);
+  //cout << current_x(0,0) << endl;
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
   {
-    // (dB/dt,V) + (curl E,V) = (S_mag,V)
+    // (dB/dt + curl E,V) = 0
     
     auto basis = wkset->basis[B_basis];
     auto dBdt = Kokkos::subview(sol_dot, Kokkos::ALL(), Bnum, Kokkos::ALL(), Kokkos::ALL());
@@ -94,7 +123,7 @@ void maxwell::volumeResidual() {
   
   {
     // (eps*dE/dt,V) - (1/mu B, curl V) + (sigma E,V) = -(current,V)
-    // Rewritten as: (eps*dEdt + sigam E + current, V) - (1/mu B, curl V) = 0
+    // Rewritten as: (eps*dEdt + sigma E + current, V) - (1/mu B, curl V) = 0
     
     auto basis = wkset->basis[E_basis];
     auto basis_curl = wkset->basis_curl[E_basis];

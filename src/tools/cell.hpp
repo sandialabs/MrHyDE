@@ -269,8 +269,9 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////
 
-  void setUpAdjointPrev(const int & numDOF) {
-    adjPrev = Kokkos::View<ScalarT**,AssemblyDevice>("previous adjoint",numElem,numDOF);
+  void setUpAdjointPrev(const int & numDOF, const int & numsteps, const int & numstages) {
+    adj_prev = Kokkos::View<ScalarT***,AssemblyDevice>("previous step adjoint",numElem,numDOF,numsteps);
+    adj_stage_prev = Kokkos::View<ScalarT***,AssemblyDevice>("previous stage adjoint",numElem,numDOF,numstages);
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////
@@ -334,7 +335,7 @@ public:
   
   Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
   Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param; // (elem,var,numdof)
-  Kokkos::View<ScalarT***,AssemblyDevice> u_avg; // (elem,var,dim)
+  Kokkos::View<ScalarT***,AssemblyDevice> u_avg, u_alt; // (elem,var,dim)
   Kokkos::View<ScalarT**,AssemblyDevice> param_avg; // (elem,var)
   Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
   //Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
@@ -359,13 +360,14 @@ public:
   vector<vector<DRV> > auxside_basis, auxside_basisGrad;
   
   // Sensor information
-  bool useSensors;
+  bool useSensors, usealtsol = false;
   size_t numSensors;
   vector<Kokkos::View<ScalarT**,HostDevice> > sensorLocations, sensorData;
   DRV sensorPoints;
   vector<int> sensorElem, mySensorIDs;
   vector<vector<DRV> > sensorBasis, param_sensorBasis, sensorBasisGrad, param_sensorBasisGrad;
-  Kokkos::View<ScalarT**,AssemblyDevice> adjPrev, subgradient, cell_data;
+  Kokkos::View<ScalarT**,AssemblyDevice> subgradient, cell_data;
+  Kokkos::View<ScalarT***,AssemblyDevice> adj_prev, adj_stage_prev;
   vector<ScalarT> cell_data_distance;
   
   // Profile timers

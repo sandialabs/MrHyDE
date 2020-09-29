@@ -670,8 +670,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   if (isAdjoint) {
     wkset->resetAdjointRHS();
   }
- 
- 
+  
   //////////////////////////////////////////////////////////////
   // Compute the AD-seeded solutions at integration points
   //////////////////////////////////////////////////////////////
@@ -759,7 +758,6 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   if (compute_jacobian && fixJacDiag) {
     this->fixDiagJac(local_J, local_res);
   }
-  
   
   // Update the local residual
   {
@@ -867,7 +865,7 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
   
-  if (!(cellData->mortar_objective)) {
+  if (!(cellData->mortar_objective) && cellData->response_type != "discrete") {
     for (int w=1; w < cellData->dimension+2; w++) {
       
       Kokkos::View<AD**,AssemblyDevice> obj = computeObjective(wkset->time, 0, w);
@@ -918,17 +916,37 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
           scratch_host(0) = n;
           Kokkos::deep_copy(scratch,scratch_host);
           if (w==1) {
-            DRV sbasis = basis[wkset->usebasis[n]];
-            parallel_for("cell adjust adjoint res",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
-              int nn = scratch(0);
-              for (int j=0; j<numDOF(nn); j++) {
-                for (int i=0; i<numDOF(nn); i++) {
-                  for (int s=0; s<sbasis.extent(2); s++) {
-                    local_res(e,offsets(nn,j),0) += -obj(e,s).fastAccessDx(offsets(nn,i))*sbasis(e,j,s);
+            int bnum = wkset->usebasis[n];
+            DRV sbasis = basis[bnum];
+            
+            std::string btype = wkset->basis_types[bnum];
+            if (btype == "HDIV" || btype == "HCURL") {
+              parallel_for("cell adjust adjoint res",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+                int nn = scratch(0);
+                for (int j=0; j<numDOF(nn); j++) {
+                  for (int i=0; i<numDOF(nn); i++) {
+                    for (int s=0; s<sbasis.extent(2); s++) {
+                      for (int d=0; d<sbasis.extent(3); d++) {
+                        ScalarT Jval2 = sbasis(e,j,s,d);
+                        local_res(e,offsets(nn,j),0) += -obj(e,s).fastAccessDx(offsets(nn,i))*Jval2;
+                      }
+                    }
                   }
                 }
-              }
-            });
+              });
+            }
+            else {
+              parallel_for("cell adjust adjoint res",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+                int nn = scratch(0);
+                for (int j=0; j<numDOF(nn); j++) {
+                  for (int i=0; i<numDOF(nn); i++) {
+                    for (int s=0; s<sbasis.extent(2); s++) {
+                      local_res(e,offsets(nn,j),0) += -obj(e,s).fastAccessDx(offsets(nn,i))*sbasis(e,j,s);
+                    }
+                  }
+                }
+              });
+            }
           }
           else {
             auto sbasis = Kokkos::subview(basis_grad[wkset->usebasis[n]],Kokkos::ALL(),
@@ -960,43 +978,125 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
         }
       }
     });
+    
     if (isTransient) {
-      int seedwhat = 2;
-      //this->computeSolnVolIP(seedwhat);
-      wkset->computeSolnTransientSeeded(u, u_prev, u_stage, seedwhat);
-      wkset->computeParamVolIP(param, seedwhat);
-      this->computeSolnVolIP();
       
-      wkset->resetResidual();
-      
-      cellData->physics_RCP->volumeResidual(cellData->myBlock);
-      Kokkos::View<ScalarT***,AssemblyDevice> Jdot("temporary fix for transient adjoint",
-                                                   local_J.extent(0), local_J.extent(1), local_J.extent(2));
-      this->updateJac(true, Jdot);
-      
+      // Previous step contributions for the residual
       parallel_for("cell adjust transient adjoint jac",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (int n=0; n<numDOF.extent(0); n++) {
           for (int j=0; j<numDOF(n); j++) {
-            local_res(e,offsets(n,j),0) += adjPrev(e,offsets(n,j));
+            local_res(e,offsets(n,j),0) += -adj_prev(e,offsets(n,j),0);
           }
         }
       });
-      if (!compute_aux_sens && store_adjPrev) {
-        auto deltat = wkset->deltat_KV;
-        parallel_for("cell adjust transient adjoint jac 2",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      /*
+      // Previous stage contributions for the residual
+      if (adj_stage_prev.extent(2) > 0) {
+        parallel_for("cell adjust transient adjoint jac",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (int n=0; n<numDOF.extent(0); n++) {
             for (int j=0; j<numDOF(n); j++) {
-              ScalarT aPrev = 0.0;
-              ScalarT dt = deltat(0);
-              for (int m=0; m<numDOF.extent(0); m++) {
-                for (int k=0; k<numDOF(m); k++) {
-                  aPrev += 1.0/dt*Jdot(e,offsets(n,j),offsets(m,k))*phi(e,m,k);
-                }
-              }
-              adjPrev(e,offsets(n,j)) = aPrev;
+              local_res(e,offsets(n,j),0) += -adj_stage_prev(e,offsets(n,j),0);
             }
           }
         });
+      }
+      */
+      
+      if (!compute_aux_sens && store_adjPrev) {
+        
+        //////////////////////////////////////////
+        // Multi-step
+        //////////////////////////////////////////
+        
+        // Move vectors up
+        parallel_for("cell adjust transient adjoint jac",RangePolicy<AssemblyExec>(0,adj_prev.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          for (int step=1; step<adj_prev.extent(2); step++) {
+            for (int n=0; n<adj_prev.extent(1); n++) {
+              adj_prev(e,n,step-1) = adj_prev(e,n,step);
+            }
+          }
+          int numsteps = adj_prev.extent(2);
+          for (int n=0; n<adj_prev.extent(1); n++) {
+            adj_prev(e,n,numsteps-1) = 0.0;
+          }
+        });
+        
+        // Sum new contributions into vectors
+        int seedwhat = 2; // 2 for J wrt previous step solutions
+        for (int step=0; step<u_prev.extent(3); step++) {
+          wkset->computeSolnTransientSeeded(u, u_prev, u_stage, seedwhat, step);
+          wkset->computeParamVolIP(param, seedwhat);
+          this->computeSolnVolIP();
+       
+          wkset->resetResidual();
+          
+          cellData->physics_RCP->volumeResidual(cellData->myBlock);
+          Kokkos::View<ScalarT***,AssemblyDevice> Jdot("temporary fix for transient adjoint",
+                                                       local_J.extent(0), local_J.extent(1), local_J.extent(2));
+          this->updateJac(true, Jdot);
+          
+          auto cadj = Kokkos::subview(adj_prev,Kokkos::ALL(), Kokkos::ALL(), step);
+          parallel_for("cell adjust transient adjoint jac 2",RangePolicy<AssemblyExec>(0,Jdot.extent(0)), KOKKOS_LAMBDA (const int e ) {
+            for (int n=0; n<numDOF.extent(0); n++) {
+              for (int j=0; j<numDOF(n); j++) {
+                ScalarT aPrev = 0.0;
+                for (int m=0; m<numDOF.extent(0); m++) {
+                  for (int k=0; k<numDOF(m); k++) {
+                    aPrev += Jdot(e,offsets(n,j),offsets(m,k))*phi(e,m,k);
+                  }
+                }
+                cadj(e,offsets(n,j)) += aPrev;
+              }
+            }
+          });
+        }
+        
+        //////////////////////////////////////////
+        // Multi-stage
+        //////////////////////////////////////////
+        /*
+        // Move vectors up
+        parallel_for("cell adjust transient adjoint jac",RangePolicy<AssemblyExec>(0,adj_stage_prev.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          for (int stage=1; stage<adj_stage_prev.extent(2); stage++) {
+            for (int n=0; n<adj_stage_prev.extent(1); n++) {
+              adj_stage_prev(e,n,stage-1) = adj_stage_prev(e,n,stage);
+            }
+          }
+          int numstages = adj_stage_prev.extent(2);
+          for (int n=0; n<adj_stage_prev.extent(1); n++) {
+            adj_stage_prev(e,n,numstages-1) = 0.0;
+          }
+        });
+        
+        // Sum new contributions into vectors
+        seedwhat = 3; // 3 for J wrt previous stage solutions
+        for (int stage=0; stage<u_prev.extent(3); stage++) {
+          wkset->computeSolnTransientSeeded(u, u_prev, u_stage, seedwhat, stage);
+          wkset->computeParamVolIP(param, seedwhat);
+          this->computeSolnVolIP();
+          
+          wkset->resetResidual();
+          
+          cellData->physics_RCP->volumeResidual(cellData->myBlock);
+          Kokkos::View<ScalarT***,AssemblyDevice> Jdot("temporary fix for transient adjoint",
+                                                       local_J.extent(0), local_J.extent(1), local_J.extent(2));
+          this->updateJac(true, Jdot);
+          
+          auto cadj = Kokkos::subview(adj_stage_prev,Kokkos::ALL(), Kokkos::ALL(), stage);
+          parallel_for("cell adjust transient adjoint jac 2",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const int e ) {
+            for (int n=0; n<numDOF.extent(0); n++) {
+              for (int j=0; j<numDOF(n); j++) {
+                ScalarT aPrev = 0.0;
+                for (int m=0; m<numDOF.extent(0); m++) {
+                  for (int k=0; k<numDOF(m); k++) {
+                    aPrev += Jdot(e,offsets(n,j),offsets(m,k))*phi(e,m,k);
+                  }
+                }
+                cadj(e,offsets(n,j)) += aPrev;
+              }
+            }
+          });
+        }*/
       }
     }
   }
@@ -1237,6 +1337,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
     // Extract the local solution at this time
     // We automatically seed the AD and adjust it below
     Kokkos::View<AD***,AssemblyDevice> u_dof("u_dof",numElem,numDOF.extent(0),LIDs.extent(1)); //(numElem, numVars, numDOF)
+    
     parallel_for("cell response get u",RangePolicy<AssemblyExec>(0,u_dof.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (int n=0; n<numDOF.extent(0); n++) { // numDOF is on device
         for( int i=0; i<numDOF(n); i++ ) {
@@ -1274,26 +1375,151 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
     }
     else {
       for (int var=0; var<numDOF.extent(0); var++) {
-        
-        DRV cbasis = basis[wkset->usebasis[var]];
-        DRV cbasis_grad = basis_grad[wkset->usebasis[var]];
-        
-        auto u_sv = Kokkos::subview(u_ip, Kokkos::ALL(), var, Kokkos::ALL(), 0);
-        auto u_dof_sv = Kokkos::subview(u_dof, Kokkos::ALL(), var, Kokkos::ALL());
-        auto ugrad_sv = Kokkos::subview(ugrad_ip, Kokkos::ALL(), var, Kokkos::ALL(), Kokkos::ALL());
-        
-        parallel_for(RangePolicy<AssemblyExec>(0,u_ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        int bnum = wkset->usebasis[var];
+        std::string btype = wkset->basis_types[wkset->usebasis[var]];
+        if (btype == "HCURL" || btype == "HDIV") {
+          DRV ref_basis = cellData->ref_basis[wkset->usebasis[var]];
+          DRV cbasis = basis[wkset->usebasis[var]];
+          auto u_sv = Kokkos::subview(u_ip, Kokkos::ALL(), var, Kokkos::ALL(), Kokkos::ALL());
+          Kokkos::View<AD***,AssemblyDevice> u_tmp("tmp subview",u_sv.extent(0), u_sv.extent(1), u_sv.extent(2));
+          auto u_dof_sv = Kokkos::subview(u_dof, Kokkos::ALL(), var, Kokkos::ALL());
+          /*
+          parallel_for(RangePolicy<AssemblyExec>(0,u_tmp.extent(0)), KOKKOS_LAMBDA (const int e ) {
+            for (int i=0; i<cbasis.extent(1); i++ ) {
+              for (int j=0; j<cbasis.extent(2); j++ ) {
+                for (int s=0; s<cbasis.extent(3); s++) {
+                  u_tmp(e,j,s) += u_dof_sv(e,i)*ref_basis(i,j,s);
+                }
+              }
+            }
+            
+          });
+          */
+          parallel_for(RangePolicy<AssemblyExec>(0,u_sv.extent(0)), KOKKOS_LAMBDA (const int e ) {
+            for (int i=0; i<cbasis.extent(1); i++ ) {
+              for (size_t j=0; j<cbasis.extent(2); j++ ) {
+                for (int s=0; s<cbasis.extent(3); s++) {
+                  u_sv(e,j,s) += u_dof_sv(e,i)*cbasis(e,i,j,s);
+                }
+              }
+            }
+          });
           
-          for (int i=0; i<cbasis.extent(1); i++ ) {
-            for (size_t j=0; j<cbasis.extent(2); j++ ) {
-              u_sv(e,j) += u_dof_sv(e,i)*cbasis(e,i,j);
-              for (int s=0; s<cbasis_grad.extent(3); s++) {
-                ugrad_sv(e,j,s) += u_dof_sv(e,i)*cbasis_grad(e,i,j,s);
+          
+          int numElem = cbasis.extent(0);
+          int numb = cbasis.extent(1);
+          int numip = cbasis.extent(2);
+          int dimension = cbasis.extent(3);
+          
+          DRV jacobian("jacobian", cbasis.extent(0), cbasis.extent(2),
+                       cbasis.extent(3), cbasis.extent(3));
+          CellTools::setJacobian(jacobian, cellData->ref_ip, nodes, *(cellData->cellTopo));
+          DRV jacobianDet("determinant of jacobian", cbasis.extent(0), cbasis.extent(2));
+          DRV jacobianInv("inverse of jacobian", cbasis.extent(0),
+                          cbasis.extent(2), cbasis.extent(3), cbasis.extent(3));
+          CellTools::setJacobianDet(jacobianDet, jacobian);
+          CellTools::setJacobianInv(jacobianInv, jacobian);
+          
+          DRV basis_tmp("basis tmp",numElem,numb,numip,dimension);
+          FuncTools::HDIVtransformVALUE(basis_tmp, jacobian, jacobianDet, ref_basis);
+          
+          DRV basis_tmp2("basis tmp",numElem,numb,numip,dimension);
+          OrientTools::modifyBasisByOrientation(basis_tmp2, basis_tmp, orientation,
+                                                cellData->basis_pointers[bnum].get());
+          
+          Kokkos::deep_copy(basis_tmp,0.0);
+          OrientTools::modifyBasisByOrientation(basis_tmp, basis_tmp2, orientation,
+                                                cellData->basis_pointers[bnum].get());
+          
+          Kokkos::View<AD***,AssemblyDevice> u_tmp2("tmp subview",u_sv.extent(0), u_sv.extent(1), u_sv.extent(2));
+          
+          parallel_for(RangePolicy<AssemblyExec>(0,u_sv.extent(0)), KOKKOS_LAMBDA (const int e ) {
+            for (int i=0; i<cbasis.extent(1); i++ ) {
+              for (size_t j=0; j<cbasis.extent(2); j++ ) {
+                for (int s=0; s<cbasis.extent(3); s++) {
+                  u_tmp2(e,j,s) += u_dof_sv(e,i)*basis_tmp(e,i,j,s);
+                }
+              }
+            }
+          });
+          
+          Kokkos::View<AD***,AssemblyDevice> u_tmp3("tmp subview",u_sv.extent(0), u_sv.extent(1), u_sv.extent(2));
+          //Kokkos::deep_copy(u_tmp3,u_sv);
+          //KokkosTools::print(u_tmp3,"u_sv");
+          //KokkosTools::print(u_tmp2,"u_tmp2");
+          
+          //Kokkos::deep_copy(u_tmp,u_sv);
+          //DRV JB("basis",numElem,numb,numip,dimension);
+          for (int e=0; e<numElem; e++) {
+            //for (int i=0; i<numb; i++) {
+              for (int j=0; j<numip; j++) {
+                for (int d=0; d<dimension; d++) {
+                  for (int d2=0; d2<dimension; d2++) {
+                    //JB(e,i,j,d) += basis_tmp(e,i,j,d)*jacobian(e,j,d2,d);
+                    u_tmp(e,j,d) += u_sv(e,j,d)*jacobianDet(e,j)*jacobianInv(e,j,d,d2);
+                    u_tmp3(e,j,d) += u_tmp2(e,j,d)*jacobianDet(e,j)*jacobianInv(e,j,d,d2);
+                    //u_sv(e,j,d) *= jacobianDet(e,j);
+                    //JB(e,i,j,d) += sbasis(e,i,j,d)*jacobianDet(e,j)*jacobianInv(e,j,d,d2);
+                  }
+                }
+              }
+            //}
+          }
+          
+          //KokkosTools::print(u_tmp,"u_tmp");
+          //KokkosTools::print(u_tmp3,"u_tmp3");
+          
+          for (int e=0; e<numElem; e++) {
+            for (int j=0; j<numip; j++) {
+              for (int d=0; d<dimension; d++) {
+                ScalarT fudge = std::pow(-1,d)*std::pow(2.0,dimension-1);
+                ScalarT tmp = u_sv(e,j,d).val();
+                u_sv(e,j,d) = fudge*u_tmp(e,j,d);
+                u_sv(e,j,d).val() = tmp;
               }
             }
           }
+          //Kokkos::deep_copy(u_sv,u_tmp);
+          /*
+          parallel_for(RangePolicy<AssemblyExec>(0,u_sv.extent(0)), KOKKOS_LAMBDA (const int e ) {
+            for (size_t j=0; j<u_sv.extent(1); j++ ) {
+              for (int s=0; s<u_sv.extent(2); s++) {
+                ScalarT tmp = u_sv(e,j,s).val();
+                u_sv(e,j,s) = u_tmp(e,j,s);
+                u_sv(e,j,s) += -u_sv(e,j,s).val() + tmp;
+              }
+            }
+          });
+           */
+        }
+        else {
+          DRV cbasis = basis[wkset->usebasis[var]];
           
-        });
+          auto u_sv = Kokkos::subview(u_ip, Kokkos::ALL(), var, Kokkos::ALL(), 0);
+          auto u_dof_sv = Kokkos::subview(u_dof, Kokkos::ALL(), var, Kokkos::ALL());
+          parallel_for(RangePolicy<AssemblyExec>(0,u_ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
+            for (int i=0; i<cbasis.extent(1); i++ ) {
+              for (size_t j=0; j<cbasis.extent(2); j++ ) {
+                u_sv(e,j) += u_dof_sv(e,i)*cbasis(e,i,j);
+              }
+            }
+          });
+        }
+        
+        if (btype == "HGRAD") {
+          DRV cbasis_grad = basis_grad[wkset->usebasis[var]];
+          auto u_dof_sv = Kokkos::subview(u_dof, Kokkos::ALL(), var, Kokkos::ALL());
+          auto ugrad_sv = Kokkos::subview(ugrad_ip, Kokkos::ALL(), var, Kokkos::ALL(), Kokkos::ALL());
+          parallel_for(RangePolicy<AssemblyExec>(0,u_ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
+            for (int i=0; i<cbasis_grad.extent(1); i++ ) {
+              for (size_t j=0; j<cbasis_grad.extent(2); j++ ) {
+                for (int s=0; s<cbasis_grad.extent(3); s++) {
+                  ugrad_sv(e,j,s) += u_dof_sv(e,i)*cbasis_grad(e,i,j,s);
+                }
+              }
+            }
+          });
+        }
       }
       
     }
@@ -1303,8 +1529,8 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
       parallel_for(RangePolicy<AssemblyExec>(0,ugrad_ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (int n=0; n<numDOF.extent(0); n++) {
           for( size_t j=0; j<u_ip.extent(2); j++ ) {
-            u_ip(e,n,j,0) = u_ip(e,n,j,0).val();
             for (int s=0; s<ugrad_ip.extent(3); s++) {
+              u_ip(e,n,j,s) = u_ip(e,n,j,s).val();
               ugrad_ip(e,n,j,s) = ugrad_ip(e,n,j,s).val();
             }
           }
@@ -1351,7 +1577,9 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
       parallel_for(RangePolicy<AssemblyExec>(0,ugrad_ip.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (int n=0; n<numDOF.extent(0); n++) {
           for( size_t j=0; j<u_ip.extent(2); j++ ) {
-            u_ip(e,n,j,0) = u_ip(e,n,j,0).val();
+            for( size_t s=0; s<u_ip.extent(3); s++ ) {
+              u_ip(e,n,j,s) = u_ip(e,n,j,s).val();
+            }
           }
         }
       });
@@ -1489,10 +1717,11 @@ Kokkos::View<AD**,AssemblyDevice> cell::computeObjective(const ScalarT & solveti
   
   if (!(cellData->multiscale) || cellData->mortar_objective) {
     
-    //Kokkos::View<AD***,AssemblyDevice> responsevals = computeResponse(solvetime,tindex,seedwhat);
-    Kokkos::View<AD***,AssemblyDevice> responsevals = computeResponse(seedwhat);
     
     if (cellData->response_type == "pointwise") { // uses sensor data
+    
+      //Kokkos::View<AD***,AssemblyDevice> responsevals = computeResponse(solvetime,tindex,seedwhat);
+      Kokkos::View<AD***,AssemblyDevice> responsevals = computeResponse(seedwhat);
       
       ScalarT TOL = 1.0e-6; // tolerance for comparing sensor times and simulation times
       objective = Kokkos::View<AD**,AssemblyDevice>("objective",numElem,numSensors);
@@ -1528,6 +1757,10 @@ Kokkos::View<AD**,AssemblyDevice> cell::computeObjective(const ScalarT & solveti
       
     }
     else if (cellData->response_type == "global") { // uses physicsmodules->target
+      
+      //Kokkos::View<AD***,AssemblyDevice> responsevals = computeResponse(solvetime,tindex,seedwhat);
+      Kokkos::View<AD***,AssemblyDevice> responsevals = computeResponse(seedwhat);
+      
       objective = Kokkos::View<AD**,AssemblyDevice>("objective",numElem,wkset->ip.extent(1));
       Kokkos::deep_copy(wkset->ip_KV,ip);
       Kokkos::View<AD***,AssemblyDevice> targ = computeTarget(solvetime);
@@ -1959,7 +2192,7 @@ void cell::updateData() {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void cell::resetAdjPrev(const ScalarT & val) {
-  Kokkos::deep_copy(adjPrev,val);
+  Kokkos::deep_copy(adj_prev,val);
 }
 
 

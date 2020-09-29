@@ -588,6 +588,28 @@ void ParameterManager::updateParams(const vector<ScalarT> & newparams, const int
 // ========================================================================================
 // ========================================================================================
 
+void ParameterManager::setParam(const vector<ScalarT> & newparams, const std::string & name) {
+  size_t pprog = 0;
+  // perhaps add a check that the size of newparams equals the number of parameters of the
+  // requested type
+  
+  for (size_t i=0; i<paramvals.size(); i++) {
+    if (paramnames[i] == name) {
+      for (size_t j=0; j<paramvals[i].size(); j++) {
+        if (Comm->getRank() == 0 && verbosity > 0) {
+          cout << "Updated Params: " << paramvals[i][j] << " (old value)   " << newparams[pprog] << " (new value)" << endl;
+        }
+        paramvals[i][j] = newparams[pprog];
+        pprog++;
+      }
+    }
+  }
+  
+}
+
+// ========================================================================================
+// ========================================================================================
+
 void ParameterManager::updateParams(const vector<ScalarT> & newparams, const std::string & stype) {
   size_t pprog = 0;
   int type;
@@ -636,6 +658,16 @@ vector<string> ParameterManager::getParamsNames(const int & type) {
     }
   }
   return reqparams;
+}
+
+bool ParameterManager::isParameter(const string & name) {
+  bool isparam = false;
+  for (size_t i=0; i<paramvals.size(); i++) {
+    if (paramnames[i] == name) {
+      isparam = true;
+    }
+  }
+  return isparam;
 }
 
 // ========================================================================================

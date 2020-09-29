@@ -408,15 +408,17 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
       Teuchos::ParameterList parameters = settings->sublist("Parameters");
       Teuchos::ParameterList::ConstIterator pl_itr = parameters.begin();
       while (pl_itr != parameters.end()) {
+        cout << "mesh: " << pl_itr->first << endl;
+        
         Teuchos::ParameterList newparam = parameters.sublist(pl_itr->first);
         if (newparam.get<string>("usage") == "discretized") {
           if (newparam.get<string>("type") == "HGRAD") {
             mesh->addSolutionField(pl_itr->first, eBlocks[i]);
           }
-          else if (newparam.get<string>("usage") == "HVOL") {
+          else if (newparam.get<string>("type") == "HVOL") {
             mesh->addCellField(pl_itr->first, eBlocks[i]);
           }
-          else if (newparam.get<string>("usage") == "HDIV" || newparam.get<string>("usage") == "HCURL") {
+          else if (newparam.get<string>("type") == "HDIV" || newparam.get<string>("type") == "HCURL") {
             mesh->addCellField(pl_itr->first+"_x", eBlocks[i]);
             mesh->addCellField(pl_itr->first+"_y", eBlocks[i]);
             mesh->addCellField(pl_itr->first+"_z", eBlocks[i]);
