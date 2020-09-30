@@ -169,7 +169,7 @@ Comm(Comm_) {
 // ========================================================================================
 // ========================================================================================
 
-void msphasefield::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+void msphasefield::defineFunctions(Teuchos::ParameterList & fs,
                                    Teuchos::RCP<FunctionManager> & functionManager_) {
   
   functionManager = functionManager_;

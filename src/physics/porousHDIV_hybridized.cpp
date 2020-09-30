@@ -50,13 +50,12 @@ porousHDIV_HYBRID::porousHDIV_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & sett
 // ========================================================================================
 // ========================================================================================
 
-void porousHDIV_HYBRID::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+void porousHDIV_HYBRID::defineFunctions(Teuchos::ParameterList & fs,
                                         Teuchos::RCP<FunctionManager> & functionManager_) {
   
   functionManager = functionManager_;
 
   // Functions
-  Teuchos::ParameterList fs = settings->sublist("Functions");
   
   functionManager->addFunction("source",fs.get<string>("source","0.0"),"ip");
   functionManager->addFunction("Kinv_xx",fs.get<string>("Kinv_xx","1.0"),"ip");

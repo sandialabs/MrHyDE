@@ -376,7 +376,9 @@ void SubGridFEM::setUpSubgridModels() {
                                                    sub_assembler, sub_params, DOF, macro_deltat,
                                                    numMacroDOF) );
   
-  sub_postproc = Teuchos::rcp( new PostprocessManager(LocalComm, settings, sub_mesh->mesh, sub_disc, sub_physics,
+  sub_postproc = Teuchos::rcp( new PostprocessManager(LocalComm, settings, sub_mesh->mesh,
+                                                      sub_mesh->optimization_mesh,
+                                                      sub_disc, sub_physics,
                                                       functionManagers, sub_assembler) );
   
   /////////////////////////////////////////////////////////////////////////////////////

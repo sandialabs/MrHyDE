@@ -40,7 +40,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
     }
   }
   
-  
+  numEvaluations = 0;
   //adj_soln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
   
   // Get the required information from the settings
@@ -930,6 +930,12 @@ void solver::forwardModel(DFAD & obj) {
     // print out an error message
   }
   
+  if (postproc->write_optimization_solution) {
+    postproc->writeOptimizationSolution(numEvaluations);
+  }
+  
+  numEvaluations++;
+  
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished solver::forwardModel" << endl;
@@ -1375,6 +1381,14 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     }
     NLiter++; // increment number of iterations
   } // while loop
+  if (milo_debug_level>1) {
+    Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> normu(1);
+    u->norm2(normu);
+    if(Comm->getRank() == 0) {
+      cout << "Norm of solution: " << normu[0] << endl;
+    }
+  }
+  
   if (milo_debug_level>2) {
     KokkosTools::print(u);
   }
@@ -1967,14 +1981,26 @@ void solver::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   else {
     Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
     if (usePrec) {
-      if (!have_preconditioner) {
-        M = this->buildPreconditioner(J);
-        have_preconditioner = true;
+      if (useDomDecomp) {
+        Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
+        M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,HostNode>> ("SCHWARZ", J);
+        M_dd->setParameters(ifpackList);
+        M_dd->initialize();
+        M_dd->compute();
+        Problem->setLeftPrec(M_dd);
       }
       else {
-        MueLu::ReuseTpetraPreconditioner(J,*M);
+        if (!have_preconditioner) {
+          M = this->buildPreconditioner(J);
+          have_preconditioner = true;
+        }
+        else {
+          MueLu::ReuseTpetraPreconditioner(J,*M);
+        }
+        Problem->setLeftPrec(M);
       }
-      Problem->setLeftPrec(M);
+      
+      //Problem->setRightPrec(M);
     }
     Problem->setProblem();
     
@@ -2048,6 +2074,8 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > solver::buildPre
   }
   else if (smoother_type == "RELAXATION") {
     mueluParams.sublist("smoother: params").set("relaxation: type","Jacobi");
+    //mueluParams.sublist("smoother: params").set("relaxation: type","Symmetric Gauss-Seidel");
+    //mueluParams.sublist("smoother: params").set("relaxation: sweeps",2);
   }
   
   // Repartitioning

@@ -54,12 +54,10 @@ maxwell_HYBRID::maxwell_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings) 
 // ========================================================================================
 // ========================================================================================
 
-void maxwell_HYBRID::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+void maxwell_HYBRID::defineFunctions(Teuchos::ParameterList & fs,
                                      Teuchos::RCP<FunctionManager> & functionManager_) {
   
   functionManager = functionManager_;
-
-  Teuchos::ParameterList fs = settings->sublist("Functions");
   
   functionManager->addFunction("current x",fs.get<string>("current x","0.0"),"ip");
   functionManager->addFunction("current y",fs.get<string>("current y","0.0"),"ip");

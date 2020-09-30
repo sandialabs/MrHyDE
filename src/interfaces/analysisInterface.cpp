@@ -332,6 +332,10 @@ void analysis::run() {
     RealT rktol    = ROLsettings.sublist("General").sublist("Krylov").get("Relative Tolerance",1e-2);
     int maxKiter   = ROLsettings.sublist("General").sublist("Krylov").get("Iteration Limit",100);
     
+    // Turn off visualization while optimizing
+    bool postproc_plot = postproc->write_solution;
+    postproc->write_solution = false;
+    
     Teuchos::RCP<std::ostream> outStream;
     outStream = Teuchos::rcp(&std::cout, false);
     // Generate data and get objective
@@ -538,6 +542,12 @@ void analysis::run() {
       DFAD val = 0.0;
       solve->forwardModel(val);
       //postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
+    }
+    
+    if (postproc_plot) {
+      postproc->write_solution = true;
+      DFAD objfun = 0.0;
+      solve->forwardModel(objfun);
     }
   } //ROL
   else if (analysis_type == "ROL_SIMOPT") {

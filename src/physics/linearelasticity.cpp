@@ -37,6 +37,10 @@ linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settin
   }
   
   useCE = settings->sublist("Physics").get<bool>("use crystal elasticity",false);
+  int numElem = settings->sublist("Solver").get<int>("workset size",1);
+  if (useCE) {
+    crystalelast = Teuchos::rcp(new CrystalElastic(settings, numElem));
+  }
   
   
   incplanestress = settings->sublist("Physics").get<bool>("incplanestress",false);
@@ -58,12 +62,10 @@ linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settin
 // ========================================================================================
 // ========================================================================================
 
-void linearelasticity::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+void linearelasticity::defineFunctions(Teuchos::ParameterList & fs,
                                        Teuchos::RCP<FunctionManager> & functionManager_) {
   
   functionManager = functionManager_;
-
-  Teuchos::ParameterList fs = settings->sublist("Functions");
   
   functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),"ip");
   functionManager->addFunction("mu",fs.get<string>("mu","0.5"),"ip");
@@ -72,10 +74,6 @@ void linearelasticity::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & se
   functionManager->addFunction("source dz",fs.get<string>("source dz","0.0"),"ip");
   functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),"side ip");
   functionManager->addFunction("mu",fs.get<string>("mu","0.5"),"side ip");
-  
-  if (useCE) {
-    crystalelast = Teuchos::rcp(new CrystalElastic(settings, functionManager->numElem));
-  }
   
   stress_vol = Kokkos::View<AD****,AssemblyDevice>("stress tensor",
                                                    functionManager->numElem,

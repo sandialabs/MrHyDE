@@ -177,7 +177,9 @@ settings(settings_), Commptr(Commptr_) {
   // create the mesh
   //mesh = mesh_factory->buildUncommitedMesh(Commptr->Comm());
   mesh = mesh_factory->buildUncommitedMesh(*(Commptr->getRawMpiComm()));
-  
+  if (settings->sublist("Postprocess").get("create optimization movie",false)) {
+    optimization_mesh = mesh_factory->buildUncommitedMesh(*(Commptr->getRawMpiComm()));
+  }
   
   vector<string> eBlocks;
   mesh->getElementBlockNames(eBlocks);
@@ -408,8 +410,6 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
       Teuchos::ParameterList parameters = settings->sublist("Parameters");
       Teuchos::ParameterList::ConstIterator pl_itr = parameters.begin();
       while (pl_itr != parameters.end()) {
-        cout << "mesh: " << pl_itr->first << endl;
-        
         Teuchos::ParameterList newparam = parameters.sublist(pl_itr->first);
         if (newparam.get<string>("usage") == "discretized") {
           if (newparam.get<string>("type") == "HGRAD") {
@@ -442,6 +442,42 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
   if (verbosity>1) {
     mesh->printMetaData(std::cout);
   }
+  
+  if (settings->sublist("Postprocess").get("create optimization movie",false)) {
+    vector<string> eBlocks;
+    mesh->getElementBlockNames(eBlocks);
+    
+    for(std::size_t i=0;i<eBlocks.size();i++) {
+      
+      if (settings->isSublist("Parameters")) {
+        Teuchos::ParameterList parameters = settings->sublist("Parameters");
+        Teuchos::ParameterList::ConstIterator pl_itr = parameters.begin();
+        while (pl_itr != parameters.end()) {
+          Teuchos::ParameterList newparam = parameters.sublist(pl_itr->first);
+          if (newparam.get<string>("usage") == "discretized") {
+            if (newparam.get<string>("type") == "HGRAD") {
+              optimization_mesh->addSolutionField(pl_itr->first, eBlocks[i]);
+            }
+            else if (newparam.get<string>("type") == "HVOL") {
+              optimization_mesh->addCellField(pl_itr->first, eBlocks[i]);
+            }
+            else if (newparam.get<string>("type") == "HDIV" || newparam.get<string>("type") == "HCURL") {
+              optimization_mesh->addCellField(pl_itr->first+"_x", eBlocks[i]);
+              optimization_mesh->addCellField(pl_itr->first+"_y", eBlocks[i]);
+              optimization_mesh->addCellField(pl_itr->first+"_z", eBlocks[i]);
+            }
+          }
+          pl_itr++;
+        }
+      }
+    }
+    
+    mesh_factory->completeMeshConstruction(*optimization_mesh,*(Commptr->getRawMpiComm()));
+    if (verbosity>1) {
+      optimization_mesh->printMetaData(std::cout);
+    }
+  }
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////

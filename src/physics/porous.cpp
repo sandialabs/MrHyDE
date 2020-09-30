@@ -24,13 +24,12 @@ porous::porous(Teuchos::RCP<Teuchos::ParameterList> & settings) {
 // ========================================================================================
 // ========================================================================================
 
-void porous::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+void porous::defineFunctions(Teuchos::ParameterList & fs,
                              Teuchos::RCP<FunctionManager> & functionManager_) {
   
   functionManager = functionManager_;
 
   // Functions
-  Teuchos::ParameterList fs = settings->sublist("Functions");
   
   functionManager->addFunction("source",fs.get<string>("porous source","0.0"),"ip");
   functionManager->addFunction("permeability",fs.get<string>("permeability","1.0"),"ip");

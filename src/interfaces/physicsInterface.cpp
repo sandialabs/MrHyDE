@@ -106,9 +106,16 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
   functionManagers = functionManagers_;
   
   for (size_t b=0; b<blocknames.size(); b++) {
+    Teuchos::ParameterList fs;
+    if (settings->sublist("Functions").isSublist(blocknames[b])) {
+      fs = settings->sublist("Functions").sublist(blocknames[b]);
+    }
+    else {
+      fs = settings->sublist("Functions");
+    }
     
     for (size_t n=0; n<modules[b].size(); n++) {
-      modules[b][n]->defineFunctions(settings, functionManagers[b]);
+      modules[b][n]->defineFunctions(fs, functionManagers[b]);
     }
     
     // Add initial conditions
@@ -255,9 +262,14 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
     
   }
   
-  Teuchos::ParameterList functions = settings->sublist("Functions");
-  
   for (size_t b=0; b<blocknames.size(); b++) {
+    Teuchos::ParameterList functions;
+    if (settings->sublist("Functions").isSublist(blocknames[b])) {
+      functions = settings->sublist("Functions").sublist(blocknames[b]);
+    }
+    else {
+      functions = settings->sublist("Functions");
+    }
     Teuchos::ParameterList::ConstIterator fnc_itr = functions.begin();
     while (fnc_itr != functions.end()) {
       string entry = functions.get<string>(fnc_itr->first);
@@ -268,6 +280,7 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
     }
   }
   
+  /*
   if (functions.isSublist("Side")) {
     Teuchos::ParameterList side_functions = functions.sublist("Side");
     
@@ -280,7 +293,7 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
       }
     }
   }
-  
+  */
   
 }
 

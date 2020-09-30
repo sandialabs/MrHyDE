@@ -39,6 +39,7 @@ public:
   PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                      Teuchos::RCP<Teuchos::ParameterList> & settings,
                      Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                     Teuchos::RCP<panzer_stk::STK_Interface> & optimization_mesh_,
                      Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                      vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
                      Teuchos::RCP<AssemblyManager> & assembler_);
@@ -50,6 +51,7 @@ public:
   PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                      Teuchos::RCP<Teuchos::ParameterList> & settings,
                      Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                     Teuchos::RCP<panzer_stk::STK_Interface> & optimization_mesh_,
                      Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                      vector<Teuchos::RCP<FunctionManager> > & functionManagers,
                      Teuchos::RCP<MultiScale> & multiscale_manager_,
@@ -99,6 +101,11 @@ public:
   // ========================================================================================
   // ========================================================================================
   
+  void writeOptimizationSolution(const int & numEvaluations);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
   ScalarT makeSomeNoise(ScalarT stdev);
   
   // ========================================================================================
@@ -126,6 +133,9 @@ public:
   Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
   Teuchos::RCP<discretization> disc;
   Teuchos::RCP<physics> phys;
+  
+  Teuchos::RCP<panzer_stk::STK_Interface> optimization_mesh; // Needs to be set manually (for now)
+  
   //Teuchos::RCP<const panzer::DOFManager> DOF;
   //Teuchos::RCP<solver> solve;
   Teuchos::RCP<AssemblyManager> assembler;
@@ -134,7 +144,8 @@ public:
   Teuchos::RCP<MultiScale> multiscale_manager;
   vector<Teuchos::RCP<FunctionManager> > functionManagers;
   
-  bool compute_response, compute_error, compute_subgrid_error, write_solution, write_subgrid_solution, write_HFACE_variables;
+  bool compute_response, compute_error, compute_subgrid_error;
+  bool write_solution, write_subgrid_solution, write_HFACE_variables, write_optimization_solution;
   string exodus_filename;
   int spaceDim;                                                // spatial dimension
   //int numNodes;                                              // total number of nodes in the mesh

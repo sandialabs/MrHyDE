@@ -57,13 +57,12 @@ porousHDIV_WG::porousHDIV_WG(Teuchos::RCP<Teuchos::ParameterList> & settings) {
 // ========================================================================================
 // ========================================================================================
 
-void porousHDIV_WG::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+void porousHDIV_WG::defineFunctions(Teuchos::ParameterList & fs,
                                     Teuchos::RCP<FunctionManager> & functionManager_) {
   
   functionManager = functionManager_;
 
   // Functions
-  Teuchos::ParameterList fs = settings->sublist("Functions");
   
   functionManager->addFunction("source",fs.get<string>("source","0.0"),"ip");
   functionManager->addFunction("perm",fs.get<string>("perm","1.0"),"ip");

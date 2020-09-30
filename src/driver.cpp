@@ -181,7 +181,8 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<PostprocessManager>
-    postproc = Teuchos::rcp( new PostprocessManager(Comm, settings, mesh->mesh, disc, phys,
+    postproc = Teuchos::rcp( new PostprocessManager(Comm, settings, mesh->mesh, mesh->optimization_mesh,
+                                                    disc, phys,
                                                     functionManagers, multiscale_manager,
                                                     assembler, params) );
     

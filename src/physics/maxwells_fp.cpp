@@ -66,8 +66,8 @@ maxwells_fp::maxwells_fp(Teuchos::RCP<Teuchos::ParameterList> & settings) {
 // ========================================================================================
 // ========================================================================================
 
-void maxwells_fp::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
-                                 Teuchos::RCP<FunctionManager> & functionManager_) {
+void maxwells_fp::defineFunctions(Teuchos::ParameterList & fs,
+                                  Teuchos::RCP<FunctionManager> & functionManager_) {
   
   functionManager = functionManager_;
 

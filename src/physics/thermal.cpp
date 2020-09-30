@@ -40,13 +40,12 @@ thermal::thermal(Teuchos::RCP<Teuchos::ParameterList> & settings) {
 // ========================================================================================
 // ========================================================================================
 
-void thermal::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+void thermal::defineFunctions(Teuchos::ParameterList & fs,
                               Teuchos::RCP<FunctionManager> & functionManager_) {
   
   functionManager = functionManager_;
 
   // Functions
-  Teuchos::ParameterList fs = settings->sublist("Functions");
   
   functionManager->addFunction("thermal source",fs.get<string>("thermal source","0.0"),"ip");
   functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),"ip");

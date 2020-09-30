@@ -38,7 +38,7 @@ public:
   // ========================================================================================
   // ========================================================================================
   
-  void defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+  void defineFunctions(Teuchos::ParameterList & fs,
                        Teuchos::RCP<FunctionManager> & functionManager_);
   
   // ========================================================================================

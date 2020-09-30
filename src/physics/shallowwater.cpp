@@ -37,12 +37,11 @@ shallowwater::shallowwater(Teuchos::RCP<Teuchos::ParameterList> & settings) {
 // ========================================================================================
 // ========================================================================================
 
-void shallowwater::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+void shallowwater::defineFunctions(Teuchos::ParameterList & fs,
                                    Teuchos::RCP<FunctionManager> & functionManager_) {
   
   functionManager = functionManager_;
 
-  Teuchos::ParameterList fs = settings->sublist("Functions");
   functionManager->addFunction("bathymetry",fs.get<string>("bathymetry","1.0"),"ip");
   functionManager->addFunction("bathymetry_x",fs.get<string>("bathymetry_x","0.0"),"ip");
   functionManager->addFunction("bathymetry_y",fs.get<string>("bathymetry_y","0.0"),"ip");

@@ -27,13 +27,12 @@ twophasePoPw::twophasePoPw(Teuchos::RCP<Teuchos::ParameterList> & settings) {
 // ========================================================================================
 // ========================================================================================
 
-void twophasePoPw::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+void twophasePoPw::defineFunctions(Teuchos::ParameterList & fs,
                                    Teuchos::RCP<FunctionManager> & functionManager_) {
   
   functionManager = functionManager_;
 
   // Functions
-  Teuchos::ParameterList fs = settings->sublist("Functions");
   
   functionManager->addFunction("permeability",fs.get<string>("permeability","1.0"),"ip");
   functionManager->addFunction("porosity",fs.get<string>("porosity","1.0"),"ip");

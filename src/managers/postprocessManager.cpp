@@ -18,10 +18,11 @@
 PostprocessManager::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                                        Teuchos::RCP<Teuchos::ParameterList> & settings,
                                        Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                                       Teuchos::RCP<panzer_stk::STK_Interface> & optimization_mesh_,
                                        Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                                        vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
                                        Teuchos::RCP<AssemblyManager> & assembler_) :
-Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_),
+Comm(Comm_), mesh(mesh_), optimization_mesh(optimization_mesh_), disc(disc_), phys(phys_),
 assembler(assembler_), functionManagers(functionManagers_) {
   this->setup(settings);
 }
@@ -33,12 +34,13 @@ assembler(assembler_), functionManagers(functionManagers_) {
 PostprocessManager::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                                        Teuchos::RCP<Teuchos::ParameterList> & settings,
                                        Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                                       Teuchos::RCP<panzer_stk::STK_Interface> & optimization_mesh_,
                                        Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                                        vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
                                        Teuchos::RCP<MultiScale> & multiscale_manager_,
                                        Teuchos::RCP<AssemblyManager> & assembler_,
                                        Teuchos::RCP<ParameterManager> & params_) :
-Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_),
+Comm(Comm_), mesh(mesh_), optimization_mesh(optimization_mesh_), disc(disc_), phys(phys_),
 assembler(assembler_), params(params_), //sensors(sensors_),
 functionManagers(functionManagers_), multiscale_manager(multiscale_manager_) {
   this->setup(settings);
@@ -65,6 +67,7 @@ void PostprocessManager::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) 
   write_subgrid_solution = settings->sublist("Postprocess").get("write subgrid solution",false);
   write_HFACE_variables = settings->sublist("Postprocess").get("write HFACE variables",false);
   exodus_filename = settings->sublist("Postprocess").get<string>("output file","output")+".exo";
+  write_optimization_solution = settings->sublist("Postprocess").get("create optimization movie",false);
   
   if (verbosity > 0 && Comm->getRank() == 0) {
     if (write_solution && !write_HFACE_variables) {
@@ -97,7 +100,9 @@ void PostprocessManager::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) 
   if (isTD) {
     mesh->setupExodusFile(exodus_filename);
   }
-  
+  if (write_optimization_solution) {
+    optimization_mesh->setupExodusFile("optimization_"+exodus_filename);
+  }
   //overlapped_map = solve->LA_overlapped_map;
   //param_overlapped_map = params->param_overlapped_map;
   mesh->getElementBlockNames(blocknames);
@@ -348,6 +353,9 @@ void PostprocessManager::record(const ScalarT & currenttime) {
   if (write_solution) {
     this->writeSolution(currenttime);
   }
+  //if (write_optimization_solution) {
+  //  this->writeOptimizationSolution(currenttime);
+  //}
 }
 
 // ========================================================================================
@@ -1188,7 +1196,7 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
   
   plot_times.push_back(currenttime);
   
-  for (size_t b=0; b<assembler->cells.size(); b++) {
+  for (size_t b=0; b<blocknames.size(); b++) {
     std::string blockID = blocknames[b];
     vector<vector<int> > curroffsets = phys->offsets[b];
     vector<size_t> myElements = disc->myElements[b];
@@ -1310,7 +1318,6 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
     if (dpnames.size() > 0) {
       for (size_t n=0; n<dpnames.size(); n++) {
         int bnum = dp_usebasis[n];
-        cout << "pp: " << dpnames[n] << "  " << discParamTypes[bnum] << endl;
         if (discParamTypes[bnum] == "HGRAD") {
           Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(),
                                                                                                    numNodesPerElem);
@@ -1473,20 +1480,114 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
     ////////////////////////////////////////////////////////////////
     // Write to Exodus
     ////////////////////////////////////////////////////////////////
-    
-    if (isTD) {
-      mesh->writeToExodus(currenttime);
-    }
-    else {
-      mesh->writeToExodus(exodus_filename);
-    }
-    
+  }
+  if (isTD) {
+    mesh->writeToExodus(currenttime);
+  }
+  else {
+    mesh->writeToExodus(exodus_filename);
   }
   
   if (write_subgrid_solution && multiscale_manager->subgridModels.size() > 0) {
     for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
       multiscale_manager->subgridModels[m]->writeSolution(currenttime);
     }
+  }
+}
+
+
+// ========================================================================================
+// ========================================================================================
+
+void PostprocessManager::writeOptimizationSolution(const int & numEvaluations) {
+  
+  Teuchos::TimeMonitor localtimer(*writeSolutionTimer);
+  
+  for (size_t b=0; b<assembler->cells.size(); b++) {
+    std::string blockID = blocknames[b];
+    vector<vector<int> > curroffsets = phys->offsets[b];
+    vector<size_t> myElements = disc->myElements[b];
+    vector<string> vartypes = phys->types[b];
+    vector<int> varorders = phys->orders[b];
+    
+    ////////////////////////////////////////////////////////////////
+    // Discretized Parameters
+    ////////////////////////////////////////////////////////////////
+    
+    vector<string> dpnames = params->discretized_param_names;
+    vector<int> numParamBasis = params->paramNumBasis;
+    vector<int> dp_usebasis = params->discretized_param_usebasis;
+    vector<string> discParamTypes = params->discretized_param_basis_types;
+    if (dpnames.size() > 0) {
+      for (size_t n=0; n<dpnames.size(); n++) {
+        int bnum = dp_usebasis[n];
+        if (discParamTypes[bnum] == "HGRAD") {
+          Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(),
+                                                                                                   numNodesPerElem);
+          auto soln_computed = Kokkos::create_mirror_view(soln_dev);
+          for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+            auto eID = assembler->cells[b][e]->localElemID;
+            auto sol = Kokkos::subview(assembler->cells[b][e]->param, Kokkos::ALL(), n, Kokkos::ALL());
+            parallel_for("postproc plot param HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+              for( int i=0; i<soln_dev.extent(1); i++ ) {
+                soln_dev(eID(elem),i) = sol(elem,i);
+              }
+            });
+          }
+          Kokkos::deep_copy(soln_computed, soln_dev);
+          optimization_mesh->setSolutionFieldData(dpnames[n], blockID, myElements, soln_computed);
+        }
+        else if (discParamTypes[bnum] == "HVOL") {
+          Kokkos::View<ScalarT*,AssemblyDevice> soln_dev("solution",myElements.size());
+          auto soln_computed = Kokkos::create_mirror_view(soln_dev);
+          //std::string var = varlist[b][n];
+          for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+            auto eID = assembler->cells[b][e]->localElemID;
+            auto sol = Kokkos::subview(assembler->cells[b][e]->param, Kokkos::ALL(), n, Kokkos::ALL());
+            parallel_for("postproc plot param HVOL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+              soln_dev(eID(elem)) = sol(elem,0);
+            });
+          }
+          Kokkos::deep_copy(soln_computed, soln_dev);
+          optimization_mesh->setCellFieldData(dpnames[n], blockID, myElements, soln_computed);
+        }
+        else if (discParamTypes[bnum] == "HDIV" || discParamTypes[n] == "HCURL") {
+          // TMW: this is not actually implemented yet ... not hard to do though
+          /*
+           Kokkos::View<ScalarT*,HostDevice> soln_x("solution",myElements.size());
+           Kokkos::View<ScalarT*,HostDevice> soln_y("solution",myElements.size());
+           Kokkos::View<ScalarT*,HostDevice> soln_z("solution",myElements.size());
+           std::string var = varlist[b][n];
+           size_t eprog = 0;
+           for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+           Kokkos::View<ScalarT**,AssemblyDevice> sol = assembler->cells[b][e]->param_avg;
+           auto host_sol = Kokkos::create_mirror_view(sol);
+           Kokkos::deep_copy(host_sol,sol);
+           for (int p=0; p<assembler->cells[b][e]->numElem; p++) {
+           soln_x(eprog) = host_sol(p,n,0);
+           soln_y(eprog) = host_sol(p,n,1);
+           soln_z(eprog) = host_sol(p,n,2);
+           eprog++;
+           }
+           }
+           
+           mesh->setCellFieldData(var+"x", blockID, myElements, soln_x);
+           mesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
+           mesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
+           */
+        }
+      }
+      
+    }
+    
+    
+    ////////////////////////////////////////////////////////////////
+    // Write to Exodus
+    ////////////////////////////////////////////////////////////////
+    
+    double timestamp = static_cast<double>(numEvaluations);
+    optimization_mesh->writeToExodus(timestamp);
+    
   }
 }
 

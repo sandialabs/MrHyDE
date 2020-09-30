@@ -32,13 +32,12 @@ helmholtz::helmholtz(Teuchos::RCP<Teuchos::ParameterList> & settings) {
 // ========================================================================================
 // ========================================================================================
 
-void helmholtz::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+void helmholtz::defineFunctions(Teuchos::ParameterList & fs,
                                 Teuchos::RCP<FunctionManager> & functionManager_) {
 
   functionManager = functionManager_;
   
   // Functions
-  Teuchos::ParameterList fs = settings->sublist("Functions");
   functionManager->addFunction("c2r_x",fs.get<string>("c2r_x","0.0"),"ip");
   functionManager->addFunction("c2i_x",fs.get<string>("c2i_x","0.0"),"ip");
   functionManager->addFunction("c2r_y",fs.get<string>("c2r_y","0.0"),"ip");

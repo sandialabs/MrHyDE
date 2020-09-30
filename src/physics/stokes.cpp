@@ -51,12 +51,10 @@ stokes::stokes(Teuchos::RCP<Teuchos::ParameterList> & settings) {
 // ========================================================================================
 // ========================================================================================
 
-void stokes::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+void stokes::defineFunctions(Teuchos::ParameterList & fs,
                              Teuchos::RCP<FunctionManager> & functionManager_) {
   
   functionManager = functionManager_;
-  
-  Teuchos::ParameterList fs = settings->sublist("Functions");
   
   functionManager->addFunction("source ux",fs.get<string>("source ux","0.0"),"ip");
   functionManager->addFunction("source pr",fs.get<string>("source pr","0.0"),"ip");

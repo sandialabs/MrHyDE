@@ -193,7 +193,7 @@ public:
   size_t maxEntries;
   bool have_preconditioner=false, save_solution=false;
   
-  int BDForder, startupBDForder, startupSteps;
+  int BDForder, startupBDForder, startupSteps, numEvaluations;
   string ButcherTab, startupButcherTab;
   
   vector<GO> owned, ownedAndShared, LA_owned, LA_ownedAndShared;
@@ -222,6 +222,7 @@ public:
   vector<LO> maxBasis, numVars;
   
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > M;
+  Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, HostNode>> M_dd;
   
   Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - total assembly");
   Teuchos::RCP<Teuchos::Time> linearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::linearSolver()");

@@ -100,7 +100,7 @@ class meshInterface {
   
   // Public data members
   Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory;
-  Teuchos::RCP<panzer_stk::STK_Interface> mesh;
+  Teuchos::RCP<panzer_stk::STK_Interface> mesh, optimization_mesh;
   Teuchos::RCP<Teuchos::ParameterList>  settings;
   Teuchos::RCP<MpiComm> Commptr;
   bool have_mesh_data, compute_mesh_data, have_rotations, have_rotation_phi, have_multiple_data_files;

@@ -25,12 +25,10 @@ maxwell::maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings) {
 // ========================================================================================
 // ========================================================================================
 
-void maxwell::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+void maxwell::defineFunctions(Teuchos::ParameterList & fs,
                               Teuchos::RCP<FunctionManager> & functionManager_) {
   
   functionManager = functionManager_;
-  
-  Teuchos::ParameterList fs = settings->sublist("Functions");
   
   functionManager->addFunction("current x",fs.get<string>("current x","0.0"),"ip");
   functionManager->addFunction("current y",fs.get<string>("current y","0.0"),"ip");
@@ -93,7 +91,6 @@ void maxwell::volumeResidual() {
   });
   */
   
-  //KokkosTools::print(current_x);
   //cout << current_x(0,0) << endl;
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   

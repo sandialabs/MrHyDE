@@ -25,11 +25,10 @@ ODE::ODE(Teuchos::RCP<Teuchos::ParameterList> & settings) {
 // ========================================================================================
 // ========================================================================================
 
-void ODE::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+void ODE::defineFunctions(Teuchos::ParameterList & fs,
                           Teuchos::RCP<FunctionManager> & functionManager_) {
   
   functionManager = functionManager_;
-  Teuchos::ParameterList fs = settings->sublist("Functions");
   functionManager->addFunction("ODE source",fs.get<string>("ODE source","0.0"),"ip");
   
 }

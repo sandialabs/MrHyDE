@@ -44,13 +44,12 @@ porousHDIV::porousHDIV(Teuchos::RCP<Teuchos::ParameterList> & settings) {
 // ========================================================================================
 // ========================================================================================
 
-void porousHDIV::defineFunctions(Teuchos::RCP<Teuchos::ParameterList> & settings,
+void porousHDIV::defineFunctions(Teuchos::ParameterList & fs,
                                  Teuchos::RCP<FunctionManager> & functionManager_) {
   
   functionManager = functionManager_;
   
   // Functions
-  Teuchos::ParameterList fs = settings->sublist("Functions");
   
   functionManager->addFunction("source",fs.get<string>("source","0.0"),"ip");
   functionManager->addFunction("Kinv_xx",fs.get<string>("Kinv_xx","1.0"),"ip");
