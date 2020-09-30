@@ -1327,7 +1327,7 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       vector_RCP D_soln;
       bool fnd = datagen_soln->extract(D_soln, 0, current_time+deltat);
       if (fnd) {
-        vector_RCP diff = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+        vector_RCP diff = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
         diff->update(1.0, *u, 0.0);
         diff->update(-1.0, *D_soln, 1.0);
         ScalarT dx = 0.01;
