@@ -1440,7 +1440,7 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
     vector_RCP D_soln;
     bool fnd = datagen_soln->extract(D_soln, 0, time);
     if (fnd) {
-      vector_RCP diff = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+      vector_RCP diff = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
       diff->update(1.0, *F_soln, 0.0);
       diff->update(-1.0, *D_soln, 1.0);
       Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> obj(1);
