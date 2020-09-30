@@ -1,0 +1,25 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Functions:
+    eblock-0_0_0:
+      current x: 'sin(pi*z)'
+      permittivity: 'datagen(0)*refperm + (1.0-datagen(0))*cxfield'
+      refperm: '1.0'
+      permeability: '1.25'
+    eblock-0_0_1:
+      current x: 'sin(pi*z)'
+      permittivity: 'datagen(0)*refperm + (1.0-datagen(0))*cxfield'
+      refperm: '10.0'
+      permeability: '1.25'
+    eblock-0_0_2:
+      current x: 'sin(pi*z)'
+      permittivity: 'datagen(0)*refperm + (1.0-datagen(0))*cxfield'
+      refperm: '1.0'
+      permeability: '1.25'
+    eblock-0_0_3:
+      current x: 'sin(pi*z)'
+      permittivity: 'datagen(0)*refperm + (1.0-datagen(0))*cxfield'
+      refperm: '10.0'
+      permeability: '1.25'
+...
