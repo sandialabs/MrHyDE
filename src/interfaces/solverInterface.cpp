@@ -1320,9 +1320,6 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     
     J->fillComplete();
     
-    res->putScalar(0.0);
-    res->doExport(*res_over, *exporter, Tpetra::ADD);
-    
     if (useadjoint && response_type == "discrete") {
       vector_RCP D_soln;
       bool fnd = datagen_soln->extract(D_soln, 0, current_time+deltat);
@@ -1332,12 +1329,17 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
         diff->update(-1.0, *D_soln, 1.0);
         ScalarT dx = 0.01;
         ScalarT dt = 0.1;
-        res->update(-1.0*dx*dt,*diff,1.0);
+        res_over->update(-1.0*dx*dt,*diff,1.0);
       }
       else {
         std::cout << "Error: did not find a data-generating solution" << std::endl;
       }
     }
+    
+    res->putScalar(0.0);
+    res->doExport(*res_over, *exporter, Tpetra::ADD);
+    
+    
       
     if (milo_debug_level>2) {
       KokkosTools::print(J,"Jacobian from solver interface");
