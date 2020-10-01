@@ -481,6 +481,8 @@ void AssemblyManager::createWorkset() {
     }
     else {
       wkset.push_back(Teuchos::rcp( new workset()));
+      wkset[b]->isInitialized = false;
+      wkset[b]->block = b;
     }
   }
   

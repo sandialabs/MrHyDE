@@ -579,62 +579,64 @@ void solver::finalizeWorkset() {
   
   for (size_t b=0; b<assembler->cells.size(); b++) {
     
-    vector<vector<int> > voffsets = phys->offsets[b];
-    size_t maxoff = 0;
-    for (size_t i=0; i<voffsets.size(); i++) {
-      if (voffsets[i].size() > maxoff) {
-        maxoff = voffsets[i].size();
+    if (assembler->cells[b].size() > 0) {
+      vector<vector<int> > voffsets = phys->offsets[b];
+      size_t maxoff = 0;
+      for (size_t i=0; i<voffsets.size(); i++) {
+        if (voffsets[i].size() > maxoff) {
+          maxoff = voffsets[i].size();
+        }
       }
-    }
-    // GH: this will not work if AssemblyMem is Cuda
-    Kokkos::View<int**,AssemblyDevice> offsets_view("offsets on assembly device",voffsets.size(),maxoff);
-    auto host_offsets = Kokkos::create_mirror_view(offsets_view);
-    for (size_t i=0; i<voffsets.size(); i++) {
-      for (size_t j=0; j<voffsets[i].size(); j++) {
-        host_offsets(i,j) = voffsets[i][j];
+      // GH: this will not work if AssemblyMem is Cuda
+      Kokkos::View<int**,AssemblyDevice> offsets_view("offsets on assembly device",voffsets.size(),maxoff);
+      auto host_offsets = Kokkos::create_mirror_view(offsets_view);
+      for (size_t i=0; i<voffsets.size(); i++) {
+        for (size_t j=0; j<voffsets[i].size(); j++) {
+          host_offsets(i,j) = voffsets[i][j];
+        }
       }
-    }
-    Kokkos::deep_copy(offsets_view,host_offsets);
-    assembler->wkset[b]->offsets = offsets_view;//phys->voffsets[b];
-    
-    size_t maxpoff = 0;
-    for (size_t i=0; i<params->paramoffsets.size(); i++) {
-      if (params->paramoffsets[i].size() > maxpoff) {
-        maxpoff = params->paramoffsets[i].size();
+      Kokkos::deep_copy(offsets_view,host_offsets);
+      assembler->wkset[b]->offsets = offsets_view;//phys->voffsets[b];
+      
+      size_t maxpoff = 0;
+      for (size_t i=0; i<params->paramoffsets.size(); i++) {
+        if (params->paramoffsets[i].size() > maxpoff) {
+          maxpoff = params->paramoffsets[i].size();
+        }
+        //maxpoff = max(maxpoff,paramoffsets[i].size());
       }
-      //maxpoff = max(maxpoff,paramoffsets[i].size());
-    }
-    // GH: this will not work if AssemblyMem is Cuda
-    Kokkos::View<int**,AssemblyDevice> poffsets_view("param offsets on assembly device",params->paramoffsets.size(),maxpoff);
-    auto host_poffsets = Kokkos::create_mirror_view(poffsets_view);
-    for (size_t i=0; i<params->paramoffsets.size(); i++) {
-      for (size_t j=0; j<params->paramoffsets[i].size(); j++) {
-        host_poffsets(i,j) = params->paramoffsets[i][j];
+      // GH: this will not work if AssemblyMem is Cuda
+      Kokkos::View<int**,AssemblyDevice> poffsets_view("param offsets on assembly device",params->paramoffsets.size(),maxpoff);
+      auto host_poffsets = Kokkos::create_mirror_view(poffsets_view);
+      for (size_t i=0; i<params->paramoffsets.size(); i++) {
+        for (size_t j=0; j<params->paramoffsets[i].size(); j++) {
+          host_poffsets(i,j) = params->paramoffsets[i][j];
+        }
       }
-    }
-    Kokkos::deep_copy(poffsets_view,host_poffsets);
-    assembler->wkset[b]->usebasis = useBasis[b];
-    assembler->wkset[b]->paramusebasis = params->discretized_param_usebasis;
-    assembler->wkset[b]->paramoffsets = poffsets_view;//paramoffsets;
-    assembler->wkset[b]->varlist = varlist[b];
-    assembler->wkset[b]->createSolns();
-    int numDOF = assembler->cells[b][0]->LIDs.extent(1);
-    for (size_t e=0; e<assembler->cells[b].size(); e++) {
-      assembler->cells[b][e]->setWorkset(assembler->wkset[b]);
-      assembler->cells[b][e]->setUseBasis(useBasis[b], numsteps, numstages);
-      assembler->cells[b][e]->setUpAdjointPrev(numDOF, numsteps, numstages);
-      assembler->cells[b][e]->setUpSubGradient(params->num_active_params);
-    }
-    assembler->wkset[b]->params = params->paramvals_AD;
-    assembler->wkset[b]->params_AD = params->paramvals_KVAD;
-    assembler->wkset[b]->paramnames = params->paramnames;
-    //assembler->wkset[b]->setupParamBasis(discretized_param_basis);
-    assembler->wkset[b]->setTime(current_time);
-    if (assembler->boundaryCells.size() > b) { // avoid seg faults
-      for (size_t e=0; e<assembler->boundaryCells[b].size(); e++) {
-        if (assembler->boundaryCells[b][e]->numElem > 0) {
-          assembler->boundaryCells[b][e]->setWorkset(assembler->wkset[b]);
-          assembler->boundaryCells[b][e]->setUseBasis(useBasis[b], numsteps, numstages);
+      Kokkos::deep_copy(poffsets_view,host_poffsets);
+      assembler->wkset[b]->usebasis = useBasis[b];
+      assembler->wkset[b]->paramusebasis = params->discretized_param_usebasis;
+      assembler->wkset[b]->paramoffsets = poffsets_view;//paramoffsets;
+      assembler->wkset[b]->varlist = varlist[b];
+      assembler->wkset[b]->createSolns();
+      int numDOF = assembler->cells[b][0]->LIDs.extent(1);
+      for (size_t e=0; e<assembler->cells[b].size(); e++) {
+        assembler->cells[b][e]->setWorkset(assembler->wkset[b]);
+        assembler->cells[b][e]->setUseBasis(useBasis[b], numsteps, numstages);
+        assembler->cells[b][e]->setUpAdjointPrev(numDOF, numsteps, numstages);
+        assembler->cells[b][e]->setUpSubGradient(params->num_active_params);
+      }
+      assembler->wkset[b]->params = params->paramvals_AD;
+      assembler->wkset[b]->params_AD = params->paramvals_KVAD;
+      assembler->wkset[b]->paramnames = params->paramnames;
+      //assembler->wkset[b]->setupParamBasis(discretized_param_basis);
+      assembler->wkset[b]->setTime(current_time);
+      if (assembler->boundaryCells.size() > b) { // avoid seg faults
+        for (size_t e=0; e<assembler->boundaryCells[b].size(); e++) {
+          if (assembler->boundaryCells[b][e]->numElem > 0) {
+            assembler->boundaryCells[b][e]->setWorkset(assembler->wkset[b]);
+            assembler->boundaryCells[b][e]->setUseBasis(useBasis[b], numsteps, numstages);
+          }
         }
       }
     }
