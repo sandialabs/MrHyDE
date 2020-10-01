@@ -753,7 +753,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
       cout << "******** Starting AssemblyManager::assembleJacRes ..." << endl;
     }
   }
-  
+ 
   {
     Teuchos::TimeMonitor localtimer(*gathertimer);
     
@@ -766,6 +766,7 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
       this->performGather(phi,2,0);
     }
   }
+
   
   for (size_t b=0; b<cells.size(); b++) {
     if (cells[b].size() > 0) {
@@ -897,7 +898,7 @@ void AssemblyManager::assembleJacRes(const bool & compute_jacobian, const bool &
     wkset[b]->localEID = e;
     cells[b][e]->updateData();
     
-    if (isTransient && useadjoint && !cells[0][0]->cellData->multiscale) {
+    if (isTransient && useadjoint && !cells[b][0]->cellData->multiscale) {
       if (is_final_time) {
         cells[b][e]->resetAdjPrev(0.0);
       }
@@ -937,7 +938,7 @@ void AssemblyManager::assembleJacRes(const bool & compute_jacobian, const bool &
   // Boundary terms
   //////////////////////////////////////////////////////////////////////////////////////
   
-  if (!cells[0][0]->cellData->multiscale && assemble_boundary_terms[b]) {
+  if (!cells[b][0]->cellData->multiscale && assemble_boundary_terms[b]) {
     /*
     {
       Teuchos::TimeMonitor localtimer(*gathertimer);
