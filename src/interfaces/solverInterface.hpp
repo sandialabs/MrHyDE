@@ -191,7 +191,7 @@ public:
   int verbosity, batchID, spaceDim, numsteps, numstages, gNLiter, milo_debug_level, MaxNLiter, time_order, liniter, kspace;
   
   size_t maxEntries;
-  bool have_preconditioner=false, save_solution=false;
+  bool have_preconditioner=false, reuse_preconditioner, save_solution=false;
   
   int BDForder, startupBDForder, startupSteps, numEvaluations;
   string ButcherTab, startupButcherTab;

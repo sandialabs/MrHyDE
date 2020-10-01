@@ -106,7 +106,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
   usePrecDBC = settings->sublist("Solver").get<bool>("use preconditioner for DBCs",true);
   dropTol = settings->sublist("Solver").get<ScalarT>("ILU drop tol",0.0); //defaults to AztecOO default
   fillParam = settings->sublist("Solver").get<ScalarT>("ILU fill param",3.0); //defaults to AztecOO default
-  
+  reuse_preconditioner = settings->sublist("Solver").get<bool>("reuse preconditioner",false); //defaults to AztecOO default
   have_symbolic_factor = false;
   
   // needed information from the mesh
@@ -1986,11 +1986,14 @@ void solver::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
     Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
     if (usePrec) {
       if (useDomDecomp) {
-        Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
-        M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,HostNode>> ("SCHWARZ", J);
-        M_dd->setParameters(ifpackList);
-        M_dd->initialize();
-        M_dd->compute();
+        if (!reuse_preconditioner || !have_preconditioner) {
+          Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
+          M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,HostNode>> ("SCHWARZ", J);
+          M_dd->setParameters(ifpackList);
+          M_dd->initialize();
+          M_dd->compute();
+          have_preconditioner = true;
+        }
         Problem->setLeftPrec(M_dd);
       }
       else {
