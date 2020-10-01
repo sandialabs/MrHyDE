@@ -768,10 +768,12 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
   }
   
   for (size_t b=0; b<cells.size(); b++) {
-    this->assembleJacRes(compute_jacobian,
-                         compute_sens, compute_disc_sens, res, J, isTransient,
-                         current_time, useadjoint, store_adjPrev, num_active_params,
-                         is_final_time, b, deltat);
+    if (cells[b].size() > 0) {
+      this->assembleJacRes(compute_jacobian,
+                           compute_sens, compute_disc_sens, res, J, isTransient,
+                           current_time, useadjoint, store_adjPrev, num_active_params,
+                           is_final_time, b, deltat);
+    }
   }
   
   if (milo_debug_level > 1) {
