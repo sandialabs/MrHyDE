@@ -464,20 +464,24 @@ void AssemblyManager::createWorkset() {
   }
   
   for (size_t b=0; b<cells.size(); b++) {
-    wkset.push_back(Teuchos::rcp( new workset(cells[b][0]->getInfo(),
-                                              isTransient,
-                                              disc->ref_ip[b],
-                                              disc->ref_wts[b], disc->ref_side_ip[b],
-                                              disc->ref_side_wts[b],
-                                              disc->basis_types[b],
-                                              disc->basis_pointers[b],
-                                              params->discretized_param_basis,
-                                              mesh->getCellTopology(blocknames[b]),
-                                              phys->var_bcs[b]) ) );
-    
-    wkset[b]->isInitialized = true;
-    wkset[b]->block = b;
-    
+    if (cells[b].size() > 0) {
+      wkset.push_back(Teuchos::rcp( new workset(cells[b][0]->getInfo(),
+                                                isTransient,
+                                                disc->ref_ip[b],
+                                                disc->ref_wts[b], disc->ref_side_ip[b],
+                                                disc->ref_side_wts[b],
+                                                disc->basis_types[b],
+                                                disc->basis_pointers[b],
+                                                params->discretized_param_basis,
+                                                mesh->getCellTopology(blocknames[b]),
+                                                phys->var_bcs[b]) ) );
+      
+      wkset[b]->isInitialized = true;
+      wkset[b]->block = b;
+    }
+    else {
+      wkset.push_back(Teuchos::rcp( new workset()));
+    }
   }
   
   //phys->setWorkset(wkset);
