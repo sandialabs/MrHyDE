@@ -234,7 +234,7 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
     
     for (size_t j=0; j<discretized_param_names.size(); j++) {
       int num = paramDOF->getFieldNum(discretized_param_names[j]);
-      vector<int> poffsets = paramDOF->getGIDFieldOffsets(blocknames[0],num);
+      vector<int> poffsets = paramDOF->getGIDFieldOffsets(blocknames[0],num); // same for all blocks?
       paramoffsets.push_back(poffsets);
       paramNumBasis.push_back(discretized_param_basis[discretized_param_usebasis[j]]->getCardinality());
     }
@@ -255,11 +255,19 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
       Kokkos::deep_copy(numDOF_host, numDOF_KV);
       cells[b][0]->cellData->numParamDOF_host = numDOF_host;
       
+      vector<size_t> myElem = disc->myElements[b];
+      Kokkos::View<size_t*,AssemblyDevice> GEIDs("element IDs on device",myElem.size());
+      auto host_GEIDs = Kokkos::create_mirror_view(GEIDs);
+      for (size_t elem=0; elem<myElem.size(); elem++) {
+        host_GEIDs(elem) = myElem[elem];
+      }
+      Kokkos::deep_copy(GEIDs, host_GEIDs);
+      
       for (size_t e=0; e<cells[b].size(); e++) {
         LIDView cellLIDs("cell parameter LIDs",cells[b][e]->numElem, LIDs.extent(1));
-        Kokkos::View<LO*> EIDs = cells[b][e]->localElemID;
+        Kokkos::View<LO*,AssemblyDevice> EIDs = cells[b][e]->localElemID;
         parallel_for("paramman copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int c ) {
-          size_t elemID = EIDs(c);
+          size_t elemID = GEIDs(EIDs(c));
           for (int j=0; j<LIDs.extent(1); j++) {
             cellLIDs(c,j) = LIDs(elemID,j);
           }

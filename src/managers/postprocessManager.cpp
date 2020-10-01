@@ -1385,7 +1385,7 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
     vector<string> extrafieldnames = phys->getExtraFieldNames(b);
     for (size_t j=0; j<extrafieldnames.size(); j++) {
       Kokkos::View<ScalarT**,HostDevice> efdata("field data",myElements.size(), numNodesPerElem);
-      /*
+      
       for (size_t k=0; k<assembler->cells[b].size(); k++) {
         DRV nodes = assembler->cells[b][k]->nodes;
         Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][k]->localElemID;
@@ -1400,7 +1400,7 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
             efdata(host_eID(p),i) = host_cfields(p,i);
           }
         }
-      }*/
+      }
       mesh->setSolutionFieldData(extrafieldnames[j], blockID, myElements, efdata);
     }
     
@@ -1580,15 +1580,15 @@ void PostprocessManager::writeOptimizationSolution(const int & numEvaluations) {
       
     }
     
-    
-    ////////////////////////////////////////////////////////////////
-    // Write to Exodus
-    ////////////////////////////////////////////////////////////////
-    
-    double timestamp = static_cast<double>(numEvaluations);
-    optimization_mesh->writeToExodus(timestamp);
-    
   }
+  
+  ////////////////////////////////////////////////////////////////
+  // Write to Exodus
+  ////////////////////////////////////////////////////////////////
+  
+  double timestamp = static_cast<double>(numEvaluations);
+  optimization_mesh->writeToExodus(timestamp);
+
 }
 
 

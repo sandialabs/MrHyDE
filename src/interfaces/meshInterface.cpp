@@ -386,6 +386,7 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
     for (size_t j=0; j<extrafields.size(); j++) {
       mesh->addSolutionField(extrafields[j], eBlocks[i]);
     }
+    
     std::vector<string> extracellfields = phys->getExtraCellFieldNames(i);
     for (size_t j=0; j<extracellfields.size(); j++) {
       mesh->addCellField(extracellfields[j], eBlocks[i]);
@@ -396,7 +397,7 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
         mesh->addCellField(sgfn, eBlocks[i]);
       }
     }
-     */
+    */
     if (have_mesh_data || compute_mesh_data) {
       mesh->addCellField("mesh_data_seed", eBlocks[i]);
       mesh->addCellField("mesh_data", eBlocks[i]);
