@@ -244,55 +244,59 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
     TEUCHOS_TEST_FOR_EXCEPTION(LIDs.extent(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of parameter degrees of freedom per element.");
     
     for (size_t b=0; b<cells.size(); b++) {
-      int numLocalDOF = 0;
-      Kokkos::View<LO*,AssemblyDevice> numDOF_KV("number of param DOF per variable",num_discretized_params);
-      for (int k=0; k<num_discretized_params; k++) {
-        numDOF_KV(k) = paramNumBasis[k];
-        numLocalDOF += paramNumBasis[k];
-      }
-      cells[b][0]->cellData->numParamDOF = numDOF_KV;
-      Kokkos::View<LO*,HostDevice> numDOF_host("numDOF on host",num_discretized_params);
-      Kokkos::deep_copy(numDOF_host, numDOF_KV);
-      cells[b][0]->cellData->numParamDOF_host = numDOF_host;
-      
-      vector<size_t> myElem = disc->myElements[b];
-      Kokkos::View<size_t*,AssemblyDevice> GEIDs("element IDs on device",myElem.size());
-      auto host_GEIDs = Kokkos::create_mirror_view(GEIDs);
-      for (size_t elem=0; elem<myElem.size(); elem++) {
-        host_GEIDs(elem) = myElem[elem];
-      }
-      Kokkos::deep_copy(GEIDs, host_GEIDs);
-      
-      for (size_t e=0; e<cells[b].size(); e++) {
-        LIDView cellLIDs("cell parameter LIDs",cells[b][e]->numElem, LIDs.extent(1));
-        Kokkos::View<LO*,AssemblyDevice> EIDs = cells[b][e]->localElemID;
-        parallel_for("paramman copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int c ) {
-          size_t elemID = GEIDs(EIDs(c));
-          for (int j=0; j<LIDs.extent(1); j++) {
-            cellLIDs(c,j) = LIDs(elemID,j);
-          }
-        });
-        cells[b][e]->setParams(cellLIDs);
-        cells[b][e]->setParamUseBasis(disc_usebasis, paramNumBasis);
+      if (cells[b].size() > 0) {
+        int numLocalDOF = 0;
+        Kokkos::View<LO*,AssemblyDevice> numDOF_KV("number of param DOF per variable",num_discretized_params);
+        for (int k=0; k<num_discretized_params; k++) {
+          numDOF_KV(k) = paramNumBasis[k];
+          numLocalDOF += paramNumBasis[k];
+        }
+        cells[b][0]->cellData->numParamDOF = numDOF_KV;
+        Kokkos::View<LO*,HostDevice> numDOF_host("numDOF on host",num_discretized_params);
+        Kokkos::deep_copy(numDOF_host, numDOF_KV);
+        cells[b][0]->cellData->numParamDOF_host = numDOF_host;
+        
+        vector<size_t> myElem = disc->myElements[b];
+        Kokkos::View<size_t*,AssemblyDevice> GEIDs("element IDs on device",myElem.size());
+        auto host_GEIDs = Kokkos::create_mirror_view(GEIDs);
+        for (size_t elem=0; elem<myElem.size(); elem++) {
+          host_GEIDs(elem) = myElem[elem];
+        }
+        Kokkos::deep_copy(GEIDs, host_GEIDs);
+        
+        for (size_t e=0; e<cells[b].size(); e++) {
+          LIDView cellLIDs("cell parameter LIDs",cells[b][e]->numElem, LIDs.extent(1));
+          Kokkos::View<LO*,AssemblyDevice> EIDs = cells[b][e]->localElemID;
+          parallel_for("paramman copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int c ) {
+            size_t elemID = GEIDs(EIDs(c));
+            for (int j=0; j<LIDs.extent(1); j++) {
+              cellLIDs(c,j) = LIDs(elemID,j);
+            }
+          });
+          cells[b][e]->setParams(cellLIDs);
+          cells[b][e]->setParamUseBasis(disc_usebasis, paramNumBasis);
+        }
       }
     }
     for (size_t b=0; b<boundaryCells.size(); b++) {
-      int numLocalDOF = 0;
-      for (int k=0; k<num_discretized_params; k++) {
-        numLocalDOF += paramNumBasis[k];
-      }
-      
-      for (size_t e=0; e<boundaryCells[b].size(); e++) {
-        LIDView cellLIDs("bcell parameter LIDs",boundaryCells[b][e]->numElem, LIDs.extent(1));
-        Kokkos::View<LO*> EIDs = boundaryCells[b][e]->localElemID;
-        parallel_for("paramman copy LIDs bcells",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          size_t elemID = EIDs(e);
-          for (int j=0; j<LIDs.extent(1); j++) {
-            cellLIDs(e,j) = LIDs(elemID,j);
-          }
-        });
-        boundaryCells[b][e]->setParams(cellLIDs);
-        boundaryCells[b][e]->setParamUseBasis(disc_usebasis, paramNumBasis);
+      if (boundaryCells[b].size() > 0) {
+        int numLocalDOF = 0;
+        for (int k=0; k<num_discretized_params; k++) {
+          numLocalDOF += paramNumBasis[k];
+        }
+        
+        for (size_t e=0; e<boundaryCells[b].size(); e++) {
+          LIDView cellLIDs("bcell parameter LIDs",boundaryCells[b][e]->numElem, LIDs.extent(1));
+          Kokkos::View<LO*> EIDs = boundaryCells[b][e]->localElemID;
+          parallel_for("paramman copy LIDs bcells",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+            size_t elemID = EIDs(e);
+            for (int j=0; j<LIDs.extent(1); j++) {
+              cellLIDs(e,j) = LIDs(elemID,j);
+            }
+          });
+          boundaryCells[b][e]->setParams(cellLIDs);
+          boundaryCells[b][e]->setParamUseBasis(disc_usebasis, paramNumBasis);
+        }
       }
     }
     if (discretized_stochastic) { // add the param DOFs as indep. rv's
