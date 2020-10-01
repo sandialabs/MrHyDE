@@ -1203,284 +1203,289 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
     vector<string> vartypes = phys->types[b];
     vector<int> varorders = phys->orders[b];
     
-    for (int n = 0; n<numVars[b]; n++) {
+    if (myElements.size() > 0) {
       
-      if (vartypes[n] == "HGRAD") {
+      for (int n = 0; n<numVars[b]; n++) {
         
-        Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(), numNodesPerElem);
-        auto soln_computed = Kokkos::create_mirror_view(soln_dev);
-        std::string var = varlist[b][n];
-        for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-          auto eID = assembler->cells[b][e]->localElemID;
-          auto sol = Kokkos::subview(assembler->cells[b][e]->u, Kokkos::ALL(), n, Kokkos::ALL());
-          parallel_for("postproc plot HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            for( int i=0; i<soln_dev.extent(1); i++ ) {
-              soln_dev(eID(elem),i) = sol(elem,i);
-            }
-          });
-        }
-        Kokkos::deep_copy(soln_computed, soln_dev);
-        
-        if (var == "dx") {
-          mesh->setSolutionFieldData("dispx", blockID, myElements, soln_computed);
-        }
-        if (var == "dy") {
-          mesh->setSolutionFieldData("dispy", blockID, myElements, soln_computed);
-        }
-        if (var == "dz" || var == "H") {
-          mesh->setSolutionFieldData("dispz", blockID, myElements, soln_computed);
-        }
-        
-        mesh->setSolutionFieldData(var, blockID, myElements, soln_computed);
-      }
-      else if (vartypes[n] == "HVOL") {
-        Kokkos::View<ScalarT*,AssemblyDevice> soln_dev("solution",myElements.size());
-        auto soln_computed = Kokkos::create_mirror_view(soln_dev);
-        std::string var = varlist[b][n];
-        for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-          auto eID = assembler->cells[b][e]->localElemID;
-          auto sol = Kokkos::subview(assembler->cells[b][e]->u, Kokkos::ALL(), n, Kokkos::ALL());
-          parallel_for("postproc plot HVOL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            soln_dev(eID(elem)) = sol(elem,0);//u_kv(pindex,0);
-          });
-        }
-        Kokkos::deep_copy(soln_computed,soln_dev);
-        mesh->setCellFieldData(var, blockID, myElements, soln_computed);
-      }
-      else if (vartypes[n] == "HDIV" || vartypes[n] == "HCURL") { // need to project each component onto PW-linear basis and PW constant basis
-        Kokkos::View<ScalarT*,AssemblyDevice> soln_x_dev("solution",myElements.size());
-        Kokkos::View<ScalarT*,AssemblyDevice> soln_y_dev("solution",myElements.size());
-        Kokkos::View<ScalarT*,AssemblyDevice> soln_z_dev("solution",myElements.size());
-        auto soln_x = Kokkos::create_mirror_view(soln_x_dev);
-        auto soln_y = Kokkos::create_mirror_view(soln_y_dev);
-        auto soln_z = Kokkos::create_mirror_view(soln_z_dev);
-        std::string var = varlist[b][n];
-        for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-          auto eID = assembler->cells[b][e]->localElemID;
-          auto sol = Kokkos::subview(assembler->cells[b][e]->u_avg, Kokkos::ALL(), n, Kokkos::ALL());
-          parallel_for("postproc plot HDIV/HCURL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            soln_x_dev(eID(elem)) = sol(elem,0);
-            if (sol.extent(1) > 1) {
-              soln_y_dev(eID(elem)) = sol(elem,1);
-            }
-            if (sol.extent(1) > 2) {
-              soln_z_dev(eID(elem)) = sol(elem,2);
-            }
-          });
-        }
-        Kokkos::deep_copy(soln_x, soln_x_dev);
-        Kokkos::deep_copy(soln_y, soln_y_dev);
-        Kokkos::deep_copy(soln_z, soln_z_dev);
-        mesh->setCellFieldData(var+"x", blockID, myElements, soln_x);
-        mesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
-        mesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
-        
-      }
-      else if (vartypes[n] == "HFACE" && write_HFACE_variables) {
-        size_t numSides = assembler->cellData[b]->numSides;
-        Kokkos::View<ScalarT*,AssemblyDevice> soln_faceavg_dev("solution",myElements.size());
-        auto soln_faceavg = Kokkos::create_mirror_view(soln_faceavg_dev);
-        
-        Kokkos::View<ScalarT*,AssemblyDevice> face_measure_dev("face measure",myElements.size());
-        
-        for( size_t c=0; c<assembler->cells[b].size(); c++ ) {
-          auto eID = assembler->cells[b][c]->localElemID;
-          for (size_t face=0; face<assembler->cellData[b]->numSides; face++) {
-            int seedwhat = 0;
-            assembler->wkset[b]->computeSolnSteadySeeded(assembler->cells[b][c]->u, seedwhat);
-            assembler->cells[b][c]->computeSolnFaceIP(face);
-            auto wts = assembler->wkset[b]->wts_side;
-            auto sol = Kokkos::subview(assembler->wkset[b]->local_soln_face,Kokkos::ALL(),n,Kokkos::ALL(),0);
-            parallel_for("postproc plot HFACE",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-                face_measure_dev(eID(elem)) += wts(elem,pt);
-                soln_faceavg_dev(eID(elem)) += sol(elem,pt).val()*wts(elem,pt);
-              }
-            });
-          }
-        }
-        parallel_for("postproc plot HFACE 2",RangePolicy<AssemblyExec>(0,soln_faceavg_dev.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-          soln_faceavg_dev(elem) *= 1.0/face_measure_dev(elem);
-        });
-        Kokkos::deep_copy(soln_faceavg, soln_faceavg_dev);
-        mesh->setCellFieldData(varlist[b][n], blockID, myElements, soln_faceavg);
-      }
-    }
-    
-    ////////////////////////////////////////////////////////////////
-    // Discretized Parameters
-    ////////////////////////////////////////////////////////////////
-    
-    vector<string> dpnames = params->discretized_param_names;
-    vector<int> numParamBasis = params->paramNumBasis;
-    vector<int> dp_usebasis = params->discretized_param_usebasis;
-    vector<string> discParamTypes = params->discretized_param_basis_types;
-    if (dpnames.size() > 0) {
-      for (size_t n=0; n<dpnames.size(); n++) {
-        int bnum = dp_usebasis[n];
-        if (discParamTypes[bnum] == "HGRAD") {
-          Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(),
-                                                                                                   numNodesPerElem);
+        if (vartypes[n] == "HGRAD") {
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(), numNodesPerElem);
           auto soln_computed = Kokkos::create_mirror_view(soln_dev);
+          std::string var = varlist[b][n];
           for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
             auto eID = assembler->cells[b][e]->localElemID;
-            auto sol = Kokkos::subview(assembler->cells[b][e]->param, Kokkos::ALL(), n, Kokkos::ALL());
-            parallel_for("postproc plot param HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            auto sol = Kokkos::subview(assembler->cells[b][e]->u, Kokkos::ALL(), n, Kokkos::ALL());
+            parallel_for("postproc plot HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
               for( int i=0; i<soln_dev.extent(1); i++ ) {
                 soln_dev(eID(elem),i) = sol(elem,i);
               }
             });
           }
           Kokkos::deep_copy(soln_computed, soln_dev);
-          mesh->setSolutionFieldData(dpnames[n], blockID, myElements, soln_computed);
-        }
-        else if (discParamTypes[bnum] == "HVOL") {
-          Kokkos::View<ScalarT*,AssemblyDevice> soln_dev("solution",myElements.size());
-          auto soln_computed = Kokkos::create_mirror_view(soln_dev);
-          //std::string var = varlist[b][n];
-          for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-            auto eID = assembler->cells[b][e]->localElemID;
-            auto sol = Kokkos::subview(assembler->cells[b][e]->param, Kokkos::ALL(), n, Kokkos::ALL());
-            parallel_for("postproc plot param HVOL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-              soln_dev(eID(elem)) = sol(elem,0);
-            });
+          
+          if (var == "dx") {
+            mesh->setSolutionFieldData("dispx", blockID, myElements, soln_computed);
           }
-          Kokkos::deep_copy(soln_computed, soln_dev);
-          mesh->setCellFieldData(dpnames[n], blockID, myElements, soln_computed);
-        }
-        else if (discParamTypes[bnum] == "HDIV" || discParamTypes[n] == "HCURL") {
-          // TMW: this is not actually implemented yet ... not hard to do though
-          /*
-          Kokkos::View<ScalarT*,HostDevice> soln_x("solution",myElements.size());
-          Kokkos::View<ScalarT*,HostDevice> soln_y("solution",myElements.size());
-          Kokkos::View<ScalarT*,HostDevice> soln_z("solution",myElements.size());
-          std::string var = varlist[b][n];
-          size_t eprog = 0;
-          for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-            Kokkos::View<ScalarT**,AssemblyDevice> sol = assembler->cells[b][e]->param_avg;
-            auto host_sol = Kokkos::create_mirror_view(sol);
-            Kokkos::deep_copy(host_sol,sol);
-            for (int p=0; p<assembler->cells[b][e]->numElem; p++) {
-              soln_x(eprog) = host_sol(p,n,0);
-              soln_y(eprog) = host_sol(p,n,1);
-              soln_z(eprog) = host_sol(p,n,2);
-              eprog++;
-            }
+          if (var == "dy") {
+            mesh->setSolutionFieldData("dispy", blockID, myElements, soln_computed);
+          }
+          if (var == "dz" || var == "H") {
+            mesh->setSolutionFieldData("dispz", blockID, myElements, soln_computed);
           }
           
+          mesh->setSolutionFieldData(var, blockID, myElements, soln_computed);
+        }
+        else if (vartypes[n] == "HVOL") {
+          Kokkos::View<ScalarT*,AssemblyDevice> soln_dev("solution",myElements.size());
+          auto soln_computed = Kokkos::create_mirror_view(soln_dev);
+          std::string var = varlist[b][n];
+          for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+            auto eID = assembler->cells[b][e]->localElemID;
+            auto sol = Kokkos::subview(assembler->cells[b][e]->u, Kokkos::ALL(), n, Kokkos::ALL());
+            parallel_for("postproc plot HVOL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+              soln_dev(eID(elem)) = sol(elem,0);//u_kv(pindex,0);
+            });
+          }
+          Kokkos::deep_copy(soln_computed,soln_dev);
+          mesh->setCellFieldData(var, blockID, myElements, soln_computed);
+        }
+        else if (vartypes[n] == "HDIV" || vartypes[n] == "HCURL") { // need to project each component onto PW-linear basis and PW constant basis
+          Kokkos::View<ScalarT*,AssemblyDevice> soln_x_dev("solution",myElements.size());
+          Kokkos::View<ScalarT*,AssemblyDevice> soln_y_dev("solution",myElements.size());
+          Kokkos::View<ScalarT*,AssemblyDevice> soln_z_dev("solution",myElements.size());
+          auto soln_x = Kokkos::create_mirror_view(soln_x_dev);
+          auto soln_y = Kokkos::create_mirror_view(soln_y_dev);
+          auto soln_z = Kokkos::create_mirror_view(soln_z_dev);
+          std::string var = varlist[b][n];
+          for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+            auto eID = assembler->cells[b][e]->localElemID;
+            auto sol = Kokkos::subview(assembler->cells[b][e]->u_avg, Kokkos::ALL(), n, Kokkos::ALL());
+            parallel_for("postproc plot HDIV/HCURL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+              soln_x_dev(eID(elem)) = sol(elem,0);
+              if (sol.extent(1) > 1) {
+                soln_y_dev(eID(elem)) = sol(elem,1);
+              }
+              if (sol.extent(1) > 2) {
+                soln_z_dev(eID(elem)) = sol(elem,2);
+              }
+            });
+          }
+          Kokkos::deep_copy(soln_x, soln_x_dev);
+          Kokkos::deep_copy(soln_y, soln_y_dev);
+          Kokkos::deep_copy(soln_z, soln_z_dev);
           mesh->setCellFieldData(var+"x", blockID, myElements, soln_x);
           mesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
           mesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
-           */
+          
+        }
+        else if (vartypes[n] == "HFACE" && write_HFACE_variables) {
+          size_t numSides = assembler->cellData[b]->numSides;
+          Kokkos::View<ScalarT*,AssemblyDevice> soln_faceavg_dev("solution",myElements.size());
+          auto soln_faceavg = Kokkos::create_mirror_view(soln_faceavg_dev);
+          
+          Kokkos::View<ScalarT*,AssemblyDevice> face_measure_dev("face measure",myElements.size());
+          
+          for( size_t c=0; c<assembler->cells[b].size(); c++ ) {
+            auto eID = assembler->cells[b][c]->localElemID;
+            for (size_t face=0; face<assembler->cellData[b]->numSides; face++) {
+              int seedwhat = 0;
+              assembler->wkset[b]->computeSolnSteadySeeded(assembler->cells[b][c]->u, seedwhat);
+              assembler->cells[b][c]->computeSolnFaceIP(face);
+              auto wts = assembler->wkset[b]->wts_side;
+              auto sol = Kokkos::subview(assembler->wkset[b]->local_soln_face,Kokkos::ALL(),n,Kokkos::ALL(),0);
+              parallel_for("postproc plot HFACE",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+                for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                  face_measure_dev(eID(elem)) += wts(elem,pt);
+                  soln_faceavg_dev(eID(elem)) += sol(elem,pt).val()*wts(elem,pt);
+                }
+              });
+            }
+          }
+          parallel_for("postproc plot HFACE 2",RangePolicy<AssemblyExec>(0,soln_faceavg_dev.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            soln_faceavg_dev(elem) *= 1.0/face_measure_dev(elem);
+          });
+          Kokkos::deep_copy(soln_faceavg, soln_faceavg_dev);
+          mesh->setCellFieldData(varlist[b][n], blockID, myElements, soln_faceavg);
         }
       }
       
-    }
-    
-    ////////////////////////////////////////////////////////////////
-    // Extra nodal fields
-    ////////////////////////////////////////////////////////////////
-    // TMW: This needs to be rewritten to actually use integration points
-    
-    vector<string> extrafieldnames = phys->getExtraFieldNames(b);
-    for (size_t j=0; j<extrafieldnames.size(); j++) {
-      Kokkos::View<ScalarT**,HostDevice> efdata("field data",myElements.size(), numNodesPerElem);
+      ////////////////////////////////////////////////////////////////
+      // Discretized Parameters
+      ////////////////////////////////////////////////////////////////
       
-      for (size_t k=0; k<assembler->cells[b].size(); k++) {
-        DRV nodes = assembler->cells[b][k]->nodes;
-        Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][k]->localElemID;
-        auto host_eID = Kokkos::create_mirror_view(eID);
-        Kokkos::deep_copy(host_eID,eID);
-        
-        Kokkos::View<ScalarT**,AssemblyDevice> cfields = phys->getExtraFields(b, 0, nodes, currenttime, assembler->wkset[b]);
-        auto host_cfields = Kokkos::create_mirror_view(cfields);
-        Kokkos::deep_copy(host_cfields,cfields);
-        for (int p=0; p<host_eID.extent(0); p++) {
-          for (size_t i=0; i<host_cfields.extent(1); i++) {
-            efdata(host_eID(p),i) = host_cfields(p,i);
+      vector<string> dpnames = params->discretized_param_names;
+      vector<int> numParamBasis = params->paramNumBasis;
+      vector<int> dp_usebasis = params->discretized_param_usebasis;
+      vector<string> discParamTypes = params->discretized_param_basis_types;
+      if (dpnames.size() > 0) {
+        for (size_t n=0; n<dpnames.size(); n++) {
+          int bnum = dp_usebasis[n];
+          if (discParamTypes[bnum] == "HGRAD") {
+            Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(),
+                                                                                                     numNodesPerElem);
+            auto soln_computed = Kokkos::create_mirror_view(soln_dev);
+            for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+              auto eID = assembler->cells[b][e]->localElemID;
+              auto sol = Kokkos::subview(assembler->cells[b][e]->param, Kokkos::ALL(), n, Kokkos::ALL());
+              parallel_for("postproc plot param HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+                for( int i=0; i<soln_dev.extent(1); i++ ) {
+                  soln_dev(eID(elem),i) = sol(elem,i);
+                }
+              });
+            }
+            Kokkos::deep_copy(soln_computed, soln_dev);
+            mesh->setSolutionFieldData(dpnames[n], blockID, myElements, soln_computed);
+          }
+          else if (discParamTypes[bnum] == "HVOL") {
+            Kokkos::View<ScalarT*,AssemblyDevice> soln_dev("solution",myElements.size());
+            auto soln_computed = Kokkos::create_mirror_view(soln_dev);
+            //std::string var = varlist[b][n];
+            for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+              auto eID = assembler->cells[b][e]->localElemID;
+              auto sol = Kokkos::subview(assembler->cells[b][e]->param, Kokkos::ALL(), n, Kokkos::ALL());
+              parallel_for("postproc plot param HVOL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+                soln_dev(eID(elem)) = sol(elem,0);
+              });
+            }
+            Kokkos::deep_copy(soln_computed, soln_dev);
+            mesh->setCellFieldData(dpnames[n], blockID, myElements, soln_computed);
+          }
+          else if (discParamTypes[bnum] == "HDIV" || discParamTypes[n] == "HCURL") {
+            // TMW: this is not actually implemented yet ... not hard to do though
+            /*
+             Kokkos::View<ScalarT*,HostDevice> soln_x("solution",myElements.size());
+             Kokkos::View<ScalarT*,HostDevice> soln_y("solution",myElements.size());
+             Kokkos::View<ScalarT*,HostDevice> soln_z("solution",myElements.size());
+             std::string var = varlist[b][n];
+             size_t eprog = 0;
+             for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+             Kokkos::View<ScalarT**,AssemblyDevice> sol = assembler->cells[b][e]->param_avg;
+             auto host_sol = Kokkos::create_mirror_view(sol);
+             Kokkos::deep_copy(host_sol,sol);
+             for (int p=0; p<assembler->cells[b][e]->numElem; p++) {
+             soln_x(eprog) = host_sol(p,n,0);
+             soln_y(eprog) = host_sol(p,n,1);
+             soln_z(eprog) = host_sol(p,n,2);
+             eprog++;
+             }
+             }
+             
+             mesh->setCellFieldData(var+"x", blockID, myElements, soln_x);
+             mesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
+             mesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
+             */
           }
         }
+        
       }
-      mesh->setSolutionFieldData(extrafieldnames[j], blockID, myElements, efdata);
-    }
-    
-    ////////////////////////////////////////////////////////////////
-    // Extra cell fields
-    ////////////////////////////////////////////////////////////////
-    
-    vector<string> extracellfieldnames = phys->getExtraCellFieldNames(b);
-    
-    for (size_t j=0; j<extracellfieldnames.size(); j++) {
-      Kokkos::View<ScalarT*,AssemblyDevice> efdata_dev("cell data",myElements.size());
-      auto efdata = Kokkos::create_mirror_view(efdata_dev);
+      
+      ////////////////////////////////////////////////////////////////
+      // Extra nodal fields
+      ////////////////////////////////////////////////////////////////
+      // TMW: This needs to be rewritten to actually use integration points
+      
+      vector<string> extrafieldnames = phys->getExtraFieldNames(b);
+      for (size_t j=0; j<extrafieldnames.size(); j++) {
+        Kokkos::View<ScalarT**,HostDevice> efdata("field data",myElements.size(), numNodesPerElem);
+        
+        for (size_t k=0; k<assembler->cells[b].size(); k++) {
+          DRV nodes = assembler->cells[b][k]->nodes;
+          Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][k]->localElemID;
+          auto host_eID = Kokkos::create_mirror_view(eID);
+          Kokkos::deep_copy(host_eID,eID);
+          
+          Kokkos::View<ScalarT**,AssemblyDevice> cfields = phys->getExtraFields(b, 0, nodes, currenttime, assembler->wkset[b]);
+          auto host_cfields = Kokkos::create_mirror_view(cfields);
+          Kokkos::deep_copy(host_cfields,cfields);
+          for (int p=0; p<host_eID.extent(0); p++) {
+            for (size_t i=0; i<host_cfields.extent(1); i++) {
+              efdata(host_eID(p),i) = host_cfields(p,i);
+            }
+          }
+        }
+        mesh->setSolutionFieldData(extrafieldnames[j], blockID, myElements, efdata);
+      }
+      
+      ////////////////////////////////////////////////////////////////
+      // Extra cell fields
+      ////////////////////////////////////////////////////////////////
+      
+      vector<string> extracellfieldnames = phys->getExtraCellFieldNames(b);
+      
+      for (size_t j=0; j<extracellfieldnames.size(); j++) {
+        Kokkos::View<ScalarT*,AssemblyDevice> efdata_dev("cell data",myElements.size());
+        auto efdata = Kokkos::create_mirror_view(efdata_dev);
+        for (size_t k=0; k<assembler->cells[b].size(); k++) {
+          auto eID = assembler->cells[b][k]->localElemID;
+          
+          assembler->cells[b][k]->updateData();
+          assembler->cells[b][k]->updateWorksetBasis();
+          assembler->wkset[b]->setTime(currenttime);
+          assembler->wkset[b]->computeSolnSteadySeeded(assembler->cells[b][k]->u, 0);
+          assembler->wkset[b]->computeSolnVolIP();
+          assembler->wkset[b]->computeParamVolIP(assembler->cells[b][k]->param, 0);
+          
+          auto cfields = phys->getExtraCellFields(b, j, assembler->cells[b][k]->wts);
+          
+          parallel_for("postproc plot param HVOL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            efdata_dev(eID(elem)) = cfields(elem);
+          });
+        }
+        Kokkos::deep_copy(efdata, efdata_dev);
+        mesh->setCellFieldData(extracellfieldnames[j], blockID, myElements, efdata);
+      }
+      
+      ////////////////////////////////////////////////////////////////
+      // Mesh data
+      ////////////////////////////////////////////////////////////////
+      // TMW This is slightly inefficient, but leaving until cell_data_seed is stored differently
+      
+      if (assembler->cells[b][0]->cellData->have_cell_phi || assembler->cells[b][0]->cellData->have_cell_rotation || assembler->cells[b][0]->cellData->have_extra_data) {
+        
+        Kokkos::View<ScalarT*,HostDevice> cdata("cell data",myElements.size());
+        Kokkos::View<ScalarT*,HostDevice> cseed("cell data seed",myElements.size());
+        for (size_t k=0; k<assembler->cells[b].size(); k++) {
+          vector<size_t> cell_data_seed = assembler->cells[b][k]->cell_data_seed;
+          vector<size_t> cell_data_seedindex = assembler->cells[b][k]->cell_data_seedindex;
+          Kokkos::View<ScalarT**,AssemblyDevice> cell_data = assembler->cells[b][k]->cell_data;
+          Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][k]->localElemID;
+          auto host_eID = Kokkos::create_mirror_view(eID);
+          Kokkos::deep_copy(host_eID,eID);
+          
+          for (int p=0; p<host_eID.extent(0); p++) {
+            if (cell_data.extent(1) == 1) {
+              cdata(host_eID(p)) = cell_data(p,0);//cell_data_seed[p];
+            }
+            cseed(host_eID(p)) = cell_data_seedindex[p];
+          }
+        }
+        mesh->setCellFieldData("mesh_data_seed", blockID, myElements, cseed);
+        mesh->setCellFieldData("mesh_data", blockID, myElements, cdata);
+      }
+      
+      ////////////////////////////////////////////////////////////////
+      // Cell number
+      ////////////////////////////////////////////////////////////////
+      
+      Kokkos::View<ScalarT*,AssemblyDevice> cellnum_dev("cell number",myElements.size());
+      auto cellnum = Kokkos::create_mirror_view(cellnum_dev);
+      
       for (size_t k=0; k<assembler->cells[b].size(); k++) {
         auto eID = assembler->cells[b][k]->localElemID;
-        
-        assembler->cells[b][k]->updateData();
-        assembler->cells[b][k]->updateWorksetBasis();
-        assembler->wkset[b]->setTime(currenttime);
-        assembler->wkset[b]->computeSolnSteadySeeded(assembler->cells[b][k]->u, 0);
-        assembler->wkset[b]->computeSolnVolIP();
-        assembler->wkset[b]->computeParamVolIP(assembler->cells[b][k]->param, 0);
-        
-        auto cfields = phys->getExtraCellFields(b, j, assembler->cells[b][k]->wts);
-        
         parallel_for("postproc plot param HVOL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-          efdata_dev(eID(elem)) = cfields(elem);
+          cellnum_dev(eID(elem)) = elem; // TMW: is this what we want?
         });
       }
-      Kokkos::deep_copy(efdata, efdata_dev);
-      mesh->setCellFieldData(extracellfieldnames[j], blockID, myElements, efdata);
-    }
-    
-    ////////////////////////////////////////////////////////////////
-    // Mesh data
-    ////////////////////////////////////////////////////////////////
-    // TMW This is slightly inefficient, but leaving until cell_data_seed is stored differently
-    
-    if (assembler->cells[b][0]->cellData->have_cell_phi || assembler->cells[b][0]->cellData->have_cell_rotation || assembler->cells[b][0]->cellData->have_extra_data) {
+      Kokkos::deep_copy(cellnum, cellnum_dev);
+      mesh->setCellFieldData("cell number", blockID, myElements, cellnum);
       
-      Kokkos::View<ScalarT*,HostDevice> cdata("cell data",myElements.size());
-      Kokkos::View<ScalarT*,HostDevice> cseed("cell data seed",myElements.size());
-      for (size_t k=0; k<assembler->cells[b].size(); k++) {
-        vector<size_t> cell_data_seed = assembler->cells[b][k]->cell_data_seed;
-        vector<size_t> cell_data_seedindex = assembler->cells[b][k]->cell_data_seedindex;
-        Kokkos::View<ScalarT**,AssemblyDevice> cell_data = assembler->cells[b][k]->cell_data;
-        Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][k]->localElemID;
-        auto host_eID = Kokkos::create_mirror_view(eID);
-        Kokkos::deep_copy(host_eID,eID);
-        
-        for (int p=0; p<host_eID.extent(0); p++) {
-          if (cell_data.extent(1) == 1) {
-            cdata(host_eID(p)) = cell_data(p,0);//cell_data_seed[p];
-          }
-          cseed(host_eID(p)) = cell_data_seedindex[p];
-        }
-      }
-      mesh->setCellFieldData("mesh_data_seed", blockID, myElements, cseed);
-      mesh->setCellFieldData("mesh_data", blockID, myElements, cdata);
     }
-    
-    ////////////////////////////////////////////////////////////////
-    // Cell number
-    ////////////////////////////////////////////////////////////////
-    
-    Kokkos::View<ScalarT*,AssemblyDevice> cellnum_dev("cell number",myElements.size());
-    auto cellnum = Kokkos::create_mirror_view(cellnum_dev);
-    
-    for (size_t k=0; k<assembler->cells[b].size(); k++) {
-      auto eID = assembler->cells[b][k]->localElemID;
-      parallel_for("postproc plot param HVOL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        cellnum_dev(eID(elem)) = elem; // TMW: is this what we want?
-      });
-    }
-    Kokkos::deep_copy(cellnum, cellnum_dev);
-    mesh->setCellFieldData("cell number", blockID, myElements, cellnum);
-    
-    ////////////////////////////////////////////////////////////////
-    // Write to Exodus
-    ////////////////////////////////////////////////////////////////
   }
+  
+  ////////////////////////////////////////////////////////////////
+  // Write to Exodus
+  ////////////////////////////////////////////////////////////////
+  
   if (isTD) {
     mesh->writeToExodus(currenttime);
   }
@@ -1510,76 +1515,78 @@ void PostprocessManager::writeOptimizationSolution(const int & numEvaluations) {
     vector<string> vartypes = phys->types[b];
     vector<int> varorders = phys->orders[b];
     
-    ////////////////////////////////////////////////////////////////
-    // Discretized Parameters
-    ////////////////////////////////////////////////////////////////
-    
-    vector<string> dpnames = params->discretized_param_names;
-    vector<int> numParamBasis = params->paramNumBasis;
-    vector<int> dp_usebasis = params->discretized_param_usebasis;
-    vector<string> discParamTypes = params->discretized_param_basis_types;
-    if (dpnames.size() > 0) {
-      for (size_t n=0; n<dpnames.size(); n++) {
-        int bnum = dp_usebasis[n];
-        if (discParamTypes[bnum] == "HGRAD") {
-          Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(),
-                                                                                                   numNodesPerElem);
-          auto soln_computed = Kokkos::create_mirror_view(soln_dev);
-          for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-            auto eID = assembler->cells[b][e]->localElemID;
-            auto sol = Kokkos::subview(assembler->cells[b][e]->param, Kokkos::ALL(), n, Kokkos::ALL());
-            parallel_for("postproc plot param HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-              for( int i=0; i<soln_dev.extent(1); i++ ) {
-                soln_dev(eID(elem),i) = sol(elem,i);
-              }
-            });
-          }
-          Kokkos::deep_copy(soln_computed, soln_dev);
-          optimization_mesh->setSolutionFieldData(dpnames[n], blockID, myElements, soln_computed);
-        }
-        else if (discParamTypes[bnum] == "HVOL") {
-          Kokkos::View<ScalarT*,AssemblyDevice> soln_dev("solution",myElements.size());
-          auto soln_computed = Kokkos::create_mirror_view(soln_dev);
-          //std::string var = varlist[b][n];
-          for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-            auto eID = assembler->cells[b][e]->localElemID;
-            auto sol = Kokkos::subview(assembler->cells[b][e]->param, Kokkos::ALL(), n, Kokkos::ALL());
-            parallel_for("postproc plot param HVOL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-              soln_dev(eID(elem)) = sol(elem,0);
-            });
-          }
-          Kokkos::deep_copy(soln_computed, soln_dev);
-          optimization_mesh->setCellFieldData(dpnames[n], blockID, myElements, soln_computed);
-        }
-        else if (discParamTypes[bnum] == "HDIV" || discParamTypes[n] == "HCURL") {
-          // TMW: this is not actually implemented yet ... not hard to do though
-          /*
-           Kokkos::View<ScalarT*,HostDevice> soln_x("solution",myElements.size());
-           Kokkos::View<ScalarT*,HostDevice> soln_y("solution",myElements.size());
-           Kokkos::View<ScalarT*,HostDevice> soln_z("solution",myElements.size());
-           std::string var = varlist[b][n];
-           size_t eprog = 0;
-           for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
-           Kokkos::View<ScalarT**,AssemblyDevice> sol = assembler->cells[b][e]->param_avg;
-           auto host_sol = Kokkos::create_mirror_view(sol);
-           Kokkos::deep_copy(host_sol,sol);
-           for (int p=0; p<assembler->cells[b][e]->numElem; p++) {
-           soln_x(eprog) = host_sol(p,n,0);
-           soln_y(eprog) = host_sol(p,n,1);
-           soln_z(eprog) = host_sol(p,n,2);
-           eprog++;
-           }
-           }
-           
-           mesh->setCellFieldData(var+"x", blockID, myElements, soln_x);
-           mesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
-           mesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
-           */
-        }
-      }
+    if (myElements.size() > 0) {
       
+      ////////////////////////////////////////////////////////////////
+      // Discretized Parameters
+      ////////////////////////////////////////////////////////////////
+      
+      vector<string> dpnames = params->discretized_param_names;
+      vector<int> numParamBasis = params->paramNumBasis;
+      vector<int> dp_usebasis = params->discretized_param_usebasis;
+      vector<string> discParamTypes = params->discretized_param_basis_types;
+      if (dpnames.size() > 0) {
+        for (size_t n=0; n<dpnames.size(); n++) {
+          int bnum = dp_usebasis[n];
+          if (discParamTypes[bnum] == "HGRAD") {
+            Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(),
+                                                                                                     numNodesPerElem);
+            auto soln_computed = Kokkos::create_mirror_view(soln_dev);
+            for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+              auto eID = assembler->cells[b][e]->localElemID;
+              auto sol = Kokkos::subview(assembler->cells[b][e]->param, Kokkos::ALL(), n, Kokkos::ALL());
+              parallel_for("postproc plot param HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+                for( int i=0; i<soln_dev.extent(1); i++ ) {
+                  soln_dev(eID(elem),i) = sol(elem,i);
+                }
+              });
+            }
+            Kokkos::deep_copy(soln_computed, soln_dev);
+            optimization_mesh->setSolutionFieldData(dpnames[n], blockID, myElements, soln_computed);
+          }
+          else if (discParamTypes[bnum] == "HVOL") {
+            Kokkos::View<ScalarT*,AssemblyDevice> soln_dev("solution",myElements.size());
+            auto soln_computed = Kokkos::create_mirror_view(soln_dev);
+            //std::string var = varlist[b][n];
+            for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+              auto eID = assembler->cells[b][e]->localElemID;
+              auto sol = Kokkos::subview(assembler->cells[b][e]->param, Kokkos::ALL(), n, Kokkos::ALL());
+              parallel_for("postproc plot param HVOL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+                soln_dev(eID(elem)) = sol(elem,0);
+              });
+            }
+            Kokkos::deep_copy(soln_computed, soln_dev);
+            optimization_mesh->setCellFieldData(dpnames[n], blockID, myElements, soln_computed);
+          }
+          else if (discParamTypes[bnum] == "HDIV" || discParamTypes[n] == "HCURL") {
+            // TMW: this is not actually implemented yet ... not hard to do though
+            /*
+             Kokkos::View<ScalarT*,HostDevice> soln_x("solution",myElements.size());
+             Kokkos::View<ScalarT*,HostDevice> soln_y("solution",myElements.size());
+             Kokkos::View<ScalarT*,HostDevice> soln_z("solution",myElements.size());
+             std::string var = varlist[b][n];
+             size_t eprog = 0;
+             for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+             Kokkos::View<ScalarT**,AssemblyDevice> sol = assembler->cells[b][e]->param_avg;
+             auto host_sol = Kokkos::create_mirror_view(sol);
+             Kokkos::deep_copy(host_sol,sol);
+             for (int p=0; p<assembler->cells[b][e]->numElem; p++) {
+             soln_x(eprog) = host_sol(p,n,0);
+             soln_y(eprog) = host_sol(p,n,1);
+             soln_z(eprog) = host_sol(p,n,2);
+             eprog++;
+             }
+             }
+             
+             mesh->setCellFieldData(var+"x", blockID, myElements, soln_x);
+             mesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
+             mesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
+             */
+          }
+        }
+        
+      }
     }
-    
   }
   
   ////////////////////////////////////////////////////////////////
