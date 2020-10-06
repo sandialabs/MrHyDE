@@ -16,8 +16,8 @@ ANONYMOUS:
           bottom: '1.0'
       True solutions:
         p: 1.0+sin(2*pi*x)*sin(2*pi*y)
-        u_x: -2*pi*cos(2*pi*x)*sin(2*pi*y)
-        u_y: -2*pi*sin(2*pi*x)*cos(2*pi*y)
+        'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
+        'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
   Parameters input file: input_params.yaml
   Functions input file: input_functions.yaml
   Solver: 

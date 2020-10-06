@@ -9,9 +9,9 @@ ANONYMOUS:
       modules: porousHDIV
       True solutions:
         p: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
-        u_x: -2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
-        u_y: -2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
-        u_z: -2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
+        'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+        'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
+        'u[z]': -2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
   Parameters input file: input_params.yaml
   Functions input file: input_functions.yaml
   Solver: 

@@ -88,6 +88,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
   
   response_type = settings->sublist("Postprocess").get("response type", "pointwise"); // or "global"
   compute_objective = settings->sublist("Postprocess").get("compute objective",false);
+  discrete_objective_scale_factor = settings->sublist("Postprocess").get("scale factor for discrete objective",1.0);
   compute_sensitivity = settings->sublist("Postprocess").get("compute sensitivities",false);
   compute_aux_sensitivity = settings->sublist("Solver").get("compute aux sensitivities",false);
   compute_flux = settings->sublist("Solver").get("compute flux",false);
@@ -741,7 +742,6 @@ void solver::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   if (usestrongDBCs) {
     fixedDOF_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
     
-    
     scalarDirichletData = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("scalar data", false);
     transientDirichletData = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("transient data", false);
     
@@ -1329,9 +1329,7 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
         vector_RCP diff = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
         diff->update(1.0, *u, 0.0);
         diff->update(-1.0, *D_soln, 1.0);
-        ScalarT dx = 0.01;
-        ScalarT dt = 0.1;
-        res_over->update(-1.0*dx*dt,*diff,1.0);
+        res_over->update(-1.0*discrete_objective_scale_factor,*diff,1.0);
       }
       else {
         std::cout << "Error: did not find a data-generating solution" << std::endl;
@@ -1388,8 +1386,8 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
   if (milo_debug_level>1) {
     Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> normu(1);
     u->norm2(normu);
-    if(Comm->getRank() == 0) {
-      cout << "Norm of solution: " << normu[0] << endl;
+    if (Comm->getRank() == 0) {
+      cout << "Norm of solution: " << normu[0] << "    (overlapped vector so results may differ on multiple procs)" << endl;
     }
   }
   
@@ -1449,9 +1447,8 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
       diff->update(-1.0, *D_soln, 1.0);
       Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> obj(1);
       diff->norm2(obj);
-      ScalarT dx = 0.01;
-      ScalarT dt = 0.1;
-      totaldiff = 0.5*dx*dt*obj[0]*obj[0];
+      totaldiff = 0.5*discrete_objective_scale_factor*obj[0]*obj[0];
+      //cout << "objfun = " << totaldiff << endl;
     }
     else {
       std::cout << "Error: did not find a data-generating solution" << std::endl;
@@ -1611,7 +1608,7 @@ void solver::computeSensitivities(vector_RCP & u,
   
   DFAD obj_sens = 0.0;
   if (response_type != "discrete") {
-    DFAD obj_sens = this->computeObjective(u, current_time, 0);
+    obj_sens = this->computeObjective(u, current_time, 0);
   }
   
   auto u_kv = u->getLocalView<HostDevice>();

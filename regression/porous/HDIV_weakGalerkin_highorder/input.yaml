@@ -22,10 +22,10 @@ ANONYMOUS:
       True solutions:
         pint: sin(2*pi*x)*sin(2*pi*y)
         pbndry face: sin(2*pi*x)*sin(2*pi*y)
-        u_x: 2*pi*cos(2*pi*x)*sin(2*pi*y)
-        u_y: 2*pi*sin(2*pi*x)*cos(2*pi*y)
-        t_x: -2*pi*cos(2*pi*x)*sin(2*pi*y)
-        t_y: -2*pi*sin(2*pi*x)*cos(2*pi*y)
+        'u[x]': 2*pi*cos(2*pi*x)*sin(2*pi*y)
+        'u[y]': 2*pi*sin(2*pi*x)*cos(2*pi*y)
+        't[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
+        't[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
   Parameters input file: input_params.yaml
   Functions input file: input_functions.yaml
   Solver: 

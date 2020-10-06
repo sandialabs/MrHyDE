@@ -209,6 +209,7 @@ public:
   bool scalarDirichletData, transientDirichletData, scalarInitialData;
   Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver;
   bool have_symbolic_factor;
+  ScalarT discrete_objective_scale_factor;
   
   vector<vector<ScalarT> > scalarDirichletValues, scalarInitialValues; //[block][var]
   Teuchos::RCP<SolutionStorage<LA_MultiVector> > soln, adj_soln, datagen_soln;

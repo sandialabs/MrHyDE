@@ -759,7 +759,7 @@ Kokkos::View<AD***,AssemblyDevice> physics::getPointResponse(const int & block,
       Kokkos::deep_copy(sol_grad, ugrad_sv);
       
       if (p_ip.extent(0) > 0) {
-        auto param = Kokkos::subview(wkset->local_param_point, 0, Kokkos::ALL(), 0);
+        auto param = Kokkos::subview(wkset->local_param_point, 0, Kokkos::ALL(), 0, 0);
         auto param_grad = Kokkos::subview(wkset->local_param_grad_point, 0, Kokkos::ALL(), 0, Kokkos::ALL());
         auto p_sv = Kokkos::subview(p_ip, e, Kokkos::ALL(), k, 0);
         auto pgrad_sv = Kokkos::subview(pgrad_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
@@ -803,10 +803,10 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
   //wkset->ip_KV = ip;
   Kokkos::deep_copy(wkset->ip_KV,ip);
   Kokkos::deep_copy(wkset->local_soln,u_ip);
-  //Kokkos::deep_copy(wkset->local_soln_grad, ugrad_ip);
+  Kokkos::deep_copy(wkset->local_soln_grad, ugrad_ip);
   if (p_ip.extent(0) > 0) {
-    auto p_sv = Kokkos::subview(p_ip, Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(),0);
-    Kokkos::deep_copy(wkset->local_param,p_sv);
+    //auto p_sv = Kokkos::subview(p_ip, Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(),0);
+    Kokkos::deep_copy(wkset->local_param,p_ip);
     //Kokkos::deep_copy(wkset->local_param_grad, pgrad_ip);
   }
   for (size_t r=0; r<numResponses; r++) {

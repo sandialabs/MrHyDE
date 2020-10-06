@@ -666,7 +666,7 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
       for (int e=0; e<numElem; e++) {
         //if (sideinfo(e,0,side,0) > 0) {
         for (int k = 0; k < numip; k++) {
-          p = wkset->local_param_side(e,paramIndex,k);
+          p = wkset->local_param_side(e,paramIndex,k,0);
           // L2
           if (reg_type == 0) {
             reg += 0.5*reg_constant*p*p*side_weights(e,k);
@@ -835,12 +835,14 @@ Kokkos::View<ScalarT**,AssemblyDevice> BoundaryCell::getDirichlet() {
                                                                                         cellData->myBlock,
                                                                                         sidename,
                                                                                         wkset);
+      
       int bind = wkset->usebasis[n];
       std::string btype = cellData->basis_types[bind];
       DRV cbasis = basis[bind];
+      
       auto off = Kokkos::subview(offsets,n,Kokkos::ALL());
       if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE"){
-        parallel_for("bcell fill Dirichlet",RangePolicy<AssemblyExec>(0,dvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        parallel_for("bcell fill Dirichlet",RangePolicy<AssemblyExec>(0,cwts.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for( int i=0; i<cbasis.extent(1); i++ ) {
             for( size_t j=0; j<cwts.extent(1); j++ ) {
               dvals(e,off(i)) += dip(e,j)*cbasis(e,i,j)*cwts(e,j);

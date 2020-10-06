@@ -423,7 +423,7 @@ void cell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasi
     }
   }
   param = Kokkos::View<ScalarT***,AssemblyDevice>("param",numElem,cellData->numParamDOF.extent(0),maxnbasis);
-  param_avg = Kokkos::View<ScalarT**,AssemblyDevice>("param",numElem,cellData->numParamDOF.extent(0));
+  param_avg = Kokkos::View<ScalarT***,AssemblyDevice>("param",numElem,cellData->numParamDOF.extent(0), cellData->dimension);
   
 }
 
@@ -517,7 +517,7 @@ void cell::computeSolAvg() {
   });
   
   if (param_avg.extent(1) > 0) {
-    Kokkos::View<AD***,AssemblyDevice> psol = wkset->local_param;
+    Kokkos::View<AD****,AssemblyDevice> psol = wkset->local_param;
     auto pavg = param_avg;
 
     parallel_for("cell param avg",RangePolicy<AssemblyExec>(0,pavg.extent(0)), KOKKOS_LAMBDA (const int elem ) {
@@ -526,11 +526,13 @@ void cell::computeSolAvg() {
         avgwt += cwts(elem,pt);
       }
       for (int dof=0; dof<psol.extent(1); dof++) {
-        ScalarT solavg = 0.0;
-        for (int pt=0; pt<psol.extent(2); pt++) {
-          solavg += psol(elem,dof,pt).val()*cwts(elem,pt);
+        for (int dim=0; dim<psol.extent(3); dim++) {
+          ScalarT solavg = 0.0;
+          for (int pt=0; pt<psol.extent(2); pt++) {
+            solavg += psol(elem,dof,pt,dim).val()*cwts(elem,pt);
+          }
+          pavg(elem,dof,dim) = solavg/avgwt;
         }
-        pavg(elem,dof) = solavg/avgwt;
       }
     });
   }
@@ -1833,7 +1835,7 @@ AD cell::computeDomainRegularization(const vector<ScalarT> reg_constants, const 
   
   int numParams = reg_indices.size();
   ScalarT reg_offset = 1.0e-5;
-  Kokkos::View<AD***,AssemblyDevice> par = wkset->local_param;
+  Kokkos::View<AD****,AssemblyDevice> par = wkset->local_param;
   Kokkos::View<AD****,AssemblyDevice> par_grad = wkset->local_param_grad;
   for (int i = 0; i < numParams; i++) {
     dscratch_host(0) = reg_constants[i];
@@ -1848,7 +1850,7 @@ AD cell::computeDomainRegularization(const vector<ScalarT> reg_constants, const 
       ScalarT reg_const = dscratch(0);
       ScalarT reg_off = dscratch(1);
       for (int k = 0; k < par.extent(2); k++) {
-        AD p = par(e,pindex,k);
+        AD p = par(e,pindex,k,0);
         // L2
         if (rtype == 0) {
           adscratch(0) += 0.5*reg_const*p*p*cwts(e,k);

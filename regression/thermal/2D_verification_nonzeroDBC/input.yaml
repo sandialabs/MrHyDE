@@ -18,8 +18,8 @@ ANONYMOUS:
     True solutions:
       e: sin(x)*sin(y)
       e face: sin(x)*sin(y)
-      grad(e)_x: cos(x)*sin(y)
-      grad(e)_y: sin(x)*cos(y)
+      'grad(e)[x]': cos(x)*sin(y)
+      'grad(e)[y]': sin(x)*cos(y)
     Extra fields:
       es: e*e
   Discretization:

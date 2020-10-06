@@ -255,20 +255,20 @@ void PostprocessManager::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) 
           functionManagers[b]->addFunction("true "+varlist[b][j],expression,"ip");
         }
       }
-      if (true_solns.isParameter("grad("+varlist[b][j]+")_x") || true_solns.isParameter("grad("+varlist[b][j]+")_y") || true_solns.isParameter("grad("+varlist[b][j]+")_z")) { // GRAD of the solution at volumetric ip
+      if (true_solns.isParameter("grad("+varlist[b][j]+")[x]") || true_solns.isParameter("grad("+varlist[b][j]+")[y]") || true_solns.isParameter("grad("+varlist[b][j]+")[z]")) { // GRAD of the solution at volumetric ip
         if (types[b][j] == "HGRAD") {
           std::pair<size_t,string> newerr(j,"GRAD");
           block_error_list.push_back(newerr);
           
-          string expression = true_solns.get<string>("grad("+varlist[b][j]+")_x","0.0");
-          functionManagers[b]->addFunction("true grad("+varlist[b][j]+")_x",expression,"ip");
+          string expression = true_solns.get<string>("grad("+varlist[b][j]+")[x]","0.0");
+          functionManagers[b]->addFunction("true grad("+varlist[b][j]+")[x]",expression,"ip");
           if (spaceDim>1) {
-            expression = true_solns.get<string>("grad("+varlist[b][j]+")_y","0.0");
-            functionManagers[b]->addFunction("true grad("+varlist[b][j]+")_y",expression,"ip");
+            expression = true_solns.get<string>("grad("+varlist[b][j]+")[y]","0.0");
+            functionManagers[b]->addFunction("true grad("+varlist[b][j]+")[y]",expression,"ip");
           }
           if (spaceDim>2) {
-            expression = true_solns.get<string>("grad("+varlist[b][j]+")_z","0.0");
-            functionManagers[b]->addFunction("true grad("+varlist[b][j]+")_z",expression,"ip");
+            expression = true_solns.get<string>("grad("+varlist[b][j]+")[z]","0.0");
+            functionManagers[b]->addFunction("true grad("+varlist[b][j]+")[z]",expression,"ip");
           }
         }
       }
@@ -281,21 +281,21 @@ void PostprocessManager::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) 
           
         }
       }
-      if (true_solns.isParameter(varlist[b][j]+"_x") || true_solns.isParameter(varlist[b][j]+"_y") || true_solns.isParameter(varlist[b][j]+"_z")) { // vector solution at volumetric ip
+      if (true_solns.isParameter(varlist[b][j]+"[x]") || true_solns.isParameter(varlist[b][j]+"[y]") || true_solns.isParameter(varlist[b][j]+"[z]")) { // vector solution at volumetric ip
         if (types[b][j] == "HDIV" || types[b][j] == "HCURL") {
           std::pair<size_t,string> newerr(j,"L2 VECTOR");
           block_error_list.push_back(newerr);
           
-          string expression = true_solns.get<string>(varlist[b][j]+"_x","0.0");
-          functionManagers[b]->addFunction("true "+varlist[b][j]+"_x",expression,"ip");
+          string expression = true_solns.get<string>(varlist[b][j]+"[x]","0.0");
+          functionManagers[b]->addFunction("true "+varlist[b][j]+"[x]",expression,"ip");
           
           if (spaceDim>1) {
-            expression = true_solns.get<string>(varlist[b][j]+"_y","0.0");
-            functionManagers[b]->addFunction("true "+varlist[b][j]+"_y",expression,"ip");
+            expression = true_solns.get<string>(varlist[b][j]+"[y]","0.0");
+            functionManagers[b]->addFunction("true "+varlist[b][j]+"[y]",expression,"ip");
           }
           if (spaceDim>2) {
-            expression = true_solns.get<string>(varlist[b][j]+"_z","0.0");
-            functionManagers[b]->addFunction("true "+varlist[b][j]+"_z",expression,"ip");
+            expression = true_solns.get<string>(varlist[b][j]+"[z]","0.0");
+            functionManagers[b]->addFunction("true "+varlist[b][j]+"[z]",expression,"ip");
           }
         }
       }
@@ -308,21 +308,21 @@ void PostprocessManager::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) 
           
         }
       }
-      if (true_solns.isParameter("curl("+varlist[b][j]+")_x") || true_solns.isParameter("curl("+varlist[b][j]+")_y") || true_solns.isParameter("curl("+varlist[b][j]+")_z")) { // vector solution at volumetric ip
+      if (true_solns.isParameter("curl("+varlist[b][j]+")[x]") || true_solns.isParameter("curl("+varlist[b][j]+")[y]") || true_solns.isParameter("curl("+varlist[b][j]+")[z]")) { // vector solution at volumetric ip
         if (types[b][j] == "HCURL") {
           std::pair<size_t,string> newerr(j,"CURL");
           block_error_list.push_back(newerr);
           
-          string expression = true_solns.get<string>("curl("+varlist[b][j]+")_x","0.0");
-          functionManagers[b]->addFunction("true curl("+varlist[b][j]+")_x",expression,"ip");
+          string expression = true_solns.get<string>("curl("+varlist[b][j]+")[x]","0.0");
+          functionManagers[b]->addFunction("true curl("+varlist[b][j]+")[x]",expression,"ip");
           
           if (spaceDim>1) {
-            expression = true_solns.get<string>("curl("+varlist[b][j]+")_y","0.0");
-            functionManagers[b]->addFunction("true curl("+varlist[b][j]+")_y",expression,"ip");
+            expression = true_solns.get<string>("curl("+varlist[b][j]+")[y]","0.0");
+            functionManagers[b]->addFunction("true curl("+varlist[b][j]+")[y]",expression,"ip");
           }
           if (spaceDim>2) {
-            expression = true_solns.get<string>("curl("+varlist[b][j]+")_z","0.0");
-            functionManagers[b]->addFunction("true curl("+varlist[b][j]+")_z",expression,"ip");
+            expression = true_solns.get<string>("curl("+varlist[b][j]+")[z]","0.0");
+            functionManagers[b]->addFunction("true curl("+varlist[b][j]+")[z]",expression,"ip");
           }
         }
       }
@@ -580,17 +580,6 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
   
   error_times.push_back(currenttime);
   
-  for (size_t block=0; block<assembler->wkset.size(); block++) {
-    assembler->wkset[block]->time = currenttime;
-    assembler->wkset[block]->time_KV(0) = currenttime;
-  }
-  
-  // Need to use time step solution instead of stage solution
-  bool isTransient = assembler->wkset[0]->isTransient;
-  for (size_t block=0; block<assembler->wkset.size(); block++) {
-    assembler->wkset[block]->isTransient = false;
-  }
-  
   vector<Kokkos::View<ScalarT*,HostDevice> > currerror;
   int seedwhat = 0;
   
@@ -603,240 +592,254 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
     else {
       altblock = 0;
     }
+    // Cells can use block, but everything else should be altblock
+    // This is due to how the subgrid models store the cells
     
     Kokkos::View<ScalarT*,HostDevice> blockerrors("error",error_list[altblock].size());
-    // Determine what needs to be updated in the workset
-    bool have_vol_errs = false, have_face_errs = false;
-    for (size_t etype=0; etype<error_list[altblock].size(); etype++){
-      if (error_list[altblock][etype].second == "L2" || error_list[altblock][etype].second == "GRAD"
-          || error_list[altblock][etype].second == "DIV" || error_list[altblock][etype].second == "CURL"
-          || error_list[altblock][etype].second == "L2 VECTOR") {
-        have_vol_errs = true;
-      }
-      if (error_list[altblock][etype].second == "L2 FACE") {
-        have_face_errs = true;
-      }
-    }
     
-    for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
-      if (have_vol_errs) {
-        assembler->wkset[altblock]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
-        assembler->cells[block][cell]->computeSolnVolIP();
-      }
-      for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
-        int var = error_list[altblock][etype].first;
-        
-        if (error_list[altblock][etype].second == "L2") {
-          // compute the true solution
-          string expression = "true " + varlist[altblock][var];
-          FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
-          auto sol = assembler->wkset[altblock]->local_soln;
-          auto wts = assembler->cells[block][cell]->wts;
-          ScalarT error = 0.0;
-          parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
-            for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-              ScalarT diff = sol(elem,var,pt,0).val() - tsol(elem,pt).val();
-              update += diff*diff*wts(elem,pt);
-            }
-          }, error);
-          blockerrors(etype) += error;
+    if (assembler->cells[block].size() > 0) {
+      
+      assembler->wkset[altblock]->time = currenttime;
+      assembler->wkset[altblock]->time_KV(0) = currenttime;
+      
+      // Need to use time step solution instead of stage solution
+      bool isTransient = assembler->wkset[altblock]->isTransient;
+      assembler->wkset[altblock]->isTransient = false;
+      
+      // Determine what needs to be updated in the workset
+      bool have_vol_errs = false, have_face_errs = false;
+      for (size_t etype=0; etype<error_list[altblock].size(); etype++){
+        if (error_list[altblock][etype].second == "L2" || error_list[altblock][etype].second == "GRAD"
+            || error_list[altblock][etype].second == "DIV" || error_list[altblock][etype].second == "CURL"
+            || error_list[altblock][etype].second == "L2 VECTOR") {
+          have_vol_errs = true;
         }
-        else if (error_list[altblock][etype].second == "GRAD") {
-          // compute the true x-component of grad
-          string expression = "true grad(" + varlist[altblock][var] + ")_x";
-          FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
-          auto sol_grad = assembler->wkset[altblock]->local_soln_grad;
-          auto wts = assembler->cells[block][cell]->wts;
-          // add in the L2 difference at the volumetric ip
-          ScalarT error = 0.0;
-          parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
-            for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-              ScalarT diff = sol_grad(elem,var,pt,0).val() - tsol(elem,pt).val();
-              update += diff*diff*wts(elem,pt);
-            }
-          }, error);
-          blockerrors(etype) += error;
-          
-          if (spaceDim > 1) {
-            // compute the true y-component of grad
-            string expression = "true grad(" + varlist[altblock][var] + ")_y";
-            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
-            
-            // add in the L2 difference at the volumetric ip
-            ScalarT error = 0.0;
-            parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
-              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-                ScalarT diff = sol_grad(elem,var,pt,1).val() - tsol(elem,pt).val();
-                update += diff*diff*wts(elem,pt);
-              }
-            }, error);
-            blockerrors(etype) += error;
-          }
-          
-          if (spaceDim >2) {
-            // compute the true z-component of grad
-            string expression = "true grad(" + varlist[altblock][var] + ")_z";
-            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
-            
-            // add in the L2 difference at the volumetric ip
-            ScalarT error = 0.0;
-            parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
-              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-                ScalarT diff = sol_grad(elem,var,pt,2).val() - tsol(elem,pt).val();
-                update += diff*diff*wts(elem,pt);
-              }
-            }, error);
-            blockerrors(etype) += error;
-          }
-        }
-        else if (error_list[altblock][etype].second == "DIV") {
-          // compute the true divergence
-          string expression = "true div(" + varlist[altblock][var] + ")";
-          FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
-          auto sol_div = assembler->wkset[altblock]->local_soln_div;
-          auto wts = assembler->cells[block][cell]->wts;
-          
-          // add in the L2 difference at the volumetric ip
-          ScalarT error = 0.0;
-          parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
-            for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-              ScalarT diff = sol_div(elem,var,pt).val() - tsol(elem,pt).val();
-              update += diff*diff*wts(elem,pt);
-            }
-          }, error);
-          blockerrors(etype) += error;
-        }
-        else if (error_list[altblock][etype].second == "CURL") {
-          // compute the true x-component of grad
-          string expression = "true curl(" + varlist[altblock][var] + ")_x";
-          FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
-          auto sol_curl = assembler->wkset[altblock]->local_soln_curl;
-          auto wts = assembler->cells[block][cell]->wts;
-          
-          // add in the L2 difference at the volumetric ip
-          ScalarT error = 0.0;
-          parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
-            for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-              ScalarT diff = sol_curl(elem,var,pt,0).val() - tsol(elem,pt).val();
-              update += diff*diff*wts(elem,pt);
-            }
-          }, error);
-          blockerrors(etype) += error;
-          
-          if (spaceDim > 1) {
-            // compute the true y-component of grad
-            string expression = "true curl(" + varlist[altblock][var] + ")_y";
-            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
-            
-            // add in the L2 difference at the volumetric ip
-            ScalarT error = 0.0;
-            parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
-              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-                ScalarT diff = sol_curl(elem,var,pt,1).val() - tsol(elem,pt).val();
-                update += diff*diff*wts(elem,pt);
-              }
-            }, error);
-            blockerrors(etype) += error;
-          }
-          
-          if (spaceDim >2) {
-            // compute the true z-component of grad
-            string expression = "true curl(" + varlist[altblock][var] + ")_z";
-            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
-            
-            // add in the L2 difference at the volumetric ip
-            ScalarT error = 0.0;
-            parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
-              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-                ScalarT diff = sol_curl(elem,var,pt,2).val() - tsol(elem,pt).val();
-                update += diff*diff*wts(elem,pt);
-              }
-            }, error);
-            blockerrors(etype) += error;
-          }
-        }
-        else if (error_list[altblock][etype].second == "L2 VECTOR") {
-          // compute the true x-component of grad
-          string expression = "true " + varlist[altblock][var] + "_x";
-          FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
-          auto sol = assembler->wkset[altblock]->local_soln;
-          auto wts = assembler->cells[block][cell]->wts;
-          
-          // add in the L2 difference at the volumetric ip
-          ScalarT error = 0.0;
-          parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
-            for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-              ScalarT diff = sol(elem,var,pt,0).val() - tsol(elem,pt).val();
-              update += diff*diff*wts(elem,pt);
-            }
-          }, error);
-          blockerrors(etype) += error;
-          
-          if (spaceDim > 1) {
-            // compute the true y-component of grad
-            string expression = "true " + varlist[altblock][var] + "_y";
-            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
-            
-            // add in the L2 difference at the volumetric ip
-            ScalarT error = 0.0;
-            parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
-              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-                ScalarT diff = sol(elem,var,pt,1).val() - tsol(elem,pt).val();
-                update += diff*diff*wts(elem,pt);
-              }
-            }, error);
-            blockerrors(etype) += error;
-          }
-          
-          if (spaceDim >2) {
-            // compute the true z-component of grad
-            string expression = "true " + varlist[altblock][var] + "_z";
-            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
-            
-            // add in the L2 difference at the volumetric ip
-            ScalarT error = 0.0;
-            parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
-              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-                ScalarT diff = sol(elem,var,pt,2).val() - tsol(elem,pt).val();
-                update += diff*diff*wts(elem,pt);
-              }
-            }, error);
-            blockerrors(etype) += error;
-          }
+        if (error_list[altblock][etype].second == "L2 FACE") {
+          have_face_errs = true;
         }
       }
-      if (have_face_errs) {
-        for (size_t face=0; face<assembler->cells[block][cell]->cellData->numSides; face++) {
+    
+      for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
+        if (have_vol_errs) {
           assembler->wkset[altblock]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
-          assembler->cells[block][cell]->computeSolnFaceIP(face);
-          //assembler->cells[block][cell]->computeSolnFaceIP(face, seedwhat);
-          for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
-            int var = error_list[altblock][etype].first;
-            if (error_list[altblock][etype].second == "L2 FACE") {
-              // compute the true z-component of grad
-              string expression = "true " + varlist[altblock][var];
-              FDATA tsol = functionManagers[altblock]->evaluate(expression,"side ip");
-              auto sol = assembler->wkset[altblock]->local_soln_face;
-              auto wts = assembler->cells[block][cell]->wts_face[face];
+          assembler->cells[block][cell]->computeSolnVolIP();
+        }
+        for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
+          int var = error_list[altblock][etype].first;
+          
+          if (error_list[altblock][etype].second == "L2") {
+            // compute the true solution
+            string expression = "true " + varlist[altblock][var];
+            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+            auto sol = assembler->wkset[altblock]->local_soln;
+            auto wts = assembler->cells[block][cell]->wts;
+            ScalarT error = 0.0;
+            parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                ScalarT diff = sol(elem,var,pt,0).val() - tsol(elem,pt).val();
+                update += diff*diff*wts(elem,pt);
+              }
+            }, error);
+            blockerrors(etype) += error;
+          }
+          else if (error_list[altblock][etype].second == "GRAD") {
+            // compute the true x-component of grad
+            string expression = "true grad(" + varlist[altblock][var] + ")[x]";
+            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+            auto sol_grad = assembler->wkset[altblock]->local_soln_grad;
+            auto wts = assembler->cells[block][cell]->wts;
+            // add in the L2 difference at the volumetric ip
+            ScalarT error = 0.0;
+            parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                ScalarT diff = sol_grad(elem,var,pt,0).val() - tsol(elem,pt).val();
+                update += diff*diff*wts(elem,pt);
+              }
+            }, error);
+            blockerrors(etype) += error;
+            
+            if (spaceDim > 1) {
+              // compute the true y-component of grad
+              string expression = "true grad(" + varlist[altblock][var] + ")[y]";
+              FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
               parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
-                double facemeasure = 0.0;
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-                  facemeasure += wts(elem,pt);
+                  ScalarT diff = sol_grad(elem,var,pt,1).val() - tsol(elem,pt).val();
+                  update += diff*diff*wts(elem,pt);
                 }
-                
+              }, error);
+              blockerrors(etype) += error;
+            }
+            
+            if (spaceDim >2) {
+              // compute the true z-component of grad
+              string expression = "true grad(" + varlist[altblock][var] + ")[z]";
+              FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+              
+              // add in the L2 difference at the volumetric ip
+              ScalarT error = 0.0;
+              parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-                  ScalarT diff = sol(elem,var,pt,0).val() - tsol(elem,pt).val();
-                  update += 0.5/facemeasure*diff*diff*wts(elem,pt);
+                  ScalarT diff = sol_grad(elem,var,pt,2).val() - tsol(elem,pt).val();
+                  update += diff*diff*wts(elem,pt);
+                }
+              }, error);
+              blockerrors(etype) += error;
+            }
+          }
+          else if (error_list[altblock][etype].second == "DIV") {
+            // compute the true divergence
+            string expression = "true div(" + varlist[altblock][var] + ")";
+            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+            auto sol_div = assembler->wkset[altblock]->local_soln_div;
+            auto wts = assembler->cells[block][cell]->wts;
+            
+            // add in the L2 difference at the volumetric ip
+            ScalarT error = 0.0;
+            parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                ScalarT diff = sol_div(elem,var,pt).val() - tsol(elem,pt).val();
+                update += diff*diff*wts(elem,pt);
+              }
+            }, error);
+            blockerrors(etype) += error;
+          }
+          else if (error_list[altblock][etype].second == "CURL") {
+            // compute the true x-component of grad
+            string expression = "true curl(" + varlist[altblock][var] + ")[x]";
+            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+            auto sol_curl = assembler->wkset[altblock]->local_soln_curl;
+            auto wts = assembler->cells[block][cell]->wts;
+            
+            // add in the L2 difference at the volumetric ip
+            ScalarT error = 0.0;
+            parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                ScalarT diff = sol_curl(elem,var,pt,0).val() - tsol(elem,pt).val();
+                update += diff*diff*wts(elem,pt);
+              }
+            }, error);
+            blockerrors(etype) += error;
+            
+            if (spaceDim > 1) {
+              // compute the true y-component of grad
+              string expression = "true curl(" + varlist[altblock][var] + ")[y]";
+              FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+              
+              // add in the L2 difference at the volumetric ip
+              ScalarT error = 0.0;
+              parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+                for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                  ScalarT diff = sol_curl(elem,var,pt,1).val() - tsol(elem,pt).val();
+                  update += diff*diff*wts(elem,pt);
+                }
+              }, error);
+              blockerrors(etype) += error;
+            }
+            
+            if (spaceDim >2) {
+              // compute the true z-component of grad
+              string expression = "true curl(" + varlist[altblock][var] + ")[z]";
+              FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+              
+              // add in the L2 difference at the volumetric ip
+              ScalarT error = 0.0;
+              parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+                for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                  ScalarT diff = sol_curl(elem,var,pt,2).val() - tsol(elem,pt).val();
+                  update += diff*diff*wts(elem,pt);
+                }
+              }, error);
+              blockerrors(etype) += error;
+            }
+          }
+          else if (error_list[altblock][etype].second == "L2 VECTOR") {
+            // compute the true x-component of grad
+            string expression = "true " + varlist[altblock][var] + "[x]";
+            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+            auto sol = assembler->wkset[altblock]->local_soln;
+            auto wts = assembler->cells[block][cell]->wts;
+            
+            // add in the L2 difference at the volumetric ip
+            ScalarT error = 0.0;
+            parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                ScalarT diff = sol(elem,var,pt,0).val() - tsol(elem,pt).val();
+                update += diff*diff*wts(elem,pt);
+              }
+            }, error);
+            blockerrors(etype) += error;
+            
+            if (spaceDim > 1) {
+              // compute the true y-component of grad
+              string expression = "true " + varlist[altblock][var] + "[y]";
+              FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+              
+              // add in the L2 difference at the volumetric ip
+              ScalarT error = 0.0;
+              parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+                for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                  ScalarT diff = sol(elem,var,pt,1).val() - tsol(elem,pt).val();
+                  update += diff*diff*wts(elem,pt);
+                }
+              }, error);
+              blockerrors(etype) += error;
+            }
+            
+            if (spaceDim >2) {
+              // compute the true z-component of grad
+              string expression = "true " + varlist[altblock][var] + "[z]";
+              FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+              
+              // add in the L2 difference at the volumetric ip
+              ScalarT error = 0.0;
+              parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+                for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                  ScalarT diff = sol(elem,var,pt,2).val() - tsol(elem,pt).val();
+                  update += diff*diff*wts(elem,pt);
                 }
               }, error);
               blockerrors(etype) += error;
             }
           }
         }
+        if (have_face_errs) {
+          for (size_t face=0; face<assembler->cells[block][cell]->cellData->numSides; face++) {
+            assembler->wkset[altblock]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
+            assembler->cells[block][cell]->computeSolnFaceIP(face);
+            //assembler->cells[block][cell]->computeSolnFaceIP(face, seedwhat);
+            for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
+              int var = error_list[altblock][etype].first;
+              if (error_list[altblock][etype].second == "L2 FACE") {
+                // compute the true z-component of grad
+                string expression = "true " + varlist[altblock][var];
+                FDATA tsol = functionManagers[altblock]->evaluate(expression,"side ip");
+                auto sol = assembler->wkset[altblock]->local_soln_face;
+                auto wts = assembler->cells[block][cell]->wts_face[face];
+                
+                // add in the L2 difference at the volumetric ip
+                ScalarT error = 0.0;
+                parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+                  double facemeasure = 0.0;
+                  for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                    facemeasure += wts(elem,pt);
+                  }
+                  
+                  for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                    ScalarT diff = sol(elem,var,pt,0).val() - tsol(elem,pt).val();
+                    update += 0.5/facemeasure*diff*diff*wts(elem,pt);
+                  }
+                }, error);
+                blockerrors(etype) += error;
+              }
+            }
+          }
+        }
       }
+      assembler->wkset[altblock]->isTransient = isTransient;
     }
     currerror.push_back(blockerrors);
   } // end block loop
@@ -850,11 +853,6 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
   }
   
   errors.push_back(host_error);
-  
-  // Reset
-  for (size_t b=0; b<assembler->wkset.size(); b++) {
-    assembler->wkset[b]->isTransient = isTransient;
-  }
   
   if (!(Teuchos::is_null(multiscale_manager))) {
     if (multiscale_manager->subgridModels.size() > 0) {

@@ -336,7 +336,7 @@ public:
   Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
   Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param; // (elem,var,numdof)
   Kokkos::View<ScalarT***,AssemblyDevice> u_avg, u_alt; // (elem,var,dim)
-  Kokkos::View<ScalarT**,AssemblyDevice> param_avg; // (elem,var)
+  Kokkos::View<ScalarT***,AssemblyDevice> param_avg; // (elem,var,dim)
   Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
   //Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
   

@@ -336,6 +336,9 @@ void AssemblyManager::createCells() {
           
           panzer_stk::workset_utils::getSideElements(*mesh, blocknames[b], sideEntities, local_side_Ids, side_output);
           
+          DRV sidenodes;
+          mesh->getElementVertices(side_output, blocknames[b],sidenodes);
+          
           int numSideElem = local_side_Ids.size();
           
           if (numSideElem > 0) {
@@ -363,7 +366,7 @@ void AssemblyManager::createCells() {
               
               int prog = 0;
               while (prog < group.size()) {
-                int currElem = numBoundaryElem;  // Avoid faults in last iteration
+                int currElem = numBoundaryElem;
                 if (prog+currElem > group.size()){
                   currElem = group.size()-prog;
                 }
@@ -381,7 +384,7 @@ void AssemblyManager::createCells() {
                   host_sideIndex(e) = local_side_Ids[group[e+prog]];
                   for (int n=0; n<host_currnodes.extent(1); n++) {
                     for (int m=0; m<host_currnodes.extent(2); m++) {
-                      host_currnodes(e,n,m) = blocknodes(host_eIndex(e),n,m);
+                      host_currnodes(e,n,m) = sidenodes(group[e+prog],n,m);
                     }
                   }
                 }
@@ -796,8 +799,6 @@ void AssemblyManager::assembleJacRes(const bool & compute_jacobian, const bool &
                                      const int & num_active_params,
                                      const bool & is_final_time,
                                      const int & b, const ScalarT & deltat) {
-    
-  
   
   int numRes = res->getNumVectors();
   
@@ -847,47 +848,6 @@ void AssemblyManager::assembleJacRes(const bool & compute_jacobian, const bool &
   
   Kokkos::View<ScalarT***,HostDevice> local_res_host("local residual on host",numElem,numDOF,local_res.extent(2));// = create_mirror_view(local_res);
   Kokkos::View<ScalarT***,HostDevice> local_J_host("local J on host",numElem,numDOF,local_J.extent(2));// = create_mirror_view(local_J);
-  
-  //Kokkos::View<ScalarT**,AssemblyDevice> aPrev;
-  
-  /////////////////////////////////////////////////////////////////////////////
-  // Perform gather to cells
-  /////////////////////////////////////////////////////////////////////////////
-  /*
-  Kokkos::View<ScalarT*,AssemblyDevice> u_dev, phi_dev, P_dev;
-  {
-    Teuchos::TimeMonitor localtimer(*gathertimer);
-    
-    // Local gather of solutions
-    auto u_kv = u->getLocalView<HostDevice>();
-    auto u_slice = Kokkos::subview(u_kv, Kokkos::ALL(), 0);
-    u_dev = Kokkos::View<ScalarT*,AssemblyDevice>("tpetra vector on device",u_kv.extent(0));
-    auto u_host = Kokkos::create_mirror_view(u_dev);
-    Kokkos::deep_copy(u_host,u_slice);
-    Kokkos::deep_copy(u_dev,u_host);
-    this->performGather(b,u_dev,0,0);
-    
-    if (params->num_discretized_params > 0) {
-      auto P_kv = Psol->getLocalView<HostDevice>();
-      auto P_slice = Kokkos::subview(P_kv, Kokkos::ALL(), 0);
-      P_dev = Kokkos::View<ScalarT*,AssemblyDevice>("tpetra vector on device",P_kv.extent(0));
-      auto P_host = Kokkos::create_mirror_view(P_dev);
-      Kokkos::deep_copy(P_host,P_slice);
-      Kokkos::deep_copy(P_dev,P_host);
-      this->performGather(b,P_dev,4,0);
-    }
-    if (useadjoint) {
-      auto phi_kv = phi->getLocalView<HostDevice>();
-      auto phi_slice = Kokkos::subview(phi_kv, Kokkos::ALL(), 0);
-      phi_dev = Kokkos::View<ScalarT*,AssemblyDevice>("tpetra vector on device",phi_kv.extent(0));
-      auto phi_host = Kokkos::create_mirror_view(phi_dev);
-      Kokkos::deep_copy(phi_host,phi_slice);
-      Kokkos::deep_copy(phi_dev,phi_host);
-      this->performGather(b,phi,2,0);
-    }
-  }
-  Kokkos::fence(); 
- */
   
   /////////////////////////////////////////////////////////////////////////////
   // Volume contribution
@@ -939,21 +899,6 @@ void AssemblyManager::assembleJacRes(const bool & compute_jacobian, const bool &
   //////////////////////////////////////////////////////////////////////////////////////
   
   if (!cells[b][0]->cellData->multiscale && assemble_boundary_terms[b]) {
-    /*
-    {
-      Teuchos::TimeMonitor localtimer(*gathertimer);
-      
-      // Local gather of solutions
-      this->performBoundaryGather(b,u_dev,0,0);
-      if (params->num_discretized_params > 0) {
-        this->performBoundaryGather(b,P_dev,4,0);
-      }
-      if (useadjoint) {
-        this->performBoundaryGather(b,phi_dev,2,0);
-      }
-    }
-    Kokkos::fence();   
-    */
     
     if (compute_sens) {
       local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,num_active_params);
@@ -1024,6 +969,12 @@ void AssemblyManager::dofConstraints(matrix_RCP & J, vector_RCP & res,
                                      const bool & compute_jacobian,
                                      const bool & compute_disc_sens) {
   
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "******** Starting AssemblyManager::dofConstraints" << endl;
+    }
+  }
+  
   Teuchos::TimeMonitor localtimer(*dbctimer);
   
   if (usestrongDBCs) {
@@ -1041,6 +992,12 @@ void AssemblyManager::dofConstraints(matrix_RCP & J, vector_RCP & res,
   for (size_t block=0; block<fixedDOFs.size(); block++) {
     if (compute_jacobian) {
       this->updateJacDBC(J,fixedDOFs[block],compute_disc_sens);
+    }
+  }
+  
+  if (milo_debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "******** Finished AssemblyManager::dofConstraints" << endl;
     }
   }
   

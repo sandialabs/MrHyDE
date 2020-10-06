@@ -20,8 +20,8 @@ ANONYMOUS:
     True solutions:
       p: sin(2*pi*x)*sin(2*pi*y)
       p face: sin(2*pi*x)*sin(2*pi*y)
-      grad(p)_x: 2*pi*cos(2*pi*x)*sin(2*pi*y)
-      grad(p)_y: 2*pi*sin(2*pi*x)*cos(2*pi*y)
+      'grad(p)[x]': 2*pi*cos(2*pi*x)*sin(2*pi*y)
+      'grad(p)[y]': 2*pi*sin(2*pi*x)*cos(2*pi*y)
   Discretization:
     order:
       p: 1

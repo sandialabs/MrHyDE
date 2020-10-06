@@ -441,7 +441,7 @@ void analysis::run() {
     
     // Recovering a data-generating solution
     if (ROLsettings.sublist("General").get("Generate data",false)) {
-      std::cout << "Generating data ... " << std::endl;
+      //std::cout << "Generating data ... " << std::endl;
       DFAD objfun = 0.0;
       if (params->isParameter("datagen")) {
         vector<double> pval = {1.0};
@@ -449,7 +449,7 @@ void analysis::run() {
       }
       solve->response_type = "none";
       solve->forwardModel(objfun);
-      std::cout << "Storing data ... " << std::endl;
+      //std::cout << "Storing data ... " << std::endl;
       
       vector<vector<ScalarT> > times = solve->soln->times;
       vector<vector<Teuchos::RCP<LA_MultiVector> > > data = solve->soln->data;
@@ -458,13 +458,13 @@ void analysis::run() {
           solve->datagen_soln->store(data[i][j], times[i][j], i);
         }
       }
-      std::cout << "Finished storing data" << std::endl;
+      //std::cout << "Finished storing data" << std::endl;
       if (params->isParameter("datagen")) {
         vector<double> pval = {0.0};
         params->setParam(pval,"datagen");
       }
       solve->response_type = "discrete";
-      std::cout << "Finished generating data for inversion " << std::endl;
+      //std::cout << "Finished generating data for inversion " << std::endl;
     }
     
     // Comparing a gradient/Hessian with finite difference approximation

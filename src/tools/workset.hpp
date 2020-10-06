@@ -96,11 +96,16 @@ class workset {
   void computeSolnSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
                                const int & seedwhat);
   
+  void computeParamSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
+                                const int & seedwhat);
+  
   ////////////////////////////////////////////////////////////////////////////////////
   // Compute the solutions at general set of points
   ////////////////////////////////////////////////////////////////////////////////////
   
   void computeSoln(const int & type);
+  
+  void computeParam(const int & type);
   
   ////////////////////////////////////////////////////////////////////////////////////
   // Compute the solutions at the volumetric ip
@@ -186,6 +191,8 @@ class workset {
   
   vector<int> usebasis, paramusebasis;
   vector<int> vars_HGRAD, vars_HVOL, vars_HDIV, vars_HCURL, vars_HFACE;
+  vector<int> paramvars_HGRAD, paramvars_HVOL, paramvars_HDIV, paramvars_HCURL, paramvars_HFACE;
+  
   bool isAdjoint, onlyTransient, isTransient;
   bool isInitialized, usebcs;
   topo_RCP celltopo;
@@ -210,7 +217,7 @@ class workset {
   DRV ip, ip_side, wts, wts_side, normals;
   Kokkos::View<ScalarT***,AssemblyDevice> ip_KV, ip_side_KV, normals_KV, point_KV;
   
-  Kokkos::View<AD***,AssemblyDevice> uvals, u_dotvals;
+  Kokkos::View<AD***,AssemblyDevice> uvals, u_dotvals, pvals;
   
   vector<DRV> basis;
   vector<DRV> basis_grad;
@@ -221,7 +228,8 @@ class workset {
   vector<DRV> basis_div_side, basis_curl_side;
   
   Kokkos::View<AD****, AssemblyDevice> local_soln, local_soln_grad, local_soln_dot, local_soln_dot_grad, local_soln_curl;
-  Kokkos::View<AD***, AssemblyDevice> local_soln_div, local_param, local_aux, local_param_side, local_aux_side;
+  Kokkos::View<AD***, AssemblyDevice> local_soln_div, local_param_div, local_aux, local_aux_side;
+  Kokkos::View<AD****, AssemblyDevice> local_param, local_param_side, local_param_curl;
   Kokkos::View<AD****, AssemblyDevice> local_param_grad, local_aux_grad, local_param_grad_side, local_aux_grad_side;
   Kokkos::View<AD****, AssemblyDevice> local_soln_side, local_soln_grad_side, local_soln_dot_side;
   Kokkos::View<AD****, AssemblyDevice> local_soln_face, local_soln_grad_face;
@@ -230,7 +238,7 @@ class workset {
   //Kokkos::View<AD***, AssemblyDevice> local_soln_div_reset;
   
   Kokkos::View<AD****, AssemblyDevice> local_soln_point, local_soln_grad_point, local_param_grad_point;
-  Kokkos::View<AD***, AssemblyDevice> local_param_point;
+  Kokkos::View<AD****, AssemblyDevice> local_param_point;
   
   int sidetype;
   Kokkos::View<int****,AssemblyDevice> sideinfo;

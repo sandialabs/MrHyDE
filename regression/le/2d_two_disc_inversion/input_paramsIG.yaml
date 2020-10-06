@@ -25,6 +25,7 @@ ANONYMOUS:
       upper_bound: 2.00000000000000000e+01
       reg_type: 1
       reg_constant: 1.00000000000000008e-05
+      nreg_constant: 1.00000000000000008e05
       isDomainParam: false
       sides: top
     source_x: 

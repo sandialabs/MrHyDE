@@ -19,12 +19,12 @@ ANONYMOUS:
       True solutions:
         pint: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
         pbndry face: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
-        u_x: 2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
-        u_y: 2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
-        u_z: 2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
-        t_x: -2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
-        t_y: -2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
-        t_z: -2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
+        'u[x]': 2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+        'u[y]': 2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
+        'u[z]': 2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
+        't[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+        't[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
+        't[z]': -2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
   Functions input file: input_functions.yaml
   Solver: 
     solver: steady-state
