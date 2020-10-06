@@ -1,0 +1,14 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Parameters: 
+    datagen: 
+      type: scalar
+      value: 1.0
+      usage: inactive
+    sfield: 
+      type: HGRAD
+      order: 1
+      usage: discretized
+      initial_value: 1.0
+...

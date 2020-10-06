@@ -1,0 +1,38 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh input file: input_mesh.yaml
+  Physics: 
+    modules: thermal
+    Dirichlet conditions:
+      e:
+        all boundaries: '0.0'
+    Responses:
+      resp: 'e'
+    Targets:
+      targ: sin(pi*x)*sin(pi*y)
+    Weights:
+      wt: '1.0'
+  Parameters input file: input_params.yaml
+  Discretization:
+    order:
+      e: 1
+    quadrature: 2
+  Analysis input file: input_rol2.yaml
+  Solver: 
+    solver: transient
+    final time: 0.5
+    number of steps: 10
+  Postprocess: 
+    response type: discrete
+    compute errors: false
+    compute response: true
+    compute objective: true
+    compute sensitivities: true
+    write solution: false
+    Write output: false
+  Functions:
+    thermal source: datagen(0)*2.0*pi*pi*sin(pi*x)*sin(pi*y)+(1.0-datagen(0))*sfield
+...
