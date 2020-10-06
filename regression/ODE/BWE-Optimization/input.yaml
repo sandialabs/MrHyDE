@@ -1,0 +1,45 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh input file: input_mesh.yaml
+  Functions input file: input_functions.yaml
+  Physics: 
+    modules: ODE
+    Initial conditions:
+      q: '1.0'
+    True solutions:
+      q: 1.0*exp(-1.0*t)
+    Responses:
+      resp: 'q'
+    Targets:
+      targ: '1.0*exp(-0.9*t)'
+    Weights:
+      wt: '1.0'
+  Discretization:
+    order:
+      q: 1
+    quadrature: 1
+  Parameters input file: input_params.yaml
+  Solver: 
+    solver: transient
+    transient BDF order: 1
+    transient Butcher tableau: BWE 
+    workset size: 4
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 2
+    final time: 1.0
+    number of steps: 10
+    use direct solver: true
+  Analysis input file: input_rol2.yaml
+  iAnalysis: 
+    analysis type: forward
+  Postprocess: 
+    response type: global
+    compute errors: false
+    compute response: true
+    compute objective: true
+    compute sensitivities: true
+    write solution: false
+...

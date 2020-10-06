@@ -803,11 +803,11 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
   //wkset->ip_KV = ip;
   Kokkos::deep_copy(wkset->ip_KV,ip);
   Kokkos::deep_copy(wkset->local_soln,u_ip);
-  Kokkos::deep_copy(wkset->local_soln_grad, ugrad_ip);
+  if (wkset->vars_HGRAD.size() > 0) {
+    Kokkos::deep_copy(wkset->local_soln_grad, ugrad_ip);
+  }
   if (p_ip.extent(0) > 0) {
-    //auto p_sv = Kokkos::subview(p_ip, Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(),0);
     Kokkos::deep_copy(wkset->local_param,p_ip);
-    //Kokkos::deep_copy(wkset->local_param_grad, pgrad_ip);
   }
   for (size_t r=0; r<numResponses; r++) {
     

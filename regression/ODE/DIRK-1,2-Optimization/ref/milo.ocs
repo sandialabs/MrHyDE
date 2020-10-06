@@ -1,0 +1,25 @@
+
+Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
+  iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
+  0     1.705985e-03   1.669625e-02                  1.000000e+02   
+  1     1.438132e-03   1.538098e-02   1.669625e-02   2.500000e+02   2         2         0         1         0         
+  2     2.077326e-04   4.139259e-03   1.952485e-01   2.500000e+02   3         3         0         1         0         
+  3     1.381162e-04   7.061080e-04   4.140238e-02   2.500000e+02   4         4         0         1         0         
+  4     1.359032e-04   2.599815e-05   6.033505e-03   6.250000e+02   5         5         0         1         0         
+  5     1.359003e-04   1.722780e-07   2.306392e-04   1.562500e+03   6         6         0         1         0         
+  6     1.359003e-04   4.163908e-11   1.518281e-06   3.906250e+03   7         7         0         1         0         
+  7     1.359003e-04   8.304989e-17   3.668753e-10   9.765625e+03   8         8         0         1         0         
+Optimization Terminated with Status: Converged
+
+Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
+  iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
+  0     1.705985e-03   1.669625e-02                  1.000000e+02   
+  1     1.438132e-03   1.538098e-02   1.669625e-02   2.500000e+02   2         2         0         1         0         
+  2     2.077326e-04   4.139259e-03   1.952485e-01   2.500000e+02   3         3         0         1         0         
+  3     1.381162e-04   7.061080e-04   4.140238e-02   2.500000e+02   4         4         0         1         0         
+  4     1.359032e-04   2.599815e-05   6.033505e-03   6.250000e+02   5         5         0         1         0         
+  5     1.359003e-04   1.722780e-07   2.306392e-04   1.562500e+03   6         6         0         1         0         
+  6     1.359003e-04   4.163908e-11   1.518281e-06   3.906250e+03   7         7         0         1         0         
+  7     1.359003e-04   8.304989e-17   3.668753e-10   9.765625e+03   8         8         0         1         0         
+Optimization Terminated with Status: Converged
+param 0 = 0.823195
