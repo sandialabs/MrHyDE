@@ -1,0 +1,47 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 0
+  Mesh input file: input_mesh.yaml
+  Physics: 
+    eblock-0_0_0:
+      modules: maxwell
+      assemble boundary terms: false
+      True solutions:
+        'E[x]': '0.0'
+        'E[y]': '0.0'
+        'E[z]': '0.0'
+        'B[x]': '0.0'
+        'B[y]': '0.0'
+        'B[z]': '0.0'
+  Discretization:
+    eblock-0_0_0:
+      order:
+        E: 1
+        B: 1
+      quadrature: 2
+  Parameters input file: input_params.yaml
+  Functions input file: input_functions.yaml
+  Solver: 
+    solver: 'transient'
+    transient BDF order: 1
+    transient Butcher tableau: DIRK-1,2
+    workset size: 100
+    nonlinear TOL: 1.0e-07
+    linear TOL: 1.0e-09
+    max nonlinear iters: 1
+    max linear iters: 200
+    final time: 1.0e-14
+    number of steps: 10
+    Initial type: none
+    use preconditioner: true
+    preconditioner reuse type: full
+    use direct solver: false
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    response type: global
+    write solution: false
+    compute errors: true
+...
