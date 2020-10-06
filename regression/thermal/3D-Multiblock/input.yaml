@@ -1,0 +1,56 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh: 
+    dim: 3
+    shape: hex
+    source: Exodus
+    mesh file: two_block_3D.e
+  Physics:
+    Dirichlet conditions:
+      fscalar data: true
+    material_0:
+      modules: thermal
+      Dirichlet conditions:
+        e:
+          all boundaries: 0.0
+      True solutions:
+        e: 'sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)'
+    material_1:
+      modules: thermal
+      Dirichlet conditions:
+        e:
+          all boundaries: 0.0
+      True solutions:
+        e: 'sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)'
+  Discretization:
+    material_0:
+      order:
+        e: 1
+      quadrature: 2
+    material_1:
+      order:
+        e: 1
+      quadrature: 2
+  Functions:
+    material_0:
+      thermal diffusion: '1.0'
+      thermal source: '12*pi*pi*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)'
+    material_1:
+      thermal diffusion: '1.0'
+      thermal source: '12*pi*pi*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)'
+  Parameters:
+  Solver: 
+    solver: steady-state
+    workset size: 1
+  Analysis: 
+    analysis_type: forward
+  Postprocess:
+    response type: global
+    compute response: false
+    compute errors: true
+    compute sensitivities: false
+    write solution: false
+...
