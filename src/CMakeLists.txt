@@ -74,9 +74,25 @@ test/test_percept.cpp
 subgrid/subgridMeshFactory.cpp) 
 TARGET_LINK_LIBRARIES(test_percept ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
+IF(MrHyDE_TEST_Compadre)
+  ADD_EXECUTABLE(test_compadre
+  test/test_compadre.cpp
+  tools/data.cpp) 
+  TARGET_LINK_LIBRARIES(test_compadre ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+ENDIF()
+
 ADD_EXECUTABLE(test_functions
 test/test_functions.cpp
 tools/workset.cpp
 interfaces/discretizationInterface.cpp 
 managers/functionManager.cpp)
 TARGET_LINK_LIBRARIES(test_functions ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+
+# Copy the perm_xy.dat file over to the directory where test_compadre is located
+SET(SOURCE_FILE_FULL "${CMAKE_CURRENT_SOURCE_DIR}/test/perm_xy.dat")
+SET(DEST_FILE_FULL "${CMAKE_CURRENT_BINARY_DIR}/perm_xy.dat")
+ADD_CUSTOM_COMMAND(
+ OUTPUT ${DEST_FILE_FULL}
+ DEPENDS ${SOURCE_FILE_FULL}
+ COMMAND ${CMAKE_COMMAND} ARGS -E copy ${SOURCE_FILE_FULL} ${DEST_FILE_FULL}
+ )
