@@ -755,9 +755,8 @@ void analysis::run() {
     }
   } //ROL_SIMOPT
   else { // don't solve anything, but produce visualization
-    //if (settings->sublist("Postprocess").get("write solution",true))
-    //postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
-    
+    std::cout << "Unknown analysis option: " << analysis_type << std::endl;
+    std::cout << "Valid and tested options: forward, forward+adjoint, UQ, ROL" << std::endl;
   }
   
   if (milo_debug_level > 0) {
