@@ -41,7 +41,7 @@ status = 0
 
 # ------------------------------
 if its.opts.preprocess:
-  if its.opts.verbose != 'none': print '---> Preprocessing %s' % (root)
+  if its.opts.verbose != 'none': print('---> Preprocessing %s' % (root))
   status += its.call('echo "  No preprocessing, yet."')
 
 status += its.call('./run.sh')
@@ -106,33 +106,33 @@ if abs(prerr-refprerr) > aeps :
 # ------------------------------
 # ------------------------------
 if its.opts.baseline and not status:
-  if its.opts.verbose != 'none': print '---> Baseline %s' % (root)
+  if its.opts.verbose != 'none': print('---> Baseline %s' % (root))
   try :
     shutil.copy2('%s.ocs' %(root), 'ref/%s.ocs' %(root))
-  except (IOError, os.error), why:
-    print why
+  except (IOError, os.error) as why:
+    print(why)
     status += 1
 
   try :
     shutil.copy2('%s.rst' %(root), 'ref/%s.rst' %(root))
-  except (IOError, os.error), why:
-    print why
+  except (IOError, os.error) as why:
+    print(why)
     status += 1
 
   try :
     shutil.copy2('%s.adj.rst' %(root), 'ref/%s.adj.rst' %(root))
-  except (IOError, os.error), why:
-    print why
+  except (IOError, os.error) as why:
+    print(why)
     status += 1
 
 # ------------------------------
 if its.opts.graphics and not status:
-  if its.opts.verbose != 'none': print '---> Graphics %s' % (root)
+  if its.opts.verbose != 'none': print('---> Graphics %s' % (root))
   status += its.call('echo "  No graphics, yet."')
 
 # ------------------------------
 if its.opts.clean and not status:
-  if its.opts.verbose != 'none': print '---> Clean %s' % (root)
+  if its.opts.verbose != 'none': print('---> Clean %s' % (root))
   os.chdir('obj-org')
   status += its.call('ichos_clean')
   status += its.call('rm -rf shot.*')
@@ -140,6 +140,6 @@ if its.opts.clean and not status:
   status += its.call('ichos_clean')
 
 # ==============================================================================
-if status == 0: print 'Success.'
-else:           print 'Failure.'
+if status == 0: print('Success.')
+else:           print('Failure.')
 sys.exit(status)

@@ -12,7 +12,7 @@ def syscmd(cmd, status=0, logfile=None, verbose=False, ignore_status=False):
 
   internal_status = 0
 
-  if verbose: print cmd
+  if verbose: print(cmd)
   p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
   stdout = ''
@@ -33,7 +33,7 @@ def syscmd(cmd, status=0, logfile=None, verbose=False, ignore_status=False):
     stdout, stderr = p.communicate()
   internal_status = p.wait()
 
-  if stderr: print stderr
+  if stderr: print(stderr)
   if logfile:
     f = open(logfile, 'w')
     f.writelines(stdout)
@@ -41,7 +41,7 @@ def syscmd(cmd, status=0, logfile=None, verbose=False, ignore_status=False):
   if not ignore_status:
     status += internal_status
     if internal_status != 0:
-      print '  ==> Execution failed with status = %i!\n' %(internal_status)
+      print(('  ==> Execution failed with status = %i!\n' %(internal_status)))
       sys.exit(status)
 
   return status
@@ -106,7 +106,7 @@ class milo_test_support:
 
     # error if both options are supplied: --32 and --64
     if self.opts.mode_32 and self.opts.mode_64:
-       print 'Error: cannot specify both --32 and --64 bit mode'
+       print('Error: cannot specify both --32 and --64 bit mode')
        sys.exit(0)
     # if neither option is set, default to 32 bit mode
     if False == self.opts.mode_32 and False == self.opts.mode_64:
@@ -161,9 +161,9 @@ class milo_test_support:
         # replace mpiexec with quiet aprun
         cmd = cmd.replace('mpiexec', 'aprun -q')
 
-    if self.opts.verbose == True: print '---> ' + cmd
+    if self.opts.verbose == True: print(('---> ' + cmd))
     elif self.opts.quiet == True: pass
-    else:                         print '  ' + cmd
+    else:                         print(('  ' + cmd))
 
     syscmd(cmd, status, logfile, self.opts.verbose, ignore_status)
 
@@ -171,8 +171,8 @@ class milo_test_support:
 
   def wrap_cmd(self, exe, root, np=None, args='', env=''):
     cmd = ''
-    if (os.environ.has_key('PBS_NODEFILE') or \
-        os.environ.has_key('SLURM_JOB_NODELIST')) and \
+    if ('PBS_NODEFILE' in os.environ or \
+        'SLURM_JOB_NODELIST' in os.environ) and \
         self.opts.nprocs == None:
       cmd = '%s mpiexec p%s.exe %s %s' % (env,exe,args,root)
     elif self.opts.nprocs == None:
@@ -257,7 +257,7 @@ class milo_test_support:
       fb.write(struct.pack('i',10))
       fb.write('Straight3d')
     else:
-      print 'Error: Can not determine curve type (nsd=%i).' % (nsd)
+      print(('Error: Can not determine curve type (nsd=%i).' % (nsd)))
       status = 1
     lines.append('skewed\n\n')
     # binary write user curve type name
@@ -270,12 +270,12 @@ class milo_test_support:
     fb.write(struct.pack('i',nelems))
     # write displacements
     # write lengths
-    for elem_id in xrange(nelems):
+    for elem_id in range(nelems):
       lines.append('%i 0 skewed\n' %(int(elem_id)))
 
     # binary write sides
     # write two ints for each side of each element
-    for elem_id in xrange(nelems):
+    for elem_id in range(nelems):
       fb.write(struct.pack('i',0))
       fb.write(struct.pack('i',0))
 
