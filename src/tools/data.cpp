@@ -187,6 +187,11 @@ void data::importPoints(const std::string & ptsfile, const int & spaceDim) {
   
   Teuchos::TimeMonitor timer(*pointImportTimer);
   
+  std::ifstream fnmast(ptsfile.c_str());
+  if (!fnmast.good()) {
+    TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: could not find the data point file: " + ptsfile);
+  }
+  
   FILE* PointsFile = fopen(ptsfile.c_str(),"r");
   float x,y,z;
   
@@ -233,6 +238,11 @@ void data::importGridPoints(const std::string & ptsfile, const int & spaceDim,
                             const int & Nx, const int & Ny, const int & Nz) {
   
   Teuchos::TimeMonitor timer(*pointImportTimer);
+  
+  std::ifstream fnmast(ptsfile.c_str());
+  if (!fnmast.good()) {
+    TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: could not find the data point file: " + ptsfile);
+  }
   
   FILE* PointsFile = fopen(ptsfile.c_str(),"r");
   float x,y,z;
@@ -304,6 +314,12 @@ void data::importSensorOneFile(const std::string & sensorfile) {
   
   Teuchos::TimeMonitor timer(*dataImportTimer);
   
+  std::ifstream fnmast(sensorfile.c_str());
+  if (!fnmast.good()) {
+    TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: could not find the sensor data file: " + sensorfile);
+  }
+  
+  
   std::vector<std::vector<ScalarT> > values;
   std::ifstream fin(sensorfile.c_str());
   
@@ -337,6 +353,11 @@ void data::importSensorOneFile(const std::string & sensorfile) {
 void data::importSensor(const std::string & sensorfile) {
   
   Teuchos::TimeMonitor timer(*dataImportTimer);
+  
+  std::ifstream fnmast(sensorfile.c_str());
+  if (!fnmast.good()) {
+    TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: could not find the sensor data file: " + sensorfile);
+  }
   
   std::vector<std::vector<ScalarT> > values;
   std::ifstream fin(sensorfile.c_str());

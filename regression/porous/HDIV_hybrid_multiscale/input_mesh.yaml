@@ -11,6 +11,6 @@ ANONYMOUS:
     NX: 10
     NY: 10
     blocknames: eblock-0_0
-    data file: perm
-    data points file: perm_xy
+    idata file: perm
+    idata points file: perm_xy
 ...

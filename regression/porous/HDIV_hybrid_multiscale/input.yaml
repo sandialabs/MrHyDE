@@ -41,8 +41,8 @@ ANONYMOUS:
       refinements: 2
       dim: 2
       blocknames: eblock
-      data file: perm
-      data points file: perm_xy
+      idata file: perm
+      idata points file: perm_xy
     Physics:
       modules: porousHDIV
       use permeability data: false
