@@ -41,5 +41,5 @@ ANONYMOUS:
     compute response: true
     compute objective: false
     compute sensitivities: false
-    write solution: true
+    write solution: false
 ...

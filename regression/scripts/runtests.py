@@ -326,9 +326,9 @@ class xml_document:
       elmt.appendChild(e)
     self.root.appendChild(elmt)
     self.skipped += test.skipped
-    stmt2 = '%4i/%i %10s%8.2fs  np=%3s  %s' \
+    stmt2 = '%4i/%i %10s%8.2fs  np=%s    %52s    %s' \
             % (test.index+1, self.list_length, \
-               test.statusStr, runtime, test.nprocs, test.fname)
+               test.statusStr, runtime, test.nprocs, test.fname[0:-9], test.include_keywords)
     print stmt2 + ' '*(max(0,len(test.stmt)-len(stmt2)))
 
 #===============================================================================
@@ -1131,7 +1131,7 @@ def main():
   print 'Test Results from Directory: ' + startingDirA
   print 'Total number of test(s): %i' % (len(listOfTests))
   if opts.info: print ' Nprocs    Test Name'
-  print '------------------------------------------------------------------------'
+  print '--------------------------------------------------------------------------------------------------------------------------'
 
   # user wants info on tests, don't run tests
   if opts.info:
@@ -1237,7 +1237,7 @@ def main():
       passed, failed, skipped = serial_testing(opts,listOfTests,doc)
 
   # Summary output
-  print '------------------------------------------------------------------------'
+  print '--------------------------------------------------------------------------------------------------------------------------'
   print ' Pass: %i    Fail: %i    Skipped: %i    Total: %i' \
         % (passed, failed, skipped, doc.list_length)
 
