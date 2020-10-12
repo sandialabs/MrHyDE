@@ -272,7 +272,7 @@ namespace Intrepid2 {
     this->basisCardinality_  = 4*cardTri;
     this->basisDegree_       = order;
     this->basisCellTopology_ = shards::CellTopology(shards::getCellTopologyData<shards::Tetrahedron<4> >() );
-    this->basisType_         = BASIS_FEM_FIAT;
+    this->basisType_         = BASIS_FEM_LAGRANGIAN;
     this->basisCoordinates_  = COORDINATES_CARTESIAN;
     this->functionSpace_     = FUNCTION_SPACE_HGRAD;
     
