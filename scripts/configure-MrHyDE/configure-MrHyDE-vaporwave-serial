@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Machine name: vaporwave
+# Machine type: linux workstation with GPU
+# Build type: serial
+
+# Modules used:
+#  1) sems-env                                     6) sems-hdf5/1.8.12/parallel                   11) sems-yaml_cpp/0.5.3/base
+#  2) sems-gcc/6.1.0                               7) sems-netcdf/4.4.1/exo_parallel              12) sems-zlib/1.2.8/base
+#  3) sems-openmpi/1.10.1                          8) sems-parmetis/4.0.3/64bit_parallel          13) sems-devpack-gcc/6.1.0
+#  4) sems-python/2.7.9                            9) sems-scotch/6.0.3/nopthread_64bit_parallel  14) sems-ninja_fortran/1.8.2
+#  5) sems-boost/1.63.0/base                      10) sems-superlu/5.2.1/base                     15) sems-cmake/3.12.2
+
+# Note: CMake will warn about the following unused flag during configure
+#  -D CMAKE_VERBOSE_MAKEFILE:BOOL=ON
+# this is because Ninja and the verbose makefile are not generally compatible
+
+EXTRA_ARGS=$@
+rm CMakeCache.txt
+rm -rf CMakeFiles
+
+TRILINOS_SOURCE_PREFIX="/ascldap/users/gbharpe/Programming/cpp/Trilinos"
+MrHyDE_SOURCE_PREFIX="/ascldap/users/gbharpe/Programming/cpp/MrHyDE"
+
+TRILINOS_SOURCE="${TRILINOS_SOURCE_PREFIX}/Trilinos-source"
+TRILINOS_INSTALL="${TRILINOS_SOURCE_PREFIX}/Trilinos-build-MrHyDE/lib/cmake/Trilinos"
+
+MrHyDE_SOURCE="${MrHyDE_SOURCE_PREFIX}/MrHyDE-source"
+MrHyDE_BUILD="${MrHyDE_SOURCE_PREFIX}/MrHyDE-build"
+
+cmake \
+  -G "Ninja" \
+  -D Trilinos_SRC_DIR=${TRILINOS_SOURCE} \
+  -D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
+  -D MrHyDE_TEST_Compadre:BOOL=ON \
+  -D CMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+  -D CMAKE_INSTALL_PREFIX:PATH=${MrHyDE_BUILD} \
+  ${EXTRA-ARGS} \
+  ${MrHyDE_SOURCE}
