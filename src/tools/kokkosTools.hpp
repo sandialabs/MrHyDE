@@ -44,7 +44,7 @@ public:
     std::cout << "--------------------" << std::endl;
     
     parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
-      printf("   %i      %f\n",i,V(i));
+      //printf("   %i      %f\n",i,V(i));
       //std::cout << "  " << i << "  " << "  " << "  " << V(i) << "  " << std::endl;
     });
     std::cout << "--------------------" << std::endl;
@@ -64,7 +64,7 @@ public:
     std::cout << "--------------------" << std::endl;
     
     for (int i=0; i<V.size(); i++) {
-      printf("   %i      %f\n",i,V[i]);
+      //printf("   %i      %f\n",i,V[i]);
       //std::cout << "  " << i << "  " << "  " << "  " << V[i] << "  " << std::endl;
     }
     std::cout << "--------------------" << std::endl;
@@ -110,7 +110,7 @@ public:
     
     for (unsigned int i=0; i<V_kv.extent(0); i++) {
       for (unsigned int j=0; j<V_kv.extent(1); j++) {
-        printf("   %i      %i      %f\n", i, j, V_kv(i,j));
+        //printf("   %i      %i      %f\n", i, j, V_kv(i,j));
         //std::cout << "  " << Comm->getRank() <<  "  " << i << "  " << "  " << j << "  " <<
         //"  " << "  " << V_kv(i,j) << "  " << std::endl;
       }
@@ -152,7 +152,7 @@ public:
     
     parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
       for (unsigned int j=0; j<V.extent(1); j++) {
-        printf("   %i      %i      %f\n", i, j, V(i,j));
+        //printf("   %i      %i      %f\n", i, j, V(i,j));
         //std::cout << "  " << i << "  " << "  " << j << "  " << // GH: std::std::cout is illegal in device
         //"  " << "  " << V(i,j) << "  " << std::endl;
       }
@@ -202,7 +202,7 @@ public:
       for (unsigned int j=0; j<V.extent(1); j++) {
         for (unsigned int k=0; k<V.extent(2); k++) {
           for (unsigned int n=0; n<V.extent(3); n++) {
-            printf("   %i      %i      %i      %i      %f\n", i, j, k, n, V(i,j,k,n));
+            //printf("   %i      %i      %i      %i      %f\n", i, j, k, n, V(i,j,k,n));
             //std::cout << "  " << i << "  " << "  " << j << "  " <<
             //"  " << k << "  " << "  " << n << "  " << "  " << V(i,j,k,n) << "  " << std::endl;
           }
@@ -229,7 +229,7 @@ public:
         for (unsigned int k=0; k<V.extent(2); k++) {
           for (unsigned int n=0; n<V.extent(3); n++) {
             for (unsigned int m=0; m<V.extent(4); m++) {
-              printf("   %i      %i      %i      %i      %i      %f\n", i, j, k, n, m, V(i,j,k,n,m));
+              //printf("   %i      %i      %i      %i      %i      %f\n", i, j, k, n, m, V(i,j,k,n,m));
               //std::cout << "  " << i << "  " << "  " << j << "  " <<
               //"  " << k << "  " << "  " << n << "  " << "  " << m
               //<< "  " << "  " << V(i,j,k,n,m) << "  " << std::endl;
@@ -255,7 +255,7 @@ public:
       std::cout << "-------------------------------" << std::endl;
       
       parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
-        printf("   %i      %f\n", i, V(i));
+        //printf("   %i      %f\n", i, V(i));
         //std::cout << "  " << i << "  " << // GH: std::std::cout is illegal in device
         //"  " << "  " << V(i) << "  " << std::endl;
       });
@@ -268,7 +268,7 @@ public:
       
       parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
         for (unsigned int j=0; j<V.extent(1); j++) {
-          printf("   %i      %i      %f\n", i, j, V(i,j));
+          //printf("   %i      %i      %f\n", i, j, V(i,j));
           //std::cout << "  " << i << "  " << "  " << j << "  " << // GH: std::std::cout is illegal in device
           //"  " << "  " << V(i,j) << "  " << std::endl;
         }
@@ -283,7 +283,7 @@ public:
       parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
         for (unsigned int j=0; j<V.extent(1); j++) {
           for (unsigned int k=0; k<V.extent(2); k++) {
-            printf("   %i      %i      %i      %f\n", i, j, k, V(i,j,k));
+            //printf("   %i      %i      %i      %f\n", i, j, k, V(i,j,k));
             //std::cout << "  " << i << "  " << "  " << j << "  " << // GH: std::std::cout is illegal in device
             //"  " << k << "  " << "  " << V(i,j,k) << "  " << std::endl;
           }
@@ -300,7 +300,7 @@ public:
         for (unsigned int j=0; j<V.extent(1); j++) {
           for (unsigned int k=0; k<V.extent(2); k++) {
             for (unsigned int n=0; n<V.extent(3); n++) {
-              printf("   %i      %i      %i      %i      %f\n", i, j, k, n, V(i,j,k,n));
+              //printf("   %i      %i      %i      %i      %f\n", i, j, k, n, V(i,j,k,n));
               //std::cout << "  " << i << "  " << "  " << j << "  " << // GH: std::std::cout is illegal in device
               //"  " << k << "  " << "  " << n << "  " << "  " << V(i,j,k,n) << "  " << std::endl;
             }
@@ -326,7 +326,7 @@ public:
       
       parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
         for (unsigned int j=0; j<V.extent(1); j++) {
-          printf("   %i      %i      %i\n", i, j, V(i,j));
+          //printf("   %i      %i      %i\n", i, j, V(i,j));
           //std::cout << "  " << i << "  " << "  " << j << "  " << // GH: std::std::cout is illegal in device
           //"  " << "  " << V(i,j) << "  " << std::endl;
         }
@@ -341,7 +341,7 @@ public:
       parallel_for(RangePolicy<AssemblyExec>(0,V.extent(0)), KOKKOS_LAMBDA (const int i ) {
         for (unsigned int j=0; j<V.extent(1); j++) {
           for (unsigned int k=0; k<V.extent(2); k++) {
-            printf("   %i      %i      %i      %i\n", i, j, k, V(i,j,k));
+            //printf("   %i      %i      %i      %i\n", i, j, k, V(i,j,k));
             //std::cout << "  " << i << "  " << "  " << j << "  " << // GH: std::std::cout is illegal in device
             //"  " << k << "  " << "  " << V(i,j,k) << "  " << std::endl;
           }
@@ -358,7 +358,7 @@ public:
         for (unsigned int j=0; j<V.extent(1); j++) {
           for (unsigned int k=0; k<V.extent(2); k++) {
             for (unsigned int n=0; n<V.extent(3); n++) {
-              printf("   %i      %i      %i      %i      %i\n", i, j, k, n, V(i,j,k,n));
+              //printf("   %i      %i      %i      %i      %i\n", i, j, k, n, V(i,j,k,n));
               //std::cout << "  " << i << "  " << "  " << j << "  " << // GH: std::std::cout is illegal in device
               //"  " << k << "  " << "  " << n << "  " << "  " << V(i,j,k,n) << "  " << std::endl;
             }
