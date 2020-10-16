@@ -33,6 +33,7 @@ Comm(Comm_), mesh(mesh_), phys(phys_), settings(settings_), disc(disc_) {
   mesh->getElementBlockNames(blocknames);
   spaceDim = settings->sublist("Mesh").get<int>("dim");
   verbosity = settings->get<int>("verbosity",0);
+  milo_debug_level = settings->get<int>("debug level",0);
   
   num_inactive_params = 0;
   num_active_params = 0;
@@ -502,9 +503,78 @@ vector<ScalarT> ParameterManager::getDiscretizedParamsVector() {
 // ========================================================================================
 
 vector_RCP ParameterManager::setInitialParams() {
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting ParameterManager::setInitialParams ..." << endl;
+    }
+  }
+  
   vector_RCP initial = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1));
-  ScalarT value = 2.0;
-  initial->putScalar(value);
+  initial->putScalar(2.0);
+  
+  /*
+  if (scalarInitialData) {
+    // This will be done on the host for now
+    auto initial_kv = initial->getLocalView<HostDevice>();
+    for (size_t block=0; block<assembler->cells.size(); block++) {
+      Kokkos::View<int**,AssemblyDevice> offsets = assembler->wkset[block]->offsets;
+      auto host_offsets = Kokkos::create_mirror_view(offsets);
+      Kokkos::deep_copy(host_offsets,offsets);
+      for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
+        Kokkos::View<LO**,HostDevice> LIDs = assembler->cells[block][cell]->LIDs_host;
+        Kokkos::View<LO*,HostDevice> numDOF = assembler->cells[block][cell]->cellData->numDOF_host;
+        //parallel_for("solver initial scalar",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        for (int e=0; e<LIDs.extent(0); e++) {
+          for (size_t n=0; n<numDOF.extent(0); n++) {
+            for (size_t i=0; i<numDOF(n); i++ ) {
+              initial_kv(LIDs(e,host_offsets(n,i)),0) = scalarInitialValues[block][n];
+            }
+          }
+        }
+      }
+    }
+  }
+  else {
+  
+    initial->putScalar(0.0);
+    
+    vector_RCP glinitial = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+    
+    if (initial_type == "L2-projection") {
+      
+      // Compute the L2 projection of the initial data into the discrete space
+      vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // reset residual
+      matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));//Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
+      vector_RCP glrhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
+      matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));//Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
+      assembler->setInitial(rhs, mass, useadjoint);
+      
+      glmass->setAllToScalar(0.0);
+      glmass->doExport(*mass, *exporter, Tpetra::ADD);
+      
+      glrhs->putScalar(0.0);
+      glrhs->doExport(*rhs, *exporter, Tpetra::ADD);
+      
+      glmass->fillComplete();
+      
+      this->linearSolver(glmass, glrhs, glinitial);
+      have_preconditioner = false; // resetting this because mass matrix may not have connectivity as Jacobians
+      initial->doImport(*glinitial, *importer, Tpetra::ADD);
+      
+    }
+    else if (initial_type == "interpolation") {
+      
+      assembler->setInitial(initial, useadjoint);
+      
+    }
+  }
+  */
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished ParameterManager::setInitialParams ..." << endl;
+    }
+  }
   
   return initial;
 }
