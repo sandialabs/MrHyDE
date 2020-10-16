@@ -85,6 +85,7 @@ class Test:
       self.fullpath = fullpath
       self.fname = self.fullpath[len(startingDir)+1:]
       self.active = False
+      self.print_keywords = False
       self.include_keywords = []
       self.exclude_keywords = []
       self.machines = []
@@ -326,10 +327,17 @@ class xml_document:
       elmt.appendChild(e)
     self.root.appendChild(elmt)
     self.skipped += test.skipped
-    stmt2 = '%4i/%i %10s%8.2fs  np=%s    %52s    %s' \
-            % (test.index+1, self.list_length, \
-               test.statusStr, runtime, test.nprocs, test.fname[0:-9], test.include_keywords)
-    print stmt2 + ' '*(max(0,len(test.stmt)-len(stmt2)))
+    if test.print_keywords :
+      stmt2 = '%4i/%i %10s%8.2fs  np=%s    %52s    %s' \
+              % (test.index+1, self.list_length, \
+                 test.statusStr, runtime, test.nprocs, test.fname[0:-9], test.include_keywords)
+      print stmt2 + ' '*(max(0,len(test.stmt)-len(stmt2)))
+    else :
+      stmt2 = '%4i/%i %10s%8.2fs  np=%s    %52s' \
+              % (test.index+1, self.list_length, \
+                 test.statusStr, runtime, test.nprocs, test.fname[0:-9])
+      print stmt2 + ' '*(max(0,len(test.stmt)-len(stmt2)))
+    
 
 #===============================================================================
 

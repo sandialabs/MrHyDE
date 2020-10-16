@@ -139,7 +139,7 @@ public:
   ///////////////////////////////////////////////////////////////////////////////////////////
   
   vector<string> blocknames;
-  int spaceDim;
+  int spaceDim, milo_debug_level;
   
   Teuchos::RCP<const LA_Map> param_owned_map;
   Teuchos::RCP<const LA_Map> param_overlapped_map;
