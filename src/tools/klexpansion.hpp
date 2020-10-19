@@ -16,9 +16,7 @@ using namespace std;
 
 class klexpansion {
 public:
-  
-  klexpansion() {} ;
-  
+    
   /////////////////////////////////////////////////////////////////////////////
   //  Various constructors depending on the characteristics of the data (spatial, 
   //  transient, stochastic, etc.)
