@@ -87,7 +87,7 @@ data::data(const std::string & name_, const int & spaceDim_, const std::string &
   
   this->importPoints(ptsfile, spaceDim);
   
-  for (size_t i=0; i<numSensors; i++) {
+  for (int i=0; i<numSensors; i++) {
     stringstream ss;
     ss << i;
     std::string str = ss.str();
@@ -111,7 +111,7 @@ data::data(const std::string & name_, const int & spaceDim_, const std::string &
   
   this->importPoints(ptsfile, spaceDim);
   if (separate_files) {
-    for (size_t i=0; i<numSensors; i++) {
+    for (int i=0; i<numSensors; i++) {
       stringstream ss;
       ss << i;
       std::string str = ss.str();
@@ -140,7 +140,7 @@ data::data(const std::string & name_, const int & spaceDim_, const std::string &
   
   this->importGridPoints(ptsfile, spaceDim, Nx, Ny, Nz);
   if (separate_files) {
-    for (size_t i=0; i<numSensors; i++) {
+    for (int i=0; i<numSensors; i++) {
       stringstream ss;
       ss << i;
       std::string str = ss.str();
@@ -170,7 +170,7 @@ data::data(const std::string & name_, const int & spaceDim_, const std::string &
   this->importPoints(ptsfile, spaceDim);
   numSensors = Nsens;
   
-  for (size_t i=0; i<numSensors; i++) {
+  for (int i=0; i<numSensors; i++) {
     stringstream ss;
     ss << i;
     std::string str = ss.str();
@@ -220,7 +220,7 @@ void data::importPoints(const std::string & ptsfile, const int & spaceDim) {
   numSensors = xvec.size();
   
   sensorlocations = Kokkos::View<ScalarT**,HostDevice>("sensor locartions",numSensors,spaceDim);
-  for (size_t i=0; i<numSensors; i++) {
+  for (int i=0; i<numSensors; i++) {
     if (spaceDim >0)
       sensorlocations(i,0) = xvec[i];
     if (spaceDim >1)
@@ -545,7 +545,7 @@ int data::findClosestGridNode(const ScalarT & x, const ScalarT & y, const Scalar
   if (spaceDim == 1) {
     ScalarT dist = (ScalarT)RAND_MAX;
     int node_x = 0;
-    for( int i=0; i<sensorGrid_x.extent(0); i++ ) {
+    for(size_type i=0; i<sensorGrid_x.extent(0); i++ ) {
       ScalarT xhat = sensorGrid_x(i);
       ScalarT d = (x-xhat)*(x-xhat);
       if( d<dist ) {
@@ -560,7 +560,7 @@ int data::findClosestGridNode(const ScalarT & x, const ScalarT & y, const Scalar
     ScalarT dist_x = (ScalarT)RAND_MAX;
     ScalarT dist_y = (ScalarT)RAND_MAX;
     int node_x=0, node_y=0;
-    for( int i=0; i<sensorGrid_x.extent(0); i++ ) {
+    for(size_type i=0; i<sensorGrid_x.extent(0); i++ ) {
       ScalarT xhat = sensorGrid_x(i);
       ScalarT d = (x-xhat)*(x-xhat);
       if( d<dist_x ) {
@@ -568,7 +568,7 @@ int data::findClosestGridNode(const ScalarT & x, const ScalarT & y, const Scalar
         dist_x = d;
       }
     }
-    for( int i=0; i<sensorGrid_y.extent(0); i++ ) {
+    for(size_type i=0; i<sensorGrid_y.extent(0); i++ ) {
       ScalarT yhat = sensorGrid_y(i);
       ScalarT d = (y-yhat)*(y-yhat);
       if( d<dist_y ) {
@@ -584,7 +584,7 @@ int data::findClosestGridNode(const ScalarT & x, const ScalarT & y, const Scalar
     ScalarT dist_y = (ScalarT)RAND_MAX;
     ScalarT dist_z = (ScalarT)RAND_MAX;
     int node_x=0, node_y=0, node_z=0;
-    for( int i=0; i<sensorGrid_x.extent(0); i++ ) {
+    for(size_type i=0; i<sensorGrid_x.extent(0); i++ ) {
       ScalarT xhat = sensorGrid_x(i);
       ScalarT d = (x-xhat)*(x-xhat);
       if( d<dist_x ) {
@@ -592,7 +592,7 @@ int data::findClosestGridNode(const ScalarT & x, const ScalarT & y, const Scalar
         dist_x = d;
       }
     }
-    for( int i=0; i<sensorGrid_y.extent(0); i++ ) {
+    for(size_type i=0; i<sensorGrid_y.extent(0); i++ ) {
       ScalarT yhat = sensorGrid_y(i);
       ScalarT d = (y-yhat)*(y-yhat);
       if( d<dist_y ) {
@@ -600,7 +600,7 @@ int data::findClosestGridNode(const ScalarT & x, const ScalarT & y, const Scalar
         dist_y = d;
       }
     }
-    for( int i=0; i<sensorGrid_z.extent(0); i++ ) {
+    for(size_type i=0; i<sensorGrid_z.extent(0); i++ ) {
       ScalarT zhat = sensorGrid_z(i);
       ScalarT d = (z-zhat)*(z-zhat);
       if( d<dist_z ) {

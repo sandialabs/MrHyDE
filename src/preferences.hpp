@@ -102,6 +102,7 @@ typedef Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> FDATA;
 typedef Kokkos::View<ScalarT**,Kokkos::LayoutStride,AssemblyDevice> FDATAd;
 typedef Kokkos::View<LO**,AssemblyDevice> LIDView;
 typedef Kokkos::View<LO**,HostDevice> LIDView_host;
+typedef Kokkos::View<AD*>::size_type size_type;
 
 // Intrepid and shards typedefs
 //typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;
@@ -111,7 +112,7 @@ typedef Intrepid2::CellTools<AssemblyExec> CellTools;
 typedef Intrepid2::FunctionSpaceTools<AssemblyExec> FuncTools;
 typedef Intrepid2::OrientationTools<AssemblyExec> OrientTools;
 
-// Tpetra linear algebra typedefs (Epetra is non longer supported)
+// Tpetra linear algebra typedefs (Epetra is no longer supported)
 typedef Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>   LA_CrsMatrix;
 typedef Tpetra::CrsGraph<LO,GO,HostNode>            LA_CrsGraph;
 typedef Tpetra::Export<LO, GO, HostNode>            LA_Export;
