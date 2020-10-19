@@ -189,7 +189,7 @@ namespace Intrepid2 {
               const PointViewType  inputPoints,
               const EOperator operatorType = OPERATOR_VALUE ) const {
 #ifdef HAVE_INTREPID2_DEBUG
-      Intrepid2::getValues_HFACE_Args(outputValues,
+      Intrepid2::getValues_HGRAD_Args(outputValues,
                                       inputPoints,
                                       operatorType,
                                       this->getBaseCellTopology(),
