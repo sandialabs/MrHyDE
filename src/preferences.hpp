@@ -31,7 +31,13 @@ typedef double ScalarT;
 typedef int LO;
 typedef panzer::GlobalOrdinal GO; // this should really be panzer::GlobalOrdinal
 
-#define maxDerivs 24 // adjust this to improve performance
+#ifdef MrHyDE_SET_MAX_DERIVS
+#define maxDerivs MrHyDE_SET_MAX_DERIVS // allow us to set this at configure-time with the MrHyDE_MAX_DERIVS flag
+#else
+  #define maxDerivs 24 // adjust this to improve performance
+#endif
+
+
 #define PI 3.141592653589793238463
 #define MILO_DEBUG false
 typedef Teuchos::MpiComm<int> MpiComm;
