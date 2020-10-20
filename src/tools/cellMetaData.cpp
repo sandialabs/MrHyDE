@@ -64,19 +64,19 @@ basis_types(basis_types_), basis_pointers(basis_pointers_), numDiscParams(num_pa
     ref_side_ip.push_back(refSidePoints);
     ref_side_wts.push_back(ref_side_wts_);
     
-    DRV refSideNormals("refSideNormals",numsideip, dimension);
+    DRV refSideNormals("refSideNormals", dimension);
     DRV refSideTangents("refSideTangents", dimension);
     DRV refSideTangentsU("refSideTangents U", dimension);
     DRV refSideTangentsV("refSideTangents V", dimension);
+    
     if (dimension == 2) {
       CellTools::getReferenceSideNormal(refSideNormals,s,*cellTopo);
       CellTools::getReferenceEdgeTangent(refSideTangents,s,*cellTopo);
     }
     else if (dimension == 3) {
-      //CellTools::getReferenceFaceNormal(refSideNormals,s,*celltopo);
       CellTools::getReferenceFaceTangents(refSideTangentsU, refSideTangentsV, s, *cellTopo);
-      //CellTools::getReferenceFaceTangents(refSideTangents,s,*celltopo);
     }
+    
     ref_side_normals.push_back(refSideNormals);
     ref_side_tangents.push_back(refSideTangents);
     ref_side_tangentsU.push_back(refSideTangentsU);
