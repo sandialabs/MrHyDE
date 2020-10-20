@@ -327,13 +327,13 @@ class xml_document:
       elmt.appendChild(e)
     self.root.appendChild(elmt)
     self.skipped += test.skipped
-    if test.print_keywords :
-      stmt2 = '%4i/%i %10s%8.2fs  np=%s    %52s    %s' \
+    if self.opts.printKeywords :
+      stmt2 = '%4i/%i %10s%8.2fs  np=%s    %55s    %s' \
               % (test.index+1, self.list_length, \
                  test.statusStr, runtime, test.nprocs, test.fname[0:-9], test.include_keywords)
       print stmt2 + ' '*(max(0,len(test.stmt)-len(stmt2)))
     else :
-      stmt2 = '%4i/%i %10s%8.2fs  np=%s    %52s' \
+      stmt2 = '%4i/%i %10s%8.2fs  np=%s    %55s' \
               % (test.index+1, self.list_length, \
                  test.statusStr, runtime, test.nprocs, test.fname[0:-9])
       print stmt2 + ' '*(max(0,len(test.stmt)-len(stmt2)))
@@ -951,7 +951,7 @@ def main():
                      action="store", type="string", \
                      help='''Specify the name of the xml output package.''')
 
-  p.add_option("-P", dest="product", default='dgm', \
+  p.add_option("-P", dest="product", default='MrHyDE', \
                      action="store", type="string", \
                      help='''Specify the name of the product were building.''')
 
@@ -1002,7 +1002,11 @@ def main():
 
   p.add_option("-v", dest="verbose", default=False, action="store_true", \
                      help='''Echo the commands to output.''')
-
+                     
+  p.add_option("--print-keywords", dest="printKeywords", default=False, \
+                     action="store_true", \
+                     help='''Print the keywords with results of each test.''')
+                     
   # Parse the command line options
   opts, args = p.parse_args()
 
@@ -1068,9 +1072,9 @@ def main():
     if 0 < a.avgRuntime: a.nprocs *= int(a.avgRuntime)
     # set expected_runtime,
     if a.nprocs != None and a.matchesKeywords(["long"]) == True:
-      a.expected_runtime = '02:00:00'
+      a.expected_runtime = '00:00:10'
     elif a.matchesKeywords(["medium"]) == True:
-      a.expected_runtime = '01:00:00'
+      a.expected_runtime = '00:00:10'
     # add test
     listOfTests.append(a)
 
@@ -1139,7 +1143,7 @@ def main():
   print 'Test Results from Directory: ' + startingDirA
   print 'Total number of test(s): %i' % (len(listOfTests))
   if opts.info: print ' Nprocs    Test Name'
-  print '--------------------------------------------------------------------------------------------------------------------------'
+  print '-----------------------------------------------------------------------------------------------'
 
   # user wants info on tests, don't run tests
   if opts.info:
@@ -1245,7 +1249,7 @@ def main():
       passed, failed, skipped = serial_testing(opts,listOfTests,doc)
 
   # Summary output
-  print '--------------------------------------------------------------------------------------------------------------------------'
+  print '-----------------------------------------------------------------------------------------------'
   print ' Pass: %i    Fail: %i    Skipped: %i    Total: %i' \
         % (passed, failed, skipped, doc.list_length)
 
