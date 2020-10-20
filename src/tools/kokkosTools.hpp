@@ -43,10 +43,10 @@ public:
     auto V_host = Kokkos::create_mirror_view(V);
     Kokkos::deep_copy(V_host,V);
     
-    parallel_for(RangePolicy<HostExec>(0,V_host.extent(0)), KOKKOS_LAMBDA (const size_type i ) {
+    for (size_type i=0; i<V_host.extent(0); i++) {
       //printf("   %i      %f\n",i,V(i));
       std::cout << "  " << i << "  " << "  " << "  " << V_host(i) << "  " << std::endl;
-    });
+    }
     std::cout << "--------------------" << std::endl;
     
   }
@@ -86,13 +86,13 @@ public:
     auto V_host = Kokkos::create_mirror_view(V);
     Kokkos::deep_copy(V_host,V);
     
-    parallel_for(RangePolicy<HostExec>(0,V_host.extent(0)), KOKKOS_LAMBDA (const size_type i ) {
+    for (size_type i=0; i<V_host.extent(0); i++) {
       for (size_type j=0; j<V_host.extent(1); j++) {
         //printf("   %i      %i      %f\n", i, j, V(i,j));
         std::cout << "  " << i << "  " << "  " << j << "  " <<
         "  " << "  " << V_host(i,j) << "  " << std::endl;
       }
-    });
+    }
     std::cout << "-------------------------------" << std::endl;
     
   }
@@ -156,13 +156,13 @@ public:
     auto V_host = Kokkos::create_mirror_view(V);
     Kokkos::deep_copy(V_host,V);
     
-    parallel_for(RangePolicy<HostExec>(0,V_host.extent(0)), KOKKOS_LAMBDA (const size_type i ) {
+    for (size_type i=0; i<V_host.extent(0); i++) {
       for (size_type j=0; j<V_host.extent(1); j++) {
         //printf("   %i      %i      %f\n", i, j, V(i,j));
         std::cout << "  " << i << "  " << "  " << j << "  " <<
         "  " << "  " << V(i,j) << "  " << std::endl;
       }
-    });
+    }
     std::cout << "-------------------------------" << std::endl;
     
   }
@@ -182,7 +182,7 @@ public:
     auto V_host = Kokkos::create_mirror_view(V);
     Kokkos::deep_copy(V_host,V);
     
-    parallel_for(RangePolicy<HostExec>(0,V_host.extent(0)), KOKKOS_LAMBDA (const size_type i ) {
+    for (size_type i=0; i<V_host.extent(0); i++) {
       for (size_type j=0; j<V_host.extent(1); j++) {
         for (size_type k=0; k<V_host.extent(2); k++) {
       //    printf("   %i      %i      %i      %f\n", i, j, k, V(i,j,k));
@@ -190,7 +190,7 @@ public:
           "  " << k << "  " << "  " << V_host(i,j,k) << "  " << std::endl;
         }
       }
-    });
+    }
     std::cout << "------------------------------------------" << std::endl;
     
   }
@@ -209,8 +209,7 @@ public:
     auto V_host = Kokkos::create_mirror_view(V);
     Kokkos::deep_copy(V_host,V);
     
-    parallel_for(RangePolicy<HostExec>(0,V_host.extent(0)), KOKKOS_LAMBDA (const size_type i ) {
-      
+    for (size_type i=0; i<V_host.extent(0); i++) {
       for (size_type j=0; j<V_host.extent(1); j++) {
         for (size_type k=0; k<V_host.extent(2); k++) {
           for (size_type n=0; n<V_host.extent(3); n++) {
@@ -220,7 +219,7 @@ public:
           }
         }
       }
-    });
+    }
     std::cout << "-----------------------------------------------------" << std::endl;
     
   }
@@ -239,7 +238,7 @@ public:
     auto V_host = Kokkos::create_mirror_view(V);
     Kokkos::deep_copy(V_host,V);
     
-    parallel_for(RangePolicy<HostExec>(0,V_host.extent(0)), KOKKOS_LAMBDA (const size_type i ) {
+    for (size_type i=0; i<V_host.extent(0); i++) {
       for (size_type j=0; j<V_host.extent(1); j++) {
         for (size_type k=0; k<V_host.extent(2); k++) {
           for (size_type n=0; n<V_host.extent(3); n++) {
@@ -252,7 +251,7 @@ public:
           }
         }
       }
-    });
+    }
     std::cout << "----------------------------------------------------------------" << std::endl;
     
   }
@@ -272,11 +271,11 @@ public:
       std::cout << "  i  " << "  value  " << std::endl;
       std::cout << "-------------------------------" << std::endl;
       
-      parallel_for(RangePolicy<HostExec>(0,V_host.extent(0)), KOKKOS_LAMBDA (const size_type i ) {
+      for (size_type i=0; i<V_host.extent(0); i++) {
         //printf("   %i      %f\n", i, V(i));
         std::cout << "  " << i << "  " <<
         "  " << "  " << V_host(i) << "  " << std::endl;
-      });
+      }
       std::cout << "-------------------------------" << std::endl;
       
     }
@@ -284,13 +283,13 @@ public:
       std::cout << "  i  " << "  j  " << "  value  " << std::endl;
       std::cout << "-------------------------------" << std::endl;
       
-      parallel_for(RangePolicy<HostExec>(0,V_host.extent(0)), KOKKOS_LAMBDA (const size_type i ) {
+      for (size_type i=0; i<V_host.extent(0); i++) {
         for (size_type j=0; j<V_host.extent(1); j++) {
           //printf("   %i      %i      %f\n", i, j, V(i,j));
           std::cout << "  " << i << "  " << "  " << j << "  " <<
           "  " << "  " << V_host(i,j) << "  " << std::endl;
         }
-      });
+      }
       std::cout << "-------------------------------" << std::endl;
       
     }
@@ -298,7 +297,7 @@ public:
       std::cout << "  i  " << "  j  " << "  k  " << "  value  " << std::endl;
       std::cout << "------------------------------------------" << std::endl;
       
-      parallel_for(RangePolicy<HostExec>(0,V_host.extent(0)), KOKKOS_LAMBDA (const size_type i ) {
+      for (size_type i=0; i<V_host.extent(0); i++) {
         for (size_type j=0; j<V_host.extent(1); j++) {
           for (size_type k=0; k<V_host.extent(2); k++) {
             //printf("   %i      %i      %i      %f\n", i, j, k, V(i,j,k));
@@ -306,7 +305,7 @@ public:
             "  " << k << "  " << "  " << V_host(i,j,k) << "  " << std::endl;
           }
         }
-      });
+      }
       std::cout << "------------------------------------------" << std::endl;
       
     }
@@ -314,7 +313,7 @@ public:
       std::cout << "  i  " << "  j  " << "  k  " << "  n  " << "  value  " << std::endl;
       std::cout << "-----------------------------------------------------" << std::endl;
       
-      parallel_for(RangePolicy<HostExec>(0,V_host.extent(0)), KOKKOS_LAMBDA (const size_type i ) {
+      for (size_type i=0; i<V_host.extent(0); i++) {
         for (size_type j=0; j<V_host.extent(1); j++) {
           for (size_type k=0; k<V_host.extent(2); k++) {
             for (size_type n=0; n<V_host.extent(3); n++) {
@@ -324,7 +323,7 @@ public:
             }
           }
         }
-      });
+      }
       std::cout << "-----------------------------------------------------" << std::endl;
       
     }
@@ -345,13 +344,13 @@ public:
       std::cout << "  i  " << "  j  " << "  value  " << std::endl;
       std::cout << "-------------------------------" << std::endl;
       
-      parallel_for(RangePolicy<HostExec>(0,V_host.extent(0)), KOKKOS_LAMBDA (const size_type i ) {
+      for (size_type i=0; i<V_host.extent(0); i++) {
         for (size_type j=0; j<V_host.extent(1); j++) {
           //printf("   %i      %i      %i\n", i, j, V(i,j));
           std::cout << "  " << i << "  " << "  " << j << "  " <<
           "  " << "  " << V_host(i,j) << "  " << std::endl;
         }
-      });
+      }
       std::cout << "-------------------------------" << std::endl;
       
     }
@@ -359,7 +358,7 @@ public:
       std::cout << "  i  " << "  j  " << "  k  " << "  value  " << std::endl;
       std::cout << "------------------------------------------" << std::endl;
       
-      parallel_for(RangePolicy<HostExec>(0,V_host.extent(0)), KOKKOS_LAMBDA (const size_type i ) {
+      for (size_type i=0; i<V_host.extent(0); i++) {
         for (size_type j=0; j<V_host.extent(1); j++) {
           for (size_type k=0; k<V_host.extent(2); k++) {
             //printf("   %i      %i      %i      %i\n", i, j, k, V(i,j,k));
@@ -367,7 +366,7 @@ public:
             "  " << k << "  " << "  " << V_host(i,j,k) << "  " << std::endl;
           }
         }
-      });
+      }
       std::cout << "------------------------------------------" << std::endl;
       
     }
@@ -375,7 +374,7 @@ public:
       std::cout << "  i  " << "  j  " << "  k  " << "  n  " << "  value  " << std::endl;
       std::cout << "-----------------------------------------------------" << std::endl;
       
-      parallel_for(RangePolicy<HostExec>(0,V_host.extent(0)), KOKKOS_LAMBDA (const size_type i ) {
+      for (size_type i=0; i<V_host.extent(0); i++) {
         for (size_type j=0; j<V_host.extent(1); j++) {
           for (size_type k=0; k<V_host.extent(2); k++) {
             for (size_type n=0; n<V_host.extent(3); n++) {
@@ -385,7 +384,7 @@ public:
             }
           }
         }
-      });
+      }
       std::cout << "-----------------------------------------------------" << std::endl;
       
     }
