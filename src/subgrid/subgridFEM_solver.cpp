@@ -1354,7 +1354,7 @@ void SubGridFEM_Solver::performBoundaryGather(const size_t & b, const vector_RCP
     // Get a corresponding view on the AssemblyDevice
     
     //Kokkos::View<LO***,AssemblyDevice> index;
-    Kokkos::View<LO*,UnifiedDevice> numDOF;
+    Kokkos::View<LO*,AssemblyDevice> numDOF;
     Kokkos::View<ScalarT***,AssemblyDevice> data;
     Kokkos::View<int**,AssemblyDevice> offsets;
     LIDView LIDs;
