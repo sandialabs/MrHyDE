@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -10,6 +12,7 @@
  ************************************************************************/
 
 #include "twophasePoNo.hpp"
+using namespace MrHyDE;
 
 twophasePoNo::twophasePoNo(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   

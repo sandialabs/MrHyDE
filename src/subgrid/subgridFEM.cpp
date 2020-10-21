@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -11,6 +13,8 @@
 
 #include "subgridFEM.hpp"
 #include "cell.hpp"
+
+using namespace MrHyDE;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -58,7 +62,7 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
   
   if (settings->isParameter("Functions input file")) {
     std::string filename = settings->get<std::string>("Functions input file");
-    ifstream fn(filename.c_str());
+    std::ifstream fn(filename.c_str());
     if (fn.good()) {
       Teuchos::RCP<Teuchos::ParameterList> functions_parlist = Teuchos::rcp( new Teuchos::ParameterList() );
       Teuchos::updateParametersFromYamlFile( filename, Teuchos::Ptr<Teuchos::ParameterList>(&*functions_parlist) );
@@ -787,7 +791,7 @@ void SubGridFEM::finalize(const int & globalSize, const int & globalPID) {
   }
   
   if (combined_outputfile) {
-    stringstream ss;
+    std::stringstream ss;
     ss << globalSize << "." << globalPID;
     combined_mesh_filename = "subgrid_data/subgrid_combined_output." + ss.str();
     
@@ -831,7 +835,7 @@ void SubGridFEM::addMeshData() {
       string mesh_data_file;
       
       if (have_multiple_data_files) {
-        stringstream ss;
+        std::stringstream ss;
         ss << p+1;
         mesh_data_pts_file = mesh_data_pts_tag + "." + ss.str() + ".dat";
         mesh_data_file = mesh_data_tag + "." + ss.str() + ".dat";
@@ -1404,7 +1408,7 @@ void SubGridFEM::setInitial(Teuchos::RCP<LA_MultiVector> & initial,
 // Compute the error for verification
 ///////////////////////////////////////////////////////////////////////////////////////
 
-vector<pair<size_t, string> > SubGridFEM::getErrorList() {
+vector<std::pair<size_t, string> > SubGridFEM::getErrorList() {
   return sub_postproc->error_list[0];
 }
 
@@ -1441,7 +1445,7 @@ Kokkos::View<ScalarT*,HostDevice> SubGridFEM::computeError(const ScalarT & time)
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT**,HostDevice> SubGridFEM::computeError(vector<pair<size_t, string> > & sub_error_list,
+Kokkos::View<ScalarT**,HostDevice> SubGridFEM::computeError(vector<std::pair<size_t, string> > & sub_error_list,
                                                             const vector<ScalarT> & times) {
   
   Kokkos::View<ScalarT**,HostDevice> errors;
@@ -2209,7 +2213,7 @@ Teuchos::RCP<LA_CrsMatrix>  SubGridFEM::getProjectionMatrix() {
 ////////////////////////////////////////////////////////////////////////////////
 
 Teuchos::RCP<LA_CrsMatrix> SubGridFEM::getProjectionMatrix(DRV & ip, DRV & wts,
-                                                           pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) {
+                                                           std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) {
   
   return sub_solver->getProjectionMatrix(ip, wts, other_basisinfo);
   
@@ -2286,7 +2290,7 @@ DRV SubGridFEM::getIPWts() {
 // Evaluate the basis functions at a set of points
 ////////////////////////////////////////////////////////////////////////////////
 
-pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis2(const DRV & pts) {
+std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis2(const DRV & pts) {
   
   size_t numpts = pts.extent(1);
   size_t dimpts = pts.extent(2);
@@ -2351,7 +2355,7 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
     ptsBasis.push_back(basisvals);
     
   }
-  pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > basisinfo(owners, ptsBasis);
+  std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > basisinfo(owners, ptsBasis);
   return basisinfo;
   
 }
@@ -2361,7 +2365,7 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis
 // TMW: what is this function for???
 ////////////////////////////////////////////////////////////////////////////////
 
-pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis(const DRV & pts) {
+std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis(const DRV & pts) {
   // this function is deprecated
 }
 

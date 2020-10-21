@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -14,6 +16,8 @@
 
 #include <iostream>
 #include <iterator>
+
+using namespace MrHyDE;
 
 cell::cell(const Teuchos::RCP<CellMetaData> & cellData_,
            const DRV nodes_,
@@ -2004,11 +2008,11 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
                 sensorData.push_back(sensor_data[i]);
               }
               if (cellData->writeSensorFiles) {
-                stringstream ss;
+                std::stringstream ss;
                 ss << localElemID(e);
                 string str = ss.str();
                 string fname = "sdat." + str + ".dat";
-                ofstream outfile(fname.c_str());
+                std::ofstream outfile(fname.c_str());
                 outfile.precision(8);
                 outfile << i << "  ";
                 outfile << sensor_points(i,0) << "  " << sensor_points(i,1) << "  ";
@@ -2023,10 +2027,10 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
       
       if (cellData->loadSensorFiles) {
         for (int e=0; e<numElem; e++) {
-          stringstream ss;
+          std::stringstream ss;
           ss << localElemID(e);
           string str = ss.str();
-          ifstream sfile;
+          std::ifstream sfile;
           sfile.open("sensorLocations/sdat." + str + ".dat");
           int cID;
           //ScalarT l1, l2, t1, d1, d2;

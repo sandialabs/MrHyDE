@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -46,6 +48,8 @@
 //#include "burgers.hpp"
 //#include "phasefield.hpp"
 //#include "thermal_fr.hpp"
+
+using namespace MrHyDE;
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -1457,9 +1461,9 @@ void physics::setDirichletData(Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
           for( size_t i=0; i<side_output.size(); i++ ) {
             LO local_EID = mesh->elementLocalId(side_output[i]);
             auto elemLIDs = DOF->getElementLIDs(local_EID);
-            const pair<vector<int>,vector<int> > SideIndex = DOF->getGIDFieldOffsets_closure(blockID, fieldnum,
-                                                                                             spaceDim-1,
-                                                                                             local_side_Ids[i]);
+            const std::pair<vector<int>,vector<int> > SideIndex = DOF->getGIDFieldOffsets_closure(blockID, fieldnum,
+                                                                                                  spaceDim-1,
+                                                                                                  local_side_Ids[i]);
             const vector<int> sideOffset = SideIndex.first;
             
             for( size_t i=0; i<sideOffset.size(); i++ ) { // for each node

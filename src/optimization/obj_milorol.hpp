@@ -31,6 +31,8 @@
 //#include <random> //for normal noise...not sure if this is necessary...
 
 namespace ROL {
+
+  using namespace MrHyDE;
   
   template<class Real>
   class Objective_MILO : public Objective<Real> {
@@ -134,7 +136,7 @@ namespace ROL {
       }
       
       if(commrank == 0){
-        ofstream respOUT(filename);
+        std::ofstream respOUT(filename);
         respOUT.precision(16);
         for(int i=0; i<paramDim; i++){
           for(int j=0; j<paramDim; j++)

@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -18,44 +20,48 @@
 #include "postprocessManager.hpp"
 #include "parameterManager.hpp"
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////
-
-static void analysisHelp(const string & details) {
-  cout << "********** Help and Documentation for the Analysis Interface **********" << endl;
+namespace MrHyDE {
+  
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  
+  static void analysisHelp(const string & details) {
+    cout << "********** Help and Documentation for the Analysis Interface **********" << endl;
+  }
+  
+  class analysis {
+  public:
+    
+    // ========================================================================================
+    /* Constructor to set up the problem */
+    // ========================================================================================
+    
+    analysis(const Teuchos::RCP<MpiComm> & Comm_, 
+             Teuchos::RCP<Teuchos::ParameterList> & settings_, Teuchos::RCP<solver> & solver_,
+             Teuchos::RCP<PostprocessManager> & postproc_, Teuchos::RCP<ParameterManager> & params_);
+    
+    // ========================================================================================
+    /* given the parameters, solve the forward  problem */
+    // ========================================================================================
+    
+    void run();
+    
+  protected:
+    
+    Teuchos::RCP<MpiComm> Comm;
+    //Teuchos::RCP<MpiComm> S_Comm;
+    Teuchos::RCP<Teuchos::ParameterList> settings;
+    Teuchos::RCP<solver> solve;
+    Teuchos::RCP<PostprocessManager> postproc;
+    Teuchos::RCP<ParameterManager> params;
+    
+    ScalarT response;
+    vector<ScalarT> gradient;
+    int verbosity, milo_debug_level;
+    
+    bool sensIC;
+  };
+  
 }
-
-class analysis {
-public:
-  
-  // ========================================================================================
-  /* Constructor to set up the problem */
-  // ========================================================================================
-  
-  analysis(const Teuchos::RCP<MpiComm> & Comm_, 
-           Teuchos::RCP<Teuchos::ParameterList> & settings_, Teuchos::RCP<solver> & solver_,
-           Teuchos::RCP<PostprocessManager> & postproc_, Teuchos::RCP<ParameterManager> & params_);
-  
-  // ========================================================================================
-  /* given the parameters, solve the forward  problem */
-  // ========================================================================================
-  
-  void run();
-  
-protected:
-  
-  Teuchos::RCP<MpiComm> Comm;
-  //Teuchos::RCP<MpiComm> S_Comm;
-  Teuchos::RCP<Teuchos::ParameterList> settings;
-  Teuchos::RCP<solver> solve;
-  Teuchos::RCP<PostprocessManager> postproc;
-  Teuchos::RCP<ParameterManager> params;
-  
-  ScalarT response;
-  vector<ScalarT> gradient;
-  int verbosity, milo_debug_level;
-  
-  bool sensIC;
-};
 
 #endif

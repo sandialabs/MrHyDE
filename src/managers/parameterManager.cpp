@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -13,6 +15,8 @@
 #include "parameterManager.hpp"
 #include "Panzer_IntrepidFieldPattern.hpp"
 #include "Panzer_STKConnManager.hpp"
+
+using namespace MrHyDE;
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -867,7 +871,7 @@ vector<vector<ScalarT> > ParameterManager::getParamBounds(const std::string & st
 void ParameterManager::stashParams(){
   if (batchID == 0 && Comm->getRank() == 0){
     string outname = "param_stash.dat";
-    ofstream respOUT(outname);
+    std::ofstream respOUT(outname);
     respOUT.precision(16);
     for (size_t i=0; i<paramvals.size(); i++) {
       if (paramtypes[i] == 1) {

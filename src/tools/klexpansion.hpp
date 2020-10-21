@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -12,99 +14,103 @@
 #ifndef KLEXP_H
 #define KLEXP_H
 
-using namespace std;
+//using namespace std;
 
-class klexpansion {
-public:
-    
-  /////////////////////////////////////////////////////////////////////////////
-  //  Various constructors depending on the characteristics of the data (spatial, 
-  //  transient, stochastic, etc.)
-  /////////////////////////////////////////////////////////////////////////////
+namespace MrHyDE {
   
-  klexpansion(const int & N_, const ScalarT & L_, const ScalarT & sigma_, const ScalarT & eta_) :
+  class klexpansion {
+  public:
+    
+    /////////////////////////////////////////////////////////////////////////////
+    //  Various constructors depending on the characteristics of the data (spatial,
+    //  transient, stochastic, etc.)
+    /////////////////////////////////////////////////////////////////////////////
+    
+    klexpansion(const int & N_, const ScalarT & L_, const ScalarT & sigma_, const ScalarT & eta_) :
     N(N_), L(L_), sigma(sigma_), eta(eta_) {
+      
+      this->computeRoots();
+      
+    }
     
-    this->computeRoots();
-
-  }
-  
-  /////////////////////////////////////////////////////////////////////////////
-  /////////////////////////////////////////////////////////////////////////////
-
-  void computeRoots() {
-    ScalarT ig = 1.0;
-    ScalarT step = 1.0;
-    ScalarT ctol = 1.0e-6;
-    ScalarT nltol = 1.0e-10;
-    int maxiter = 1000;
-    int iter = 0;
-    ScalarT om = ig;
-    ScalarT f, df;
-    while (omega.size() < N && iter < maxiter) {
-      iter++;
-      ig += step;
-      om = ig;
-      f = chareqn(om);
-      while (abs(f) > nltol) {
-        df = dchareqn(om);
-        om += -f/df;
-        f = chareqn(om);
-     cout << "omega = " << om << "  f = " << f << endl;
-      }
-      if (omega.size() > 0) {
-        if (abs(om-omega[omega.size()-1]) > ctol) {
+    /////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////
+    
+    void computeRoots() {
+      ScalarT ig = 1.0;
+      ScalarT step = 1.0;
+      ScalarT ctol = 1.0e-6;
+      ScalarT nltol = 1.0e-10;
+      int maxiter = 1000;
+      int iter = 0;
+      ScalarT om = ig;
+      ScalarT f, df;
+      while (omega.size() < N && iter < maxiter) {
+        iter++;
+        ig += step;
+        om = ig;
+        f = this->chareqn(om);
+        while (std::abs(f) > nltol) {
+          df = this->dchareqn(om);
+          om += -f/df;
+          f = this->chareqn(om);
+          std::cout << "omega = " << om << "  f = " << f << std::endl;
+        }
+        if (omega.size() > 0) {
+          if (std::abs(om-omega[omega.size()-1]) > ctol) {
+            omega.push_back(om);
+          }
+        }
+        else {
           omega.push_back(om);
         }
       }
-      else {
-        omega.push_back(om);
-      }
     }
-  }
-
-  /////////////////////////////////////////////////////////////////////////////
-  /////////////////////////////////////////////////////////////////////////////
-
-  ScalarT chareqn(const ScalarT & om) {
-    ScalarT f = (eta*eta*om*om - 1.0)*sin(om*L) - 2.0*eta*om*cos(om*L);
-    return f;
-  }
-
-  /////////////////////////////////////////////////////////////////////////////
-  /////////////////////////////////////////////////////////////////////////////
-
-  ScalarT dchareqn(const ScalarT & om) {
-    ScalarT df = 2.0*om*eta*eta*sin(om*L)+(eta*eta*om*om - 1.0)*L*cos(om*L) - 2.0*eta*cos(om*L) + 2.0*eta*om*L*sin(om*L);
-    return df;
-  }
-
-  /////////////////////////////////////////////////////////////////////////////
-  /////////////////////////////////////////////////////////////////////////////
+    
+    /////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////
+    
+    ScalarT chareqn(const ScalarT & om) {
+      ScalarT f = (eta*eta*om*om - 1.0)*std::sin(om*L) - 2.0*eta*om*std::cos(om*L);
+      return f;
+    }
+    
+    /////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////
+    
+    ScalarT dchareqn(const ScalarT & om) {
+      ScalarT df = 2.0*om*eta*eta*std::sin(om*L)+(eta*eta*om*om - 1.0)*L*std::cos(om*L) - 2.0*eta*std::cos(om*L) + 2.0*eta*om*L*std::sin(om*L);
+      return df;
+    }
+    
+    /////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////
+    
+    ScalarT getEval(const int & i) const {
+      ScalarT lam = (2.0*eta*sigma*sigma) / (eta*eta*omega[i]*omega[i]+1.0);
+      return lam;
+    }
+    
+    /////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////
+    
+    ScalarT getEvec(const int & i, const ScalarT & x) const {
+      ScalarT f = 1.0/(std::sqrt((eta*eta*omega[i]*omega[i]+1.0)*L/2.0 + eta))*(eta*omega[i]*std::cos(omega[i]*x) + std::sin(omega[i]*x));
+      return f;
+    }
+    
+    /////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////
+    
+  protected:
+    
+    ScalarT eta, L, sigma;
+    int N;
+    
+    std::vector<ScalarT> omega;
+    
+  };
   
-  ScalarT getEval(const int & i) const {
-    ScalarT lam = (2.0*eta*sigma*sigma) / (eta*eta*omega[i]*omega[i]+1.0);
-    return lam; 
-  }
-  
-  /////////////////////////////////////////////////////////////////////////////
-  /////////////////////////////////////////////////////////////////////////////
-  
-  ScalarT getEvec(const int & i, const ScalarT & x) const {
-    ScalarT f = 1.0/(sqrt((eta*eta*omega[i]*omega[i]+1.0)*L/2.0 + eta))*(eta*omega[i]*cos(omega[i]*x) + sin(omega[i]*x));
-    return f; 
-  }
-  
-  /////////////////////////////////////////////////////////////////////////////
-  /////////////////////////////////////////////////////////////////////////////
-  
-protected:
-  
-  ScalarT eta, L, sigma;
-  int N;
-
-  vector<ScalarT> omega;
- 
-};
+}
 
 #endif

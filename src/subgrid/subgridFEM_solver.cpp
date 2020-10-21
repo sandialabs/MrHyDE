@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -11,6 +13,8 @@
 #include "solverInterface.hpp"
 
 #include "subgridFEM_solver.hpp"
+
+using namespace MrHyDE;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -1107,7 +1111,7 @@ Teuchos::RCP<LA_CrsMatrix>  SubGridFEM_Solver::getProjectionMatrix() {
 // Evaluate the basis functions at a set of points
 ////////////////////////////////////////////////////////////////////////////////
 
-pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM_Solver::evaluateBasis2(const DRV & pts) {
+std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM_Solver::evaluateBasis2(const DRV & pts) {
   
   size_t numpts = pts.extent(1);
   size_t dimpts = pts.extent(2);
@@ -1174,7 +1178,7 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM_Solver::evalua
     ptsBasis.push_back(basisvals);
     
   }
-  pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > basisinfo(owners, ptsBasis);
+  std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > basisinfo(owners, ptsBasis);
   return basisinfo;
   
 }
@@ -1185,9 +1189,9 @@ pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM_Solver::evalua
 ////////////////////////////////////////////////////////////////////////////////
 
 Teuchos::RCP<LA_CrsMatrix> SubGridFEM_Solver::getProjectionMatrix(DRV & ip, DRV & wts,
-                                                                  pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) {
+                                                                  std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) {
   
-  pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > my_basisinfo = this->evaluateBasis2(ip);
+  std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > my_basisinfo = this->evaluateBasis2(ip);
   matrix_RCP map_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(milo_solver->LA_overlapped_graph));
   
   matrix_RCP map;

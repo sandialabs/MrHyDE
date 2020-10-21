@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -13,6 +15,8 @@
 #include "exodusII.h"
 
 #include <boost/algorithm/string.hpp>
+
+using namespace MrHyDE;
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -504,14 +508,14 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
       vector<vector<ScalarT> > values;
       
       string ptsfile = settings->sublist("Mesh").get("mesh pert file","meshpert.dat");
-      ifstream fin(ptsfile.c_str());
+      std::ifstream fin(ptsfile.c_str());
       
       for (string line; getline(fin, line); )
       {
         replace(line.begin(), line.end(), ',', ' ');
-        istringstream in(line);
-        values.push_back(vector<ScalarT>(istream_iterator<ScalarT>(in),
-                                        istream_iterator<ScalarT>()));
+        std::istringstream in(line);
+        values.push_back(vector<ScalarT>(std::istream_iterator<ScalarT>(in),
+                                         std::istream_iterator<ScalarT>()));
       }
       
       DRV pertdata("pertdata",values.size(),3);
@@ -533,7 +537,7 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
           for( size_t j=0; j<pertdata.extent(0); j++ ) {
             ScalarT xhat = pertdata(j,0);
             ScalarT yhat = pertdata(j,1);
-            ScalarT d = sqrt((x-xhat)*(x-xhat) + (y-yhat)*(y-yhat));
+            ScalarT d = std::sqrt((x-xhat)*(x-xhat) + (y-yhat)*(y-yhat));
             if( d<dist ) {
               node = j;
               dist = d;
@@ -629,7 +633,7 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
     string mesh_data_file;
     
     if (have_multiple_data_files) {
-      stringstream ss;
+      std::stringstream ss;
       ss << p+1;
       mesh_data_pts_file = mesh_data_pts_tag + "." + ss.str() + ".dat";
       mesh_data_file = mesh_data_tag + "." + ss.str() + ".dat";
@@ -1113,7 +1117,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
   exofile = settings->sublist("Mesh").get<std::string>("mesh file","mesh.exo");
   
   if (Commptr->getSize() > 1) {
-    stringstream ssProc, ssPID;
+    std::stringstream ssProc, ssPID;
     ssProc << Commptr->getSize();
     ssPID << Commptr->getRank();
     string strProc = ssProc.str();
@@ -1173,7 +1177,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
       size_t found = vname.find("Val");
       if (found != std::string::npos) {
         vector<string> results;
-        stringstream sns, snr;
+        std::stringstream sns, snr;
         int nr;
         boost::split(results, vname, [](char u){return u == '_';});
         snr << results[3];

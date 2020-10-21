@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -15,72 +17,77 @@
 #include "trilinos.hpp"
 #include "preferences.hpp"
 
-class term {
-public:
+namespace MrHyDE {
   
-  term() {};
-  
-  term(const string & expr) {
+  class term {
+  public:
     
-    // default settings
-    isRoot = false;
-    beenDecomposed = false;
-    isFunc = false;
-    isScalar = false;
-    //isAD = true;
-    isConstant = false;
-    scalarIndex = 0;
+    term() {};
     
-    expression = expr;
+    term(const string & expr) {
+      
+      // default settings
+      isRoot = false;
+      beenDecomposed = false;
+      isFunc = false;
+      isScalar = false;
+      //isAD = true;
+      isConstant = false;
+      scalarIndex = 0;
+      
+      expression = expr;
+      
+    } ;
     
-  } ;
-  
-  ~term() {};
-  
-  
-  void print() {
-    cout << endl;
-    cout << "--------------------------------------------------" << endl;
-    cout << "expression: " << expression << endl;
-    cout << "isAD: " << isAD << endl;
-    cout << "isScalar: " << isScalar << endl;
-    cout << "scalarIndex: " << scalarIndex << endl;
-    cout << "isConstant: " << isConstant << endl;
-    cout << "isRoot: " << isRoot << endl;
-    cout << "isFunc: " << isFunc << endl;
-    cout << "beenDecomposed: " << beenDecomposed << endl;
-    cout << "dep_list length: " << dep_list.size() << endl;
-    for (size_t k=0; k<dep_list.size(); k++) {
-      cout << "dep_list[" << k << "]: " << dep_list[k] << endl;
+    ~term() {};
+    
+    
+    void print() {
+      cout << endl;
+      cout << "--------------------------------------------------" << endl;
+      cout << "expression: " << expression << endl;
+      cout << "isAD: " << isAD << endl;
+      cout << "isScalar: " << isScalar << endl;
+      cout << "scalarIndex: " << scalarIndex << endl;
+      cout << "isConstant: " << isConstant << endl;
+      cout << "isRoot: " << isRoot << endl;
+      cout << "isFunc: " << isFunc << endl;
+      cout << "beenDecomposed: " << beenDecomposed << endl;
+      cout << "dep_list length: " << dep_list.size() << endl;
+      for (size_t k=0; k<dep_list.size(); k++) {
+        cout << "dep_list[" << k << "]: " << dep_list[k] << endl;
+      }
+      cout << "dep_ops length: " << dep_ops.size() << endl;
+      for (size_t k=0; k<dep_ops.size(); k++) {
+        cout << "dep_ops[" << k << "]: " << dep_ops[k] << endl;
+      }
+      cout << "data dims: " << data.extent(0) << "  " << data.extent(1) << endl;
+      cout << "ddata dims: " << ddata.extent(0) << "  " << ddata.extent(1) << endl;
+      cout << "--------------------------------------------------" << endl;
+      
+      cout << endl;
     }
-    cout << "dep_ops length: " << dep_ops.size() << endl;
-    for (size_t k=0; k<dep_ops.size(); k++) {
-      cout << "dep_ops[" << k << "]: " << dep_ops[k] << endl;
-    }
-    cout << "data dims: " << data.extent(0) << "  " << data.extent(1) << endl;
-    cout << "ddata dims: " << ddata.extent(0) << "  " << ddata.extent(1) << endl;
-    cout << "--------------------------------------------------" << endl;
     
-    cout << endl;
-  }
+    //////////////////////////////////////////////////////////////////////
+    // Public data members
+    //////////////////////////////////////////////////////////////////////
+    
+    string expression;
+    bool isRoot, beenDecomposed, isFunc, isScalar, isAD, isConstant;
+    int funcIndex, scalarIndex;
+    
+    FDATA data;
+    FDATAd ddata;
+    Kokkos::View<double*,Kokkos::LayoutStride,AssemblyDevice> scalar_ddata;
+    Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> scalar_data;
+    
+    vector<int> dep_list;
+    vector<string> dep_ops;
+    
+    
+  };
   
-  //////////////////////////////////////////////////////////////////////
-  // Public data members
-  //////////////////////////////////////////////////////////////////////
-  
-  string expression;
-  bool isRoot, beenDecomposed, isFunc, isScalar, isAD, isConstant;
-  int funcIndex, scalarIndex;
-  
-  FDATA data;
-  FDATAd ddata;
-  Kokkos::View<double*,Kokkos::LayoutStride,AssemblyDevice> scalar_ddata;
-  Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> scalar_data;
-  
-  vector<int> dep_list;
-  vector<string> dep_ops;
-  
-  
-};
+}
+
 #endif
 

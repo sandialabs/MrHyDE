@@ -6,6 +6,7 @@
 #include "discretizationInterface.hpp"
 
 using namespace std;
+using namespace MrHyDE;
 
 int main(int argc, char * argv[]) {
   

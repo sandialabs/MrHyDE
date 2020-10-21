@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -10,6 +12,8 @@
  ************************************************************************/
 
 #include "postprocessManager.hpp"
+
+using namespace MrHyDE;
 
 // ========================================================================================
 /* Minimal constructor to set up the problem */
@@ -398,11 +402,11 @@ void PostprocessManager::report() {
       
       
       for (int k=0; k<numSensors; k++) {
-        stringstream ss;
+        std::stringstream ss;
         ss << k;
         string str = ss.str();
         string sname2 = sname + "." + str + ".dat";
-        ofstream respOUT(sname2.c_str());
+        std::ofstream respOUT(sname2.c_str());
         respOUT.precision(16);
         for (size_t tt=0; tt<response_times.size(); tt++) { // skip the initial condition
           if(Comm->getRank() == 0){
@@ -430,7 +434,7 @@ void PostprocessManager::report() {
     
     if (write_dakota_output) {
       string sname2 = "results.out";
-      ofstream respOUT(sname2.c_str());
+      std::ofstream respOUT(sname2.c_str());
       respOUT.precision(16);
       for (int k=0; k<responses[0].extent(0); k++) {// TMW: not correct
         for (int n=0; n<responses[0].extent(1); n++) {// TMW: not correct
@@ -502,7 +506,7 @@ void PostprocessManager::report() {
         
         for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
           vector<string> sgvars = multiscale_manager->subgridModels[m]->varlist;
-          vector<pair<size_t,string> > sg_error_list;
+          vector<std::pair<size_t,string> > sg_error_list;
           // A given processor may not have any elements that use this subgrid model
           // In this case, nothing gets initialized so sgvars.size() == 0
           // Find the global max number of sgvars over all processors

@@ -37,6 +37,8 @@
 
 //namespace ROL {
 
+using namespace MrHyDE;
+
 template<class Real>
 class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
   
@@ -331,7 +333,7 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
     }
     
     if(commrank == 0){
-      ofstream respOUT(filename);
+      std::ofstream respOUT(filename);
       respOUT.precision(16);
       for(int i=0; i<paramDim; i++){
         for(int j=0; j<paramDim; j++)

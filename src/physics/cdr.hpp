@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -14,71 +16,75 @@
 
 #include "physics_base.hpp"
 
-class cdr : public physicsbase {
-public:
+namespace MrHyDE {
   
-  cdr() {} ;
-  
-  ~cdr() {};
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  cdr(Teuchos::RCP<Teuchos::ParameterList> & settings);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void defineFunctions(Teuchos::ParameterList & fs,
-                       Teuchos::RCP<FunctionManager> & functionManager_);
+  class cdr : public physicsbase {
+  public:
     
-  // ========================================================================================
-  // ========================================================================================
- 
-  void volumeResidual();
-  // ========================================================================================
-  // ========================================================================================
- 
-  void boundaryResidual();
+    cdr() {} ;
+    
+    ~cdr() {};
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    cdr(Teuchos::RCP<Teuchos::ParameterList> & settings);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void defineFunctions(Teuchos::ParameterList & fs,
+                         Teuchos::RCP<FunctionManager> & functionManager_);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void volumeResidual();
+    // ========================================================================================
+    // ========================================================================================
+    
+    void boundaryResidual();
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void edgeResidual();
+    
+    // ========================================================================================
+    // The boundary/edge flux
+    // ========================================================================================
+    
+    void computeFlux();
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void setVars(vector<string> & varlist_);
+    
+    // ========================================================================================
+    // return the value of the stabilization parameter 
+    // ========================================================================================
+    
+    template<class T>  
+    T computeTau(const T & localdiff, const T & xvl, const T & yvl, const T & zvl, const ScalarT & h) const;
+    
+  private:
+    
+    //FDATA diff, rho, cp, xvel, yvel, zvel, reax, tau, source, nsource, diff_side, robin_alpha;
+    
+    int spaceDim;
+    int cnum;
+    
+    Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::cdr::volumeResidual() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::cdr::volumeResidual() - evaluation of residual");
+    Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::cdr::boundaryResidual() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> boundaryResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::cdr::boundaryResidual() - evaluation of residual");
+    Teuchos::RCP<Teuchos::Time> fluxFunc = Teuchos::TimeMonitor::getNewCounter("MILO::cdr::computeFlux() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MILO::cdr::computeFlux() - evaluation of flux");
+    
+    
+  };
   
-  // ========================================================================================
-  // ========================================================================================
- 
-  void edgeResidual();
-  
-  // ========================================================================================
-  // The boundary/edge flux
-  // ========================================================================================
-
-  void computeFlux();
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void setVars(vector<string> & varlist_);
-  
-  // ========================================================================================
-  // return the value of the stabilization parameter 
-  // ========================================================================================
-  
-  template<class T>  
-  T computeTau(const T & localdiff, const T & xvl, const T & yvl, const T & zvl, const ScalarT & h) const;
-  
-private:
-  
-  //FDATA diff, rho, cp, xvel, yvel, zvel, reax, tau, source, nsource, diff_side, robin_alpha;
-  
-  int spaceDim;
-  int cnum;
-  
-  Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::cdr::volumeResidual() - function evaluation");
-  Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::cdr::volumeResidual() - evaluation of residual");
-  Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::cdr::boundaryResidual() - function evaluation");
-  Teuchos::RCP<Teuchos::Time> boundaryResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::cdr::boundaryResidual() - evaluation of residual");
-  Teuchos::RCP<Teuchos::Time> fluxFunc = Teuchos::TimeMonitor::getNewCounter("MILO::cdr::computeFlux() - function evaluation");
-  Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MILO::cdr::computeFlux() - evaluation of flux");
-  
-  
-};
+}
 
 #endif

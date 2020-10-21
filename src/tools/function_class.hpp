@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -17,34 +19,39 @@
 #include "workset.hpp"
 #include "term.hpp"
 
-class function_class {
-public:
+namespace MrHyDE {
   
-  function_class() {};
-  
-  function_class(const string & name, const string & expression_,
-                 const size_t & dim0_, const size_t & dim1_,
-                 const string & location_) :
-  function_name(name), expression(expression_), dim0(dim0_), dim1(dim1_), location(location_) {
+  class function_class {
+  public:
     
-    term newt = term(expression);
-    terms.push_back(newt);
-    //terms = Kokkos::View<term*,AssemblyDevice>(expression, 1);
+    function_class() {};
     
-  } ;
+    function_class(const string & name, const string & expression_,
+                   const size_t & dim0_, const size_t & dim1_,
+                   const string & location_) :
+    function_name(name), expression(expression_), dim0(dim0_), dim1(dim1_), location(location_) {
+      
+      term newt = term(expression);
+      terms.push_back(newt);
+      //terms = Kokkos::View<term*,AssemblyDevice>(expression, 1);
+      
+    } ;
+    
+    ~function_class() {};
+    
+    //////////////////////////////////////////////////////////////////////
+    // Public data members
+    //////////////////////////////////////////////////////////////////////
+    
+    size_t dim0, dim1;
+    vector<term> terms;
+    //Kokkos::View<term*,AssemblyDevice> terms;
+    string function_name, expression, location;
+    bool isScalar, isStatic, onSide;
+    
+  };
   
-  ~function_class() {};
-  
-  //////////////////////////////////////////////////////////////////////
-  // Public data members
-  //////////////////////////////////////////////////////////////////////
-  
-  size_t dim0, dim1;
-  vector<term> terms;
-  //Kokkos::View<term*,AssemblyDevice> terms;
-  string function_name, expression, location;
-  bool isScalar, isStatic, onSide;
-  
-};
+}
+
 #endif
 

@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -10,6 +12,8 @@
  ************************************************************************/
 
 #include "data.hpp"
+
+using namespace MrHyDE;
 
 /////////////////////////////////////////////////////////////////////////////
 //  Various constructors depending on the characteristics of the data (spatial,
@@ -88,7 +92,7 @@ data::data(const std::string & name_, const int & spaceDim_, const std::string &
   this->importPoints(ptsfile, spaceDim);
   
   for (int i=0; i<numSensors; i++) {
-    stringstream ss;
+    std::stringstream ss;
     ss << i;
     std::string str = ss.str();
     std::string sensorname = sensorprefix + "." + str + ".dat";
@@ -112,7 +116,7 @@ data::data(const std::string & name_, const int & spaceDim_, const std::string &
   this->importPoints(ptsfile, spaceDim);
   if (separate_files) {
     for (int i=0; i<numSensors; i++) {
-      stringstream ss;
+      std::stringstream ss;
       ss << i;
       std::string str = ss.str();
       std::string sensorname = sensorprefix + "." + str + ".dat";
@@ -141,7 +145,7 @@ data::data(const std::string & name_, const int & spaceDim_, const std::string &
   this->importGridPoints(ptsfile, spaceDim, Nx, Ny, Nz);
   if (separate_files) {
     for (int i=0; i<numSensors; i++) {
-      stringstream ss;
+      std::stringstream ss;
       ss << i;
       std::string str = ss.str();
       std::string sensorname = sensorprefix + "." + str + ".dat";
@@ -171,7 +175,7 @@ data::data(const std::string & name_, const int & spaceDim_, const std::string &
   numSensors = Nsens;
   
   for (int i=0; i<numSensors; i++) {
-    stringstream ss;
+    std::stringstream ss;
     ss << i;
     std::string str = ss.str();
     std::string sensorname = sensorprefix + "." + str + ".dat";
@@ -391,7 +395,7 @@ void data::importSensor(const std::string & sensorfile) {
 /////////////////////////////////////////////////////////////////////////////
 
 ScalarT data::getvalue(const ScalarT & x, const ScalarT & y, const ScalarT & z,
-                       const ScalarT & time, const string & label) const {
+                       const ScalarT & time, const std::string & label) const {
   
   Teuchos::TimeMonitor timer(*dataValueTimer);
   

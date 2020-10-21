@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -14,67 +16,71 @@
 
 #include "physics_base.hpp"
 
-static void maxwellHelp() {
-  cout << "********** Help and Documentation for the Maxwell (HCURL-HDIV) Physics Module **********" << endl << endl;
-  cout << "Model:" << endl << endl;
-  cout << "User defined functions: " << endl << endl;
+namespace MrHyDE {
+  
+  static void maxwellHelp() {
+    cout << "********** Help and Documentation for the Maxwell (HCURL-HDIV) Physics Module **********" << endl << endl;
+    cout << "Model:" << endl << endl;
+    cout << "User defined functions: " << endl << endl;
+  }
+  
+  
+  class maxwell : public physicsbase {
+  public:
+    
+    // ========================================================================================
+    /* Constructor to set up the problem */
+    // ========================================================================================
+    
+    maxwell() {} ;
+    
+    ~maxwell() {};
+    
+    maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void defineFunctions(Teuchos::ParameterList & fs,
+                         Teuchos::RCP<FunctionManager> & functionManager_);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void volumeResidual();
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void boundaryResidual();
+    
+    // ========================================================================================
+    // The boundary/edge flux
+    // ========================================================================================
+    
+    void computeFlux();
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void setVars(std::vector<string> & varlist_);
+    
+  private:
+    
+    
+    int spaceDim;
+    
+    int Enum, Bnum;
+    
+    Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell::volumeResidual() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell::volumeResidual() - evaluation of residual");
+    Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell::boundaryResidual() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> boundaryResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell::boundaryResidual() - evaluation of residual");
+    Teuchos::RCP<Teuchos::Time> fluxFunc = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell::computeFlux() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell::computeFlux() - evaluation of flux");
+    
+  };
+  
 }
-
-
-class maxwell : public physicsbase {
-public:
-  
-  // ========================================================================================
-  /* Constructor to set up the problem */
-  // ========================================================================================
-  
-  maxwell() {} ;
-  
-  ~maxwell() {};
-  
-  maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void defineFunctions(Teuchos::ParameterList & fs,
-                       Teuchos::RCP<FunctionManager> & functionManager_);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void volumeResidual();
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void boundaryResidual();
-  
-  // ========================================================================================
-  // The boundary/edge flux
-  // ========================================================================================
-  
-  void computeFlux();
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void setVars(std::vector<string> & varlist_);
-  
-private:
-  
-  
-  int spaceDim;
-  
-  int Enum, Bnum;
-  
-  Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell::volumeResidual() - function evaluation");
-  Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell::volumeResidual() - evaluation of residual");
-  Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell::boundaryResidual() - function evaluation");
-  Teuchos::RCP<Teuchos::Time> boundaryResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell::boundaryResidual() - evaluation of residual");
-  Teuchos::RCP<Teuchos::Time> fluxFunc = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell::computeFlux() - function evaluation");
-  Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MILO::maxwell::computeFlux() - evaluation of flux");
-  
-};
 
 #endif

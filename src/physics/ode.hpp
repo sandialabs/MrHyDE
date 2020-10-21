@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -14,57 +16,61 @@
 
 #include "physics_base.hpp"
 
-class ODE : public physicsbase {
-public:
+namespace MrHyDE {
   
-  ODE() {} ;
-  
-  ~ODE() {};
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  ODE(Teuchos::RCP<Teuchos::ParameterList> & settings);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void defineFunctions(Teuchos::ParameterList & fs,
-                       Teuchos::RCP<FunctionManager> & functionManager_);
+  class ODE : public physicsbase {
+  public:
     
-  // ========================================================================================
-  // ========================================================================================
- 
-  void volumeResidual();
-  // ========================================================================================
-  // ========================================================================================
- 
-  void boundaryResidual();
+    ODE() {} ;
+    
+    ~ODE() {};
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    ODE(Teuchos::RCP<Teuchos::ParameterList> & settings);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void defineFunctions(Teuchos::ParameterList & fs,
+                         Teuchos::RCP<FunctionManager> & functionManager_);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void volumeResidual();
+    // ========================================================================================
+    // ========================================================================================
+    
+    void boundaryResidual();
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void edgeResidual();
+    
+    // ========================================================================================
+    // The boundary/edge flux
+    // ========================================================================================
+    
+    void computeFlux();
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void setVars(vector<string> & varlist_);
+    
+    
+  private:
+    
+    int qnum;
+    
+    Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::ODE::volumeResidual() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::ODE::volumeResidual() - evaluation of residual");
+    
+  };
   
-  // ========================================================================================
-  // ========================================================================================
- 
-  void edgeResidual();
-  
-  // ========================================================================================
-  // The boundary/edge flux
-  // ========================================================================================
-
-  void computeFlux();
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void setVars(vector<string> & varlist_);
-  
-  
-private:
-  
-  int qnum;
-  
-  Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::ODE::volumeResidual() - function evaluation");
-  Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::ODE::volumeResidual() - evaluation of residual");
-  
-};
+}
 
 #endif

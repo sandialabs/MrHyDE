@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -20,10 +22,13 @@
 #include "Intrepid2_OrientationTools.hpp"
 #include "Phalanx_DataLayout.hpp"
 
-using namespace std;
 using Kokkos::parallel_for;
 using Kokkos::parallel_reduce;
 using Kokkos::RangePolicy;
+using std::string;
+using std::vector;
+using std::cout;
+using std::endl;
 
 #define MRHYDE_VERSION "1.0"
 
@@ -39,7 +44,6 @@ typedef panzer::GlobalOrdinal GO;
 
 
 #define PI 3.141592653589793238463
-#define MILO_DEBUG false
 typedef Teuchos::MpiComm<int> MpiComm;
 
 // AD typedefs

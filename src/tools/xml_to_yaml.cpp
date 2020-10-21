@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -18,13 +20,13 @@
 #include <fstream>
 
 using namespace Teuchos;
-using namespace std;
+//using namespace std;
 
 int main(int argc, char * argv[]) {
   
   TEUCHOS_ASSERT(argc == 2);
   
-  string prefix = argv[1];
+  std::string prefix = argv[1];
   std::string input_xml_file_name(prefix+".xml");
   auto pList = getParametersFromXmlFile(input_xml_file_name);
   

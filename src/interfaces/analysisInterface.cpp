@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -22,6 +24,7 @@
 #include "ROL_Bounds.hpp"
 #include "ROL_TrustRegionStep.hpp"
 
+using namespace MrHyDE;
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -94,9 +97,9 @@ void analysis::run() {
     vector<ScalarT> response_values;
     vector<vector<ScalarT> > gradient_values;
     
-    stringstream ss;
+    std::stringstream ss;
     std::string sname2 = "sampledata.dat";
-    ofstream sdataOUT(sname2.c_str());
+    std::ofstream sdataOUT(sname2.c_str());
     sdataOUT.precision(16);
     
     
@@ -250,7 +253,7 @@ void analysis::run() {
     
     if (Comm->getRank() == 0) {
       string sptname = "sample_points.dat";
-      ofstream sampOUT(sptname.c_str());
+      std::ofstream sampOUT(sptname.c_str());
       sampOUT.precision(6);
       for (int r=0; r<samplepts.extent(0); r++) {
         for (int d=0; d<samplepts.extent(1); d++) {
@@ -261,7 +264,7 @@ void analysis::run() {
       sampOUT.close();
       
       string sname = "sample_data.dat";
-      ofstream respOUT(sname.c_str());
+      std::ofstream respOUT(sname.c_str());
       respOUT.precision(6);
       for (int r=0; r<response_values.size(); r++) {
         for (int s=0; s<response_values[r].extent(0); s++) { // sensor index
@@ -277,7 +280,7 @@ void analysis::run() {
       
       if (settings->sublist("Postprocess").get<bool>("compute response forward gradient",false)) {
         string sname = "sample_grads.dat";
-        ofstream gradOUT(sname.c_str());
+        std::ofstream gradOUT(sname.c_str());
         gradOUT.precision(6);
         for (int r=0; r<response_grads.size(); r++) {
           for (int s=0; s<response_grads[r].extent(0); s++) { // sensor index
@@ -510,7 +513,7 @@ void analysis::run() {
     ScalarT optTime = timer.stop();
     if (Comm->getRank() == 0 ) {
       string outname = ROLsettings.get("Output File Name","ROL_out.txt");
-      ofstream respOUT(outname);
+      std::ofstream respOUT(outname);
       respOUT.precision(16);
       for ( unsigned i = 0; i < output.size(); i++ ) {
         std::cout << output[i];
@@ -527,7 +530,7 @@ void analysis::run() {
       }
       respOUT.close();
       string outname2 = "final_params.dat";
-      ofstream respOUT2(outname2);
+      std::ofstream respOUT2(outname2);
       respOUT2.precision(16);
       for (int i=0; i<numParams; i++) {
         respOUT2 << (*x_rcp)[i] << endl;
@@ -720,7 +723,7 @@ void analysis::run() {
     ScalarT optTime = timer.stop();
     if (Comm->getRank() == 0 ) {
       string outname = ROLsettings.get("Output File Name","ROL_out.txt");
-      ofstream respOUT(outname);
+      std::ofstream respOUT(outname);
       respOUT.precision(16);
       for ( unsigned i = 0; i < output.size(); i++ ) {
         std::cout << output[i];
@@ -737,7 +740,7 @@ void analysis::run() {
       }
       respOUT.close();
       string outname2 = "final_params.dat";
-      ofstream respOUT2(outname2);
+      std::ofstream respOUT2(outname2);
       respOUT2.precision(16);
       for (int i=0; i<numParams; i++) {
         respOUT2 << (*x_rcp)[i] << endl;

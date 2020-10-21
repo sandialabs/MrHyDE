@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -14,85 +16,89 @@
 
 #include "physics_base.hpp"
 
-static void porousHDIVHYBRIDHelp() {
-  cout << "********** Help and Documentation for the Porous (HDIV) Physics Module **********" << endl << endl;
-  cout << "Model:" << endl << endl;
-  cout << "User defined functions: " << endl << endl;
-}
-
-
-class porousHDIV_HYBRID : public physicsbase {
-public:
+namespace MrHyDE {
   
-  // ========================================================================================
-  /* Constructor to set up the problem */
-  // ========================================================================================
+  static void porousHDIVHYBRIDHelp() {
+    cout << "********** Help and Documentation for the Porous (HDIV) Physics Module **********" << endl << endl;
+    cout << "Model:" << endl << endl;
+    cout << "User defined functions: " << endl << endl;
+  }
   
-  porousHDIV_HYBRID() {} ;
   
-  ~porousHDIV_HYBRID() {};
-  
-  porousHDIV_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void defineFunctions(Teuchos::ParameterList & fs,
-                       Teuchos::RCP<FunctionManager> & functionManager_);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void volumeResidual();
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void boundaryResidual();
-  
-  // ========================================================================================
-  // The edge (2D) and face (3D) contributions to the residual
-  // ========================================================================================
-  
-  void faceResidual();
-  
-  // ========================================================================================
-  // The boundary/edge flux
-  // ========================================================================================
-  
-  void computeFlux();
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void setVars(std::vector<string> & varlist_);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void setAuxVars(std::vector<string> & auxvarlist);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void updatePerm(FDATA Kinv_xx, FDATA Kinv_yy, FDATA Kinv_zz);
-  
-private:
-  
-  int spaceDim;
-  
-  int pnum=-1, unum=-1, lambdanum=-1;
-  int auxpnum=-1, auxunum=-1, auxlambdanum=-1;
-  int dxnum=-1, dynum=-1, dznum=-1;
-  bool isTD, addBiot, usePermData;
-  ScalarT biot_alpha;
+  class porousHDIV_HYBRID : public physicsbase {
+  public:
     
-  Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::volumeResidual() - function evaluation");
-  Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::volumeResidual() - evaluation of residual");
-  Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::computeFlux() - evaluation of interface flux");
-  Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::boundaryResidual() - function evaluation");
-  Teuchos::RCP<Teuchos::Time> boundaryResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::boundaryResidual() - evaluation of residual");
+    // ========================================================================================
+    /* Constructor to set up the problem */
+    // ========================================================================================
+    
+    porousHDIV_HYBRID() {} ;
+    
+    ~porousHDIV_HYBRID() {};
+    
+    porousHDIV_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void defineFunctions(Teuchos::ParameterList & fs,
+                         Teuchos::RCP<FunctionManager> & functionManager_);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void volumeResidual();
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void boundaryResidual();
+    
+    // ========================================================================================
+    // The edge (2D) and face (3D) contributions to the residual
+    // ========================================================================================
+    
+    void faceResidual();
+    
+    // ========================================================================================
+    // The boundary/edge flux
+    // ========================================================================================
+    
+    void computeFlux();
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void setVars(std::vector<string> & varlist_);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void setAuxVars(std::vector<string> & auxvarlist);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void updatePerm(FDATA Kinv_xx, FDATA Kinv_yy, FDATA Kinv_zz);
+    
+  private:
+    
+    int spaceDim;
+    
+    int pnum=-1, unum=-1, lambdanum=-1;
+    int auxpnum=-1, auxunum=-1, auxlambdanum=-1;
+    int dxnum=-1, dynum=-1, dznum=-1;
+    bool isTD, addBiot, usePermData;
+    ScalarT biot_alpha;
+    
+    Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::volumeResidual() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::volumeResidual() - evaluation of residual");
+    Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::computeFlux() - evaluation of interface flux");
+    Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::boundaryResidual() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> boundaryResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV_HYBRID::boundaryResidual() - evaluation of residual");
+    
+  };
   
-};
+}
 
 #endif

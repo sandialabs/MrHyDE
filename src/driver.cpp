@@ -38,6 +38,8 @@ int main(int argc,char * argv[]) {
   EPIC_FAIL // MRHYDE requires MPI for HostDevice
 #endif
   
+  using namespace MrHyDE;
+  
   int verbosity = 0;
   bool profile = false;
   
@@ -46,29 +48,29 @@ int main(int argc,char * argv[]) {
   Teuchos::RCP<Teuchos::Time> totalTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::driver::total setup and execution time");
   Teuchos::RCP<Teuchos::Time> runTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::driver::total run time");
   
-  string input_file_name = "input.yaml";
+  std::string input_file_name = "input.yaml";
   if (argc > 1) {
     input_file_name = argv[1];
   }
   if (input_file_name == "--version") {
-    cout << endl << "MrHyDE - A framework for Multi-resolution Hybridized Differential Equations -- Version " << MRHYDE_VERSION << endl << endl;
-    cout << "Copyright 2018 National Technology & Engineering Solutions of Sandia, LLC (NTESS)." << endl;
-    cout << "Under the terms of Contract DE-NA0003525 with NTESS, the U.S. Government retains certain rights in this software." << endl << endl;
-    cout << "Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or Bart van Bloemen Waanders (bartv@sandia.gov)" << endl << endl;
+    std::cout << std::endl << "MrHyDE - A framework for Multi-resolution Hybridized Differential Equations -- Version " << MRHYDE_VERSION << std::endl << std::endl;
+    std::cout << "Copyright 2018 National Technology & Engineering Solutions of Sandia, LLC (NTESS)." << std::endl;
+    std::cout << "Under the terms of Contract DE-NA0003525 with NTESS, the U.S. Government retains certain rights in this software." << std::endl << std::endl;
+    std::cout << "Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or Bart van Bloemen Waanders (bartv@sandia.gov)" << std::endl << std::endl;
   }
   else if (input_file_name == "--help") {
     if (argc > 2) {
-      string helpwhat = argv[2];
-      string details = "none";
+      std::string helpwhat = argv[2];
+      std::string details = "none";
       if (argc > 3) {
         details = argv[3];
       }
       MrHyDEHelp::printHelp(helpwhat, details);
     }
     else {
-      cout << endl << "MrHyDE - Multiscale/Multiphysics Interfaces for Large-scale Optimization" << endl << endl;
-      cout << "Suggested help topics: user, physics, solver, analysis, postprocess" << endl;
-      cout << "Example: mpiexec -n 1 MrHyDE --help solver" << endl << endl;
+      std::cout << std::endl << "MrHyDE - Multiscale/Multiphysics Interfaces for Large-scale Optimization" << std::endl << std::endl;
+      std::cout << "Suggested help topics: user, physics, solver, analysis, postprocess" << std::endl;
+      std::cout << "Example: mpiexec -n 1 MrHyDE --help solver" << std::endl << std::endl;
     }
   }
   else {
@@ -126,9 +128,9 @@ int main(int argc,char * argv[]) {
     // Create the function managers
     ////////////////////////////////////////////////////////////////////////////////
     
-    vector<string> eBlocks;
+    std::vector<std::string> eBlocks;
     mesh->mesh->getElementBlockNames(eBlocks);
-    vector<Teuchos::RCP<FunctionManager> > functionManagers;
+    std::vector<Teuchos::RCP<FunctionManager> > functionManagers;
     for (size_t b=0; b<eBlocks.size(); b++) {
       functionManagers.push_back(Teuchos::rcp(new FunctionManager(eBlocks[b],
                                                                   numElemPerCell,
@@ -170,7 +172,7 @@ int main(int argc,char * argv[]) {
     // Set up the subgrid discretizations/models if using multiscale method
     ////////////////////////////////////////////////////////////////////////////////
     
-    vector<Teuchos::RCP<SubGridModel> > subgridModels = subgridGenerator(subgridComm, settings, mesh->mesh);
+    std::vector<Teuchos::RCP<SubGridModel> > subgridModels = subgridGenerator(subgridComm, settings, mesh->mesh);
     
     Teuchos::RCP<MultiScale> multiscale_manager = Teuchos::rcp( new MultiScale(Comm, subgridComm, settings,
                                                                                assembler->cells, subgridModels,
@@ -228,7 +230,7 @@ int main(int argc,char * argv[]) {
     
     ////////////////////////////////////////////////////////////////////////////////
     // Perform the requested analysis (fwd solve, adj solve, dakota run, etc.)
-    // stored in settings->get<string>("analysis_type")
+    // stored in settings->get<std::string>("analysis_type")
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<analysis> analys = Teuchos::rcp( new analysis(Comm, settings,

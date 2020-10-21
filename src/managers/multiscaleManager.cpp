@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -10,6 +12,8 @@
  ************************************************************************/
 
 #include "multiscaleManager.hpp"
+
+using namespace MrHyDE;
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -41,7 +45,7 @@ macro_functionManagers(macro_functionManagers_) {
     macro_concurrency = settings->sublist("Subgrid").get<int>("macro-element concurrency",1);
     int numElem = settings->sublist("Solver").get<int>("workset size",1);
     for (size_t n=0; n<subgridModels.size(); n++) {
-      stringstream ss;
+      std::stringstream ss;
       ss << n;
       macro_functionManagers[0]->addFunction("Subgrid " + ss.str() + " usage",subgridModels[n]->usage, "ip");
     }
@@ -125,7 +129,7 @@ ScalarT MultiScale::initialize() {
       vector<int> sgvotes(subgridModels.size(),0);
       
       for (size_t s=0; s<subgridModels.size(); s++) {
-        stringstream ss;
+        std::stringstream ss;
         ss << s;
         FDATA usagecheck = macro_functionManagers[0]->evaluate("Subgrid " + ss.str() + " usage","ip");
         
@@ -209,10 +213,10 @@ ScalarT MultiScale::initialize() {
       DRV ip = subgridModels[i]->getIP();
       DRV wts = subgridModels[i]->getIPWts();
       
-      pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > basisinfo_i = subgridModels[i]->evaluateBasis2(ip);
+      std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > basisinfo_i = subgridModels[i]->evaluateBasis2(ip);
       vector<Teuchos::RCP<LA_CrsMatrix> > currmaps;
       for (size_t j=0; j<subgridModels.size(); j++) {
-        pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > basisinfo_j = subgridModels[j]->evaluateBasis2(ip);
+        std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > basisinfo_j = subgridModels[j]->evaluateBasis2(ip);
         Teuchos::RCP<LA_CrsMatrix> map = subgridModels[i]->getProjectionMatrix(ip, wts, basisinfo_j);
         currmaps.push_back(map);
       }
@@ -291,7 +295,7 @@ ScalarT MultiScale::update() {
           vector<int> sgvotes(subgridModels.size(),0);
           
           for (size_t s=0; s<subgridModels.size(); s++) {
-            stringstream ss;
+            std::stringstream ss;
             ss << s;
             FDATA usagecheck = macro_functionManagers[0]->evaluate("Subgrid " + ss.str() + " usage","ip");
             for (int p=0; p<cells[b][e]->numElem; p++) {
@@ -409,7 +413,7 @@ void MultiScale::writeSolution(const string & macrofilename, const vector<Scalar
         for (size_t e=0; e<cells[b].size(); e++) {
           //for (size_t c=0; c<cells[b][e]->numElem; c++) {
             
-            stringstream ss;
+            std::stringstream ss;
             ss << globalPID << "." << e;
             string filename = "subgrid_data/subgrid_"+macrofilename + "." + ss.str();// + ".exo";
             //cells[b][e]->writeSubgridSolution(blockname);

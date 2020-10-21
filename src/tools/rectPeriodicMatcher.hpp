@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -9,27 +11,31 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-class rectPeriodicMatcher{
-
-private:
+namespace MrHyDE {
+  
+  class rectPeriodicMatcher{
+    
+  private:
     ScalarT tol_;
     
-public:
+  public:
     rectPeriodicMatcher(): tol_(1.e-8) {};
     rectPeriodicMatcher(const ScalarT & tol): tol_(tol) {};
     
     bool operator()(const Teuchos::Tuple<ScalarT,3> & a,
                     const Teuchos::Tuple<ScalarT,3> & b) const {
-        return ((std::fabs(a[1]-b[1])<tol_) || (std::fabs(a[0]-b[0])<tol_));
+      return ((std::fabs(a[1]-b[1])<tol_) || (std::fabs(a[0]-b[0])<tol_));
     }
     
     void setTol(ScalarT const & tol){
-        tol_ = tol;
+      tol_ = tol;
     }
-
+    
     std::string getString() const { 
-        std::stringstream ss;
-        ss << "...not sure what this is for...";
-        return ss.str();
+      std::stringstream ss;
+      ss << "...not sure what this is for...";
+      return ss.str();
     }
-};
+  };
+  
+}

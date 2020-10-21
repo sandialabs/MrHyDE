@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized
+ Differential Equations (MrHyDE), an optimized version of
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -11,6 +13,9 @@
 
 #include "functionManager.hpp"
 #include "interpreter.hpp"
+
+using namespace MrHyDE;
+//using namespace std;
 
 FunctionManager::FunctionManager() {
   // This really should NOT be constructed
@@ -787,7 +792,8 @@ template<class T1, class T2>
 void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   size_t dim0 = std::min(data.extent(0),tdata.extent(0));
   //size_t dim1 = std::min(data.extent(1),tdata.extent(1));
-  
+  using namespace std;
+
   if (op == "") {
     parallel_for("funcman evaluate equals",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
