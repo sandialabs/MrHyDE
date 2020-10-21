@@ -1,0 +1,45 @@
+
+# Machine name: white
+# Machine type: hybrid CPU/GPU (Power8+ with various GPUs)
+# Build type: serial+cuda
+
+# Use ATDM environment settings
+# source /ascldap/users/tmwilde/Trilinos/cmake/std/atdm/load-env.sh cuda-10.1-opt
+#
+# Use newer cmake with ninja
+# module unload cmake/3.9.6
+# module load cmake/3.12.3
+# module load ninja/1.7.2
+#
+# Modules used:
+#  1) cuda/10.1.105                                            8) zlib/1.2.8                                              15) metis/5.0.1/gcc/7.2.0
+#  2) ucx/1.5.1                                                9) hdf5/1.10.5/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105       16) parmetis/4.0.3/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105
+#  3) binutils/2.30.0                                         10) netcdf/4.6.1/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105      17) cmake/3.12.3
+#  4) gcc/7.2.0                                               11) cgns/20190329/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105     18) git/2.10.1
+#  5) papi/5.6.0                                              12) superlu/4.3.0/gcc/7.2.0                                 19) valgrind/3.12.0
+#  6) openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105                   13) openblas/0.3.4/gcc/7.4.0                                20) devpack/20190404/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105
+#  7) pnetcdf/1.9.0/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105     14) boost/1.65.1/gcc/7.2.0                                  21) ninja/1.7.2
+
+EXTRA_ARGS=$@
+  
+rm CMakeCache.txt
+rm -rf CMakeFiles/
+
+TRILINOS_HOME='/ascldap/users/tmwilde/Trilinos'
+
+TRILINOS_INSTALL='/ascldap/users/tmwilde/Trilinos/install-hybrid3'
+
+CODE_HOME='/ascldap/users/tmwilde/MrHyDE'
+
+CODE_INSTALL='/ascldap/users/tmwilde/MyHyDE/install-white'
+
+cmake \
+-G Ninja \
+-D Trilinos_SRC_DIR=${TRILINOS_HOME} \
+-D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
+-D CMAKE_CXX_FLAGS:STRING="-lcusolver" \
+-D CMAKE_INSTALL_PREFIX:PATH=${CODE_INSTALL} \
+-D MrHyDE_ASSEMBLY_GPU=ON \
+${EXTRA-ARGS} \
+${CODE_HOME}
+
