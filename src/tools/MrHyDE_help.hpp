@@ -1,4 +1,6 @@
 /***********************************************************************
+ This is a framework for solving Multi-resolution Hybridized Differential Equations (MrHyDE),
+ an optimized version of 
  Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
@@ -9,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef MILOHELP_H
-#define MILOHELP_H
+#ifndef MRHYDEHELP_H
+#define MRHYDEHELP_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
@@ -26,7 +28,7 @@
 #include "multiscaleManager.hpp"
 #include "uqManager.hpp"
 
-class MILOHelp {
+class MrHyDEHelp {
 public:
   
   ////////////////////////////////////////////////////////////////////////////////

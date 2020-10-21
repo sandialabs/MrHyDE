@@ -1,5 +1,5 @@
 /***********************************************************************
-Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+Multiscale/Multiphysics Interfaces for Large-scale Optimization (MrHyDE)
 
 Copyright 2018 National Technology & Engineering Solutions of Sandia,
 LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
@@ -25,7 +25,7 @@ Bart van Bloemen Waanders (bartv@sandia.gov)
 
 #include "preferences.hpp"
 #include "subgridGenerator.hpp"
-#include "milo_help.hpp"
+#include "MrHyDE_help.hpp"
 #include "functionManager.hpp"
 #include "split_mpi_communicators.hpp"
 
@@ -35,7 +35,7 @@ int main(int argc,char * argv[]) {
   Teuchos::GlobalMPISession mpiSession(&argc, &argv,0);
   Teuchos::RCP<MpiComm> Comm = Teuchos::rcp( new MpiComm(MPI_COMM_WORLD) );
 #else
-  EPIC_FAIL // MILO requires MPI for HostDevice
+  EPIC_FAIL // MRHYDE requires MPI for HostDevice
 #endif
   
   int verbosity = 0;
@@ -43,15 +43,15 @@ int main(int argc,char * argv[]) {
   
   Kokkos::initialize();
   
-  Teuchos::RCP<Teuchos::Time> totalTimer = Teuchos::TimeMonitor::getNewCounter("MILO::driver::total setup and execution time");
-  Teuchos::RCP<Teuchos::Time> runTimer = Teuchos::TimeMonitor::getNewCounter("MILO::driver::total run time");
+  Teuchos::RCP<Teuchos::Time> totalTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::driver::total setup and execution time");
+  Teuchos::RCP<Teuchos::Time> runTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::driver::total run time");
   
   string input_file_name = "input.yaml";
   if (argc > 1) {
     input_file_name = argv[1];
   }
   if (input_file_name == "--version") {
-    cout << endl << "MILO - Multiscale/Multiphysics Interfaces for Large-scale Optimization -- Version " << MILO_VERSION << endl << endl;
+    cout << endl << "MrHyDE - A framework for Multi-resolution Hybridized Differential Equations -- Version " << MRHYDE_VERSION << endl << endl;
     cout << "Copyright 2018 National Technology & Engineering Solutions of Sandia, LLC (NTESS)." << endl;
     cout << "Under the terms of Contract DE-NA0003525 with NTESS, the U.S. Government retains certain rights in this software." << endl << endl;
     cout << "Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or Bart van Bloemen Waanders (bartv@sandia.gov)" << endl << endl;
@@ -63,12 +63,12 @@ int main(int argc,char * argv[]) {
       if (argc > 3) {
         details = argv[3];
       }
-      MILOHelp::printHelp(helpwhat, details);
+      MrHyDEHelp::printHelp(helpwhat, details);
     }
     else {
-      cout << endl << "MILO - Multiscale/Multiphysics Interfaces for Large-scale Optimization" << endl << endl;
+      cout << endl << "MrHyDE - Multiscale/Multiphysics Interfaces for Large-scale Optimization" << endl << endl;
       cout << "Suggested help topics: user, physics, solver, analysis, postprocess" << endl;
-      cout << "Example: mpiexec -n 1 milo --help solver" << endl << endl;
+      cout << "Example: mpiexec -n 1 MrHyDE --help solver" << endl << endl;
     }
   }
   else {
@@ -246,7 +246,7 @@ int main(int argc,char * argv[]) {
   }
   else if (profile) {
     std::filebuf fb;
-    fb.open ("MILO.profile",std::ios::out);
+    fb.open ("MrHyDE.profile",std::ios::out);
     std::ostream os(&fb);
     Teuchos::RCP<Teuchos::ParameterList> outlist = rcp(new Teuchos::ParameterList("options"));
     outlist->set("Report format","YAML");

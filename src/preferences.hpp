@@ -25,16 +25,16 @@ using Kokkos::parallel_for;
 using Kokkos::parallel_reduce;
 using Kokkos::RangePolicy;
 
-#define MILO_VERSION "1.0"
+#define MRHYDE_VERSION "1.0"
 
 typedef double ScalarT;
 typedef int LO;
-typedef panzer::GlobalOrdinal GO; // this should really be panzer::GlobalOrdinal
+typedef panzer::GlobalOrdinal GO;
 
 #ifdef MrHyDE_SET_MAX_DERIVS
-#define maxDerivs MrHyDE_SET_MAX_DERIVS // allow us to set this at configure-time with the MrHyDE_MAX_DERIVS flag
+  #define maxDerivs MrHyDE_SET_MAX_DERIVS // allow us to set this at configure-time with the MrHyDE_MAX_DERIVS flag
 #else
-  #define maxDerivs 24 // adjust this to improve performance
+  #define maxDerivs 64 // adjust this to improve performance
 #endif
 
 
@@ -43,62 +43,38 @@ typedef panzer::GlobalOrdinal GO; // this should really be panzer::GlobalOrdinal
 typedef Teuchos::MpiComm<int> MpiComm;
 
 // AD typedefs
-// For implicit time integration
 typedef Sacado::Fad::DFad<ScalarT> DFAD; // used only when absolutely necessary
 typedef Sacado::Fad::SFad<ScalarT,maxDerivs> AD;
-
-// For explicit time integration
-//typedef ScalarT DFAD; // used only when absolutely necessary
-//typedef ScalarT AD;
 
 // Kokkos Execution Space typedefs
 // Format: Kokkos::*
 // Options: Serial, OpenMP, Threads, Cuda
 typedef Kokkos::Serial HostExec; // cannot be Cuda right now
-//#if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
-//  typedef Kokkos::Cuda AssemblyExec;
-//#else
-  typedef Kokkos::Serial AssemblyExec;
-//#endif
-#if defined(MrHyDE_SUBGRIDSPACE_CUDA)
-  typedef Kokkos::Cuda SubgridExec;
+#if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+  typedef Kokkos::Cuda AssemblyExec;
 #else
-  typedef Kokkos::Serial SubgridExec;
+  typedef Kokkos::Serial AssemblyExec;
 #endif
 
 // Kokkos Memory Space typedefs
 // Format: Kokkos::*
 // Options: HostSpace, CudaSpace, CudaUVMSpace
 typedef Kokkos::HostSpace HostMem; // cannot be CudaSpace right now
-//#if defined(MrHyDE_ASSEMBLYMEM_CUDAUVM)
-//  typedef Kokkos::CudaUVMSpace AssemblyMem;
-//#else
-  typedef Kokkos::HostSpace AssemblyMem;
-//#endif
-#if defined(MrHyDE_SUBGRIDMEM_CUDAUVM)
-  typedef Kokkos::CudaUVMSpace SubgridMem;
+#if defined(MrHyDE_ASSEMBLYMEM_CUDAUVM)
+  typedef Kokkos::CudaUVMSpace AssemblyMem;
 #else
-  typedef Kokkos::HostSpace SubgridMem;
+  typedef Kokkos::HostSpace AssemblyMem;
 #endif
-
-// Define a unified memory space for data required on Host and Device
-// If HostMem == AssemblyMem == HostSpace, then UnifiedMem = HostSpace
-// If HostMem == HostSpace and AssemblyMem == CudaSpace, then UnifiedMem = CudaUVMSpace
-//typedef Kokkos::HostSpace UnifiedMem;
-typedef Kokkos::HostSpace UnifiedMem;
 
 // Kokkos Node typedefs
 // Format: Kokkos::Compat::Kokkos*WrapperNode
 // Options: Serial, OpenMP, Threads, Cuda
 typedef Kokkos::Compat::KokkosSerialWrapperNode HostNode;
 typedef Kokkos::Compat::KokkosSerialWrapperNode AssemblyNode;
-typedef Kokkos::Compat::KokkosSerialWrapperNode SubgridNode;
 
 // Typedef Kokkos devices based on Exec, Mem
 typedef Kokkos::Device<HostExec,HostMem> HostDevice;
 typedef Kokkos::Device<AssemblyExec,AssemblyMem> AssemblyDevice;
-typedef Kokkos::Device<SubgridExec,SubgridMem> SubgridDevice;
-typedef Kokkos::Device<AssemblyExec,UnifiedMem> UnifiedDevice;
 
 
 // Kokkos object typedefs (preferable to use Kokkos::View<*,Device>)

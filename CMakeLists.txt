@@ -64,7 +64,7 @@ IF(MrHyDE_MAX_DERIVS)
   MESSAGE("Setting max derivs to ${MrHyDE_MAX_DERIVS} based on input flag")
   add_definitions(-DMrHyDE_SET_MAX_DERIVS=${MrHyDE_MAX_DERIVS})
 ELSE()
-  MESSAGE("No max derivs specified. Defaulting to 24.")
+  MESSAGE("No max derivs specified. Defaulting to 64.")
 ENDIF()
 
 # Make sure to use same compilers and flags as Trilinos
