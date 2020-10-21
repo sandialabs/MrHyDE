@@ -1,0 +1,66 @@
+
+# Machine name: weaver
+# Machine type: hybrid CPU/GPU (Power9 with Nvidia Volta GPU)
+# Build type: serial+cuda
+
+# Use ATDM environment settings
+# export ATDM_CONFIG_REGISTER_CUSTOM_CONFIG_DIR=/ascldap/users/tmwilde/Trilinos/cmake/std/atdm/contributed/weaver
+# source /ascldap/users/tmwilde/Trilinos/cmake/std/atdm/load-env.sh weaver-cuda-10.1-opt
+
+# Modules used:
+#  1) git/2.10.1                                                 8) netlib/3.8.0/gcc/7.2.0                                    15) parmetis/4.0.3/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105
+#  2) binutils/2.30.0                                            9) metis/5.0.1/gcc/7.2.0                                     16) boost/1.65.1/gcc/7.2.0
+#  3) gcc/7.2.0                                                 10) zlib/1.2.8                                                17) superlu-dist/4.3.0/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105
+#  4) cuda/10.1.105                                             11) hdf5/1.10.5/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105         18) devpack/20190814/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105
+#  5) numa/2.0.11                                               12) cgns/3.4.0/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105          19) ninja/1.7.2
+#  6) openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105                     13) pnetcdf/1.9.0/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105       20) cmake/3.12.3
+#  7) valgrind/3.12.0                                           14) netcdf/4.6.1/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105
+
+
+
+TRILINOS_DIR='/ascldap/users/tmwilde/Trilinos'
+
+INSTALL_DIR='/ascldap/users/tmwilde/Trilinos/install-weaver2'
+
+cmake \
+-GNinja \
+-D CMAKE_INSTALL_PREFIX:PATH=${INSTALL_DIR} \
+-D Trilinos_CONFIGURE_OPTIONS_FILE:STRING=cmake/std/atdm/ATDMDevEnv.cmake \
+-D Trilinos_ENABLE_TESTS=OFF \
+-D Trilinos_ENABLE_Fortran=ON \
+-D TPL_ENABLE_CUDA=ON \
+-D Kokkos_ENABLE_CUDA=ON \
+-D Kokkos_ENABLE_SERIAL=ON \
+-D Trilinos_ENABLE_ALL_PACKAGES:BOOL=OFF \
+-D Trilinos_ENABLE_ALL_OPTIONAL_PACKAGES:BOOL=OFF \
+-D Trilinos_ENABLE_Belos:BOOL=ON \
+-D Trilinos_ENABLE_ROL:BOOL=ON \
+-D Trilinos_ENABLE_Panzer:BOOL=ON \
+-D Trilinos_ENABLE_Intrepid2:BOOL=ON \
+-D Trilinos_ENABLE_Shards:BOOL=ON \
+-D Trilinos_ENABLE_Amesos2:BOOL=ON \
+-D Trilinos_ENABLE_STKMesh:BOOL=ON \
+-D Trilinos_ENABLE_STKIO:BOOL=ON \
+-D Trilinos_ENABLE_STKUtil:BOOL=ON \
+-D Trilinos_ENABLE_STKSearch:BOOL=ON \
+-D Trilinos_ENABLE_STKTopology:BOOL=ON \
+-D Trilinos_ENABLE_STKTransfer:BOOL=OFF \
+-D Trilinos_ENABLE_SEACAS:BOOL=ON \
+-D TPL_ENABLE_SuperLUDist=OFF \
+-D Anasazi_ENABLE_COMPLEX=OFF \
+-D TPL_ENABLE_Matio=OFF \
+-D STK_ENABLE_ThreadPool=ON \
+-D STK_ENABLE_TESTS:BOOL=OFF \
+-D Panzer_ENABLE_TESTS:BOOL=OFF \
+-D EpetraExt_ENABLE_HDF5:BOOL=OFF \
+-D Panzer_ENABLE_EXAMPLES:BOOL=OFF \
+-D Panzer_ENABLE_EXPLICIT_INSTANTIATION:BOOL=ON \
+-D Trilinos_ENABLE_MueLu=ON \
+-D TPL_ENABLE_Boost:BOOL=ON \
+-D Tpetra_ENABLE_CUDA:BOOL=ON \
+-D Tpetra_INST_CUDA=ON \
+-D Tpetra_ASSUME_CUDA_AWARE_MPI=ON \
+-D TPL_ENABLE_BoostLib:BOOL=ON \
+-D TPL_ENABLE_Netcdf:BOOL=ON \
+-D SEACASExodus_ENABLE_MPI:BOOL=OFF \
+$TRILINOS_DIR

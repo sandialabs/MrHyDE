@@ -1,0 +1,46 @@
+
+# Machine name: weaver
+# Machine type: hybrid CPU/GPU (Power9 with Nvidia Volta GPU)
+# Build type: serial+cuda
+
+# Use ATDM environment settings
+# export ATDM_CONFIG_REGISTER_CUSTOM_CONFIG_DIR=/ascldap/users/tmwilde/Trilinos/cmake/std/atdm/contributed/weaver
+# source /ascldap/users/tmwilde/Trilinos/cmake/std/atdm/load-env.sh weaver-cuda-10.1-opt
+
+# Modules used:
+#  1) git/2.10.1                                                 8) netlib/3.8.0/gcc/7.2.0                                    15) parmetis/4.0.3/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105
+#  2) binutils/2.30.0                                            9) metis/5.0.1/gcc/7.2.0                                     16) boost/1.65.1/gcc/7.2.0
+#  3) gcc/7.2.0                                                 10) zlib/1.2.8                                                17) superlu-dist/4.3.0/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105
+#  4) cuda/10.1.105                                             11) hdf5/1.10.5/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105         18) devpack/20190814/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105
+#  5) numa/2.0.11                                               12) cgns/3.4.0/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105          19) ninja/1.7.2
+#  6) openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105                     13) pnetcdf/1.9.0/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105       20) cmake/3.12.3
+#  7) valgrind/3.12.0                                           14) netcdf/4.6.1/openmpi/4.0.1/gcc/7.2.0/cuda/10.1.105
+
+
+
+TRILINOS_DIR='/ascldap/users/tmwilde/Trilinos'
+
+
+EXTRA_ARGS=$@
+  
+rm CMakeCache.txt
+rm -rf CMakeFiles/
+
+TRILINOS_HOME='/ascldap/users/tmwilde/Trilinos'
+
+TRILINOS_INSTALL='/ascldap/users/tmwilde/Trilinos/install-weaver2'
+
+CODE_HOME='/ascldap/users/tmwilde/MrHyDE'
+
+CODE_INSTALL='/ascldap/users/tmwilde/MyHyDE/install'
+
+cmake \
+-G Ninja \
+-D Trilinos_SRC_DIR=${TRILINOS_HOME} \
+-D CMAKE_CXX_FLAGS:STRING="-lcusolver" \
+-D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
+-D CMAKE_INSTALL_PREFIX:PATH=${CODE_INSTALL} \
+-D MrHyDE_ASSEMBLY_GPU=ON \
+${EXTRA-ARGS} \
+${CODE_HOME}
+
