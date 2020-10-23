@@ -18,11 +18,13 @@
 
 namespace MrHyDE {
   
+  /*
   static void thermalHelp() {
     cout << "********** Help and Documentation for the Thermal Physics Module **********" << endl << endl;
     cout << "Model:" << endl << endl;
     cout << "User defined functions: " << endl << endl;
   }
+  */
   
   class thermal : public physicsbase {
   public:

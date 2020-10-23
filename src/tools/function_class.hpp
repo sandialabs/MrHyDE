@@ -29,7 +29,7 @@ namespace MrHyDE {
     function_class(const string & name, const string & expression_,
                    const size_t & dim0_, const size_t & dim1_,
                    const string & location_) :
-    function_name(name), expression(expression_), dim0(dim0_), dim1(dim1_), location(location_) {
+    dim0(dim0_), dim1(dim1_), function_name(name), expression(expression_), location(location_) {
       
       term newt = term(expression);
       terms.push_back(newt);

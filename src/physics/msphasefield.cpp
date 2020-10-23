@@ -45,10 +45,10 @@ Comm(Comm_) {
   
   // generation of disks for initial condition
   
-  ScalarT tolerance = 2*disksize+5.0;  // 2 times the disk radius
-  ScalarT xpos;
-  ScalarT ypos;
-  ScalarT zpos;
+  //ScalarT tolerance = 2*disksize+5.0;  // 2 times the disk radius
+  ScalarT xpos = 0.0;
+  ScalarT ypos = 0.0;
+  //ScalarT zpos = 0.0;
   
   
   if(initialType=="systematic") {       // extend to 3d
@@ -84,7 +84,7 @@ Comm(Comm_) {
     disk.push_back(xpos);
     disk.push_back(ypos);
     if (spaceDim > 2) {
-      zpos = dis(gen);
+      //zpos = dis(gen);
       //	cout << "proc  " << Comm->MyPID() << " xpos " << xpos << " ypos " << ypos << " zpos " << zpos << endl;
     } else {
       //	cout << "proc  " << Comm->MyPID() << " xpos " << xpos << " ypos " << ypos << endl;
@@ -96,8 +96,9 @@ Comm(Comm_) {
     ypos = rand() % 100;
     disk.push_back(xpos);
     disk.push_back(ypos);
-    if (spaceDim > 2)
-      zpos = rand() % 100;
+    if (spaceDim > 2) {
+      //zpos = rand() % 100;
+    }
     // pushdback to a vector, maybe single vector with x1,y1,x2, y2, etc
   }
   //    disk.push_back(xpos);
@@ -189,19 +190,19 @@ void msphasefield::volumeResidual() {
   
   int resindex;
   
-  int numCubPoints = wkset->ip.extent(1);
+  //int numCubPoints = wkset->ip.extent(1);
   int phi_basis = wkset->usebasis[phi_num[0]];
-  int numBasis = wkset->basis[phi_basis].extent(1);
+  //int numBasis = wkset->basis[phi_basis].extent(1);
   
   // FCAD local_resid(numphases, numBasis);
   
   //ScalarT diff_FAD = diff;
-  ScalarT x = 0.0;
-  ScalarT y = 0.0;
-  ScalarT z = 0.0;
+  //ScalarT x = 0.0;
+  //ScalarT y = 0.0;
+  //ScalarT z = 0.0;
   //    ScalarT current_time = wkset->time;
   
-  ScalarT v, dvdx, dvdy, dvdz;
+  ScalarT v = 0.0, dvdx = 0.0, dvdy = 0.0, dvdz = 0.0;
   
   std::vector<AD>  phi;
   //    std::vector<AD>  phiInterface;
@@ -209,7 +210,7 @@ void msphasefield::volumeResidual() {
   std::vector<AD>  dphidy;
   std::vector<AD>  dphidz;
   std::vector<AD>  phi_dot;
-  AD  sumphi;
+  AD  sumphi = 0.0;
   
   auto sol = wkset->local_soln;
   auto sol_dot = wkset->local_soln_dot;
@@ -222,9 +223,9 @@ void msphasefield::volumeResidual() {
   auto res = wkset->res;
   auto wts = wkset->wts;
   
-  for (size_t e=0; e<basis.extent(0); e++) {
-    for( int k=0; k<ip.extent(1); k++ ) {
-      x = ip(e,k,0);
+  for (size_type e=0; e<basis.extent(0); e++) {
+    for(size_type k=0; k<ip.extent(1); k++ ) {
+      //x = ip(e,k,0);
       
       sumphi = 0.0;
       for(int j=0; j<numphases; j++) {
@@ -233,20 +234,20 @@ void msphasefield::volumeResidual() {
         dphidx.push_back(sol_grad(e,phi_num[j],k,0));
         
         if (spaceDim > 1) {
-          y = ip(e,k,1);
+          //y = ip(e,k,1);
           dphidy.push_back(sol_grad(e,phi_num[j],k,1));
         }
         if (spaceDim > 2) {
-          z = ip(e,k,2);
+          //z = ip(e,k,2);
           dphidz.push_back(sol_grad(e,phi_num[j],k,2));
         }
         sumphi +=  phi[j]*phi[j];
       }
       
       
-      AD Lnum;
-      AD Lden;
-      AD mobility;
+      AD Lnum = 0.0;
+      AD Lden = 0.0;
+      AD mobility = 0.0;
       //      std::mt19937 gen(time(0));
       //      std::uniform_real_distribution<ScalarT> dis(-0.1, 0.1);
       if(variableMobility) {
@@ -257,7 +258,7 @@ void msphasefield::volumeResidual() {
             Lden +=           phi[i] * phi[i] * phi[j] * phi[j];
           }
         }
-        if(Lden < 1E-8) {
+        if(Lden.val() < 1E-8) {
           mobility = 0.01;
         } else {
           mobility = Lnum/Lden;
@@ -265,7 +266,7 @@ void msphasefield::volumeResidual() {
         }
       }
       
-      for( int i=0; i<basis.extent(1); i++ ) {
+      for( size_type i=0; i<basis.extent(1); i++ ) {
         v = basis(e,i,k);
         dvdx = basis_grad(e,i,k,0);
         dvdy = basis_grad(e,i,k,1);
@@ -408,7 +409,7 @@ void msphasefield::computeFlux() {
 
 void msphasefield::setVars(std::vector<string> & varlist) {
   for (size_t i=0; i<varlist.size(); i++) {
-    for (size_t j=1; j<numphases+1; j++) {
+    for (int j=1; j<numphases+1; j++) {
       //	std::string name = "phi";
       // string vartemp = name + std::to_string(j);
       string varphasetemp = "phi" + std::to_string(j);

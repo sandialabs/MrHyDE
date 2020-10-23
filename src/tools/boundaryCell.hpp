@@ -23,10 +23,11 @@
 #include <iterator>     
 
 namespace MrHyDE {
-  
+  /*
   static void boundaryCellHelp(const string & details) {
     cout << "********** Help and Documentation for the cells **********" << endl;
   }
+  */
   
   class BoundaryCell {
   public:
@@ -209,6 +210,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
+
     // Public data 
     Teuchos::RCP<CellMetaData> cellData;
     Teuchos::RCP<workset> wkset;
@@ -217,7 +219,7 @@ namespace MrHyDE {
     Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
     
     // Geometry Information
-    int numElem = 0; // default value ... used to check if proc. has elements on boundary
+    size_t numElem = 0; // default value ... used to check if proc. has elements on boundary
     int sidenum, cellID, wksetBID;
     DRV nodes, ip, wts, normals, tangents;
     Kokkos::View<ScalarT*,AssemblyDevice> hsize;

@@ -184,7 +184,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void store(Teuchos::RCP<V> & newvec, const ScalarT & currtime, const LO & index) {
+    void store(Teuchos::RCP<V> & newvec, const ScalarT & currtime, const size_t & index) {
       
       Teuchos::TimeMonitor localtimer(*solnStorageStoreTimer);
       

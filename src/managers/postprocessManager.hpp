@@ -27,10 +27,11 @@
 //using namespace std;
 
 namespace MrHyDE {
-  
+  /*
   void static postprocessHelp(const std::string & details) {
     cout << "********** Help and Documentation for the Postprocess Interface **********" << endl;
   }
+  */
   
   class PostprocessManager {
   public:
@@ -129,9 +130,8 @@ namespace MrHyDE {
     // ========================================================================================
     
     std::vector<ScalarT> computeDiscretizedSensitivities();
-    
-    //protected:
-    
+      
+      
     Teuchos::RCP<MpiComm> Comm;
     Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
     Teuchos::RCP<discretization> disc;
@@ -144,8 +144,8 @@ namespace MrHyDE {
     Teuchos::RCP<AssemblyManager> assembler;
     Teuchos::RCP<ParameterManager> params;
     Teuchos::RCP<SensorManager> sensors;
-    Teuchos::RCP<MultiScale> multiscale_manager;
     std::vector<Teuchos::RCP<FunctionManager> > functionManagers;
+    Teuchos::RCP<MultiScale> multiscale_manager;
     
     bool compute_response, compute_error, compute_subgrid_error;
     bool write_solution, write_subgrid_solution, write_HFACE_variables, write_optimization_solution;

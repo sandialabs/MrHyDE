@@ -40,7 +40,6 @@ namespace MrHyDE {
       
       size_t numMacro = macronodes.extent(0);
       size_t numEperM = numElem/numMacro;
-      size_t mID = 0;
       size_t prog = 0;
       for (size_t i=0; i<numMacro; i++) {
         for (size_t j=0; j<numEperM; j++) {

@@ -152,7 +152,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
     int currmaxBasis = 0;
     for (int j=0; j<numVars[b]; j++) {
       string var = phys_varlist[b][j];
-      int vnum = DOF->getFieldNum(var);
+      //int vnum = DOF->getFieldNum(var);
       int vub = phys->getUniqueIndex(b,var);
       currvarlist[j] = var;
       curruseBasis[j] = vub;
@@ -971,7 +971,9 @@ void solver::adjointModel(vector<ScalarT> & gradient) {
   if (solver_type == "steady-state") {
     vector_RCP u;
     bool fnd = soln->extract(u, current_time);
-    
+    if (!fnd) {
+      //throw error
+    }
     this->nonlinearSolver(u, phi);
     
     this->computeSensitivities(u, phi, gradient);
@@ -1118,6 +1120,9 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
         numCuts += 1;
         
         bool fnd = soln->extract(u, current_time);
+        if (!fnd) {
+          // throw error
+        }
         if(Comm->getRank() == 0 && verbosity > 0) {
           cout << endl << endl << "*******************************************************" << endl;
           cout << endl << "**** Cutting Time Step " << endl;
@@ -1156,7 +1161,13 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
       // Needs to be generalized
       // Also, need to implement checkpoint/recovery
       bool fndu = soln->extract(u, cindex);
+      if (!fndu) {
+        // throw error
+      }
       bool fndup = soln->extract(u_prev, cindex-1);
+      if (!fndup) {
+        // throw error
+      }
       assembler->performGather(u_prev,0,0);
       assembler->resetPrevSoln();
       
@@ -1165,6 +1176,9 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
       // if multistage, recover forward solution at each stage
       if (numstages == 1) { // No need to re-solve in this case
         int status = this->nonlinearSolver(u, phi);
+        if (status>0) {
+          // throw error
+        }
         this->computeSensitivities(u,phi,gradient);
       }
       else {
@@ -1179,6 +1193,9 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
           assembler->updateStageNumber(stage); // could probably just += 1 in wksets
           
           int status = this->nonlinearSolver(u_stage, zero_vec);
+          if (status>0) {
+            // throw error
+          }
           stage_solns.push_back(u_stage);
           //u->update(1.0, *u_stage, 1.0);
           //u->update(-1.0, *u_prev, 1.0);
@@ -1226,7 +1243,9 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
           assembler->updateStageNumber(stage); // could probably just += 1 in wksets
           
           int status = this->nonlinearSolver(stage_solns[stage], phi_stage);
-          
+          if (status>0) {
+            // throw error
+          }
           phi->update(1.0, *phi_stage, 1.0);
           phi->update(-1.0, *phi_prev, 1.0);
           //assembler->updateStageSoln(); // moves the stage solution into u_stage (avoids mem transfer)
@@ -1471,16 +1490,16 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
         
         Kokkos::View<AD**,AssemblyDevice> obj = assembler->cells[b][e]->computeObjective(time, tindex, 0);
         
-        int numElem = assembler->cells[b][e]->numElem;
+        size_t numElem = assembler->cells[b][e]->numElem;
         
         if (obj.extent(1) > 0) {
-          for (int c=0; c<numElem; c++) {
+          for (size_t c=0; c<numElem; c++) {
             vector<GO> paramGIDs;
             if (params->globalParamUnknowns > 0) {
               params->paramDOF->getElementGIDs(assembler->cells[b][e]->localElemID[c],
                                                paramGIDs, blocknames[b]);
             }
-            for (size_t i=0; i<obj.extent(1); i++) {
+            for (size_type i=0; i<obj.extent(1); i++) {
               totaldiff += obj(c,i);
               if (params->num_active_params > 0) {
                 if (obj(c,i).size() > 0) {
@@ -1492,7 +1511,7 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
               
               if (params->globalParamUnknowns > 0) {
                 
-                for (int row=0; row<params->paramoffsets[0].size(); row++) {
+                for (size_t row=0; row<params->paramoffsets[0].size(); row++) {
                   GO rowIndex = paramGIDs[params->paramoffsets[0][row]];
                   
                   int poffset = params->paramoffsets[0][row];
@@ -1514,12 +1533,12 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
                                                                           params->domainRegTypes,
                                                                           params->domainRegIndices);
           
-          for (int c=0; c<numElem; c++) {
+          for (size_t c=0; c<numElem; c++) {
             vector<GO> paramGIDs;
             params->paramDOF->getElementGIDs(assembler->cells[b][e]->localElemID[c],
                                              paramGIDs, blocknames[b]);
             
-            for (size_t p = 0; p < numDomainParams; p++) {
+            for (int p = 0; p < numDomainParams; p++) {
               paramIndex = params->domainRegIndices[p];
               for( size_t row=0; row<params->paramoffsets[paramIndex].size(); row++ ) {
                 if (regDomain.size() > 0) {
@@ -1545,12 +1564,12 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
                                                                                       params->boundaryRegIndices,
                                                                                       params->boundaryRegSides);
           
-          for (int c=0; c<assembler->boundaryCells[b][e]->numElem; c++) {
+          for (size_t c=0; c<assembler->boundaryCells[b][e]->numElem; c++) {
             vector<GO> paramGIDs;
             params->paramDOF->getElementGIDs(assembler->boundaryCells[b][e]->localElemID[c],
                                              paramGIDs, blocknames[b]);
             
-            for (size_t p = 0; p < numBoundaryParams; p++) {
+            for (int p = 0; p < numBoundaryParams; p++) {
               paramIndex = params->boundaryRegIndices[p];
               for( size_t row=0; row<params->paramoffsets[paramIndex].size(); row++ ) {
                 if (regBoundary.size() > 0) {
@@ -1579,7 +1598,7 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
   
   DFAD fullobj(numParams,meep);
   
-  for (size_t j=0; j< numParams; j++) {
+  for (int j=0; j< numParams; j++) {
     ScalarT dval;
     ScalarT ldval = dmGradient[j] + regGradient[j];
     Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&ldval,&dval);
@@ -1644,7 +1663,7 @@ void solver::computeSensitivities(vector_RCP & u,
     res->putScalar(0.0);
     res->doExport(*res_over, *exporter, Tpetra::ADD);
     
-    for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
+    for (int paramiter=0; paramiter < params->num_active_params; paramiter++) {
       // fine-scale
       if (assembler->cells[0][0]->cellData->multiscale) {
         ScalarT subsens = 0.0;
@@ -1669,16 +1688,18 @@ void solver::computeSensitivities(vector_RCP & u,
     
     ScalarT localval = 0.0;
     ScalarT globalval = 0.0;
-    for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
+    int numderivs = (int)obj_sens.size();
+    for (int paramiter=0; paramiter < params->num_active_params; paramiter++) {
       localval = localsens[paramiter];
       Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
       //Comm->SumAll(&localval, &globalval, 1);
       ScalarT cobj = 0.0;
-      if (paramiter<obj_sens.size()) {
+      
+      if (paramiter<numderivs) {
         cobj = obj_sens.fastAccessDx(paramiter);
       }
       globalval += cobj;
-      if (gradient.size()<=paramiter) {
+      if ((int)gradient.size()<=paramiter) {
         gradient.push_back(globalval);
       }
       else {
@@ -1734,16 +1755,16 @@ void solver::computeSensitivities(vector_RCP & u,
       GO gid = params->paramOwned[i];
       discLocalGradient[gid] = sens_kv(i,0);
     }
-    for (size_t i = 0; i < numDiscParams; i++) {
+    for (int i = 0; i < numDiscParams; i++) {
       ScalarT globalval = 0.0;
       ScalarT localval = discLocalGradient[i];
       Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
       ScalarT cobj = 0.0;
-      if ((i+params->num_active_params)<obj_sens.size()) {
+      if ((i+params->num_active_params)<(int)obj_sens.size()) {
         cobj = obj_sens.fastAccessDx(i+params->num_active_params);
       }
       globalval += cobj;
-      if (gradient.size()<=params->num_active_params+i) {
+      if ((int)gradient.size()<=params->num_active_params+i) {
         gradient.push_back(globalval);
       }
       else {
@@ -1804,7 +1825,7 @@ void solver::setDirichlet(vector_RCP & u) {
     vector<vector<GO> > pointDOFs = phys->point_dofs;
     for (size_t b=0; b<blocknames.size(); b++) {
       vector<GO> pt_dofs = pointDOFs[b];
-      for (int i = 0; i < pt_dofs.size(); i++) {
+      for (size_t i = 0; i < pt_dofs.size(); i++) {
         LO row = LA_overlapped_map->getLocalElement(pt_dofs[i]);
         u_kv(row,0) = 0.0; // fix to zero for now
       }
@@ -1911,9 +1932,9 @@ vector_RCP solver::setInitial() {
         Kokkos::View<LO**,HostDevice> LIDs = assembler->cells[block][cell]->LIDs_host;
         Kokkos::View<LO*,HostDevice> numDOF = assembler->cells[block][cell]->cellData->numDOF_host;
         //parallel_for("solver initial scalar",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (int e=0; e<LIDs.extent(0); e++) {
-          for (size_t n=0; n<numDOF.extent(0); n++) {
-            for (size_t i=0; i<numDOF(n); i++ ) {
+        for (size_type e=0; e<LIDs.extent(0); e++) {
+          for (size_type n=0; n<numDOF.extent(0); n++) {
+            for (int i=0; i<numDOF(n); i++ ) {
               initial_kv(LIDs(e,host_offsets(n,i)),0) = scalarInitialValues[block][n];
             }
           }

@@ -16,12 +16,12 @@ int main(int argc, char * argv[]) {
   const int numDerivs = 24;
   typedef Sacado::Fad::SFad<ScalarT,numDerivs> EvalT;
   //typedef double EvalT;
-  typedef Kokkos::View<EvalT*,AssemblyDevice> View1;
-  typedef Kokkos::View<EvalT**,AssemblyDevice> View2;
-  typedef Kokkos::View<EvalT***,AssemblyDevice> View3;
+  //typedef Kokkos::View<EvalT*,AssemblyDevice> View1;
+  //typedef Kokkos::View<EvalT**,AssemblyDevice> View2;
+  //typedef Kokkos::View<EvalT***,AssemblyDevice> View3;
   typedef Kokkos::View<EvalT****,AssemblyDevice> View4;
-  typedef Kokkos::View<EvalT**,HostDevice> View2_host;
-  typedef Kokkos::View<EvalT****,HostDevice> View4_host;
+  //typedef Kokkos::View<EvalT**,HostDevice> View2_host;
+  //typedef Kokkos::View<EvalT****,HostDevice> View4_host;
   
   
   
@@ -30,7 +30,7 @@ int main(int argc, char * argv[]) {
     int numip = 8;
     int numvars = 3;
     int dimension = 3;
-    int numrepeats = 1;
+    //int numrepeats = 1;
     int numdof = 8;
     
     ////////////////////////////////////////////////
@@ -49,11 +49,11 @@ int main(int argc, char * argv[]) {
       timer.reset();
       
       parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for (int var=0; var<sol_dof.extent(1); var++) {
-          for (int dof=0; dof<basis.extent(1); dof++) {
+        for (size_type var=0; var<sol_dof.extent(1); var++) {
+          for (size_type dof=0; dof<basis.extent(1); dof++) {
             EvalT uval = sol_dof(elem,var,dof);
-            for (size_t pt=0; pt<basis.extent(2); pt++ ) {
-              for (int s=0; s<basis.extent(3); s++ ) {
+            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+              for (size_type s=0; s<basis.extent(3); s++ ) {
                 sol_ip(elem,var,pt,s) += uval*basis(elem,dof,pt,s);
               }
             }
@@ -77,13 +77,13 @@ int main(int argc, char * argv[]) {
       //parallel_for(RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       parallel_for(TeamPolicy(basis.extent(0),team_size,vector_size), KOKKOS_LAMBDA (const typename TeamPolicy::member_type& team) {
         const size_t elem = team.league_rank();
-        for (int var=0; var<sol_dof.extent(1); var++) {
+        for (size_type var=0; var<sol_dof.extent(1); var++) {
           
           //for (int dof=team_index; dof<basis.extent(1); dof+=team_size) {
-          for (int dof=0; dof<basis.extent(1); dof++) {
+          for (size_type dof=0; dof<basis.extent(1); dof++) {
             EvalT uval = sol_dof(elem,var,dof);
-            for (size_t pt=0; pt<basis.extent(2); pt++ ) {
-              for (int s=0; s<basis.extent(3); s++ ) {
+            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+              for (size_type s=0; s<basis.extent(3); s++ ) {
                 sol_ip(elem,var,pt,s) += uval*basis(elem,dof,pt,s);
               }
             }

@@ -25,12 +25,13 @@
 
 namespace MrHyDE {
   
+  /*
   static void physicsHelp(const string & details) {
     
     if (details == "none") {
       cout << "********** Help and Documentation for the Physics Interface **********" << endl;
     }
-    /*
+    
      else if (details == "porousHDIV") {
      porousHDIVHelp();
      }
@@ -64,8 +65,9 @@ namespace MrHyDE {
      else {
      cout << "Physics module help: unrecognized details: " << details << endl;
      }
-     */
+     
   }
+  */
   
   class physics {
   public:
@@ -299,6 +301,7 @@ namespace MrHyDE {
     // Public data members
     /////////////////////////////////////////////////////////////////////////////////////////////
     
+    Teuchos::RCP<Teuchos::ParameterList> settings;
     vector<vector<Teuchos::RCP<physicsbase> > > modules;
     vector<Teuchos::RCP<FunctionManager> > functionManagers;
     Teuchos::RCP<MpiComm> Commptr;
@@ -306,7 +309,6 @@ namespace MrHyDE {
     vector<string> blocknames, sideNames;
     int spaceDim, milo_debug_level;
     size_t numBlocks;
-    Teuchos::RCP<Teuchos::ParameterList> settings;
     
     
     vector<int> numVars;

@@ -68,7 +68,7 @@ namespace panzer_stk {
     Teuchos::RCP<const Teuchos::ParameterList> getValidParameters() const;
     
     //! what is the 2D tuple describe this processor distribution
-    Teuchos::Tuple<std::size_t,2> procRankToProcTuple(std::size_t procRank) const;
+    //Teuchos::Tuple<std::size_t,2> procRankToProcTuple(std::size_t procRank) const;
    
     
   protected:

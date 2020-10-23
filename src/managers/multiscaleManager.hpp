@@ -21,10 +21,11 @@
 #include "Amesos2.hpp"
 
 namespace MrHyDE {
-  
+  /*
   void static multiscaleHelp(const std::string & details) {
     cout << "********** Help and Documentation for the Multiscale Interface **********" << endl;
   }
+  */
   
   class MultiScale {
   public:
@@ -97,7 +98,7 @@ namespace MrHyDE {
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
-    
+     
     bool subgrid_static;
     int milo_debug_level, macro_concurrency;
     std::vector<Teuchos::RCP<SubGridModel> > subgridModels;

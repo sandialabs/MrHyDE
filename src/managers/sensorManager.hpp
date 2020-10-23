@@ -57,7 +57,7 @@ namespace MrHyDE {
           
           if (numSensorsInCell > 0) {
             assembler->cells[0][i]->mySensorIDs.push_back(numSensors); // hack for dakota
-            for (size_t j=0; j<numSensorsInCell; j++) {
+            for (int j=0; j<numSensorsInCell; j++) {
               // sensorLocation
               Kokkos::View<ScalarT**,HostDevice> sensor_loc("sensor location",1,spaceDim);
               std::stringstream ssSensorNum;
@@ -77,7 +77,7 @@ namespace MrHyDE {
               // sensorData
               Kokkos::View<ScalarT**,HostDevice> sensor_data("sensor data",1,mesh->numResponses+1);
               sensor_data(0,0) = 0.0; // time index
-              for (size_t k=1; k<mesh->numResponses+1; k++) {
+              for (int k=1; k<mesh->numResponses+1; k++) {
                 std::stringstream ssRespNum;
                 ssRespNum << k;
                 string respNum = ssRespNum.str();

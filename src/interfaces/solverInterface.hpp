@@ -45,10 +45,11 @@
 typedef Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator> LA_LinearProblem;
 
 namespace MrHyDE {
-  
+  /*
   void static solverHelp(const string & details) {
     cout << "********** Help and Documentation for the Solver Interface **********" << endl;
   }
+  */
   
   class solver {
   public:
@@ -176,12 +177,12 @@ namespace MrHyDE {
     
     Teuchos::RCP<MpiComm> Comm;
     Teuchos::RCP<Teuchos::ParameterList> settings;
+    Teuchos::RCP<meshInterface>  mesh;
     Teuchos::RCP<discretization> disc;
     Teuchos::RCP<physics> phys;
     Teuchos::RCP<const panzer::DOFManager> DOF;
     Teuchos::RCP<AssemblyManager> assembler;
     Teuchos::RCP<ParameterManager> params;
-    Teuchos::RCP<meshInterface>  mesh;
     Teuchos::RCP<PostprocessManager> postproc;
     Teuchos::RCP<MultiScale> multiscale_manager;
     

@@ -105,20 +105,20 @@ void maxwell_HYBRID::volumeResidual() {
 
     ScalarT v = 0.0;
 
-    for (int k=0; k<basis.extent(2); k++ ) {
+    for (size_type k=0; k<basis.extent(2); k++ ) {
 
       AD dEx_dt = sol_dot(e,Ex_num,k,0);
-      AD dEy_dt, dEz_dt;
+      AD dEy_dt = 0.0, dEz_dt = 0.0;
 
       if(spaceDim > 1) {
-        AD dEy_dt = sol_dot(e,Ey_num,k,0);
+        dEy_dt = sol_dot(e,Ey_num,k,0);
       }
 
       if(spaceDim > 2) {
-        AD dEz_dt = sol_dot(e,Ez_num,k,0);
+        dEz_dt = sol_dot(e,Ez_num,k,0);
       }
 
-      for(int i=0; i<basis.extent(1); i++) {
+      for(size_type i=0; i<basis.extent(1); i++) {
 
         int resindex_x = offsets(Ex_num,i);
         int resindex_y = offsets(Ey_num,i);
@@ -142,20 +142,20 @@ void maxwell_HYBRID::volumeResidual() {
 
     ScalarT v = 0.0;
 
-    for (int k=0; k<basis.extent(2); k++ ) {
+    for (size_type k=0; k<basis.extent(2); k++ ) {
 
       AD dHx_dt = sol_dot(e,Hx_num,k,0);
-      AD dHy_dt, dHz_dt;
+      AD dHy_dt = 0.0, dHz_dt = 0.0;
 
       if(spaceDim > 1) {
-        AD dHy_dt = sol_dot(e,Hy_num,k,0);
+        dHy_dt = sol_dot(e,Hy_num,k,0);
       }
 
       if(spaceDim > 2) {
-        AD dHz_dt = sol_dot(e,Hz_num,k,0);
+        dHz_dt = sol_dot(e,Hz_num,k,0);
       }
 
-      for(int i=0; i<basis.extent(1); i++) {
+      for(size_type i=0; i<basis.extent(1); i++) {
 
         int resindex_x = offsets(Hx_num,i);
         int resindex_y = offsets(Hy_num,i);
@@ -186,20 +186,20 @@ void maxwell_HYBRID::volumeResidual() {
     ScalarT dvdy = 0.0;
     ScalarT dvdz = 0.0;
 
-    for (int k=0; k<basis.extent(2); k++ ) {
+    for (size_type k=0; k<basis.extent(2); k++ ) {
 
       AD Hx = sol(e,Hx_num,k,0);
-      AD Hy, Hz;
+      AD Hy = 0.0, Hz = 0.0;
 
       if(spaceDim > 1) {
-        AD Hy = sol(e,Hy_num,k,0);
+        Hy = sol(e,Hy_num,k,0);
       }
 
       if(spaceDim > 2) {
-        AD Hz = sol(e,Hz_num,k,0);
+        Hz = sol(e,Hz_num,k,0);
       }
 
-      for(int i=0; i<basis.extent(1); i++) {
+      for(size_type i=0; i<basis.extent(1); i++) {
 
         dvdx = basis_grad(e,i,k,0);
 
@@ -231,13 +231,14 @@ void maxwell_HYBRID::volumeResidual() {
 
     ScalarT v = 0.0;
 
-    for (int k=0; k<basis.extent(2); k++ ) {
+    for (size_type k=0; k<basis.extent(2); k++ ) {
 
       AD dEx_dx = sol_grad(e,Ex_num,k,0);
       AD dEy_dx = sol_grad(e,Ey_num,k,0);
       AD dEz_dx = sol_grad(e,Ez_num,k,0);
 
-      AD dEx_dy, dEx_dz, dEy_dy, dEy_dz, dEz_dy, dEz_dz;
+      AD dEx_dy = 0.0, dEx_dz = 0.0, dEy_dy = 0.0;
+      AD dEy_dz = 0.0, dEz_dy = 0.0, dEz_dz = 0.0;
 
       if(spaceDim > 1) {
         dEx_dy = sol_grad(e,Ex_num,k,1);
@@ -251,7 +252,7 @@ void maxwell_HYBRID::volumeResidual() {
         dEz_dz = sol_grad(e,Ez_num,k,2);
       }
 
-      for(int i=0; i<basis.extent(1); i++) {
+      for(size_type i=0; i<basis.extent(1); i++) {
 
         v = basis(e,i,k,0);
 
@@ -306,22 +307,12 @@ void maxwell_HYBRID::boundaryResidual() {
 
   // - (\lambda_h, \eta)_{\Gamma_a} = - (lambdax * etax + lambday * etay + lambdaz * etaz)
   ScalarT eta = 0.0;
-  ScalarT nx = 0.0, ny = 0.0, nz = 0.0;
-  for (int e=0; e<basis.extent(0); e++) {
+  for (size_type e=0; e<basis.extent(0); e++) {
     if (bcs(lambdax_num,cside) == 1) {
-      for (int k=0; k<basis.extent(2); k++ ) {
-        for (int i=0; i<basis.extent(1); i++ ) {
+      for (size_type k=0; k<basis.extent(2); k++ ) {
+        for (size_type i=0; i<basis.extent(1); i++ ) {
           eta = basis(e,i,k,0);
-          nx = normals(e,k,0);
-
-          if (spaceDim>1) {
-            ny = normals(e,k,1);
-          }
-
-          if (spaceDim>2) {
-            nz = normals(e,k,2);
-          }
-
+  
           int resindex_x = offsets(lambdax_num,i);
           int resindex_y = offsets(lambday_num,i);
           int resindex_z = offsets(lambdaz_num,i);
@@ -367,10 +358,10 @@ void maxwell_HYBRID::faceResidual() {
   // (lambda_h, n x v)_{\partial T_h} = lambdax*(ny*vz - nz*vy) + lambday*(nz*vx - nx*vz) + lambdaz*(nx*vy - vx*ny)
   auto basis = wkset->basis_face[Ex_basis];
 
-  AD lambdax, lambday, lambdaz;
-  for (int e=0; e<basis.extent(0); e++) {
-    for (int k=0; k<basis.extent(2); k++ ) {
-      for (int i=0; i<basis.extent(1); i++ ) {
+  AD lambdax = 0.0, lambday = 0.0, lambdaz = 0.0;
+  for (size_type e=0; e<basis.extent(0); e++) {
+    for (size_type k=0; k<basis.extent(2); k++ ) {
+      for (size_type i=0; i<basis.extent(1); i++ ) {
         lambdax = sol_face(e,lambdax_num,k,0);
 
         vx = basis(e,i,k,0);
@@ -402,12 +393,12 @@ void maxwell_HYBRID::faceResidual() {
   // = - \tau ( (Hdiff_y*nz - Hdiff_z*ny)*(vy*nz - vz*ny)
   //                     + (Hdiffx_*nz - Hdiff_z*nx)*(vx*nz - vz*nx)
   //                             + (Hdiff_y*nx - Hdiff_x*ny)*(vy*nx - vx*ny))
-  AD Hx, Hy, Hz;
-  AD Hdiff_x, Hdiff_y, Hdiff_z;
+  AD Hx = 0.0, Hy = 0.0, Hz = 0.0;
+  AD Hdiff_x = 0.0, Hdiff_y = 0.0, Hdiff_z = 0.0;
   AD tau;
-  for (int e=0; e<basis.extent(0); e++) {
-    for (int k=0; k<basis.extent(2); k++ ) {
-      for (int i=0; i<basis.extent(1); i++ ) {
+  for (size_type e=0; e<basis.extent(0); e++) {
+    for (size_type k=0; k<basis.extent(2); k++ ) {
+      for (size_type i=0; i<basis.extent(1); i++ ) {
         tau = sqrt(mu(e,k)/epsilon(e,k));
 
         lambdax = sol_face(e,lambdax_num,k,0);
@@ -447,10 +438,10 @@ void maxwell_HYBRID::faceResidual() {
   // assemble into different indices instead of using multiple bases for eta
   AD Ex = 0.0, Ey = 0.0, Ez = 0.0;
   basis = wkset->basis_face[lambdax_basis];
-  ScalarT eta;
-  for (int e=0; e<basis.extent(0); e++) {
-    for (int k=0; k<basis.extent(2); k++ ) {
-      for (int i=0; i<basis.extent(1); i++ ) {
+  ScalarT eta = 0.0;
+  for (size_type e=0; e<basis.extent(0); e++) {
+    for (size_type k=0; k<basis.extent(2); k++ ) {
+      for (size_type i=0; i<basis.extent(1); i++ ) {
         Ex = sol_face(e,Ex_num,k,0);
         nx = normals(e,k,0);
 
@@ -477,9 +468,9 @@ void maxwell_HYBRID::faceResidual() {
 
   // (\tau(H_h - lambda_h), eta)_{\partial T_h}
   // = \tau (Hdiff_x*etax + Hdiff_y*etay + Hdiff_z*etaz)
-  for (int e=0; e<basis.extent(0); e++) {
-    for (int k=0; k<basis.extent(2); k++ ) {
-      for (int i=0; i<basis.extent(1); i++ ) {
+  for (size_type e=0; e<basis.extent(0); e++) {
+    for (size_type k=0; k<basis.extent(2); k++ ) {
+      for (size_type i=0; i<basis.extent(1); i++ ) {
         tau = sqrt(mu(e,k)/epsilon(e,k));
 
         lambdax = sol_face(e,lambdax_num,k,0);

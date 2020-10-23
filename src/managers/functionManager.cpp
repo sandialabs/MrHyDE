@@ -12,7 +12,6 @@
  ************************************************************************/
 
 #include "functionManager.hpp"
-#include "interpreter.hpp"
 
 using namespace MrHyDE;
 //using namespace std;
@@ -26,6 +25,8 @@ FunctionManager::FunctionManager() {
   known_vars = {"x","y","z","t","nx","ny","nz","pi","h"};
   known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean"};
   
+  interpreter = Teuchos::rcp( new Interpreter());
+  
 }
 
 
@@ -34,6 +35,9 @@ FunctionManager::FunctionManager(const string & blockname_, const int & numElem_
 blockname(blockname_), numElem(numElem_), numip(numip_), numip_side(numip_side_) {
   known_vars = {"x","y","z","t","nx","ny","nz","pi","h"};
   known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean"};
+  
+  interpreter = Teuchos::rcp( new Interpreter());
+  
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -51,7 +55,7 @@ int FunctionManager::addFunction(const string & fname, const string & expression
     }
   }
   if (!found) {
-    int dim1;
+    int dim1 = 0;
     if (location == "ip") {
       dim1 = numip;
     }
@@ -90,9 +94,9 @@ void FunctionManager::validateFunctions(){
     function_names.push_back(functions[k].function_name);
   }
   for (size_t k=0; k<functions.size(); k++) {
-    vector<string> vars = getVars(functions[k].expression, known_ops);
+    vector<string> vars = interpreter->getVars(functions[k].expression, known_ops);
     
-    int numfails = validateTerms(vars,known_vars,variables,parameters,disc_parameters,function_names);
+    int numfails = interpreter->validateTerms(vars,known_vars,variables,parameters,disc_parameters,function_names);
     if (numfails > 0) {
       TEUCHOS_TEST_FOR_EXCEPTION(false,std::runtime_error,"Error: MILO could not identify one or more terms in: " + functions[k].function_name);
     }
@@ -132,7 +136,7 @@ void FunctionManager::decomposeFunctions() {
           for (size_t j=0; j<known_vars.size(); j++) {
             if (functions[fiter].terms[k].expression == known_vars[j]) {
               decompose = false;
-              bool have_data = false;
+              //bool have_data = false;
               functions[fiter].terms[k].isRoot = true;
               functions[fiter].terms[k].beenDecomposed = true;
               functions[fiter].terms[k].isAD = false;
@@ -208,7 +212,7 @@ void FunctionManager::decomposeFunctions() {
                 functions[fiter].terms[k].beenDecomposed = true;
                 functions[fiter].terms[k].isScalar = true;
                 functions[fiter].terms[k].isConstant = true; // means in does not need to be copied every time
-                have_data = true;
+                //have_data = true;
                 // Copy the data just once
                 Kokkos::View<double***,AssemblyDevice> tdata("scalar data",
                                                              functions[fiter].dim0,
@@ -227,7 +231,7 @@ void FunctionManager::decomposeFunctions() {
         
         // IS THIS TERM ONE OF THE KNOWN OPERATORS: sin(...), exp(...), etc.
         if (decompose) {
-          bool isop = isOperator(functions[fiter].terms, k, known_ops);
+          bool isop = interpreter->isOperator(functions[fiter].terms, k, known_ops);
           // isOperator takes care of the decomposition if it is of this form
           if (isop) {
             decompose = false;
@@ -351,7 +355,7 @@ void FunctionManager::decomposeFunctions() {
         
         // IS THE TERM A SIMPLE SCALAR: 2.03, 1.0E2, etc.
         if (decompose) {
-          bool isnum = isScalar(functions[fiter].terms[k].expression);
+          bool isnum = interpreter->isScalar(functions[fiter].terms[k].expression);
           if (isnum) {
             functions[fiter].terms[k].isRoot = true;
             functions[fiter].terms[k].isAD = false;
@@ -589,8 +593,7 @@ void FunctionManager::decomposeFunctions() {
         }
         
         if (decompose) {
-          int numterms = 0;
-          numterms = split(functions[fiter].terms,k);
+          interpreter->split(functions[fiter].terms,k);
           functions[fiter].terms[k].beenDecomposed = true;
         }
       }

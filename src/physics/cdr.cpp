@@ -93,10 +93,10 @@ void cdr::volumeResidual() {
   
   if (spaceDim == 1) {
     parallel_for("cdr volume resid 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (int pt=0; pt<basis.extent(2); pt++ ) {
+      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = (dCdt(elem,pt) + xvel(elem,pt)*gradC(elem,pt,0) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,0)*wts(elem,pt);
-        for (int dof=0; dof<basis.extent(1); dof++ ) {
+        for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f*basis(elem,dof,pt) + Fx*basis_grad(elem,dof,pt,0);
         }
       }
@@ -104,11 +104,11 @@ void cdr::volumeResidual() {
   }
   else if (spaceDim == 2) {
     parallel_for("cdr volume resid 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (int pt=0; pt<basis.extent(2); pt++ ) {
+      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = (dCdt(elem,pt) + xvel(elem,pt)*gradC(elem,pt,0) + yvel(elem,pt)*gradC(elem,pt,1) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,0)*wts(elem,pt);
         AD Fy = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,1)*wts(elem,pt);
-        for (int dof=0; dof<basis.extent(1); dof++ ) {
+        for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f*basis(elem,dof,pt) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1);
         }
       }
@@ -116,12 +116,12 @@ void cdr::volumeResidual() {
   }
   else if (spaceDim == 3) {
     parallel_for("cdr volume resid 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (int pt=0; pt<basis.extent(2); pt++ ) {
+      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = (dCdt(elem,pt) + xvel(elem,pt)*gradC(elem,pt,0) + yvel(elem,pt)*gradC(elem,pt,1) + zvel(elem,pt)*gradC(elem,pt,2) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,0)*wts(elem,pt);
         AD Fy = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,1)*wts(elem,pt);
         AD Fz = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,2)*wts(elem,pt);
-        for (int dof=0; dof<basis.extent(1); dof++ ) {
+        for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f*basis(elem,dof,pt) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2);
         }
       }

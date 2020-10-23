@@ -31,10 +31,9 @@ BoundaryCell::BoundaryCell(const Teuchos::RCP<CellMetaData> & cellData_,
                            LIDView LIDs_,
                            Kokkos::View<int****,HostDevice> sideinfo_,
                            Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_) :
-cellData(cellData_), localElemID(localID_), localSideID(sideID_), nodes(nodes_),
-sidenum(sidenum_), sidename(sidename_), cellID(cellID_), 
-LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_) {
-  
+cellData(cellData_), localElemID(localID_), localSideID(sideID_), orientation(orientation_),
+sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename(sidename_), LIDs(LIDs_)   {
+
   numElem = nodes.extent(0);
   
   LIDs_host = LIDView_host("LIDs on host",LIDs.extent(0), LIDs.extent(1)); //Kokkos::create_mirror_view(LIDs);
@@ -169,7 +168,7 @@ void BoundaryCell::computeSizeNormals() {
 
   parallel_for("bcell hsize",RangePolicy<HostExec>(0,host_wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
     ScalarT vol = 0.0;
-    for (int i=0; i<host_wts.extent(1); i++) {
+    for (size_type i=0; i<host_wts.extent(1); i++) {
       vol += host_wts(e,i);
     }
     ScalarT dimscl = 1.0/((ScalarT)ip.extent(2)-1.0);
@@ -182,13 +181,13 @@ void BoundaryCell::computeSizeNormals() {
 
   auto host_normals = Kokkos::create_mirror_view(normals);  
   parallel_for("bcell normal rescale",RangePolicy<HostExec>(0,host_normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    for (int j=0; j<host_normals.extent(1); j++ ) {
+    for (size_type j=0; j<host_normals.extent(1); j++ ) {
       ScalarT normalLength = 0.0;
-      for (int sd=0; sd<host_normals.extent(2); sd++) {
+      for (size_type sd=0; sd<host_normals.extent(2); sd++) {
         normalLength += host_normals(e,j,sd)*host_normals(e,j,sd);
       }
       normalLength = std::sqrt(normalLength);
-      for (int sd=0; sd<host_normals.extent(2); sd++) {
+      for (size_type sd=0; sd<host_normals.extent(2); sd++) {
         host_normals(e,j,sd) = host_normals(e,j,sd) / normalLength;
       }
     }
@@ -257,8 +256,8 @@ void BoundaryCell::setUseBasis(vector<int> & usebasis_, const int & numsteps, co
   vector<int> usebasis = usebasis_;
   
   // Set up the containers for usual solution storage
-  size_t maxnbasis = 0;
-  for (size_t i=0; i<cellData->numDOF.extent(0); i++) {
+  int maxnbasis = 0;
+  for (size_type i=0; i<cellData->numDOF.extent(0); i++) {
     if (cellData->numDOF(i) > maxnbasis) {
       maxnbasis = cellData->numDOF(i);
     }
@@ -279,8 +278,8 @@ void BoundaryCell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & para
   
   auto numParamDOF = cellData->numParamDOF;
   
-  size_t maxnbasis = 0;
-  for (size_t i=0; i<numParamDOF.extent(0); i++) {
+  int maxnbasis = 0;
+  for (size_type i=0; i<numParamDOF.extent(0); i++) {
     if (numParamDOF(i) > maxnbasis) {
       maxnbasis = numParamDOF(i);
     }
@@ -296,8 +295,8 @@ void BoundaryCell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & para
 
 void BoundaryCell::setAuxUseBasis(vector<int> & ausebasis_) {
   auxusebasis = ausebasis_;
-  size_t maxnbasis = 0;
-  for (size_t i=0; i<cellData->numAuxDOF.extent(0); i++) {
+  int maxnbasis = 0;
+  for (size_type i=0; i<cellData->numAuxDOF.extent(0); i++) {
     if (cellData->numAuxDOF(i) > maxnbasis) {
       maxnbasis = cellData->numAuxDOF(i);
     }
@@ -346,10 +345,10 @@ void BoundaryCell::computeSoln(const int & seedwhat) {
     auto numAuxDOF = cellData->numAuxDOF;
     
     // TMW: this will not work on GPU
-    for (int e=0; e<numElem; e++) {
+    for (size_t e=0; e<numElem; e++) {
       
-      for (size_t k=0; k<numAuxDOF.extent(0); k++) {
-        for(size_t i=0; i<numAuxDOF(k); i++ ) {
+      for (size_type k=0; k<numAuxDOF.extent(0); k++) {
+        for(int i=0; i<numAuxDOF(k); i++ ) {
           ScalarT auxtmp = aux(localElemID[e],k,i);
           if (seedwhat == 4) {
             auxval = AD(maxDerivs,auxoffsets(k,i),auxtmp);
@@ -619,7 +618,7 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
   
   AD reg;
   
-  bool seedParams = true;
+  //bool seedParams = true;
   //vector<vector<AD> > param_AD;
   //for (int n=0; n<paramindex.size(); n++) {
   //  param_AD.push_back(vector<AD>(paramindex[n].size()));
@@ -667,7 +666,7 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
       
       AD p, dpdx, dpdy, dpdz; // parameters
       ScalarT offset = 1.0e-5;
-      for (int e=0; e<numElem; e++) {
+      for (size_t e=0; e<numElem; e++) {
         //if (sideinfo(e,0,side,0) > 0) {
         for (int k = 0; k < numip; k++) {
           p = wkset->local_param_side(e,paramIndex,k,0);
@@ -796,9 +795,9 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
     auto aoffsets = auxoffsets;
     size_t numip = wkset->numsideip;
     AD auxval;
-    for (int e=0; e<numElem; e++) {
-      for (size_t k=0; k<numAuxDOF.extent(0); k++) {
-        for(size_t i=0; i<numAuxDOF(k); i++ ) {
+    for (size_t e=0; e<numElem; e++) {
+      for (size_type k=0; k<numAuxDOF.extent(0); k++) {
+        for(int i=0; i<numAuxDOF(k); i++ ) {
           auxval = AD(maxDerivs, aoffsets(k,i), lambda(localElemID[e],k,i));
           for( size_t j=0; j<numip; j++ ) {
             wkset->local_aux_side(e,k,j) += auxval*auxside_basis[auxusebasis[k]](e,i,j);
@@ -833,7 +832,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> BoundaryCell::getDirichlet() {
   auto cwts = wts;
   auto cnormals = normals;
   
-  for (int n=0; n<wkset->varlist.size(); n++) {
+  for (size_t n=0; n<wkset->varlist.size(); n++) {
     if (bcs(n,sidenum) == 1) { // is this a strong DBC for this variable
       Kokkos::View<ScalarT**,AssemblyDevice> dip = cellData->physics_RCP->getDirichlet(ip,n,
                                                                                         cellData->myBlock,
@@ -847,8 +846,8 @@ Kokkos::View<ScalarT**,AssemblyDevice> BoundaryCell::getDirichlet() {
       auto off = Kokkos::subview(offsets,n,Kokkos::ALL());
       if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE"){
         parallel_for("bcell fill Dirichlet",RangePolicy<AssemblyExec>(0,cwts.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          for( int i=0; i<cbasis.extent(1); i++ ) {
-            for( size_t j=0; j<cwts.extent(1); j++ ) {
+          for( size_type i=0; i<cbasis.extent(1); i++ ) {
+            for( size_type j=0; j<cwts.extent(1); j++ ) {
               dvals(e,off(i)) += dip(e,j)*cbasis(e,i,j)*cwts(e,j);
             }
           }
@@ -856,9 +855,9 @@ Kokkos::View<ScalarT**,AssemblyDevice> BoundaryCell::getDirichlet() {
       }
       else if (btype == "HDIV"){
         parallel_for("bcell fill Dirichlet HDIV",RangePolicy<AssemblyExec>(0,dvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          for( int i=0; i<cbasis.extent(1); i++ ) {
-            for( size_t j=0; j<cwts.extent(1); j++ ) {
-              for (size_t s=0; s<cbasis.extent(3); s++) {
+          for( size_type i=0; i<cbasis.extent(1); i++ ) {
+            for( size_type j=0; j<cwts.extent(1); j++ ) {
+              for (size_type s=0; s<cbasis.extent(3); s++) {
                 dvals(e,off(i)) += dip(e,j)*cbasis(e,i,j,s)*cnormals(e,j,s)*cwts(e,j);
               }
             }
@@ -887,7 +886,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> BoundaryCell::getMass() {
   auto numDOF = cellData->numDOF;
   auto cwts = wts;
   
-  for (int n=0; n<numDOF.extent(0); n++) {
+  for (size_type n=0; n<numDOF.extent(0); n++) {
     if (bcs(n,sidenum) == 1) { // is this a strong DBC for this variable
       int bind = wkset->usebasis[n];
       DRV cbasis = basis[bind];
@@ -896,9 +895,9 @@ Kokkos::View<ScalarT***,AssemblyDevice> BoundaryCell::getMass() {
       
       if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE"){
         parallel_for("bcell compute mass",RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          for( int i=0; i<cbasis.extent(1); i++ ) {
-            for( int j=0; j<cbasis.extent(1); j++ ) {
-              for( size_t k=0; k<cbasis.extent(2); k++ ) {
+          for( size_type i=0; i<cbasis.extent(1); i++ ) {
+            for( size_type j=0; j<cbasis.extent(1); j++ ) {
+              for( size_type k=0; k<cbasis.extent(2); k++ ) {
                 mass(e,off(i),off(j)) += cbasis(e,i,k)*cbasis(e,j,k)*cwts(e,k);
               }
             }
@@ -908,10 +907,10 @@ Kokkos::View<ScalarT***,AssemblyDevice> BoundaryCell::getMass() {
       else if (btype == "HDIV"){
         auto cnormals = normals;
         parallel_for("bcell compute mass HDIV",RangePolicy<AssemblyExec>(0,mass.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          for( int i=0; i<cbasis.extent(1); i++ ) {
-            for( int j=0; j<cbasis.extent(1); j++ ) {
-              for( size_t k=0; k<cbasis.extent(2); k++ ) {
-                for (size_t s=0; s<cbasis.extent(3); s++) {
+          for( size_type i=0; i<cbasis.extent(1); i++ ) {
+            for( size_type j=0; j<cbasis.extent(1); j++ ) {
+              for( size_type k=0; k<cbasis.extent(2); k++ ) {
+                for (size_type s=0; s<cbasis.extent(3); s++) {
                   mass(e,off(i),off(j)) += cbasis(e,i,k,s)*cnormals(e,k,s)*cbasis(e,j,k,s)*cnormals(e,k,s)*cwts(e,k);
                 }
               }

@@ -40,7 +40,7 @@
 // ************************************************************************
 // @HEADER
 
-/** \file   Intrepid2_HDIV_QUAD_In_FEMDef.hpp
+/** \file   Intrepid2_HFACE_QUAD_In_FEMDef.hpp
  \brief  Definition file for FEM basis functions of degree n for HFACE functions on QUAD cells.
  \author Created by T. Wildey based on implementation by R. Kirby, P. Bochev, D. Ridzal and K. Peterson.
  Kokkorized by Kyungjoo Kim
@@ -75,7 +75,7 @@ namespace Intrepid2 {
       const int dim_s = get_dimension_scalar(work);
       auto ptr0 = work.data();
       auto ptr1 = work.data()+cardLine*npts*dim_s;
-      auto ptr2 = work.data()+2*cardLine*npts*dim_s;
+      //auto ptr2 = work.data()+2*cardLine*npts*dim_s;
       
       
       typedef typename Kokkos::DynRankView<typename workViewType::value_type, typename workViewType::memory_space> viewType;
@@ -298,8 +298,8 @@ namespace Intrepid2 {
       const ordinal_type posDfOrd = 2;        // position in the tag, counting from 0, of DoF ordinal relative to the subcell
       
       // An array with local DoF tags assigned to the basis functions, in the order of their local enumeration
-      //constexpr ordinal_type maxCardLine = Parameters::MaxOrder + 1;
-      ordinal_type tags[4*cardLine][4];
+      constexpr ordinal_type maxCardLine = Parameters::MaxOrder + 1;
+      ordinal_type tags[4*maxCardLine][4];
       
       //const ordinal_type edge_x[2] = {0,2};
       //const ordinal_type edge_y[2] = {3,1};

@@ -75,7 +75,6 @@ void porousHDIV_HYBRID::volumeResidual() {
   // NOTES:
   // 1. basis and basis_grad already include the integration weights
   
-  int resindex;
   int p_basis = wkset->usebasis[pnum];
   int u_basis = wkset->usebasis[unum];
   auto wts = wkset->wts;
@@ -111,10 +110,10 @@ void porousHDIV_HYBRID::volumeResidual() {
     
     if (spaceDim == 1) { // easier to place conditional here than on device
       parallel_for("porous HDIV-HY volume resid u 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for (int pt=0; pt<basis.extent(2); pt++ ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD p = psol(elem,pt)*wts(elem,pt);
           AD Kiux = Kinv_xx(elem,pt)*usol(elem,pt,0)*wts(elem,pt);
-          for (int dof=0; dof<basis.extent(1); dof++ ) {
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             ScalarT vx = basis(elem,dof,pt,0);
             ScalarT divv = basis_div(elem,dof,pt);
             res(elem,off(dof)) += Kiux*vx - p*divv;
@@ -124,11 +123,11 @@ void porousHDIV_HYBRID::volumeResidual() {
     }
     else if (spaceDim == 2) {
       parallel_for("porous HDIV-HY volume resid u 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for (int pt=0; pt<basis.extent(2); pt++ ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD p = psol(elem,pt)*wts(elem,pt);
           AD Kiux = Kinv_xx(elem,pt)*usol(elem,pt,0)*wts(elem,pt);
           AD Kiuy = Kinv_yy(elem,pt)*usol(elem,pt,1)*wts(elem,pt);
-          for (int dof=0; dof<basis.extent(1); dof++ ) {
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             ScalarT vx = basis(elem,dof,pt,0);
             ScalarT vy = basis(elem,dof,pt,1);
             ScalarT divv = basis_div(elem,dof,pt);
@@ -139,12 +138,12 @@ void porousHDIV_HYBRID::volumeResidual() {
     }
     else {
       parallel_for("porous HDIV-HY volume resid u 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for (int pt=0; pt<basis.extent(2); pt++ ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD p = psol(elem,pt)*wts(elem,pt);
           AD Kiux = Kinv_xx(elem,pt)*usol(elem,pt,0)*wts(elem,pt);
           AD Kiuy = Kinv_yy(elem,pt)*usol(elem,pt,1)*wts(elem,pt);
           AD Kiuz = Kinv_zz(elem,pt)*usol(elem,pt,2)*wts(elem,pt);
-          for (int dof=0; dof<basis.extent(1); dof++ ) {
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             ScalarT vx = basis(elem,dof,pt,0);
             ScalarT vy = basis(elem,dof,pt,1);
             ScalarT vz = basis(elem,dof,pt,2);
@@ -165,10 +164,10 @@ void porousHDIV_HYBRID::volumeResidual() {
     auto off = Kokkos::subview(offsets,pnum, Kokkos::ALL());
     
     parallel_for("porous HDIV-HY volume resid div(u)",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (int pt=0; pt<basis.extent(2); pt++ ) {
+      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD divu = udiv(elem,pt)*wts(elem,pt);
         AD src = source(elem,pt)*wts(elem,pt);
-        for (int dof=0; dof<basis.extent(1); dof++ ) {
+        for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT v = basis(elem,dof,pt,0);
           res(elem,off(dof)) += -divu*v + src*v;
         }
@@ -214,11 +213,11 @@ void porousHDIV_HYBRID::boundaryResidual() {
   
   if (bcs(pnum,cside) == 1) {
     parallel_for("porous HDIV-HY bndry resid Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (int pt=0; pt<basis.extent(2); pt++ ) {
+      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD src = bsource(elem,pt)*wts(elem,pt);
-        for (int dof=0; dof<basis.extent(1); dof++ ) {
+        for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT vdotn = 0.0;
-          for (int dim=0; dim<normals.extent(2); dim++) {
+          for (size_type dim=0; dim<normals.extent(2); dim++) {
             vdotn += basis(elem,dof,pt,dim)*normals(elem,pt,dim);
           }
           res(elem,off(dof)) += src*vdotn;
@@ -228,11 +227,11 @@ void porousHDIV_HYBRID::boundaryResidual() {
   }
   else if (bcs(pnum,cside) == 5) {
     parallel_for("porous HDIV-HY bndry resid MS Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (int pt=0; pt<basis.extent(2); pt++ ) {
+      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD lam = lambda(elem,pt)*wts(elem,pt);
-        for (int dof=0; dof<basis.extent(1); dof++ ) {
+        for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT vdotn = 0.0;
-          for (int dim=0; dim<normals.extent(2); dim++) {
+          for (size_type dim=0; dim<normals.extent(2); dim++) {
             vdotn += basis(elem,dof,pt,dim)*normals(elem,pt,dim);
           }
           res(elem,off(dof)) += lam*vdotn;
@@ -265,11 +264,11 @@ void porousHDIV_HYBRID::faceResidual() {
     auto off = Kokkos::subview(offsets, unum, Kokkos::ALL());
     
     parallel_for("porous HDIV-HY face resid lambda",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (int pt=0; pt<basis.extent(2); pt++ ) {
+      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD lam = lambda(elem,pt)*wts(elem,pt);
-        for (int dof=0; dof<basis.extent(1); dof++ ) {
+        for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT vdotn = 0.0;
-          for (int dim=0; dim<normals.extent(2); dim++) {
+          for (size_type dim=0; dim<normals.extent(2); dim++) {
             vdotn += basis(elem,dof,pt,dim)*normals(elem,pt,dim);
           }
           res(elem,off(dof)) += lam*vdotn;
@@ -285,13 +284,13 @@ void porousHDIV_HYBRID::faceResidual() {
     auto off = Kokkos::subview(offsets, lambdanum, Kokkos::ALL());
     
     parallel_for("porous HDIV-HY face resid u dot n",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (int pt=0; pt<basis.extent(2); pt++ ) {
+      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD udotn = 0.0;
-        for (int dim=0; dim<normals.extent(2); dim++) {
+        for (size_type dim=0; dim<normals.extent(2); dim++) {
           udotn += usol(elem,pt,dim)*normals(elem,pt,dim);
         }
         udotn *= wts(elem,pt);
-        for (int dof=0; dof<basis.extent(1); dof++ ) {
+        for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) -= udotn*basis(elem,dof,pt);
         }
       }
@@ -315,9 +314,9 @@ void porousHDIV_HYBRID::computeFlux() {
     auto uflux = Kokkos::subview(flux, Kokkos::ALL(), auxlambdanum, Kokkos::ALL());
     
     parallel_for("porous HDIV-HY flux",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (size_t pt=0; pt<uflux.extent(1); pt++) {
+      for (size_type pt=0; pt<uflux.extent(1); pt++) {
         AD udotn = 0.0;
-        for (int dim=0; dim<normals.extent(2); dim++) {
+        for (size_type dim=0; dim<normals.extent(2); dim++) {
           udotn += usol(elem,pt,dim)*normals(elem,pt,dim);
         }
         uflux(elem,pt) = -udotn;
@@ -370,7 +369,7 @@ void porousHDIV_HYBRID::updatePerm(FDATA Kinv_xx, FDATA Kinv_yy, FDATA Kinv_zz) 
   Kokkos::View<ScalarT**,AssemblyDevice> data = wkset->extra_data;
   
   parallel_for(RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-    for (int pt=0; pt<Kinv_xx.extent(1); pt++) {
+    for (size_type pt=0; pt<Kinv_xx.extent(1); pt++) {
       Kinv_xx(elem,pt) = data(elem,0);
       Kinv_yy(elem,pt) = data(elem,0);
       Kinv_zz(elem,pt) = data(elem,0);

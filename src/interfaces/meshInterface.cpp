@@ -231,7 +231,7 @@ meshInterface::meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                              const Teuchos::RCP<MpiComm> & Commptr_,
                              Teuchos::RCP<panzer_stk::STK_MeshFactory> & mesh_factory_,
                              Teuchos::RCP<panzer_stk::STK_Interface> & mesh_) :
-settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), mesh(mesh_) {
+mesh_factory(mesh_factory_), mesh(mesh_), settings(settings_), Commptr(Commptr_) {
   
   using Teuchos::RCP;
   using Teuchos::rcp;
@@ -524,17 +524,17 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
           pertdata(i,j) = values[i][j];
         }
       }
-      int Nz = settings->sublist("Mesh").get<int>("NZ",1);
+      //int Nz = settings->sublist("Mesh").get<int>("NZ",1);
       ScalarT zmin = settings->sublist("Mesh").get<ScalarT>("zmin",0.0);
       ScalarT zmax = settings->sublist("Mesh").get<ScalarT>("zmax",1.0);
-      for (int k=0; k<blocknodes.extent(0); k++) {
+      for (size_type k=0; k<blocknodes.extent(0); k++) {
         for (int i=0; i<numNodesPerElem; i++){
           ScalarT x = blocknodes(k,i,0);
           ScalarT y = blocknodes(k,i,1);
           ScalarT z = blocknodes(k,i,2);
-          int node;
+          int node = -1;
           ScalarT dist = (ScalarT)RAND_MAX;
-          for( size_t j=0; j<pertdata.extent(0); j++ ) {
+          for( size_type j=0; j<pertdata.extent(0); j++ ) {
             ScalarT xhat = pertdata(j,0);
             ScalarT yhat = pertdata(j,1);
             ScalarT d = std::sqrt((x-xhat)*(x-xhat) + (y-yhat)*(y-yhat));
@@ -543,10 +543,12 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
               dist = d;
             }
           }
-          ScalarT ch = pertdata(node,2);
-          blocknodePert(k,i,0) = 0.0;
-          blocknodePert(k,i,1) = 0.0;
-          blocknodePert(k,i,2) = (ch)*(z-zmin)/(zmax-zmin);
+          if (node > 0) {
+            ScalarT ch = pertdata(node,2);
+            blocknodePert(k,i,0) = 0.0;
+            blocknodePert(k,i,1) = 0.0;
+            blocknodePert(k,i,2) = (ch)*(z-zmin)/(zmax-zmin);
+          }
         }
         //for (int k=0; k<blocknodeVert.extent(0); k++) {
         //  for (int i=0; i<numNodesPerElem; i++){
@@ -559,7 +561,7 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
     }
     
     if (settings->sublist("Mesh").get("modify mesh",false)) {
-      for (int k=0; k<blocknodes.extent(0); k++) {
+      for (size_type k=0; k<blocknodes.extent(0); k++) {
         for (int i=0; i<numNodesPerElem; i++){
           blocknodePert(k,i,0) = 0.0;
           blocknodePert(k,i,1) = 0.0;
@@ -658,8 +660,8 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
           
           for (int c=0; c<numElem; c++) {
             Kokkos::View<ScalarT[1][3],HostDevice> center("center");
-            for (size_t i=0; i<nodes.extent(1); i++) {
-              for (size_t j=0; j<spaceDim; j++) {
+            for (size_type i=0; i<nodes.extent(1); i++) {
+              for (int j=0; j<spaceDim; j++) {
                 center(0,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
               }
             }
@@ -674,7 +676,7 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
             }
             if (iscloser) {
               Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
-              for (int i=0; i<cdata.extent(1); i++) {
+              for (size_type i=0; i<cdata.extent(1); i++) {
                 cells[b][e]->cell_data(c,i) = cdata(0,i);
               }
               cells[b][e]->cellData->have_extra_data = true;
@@ -703,7 +705,7 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
           for (int c=0; c<numElem; c++) {
             Kokkos::View<ScalarT[1][3],HostDevice> center("center");
             for (size_t i=0; i<nodes.extent(1); i++) {
-              for (size_t j=0; j<spaceDim; j++) {
+              for (int j=0; j<spaceDim; j++) {
                 center(0,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
               }
             }
@@ -718,7 +720,7 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
             }
             if (iscloser) {
               Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
-              for (int i=0; i<cdata.extent(1); i++) {
+              for (size_t i=0; i<cdata.extent(1); i++) {
                 cells[b][e]->cell_data(c,i) = cdata(0,i);
               }
               cells[b][e]->cellData->have_extra_data = true;
@@ -854,7 +856,7 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
     
     // we use a relatively crude algorithm to obtain well-spaced points
     int batch_size = 10;
-    size_t prog = 0;
+    int prog = 0;
     Kokkos::View<ScalarT**,HostDevice> cseeds("cand seeds",batch_size,3);
     
     while (prog<numSeeds) {
@@ -967,7 +969,7 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
       for (int c=0; c<numElem; c++) {
         Kokkos::View<ScalarT[1][3],HostDevice> center("center");
         for (size_t i=0; i<nodes.extent(1); i++) {
-          for (size_t j=0; j<spaceDim; j++) {
+          for (int j=0; j<spaceDim; j++) {
             center(0,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
           }
         }
@@ -1163,10 +1165,11 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
   
   // get elem vars
   if (settings->sublist("Mesh").get<bool>("have element data", false)) {
-    int num_elem_vars;
+    int num_elem_vars = 0;
     int var_ind;
     numResponses = 1;
-    exo_error = ex_get_var_param(exoid, "e", &num_elem_vars); // TMW: this is depracated
+    //exo_error = ex_get_var_param(exoid, "e", &num_elem_vars); // TMW: this is depracated
+    // This turns off this feature
     for (int i=0; i<num_elem_vars; i++) {
       char varname[MAX_STR_LENGTH+1];
       ScalarT *var_vals = new ScalarT[num_el_in_blk];
@@ -1201,9 +1204,10 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
     exo_error = ex_get_conn(exoid, EX_ELEM_BLOCK, id, connect, &edgeconn, &faceconn);
     
     // get nodal vars
-    int num_node_vars;
+    int num_node_vars = 0;
     int var_ind;
-    exo_error = ex_get_variable_param(exoid, EX_NODAL, &num_node_vars);
+    //exo_error = ex_get_variable_param(exoid, EX_NODAL, &num_node_vars);
+    // This turns off this feature
     for (int i=0; i<num_node_vars; i++) {
       char varname[MAX_STR_LENGTH+1];
       ScalarT *var_vals = new ScalarT[num_nods];
@@ -1238,7 +1242,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
       
       for (int n=0; n<nDOF(0); n++) {
         //Kokkos::View<GO**,HostDevice> GIDs = assembler->cells[b][e]->GIDs;
-        for (int p=0; p<cells[b][e]->numElem; p++) {
+        for (size_t p=0; p<cells[b][e]->numElem; p++) {
           for( int i=0; i<nDOF(n); i++ ) {
             index = LIDs(p,offsets(n,i));//cindex(p,n,i);//LA_overlapped_map->getLocalElement(GIDs(p,curroffsets[n][i]));
             dindex = connect[e*num_node_per_el + i] - 1;
@@ -1270,11 +1274,11 @@ void meshInterface::updateMeshData(const int & newrandseed,
                                    Teuchos::RCP<MultiScale> & multiscale_manager) {
   
   // Determine how many seeds there are
-  int localnumSeeds = 0;
-  int numSeeds = 0;
-  for (int b=0; b<cells.size(); b++) {
-    for (int e=0; e<cells[b].size(); e++) {
-      for (int k=0; k<cells[b][e]->numElem; k++) {
+  size_t localnumSeeds = 0;
+  size_t numSeeds = 0;
+  for (size_t b=0; b<cells.size(); b++) {
+    for (size_t e=0; e<cells[b].size(); e++) {
+      for (size_t k=0; k<cells[b][e]->numElem; k++) {
         if (cells[b][e]->cell_data_seed[k] > localnumSeeds) {
           localnumSeeds = cells[b][e]->cell_data_seed[k];
         }
@@ -1282,7 +1286,7 @@ void meshInterface::updateMeshData(const int & newrandseed,
     }
   }
   //Comm->MaxAll(&localnumSeeds, &numSeeds, 1);
-  Teuchos::reduceAll<int,int>(*Commptr,Teuchos::REDUCE_MAX,1,&localnumSeeds,&numSeeds);
+  Teuchos::reduceAll<int,size_t>(*Commptr,Teuchos::REDUCE_MAX,1,&localnumSeeds,&numSeeds);
   numSeeds += 1; //To properly allocate and iterate
   
   // Create a random number generator
@@ -1298,7 +1302,7 @@ void meshInterface::updateMeshData(const int & newrandseed,
   
   std::normal_distribution<ScalarT> ndistribution(0.0,1.0);
   Kokkos::View<ScalarT**,HostDevice> rotation_data("cell_data",numSeeds,numdata);
-  for (int k=0; k<numSeeds; k++) {
+  for (size_t k=0; k<numSeeds; k++) {
     ScalarT x = ndistribution(generator);
     ScalarT y = ndistribution(generator);
     ScalarT z = ndistribution(generator);

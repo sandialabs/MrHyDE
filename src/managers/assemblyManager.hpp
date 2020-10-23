@@ -26,10 +26,11 @@
 #include "parameterManager.hpp"
 
 namespace MrHyDE {
-  
+  /*
   void static assemblyHelp(const std::string & details) {
     cout << "********** Help and Documentation for the Assembly Manager **********" << endl;
   }
+  */
   
   class AssemblyManager {
   public:
@@ -146,13 +147,13 @@ namespace MrHyDE {
     // Public data members
     ///////////////////////////////////////////////////////////////////////////////////////////
     
+    Teuchos::RCP<MpiComm> Comm;
     Teuchos::RCP<Teuchos::ParameterList> settings;
     
     // Need
     std::vector<std::string> blocknames;
     std::vector<std::vector<std::string> > varlist;
     std::vector<LO> numVars;
-    int numElemPerCell;
     
     Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
     Teuchos::RCP<discretization> disc;
@@ -173,11 +174,9 @@ namespace MrHyDE {
     std::vector<bool> build_volume_terms, build_boundary_terms, build_face_terms; // set up basis function
     Kokkos::View<bool*,HostDevice> isFixedDOF;
     
-  private:
-    
-    Teuchos::RCP<MpiComm> Comm;
     Teuchos::RCP<ParameterManager> params;
-    
+    int numElemPerCell;
+      
     Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - total assembly");
     Teuchos::RCP<Teuchos::Time> gathertimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - gather");
     Teuchos::RCP<Teuchos::Time> phystimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - physics evaluation");

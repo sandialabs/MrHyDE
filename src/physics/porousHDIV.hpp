@@ -17,13 +17,13 @@
 #include "physics_base.hpp"
 
 namespace MrHyDE {
-  
+  /*
   static void porousHDIVHelp() {
     cout << "********** Help and Documentation for the Porous (HDIV) Physics Module **********" << endl << endl;
     cout << "Model:" << endl << endl;
     cout << "User defined functions: " << endl << endl;
   }
-  
+  */
   
   class porousHDIV : public physicsbase {
   public:

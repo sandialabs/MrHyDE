@@ -25,7 +25,7 @@ namespace MrHyDE {
     
     SubGridModel() {} ;
     
-    ~SubGridModel() {};
+    virtual ~SubGridModel() {};
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -84,7 +84,7 @@ namespace MrHyDE {
     
     virtual DRV getIPWts() = 0;
     
-    virtual std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > evaluateBasis(const DRV & ip) = 0;
+    //virtual std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > evaluateBasis(const DRV & ip) = 0;
     
     virtual std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > evaluateBasis2(const DRV & ip) = 0;
     

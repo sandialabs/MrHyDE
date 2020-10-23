@@ -24,7 +24,6 @@ SplitComm::SplitComm(Teuchos::RCP<Teuchos::ParameterList> & settings,
   bool ms_split_comm = settings->sublist("Analysis").get<bool>("multiscale split comm",false);
   int numLA = Comm.getSize();
   int numGroups = 1;
-  int procsPerGroup = numLA;
   if (analysis_type == "SOL"){
     numLA = settings->sublist("Analysis").get<int>("Number of LA processors",numLA);
     numGroups = Comm.getSize()/numLA;
@@ -37,11 +36,9 @@ SplitComm::SplitComm(Teuchos::RCP<Teuchos::ParameterList> & settings,
   else if (ms_split_comm) {
     numLA = settings->sublist("Analysis").get<int>("Number of macro processors",numLA);
     numGroups = numLA;
-    procsPerGroup = Comm.getSize()/numLA;
     if (Comm.getSize()%numLA != 0){
       cout << "\n NUMBER OF MACRO PROCESSORS NEEDS TO BE A FACTOR OF TOTAL NUMBER OF PROCESSORS..." << endl;
       numLA = Comm.getSize();
-      procsPerGroup = 1;
     }
     bool include_main = true;
     this->split_mpi_communicators(Comm, tcomm_LA, tcomm_S, Comm.getRank(), numLA, include_main);
@@ -96,7 +93,7 @@ void SplitComm::split_mpi_communicators(MpiComm & Comm_orig,
                              int myrank, int Nmain , bool & include_main) {
   
   int procsPerGroup = 1;
-  int numGroups = Nmain;
+  //int numGroups = Nmain;
   int numOrigProcs = Comm_orig.getSize();
   if (numOrigProcs%Nmain != 0){
     cout << "\n NUMBER OF MACRO PROCESSORS NEEDS TO BE A FACTOR OF TOTAL NUMBER OF PROCESSORS..." << endl;
@@ -129,13 +126,8 @@ void SplitComm::split_mpi_communicators(MpiComm & Comm_orig,
   MPI_Comm_create(*(Comm_orig.getRawMpiComm()), main_group, &main_comm);
   Comm_main = Teuchos::rcp( new MpiComm(main_comm) );
   
-  cout << "got to here" << endl;
-  
   // Next, create Nmain smaller groups
-  MPI_Group ms_group;
-  
-  cout << myrank << endl;
-  cout << myrank%procsPerGroup << endl;
+  //MPI_Group ms_group;
   
   /*
    Teuchos::Array<int> msranks(procsPerGroup);

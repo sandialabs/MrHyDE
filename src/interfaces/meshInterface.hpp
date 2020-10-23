@@ -33,10 +33,11 @@
 #include "multiscaleManager.hpp"
 
 namespace MrHyDE {
-  
+  /*
   void static meshHelp(const string & details) {
     cout << "********** Help and Documentation for the Mesh Interface **********" << endl;
   }
+  */
   
   class meshInterface {
   public:

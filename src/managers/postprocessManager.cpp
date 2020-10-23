@@ -26,7 +26,7 @@ PostprocessManager::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                                        Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                                        vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
                                        Teuchos::RCP<AssemblyManager> & assembler_) :
-Comm(Comm_), mesh(mesh_), optimization_mesh(optimization_mesh_), disc(disc_), phys(phys_),
+Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), optimization_mesh(optimization_mesh_),
 assembler(assembler_), functionManagers(functionManagers_) {
   this->setup(settings);
 }
@@ -44,9 +44,8 @@ PostprocessManager::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                                        Teuchos::RCP<MultiScale> & multiscale_manager_,
                                        Teuchos::RCP<AssemblyManager> & assembler_,
                                        Teuchos::RCP<ParameterManager> & params_) :
-Comm(Comm_), mesh(mesh_), optimization_mesh(optimization_mesh_), disc(disc_), phys(phys_),
-assembler(assembler_), params(params_), //sensors(sensors_),
-functionManagers(functionManagers_), multiscale_manager(multiscale_manager_) {
+Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), optimization_mesh(optimization_mesh_),
+assembler(assembler_), params(params_), functionManagers(functionManagers_), multiscale_manager(multiscale_manager_) {
   this->setup(settings);
 }
 
@@ -412,7 +411,7 @@ void PostprocessManager::report() {
           if(Comm->getRank() == 0){
             respOUT << response_times[tt] << "  ";
           }
-          for (int n=0; n<responses[tt].extent(1); n++) {
+          for (size_type n=0; n<responses[tt].extent(1); n++) {
             ScalarT tmp1 = responses[tt](k,n);
             ScalarT tmp2 = 0.0;
             Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&tmp1,&tmp2);
@@ -436,9 +435,9 @@ void PostprocessManager::report() {
       string sname2 = "results.out";
       std::ofstream respOUT(sname2.c_str());
       respOUT.precision(16);
-      for (int k=0; k<responses[0].extent(0); k++) {// TMW: not correct
-        for (int n=0; n<responses[0].extent(1); n++) {// TMW: not correct
-          for (int m=0; m<response_times.size(); m++) {
+      for (size_type k=0; k<responses[0].extent(0); k++) {// TMW: not correct
+        for (size_type n=0; n<responses[0].extent(1); n++) {// TMW: not correct
+          for (size_t m=0; m<response_times.size(); m++) {
             ScalarT tmp1 = responses[m](k,n);
             ScalarT tmp2 = 0.0;//globalresp(k,n,tt);
             Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&tmp1,&tmp2);
@@ -532,11 +531,11 @@ void PostprocessManager::report() {
               Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lerr,&gerr);
               
               // Figure out who can print the information (lowest rank amongst procs using subgrid model)
-              size_t myID = Comm->getRank();
+              int myID = Comm->getRank();
               if (nvars == 0) {
                 myID = 100000000;
               }
-              size_t gID = 0;
+              int gID = 0;
               Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&myID,&gID);
               
               if(Comm->getRank() == gID) {
@@ -898,6 +897,8 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
 // ========================================================================================
 
 AD PostprocessManager::computeObjective() {
+  AD obj = 0.0;
+  return obj;
   /*
    
    if(Comm->getRank() == 0 ) {
@@ -1092,14 +1093,13 @@ void PostprocessManager::computeResponse(const ScalarT & currenttime) {
       auto host_response = Kokkos::create_mirror_view(responsevals);
       Kokkos::deep_copy(host_response,responsevals);
       
-      int numElem = assembler->cells[b][e]->numElem;
       for (int r=0; r<numresponses; r++) {
         if (response_type == "global" ) {
           DRV wts = assembler->cells[b][e]->wts;
           auto host_wts = Kokkos::create_mirror_view(wts);
           Kokkos::deep_copy(host_wts,wts);
           
-          for (int p=0; p<host_response.extent(0); p++) {
+          for (size_type p=0; p<host_response.extent(0); p++) {
             for (size_t j=0; j<host_wts.extent(1); j++) {
               curr_response(0,r) += host_response(p,r,j).val() * host_wts(p,j);
             }
@@ -1108,7 +1108,7 @@ void PostprocessManager::computeResponse(const ScalarT & currenttime) {
         else if (response_type == "pointwise" ) {
           if (host_response.extent(1) > 0) {
             vector<int> sensIDs = assembler->cells[b][e]->mySensorIDs;
-            for (int p=0; p<host_response.extent(0); p++) {
+            for (size_type p=0; p<host_response.extent(0); p++) {
               for (size_t j=0; j<host_response.extent(2); j++) {
                 curr_response(sensIDs[j],r) += host_response(p,r,j).val();
               }
@@ -1126,6 +1126,9 @@ void PostprocessManager::computeResponse(const ScalarT & currenttime) {
 // ========================================================================================
 
 vector<ScalarT> PostprocessManager::computeSensitivities() {
+  vector<ScalarT> gradient;
+  return gradient;
+  
   /*
    Teuchos::RCP<Teuchos::Time> sensitivitytimer = Teuchos::rcp(new Teuchos::Time("sensitivity",false));
    sensitivitytimer->start();
@@ -1218,7 +1221,7 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
             auto eID = assembler->cells[b][e]->localElemID;
             auto sol = Kokkos::subview(assembler->cells[b][e]->u, Kokkos::ALL(), n, Kokkos::ALL());
             parallel_for("postproc plot HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-              for( int i=0; i<soln_dev.extent(1); i++ ) {
+              for( size_type i=0; i<soln_dev.extent(1); i++ ) {
                 soln_dev(eID(elem),i) = sol(elem,i);
               }
             });
@@ -1281,7 +1284,7 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
           
         }
         else if (vartypes[n] == "HFACE" && write_HFACE_variables) {
-          size_t numSides = assembler->cellData[b]->numSides;
+          
           Kokkos::View<ScalarT*,AssemblyDevice> soln_faceavg_dev("solution",myElements.size());
           auto soln_faceavg = Kokkos::create_mirror_view(soln_faceavg_dev);
           
@@ -1330,7 +1333,7 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
               auto eID = assembler->cells[b][e]->localElemID;
               auto sol = Kokkos::subview(assembler->cells[b][e]->param, Kokkos::ALL(), n, Kokkos::ALL());
               parallel_for("postproc plot param HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-                for( int i=0; i<soln_dev.extent(1); i++ ) {
+                for( size_type i=0; i<soln_dev.extent(1); i++ ) {
                   soln_dev(eID(elem),i) = sol(elem,i);
                 }
               });
@@ -1399,7 +1402,7 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
           Kokkos::View<ScalarT**,AssemblyDevice> cfields = phys->getExtraFields(b, 0, nodes, currenttime, assembler->wkset[b]);
           auto host_cfields = Kokkos::create_mirror_view(cfields);
           Kokkos::deep_copy(host_cfields,cfields);
-          for (int p=0; p<host_eID.extent(0); p++) {
+          for (size_type p=0; p<host_eID.extent(0); p++) {
             for (size_t i=0; i<host_cfields.extent(1); i++) {
               efdata(host_eID(p),i) = host_cfields(p,i);
             }
@@ -1454,7 +1457,7 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
           auto host_eID = Kokkos::create_mirror_view(eID);
           Kokkos::deep_copy(host_eID,eID);
           
-          for (int p=0; p<host_eID.extent(0); p++) {
+          for (size_type p=0; p<host_eID.extent(0); p++) {
             if (cell_data.extent(1) == 1) {
               cdata(host_eID(p)) = cell_data(p,0);//cell_data_seed[p];
             }
@@ -1538,7 +1541,7 @@ void PostprocessManager::writeOptimizationSolution(const int & numEvaluations) {
               auto eID = assembler->cells[b][e]->localElemID;
               auto sol = Kokkos::subview(assembler->cells[b][e]->param, Kokkos::ALL(), n, Kokkos::ALL());
               parallel_for("postproc plot param HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-                for( int i=0; i<soln_dev.extent(1); i++ ) {
+                for( size_type i=0; i<soln_dev.extent(1); i++ ) {
                   soln_dev(eID(elem),i) = sol(elem,i);
                 }
               });
@@ -1618,6 +1621,9 @@ ScalarT PostprocessManager::makeSomeNoise(ScalarT stdev) {
 // ========================================================================================
 
 vector<ScalarT> PostprocessManager::computeParameterSensitivities() {
+  vector<ScalarT> gradient;
+  return gradient;
+  
   /*
    if(Comm->getRank() == 0 && verbosity>0) {
    cout << endl << "*********************************************************" << endl;
@@ -1733,6 +1739,8 @@ vector<ScalarT> PostprocessManager::computeParameterSensitivities() {
 // ========================================================================================
 
 vector<ScalarT> PostprocessManager::computeDiscretizedSensitivities() {
+  vector<ScalarT> gradient;
+  return gradient;
   
   /*
    if(Comm->getRank() == 0 && verbosity>0) {

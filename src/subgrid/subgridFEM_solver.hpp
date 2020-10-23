@@ -201,6 +201,7 @@ namespace MrHyDE {
     string macroshape, shape, multiscale_method, error_type;
     int nummacroVars, subgridverbose, numrefine, assemble_together;
     topo_RCP cellTopo, macro_cellTopo;
+    ScalarT macro_deltat;
     
     // Linear algebra / solver objects
     Teuchos::RCP<LA_Map> param_overlapped_map;
@@ -227,7 +228,6 @@ namespace MrHyDE {
     Teuchos::RCP<AssemblyManager> assembler;
     
     int num_macro_time_steps;
-    ScalarT macro_deltat;
     bool write_subgrid_state;
     
     bool have_mesh_data, have_rotations, have_rotation_phi, compute_mesh_data;

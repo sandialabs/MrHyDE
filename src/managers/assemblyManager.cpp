@@ -27,7 +27,8 @@ AssemblyManager::AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::R
                                  Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
                                  Teuchos::RCP<ParameterManager> & params_,
                                  const int & numElemPerCell_) :
-Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), params(params_), numElemPerCell(numElemPerCell_) {
+Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_),
+params(params_), numElemPerCell(numElemPerCell_) {
   
   // Get the required information from the settings
   milo_debug_level = settings->get<int>("debug level",0);
@@ -56,7 +57,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
   mesh->getElementBlockNames(blocknames);
   
   // check if we need to assembly volumetric, boundary and face terms
-  for (int b=0; b<blocknames.size(); b++) {
+  for (size_t b=0; b<blocknames.size(); b++) {
     if (settings->sublist("Physics").isSublist(blocknames[b])) {
       assemble_volume_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).get<bool>("assemble volume terms",true));
       assemble_boundary_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).get<bool>("assemble boundary terms",true));
@@ -79,7 +80,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
   }
   
   // determine if we need to build basis functions
-  for (int b=0; b<blocknames.size(); b++) {
+  for (size_t b=0; b<blocknames.size(); b++) {
     if (assemble_volume_terms[b]) {
       build_volume_terms.push_back(true);
     }
@@ -204,8 +205,8 @@ void AssemblyManager::createCells() {
       DRV refnodes("nodes on reference element",numNodesPerElem,spaceDim);
       CellTools::getReferenceSubcellVertices(refnodes, spaceDim, 0, *cellTopo);
       
-      int elemPerCell = settings->sublist("Solver").get<int>("workset size",1);
-      int prog = 0;
+      size_t elemPerCell = static_cast<size_t>(settings->sublist("Solver").get<int>("workset size",1));
+      size_t prog = 0;
       
       vector<string> sideSets;
       mesh->getSidesetNames(sideSets);
@@ -225,7 +226,7 @@ void AssemblyManager::createCells() {
       
       vector<vector<int> > curroffsets = phys->offsets[b];
       Kokkos::View<LO*,AssemblyDevice> numDOF_KV("number of DOF per variable",curroffsets.size());
-      for (int k=0; k<curroffsets.size(); k++) {
+      for (size_t k=0; k<curroffsets.size(); k++) {
         numDOF_KV(k) = curroffsets[k].size();
       }
       blockCellData->numDOF = numDOF_KV;
@@ -239,7 +240,7 @@ void AssemblyManager::createCells() {
       
       if (assembly_partitioning == "sequential") {
         while (prog < numTotalElem) {
-          int currElem = elemPerCell;  // Avoid faults in last iteration
+          size_t currElem = elemPerCell;  // Avoid faults in last iteration
           if (prog+currElem > numTotalElem){
             currElem = numTotalElem-prog;
           }
@@ -269,11 +270,11 @@ void AssemblyManager::createCells() {
           // This subview only works if the cells use a continuous ordering of elements
           // Considering generalizing this to reduce atomic overhead, so performing manual deep copy for now
           //LIDView cellLIDs = Kokkos::subview(LIDs, std::make_pair(prog,prog+currElem), Kokkos::ALL());
-          int progend = prog+cellLIDs.extent(0);
+          size_type progend = prog+cellLIDs.extent(0);
           auto celem = Kokkos::subview(eIDs, std::make_pair(prog,progend));
           parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
             size_t elemID = celem(e);//disc->myElements[b][prog+e]; // TMW: why here?
-            for (int j=0; j<LIDs.extent(1); j++) {
+            for (size_type j=0; j<LIDs.extent(1); j++) {
               cellLIDs(e,j) = LIDs(elemID,j);
             }
           });
@@ -284,7 +285,7 @@ void AssemblyManager::createCells() {
           Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", currElem, numNodesPerElem);
           auto host_currind = Kokkos::create_mirror_view(currind);
           
-          for (int i=0; i<currElem; i++) {
+          for (size_t i=0; i<currElem; i++) {
             vector<stk::mesh::EntityId> stk_nodeids;
             size_t elemID = prog+i;//host_eIndex(i);
             mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
@@ -342,7 +343,7 @@ void AssemblyManager::createCells() {
           DRV sidenodes;
           mesh->getElementVertices(side_output, blocknames[b],sidenodes);
           
-          int numSideElem = local_side_Ids.size();
+          size_t numSideElem = local_side_Ids.size();
           
           if (numSideElem > 0) {
             vector<size_t> unique_sides;
@@ -367,9 +368,9 @@ void AssemblyManager::createCells() {
                 }
               }
               
-              int prog = 0;
+              size_t prog = 0;
               while (prog < group.size()) {
-                int currElem = numBoundaryElem;
+                size_t currElem = numBoundaryElem;
                 if (prog+currElem > group.size()){
                   currElem = group.size()-prog;
                 }
@@ -382,11 +383,11 @@ void AssemblyManager::createCells() {
                 auto host_sideIndex = Kokkos::create_mirror_view(sideIndex); // mirror on host
                 auto host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
                 
-                for (int e=0; e<currElem; e++) {
+                for (size_t e=0; e<currElem; e++) {
                   host_eIndex(e) = mesh->elementLocalId(side_output[group[e+prog]]);
                   host_sideIndex(e) = local_side_Ids[group[e+prog]];
-                  for (int n=0; n<host_currnodes.extent(1); n++) {
-                    for (int m=0; m<host_currnodes.extent(2); m++) {
+                  for (size_type n=0; n<host_currnodes.extent(1); n++) {
+                    for (size_type m=0; m<host_currnodes.extent(2); m++) {
                       host_currnodes(e,n,m) = sidenodes(group[e+prog],n,m);
                     }
                   }
@@ -401,7 +402,7 @@ void AssemblyManager::createCells() {
                 LIDView cellLIDs("LIDs",currElem,LIDs.extent(1));
                 parallel_for("assembly copy LIDs bcell",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
                   size_t elemID = eIndex(e);
-                  for (int j=0; j<LIDs.extent(1); j++) {
+                  for (size_type j=0; j<LIDs.extent(1); j++) {
                     cellLIDs(e,j) = LIDs(elemID,j);
                   }
                 });
@@ -418,7 +419,7 @@ void AssemblyManager::createCells() {
                 
                 auto host_currind = Kokkos::create_mirror_view(currind);
                 
-                for (int i=0; i<currElem; i++) {
+                for (size_t i=0; i<currElem; i++) {
                   vector<stk::mesh::EntityId> stk_nodeids;
                   size_t elemID = host_eIndex(i);
                   mesh->getNodeIdsForElement(all_meshElems[elemID], stk_nodeids);
@@ -511,7 +512,7 @@ void AssemblyManager::updateJacDBC(matrix_RCP & J,
   
   // given a "block" and the unknown field update jacobian to enforce Dirichlet BCs
   //size_t numcols = J->getGlobalNumCols();
-  for( int i=0; i<dofs.size(); i++ ) { // for each node
+  for( size_t i=0; i<dofs.size(); i++ ) { // for each node
     if (compute_disc_sens) {
       int numcols = globalParamUnknowns; // TMW fix this!
       for( int col=0; col<numcols; col++ ) {
@@ -542,7 +543,7 @@ void AssemblyManager::updateJacDBC(matrix_RCP & J,
     // nothing to do here
   }
   else {
-    for( int i=0; i<dofs.size(); i++ ) {
+    for( size_t i=0; i<dofs.size(); i++ ) {
       ScalarT val = 1.0; // set diagonal entry to 1
       J->replaceLocalValues(dofs[i], 1, &val, &dofs[i]);
     }
@@ -570,7 +571,6 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       
-      int numElem = cells[b][e]->numElem;
       LIDView_host LIDs = cells[b][e]->LIDs_host;
       
       Kokkos::View<ScalarT**,AssemblyDevice> localrhs = cells[b][e]->getInitial(true, useadjoint);
@@ -582,18 +582,18 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
       
       // Would prefer to rewrite this
       //parallel_for("assembly copy LIDs",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (int e=0; e<LIDs.extent(0); e++) {
+      for (size_type e=0; e<LIDs.extent(0); e++) {
         //const int numVals = static_cast<int>(LIDs.extent(1));
         //const int numVals = LIDs.extent(1);
         //int numVals = LIDs.extent(1);
         //LO cols[numVals];
         //ScalarT vals[numVals];
         
-        for( size_t row=0; row<LIDs.extent(1); row++ ) {
+        for( size_type row=0; row<LIDs.extent(1); row++ ) {
           LO rowIndex = LIDs(e,row);
           ScalarT val = host_rhs(e,row);
           rhs->sumIntoLocalValue(rowIndex, 0, val);
-          for( size_t col=0; col<LIDs.extent(1); col++ ) {
+          for( size_type col=0; col<LIDs.extent(1); col++ ) {
             ScalarT vals = host_mass(e,row,col);
             LO cols = LIDs(e,col);
             localMatrix.sumIntoValues(rowIndex, &cols, 1, &vals, true, false); // isSorted, useAtomics
@@ -672,8 +672,8 @@ void AssemblyManager::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
       Kokkos::deep_copy(host_rhs,localrhs);
       Kokkos::deep_copy(host_mass,localmass);
       
-      const int numVals = static_cast<int>(LIDs.extent(1));
-      
+      //const int numVals = static_cast<int>(LIDs.extent(1));
+      size_t numVals = LIDs.extent(1);
       // assemble into global matrix
       for (int c=0; c<numElem; c++) {
         for( size_t row=0; row<LIDs.extent(1); row++ ) {
@@ -691,12 +691,11 @@ void AssemblyManager::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
                 totalval += host_mass(c,row,col);
               }
               vals[0] = totalval;
-              //mass->sumIntoGlobalValues(rowIndex, cols, vals);
               localMatrix.sumIntoValues(rowIndex, cols, 1, vals, true, false);
             }
             else {
-              LO cols[numVals];
-              ScalarT vals[numVals];
+              LO cols[maxDerivs];
+              ScalarT vals[maxDerivs];
               for( size_t col=0; col<LIDs.extent(1); col++ ) {
                 cols[col] = LIDs(c,col);
                 vals[col] = localmass(c,row,col);
@@ -714,8 +713,8 @@ void AssemblyManager::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       LIDView LIDs = cells[b][e]->LIDs;
-      for (int c=0; c<cells[b][e]->numElem; c++) {
-        for( size_t row=0; row<LIDs.extent(1); row++ ) {
+      for (size_t c=0; c<cells[b][e]->numElem; c++) {
+        for( size_type row=0; row<LIDs.extent(1); row++ ) {
           LO rowIndex = LIDs(c,row);
           if (!isFixedDOF(rowIndex)) {
             ScalarT vals[1];
@@ -802,8 +801,6 @@ void AssemblyManager::assembleJacRes(const bool & compute_jacobian, const bool &
                                      const int & num_active_params,
                                      const bool & is_final_time,
                                      const int & b, const ScalarT & deltat) {
-  
-  int numRes = res->getNumVectors();
   
   Teuchos::TimeMonitor localassemblytimer(*assemblytimer);
   
@@ -1099,8 +1096,8 @@ void AssemblyManager::performGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_de
       }
       
       parallel_for("assembly gather",RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for (size_t var=0; var<offsets.extent(0); var++) {
-          for(size_t dof=0; dof<numDOF(var); dof++ ) {
+        for (size_type var=0; var<offsets.extent(0); var++) {
+          for(int dof=0; dof<numDOF(var); dof++ ) {
             data(elem,var,dof) = vec_dev(LIDs(elem,offsets(var,dof)));
           }
         }
@@ -1155,7 +1152,7 @@ void AssemblyManager::performBoundaryGather(Kokkos::View<ScalarT*,AssemblyDevice
         
         parallel_for("assembly boundary gather",RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (size_t var=0; var<numDOF.extent(0); var++) {
-            for(size_t dof=0; dof<numDOF(var); dof++ ) {
+            for(int dof=0; dof<numDOF(var); dof++ ) {
               data(elem,var,dof) = vec_dev(LIDs(elem,offsets(var,dof)));
             }
           }
@@ -1183,11 +1180,11 @@ void AssemblyManager::insert(T J_view, vector_RCP & res,
   /////////////////////////////////////
   
   //parallel_for("assembly insert res",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-  for( size_t elem=0; elem<LIDs.extent(0); elem++ ) {
-    for( size_t row=0; row<LIDs.extent(1); row++ ) {
+  for( size_type elem=0; elem<LIDs.extent(0); elem++ ) {
+    for( size_type row=0; row<LIDs.extent(1); row++ ) {
       LO rowIndex = LIDs(elem,row);
       if (!isFixedDOF(rowIndex)) {
-        for (LO g=0; g<local_res.extent(2); g++) {
+        for (size_type g=0; g<local_res.extent(2); g++) {
           ScalarT val = local_res(elem,row,g);
           res->sumIntoLocalValue(rowIndex,g, val);
         }
@@ -1207,7 +1204,6 @@ void AssemblyManager::insert(T J_view, vector_RCP & res,
           for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
             LO colIndex = paramLIDs(elem,col);
             ScalarT val = local_J(elem,row,col);
-            //localMatrix.sumIntoValues(colIndex, &rowIndex, 1, &val, true, use_atomics); // isSorted, useAtomics
             J_view.sumIntoValues(colIndex, &rowIndex, 1, &val, true, use_atomics); // isSorted, useAtomics
           }
         }
@@ -1216,22 +1212,18 @@ void AssemblyManager::insert(T J_view, vector_RCP & res,
     else {
       //parallel_for("assembly insert Jac",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for( size_t elem=0; elem<LIDs.extent(0); elem++ ) {
-        //const int numVals = static_cast<int>(LIDs.extent(1));
-        const int numVals = LIDs.extent(1);
-        LO cols[numVals];
-        ScalarT vals[numVals];
         
-        for (size_t row=0; row<LIDs.extent(1); row++ ) {
+        const size_type numVals = LIDs.extent(1);
+        LO cols[maxDerivs];
+        ScalarT vals[maxDerivs];
+        
+        for (size_type row=0; row<LIDs.extent(1); row++ ) {
           LO rowIndex = LIDs(elem,row);
           if (!isFixedDOF(rowIndex)) {
-            for (size_t col=0; col<LIDs.extent(1); col++ ) {
+            for (size_type col=0; col<LIDs.extent(1); col++ ) {
               vals[col] = local_J(elem,row,col);
               cols[col] = LIDs(elem,col);
-              //ScalarT vals = local_J(elem,row,col);
-              //LO cols = LIDs(elem,col);
-              //localMatrix.sumIntoValues(rowIndex, &cols, 1, &vals, true, use_atomics); // isSorted, useAtomics
             }
-            //localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics); // isSorted, useAtomics
             J_view.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics); // isSorted, useAtomics
           }
         }

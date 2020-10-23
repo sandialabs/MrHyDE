@@ -118,16 +118,13 @@ void shallowwater::volumeResidual() {
   auto Hvoff = Kokkos::subview(offsets, Hv_num, Kokkos::ALL());
   
   parallel_for("SW volume resid",RangePolicy<AssemblyExec>(0,Hbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-    ScalarT v = 0.0;
-    ScalarT dvdx = 0.0;
-    ScalarT dvdy = 0.0;
     ScalarT gravity = 9.8;
-    for (int pt=0; pt<Hbasis.extent(2); pt++ ) {
+    for (size_type pt=0; pt<Hbasis.extent(2); pt++ ) {
       
       AD f = xi_dot(elem,pt)*wts(elem,pt);
       AD Fx = -Hu(elem,pt)*wts(elem,pt);
       AD Fy = -Hv(elem,pt)*wts(elem,pt);
-      for (int dof=0; dof<Hbasis.extent(1); dof++ ) {
+      for (size_type dof=0; dof<Hbasis.extent(1); dof++ ) {
         res(elem,Hoff(dof)) += f*Hbasis(elem,dof,pt) + Fx*Hbasis_grad(elem,dof,pt,0) + Fy*Hbasis_grad(elem,dof,pt,1);
       }
       
@@ -139,7 +136,7 @@ void shallowwater::volumeResidual() {
       f = (Hu_dot(elem,pt) - gravity*xi(elem,pt)*bath_x(elem,pt))*wts(elem,pt);
       Fx = -(uHu + 0.5*gravity*(H*H-bath(elem,pt)*bath(elem,pt)))*wts(elem,pt);
       Fy = -uHv*wts(elem,pt);
-      for (int dof=0; dof<Hubasis.extent(1); dof++ ) {
+      for (size_type dof=0; dof<Hubasis.extent(1); dof++ ) {
         res(elem,Huoff(dof)) += f*Hubasis(elem,dof,pt) + Fx*Hubasis_grad(elem,dof,pt,0) + Fy*Hubasis_grad(elem,dof,pt,1);
       }
       
@@ -147,7 +144,7 @@ void shallowwater::volumeResidual() {
       Fx = -uHv*wts(elem,pt);
       Fy = -(vHv + 0.5*gravity*(H*H-bath(elem,pt)*bath(elem,pt)))*wts(elem,pt);
       
-      for (int dof=0; dof<Hvbasis.extent(1); dof++ ) {
+      for (size_type dof=0; dof<Hvbasis.extent(1); dof++ ) {
         res(elem,Hvoff(dof)) += f*Hubasis(elem,dof,pt) + Fx*Hubasis_grad(elem,dof,pt,0) + Fy*Hubasis_grad(elem,dof,pt,1);
       }
       
@@ -212,15 +209,15 @@ void shallowwater::boundaryResidual() {
   ScalarT bb = 1.0;
   ScalarT gravity = 9.8;
   int cside = wkset->currentside;
-  for (int e=0; e<sideinfo.extent(0); e++) {
+  for (size_type e=0; e<sideinfo.extent(0); e++) {
     if (sideinfo(e,H_num,cside,0) == 2) { // Element e is on the side
-      for (int k=0; k<Hbasis.extent(2); k++ ) {
+      for (size_type k=0; k<Hbasis.extent(2); k++ ) {
         AD xi = sol_side(e,H_num,k,0);
         AD H = xi + bb;//bath_side(e,k);
         AD Hu = sol_side(e,Hu_num,k,0);
         AD Hv = sol_side(e,Hv_num,k,0);
         
-        for (int i=0; i<Hbasis.extent(1); i++ ) {
+        for (size_type i=0; i<Hbasis.extent(1); i++ ) {
           int resindex = offsets(H_num,i);
           ScalarT v = Hbasis(e,i,k);
           //res(e,resindex) += (Hu*normals(e,k,0)+Hv*normals(e,k,1))*v;
@@ -229,13 +226,13 @@ void shallowwater::boundaryResidual() {
       }
     }
     if (sideinfo(e,Hu_num,cside,0) == 2) { // Element e is on the side
-      for (int k=0; k<Hubasis.extent(2); k++ ) {
+      for (size_type k=0; k<Hubasis.extent(2); k++ ) {
         AD xi = sol_side(e,H_num,k,0);
         AD H = xi + bb;//bath_side(e,k);
         AD Hu = sol_side(e,Hu_num,k,0);
         AD Hv = sol_side(e,Hv_num,k,0);
         
-        for (int i=0; i<Hubasis.extent(1); i++ ) {
+        for (size_type i=0; i<Hubasis.extent(1); i++ ) {
           int resindex = offsets(Hu_num,i);
           ScalarT v = Hubasis(e,i,k);
           //res(e,resindex) += (((Hu*Hu/H + 0.5*gravity*(H*H-bb*bb)))*normals(e,k,0) + Hv*Hu/H*normals(e,k,1))*v;
@@ -244,13 +241,13 @@ void shallowwater::boundaryResidual() {
       }
     }
     if (sideinfo(e,Hv_num,cside,0) == 2) { // Element e is on the side
-      for (int k=0; k<Hvbasis.extent(2); k++ ) {
+      for (size_type k=0; k<Hvbasis.extent(2); k++ ) {
         AD xi = sol_side(e,H_num,k,0);
         AD H = xi + bb;//bath_side(e,k);
         AD Hu = sol_side(e,Hu_num,k,0);
         AD Hv = sol_side(e,Hv_num,k,0);
         
-        for (int i=0; i<Hvbasis.extent(1); i++ ) {
+        for (size_type i=0; i<Hvbasis.extent(1); i++ ) {
           int resindex = offsets(Hv_num,i);
           ScalarT v = Hvbasis(e,i,k);
           //res(e,resindex) += (((Hu*Hu/H))*normals(e,k,0) + (Hv*Hu/H + 0.5*gravity*(H*H - bb*bb))*normals(e,k,1))*v;

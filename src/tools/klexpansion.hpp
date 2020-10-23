@@ -26,7 +26,7 @@ namespace MrHyDE {
     //  transient, stochastic, etc.)
     /////////////////////////////////////////////////////////////////////////////
     
-    klexpansion(const int & N_, const ScalarT & L_, const ScalarT & sigma_, const ScalarT & eta_) :
+    klexpansion(const size_t & N_, const ScalarT & L_, const ScalarT & sigma_, const ScalarT & eta_) :
     N(N_), L(L_), sigma(sigma_), eta(eta_) {
       
       this->computeRoots();
@@ -104,8 +104,8 @@ namespace MrHyDE {
     
   protected:
     
-    ScalarT eta, L, sigma;
-    int N;
+    size_t N;
+    ScalarT L, sigma, eta;
     
     std::vector<ScalarT> omega;
     

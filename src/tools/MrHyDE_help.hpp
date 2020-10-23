@@ -38,6 +38,7 @@ namespace MrHyDE {
     
     static void printHelp(const string & helpwhat, const string & details) {
       
+      /*
       if (helpwhat == "help") {
         cout << endl;
         cout << "********** Help and Documentation for --help **********" << endl << endl;
@@ -79,7 +80,7 @@ namespace MrHyDE {
       else if (helpwhat == "multiscale") {
         multiscaleHelp(details);
       }
-      
+      */
       
     }
     

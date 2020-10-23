@@ -20,12 +20,13 @@
 #include <time.h>
 
 namespace MrHyDE {
-  
+  /*
   static void msphasefieldHelp() {
     cout << "********** Help and Documentation for the Multi-species Phase Field Physics Module **********" << endl << endl;
     cout << "Model:" << endl << endl;
     cout << "User defined functions: " << endl << endl;
   }
+  */
   
   class msphasefield : public physicsbase {
   public:

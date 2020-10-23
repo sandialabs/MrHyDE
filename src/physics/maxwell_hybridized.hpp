@@ -18,12 +18,14 @@
 
 namespace MrHyDE {
   
+/*
   static void maxwellhybridHelp() {
     cout << "********** Help and Documentation for the Maxwell Hybrid (HCURL-HDIV) Physics Module **********" << endl << endl;
     cout << "Model:" << endl << endl;
     cout << "User defined functions: " << endl << endl;
   }
-  
+  */
+
   /*
    * This class computes the solution to the physics formed by applying the HDG finite
    * element method to 3D time-domain PDEs for Maxwell's equations. It yields the

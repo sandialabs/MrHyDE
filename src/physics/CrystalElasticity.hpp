@@ -41,7 +41,7 @@ namespace MrHyDE {
       mu = E/(2.0*(1.0+nu));
       
       // Gas constant: TMW: Need to make this a parameter
-      ScalarT R_ = esettings.get<ScalarT>("R",0.0);
+      // ScalarT R_ = esettings.get<ScalarT>("R",0.0);
       
       // Elastic tensor in lattice frame
       C = Kokkos::View<ScalarT*****,AssemblyDevice>("CE-C",numElem,3,3,3,3);
@@ -277,14 +277,14 @@ namespace MrHyDE {
       }
       if (dimension == 1) {
         for (int e=0; e<numElem; e++) {
-          for (size_t k=0; k<numip; k++) {
+          for (int k=0; k<numip; k++) {
             F(e,k,0,0) = sol_grad(e,dxnum,k,0);
           }
         }
       }
       else if (dimension == 2) {
         for (int e=0; e<numElem; e++) {
-          for (size_t k=0; k<numip; k++) {
+          for (int k=0; k<numip; k++) {
             F(e,k,0,0) = sol_grad(e,dxnum,k,0);
             F(e,k,0,1) = sol_grad(e,dxnum,k,1);
             F(e,k,1,0) = sol_grad(e,dynum,k,0);
@@ -294,7 +294,7 @@ namespace MrHyDE {
       }
       else if (dimension == 3) {
         for (int e=0; e<numElem; e++) {
-          for (size_t k=0; k<numip; k++) {
+          for (int k=0; k<numip; k++) {
             F(e,k,0,0) = sol_grad(e,dxnum,k,0);
             F(e,k,0,1) = sol_grad(e,dxnum,k,1);
             F(e,k,0,2) = sol_grad(e,dxnum,k,2);
@@ -312,9 +312,9 @@ namespace MrHyDE {
       Kokkos::View<AD****,AssemblyDevice> E("CE-E",numElem,numip,dimension,dimension);
       
       for (int e=0; e<numElem; e++) {
-        for (size_t k=0; k<numip; k++) {
-          for (size_t i=0; i<dimension; i++) {
-            for (size_t j=0; j<dimension; j++) {
+        for (int k=0; k<numip; k++) {
+          for (int i=0; i<dimension; i++) {
+            for (int j=0; j<dimension; j++) {
               E(e,k,i,j) = 0.5*F(e,k,i,j) + 0.5*F(e,k,j,i);
             }
           }
@@ -325,7 +325,7 @@ namespace MrHyDE {
       // compute S = Cr*E
       
       for (int e=0; e<numElem; e++) {
-        for (size_t q=0; q<numip; q++) {
+        for (int q=0; q<numip; q++) {
           for ( int i = 0; i < dimension; ++i ) {
             for ( int j = 0; j < dimension; ++j ) {
               stress(e,q,i,j) = 0.0;
@@ -339,7 +339,7 @@ namespace MrHyDE {
           } // end i
         }
         if (have_energy) {
-          for (size_t q=0; q<numip; q++) {
+          for (int q=0; q<numip; q++) {
             for ( int i = 0; i < dimension; ++i ) {
               stress(e,q,i,i) += -alpha_T*(3*lambda+2*mu)*(sol(e,e_num,q,0)-e_ref);
             }

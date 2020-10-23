@@ -17,6 +17,7 @@
 #include "trilinos.hpp"
 #include "preferences.hpp"
 #include "function_class.hpp"
+#include "interpreter.hpp"
 
 namespace MrHyDE {
   
@@ -104,6 +105,7 @@ namespace MrHyDE {
     std::vector<std::string> variables, parameters, disc_parameters;
     std::vector<std::string> known_vars, known_ops;
     Teuchos::RCP<workset> wkset;
+    Teuchos::RCP<Interpreter> interpreter;
     Teuchos::RCP<Teuchos::Time> decomposeTimer = Teuchos::TimeMonitor::getNewCounter("MILO::function::decompose");
     Teuchos::RCP<Teuchos::Time> evaluateTimer = Teuchos::TimeMonitor::getNewCounter("MILO::function::evaluate");
     

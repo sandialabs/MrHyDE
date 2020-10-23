@@ -142,7 +142,6 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
     
     // Dirichlet conditions
     Teuchos::ParameterList dbcs = blockPhysSettings[b].sublist("Dirichlet conditions");
-    bool weak_dbcs = dbcs.get<bool>("use weak Dirichlet",false);
     for (size_t j=0; j<varlist[b].size(); j++) {
       if (dbcs.isSublist(varlist[b][j])) {
         if (dbcs.sublist(varlist[b][j]).isType<string>("all boundaries")) {
@@ -1077,9 +1076,9 @@ Kokkos::View<ScalarT**,AssemblyDevice> physics::getExtraFields(const int & block
   
   Kokkos::View<ScalarT**,AssemblyDevice> fields("field data",ip.extent(0),ip.extent(1));
   
-  for (size_t e=0; e<ip.extent(0); e++) {
-    for (size_t j=0; j<ip.extent(1); j++) {
-      for (size_t s=0; s<spaceDim; s++) {
+  for (size_type e=0; e<ip.extent(0); e++) {
+    for (size_type j=0; j<ip.extent(1); j++) {
+      for (int s=0; s<spaceDim; s++) {
         wkset->point_KV(0,0,s) = ip(e,j,s);
       }
       FDATA efdata = functionManagers[block]->evaluate(extrafields_list[block][fnum],"point");
@@ -1102,7 +1101,6 @@ Kokkos::View<ScalarT*,AssemblyDevice> physics::getExtraCellFields(const int & bl
   Kokkos::View<ScalarT*,AssemblyDevice> fields("cell field data",numElem);
   
   FDATA efdata = functionManagers[block]->evaluate(extracellfields_list[block][fnum],"ip");
-  size_t numip = wts.extent(1);
   
   if (cellfield_reduction == "mean") { // default
     parallel_for("physics get extra cell fields",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -1353,7 +1351,7 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
     block_dbc_dofs.erase(std::unique(block_dbc_dofs.begin(),
                                      block_dbc_dofs.end()), block_dbc_dofs.end());
     
-    int localsize = block_dbc_dofs.size();
+    int localsize = (int)block_dbc_dofs.size();
     int globalsize = 0;
     
     //Teuchos::reduceAll<int, int>(*Commptr, Teuchos::REDUCE_SUM, localsize, Teuchos::outArg(globalsize));
@@ -1363,9 +1361,9 @@ void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
     int *block_dbc_dofs_local = new int [globalsize];
     int *block_dbc_dofs_global = new int [gathersize];
     
-    
+    int mxdof = (int) block_dbc_dofs.size();
     for (int i = 0; i < globalsize; i++) {
-      if ( i < block_dbc_dofs.size()) {
+      if ( i < mxdof) {
         block_dbc_dofs_local[i] = (int) block_dbc_dofs[i];
       }
       else {
@@ -1498,14 +1496,14 @@ Kokkos::View<int****,HostDevice> physics::getSideInfo(const size_t & block,
   
   Teuchos::TimeMonitor localtimer(*sideinfotimer);
   
-  size_t nelem = elem.extent(0);
-  size_t nvars = side_info[block].extent(1);
-  size_t nelemsides = side_info[block].extent(2);
-  size_t nglobalsides = side_info[block].extent(3);
+  size_type nelem = elem.extent(0);
+  size_type nvars = side_info[block].extent(1);
+  size_type nelemsides = side_info[block].extent(2);
+  //size_type nglobalsides = side_info[block].extent(3);
   Kokkos::View<int****,HostDevice> currsi("side info for cell",nelem,nvars,nelemsides, 2);
-  for (int e=0; e<nelem; e++) {
-    for (int j=0; j<nelemsides; j++) {
-      for (int i=0; i<nvars; i++) {
+  for (size_type e=0; e<nelem; e++) {
+    for (size_type j=0; j<nelemsides; j++) {
+      for (size_type i=0; i<nvars; i++) {
         int sidetype = side_info[block](elem(e),i,j,0);
         if (sidetype > 0) { // TMW: why is this here?
           currsi(e,i,j,0) = sidetype;

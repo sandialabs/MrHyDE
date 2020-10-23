@@ -33,7 +33,7 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    ~physicsbase() {};
+    virtual ~physicsbase() {};
     
     // ========================================================================================
     // Define the functions for this module (not necessary, but probably need to be defined in all modules)

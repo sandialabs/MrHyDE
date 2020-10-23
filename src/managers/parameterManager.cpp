@@ -27,8 +27,7 @@ ParameterManager::ParameterManager(const Teuchos::RCP<MpiComm> & Comm_,
                                    Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
                                    Teuchos::RCP<physics> & phys_,
                                    Teuchos::RCP<discretization> & disc_) :
-Comm(Comm_), mesh(mesh_), phys(phys_), settings(settings_), disc(disc_) {
-  
+Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), settings(settings_) {
   
   /////////////////////////////////////////////////////////////////////////////
   // Parameters
@@ -274,7 +273,7 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
           Kokkos::View<LO*,AssemblyDevice> EIDs = cells[b][e]->localElemID;
           parallel_for("paramman copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int c ) {
             size_t elemID = GEIDs(EIDs(c));
-            for (int j=0; j<LIDs.extent(1); j++) {
+            for (size_type j=0; j<LIDs.extent(1); j++) {
               cellLIDs(c,j) = LIDs(elemID,j);
             }
           });
@@ -295,7 +294,7 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
           Kokkos::View<LO*> EIDs = boundaryCells[b][e]->localElemID;
           parallel_for("paramman copy LIDs bcells",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
             size_t elemID = EIDs(e);
-            for (int j=0; j<LIDs.extent(1); j++) {
+            for (size_type j=0; j<LIDs.extent(1); j++) {
               cellLIDs(e,j) = LIDs(elemID,j);
             }
           });
@@ -305,7 +304,7 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
       }
     }
     if (discretized_stochastic) { // add the param DOFs as indep. rv's
-      for (size_t j=0; j<numParamUnknownsOS; j++) {
+      for (int j=0; j<numParamUnknownsOS; j++) {
         // hard coding for one disc param just to get something working
         stochastic_distribution.push_back(discparam_distribution[0]);
         stochastic_mean.push_back(initialParamValues[0]);
@@ -490,7 +489,7 @@ vector<ScalarT> ParameterManager::getDiscretizedParamsVector() {
     discLocalParams[gid] = Psol_2d(i,0);
     //cout << gid << " " << Psol_2d(i,0) << endl;
   }
-  for (size_t i = 0; i < numParams; i++) {
+  for (int i = 0; i < numParams; i++) {
     ScalarT globalval = 0.0;
     ScalarT localval = discLocalParams[i];
     Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
@@ -698,7 +697,7 @@ void ParameterManager::setParam(const vector<ScalarT> & newparams, const std::st
 
 void ParameterManager::updateParams(const vector<ScalarT> & newparams, const std::string & stype) {
   size_t pprog = 0;
-  int type;
+  int type = -1;
   // perhaps add a check that the size of newparams equals the number of parameters of the
   // requested type
   if (stype == "inactive") { type = 0;}
@@ -774,7 +773,7 @@ vector<size_t> ParameterManager::getParamsLengths(const int & type) {
 
 vector<ScalarT> ParameterManager::getParams(const std::string & stype) {
   vector<ScalarT> reqparams;
-  int type;
+  int type = -1;
   if (stype == "inactive")
   type = 0;
   else if (stype == "active")
@@ -803,7 +802,7 @@ vector<vector<ScalarT> > ParameterManager::getParamBounds(const std::string & st
   vector<vector<ScalarT> > reqbnds;
   vector<ScalarT> reqlo;
   vector<ScalarT> requp;
-  int type;
+  int type = -1;
   if (stype == "inactive") {type = 0;}
   else if (stype == "active") {type = 1;}
   else if (stype == "stochastic") {type = 2;}
@@ -840,7 +839,7 @@ vector<vector<ScalarT> > ParameterManager::getParamBounds(const std::string & st
       }
     }
     
-    for (size_t i = 0; i < numDiscParams; i++) {
+    for (int i = 0; i < numDiscParams; i++) {
       
       ScalarT globalval = 0.0;
       ScalarT localval = rLocalLo[i];

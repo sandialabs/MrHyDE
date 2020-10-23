@@ -150,7 +150,7 @@ Commptr(Comm_), mesh(mesh_) {
     ///////////////////////////////////////////////////////////////////////////
     
     int mxorder = 0;
-    for (int i=0; i<orders[b].size(); i++) {
+    for (size_t i=0; i<orders[b].size(); i++) {
       if (orders[b][i]>mxorder) {
         mxorder = orders[b][i];
       }

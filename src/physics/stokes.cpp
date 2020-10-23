@@ -73,12 +73,6 @@ void stokes::defineFunctions(Teuchos::ParameterList & fs,
 
 void stokes::volumeResidual() {
   
-  // NOTES:
-  // 1. basis and basis_grad already include the integration weights
-  
-  int numip = wkset->ip.extent(1);
-  int numBasis;
-  
   FDATA visc, source_ux, source_pr, source_uy, source_uz;
   
   {
@@ -111,11 +105,11 @@ void stokes::volumeResidual() {
       auto basis_grad = wkset->basis_grad[ux_basis];
       auto off = Kokkos::subview(wkset->offsets,ux_num,Kokkos::ALL());
       parallel_for("Stokes ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for (int pt=0; pt<basis.extent(2); pt++ ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*gradUx(elem,pt,0) - Pr(elem,pt);
           Fx *= wts(elem,pt);
           AD g = -source_ux(elem,pt)*wts(elem,pt);
-          for (int dof=0; dof<basis.extent(1); dof++ ) {
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + g*basis(elem,dof,pt);
           }
         }
@@ -129,10 +123,10 @@ void stokes::volumeResidual() {
       auto off = Kokkos::subview(wkset->offsets,pr_num,Kokkos::ALL());
       
       parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for( int pt=0; pt<basis.extent(2); pt++ ) {
+        for( size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD divu = gradUx(elem,pt,0);
           divu *= wts(elem,pt);
-          for( int dof=0; dof<basis.extent(1); dof++ ) {
+          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += divu*basis(elem,dof,pt);
           }
         }
@@ -150,13 +144,13 @@ void stokes::volumeResidual() {
       auto basis_grad = wkset->basis_grad[ux_basis];
       auto off = Kokkos::subview(wkset->offsets,ux_num,Kokkos::ALL());
       parallel_for("Stokes ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for (int pt=0; pt<basis.extent(2); pt++ ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*gradUx(elem,pt,0) - Pr(elem,pt);
           Fx *= wts(elem,pt);
           AD Fy = visc(elem,pt)*gradUx(elem,pt,1);
           Fy *= wts(elem,pt);
           AD g = -source_ux(elem,pt)*wts(elem,pt);
-          for (int dof=0; dof<basis.extent(1); dof++ ) {
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + g*basis(elem,dof,pt);
           }
         }
@@ -169,13 +163,13 @@ void stokes::volumeResidual() {
       auto basis_grad = wkset->basis_grad[uy_basis];
       auto off = Kokkos::subview(wkset->offsets,uy_num,Kokkos::ALL());
       parallel_for("Stokes uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for( int pt=0; pt<basis.extent(2); pt++ ) {
+        for( size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*gradUy(elem,pt,0);
           Fx *= wts(elem,pt);
           AD Fy = visc(elem,pt)*gradUy(elem,pt,1) - Pr(elem,pt);
           Fy *= wts(elem,pt);
           AD g = -source_uy(elem,pt)*wts(elem,pt);
-          for (int dof=0; dof<basis.extent(1); dof++ ) {
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + g*basis(elem,dof,pt);
           }
         }
@@ -189,10 +183,10 @@ void stokes::volumeResidual() {
       auto off = Kokkos::subview(wkset->offsets,pr_num,Kokkos::ALL());
       
       parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for( int pt=0; pt<basis.extent(2); pt++ ) {
+        for( size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD divu = gradUx(elem,pt,0) + gradUy(elem,pt,1);
           divu *= wts(elem,pt);
-          for( int dof=0; dof<basis.extent(1); dof++ ) {
+          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += divu*basis(elem,dof,pt);
           }
         }
@@ -211,7 +205,7 @@ void stokes::volumeResidual() {
       auto basis_grad = wkset->basis_grad[ux_basis];
       auto off = Kokkos::subview(wkset->offsets,ux_num,Kokkos::ALL());
       parallel_for("Stokes ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for (int pt=0; pt<basis.extent(2); pt++ ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*gradUx(elem,pt,0) - Pr(elem,pt);
           Fx *= wts(elem,pt);
           AD Fy = visc(elem,pt)*gradUx(elem,pt,1);
@@ -219,7 +213,7 @@ void stokes::volumeResidual() {
           AD Fz = visc(elem,pt)*gradUx(elem,pt,2);
           Fz *= wts(elem,pt);
           AD g = -source_ux(elem,pt)*wts(elem,pt);
-          for (int dof=0; dof<basis.extent(1); dof++ ) {
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + g*basis(elem,dof,pt);
           }
         }
@@ -232,7 +226,7 @@ void stokes::volumeResidual() {
       auto basis_grad = wkset->basis_grad[uy_basis];
       auto off = Kokkos::subview(wkset->offsets,uy_num,Kokkos::ALL());
       parallel_for("Stokes uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for( int pt=0; pt<basis.extent(2); pt++ ) {
+        for( size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*gradUy(elem,pt,0);
           Fx *= wts(elem,pt);
           AD Fy = visc(elem,pt)*gradUy(elem,pt,1) - Pr(elem,pt);
@@ -240,7 +234,7 @@ void stokes::volumeResidual() {
           AD Fz = visc(elem,pt)*gradUy(elem,pt,2);
           Fz *= wts(elem,pt);
           AD g = -source_uy(elem,pt)*wts(elem,pt);
-          for (int dof=0; dof<basis.extent(1); dof++ ) {
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + g*basis(elem,dof,pt);
           }
         }
@@ -253,7 +247,7 @@ void stokes::volumeResidual() {
       auto basis_grad = wkset->basis_grad[uz_basis];
       auto off = Kokkos::subview(wkset->offsets,uz_num,Kokkos::ALL());
       parallel_for("Stokes uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for( int pt=0; pt<basis.extent(2); pt++ ) {
+        for( size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*gradUz(elem,pt,0);
           Fx *= wts(elem,pt);
           AD Fy = visc(elem,pt)*gradUz(elem,pt,1);
@@ -261,7 +255,7 @@ void stokes::volumeResidual() {
           AD Fz = visc(elem,pt)*gradUz(elem,pt,2) - Pr(elem,pt);
           Fz *= wts(elem,pt);
           AD g = -source_uz(elem,pt)*wts(elem,pt);
-          for (int dof=0; dof<basis.extent(1); dof++ ) {
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + g*basis(elem,dof,pt);
           }
         }
@@ -274,10 +268,10 @@ void stokes::volumeResidual() {
       auto off = Kokkos::subview(wkset->offsets,pr_num,Kokkos::ALL());
       
       parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        for( int pt=0; pt<basis.extent(2); pt++ ) {
+        for( size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD divu = gradUx(elem,pt,0) + gradUy(elem,pt,1) + gradUz(elem,pt,2);
           divu *= wts(elem,pt);
-          for( int dof=0; dof<basis.extent(1); dof++ ) {
+          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += divu*basis(elem,dof,pt);
           }
         }

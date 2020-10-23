@@ -95,22 +95,23 @@ void maxwells_fp::volumeResidual() {
   vi = 0.0, dvidx = 0.0, dvidy = 0.0, dvidz = 0.0;
   
   //states and their gradients
-  AD Axr, dAxrdx, dAxrdy, dAxrdz,
-  Axi, dAxidx, dAxidy, dAxidz;
-  AD Ayr, dAyrdx, dAyrdy, dAyrdz,
-  Ayi, dAyidx, dAyidy, dAyidz;
-  AD Azr, dAzrdx, dAzrdy, dAzrdz,
-  Azi, dAzidx, dAzidy, dAzidz;
-  AD phir, dphirdx, dphirdy, dphirdz,
-  phii, dphiidx, dphiidy, dphiidz;
-  AD Axrdot, Axidot, Ayrdot, Ayidot, Azrdot, Azidot, phirdot, phiidot;
+  AD Axr = 0.0, dAxrdx = 0.0, dAxrdy = 0.0, dAxrdz = 0.0,
+  Axi = 0.0, dAxidx = 0.0, dAxidy = 0.0, dAxidz = 0.0;
+  AD Ayr = 0.0, dAyrdx = 0.0, dAyrdy = 0.0, dAyrdz = 0.0,
+  Ayi = 0.0, dAyidx = 0.0, dAyidy = 0.0, dAyidz = 0.0;
+  AD Azr = 0.0, dAzrdx = 0.0, dAzrdy = 0.0, dAzrdz = 0.0,
+  Azi = 0.0, dAzidx = 0.0, dAzidy = 0.0, dAzidz = 0.0;
+  AD phir = 0.0, dphirdx = 0.0, dphirdy = 0.0, dphirdz = 0.0,
+  phii = 0.0, dphiidx = 0.0, dphiidy = 0.0, dphiidz = 0.0;
+  AD Axrdot = 0.0, Axidot = 0.0, Ayrdot = 0.0, Ayidot = 0.0,
+  Azrdot = 0.0, Azidot = 0.0, phirdot = 0.0, phiidot = 0.0;
   
   //parameters
-  AD omega;
-  AD Jxr, Jyr, Jzr,
-  Jxi, Jyi, Jzi;
-  AD rhor, mur, invmur, epsr,
-  rhoi, mui, invmui, epsi;
+  AD omega = 0.0;
+  AD Jxr = 0.0, Jyr = 0.0, Jzr = 0.0,
+  Jxi = 0.0, Jyi = 0.0, Jzi = 0.0;
+  AD rhor = 0.0, mur = 0.0, invmur = 0.0, epsr = 0.0,
+  rhoi = 0.0, mui = 0.0, invmui = 0.0, epsi = 0.0;
   
   //    for( size_t e=0; e<numCC; e++ ) {
   //      for( int i=0; i<numBasis; i++ ) {
@@ -133,8 +134,8 @@ void maxwells_fp::volumeResidual() {
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
-  for (int e=0; e<res.extent(0); e++) {
-    for( int k=0; k<sol.extent(2); k++ ) {
+  for (size_type e=0; e<res.extent(0); e++) {
+    for( size_type k=0; k<sol.extent(2); k++ ) {
       
       // gather up all the information at the integration point
       x = ip(e,k,0);
@@ -193,7 +194,7 @@ void maxwells_fp::volumeResidual() {
         dphiidz = sol_grad(e,phii_num,k,2);
       }
       
-      for (int i=0; i<phir_basis.extent(1); i++ ) { // TMW: this will fail if using different basis for phir and phii
+      for (size_type i=0; i<phir_basis.extent(1); i++ ) { // TMW: this will fail if using different basis for phir and phii
         //	v = wkset->basis[e_basis](0,i,k);
         vr = phir_basis(e,i,k);
         vi = phii_basis(e,i,k);
@@ -430,25 +431,25 @@ void maxwells_fp::boundaryResidual() {
   ScalarT vr = 0.0, vi = 0.0;
   
   //boundary sources
-  AD Jsxr, Jsyr, Jszr,
-  Jsxi, Jsyi, Jszi; //electric current J_s
-  AD Msxr, Msyr, Mszr,
-  Msxi, Msyi, Mszi; //magnetic current M_s
-  AD rhosr, rhosi; //electric charge (i*omega*rho_s = surface divergence of J_s
+  AD Jsxr = 0.0, Jsyr = 0.0, Jszr = 0.0,
+  Jsxi = 0.0, Jsyi = 0.0, Jszi = 0.0; //electric current J_s
+  AD Msxr = 0.0, Msyr = 0.0, Mszr = 0.0,
+  Msxi = 0.0, Msyi = 0.0, Mszi = 0.0; //magnetic current M_s
+  AD rhosr = 0.0, rhosi = 0.0; //electric charge (i*omega*rho_s = surface divergence of J_s
   
-  AD omega; //frequency
-  AD invmur, invmui, //inverse permeability
-  epsr, epsi; //permittivity
+  AD omega = 0.0; //frequency
+  AD invmur = 0.0, invmui = 0.0, //inverse permeability
+  epsr = 0.0, epsi = 0.0; //permittivity
   
   //states and their gradients
-  AD Axr, dAxrdx, dAxrdy, dAxrdz,
-  Axi, dAxidx, dAxidy, dAxidz;
-  AD Ayr, dAyrdx, dAyrdy, dAyrdz,
-  Ayi, dAyidx, dAyidy, dAyidz;
-  AD Azr, dAzrdx, dAzrdy, dAzrdz,
-  Azi, dAzidx, dAzidy, dAzidz;
-  AD phir, dphirdx, dphirdy, dphirdz,
-  phii, dphiidx, dphiidy, dphiidz;
+  AD Axr = 0.0, dAxrdx = 0.0, dAxrdy = 0.0, dAxrdz = 0.0;
+  AD Axi = 0.0, dAxidx = 0.0, dAxidy = 0.0, dAxidz = 0.0;
+  AD Ayr = 0.0, dAyrdx = 0.0, dAyrdy = 0.0, dAyrdz = 0.0;
+  AD Ayi = 0.0, dAyidx = 0.0, dAyidy = 0.0, dAyidz = 0.0;
+  AD Azr = 0.0, dAzrdx = 0.0, dAzrdy = 0.0, dAzrdz = 0.0;
+  AD Azi = 0.0, dAzidx = 0.0, dAzidy = 0.0, dAzidz = 0.0;
+  AD phir = 0.0, dphirdx = 0.0, dphirdy = 0.0, dphirdz = 0.0;
+  AD phii = 0.0, dphiidx = 0.0, dphiidy = 0.0, dphiidz = 0.0;
   
   ScalarT nx = 0.0, ny = 0.0, nz = 0.0; //components of normal
   
@@ -480,12 +481,9 @@ void maxwells_fp::boundaryResidual() {
   weakEssScale = essScale/1.0;  //bvbw replace
   //    for( int i=0; i<numBasis; i++ ) {
   
-  int cside = wkset->currentside;
-  
-  
-  for (int e=0; e<res.extent(0); e++) { // elements in workset
+  for (size_type e=0; e<res.extent(0); e++) { // elements in workset
     
-    for( int k=0; k<ip.extent(1); k++) {
+    for( size_type k=0; k<ip.extent(1); k++) {
       
       x = ip(e,k,0);
       
@@ -542,7 +540,7 @@ void maxwells_fp::boundaryResidual() {
       }
       
       
-      for (int i=0; i<phir_basis.extent(1); i++ ) {
+      for (size_type i=0; i<phir_basis.extent(1); i++ ) {
         vr = phir_basis(e,i,k);
         vi = phii_basis(e,i,k);  //bvbw check to make sure first index  = 0
         

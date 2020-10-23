@@ -129,7 +129,7 @@ void analysis::run() {
       //vector<ScalarT> currgradient = postproc->computeSensitivities(F_soln, A_soln);
       gradient_values.push_back(currgradient);
       if(Comm->getRank() == 0) {
-        for (size_t paramiter=0; paramiter < ptsdim; paramiter++) {
+        for (int paramiter=0; paramiter < ptsdim; paramiter++) {
           sdataOUT << gradient_values[j][paramiter] << "  ";
         }
         sdataOUT << endl;
@@ -255,8 +255,8 @@ void analysis::run() {
       string sptname = "sample_points.dat";
       std::ofstream sampOUT(sptname.c_str());
       sampOUT.precision(6);
-      for (int r=0; r<samplepts.extent(0); r++) {
-        for (int d=0; d<samplepts.extent(1); d++) {
+      for (size_type r=0; r<samplepts.extent(0); r++) {
+        for (size_type d=0; d<samplepts.extent(1); d++) {
           sampOUT << samplepts(r,d) << "  ";
         }
         sampOUT << endl;
@@ -266,10 +266,10 @@ void analysis::run() {
       string sname = "sample_data.dat";
       std::ofstream respOUT(sname.c_str());
       respOUT.precision(6);
-      for (int r=0; r<response_values.size(); r++) {
-        for (int s=0; s<response_values[r].extent(0); s++) { // sensor index
-          for (int t=0; t<response_values[r].extent(2); t++) { // time index
-            for (int d=0; d<response_values[r].extent(1); d++) { // data index
+      for (size_t r=0; r<response_values.size(); r++) {
+        for (size_type s=0; s<response_values[r].extent(0); s++) { // sensor index
+          for (size_type t=0; t<response_values[r].extent(2); t++) { // time index
+            for (size_type d=0; d<response_values[r].extent(1); d++) { // data index
               respOUT << response_values[r](s,d,t) << "  ";
             }
           }
@@ -282,11 +282,11 @@ void analysis::run() {
         string sname = "sample_grads.dat";
         std::ofstream gradOUT(sname.c_str());
         gradOUT.precision(6);
-        for (int r=0; r<response_grads.size(); r++) {
-          for (int s=0; s<response_grads[r].extent(0); s++) { // sensor index
-            for (int t=0; t<response_grads[r].extent(2); t++) { // time index
-              for (int d=0; d<response_grads[r].extent(1); d++) { // data index
-                for (int p=0; d<response_grads[r].extent(1); d++) { // data index
+        for (size_t r=0; r<response_grads.size(); r++) {
+          for (size_type s=0; s<response_grads[r].extent(0); s++) { // sensor index
+            for (size_type t=0; t<response_grads[r].extent(2); t++) { // time index
+              for (size_type d=0; d<response_grads[r].extent(1); d++) { // data index
+                for (size_type p=0; d<response_grads[r].extent(1); d++) { // data index
                   gradOUT << response_grads[r](s,d,t,p) << "  ";
                 }
               }
@@ -331,9 +331,9 @@ void analysis::run() {
     RealT gtol     = ROLsettings.sublist("Status Test").get("Gradient Tolerance",1e-6);
     RealT stol     = ROLsettings.sublist("Status Test").get("Step Tolerance",1.e-12);
     int maxit      = ROLsettings.sublist("Status Test").get("Iteration Limit",100);
-    RealT aktol    = ROLsettings.sublist("General").sublist("Krylov").get("Absolute Tolerance",1e-4);
-    RealT rktol    = ROLsettings.sublist("General").sublist("Krylov").get("Relative Tolerance",1e-2);
-    int maxKiter   = ROLsettings.sublist("General").sublist("Krylov").get("Iteration Limit",100);
+    //RealT aktol    = ROLsettings.sublist("General").sublist("Krylov").get("Absolute Tolerance",1e-4);
+    //RealT rktol    = ROLsettings.sublist("General").sublist("Krylov").get("Relative Tolerance",1e-2);
+    //int maxKiter   = ROLsettings.sublist("General").sublist("Krylov").get("Iteration Limit",100);
     
     // Turn off visualization while optimizing
     bool postproc_plot = postproc->write_solution;
@@ -391,6 +391,7 @@ void analysis::run() {
     Teuchos::RCP<ROL::Bounds<RealT> > con;
     bool bound_vars = ROLsettings.sublist("General").get("Bound Optimization Variables",false);
     if(bound_vars){
+      /*
       bool use_scale = ROLsettings.get("Use Scaling For Epsilon-Active Sets",false);
       RealT scale;
       if(use_scale){
@@ -403,6 +404,7 @@ void analysis::run() {
       else {
         scale = 1.0;
       }
+       */
       // TMW: where is scale used?
       
       //initialize max and min vectors for bounds
@@ -484,12 +486,12 @@ void analysis::run() {
       Teuchos::RCP<vector<RealT> > d_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
       bool no_random_vec = ROLsettings.sublist("General").get("FD Check Use Ones Vector",false);
       if (no_random_vec) {
-        for ( unsigned i = 0; i < numParams; i++ ) {
+        for ( int i = 0; i < numParams; i++ ) {
           (*d_rcp)[i] = 1.0;
         }
       }
       else {
-        for ( unsigned i = 0; i < numParams; i++ ) {
+        for ( int i = 0; i < numParams; i++ ) {
           (*d_rcp)[i] = 10.0*(ScalarT)rand()/(ScalarT)RAND_MAX - 5.0;
         }
       }
@@ -578,9 +580,9 @@ void analysis::run() {
     RealT gtol     = ROLsettings.sublist("Status Test").get("Gradient Tolerance",1e-6);
     RealT stol     = ROLsettings.sublist("Status Test").get("Step Tolerance",1.e-12);
     int maxit      = ROLsettings.sublist("Status Test").get("Iteration Limit",100);
-    RealT aktol    = ROLsettings.sublist("General").sublist("Krylov").get("Absolute Tolerance",1e-4);
-    RealT rktol    = ROLsettings.sublist("General").sublist("Krylov").get("Relative Tolerance",1e-2);
-    int maxKiter   = ROLsettings.sublist("General").sublist("Krylov").get("Iteration Limit",100);
+    //RealT aktol    = ROLsettings.sublist("General").sublist("Krylov").get("Absolute Tolerance",1e-4);
+    //RealT rktol    = ROLsettings.sublist("General").sublist("Krylov").get("Relative Tolerance",1e-2);
+    //int maxKiter   = ROLsettings.sublist("General").sublist("Krylov").get("Iteration Limit",100);
     
     Teuchos::RCP<std::ostream> outStream;
     outStream = Teuchos::rcp(&std::cout, false);
@@ -633,6 +635,7 @@ void analysis::run() {
     Teuchos::RCP<ROL::Bounds<RealT> > con;
     bool bound_vars = ROLsettings.sublist("General").get("Bound Optimization Variables",false);
     if(bound_vars){
+      /*
       bool use_scale = ROLsettings.get("Use Scaling For Epsilon-Active Sets",false);
       RealT scale;
       if(use_scale){
@@ -645,6 +648,7 @@ void analysis::run() {
       else {
         scale = 1.0;
       }
+       */
       // TMW: where is scale used?
       
       //initialize max and min vectors for bounds
@@ -695,12 +699,12 @@ void analysis::run() {
       Teuchos::RCP<vector<RealT> > d_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
       bool no_random_vec = ROLsettings.sublist("General").get("FD Check Use Ones Vector",false);
       if (no_random_vec) {
-        for ( unsigned i = 0; i < numParams; i++ ) {
+        for ( int i = 0; i < numParams; i++ ) {
           (*d_rcp)[i] = 1.0;
         }
       }
       else {
-        for ( unsigned i = 0; i < numParams; i++ ) {
+        for ( int i = 0; i < numParams; i++ ) {
           (*d_rcp)[i] = 10.0*(ScalarT)rand()/(ScalarT)RAND_MAX - 5.0;
         }
       }

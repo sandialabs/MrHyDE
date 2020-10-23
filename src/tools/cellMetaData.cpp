@@ -27,11 +27,11 @@ CellMetaData::CellMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settings
                            vector<basis_RCP> & basis_pointers_,
                            const size_t & num_params,
                            DRV refnodes_) :
-cellTopo(cellTopo_), physics_RCP(physics_RCP_), myBlock(myBlock_),
-myLevel(myLevel_), build_face_terms(build_face_terms_), assemble_face_terms(assemble_face_terms_),
-sidenames(sidenames_), ref_ip(ref_ip_), ref_wts(ref_wts_),
-basis_types(basis_types_), basis_pointers(basis_pointers_), numDiscParams(num_params), refnodes(refnodes_) {
-  
+assemble_face_terms(assemble_face_terms_), build_face_terms(build_face_terms_),
+myBlock(myBlock_), myLevel(myLevel_), physics_RCP(physics_RCP_), sidenames(sidenames_), numDiscParams(num_params),
+cellTopo(cellTopo_), refnodes(refnodes_), ref_ip(ref_ip_), ref_wts(ref_wts_),
+basis_types(basis_types_), basis_pointers(basis_pointers_) {
+
   Teuchos::TimeMonitor localtimer(*celltimer);
   
   compute_diff = settings->sublist("Postprocess").get<bool>("Compute Difference in Objective", true);

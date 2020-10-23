@@ -17,12 +17,13 @@
 #include "physics_base.hpp"
 
 namespace MrHyDE {
-  
+  /*
   static void stokesHelp() {
     cout << "********** Help and Documentation for the Stokes Physics Module **********" << endl << endl;
     cout << "Model:" << endl << endl;
     cout << "User defined functions: " << endl << endl;
   }
+  */
   
   class stokes : public physicsbase {
   public:

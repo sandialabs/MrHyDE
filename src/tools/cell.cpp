@@ -25,8 +25,8 @@ cell::cell(const Teuchos::RCP<CellMetaData> & cellData_,
            LIDView LIDs_,
            Kokkos::View<int****,HostDevice> sideinfo_,
            Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_) :
-cellData(cellData_), localElemID(localID_), nodes(nodes_), 
-LIDs(LIDs_), sideinfo(sideinfo_), orientation(orientation_)
+LIDs(LIDs_), cellData(cellData_), localElemID(localID_),
+sideinfo(sideinfo_), nodes(nodes_), orientation(orientation_)
 {
   numElem = nodes.extent(0);
   useSensors = false;
@@ -392,7 +392,7 @@ void cell::setUseBasis(vector<int> & usebasis_, const int & numsteps, const int 
   //num_stages = nstages;
   
   // Set up the containers for usual solution storage
-  size_t maxnbasis = 0;
+  int maxnbasis = 0;
   for (size_type i=0; i<cellData->numDOF_host.extent(0); i++) {
     if (cellData->numDOF_host(i) > maxnbasis) {
       maxnbasis = cellData->numDOF_host(i);
@@ -420,7 +420,7 @@ void cell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasi
   vector<int> paramusebasis = pusebasis_;
   //wkset->paramusebasis = pusebasis_;
   
-  size_t maxnbasis = 0;
+  int maxnbasis = 0;
   for (size_type i=0; i<cellData->numParamDOF.extent(0); i++) {
     if (cellData->numParamDOF(i) > maxnbasis) {
       maxnbasis = cellData->numParamDOF(i);
@@ -437,7 +437,7 @@ void cell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasi
 
 void cell::setAuxUseBasis(vector<int> & ausebasis_) {
   auxusebasis = ausebasis_;
-  size_t maxnbasis = 0;
+  int maxnbasis = 0;
   for (size_type i=0; i<cellData->numAuxDOF.extent(0); i++) {
     if (cellData->numAuxDOF(i) > maxnbasis) {
       maxnbasis = cellData->numAuxDOF(i);
@@ -872,15 +872,15 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
   auto numDOF = cellData->numDOF;
   
   if (!(cellData->mortar_objective) && cellData->response_type != "discrete") {
-    for (int w=1; w < cellData->dimension+2; w++) {
+    for (size_t w=1; w < cellData->dimension+2; w++) {
       
       Kokkos::View<AD**,AssemblyDevice> obj = computeObjective(wkset->time, 0, w);
       
-      int numDerivs;
+      //int numDerivs = 0;
       if (useSensors) {
         if (numSensors > 0) {
           
-          for (int s=0; s<numSensors; s++) {
+          for (size_t s=0; s<numSensors; s++) {
             int e = sensorElem[s];
             auto cobj = Kokkos::subview(obj,Kokkos::ALL(), s);
             for (size_type n=0; n<numDOF.extent(0); n++) {
@@ -1161,11 +1161,11 @@ void cell::fixDiagJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J,
   
   parallel_for("cell fix diag",RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
     for (size_type var=0; var<offsets.extent(0); var++) {
-      for (size_t dof=0; dof<numDOF(var); dof++) {
+      for (int dof=0; dof<numDOF(var); dof++) {
         int diag = offsets(var,dof);
         if (abs(local_J(elem,diag,diag)) < JTOL) {
           local_res(elem,diag,0) = -u(elem,var,dof);
-          for (size_t j=0; j<numDOF(var); j++) {
+          for (int j=0; j<numDOF(var); j++) {
             ScalarT scale = 1.0/((ScalarT)numDOF(var)-1.0);
             local_J(elem,diag,offsets(var,j)) = -scale;
             if (j!=dof)
@@ -1360,7 +1360,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
         
     // Need to rewrite this using useSensors on outside
     if (useSensors) {
-      for (int ee=0; ee<sensorElem.size(); ee++) {
+      for (size_t ee=0; ee<sensorElem.size(); ee++) {
         int eind = sensorElem[ee];
         for (size_type var=0; var<numDOF.extent(0); var++) {
           DRV cbasis = sensorBasis[ee][wkset->usebasis[var]];
@@ -1556,7 +1556,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
       
     }
     else {
-      for (int s=0; s<cellData->dimension; s++) {
+      for (int s=0; s<(int)cellData->dimension; s++) {
         auto ugrad_sv = Kokkos::subview(ugrad_ip, Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), s);
         if ((seedwhat-2) == s) {
           parallel_for(RangePolicy<AssemblyExec>(0,ugrad_ip.extent(0)), KOKKOS_LAMBDA (const size_type e ) {
@@ -1591,10 +1591,10 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
       });
     }
     
-    bool seedParams = false;
-    if (seedwhat == 0) {
-      seedParams = true;
-    }
+    //bool seedParams = false;
+    //if (seedwhat == 0) {
+    //  seedParams = true;
+    //}
     
     Kokkos::View<AD****,AssemblyDevice> param_ip;
     Kokkos::View<AD****,AssemblyDevice> paramgrad_ip;
@@ -1618,7 +1618,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
                                                          numip,cellData->dimension);
       
       if (useSensors) {
-        for (int ee=0; ee<sensorElem.size(); ee++) {
+        for (size_t ee=0; ee<sensorElem.size(); ee++) {
           int eind = sensorElem[ee];
           for (size_type var=0; var<numParamDOF.extent(0); var++) {
             DRV cbasis = param_sensorBasis[ee][wkset->paramusebasis[var]];
@@ -1819,10 +1819,10 @@ Kokkos::View<AD**,AssemblyDevice> cell::computeObjective(const ScalarT & solveti
 AD cell::computeDomainRegularization(const vector<ScalarT> reg_constants, const vector<int> reg_types,
                                      const vector<int> reg_indices) {
   
-  AD reg;
+  //AD reg;
   
-  bool seedParams = true;
-  int numip = wkset->numip;
+  //bool seedParams = true;
+  //int numip = wkset->numip;
   this->updateWorksetBasis();
   wkset->computeParamVolIP(param, 3);
   
@@ -1924,7 +1924,7 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
     if (sensorLocations.size() > 0) {
       sensorPoints = DRV("sensorPoints",1,sensorLocations.size(),cellData->dimension);
       for (size_t i=0; i<sensorLocations.size(); i++) {
-        for (int j=0; j<cellData->dimension; j++) {
+        for (size_t j=0; j<cellData->dimension; j++) {
           sensorPoints(0,i,j) = sensorLocations[i](0,j);
         }
         sensorElem.push_back(0);
@@ -1975,13 +1975,13 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
     else {
       DRV phys_points("phys_points",1,sensor_points.extent(0),cellData->dimension);
       for (size_t i=0; i<sensor_points.extent(0); i++) {
-        for (int j=0; j<cellData->dimension; j++) {
+        for (size_t j=0; j<cellData->dimension; j++) {
           phys_points(0,i,j) = sensor_points(i,j);
         }
       }
       
       if (!(cellData->loadSensorFiles)) {
-        for (int e=0; e<numElem; e++) {
+        for (size_t e=0; e<numElem; e++) {
           
           DRV refpts("refpts", 1, sensor_points.extent(0), sensor_points.extent(1));
           DRVint inRefCell("inRefCell", 1, sensor_points.extent(0));
@@ -1998,7 +1998,7 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
             if (inRefCell(0,i) == 1) {
               
               Kokkos::View<ScalarT**,HostDevice> newsenspt("new sensor point",1,cellData->dimension);
-              for (int j=0; j<cellData->dimension; j++) {
+              for (size_t j=0; j<cellData->dimension; j++) {
                 newsenspt(0,j) = sensor_points(i,j);
               }
               sensorLocations.push_back(newsenspt);
@@ -2026,7 +2026,7 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
       }
       
       if (cellData->loadSensorFiles) {
-        for (int e=0; e<numElem; e++) {
+        for (size_t e=0; e<numElem; e++) {
           std::stringstream ss;
           ss << localElemID(e);
           string str = ss.str();
@@ -2061,7 +2061,7 @@ void cell::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, co
           
           DRV csensorPoints("sensorPoints",1,1,cellData->dimension);
           DRV cnodes("current nodes",1,nodes.extent(1), nodes.extent(2));
-          for (int j=0; j<cellData->dimension; j++) {
+          for (size_t j=0; j<cellData->dimension; j++) {
             csensorPoints(0,0,j) = sensorLocations[i](0,j);
             sensorPoints(0,i,j) = sensorLocations[i](0,j);
             for (size_type k=0; k<nodes.extent(1); k++) {

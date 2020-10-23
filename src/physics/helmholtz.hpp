@@ -17,12 +17,13 @@
 #include "physics_base.hpp"
 
 namespace MrHyDE {
-  
+  /*
   static void helmholtzHelp() {
     cout << "********** Help and Documentation for the Helmholtz Physics Module **********" << endl << endl;
     cout << "Model:" << endl << endl;
     cout << "User defined functions: " << endl << endl;
   }
+  */
   
   class helmholtz : public physicsbase {
   public:

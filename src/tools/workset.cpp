@@ -24,9 +24,9 @@ workset::workset(const vector<int> & cellinfo, const bool & isTransient_,
                  const vector<string> & basis_types_,
                  const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
                  const topo_RCP & topo, Kokkos::View<int**,HostDevice> & var_bcs_) :
-basis_types(basis_types_), basis_pointers(basis_pointers_), 
-celltopo(topo), var_bcs(var_bcs_), isTransient(isTransient_)  {
-  
+var_bcs(var_bcs_), isTransient(isTransient_), celltopo(topo),
+basis_types(basis_types_), basis_pointers(basis_pointers_) {
+
   // Settings that should not change
   dimension = cellinfo[0];
   numVars = cellinfo[1];
@@ -254,8 +254,8 @@ void workset::computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u) {
   
   {
     Teuchos::TimeMonitor basistimer(*worksetComputeSolnVolTimer);
-    AD uval;
-    for (int k=0; k<numVars; k++) {
+    AD uval = 0.0;
+    for (size_t k=0; k<numVars; k++) {
       int kubasis = usebasis[k];
       int knbasis = numbasis[kubasis];
       string kutype = basis_types[kubasis];
@@ -380,7 +380,7 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
     });
   }
   else if (seedwhat == 2) { // Seed one of the previous step solutions
-    Kokkos::View<int[1],AssemblyDevice> sindex("seed index on device");
+    Kokkos::View<size_t[1],AssemblyDevice> sindex("seed index on device");
     auto host_sindex = Kokkos::create_mirror_view(sindex);
     host_sindex(0) = index;
     Kokkos::deep_copy(sindex,host_sindex);
@@ -591,7 +591,7 @@ void workset::computeSoln(const int & type) {
     // HGRAD
     /////////////////////////////////////////////////////////////////////
     
-    for (int i=0; i<vars_HGRAD.size(); i++) {
+    for (size_t i=0; i<vars_HGRAD.size(); i++) {
       int var = vars_HGRAD[i];
       DRV cbasis, cbasis_grad;
       Kokkos::View<AD**, Kokkos::LayoutStride, AssemblyDevice> csol;
@@ -663,7 +663,7 @@ void workset::computeSoln(const int & type) {
     // HVOL
     /////////////////////////////////////////////////////////////////////
     
-    for (int i=0; i<vars_HVOL.size(); i++) {
+    for (size_t i=0; i<vars_HVOL.size(); i++) {
       int var = vars_HVOL[i];
       Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> csol;
       DRV cbasis;
@@ -720,7 +720,7 @@ void workset::computeSoln(const int & type) {
     // HDIV
     /////////////////////////////////////////////////////////////////////
     
-    for (int i=0; i<vars_HDIV.size(); i++) {
+    for (size_t i=0; i<vars_HDIV.size(); i++) {
       int var = vars_HDIV[i];
       Kokkos::View<AD***,Kokkos::LayoutStride,AssemblyDevice> csol;
       Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> csol_div;
@@ -805,7 +805,7 @@ void workset::computeSoln(const int & type) {
     // HCURL
     /////////////////////////////////////////////////////////////////////
     
-    for (int i=0; i<vars_HCURL.size(); i++) {
+    for (size_t i=0; i<vars_HCURL.size(); i++) {
       int var = vars_HCURL[i];
       DRV cbasis, cbasis_curl;
       Kokkos::View<AD***,Kokkos::LayoutStride,AssemblyDevice> csol, csol_curl;
@@ -892,7 +892,7 @@ void workset::computeSoln(const int & type) {
     // HFACE
     /////////////////////////////////////////////////////////////////////
     
-    for (int i=0; i<vars_HFACE.size(); i++) {
+    for (size_t i=0; i<vars_HFACE.size(); i++) {
       int var = vars_HFACE[i];
       Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> csol;
       DRV cbasis;
@@ -945,7 +945,7 @@ void workset::computeParam(const int & type) {
     // HGRAD
     /////////////////////////////////////////////////////////////////////
     
-    for (int i=0; i<paramvars_HGRAD.size(); i++) {
+    for (size_t i=0; i<paramvars_HGRAD.size(); i++) {
       int var = paramvars_HGRAD[i];
       DRV cbasis, cbasis_grad;
       Kokkos::View<AD**, Kokkos::LayoutStride, AssemblyDevice> csol;
@@ -993,7 +993,7 @@ void workset::computeParam(const int & type) {
     // HVOL
     /////////////////////////////////////////////////////////////////////
     
-    for (int i=0; i<paramvars_HVOL.size(); i++) {
+    for (size_t i=0; i<paramvars_HVOL.size(); i++) {
       int var = paramvars_HVOL[i];
       Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> csol;
       DRV cbasis;
@@ -1027,7 +1027,7 @@ void workset::computeParam(const int & type) {
     // HDIV
     /////////////////////////////////////////////////////////////////////
     
-    for (int i=0; i<paramvars_HDIV.size(); i++) {
+    for (size_t i=0; i<paramvars_HDIV.size(); i++) {
       int var = paramvars_HDIV[i];
       Kokkos::View<AD***,Kokkos::LayoutStride,AssemblyDevice> csol;
       Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> csol_div;
@@ -1085,7 +1085,7 @@ void workset::computeParam(const int & type) {
     // HCURL
     /////////////////////////////////////////////////////////////////////
     
-    for (int i=0; i<paramvars_HCURL.size(); i++) {
+    for (size_t i=0; i<paramvars_HCURL.size(); i++) {
       int var = paramvars_HCURL[i];
       DRV cbasis, cbasis_curl;
       Kokkos::View<AD***,Kokkos::LayoutStride,AssemblyDevice> csol, csol_curl;
@@ -1315,7 +1315,7 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
     // HGRAD
     /////////////////////////////////////////////////////////////////////
     
-    for (int i=0; i<vars_HGRAD.size(); i++) {
+    for (size_t i=0; i<vars_HGRAD.size(); i++) {
       int var = vars_HGRAD[i];
       
       auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
@@ -1351,7 +1351,7 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
     // HVOL
     /////////////////////////////////////////////////////////////////////
     
-    for (int i=0; i<vars_HVOL.size(); i++) {
+    for (size_t i=0; i<vars_HVOL.size(); i++) {
       int var = vars_HVOL[i];
       
       auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
@@ -1379,7 +1379,7 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
     // HDIV
     /////////////////////////////////////////////////////////////////////
     
-    for (int i=0; i<vars_HDIV.size(); i++) {
+    for (size_t i=0; i<vars_HDIV.size(); i++) {
       int var = vars_HDIV[i];
       
       auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
@@ -1411,7 +1411,7 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
     // HCURL
     /////////////////////////////////////////////////////////////////////
     
-    for (int i=0; i<vars_HCURL.size(); i++) {
+    for (size_t i=0; i<vars_HCURL.size(); i++) {
       int var = vars_HCURL[i];
       
       auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
@@ -1556,7 +1556,7 @@ void workset::addAux(const size_t & naux) {
 
 vector<AD> workset::getParam(const string & name, bool & found) {
   found = false;
-  int iter=0;
+  size_t iter=0;
   vector<AD> pvec;
   while (!found && iter<paramnames.size()) {
     if (paramnames[iter] == name) {

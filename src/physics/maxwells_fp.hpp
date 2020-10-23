@@ -17,12 +17,13 @@
 #include "physics_base.hpp"
 
 namespace MrHyDE {
-  
+  /*
   static void maxwells_fpHelp() {
     cout << "********** Help and Documentation for the Maxwells Vector Potential Physics Module **********" << endl << endl;
     cout << "Model:" << endl << endl;
     cout << "User defined functions: " << endl << endl;
   }
+  */
   
   class maxwells_fp : public physicsbase{
   public:

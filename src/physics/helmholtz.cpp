@@ -125,13 +125,13 @@ void helmholtz::volumeResidual() {
   
   // TMW: this won't actually work on a GPU ... need to use subviews of sol, etc. and remove conditionals
   parallel_for("helmholtz volume resid",RangePolicy<AssemblyExec>(0,urbasis.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    for (int k=0; k<sol.extent(2); k++ ) {
+    for (size_type k=0; k<sol.extent(2); k++ ) {
       AD ur = sol(e,ur_num,k,0);
       AD durdx = sol_grad(e,ur_num,k,0);
       AD ui = sol(e,ui_num,k,0);
       AD duidx = sol_grad(e,ui_num,k,0);
       
-      AD durdy, duidy, durdz, duidz;
+      AD durdy= 0.0, duidy= 0.0, durdz= 0.0, duidz= 0.0;
       if (spaceDim > 1) {
         durdy = sol_grad(e,ur_num,k,1);
         duidy = sol_grad(e,ui_num,k,1);
@@ -143,7 +143,7 @@ void helmholtz::volumeResidual() {
       
       
       //TMW: this residual makes no sense to me
-      for (int i=0; i<urbasis.extent(1); i++ ) { // what if ui uses a different basis?
+      for (size_type i=0; i<urbasis.extent(1); i++ ) { // what if ui uses a different basis?
         ScalarT vr = urbasis(e,i,k);
         ScalarT vi = uibasis(e,i,k);  //bvbw check to make sure first index  = 0
         ScalarT dvrdx = urbasis_grad(e,i,k,0);
@@ -295,8 +295,8 @@ void helmholtz::boundaryResidual() {
   
   //Robin boundary condition of form alpha*u + dudn - source = 0, where u is the state and dudn is its normal derivative
   if (bcs(ur_num,cside) == 2) {
-    for (int e=0; e<urbasis.extent(0); e++) { // not parallelized yet
-      for( int k=0; k<urbasis.extent(2); k++ ) {
+    for (size_type e=0; e<urbasis.extent(0); e++) { // not parallelized yet
+      for( size_type k=0; k<urbasis.extent(2); k++ ) {
         
         
         AD ur = sol(e,ur_num,k,0);
@@ -306,14 +306,14 @@ void helmholtz::boundaryResidual() {
         AD durdn = durdx*normals(e,k,0);
         AD duidn = duidx*normals(e,k,0);
         
-        AD durdy, duidy;
+        AD durdy= 0.0, duidy= 0.0;
         if (spaceDim > 1){
           durdy = sol_grad(e,ur_num,k,1);
           duidy = sol_grad(e,ui_num,k,1);
           durdn += durdy*normals(e,k,1);
           duidn += duidy*normals(e,k,1);
         }
-        AD durdz, duidz;
+        AD durdz = 0.0, duidz= 0.0;
         if (spaceDim > 2) {
           durdz = sol_grad(e,ur_num,k,2);
           duidz = sol_grad(e,ui_num,k,2);
@@ -333,7 +333,7 @@ void helmholtz::boundaryResidual() {
         }
         
         if(!fractional) {       // fractional exponent on time operator or i_omega in frequency mode
-          for (int i=0; i<urbasis.extent(1); i++ ) {
+          for (size_type i=0; i<urbasis.extent(1); i++ ) {
             int resindex = offsets(ur_num,i);
             ScalarT vr = urbasis(e,i,k);
             ScalarT vi = uibasis(e,i,k);
@@ -356,7 +356,7 @@ void helmholtz::boundaryResidual() {
           AD omegar = sqrt(omega2r(e,k));
           AD omegai = sqrt(omega2i(e,k));
           
-          for (int i=0; i<urbasis.extent(1); i++ ) {
+          for (size_type i=0; i<urbasis.extent(1); i++ ) {
             int resindex = offsets(ur_num,i);
             ScalarT vr = urbasis(e,i,k);
             ScalarT vi = uibasis(e,i,k);

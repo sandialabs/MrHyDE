@@ -25,9 +25,9 @@ MultiScale::MultiScale(const Teuchos::RCP<MpiComm> & MacroComm_,
                        vector<vector<Teuchos::RCP<cell> > > & cells_,
                        vector<Teuchos::RCP<SubGridModel> > subgridModels_,
                        vector<Teuchos::RCP<FunctionManager> > macro_functionManagers_ ) :
-MacroComm(MacroComm_), Comm(Comm_), settings(settings_), cells(cells_), subgridModels(subgridModels_),
-macro_functionManagers(macro_functionManagers_) {
-  
+subgridModels(subgridModels_), Comm(Comm_), MacroComm(MacroComm_),
+settings(settings_), cells(cells_), macro_functionManagers(macro_functionManagers_) {
+
   milo_debug_level = settings->get<int>("debug level",0);
   if (milo_debug_level > 0) {
     if (MacroComm->getRank() == 0) {
@@ -40,10 +40,10 @@ macro_functionManagers(macro_functionManagers_) {
     // Define the subgrid models specified in the input file
     ////////////////////////////////////////////////////////////////////////////////
     
-    int nummodels = settings->sublist("Subgrid").get<int>("number of models",1);
+    //int nummodels = settings->sublist("Subgrid").get<int>("number of models",1);
     subgrid_static = settings->sublist("Subgrid").get<bool>("static subgrids",true);
     macro_concurrency = settings->sublist("Subgrid").get<int>("macro-element concurrency",1);
-    int numElem = settings->sublist("Solver").get<int>("workset size",1);
+    //int numElem = settings->sublist("Solver").get<int>("workset size",1);
     for (size_t n=0; n<subgridModels.size(); n++) {
       std::stringstream ss;
       ss << n;
@@ -75,7 +75,7 @@ void MultiScale::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
                               vector<string> & macro_paramnames,
                               vector<string> & macro_disc_paramnames) {
   
-  for (int j=0; j<subgridModels.size(); j++) {
+  for (size_t j=0; j<subgridModels.size(); j++) {
     int mblock = subgridModels[j]->macro_block;
     subgridModels[j]->macro_basis_pointers = macro_basis_pointers[mblock];
     subgridModels[j]->macro_basis_types = macro_basis_types[mblock];
@@ -133,7 +133,7 @@ ScalarT MultiScale::initialize() {
         ss << s;
         FDATA usagecheck = macro_functionManagers[0]->evaluate("Subgrid " + ss.str() + " usage","ip");
         
-        for (int p=0; p<cells[b][e]->numElem; p++) {
+        for (size_t p=0; p<cells[b][e]->numElem; p++) {
           for (size_t j=0; j<usagecheck.extent(1); j++) {
             if (usagecheck(p,j).val() >= 1.0) {
               sgvotes[s] += 1;
@@ -150,11 +150,8 @@ ScalarT MultiScale::initialize() {
           sgwinner = i;
         }
       }
-      if (maxvotes < cells[b][e]->numElem) {
-        //output a warning
-      }
       
-      int sgusernum;
+      size_t sgusernum = 0;
       if (subgrid_static) { // only add each cell to one subgrid model
         
         sgusernum = subgridModels[sgwinner]->addMacro(cells[b][e]->nodes,
@@ -263,7 +260,7 @@ ScalarT MultiScale::update() {
     for (size_t b=0; b<cells.size(); b++) {
       for (size_t e=0; e<cells[b].size(); e++) {
         if (cells[b][e]->cellData->multiscale) {
-          int numElem = cells[b][e]->numElem;
+          //int numElem = cells[b][e]->numElem;
           //for (int c=0;c<numElem; c++) {
             int nummod = cells[b][e]->subgrid_model_index.size();
             int oldmodel = cells[b][e]->subgrid_model_index[nummod-1];
@@ -298,7 +295,7 @@ ScalarT MultiScale::update() {
             std::stringstream ss;
             ss << s;
             FDATA usagecheck = macro_functionManagers[0]->evaluate("Subgrid " + ss.str() + " usage","ip");
-            for (int p=0; p<cells[b][e]->numElem; p++) {
+            for (size_t p=0; p<cells[b][e]->numElem; p++) {
               for (size_t j=0; j<usagecheck.extent(1); j++) {
                 if (usagecheck(p,j).val() >= 1.0) {
                   sgvotes[s] += 1;
@@ -314,9 +311,7 @@ ScalarT MultiScale::update() {
               sgwinner = i;
             }
           }
-          if (maxvotes < cells[b][e]->numElem) {
-            //output a warning
-          }
+          
           
           //for (int c=0;c<numElem; c++) {
             
@@ -324,7 +319,7 @@ ScalarT MultiScale::update() {
             int oldmodel = cells[b][e]->subgrid_model_index[nummod-1];
             if (sgwinner != oldmodel) {
               
-              int usernum = cells[b][e]->subgrid_usernum;
+              size_t usernum = cells[b][e]->subgrid_usernum;
               // get the time/solution from old subgrid model at last time step
               int lastindex = subgridModels[oldmodel]->soln->times[usernum].size()-1;
               Teuchos::RCP<LA_MultiVector> lastsol = subgridModels[oldmodel]->soln->data[usernum][lastindex];
@@ -417,7 +412,7 @@ void MultiScale::writeSolution(const string & macrofilename, const vector<Scalar
             ss << globalPID << "." << e;
             string filename = "subgrid_data/subgrid_"+macrofilename + "." + ss.str();// + ".exo";
             //cells[b][e]->writeSubgridSolution(blockname);
-            int sgmodelnum = cells[b][e]->subgrid_model_index[0];
+            //int sgmodelnum = cells[b][e]->subgrid_model_index[0];
             //subgridModels[sgmodelnum]->writeSolution(filename, cells[b][e]->subgrid_usernum);
           //}
         }

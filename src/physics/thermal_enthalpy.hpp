@@ -17,12 +17,13 @@
 #include "physics_base.hpp"
 
 namespace MrHyDE {
-  
+  /*
   static void thermal_enthalpyHelp() {
     cout << "********** Help and Documentation for the Thermal Enthalpy Physics Module **********" << endl << endl;
     cout << "Model:" << endl << endl;
     cout << "User defined functions: " << endl << endl;
   }
+  */
   
   class thermal_enthalpy : public physicsbase {
   public:

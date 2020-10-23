@@ -204,9 +204,9 @@ void SubGridFEM::setUpSubgridModels() {
   
   // Note that the workset size is determined by the number of elements per macro-element
   // times te number of macro-elements
-  int numSubElem = connectivity.size();
+  size_t numSubElem = connectivity.size();
   
-  settings->sublist("Solver").set<int>("workset size",numSubElem);
+  settings->sublist("Solver").set<int>("workset size",(int)numSubElem);
   vector<Teuchos::RCP<FunctionManager> > functionManagers;
   functionManagers.push_back(Teuchos::rcp(new FunctionManager(blockID,
                                                               numSubElem,
@@ -255,7 +255,7 @@ void SubGridFEM::setUpSubgridModels() {
   int numNodesPerElem = sub_mesh->cellTopo[0]->getNodeCount();
   vector<Teuchos::RCP<BoundaryCell> > newbcells;
   
-  int numLocalBoundaries = macroData[0]->macrosideinfo.extent(2);
+  //int numLocalBoundaries = macroData[0]->macrosideinfo.extent(2);
   
   vector<int> unique_sides;
   vector<int> unique_local_sides;
@@ -276,9 +276,9 @@ void SubGridFEM::setUpSubgridModels() {
     string sidename = unique_names[s];
     vector<size_t> group = boundary_groups[s];
     
-    int prog = 0;
+    size_t prog = 0;
     while (prog < group.size()) {
-      int currElem = numSubElem;  // Avoid faults in last iteration
+      size_t currElem = numSubElem;  // Avoid faults in last iteration
       if (prog+currElem > group.size()){
         currElem = group.size()-prog;
       }
@@ -290,7 +290,7 @@ void SubGridFEM::setUpSubgridModels() {
       Kokkos::View<int*,HostDevice> host_eIndex2("element indices",currElem);
       auto host_sideIndex = Kokkos::create_mirror_view(sideIndex); // mirror on host
       auto host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
-      for (int e=0; e<currElem; e++) {
+      for (size_t e=0; e<currElem; e++) {
         host_eIndex(e) = group[e+prog];
         host_sideIndex(e) = unique_local_sides[s];
         for (int n=0; n<numNodesPerElem; n++) {
@@ -311,7 +311,7 @@ void SubGridFEM::setUpSubgridModels() {
       LIDView cellLIDs("LIDs on host device", currElem,LIDs.extent(1));
       parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int i ) {
         size_t elemID = eIndex(i);
-        for (int j=0; j<LIDs.extent(1); j++) {
+        for (size_type j=0; j<LIDs.extent(1); j++) {
           cellLIDs(i,j) = LIDs(elemID,j);
         }
       });
@@ -324,7 +324,7 @@ void SubGridFEM::setUpSubgridModels() {
       // Set the cell orientation ---
       Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices",
                                                                       currElem, numNodesPerElem);
-      for (int i=0; i<currElem; i++) {
+      for (size_t i=0; i<currElem; i++) {
         vector<stk::mesh::EntityId> stk_nodeids;
         size_t elemID = eIndex(i);
         sub_mesh->mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
@@ -538,7 +538,7 @@ void SubGridFEM::setUpSubgridModels() {
         vector<size_t> group = boundary_groups[s];
         DRV currnodes("currnodes", group.size(), numNodesPerElem, dimension);
         //vector<size_t> mIDs;
-        for (int e=0; e<group.size(); e++) {
+        for (size_t e=0; e<group.size(); e++) {
           size_t eIndex = group[e];
           //size_t mID = macroData[mindex]->macroIDs(eIndex);//localData[mindex]->getMacroID(eIndex);
           
@@ -653,7 +653,7 @@ void SubGridFEM::setUpSubgridModels() {
     // For all cells, define the macro basis functions at subgrid ip
     for (size_t e=0; e<boundaryCells[mindex].size(); e++) {
       vector<size_t> mIDs;
-      for (int c=0; c<boundaryCells[mindex][e]->localElemID.extent(0); c++) {
+      for (size_type c=0; c<boundaryCells[mindex][e]->localElemID.extent(0); c++) {
         size_t eIndex = boundaryCells[mindex][e]->localElemID(c);
         size_t mID = macroData[mindex]->macroIDs(eIndex);//localData[mindex]->getMacroID(eIndex);
         mIDs.push_back(mID);
@@ -665,7 +665,7 @@ void SubGridFEM::setUpSubgridModels() {
                     macroData[mindex]->macroLIDs.extent(1));
       for (size_t c=0; c<numElem; c++) {
         size_t mid = mIDs[c];
-        for (size_t i=0; i<cLIDs.extent(1); i++) {
+        for (size_type i=0; i<cLIDs.extent(1); i++) {
           cLIDs(c,i) = macroData[mindex]->macroLIDs(mid,i);
         }
       }
@@ -705,7 +705,7 @@ void SubGridFEM::setUpSubgridModels() {
           
           for (size_t e=0; e<boundaryCells[mindex].size(); e++) {
             
-            int numElem = boundaryCells[mindex][e]->numElem;
+            size_t numElem = boundaryCells[mindex][e]->numElem;
             
             DRV sside_ip = boundaryCells[mindex][e]->ip;//wkset->ip_side_vec[BIDs[e]];
             
@@ -716,8 +716,8 @@ void SubGridFEM::setUpSubgridModels() {
             }
             for (size_t c=0; c<numElem; c++) {
               DRV side_ip_e("side_ip_e",1, sside_ip.extent(1), sside_ip.extent(2));
-              for (unsigned int i=0; i<sside_ip.extent(1); i++) {
-                for (unsigned int j=0; j<sside_ip.extent(2); j++) {
+              for (size_type i=0; i<sside_ip.extent(1); i++) {
+                for (size_type j=0; j<sside_ip.extent(2); j++) {
                   side_ip_e(0,i,j) = sside_ip(c,i,j);
                 }
               }
@@ -726,14 +726,14 @@ void SubGridFEM::setUpSubgridModels() {
               size_t mID = boundaryCells[mindex][e]->auxMIDs[c];
               DRV cnodes("tmp nodes",1,macroData[mindex]->macronodes.extent(1),
                          macroData[mindex]->macronodes.extent(2));
-              for (size_t i=0; i<macroData[mindex]->macronodes.extent(1); i++) {
-                for (size_t j=0; j<macroData[mindex]->macronodes.extent(2); j++) {
+              for (size_type i=0; i<macroData[mindex]->macronodes.extent(1); i++) {
+                for (size_type j=0; j<macroData[mindex]->macronodes.extent(2); j++) {
                   cnodes(0,i,j) = macroData[mindex]->macronodes(mID,i,j);
                 }
               }
               CellTools::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, cnodes, *macro_cellTopo);
-              for (size_t i=0; i<sside_ip.extent(1); i++) {
-                for (size_t j=0; j<sside_ip.extent(2); j++) {
+              for (size_type i=0; i<sside_ip.extent(1); i++) {
+                for (size_type j=0; j<sside_ip.extent(2); j++) {
                   sref_side_ip(i,j) = sref_side_ip_tmp(0,i,j);
                 }
               }
@@ -741,8 +741,8 @@ void SubGridFEM::setUpSubgridModels() {
               corientation(0) = macroData[mindex]->macroorientation(mID);
               for (size_t i=0; i<macro_basis_pointers.size(); i++) {
                 DRV bvals = sub_disc->evaluateBasis(macro_basis_pointers[i], sref_side_ip, corientation);
-                for (unsigned int k=0; k<bvals.extent(1); k++) {
-                  for (unsigned int j=0; j<bvals.extent(2); j++) {
+                for (size_type k=0; k<bvals.extent(1); k++) {
+                  for (size_type j=0; j<bvals.extent(2); j++) {
                     currside_basis[i](c,k,j) = bvals(0,k,j);
                   }
                 }
@@ -855,13 +855,13 @@ void SubGridFEM::addMeshData() {
         
         for (size_t b=0; b<cells.size(); b++) {
           for (size_t e=0; e<cells[b].size(); e++) {
-            int numElem = cells[b][e]->numElem;
+            size_t numElem = cells[b][e]->numElem;
             DRV nodes = cells[b][e]->nodes;
-            for (int c=0; c<numElem; c++) {
+            for (size_t c=0; c<numElem; c++) {
               Kokkos::View<ScalarT**,AssemblyDevice> center("center",1,3);
-              int numnodes = nodes.extent(1);
-              for (size_t i=0; i<numnodes; i++) {
-                for (size_t j=0; j<dimension; j++) {
+              size_type numnodes = nodes.extent(1);
+              for (size_type i=0; i<numnodes; i++) {
+                for (int j=0; j<dimension; j++) {
                   center(0,j) += nodes(c,i,j)/(ScalarT)numnodes;
                 }
               }
@@ -878,7 +878,7 @@ void SubGridFEM::addMeshData() {
               if (iscloser) {
                 Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
                 
-                for (unsigned int i=0; i<cdata.extent(1); i++) {
+                for (size_type i=0; i<cdata.extent(1); i++) {
                   cells[b][e]->cell_data(c,i) = cdata(0,i);
                 }
                 cells[b][e]->cellData->have_extra_data = true;
@@ -901,13 +901,13 @@ void SubGridFEM::addMeshData() {
         
         for (size_t b=0; b<cells.size(); b++) {
           for (size_t e=0; e<cells[b].size(); e++) {
-            int numElem = cells[b][e]->numElem;
+            size_t numElem = cells[b][e]->numElem;
             DRV nodes = cells[b][e]->nodes;
-            for (int c=0; c<numElem; c++) {
+            for (size_t c=0; c<numElem; c++) {
               Kokkos::View<ScalarT**,AssemblyDevice> center("center",1,3);
-              int numnodes = nodes.extent(1);
-              for (size_t i=0; i<numnodes; i++) {
-                for (size_t j=0; j<dimension; j++) {
+              size_type numnodes = nodes.extent(1);
+              for (size_type i=0; i<numnodes; i++) {
+                for (int j=0; j<dimension; j++) {
                   center(0,j) += nodes(c,i,j)/(ScalarT)numnodes;
                 }
               }
@@ -924,7 +924,7 @@ void SubGridFEM::addMeshData() {
               if (iscloser) {
                 Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
                 
-                for (unsigned int i=0; i<cdata.extent(1); i++) {
+                for (size_type i=0; i<cdata.extent(1); i++) {
                   cells[b][e]->cell_data(c,i) = cdata(0,i);
                 }
                 cells[b][e]->cellData->have_extra_data = true;
@@ -1036,7 +1036,7 @@ void SubGridFEM::addMeshData() {
       
       // we use a relatively crude algorithm to obtain well-spaced points
       int batch_size = 10;
-      size_t prog = 0;
+      int prog = 0;
       Kokkos::View<ScalarT**,HostDevice> cseeds("cand seeds",batch_size,3);
       
       while (prog<numSeeds) {
@@ -1210,17 +1210,17 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
   
   // TMW: update for device (subgrid or assembly?)
   // Need to move localData[]->macroIDs to a Kokkos::View on the appropriate device
-  for (int e=0; e<coarse_u.extent(0); e++) {
-    for (unsigned int i=0; i<coarse_u.extent(1); i++) {
-      for (unsigned int j=0; j<coarse_u.extent(2); j++) {
+  for (size_type e=0; e<coarse_u.extent(0); e++) {
+    for (size_type i=0; i<coarse_u.extent(1); i++) {
+      for (size_type j=0; j<coarse_u.extent(2); j++) {
         coarse_u(e,i,j) = coarse_fwdsoln(macroData[usernum]->macroIDs(e),i,j);
       }
     }
   }
   if (isAdjoint) {
-    for (int e=0; e<coarse_phi.extent(0); e++) {
-      for (unsigned int i=0; i<coarse_phi.extent(1); i++) {
-        for (unsigned int j=0; j<coarse_phi.extent(2); j++) {
+    for (size_type e=0; e<coarse_phi.extent(0); e++) {
+      for (size_type i=0; i<coarse_phi.extent(1); i++) {
+        for (size_type j=0; j<coarse_phi.extent(2); j++) {
           coarse_phi(e,i,j) = coarse_adjsoln(macroData[usernum]->macroIDs(e),i,j);
         }
       }
@@ -1233,15 +1233,21 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
     Teuchos::TimeMonitor localtimer(*sgfemInitialTimer);
     
     ScalarT prev_time = 0.0; // TMW: needed?
-    size_t numtimes = soln->times[usernum].size();
+    //size_t numtimes = soln->times[usernum].size();
     if (isAdjoint) {
       if (isTransient) {
         bool foundfwd = soln->extractPrevious(prev_fwdsoln, usernum, time, prev_time);
         bool foundadj = adjsoln->extract(prev_adjsoln, usernum, time);
+        if (!foundfwd || !foundadj) {
+          // throw error
+        }
       }
       else {
         bool foundfwd = soln->extract(prev_fwdsoln, usernum, time);
         bool foundadj = adjsoln->extract(prev_adjsoln, usernum, time);
+        if (!foundfwd || !foundadj) {
+          // throw error
+        }
       }
     }
     else { // forward or compute sens
@@ -1253,10 +1259,16 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
       }
       else {
         bool foundfwd = soln->extractLast(prev_fwdsoln,usernum,prev_time);
+        if (!foundfwd) {
+          // throw error
+        }
       }
       if (compute_sens) {
         double nexttime = 0.0;
         bool foundadj = adjsoln->extractNext(prev_adjsoln,usernum,time,nexttime);
+        if (!foundadj) {
+          // throw error
+        }
       }
     }
   }
@@ -1289,7 +1301,7 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
 
 void SubGridFEM::storeFluxData(Kokkos::View<ScalarT***,AssemblyDevice> lambda, Kokkos::View<AD**,AssemblyDevice> flux) {
   
-  int num_dof_lambda = lambda.extent(1)*lambda.extent(2);
+  //int num_dof_lambda = lambda.extent(1)*lambda.extent(2);
   
   std::ofstream ofs;
   
@@ -1505,8 +1517,8 @@ Kokkos::View<AD*,AssemblyDevice> SubGridFEM::computeObjective(const string & res
         objective = Kokkos::View<AD*,AssemblyDevice>("objective", curr_obj.extent(1));
         beensized = true;
       }
-      for (int c=0; c<cells[0][e]->numElem; c++) {
-        for (size_t i=0; i<curr_obj.extent(1); i++) {
+      for (size_t c=0; c<cells[0][e]->numElem; c++) {
+        for (size_type i=0; i<curr_obj.extent(1); i++) {
           objective(i) += curr_obj(c,i);
         }
       }
@@ -1848,11 +1860,11 @@ void SubGridFEM::setupCombinedExodus() {
     DRV comb_nodes("combined nodes",numTotalNodes,dimension);
     vector<vector<GO> > comb_connectivity;
     size_t nprog = 0;
-    for (int usernum=0; usernum<macroData.size(); usernum++) {
+    for (size_t usernum=0; usernum<macroData.size(); usernum++) {
       //vector<vector<ScalarT> > nodes = sgt.getNodes(macroData[usernum]->macronodes);
       DRV nodes = sgt.getListOfPhysicalNodes(macroData[usernum]->macronodes, macro_cellTopo);
-      for (size_t n=0; n<nodes.extent(0); n++) {
-        for (size_t s=0; s<dimension; s++) {
+      for (size_type n=0; n<nodes.extent(0); n++) {
+        for (int s=0; s<dimension; s++) {
           comb_nodes(nprog+n,s) = nodes(n,s);
         }
       }
@@ -1876,7 +1888,7 @@ void SubGridFEM::setupCombinedExodus() {
     }
     //Kokkos::View<int****,HostDevice> sideinfo = sgt.getNewSideinfo(localData[usernum]->macrosideinfo);
     
-    size_t numNodesPerElem = comb_connectivity[0].size();
+    //size_t numNodesPerElem = comb_connectivity[0].size();
     
     panzer_stk::SubGridMeshFactory submeshFactory(shape, comb_nodes, comb_connectivity, blockID);
     combined_mesh = submeshFactory.buildMesh(*(LocalComm->getRawMpiComm()));
@@ -1985,7 +1997,7 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
     vector<string> varlist = sub_physics->varlist[0];
     
     // Collect the subgrid solution
-    for (int n = 0; n<varlist.size(); n++) {
+    for (size_t n = 0; n<varlist.size(); n++) {
       
       if (vartypes[n] == "HGRAD") {
         Kokkos::View<ScalarT**,HostDevice> soln_computed("soln",myElements.size(), numNodesPerElem);
@@ -1996,8 +2008,8 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
             Kokkos::View<ScalarT***,AssemblyDevice> sol = cells[usernum][e]->u;
             auto host_sol = Kokkos::create_mirror_view(sol);
             Kokkos::deep_copy(host_sol,sol);
-            for (int p=0; p<cells[usernum][e]->numElem; p++) {
-              for( int i=0; i<numNodesPerElem; i++ ) {
+            for (size_t p=0; p<cells[usernum][e]->numElem; p++) {
+              for( size_t i=0; i<numNodesPerElem; i++ ) {
                 soln_computed(pprog,i) = host_sol(p,n,i);
               }
               pprog += 1;
@@ -2015,7 +2027,7 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
             Kokkos::View<ScalarT***,AssemblyDevice> sol = cells[usernum][e]->u;
             auto host_sol = Kokkos::create_mirror_view(sol);
             Kokkos::deep_copy(host_sol,sol);
-            for (int p=0; p<cells[usernum][e]->numElem; p++) {
+            for (size_t p=0; p<cells[usernum][e]->numElem; p++) {
               soln_computed(pprog) = host_sol(p,n,0);
               pprog++;
             }
@@ -2036,7 +2048,7 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
             Kokkos::View<ScalarT***,AssemblyDevice> sol = cells[usernum][e]->u_avg;
             auto host_sol = Kokkos::create_mirror_view(sol);
             Kokkos::deep_copy(host_sol,sol);
-            for (int p=0; p<cells[usernum][e]->numElem; p++) {
+            for (size_t p=0; p<cells[usernum][e]->numElem; p++) {
               soln_x(pprog) = host_sol(p,n,0);
               if (dimension > 1) {
                 soln_y(pprog) = host_sol(p,n,1);
@@ -2063,8 +2075,8 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
               Kokkos::View<ScalarT***,AssemblyDevice> sol = cells[usernum][e]->getSolutionAtNodes(n);
               auto host_sol = Kokkos::create_mirror_view(sol);
               Kokkos::deep_copy(host_sol,sol);
-              for (int p=0; p<cells[usernum][e]->numElem; p++) {
-                for( int i=0; i<numNodesPerElem; i++ ) {
+              for (size_t p=0; p<cells[usernum][e]->numElem; p++) {
+                for( size_t i=0; i<numNodesPerElem; i++ ) {
                   soln_nx(pprog,i) = host_sol(p,i,0);
                   if (dimension > 1) {
                     soln_ny(pprog,i) = host_sol(p,i,1);
@@ -2095,12 +2107,12 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
     if (cells[0][0]->cellData->have_cell_phi || cells[0][0]->cellData->have_cell_rotation || cells[0][0]->cellData->have_extra_data) {
       int eprog = 0;
       // TMW: need to use a mirror view here
-      for (int usernum=0; usernum<cells.size(); usernum++) {
-        for (int e=0; e<cells[usernum].size(); e++) {
+      for (size_t usernum=0; usernum<cells.size(); usernum++) {
+        for (size_t e=0; e<cells[usernum].size(); e++) {
           vector<size_t> cell_data_seed = cells[usernum][e]->cell_data_seed;
           vector<size_t> cell_data_seedindex = cells[usernum][e]->cell_data_seedindex;
           Kokkos::View<ScalarT**,AssemblyDevice> cell_data = cells[usernum][e]->cell_data;
-          for (int p=0; p<cells[usernum][0]->numElem; p++) {
+          for (size_t p=0; p<cells[usernum][0]->numElem; p++) {
             cseeds(eprog) = cell_data_seedindex[p];
             cdata(eprog) = cell_data(p,0);
             eprog++;
@@ -2126,7 +2138,7 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
           Kokkos::View<ScalarT**,AssemblyDevice> cfields = sub_physics->getExtraFields(0, 0, nodes, time, wkset[0]);
           auto host_cfields = Kokkos::create_mirror_view(cfields);
           Kokkos::deep_copy(host_cfields,cfields);
-          for (int p=0; p<cells[usernum][e]->numElem; p++) {
+          for (size_t p=0; p<cells[usernum][e]->numElem; p++) {
             for (size_t i=0; i<host_cfields.extent(1); i++) {
               efdata(eprog,i) = host_cfields(p,i);
             }
@@ -2161,7 +2173,7 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
           
           auto host_cfields = Kokkos::create_mirror_view(cfields);
           Kokkos::deep_copy(host_cfields, cfields);
-          for (int p=0; p<host_cfields.extent(0); p++) {
+          for (size_type p=0; p<host_cfields.extent(0); p++) {
             efdata(eprog) = host_cfields(p);
             eprog++;
           }
@@ -2243,11 +2255,11 @@ DRV SubGridFEM::getIP() {
   DRV refip = DRV("refip",1,totalip,dimension);
   int prog = 0;
   for (size_t e=0; e<cells[usernum].size(); e++) {
-    int numElem = cells[usernum][e]->numElem;
+    size_t numElem = cells[usernum][e]->numElem;
     DRV ip = cells[usernum][e]->ip;
     for (size_t c=0; c<numElem; c++) {
-      for (size_t i=0; i<ip.extent(1); i++) {
-        for (size_t j=0; j<ip.extent(2); j++) {
+      for (size_type i=0; i<ip.extent(1); i++) {
+        for (size_type j=0; j<ip.extent(2); j++) {
           refip(0,prog,j) = ip(c,i,j);
         }
         prog++;
@@ -2273,9 +2285,9 @@ DRV SubGridFEM::getIPWts() {
   int prog = 0;
   for (size_t e=0; e<cells[usernum].size(); e++) {
     DRV wts = cells[0][e]->cellData->ref_wts;//wkset[0]->ref_wts;//cells[usernum][e]->ijac;
-    int numElem = cells[usernum][e]->numElem;
+    size_t numElem = cells[usernum][e]->numElem;
     for (size_t c=0; c<numElem; c++) {
-      for (size_t i=0; i<wts.extent(0); i++) {
+      for (size_type i=0; i<wts.extent(0); i++) {
         refwts(0,prog) = wts(i);//sref_ip_tmp(0,i,j);
         prog++;
       }
@@ -2365,9 +2377,9 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluate
 // TMW: what is this function for???
 ////////////////////////////////////////////////////////////////////////////////
 
-std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis(const DRV & pts) {
+//std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluateBasis(const DRV & pts) {
   // this function is deprecated
-}
+//}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2420,6 +2432,9 @@ void SubGridFEM::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, c
 ////////////////////////////////////////////////////////////////////////////////
 
 Kokkos::View<ScalarT**,AssemblyDevice> SubGridFEM::getCellFields(const int & usernum, const ScalarT & time) {
+  
+  Kokkos::View<ScalarT**,AssemblyDevice> nothing("empty view",1,1);
+  return nothing;
   
   /*
    vector<string> extracellfieldnames = sub_physics->getExtraCellFieldNames(0);

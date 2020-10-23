@@ -20,10 +20,11 @@
 #include "Panzer_STK_Interface.hpp"
 
 namespace MrHyDE {
-  
+  /*
   void static discretizationHelp(const string & details) {
     cout << "********** Help and Documentation for the Discretization Interface **********" << endl;
   }
+  */
   
   class discretization {
   public:

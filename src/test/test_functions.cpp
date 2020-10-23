@@ -15,7 +15,7 @@ int main(int argc, char * argv[]) {
   
   Kokkos::initialize();
 
-  typedef Kokkos::DynRankView<ScalarT,Kokkos::LayoutStride,AssemblyExec> DRVtst;
+  //typedef Kokkos::DynRankView<ScalarT,Kokkos::LayoutStride,AssemblyExec> DRVtst;
   
   {
     Teuchos::RCP<discretization> disc = Teuchos::rcp( new discretization() );

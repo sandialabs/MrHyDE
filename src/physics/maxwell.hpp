@@ -17,13 +17,13 @@
 #include "physics_base.hpp"
 
 namespace MrHyDE {
-  
+  /*
   static void maxwellHelp() {
     cout << "********** Help and Documentation for the Maxwell (HCURL-HDIV) Physics Module **********" << endl << endl;
     cout << "Model:" << endl << endl;
     cout << "User defined functions: " << endl << endl;
   }
-  
+  */
   
   class maxwell : public physicsbase {
   public:

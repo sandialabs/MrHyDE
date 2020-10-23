@@ -50,7 +50,6 @@ void maxwell::volumeResidual() {
   // NOTES:
   // 1. basis and basis_grad already include the integration weights
   
-  int resindex;
   int E_basis = wkset->usebasis[Enum];
   int B_basis = wkset->usebasis[Bnum];
   
@@ -108,11 +107,11 @@ void maxwell::volumeResidual() {
     auto res = wkset->res;
     
     parallel_for("Maxwells B volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (int pt=0; pt<basis.extent(2); pt++ ) {
+      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f0 = (dBdt(elem,pt,0) + curlE(elem,pt,0))*wts(elem,pt);
         AD f1 = (dBdt(elem,pt,1) + curlE(elem,pt,1))*wts(elem,pt);
         AD f2 = (dBdt(elem,pt,2) + curlE(elem,pt,2))*wts(elem,pt);
-        for (int dof=0; dof<basis.extent(1); dof++ ) {
+        for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
           res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
           res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
@@ -135,14 +134,14 @@ void maxwell::volumeResidual() {
     auto res = wkset->res;
     
     parallel_for("Maxwells E volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      for (int pt=0; pt<basis.extent(2); pt++ ) {
+      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f0 = (epsilon(elem,pt)*dEdt(elem,pt,0) + sigma(elem,pt)*E(elem,pt,0) + current_x(elem,pt))*wts(elem,pt);
         AD f1 = (epsilon(elem,pt)*dEdt(elem,pt,1) + sigma(elem,pt)*E(elem,pt,1) + current_y(elem,pt))*wts(elem,pt);
         AD f2 = (epsilon(elem,pt)*dEdt(elem,pt,2) + sigma(elem,pt)*E(elem,pt,2) + current_z(elem,pt))*wts(elem,pt);
         AD c0 = - 1.0/mu(elem,pt)*B(elem,pt,0)*wts(elem,pt);
         AD c1 = - 1.0/mu(elem,pt)*B(elem,pt,1)*wts(elem,pt);
         AD c2 = - 1.0/mu(elem,pt)*B(elem,pt,2)*wts(elem,pt);
-        for (int dof=0; dof<basis.extent(1); dof++ ) {
+        for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0);
           res(elem,off(dof)) += f1*basis(elem,dof,pt,1) + c1*basis_curl(elem,dof,pt,1);
           res(elem,off(dof)) += f2*basis(elem,dof,pt,2) + c2*basis_curl(elem,dof,pt,2);

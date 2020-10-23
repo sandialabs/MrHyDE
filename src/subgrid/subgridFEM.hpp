@@ -185,7 +185,7 @@ namespace MrHyDE {
     // TMW: what is this function for???
     ////////////////////////////////////////////////////////////////////////////////
     
-    std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > evaluateBasis(const DRV & pts);
+    //std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > evaluateBasis(const DRV & pts);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Get the matrix mapping the DOFs to a set of integration points on a reference macro-element

@@ -33,6 +33,8 @@ namespace MrHyDE {
     
     SubGridTools() {} ;
     
+    ~SubGridTools() {} ;
+    
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
@@ -40,9 +42,9 @@ namespace MrHyDE {
                  const string & subshape_, const DRV nodes_,
                  Kokkos::View<int****,HostDevice> sideinfo_,
                  std::string & mesh_type_, std::string & mesh_file_) :
-    LocalComm(LocalComm_), shape(shape_), subshape(subshape_), sideinfo(sideinfo_),
-    mesh_type(mesh_type_), mesh_file(mesh_file_) {
-      
+    LocalComm(LocalComm_), shape(shape_), subshape(subshape_),
+    mesh_type(mesh_type_), mesh_file(mesh_file_), sideinfo(sideinfo_){
+    
       nodes = nodes_;
       
       dimension = nodes.extent(1);
@@ -123,7 +125,7 @@ namespace MrHyDE {
         
         topo_RCP cellTopo = ref_mesh->getCellTopology(blocknames[0]);
         size_t numNodesPerElem = cellTopo->getNodeCount();
-        size_t numSides;
+        size_t numSides = 0;
         if (dimension == 1) {
           numSides = 2;
         }
@@ -153,7 +155,7 @@ namespace MrHyDE {
           for (size_t i=0; i<nodeIds.size(); i++) {
             conn.push_back(nodeIds[i]-1);
             if (!beenAdded[nodeIds[i]-1]) {
-              for (size_t s=0; s<dimension; s++) {
+              for (int s=0; s<dimension; s++) {
                 subnodes_list(nodeIds[i]-1,s) = vertices(elem,i,s);
               }
               beenAdded[nodeIds[i]-1] = true;
@@ -202,9 +204,9 @@ namespace MrHyDE {
       else if (mesh_type == "inline") {
         if (subshape == shape) {
           vector<GO> newconn;
-          for (unsigned int i=0; i<nodes.extent(0); i++) {
+          for (size_type i=0; i<nodes.extent(0); i++) {
             vector<ScalarT> newnode;
-            for (unsigned int s=0; s<dimension; s++) {
+            for (int s=0; s<dimension; s++) {
               newnode.push_back(nodes(i,s));
             }
             subnodes.push_back(newnode);
@@ -227,9 +229,9 @@ namespace MrHyDE {
           else if (dimension == 2) {
             if (shape == "quad" && subshape == "tri") {
               
-              for (unsigned int i=0; i<nodes.extent(0); i++) {
+              for (size_type i=0; i<nodes.extent(0); i++) {
                 vector<ScalarT> newnode;
-                for (unsigned int s=0; s<dimension; s++) {
+                for (int s=0; s<dimension; s++) {
                   newnode.push_back(nodes(i,s));
                 }
                 subnodes.push_back(newnode);
@@ -288,10 +290,10 @@ namespace MrHyDE {
             }
             else if (shape == "tri" && subshape == "quad") {
               
-              for (unsigned int i=0; i<nodes.extent(0); i++) {
+              for (size_type i=0; i<nodes.extent(0); i++) {
                 vector<ScalarT> newnode;
                 
-                for (unsigned int s=0; s<dimension; s++) {
+                for (int s=0; s<dimension; s++) {
                   newnode.push_back(nodes(i,s));
                 }
                 subnodes.push_back(newnode);
@@ -379,7 +381,7 @@ namespace MrHyDE {
         // Recursively refine the elements
         for (int r=0; r<numrefine; r++) {
           size_t numelem = subconnectivity.size();
-          for (int e=0; e<numelem; e++) {
+          for (size_t e=0; e<numelem; e++) {
             refineSubCell(e); // adds new nodes and new elements (does not delete old elements)
           }
           subconnectivity.erase(subconnectivity.begin(), subconnectivity.begin()+numelem);
@@ -1238,11 +1240,10 @@ namespace MrHyDE {
       CellTools::mapToPhysicalFrame(newnodes, subnodes_list, newmacronodes, *macro_topo);
       
       DRV currnodes("currnodes",newmacronodes.extent(0)*subnodes_list.extent(0), dimension);
-      size_t eprog = 0;
       
-      for (size_t melem=0; melem<newmacronodes.extent(0); melem++) {
-        for (size_t elem=0; elem<subnodes_list.extent(0); elem++) {
-          for (size_t dim=0; dim<dimension; dim++) {
+      for (size_type melem=0; melem<newmacronodes.extent(0); melem++) {
+        for (size_type elem=0; elem<subnodes_list.extent(0); elem++) {
+          for (int dim=0; dim<dimension; dim++) {
             size_t index = melem*subnodes_list.extent(0)+elem;
             currnodes(index,dim) = newnodes(melem,elem,dim);
           }
@@ -1265,12 +1266,11 @@ namespace MrHyDE {
       DRV currnodes("currnodes",newmacronodes.extent(0)*subconnectivity.size(),
                     subconnectivity[0].size(),
                     dimension);
-      size_t eprog = 0;
       
-      for (size_t melem=0; melem<newmacronodes.extent(0); melem++) {
-        for (size_t elem=0; elem<subconnectivity.size(); elem++) {
+      for (size_type melem=0; melem<newmacronodes.extent(0); melem++) {
+        for (size_type elem=0; elem<subconnectivity.size(); elem++) {
           for (size_t node=0; node<subconnectivity[elem].size(); node++) {
-            for (size_t dim=0; dim<dimension; dim++) {
+            for (int dim=0; dim<dimension; dim++) {
               size_t index = melem*subconnectivity.size()+elem;
               currnodes(index,node,dim) = newnodes(melem,subconnectivity[elem][node],dim);
             }
@@ -1327,9 +1327,9 @@ namespace MrHyDE {
       
       int prog = 0;
       for (int k=0; k<reps; k++) {
-        for (int i=0; i<subconnectivity.size(); i++) {
+        for (size_t i=0; i<subconnectivity.size(); i++) {
           vector<GO> cc;
-          for (int j=0; j<subconnectivity[i].size(); j++) {
+          for (size_t j=0; j<subconnectivity[i].size(); j++) {
             cc.push_back(subconnectivity[i][j]+prog);
           }
           newconn.push_back(cc);
@@ -1348,14 +1348,14 @@ namespace MrHyDE {
                         vector<string> & macrosidenames,
                         vector<vector<size_t> > & boundary_groups) {
       
-      for (size_t c=0; c<newsi.extent(0); c++) { // number of elem in cell
-        for (size_t i=0; i<newsi.extent(1); i++) { // number of variables
-          for (size_t j=0; j<newsi.extent(2); j++) { // number of sides per element
+      for (size_type c=0; c<newsi.extent(0); c++) { // number of elem in cell
+        for (size_type i=0; i<newsi.extent(1); i++) { // number of variables
+          for (size_type j=0; j<newsi.extent(2); j++) { // number of sides per element
             if (newsi(c,i,j,0) > 0) {
               bool found = false;
               for (size_t s=0; s<unique_sides.size(); s++) {
                 if (newsi(c,i,j,1) == unique_sides[s]) {
-                  if (j == unique_local_sides[s]) {
+                  if ((int)j == unique_local_sides[s]) {
                     found = true;
                   }
                 }
