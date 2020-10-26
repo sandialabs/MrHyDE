@@ -181,7 +181,7 @@ void AssemblyManager::createCells() {
     topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
     int numNodesPerElem = cellTopo->getNodeCount();
     int spaceDim = phys->spaceDim;
-    size_t numTotalElem = stk_meshElems.size();
+    LO numTotalElem = static_cast<LO>(stk_meshElems.size());
     
     //cout << "PID = " << Comm->getRank() << "  block: " << blocknames[b] << "  Nelem: " << numTotalElem << endl;
     
@@ -195,18 +195,19 @@ void AssemblyManager::createCells() {
       Kokkos::deep_copy(blocknodes, host_blocknodes);
       
       vector<size_t> myElem = disc->myElements[b];
-      Kokkos::View<size_t*,AssemblyDevice> eIDs("local element IDs on device",myElem.size());
+      Kokkos::View<LO*,AssemblyDevice> eIDs("local element IDs on device",myElem.size());
       auto host_eIDs = Kokkos::create_mirror_view(eIDs);
       for (size_t elem=0; elem<myElem.size(); elem++) {
-        host_eIDs(elem) = myElem[elem];
+        host_eIDs(elem) = static_cast<LO>(myElem[elem]);
       }
       Kokkos::deep_copy(eIDs, host_eIDs);
       
       DRV refnodes("nodes on reference element",numNodesPerElem,spaceDim);
       CellTools::getReferenceSubcellVertices(refnodes, spaceDim, 0, *cellTopo);
       
-      size_t elemPerCell = static_cast<size_t>(settings->sublist("Solver").get<int>("workset size",1));
-      size_t prog = 0;
+      // LO is int, but just in case that changes ...
+      LO elemPerCell = static_cast<LO>(settings->sublist("Solver").get<int>("workset size",1));
+      LO prog = 0;
       
       vector<string> sideSets;
       mesh->getSidesetNames(sideSets);
@@ -227,7 +228,7 @@ void AssemblyManager::createCells() {
       vector<vector<int> > curroffsets = phys->offsets[b];
       Kokkos::View<LO*,AssemblyDevice> numDOF_KV("number of DOF per variable",curroffsets.size());
       for (size_t k=0; k<curroffsets.size(); k++) {
-        numDOF_KV(k) = curroffsets[k].size();
+        numDOF_KV(k) = static_cast<LO>(curroffsets[k].size());
       }
       blockCellData->numDOF = numDOF_KV;
       Kokkos::View<LO*,HostDevice> numDOF_host("numDOF on host",curroffsets.size());// = Kokkos::create_mirror_view(numDOF_KV);
@@ -240,7 +241,7 @@ void AssemblyManager::createCells() {
       
       if (assembly_partitioning == "sequential") {
         while (prog < numTotalElem) {
-          size_t currElem = elemPerCell;  // Avoid faults in last iteration
+          LO currElem = elemPerCell;  // Avoid faults in last iteration
           if (prog+currElem > numTotalElem){
             currElem = numTotalElem-prog;
           }
@@ -262,7 +263,7 @@ void AssemblyManager::createCells() {
             //    currnodes(e,n,m) = blocknodes(prog+e,n,m);
             //  }
             //}
-            host_eIndex(e) = prog+e;//disc->myElements[b][prog+e]; // TMW: why here?;prog+e;
+            host_eIndex(e) = prog+static_cast<LO>(e);//disc->myElements[b][prog+e]; // TMW: why here?;prog+e;
           }
           //Kokkos::deep_copy(currnodes,host_currnodes);
           Kokkos::deep_copy(eIndex,host_eIndex);
@@ -270,10 +271,10 @@ void AssemblyManager::createCells() {
           // This subview only works if the cells use a continuous ordering of elements
           // Considering generalizing this to reduce atomic overhead, so performing manual deep copy for now
           //LIDView cellLIDs = Kokkos::subview(LIDs, std::make_pair(prog,prog+currElem), Kokkos::ALL());
-          size_type progend = prog+cellLIDs.extent(0);
+          LO progend = prog + static_cast<LO>(cellLIDs.extent(0));
           auto celem = Kokkos::subview(eIDs, std::make_pair(prog,progend));
           parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
-            size_t elemID = celem(e);//disc->myElements[b][prog+e]; // TMW: why here?
+            LO elemID = celem(e);//disc->myElements[b][prog+e]; // TMW: why here?
             for (size_type j=0; j<LIDs.extent(1); j++) {
               cellLIDs(e,j) = LIDs(elemID,j);
             }
@@ -285,9 +286,9 @@ void AssemblyManager::createCells() {
           Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", currElem, numNodesPerElem);
           auto host_currind = Kokkos::create_mirror_view(currind);
           
-          for (size_t i=0; i<currElem; i++) {
+          for (LO i=0; i<currElem; i++) {
             vector<stk::mesh::EntityId> stk_nodeids;
-            size_t elemID = prog+i;//host_eIndex(i);
+            LO elemID = prog+i;//host_eIndex(i);
             mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
             for (int n=0; n<numNodesPerElem; n++) {
               host_currind(i,n) = stk_nodeids[n];
