@@ -88,8 +88,8 @@ int main(int argc, char * argv[]) {
     }
   }
 
-  Teuchos::RCP<data> mesh_data;
-  mesh_data = Teuchos::rcp(new data("mesh data", spaceDim, mesh_data_pts_file));
+  Teuchos::RCP<MrHyDE::data> mesh_data;
+  mesh_data = Teuchos::rcp(new MrHyDE::data("mesh data", spaceDim, mesh_data_pts_file));
 
   if(myRank == 0)
     std::cout << "Starting the mesh_data->findClosestNode approach..." << std::endl;
