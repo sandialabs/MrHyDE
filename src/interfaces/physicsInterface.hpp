@@ -226,7 +226,7 @@ namespace MrHyDE {
     
     Kokkos::View<ScalarT*,AssemblyDevice> getExtraCellFields(const int & block,
                                                              const int & fnum,
-                                                             DRV wts);
+                                                             Kokkos::View<ScalarT**,AssemblyDevice> wts);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////

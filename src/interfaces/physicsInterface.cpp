@@ -1096,8 +1096,8 @@ Kokkos::View<ScalarT**,AssemblyDevice> physics::getExtraFields(const int & block
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 Kokkos::View<ScalarT*,AssemblyDevice> physics::getExtraCellFields(const int & block,
-                                                                    const int & fnum,
-                                                                    DRV wts) {
+                                                                  const int & fnum,
+                                                                  Kokkos::View<ScalarT**,AssemblyDevice> wts) {
   
   int numElem = wts.extent(0);
   Kokkos::View<ScalarT*,AssemblyDevice> fields("cell field data",numElem);

@@ -165,13 +165,16 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
           OrientTools::modifyBasisByOrientation(bvals, bvals_tmp, orientation,
                                                 cellData->basis_pointers[i].get());
           basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,1);
+          auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
+          Kokkos::deep_copy(basis_vals_slice,bvals);
+          /*
           parallel_for("cell basis vals HVOL",RangePolicy<AssemblyExec>(0,basis_vals.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
             for (size_type dof=0; dof<basis_vals.extent(1); dof++) {
               for (size_type pt=0; pt<basis_vals.extent(2); pt++) {
                 basis_vals(elem,dof,pt,0) = bvals(elem,dof,pt);
               }
             }
-          });
+          });*/
         }
         else if (cellData->basis_types[i] == "HDIV"){
           
@@ -890,10 +893,10 @@ Kokkos::View<ScalarT**,AssemblyDevice> BoundaryCell::getDirichlet() {
   
   for (size_t n=0; n<wkset->varlist.size(); n++) {
     if (bcs(n,sidenum) == 1) { // is this a strong DBC for this variable
-      Kokkos::View<ScalarT**,AssemblyDevice> dip = cellData->physics_RCP->getDirichlet(ip,n,
-                                                                                        cellData->myBlock,
-                                                                                        sidename,
-                                                                                        wkset);
+      auto dip = cellData->physics_RCP->getDirichlet(ip,n,
+                                                     cellData->myBlock,
+                                                     sidename,
+                                                     wkset);
       
       int bind = wkset->usebasis[n];
       std::string btype = cellData->basis_types[bind];
