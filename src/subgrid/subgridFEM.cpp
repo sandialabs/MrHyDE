@@ -103,7 +103,7 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
 int SubGridFEM::addMacro(DRV & macronodes_,
                          Kokkos::View<int****,HostDevice> & macrosideinfo_,
                          LIDView macroLIDs_,
-                         Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & macroorientation_) {
+                         Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & macroorientation_) {
   
   Teuchos::TimeMonitor localmeshtimer(*sgfemTotalAddMacroTimer);
   
@@ -326,7 +326,7 @@ void SubGridFEM::setUpSubgridModels() {
         }
       }
       
-      Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orient_drv("kv to orients",currElem);
+      Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orient_drv("kv to orients",currElem);
       Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *(sub_mesh->cellTopo[0]));
       
       newbcells.push_back(Teuchos::rcp(new BoundaryCell(cellData,currnodes,eIndex,sideIndex,
@@ -480,7 +480,7 @@ void SubGridFEM::setUpSubgridModels() {
       
       Kokkos::View<LO*,AssemblyDevice> localID;
       LIDView LIDs;
-      Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
+      Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
       
       if (numElem == maxElem) { // reuse if possible
         localID = cells[0][0]->localElemID;
@@ -493,10 +493,10 @@ void SubGridFEM::setUpSubgridModels() {
         //orientation = Kokkos::subview(cells[0][0]->orientation,std::make_pair(0,numElem));
         localID = Kokkos::View<LO*,AssemblyDevice>("local elem ids",numElem);
         LIDs = LIDView("LIDs",numElem,cells[0][0]->LIDs.extent(1));
-        orientation = Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice>("orientation",numElem);
+        orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("orientation",numElem);
         Kokkos::View<LO*,AssemblyDevice> localID_0 = cells[0][0]->localElemID;
         LIDView LIDs_0 = cells[0][0]->LIDs;
-        Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_0 = cells[0][0]->orientation;
+        Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation_0 = cells[0][0]->orientation;
         parallel_for("cell hsize",RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int e ) {
           localID(e) = localID_0(e);
           orientation(e) = orientation_0(e);
@@ -546,7 +546,7 @@ void SubGridFEM::setUpSubgridModels() {
         int maxElem = boundaryCells[0][s]->numElem;
         Kokkos::View<LO*,AssemblyDevice> localID;
         LIDView LIDs;
-        Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
+        Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
         Kokkos::View<LO*,AssemblyDevice> sideID;
         int sidenum = boundaryCells[0][s]->sidenum;
         
@@ -559,12 +559,12 @@ void SubGridFEM::setUpSubgridModels() {
         else { // subviews do not work, so performing a deep copy (should only be on last cell)
           localID = Kokkos::View<LO*,AssemblyDevice>("local elem ids",numElem);
           LIDs = LIDView("LIDs",numElem,boundaryCells[0][s]->LIDs.extent(1));
-          orientation = Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice>("orientation",numElem);
+          orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("orientation",numElem);
           sideID = Kokkos::View<LO*,AssemblyDevice>("side IDs",numElem);
           
           Kokkos::View<LO*,AssemblyDevice> localID_0 = boundaryCells[0][s]->localElemID;
           LIDView LIDs_0 = boundaryCells[0][s]->LIDs;
-          Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_0 = boundaryCells[0][s]->orientation;
+          Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation_0 = boundaryCells[0][s]->orientation;
           Kokkos::View<LO*,AssemblyDevice> sideID_0 = boundaryCells[0][s]->localSideID;
           
           parallel_for("cell hsize",RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int e ) {
@@ -700,7 +700,7 @@ void SubGridFEM::setUpSubgridModels() {
             
             size_t numElem = boundaryCells[mindex][e]->numElem;
             
-            DRV sside_ip = boundaryCells[mindex][e]->ip;//wkset->ip_side_vec[BIDs[e]];
+            auto sside_ip = boundaryCells[mindex][e]->ip;//wkset->ip_side_vec[BIDs[e]];
             
             vector<DRV> currside_basis, currside_basis_grad;
             for (size_t i=0; i<macro_basis_pointers.size(); i++) {
@@ -730,7 +730,7 @@ void SubGridFEM::setUpSubgridModels() {
                   sref_side_ip(i,j) = sref_side_ip_tmp(0,i,j);
                 }
               }
-              Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> corientation("tmp orientation",1);
+              Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("tmp orientation",1);
               corientation(0) = macroData[mindex]->macroorientation(mID);
               for (size_t i=0; i<macro_basis_pointers.size(); i++) {
                 DRV bvals = sub_disc->evaluateBasis(macro_basis_pointers[i], sref_side_ip, corientation);
@@ -2249,7 +2249,7 @@ DRV SubGridFEM::getIP() {
   int prog = 0;
   for (size_t e=0; e<cells[usernum].size(); e++) {
     size_t numElem = cells[usernum][e]->numElem;
-    DRV ip = cells[usernum][e]->ip;
+    auto ip = cells[usernum][e]->ip;
     for (size_t c=0; c<numElem; c++) {
       for (size_type i=0; i<ip.extent(1); i++) {
         for (size_type j=0; j<ip.extent(2); j++) {

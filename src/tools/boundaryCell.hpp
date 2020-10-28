@@ -45,7 +45,7 @@ namespace MrHyDE {
                  const int & cellID_,
                  LIDView LIDs_,
                  Kokkos::View<int****,HostDevice> sideinfo_,
-                 Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_);
+                 Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation_);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -216,7 +216,7 @@ namespace MrHyDE {
     Teuchos::RCP<workset> wkset;
     
     Kokkos::View<LO*,AssemblyDevice> localElemID, localSideID;
-    Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
+    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
     
     // Geometry Information
     size_t numElem = 0; // default value ... used to check if proc. has elements on boundary

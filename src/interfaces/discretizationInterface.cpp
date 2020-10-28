@@ -409,7 +409,7 @@ DRV discretization::evaluateBasis(const basis_RCP & basis_pointer, const DRV & e
 //////////////////////////////////////////////////////////////////////////////////////
 
 DRV discretization::evaluateBasis(const basis_RCP & basis_pointer, const DRV & evalpts,
-                                  Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation) {
+                                  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & orientation) {
   int numCells = 1;//evalpts.extent(0);
   int numpts = evalpts.extent(0);
   int numBasis = basis_pointer->getCardinality();
@@ -430,7 +430,7 @@ DRV discretization::evaluateBasis(const basis_RCP & basis_pointer, const DRV & e
 
 DRV discretization::evaluateBasisGrads(const basis_RCP & basis_pointer, const DRV & nodes,
                                        const DRV & evalpts, const topo_RCP & cellTopo,
-                                       Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation) {
+                                       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & orientation) {
   
   int numCells = 1;
   int numpts = evalpts.extent(0);

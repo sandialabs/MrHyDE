@@ -207,8 +207,8 @@ ScalarT MultiScale::initialize() {
     }
   
     for (size_t i=0; i<subgridModels.size(); i++) {
-      DRV ip = subgridModels[i]->getIP();
-      DRV wts = subgridModels[i]->getIPWts();
+      auto ip = subgridModels[i]->getIP();
+      auto wts = subgridModels[i]->getIPWts();
       
       std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > basisinfo_i = subgridModels[i]->evaluateBasis2(ip);
       vector<Teuchos::RCP<LA_CrsMatrix> > currmaps;

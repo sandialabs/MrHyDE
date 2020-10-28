@@ -54,7 +54,7 @@ namespace MrHyDE {
     int addMacro(DRV & macronodes_,
                  Kokkos::View<int****,HostDevice> & macrosideinfo_,
                  LIDView macroLIDs,
-                 Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & macroorientation);
+                 Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & macroorientation);
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////

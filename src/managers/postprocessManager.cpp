@@ -1095,7 +1095,7 @@ void PostprocessManager::computeResponse(const ScalarT & currenttime) {
       
       for (int r=0; r<numresponses; r++) {
         if (response_type == "global" ) {
-          DRV wts = assembler->cells[b][e]->wts;
+          auto wts = assembler->cells[b][e]->wts;
           auto host_wts = Kokkos::create_mirror_view(wts);
           Kokkos::deep_copy(host_wts,wts);
           
@@ -1394,12 +1394,12 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
         Kokkos::View<ScalarT**,HostDevice> efdata("field data",myElements.size(), numNodesPerElem);
         
         for (size_t k=0; k<assembler->cells[b].size(); k++) {
-          DRV nodes = assembler->cells[b][k]->nodes;
-          Kokkos::View<LO*,AssemblyDevice> eID = assembler->cells[b][k]->localElemID;
+          auto nodes = assembler->cells[b][k]->nodes;
+          auto eID = assembler->cells[b][k]->localElemID;
           auto host_eID = Kokkos::create_mirror_view(eID);
           Kokkos::deep_copy(host_eID,eID);
           
-          Kokkos::View<ScalarT**,AssemblyDevice> cfields = phys->getExtraFields(b, 0, nodes, currenttime, assembler->wkset[b]);
+          auto cfields = phys->getExtraFields(b, 0, nodes, currenttime, assembler->wkset[b]);
           auto host_cfields = Kokkos::create_mirror_view(cfields);
           Kokkos::deep_copy(host_cfields,cfields);
           for (size_type p=0; p<host_eID.extent(0); p++) {

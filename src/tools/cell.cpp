@@ -24,7 +24,7 @@ cell::cell(const Teuchos::RCP<CellMetaData> & cellData_,
            const Kokkos::View<LO*,AssemblyDevice> localID_,
            LIDView LIDs_,
            Kokkos::View<int****,HostDevice> sideinfo_,
-           Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_) :
+           Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation_) :
 LIDs(LIDs_), cellData(cellData_), localElemID(localID_),
 sideinfo(sideinfo_), nodes(nodes_), orientation(orientation_)
 {
@@ -1006,7 +1006,7 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
           Kokkos::deep_copy(scratch,scratch_host);
           if (w==1) {
             int bnum = wkset->usebasis[n];
-            DRV sbasis = basis[bnum];
+            auto sbasis = basis[bnum];
             
             std::string btype = wkset->basis_types[bnum];
             if (btype == "HDIV" || btype == "HCURL") {
@@ -1030,7 +1030,7 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
                 for (int j=0; j<numDOF(nn); j++) {
                   for (int i=0; i<numDOF(nn); i++) {
                     for (size_type s=0; s<sbasis.extent(2); s++) {
-                      local_res(e,offsets(nn,j),0) += -obj(e,s).fastAccessDx(offsets(nn,i))*sbasis(e,j,s);
+                      local_res(e,offsets(nn,j),0) += -obj(e,s).fastAccessDx(offsets(nn,i))*sbasis(e,j,s,0);
                     }
                   }
                 }
@@ -1446,8 +1446,8 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
       for (size_t ee=0; ee<sensorElem.size(); ee++) {
         int eind = sensorElem[ee];
         for (size_type var=0; var<numDOF.extent(0); var++) {
-          DRV cbasis = sensorBasis[ee][wkset->usebasis[var]];
-          DRV cbasis_grad = sensorBasisGrad[ee][wkset->usebasis[var]];
+          auto cbasis = sensorBasis[ee][wkset->usebasis[var]];
+          auto cbasis_grad = sensorBasisGrad[ee][wkset->usebasis[var]];
           auto u_sv = Kokkos::subview(u_ip, eind, var, ee, Kokkos::ALL());
           auto u_dof_sv = Kokkos::subview(u_dof, eind, var, Kokkos::ALL());
           auto ugrad_sv = Kokkos::subview(ugrad_ip, eind, var, ee, Kokkos::ALL());
@@ -1467,23 +1467,13 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
         int bnum = wkset->usebasis[var];
         std::string btype = wkset->basis_types[wkset->usebasis[var]];
         if (btype == "HCURL" || btype == "HDIV") {
+          // TMW: this does not work properly
+          /*
           auto ref_basis = cellData->ref_basis[wkset->usebasis[var]];
           auto cbasis = basis[wkset->usebasis[var]];
           auto u_sv = Kokkos::subview(u_ip, Kokkos::ALL(), var, Kokkos::ALL(), Kokkos::ALL());
           Kokkos::View<AD***,AssemblyDevice> u_tmp("tmp subview",u_sv.extent(0), u_sv.extent(1), u_sv.extent(2));
           auto u_dof_sv = Kokkos::subview(u_dof, Kokkos::ALL(), var, Kokkos::ALL());
-          /*
-          parallel_for(RangePolicy<AssemblyExec>(0,u_tmp.extent(0)), KOKKOS_LAMBDA (const size_type e ) {
-            for (size_type i=0; i<cbasis.extent(1); i++ ) {
-              for (size_type j=0; j<cbasis.extent(2); j++ ) {
-                for (size_type s=0; s<cbasis.extent(3); s++) {
-                  u_tmp(e,j,s) += u_dof_sv(e,i)*ref_basis(i,j,s);
-                }
-              }
-            }
-            
-          });
-          */
           parallel_for(RangePolicy<AssemblyExec>(0,u_sv.extent(0)), KOKKOS_LAMBDA (const size_type e ) {
             for (size_type i=0; i<cbasis.extent(1); i++ ) {
               for (size_type j=0; j<cbasis.extent(2); j++ ) {
@@ -1493,8 +1483,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
               }
             }
           });
-          
-          
+                    
           int numElem = cbasis.extent(0);
           int numb = cbasis.extent(1);
           int numip = cbasis.extent(2);
@@ -1568,17 +1557,6 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
               }
             }
           }
-          //Kokkos::deep_copy(u_sv,u_tmp);
-          /*
-          parallel_for(RangePolicy<AssemblyExec>(0,u_sv.extent(0)), KOKKOS_LAMBDA (const size_type e ) {
-            for (size_type j=0; j<u_sv.extent(1); j++ ) {
-              for (size_type s=0; s<u_sv.extent(2); s++) {
-                ScalarT tmp = u_sv(e,j,s).val();
-                u_sv(e,j,s) = u_tmp(e,j,s);
-                u_sv(e,j,s) += -u_sv(e,j,s).val() + tmp;
-              }
-            }
-          });
            */
         }
         else {

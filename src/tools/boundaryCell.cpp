@@ -30,7 +30,7 @@ BoundaryCell::BoundaryCell(const Teuchos::RCP<CellMetaData> & cellData_,
                            const int & cellID_,
                            LIDView LIDs_,
                            Kokkos::View<int****,HostDevice> sideinfo_,
-                           Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_) :
+                           Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation_) :
 cellData(cellData_), localElemID(localID_), localSideID(sideID_), orientation(orientation_),
 sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename(sidename_), LIDs(LIDs_)   {
 
@@ -161,7 +161,7 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
           
           DRV bvals_tmp("tmp basis_vals",numElem, numb, numip);
           FuncTools::HGRADtransformVALUE(bvals_tmp, ref_basis_vals);
-          DRV bvals = DRV("basis_vals",numElem, numb, numip);
+          DRV bvals("basis_vals",numElem, numb, numip);
           OrientTools::modifyBasisByOrientation(bvals, bvals_tmp, orientation,
                                                 cellData->basis_pointers[i].get());
           basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,1);
@@ -699,10 +699,10 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
   
   //    wkset->updateSide(nodes, sideip[side], sidewts[side],normals[side],sideijac[side], side);
   
-  int numip = wkset->numsideip;
+  int numip = wts.extent(1);
   //int gside = sideinfo[e](side,1); // =-1 if is an interior edge
   
-  DRV side_weights = wkset->wts_side;
+  //DRV side_weights = wkset->wts_side;
   int paramIndex, reg_type;
   ScalarT reg_constant;
   string reg_side;
@@ -728,7 +728,7 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
           p = wkset->local_param_side(e,paramIndex,k,0);
           // L2
           if (reg_type == 0) {
-            reg += 0.5*reg_constant*p*p*side_weights(e,k);
+            reg += 0.5*reg_constant*p*p*wts(e,k);
           }
           else {
             AD sx, sy ,sz;
@@ -741,27 +741,27 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
               dpdz = wkset->local_param_grad_side(e,paramIndex,k,2);
             }
             if (cellData->dimension == 1) {
-              normal_dot = dpdx*wkset->normals(e,k,0);
-              sx = dpdx - normal_dot*wkset->normals(e,k,0);
+              normal_dot = dpdx*normals(e,k,0);
+              sx = dpdx - normal_dot*normals(e,k,0);
             }
             else if (cellData->dimension == 2) {
-              normal_dot = dpdx*wkset->normals(e,k,0) + dpdy*wkset->normals(e,k,1);
-              sx = dpdx - normal_dot*wkset->normals(e,k,0);
-              sy = dpdy - normal_dot*wkset->normals(e,k,1);
+              normal_dot = dpdx*normals(e,k,0) + dpdy*normals(e,k,1);
+              sx = dpdx - normal_dot*normals(e,k,0);
+              sy = dpdy - normal_dot*normals(e,k,1);
             }
             else if (cellData->dimension == 3) {
-              normal_dot = dpdx*wkset->normals(e,k,0) + dpdy*wkset->normals(e,k,1) + dpdz*wkset->normals(e,k,2);
-              sx = dpdx - normal_dot*wkset->normals(e,k,0);
-              sy = dpdy - normal_dot*wkset->normals(e,k,1);
-              sz = dpdz - normal_dot*wkset->normals(e,k,2);
+              normal_dot = dpdx*normals(e,k,0) + dpdy*normals(e,k,1) + dpdz*normals(e,k,2);
+              sx = dpdx - normal_dot*normals(e,k,0);
+              sy = dpdy - normal_dot*normals(e,k,1);
+              sz = dpdz - normal_dot*normals(e,k,2);
             }
             // H1
             if (reg_type == 1) {
-              reg += 0.5*reg_constant*(sx*sx + sy*sy + sz*sz)*side_weights(e,k);
+              reg += 0.5*reg_constant*(sx*sx + sy*sy + sz*sz)*wts(e,k);
             }
             // TV
             else if (reg_type == 2) {
-              reg += reg_constant*sqrt(sx*sx + sy*sy + sz*sz + offset*offset)*side_weights(e,k);
+              reg += reg_constant*sqrt(sx*sx + sy*sy + sz*sz + offset*offset)*wts(e,k);
             }
           }
         }
@@ -897,14 +897,14 @@ Kokkos::View<ScalarT**,AssemblyDevice> BoundaryCell::getDirichlet() {
       
       int bind = wkset->usebasis[n];
       std::string btype = cellData->basis_types[bind];
-      DRV cbasis = basis[bind];
+      auto cbasis = basis[bind];
       
       auto off = Kokkos::subview(offsets,n,Kokkos::ALL());
       if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE"){
         parallel_for("bcell fill Dirichlet",RangePolicy<AssemblyExec>(0,cwts.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for( size_type i=0; i<cbasis.extent(1); i++ ) {
             for( size_type j=0; j<cwts.extent(1); j++ ) {
-              dvals(e,off(i)) += dip(e,j)*cbasis(e,i,j)*cwts(e,j);
+              dvals(e,off(i)) += dip(e,j)*cbasis(e,i,j,0)*cwts(e,j);
             }
           }
         });
@@ -945,7 +945,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> BoundaryCell::getMass() {
   for (size_type n=0; n<numDOF.extent(0); n++) {
     if (bcs(n,sidenum) == 1) { // is this a strong DBC for this variable
       int bind = wkset->usebasis[n];
-      DRV cbasis = basis[bind];
+      auto cbasis = basis[bind];
       auto off = Kokkos::subview(offsets,n,Kokkos::ALL());
       std::string btype = cellData->basis_types[bind];
       
@@ -954,7 +954,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> BoundaryCell::getMass() {
           for( size_type i=0; i<cbasis.extent(1); i++ ) {
             for( size_type j=0; j<cbasis.extent(1); j++ ) {
               for( size_type k=0; k<cbasis.extent(2); k++ ) {
-                mass(e,off(i),off(j)) += cbasis(e,i,k)*cbasis(e,j,k)*cwts(e,k);
+                mass(e,off(i),off(j)) += cbasis(e,i,k,0)*cbasis(e,j,k,0)*cwts(e,k);
               }
             }
           }

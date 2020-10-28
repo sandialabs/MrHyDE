@@ -57,14 +57,14 @@ namespace MrHyDE {
     //////////////////////////////////////////////////////////////////////////////////////
     
     DRV evaluateBasis(const basis_RCP & basis_pointer, const DRV & evalpts,
-                      Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation);
+                      Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & orientation);
     
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
     
     DRV evaluateBasisGrads(const basis_RCP & basis_pointer, const DRV & nodes,
                            const DRV & evalpts, const topo_RCP & cellTopo,
-                           Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation);
+                           Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & orientation);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     // After the mesh and the discretizations have been defined, we can create and add the physics

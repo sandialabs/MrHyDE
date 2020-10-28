@@ -28,7 +28,7 @@ namespace MrHyDE {
     
     SubGridMacroData(DRV & macronodes_, Kokkos::View<int****,HostDevice> & macrosideinfo_,
                      LIDView macroLIDs_,
-                     Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & macroorientation_)
+                     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & macroorientation_)
     : macronodes(macronodes_), macrosideinfo(macrosideinfo_), macroLIDs(macroLIDs_),
     macroorientation(macroorientation_) {
       
@@ -57,7 +57,7 @@ namespace MrHyDE {
     DRV macronodes;
     Kokkos::View<int****,HostDevice> macrosideinfo;
     LIDView macroLIDs;
-    Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> macroorientation;
+    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> macroorientation;
     Kokkos::View<int**,HostDevice> bcs;
     Kokkos::View<int*,AssemblyDevice> macroIDs;
   };

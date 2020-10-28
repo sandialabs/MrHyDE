@@ -216,7 +216,7 @@ namespace MrHyDE {
     
     Kokkos::View<ScalarT*,AssemblyDevice> h;
     size_t block, localEID, globalEID;
-    //DRV ip, ip_side, wts, wts_side, normals;
+    
     Kokkos::View<ScalarT***,AssemblyDevice> ip, ip_side, normals, point;
     Kokkos::View<ScalarT**,AssemblyDevice> wts, wts_side;
     

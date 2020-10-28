@@ -29,7 +29,7 @@ namespace MrHyDE {
     
     SubGridLocalData(DRV & macronodes_, Kokkos::View<int****,HostDevice> & macrosideinfo_,
                      LIDView macroLIDs_,
-                     Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & macroorientation_)
+                     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & macroorientation_)
     : macronodes(macronodes_), macrosideinfo(macrosideinfo_), macroLIDs(macroLIDs_),
     macroorientation(macroorientation_) {
       
@@ -39,7 +39,7 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     
     void setIP(const Teuchos::RCP<CellMetaData> & cellData,
-               Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & orientation) {
+               Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & orientation) {
       
       // By convention, each local subgrid only has one cell that contains all of the elements
       // Thus, there is no loop over cells here
@@ -152,7 +152,7 @@ namespace MrHyDE {
     
     void setBoundaryIP(const Teuchos::RCP<CellMetaData> & cellData,
                        vector<Kokkos::View<LO*,AssemblyDevice> > & localSideIDs,
-                       vector<Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> > & orientation) {
+                       vector<Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> > & orientation) {
       
       // By convention, each local subgrid can have multiple boundary cells and each
       // typically contains all of the elements on a given boundary
@@ -395,7 +395,7 @@ namespace MrHyDE {
               sref_side_ip(i,j) = sref_side_ip_tmp(0,i,j);
             }
           }
-          Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> corientation("tmp orientation",1);
+          Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("tmp orientation",1);
           corientation(0) = macroorientation(mID);
           for (size_t i=0; i<macro_basis_pointers.size(); i++) {
             DRV bvals = disc->evaluateBasis(macro_basis_pointers[i], sref_side_ip, corientation);
@@ -468,7 +468,7 @@ namespace MrHyDE {
     vector<LIDView> boundaryMacroLIDs;
     vector<Kokkos::View<LO***,AssemblyDevice> > boundaryMacroindex;
     
-    Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> macroorientation;
+    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> macroorientation;
     
     vector<DRV> basis, basis_grad, basis_div, basis_curl;
     vector<vector<DRV> > boundaryBasis, boundaryBasisGrad;

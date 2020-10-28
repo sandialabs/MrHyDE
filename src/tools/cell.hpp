@@ -44,7 +44,7 @@ namespace MrHyDE {
          const Kokkos::View<LO*,AssemblyDevice> localID_,
          LIDView LIDs_,
          Kokkos::View<int****,HostDevice> sideinfo_,
-         Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation_);
+         Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation_);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -336,7 +336,7 @@ namespace MrHyDE {
     vector<Kokkos::View<ScalarT***,AssemblyDevice> > ip_face, normals_face; // numElem x numip x dimension
     vector<Kokkos::View<ScalarT**,AssemblyDevice> > wts_face; // numElem x numip
     
-    Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
+    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
     Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param; // (elem,var,numdof)
     Kokkos::View<ScalarT***,AssemblyDevice> u_avg, u_alt; // (elem,var,dim)
     Kokkos::View<ScalarT***,AssemblyDevice> param_avg; // (elem,var,dim)
