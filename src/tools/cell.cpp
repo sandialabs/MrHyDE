@@ -73,13 +73,8 @@ sideinfo(sideinfo_), nodes(nodes_), orientation(orientation_)
       OrientTools::modifyBasisByOrientation(bvals, tmp_bvals, orientation,
                                             cellData->basis_pointers[i].get());
       basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis values", numElem, numb, numip, 1); // needs to be rank-4
-      parallel_for("cell basis vals HGRAD",RangePolicy<AssemblyExec>(0,basis_vals.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<basis_vals.extent(1); dof++) {
-          for (size_type pt=0; pt<basis_vals.extent(2); pt++) {
-            basis_vals(elem,dof,pt,0) = bvals(elem,dof,pt);
-          }
-        }
-      });
+      auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
+      Kokkos::deep_copy(basis_vals_slice,bvals);
       
       DRV bgrad_tmp("basis grad tmp",numElem,numb,numip,dimension);
       DRV bgrad_vals("basis grad",numElem,numb,numip,dimension);
@@ -96,13 +91,8 @@ sideinfo(sideinfo_), nodes(nodes_), orientation(orientation_)
       FuncTools::HGRADtransformVALUE(bvals, cellData->ref_basis[i]);
 
       basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis values", numElem, numb, numip, 1); // needs to be rank-4
-      parallel_for("cell basis vals HVOL",RangePolicy<AssemblyExec>(0,basis_vals.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<basis_vals.extent(1); dof++) {
-          for (size_type pt=0; pt<basis_vals.extent(2); pt++) {
-            basis_vals(elem,dof,pt,0) = bvals(elem,dof,pt);
-          }
-        }
-      });
+      auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
+      Kokkos::deep_copy(basis_vals_slice,bvals);
     }
     else if (cellData->basis_types[i] == "HDIV"){
       
@@ -255,13 +245,8 @@ sideinfo(sideinfo_), nodes(nodes_), orientation(orientation_)
           OrientTools::modifyBasisByOrientation(bvals, bvals_tmp, orientation,
                                                 cellData->basis_pointers[i].get());
           basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("face basis vals",numElem,numb,numip,1); // Needs to be rank-4
-          parallel_for("cell basis vals HVOL",RangePolicy<AssemblyExec>(0,basis_vals.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-            for (size_type dof=0; dof<basis_vals.extent(1); dof++) {
-              for (size_type pt=0; pt<basis_vals.extent(2); pt++) {
-                basis_vals(elem,dof,pt,0) = bvals(elem,dof,pt);
-              }
-            }
-          });
+          auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
+          Kokkos::deep_copy(basis_vals_slice,bvals);
           
           auto ref_basis_grad_vals = cellData->ref_side_basis_grad[side][i];
           DRV bgrad_vals_tmp("tmp basis_grad_vals",numElem, numb, numip, dimension);
@@ -278,14 +263,8 @@ sideinfo(sideinfo_), nodes(nodes_), orientation(orientation_)
           DRV bvals("basis_vals",numElem, numb, numip);
           FuncTools::HGRADtransformVALUE(bvals, ref_basis_vals);
           basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("face basis vals",numElem,numb,numip,1); // Needs to be rank-4
-          parallel_for("cell basis vals HVOL",RangePolicy<AssemblyExec>(0,basis_vals.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-            for (size_type dof=0; dof<basis_vals.extent(1); dof++) {
-              for (size_type pt=0; pt<basis_vals.extent(2); pt++) {
-                basis_vals(elem,dof,pt,0) = bvals(elem,dof,pt);
-              }
-            }
-          });
-          
+          auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
+          Kokkos::deep_copy(basis_vals_slice,bvals);
         }
         else if (cellData->basis_types[i] == "HDIV"){
           
@@ -310,13 +289,8 @@ sideinfo(sideinfo_), nodes(nodes_), orientation(orientation_)
           OrientTools::modifyBasisByOrientation(bvals, bvals_tmp, orientation,
                                                 cellData->basis_pointers[i].get());
           basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("face basis vals",numElem,numb,numip,1); // Needs to be rank-4
-          parallel_for("cell basis vals HVOL",RangePolicy<AssemblyExec>(0,basis_vals.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-            for (size_type dof=0; dof<basis_vals.extent(1); dof++) {
-              for (size_type pt=0; pt<basis_vals.extent(2); pt++) {
-                basis_vals(elem,dof,pt,0) = bvals(elem,dof,pt);
-              }
-            }
-          });
+          auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
+          Kokkos::deep_copy(basis_vals_slice,bvals);
           
         }
         

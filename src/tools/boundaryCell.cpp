@@ -123,14 +123,8 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
           OrientTools::modifyBasisByOrientation(bvals, bvals_tmp, orientation,
                                                 cellData->basis_pointers[i].get());
           basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,1);
-          parallel_for("cell basis vals HVOL",RangePolicy<AssemblyExec>(0,basis_vals.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-            for (size_type dof=0; dof<basis_vals.extent(1); dof++) {
-              for (size_type pt=0; pt<basis_vals.extent(2); pt++) {
-                basis_vals(elem,dof,pt,0) = bvals(elem,dof,pt);
-              }
-            }
-          });
-          
+          auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
+          Kokkos::deep_copy(basis_vals_slice,bvals);
           
           DRV ref_bgrad_vals = cellData->ref_side_basis_grad[localSideID(0)][i];
           DRV bgrad_vals_tmp("basis_grad_side tmp",numElem,numb,numip,dimension);
@@ -148,14 +142,8 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
           DRV bvals("basis_vals",numElem, numb, numip);
           FuncTools::HGRADtransformVALUE(bvals, ref_basis_vals);
           basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,1);
-          parallel_for("cell basis vals HVOL",RangePolicy<AssemblyExec>(0,basis_vals.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-            for (size_type dof=0; dof<basis_vals.extent(1); dof++) {
-              for (size_type pt=0; pt<basis_vals.extent(2); pt++) {
-                basis_vals(elem,dof,pt,0) = bvals(elem,dof,pt);
-              }
-            }
-          });
-          
+          auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
+          Kokkos::deep_copy(basis_vals_slice,bvals);
         }
         else if (cellData->basis_types[i] == "HFACE"){
           
@@ -167,14 +155,6 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
           basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,1);
           auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
           Kokkos::deep_copy(basis_vals_slice,bvals);
-          /*
-          parallel_for("cell basis vals HVOL",RangePolicy<AssemblyExec>(0,basis_vals.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-            for (size_type dof=0; dof<basis_vals.extent(1); dof++) {
-              for (size_type pt=0; pt<basis_vals.extent(2); pt++) {
-                basis_vals(elem,dof,pt,0) = bvals(elem,dof,pt);
-              }
-            }
-          });*/
         }
         else if (cellData->basis_types[i] == "HDIV"){
           
