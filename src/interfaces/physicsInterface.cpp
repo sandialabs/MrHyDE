@@ -860,7 +860,8 @@ bool physics::checkFace(const size_t & block){
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<AD***,AssemblyDevice> physics::target(const int & block, const DRV & ip,
+Kokkos::View<AD***,AssemblyDevice> physics::target(const int & block,
+                                                   const Kokkos::View<ScalarT***,AssemblyDevice> ip,
                                                    const ScalarT & current_time,
                                                    Teuchos::RCP<workset> & wkset) {
   
@@ -878,7 +879,8 @@ Kokkos::View<AD***,AssemblyDevice> physics::target(const int & block, const DRV 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<AD***,AssemblyDevice> physics::weight(const int & block, const DRV & ip,
+Kokkos::View<AD***,AssemblyDevice> physics::weight(const int & block,
+                                                   const Kokkos::View<ScalarT***,AssemblyDevice> ip,
                                                    const ScalarT & current_time,
                                                    Teuchos::RCP<workset> & wkset) {
   
@@ -897,7 +899,7 @@ Kokkos::View<AD***,AssemblyDevice> physics::weight(const int & block, const DRV 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT***,AssemblyDevice> physics::getInitial(const DRV & ip,
+Kokkos::View<ScalarT***,AssemblyDevice> physics::getInitial(const Kokkos::View<ScalarT***,AssemblyDevice> ip,
                                                             const int & block,
                                                             const bool & project,
                                                             Teuchos::RCP<workset> & wkset) {
@@ -958,7 +960,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> physics::getInitial(const DRV & ip,
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT**,AssemblyDevice> physics::getDirichlet(const DRV & ip, const int & var,
+Kokkos::View<ScalarT**,AssemblyDevice> physics::getDirichlet(const Kokkos::View<ScalarT***,AssemblyDevice> ip, const int & var,
                                                               const int & block,
                                                               const std::string & sidename,
                                                               Teuchos::RCP<workset> & wkset) {
@@ -1046,26 +1048,6 @@ vector<string> physics::getExtraCellFieldNames(const int & block) {
   return extracellfields_list[block];
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-/*
-vector<Kokkos::View<ScalarT***,AssemblyDevice> > physics::getExtraFields(const int & block) {
-  vector<Kokkos::View<ScalarT***,AssemblyDevice> > fields;
-  vector<vector<Kokkos::View<ScalarT***,AssemblyDevice> > > vfields;
-  
-  for (size_t i=0; i<modules[block].size(); i++) {
-    vfields.push_back(udfunc->extraFields(modules[block][i]->label));
-  }
-  
-  for (size_t i=0; i<vfields.size(); i++) {
-    for (size_t j=0; j<vfields[i].size(); j++) {
-      fields.push_back(vfields[i][j]);
-    }
-  }
-  
-  return fields;
-}
-*/
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////

@@ -153,21 +153,23 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<AD***,AssemblyDevice> target(const int & block, const DRV & ip,
+    Kokkos::View<AD***,AssemblyDevice> target(const int & block,
+                                              const Kokkos::View<ScalarT***,AssemblyDevice> ip,
                                               const ScalarT & current_time,
                                               Teuchos::RCP<workset> & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<AD***,AssemblyDevice> weight(const int & block, const DRV & ip,
+    Kokkos::View<AD***,AssemblyDevice> weight(const int & block,
+                                              const Kokkos::View<ScalarT***,AssemblyDevice> ip,
                                               const ScalarT & current_time,
                                               Teuchos::RCP<workset> & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<ScalarT***,AssemblyDevice> getInitial(const DRV & ip,
+    Kokkos::View<ScalarT***,AssemblyDevice> getInitial(const Kokkos::View<ScalarT***,AssemblyDevice> ip,
                                                        const int & block,
                                                        const bool & project,
                                                        Teuchos::RCP<workset> & wkset);
@@ -175,7 +177,8 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<ScalarT**,AssemblyDevice> getDirichlet(const DRV & ip, const int & var,
+    Kokkos::View<ScalarT**,AssemblyDevice> getDirichlet(const Kokkos::View<ScalarT***,AssemblyDevice> ip,
+                                                        const int & var,
                                                         const int & block,
                                                         const std::string & sidename,
                                                         Teuchos::RCP<workset> & wkset);

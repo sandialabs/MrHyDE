@@ -1297,10 +1297,10 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, co
   auto cwts = wts;
   
   if (project) { // works for any basis
-    Kokkos::View<ScalarT***,AssemblyDevice> initialip = cellData->physics_RCP->getInitial(wkset->ip,
-                                                                                          cellData->myBlock,
-                                                                                          project,
-                                                                                          wkset);
+    auto initialip = cellData->physics_RCP->getInitial(ip,
+                                                       cellData->myBlock,
+                                                       project,
+                                                       wkset);
     for (size_type n=0; n<numDOF.extent(0); n++) {
       auto cbasis = basis[wkset->usebasis[n]];
       auto off = Kokkos::subview(offsets, n, Kokkos::ALL());
@@ -1315,11 +1315,12 @@ Kokkos::View<ScalarT**,AssemblyDevice> cell::getInitial(const bool & project, co
     }
   }
   else { // only works if using HGRAD linear basis
-    
-    Kokkos::View<ScalarT***,AssemblyDevice> initialnodes = cellData->physics_RCP->getInitial(nodes,
-                                                                                             cellData->myBlock,
-                                                                                             project,
-                                                                                             wkset);
+    Kokkos::View<ScalarT***,AssemblyDevice> vnodes("view of nodes",nodes.extent(0),nodes.extent(1),nodes.extent(2));
+    Kokkos::deep_copy(vnodes,nodes);
+    auto initialnodes = cellData->physics_RCP->getInitial(vnodes,
+                                                          cellData->myBlock,
+                                                          project,
+                                                          wkset);
     for (size_type n=0; n<numDOF.extent(0); n++) {
       auto off = Kokkos::subview( offsets, n, Kokkos::ALL());
       auto initvar = Kokkos::subview(initialnodes, Kokkos::ALL(), n, Kokkos::ALL());
