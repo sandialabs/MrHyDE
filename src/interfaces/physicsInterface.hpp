@@ -142,7 +142,8 @@ namespace MrHyDE {
                                                    Kokkos::View<AD****,AssemblyDevice> ugrad_ip,
                                                    Kokkos::View<AD****,AssemblyDevice> p_ip,
                                                    Kokkos::View<AD****,AssemblyDevice> pgrad_ip,
-                                                   const DRV ip, const ScalarT & time,
+                                                   const Kokkos::View<ScalarT***,AssemblyDevice> ip,
+                                                   const ScalarT & time,
                                                    Teuchos::RCP<workset> & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////

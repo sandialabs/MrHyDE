@@ -797,7 +797,8 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
                                                         Kokkos::View<AD****,AssemblyDevice> ugrad_ip,
                                                         Kokkos::View<AD****,AssemblyDevice> p_ip,
                                                         Kokkos::View<AD****,AssemblyDevice> pgrad_ip,
-                                                        const DRV ip, const ScalarT & time,
+                                                        const Kokkos::View<ScalarT***,AssemblyDevice> ip,
+                                                        const ScalarT & time,
                                                         Teuchos::RCP<workset> & wkset) {
   size_t numElem = u_ip.extent(0);
   size_t numip = ip.extent(1);

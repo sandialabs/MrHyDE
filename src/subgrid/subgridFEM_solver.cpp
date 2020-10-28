@@ -935,7 +935,7 @@ void SubGridFEM_Solver::updateFlux(const Teuchos::RCP<LA_MultiVector> & u,
         assembler->boundaryCells[usernum][e]->updateWorksetBasis();
       }
       
-      DRV cwts = assembler->wkset[0]->wts_side;
+      auto cwts = assembler->wkset[0]->wts_side;
       ScalarT h = 0.0;
       assembler->wkset[0]->sidename = "interior";
       {
