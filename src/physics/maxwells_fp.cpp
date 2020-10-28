@@ -129,7 +129,7 @@ void maxwells_fp::volumeResidual() {
   auto phii_basis = wkset->basis[phii_basis_num];
   auto phii_basis_grad = wkset->basis_grad[phii_basis_num];
   
-  DRV ip = wkset->ip;
+  auto ip = wkset->ip;
   auto res = wkset->res;
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
@@ -196,8 +196,8 @@ void maxwells_fp::volumeResidual() {
       
       for (size_type i=0; i<phir_basis.extent(1); i++ ) { // TMW: this will fail if using different basis for phir and phii
         //	v = wkset->basis[e_basis](0,i,k);
-        vr = phir_basis(e,i,k);
-        vi = phii_basis(e,i,k);
+        vr = phir_basis(e,i,k,0);
+        vi = phii_basis(e,i,k,0);
         
         //vr = basis(e,phir_num,i,k);
         //          vi = basis(e,phii_num,i,k);
@@ -462,7 +462,7 @@ void maxwells_fp::boundaryResidual() {
   ScalarT current_time = wkset->time;
   
   //sideinfo = wkset->sideinfo;
-  DRV ip = wkset->ip_side;
+  auto ip = wkset->ip_side;
   // Since normals get recomputed often, this needs to be reset
   auto normals  = wkset->normals;
   auto res = wkset->res;
@@ -541,8 +541,8 @@ void maxwells_fp::boundaryResidual() {
       
       
       for (size_type i=0; i<phir_basis.extent(1); i++ ) {
-        vr = phir_basis(e,i,k);
-        vi = phii_basis(e,i,k);  //bvbw check to make sure first index  = 0
+        vr = phir_basis(e,i,k,0);
+        vi = phii_basis(e,i,k,0);  //bvbw check to make sure first index  = 0
         
         vector<vector<AD> > bound_current = getBoundaryCurrent(x, y, z, current_time, wkset->sidename, boundary_type);
         vector<AD> bound_charge = getBoundaryCharge(x, y, z, current_time);

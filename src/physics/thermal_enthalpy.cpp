@@ -110,7 +110,7 @@ void thermal_enthalpy::volumeResidual() {
       for (int i=0; i<basis.extent(1); i++ ) {
         
         int resindex = offsets(e_num,i);
-        v = basis(e,i,k);
+        v = basis(e,i,k,0);
         dvdx = basis_grad(e,i,k,0);
         if (spaceDim > 1) {
           dvdy = basis_grad(e,i,k,1);
@@ -144,7 +144,7 @@ void thermal_enthalpy::volumeResidual() {
       
       for (int i=0; i<basis.extent(1); i++ ) {
         int resindex = off(i);
-        v = basis(e,i,k);
+        v = basis(e,i,k,0);
         // make cp_integral and gfunc udfuncs
         //cp_integral = 320.3*e + 0.379/2.0*e*e;
         AD cp_integral = 438.0*T + 0.169/2.0*T*T;
@@ -197,7 +197,7 @@ void thermal_enthalpy::boundaryResidual() {
   sideinfo = wkset->sideinfo;
   basis = wkset->basis_side[e_basis_num];
   basis_grad = wkset->basis_grad_side[e_basis_num];
-  DRV ip = wkset->ip_side;
+  auto ip = wkset->ip_side;
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
@@ -207,7 +207,7 @@ void thermal_enthalpy::boundaryResidual() {
       for (int k=0; k<basis.extent(2); k++ ) {
         for (int i=0; i<basis.extent(1); i++ ) {
           int resindex = offsets(e_num,i);
-          res(e,resindex) += -nsource(e,k)*basis(e,i,k);
+          res(e,resindex) += -nsource(e,k)*basis(e,i,k,0);
         }
       }
     }
@@ -238,7 +238,7 @@ void thermal_enthalpy::boundaryResidual() {
         
         for (int i=0; i<basis.extent(1); i++ ) {
           int resindex = offsets(e_num,i);
-          v = basis(e,i,k);
+          v = basis(e,i,k,0);
           dvdx = basis_grad(e,i,k,0);
           if (spaceDim > 1)
             dvdy = basis_grad(e,i,k,1);

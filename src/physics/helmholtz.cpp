@@ -108,10 +108,10 @@ void helmholtz::volumeResidual() {
   source_r = functionManager->evaluate("source_r","ip");
   source_i = functionManager->evaluate("source_i","ip");
   
-  DRV urbasis = wkset->basis[ur_basis_num];
-  DRV urbasis_grad = wkset->basis_grad[ur_basis_num];
-  DRV uibasis = wkset->basis[ui_basis_num];
-  DRV uibasis_grad = wkset->basis_grad[ui_basis_num];
+  auto urbasis = wkset->basis[ur_basis_num];
+  auto urbasis_grad = wkset->basis_grad[ur_basis_num];
+  auto uibasis = wkset->basis[ui_basis_num];
+  auto uibasis_grad = wkset->basis_grad[ui_basis_num];
   
   auto offsets = wkset->offsets;
   
@@ -144,8 +144,8 @@ void helmholtz::volumeResidual() {
       
       //TMW: this residual makes no sense to me
       for (size_type i=0; i<urbasis.extent(1); i++ ) { // what if ui uses a different basis?
-        ScalarT vr = urbasis(e,i,k);
-        ScalarT vi = uibasis(e,i,k);  //bvbw check to make sure first index  = 0
+        ScalarT vr = urbasis(e,i,k,0);
+        ScalarT vi = uibasis(e,i,k,0);  //bvbw check to make sure first index  = 0
         ScalarT dvrdx = urbasis_grad(e,i,k,0);
         ScalarT dvidx = uibasis_grad(e,i,k,0);
         ScalarT dvrdy = 0.0;
@@ -285,10 +285,10 @@ void helmholtz::boundaryResidual() {
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
-  DRV urbasis = wkset->basis_side[ur_basis_num];
-  DRV urbasis_grad = wkset->basis_grad_side[ur_basis_num];
-  DRV uibasis = wkset->basis_side[ui_basis_num];
-  DRV uibasis_grad = wkset->basis_grad_side[ui_basis_num];
+  auto urbasis = wkset->basis_side[ur_basis_num];
+  auto urbasis_grad = wkset->basis_grad_side[ur_basis_num];
+  auto uibasis = wkset->basis_side[ui_basis_num];
+  auto uibasis_grad = wkset->basis_grad_side[ui_basis_num];
   
   auto sol = wkset->local_soln_side;
   auto sol_grad = wkset->local_soln_grad_side;
@@ -335,8 +335,8 @@ void helmholtz::boundaryResidual() {
         if(!fractional) {       // fractional exponent on time operator or i_omega in frequency mode
           for (size_type i=0; i<urbasis.extent(1); i++ ) {
             int resindex = offsets(ur_num,i);
-            ScalarT vr = urbasis(e,i,k);
-            ScalarT vi = uibasis(e,i,k);
+            ScalarT vr = urbasis(e,i,k,0);
+            ScalarT vi = uibasis(e,i,k,0);
             
             res(e,resindex) += (((robin_alpha_r(e,k)*(ur*vr + ui*vi) - robin_alpha_i(e,k)*(ui*vr - ur*vi))
                                 + (durdn*vr + duidn*vi)
@@ -358,8 +358,8 @@ void helmholtz::boundaryResidual() {
           
           for (size_type i=0; i<urbasis.extent(1); i++ ) {
             int resindex = offsets(ur_num,i);
-            ScalarT vr = urbasis(e,i,k);
-            ScalarT vi = uibasis(e,i,k);
+            ScalarT vr = urbasis(e,i,k,0);
+            ScalarT vi = uibasis(e,i,k,0);
             
             res(e,resindex) +=  (alphaTr(e,k)*pow(omegar,freqExp(e,k))*(-ur*vr - ui*vi)
             +  alphaTi(e,k)*pow(omegai,freqExp(e,k))*( ui*vr - ur*vi)

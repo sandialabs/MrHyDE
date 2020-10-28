@@ -142,35 +142,35 @@ void FunctionManager::decomposeFunctions() {
               functions[fiter].terms[k].isAD = false;
               if (known_vars[j] == "x") {
                 if (functions[fiter].location == "side ip") {
-                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->ip_side_KV, Kokkos::ALL(), Kokkos::ALL(), 0);
+                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->ip_side, Kokkos::ALL(), Kokkos::ALL(), 0);
                 }
                 else if (functions[fiter].location == "point") {
-                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->point_KV, Kokkos::ALL(), Kokkos::ALL(), 0);
+                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->point, Kokkos::ALL(), Kokkos::ALL(), 0);
                 }
                 else {
-                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->ip_KV, Kokkos::ALL(), Kokkos::ALL(), 0);
+                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->ip, Kokkos::ALL(), Kokkos::ALL(), 0);
                 }
               }
               else if (known_vars[j] == "y") {
                 if (functions[fiter].location == "side ip") {
-                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->ip_side_KV, Kokkos::ALL(), Kokkos::ALL(), 1);
+                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->ip_side, Kokkos::ALL(), Kokkos::ALL(), 1);
                 }
                 else if (functions[fiter].location == "point") {
-                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->point_KV, Kokkos::ALL(), Kokkos::ALL(), 1);
+                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->point, Kokkos::ALL(), Kokkos::ALL(), 1);
                 }
                 else {
-                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->ip_KV, Kokkos::ALL(), Kokkos::ALL(), 1);
+                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->ip, Kokkos::ALL(), Kokkos::ALL(), 1);
                 }
               }
               else if (known_vars[j] == "z") {
                 if (functions[fiter].location == "side ip") {
-                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->ip_side_KV, Kokkos::ALL(), Kokkos::ALL(), 2);
+                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->ip_side, Kokkos::ALL(), Kokkos::ALL(), 2);
                 }
                 else if (functions[fiter].location == "point") {
-                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->point_KV, Kokkos::ALL(), Kokkos::ALL(), 2);
+                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->point, Kokkos::ALL(), Kokkos::ALL(), 2);
                 }
                 else {
-                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->ip_KV, Kokkos::ALL(), Kokkos::ALL(), 2);
+                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->ip, Kokkos::ALL(), Kokkos::ALL(), 2);
                 }
               }
               else if (known_vars[j] == "t") {
@@ -184,7 +184,7 @@ void FunctionManager::decomposeFunctions() {
               }
               else if (known_vars[j] == "nx") {
                 if (functions[fiter].location == "side ip") {
-                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->normals_KV, Kokkos::ALL(), Kokkos::ALL(), 0);
+                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->normals, Kokkos::ALL(), Kokkos::ALL(), 0);
                 }
                 else {
                   //TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: normals can only be used in functions defined on boundaries or faces");
@@ -192,7 +192,7 @@ void FunctionManager::decomposeFunctions() {
               }
               else if (known_vars[j] == "ny") {
                 if (functions[fiter].location == "side ip") {
-                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->normals_KV, Kokkos::ALL(), Kokkos::ALL(), 1);
+                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->normals, Kokkos::ALL(), Kokkos::ALL(), 1);
                 }
                 else {
                   //TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: normals can only be used in functions defined on boundaries or faces");
@@ -200,7 +200,7 @@ void FunctionManager::decomposeFunctions() {
               }
               else if (known_vars[j] == "nz") {
                 if (functions[fiter].location == "side ip") {
-                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->normals_KV, Kokkos::ALL(), Kokkos::ALL(), 2);
+                  functions[fiter].terms[k].ddata = Kokkos::subview(wkset->normals, Kokkos::ALL(), Kokkos::ALL(), 2);
                 }
                 else {
                   //TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: normals can only be used in functions defined on boundaries or faces");

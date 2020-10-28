@@ -221,7 +221,9 @@ namespace MrHyDE {
     // Geometry Information
     size_t numElem = 0; // default value ... used to check if proc. has elements on boundary
     int sidenum, cellID, wksetBID;
-    DRV nodes, ip, wts, normals, tangents;
+    DRV nodes;
+    Kokkos::View<ScalarT***,AssemblyDevice> ip, normals, tangents;
+    Kokkos::View<ScalarT**,AssemblyDevice> wts;
     Kokkos::View<ScalarT*,AssemblyDevice> hsize;
     
     Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
@@ -242,7 +244,9 @@ namespace MrHyDE {
     Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
     
     // basis information
-    vector<DRV> basis, basis_grad, basis_div, basis_curl;
+    //vector<DRV> basis, basis_grad, basis_div, basis_curl;
+    vector<Kokkos::View<ScalarT****,AssemblyDevice> > basis, basis_grad, basis_curl;
+    vector<Kokkos::View<ScalarT***,AssemblyDevice> > basis_div;
     
     // Aux variable Information
     vector<string> auxlist;

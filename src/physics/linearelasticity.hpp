@@ -83,15 +83,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void computeStress(FDATA lambda, FDATA mu, const bool & onside);
-    
-    // ========================================================================================
-    /* return the SIPG / IIPG term for a given node and component at an integration point */
-    // ========================================================================================
-    
-    //AD computeBasisVec(const AD dx, const AD dy, const AD dz, const AD mu_val, const AD lambda_val,
-    //                   const DRV normals, DRV basis_grad, const int num_basis,
-    //                  const int & elem, const int inode, const int k, const int component);
-    
+        
     // ========================================================================================
     // TMW: needs to be deprecated
     // ========================================================================================

@@ -76,13 +76,6 @@ namespace MrHyDE {
     
     int verbosity;
     
-    //Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad;
-    //Kokkos::View<AD**,AssemblyDevice> res, adjrhs;
-    //Kokkos::View<int**,AssemblyDevice> offsets;
-    //Kokkos::View<int****,AssemblyDevice> sideinfo;
-    //DRV urbasis, uibasis, urbasis_grad, uibasis_grad;
-    
-    
     AD ur, durdx, durdy, durdz, durdn, c2durdn;
     AD ui, duidx, duidy, duidz, duidn, c2duidn;
     ScalarT vr, dvrdx, dvrdy, dvrdz;

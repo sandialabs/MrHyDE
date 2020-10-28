@@ -136,16 +136,16 @@ void twophasePoPw::volumeResidual() {
           // No equation
           int resindex = offsets(Pwnum,i);
           
-          res(e,resindex) += porosity(e,k)*dNo_dt*basis(e,i,k) + // transient term
+          res(e,resindex) += porosity(e,k)*dNo_dt*basis(e,i,k,0) + // transient term
           perm(e,k)*relperm_o(e,k)/viscosity_o(e,k)*rhoo*(dPo_dx*basis_grad(e,i,k,0)) // diffusion terms
-          - source_o(e,k)*basis(e,i,k);
+          - source_o(e,k)*basis(e,i,k,0);
           
           // Po equation
           resindex = offsets(Ponum,i);
           
-          res(e,resindex) += porosity(e,k)*dNw_dt*basis(e,i,k) + // transient term
+          res(e,resindex) += porosity(e,k)*dNw_dt*basis(e,i,k,0) + // transient term
           perm(e,k)*relperm_w(e,k)/viscosity_w(e,k)*rhow*(dPw_dx*basis_grad(e,i,k,0)) // diffusion terms
-          -source_w(e,k)*basis(e,i,k);
+          -source_w(e,k)*basis(e,i,k,0);
         }
       }
     });
@@ -181,18 +181,18 @@ void twophasePoPw::volumeResidual() {
           // No equation
           int resindex = offsets(Ponum,i);
           
-          res(e,resindex) += porosity(e,k)*dNo_dt*basis(e,i,k) + // transient term
+          res(e,resindex) += porosity(e,k)*dNo_dt*basis(e,i,k,0) + // transient term
           perm(e,k)*relperm_o(e,k)/viscosity_o(e,k)*rhoo*(dPo_dx*basis_grad(e,i,k,0) +
                                                           dPo_dy*basis_grad(e,i,k,1)) // diffusion terms
-          -source_o(e,k)*basis(e,i,k);
+          -source_o(e,k)*basis(e,i,k,0);
           
           // Po equation
           resindex = offsets(Pwnum,i);
           
-          res(e,resindex) += porosity(e,k)*dNw_dt*basis(e,i,k) + // transient term
+          res(e,resindex) += porosity(e,k)*dNw_dt*basis(e,i,k,0) + // transient term
           perm(e,k)*relperm_w(e,k)/viscosity_w(e,k)*rhow*(dPw_dx*basis_grad(e,i,k,0) +
                                                           dPw_dy*basis_grad(e,i,k,1)) // diffusion terms
-          -source_w(e,k)*basis(e,i,k);
+          -source_w(e,k)*basis(e,i,k,0);
         }
       }
     });
@@ -228,22 +228,22 @@ void twophasePoPw::volumeResidual() {
           // Po equation
           int resindex = offsets(Pwnum,i);
           
-          res(e,resindex) += porosity(e,k)*dNo_dt*basis(e,i,k) + // transient term
+          res(e,resindex) += porosity(e,k)*dNo_dt*basis(e,i,k,0) + // transient term
           perm(e,k)*relperm_o(e,k)/viscosity_o(e,k)*rhoo*(dPo_dx*basis_grad(e,i,k,0) +
                                                           dPo_dy*basis_grad(e,i,k,1) +
                                                           dPo_dz*basis_grad(e,i,k,2) -
                                                           rhoo*gravity(e,k)*1.0) // diffusion terms
-          -source_o(e,k)*basis(e,i,k);
+          -source_o(e,k)*basis(e,i,k,0);
           
           // Pw equation
           resindex = offsets(Ponum,i);
           
-          res(e,resindex) += porosity(e,k)*dNw_dt*basis(e,i,k) + // transient term
+          res(e,resindex) += porosity(e,k)*dNw_dt*basis(e,i,k,0) + // transient term
           perm(e,k)*relperm_w(e,k)/viscosity_w(e,k)*rhow*(dPw_dx*basis_grad(e,i,k,0) +
                                                           dPw_dy*basis_grad(e,i,k,1) +
                                                           dPw_dz*basis_grad(e,i,k,2) -
                                                           rhow*gravity(e,k)*1.0) // diffusion terms
-          -source_w(e,k)*basis(e,i,k);
+          -source_w(e,k)*basis(e,i,k,0);
           
         }
       }
@@ -320,10 +320,10 @@ void twophasePoPw::boundaryResidual() {
       for (int k=0; k<basis.extent(2); k++ ) {
         for (int i=0; i<basis.extent(1); i++ ) {
           int resindex = offsets(Ponum,i);
-          res(e,resindex) += -source_o(e,k)*basis(e,i,k);
+          res(e,resindex) += -source_o(e,k)*basis(e,i,k,0);
           
           resindex = offsets(Pwnum,i); // index into Pw eqn
-          res(e,resindex) += -source_w(e,k)*basis(e,i,k);
+          res(e,resindex) += -source_w(e,k)*basis(e,i,k,0);
         }
       }
     }
@@ -355,7 +355,7 @@ void twophasePoPw::boundaryResidual() {
         AD rhow = densref_w(e,k)*(1.0+comp_w(e,k)*(Pw - pref_w(e,k)));
         
         for (int i=0; i<basis.extent(1); i++ ) {
-          v = basis(e,i,k);
+          v = basis(e,i,k,0);
           dvdx = basis_grad(e,i,k,0);
           if (spaceDim > 1)
             dvdy = basis_grad(e,i,k,1);

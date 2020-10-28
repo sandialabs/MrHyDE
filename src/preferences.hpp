@@ -33,7 +33,7 @@ using std::endl;
 #define MRHYDE_VERSION "1.0"
 
 typedef double ScalarT;
-typedef int LO;
+typedef int LO; // same as panzer::LocalOrdinal
 typedef panzer::GlobalOrdinal GO;
 
 #ifdef MrHyDE_SET_MAX_DERIVS
@@ -64,7 +64,9 @@ typedef Kokkos::Serial HostExec; // cannot be Cuda right now
 // Format: Kokkos::*
 // Options: HostSpace, CudaSpace, CudaUVMSpace
 typedef Kokkos::HostSpace HostMem; // cannot be CudaSpace right now
-#if defined(MrHyDE_ASSEMBLYMEM_CUDAUVM)
+#if defined(MrHyDE_ASSEMBLYMEM_CUDA)
+  typedef Kokkos::CudaSpace AssemblyMem;
+#elif defined(MrHyDE_ASSEMBLYMEM_CUDAUVM) // to be deprecated
   typedef Kokkos::CudaUVMSpace AssemblyMem;
 #else
   typedef Kokkos::HostSpace AssemblyMem;
@@ -74,29 +76,32 @@ typedef Kokkos::HostSpace HostMem; // cannot be CudaSpace right now
 // Format: Kokkos::Compat::Kokkos*WrapperNode
 // Options: Serial, OpenMP, Threads, Cuda
 typedef Kokkos::Compat::KokkosSerialWrapperNode HostNode;
-typedef Kokkos::Compat::KokkosSerialWrapperNode AssemblyNode;
+#if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+  typedef Kokkos::Compat::KokkosCudaWrapperNode AssemblyNode;
+#else
+  typedef Kokkos::Compat::KokkosSerialWrapperNode AssemblyNode;
+#endif
 
 // Typedef Kokkos devices based on Exec, Mem
 typedef Kokkos::Device<HostExec,HostMem> HostDevice;
 typedef Kokkos::Device<AssemblyExec,AssemblyMem> AssemblyDevice;
 
-
 // Kokkos object typedefs (preferable to use Kokkos::View<*,Device>)
-typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> DRV;
-typedef Kokkos::DynRankView<int,AssemblyDevice> DRVint;
+typedef Kokkos::DynRankView<ScalarT,PHX::Device> DRV; // for interacting with Intrepid2/Panzer
+//typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> ADRV; // for internal use
+//typedef Kokkos::DynRankView<int,AssemblyDevice> DRVint;
 typedef Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> FDATA;
 typedef Kokkos::View<ScalarT**,Kokkos::LayoutStride,AssemblyDevice> FDATAd;
 typedef Kokkos::View<LO**,AssemblyDevice> LIDView;
 typedef Kokkos::View<LO**,HostDevice> LIDView_host;
-typedef Kokkos::View<AD*>::size_type size_type;
+typedef Kokkos::View<ScalarT*>::size_type size_type;
 
 // Intrepid and shards typedefs
-//typedef Teuchos::RCP<Intrepid2::Basis<AssemblyDevice, ScalarT, ScalarT > > basis_RCP;
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
 typedef Teuchos::RCP<Intrepid2::Basis<PHX::Device::execution_space, ScalarT, ScalarT > > basis_RCP;
-typedef Intrepid2::CellTools<AssemblyExec> CellTools;
-typedef Intrepid2::FunctionSpaceTools<AssemblyExec> FuncTools;
-typedef Intrepid2::OrientationTools<AssemblyExec> OrientTools;
+typedef Intrepid2::CellTools<PHX::Device::execution_space> CellTools;
+typedef Intrepid2::FunctionSpaceTools<PHX::Device::execution_space> FuncTools;
+typedef Intrepid2::OrientationTools<PHX::Device::execution_space> OrientTools;
 
 // Tpetra linear algebra typedefs (Epetra is no longer supported)
 typedef Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>   LA_CrsMatrix;
@@ -108,9 +113,21 @@ typedef Tpetra::Operator<ScalarT,LO,GO,HostNode>    LA_Operator;
 typedef Tpetra::MultiVector<ScalarT,LO,GO,HostNode> LA_MultiVector;
 //typedef Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator> LA_LinearProblem;
 
-
 // RCP to LA objects (may be removed in later version)
 typedef Teuchos::RCP<LA_MultiVector> vector_RCP;
 typedef Teuchos::RCP<LA_CrsMatrix>   matrix_RCP;
+
+// Subgrid Tpetra linear algebra typedefs (Epetra is no longer supported)
+typedef Tpetra::CrsMatrix<ScalarT,LO,GO,AssemblyNode>   SG_CrsMatrix;
+typedef Tpetra::CrsGraph<LO,GO,AssemblyNode>            SG_CrsGraph;
+typedef Tpetra::Export<LO, GO, AssemblyNode>            SG_Export;
+typedef Tpetra::Import<LO, GO, AssemblyNode>            SG_Import;
+typedef Tpetra::Map<LO, GO, AssemblyNode>               SG_Map;
+typedef Tpetra::Operator<ScalarT,LO,GO,AssemblyNode>    SG_Operator;
+typedef Tpetra::MultiVector<ScalarT,LO,GO,AssemblyNode> SG_MultiVector;
+
+// RCP to LA objects (may be removed in later version)
+typedef Teuchos::RCP<LA_MultiVector> SG_vector_RCP;
+typedef Teuchos::RCP<LA_CrsMatrix>   SG_matrix_RCP;
 
 #endif

@@ -87,7 +87,7 @@ void porous::volumeResidual() {
         M *= wts(elem,pt);
         AD Kx = Kdens*pgrad(elem,pt,0)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += M*basis(elem,dof,pt) + Kx*basis_grad(elem,dof,pt,0);
+          res(elem,off(dof)) += M*basis(elem,dof,pt,0) + Kx*basis_grad(elem,dof,pt,0);
         }
       }
     });
@@ -101,7 +101,7 @@ void porous::volumeResidual() {
         AD Kx = Kdens*pgrad(elem,pt,0)*wts(elem,pt);
         AD Ky = Kdens*pgrad(elem,pt,1)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += M*basis(elem,dof,pt) + Kx*basis_grad(elem,dof,pt,0) + Ky*basis_grad(elem,dof,pt,1);
+          res(elem,off(dof)) += M*basis(elem,dof,pt,0) + Kx*basis_grad(elem,dof,pt,0) + Ky*basis_grad(elem,dof,pt,1);
         }
       }
     });
@@ -116,7 +116,7 @@ void porous::volumeResidual() {
         AD Ky = Kdens*pgrad(elem,pt,1)*wts(elem,pt);
         AD Kz = Kdens*pgrad(elem,pt,2)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += M*basis(elem,dof,pt) + Kx*basis_grad(elem,dof,pt,0) + Ky*basis_grad(elem,dof,pt,1) + Kz*basis_grad(elem,dof,pt,2);
+          res(elem,off(dof)) += M*basis(elem,dof,pt,0) + Kx*basis_grad(elem,dof,pt,0) + Ky*basis_grad(elem,dof,pt,1) + Kz*basis_grad(elem,dof,pt,2);
         }
       }
     });
@@ -183,7 +183,7 @@ void porous::boundaryResidual() {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD s = -source(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += s*basis(elem,dof,pt);
+          res(elem,off(dof)) += s*basis(elem,dof,pt,0);
         }
       }
     });
@@ -202,7 +202,7 @@ void porous::boundaryResidual() {
         Kgradp_dot_n *= wts(elem,pt);
         AD pdiff = (pval - source(elem,pt))*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          ScalarT v = basis(elem,dof,pt);
+          ScalarT v = basis(elem,dof,pt,0);
           AD Kgradv_dot_n = 0.0;
           for (size_type dim=0; dim<normals.extent(2); dim++) {
             Kgradv_dot_n += Kval*basis_grad(elem,dof,pt,dim)*normals(elem,pt,dim);
@@ -227,7 +227,7 @@ void porous::boundaryResidual() {
         Kgradp_dot_n *= wts(elem,pt);
         AD pdiff = (pval - lambda(elem,pt))*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          ScalarT v = basis(elem,dof,pt);
+          ScalarT v = basis(elem,dof,pt,0);
           AD Kgradv_dot_n = 0.0;
           for (size_type dim=0; dim<normals.extent(2); dim++) {
             Kgradv_dot_n += Kval*basis_grad(elem,dof,pt,dim)*normals(elem,pt,dim);

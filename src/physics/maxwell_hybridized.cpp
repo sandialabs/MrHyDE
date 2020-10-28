@@ -123,7 +123,7 @@ void maxwell_HYBRID::volumeResidual() {
         int resindex_x = offsets(Ex_num,i);
         int resindex_y = offsets(Ey_num,i);
         int resindex_z = offsets(Ez_num,i);
-        v = basis(e,i,k);
+        v = basis(e,i,k,0);
 
         // using the basis for v as the same in each component
         res(e, resindex_x) += epsilon(e,k) * (dEx_dt * v);
@@ -160,7 +160,7 @@ void maxwell_HYBRID::volumeResidual() {
         int resindex_x = offsets(Hx_num,i);
         int resindex_y = offsets(Hy_num,i);
         int resindex_z = offsets(Hz_num,i);
-        v = basis(e,i,k);
+        v = basis(e,i,k,0);
 
         // using the basis for v as the same in each component
         res(e, resindex_x) += mu(e,k) * (dHx_dt * v);
@@ -453,7 +453,7 @@ void maxwell_HYBRID::faceResidual() {
           Ez = sol_face(e,Ez_num,k,2);
           nz = normals(e,k,2);
         }
-        eta = basis(e,i,k);
+        eta = basis(e,i,k,0);
 
         int resindex_x = offsets(lambdax_num,i);
         int resindex_y = offsets(lambday_num,i);
@@ -488,7 +488,7 @@ void maxwell_HYBRID::faceResidual() {
           Hdiff_z = Hz - lambdaz;
         }
 
-        eta = basis(e,i,k);
+        eta = basis(e,i,k,0);
 
         int resindex_x = offsets(lambdax_num,i);
         int resindex_y = offsets(lambday_num,i);

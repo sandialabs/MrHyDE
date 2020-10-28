@@ -125,7 +125,7 @@ void shallowwater::volumeResidual() {
       AD Fx = -Hu(elem,pt)*wts(elem,pt);
       AD Fy = -Hv(elem,pt)*wts(elem,pt);
       for (size_type dof=0; dof<Hbasis.extent(1); dof++ ) {
-        res(elem,Hoff(dof)) += f*Hbasis(elem,dof,pt) + Fx*Hbasis_grad(elem,dof,pt,0) + Fy*Hbasis_grad(elem,dof,pt,1);
+        res(elem,Hoff(dof)) += f*Hbasis(elem,dof,pt,0) + Fx*Hbasis_grad(elem,dof,pt,0) + Fy*Hbasis_grad(elem,dof,pt,1);
       }
       
       AD H = xi(elem,pt) + bath(elem,pt);
@@ -137,7 +137,7 @@ void shallowwater::volumeResidual() {
       Fx = -(uHu + 0.5*gravity*(H*H-bath(elem,pt)*bath(elem,pt)))*wts(elem,pt);
       Fy = -uHv*wts(elem,pt);
       for (size_type dof=0; dof<Hubasis.extent(1); dof++ ) {
-        res(elem,Huoff(dof)) += f*Hubasis(elem,dof,pt) + Fx*Hubasis_grad(elem,dof,pt,0) + Fy*Hubasis_grad(elem,dof,pt,1);
+        res(elem,Huoff(dof)) += f*Hubasis(elem,dof,pt,0) + Fx*Hubasis_grad(elem,dof,pt,0) + Fy*Hubasis_grad(elem,dof,pt,1);
       }
       
       f = (Hv_dot(elem,pt) - gravity*xi(elem,pt)*bath_y(elem,pt))*wts(elem,pt);
@@ -145,7 +145,7 @@ void shallowwater::volumeResidual() {
       Fy = -(vHv + 0.5*gravity*(H*H-bath(elem,pt)*bath(elem,pt)))*wts(elem,pt);
       
       for (size_type dof=0; dof<Hvbasis.extent(1); dof++ ) {
-        res(elem,Hvoff(dof)) += f*Hubasis(elem,dof,pt) + Fx*Hubasis_grad(elem,dof,pt,0) + Fy*Hubasis_grad(elem,dof,pt,1);
+        res(elem,Hvoff(dof)) += f*Hubasis(elem,dof,pt,0) + Fx*Hubasis_grad(elem,dof,pt,0) + Fy*Hubasis_grad(elem,dof,pt,1);
       }
       
     }
@@ -219,7 +219,7 @@ void shallowwater::boundaryResidual() {
         
         for (size_type i=0; i<Hbasis.extent(1); i++ ) {
           int resindex = offsets(H_num,i);
-          ScalarT v = Hbasis(e,i,k);
+          ScalarT v = Hbasis(e,i,k,0);
           //res(e,resindex) += (Hu*normals(e,k,0)+Hv*normals(e,k,1))*v;
           res(e,resindex) += (nsource(e,k)*H*v)*wts(e,k);
         }
@@ -234,7 +234,7 @@ void shallowwater::boundaryResidual() {
         
         for (size_type i=0; i<Hubasis.extent(1); i++ ) {
           int resindex = offsets(Hu_num,i);
-          ScalarT v = Hubasis(e,i,k);
+          ScalarT v = Hubasis(e,i,k,0);
           //res(e,resindex) += (((Hu*Hu/H + 0.5*gravity*(H*H-bb*bb)))*normals(e,k,0) + Hv*Hu/H*normals(e,k,1))*v;
           res(e,resindex) += ((nsource(e,k)*Hu + 0.0*gravity*(H*H-bb*bb)*normals(e,k,0))*v)*wts(e,k);
         }
@@ -249,7 +249,7 @@ void shallowwater::boundaryResidual() {
         
         for (size_type i=0; i<Hvbasis.extent(1); i++ ) {
           int resindex = offsets(Hv_num,i);
-          ScalarT v = Hvbasis(e,i,k);
+          ScalarT v = Hvbasis(e,i,k,0);
           //res(e,resindex) += (((Hu*Hu/H))*normals(e,k,0) + (Hv*Hu/H + 0.5*gravity*(H*H - bb*bb))*normals(e,k,1))*v;
           res(e,resindex) += ((nsource(e,k)*Hv + 0.0*gravity*(H*H - bb*bb)*normals(e,k,1))*v)*wts(e,k);
         }

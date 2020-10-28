@@ -335,24 +335,26 @@ namespace MrHyDE {
     
     // Data created here (Views should all be AssemblyDevice)
     size_t numElem;
-    DRV ip, wts;//, jacobian, jacobianInv, jacobianDet;
-    vector<DRV> ip_face, wts_face, normals_face;
+    //DRV ip, wts;
+    Kokkos::View<ScalarT***,AssemblyDevice> ip; // numElem x numip x dimension
+    Kokkos::View<ScalarT**,AssemblyDevice> wts; // numElem x numip
+    //vector<DRV> ip_face, wts_face, normals_face;
+    vector<Kokkos::View<ScalarT***,AssemblyDevice> > ip_face, normals_face; // numElem x numip x dimension
+    vector<Kokkos::View<ScalarT**,AssemblyDevice> > wts_face; // numElem x numip
     
     Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> orientation;
     Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param; // (elem,var,numdof)
     Kokkos::View<ScalarT***,AssemblyDevice> u_avg, u_alt; // (elem,var,dim)
     Kokkos::View<ScalarT***,AssemblyDevice> param_avg; // (elem,var,dim)
     Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
-    //Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
-    
-    // Frequently used Views (None of these are allocated in the cells)
-    //Kokkos::View<AD**,AssemblyDevice> res_AD;
-    //Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets;
-    //Kokkos::View<LO*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
     
     // basis information
-    vector<DRV> basis, basis_grad, basis_div, basis_curl, basis_nodes;
-    vector<vector<DRV> > basis_face, basis_grad_face;
+    //vector<DRV> basis, basis_grad, basis_div, basis_curl, basis_nodes;
+    vector<Kokkos::View<ScalarT****,AssemblyDevice> > basis, basis_grad, basis_curl, basis_nodes;
+    vector<Kokkos::View<ScalarT***,AssemblyDevice> > basis_div;
+    
+    //vector<vector<DRV> > basis_face, basis_grad_face;
+    vector<vector<Kokkos::View<ScalarT****,AssemblyDevice> > > basis_face, basis_grad_face;
     Kokkos::View<ScalarT*,AssemblyDevice> hsize;
     
     // Aux variable Information

@@ -106,13 +106,7 @@ int SubGridFEM::addMacro(DRV & macronodes_,
                          Kokkos::DynRankView<Intrepid2::Orientation,AssemblyDevice> & macroorientation_) {
   
   Teuchos::TimeMonitor localmeshtimer(*sgfemTotalAddMacroTimer);
-  /*
-  Teuchos::RCP<SubGridLocalData> newdata = Teuchos::rcp( new SubGridLocalData(macronodes_,
-                                                                              macrosideinfo_,
-                                                                              macroLIDs_,
-                                                                              macroorientation_) );
-  localData.push_back(newdata);
-  */
+  
   Teuchos::RCP<SubGridMacroData> newdata = Teuchos::rcp( new SubGridMacroData(macronodes_,
                                                                               macrosideinfo_,
                                                                               macroLIDs_,
@@ -230,7 +224,6 @@ void SubGridFEM::setUpSubgridModels() {
                                                             sub_physics->useDG);
   
   sub_physics->setBCData(settings, sub_mesh->mesh, DOF, sub_disc->cards);
-  //sub_disc->setIntegrationInfo(cells, boundaryCells, DOF, sub_physics);
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the parameter manager, the assembler and the solver
@@ -268,7 +261,7 @@ void SubGridFEM::setUpSubgridModels() {
   vector<stk::mesh::Entity> stk_meshElems;
   sub_mesh->mesh->getMyElements(blockID, stk_meshElems);
   
-  // May need to be PHX::Device
+  // Does need to be PHX::Device
   Kokkos::View<const LO**,Kokkos::LayoutRight, PHX::Device> LIDs = DOF->getLIDs();
   
   for (size_t s=0; s<unique_sides.size(); s++) {
@@ -2314,7 +2307,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluate
     DRV nodes = cells[0][e]->nodes;
     for (int c=0; c<numElem;c++) {
       DRV refpts("refpts",1, numpts, dimpts);
-      DRVint inRefCell("inRefCell",1,numpts);
+      Kokkos::DynRankView<int,PHX::Device> inRefCell("inRefCell",1,numpts);
       DRV cnodes("current nodes",1,nodes.extent(1), nodes.extent(2));
       for (unsigned int i=0; i<nodes.extent(1); i++) {
         for (unsigned int j=0; j<nodes.extent(2); j++) {

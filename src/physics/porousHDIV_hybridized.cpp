@@ -291,7 +291,7 @@ void porousHDIV_HYBRID::faceResidual() {
         }
         udotn *= wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) -= udotn*basis(elem,dof,pt);
+          res(elem,off(dof)) -= udotn*basis(elem,dof,pt,0);
         }
       }
     });

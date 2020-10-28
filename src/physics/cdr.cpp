@@ -66,8 +66,8 @@ void cdr::volumeResidual() {
   // 1. basis and basis_grad already include the integration weights
   
   int c_basis_num = wkset->usebasis[cnum];
-  DRV basis = wkset->basis[c_basis_num];
-  DRV basis_grad = wkset->basis_grad[c_basis_num];
+  auto basis = wkset->basis[c_basis_num];
+  auto basis_grad = wkset->basis_grad[c_basis_num];
   auto wts = wkset->wts;
   
   FDATA source, diff, cp, rho, reax, xvel, yvel, zvel, tau;
@@ -97,7 +97,7 @@ void cdr::volumeResidual() {
         AD f = (dCdt(elem,pt) + xvel(elem,pt)*gradC(elem,pt,0) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,0)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += f*basis(elem,dof,pt) + Fx*basis_grad(elem,dof,pt,0);
+          res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0);
         }
       }
     });
@@ -109,7 +109,7 @@ void cdr::volumeResidual() {
         AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,0)*wts(elem,pt);
         AD Fy = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,1)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += f*basis(elem,dof,pt) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1);
+          res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1);
         }
       }
     });
@@ -122,7 +122,7 @@ void cdr::volumeResidual() {
         AD Fy = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,1)*wts(elem,pt);
         AD Fz = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*gradC(elem,pt,2)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += f*basis(elem,dof,pt) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2);
+          res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2);
         }
       }
     });

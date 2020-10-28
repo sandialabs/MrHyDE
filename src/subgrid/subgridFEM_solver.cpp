@@ -87,8 +87,6 @@ void SubGridFEM_Solver::solve(Kokkos::View<ScalarT***,AssemblyDevice> coarse_u,
                               Kokkos::View<ScalarT***,AssemblyDevice> coarse_phi,
                               Teuchos::RCP<LA_MultiVector> & prev_u,
                               Teuchos::RCP<LA_MultiVector> & prev_phi,
-                              //Teuchos::RCP<LA_MultiVector> & u,
-                              //Teuchos::RCP<LA_MultiVector> & phi,
                               Teuchos::RCP<LA_MultiVector> & disc_params,
                               Teuchos::RCP<SubGridMacroData> & macroData,
                               const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
@@ -1123,7 +1121,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM_Solver::e
     DRV nodes = assembler->cells[0][e]->nodes;
     for (int c=0; c<numElem;c++) {
       DRV refpts("refpts",1, numpts, dimpts);
-      DRVint inRefCell("inRefCell",1,numpts);
+      Kokkos::DynRankView<int,PHX::Device> inRefCell("inRefCell",1,numpts);
       DRV cnodes("current nodes",1,nodes.extent(1), nodes.extent(2));
       for (unsigned int i=0; i<nodes.extent(1); i++) {
         for (unsigned int j=0; j<nodes.extent(2); j++) {

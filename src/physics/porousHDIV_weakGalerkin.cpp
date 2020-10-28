@@ -276,7 +276,7 @@ void porousHDIV_WG::volumeResidual() {
         AD S = source(elem,pt)*wts(elem,pt);
         AD tdiff = divt-S;
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          ScalarT qint = basis(elem,dof,pt);
+          ScalarT qint = basis(elem,dof,pt,0);
           res(elem,off(dof)) += tdiff*qint;
         }
       }
@@ -408,7 +408,7 @@ void porousHDIV_WG::faceResidual() {
         tdotn *= wts(elem,pt);
         
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          ScalarT qbndry = basis(elem,dof,pt);
+          ScalarT qbndry = basis(elem,dof,pt,0);
           res(elem,off(dof)) -= tdotn*qbndry;
         }
       }

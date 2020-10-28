@@ -65,8 +65,8 @@ void thermal::defineFunctions(Teuchos::ParameterList & fs,
 void thermal::volumeResidual() {
   
   int e_basis_num = wkset->usebasis[e_num];
-  DRV basis = wkset->basis[e_basis_num];
-  DRV basis_grad = wkset->basis_grad[e_basis_num];
+  auto basis = wkset->basis[e_basis_num];
+  auto basis_grad = wkset->basis_grad[e_basis_num];
   FDATA source, diff, cp, rho;
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -100,7 +100,7 @@ void thermal::volumeResidual() {
         f *= wts(elem,pt);
         DFx *= wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += f*basis(elem,dof,pt) + DFx*basis_grad(elem,dof,pt,0);
+          res(elem,off(dof)) += f*basis(elem,dof,pt,0) + DFx*basis_grad(elem,dof,pt,0);
         }
       }
     });
@@ -115,7 +115,7 @@ void thermal::volumeResidual() {
         DFx *= wts(elem,pt);
         DFy *= wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += f*basis(elem,dof,pt) + DFx*basis_grad(elem,dof,pt,0) + DFy*basis_grad(elem,dof,pt,1);
+          res(elem,off(dof)) += f*basis(elem,dof,pt,0) + DFx*basis_grad(elem,dof,pt,0) + DFy*basis_grad(elem,dof,pt,1);
         }
       }
     });
@@ -132,7 +132,7 @@ void thermal::volumeResidual() {
         DFy *= wts(elem,pt);
         DFz *= wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += f*basis(elem,dof,pt) + DFx*basis_grad(elem,dof,pt,0) + DFy*basis_grad(elem,dof,pt,1) + DFz*basis_grad(elem,dof,pt,2);
+          res(elem,off(dof)) += f*basis(elem,dof,pt,0) + DFx*basis_grad(elem,dof,pt,0) + DFy*basis_grad(elem,dof,pt,1) + DFz*basis_grad(elem,dof,pt,2);
         }
       }
     });
@@ -151,7 +151,7 @@ void thermal::volumeResidual() {
           AD f = Ux(elem,pt)*gradT(elem,pt,0);
           f *= wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += f*basis(elem,dof,pt);
+            res(elem,off(dof)) += f*basis(elem,dof,pt,0);
           }
         }
       });
@@ -164,7 +164,7 @@ void thermal::volumeResidual() {
           AD f = Ux(elem,pt)*gradT(elem,pt,0) + Uy(elem,pt)*gradT(elem,pt,1);
           f *= wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += f*basis(elem,dof,pt);
+            res(elem,off(dof)) += f*basis(elem,dof,pt,0);
           }
         }
       });
@@ -178,7 +178,7 @@ void thermal::volumeResidual() {
           AD f = Ux(elem,pt)*gradT(elem,pt,0) + Uy(elem,pt)*gradT(elem,pt,1) + Uz(elem,pt)*gradT(elem,pt,2);
           f *= wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += f*basis(elem,dof,pt);
+            res(elem,off(dof)) += f*basis(elem,dof,pt,0);
           }
         }
       });
@@ -199,8 +199,8 @@ void thermal::boundaryResidual() {
   int sidetype = bcs(e_num,cside);
   
   int e_basis_num = wkset->usebasis[e_num];
-  DRV basis = wkset->basis_side[e_basis_num];
-  DRV basis_grad = wkset->basis_grad_side[e_basis_num];
+  auto basis = wkset->basis_side[e_basis_num];
+  auto basis_grad = wkset->basis_grad_side[e_basis_num];
   
   FDATA nsource, diff_side, robin_alpha;
   {
@@ -242,7 +242,7 @@ void thermal::boundaryResidual() {
         AD g = -nsource(elem,pt);
         g *= wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += g*basis(elem,dof,pt);
+          res(elem,off(dof)) += g*basis(elem,dof,pt,0);
         }
       }
     });
@@ -262,7 +262,7 @@ void thermal::boundaryResidual() {
           for (size_type dim=0; dim<normals.extent(2); dim++) {
             gradv_dot_n += basis_grad(elem,dof,pt,0)*normals(elem,pt,0);
           }
-          res(elem,off(dof)) += g*basis(elem,dof,pt) + p*gradv_dot_n;
+          res(elem,off(dof)) += g*basis(elem,dof,pt,0) + p*gradv_dot_n;
         }
       }
     });
@@ -287,7 +287,7 @@ void thermal::boundaryResidual() {
           for (size_type dim=0; dim<normals.extent(2); dim++) {
             gradv_dot_n += basis_grad(elem,dof,pt,dim)*normals(elem,pt,dim);
           }
-          res(elem,off(dof)) += g*basis(elem,dof,pt) + p*gradv_dot_n;
+          res(elem,off(dof)) += g*basis(elem,dof,pt,0) + p*gradv_dot_n;
         }
       }
     });

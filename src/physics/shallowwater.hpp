@@ -75,9 +75,6 @@ namespace MrHyDE {
     ScalarT alpha;
     //ScalarT gravity;
     
-    //Kokkos::View<int****,AssemblyDevice> sideinfo;
-    //DRV Hbasis, Hbasis_grad, Hubasis, Hubasis_grad, Hvbasis, Hvbasis_grad;
-    
     ScalarT formparam;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::shallowwater::volumeResidual() - function evaluation");
@@ -86,9 +83,6 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> boundaryResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::shallowwater::boundaryResidual() - evaluation of residual");
     Teuchos::RCP<Teuchos::Time> fluxFunc = Teuchos::TimeMonitor::getNewCounter("MILO::shallowwater::computeFlux() - function evaluation");
     Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MILO::shallowwater::computeFlux() - evaluation of flux");
-    
-    //Teuchos::RCP<DRVAD> src_test;
-    //Teuchos::RCP<FunctionBase> source_Hu_fct, source_Hv_fct, nsource_H_fct, nsource_Hu_fct, nsource_Hv_fct;
     
     
   };

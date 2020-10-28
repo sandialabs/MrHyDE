@@ -120,7 +120,7 @@ void navierstokes::volumeResidual() {
           AD F = Ux_dot(elem,pt) + Ux(elem,pt)*gradUx(elem,pt,0) - source_ux(elem,pt);
           F *= dens(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + F*basis(elem,dof,pt);
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + F*basis(elem,dof,pt,0);
           }
         }
       });
@@ -133,7 +133,7 @@ void navierstokes::volumeResidual() {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-              res(elem,off(dof)) += F*basis(elem,dof,pt);
+              res(elem,off(dof)) += F*basis(elem,dof,pt,0);
             }
           }
         });
@@ -193,7 +193,7 @@ void navierstokes::volumeResidual() {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD divu = gradUx(elem,pt,0)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += divu*basis(elem,dof,pt);
+            res(elem,off(dof)) += divu*basis(elem,dof,pt,0);
           }
         }
       });
@@ -261,7 +261,7 @@ void navierstokes::volumeResidual() {
           AD F = Ux_dot(elem,pt) + Ux(elem,pt)*gradUx(elem,pt,0) + Uy(elem,pt)*gradUx(elem,pt,1) - source_ux(elem,pt);
           F *= dens(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + F*basis(elem,dof,pt);
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + F*basis(elem,dof,pt,0);
           }
         }
       });
@@ -274,7 +274,7 @@ void navierstokes::volumeResidual() {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-              res(elem,off(dof)) += F*basis(elem,dof,pt);
+              res(elem,off(dof)) += F*basis(elem,dof,pt,0);
             }
           }
         });
@@ -342,7 +342,7 @@ void navierstokes::volumeResidual() {
           AD F = Uy_dot(elem,pt) + Ux(elem,pt)*gradUy(elem,pt,0) + Uy(elem,pt)*gradUy(elem,pt,1) - source_uy(elem,pt);
           F *= dens(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + F*basis(elem,dof,pt);
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + F*basis(elem,dof,pt,0);
           }
         }
       });
@@ -355,7 +355,7 @@ void navierstokes::volumeResidual() {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-              res(elem,off(dof)) += F*basis(elem,dof,pt);
+              res(elem,off(dof)) += F*basis(elem,dof,pt,0);
             }
           }
         });
@@ -418,7 +418,7 @@ void navierstokes::volumeResidual() {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD divu = (gradUx(elem,pt,0) + gradUy(elem,pt,1))*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += divu*basis(elem,dof,pt);
+            res(elem,off(dof)) += divu*basis(elem,dof,pt,0);
           }
         }
       });
@@ -495,7 +495,7 @@ void navierstokes::volumeResidual() {
           AD F = Ux_dot(elem,pt) + Ux(elem,pt)*gradUx(elem,pt,0) + Uy(elem,pt)*gradUx(elem,pt,1) + Uz(elem,pt)*gradUx(elem,pt,2) - source_ux(elem,pt);
           F *= dens(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt);
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
           }
         }
       });
@@ -508,7 +508,7 @@ void navierstokes::volumeResidual() {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-              res(elem,off(dof)) += F*basis(elem,dof,pt);
+              res(elem,off(dof)) += F*basis(elem,dof,pt,0);
             }
           }
         });
@@ -581,7 +581,7 @@ void navierstokes::volumeResidual() {
           AD F = Uy_dot(elem,pt) + Ux(elem,pt)*gradUy(elem,pt,0) + Uy(elem,pt)*gradUy(elem,pt,1) + Uz(elem,pt)*gradUy(elem,pt,2) - source_uy(elem,pt);
           F *= dens(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt);
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
           }
         }
       });
@@ -594,7 +594,7 @@ void navierstokes::volumeResidual() {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-              res(elem,off(dof)) += F*basis(elem,dof,pt);
+              res(elem,off(dof)) += F*basis(elem,dof,pt,0);
             }
           }
         });
@@ -667,7 +667,7 @@ void navierstokes::volumeResidual() {
           AD F = Uz_dot(elem,pt) + Ux(elem,pt)*gradUz(elem,pt,0) + Uy(elem,pt)*gradUz(elem,pt,1) + Uz(elem,pt)*gradUz(elem,pt,2) - source_uz(elem,pt);
           F *= dens(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt);
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
           }
         }
       });
@@ -680,7 +680,7 @@ void navierstokes::volumeResidual() {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uz(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-              res(elem,off(dof)) += F*basis(elem,dof,pt);
+              res(elem,off(dof)) += F*basis(elem,dof,pt,0);
             }
           }
         });
@@ -746,7 +746,7 @@ void navierstokes::volumeResidual() {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD divu = (gradUx(elem,pt,0) + gradUy(elem,pt,1) + gradUz(elem,pt,2))*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += divu*basis(elem,dof,pt);
+            res(elem,off(dof)) += divu*basis(elem,dof,pt,0);
           }
         }
       });
@@ -804,192 +804,6 @@ void navierstokes::volumeResidual() {
       }
     }
   }
-  /*
-            dvdx = basis_grad(e,i,k,0);
-            
-            AD tau = this->computeTau(visc(e,k), ux, uy, uz, wkset->h(e));
-            
-            AD stabres = dens(e,k)*ux_dot + dens(e,k)*(ux*duxdx + uy*duxdy + uz*duxdz) + dprdx - dens(e,k)*source_ux(e,k);
-            
-            if (have_energy) {
-              stabres += dens(e,k)*(eval-T_ambient)*source_ux(e,k);
-            }
-            
-            res(e,resindex) += (tau*(stabres)*dvdx)*wts(e,k);
-            
-            if (spaceDim > 1) {
-              dvdy = basis_grad(e,i,k,1);
-              AD dprdy = sol_grad(e,pr_num,k,1);
-              AD uy_dot = sol_dot(e,uy_num,k,0);
-              AD duydx = sol_grad(e,uy_num,k,0);
-              AD duydy = sol_grad(e,uy_num,k,1);
-              AD duydz = sol_grad(e,uy_num,k,2);
-              stabres = dens(e,k)*uy_dot + dens(e,k)*(ux*duydx + uy*duydy + uz*duydz) + dprdy - dens(e,k)*source_uy(e,k);
-              if (have_energy) {
-                stabres += dens(e,k)*(eval-T_ambient)*source_uy(e,k);
-              }
-              res(e,resindex) += (tau*(stabres)*dvdy)*wts(e,k);
-            }
-            
-            if (spaceDim > 2) {
-              dvdz = basis_grad(e,i,k,2);
-              AD dprdz = sol_grad(e,pr_num,k,2);
-              AD uz_dot = sol_dot(e,uz_num,k,0);
-              AD duzdx = sol_grad(e,uz_num,k,0);
-              AD duzdy = sol_grad(e,uz_num,k,1);
-              AD duzdz = sol_grad(e,uz_num,k,2);
-              stabres = dens(e,k)*uz_dot + dens(e,k)*(ux*duzdx + uy*duzdy + uz*duzdz) + dprdz - dens(e,k)*source_uz(e,k);
-              if (have_energy) {
-                stabres += dens(e,k)*(eval-T_ambient)*source_uz(e,k);
-              }
-              res(e,resindex) += (tau*(stabres)*dvdz)*wts(e,k);
-              
-            }
-          }
-        }
-      }
-    });
-    }
-  }*/
-  
-  /////////////////////////////
-  // uy equation
-  /////////////////////////////
-  /*
-  if (spaceDim > 1) {
-    
-    int uy_basis = wkset->usebasis[uy_num];
-    basis = wkset->basis[uy_basis];
-    basis_grad = wkset->basis_grad[uy_basis];
-    
-    parallel_for("NS uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      
-      ScalarT v = 0.0;
-      ScalarT dvdx = 0.0;
-      ScalarT dvdy = 0.0;
-      ScalarT dvdz = 0.0;
-      
-      for( int k=0; k<sol.extent(2); k++ ) {
-        
-        AD ux = sol(e,ux_num,k,0);
-        AD uy_dot = sol_dot(e,uy_num,k,0);
-        AD duydx = sol_grad(e,uy_num,k,0);
-        
-        AD pr = sol(e,pr_num,k,0);
-        AD dprdy = sol_grad(e,pr_num,k,1);
-        
-        AD uy = sol(e,uy_num,k,0);
-        AD duydy = sol_grad(e,uy_num,k,1);
-        
-        AD uz, duydz, eval;
-        if (spaceDim > 2) {
-          uz = sol(e,uz_num,k,0);
-          duydz = sol_grad(e,uy_num,k,2);
-        }
-        
-        if (have_energy) {
-          eval = sol(e,e_num,k,0);
-        }
-        
-        for( int i=0; i<basis.extent(1); i++ ) {
-          int resindex = offsets(uy_num,i);
-          v = basis(e,i,k);
-          dvdx = basis_grad(e,i,k,0);
-          if (spaceDim > 1) {
-            dvdy = basis_grad(e,i,k,1);
-          }
-          if (spaceDim > 2) {
-            dvdz = basis_grad(e,i,k,2);
-          }
-          
-          res(e,resindex) += (dens(e,k)*uy_dot*v + visc(e,k)*(duydx*dvdx + duydy*dvdy + duydz*dvdz) + dens(e,k)*(ux*duydx + uy*duydy + uz*duydz)*v - pr*dvdy - dens(e,k)*source_uy(e,k)*v)*wts(e,k);
-          
-          if (have_energy) {
-            res(e,resindex) += (dens(e,k)*beta*(eval-T_ambient)*source_uy(e,k)*v)*wts(e,k);
-          }
-          
-          if(useSUPG) {
-            AD tau = this->computeTau(visc(e,k), ux, uy, uz, wkset->h(e));
-            
-            AD stabres = dens(e,k)*uy_dot + dens(e,k)*(ux*duydx + uy*duydy + uz*duydz) + dprdy - dens(e,k)*source_uy(e,k);
-            
-            if (have_energy) {
-              stabres += dens(e,k)*beta*(eval-T_ambient)*source_uy(e,k);
-            }
-            
-            res(e,resindex) += (tau*(stabres)*(ux*dvdx + uy*dvdy + uz*dvdz))*wts(e,k);
-            
-          }
-        }
-      }
-    });
-  }*/
-  
-  /////////////////////////////
-  // uz equation
-  /////////////////////////////
-  /*
-  if (spaceDim > 2) {
-    int uz_basis = wkset->usebasis[uz_num];
-    basis = wkset->basis[uz_basis];
-    basis_grad = wkset->basis_grad[uz_basis];
-    
-    parallel_for("NS uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      
-      ScalarT v = 0.0;
-      ScalarT dvdx = 0.0;
-      ScalarT dvdy = 0.0;
-      ScalarT dvdz = 0.0;
-      
-      for( int k=0; k<sol.extent(2); k++ ) {
-        
-        AD ux = sol(e,ux_num,k,0);
-        AD uz_dot = sol_dot(e,uz_num,k,0);
-        AD duzdx = sol_grad(e,uz_num,k,0);
-        
-        AD pr = sol(e,pr_num,k,0);
-        AD dprdz = sol_grad(e,pr_num,k,2);
-        AD uy = sol(e,uy_num,k,0);
-        AD duzdy = sol_grad(e,uz_num,k,1);
-        AD uz = sol(e,uz_num,k,0);
-        AD duzdz = sol_grad(e,uz_num,k,2);
-        
-        AD eval;
-        if (have_energy) {
-          eval = sol(e,e_num,k,0);
-        }
-        
-        for( int i=0; i<basis.extent(1); i++ ) {
-          
-          int resindex = offsets(uz_num,i);
-          v = basis(e,i,k);
-          dvdx = basis_grad(e,i,k,0);
-          dvdy = basis_grad(e,i,k,1);
-          dvdz = basis_grad(e,i,k,2);
-          
-          res(e,resindex) += (dens(e,k)*uz_dot*v + visc(e,k)*(duzdx*dvdx + duzdy*dvdy + duzdz*dvdz) + dens(e,k)*(ux*duzdx + uy*duzdy + uz*duzdz)*v - pr*dvdz - dens(e,k)*source_uz(e,k)*v)*wts(e,k);
-          
-          if (have_energy) {
-            res(e,resindex) += (dens(e,k)*(eval-T_ambient)*source_uz(e,k)*v)*wts(e,k);
-          }
-          
-          if(useSUPG) {
-            AD tau = this->computeTau(visc(e,k), ux, uy, uz, wkset->h(e));
-            
-            AD stabres = dens(e,k)*uz_dot + dens(e,k)*(ux*duzdx + uy*duzdy + uz*duzdz) + dprdz - dens(e,k)*source_uz(e,k);
-            
-            if (have_energy) {
-              stabres += dens(e,k)*(e-T_ambient)*source_uz(e,k);
-            }
-            
-            res(e,resindex) += (tau*(stabres)*(ux*dvdx + uy*dvdy + uz*dvdz))*wts(e,k);
-            
-          }
-        }
-      }
-    });
-  }*/
-  
 }
 
 // ========================================================================================

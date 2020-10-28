@@ -102,9 +102,6 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> fluxFunc = Teuchos::TimeMonitor::getNewCounter("MILO::thermal_enthalpy::computeFlux() - function evaluation");
     Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MILO::thermal_enthalpy::computeFlux() - evaluation of flux");
     
-    //Teuchos::RCP<DRVAD> src_test;
-    //Teuchos::RCP<FunctionBase> diff_fct, rho_fct, cp_fct, source_fct, nsource_fct, diff_side_fct, robin_alpha_fct;
-    
   };
   
 }

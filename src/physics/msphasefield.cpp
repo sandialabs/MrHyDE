@@ -219,7 +219,7 @@ void msphasefield::volumeResidual() {
   auto basis = wkset->basis[phi_basis];
   auto basis_grad = wkset->basis_grad[phi_basis];
   auto offsets = wkset->offsets;
-  DRV ip = wkset->ip;
+  auto ip = wkset->ip;
   auto res = wkset->res;
   auto wts = wkset->wts;
   
@@ -267,7 +267,7 @@ void msphasefield::volumeResidual() {
       }
       
       for( size_type i=0; i<basis.extent(1); i++ ) {
-        v = basis(e,i,k);
+        v = basis(e,i,k,0);
         dvdx = basis_grad(e,i,k,0);
         dvdy = basis_grad(e,i,k,1);
         if (spaceDim == 3)

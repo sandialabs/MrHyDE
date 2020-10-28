@@ -110,7 +110,7 @@ void stokes::volumeResidual() {
           Fx *= wts(elem,pt);
           AD g = -source_ux(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + g*basis(elem,dof,pt);
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + g*basis(elem,dof,pt,0);
           }
         }
       });
@@ -127,7 +127,7 @@ void stokes::volumeResidual() {
           AD divu = gradUx(elem,pt,0);
           divu *= wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += divu*basis(elem,dof,pt);
+            res(elem,off(dof)) += divu*basis(elem,dof,pt,0);
           }
         }
       });
@@ -151,7 +151,7 @@ void stokes::volumeResidual() {
           Fy *= wts(elem,pt);
           AD g = -source_ux(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + g*basis(elem,dof,pt);
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + g*basis(elem,dof,pt,0);
           }
         }
       });
@@ -170,7 +170,7 @@ void stokes::volumeResidual() {
           Fy *= wts(elem,pt);
           AD g = -source_uy(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + g*basis(elem,dof,pt);
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + g*basis(elem,dof,pt,0);
           }
         }
       });
@@ -187,7 +187,7 @@ void stokes::volumeResidual() {
           AD divu = gradUx(elem,pt,0) + gradUy(elem,pt,1);
           divu *= wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += divu*basis(elem,dof,pt);
+            res(elem,off(dof)) += divu*basis(elem,dof,pt,0);
           }
         }
       });
@@ -214,7 +214,7 @@ void stokes::volumeResidual() {
           Fz *= wts(elem,pt);
           AD g = -source_ux(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + g*basis(elem,dof,pt);
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + g*basis(elem,dof,pt,0);
           }
         }
       });
@@ -235,7 +235,7 @@ void stokes::volumeResidual() {
           Fz *= wts(elem,pt);
           AD g = -source_uy(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + g*basis(elem,dof,pt);
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + g*basis(elem,dof,pt,0);
           }
         }
       });
@@ -256,7 +256,7 @@ void stokes::volumeResidual() {
           Fz *= wts(elem,pt);
           AD g = -source_uz(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + g*basis(elem,dof,pt);
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + g*basis(elem,dof,pt,0);
           }
         }
       });
@@ -272,7 +272,7 @@ void stokes::volumeResidual() {
           AD divu = gradUx(elem,pt,0) + gradUy(elem,pt,1) + gradUz(elem,pt,2);
           divu *= wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += divu*basis(elem,dof,pt);
+            res(elem,off(dof)) += divu*basis(elem,dof,pt,0);
           }
         }
       });

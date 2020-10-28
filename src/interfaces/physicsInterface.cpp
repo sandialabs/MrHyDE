@@ -671,16 +671,18 @@ int physics::getvarOwner(const int & block, const string & var) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+// TMW: this function is probably never used
+
 AD physics::getDirichletValue(const int & block, const ScalarT & x, const ScalarT & y,
                               const ScalarT & z, const ScalarT & t, const string & var,
                               const string & gside, const bool & useadjoint,
                               Teuchos::RCP<workset> & wkset) {
   
   // update point in wkset
-  wkset->point_KV(0,0,0) = x;
-  wkset->point_KV(0,0,1) = y;
+  wkset->point(0,0,0) = x;
+  wkset->point(0,0,1) = y;
   if(spaceDim == 3)
-    wkset->point_KV(0,0,2) = z;
+    wkset->point(0,0,2) = z;
   wkset->time_KV(0) = t;
   
   // evaluate the response
@@ -742,7 +744,7 @@ Kokkos::View<AD***,AssemblyDevice> physics::getPointResponse(const int & block,
   
   Kokkos::View<AD***,AssemblyDevice> responsetotal("responses",numElem,numResponses,numip);
   
-  auto point = Kokkos::subview(wkset->point_KV, 0, 0, Kokkos::ALL());
+  auto point = Kokkos::subview(wkset->point, 0, 0, Kokkos::ALL());
   auto sol = Kokkos::subview(wkset->local_soln_point, 0, Kokkos::ALL(), 0, Kokkos::ALL());
   auto sol_grad = Kokkos::subview(wkset->local_soln_grad_point, 0, Kokkos::ALL(), 0, Kokkos::ALL());
   
@@ -804,7 +806,7 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
   Kokkos::View<AD***,AssemblyDevice> responsetotal("responses",numElem,numResponses,numip);
   
   //wkset->ip_KV = ip;
-  Kokkos::deep_copy(wkset->ip_KV,ip);
+  Kokkos::deep_copy(wkset->ip,ip);
   Kokkos::deep_copy(wkset->local_soln,u_ip);
   if (wkset->vars_HGRAD.size() > 0) {
     Kokkos::deep_copy(wkset->local_soln_grad, ugrad_ip);
@@ -923,7 +925,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> physics::getInitial(const DRV & ip,
   }
   else {
     // TMW: will not work on device yet
-    Kokkos::View<ScalarT***,AssemblyDevice> point_KV = wkset->point_KV;
+    Kokkos::View<ScalarT***,AssemblyDevice> point_KV = wkset->point;
     auto host_ivals = Kokkos::create_mirror_view(ivals);
     for (size_t e=0; e<numElem; e++) {
       for (size_t i=0; i<numip; i++) {
@@ -1079,7 +1081,7 @@ Kokkos::View<ScalarT**,AssemblyDevice> physics::getExtraFields(const int & block
   for (size_type e=0; e<ip.extent(0); e++) {
     for (size_type j=0; j<ip.extent(1); j++) {
       for (int s=0; s<spaceDim; s++) {
-        wkset->point_KV(0,0,s) = ip(e,j,s);
+        wkset->point(0,0,s) = ip(e,j,s);
       }
       FDATA efdata = functionManagers[block]->evaluate(extrafields_list[block][fnum],"point");
       parallel_for("physics get extra fields",RangePolicy<AssemblyExec>(0,1), KOKKOS_LAMBDA (const int elem ) {
