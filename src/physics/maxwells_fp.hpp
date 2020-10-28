@@ -150,8 +150,6 @@ namespace MrHyDE {
     ScalarT essScale;
     
     //Kokkos::View<int****,AssemblyDevice> sideinfo;
-    DRV phir_basis, phir_basis_grad;
-    DRV phii_basis, phii_basis_grad;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::maxwells_fp::volumeResidual() - function evaluation");
     Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::maxwells_fp::volumeResidual() - evaluation of residual");

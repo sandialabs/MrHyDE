@@ -467,10 +467,10 @@ void maxwells_fp::boundaryResidual() {
   auto normals  = wkset->normals;
   auto res = wkset->res;
   
-  phir_basis = wkset->basis_side[phir_basis_num];
-  phir_basis_grad = wkset->basis_grad_side[phir_basis_num];
-  phii_basis = wkset->basis_side[phii_basis_num];
-  phii_basis_grad = wkset->basis_grad_side[phii_basis_num];
+  auto phir_basis = wkset->basis_side[phir_basis_num];
+  auto phir_basis_grad = wkset->basis_grad_side[phir_basis_num];
+  auto phii_basis = wkset->basis_side[phii_basis_num];
+  auto phii_basis_grad = wkset->basis_grad_side[phii_basis_num];
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   

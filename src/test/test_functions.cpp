@@ -29,17 +29,18 @@ int main(int argc, char * argv[]) {
     int numip = 4;
     int numvars = 5;
     
-    vector<int> cellinfo = {2,numvars,1,0,16,numElem};
+    vector<int> cellinfo = {2,numvars,1,0,numElem};
     DRV ip, wts, sip, swts;
     //DRVtst tst("testing",numip,2,2,2);
  
     disc->getQuadrature(cellTopo, quadorder, ip, wts);
     disc->getQuadrature(sideTopo, quadorder, sip, swts);
-    
+    cellinfo.push_back(ip.extent(0));
+    cellinfo.push_back(sip.extent(0));
     vector<string> btypes = {"HGRAD"};
     Kokkos::View<int**,HostDevice> bcs("bcs",1,1);
-    Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset(cellinfo, false, ip, wts,
-                                                            sip, swts, btypes, basis, basis, cellTopo,bcs) );
+    Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset(cellinfo, false,
+                                                            btypes, basis, basis, cellTopo,bcs) );
     
     Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager("eblock",numElem,numip,numip));
     vector<string> variables = {"a","b","c","d","p"};

@@ -172,6 +172,7 @@ void AssemblyManager::createCells() {
   Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> LIDs = DOF->getLIDs();
   
   for (size_t b=0; b<blocknames.size(); b++) {
+    Teuchos::RCP<CellMetaData> blockCellData;
     vector<Teuchos::RCP<cell> > blockcells;
     vector<Teuchos::RCP<BoundaryCell> > bcells;
     
@@ -211,16 +212,16 @@ void AssemblyManager::createCells() {
       
       vector<string> sideSets;
       mesh->getSidesetNames(sideSets);
-      Teuchos::RCP<CellMetaData> blockCellData = Teuchos::rcp( new CellMetaData(settings, cellTopo,
-                                                                                phys, b, 0,
-                                                                                build_face_terms[b],
-                                                                                assemble_face_terms[b],
-                                                                                sideSets, disc->ref_ip[b],
-                                                                                disc->ref_wts[b], disc->ref_side_ip[b],
-                                                                                disc->ref_side_wts[b], disc->basis_types[b],
-                                                                                disc->basis_pointers[b],
-                                                                                params->num_discretized_params,
-                                                                                refnodes));
+      blockCellData = Teuchos::rcp( new CellMetaData(settings, cellTopo,
+                                                     phys, b, 0,
+                                                     build_face_terms[b],
+                                                     assemble_face_terms[b],
+                                                     sideSets, disc->ref_ip[b],
+                                                     disc->ref_wts[b], disc->ref_side_ip[b],
+                                                     disc->ref_side_wts[b], disc->basis_types[b],
+                                                     disc->basis_pointers[b],
+                                                     params->num_discretized_params,
+                                                     refnodes));
       
       
       blockCellData->requireBasisAtNodes = settings->sublist("Postprocess").get<bool>("plot solution at nodes",false);
@@ -234,8 +235,6 @@ void AssemblyManager::createCells() {
       Kokkos::View<LO*,HostDevice> numDOF_host("numDOF on host",curroffsets.size());// = Kokkos::create_mirror_view(numDOF_KV);
       Kokkos::deep_copy(numDOF_host, numDOF_KV);
       blockCellData->numDOF_host = numDOF_host;
-      
-      cellData.push_back(blockCellData);
       
       TEUCHOS_TEST_FOR_EXCEPTION(LIDs.extent(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element times the number of time stages.");
       
@@ -444,8 +443,8 @@ void AssemblyManager::createCells() {
       }
     }
     
+    cellData.push_back(blockCellData);
     cells.push_back(blockcells);
-    
     boundaryCells.push_back(bcells);
     
   }
@@ -473,11 +472,16 @@ void AssemblyManager::createWorkset() {
   
   for (size_t b=0; b<cells.size(); b++) {
     if (cells[b].size() > 0) {
-      wkset.push_back(Teuchos::rcp( new workset(cells[b][0]->getInfo(),
+      vector<int> info;
+      info.push_back(cellData[b]->dimension);
+      info.push_back(cellData[b]->numDOF.extent(0));
+      info.push_back((int)cellData[b]->numDiscParams);
+      info.push_back(cellData[b]->numAuxDOF.extent(0));
+      info.push_back(cells[b][0]->numElem);
+      info.push_back(cellData[b]->numip);
+      info.push_back(cellData[b]->numsideip);
+      wkset.push_back(Teuchos::rcp( new workset(info,
                                                 isTransient,
-                                                disc->ref_ip[b],
-                                                disc->ref_wts[b], disc->ref_side_ip[b],
-                                                disc->ref_side_wts[b],
                                                 disc->basis_types[b],
                                                 disc->basis_pointers[b],
                                                 params->discretized_param_basis,

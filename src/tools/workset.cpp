@@ -19,8 +19,6 @@ using namespace MrHyDE;
 ////////////////////////////////////////////////////////////////////////////////////
 
 workset::workset(const vector<int> & cellinfo, const bool & isTransient_,
-                 const DRV ref_ip_, const DRV ref_wts_, const DRV ref_side_ip_,
-                 const DRV ref_side_wts_,
                  const vector<string> & basis_types_,
                  const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
                  const topo_RCP & topo, Kokkos::View<int**,HostDevice> & var_bcs_) :
@@ -32,11 +30,10 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   numVars = cellinfo[1];
   numParams = cellinfo[2];
   numAux = cellinfo[3];
-  numDOF = cellinfo[4];
-  numElem = cellinfo[5];
+  numElem = cellinfo[4];
   usebcs = true;
-  numip = ref_ip_.extent(0);
-  numsideip = ref_side_ip_.extent(0);
+  numip = cellinfo[5];
+  numsideip = cellinfo[6];
   if (dimension == 2) {
     numsides = celltopo->getSideCount();
   }
@@ -53,25 +50,18 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   // Integration information
   time_KV = Kokkos::View<ScalarT*,AssemblyDevice>("time",1); // defaults to 0.0
   
-  // these can point to different arrays
-  //ip = auto("ip", numElem,numip, dimension);
-  //wts = auto("wts", numElem, numip);
-  //ip_side = auto("ip_side", numElem,numsideip,dimension);
-  //wts_side = auto("wts_side", numElem,numsideip);
-  //normals = auto("normals", numElem,numsideip,dimension);
-  
   // these cannot point to different arrays ... data must be deep copied into them
   ip = Kokkos::View<ScalarT***,AssemblyDevice>("ip",numElem,numip,dimension);
   ip_side = Kokkos::View<ScalarT***,AssemblyDevice>("side ip",numElem,numsideip,dimension);
   normals = Kokkos::View<ScalarT***,AssemblyDevice>("side normals",numElem,numsideip,dimension);
   point = Kokkos::View<ScalarT***,AssemblyDevice>("point",1,1,dimension);
+  res = Kokkos::View<AD**,AssemblyDevice>("residual",numElem, maxDerivs, maxDerivs);
+  adjrhs = Kokkos::View<AD**,AssemblyDevice>("adjoint RHS",numElem, maxDerivs, maxDerivs);
+  
+  // these can point to different arrays
   wts = Kokkos::View<ScalarT**,AssemblyDevice>("ip wts",numElem,numip);
   wts_side = Kokkos::View<ScalarT**,AssemblyDevice>("ip side wts",numElem,numsideip);
-  
-  //h = Kokkos::View<ScalarT*,AssemblyDevice>("h",numElem);
-  res = Kokkos::View<AD**,AssemblyDevice>("residual",numElem,numDOF, maxDerivs);
-  adjrhs = Kokkos::View<AD**,AssemblyDevice>("adjoint RHS",numElem,numDOF, maxDerivs);
-  
+    
   have_rotation = false;
   have_rotation_phi = false;
   rotation = Kokkos::View<ScalarT***,AssemblyDevice>("rotation matrix",numElem,3,3);

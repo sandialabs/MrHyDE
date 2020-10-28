@@ -47,6 +47,8 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   multiscale = false;
   numnodes = cellTopo->getNodeCount();
   dimension = cellTopo->getDimension();
+  numip = ref_ip_.extent(0);
+  numsideip = ref_side_ip_.extent(0);
   
   if (dimension == 2) {
     numSides = cellTopo->getSideCount();
@@ -97,7 +99,6 @@ void CellMetaData::setupReferenceBasis() {
   for (size_t i=0; i<basis_pointers.size(); i++) {
     
     int numb = basis_pointers[i]->getCardinality();
-    int numip = ref_ip.extent(0);
     
     DRV basisvals, basisgrad, basisdiv, basiscurl;
     DRV basisnodes;

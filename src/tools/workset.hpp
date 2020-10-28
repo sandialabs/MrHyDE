@@ -29,8 +29,6 @@ namespace MrHyDE {
     workset() {};
     
     workset(const vector<int> & cellinfo, const bool & isTransient_,
-            const DRV ref_ip_, const DRV ref_wts_,
-            const DRV ref_side_ip_, const DRV ref_side_wts_,
             const vector<string> & basis_types_,
             const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
             const topo_RCP & topo, Kokkos::View<int**,HostDevice> & var_bcs_);
@@ -200,7 +198,7 @@ namespace MrHyDE {
     bool isAdjoint, onlyTransient, isTransient;
     bool isInitialized, usebcs;
     topo_RCP celltopo;
-    size_t numsides, numip, numsideip, numVars, numParams, numAux, numDOF;
+    size_t numsides, numip, numsideip, numVars, numParams, numAux;
     int dimension, numElem, current_stage;
     Kokkos::View<int*,AssemblyDevice> current_stage_KV; // for access on device
     
@@ -226,15 +224,6 @@ namespace MrHyDE {
     
     vector<Kokkos::View<ScalarT****,AssemblyDevice> > basis, basis_grad, basis_curl, basis_side, basis_face, basis_grad_side, basis_grad_face, basis_curl_side, basis_curl_face;
     vector<Kokkos::View<ScalarT***,AssemblyDevice> > basis_div, basis_div_side;
-    /*
-    vector<DRV> basis;
-    vector<DRV> basis_grad;
-    vector<DRV> basis_div;
-    vector<DRV> basis_curl;
-    vector<DRV> basis_side, basis_grad_side;
-    vector<DRV> basis_face, basis_grad_face;
-    vector<DRV> basis_div_side, basis_curl_side;
-    */
     
     Kokkos::View<AD****, AssemblyDevice> local_soln, local_soln_grad, local_soln_dot, local_soln_dot_grad, local_soln_curl;
     Kokkos::View<AD***, AssemblyDevice> local_soln_div, local_param_div, local_aux, local_aux_side;
