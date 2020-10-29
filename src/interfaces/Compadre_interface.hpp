@@ -38,7 +38,7 @@ Compadre::NeighborLists<Kokkos::View<int*> >
 CompadreInterface_constructNeighborLists(Kokkos::View<double**, AssemblyDevice> sensor_coords,
                                          Kokkos::View<double**, AssemblyDevice> cell_coords) {
 
-  LO number_sensor_coords = sensor_coords.extent(0);
+  // LO number_sensor_coords = sensor_coords.extent(0);
   LO number_cell_coords = cell_coords.extent(0);
   LO dimension = sensor_coords.extent(1); // assuming this matches cell_coords.extent(1)
   int min_neighbors = 1; // must find at least 1 neighbor
