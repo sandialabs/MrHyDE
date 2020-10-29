@@ -1862,7 +1862,7 @@ AD cell::computeDomainRegularization(const vector<ScalarT> reg_constants, const 
   this->updateWorksetBasis();
   wkset->computeParamVolIP(param, 3);
   
-  Kokkos::View<AD[1],AssemblyDevice> adscratch("scratch for AD");
+  Kokkos::View<AD*,AssemblyDevice> adscratch("scratch for AD",1,maxDerivs);
   auto adscratch_host = Kokkos::create_mirror_view(adscratch);
   
   Kokkos::View<int[2],AssemblyDevice> iscratch("scratch for ints");

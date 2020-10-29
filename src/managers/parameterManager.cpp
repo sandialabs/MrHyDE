@@ -178,9 +178,15 @@ void ParameterManager::setupParameters() {
         maxcomp = paramvals[k].size();
       }
     }
-    
+    std::cout << "before test" << std::endl;
+
+    Kokkos::View<ScalarT**,AssemblyDevice> test("parameter values (AD)", paramvals.size(), maxcomp);
+   
+    std::cout << paramvals.size() << "  " << maxcomp << std::endl;
+ 
     paramvals_KVAD = Kokkos::View<AD**,AssemblyDevice>("parameter values (AD)", paramvals.size(), maxcomp);
-    
+
+    std::cout << "down to here" << std::endl; 
   }
 }
 
@@ -291,7 +297,7 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
         
         for (size_t e=0; e<boundaryCells[b].size(); e++) {
           LIDView cellLIDs("bcell parameter LIDs",boundaryCells[b][e]->numElem, LIDs.extent(1));
-          Kokkos::View<LO*> EIDs = boundaryCells[b][e]->localElemID;
+          Kokkos::View<LO*,AssemblyDevice> EIDs = boundaryCells[b][e]->localElemID;
           parallel_for("paramman copy LIDs bcells",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
             size_t elemID = EIDs(e);
             for (size_type j=0; j<LIDs.extent(1); j++) {

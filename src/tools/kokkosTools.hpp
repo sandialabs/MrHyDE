@@ -157,16 +157,16 @@ namespace MrHyDE {
       std::cout << "  i  " << "  j  " << "  value  " << std::endl;
       std::cout << "-------------------------------" << std::endl;
       
-      auto V_host = Kokkos::create_mirror_view(V);
-      Kokkos::deep_copy(V_host,V);
+      //auto V_host = Kokkos::create_mirror_view(V);
+     // Kokkos::deep_copy(V_host,V);
       
-      for (size_type i=0; i<V_host.extent(0); i++) {
-        for (size_type j=0; j<V_host.extent(1); j++) {
+      //for (size_type i=0; i<V_host.extent(0); i++) {
+      //  for (size_type j=0; j<V_host.extent(1); j++) {
           //printf("   %i      %i      %f\n", i, j, V(i,j));
-          std::cout << "  " << i << "  " << "  " << j << "  " <<
-          "  " << "  " << V(i,j) << "  " << std::endl;
-        }
-      }
+       //   std::cout << "  " << i << "  " << "  " << j << "  " <<
+      //    "  " << "  " << V(i,j) << "  " << std::endl;
+      //  }
+      //}
       std::cout << "-------------------------------" << std::endl;
       
     }
