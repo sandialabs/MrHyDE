@@ -1439,7 +1439,7 @@ Kokkos::View<AD***,AssemblyDevice> cell::computeResponse(const int & seedwhat) {
     }
     else {
       for (size_type var=0; var<numDOF.extent(0); var++) {
-        int bnum = wkset->usebasis[var];
+        //int bnum = wkset->usebasis[var];
         std::string btype = wkset->basis_types[wkset->usebasis[var]];
         if (btype == "HCURL" || btype == "HDIV") {
           // TMW: this does not work properly
@@ -1854,15 +1854,15 @@ Kokkos::View<AD**,AssemblyDevice> cell::computeObjective(const ScalarT & solveti
 
 AD cell::computeDomainRegularization(const vector<ScalarT> reg_constants, const vector<int> reg_types,
                                      const vector<int> reg_indices) {
-  
-  //AD reg;
+  /*
+  //AD reg = 0.0;
   
   //bool seedParams = true;
   //int numip = wkset->numip;
   this->updateWorksetBasis();
   wkset->computeParamVolIP(param, 3);
   
-  Kokkos::View<AD*,AssemblyDevice> adscratch("scratch for AD",1,maxDerivs);
+  Kokkos::View<ScalarT*,AssemblyDevice> adscratch("scratch for AD",1+maxDerivs);
   auto adscratch_host = Kokkos::create_mirror_view(adscratch);
   
   Kokkos::View<int[2],AssemblyDevice> iscratch("scratch for ints");
@@ -1917,6 +1917,88 @@ AD cell::computeDomainRegularization(const vector<ScalarT> reg_constants, const 
   }
   Kokkos::deep_copy(adscratch_host,adscratch);
   return adscratch_host(0);
+  */
+  
+  AD reg = 0.0;
+  
+  //bool seedParams = true;
+  //int numip = wkset->numip;
+  this->updateWorksetBasis();
+  wkset->computeParamVolIP(param, 3);
+  
+  auto cwts = wts;
+  
+  int numParams = reg_indices.size();
+  //ScalarT reg_offset = 1.0e-5;
+  //Kokkos::View<AD****,AssemblyDevice> par = wkset->local_param;
+  //Kokkos::View<AD****,AssemblyDevice> par_grad = wkset->local_param_grad;
+  for (int i = 0; i < numParams; i++) {
+        
+    AD regval = 0.0;
+    Kokkos::View<ScalarT*,AssemblyDevice> regview("reg",1+maxDerivs);
+    
+    if (reg_types[i] == 0) { // L2
+      auto par = Kokkos::subview(wkset->local_param,Kokkos::ALL(),reg_indices[i],Kokkos::ALL(),0); // TMW maybe change last index to include vector vars
+      parallel_for("cell domain reg L2",RangePolicy<AssemblyExec>(0,par.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+        AD rval = 0.0;
+        for (size_type pt=0; pt<par.extent(1); pt++) {
+          AD p = par(elem,pt);
+          rval += 0.5*p*p*cwts(elem,pt);
+        }
+        Kokkos::atomic_add(&regview(0), rval.val());
+        for (int d=0; d<maxDerivs; d++) {
+          Kokkos::atomic_add(&regview(d+1), rval.fastAccessDx(d));
+        }
+      });
+      
+    }
+    else {
+      auto par_grad = Kokkos::subview(wkset->local_param_grad,Kokkos::ALL(),reg_indices[i],Kokkos::ALL(),Kokkos::ALL()); // TMW maybe change last index to include vector vars
+      if (reg_types[i] == 1) { // H1
+        parallel_for("cell domain reg L2",RangePolicy<AssemblyExec>(0,par_grad.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+          AD rval = 0.0;
+          for (size_type pt=0; pt<par_grad.extent(1); pt++) {
+            for (size_type dim=0; dim<par_grad.extent(2); dim++) {
+              AD dp = par_grad(elem,pt,dim);
+              rval += 0.5*dp*dp*cwts(elem,pt);
+            }
+          }
+          Kokkos::atomic_add(&regview(0), rval.val());
+          for (int d=0; d<maxDerivs; d++) {
+            Kokkos::atomic_add(&regview(d+1), rval.fastAccessDx(d));
+          }
+        });
+      }
+      else if (reg_types[i] == 2) { // TV
+        parallel_for("cell domain reg L2",RangePolicy<AssemblyExec>(0,par_grad.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+          AD rval = 0.0;
+          for (size_type pt=0; pt<par_grad.extent(1); pt++) {
+            AD tmpval = 0.0;
+            ScalarT reg_offset = 1.0e-5;
+            for (size_type dim=0; dim<par_grad.extent(2); dim++) {
+              AD dp = par_grad(elem,pt,dim);
+              tmpval += dp*dp*cwts(elem,pt);
+            }
+            tmpval += reg_offset*reg_offset*cwts(elem,pt);
+            rval += sqrt(tmpval);
+            Kokkos::atomic_add(&regview(0), rval.val());
+            for (int d=0; d<maxDerivs; d++) {
+              Kokkos::atomic_add(&regview(d+1), rval.fastAccessDx(d));
+            }
+          }
+        });
+      }
+    }
+    auto host_regview = Kokkos::create_mirror_view(regview);
+    Kokkos::deep_copy(host_regview,regview);
+    regval.val() = host_regview(0);
+    for (int d=0; d<maxDerivs; d++) {
+      regval.fastAccessDx(d) = host_regview(d+1);
+    }
+    reg += reg_constants[i]*regval;
+  }
+  return reg;
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
