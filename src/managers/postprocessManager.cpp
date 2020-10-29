@@ -1090,7 +1090,9 @@ void PostprocessManager::computeResponse(const ScalarT & currenttime) {
   
       Kokkos::View<AD***,AssemblyDevice> responsevals = assembler->cells[b][e]->computeResponse(0);
       
-      auto host_response = Kokkos::create_mirror_view(responsevals);
+      //auto host_response = Kokkos::create_mirror_view(responsevals);
+      Kokkos::View<AD***,HostDevice> host_response("response on host",responsevals.extent(0),
+                                                   responsevals.extent(1), responsevals.extent(2));
       Kokkos::deep_copy(host_response,responsevals);
       
       for (int r=0; r<numresponses; r++) {

@@ -178,15 +178,11 @@ void ParameterManager::setupParameters() {
         maxcomp = paramvals[k].size();
       }
     }
-    std::cout << "before test" << std::endl;
 
     Kokkos::View<ScalarT**,AssemblyDevice> test("parameter values (AD)", paramvals.size(), maxcomp);
-   
-    std::cout << paramvals.size() << "  " << maxcomp << std::endl;
  
     paramvals_KVAD = Kokkos::View<AD**,AssemblyDevice>("parameter values (AD)", paramvals.size(), maxcomp);
 
-    std::cout << "down to here" << std::endl; 
   }
 }
 
@@ -594,7 +590,9 @@ vector_RCP ParameterManager::setInitialParams() {
 void ParameterManager::sacadoizeParams(const bool & seed_active) {
   
   //vector<vector<AD> > paramvals_AD;
-  auto host_params = Kokkos::create_mirror_view(paramvals_KVAD);
+  //auto host_params = Kokkos::create_mirror_view(paramvals_KVAD);
+  Kokkos::View<AD**,HostDevice> host_params("copy on host",paramvals_KVAD.extent(0),paramvals_KVAD.extent(1));
+
   if (seed_active) {
     size_t pprog = 0;
     for (size_t i=0; i<paramvals.size(); i++) {
