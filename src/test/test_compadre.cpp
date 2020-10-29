@@ -64,7 +64,7 @@ int main(int argc, char * argv[]) {
   double zmin = 0., zmax = 1.;
 
   // DO NOT MODIFY BEYOND HERE
-  unsigned int numElem = nx*ny*nz;
+  // unsigned int numElem = nx*ny*nz;
 
   // step between elements
   double dx = (xmax-xmin)/nx;
@@ -121,7 +121,7 @@ int main(int argc, char * argv[]) {
     if(output_cnode == true) {
       std::cout << "cnode_meshdata has " << cnode_meshdata.extent(0) << " entries" << std::endl;
       std::cout << "cnode_meshdata = {" << cnode_meshdata(0);
-      for(int j=1; j<cnode_meshdata.extent(0); ++j)
+      for(size_type j=1; j<cnode_meshdata.extent(0); ++j)
         std::cout << ", " << cnode_meshdata(j);
       std::cout << "}" << std::endl << std::endl;
     }
@@ -150,7 +150,7 @@ int main(int argc, char * argv[]) {
     if(output_cnode == true) {
       std::cout << "cnode_compadre has " << cnode_compadre.extent(0) << " entries" << std::endl;
       std::cout << "cnode_compadre = {" << cnode_compadre(0);
-      for(int j=1; j<cnode_compadre.extent(0); ++j)
+      for(size_type j=1; j<cnode_compadre.extent(0); ++j)
         std::cout << ", " << cnode_compadre(j);
       std::cout << "}" << std::endl << std::endl;
     }
