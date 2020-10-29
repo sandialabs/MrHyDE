@@ -228,12 +228,13 @@ void AssemblyManager::createCells() {
       
       vector<vector<int> > curroffsets = phys->offsets[b];
       Kokkos::View<LO*,AssemblyDevice> numDOF_KV("number of DOF per variable",curroffsets.size());
+      Kokkos::View<LO*,HostDevice> numDOF_host("numDOF on host",curroffsets.size());
       for (size_t k=0; k<curroffsets.size(); k++) {
-        numDOF_KV(k) = static_cast<LO>(curroffsets[k].size());
+        numDOF_host(k) = static_cast<LO>(curroffsets[k].size());
       }
+      Kokkos::deep_copy(numDOF_KV, numDOF_host);
+      
       blockCellData->numDOF = numDOF_KV;
-      Kokkos::View<LO*,HostDevice> numDOF_host("numDOF on host",curroffsets.size());// = Kokkos::create_mirror_view(numDOF_KV);
-      Kokkos::deep_copy(numDOF_host, numDOF_KV);
       blockCellData->numDOF_host = numDOF_host;
       
       TEUCHOS_TEST_FOR_EXCEPTION(LIDs.extent(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element times the number of time stages.");
