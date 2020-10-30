@@ -287,9 +287,9 @@ void BoundaryCell::setUseBasis(vector<int> & usebasis_, const int & numsteps, co
   
   // Set up the containers for usual solution storage
   int maxnbasis = 0;
-  for (size_type i=0; i<cellData->numDOF.extent(0); i++) {
-    if (cellData->numDOF(i) > maxnbasis) {
-      maxnbasis = cellData->numDOF(i);
+  for (size_type i=0; i<cellData->numDOF_host.extent(0); i++) {
+    if (cellData->numDOF_host(i) > maxnbasis) {
+      maxnbasis = cellData->numDOF_host(i);
     }
   }
   u = Kokkos::View<ScalarT***,AssemblyDevice>("u",numElem,cellData->numDOF.extent(0),maxnbasis);
