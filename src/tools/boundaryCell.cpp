@@ -43,8 +43,10 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
   
   Teuchos::TimeMonitor localtimer(*buildBasisTimer);
   
-  DRV ref_ip = cellData->ref_side_ip[localSideID(0)];
-  DRV ref_wts = cellData->ref_side_wts[localSideID(0)];
+  auto localSideID_host = Kokkos::create_mirror_view(localSideID);
+  
+  DRV ref_ip = cellData->ref_side_ip[localSideID_host(0)];
+  DRV ref_wts = cellData->ref_side_wts[localSideID_host(0)];
   
   int dimension = cellData->dimension;
   int numip = ref_ip.extent(0);
@@ -66,7 +68,7 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
   CellTools::setJacobianDet(ijacDet, ijac);
   
   if (dimension == 2) {
-    DRV ref_tangents = cellData->ref_side_tangents[localSideID(0)];
+    DRV ref_tangents = cellData->ref_side_tangents[localSideID_host(0)];
     RealTools::matvec(tmptangents, ijac, ref_tangents);
     
     DRV rotation("rotation matrix",dimension,dimension);
@@ -82,8 +84,8 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
   }
   else if (dimension == 3) {
     
-    DRV ref_tangentsU = cellData->ref_side_tangentsU[localSideID(0)];
-    DRV ref_tangentsV = cellData->ref_side_tangentsV[localSideID(0)];
+    DRV ref_tangentsU = cellData->ref_side_tangentsU[localSideID_host(0)];
+    DRV ref_tangentsV = cellData->ref_side_tangentsV[localSideID_host(0)];
     
     DRV faceTanU("face tangent U", numElem, numip, dimension);
     DRV faceTanV("face tangent V", numElem, numip, dimension);
@@ -108,79 +110,77 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
   Kokkos::deep_copy(tangents,tmptangents);
   
   this->computeSizeNormals();
+  
+  Kokkos::deep_copy(localSideID_host, localSideID);
+  for (size_t i=0; i<cellData->basis_pointers.size(); i++) {
     
-    {
+    int numb = cellData->basis_pointers[i]->getCardinality();
+    Kokkos::View<ScalarT****,AssemblyDevice> basis_vals, basis_grad_vals, basis_curl_vals;
+    Kokkos::View<ScalarT***,AssemblyDevice> basis_div_vals;
+    
+    DRV ref_basis_vals = cellData->ref_side_basis[localSideID_host(0)][i];
+    
+    if (cellData->basis_types[i] == "HGRAD"){
       
-      for (size_t i=0; i<cellData->basis_pointers.size(); i++) {
-        
-        int numb = cellData->basis_pointers[i]->getCardinality();
-        Kokkos::View<ScalarT****,AssemblyDevice> basis_vals, basis_grad_vals, basis_curl_vals;
-        Kokkos::View<ScalarT***,AssemblyDevice> basis_div_vals;
-        
-        DRV ref_basis_vals = cellData->ref_side_basis[localSideID(0)][i];
-        
-        if (cellData->basis_types[i] == "HGRAD"){
-          
-          DRV bvals_tmp("tmp basis_vals",numElem, numb, numip);
-          FuncTools::HGRADtransformVALUE(bvals_tmp, ref_basis_vals);
-          DRV bvals("basis_vals",numElem, numb, numip);
-          OrientTools::modifyBasisByOrientation(bvals, bvals_tmp, orientation,
-                                                cellData->basis_pointers[i].get());
-          basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,1);
-          auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
-          Kokkos::deep_copy(basis_vals_slice,bvals);
-          
-          DRV ref_bgrad_vals = cellData->ref_side_basis_grad[localSideID(0)][i];
-          DRV bgrad_vals_tmp("basis_grad_side tmp",numElem,numb,numip,dimension);
-          FuncTools::HGRADtransformGRAD(bgrad_vals_tmp, ijacInv, ref_bgrad_vals);
-          
-          DRV bgrad_vals("basis_grad_vals",numElem,numb,numip,dimension);
-          OrientTools::modifyBasisByOrientation(bgrad_vals, bgrad_vals_tmp, orientation,
-                                                cellData->basis_pointers[i].get());
-          basis_grad_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,dimension);
-          Kokkos::deep_copy(basis_grad_vals,bgrad_vals);
-          
-        }
-        else if (cellData->basis_types[i] == "HVOL"){ // does not require orientations
-          
-          DRV bvals("basis_vals",numElem, numb, numip);
-          FuncTools::HGRADtransformVALUE(bvals, ref_basis_vals);
-          basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,1);
-          auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
-          Kokkos::deep_copy(basis_vals_slice,bvals);
-        }
-        else if (cellData->basis_types[i] == "HFACE"){
-          
-          DRV bvals_tmp("tmp basis_vals",numElem, numb, numip);
-          FuncTools::HGRADtransformVALUE(bvals_tmp, ref_basis_vals);
-          DRV bvals("basis_vals",numElem, numb, numip);
-          OrientTools::modifyBasisByOrientation(bvals, bvals_tmp, orientation,
-                                                cellData->basis_pointers[i].get());
-          basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,1);
-          auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
-          Kokkos::deep_copy(basis_vals_slice,bvals);
-        }
-        else if (cellData->basis_types[i] == "HDIV"){
-          
-          DRV bvals_tmp("tmp basis_vals",numElem, numb, numip, dimension);
-          
-          FuncTools::HDIVtransformVALUE(bvals_tmp, ijac, ijacDet, ref_basis_vals);
-          DRV bvals("basis_vals",numElem, numb, numip, dimension);
-          OrientTools::modifyBasisByOrientation(bvals, bvals_tmp, orientation,
-                                                cellData->basis_pointers[i].get());
-          basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,dimension);
-          Kokkos::deep_copy(basis_vals,bvals);
-        }
-        else if (cellData->basis_types[i] == "HCURL"){
-          
-        }
-        basis.push_back(basis_vals);
-        basis_grad.push_back(basis_grad_vals);
-        basis_div.push_back(basis_div_vals);
-        basis_curl.push_back(basis_curl_vals);
-      }
+      DRV bvals_tmp("tmp basis_vals",numElem, numb, numip);
+      FuncTools::HGRADtransformVALUE(bvals_tmp, ref_basis_vals);
+      DRV bvals("basis_vals",numElem, numb, numip);
+      OrientTools::modifyBasisByOrientation(bvals, bvals_tmp, orientation,
+                                            cellData->basis_pointers[i].get());
+      basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,1);
+      auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
+      Kokkos::deep_copy(basis_vals_slice,bvals);
+      
+      DRV ref_bgrad_vals = cellData->ref_side_basis_grad[localSideID_host(0)][i];
+      DRV bgrad_vals_tmp("basis_grad_side tmp",numElem,numb,numip,dimension);
+      FuncTools::HGRADtransformGRAD(bgrad_vals_tmp, ijacInv, ref_bgrad_vals);
+      
+      DRV bgrad_vals("basis_grad_vals",numElem,numb,numip,dimension);
+      OrientTools::modifyBasisByOrientation(bgrad_vals, bgrad_vals_tmp, orientation,
+                                            cellData->basis_pointers[i].get());
+      basis_grad_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,dimension);
+      Kokkos::deep_copy(basis_grad_vals,bgrad_vals);
+      
     }
-  //}
+    else if (cellData->basis_types[i] == "HVOL"){ // does not require orientations
+      
+      DRV bvals("basis_vals",numElem, numb, numip);
+      FuncTools::HGRADtransformVALUE(bvals, ref_basis_vals);
+      basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,1);
+      auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
+      Kokkos::deep_copy(basis_vals_slice,bvals);
+    }
+    else if (cellData->basis_types[i] == "HFACE"){
+      
+      DRV bvals_tmp("tmp basis_vals",numElem, numb, numip);
+      FuncTools::HGRADtransformVALUE(bvals_tmp, ref_basis_vals);
+      DRV bvals("basis_vals",numElem, numb, numip);
+      OrientTools::modifyBasisByOrientation(bvals, bvals_tmp, orientation,
+                                            cellData->basis_pointers[i].get());
+      basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,1);
+      auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
+      Kokkos::deep_copy(basis_vals_slice,bvals);
+    }
+    else if (cellData->basis_types[i] == "HDIV"){
+      
+      DRV bvals_tmp("tmp basis_vals",numElem, numb, numip, dimension);
+      
+      FuncTools::HDIVtransformVALUE(bvals_tmp, ijac, ijacDet, ref_basis_vals);
+      DRV bvals("basis_vals",numElem, numb, numip, dimension);
+      OrientTools::modifyBasisByOrientation(bvals, bvals_tmp, orientation,
+                                            cellData->basis_pointers[i].get());
+      basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,dimension);
+      Kokkos::deep_copy(basis_vals,bvals);
+    }
+    else if (cellData->basis_types[i] == "HCURL"){
+      
+    }
+    basis.push_back(basis_vals);
+    basis_grad.push_back(basis_grad_vals);
+    basis_div.push_back(basis_div_vals);
+    basis_curl.push_back(basis_curl_vals);
+  }
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
