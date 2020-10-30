@@ -67,15 +67,17 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
   
   if (dimension == 2) {
     DRV ref_tangents = cellData->ref_side_tangents[localSideID(0)];
-    Intrepid2::RealSpaceTools<AssemblyExec>::matvec(tmptangents, ijac, ref_tangents);
+    RealTools::matvec(tmptangents, ijac, ref_tangents);
     
     DRV rotation("rotation matrix",dimension,dimension);
-    rotation(0,0) = 0;  rotation(0,1) = 1;
-    rotation(1,0) = -1; rotation(1,1) = 0;
-    Intrepid2::RealSpaceTools<AssemblyExec>::matvec(tmpnormals, rotation, tmptangents);
+    auto rotation_host = Kokkos::create_mirror_view(rotation);
+    rotation_host(0,0) = 0;  rotation_host(0,1) = 1;
+    rotation_host(1,0) = -1; rotation_host(1,1) = 0;
+    Kokkos::deep_copy(rotation, rotation_host);
+    RealTools::matvec(tmpnormals, rotation, tmptangents);
     
-    Intrepid2::RealSpaceTools<AssemblyExec>::vectorNorm(tmpwts, tmptangents, Intrepid2::NORM_TWO);
-    Intrepid2::ArrayTools<AssemblyExec>::scalarMultiplyDataData(tmpwts, tmpwts, ref_wts);
+    RealTools::vectorNorm(tmpwts, tmptangents, Intrepid2::NORM_TWO);
+    ArrayTools::scalarMultiplyDataData(tmpwts, tmpwts, ref_wts);
     
   }
   else if (dimension == 3) {
@@ -86,13 +88,13 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
     DRV faceTanU("face tangent U", numElem, numip, dimension);
     DRV faceTanV("face tangent V", numElem, numip, dimension);
     
-    Intrepid2::RealSpaceTools<AssemblyExec>::matvec(faceTanU, ijac, ref_tangentsU);
-    Intrepid2::RealSpaceTools<AssemblyExec>::matvec(faceTanV, ijac, ref_tangentsV);
+    RealTools::matvec(faceTanU, ijac, ref_tangentsU);
+    RealTools::matvec(faceTanV, ijac, ref_tangentsV);
     
-    Intrepid2::RealSpaceTools<AssemblyExec>::vecprod(tmpnormals, faceTanU, faceTanV);
+    RealTools::vecprod(tmpnormals, faceTanU, faceTanV);
     
-    Intrepid2::RealSpaceTools<AssemblyExec>::vectorNorm(tmpwts, tmpnormals, Intrepid2::NORM_TWO);
-    Intrepid2::ArrayTools<AssemblyExec>::scalarMultiplyDataData(tmpwts, tmpwts, ref_wts);
+    RealTools::vectorNorm(tmpwts, tmpnormals, Intrepid2::NORM_TWO);
+    ArrayTools::scalarMultiplyDataData(tmpwts, tmpwts, ref_wts);
     
   }
   

@@ -102,6 +102,8 @@ typedef Teuchos::RCP<Intrepid2::Basis<PHX::Device::execution_space, ScalarT, Sca
 typedef Intrepid2::CellTools<PHX::Device::execution_space> CellTools;
 typedef Intrepid2::FunctionSpaceTools<PHX::Device::execution_space> FuncTools;
 typedef Intrepid2::OrientationTools<PHX::Device::execution_space> OrientTools;
+typedef Intrepid2::RealSpaceTools<PHX::Device::execution_space> RealTools;
+typedef Intrepid2::ArrayTools<PHX::Device::execution_space> ArrayTools;
 
 // Tpetra linear algebra typedefs (Epetra is no longer supported)
 typedef Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>   LA_CrsMatrix;
