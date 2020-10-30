@@ -477,9 +477,17 @@ void solver::setButcherTableau(const string & tableau) {
   dev_butcher_b = Kokkos::View<ScalarT*,AssemblyDevice>("butcher_b on device",butcher_b.extent(0));
   dev_butcher_c = Kokkos::View<ScalarT*,AssemblyDevice>("butcher_c on device",butcher_c.extent(0));
   
-  Kokkos::deep_copy(dev_butcher_A, butcher_A);
-  Kokkos::deep_copy(dev_butcher_b, butcher_b);
-  Kokkos::deep_copy(dev_butcher_c, butcher_c);
+  auto tmp_butcher_A = Kokkos::create_mirror_view(dev_butcher_A);
+  auto tmp_butcher_b = Kokkos::create_mirror_view(dev_butcher_b);
+  auto tmp_butcher_c = Kokkos::create_mirror_view(dev_butcher_c);
+  
+  Kokkos::deep_copy(tmp_butcher_A, butcher_A);
+  Kokkos::deep_copy(tmp_butcher_b, butcher_b);
+  Kokkos::deep_copy(tmp_butcher_c, butcher_c);
+  
+  Kokkos::deep_copy(dev_butcher_A, tmp_butcher_A);
+  Kokkos::deep_copy(dev_butcher_b, tmp_butcher_b);
+  Kokkos::deep_copy(dev_butcher_c, tmp_butcher_c);
   
   for (size_t b=0; b<assembler->cells.size(); b++) {
     assembler->wkset[b]->butcher_A = dev_butcher_A;
