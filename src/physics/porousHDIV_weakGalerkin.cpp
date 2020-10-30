@@ -100,6 +100,8 @@ void porousHDIV_WG::volumeResidual() {
     source = functionManager->evaluate("source","ip");
     //perm = functionManager->evaluate("perm","ip");
     if (usePermData) {
+      auto wts = wkset->wts;
+      perm = Kokkos::View<AD**,AssemblyDevice>("permeability",wts.extent(0),wts.extent(1));
       this->updatePerm(perm);
     }
     else {
@@ -489,10 +491,7 @@ void porousHDIV_WG::setAuxVars(std::vector<string> & auxvarlist) {
 
 void porousHDIV_WG::updatePerm(FDATA perm) {
   
-  auto wts = wkset->wts;
-  perm = Kokkos::View<AD**,AssemblyDevice>("permeability",wts.extent(0),wts.extent(1));
   Kokkos::View<ScalarT**,AssemblyDevice> data = wkset->extra_data;
-  
   parallel_for("porous WG update perm",RangePolicy<AssemblyExec>(0,perm.extent(0)), KOKKOS_LAMBDA (const int elem ) {
     for (size_type pt=0; pt<perm.extent(1); pt++) {
       perm(elem,pt) = data(elem,0);

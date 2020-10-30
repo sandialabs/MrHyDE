@@ -43,7 +43,7 @@ ANONYMOUS:
     response type: global
     compute errors: true
     compute response: false
-    write solution: true
+    write solution: false
     compute objective: false
     compute sensitivities: false
 ...
