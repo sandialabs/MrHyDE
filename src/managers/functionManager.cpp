@@ -113,18 +113,18 @@ void FunctionManager::decomposeFunctions() {
   Teuchos::TimeMonitor ttimer(*decomposeTimer);
   
   for (size_t fiter=0; fiter<functions.size(); fiter++) {
-    
+   
     bool done = false; // will turn to "true" when the function is fully decomposed
     int maxiter = 20; // maximum number of recursions
     int iter = 0;
     
     while (!done && iter < maxiter) {
-      
+ 
       iter++;
       size_t Nterms = functions[fiter].terms.size();
       
       for (size_t k=0; k<Nterms; k++) {
-        
+
         // HAVE WE ALREADY LOOKED AT THIS TERM?
         bool decompose = true;
         if (functions[fiter].terms[k].isRoot || functions[fiter].terms[k].beenDecomposed) {
@@ -363,16 +363,19 @@ void FunctionManager::decomposeFunctions() {
             functions[fiter].terms[k].isScalar = true;
             functions[fiter].terms[k].isConstant = true; // means in does not need to be copied every time
             functions[fiter].terms[k].scalar_ddata = Kokkos::View<double*,AssemblyDevice>("scalar double data",1);
-            functions[fiter].terms[k].scalar_ddata(0) = std::stod(functions[fiter].terms[k].expression);
-            
+            //functions[fiter].terms[k].scalar_ddata(0) = std::stod(functions[fiter].terms[k].expression);
+            ScalarT val = std::stod(functions[fiter].terms[k].expression);
+            Kokkos::deep_copy(functions[fiter].terms[k].scalar_ddata, val);
+           
             // Copy the data just once
             Kokkos::View<double***,AssemblyDevice> tdata("scalar data",functions[fiter].dim0,functions[fiter].dim1,1);
             functions[fiter].terms[k].ddata = Kokkos::subview(tdata, Kokkos::ALL(), Kokkos::ALL(), 0);
-            for (size_t k2=0; k2<functions[fiter].dim0; k2++) {
-              for (size_t j2=0; j2<functions[fiter].dim1; j2++) {
-                functions[fiter].terms[k].ddata(k2,j2) = functions[fiter].terms[k].scalar_ddata(0);
-              }
-            }
+            Kokkos::deep_copy(functions[fiter].terms[k].ddata, val);
+            //for (size_t k2=0; k2<functions[fiter].dim0; k2++) {
+            //  for (size_t j2=0; j2<functions[fiter].dim1; j2++) {
+            //    functions[fiter].terms[k].ddata(k2,j2) = functions[fiter].terms[k].scalar_ddata(0);
+            //  }
+            //}
             decompose = false;
           }
         }
