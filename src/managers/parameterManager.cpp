@@ -591,8 +591,8 @@ void ParameterManager::sacadoizeParams(const bool & seed_active) {
   
   //vector<vector<AD> > paramvals_AD;
   //auto host_params = Kokkos::create_mirror_view(paramvals_KVAD);
-  Kokkos::View<AD**,HostDevice> host_params("copy on host",paramvals_KVAD.extent(0),paramvals_KVAD.extent(1));
-
+  Kokkos::View<AD**,AssemblyDevice> tmp_params("copy on host",paramvals_KVAD.extent(0),paramvals_KVAD.extent(1));
+  auto host_params = Kokkos::create_mirror_view(tmp_params);
   if (seed_active) {
     size_t pprog = 0;
     for (size_t i=0; i<paramvals.size(); i++) {
@@ -629,7 +629,8 @@ void ParameterManager::sacadoizeParams(const bool & seed_active) {
       *(paramvals_AD[i]) = currparams;
     }
   }
-  Kokkos::deep_copy(paramvals_KVAD,host_params);
+  Kokkos::deep_copy(tmp_params,host_params);
+  Kokkos::deep_copy(paramvals_KVAD,tmp_params);
   AssemblyExec::execution_space().fence();
   // TMW: these need to be depracated and removed
   phys->updateParameters(paramvals_AD, paramnames);
