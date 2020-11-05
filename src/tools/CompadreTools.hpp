@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
 ************************************************************************/
 
-#ifndef COMPADRE_INTERFACE_H
-#define COMPADRE_INTERFACE_H
+#ifndef COMPADRE_TOOLS_H
+#define COMPADRE_TOOLS_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
@@ -35,12 +35,14 @@
 // closest to each cell.
 KOKKOS_INLINE_FUNCTION
 Compadre::NeighborLists<Kokkos::View<int*> > 
-CompadreInterface_constructNeighborLists(Kokkos::View<double**, AssemblyDevice> sensor_coords,
-                                         Kokkos::View<double**, AssemblyDevice> cell_coords) {
+CompadreTools_constructNeighborLists(const Kokkos::View<ScalarT**, AssemblyDevice> &sensor_coords,
+                                     const Kokkos::View<ScalarT**, AssemblyDevice> &cell_coords,
+                                     Kokkos::View<ScalarT*, AssemblyDevice> &epsilon) {
 
   // LO number_sensor_coords = sensor_coords.extent(0);
   LO number_cell_coords = cell_coords.extent(0);
-  LO dimension = sensor_coords.extent(1); // assuming this matches cell_coords.extent(1)
+  LO dimension = sensor_coords.extent(1);
+  TEUCHOS_ASSERT(cell_coords.extent(1)==sensor_coords.extent(1));
   int min_neighbors = 1; // must find at least 1 neighbor
   double epsilon_mult = 1.; // if you want to search for many neighbors within a multiplied radius of the closest neighbor, increase this
 
@@ -52,17 +54,19 @@ CompadreInterface_constructNeighborLists(Kokkos::View<double**, AssemblyDevice> 
   Kokkos::View<int*>::HostMirror number_of_neighbors_list = Kokkos::create_mirror_view(number_of_neighbors_list_device);
   
   // each target site has a window size
-  Kokkos::View<double*, AssemblyDevice> epsilon_device("h supports", number_cell_coords);
-  Kokkos::View<double*>::HostMirror epsilon = Kokkos::create_mirror_view(epsilon_device);
+  Kokkos::resize(epsilon,number_cell_coords);
+  Kokkos::View<double*>::HostMirror epsilon_h = Kokkos::create_mirror_view(epsilon);
   
   auto point_cloud_search(Compadre::CreatePointCloudSearch(sensor_coords, dimension));
   
-  size_t storage_size = point_cloud_search.generateCRNeighborListsFromKNNSearch(true /*dry run*/, cell_coords, neighbor_lists, number_of_neighbors_list, epsilon, min_neighbors, epsilon_mult);
+  size_t storage_size = point_cloud_search.generateCRNeighborListsFromKNNSearch(true /*dry run*/, cell_coords, neighbor_lists, number_of_neighbors_list, epsilon_h, min_neighbors, epsilon_mult);
 
   Kokkos::resize(neighbor_lists_device, storage_size);
+  TEUCHOS_ASSERT(neighbor_lists_device.extent(0)==number_cell_coords); // if this assert fails, some points have multiple neighbors of equal distance, which requires some updates in implementation
+
   neighbor_lists = Kokkos::create_mirror_view(neighbor_lists_device);
   
-  point_cloud_search.generateCRNeighborListsFromKNNSearch(false /*not dry run*/, cell_coords, neighbor_lists, number_of_neighbors_list, epsilon, min_neighbors, epsilon_mult);
+  point_cloud_search.generateCRNeighborListsFromKNNSearch(false /*not dry run*/, cell_coords, neighbor_lists, number_of_neighbors_list, epsilon_h, min_neighbors, epsilon_mult);
   
   Compadre::NeighborLists<Kokkos::View<int*> > neighbor_lists_object = Compadre::NeighborLists<Kokkos::View<int*> >(neighbor_lists, number_of_neighbors_list);
   // referred to as nla sometimes, has methods in Compadre_NeighborLists.hpp

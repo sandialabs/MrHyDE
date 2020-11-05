@@ -16,7 +16,7 @@
 #include "Panzer_DOFManager.hpp"
 
 #include "meshInterface.hpp"
-#include "Compadre_interface.hpp"
+#include "CompadreTools.hpp"
 
 #include <iostream>
 
@@ -64,7 +64,7 @@ int main(int argc, char * argv[]) {
   double zmin = 0., zmax = 1.;
 
   // DO NOT MODIFY BEYOND HERE
-  // unsigned int numElem = nx*ny*nz;
+  unsigned int numElem = nx*ny*nz;
 
   // step between elements
   double dx = (xmax-xmin)/nx;
@@ -77,7 +77,7 @@ int main(int argc, char * argv[]) {
   double offset_z = dz/2.;
 
   // compute "centers" of cells on this hypothetical mesh
-  Kokkos::View<double**, HostDevice> centers("centers",nx*ny*nz,3);
+  Kokkos::View<double**, HostDevice> centers("centers",numElem,spaceDim);
   for (unsigned int ix=0; ix<nx; ix++) {
     for (unsigned int iy=0; iy<ny; iy++) {
       for (unsigned int iz=0; iz<nz; iz++) {
@@ -95,7 +95,7 @@ int main(int argc, char * argv[]) {
     std::cout << "Starting the mesh_data->findClosestNode approach..." << std::endl;
 
   // Test the mesh_data->findClosestNode approach
-  Kokkos::View<int*, HostDevice> cnode_meshdata("cnode_meshdata",nx*ny*nz);
+  Kokkos::View<int*, HostDevice> cnode_meshdata("cnode_meshdata",numElem);
   Teuchos::Time meshdataTimer("meshdata approach",true);
   {
     for (unsigned int ix=0; ix<nx; ix++) {
@@ -105,7 +105,7 @@ int main(int argc, char * argv[]) {
 
           unsigned int j = iz*ny*nx + iy*nx + ix;
           // find the closest mesh_data point to "center"
-          cnode_meshdata(j) = mesh_data->findClosestNode(centers(j,0), centers(j,1), centers(j,2), distance);
+	  //          cnode_meshdata(j) = mesh_data->findClosestNode(centers(j,0), centers(j,1), centers(j,2), distance);
         }
       }
     }
@@ -126,24 +126,24 @@ int main(int argc, char * argv[]) {
       std::cout << "}" << std::endl << std::endl;
     }
 
-    std::cout << "Starting the CompadreInterface_constructNeighborLists approach..." << std::endl;
+    std::cout << "Starting the CompadreTools_constructNeighborLists approach..." << std::endl;
   }
 
-  // Test the CompadreInterface_constructNeighborLists approach
-  Kokkos::View<int*> cnode_compadre("cnode_compadre",nx*ny*nz);
+  // Test the CompadreTools_constructNeighborLists approach
+  Kokkos::View<int*> cnode_compadre("cnode_compadre",numElem);
   Teuchos::Time compadreTimer("compadre approach",true);
   {
     Kokkos::View<double**, AssemblyDevice> sensor_coords = mesh_data->getpoints();
-    
-    Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreInterface_constructNeighborLists(sensor_coords, centers);
+    Kokkos::View<double*, AssemblyDevice> distance("distance",numElem);
+    Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(sensor_coords, centers, distance);
     cnode_compadre = neighborlists.getNeighborLists();
   }
   ScalarT compadreTime = compadreTimer.stop();
-  // End the CompadreInterface_constructNeighborLists approach
+  // End the CompadreTools_constructNeighborLists approach
 
 
   if(myRank == 0) {
-    std::cout << "Finished the CompadreInterface_constructNeighborLists approach!" << std::endl;
+    std::cout << "Finished the CompadreTools_constructNeighborLists approach!" << std::endl;
     std::cout << "Elapsed time: " << compadreTime << std::endl;
     std::cout << std::endl;
 

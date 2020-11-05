@@ -394,6 +394,7 @@ void data::importSensor(const std::string & sensorfile) {
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
+/*
 ScalarT data::getvalue(const ScalarT & x, const ScalarT & y, const ScalarT & z,
                        const ScalarT & time, const std::string & label) const {
   
@@ -402,7 +403,7 @@ ScalarT data::getvalue(const ScalarT & x, const ScalarT & y, const ScalarT & z,
   // find the closest point
   ScalarT val = 0.0;
   if (is_spatialdep) {
-    int cnode = this->findClosestNode(x, y, z);
+    int cnode = this->findClosestNode(x, y, z); // GH: this needs to be updated if uncommented
     //cout << "cnode = " << cnode << endl;
     
     Kokkos::View<ScalarT**,HostDevice> sdata = sensordata[cnode];
@@ -442,98 +443,32 @@ ScalarT data::getvalue(const ScalarT & x, const ScalarT & y, const ScalarT & z,
   
   return val;
 }
+*/
 
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-int data::findClosestNode(const ScalarT & x, const ScalarT & y, const ScalarT & z) const {
+void data::findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords,
+			   Kokkos::View<int*, AssemblyDevice> &cnode) const {
   
   Teuchos::TimeMonitor timer(*dataClosestTimer);
-  
-  int node = 0;
-  ScalarT dist = (ScalarT)RAND_MAX;
-  
-  if (spaceDim == 1) {
-    for( int i=0; i<numSensors; i++ ) {
-      ScalarT xhat = sensorlocations(i,0);
-      ScalarT d = (x-xhat)*(x-xhat);
-      if( d<dist ) {
-        node = i;
-        dist = d;
-      }
-    }
-  }
-  if (spaceDim == 2) {
-    for( int i=0; i<numSensors; i++ ) {
-      ScalarT xhat = sensorlocations(i,0);
-      ScalarT yhat = sensorlocations(i,1);
-      ScalarT d = (x-xhat)*(x-xhat) + (y-yhat)*(y-yhat);
-      if( d<dist ) {
-        node = i;
-        dist = d;
-      }
-    }
-  }
-  if (spaceDim == 3) {
-    for( int i=0; i<numSensors; i++ ) {
-      ScalarT xhat = sensorlocations(i,0);
-      ScalarT yhat = sensorlocations(i,1);
-      ScalarT zhat = sensorlocations(i,2);
-      ScalarT d = (x-xhat)*(x-xhat) + (y-yhat)*(y-yhat) + (z-zhat)*(z-zhat);
-      if( d<dist ) {
-        node = i;
-        dist = d;
-      }
-    }
-  }
-  return node;
+  Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",sensorlocations.extent(0));
+
+  Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(sensorlocations, coords, distance);
+  cnode = neighborlists.getNeighborLists();
 }
 
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-int data::findClosestNode(const ScalarT & x, const ScalarT & y, const ScalarT & z, ScalarT & distance) const {
-  
+void data::findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords,
+			   Kokkos::View<int*, AssemblyDevice> &cnode,
+			   Kokkos::View<ScalarT*, AssemblyDevice> &distance) const {
+
   Teuchos::TimeMonitor timer(*dataClosestTimer);
   
-  int node = 0;
-  ScalarT dist = (ScalarT)RAND_MAX;
-  
-  if (spaceDim == 1) {
-    for( int i=0; i<numSensors; i++ ) {
-      ScalarT xhat = sensorlocations(i,0);
-      ScalarT d = (x-xhat)*(x-xhat);
-      if( d<dist ) {
-        node = i;
-        dist = d;
-      }
-    }
-  }
-  if (spaceDim == 2) {
-    for( int i=0; i<numSensors; i++ ) {
-      ScalarT xhat = sensorlocations(i,0);
-      ScalarT yhat = sensorlocations(i,1);
-      ScalarT d = (x-xhat)*(x-xhat) + (y-yhat)*(y-yhat);
-      if( d<dist ) {
-        node = i;
-        dist = d;
-      }
-    }
-  }
-  if (spaceDim == 3) {
-    for( int i=0; i<numSensors; i++ ) {
-      ScalarT xhat = sensorlocations(i,0);
-      ScalarT yhat = sensorlocations(i,1);
-      ScalarT zhat = sensorlocations(i,2);
-      ScalarT d = (x-xhat)*(x-xhat) + (y-yhat)*(y-yhat) + (z-zhat)*(z-zhat);
-      if( d<dist ) {
-        node = i;
-        dist = d;
-      }
-    }
-  }
-  distance = sqrt(dist);
-  return node;
+  Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(sensorlocations, coords, distance);
+  cnode = neighborlists.getNeighborLists();
 }
 
 
@@ -619,13 +554,6 @@ int data::findClosestGridNode(const ScalarT & x, const ScalarT & y, const Scalar
   
   return node;
   
-}
-
-/////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////
-
-std::string data::getname() {
-  return name;
 }
 
 /////////////////////////////////////////////////////////////////////////////

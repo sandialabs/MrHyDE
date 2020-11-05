@@ -17,6 +17,7 @@
 #include "trilinos.hpp"
 #include <iostream>     
 #include <iterator>     
+#include "CompadreTools.hpp"
 
 namespace MrHyDE {
   
@@ -91,14 +92,16 @@ namespace MrHyDE {
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
-    
-    int findClosestNode(const ScalarT & x, const ScalarT & y, const ScalarT & z) const;
+
+    void findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords, 
+                         Kokkos::View<int*, AssemblyDevice> &cnode) const;
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     
-    int findClosestNode(const ScalarT & x, const ScalarT & y, const ScalarT & z, ScalarT & distance) const;
-    
+    void findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords, 
+                         Kokkos::View<int*, AssemblyDevice> &cnode, 
+                         Kokkos::View<ScalarT*, AssemblyDevice> &distance) const;
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////

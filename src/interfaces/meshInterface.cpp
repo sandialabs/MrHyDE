@@ -702,24 +702,28 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
           DRV nodes = cells[b][e]->nodes;
           int numElem = cells[b][e]->numElem;
           
+          Kokkos::View<ScalarT**, AssemblyDevice> center("center",numElem,spaceDim);
           for (int c=0; c<numElem; c++) {
-            Kokkos::View<ScalarT[1][3],HostDevice> center("center");
             for (size_t i=0; i<nodes.extent(1); i++) {
               for (int j=0; j<spaceDim; j++) {
-                center(0,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
+                center(c,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
               }
             }
-            ScalarT distance = 0.0;
-            
-            int cnode = mesh_data->findClosestNode(center(0,0), center(0,1), center(0,2), distance);
-            bool iscloser = true;
+	  }
+
+	  Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
+	  Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);  
+          mesh_data->findClosestNode(center,cnode,distance);
+
+          bool iscloser = true;
+          for (int c=0; c<numElem; c++) {
             if (p>0){
-              if (cells[b][e]->cell_data_distance[c] < distance) {
+              if (cells[b][e]->cell_data_distance[c] < distance(c)) {
                 iscloser = false;
               }
             }
             if (iscloser) {
-              Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
+              Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode(c));
               for (size_t i=0; i<cdata.extent(1); i++) {
                 cells[b][e]->cell_data(c,i) = cdata(0,i);
               }
@@ -728,10 +732,10 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
                 cells[b][e]->cellData->have_cell_rotation = true;
               if (have_rotation_phi)
                 cells[b][e]->cellData->have_cell_phi = true;
-              
-              cells[b][e]->cell_data_seed[c] = cnode;
-              cells[b][e]->cell_data_seedindex[c] = cnode % 50;
-              cells[b][e]->cell_data_distance[c] = distance;
+            
+              cells[b][e]->cell_data_seed[c] = cnode(c);
+              cells[b][e]->cell_data_seedindex[c] = cnode(c) % 50;
+              cells[b][e]->cell_data_distance[c] = distance(c);
             }
           }
         }
