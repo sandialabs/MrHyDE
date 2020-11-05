@@ -602,8 +602,7 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
     
     if (assembler->cells[block].size() > 0) {
       
-      assembler->wkset[altblock]->time = currenttime;
-      assembler->wkset[altblock]->time_KV(0) = currenttime;
+      assembler->wkset[altblock]->setTime(currenttime);
       
       // Need to use time step solution instead of stage solution
       bool isTransient = assembler->wkset[altblock]->isTransient;
