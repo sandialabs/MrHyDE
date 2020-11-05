@@ -62,7 +62,7 @@ CompadreTools_constructNeighborLists(const Kokkos::View<ScalarT**, AssemblyDevic
   size_t storage_size = point_cloud_search.generateCRNeighborListsFromKNNSearch(true /*dry run*/, cell_coords, neighbor_lists, number_of_neighbors_list, epsilon_h, min_neighbors, epsilon_mult);
 
   Kokkos::resize(neighbor_lists_device, storage_size);
-  TEUCHOS_ASSERT(neighbor_lists_device.extent(0)==number_cell_coords); // if this assert fails, some points have multiple neighbors of equal distance, which requires some updates in implementation
+  TEUCHOS_ASSERT(neighbor_lists_device.extent(0)==cell_coords.extent(0)); // if this assert fails, some points have multiple neighbors of equal distance, which requires some updates in implementation
 
   neighbor_lists = Kokkos::create_mirror_view(neighbor_lists_device);
   

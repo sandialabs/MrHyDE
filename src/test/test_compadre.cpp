@@ -44,7 +44,8 @@ int main(int argc, char * argv[]) {
   if(myRank == 0) {
     std::cout << std::endl << "Notes:" << std::endl;
     std::cout << "  1. This will segfault if it isn't run from the MrHyDE-build/src/ directory!" << std::endl;
-    std::cout << "  2. There is an abuse of notation here. If a point has more than one 'exact' closest neighbor, an additional step needs to be taken to choose either of the two closest neighbors." << std::endl << std::endl;
+    std::cout << "  2. There is an abuse of notation here. If a point has more than one 'exact' closest neighbor, an additional step needs to be taken to choose either of the two closest neighbors." << std::endl;
+    std::cout << "  3. This test is being phased out now that the changes have been implemented in the data class." << std::endl << std::endl;
   }
 
   const unsigned int spaceDim = 3;
@@ -101,9 +102,9 @@ int main(int argc, char * argv[]) {
     for (unsigned int ix=0; ix<nx; ix++) {
       for (unsigned int iy=0; iy<ny; iy++) {
         for (unsigned int iz=0; iz<nz; iz++) {
-          ScalarT distance = 0.0;
+          // ScalarT distance = 0.0;
 
-          unsigned int j = iz*ny*nx + iy*nx + ix;
+          // unsigned int j = iz*ny*nx + iy*nx + ix;
           // find the closest mesh_data point to "center"
 	  //          cnode_meshdata(j) = mesh_data->findClosestNode(centers(j,0), centers(j,1), centers(j,2), distance);
         }
