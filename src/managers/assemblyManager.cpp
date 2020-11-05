@@ -817,7 +817,10 @@ void AssemblyManager::assembleJacRes(const bool & compute_jacobian, const bool &
   //////////////////////////////////////////////////////////////////////////////////////
   
   if (isTransient) {
-    ScalarT timeval = current_time + wkset[b]->butcher_c(wkset[b]->current_stage)*deltat;
+    // TMW: tmp fix
+    auto butcher_c = Kokkos::create_mirror_view(wkset[b]->butcher_c);
+    Kokkos::deep_copy(butcher_c, wkset[b]->butcher_c);
+    ScalarT timeval = current_time + butcher_c(wkset[b]->current_stage)*deltat;
     
     wkset[b]->setTime(timeval);
     wkset[b]->setDeltat(deltat);
