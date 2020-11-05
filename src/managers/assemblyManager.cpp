@@ -923,8 +923,10 @@ void AssemblyManager::assembleJacRes(const bool & compute_jacobian, const bool &
       local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numDOF);
     }
     
-    Kokkos::View<ScalarT***,HostDevice> local_res_host("local residual on host",numElem,numDOF,local_res.extent(2));// = create_mirror_view(local_res);
-    Kokkos::View<ScalarT***,HostDevice> local_J_host("local J on host",numElem,numDOF,local_J.extent(2));// = create_mirror_view(local_J);
+    //Kokkos::View<ScalarT***,HostDevice> local_res_host("local residual on host",numElem,numDOF,local_res.extent(2));
+    auto local_res_host = create_mirror_view(local_res);
+    //Kokkos::View<ScalarT***,HostDevice> local_J_host("local J on host",numElem,numDOF,local_J.extent(2));
+    auto local_J_host = create_mirror_view(local_J);
     
     for (size_t e=0; e < boundaryCells[b].size(); e++) {
       
