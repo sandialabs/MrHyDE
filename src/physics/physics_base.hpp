@@ -16,7 +16,7 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "data.hpp"
+//#include "data.hpp"
 #include "klexpansion.hpp"
 #include "workset.hpp"
 #include "functionManager.hpp"
