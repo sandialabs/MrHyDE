@@ -1496,7 +1496,9 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
       
       for (size_t e=0; e<assembler->cells[b].size(); e++) {
         
-        Kokkos::View<AD**,AssemblyDevice> obj = assembler->cells[b][e]->computeObjective(time, tindex, 0);
+        Kokkos::View<AD**,AssemblyDevice> obj_dev = assembler->cells[b][e]->computeObjective(time, tindex, 0);
+        auto obj = Kokkos::create_mirror_view(obj_dev);
+        Kokkos::deep_copy(obj,obj_dev);
         
         size_t numElem = assembler->cells[b][e]->numElem;
         

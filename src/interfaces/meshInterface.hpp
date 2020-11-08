@@ -29,6 +29,7 @@
 #include "preferences.hpp"
 #include "physicsInterface.hpp"
 #include "cell.hpp"
+#include "data.hpp"
 #include "boundaryCell.hpp"
 #include "multiscaleManager.hpp"
 
