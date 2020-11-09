@@ -218,11 +218,7 @@ void FunctionManager::decomposeFunctions() {
                                                              functions[fiter].dim0,
                                                              functions[fiter].dim1,1);
                 functions[fiter].terms[k].ddata = Kokkos::subview(tdata, Kokkos::ALL(), Kokkos::ALL(), 0);
-                for (size_t k2=0; k2<functions[fiter].dim0; k2++) {
-                  for (size_t j2=0; j2<functions[fiter].dim1; j2++) {
-                    functions[fiter].terms[k].ddata(k2,j2) = PI;
-                  }
-                }
+                Kokkos::deep_copy(functions[fiter].terms[k].ddata, PI);
                 decompose = false;
               }
             }
