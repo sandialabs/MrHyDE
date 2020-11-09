@@ -1500,8 +1500,8 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
         parallel_for("cell objective",RangePolicy<AssemblyExec>(0,obj_dev.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
           for (size_type i=0; i<obj_dev.extent(1); i++) {
             obj_sc_dev(elem,i,0) = obj_dev(elem,i).val();
-            for (int j=0; j<obj_sc_dev.extent(2)-1; j++) {
-              obj_sc_dev(elem,i,j+1) = obj_dev(elem,i).fastAccessDx(j);
+            for (size_type j=1; j<obj_sc_dev.extent(2); j++) {
+              obj_sc_dev(elem,i,j) = obj_dev(elem,i).fastAccessDx(j-1);
             }
           }
         });
