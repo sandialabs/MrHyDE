@@ -1491,18 +1491,26 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
       assembler->performGather(F_soln, 0, 0);
       assembler->performGather(params->Psol[0], 4, 0);
       
-      //assembler->performBoundaryGather(b, F_soln, 0, 0);
-      //assembler->performBoundaryGather(b, params->Psol[0], 4, 0);
-      
       for (size_t e=0; e<assembler->cells[b].size(); e++) {
         
         Kokkos::View<AD**,AssemblyDevice> obj_dev = assembler->cells[b][e]->computeObjective(time, tindex, 0);
-        auto obj = Kokkos::create_mirror_view(obj_dev);
-        Kokkos::deep_copy(obj,obj_dev);
+        Kokkos::View<ScalarT***,AssemblyDevice> obj_sc_dev("obj func as scalar on device",obj_dev.extent(0),
+                                                           obj_dev.extent(1),numParams+1);
+        
+        parallel_for("cell objective",RangePolicy<AssemblyExec>(0,obj_dev.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+          for (size_type i=0; i<obj_dev.extent(1); i++) {
+            obj_sc_dev(elem,i,0) = obj_dev(elem,i).val();
+            for (int j=0; j<obj_sc_dev.extent(2)-1; j++) {
+              obj_sc_dev(elem,i,j+1) = obj_dev(elem,i).fastAccessDx(j);
+            }
+          }
+        });
+        auto obj = Kokkos::create_mirror_view(obj_sc_dev);
+        Kokkos::deep_copy(obj,obj_sc_dev);
         
         size_t numElem = assembler->cells[b][e]->numElem;
         
-        if (obj.extent(1) > 0) {
+        if (obj.extent(1) > 0) { // may be zero if using sensors
           for (size_t c=0; c<numElem; c++) {
             vector<GO> paramGIDs;
             if (params->globalParamUnknowns > 0) {
@@ -1510,26 +1518,21 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
                                                paramGIDs, blocknames[b]);
             }
             for (size_type i=0; i<obj.extent(1); i++) {
-              totaldiff += obj(c,i);
-              if (params->num_active_params > 0) {
-                if (obj(c,i).size() > 0) {
-                  ScalarT val;
-                  val = obj(c,i).fastAccessDx(0);
-                  dmGradient[0] += val;
-                }
+              totaldiff.val() += obj(c,i,0);
+              for (int p=0; p<params->num_active_params; p++) {
+                ScalarT val;
+                val = obj(c,i,p+1);
+                dmGradient[p] += val;
               }
-              
               if (params->globalParamUnknowns > 0) {
                 
                 for (size_t row=0; row<params->paramoffsets[0].size(); row++) {
                   GO rowIndex = paramGIDs[params->paramoffsets[0][row]];
                   
-                  int poffset = params->paramoffsets[0][row];
+                  int poffset = 1+params->paramoffsets[0][row];
                   ScalarT val;
-                  if (obj(c,i).size() > params->num_active_params) {
-                    val = obj(c,i).fastAccessDx(poffset+params->num_active_params);
-                    dmGradient[rowIndex+params->num_active_params] += val;
-                  }
+                  val = obj(c,i,poffset+params->num_active_params);
+                  dmGradient[rowIndex+params->num_active_params] += val;
                 }
               }
             }
@@ -1608,7 +1611,7 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
   
   DFAD fullobj(numParams,meep);
   
-  for (int j=0; j< numParams; j++) {
+  for (int j=0; j<numParams; j++) {
     ScalarT dval;
     ScalarT ldval = dmGradient[j] + regGradient[j];
     Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&ldval,&dval);
