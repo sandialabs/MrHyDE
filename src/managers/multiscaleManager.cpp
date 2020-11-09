@@ -132,10 +132,18 @@ ScalarT MultiScale::initialize() {
         std::stringstream ss;
         ss << s;
         FDATA usagecheck = macro_functionManagers[0]->evaluate("Subgrid " + ss.str() + " usage","ip");
+        Kokkos::View<ScalarT**,AssemblyDevice> usagecheck_tmp("temp usage check",usagecheck.extent(0),usagecheck.extent(1));
+        parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,usagecheck.extent(0)), KOKKOS_LAMBDA (const int i ) {
+          for (size_type j=0; j<usagecheck.extent(1); j++) {
+            usagecheck_tmp(i,j) = usagecheck(i,j).val();
+          }
+        });
         
+        auto host_usagecheck = Kokkos::create_mirror_view(usagecheck_tmp);
+        Kokkos::deep_copy(host_usagecheck, usagecheck_tmp);
         for (size_t p=0; p<cells[b][e]->numElem; p++) {
-          for (size_t j=0; j<usagecheck.extent(1); j++) {
-            if (usagecheck(p,j).val() >= 1.0) {
+          for (size_t j=0; j<host_usagecheck.extent(1); j++) {
+            if (host_usagecheck(p,j) >= 1.0) {
               sgvotes[s] += 1;
             }
           }
