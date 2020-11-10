@@ -301,7 +301,7 @@ void SubGridFEM::setUpSubgridModels() {
       
       // Build the Kokkos View of the cell GIDs ------
       
-      LIDView cellLIDs("LIDs on host device", currElem,LIDs.extent(1));
+      LIDView cellLIDs("LIDs on device", currElem,LIDs.extent(1));
       parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int i ) {
         size_t elemID = eIndex(i);
         for (size_type j=0; j<LIDs.extent(1); j++) {
@@ -317,14 +317,16 @@ void SubGridFEM::setUpSubgridModels() {
       // Set the cell orientation ---
       Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices",
                                                                       currElem, numNodesPerElem);
+      auto host_currind = Kokkos::create_mirror_view(currind);
       for (size_t i=0; i<currElem; i++) {
         vector<stk::mesh::EntityId> stk_nodeids;
         size_t elemID = eIndex(i);
         sub_mesh->mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
         for (int n=0; n<numNodesPerElem; n++) {
-          currind(i,n) = stk_nodeids[n];
+          host_currind(i,n) = stk_nodeids[n];
         }
       }
+      Kokkos::deep_copy(currind, host_currind);
       
       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orient_drv("kv to orients",currElem);
       Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *(sub_mesh->cellTopo[0]));
@@ -444,6 +446,7 @@ void SubGridFEM::setUpSubgridModels() {
     
       // Use the subgrid mesh interface to define new nodes
       DRV newnodes = sgt.getPhysicalNodes(macroData[mindex]->macronodes, macro_cellTopo);
+      
       //DRV newnodes = sgt.getNewNodes(macroData[mindex]->macronodes);
       
       int sprog = 0;
@@ -497,7 +500,7 @@ void SubGridFEM::setUpSubgridModels() {
         Kokkos::View<LO*,AssemblyDevice> localID_0 = cells[0][0]->localElemID;
         LIDView LIDs_0 = cells[0][0]->LIDs;
         Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation_0 = cells[0][0]->orientation;
-        parallel_for("cell hsize",RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int e ) {
+        parallel_for("subgrid LIDs",RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int e ) {
           localID(e) = localID_0(e);
           orientation(e) = orientation_0(e);
           for (size_t j=0; j<LIDs.extent(1); j++) {
@@ -529,19 +532,28 @@ void SubGridFEM::setUpSubgridModels() {
       vector<Teuchos::RCP<BoundaryCell> > newbcells;
       for (size_t s=0; s<unique_sides.size(); s++) {
         vector<size_t> group = boundary_groups[s];
-        DRV currnodes("currnodes", group.size(), numNodesPerElem, dimension);
-        //vector<size_t> mIDs;
+        Kokkos::View<size_t*,AssemblyDevice> group_KV("group members on device",group.size());
+        auto group_KV_host = Kokkos::create_mirror_view(group_KV);
         for (size_t e=0; e<group.size(); e++) {
-          size_t eIndex = group[e];
+          group_KV_host(e) = group[e];
+        }
+        Kokkos::deep_copy(group_KV, group_KV_host);
+        
+        DRV currnodes("currnodes", group.size(), numNodesPerElem, dimension);
+        
+        //vector<size_t> mIDs;
+        parallel_for("subgrid bcell group",RangePolicy<AssemblyExec>(0,currnodes.extent(0)), KOKKOS_LAMBDA (const int e ) {
+          size_t eIndex = group_KV(e);
           //size_t mID = macroData[mindex]->macroIDs(eIndex);//localData[mindex]->getMacroID(eIndex);
           
           //mIDs.push_back(mID);
-          for (int n=0; n<numNodesPerElem; n++) {
-            for (int m=0; m<dimension; m++) {
+          for (size_type n=0; n<currnodes.extent(1); n++) {
+            for (size_type m=0; m<currnodes.extent(2); m++) {
               currnodes(e,n,m) = newnodes(eIndex,n,m);//newnodes[connectivity[eIndex][n]][m];
             }
           }
-        }
+        });
+        
         int numElem = currnodes.extent(0);
         int maxElem = boundaryCells[0][s]->numElem;
         Kokkos::View<LO*,AssemblyDevice> localID;
@@ -571,7 +583,7 @@ void SubGridFEM::setUpSubgridModels() {
             localID(e) = localID_0(e);
             orientation(e) = orientation_0(e);
             sideID(e) = sideID_0(e);
-            for (size_t j=0; j<LIDs.extent(1); j++) {
+            for (size_type j=0; j<LIDs.extent(1); j++) {
               LIDs(e,j) = LIDs_0(e,j);
             }
           });
@@ -602,9 +614,9 @@ void SubGridFEM::setUpSubgridModels() {
           currbcs(i,j) = 5;
         }
       }
-      for (size_t c=0; c<subsideinfo.extent(0); c++) {
-        for (size_t i=0; i<subsideinfo.extent(1); i++) { // number of variables
-          for (size_t j=0; j<subsideinfo.extent(2); j++) { // number of sides per element
+      for (size_type c=0; c<subsideinfo.extent(0); c++) {
+        for (size_type i=0; i<subsideinfo.extent(1); i++) { // number of variables
+          for (size_type j=0; j<subsideinfo.extent(2); j++) { // number of sides per element
             if (subsideinfo(c,i,j,0) > 1) { // TMW: should != 5
               for (size_t p=0; p<unique_sides.size(); p++) {
                 if (unique_sides[p] == subsideinfo(c,i,j,1)) {
@@ -656,12 +668,16 @@ void SubGridFEM::setUpSubgridModels() {
       // define the macro LIDs
       LIDView cLIDs("boundary macro LIDs",numElem,
                     macroData[mindex]->macroLIDs.extent(1));
+      auto cLIDs_host = Kokkos::create_mirror_view(cLIDs);
+      auto macroLIDs_host = Kokkos::create_mirror_view(macroData[mindex]->macroLIDs);
+      Kokkos::deep_copy(macroLIDs_host,macroData[mindex]->macroLIDs);
       for (size_t c=0; c<numElem; c++) {
         size_t mid = mIDs[c];
         for (size_type i=0; i<cLIDs.extent(1); i++) {
-          cLIDs(c,i) = macroData[mindex]->macroLIDs(mid,i);
+          cLIDs_host(c,i) = macroLIDs_host(mid,i);
         }
       }
+      Kokkos::deep_copy(cLIDs,cLIDs_host);
       boundaryCells[mindex][e]->auxLIDs = cLIDs;
     }
     
@@ -709,36 +725,42 @@ void SubGridFEM::setUpSubgridModels() {
             }
             for (size_t c=0; c<numElem; c++) {
               DRV side_ip_e("side_ip_e",1, sside_ip.extent(1), sside_ip.extent(2));
-              for (size_type i=0; i<sside_ip.extent(1); i++) {
-                for (size_type j=0; j<sside_ip.extent(2); j++) {
-                  side_ip_e(0,i,j) = sside_ip(c,i,j);
+              auto cip = Kokkos::subview(sside_ip,c,Kokkos::ALL(),Kokkos::ALL());
+              parallel_for("subgrid aux ip",RangePolicy<AssemblyExec>(0,cip.extent(0)), KOKKOS_LAMBDA (const int i ) {
+                for (size_type j=0; j<cip.extent(1); j++) {
+                  side_ip_e(0,i,j) = cip(i,j);
                 }
-              }
+              });
+              
               DRV sref_side_ip_tmp("sref_side_ip_tmp",1, sside_ip.extent(1), sside_ip.extent(2));
               DRV sref_side_ip("sref_side_ip", sside_ip.extent(1), sside_ip.extent(2));
               size_t mID = boundaryCells[mindex][e]->auxMIDs[c];
               DRV cnodes("tmp nodes",1,macroData[mindex]->macronodes.extent(1),
                          macroData[mindex]->macronodes.extent(2));
-              for (size_type i=0; i<macroData[mindex]->macronodes.extent(1); i++) {
-                for (size_type j=0; j<macroData[mindex]->macronodes.extent(2); j++) {
-                  cnodes(0,i,j) = macroData[mindex]->macronodes(mID,i,j);
+              auto mnodes = Kokkos::subview(macroData[mindex]->macronodes,mID,Kokkos::ALL(),Kokkos::ALL());
+              parallel_for("subgrid aux nodes",RangePolicy<AssemblyExec>(0,mnodes.extent(0)), KOKKOS_LAMBDA (const int i ) {
+                for (size_type j=0; j<mnodes.extent(1); j++) {
+                  cnodes(0,i,j) = mnodes(i,j);
                 }
-              }
+              });
+              
               CellTools::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, cnodes, *macro_cellTopo);
-              for (size_type i=0; i<sside_ip.extent(1); i++) {
-                for (size_type j=0; j<sside_ip.extent(2); j++) {
+              parallel_for("subgrid aux ip2",RangePolicy<AssemblyExec>(0,sref_side_ip.extent(0)), KOKKOS_LAMBDA (const int i ) {
+                for (size_type j=0; j<sref_side_ip.extent(1); j++) {
                   sref_side_ip(i,j) = sref_side_ip_tmp(0,i,j);
                 }
-              }
+              });
+              
               Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("tmp orientation",1);
               corientation(0) = macroData[mindex]->macroorientation(mID);
               for (size_t i=0; i<macro_basis_pointers.size(); i++) {
                 DRV bvals = sub_disc->evaluateBasis(macro_basis_pointers[i], sref_side_ip, corientation);
-                for (size_type k=0; k<bvals.extent(1); k++) {
+                auto cbasis = Kokkos::subview(currside_basis[i],c,Kokkos::ALL(), Kokkos::ALL());
+                parallel_for("subgrid aux bvals",RangePolicy<AssemblyExec>(0,bvals.extent(1)), KOKKOS_LAMBDA (const int k ) {
                   for (size_type j=0; j<bvals.extent(2); j++) {
-                    currside_basis[i](c,k,j) = bvals(0,k,j);
+                    cbasis(k,j) = bvals(0,k,j);
                   }
-                }
+                });
               }
               
               boundaryCells[mindex][e]->auxside_basis = currside_basis;
