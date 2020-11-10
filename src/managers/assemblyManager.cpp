@@ -669,7 +669,7 @@ void AssemblyManager::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
     for (size_t e=0; e<boundaryCells[b].size(); e++) {
       
       int numElem = boundaryCells[b][e]->numElem;
-      LIDView LIDs = boundaryCells[b][e]->LIDs;
+      auto LIDs = boundaryCells[b][e]->LIDs_host;
       
       Kokkos::View<ScalarT**,AssemblyDevice> localrhs = boundaryCells[b][e]->getDirichlet();
       Kokkos::View<ScalarT***,AssemblyDevice> localmass = boundaryCells[b][e]->getMass();
@@ -718,7 +718,7 @@ void AssemblyManager::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
   // Loop over the cells to put ones on the diagonal for DOFs not on Dirichlet boundaries
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
-      LIDView LIDs = cells[b][e]->LIDs;
+      auto LIDs = cells[b][e]->LIDs_host;
       for (size_t c=0; c<cells[b][e]->numElem; c++) {
         for( size_type row=0; row<LIDs.extent(1); row++ ) {
           LO rowIndex = LIDs(c,row);
