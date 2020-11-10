@@ -325,13 +325,15 @@ void BoundaryCell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & para
 
 void BoundaryCell::setAuxUseBasis(vector<int> & ausebasis_) {
   auxusebasis = ausebasis_;
+  auto numAuxDOF = Kokkos::create_mirror_view(cellData->numAuxDOF);
+  Kokkos::deep_copy(numAuxDOF,cellData->numAuxDOF);
   int maxnbasis = 0;
-  for (size_type i=0; i<cellData->numAuxDOF.extent(0); i++) {
-    if (cellData->numAuxDOF(i) > maxnbasis) {
-      maxnbasis = cellData->numAuxDOF(i);
+  for (size_type i=0; i<numAuxDOF.extent(0); i++) {
+    if (numAuxDOF(i) > maxnbasis) {
+      maxnbasis = numAuxDOF(i);
     }
   }
-  aux = Kokkos::View<ScalarT***,AssemblyDevice>("aux",numElem,cellData->numAuxDOF.extent(0),maxnbasis);
+  aux = Kokkos::View<ScalarT***,AssemblyDevice>("aux",numElem,numAuxDOF.extent(0),maxnbasis);
   
 }
 

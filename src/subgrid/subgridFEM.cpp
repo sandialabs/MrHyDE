@@ -127,7 +127,7 @@ void SubGridFEM::setUpSubgridModels() {
   /////////////////////////////////////////////////////////////////////////////////////
   // Define the sub-grid mesh
   /////////////////////////////////////////////////////////////////////////////////////
-  
+ 
   string blockID = "eblock";
   
   Kokkos::View<ScalarT**,HostDevice> nodes;
@@ -278,7 +278,6 @@ void SubGridFEM::setUpSubgridModels() {
       Kokkos::View<int*,AssemblyDevice> eIndex("element indices",currElem);
       Kokkos::View<int*,AssemblyDevice> sideIndex("local side indices",currElem);
       DRV currnodes("currnodes", currElem, numNodesPerElem, dimension);
-
       auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
       Kokkos::View<int*,HostDevice> host_eIndex2("element indices",currElem);
       auto host_sideIndex = Kokkos::create_mirror_view(sideIndex); // mirror on host
@@ -288,7 +287,7 @@ void SubGridFEM::setUpSubgridModels() {
         host_sideIndex(e) = unique_local_sides[s];
         for (int n=0; n<numNodesPerElem; n++) {
           for (int m=0; m<dimension; m++) {
-            host_currnodes(e,n,m) = nodes(connectivity[eIndex(e)][n],m);
+            host_currnodes(e,n,m) = nodes(connectivity[host_eIndex(e)][n],m);
           }
         }
       }
@@ -320,7 +319,7 @@ void SubGridFEM::setUpSubgridModels() {
       auto host_currind = Kokkos::create_mirror_view(currind);
       for (size_t i=0; i<currElem; i++) {
         vector<stk::mesh::EntityId> stk_nodeids;
-        size_t elemID = eIndex(i);
+        size_t elemID = host_eIndex(i);
         sub_mesh->mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
         for (int n=0; n<numNodesPerElem; n++) {
           host_currind(i,n) = stk_nodeids[n];
@@ -345,7 +344,6 @@ void SubGridFEM::setUpSubgridModels() {
   
   sub_assembler->boundaryCells = boundaryCells;
   
-  
   Kokkos::View<int**,HostDevice> currbcs("boundary conditions",
                                          sideinfo.extent(1),
                                          macroData[0]->macrosideinfo.extent(2));
@@ -368,7 +366,6 @@ void SubGridFEM::setUpSubgridModels() {
     }
   }
   macroData[0]->bcs = currbcs;
-  
   
   size_t numMacroDOF = macroData[0]->macroLIDs.extent(1);
   sub_solver = Teuchos::rcp( new SubGridFEM_Solver(LocalComm, settings, sub_mesh, sub_disc, sub_physics,
@@ -440,7 +437,7 @@ void SubGridFEM::setUpSubgridModels() {
   /////////////////////////////////////////////////////////////////////////////////////
   
   for (size_t mindex = 0; mindex<macroData.size(); mindex++) {
-    
+ 
     // Define the cells and boundary cells for mindex>0
     if (mindex > 0) {
     
@@ -579,7 +576,7 @@ void SubGridFEM::setUpSubgridModels() {
           Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation_0 = boundaryCells[0][s]->orientation;
           Kokkos::View<LO*,AssemblyDevice> sideID_0 = boundaryCells[0][s]->localSideID;
           
-          parallel_for("cell hsize",RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("subgrid LIDs",RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int e ) {
             localID(e) = localID_0(e);
             orientation(e) = orientation_0(e);
             sideID(e) = sideID_0(e);
@@ -658,10 +655,18 @@ void SubGridFEM::setUpSubgridModels() {
     // For all cells, define the macro basis functions at subgrid ip
     for (size_t e=0; e<boundaryCells[mindex].size(); e++) {
       vector<size_t> mIDs;
-      for (size_type c=0; c<boundaryCells[mindex][e]->localElemID.extent(0); c++) {
-        size_t eIndex = boundaryCells[mindex][e]->localElemID(c);
-        size_t mID = macroData[mindex]->macroIDs(eIndex);//localData[mindex]->getMacroID(eIndex);
-        mIDs.push_back(mID);
+      Kokkos::View<size_t*,AssemblyDevice> mID_dev("mID device",boundaryCells[mindex][e]->localElemID.extent(0));
+      auto mID_host = Kokkos::create_mirror_view(mID_dev);
+      auto localEID = boundaryCells[mindex][e]->localElemID;
+      auto macroIDs = macroData[mindex]->macroIDs;
+      parallel_for("subgrid bcell mIDs",RangePolicy<AssemblyExec>(0,mID_dev.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        mID_dev(e) = macroIDs(localEID(e));
+      });
+      Kokkos::deep_copy(mID_host,mID_dev);
+      for (size_type c=0; c<mID_host.extent(0); c++) {
+        //size_t eIndex = boundaryCells[mindex][e]->localElemID(c);
+        //size_t mID = macroData[mindex]->macroIDs(eIndex);//localData[mindex]->getMacroID(eIndex);
+        mIDs.push_back(mID_host(c));
       }
       boundaryCells[mindex][e]->auxMIDs = mIDs;
       size_t numElem = boundaryCells[mindex][e]->numElem;
