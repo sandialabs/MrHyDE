@@ -14,7 +14,7 @@ int main(int argc, char * argv[]) {
   Kokkos::initialize();
 
   {
-    DRV nodes("nodes",4,2);
+    Kokkos::View<ScalarT**,HostDevice> nodes("nodes",4,2);
     nodes(0,0) = -1.0;
     nodes(0,1) = -1.0;
     nodes(1,0) = 1.0;

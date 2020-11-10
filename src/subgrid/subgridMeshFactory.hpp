@@ -34,7 +34,7 @@ namespace panzer_stk {
     }
     
     SubGridMeshFactory(const std::string & shape_,
-                       DRV nodes_,
+                       Kokkos::View<ScalarT**,HostDevice> nodes_,
                        std::vector<std::vector<GO> > & conn_,
                        std::string & blockname_)
     {
@@ -75,7 +75,7 @@ namespace panzer_stk {
     
     std::string shape;
     std::string blockname;
-    std::vector<DRV> nodes;
+    std::vector<Kokkos::View<ScalarT**,HostDevice> > nodes;
     std::vector<std::vector<std::vector<GO> > > conn;
     int dimension;
     

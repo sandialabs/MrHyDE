@@ -45,7 +45,11 @@ namespace MrHyDE {
     LocalComm(LocalComm_), shape(shape_), subshape(subshape_),
     mesh_type(mesh_type_), mesh_file(mesh_file_), sideinfo(sideinfo_){
     
-      nodes = nodes_;
+      //nodes = nodes_;
+      nodes = Kokkos::View<ScalarT**,HostDevice>("nodes on host",nodes_.extent(0),nodes_.extent(1));
+      auto tmp_nodes = Kokkos::create_mirror_view(nodes_);
+      Kokkos::deep_copy(tmp_nodes,nodes_);
+      Kokkos::deep_copy(nodes,tmp_nodes);
       
       dimension = nodes.extent(1);
     }
@@ -138,13 +142,19 @@ namespace MrHyDE {
         
         std::vector<stk::mesh::Entity> ref_elements;
         ref_mesh->getMyElements(ref_elements);
-        DRV vertices("element vertices",ref_elements.size(), numNodesPerElem, dimension);
-        ref_mesh->getElementVertices_FromCoordsNoResize(ref_elements, vertices);
+        
+        // TMW: may fail on device
+        DRV vertices_dev("element vertices",ref_elements.size(), numNodesPerElem, dimension);
+        ref_mesh->getElementVertices_FromCoordsNoResize(ref_elements, vertices_dev);
+        auto vertices = Kokkos::create_mirror_view(vertices_dev);
+        Kokkos::deep_copy(vertices,vertices_dev);
         
         // extract the nodes
         size_t numTotalNodes = ref_mesh->getMaxEntityId(0);
         
         subnodes_list = DRV("DRV of subgrid nodes on ref elem", numTotalNodes, dimension);
+        auto subnodes_host = Kokkos::create_mirror_view(subnodes_list);
+        
         vector<bool> beenAdded(numTotalNodes,false);
         
         // Extract the connectivity
@@ -156,17 +166,19 @@ namespace MrHyDE {
             conn.push_back(nodeIds[i]-1);
             if (!beenAdded[nodeIds[i]-1]) {
               for (int s=0; s<dimension; s++) {
-                subnodes_list(nodeIds[i]-1,s) = vertices(elem,i,s);
+                subnodes_host(nodeIds[i]-1,s) = vertices(elem,i,s);
               }
               beenAdded[nodeIds[i]-1] = true;
             }
           }
           subconnectivity.push_back(conn);
           
-          Kokkos::View<int**,AssemblyDevice> newsidemap("new side map",numSides,2);
+          Kokkos::View<int**,HostDevice> newsidemap("new side map",numSides,2);
           subsidemap.push_back(newsidemap);
           
         }
+        
+        Kokkos::deep_copy(subnodes_list, subnodes_host);
         
         vector<string> sideSets;
         ref_mesh->getSidesetNames(sideSets);
@@ -214,7 +226,7 @@ namespace MrHyDE {
           }
           subconnectivity.push_back(newconn);
           
-          Kokkos::View<int**,AssemblyDevice> newsidemap("newsidemap",sideinfo.extent(2),2);
+          Kokkos::View<int**,HostDevice> newsidemap("newsidemap",sideinfo.extent(2),2);
           for (size_t s=0; s<sideinfo.extent(2); s++) {
             newsidemap(s,0) = 1;
             newsidemap(s,1) = s;
@@ -253,10 +265,10 @@ namespace MrHyDE {
               vector<GO> newconn3 = {3,0,4};
               subconnectivity.push_back(newconn3);
               
-              Kokkos::View<int**,AssemblyDevice> newsidemap0("newsi",3,2);
-              Kokkos::View<int**,AssemblyDevice> newsidemap1("newsi",3,2);
-              Kokkos::View<int**,AssemblyDevice> newsidemap2("newsi",3,2);
-              Kokkos::View<int**,AssemblyDevice> newsidemap3("newsi",3,2);
+              Kokkos::View<int**,HostDevice> newsidemap0("newsi",3,2);
+              Kokkos::View<int**,HostDevice> newsidemap1("newsi",3,2);
+              Kokkos::View<int**,HostDevice> newsidemap2("newsi",3,2);
+              Kokkos::View<int**,HostDevice> newsidemap3("newsi",3,2);
               
               newsidemap0(0,0) = 1;
               if (sideinfo(0,0,0,0) > 0)
@@ -301,14 +313,14 @@ namespace MrHyDE {
               }
               
               vector<ScalarT> center, mid01, mid12, mid02;
-              center.push_back(1.0/3.0*(nodes(0,0,0)+nodes(0,1,0)+nodes(0,2,0)));
-              center.push_back(1.0/3.0*(nodes(0,0,1)+nodes(0,1,1)+nodes(0,2,1)));
-              mid01.push_back(0.5*(nodes(0,0,0)+nodes(0,1,0)));
-              mid01.push_back(0.5*(nodes(0,0,1)+nodes(0,1,1)));
-              mid12.push_back(0.5*(nodes(0,1,0)+nodes(0,2,0)));
-              mid12.push_back(0.5*(nodes(0,1,1)+nodes(0,2,1)));
-              mid02.push_back(0.5*(nodes(0,0,0)+nodes(0,2,0)));
-              mid02.push_back(0.5*(nodes(0,0,1)+nodes(0,2,1)));
+              center.push_back(1.0/3.0*(nodes(0,0)+nodes(1,0)+nodes(2,0)));
+              center.push_back(1.0/3.0*(nodes(0,1)+nodes(1,1)+nodes(2,1)));
+              mid01.push_back(0.5*(nodes(0,0)+nodes(1,0)));
+              mid01.push_back(0.5*(nodes(0,1)+nodes(1,1)));
+              mid12.push_back(0.5*(nodes(1,0)+nodes(2,0)));
+              mid12.push_back(0.5*(nodes(1,1)+nodes(2,1)));
+              mid02.push_back(0.5*(nodes(0,0)+nodes(2,0)));
+              mid02.push_back(0.5*(nodes(0,1)+nodes(2,1)));
               subnodes.push_back(center);
               subnodes.push_back(mid01);
               subnodes.push_back(mid12);
@@ -323,9 +335,9 @@ namespace MrHyDE {
               vector<GO> newconn2 = {2,6,3,5};
               subconnectivity.push_back(newconn2);
               
-              Kokkos::View<int**,AssemblyDevice> newsidemap0("newsi",4,2);
-              Kokkos::View<int**,AssemblyDevice> newsidemap1("newsi",4,2);
-              Kokkos::View<int**,AssemblyDevice> newsidemap2("newsi",4,2);
+              Kokkos::View<int**,HostDevice> newsidemap0("newsi",4,2);
+              Kokkos::View<int**,HostDevice> newsidemap1("newsi",4,2);
+              Kokkos::View<int**,HostDevice> newsidemap2("newsi",4,2);
               
               newsidemap0(0,0) = 1;
               if (sideinfo(0,0,0,0) > 0)
@@ -388,13 +400,15 @@ namespace MrHyDE {
           subsidemap.erase(subsidemap.begin(), subsidemap.begin()+numelem);
         }
         
-        // Create the DRV list of nodes
+        // Create the list of nodes
         subnodes_list = DRV("DRV of subgrid nodes on ref elem",subnodes.size(), subnodes[0].size());
+        auto subnodes_host = Kokkos::create_mirror_view(subnodes_list);
         for (size_t node=0; node<subnodes.size(); node++) {
           for (size_t dim=0; dim<subnodes[0].size(); dim++) {
-            subnodes_list(node,dim) = subnodes[node][dim];
+            subnodes_host(node,dim) = subnodes[node][dim];
           }
         }
+        Kokkos::deep_copy(subnodes_list,subnodes_host);
       }
       else {
         TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: unrecognized subgrid mesh type: " + mesh_type);
@@ -425,9 +439,9 @@ namespace MrHyDE {
         subconnectivity.push_back(newelem0);
         subconnectivity.push_back(newelem1);
         
-        Kokkos::View<int**,AssemblyDevice> oldmap = subsidemap[e];
-        Kokkos::View<int**,AssemblyDevice> newsm0("newsi",2,2);
-        Kokkos::View<int**,AssemblyDevice> newsm1("newsi",2,2);
+        Kokkos::View<int**,HostDevice> oldmap = subsidemap[e];
+        Kokkos::View<int**,HostDevice> newsm0("newsi",2,2);
+        Kokkos::View<int**,HostDevice> newsm1("newsi",2,2);
         Kokkos::deep_copy(newsm0,oldmap);
         Kokkos::deep_copy(newsm1,oldmap);
         
@@ -502,11 +516,11 @@ namespace MrHyDE {
           subconnectivity.push_back(elem3);
           
           
-          Kokkos::View<int**,AssemblyDevice> oldmap = subsidemap[e];
-          Kokkos::View<int**,AssemblyDevice> newsm0("newsi",3,2);
-          Kokkos::View<int**,AssemblyDevice> newsm1("newsi",3,2);
-          Kokkos::View<int**,AssemblyDevice> newsm2("newsi",3,2);
-          Kokkos::View<int**,AssemblyDevice> newsm3("newsi",3,2);
+          Kokkos::View<int**,HostDevice> oldmap = subsidemap[e];
+          Kokkos::View<int**,HostDevice> newsm0("newsi",3,2);
+          Kokkos::View<int**,HostDevice> newsm1("newsi",3,2);
+          Kokkos::View<int**,HostDevice> newsm2("newsi",3,2);
+          Kokkos::View<int**,HostDevice> newsm3("newsi",3,2);
           Kokkos::deep_copy(newsm0,oldmap);
           Kokkos::deep_copy(newsm1,oldmap);
           Kokkos::deep_copy(newsm2,oldmap);
@@ -614,11 +628,11 @@ namespace MrHyDE {
           elem3.push_back(subconnectivity[e][3]);
           subconnectivity.push_back(elem3);
           
-          Kokkos::View<int**,AssemblyDevice> oldmap = subsidemap[e];
-          Kokkos::View<int**,AssemblyDevice> newsm0("newsm",4,2);
-          Kokkos::View<int**,AssemblyDevice> newsm1("newsm",4,2);
-          Kokkos::View<int**,AssemblyDevice> newsm2("newsm",4,2);
-          Kokkos::View<int**,AssemblyDevice> newsm3("newsm",4,2);
+          Kokkos::View<int**,HostDevice> oldmap = subsidemap[e];
+          Kokkos::View<int**,HostDevice> newsm0("newsm",4,2);
+          Kokkos::View<int**,HostDevice> newsm1("newsm",4,2);
+          Kokkos::View<int**,HostDevice> newsm2("newsm",4,2);
+          Kokkos::View<int**,HostDevice> newsm3("newsm",4,2);
           Kokkos::deep_copy(newsm0,oldmap);
           Kokkos::deep_copy(newsm1,oldmap);
           Kokkos::deep_copy(newsm2,oldmap);
@@ -776,15 +790,15 @@ namespace MrHyDE {
           elem7.push_back(mid12_ind);
           subconnectivity.push_back(elem7);
           
-          Kokkos::View<int**,AssemblyDevice> oldmap = subsidemap[e];
-          Kokkos::View<int**,AssemblyDevice> newsm0("newsi",4,2);
-          Kokkos::View<int**,AssemblyDevice> newsm1("newsi",4,2);
-          Kokkos::View<int**,AssemblyDevice> newsm2("newsi",4,2);
-          Kokkos::View<int**,AssemblyDevice> newsm3("newsi",4,2);
-          Kokkos::View<int**,AssemblyDevice> newsm4("newsi",4,2);
-          Kokkos::View<int**,AssemblyDevice> newsm5("newsi",4,2);
-          Kokkos::View<int**,AssemblyDevice> newsm6("newsi",4,2);
-          Kokkos::View<int**,AssemblyDevice> newsm7("newsi",4,2);
+          Kokkos::View<int**,HostDevice> oldmap = subsidemap[e];
+          Kokkos::View<int**,HostDevice> newsm0("newsi",4,2);
+          Kokkos::View<int**,HostDevice> newsm1("newsi",4,2);
+          Kokkos::View<int**,HostDevice> newsm2("newsi",4,2);
+          Kokkos::View<int**,HostDevice> newsm3("newsi",4,2);
+          Kokkos::View<int**,HostDevice> newsm4("newsi",4,2);
+          Kokkos::View<int**,HostDevice> newsm5("newsi",4,2);
+          Kokkos::View<int**,HostDevice> newsm6("newsi",4,2);
+          Kokkos::View<int**,HostDevice> newsm7("newsi",4,2);
           
           Kokkos::deep_copy(newsm0,oldmap);
           Kokkos::deep_copy(newsm1,oldmap);
@@ -1114,15 +1128,15 @@ namespace MrHyDE {
           
           subconnectivity.push_back(elem7);
           
-          Kokkos::View<int**,AssemblyDevice> oldmap = subsidemap[e];
-          Kokkos::View<int**,AssemblyDevice> newsm0("newsi",6,2);
-          Kokkos::View<int**,AssemblyDevice> newsm1("newsi",6,2);
-          Kokkos::View<int**,AssemblyDevice> newsm2("newsi",6,2);
-          Kokkos::View<int**,AssemblyDevice> newsm3("newsi",6,2);
-          Kokkos::View<int**,AssemblyDevice> newsm4("newsi",6,2);
-          Kokkos::View<int**,AssemblyDevice> newsm5("newsi",6,2);
-          Kokkos::View<int**,AssemblyDevice> newsm6("newsi",6,2);
-          Kokkos::View<int**,AssemblyDevice> newsm7("newsi",6,2);
+          Kokkos::View<int**,HostDevice> oldmap = subsidemap[e];
+          Kokkos::View<int**,HostDevice> newsm0("newsi",6,2);
+          Kokkos::View<int**,HostDevice> newsm1("newsi",6,2);
+          Kokkos::View<int**,HostDevice> newsm2("newsi",6,2);
+          Kokkos::View<int**,HostDevice> newsm3("newsi",6,2);
+          Kokkos::View<int**,HostDevice> newsm4("newsi",6,2);
+          Kokkos::View<int**,HostDevice> newsm5("newsi",6,2);
+          Kokkos::View<int**,HostDevice> newsm6("newsi",6,2);
+          Kokkos::View<int**,HostDevice> newsm7("newsi",6,2);
           
           Kokkos::deep_copy(newsm0,oldmap);
           Kokkos::deep_copy(newsm1,oldmap);
@@ -1234,18 +1248,20 @@ namespace MrHyDE {
     // Get the sub-grid nodes as a list: output is (Nnodes x dimension)
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    DRV getListOfPhysicalNodes(DRV newmacronodes, topo_RCP & macro_topo) {
+    Kokkos::View<ScalarT**,HostDevice> getListOfPhysicalNodes(DRV newmacronodes, topo_RCP & macro_topo) {
       
       DRV newnodes("nodes on phys elem", newmacronodes.extent(0), subnodes_list.extent(0), dimension);
       CellTools::mapToPhysicalFrame(newnodes, subnodes_list, newmacronodes, *macro_topo);
+      auto newnodes_host = Kokkos::create_mirror_view(newnodes);
+      Kokkos::deep_copy(newnodes_host,newnodes);
       
-      DRV currnodes("currnodes",newmacronodes.extent(0)*subnodes_list.extent(0), dimension);
+      Kokkos::View<ScalarT**,HostDevice> currnodes("currnodes",newmacronodes.extent(0)*subnodes_list.extent(0), dimension);
       
       for (size_type melem=0; melem<newmacronodes.extent(0); melem++) {
         for (size_type elem=0; elem<subnodes_list.extent(0); elem++) {
           for (int dim=0; dim<dimension; dim++) {
             size_t index = melem*subnodes_list.extent(0)+elem;
-            currnodes(index,dim) = newnodes(melem,elem,dim);
+            currnodes(index,dim) = newnodes_host(melem,elem,dim);
           }
         }
       }
@@ -1262,21 +1278,25 @@ namespace MrHyDE {
       
       DRV newnodes("nodes on phys elem", newmacronodes.extent(0), subnodes_list.extent(0), subnodes_list.extent(1));
       CellTools::mapToPhysicalFrame(newnodes, subnodes_list, newmacronodes, *macro_topo);
+      auto newnodes_host = Kokkos::create_mirror_view(newnodes);
+      Kokkos::deep_copy(newnodes_host, newnodes);
       
       DRV currnodes("currnodes",newmacronodes.extent(0)*subconnectivity.size(),
                     subconnectivity[0].size(),
                     dimension);
+      auto currnodes_host = Kokkos::create_mirror_view(currnodes);
       
       for (size_type melem=0; melem<newmacronodes.extent(0); melem++) {
         for (size_type elem=0; elem<subconnectivity.size(); elem++) {
           for (size_t node=0; node<subconnectivity[elem].size(); node++) {
             for (int dim=0; dim<dimension; dim++) {
               size_t index = melem*subconnectivity.size()+elem;
-              currnodes(index,node,dim) = newnodes(melem,subconnectivity[elem][node],dim);
+              currnodes_host(index,node,dim) = newnodes_host(melem,subconnectivity[elem][node],dim);
             }
           }
         }
       }
+      Kokkos::deep_copy(currnodes, currnodes_host);
       
       return currnodes;
       
@@ -1403,11 +1423,11 @@ namespace MrHyDE {
     int dimension;
     Teuchos::RCP<MpiComm> LocalComm;
     string shape, subshape, mesh_type, mesh_file;
-    DRV nodes;
+    Kokkos::View<ScalarT**,HostDevice> nodes;
     Kokkos::View<int****,HostDevice> sideinfo;
     vector<vector<ScalarT> > subnodes;
     DRV subnodes_list;
-    vector<Kokkos::View<int**,AssemblyDevice> > subsidemap;
+    vector<Kokkos::View<int**,HostDevice> > subsidemap;
     vector<vector<GO> > subconnectivity;
     
     Teuchos::RCP<panzer_stk::STK_Interface> ref_mesh; // used for Exodus and panzer meshes

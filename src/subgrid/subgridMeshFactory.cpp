@@ -27,9 +27,16 @@ namespace panzer_stk{
   
   void SubGridMeshFactory::addElems(DRV newnodes,
                                     std::vector<std::vector<GO> > & newconn) {
-    nodes.push_back(newnodes);
+    //nodes.push_back(newnodes);
     conn.push_back(newconn);
     dimension = newnodes.extent(1);
+    
+    Kokkos::View<ScalarT**,HostDevice> newnodes_host("new nodes",
+                                                     newnodes.extent(0), newnodes.extent(1));
+    auto nodes_host = Kokkos::create_mirror_view(newnodes);
+    Kokkos::deep_copy(nodes_host,newnodes);
+    Kokkos::deep_copy(newnodes_host,nodes_host);
+    nodes.push_back(newnodes_host);
   }
   
   ///////////////////////////////////////////////////////////////
