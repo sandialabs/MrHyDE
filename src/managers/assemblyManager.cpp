@@ -671,8 +671,8 @@ void AssemblyManager::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
       int numElem = boundaryCells[b][e]->numElem;
       auto LIDs = boundaryCells[b][e]->LIDs_host;
       
-      Kokkos::View<ScalarT**,AssemblyDevice> localrhs = boundaryCells[b][e]->getDirichlet();
-      Kokkos::View<ScalarT***,AssemblyDevice> localmass = boundaryCells[b][e]->getMass();
+      auto localrhs = boundaryCells[b][e]->getDirichlet();
+      auto localmass = boundaryCells[b][e]->getMass();
       auto host_rhs = Kokkos::create_mirror_view(localrhs);
       auto host_mass = Kokkos::create_mirror_view(localmass);
       Kokkos::deep_copy(host_rhs,localrhs);
@@ -704,7 +704,7 @@ void AssemblyManager::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
               ScalarT vals[maxDerivs];
               for( size_t col=0; col<LIDs.extent(1); col++ ) {
                 cols[col] = LIDs(c,col);
-                vals[col] = localmass(c,row,col);
+                vals[col] = host_mass(c,row,col);
               }
               localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, false);
               
