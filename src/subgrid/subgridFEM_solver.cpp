@@ -838,10 +838,10 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
         auto aLIDs = assembler->cells[usernum][e]->auxLIDs_host;
         //vector<vector<int> > aoffsets = cells[0][e]->auxoffsets;
         
-        for (unsigned int i=0; i<LIDs.extent(0); i++) {
-          for (size_t row=0; row<LIDs.extent(1); row++ ) {
+        for (size_type i=0; i<LIDs.extent(0); i++) {
+          for (size_type row=0; row<LIDs.extent(1); row++ ) {
             LO rowIndex = LIDs(i,row);
-            for (size_t col=0; col<aLIDs.extent(1); col++ ) {
+            for (size_type col=0; col<aLIDs.extent(1); col++ ) {
               ScalarT val = local_J_host(i,row,col);
               int colIndex = col;
               d_sub_res_over->sumIntoLocalValue(rowIndex,colIndex, scale*val);
@@ -872,11 +872,11 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<LA_MultiVector> & d_sub_u,
         Kokkos::deep_copy(local_J_host,local_J);
         auto LIDs = assembler->boundaryCells[usernum][e]->LIDs_host;
         auto aLIDs = assembler->boundaryCells[usernum][e]->auxLIDs_host;
-        for (unsigned int i=0; i<LIDs.extent(0); i++) {
-          for (size_t row=0; row<LIDs.extent(1); row++ ) {
+        for (size_type i=0; i<LIDs.extent(0); i++) {
+          for (size_type row=0; row<LIDs.extent(1); row++ ) {
             LO rowIndex = LIDs(i,row);
-            for (size_t col=0; col<aLIDs.extent(1); col++ ) {
-              ScalarT val = local_J(i,row,col);
+            for (size_type col=0; col<aLIDs.extent(1); col++ ) {
+              ScalarT val = local_J_host(i,row,col);
               LO colIndex = col;
               d_sub_res_over->sumIntoLocalValue(rowIndex,colIndex, scale*val);
             }
