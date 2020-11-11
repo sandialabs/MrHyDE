@@ -238,7 +238,7 @@ namespace MrHyDE {
     LIDView LIDs, paramLIDs, auxLIDs;
     
     // Creating LIDs on host device for host assembly
-    LIDView_host LIDs_host, paramLIDs_host;
+    LIDView_host LIDs_host, paramLIDs_host, auxLIDs_host;
     
     Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param;
     Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
@@ -256,6 +256,7 @@ namespace MrHyDE {
     vector<DRV> auxbasis, auxbasisGrad;
     vector<DRV> auxside_basis, auxside_basisGrad;
     vector<size_t> auxMIDs;
+    Kokkos::View<size_t*,AssemblyDevice> auxMIDs_dev;
     
     // Boundary cells do not have sensors
     

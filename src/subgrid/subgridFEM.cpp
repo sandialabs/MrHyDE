@@ -669,6 +669,7 @@ void SubGridFEM::setUpSubgridModels() {
         mIDs.push_back(mID_host(c));
       }
       boundaryCells[mindex][e]->auxMIDs = mIDs;
+      boundaryCells[mindex][e]->auxMIDs_dev = mID_dev;
       size_t numElem = boundaryCells[mindex][e]->numElem;
       // define the macro LIDs
       LIDView cLIDs("boundary macro LIDs",numElem,
@@ -684,6 +685,7 @@ void SubGridFEM::setUpSubgridModels() {
       }
       Kokkos::deep_copy(cLIDs,cLIDs_host);
       boundaryCells[mindex][e]->auxLIDs = cLIDs;
+      boundaryCells[mindex][e]->auxLIDs_host = cLIDs_host;
     }
     
     //////////////////////////////////////////////////////////////
@@ -1233,21 +1235,22 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
   
   // TMW: update for device (subgrid or assembly?)
   // Need to move localData[]->macroIDs to a Kokkos::View on the appropriate device
-  for (size_type e=0; e<coarse_u.extent(0); e++) {
+  auto macroIDs = macroData[usernum]->macroIDs;
+  parallel_for("subgrid set coarse sol",RangePolicy<HostExec>(0,coarse_u.extent(0)), KOKKOS_LAMBDA (const size_type e ) {
     for (size_type i=0; i<coarse_u.extent(1); i++) {
       for (size_type j=0; j<coarse_u.extent(2); j++) {
-        coarse_u(e,i,j) = coarse_fwdsoln(macroData[usernum]->macroIDs(e),i,j);
+        coarse_u(e,i,j) = coarse_fwdsoln(macroIDs(e),i,j);
       }
     }
-  }
+  });
   if (isAdjoint) {
-    for (size_type e=0; e<coarse_phi.extent(0); e++) {
+    parallel_for("subgrid set coarse adj",RangePolicy<HostExec>(0,coarse_phi.extent(0)), KOKKOS_LAMBDA (const size_type e ) {
       for (size_type i=0; i<coarse_phi.extent(1); i++) {
         for (size_type j=0; j<coarse_phi.extent(2); j++) {
-          coarse_phi(e,i,j) = coarse_adjsoln(macroData[usernum]->macroIDs(e),i,j);
+          coarse_phi(e,i,j) = coarse_adjsoln(macroIDs(e),i,j);
         }
       }
-    }
+    });
   }
   
   // Extract the previous solution as the initial guess/condition for subgrid problems
