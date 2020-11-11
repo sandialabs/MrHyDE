@@ -504,8 +504,8 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
       auto LIDs = assembler->cells[0][0]->LIDs_host;
       ScalarT vals[1];
       LO cols[1];
-      for (unsigned int i=numElem; i<LIDs.extent(0); i++) { // should be Kokkos::parallel_for on SubgridExec
-        for( size_t row=0; row<LIDs.extent(1); row++ ) {
+      for (size_type i=numElem; i<LIDs.extent(0); i++) { // should be Kokkos::parallel_for on SubgridExec
+        for( size_type row=0; row<LIDs.extent(1); row++ ) {
           LO rowIndex = LIDs(i,row);
           vals[0] = 1.0;
           cols[0] = rowIndex;
