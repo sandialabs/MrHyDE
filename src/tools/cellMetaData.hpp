@@ -80,7 +80,7 @@ namespace MrHyDE {
     
     // these are common to all elements/cells and are often used on both devices
     Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
-    Kokkos::View<int*,HostDevice> numDOF_host, numParamDOF_host;
+    Kokkos::View<int*,HostDevice> numDOF_host, numParamDOF_host, numAuxDOF_host;
     
     Teuchos::RCP<Teuchos::Time> celltimer = Teuchos::TimeMonitor::getNewCounter("MILO::cellMetaData::constructor()");
   };

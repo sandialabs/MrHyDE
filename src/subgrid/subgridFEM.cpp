@@ -397,9 +397,15 @@ void SubGridFEM::setUpSubgridModels() {
   wkset = sub_assembler->wkset;
   
   wkset[0]->addAux(macro_varlist.size());
+  Kokkos::View<int*,HostDevice> macro_numDOF_host("aux DOF on host",macro_numDOF.extent(0));
+  auto macro_numDOF_m = Kokkos::create_mirror_view(macro_numDOF);
+  Kokkos::deep_copy(macro_numDOF_m, macro_numDOF);
+  Kokkos::deep_copy(macro_numDOF_host,macro_numDOF_m);
+  
   for(size_t e=0; e<boundaryCells[0].size(); e++) {
     boundaryCells[0][e]->addAuxVars(macro_varlist);
     boundaryCells[0][e]->cellData->numAuxDOF = macro_numDOF;
+    boundaryCells[0][e]->cellData->numAuxDOF_host = macro_numDOF_host;
     //boundaryCells[0][e]->cellData->numAuxDOF = macro_numDOF;
     boundaryCells[0][e]->setAuxUseBasis(macro_usebasis);
     boundaryCells[0][e]->auxoffsets = macro_offsets;

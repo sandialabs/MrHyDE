@@ -383,33 +383,34 @@ void BoundaryCell::computeSoln(const int & seedwhat) {
   if (wkset->numAux > 0) {
     
     wkset->resetAuxSide();
-    
-    size_t numip = wkset->numsideip;
-    AD auxval;
   
     auto numAuxDOF = cellData->numAuxDOF;
     
-    // TMW: this will not work on GPU
-    for (size_t e=0; e<numElem; e++) {
-      
-      for (size_type k=0; k<numAuxDOF.extent(0); k++) {
-        for(int i=0; i<numAuxDOF(k); i++ ) {
-          ScalarT auxtmp = aux(localElemID[e],k,i);
-          if (seedwhat == 4) {
-            auxval = AD(maxDerivs,auxoffsets(k,i),auxtmp);
-            //auxval = AD(maxDerivs,auxoffsets[k][i],aux(e,k,i));
+    for (size_type var=0; var<numAuxDOF.extent(0); var++) {
+      auto abasis = auxside_basis[auxusebasis[var]];
+      auto off = Kokkos::subview(auxoffsets,var,Kokkos::ALL());
+      auto local_aux = Kokkos::subview(wkset->local_aux_side,Kokkos::ALL(),var,Kokkos::ALL());
+      auto localID = localElemID;
+      auto varaux = Kokkos::subview(aux,Kokkos::ALL(),var,Kokkos::ALL());
+      if (seedwhat == 4) {
+        parallel_for("bcell aux",RangePolicy<AssemblyExec>(0,localID.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+          for (size_type dof=0; dof<abasis.extent(1); ++dof) {
+            AD auxval = AD(maxDerivs,off(dof), varaux(localID(elem),dof));
+            for (size_type pt=0; pt<abasis.extent(2); ++pt) {
+              local_aux(elem,pt) += auxval*abasis(elem,dof,pt);
+            }
           }
-          else {
-            auxval = auxtmp;
-            //auxval = aux(e,k,i);
+        });
+      }
+      else {
+        parallel_for("bcell aux",RangePolicy<AssemblyExec>(0,localID.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+          for (size_type dof=0; dof<abasis.extent(1); ++dof) {
+            AD auxval = varaux(localID(elem),dof);
+            for (size_type pt=0; pt<abasis.extent(2); ++pt) {
+              local_aux(elem,pt) += auxval*abasis(elem,dof,pt);
+            }
           }
-          for( size_t j=0; j<numip; j++ ) {
-            wkset->local_aux_side(e,k,j) += auxval*auxside_basis[auxusebasis[k]](e,i,j);
-            //for( int s=0; s<dimension; s++ ) {
-            //  wkset->local_aux_grad_side(e,k,j,s) += auxval*auxside_basisGrad[side][auxusebasis[k]](e,i,j,s);
-            //}
-          }
-        }
+        });
       }
     }
   }
@@ -827,15 +828,19 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
   
   {
     Teuchos::TimeMonitor localtimer(*cellFluxWksetTimer);
-    
     wkset->computeSolnSideIP(sidenum, u_AD, param_AD);
   }
-  auto numAuxDOF = cellData->numAuxDOF;
+  
   
   if (wkset->numAux > 0) {
     
     Teuchos::TimeMonitor localtimer(*cellFluxAuxTimer);
+  
+    auto numAuxDOF = cellData->numAuxDOF;
     
+    wkset->resetAuxSide();
+    
+    /*
     wkset->resetAuxSide();
     auto aoffsets = auxoffsets;
     size_t numip = wkset->numsideip;
@@ -850,12 +855,28 @@ void BoundaryCell::computeFlux(const vector_RCP & gl_u,
         }
       }
     }
+    */
+    
+    for (size_type var=0; var<numAuxDOF.extent(0); var++) {
+      auto abasis = auxside_basis[auxusebasis[var]];
+      auto off = Kokkos::subview(auxoffsets,var,Kokkos::ALL());
+      auto local_aux = Kokkos::subview(wkset->local_aux_side,Kokkos::ALL(),var,Kokkos::ALL());
+      auto localID = localElemID;
+      auto varaux = Kokkos::subview(lambda,Kokkos::ALL(),var,Kokkos::ALL());
+      parallel_for("bcell aux",RangePolicy<AssemblyExec>(0,localID.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type dof=0; dof<abasis.extent(1); ++dof) {
+          AD auxval = AD(maxDerivs,off(dof), varaux(localID(elem),dof));
+          for (size_type pt=0; pt<abasis.extent(2); ++pt) {
+            local_aux(elem,pt) += auxval*abasis(elem,dof,pt);
+          }
+        }
+      });
+    }
+    
   }
   
-  //wkset->resetFlux();
   {
     Teuchos::TimeMonitor localtimer(*cellFluxEvalTimer);
-    
     cellData->physics_RCP->computeFlux(cellData->myBlock);
   }
   
