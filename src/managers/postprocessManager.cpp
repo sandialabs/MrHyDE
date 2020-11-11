@@ -620,7 +620,6 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
           have_face_errs = true;
         }
       }
-    
       for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
         if (have_vol_errs) {
           assembler->wkset[altblock]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
@@ -636,7 +635,7 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
             auto sol = assembler->wkset[altblock]->local_soln;
             auto wts = assembler->cells[block][cell]->wts;
             ScalarT error = 0.0;
-            parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+            parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                 ScalarT diff = sol(elem,var,pt,0).val() - tsol(elem,pt).val();
                 update += diff*diff*wts(elem,pt);
@@ -652,7 +651,7 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
             auto wts = assembler->cells[block][cell]->wts;
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
-            parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+            parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                 ScalarT diff = sol_grad(elem,var,pt,0).val() - tsol(elem,pt).val();
                 update += diff*diff*wts(elem,pt);
@@ -667,7 +666,7 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
-              parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+              parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                   ScalarT diff = sol_grad(elem,var,pt,1).val() - tsol(elem,pt).val();
                   update += diff*diff*wts(elem,pt);
@@ -683,7 +682,7 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
-              parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+              parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                   ScalarT diff = sol_grad(elem,var,pt,2).val() - tsol(elem,pt).val();
                   update += diff*diff*wts(elem,pt);
@@ -701,7 +700,7 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
             
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
-            parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+            parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                 ScalarT diff = sol_div(elem,var,pt).val() - tsol(elem,pt).val();
                 update += diff*diff*wts(elem,pt);
@@ -718,7 +717,7 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
             
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
-            parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+            parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                 ScalarT diff = sol_curl(elem,var,pt,0).val() - tsol(elem,pt).val();
                 update += diff*diff*wts(elem,pt);
@@ -733,7 +732,7 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
-              parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+              parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                   ScalarT diff = sol_curl(elem,var,pt,1).val() - tsol(elem,pt).val();
                   update += diff*diff*wts(elem,pt);
@@ -749,7 +748,7 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
-              parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+              parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                   ScalarT diff = sol_curl(elem,var,pt,2).val() - tsol(elem,pt).val();
                   update += diff*diff*wts(elem,pt);
@@ -767,7 +766,7 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
             
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
-            parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+            parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                 ScalarT diff = sol(elem,var,pt,0).val() - tsol(elem,pt).val();
                 update += diff*diff*wts(elem,pt);
@@ -782,7 +781,7 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
-              parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+              parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                   ScalarT diff = sol(elem,var,pt,1).val() - tsol(elem,pt).val();
                   update += diff*diff*wts(elem,pt);
@@ -798,7 +797,7 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
-              parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+              parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                   ScalarT diff = sol(elem,var,pt,2).val() - tsol(elem,pt).val();
                   update += diff*diff*wts(elem,pt);
@@ -824,7 +823,7 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
                 
                 // add in the L2 difference at the volumetric ip
                 ScalarT error = 0.0;
-                parallel_reduce(wts.extent(0), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+                parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                   double facemeasure = 0.0;
                   for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                     facemeasure += wts(elem,pt);
