@@ -260,13 +260,13 @@ void SubGridFEM_Solver::solve(Kokkos::View<ScalarT***,AssemblyDevice> coarse_u,
     this->nonlinearSolver(u, phi, disc_params, lambda,
                           current_time, isTransient, isAdjoint, num_active_params, alpha, usernum, false);
     
-    KokkosTools::print(u);
+    //KokkosTools::print(u);
     
     this->computeSolnSens(d_u, compute_sens, u,
                           phi, disc_params, lambda,
                           current_time, isTransient, isAdjoint, num_active_params, alpha, 1.0, usernum, subgradient);
     
-    KokkosTools::print(d_u);
+    //KokkosTools::print(d_u);
     if (isAdjoint) {
       this->updateFlux(phi, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0, macroData);
     }
@@ -417,10 +417,10 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
         
       }
       
-      //KokkosTools::print(local_res);
-      //KokkosTools::print(local_J);
       Kokkos::deep_copy(local_res_host,local_res);
       Kokkos::deep_copy(local_J_host,local_J);
+      //KokkosTools::print(local_res);
+      //KokkosTools::print(local_J);
       
       {
         Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverInsertTimer);
@@ -475,6 +475,8 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<LA_MultiVector> & sub_u,
         
         Kokkos::deep_copy(local_res_host_m,local_res);
         Kokkos::deep_copy(local_J_host_m, local_J);
+        //KokkosTools::print(local_res);
+        //KokkosTools::print(local_J);
         
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverInsertTimer);

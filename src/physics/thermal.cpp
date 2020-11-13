@@ -197,7 +197,7 @@ void thermal::boundaryResidual() {
   
   int cside = wkset->currentside;
   int sidetype = bcs(e_num,cside);
-  
+
   int e_basis_num = wkset->usebasis[e_num];
   auto basis = wkset->basis_side[e_basis_num];
   auto basis_grad = wkset->basis_grad_side[e_basis_num];
@@ -232,7 +232,9 @@ void thermal::boundaryResidual() {
   auto T = Kokkos::subview( sol_side, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
   auto gradT = Kokkos::subview( sol_grad_side, Kokkos::ALL(), e_num, Kokkos::ALL(), Kokkos::ALL());
   auto off = Kokkos::subview( offsets, e_num, Kokkos::ALL());
-  
+ 
+  //KokkosTools::print(normals);
+  //KokkosTools::print(nsource); 
   // Contributes
   // <g(u),v> + <p(u),grad(v)\cdot n>
   

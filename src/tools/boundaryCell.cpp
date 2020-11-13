@@ -44,7 +44,8 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
   Teuchos::TimeMonitor localtimer(*buildBasisTimer);
   
   auto localSideID_host = Kokkos::create_mirror_view(localSideID);
-  
+  Kokkos::deep_copy(localSideID_host,localSideID);
+
   DRV ref_ip = cellData->ref_side_ip[localSideID_host(0)];
   DRV ref_wts = cellData->ref_side_wts[localSideID_host(0)];
   
@@ -210,6 +211,7 @@ void BoundaryCell::computeSizeNormals() {
   // scale the normal vector (we need unit normal...)
 
   //auto host_normals = Kokkos::create_mirror_view(normals);
+  //Kokkos::deep_copy(host_normals,normals);
   parallel_for("bcell normal rescale",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (size_type j=0; j<normals.extent(1); j++ ) {
       ScalarT normalLength = 0.0;
