@@ -260,13 +260,13 @@ void SubGridFEM_Solver::solve(Kokkos::View<ScalarT***,AssemblyDevice> coarse_u,
     this->nonlinearSolver(u, phi, disc_params, lambda,
                           current_time, isTransient, isAdjoint, num_active_params, alpha, usernum, false);
     
-    //KokkosTools::print(u);
+    KokkosTools::print(u);
     
     this->computeSolnSens(d_u, compute_sens, u,
                           phi, disc_params, lambda,
                           current_time, isTransient, isAdjoint, num_active_params, alpha, 1.0, usernum, subgradient);
     
-    //KokkosTools::print(d_u);
+    KokkosTools::print(d_u);
     if (isAdjoint) {
       this->updateFlux(phi, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0, macroData);
     }
@@ -1012,7 +1012,9 @@ void SubGridFEM_Solver::updateFlux(const Teuchos::RCP<LA_MultiVector> & u,
         parallel_for("subgrid flux",RangePolicy<AssemblyExec>(0,bMIDs.extent(0)), KOKKOS_LAMBDA (const size_type c ) {
           for (size_type j=0; j<macrobasis_ip.extent(1); j++) {
             for (size_type i=0; i<macrobasis_ip.extent(2); i++) {
-              res(bMIDs(c),off(j)) += macrobasis_ip(c,j,i)*(flux(c,i))*cwts(c,i)*fwt;
+              AD val = macrobasis_ip(c,j,i)*flux(c,i)*cwts(c,i);
+              Kokkos::atomic_add( &res(bMIDs(c),off(j)), val);
+              //res(bMIDs(c),off(j)) += macrobasis_ip(c,j,i)*(flux(c,i))*cwts(c,i)*fwt;
             }
           }
         });
