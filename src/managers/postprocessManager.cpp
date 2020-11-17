@@ -19,13 +19,14 @@ using namespace MrHyDE;
 /* Minimal constructor to set up the problem */
 // ========================================================================================
 
-PostprocessManager::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
+template<class Node>
+PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                                        Teuchos::RCP<Teuchos::ParameterList> & settings,
                                        Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
                                        Teuchos::RCP<panzer_stk::STK_Interface> & optimization_mesh_,
                                        Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                                        vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
-                                       Teuchos::RCP<AssemblyManager> & assembler_) :
+                                       Teuchos::RCP<AssemblyManager<Node> > & assembler_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), optimization_mesh(optimization_mesh_),
 assembler(assembler_), functionManagers(functionManagers_) {
   this->setup(settings);
@@ -35,15 +36,16 @@ assembler(assembler_), functionManagers(functionManagers_) {
 /* Full constructor to set up the problem */
 // ========================================================================================
 
-PostprocessManager::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
+template<class Node>
+PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                                        Teuchos::RCP<Teuchos::ParameterList> & settings,
                                        Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
                                        Teuchos::RCP<panzer_stk::STK_Interface> & optimization_mesh_,
                                        Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                                        vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
                                        Teuchos::RCP<MultiScale> & multiscale_manager_,
-                                       Teuchos::RCP<AssemblyManager> & assembler_,
-                                       Teuchos::RCP<ParameterManager> & params_) :
+                                       Teuchos::RCP<AssemblyManager<Node> > & assembler_,
+                                       Teuchos::RCP<ParameterManager<Node> > & params_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), optimization_mesh(optimization_mesh_),
 assembler(assembler_), params(params_), functionManagers(functionManagers_), multiscale_manager(multiscale_manager_) {
   this->setup(settings);
@@ -53,7 +55,8 @@ assembler(assembler_), params(params_), functionManagers(functionManagers_), mul
 // Setup function used by different constructors
 // ========================================================================================
 
-void PostprocessManager::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+template<class Node>
+void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   
   milo_debug_level = settings->get<int>("debug level",0);
@@ -346,7 +349,8 @@ void PostprocessManager::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) 
 // ========================================================================================
 // ========================================================================================
 
-void PostprocessManager::record(const ScalarT & currenttime) {
+template<class Node>
+void PostprocessManager<Node>::record(const ScalarT & currenttime) {
   if (compute_response) {
     this->computeResponse(currenttime);
   }
@@ -364,7 +368,8 @@ void PostprocessManager::record(const ScalarT & currenttime) {
 // ========================================================================================
 // ========================================================================================
 
-void PostprocessManager::report() {
+template<class Node>
+void PostprocessManager<Node>::report() {
   
   ////////////////////////////////////////////////////////////////////////////
   // The subgrid models still store everything, so we create the output after the run
@@ -571,7 +576,8 @@ void PostprocessManager::report() {
 // ========================================================================================
 // ========================================================================================
 
-void PostprocessManager::computeError(const ScalarT & currenttime) {
+template<class Node>
+void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
   
   if (milo_debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -894,182 +900,8 @@ void PostprocessManager::computeError(const ScalarT & currenttime) {
 // ========================================================================================
 // ========================================================================================
 
-AD PostprocessManager::computeObjective() {
-  AD obj = 0.0;
-  return obj;
-  /*
-   
-   if(Comm->getRank() == 0 ) {
-   if (verbosity > 0) {
-   cout << endl << "*********************************************************" << endl;
-   cout << "***** Computing Objective Function ******" << endl << endl;
-   }
-   }
-   
-   AD totaldiff = 0.0;
-   AD regDomain = 0.0;
-   AD regBoundary = 0.0;
-   //bvbw    AD classicParamPenalty = 0.0;
-   vector<ScalarT> solvetimes = solve->soln->times[0];
-   vector<int> domainRegTypes = params->domainRegTypes;
-   vector<ScalarT> domainRegConstants = params->domainRegConstants;
-   vector<int> domainRegIndices = params->domainRegIndices;
-   int numDomainParams = domainRegIndices.size();
-   vector<int> boundaryRegTypes = params->boundaryRegTypes;
-   vector<ScalarT> boundaryRegConstants = params->boundaryRegConstants;
-   vector<int> boundaryRegIndices = params->boundaryRegIndices;
-   int numBoundaryParams = boundaryRegIndices.size();
-   vector<string> boundaryRegSides = params->boundaryRegSides;
-   
-   
-   params->sacadoizeParams(true);
-   int numClassicParams = params->getNumParams(1);
-   int numDiscParams = params->getNumParams(4);
-   int numParams = numClassicParams + numDiscParams;
-   vector<ScalarT> regGradient(numParams);
-   vector<ScalarT> dmGradient(numParams);
-   vector_RCP P_soln = params->Psol[0];
-   vector_RCP u;
-   //cout << solvetimes.size() << endl;
-   //for (int i=0; i<solvetimes.size(); i++) {
-   //  cout << solvetimes[i] << endl;
-   //}
-   for (size_t tt=0; tt<solvetimes.size(); tt++) {
-   for (size_t b=0; b<cells.size(); b++) {
-   
-   bool fnd = solve->soln->extract(u,tt);
-   assembler->performGather(b,u,0,0);
-   assembler->performGather(b,P_soln,4,0);
-   
-   for (size_t e=0; e<cells[b].size(); e++) {
-   //cout << e << endl;
-   
-   Kokkos::View<AD**,AssemblyDevice> obj = cells[b][e]->computeObjective(solvetimes[tt], tt, 0);
-   
-   int numElem = cells[b][e]->numElem;
-   
-   vector<vector<int> > paramoffsets = params->paramoffsets;
-   //for (size_t tt=0; tt<solvetimes.size(); tt++) { // skip initial condition in 0th position
-   if (obj.extent(1) > 0) {
-   for (int c=0; c<numElem; c++) {
-   for (size_t i=0; i<obj.extent(1); i++) {
-   totaldiff += obj(c,i);
-   if (numClassicParams > 0) {
-   if (obj(c,i).size() > 0) {
-   ScalarT val;
-   val = obj(c,i).fastAccessDx(0);
-   dmGradient[0] += val;
-   }
-   }
-   if (numDiscParams > 0) {
-   Kokkos::View<GO**,HostDevice> paramGIDs = cells[b][e]->paramGIDs;
-   
-   for (int row=0; row<paramoffsets[0].size(); row++) {
-   int rowIndex = paramGIDs(c,paramoffsets[0][row]);
-   int poffset = paramoffsets[0][row];
-   ScalarT val;
-   if (obj(c,i).size() > numClassicParams) {
-   val = obj(c,i).fastAccessDx(poffset+numClassicParams);
-   dmGradient[rowIndex+numClassicParams] += val;
-   }
-   }
-   }
-   }
-   }
-   }
-   //}
-   if ((numDomainParams > 0) || (numBoundaryParams > 0)) {
-   for (int c=0; c<numElem; c++) {
-   Kokkos::View<GO**,HostDevice> paramGIDs = cells[b][e]->paramGIDs;
-   vector<vector<int> > paramoffsets = params->paramoffsets;
-   
-   if (numDomainParams > 0) {
-   int paramIndex, rowIndex, poffset;
-   ScalarT val;
-   regDomain = cells[b][e]->computeDomainRegularization(domainRegConstants,
-   domainRegTypes, domainRegIndices);
-   
-   for (size_t p = 0; p < numDomainParams; p++) {
-   paramIndex = domainRegIndices[p];
-   for( size_t row=0; row<paramoffsets[paramIndex].size(); row++ ) {
-   if (regDomain.size() > 0) {
-   rowIndex = paramGIDs(c,paramoffsets[paramIndex][row]);
-   poffset = paramoffsets[paramIndex][row];
-   val = regDomain.fastAccessDx(poffset);
-   regGradient[rowIndex+numClassicParams] += val;
-   }
-   }
-   }
-   }
-   
-   
-   if (numBoundaryParams > 0) {
-   
-   //int paramIndex, rowIndex, poffset;
-   //ScalarT val;
-   //regBoundary = cells[b][e]->computeBoundaryRegularization(boundaryRegConstants,
-   //                                                         boundaryRegTypes, boundaryRegIndices,
-   //                                                         boundaryRegSides);
-   //for (size_t p = 0; p < numBoundaryParams; p++) {
-   //  paramIndex = boundaryRegIndices[p];
-   //  for( size_t row=0; row<paramoffsets[paramIndex].size(); row++ ) {
-   //    if (regBoundary.size() > 0) {
-   //      rowIndex = paramGIDs(c,paramoffsets[paramIndex][row]);
-   //      poffset = paramoffsets[paramIndex][row];
-   //      val = regBoundary.fastAccessDx(poffset);
-   //      regGradient[rowIndex+numClassicParams] += val;
-   //    }
-   //  }
-   //}
-   }
-   
-   totaldiff += (regDomain + regBoundary);
-   }
-   }
-   }
-   totaldiff += phys->computeTopoResp(b);
-   }
-   }
-   
-   //to gather contributions across processors
-   ScalarT meep = 0.0;
-   Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&totaldiff.val(),&meep);
-   //Comm->SumAll(&totaldiff.val(), &meep, 1);
-   totaldiff.val() = meep;
-   AD fullobj(numParams,meep);
-   
-   for (size_t j=0; j< numParams; j++) {
-   ScalarT dval;
-   ScalarT ldval = dmGradient[j] + regGradient[j];
-   Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&ldval,&dval);
-   //Comm->SumAll(&ldval,&dval,1);
-   fullobj.fastAccessDx(j) = dval;
-   }
-   
-   if(Comm->getRank() == 0 ) {
-   if (verbosity > 0) {
-   cout << "********** Value of Objective Function = " << std::setprecision(16) << fullobj.val() << endl;
-   cout << "*********************************************************" << endl;
-   }
-   }
-   
-   if(Comm->getRank() == 0) {
-   std::string sname2 = "obj.dat";
-   ofstream objOUT(sname2.c_str());
-   objOUT.precision(16);
-   objOUT << fullobj.val() << endl;
-   objOUT.close();
-   }
-   
-   
-   return fullobj;
-   */
-}
-
-// ========================================================================================
-// ========================================================================================
-
-void PostprocessManager::computeResponse(const ScalarT & currenttime) {
+template<class Node>
+void PostprocessManager<Node>::computeResponse(const ScalarT & currenttime) {
   
   response_times.push_back(currenttime);
   params->sacadoizeParams(false);
@@ -1125,77 +957,8 @@ void PostprocessManager::computeResponse(const ScalarT & currenttime) {
 // ========================================================================================
 // ========================================================================================
 
-vector<ScalarT> PostprocessManager::computeSensitivities() {
-  vector<ScalarT> gradient;
-  return gradient;
-  
-  /*
-   Teuchos::RCP<Teuchos::Time> sensitivitytimer = Teuchos::rcp(new Teuchos::Time("sensitivity",false));
-   sensitivitytimer->start();
-   
-   vector<string> active_paramnames = params->getParamsNames(1);
-   vector<size_t> active_paramlengths = params->getParamsLengths(1);
-   
-   vector<ScalarT> dwr_sens;
-   vector<ScalarT> disc_sens;
-   
-   int numClassicParams = params->getNumParams(1);
-   int numDiscParams = params->getNumParams(4);
-   int numParams = numClassicParams + numDiscParams;
-   
-   vector<ScalarT> gradient(numParams);
-   
-   AD obj_sens = this->computeObjective();
-   
-   if (numClassicParams > 0 ) {
-   dwr_sens = this->computeParameterSensitivities();
-   }
-   if (numDiscParams > 0) {
-   disc_sens = this->computeDiscretizedSensitivities();
-   }
-   size_t pprog  = 0;
-   for (size_t i=0; i<numClassicParams; i++) {
-   ScalarT cobj = 0.0;
-   if (i<obj_sens.size()) {
-   cobj = obj_sens.fastAccessDx(i);
-   }
-   gradient[pprog] = cobj + dwr_sens[i];
-   pprog++;
-   }
-   for (size_t i=0; i<numDiscParams; i++) {
-   ScalarT cobj = 0.0;
-   if (i<obj_sens.size()) {
-   cobj = obj_sens.fastAccessDx(i+numClassicParams);
-   }
-   gradient[pprog] = cobj + disc_sens[i];
-   pprog++;
-   }
-   
-   sensitivitytimer->stop();
-   
-   if(Comm->getRank() == 0 ) {
-   if (verbosity > 0) {
-   int pprog = 0;
-   for (size_t p=0; p < active_paramnames.size(); p++) {
-   for (size_t p2=0; p2 < active_paramlengths[p]; p2++) {
-   cout << "Sensitivity of the response w.r.t " << active_paramnames[p] << " component " << p2 << " = " << gradient[pprog] << endl;
-   pprog++;
-   }
-   }
-   for (size_t p =0; p < numDiscParams; p++)
-   cout << "sens w.r.t. discretized param " << p << " is " << gradient[p+numClassicParams] << endl;
-   cout << "Sensitivity Calculation Time: " << sensitivitytimer->totalElapsedTime() << endl;
-   }
-   }
-   
-   return gradient;
-   */
-}
-
-// ========================================================================================
-// ========================================================================================
-
-void PostprocessManager::writeSolution(const ScalarT & currenttime) {
+template<class Node>
+void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
   
   Teuchos::TimeMonitor localtimer(*writeSolutionTimer);
   
@@ -1509,7 +1272,8 @@ void PostprocessManager::writeSolution(const ScalarT & currenttime) {
 // ========================================================================================
 // ========================================================================================
 
-void PostprocessManager::writeOptimizationSolution(const int & numEvaluations) {
+template<class Node>
+void PostprocessManager<Node>::writeOptimizationSolution(const int & numEvaluations) {
   
   Teuchos::TimeMonitor localtimer(*writeSolutionTimer);
   
@@ -1607,7 +1371,8 @@ void PostprocessManager::writeOptimizationSolution(const int & numEvaluations) {
 // ========================================================================================
 // ========================================================================================
 
-ScalarT PostprocessManager::makeSomeNoise(ScalarT stdev) {
+template<class Node>
+ScalarT PostprocessManager<Node>::makeSomeNoise(ScalarT stdev) {
   //generate sample from 0-centered normal with stdev
   //Box-Muller method
   //srand(time(0)); //doing this more frequently than once-per-second results in getting the same numbers...
@@ -1619,240 +1384,4 @@ ScalarT PostprocessManager::makeSomeNoise(ScalarT stdev) {
 
 // ========================================================================================
 // ========================================================================================
-
-vector<ScalarT> PostprocessManager::computeParameterSensitivities() {
-  vector<ScalarT> gradient;
-  return gradient;
-  
-  /*
-   if(Comm->getRank() == 0 && verbosity>0) {
-   cout << endl << "*********************************************************" << endl;
-   cout << "***** Computing Sensitivities ******" << endl << endl;
-   }
-   
-   vector_RCP u = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
-   vector_RCP phi = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
-   vector_RCP a2 = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,1)); // adjoint solution
-   vector_RCP u_dot = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // previous solution (can be either fwd or adj)
-   
-   //auto u_kv = u->getLocalView<HostDevice>();
-   auto a2_kv = a2->getLocalView<HostDevice>();
-   //auto u_dot_kv = u_dot->getLocalView<HostDevice>();
-   
-   ScalarT alpha = 0.0;
-   ScalarT beta = 1.0;
-   
-   vector<ScalarT> gradient(params->num_active_params);
-   
-   params->sacadoizeParams(true);
-   
-   vector<ScalarT> localsens(params->num_active_params);
-   int nsteps = 1;
-   if (solve->isTransient) {
-   nsteps = solve->soln->times[0].size()-1;
-   }
-   double current_time = 0.0;
-   
-   for (int timeiter = 0; timeiter<nsteps; timeiter++) {
-   if (solve->isTransient) {
-   current_time = solve->soln->times[0][timeiter+1];
-   bool fnd = solve->soln->extract(u,timeiter+1);
-   bool fndadj = solve->adj_soln->extract(phi,nsteps-timeiter);
-   auto phi_kv = phi->getLocalView<HostDevice>();
-   
-   //for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
-   //  u_dot_kv(i,0) = alpha*(GF_kv(i,timeiter+1) - GF_kv(i,timeiter));
-   //  u_kv(i,0) = GF_kv(i,timeiter+1);
-   //}
-   for( LO i=0; i<solve->LA_owned.size(); i++ ) {
-   a2_kv(i,0) = phi_kv(i,0);
-   }
-   }
-   else {
-   current_time = solve->soln->times[0][timeiter];
-   bool fnd = solve->soln->extract(u,0);
-   bool fndadj = solve->adj_soln->extract(phi,0);
-   auto phi_kv = phi->getLocalView<HostDevice>();
-   
-   //for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
-   //  u_kv(i,0) = GF_kv(i,timeiter);
-   //}
-   for( LO i=0; i<solve->LA_owned.size(); i++ ) {
-   a2_kv(i,0) = phi_kv(i,0);
-   }
-   }
-   
-   
-   vector_RCP res = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,params->num_active_params)); // reset residual
-   matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(solve->LA_owned_map); // reset Jacobian
-   vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,params->num_active_params)); // reset residual
-   matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(solve->LA_overlapped_map); // reset Jacobian
-   res_over->putScalar(0.0);
-   
-   //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, false, true, false, res_over, J_over);
-   assembler->assembleJacRes(u, u, false, true, false,
-   res_over, J_over, solve->isTransient, current_time, false, false,
-   params->num_active_params, params->Psol[0], false, solve->deltat);
-   
-   res->putScalar(0.0);
-   res->doExport(*res_over, *(solve->exporter), Tpetra::ADD);
-   
-   auto res_kv = res->getLocalView<HostDevice>();
-   
-   for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
-   ScalarT currsens = 0.0;
-   for( LO i=0; i<solve->LA_owned.size(); i++ ) {
-   currsens += a2_kv(i,0) * res_kv(i,paramiter);
-   }
-   localsens[paramiter] -= currsens;
-   }
-   }
-   
-   ScalarT localval = 0.0;
-   ScalarT globalval = 0.0;
-   for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
-   localval = localsens[paramiter];
-   Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
-   //Comm->SumAll(&localval, &globalval, 1);
-   gradient[paramiter] = globalval;
-   }
-   
-   if(Comm->getRank() == 0 && solve->batchID == 0) {
-   stringstream ss;
-   std::string sname2 = "sens.dat";
-   ofstream sensOUT(sname2.c_str());
-   sensOUT.precision(16);
-   for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
-   sensOUT << gradient[paramiter] << "  ";
-   }
-   sensOUT << endl;
-   sensOUT.close();
-   }
-   
-   return gradient;
-   */
-}
-
-
-// ========================================================================================
-// Compute the sensitivity of the objective with respect to discretized parameters
-// ========================================================================================
-
-vector<ScalarT> PostprocessManager::computeDiscretizedSensitivities() {
-  vector<ScalarT> gradient;
-  return gradient;
-  
-  /*
-   if(Comm->getRank() == 0 && verbosity>0) {
-   cout << endl << "*********************************************************" << endl;
-   cout << "***** Computing Discretized Sensitivities ******" << endl << endl;
-   }
-   //auto F_kv = F_soln->getLocalView<HostDevice>();
-   //auto A_kv = A_soln->getLocalView<HostDevice>();
-   
-   vector_RCP u = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
-   vector_RCP phi = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // forward solution
-   vector_RCP a2 = Teuchos::rcp(new LA_MultiVector(solve->LA_owned_map,1)); // adjoint solution
-   
-   //auto u_kv = u->getLocalView<HostDevice>();
-   auto a2_kv = a2->getLocalView<HostDevice>();
-   //auto u_dot_kv = u_dot->getLocalView<HostDevice>();
-   
-   ScalarT alpha = 0.0;
-   ScalarT beta = 1.0;
-   
-   params->sacadoizeParams(false);
-   
-   int nsteps = 1;
-   if (solve->isTransient) {
-   nsteps = solve->soln->times[0].size()-1;
-   }
-   
-   vector_RCP totalsens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1));
-   auto tsens_kv = totalsens->getLocalView<HostDevice>();
-   
-   double current_time =0.0;
-   
-   for (int timeiter = 0; timeiter<nsteps; timeiter++) {
-   
-   if (solve->isTransient) {
-   current_time = solve->soln->times[0][timeiter+1];
-   bool fnd = solve->soln->extract(u,timeiter+1);
-   bool fndadj = solve->adj_soln->extract(phi,nsteps-timeiter);
-   auto phi_kv = phi->getLocalView<HostDevice>();
-   
-   //for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
-   //  u_dot_kv(i,0) = alpha*(F_kv(i,timeiter+1) - F_kv(i,timeiter));
-   //  u_kv(i,0) = F_kv(i,timeiter+1);
-   //}
-   for( LO i=0; i<solve->LA_owned.size(); i++ ) {
-   a2_kv(i,0) = phi_kv(i,0);
-   }
-   }
-   else {
-   current_time = solve->soln->times[0][timeiter];
-   bool fnd = solve->soln->extract(u,0);
-   bool fndadj = solve->adj_soln->extract(phi,0);
-   auto phi_kv = phi->getLocalView<HostDevice>();
-   
-   //for( LO i=0; i<solve->LA_ownedAndShared.size(); i++ ) {
-   //  u_kv(i,0) = F_kv(i,timeiter);
-   //}
-   for( LO i=0; i<solve->LA_owned.size(); i++ ) {
-   a2_kv(i,0) = phi_kv(i,0);
-   }
-   }
-   
-   // current_time = solvetimes[timeiter+1];
-   // for( size_t i=0; i<ownedAndShared.size(); i++ ) {
-   // u[0][i] = F_soln[timeiter+1][i];
-   // u_dot[0][i] = alpha*(F_soln[timeiter+1][i] - F_soln[timeiter][i]);
-   // }
-   // for( size_t i=0; i<owned.size(); i++ ) {
-   // a2[0][i] = A_soln[nsteps-timeiter][i];
-   // }
-   //
-   
-   vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(solve->LA_overlapped_map,1)); // reset residual
-   matrix_RCP J_over = Tpetra::createCrsMatrix<ScalarT>(params->param_overlapped_map); // reset Jacobian
-   matrix_RCP J = Tpetra::createCrsMatrix<ScalarT>(params->param_owned_map); // reset Jacobian
-   //this->computeJacRes(u, u_dot, u, u_dot, alpha, beta, true, false, true, res_over, J_over);
-   assembler->assembleJacRes(u, u, true, false, true,
-   res_over, J_over, solve->isTransient, current_time, false, false,
-   params->num_active_params, params->Psol[0], false, solve->deltat);
-   
-   J_over->fillComplete(solve->LA_owned_map, params->param_owned_map);
-   vector_RCP sens_over = Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1)); // reset residual
-   vector_RCP sens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1)); // reset residual
-   
-   J->setAllToScalar(0.0);
-   J->doExport(*J_over, *(params->param_exporter), Tpetra::ADD);
-   J->fillComplete(solve->LA_owned_map, params->param_owned_map);
-   
-   J->apply(*a2,*sens);
-   
-   totalsens->update(1.0, *sens, 1.0);
-   }
-   
-   params->dRdP.push_back(totalsens);
-   params->have_dRdP = true;
-   
-   int numParams = params->getNumParams(4);
-   vector<ScalarT> discLocalGradient(numParams);
-   vector<ScalarT> discGradient(numParams);
-   for (size_t i = 0; i < params->paramOwned.size(); i++) {
-   GO gid = params->paramOwned[i];
-   discLocalGradient[gid] = tsens_kv(i,0);
-   }
-   for (size_t i = 0; i < numParams; i++) {
-   ScalarT globalval = 0.0;
-   ScalarT localval = discLocalGradient[i];
-   Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
-   //Comm->SumAll(&localval, &globalval, 1);
-   discGradient[i] = globalval;
-   }
-   return discGradient;
-   */
-}
-
 

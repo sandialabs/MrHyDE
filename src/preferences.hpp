@@ -81,6 +81,12 @@ typedef Kokkos::Compat::KokkosSerialWrapperNode HostNode;
 #else
   typedef Kokkos::Compat::KokkosSerialWrapperNode AssemblyNode;
 #endif
+#if defined(MrHyDE_SOLVERSPACE_CUDA)
+  typedef Kokkos::Compat::KokkosCudaWrapperNode SolverNode;
+#else
+  typedef Kokkos::Compat::KokkosSerialWrapperNode SolverNode;
+#endif
+typedef AssemblyNode SubgridSolverNode;
 
 // Typedef Kokkos devices based on Exec, Mem
 typedef Kokkos::Device<HostExec,HostMem> HostDevice;
@@ -88,8 +94,6 @@ typedef Kokkos::Device<AssemblyExec,AssemblyMem> AssemblyDevice;
 
 // Kokkos object typedefs (preferable to use Kokkos::View<*,Device>)
 typedef Kokkos::DynRankView<ScalarT,PHX::Device> DRV; // for interacting with Intrepid2/Panzer
-//typedef Kokkos::DynRankView<ScalarT,AssemblyDevice> ADRV; // for internal use
-//typedef Kokkos::DynRankView<int,AssemblyDevice> DRVint;
 typedef Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> FDATA;
 typedef Kokkos::View<ScalarT**,Kokkos::LayoutStride,AssemblyDevice> FDATAd;
 typedef Kokkos::View<LO**,AssemblyDevice> LIDView;
@@ -104,32 +108,5 @@ typedef Intrepid2::FunctionSpaceTools<PHX::Device::execution_space> FuncTools;
 typedef Intrepid2::OrientationTools<PHX::Device::execution_space> OrientTools;
 typedef Intrepid2::RealSpaceTools<PHX::Device::execution_space> RealTools;
 typedef Intrepid2::ArrayTools<PHX::Device::execution_space> ArrayTools;
-
-// Tpetra linear algebra typedefs (Epetra is no longer supported)
-typedef Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>   LA_CrsMatrix;
-typedef Tpetra::CrsGraph<LO,GO,HostNode>            LA_CrsGraph;
-typedef Tpetra::Export<LO, GO, HostNode>            LA_Export;
-typedef Tpetra::Import<LO, GO, HostNode>            LA_Import;
-typedef Tpetra::Map<LO, GO, HostNode>               LA_Map;
-typedef Tpetra::Operator<ScalarT,LO,GO,HostNode>    LA_Operator;
-typedef Tpetra::MultiVector<ScalarT,LO,GO,HostNode> LA_MultiVector;
-//typedef Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator> LA_LinearProblem;
-
-// RCP to LA objects (may be removed in later version)
-typedef Teuchos::RCP<LA_MultiVector> vector_RCP;
-typedef Teuchos::RCP<LA_CrsMatrix>   matrix_RCP;
-
-// Subgrid Tpetra linear algebra typedefs (Epetra is no longer supported)
-typedef Tpetra::CrsMatrix<ScalarT,LO,GO,AssemblyNode>   SG_CrsMatrix;
-typedef Tpetra::CrsGraph<LO,GO,AssemblyNode>            SG_CrsGraph;
-typedef Tpetra::Export<LO, GO, AssemblyNode>            SG_Export;
-typedef Tpetra::Import<LO, GO, AssemblyNode>            SG_Import;
-typedef Tpetra::Map<LO, GO, AssemblyNode>               SG_Map;
-typedef Tpetra::Operator<ScalarT,LO,GO,AssemblyNode>    SG_Operator;
-typedef Tpetra::MultiVector<ScalarT,LO,GO,AssemblyNode> SG_MultiVector;
-
-// RCP to LA objects (may be removed in later version)
-typedef Teuchos::RCP<LA_MultiVector> SG_vector_RCP;
-typedef Teuchos::RCP<LA_CrsMatrix>   SG_matrix_RCP;
 
 #endif

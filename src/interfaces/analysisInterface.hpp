@@ -31,6 +31,11 @@ namespace MrHyDE {
   */
   
   class analysis {
+    
+    typedef Tpetra::Map<LO, GO, SolverNode>               LA_Map;
+    typedef Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> LA_MultiVector;
+    typedef Teuchos::RCP<LA_MultiVector> vector_RCP;
+    
   public:
     
     // ========================================================================================
@@ -38,8 +43,8 @@ namespace MrHyDE {
     // ========================================================================================
     
     analysis(const Teuchos::RCP<MpiComm> & Comm_, 
-             Teuchos::RCP<Teuchos::ParameterList> & settings_, Teuchos::RCP<solver> & solver_,
-             Teuchos::RCP<PostprocessManager> & postproc_, Teuchos::RCP<ParameterManager> & params_);
+             Teuchos::RCP<Teuchos::ParameterList> & settings_, Teuchos::RCP<solver<SolverNode> > & solver_,
+             Teuchos::RCP<PostprocessManager<SolverNode> > & postproc_, Teuchos::RCP<ParameterManager<SolverNode> > & params_);
     
     // ========================================================================================
     /* given the parameters, solve the forward  problem */
@@ -52,9 +57,9 @@ namespace MrHyDE {
     Teuchos::RCP<MpiComm> Comm;
     //Teuchos::RCP<MpiComm> S_Comm;
     Teuchos::RCP<Teuchos::ParameterList> settings;
-    Teuchos::RCP<solver> solve;
-    Teuchos::RCP<PostprocessManager> postproc;
-    Teuchos::RCP<ParameterManager> params;
+    Teuchos::RCP<solver<SolverNode> > solve;
+    Teuchos::RCP<PostprocessManager<SolverNode> > postproc;
+    Teuchos::RCP<ParameterManager<SolverNode> > params;
     
     ScalarT response;
     vector<ScalarT> gradient;

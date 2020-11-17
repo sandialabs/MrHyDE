@@ -21,6 +21,13 @@
 namespace MrHyDE {
   
   class SubGridModel {
+    
+    typedef Tpetra::CrsMatrix<ScalarT,LO,GO,AssemblyNode>   SG_CrsMatrix;
+    typedef Tpetra::MultiVector<ScalarT,LO,GO,AssemblyNode> SG_MultiVector;
+    typedef Tpetra::Map<LO, GO, AssemblyNode>               SG_Map;
+    typedef Teuchos::RCP<SG_MultiVector> vector_RCP;
+    typedef Teuchos::RCP<SG_CrsMatrix>   matrix_RCP;
+    
   public:
     
     SubGridModel() {} ;
@@ -75,7 +82,7 @@ namespace MrHyDE {
     
     virtual matrix_RCP getProjectionMatrix() = 0;
     
-    virtual Teuchos::RCP<LA_CrsMatrix> getProjectionMatrix(DRV & ip, DRV & wts,
+    virtual matrix_RCP getProjectionMatrix(DRV & ip, DRV & wts,
                                                            std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) = 0;
     
     virtual vector_RCP getVector() = 0;
@@ -88,7 +95,7 @@ namespace MrHyDE {
     
     virtual std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > evaluateBasis2(const DRV & ip) = 0;
     
-    virtual matrix_RCP getEvaluationMatrix(const DRV & newip, Teuchos::RCP<LA_Map> & ip_map) = 0;
+    virtual matrix_RCP getEvaluationMatrix(const DRV & newip, Teuchos::RCP<SG_Map> & ip_map) = 0;
     
     virtual LIDView getCellLIDs(const int & cellnum) = 0;
     
@@ -101,7 +108,7 @@ namespace MrHyDE {
     virtual void updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data) = 0;
     
     Teuchos::RCP<MpiComm> LocalComm;
-    Teuchos::RCP<SolutionStorage<LA_MultiVector> > soln, solndot, adjsoln;
+    Teuchos::RCP<SolutionStorage<SG_MultiVector> > soln, solndot, adjsoln;
     
     bool useMachineLearning = false;
     

@@ -52,8 +52,8 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
     save_solution = true;
   }
   //if (save_solution) {
-    soln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
-    adjsoln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
+    soln = Teuchos::rcp(new SolutionStorage<SG_MultiVector>(settings));
+    adjsoln = Teuchos::rcp(new SolutionStorage<SG_MultiVector>(settings));
   //}
   
   /////////////////////////////////////////////////////////////////////////////////////
@@ -229,10 +229,10 @@ void SubGridFEM::setUpSubgridModels() {
   // Set up the parameter manager, the assembler and the solver
   /////////////////////////////////////////////////////////////////////////////////////
   
-  sub_params = Teuchos::rcp( new ParameterManager(LocalComm, settings, sub_mesh->mesh,
+  sub_params = Teuchos::rcp( new ParameterManager<SubgridSolverNode>(LocalComm, settings, sub_mesh->mesh,
                                                   sub_physics, sub_disc));
   
-  sub_assembler = Teuchos::rcp( new AssemblyManager(LocalComm, settings, sub_mesh->mesh,
+  sub_assembler = Teuchos::rcp( new AssemblyManager<SubgridSolverNode>(LocalComm, settings, sub_mesh->mesh,
                                                     sub_disc, sub_physics, DOF,
                                                     sub_params, numSubElem));
   
@@ -372,7 +372,7 @@ void SubGridFEM::setUpSubgridModels() {
                                                    sub_assembler, sub_params, DOF, macro_deltat,
                                                    numMacroDOF) );
   
-  sub_postproc = Teuchos::rcp( new PostprocessManager(LocalComm, settings, sub_mesh->mesh,
+  sub_postproc = Teuchos::rcp( new PostprocessManager<SubgridSolverNode>(LocalComm, settings, sub_mesh->mesh,
                                                       sub_mesh->optimization_mesh,
                                                       sub_disc, sub_physics,
                                                       functionManagers, sub_assembler) );
@@ -703,11 +703,11 @@ void SubGridFEM::setUpSubgridModels() {
     {
       Teuchos::TimeMonitor localtimer(*sgfemSubICTimer);
       
-      Teuchos::RCP<LA_MultiVector> init = Teuchos::rcp(new LA_MultiVector(sub_solver->milo_solver->LA_overlapped_map,1));
+      Teuchos::RCP<SG_MultiVector> init = Teuchos::rcp(new SG_MultiVector(sub_solver->milo_solver->LA_overlapped_map,1));
       this->setInitial(init, mindex, false);
       soln->store(init,initial_time,mindex);
       
-      Teuchos::RCP<LA_MultiVector> inita = Teuchos::rcp(new LA_MultiVector(sub_solver->milo_solver->LA_overlapped_map,1));
+      Teuchos::RCP<SG_MultiVector> inita = Teuchos::rcp(new SG_MultiVector(sub_solver->milo_solver->LA_overlapped_map,1));
       adjsoln->store(inita,final_time,mindex);
     }
     
@@ -1262,7 +1262,7 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
   }
   
   // Extract the previous solution as the initial guess/condition for subgrid problems
-  Teuchos::RCP<LA_MultiVector> prev_fwdsoln, prev_adjsoln;
+  Teuchos::RCP<SG_MultiVector> prev_fwdsoln, prev_adjsoln;
   {
     Teuchos::TimeMonitor localtimer(*sgfemInitialTimer);
     
@@ -1372,7 +1372,7 @@ void SubGridFEM::storeFluxData(Kokkos::View<ScalarT***,AssemblyDevice> lambda, K
 // Compute the initial values for the subgrid solution
 //////////////////////////////////////////////////////////////
 
-void SubGridFEM::setInitial(Teuchos::RCP<LA_MultiVector> & initial,
+void SubGridFEM::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
                             const int & usernum, const bool & useadjoint) {
   
   initial->putScalar(0.0);
@@ -1535,7 +1535,7 @@ Kokkos::View<AD*,AssemblyDevice> SubGridFEM::computeObjective(const string & res
   //  }
   //}
   
-  Teuchos::RCP<LA_MultiVector> currsol;
+  Teuchos::RCP<SG_MultiVector> currsol;
   bool found = soln->extract(currsol,usernum,time,tindex);
   
   Kokkos::View<AD*,AssemblyDevice> objective;
@@ -1955,7 +1955,7 @@ void SubGridFEM::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_poin
 // This function needs to exist in a subgrid model, but the solver does the real work
 ////////////////////////////////////////////////////////////////////////////////
 
-Teuchos::RCP<LA_CrsMatrix>  SubGridFEM::getProjectionMatrix() {
+Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM::getProjectionMatrix() {
   
   return sub_solver->getProjectionMatrix();
   
@@ -1966,7 +1966,7 @@ Teuchos::RCP<LA_CrsMatrix>  SubGridFEM::getProjectionMatrix() {
 // This function needs to exist in a subgrid model, but the solver does the real work
 ////////////////////////////////////////////////////////////////////////////////
 
-Teuchos::RCP<LA_CrsMatrix> SubGridFEM::getProjectionMatrix(DRV & ip, DRV & wts,
+Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM::getProjectionMatrix(DRV & ip, DRV & wts,
                                                            std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) {
   
   return sub_solver->getProjectionMatrix(ip, wts, other_basisinfo);
@@ -1978,7 +1978,7 @@ Teuchos::RCP<LA_CrsMatrix> SubGridFEM::getProjectionMatrix(DRV & ip, DRV & wts,
 // This function needs to exist in a subgrid model, but the solver does the real work
 ////////////////////////////////////////////////////////////////////////////////
 
-vector_RCP SubGridFEM::getVector() {
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM::getVector() {
   return sub_solver->getVector();
 }
 
@@ -2128,7 +2128,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluate
 // Get the matrix mapping the DOFs to a set of integration points on a reference macro-element
 ////////////////////////////////////////////////////////////////////////////////
 
-Teuchos::RCP<LA_CrsMatrix>  SubGridFEM::getEvaluationMatrix(const DRV & newip, Teuchos::RCP<LA_Map> & ip_map) {
+Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM::getEvaluationMatrix(const DRV & newip, Teuchos::RCP<SG_Map> & ip_map) {
   return sub_solver->getEvaluationMatrix(newip, ip_map);
   /*
   matrix_RCP map_over = Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(sub_solver->LA_overlapped_graph) );

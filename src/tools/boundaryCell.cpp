@@ -775,15 +775,16 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
 // Compute flux and sensitivity wrt params
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::computeFlux(const vector_RCP & gl_u,
-                               const vector_RCP & gl_du,
-                               const vector_RCP & params,
+void BoundaryCell::computeFlux(const SG_vector_RCP & gl_u,
+                               const SG_vector_RCP & gl_du,
+                               const SG_vector_RCP & params,
                                Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                                const ScalarT & time, const int & side, const ScalarT & coarse_h,
                                const bool & compute_sens) {
   
   wkset->setTime(time);
   
+  // TMW: this should change based on subgrid solver node and assembly device (host device is not relevant)
   auto u_host = gl_u->getLocalView<HostDevice>();
   auto du_host = gl_du->getLocalView<HostDevice>();
   Kokkos::View<ScalarT**,AssemblyDevice> u_kv("tpetra vector on device",u_host.extent(0),u_host.extent(1));

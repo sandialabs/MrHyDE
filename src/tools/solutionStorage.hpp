@@ -23,6 +23,12 @@ namespace MrHyDE {
   
   template<class V>
   class SolutionStorage {
+    
+    typedef Tpetra::CrsMatrix<ScalarT,LO,GO,SolverNode>   LA_CrsMatrix;
+    typedef Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> LA_MultiVector;
+    typedef Teuchos::RCP<LA_MultiVector> vector_RCP;
+    typedef Teuchos::RCP<LA_CrsMatrix>   matrix_RCP;
+    
   public:
     
     SolutionStorage() {} ;

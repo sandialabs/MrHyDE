@@ -28,6 +28,12 @@ namespace MrHyDE {
   */
   
   class MultiScale {
+    
+    typedef Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>   SGLA_CrsMatrix;
+    typedef Tpetra::MultiVector<ScalarT,LO,GO,SubgridSolverNode> SGLA_MultiVector;
+    typedef Teuchos::RCP<SGLA_MultiVector> vector_RCP;
+    typedef Teuchos::RCP<SGLA_CrsMatrix>   matrix_RCP;
+  
   public:
     
     // ========================================================================================
@@ -69,13 +75,6 @@ namespace MrHyDE {
     void reset();
     
     ////////////////////////////////////////////////////////////////////////////////
-    // Post-processing
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    void writeSolution(const std::string & macrofilename, const std::vector<ScalarT> & solvetimes,
-                       const int & globalPID);
-    
-    ////////////////////////////////////////////////////////////////////////////////
     // Update parameters
     ////////////////////////////////////////////////////////////////////////////////
     
@@ -106,8 +105,8 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::ParameterList> settings;
     std::vector<std::vector<Teuchos::RCP<cell> > > cells;
     std::vector<Teuchos::RCP<workset> > macro_wkset;
-    std::vector<std::vector<Teuchos::RCP<LA_CrsMatrix> > > subgrid_projection_maps;
-    std::vector<Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > > subgrid_projection_solvers;
+    std::vector<std::vector<Teuchos::RCP<SGLA_CrsMatrix> > > subgrid_projection_maps;
+    std::vector<Teuchos::RCP<Amesos2::Solver<SGLA_CrsMatrix,SGLA_MultiVector> > > subgrid_projection_solvers;
     std::vector<Teuchos::RCP<FunctionManager> > macro_functionManagers;
     
     Teuchos::RCP<Teuchos::Time> resettimer = Teuchos::TimeMonitor::getNewCounter("MILO::multiscale::reset()");

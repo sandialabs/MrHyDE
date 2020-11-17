@@ -22,7 +22,8 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-ParameterManager::ParameterManager(const Teuchos::RCP<MpiComm> & Comm_,
+template<class Node>
+ParameterManager<Node>::ParameterManager(const Teuchos::RCP<MpiComm> & Comm_,
                                    Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                    Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
                                    Teuchos::RCP<physics> & phys_,
@@ -59,7 +60,8 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), settings(settings_) {
 // Communicate these parameters back to the physics interface and the enabled modules
 // ========================================================================================
 
-void ParameterManager::setupParameters() {
+template<class Node>
+void ParameterManager<Node>::setupParameters() {
   
   Teuchos::ParameterList parameters;
   
@@ -192,7 +194,8 @@ void ParameterManager::setupParameters() {
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
 
-void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cell> > > & cells,
+template<class Node>
+void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cell> > > & cells,
                                                   vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells) {
   
   if (num_discretized_params > 0) {
@@ -441,7 +444,8 @@ void ParameterManager::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cel
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-int ParameterManager::getNumParams(const int & type) {
+template<class Node>
+int ParameterManager<Node>::getNumParams(const int & type) {
   int np = 0;
   if (type == 0)
   np = num_inactive_params;
@@ -460,7 +464,8 @@ int ParameterManager::getNumParams(const int & type) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-int ParameterManager::getNumParams(const std::string & type) {
+template<class Node>
+int ParameterManager<Node>::getNumParams(const std::string & type) {
   int np = 0;
   if (type == "inactive")
   np = num_inactive_params;
@@ -480,12 +485,13 @@ int ParameterManager::getNumParams(const std::string & type) {
 // return the discretized parameters as vector for use with ROL
 // ========================================================================================
 
-vector<ScalarT> ParameterManager::getDiscretizedParamsVector() {
+template<class Node>
+vector<ScalarT> ParameterManager<Node>::getDiscretizedParamsVector() {
   int numParams = this->getNumParams(4);
   vector<ScalarT> discLocalParams(numParams);
   vector<ScalarT> discParams(numParams);
-  auto Psol_2d = Psol[0]->getLocalView<HostDevice>();
-  
+  //auto Psol_2d = Psol[0]->getLocalView<Kokkos::Device<Node::execution_space,Node::memory_space>>();
+  auto Psol_2d = Psol[0]->template getLocalView<LA_device>();
   for (size_t i = 0; i < paramOwned.size(); i++) {
     int gid = paramOwned[i];
     discLocalParams[gid] = Psol_2d(i,0);
@@ -507,7 +513,9 @@ vector<ScalarT> ParameterManager::getDiscretizedParamsVector() {
 // ========================================================================================
 // ========================================================================================
 
-vector_RCP ParameterManager::setInitialParams() {
+template<class Node>
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::setInitialParams() {
+//vector_RCP ParameterManager<Node>::setInitialParams() {
   
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -587,7 +595,8 @@ vector_RCP ParameterManager::setInitialParams() {
 // ========================================================================================
 // ========================================================================================
 
-void ParameterManager::sacadoizeParams(const bool & seed_active) {
+template<class Node>
+void ParameterManager<Node>::sacadoizeParams(const bool & seed_active) {
   
   size_t maxlength = paramvals_KVAD.extent(1);
   
@@ -681,7 +690,8 @@ void ParameterManager::sacadoizeParams(const bool & seed_active) {
 // ========================================================================================
 // ========================================================================================
 
-void ParameterManager::updateParams(const vector<ScalarT> & newparams, const int & type) {
+template<class Node>
+void ParameterManager<Node>::updateParams(const vector<ScalarT> & newparams, const int & type) {
   size_t pprog = 0;
   // perhaps add a check that the size of newparams equals the number of parameters of the
   // requested type
@@ -719,7 +729,8 @@ void ParameterManager::updateParams(const vector<ScalarT> & newparams, const int
 // ========================================================================================
 // ========================================================================================
 
-void ParameterManager::setParam(const vector<ScalarT> & newparams, const std::string & name) {
+template<class Node>
+void ParameterManager<Node>::setParam(const vector<ScalarT> & newparams, const std::string & name) {
   size_t pprog = 0;
   // perhaps add a check that the size of newparams equals the number of parameters of the
   // requested type
@@ -741,7 +752,8 @@ void ParameterManager::setParam(const vector<ScalarT> & newparams, const std::st
 // ========================================================================================
 // ========================================================================================
 
-void ParameterManager::updateParams(const vector<ScalarT> & newparams, const std::string & stype) {
+template<class Node>
+void ParameterManager<Node>::updateParams(const vector<ScalarT> & newparams, const std::string & stype) {
   size_t pprog = 0;
   int type = -1;
   // perhaps add a check that the size of newparams equals the number of parameters of the
@@ -766,7 +778,8 @@ void ParameterManager::updateParams(const vector<ScalarT> & newparams, const std
 // ========================================================================================
 // ========================================================================================
 
-vector<ScalarT> ParameterManager::getParams(const int & type) {
+template<class Node>
+vector<ScalarT> ParameterManager<Node>::getParams(const int & type) {
   vector<ScalarT> reqparams;
   for (size_t i=0; i<paramvals.size(); i++) {
     if (paramtypes[i] == type) {
@@ -781,7 +794,8 @@ vector<ScalarT> ParameterManager::getParams(const int & type) {
 // ========================================================================================
 // ========================================================================================
 
-vector<string> ParameterManager::getParamsNames(const int & type) {
+template<class Node>
+vector<string> ParameterManager<Node>::getParamsNames(const int & type) {
   vector<string> reqparams;
   for (size_t i=0; i<paramvals.size(); i++) {
     if (paramtypes[i] == type) {
@@ -791,7 +805,8 @@ vector<string> ParameterManager::getParamsNames(const int & type) {
   return reqparams;
 }
 
-bool ParameterManager::isParameter(const string & name) {
+template<class Node>
+bool ParameterManager<Node>::isParameter(const string & name) {
   bool isparam = false;
   for (size_t i=0; i<paramvals.size(); i++) {
     if (paramnames[i] == name) {
@@ -804,7 +819,8 @@ bool ParameterManager::isParameter(const string & name) {
 // ========================================================================================
 // ========================================================================================
 
-vector<size_t> ParameterManager::getParamsLengths(const int & type) {
+template<class Node>
+vector<size_t> ParameterManager<Node>::getParamsLengths(const int & type) {
   vector<size_t> reqparams;
   for (size_t i=0; i<paramvals.size(); i++) {
     if (paramtypes[i] == type) {
@@ -817,7 +833,8 @@ vector<size_t> ParameterManager::getParamsLengths(const int & type) {
 // ========================================================================================
 // ========================================================================================
 
-vector<ScalarT> ParameterManager::getParams(const std::string & stype) {
+template<class Node>
+vector<ScalarT> ParameterManager<Node>::getParams(const std::string & stype) {
   vector<ScalarT> reqparams;
   int type = -1;
   if (stype == "inactive")
@@ -844,7 +861,8 @@ vector<ScalarT> ParameterManager::getParams(const std::string & stype) {
 // ========================================================================================
 // ========================================================================================
 
-vector<vector<ScalarT> > ParameterManager::getParamBounds(const std::string & stype) {
+template<class Node>
+vector<vector<ScalarT> > ParameterManager<Node>::getParamBounds(const std::string & stype) {
   vector<vector<ScalarT> > reqbnds;
   vector<ScalarT> reqlo;
   vector<ScalarT> requp;
@@ -913,7 +931,8 @@ vector<vector<ScalarT> > ParameterManager::getParamBounds(const std::string & st
 // ========================================================================================
 // ========================================================================================
 
-void ParameterManager::stashParams(){
+template<class Node>
+void ParameterManager<Node>::stashParams(){
   if (batchID == 0 && Comm->getRank() == 0){
     string outname = "param_stash.dat";
     std::ofstream respOUT(outname);
@@ -932,7 +951,8 @@ void ParameterManager::stashParams(){
 // ========================================================================================
 // ========================================================================================
 
-vector<ScalarT> ParameterManager::getStochasticParams(const std::string & whichparam) {
+template<class Node>
+vector<ScalarT> ParameterManager<Node>::getStochasticParams(const std::string & whichparam) {
   if (whichparam == "mean")
     return stochastic_mean;
   else if (whichparam == "variance")
@@ -950,7 +970,8 @@ vector<ScalarT> ParameterManager::getStochasticParams(const std::string & whichp
 // ========================================================================================
 // ========================================================================================
 
-vector<ScalarT> ParameterManager::getFractionalParams(const std::string & whichparam) {
+template<class Node>
+vector<ScalarT> ParameterManager<Node>::getFractionalParams(const std::string & whichparam) {
   if (whichparam == "s-exponent")
     return s_exp;
   else if (whichparam == "mesh-resolution")
@@ -960,4 +981,6 @@ vector<ScalarT> ParameterManager::getFractionalParams(const std::string & whichp
     return emptyvec;
   }
 }
+
+
 

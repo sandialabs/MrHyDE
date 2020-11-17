@@ -41,6 +41,11 @@ namespace MrHyDE {
   */
   
   class meshInterface {
+    
+    typedef Tpetra::Map<LO, GO, SolverNode>               LA_Map;
+    typedef Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> LA_MultiVector;
+    typedef Teuchos::RCP<LA_MultiVector> vector_RCP;
+    
   public:
     
     meshInterface() {};

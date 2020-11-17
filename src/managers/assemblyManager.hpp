@@ -32,7 +32,20 @@ namespace MrHyDE {
   }
   */
   
+  template< class Node>
   class AssemblyManager {
+    
+    typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
+    typedef Tpetra::CrsGraph<LO,GO,Node>            LA_CrsGraph;
+    typedef Tpetra::Export<LO, GO, Node>            LA_Export;
+    typedef Tpetra::Import<LO, GO, Node>            LA_Import;
+    typedef Tpetra::Map<LO, GO, Node>               LA_Map;
+    typedef Tpetra::Operator<ScalarT,LO,GO,Node>    LA_Operator;
+    typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> LA_MultiVector;
+    typedef Teuchos::RCP<LA_MultiVector>            vector_RCP;
+    typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
+    typedef typename Node::device_type              LA_device;
+    
   public:
     
     // ========================================================================================
@@ -42,7 +55,7 @@ namespace MrHyDE {
     AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
                     Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
                     Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
-                    Teuchos::RCP<ParameterManager> & params_,
+                    Teuchos::RCP<ParameterManager<Node> > & params_,
                     const int & numElemPerCell_);
     
     
@@ -174,7 +187,7 @@ namespace MrHyDE {
     std::vector<bool> build_volume_terms, build_boundary_terms, build_face_terms; // set up basis function
     Kokkos::View<bool*,HostDevice> isFixedDOF;
     
-    Teuchos::RCP<ParameterManager> params;
+    Teuchos::RCP<ParameterManager<Node> > params;
     int numElemPerCell;
       
     Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - total assembly");
@@ -191,6 +204,8 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> wksettimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::createWorkset()");
     
   };
+  
+  template class AssemblyManager<SolverNode>;
   
 }
 

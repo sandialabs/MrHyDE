@@ -30,7 +30,17 @@ namespace MrHyDE {
   }
   */
   
+  template<class Node>
   class ParameterManager {
+    
+    typedef Tpetra::Export<LO, GO, Node>            LA_Export;
+    typedef Tpetra::Import<LO, GO, Node>            LA_Import;
+    typedef Tpetra::Map<LO, GO, Node>               LA_Map;
+    typedef Tpetra::CrsGraph<LO,GO,Node>            LA_CrsGraph;
+    typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> LA_MultiVector;
+    typedef Teuchos::RCP<LA_MultiVector>            vector_RCP;
+    typedef typename Node::device_type              LA_device;
+    
   public:
     
     // ========================================================================================
@@ -213,6 +223,15 @@ namespace MrHyDE {
      Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MILO::ParameterManager::timer _1 - description");
      */
   };
+  
+  // Explicit template instantiations
+  template class ParameterManager<SolverNode>;
+  #if !defined(MrHyDE_SOLVERSPACE_CUDA)
+    #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+      template class ParameterManager<SubgridSolverNode>;
+    #endif
+  #endif
+
 }
 
 #endif

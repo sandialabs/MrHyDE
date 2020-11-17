@@ -30,6 +30,10 @@ namespace MrHyDE {
   */
   
   class BoundaryCell {
+    
+    typedef Tpetra::MultiVector<ScalarT,LO,GO,AssemblyNode> SG_MultiVector;
+    typedef Teuchos::RCP<SG_MultiVector> SG_vector_RCP;
+    
   public:
     
     BoundaryCell() {} ;
@@ -177,7 +181,7 @@ namespace MrHyDE {
     // Compute flux and sensitivity wrt params
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void computeFlux(const vector_RCP & gl_u, const vector_RCP & gl_du, const vector_RCP & params,
+    void computeFlux(const SG_vector_RCP & gl_u, const SG_vector_RCP & gl_du, const SG_vector_RCP & params,
                      Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                      const ScalarT & time, const int & side, const ScalarT & coarse_h,
                      const bool & compute_sens);

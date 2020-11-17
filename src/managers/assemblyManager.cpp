@@ -22,10 +22,11 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-AssemblyManager::AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings_,
+template<class Node>
+AssemblyManager<Node>::AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                  Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
                                  Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
-                                 Teuchos::RCP<ParameterManager> & params_,
+                                 Teuchos::RCP<ParameterManager<Node>> & params_,
                                  const int & numElemPerCell_) :
 Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_),
 params(params_), numElemPerCell(numElemPerCell_) {
@@ -155,7 +156,8 @@ params(params_), numElemPerCell(numElemPerCell_) {
 // Create the cells
 ////////////////////////////////////////////////////////////////////////////////
 
-void AssemblyManager::createCells() {
+template<class Node>
+void AssemblyManager<Node>::createCells() {
   
   Teuchos::TimeMonitor localtimer(*celltimer);
   
@@ -461,7 +463,8 @@ void AssemblyManager::createCells() {
 // Worksets
 /////////////////////////////////////////////////////////////////////////////
 
-void AssemblyManager::createWorkset() {
+template<class Node>
+void AssemblyManager<Node>::createWorkset() {
   
   Teuchos::TimeMonitor localtimer(*wksettimer);
   
@@ -513,7 +516,8 @@ void AssemblyManager::createWorkset() {
 // ========================================================================================
 // ========================================================================================
 
-void AssemblyManager::updateJacDBC(matrix_RCP & J,
+template<class Node>
+void AssemblyManager<Node>::updateJacDBC(matrix_RCP & J,
                                    const vector<GO> & dofs, const bool & compute_disc_sens) {
   
   // given a "block" and the unknown field update jacobian to enforce Dirichlet BCs
@@ -542,7 +546,8 @@ void AssemblyManager::updateJacDBC(matrix_RCP & J,
 // ========================================================================================
 // ========================================================================================
 
-void AssemblyManager::updateJacDBC(matrix_RCP & J,
+template<class Node>
+void AssemblyManager<Node>::updateJacDBC(matrix_RCP & J,
                                    const vector<LO> & dofs, const bool & compute_disc_sens) {
   
   if (compute_disc_sens) {
@@ -559,7 +564,8 @@ void AssemblyManager::updateJacDBC(matrix_RCP & J,
 // ========================================================================================
 // ========================================================================================
 
-void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
+template<class Node>
+void AssemblyManager<Node>::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
                                  const bool & lumpmass) {
   
   // TMW: ToDo - should add a lumped mass option
@@ -625,7 +631,8 @@ void AssemblyManager::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool
 // ========================================================================================
 // ========================================================================================
 
-void AssemblyManager::setInitial(vector_RCP & initial, const bool & useadjoint) {
+template<class Node>
+void AssemblyManager<Node>::setInitial(vector_RCP & initial, const bool & useadjoint) {
 
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
@@ -649,7 +656,8 @@ void AssemblyManager::setInitial(vector_RCP & initial, const bool & useadjoint) 
 // ========================================================================================
 // ========================================================================================
 
-void AssemblyManager::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
+template<class Node>
+void AssemblyManager<Node>::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
                                    const bool & useadjoint,
                                    const ScalarT & time,
                                    const bool & lumpmass) {
@@ -749,7 +757,8 @@ void AssemblyManager::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
 // Wrapper to the main assembly routine to assemble over all blocks (most common use case)
 // ========================================================================================
 
-void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
+template<class Node>
+void AssemblyManager<Node>::assembleJacRes(vector_RCP & u, vector_RCP & phi,
                                      const bool & compute_jacobian, const bool & compute_sens,
                                      const bool & compute_disc_sens,
                                      vector_RCP & res, matrix_RCP & J, const bool & isTransient,
@@ -799,7 +808,8 @@ void AssemblyManager::assembleJacRes(vector_RCP & u, vector_RCP & phi,
 // Main assembly routine ... only assembles on a given block (b)
 // ========================================================================================
 
-void AssemblyManager::assembleJacRes(const bool & compute_jacobian, const bool & compute_sens,
+template<class Node>
+void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const bool & compute_sens,
                                      const bool & compute_disc_sens,
                                      vector_RCP & res, matrix_RCP & J, const bool & isTransient,
                                      const ScalarT & current_time,
@@ -982,7 +992,8 @@ void AssemblyManager::assembleJacRes(const bool & compute_jacobian, const bool &
 // Enforce DOF constraints - includes strong Dirichlet
 // ========================================================================================
 
-void AssemblyManager::dofConstraints(matrix_RCP & J, vector_RCP & res,
+template<class Node>
+void AssemblyManager<Node>::dofConstraints(matrix_RCP & J, vector_RCP & res,
                                      const ScalarT & current_time,
                                      const bool & compute_jacobian,
                                      const bool & compute_disc_sens) {
@@ -1026,7 +1037,8 @@ void AssemblyManager::dofConstraints(matrix_RCP & J, vector_RCP & res,
 //
 // ========================================================================================
 
-void AssemblyManager::resetPrevSoln() {
+template<class Node>
+void AssemblyManager<Node>::resetPrevSoln() {
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       cells[b][e]->resetPrevSoln();
@@ -1034,7 +1046,8 @@ void AssemblyManager::resetPrevSoln() {
   }
 }
 
-void AssemblyManager::resetStageSoln() {
+template<class Node>
+void AssemblyManager<Node>::resetStageSoln() {
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       cells[b][e]->resetStageSoln();
@@ -1042,13 +1055,15 @@ void AssemblyManager::resetStageSoln() {
   }
 }
 
-void AssemblyManager::updateStageNumber(const int & stage) {
+template<class Node>
+void AssemblyManager<Node>::updateStageNumber(const int & stage) {
   for (size_t b=0; b<wkset.size(); b++) {
     wkset[b]->setStage(stage);
   }
 }
 
-void AssemblyManager::updateStageSoln()  {
+template<class Node>
+void AssemblyManager<Node>::updateStageSoln()  {
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       cells[b][e]->updateStageSoln();
@@ -1060,9 +1075,10 @@ void AssemblyManager::updateStageSoln()  {
 //
 // ========================================================================================
 
-void AssemblyManager::performGather(const vector_RCP & vec, const int & type, const size_t & entry) {
+template<class Node>
+void AssemblyManager<Node>::performGather(const vector_RCP & vec, const int & type, const size_t & entry) {
   
-  auto vec_kv = vec->getLocalView<HostDevice>();
+  auto vec_kv = vec->template getLocalView<LA_device>();
   auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), entry);
   Kokkos::View<ScalarT*,AssemblyDevice> vec_dev("tpetra vector on device",vec_kv.extent(0));
   auto vec_host = Kokkos::create_mirror_view(vec_dev);
@@ -1077,7 +1093,8 @@ void AssemblyManager::performGather(const vector_RCP & vec, const int & type, co
 //
 // ========================================================================================
 
-void AssemblyManager::performGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, const int & type) {
+template<class Node>
+void AssemblyManager<Node>::performGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, const int & type) {
   
   Kokkos::View<LO*,AssemblyDevice> numDOF;
   Kokkos::View<ScalarT***,AssemblyDevice> data;
@@ -1129,7 +1146,8 @@ void AssemblyManager::performGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_de
 //
 // ========================================================================================
 
-void AssemblyManager::performBoundaryGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, const int & type) {
+template<class Node>
+void AssemblyManager<Node>::performBoundaryGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, const int & type) {
   
   for (size_t b=0; b<boundaryCells.size(); b++) {
     
@@ -1183,8 +1201,9 @@ void AssemblyManager::performBoundaryGather(Kokkos::View<ScalarT*,AssemblyDevice
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+template<class Node>
 template<class T>
-void AssemblyManager::insert(T J_view, vector_RCP & res,
+void AssemblyManager<Node>::insert(T J_view, vector_RCP & res,
                              Kokkos::View<ScalarT***,HostDevice> local_res,
                              Kokkos::View<ScalarT***,HostDevice> local_J,
                              LIDView_host LIDs, LIDView_host paramLIDs,

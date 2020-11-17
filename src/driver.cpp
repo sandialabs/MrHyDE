@@ -159,10 +159,10 @@ int main(int argc,char * argv[]) {
     // Create the solver object
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<ParameterManager> params = Teuchos::rcp( new ParameterManager(Comm, settings,
+    Teuchos::RCP<ParameterManager<SolverNode> > params = Teuchos::rcp( new ParameterManager<SolverNode>(Comm, settings,
                                                                                mesh->mesh, phys, disc));
                                                          
-    Teuchos::RCP<AssemblyManager> assembler = Teuchos::rcp( new AssemblyManager(Comm, settings, mesh->mesh,
+    Teuchos::RCP<AssemblyManager<SolverNode> > assembler = Teuchos::rcp( new AssemblyManager<SolverNode>(Comm, settings, mesh->mesh,
                                                                                 disc, phys, DOF, params,
                                                                                 numElemPerCell));
     
@@ -182,8 +182,8 @@ int main(int argc,char * argv[]) {
     // Create the postprocessing object
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<PostprocessManager>
-    postproc = Teuchos::rcp( new PostprocessManager(Comm, settings, mesh->mesh, mesh->optimization_mesh,
+    Teuchos::RCP<PostprocessManager<SolverNode> >
+    postproc = Teuchos::rcp( new PostprocessManager<SolverNode>(Comm, settings, mesh->mesh, mesh->optimization_mesh,
                                                     disc, phys,
                                                     functionManagers, multiscale_manager,
                                                     assembler, params) );
@@ -192,7 +192,7 @@ int main(int argc,char * argv[]) {
     // Set up the solver and finalize some objects
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<solver> solve = Teuchos::rcp( new solver(Comm, settings, mesh,
+    Teuchos::RCP<solver<SolverNode> > solve = Teuchos::rcp( new solver<SolverNode>(Comm, settings, mesh,
                                                           disc, phys, DOF, assembler, params) );
     
     solve->multiscale_manager = multiscale_manager;

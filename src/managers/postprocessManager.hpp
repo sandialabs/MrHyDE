@@ -33,6 +33,7 @@ namespace MrHyDE {
   }
   */
   
+  template<class Node>
   class PostprocessManager {
   public:
     
@@ -46,7 +47,7 @@ namespace MrHyDE {
                        Teuchos::RCP<panzer_stk::STK_Interface> & optimization_mesh_,
                        Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                        std::vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
-                       Teuchos::RCP<AssemblyManager> & assembler_);
+                       Teuchos::RCP<AssemblyManager<Node> > & assembler_);
     
     // ========================================================================================
     /* Full constructor to set up the problem */
@@ -59,8 +60,8 @@ namespace MrHyDE {
                        Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                        std::vector<Teuchos::RCP<FunctionManager> > & functionManagers,
                        Teuchos::RCP<MultiScale> & multiscale_manager_,
-                       Teuchos::RCP<AssemblyManager> & assembler_,
-                       Teuchos::RCP<ParameterManager> & params_);
+                       Teuchos::RCP<AssemblyManager<Node> > & assembler_,
+                       Teuchos::RCP<ParameterManager<Node> > & params_);
     
     // ========================================================================================
     // ========================================================================================
@@ -85,17 +86,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    AD computeObjective();
-    
-    // ========================================================================================
-    // ========================================================================================
-    
     void computeResponse(const ScalarT & currenttime);
-    
-    // ========================================================================================
-    // ========================================================================================
-    
-    std::vector<ScalarT> computeSensitivities();
     
     // ========================================================================================
     // ========================================================================================
@@ -113,25 +104,8 @@ namespace MrHyDE {
     ScalarT makeSomeNoise(ScalarT stdev);
     
     // ========================================================================================
-    // The following function is the adjoint-based error estimate
-    // Not to be confused with the postprocess::computeError function which uses a true
-    //   solution to perform verification studies
     // ========================================================================================
     
-    //ScalarT computeError();
-    
-    // ========================================================================================
-    // ========================================================================================
-    
-    std::vector<ScalarT> computeParameterSensitivities();
-    
-    // ========================================================================================
-    // Compute the sensitivity of the objective with respect to discretized parameters
-    // ========================================================================================
-    
-    std::vector<ScalarT> computeDiscretizedSensitivities();
-      
-      
     Teuchos::RCP<MpiComm> Comm;
     Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
     Teuchos::RCP<discretization> disc;
@@ -141,8 +115,8 @@ namespace MrHyDE {
     
     //Teuchos::RCP<const panzer::DOFManager> DOF;
     //Teuchos::RCP<solver> solve;
-    Teuchos::RCP<AssemblyManager> assembler;
-    Teuchos::RCP<ParameterManager> params;
+    Teuchos::RCP<AssemblyManager<Node> > assembler;
+    Teuchos::RCP<ParameterManager<Node> > params;
     Teuchos::RCP<SensorManager> sensors;
     std::vector<Teuchos::RCP<FunctionManager> > functionManagers;
     Teuchos::RCP<MultiScale> multiscale_manager;
@@ -196,6 +170,15 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> writeSolutionTimer = Teuchos::TimeMonitor::getNewCounter("MILO::postprocess::writeSolution");
     Teuchos::RCP<Teuchos::Time> writeSolutionSolIPTimer = Teuchos::TimeMonitor::getNewCounter("MILO::postprocess::writeSolution - solution to ip");
   };
+  
+  // Explicit template instantiations
+  template class PostprocessManager<SolverNode>;
+  #if !defined(MrHyDE_SOLVERSPACE_CUDA)
+    #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+      template class PostprocessManager<SubgridSolverNode>;
+    #endif
+  #endif
+
 }
 
 #endif

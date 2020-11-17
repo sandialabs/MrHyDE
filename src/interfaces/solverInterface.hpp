@@ -42,7 +42,6 @@
 // Amesos includes
 #include "Amesos2.hpp"
 
-typedef Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator> LA_LinearProblem;
 
 namespace MrHyDE {
   /*
@@ -50,8 +49,20 @@ namespace MrHyDE {
     cout << "********** Help and Documentation for the Solver Interface **********" << endl;
   }
   */
-  
+  template<class Node>
   class solver {
+
+    typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
+    typedef Tpetra::CrsGraph<LO,GO,Node>            LA_CrsGraph;
+    typedef Tpetra::Export<LO, GO, Node>            LA_Export;
+    typedef Tpetra::Import<LO, GO, Node>            LA_Import;
+    typedef Tpetra::Map<LO, GO, Node>               LA_Map;
+    typedef Tpetra::Operator<ScalarT,LO,GO,Node>    LA_Operator;
+    typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> LA_MultiVector;
+    typedef Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator> LA_LinearProblem;
+    typedef Teuchos::RCP<LA_MultiVector>            vector_RCP;
+    typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
+    typedef typename Node::device_type              LA_device;
   public:
     
     // ========================================================================================
@@ -62,8 +73,8 @@ namespace MrHyDE {
            Teuchos::RCP<meshInterface> & mesh_,
            Teuchos::RCP<discretization> & disc_,
            Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
-           Teuchos::RCP<AssemblyManager> & assembler_,
-           Teuchos::RCP<ParameterManager> & params_);
+           Teuchos::RCP<AssemblyManager<Node> > & assembler_,
+           Teuchos::RCP<ParameterManager<Node> > & params_);
     
     // ========================================================================================
     // ========================================================================================
@@ -181,9 +192,9 @@ namespace MrHyDE {
     Teuchos::RCP<discretization> disc;
     Teuchos::RCP<physics> phys;
     Teuchos::RCP<const panzer::DOFManager> DOF;
-    Teuchos::RCP<AssemblyManager> assembler;
-    Teuchos::RCP<ParameterManager> params;
-    Teuchos::RCP<PostprocessManager> postproc;
+    Teuchos::RCP<AssemblyManager<Node> > assembler;
+    Teuchos::RCP<ParameterManager<Node> > params;
+    Teuchos::RCP<PostprocessManager<Node> > postproc;
     Teuchos::RCP<MultiScale> multiscale_manager;
     
     Teuchos::RCP<const LA_Map> LA_owned_map, LA_overlapped_map;
@@ -248,6 +259,14 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> LAsetuptimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::setupLinearAlgebra()");
     
   };
+  
+  // Explicit template instantiations
+  template class solver<SolverNode>;
+  #if !defined(MrHyDE_SOLVERSPACE_CUDA)
+    #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+      template class solver<SubgridSolverNode>;
+    #endif
+  #endif
   
 }
 

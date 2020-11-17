@@ -115,17 +115,10 @@ ScalarT MultiScale::initialize() {
       //int numElem = cells[b][e]->numElem;
       
       cells[b][e]->updateWorksetBasis();
-      //macro_wkset[b]->update(cells[b][e]->ip,cells[b][e]->wts,
-      //                       cells[b][e]->jacobian,cells[b][e]->jacobianInv,
-      //                       cells[b][e]->jacobianDet,cells[b][e]->orientation);
       macro_wkset[b]->computeSolnSteadySeeded(cells[b][e]->u, 0);
       macro_wkset[b]->computeParamVolIP(cells[b][e]->param, 0);
       cells[b][e]->computeSolnVolIP();
       
-      //macro_wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_prev, cells[b][e]->u_stage, 0);
-      //macro_wkset[b]->computeParamVolIP(cells[b][e]->param, 0);
-      
-      //vector<size_t> sgnum(numElem,0);
       vector<int> sgvotes(subgridModels.size(),0);
       
       for (size_t s=0; s<subgridModels.size(); s++) {
@@ -148,7 +141,6 @@ ScalarT MultiScale::initialize() {
             }
           }
         }
-        //cout << "s = " << s << "  " << sgvotes[s] << endl;
       }
       int maxvotes = -1;
       int sgwinner = -1;
@@ -219,10 +211,10 @@ ScalarT MultiScale::initialize() {
       auto wts = subgridModels[i]->getIPWts();
       
       std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > basisinfo_i = subgridModels[i]->evaluateBasis2(ip);
-      vector<Teuchos::RCP<LA_CrsMatrix> > currmaps;
+      vector<Teuchos::RCP<SGLA_CrsMatrix> > currmaps;
       for (size_t j=0; j<subgridModels.size(); j++) {
         std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > basisinfo_j = subgridModels[j]->evaluateBasis2(ip);
-        Teuchos::RCP<LA_CrsMatrix> map = subgridModels[i]->getProjectionMatrix(ip, wts, basisinfo_j);
+        Teuchos::RCP<SGLA_CrsMatrix> map = subgridModels[i]->getProjectionMatrix(ip, wts, basisinfo_j);
         currmaps.push_back(map);
       }
       subgrid_projection_maps.push_back(currmaps);
@@ -231,7 +223,7 @@ ScalarT MultiScale::initialize() {
     for (size_t i=0; i<subgridModels.size(); i++) {
       vector_RCP dummy_vec = subgridModels[i]->getVector();
       vector_RCP dummy_vec2 = subgridModels[i]->getVector();
-      Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>("KLU2",subgrid_projection_maps[i][i], dummy_vec, dummy_vec2);
+      Teuchos::RCP<Amesos2::Solver<SGLA_CrsMatrix,SGLA_MultiVector> > Am2Solver = Amesos2::create<SGLA_CrsMatrix,SGLA_MultiVector>("KLU2",subgrid_projection_maps[i][i], dummy_vec, dummy_vec2);
       Am2Solver->symbolicFactorization();
       Am2Solver->numericFactorization();
       subgrid_projection_solvers.push_back(Am2Solver);
@@ -285,17 +277,9 @@ ScalarT MultiScale::update() {
         if (cells[b][e]->cellData->multiscale) {
           
           cells[b][e]->updateWorksetBasis();
-          //macro_wkset[b]->update(cells[b][e]->ip,cells[b][e]->wts,
-          //                       cells[b][e]->jacobian,cells[b][e]->jacobianInv,
-          //                       cells[b][e]->jacobianDet,cells[b][e]->orientation);
-          //Kokkos::View<int*,UnifiedDevice> seedwhat("int for seeding",1);
-          //seedwhat(0) = 0;
           macro_wkset[b]->computeSolnSteadySeeded(cells[b][e]->u, 0);
           macro_wkset[b]->computeParamVolIP(cells[b][e]->param, 0);
           cells[b][e]->computeSolnVolIP();
-          
-          //macro_wkset[b]->computeSolnVolIP(cells[b][e]->u, cells[b][e]->u_prev, cells[b][e]->u_stage, 0);
-          //macro_wkset[b]->computeParamVolIP(cells[b][e]->param, 0);
           
           vector<int> sgvotes(subgridModels.size(),0);
           
@@ -330,23 +314,17 @@ ScalarT MultiScale::update() {
               size_t usernum = cells[b][e]->subgrid_usernum;
               // get the time/solution from old subgrid model at last time step
               int lastindex = subgridModels[oldmodel]->soln->times[usernum].size()-1;
-              Teuchos::RCP<LA_MultiVector> lastsol = subgridModels[oldmodel]->soln->data[usernum][lastindex];
+              Teuchos::RCP<SGLA_MultiVector> lastsol = subgridModels[oldmodel]->soln->data[usernum][lastindex];
               ScalarT lasttime = subgridModels[oldmodel]->soln->times[usernum][lastindex];
-              //Teuchos::RCP<LA_MultiVector> projvec = Teuchos::rcp(new LA_MultiVector(subgridModels[newmodel[c]]->owned_map,1));
-              vector_RCP projvec = subgridModels[sgwinner]->getVector();//Teuchos::rcp(new LA_MultiVector(subgridModels[newmodel[c]]->owned_map,1));
+              vector_RCP projvec = subgridModels[sgwinner]->getVector();
               subgrid_projection_maps[sgwinner][oldmodel]->apply(*lastsol, *projvec);
               
-              //Teuchos::RCP<LA_MultiVector> newvec = Teuchos::rcp(new LA_MultiVector(subgridModels[newmodel[c]]->owned_map,1));
               vector_RCP newvec = subgridModels[sgwinner]->getVector();
               subgrid_projection_solvers[sgwinner]->setB(projvec);
               subgrid_projection_solvers[sgwinner]->setX(newvec);
               
               subgrid_projection_solvers[sgwinner]->solve();
               subgridModels[sgwinner]->soln->store(newvec, lasttime, usernum);
-              //subgridModels[newmodel[c]]->solutionStorage(newvec, lastsol.first, false, usernum);
-              
-              // update the cell
-              //cells[b][e]->subgridModel = subgridModels[newmodel];
               
             }
             my_cost += subgridModels[sgwinner]->cost_estimate * cells[b][e]->numElem;
@@ -388,73 +366,6 @@ void MultiScale::reset() {
   //for (size_t j=0; j<subgridModels.size(); j++) {
   //  subgridModels[j]->reset();
   //}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Post-processing
-////////////////////////////////////////////////////////////////////////////////
-
-void MultiScale::writeSolution(const string & macrofilename, const vector<ScalarT> & solvetimes,
-                               const int & globalPID) {
-  
-  
-  //vector<FC> subgrid_cell_fields;
-  if (subgridModels.size() > 0) {
-    if (subgrid_static) {
-      /*
-      for (size_t s=0; s<subgridModels.size(); s++) {
-        stringstream ss;
-        ss << s << "." << globalPID;
-        string filename = "subgrid_data/subgrid_"+macrofilename+".exo." + ss.str();// + ".exo";
-        //cells[b][e]->writeSubgridSolution(blockname);
-        subgridModels[s]->writeSolution(filename);
-        
-      }
-       */
-      
-      for (size_t b=0; b<cells.size(); b++) {
-        for (size_t e=0; e<cells[b].size(); e++) {
-          //for (size_t c=0; c<cells[b][e]->numElem; c++) {
-            
-            std::stringstream ss;
-            ss << globalPID << "." << e;
-            string filename = "subgrid_data/subgrid_"+macrofilename + "." + ss.str();// + ".exo";
-            //cells[b][e]->writeSubgridSolution(blockname);
-            //int sgmodelnum = cells[b][e]->subgrid_model_index[0];
-            //subgridModels[sgmodelnum]->writeSolution(filename, cells[b][e]->subgrid_usernum);
-          //}
-        }
-      }
-    }
-    else {
-      /*
-      for (size_t i=0; i<solvetimes.size(); i++) {
-        for (size_t b=0; b<cells.size(); b++) {
-          for (size_t e=0; e<cells[b].size(); e++) {
-            for (size_t c=0; c<cells[b][e]->numElem; c++) {
-              
-              int usernum = cells[b][e]->subgrid_usernum[c];
-              int timeindex = 0;
-              int currsgmodel = cells[b][e]->subgrid_model_index[c][i];
-              for (size_t k=0; k<subgridModels[currsgmodel]->soln[usernum].size(); k++) {
-                if (abs(solvetimes[i]-subgridModels[currsgmodel]->soln[usernum][k].first)<1.0e-10) {
-                  timeindex = k;
-                }
-              }
-              
-              stringstream ss, ss2;
-              ss << globalPID << "." << e;
-              ss2 << i;
-              string filename = "subgrid_data/subgrid_"+macrofilename+ss2.str() + ".exo." + ss.str();// + ".exo";
-              //cells[b][e]->writeSubgridSolution(blockname);
-              subgridModels[currsgmodel]->writeSolution(filename, usernum, timeindex);
-            }
-          }
-        }
-      }*/
-    }
-  }
-  
 }
 
 ////////////////////////////////////////////////////////////////////////////////

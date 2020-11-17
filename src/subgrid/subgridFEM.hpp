@@ -34,6 +34,17 @@
 namespace MrHyDE {
   
   class SubGridFEM : public SubGridModel {
+        
+    typedef Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>   SG_CrsMatrix;
+    typedef Tpetra::CrsGraph<LO,GO,SubgridSolverNode>            SG_CrsGraph;
+    typedef Tpetra::Export<LO, GO, SubgridSolverNode>            SG_Export;
+    typedef Tpetra::Import<LO, GO, SubgridSolverNode>            SG_Import;
+    typedef Tpetra::Map<LO, GO, SubgridSolverNode>               SG_Map;
+    typedef Tpetra::Operator<ScalarT,LO,GO,SubgridSolverNode>    SG_Operator;
+    typedef Tpetra::MultiVector<ScalarT,LO,GO,SubgridSolverNode> SG_MultiVector;
+    typedef Teuchos::RCP<SG_MultiVector>                         vector_RCP;
+    typedef Teuchos::RCP<SG_CrsMatrix>                           matrix_RCP;
+    
   public:
     
     SubGridFEM() {} ;
@@ -101,7 +112,7 @@ namespace MrHyDE {
     // Compute the initial values for the subgrid solution
     //////////////////////////////////////////////////////////////
     
-    void setInitial(Teuchos::RCP<LA_MultiVector> & initial, const int & usernum, const bool & useadjoint);
+    void setInitial(Teuchos::RCP<SG_MultiVector> & initial, const int & usernum, const bool & useadjoint);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Compute the error for verification
@@ -146,13 +157,13 @@ namespace MrHyDE {
     // Assemble the projection (mass) matrix
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<LA_CrsMatrix>  getProjectionMatrix();
+    Teuchos::RCP<SG_CrsMatrix>  getProjectionMatrix();
     
     ////////////////////////////////////////////////////////////////////////////////
     // Assemble the projection matrix using ip and basis values from another subgrid model
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<LA_CrsMatrix> getProjectionMatrix(DRV & ip, DRV & wts,
+    Teuchos::RCP<SG_CrsMatrix> getProjectionMatrix(DRV & ip, DRV & wts,
                                                    std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo);
     
     
@@ -191,7 +202,7 @@ namespace MrHyDE {
     // Get the matrix mapping the DOFs to a set of integration points on a reference macro-element
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<LA_CrsMatrix>  getEvaluationMatrix(const DRV & newip, Teuchos::RCP<LA_Map> & ip_map);
+    Teuchos::RCP<SG_CrsMatrix>  getEvaluationMatrix(const DRV & newip, Teuchos::RCP<SG_Map> & ip_map);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Get the subgrid cell GIDs
@@ -210,21 +221,7 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     
     Kokkos::View<ScalarT**,AssemblyDevice> getCellFields(const int & usernum, const ScalarT & time);
-    
-    // ========================================================================================
-    //
-    // ========================================================================================
-    
-    //void performGather(const size_t & block, const Teuchos::RCP<LA_MultiVector> & vec, const size_t & type,
-    //                   const size_t & index) const ;
-    
-    // ========================================================================================
-    //
-    // ========================================================================================
-    
-    //void performBoundaryGather(const size_t & block, const Teuchos::RCP<LA_MultiVector> & vec, const size_t & type,
-    //                           const size_t & index) const ;
-    
+        
     // ========================================================================================
     //
     // ========================================================================================
@@ -255,14 +252,14 @@ namespace MrHyDE {
     
     vector<string> discparamnames;
     Teuchos::RCP<physics> sub_physics;
-    Teuchos::RCP<AssemblyManager> sub_assembler;
-    Teuchos::RCP<ParameterManager> sub_params;
+    Teuchos::RCP<AssemblyManager<SubgridSolverNode> > sub_assembler;
+    Teuchos::RCP<ParameterManager<SubgridSolverNode> > sub_params;
     Teuchos::RCP<SubGridFEM_Solver> sub_solver;
     Teuchos::RCP<meshInterface> sub_mesh;
     Teuchos::RCP<panzer_stk::STK_Interface> combined_mesh;
     Teuchos::RCP<discretization> sub_disc;
-    Teuchos::RCP<PostprocessManager> sub_postproc;
-    vector<Teuchos::RCP<LA_MultiVector> > Psol;
+    Teuchos::RCP<PostprocessManager<SubgridSolverNode> > sub_postproc;
+    vector<Teuchos::RCP<SG_MultiVector> > Psol;
     
     // Dynamic - depend on the macro-element
     //vector<Teuchos::RCP<SubGridLocalData> > localData;

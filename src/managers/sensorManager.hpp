@@ -34,8 +34,8 @@ namespace MrHyDE {
     SensorManager(Teuchos::RCP<Teuchos::ParameterList> & settings,
                   Teuchos::RCP<meshInterface> mesh,
                   Teuchos::RCP<discretization> & disc,
-                  Teuchos::RCP<AssemblyManager> & assembler,
-                  Teuchos::RCP<ParameterManager> & params) {
+                  Teuchos::RCP<AssemblyManager<SolverNode> > & assembler,
+                  Teuchos::RCP<ParameterManager<SolverNode> > & params) {
       
       int milo_debug_level = settings->get<int>("debug level",0);
       

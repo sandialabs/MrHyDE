@@ -32,9 +32,9 @@ using namespace MrHyDE;
 
 analysis::analysis(const Teuchos::RCP<MpiComm> & Comm_,
                    Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                   Teuchos::RCP<solver> & solver_,
-                   Teuchos::RCP<PostprocessManager> & postproc_,
-                   Teuchos::RCP<ParameterManager> & params_) :
+                   Teuchos::RCP<solver<SolverNode> > & solver_,
+                   Teuchos::RCP<PostprocessManager<SolverNode> > & postproc_,
+                   Teuchos::RCP<ParameterManager<SolverNode> > & params_) :
 Comm(Comm_), settings(settings_), solve(solver_),
 postproc(postproc_), params(params_) {
   verbosity = settings->get<int>("verbosity",0);
@@ -119,8 +119,7 @@ void analysis::run() {
       }
       params->updateParams(currparams,1);
       solve->forwardModel(objfun);
-      AD currresponse = postproc->computeObjective();
-      response_values.push_back(currresponse.val());
+      response_values.push_back(objfun.val());
       if(Comm->getRank() == 0) {
         sdataOUT << response_values[j] << "  ";
       }

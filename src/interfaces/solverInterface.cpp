@@ -19,12 +19,13 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-solver::solver(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings_,
+template<class Node>
+solver<Node>::solver(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings_,
                Teuchos::RCP<meshInterface> & mesh_,
                Teuchos::RCP<discretization> & disc_,
                Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
-               Teuchos::RCP<AssemblyManager> & assembler_,
-               Teuchos::RCP<ParameterManager> & params_) :
+               Teuchos::RCP<AssemblyManager<Node> > & assembler_,
+               Teuchos::RCP<ParameterManager<Node> > & params_) :
 Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembler_), params(params_) {
   
   milo_debug_level = settings->get<int>("debug level",0);
@@ -262,7 +263,8 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
 // ========================================================================================
 // ========================================================================================
 
-void solver::setButcherTableau(const string & tableau) {
+template<class Node>
+void solver<Node>::setButcherTableau(const string & tableau) {
   Kokkos::View<ScalarT**,AssemblyDevice> dev_butcher_A;
   Kokkos::View<ScalarT*,AssemblyDevice> dev_butcher_b, dev_butcher_c;
   //auto butcher_A = Kokkos::create_mirror_view(dev_butcher_A);
@@ -502,7 +504,8 @@ void solver::setButcherTableau(const string & tableau) {
 // ========================================================================================
 // ========================================================================================
 
-void solver::setBackwardDifference(const int & order) { // using order as an input to allow for dynamic changes
+template<class Node>
+void solver<Node>::setBackwardDifference(const int & order) { // using order as an input to allow for dynamic changes
   
   Kokkos::View<ScalarT*,AssemblyDevice> dev_BDF_wts;
   //Kokkos::View<ScalarT*,HostDevice> BDF_wts; // not using a mirror view on purpose
@@ -582,7 +585,8 @@ void solver::setBackwardDifference(const int & order) { // using order as an inp
 // Worksets
 /////////////////////////////////////////////////////////////////////////////
 
-void solver::finalizeWorkset() {
+template<class Node>
+void solver<Node>::finalizeWorkset() {
   
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -668,7 +672,8 @@ void solver::finalizeWorkset() {
 // These do need to be recomputed whenever the mesh changes */
 // ========================================================================================
 
-void solver::setupLinearAlgebra() {
+template<class Node>
+void solver<Node>::setupLinearAlgebra() {
   
   Teuchos::TimeMonitor localtimer(*LAsetuptimer);
   
@@ -737,7 +742,8 @@ void solver::setupLinearAlgebra() {
 // Set up the logicals and data structures for the fixed DOF (Dirichlet and point constraints)
 // ========================================================================================
 
-void solver::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+template<class Node>
+void solver<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   Teuchos::TimeMonitor localtimer(*fixeddofsetuptimer);
   
@@ -810,7 +816,8 @@ void solver::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & settings) {
 // Set up the logicals and data structures for the fixed DOF (Dirichlet and point constraints)
 // ========================================================================================
 
-void solver::projectDirichlet() {
+template<class Node>
+void solver<Node>::projectDirichlet() {
 
   Teuchos::TimeMonitor localtimer(*dbcprojtimer);
   
@@ -900,7 +907,8 @@ void solver::projectDirichlet() {
 /* given the parameters, solve the forward  problem */
 // ========================================================================================
 
-void solver::forwardModel(DFAD & obj) {
+template<class Node>
+void solver<Node>::forwardModel(DFAD & obj) {
   
   current_time = initial_time;
   
@@ -960,7 +968,8 @@ void solver::forwardModel(DFAD & obj) {
 // ========================================================================================
 // ========================================================================================
 
-void solver::adjointModel(vector<ScalarT> & gradient) {
+template<class Node>
+void solver<Node>::adjointModel(vector<ScalarT> & gradient) {
   
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -1010,7 +1019,8 @@ void solver::adjointModel(vector<ScalarT> & gradient) {
 /* solve the problem */
 // ========================================================================================
 
-void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> & gradient,
+template<class Node>
+void solver<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> & gradient,
                              ScalarT & start_time, ScalarT & end_time) {
   
   Teuchos::TimeMonitor localtimer(*transientsolvertimer);
@@ -1289,8 +1299,8 @@ void solver::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> &
 // ========================================================================================
 // ========================================================================================
 
-
-int solver::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
+template<class Node>
+int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
   
   Teuchos::TimeMonitor localtimer(*nonlinearsolvertimer);
   
@@ -1449,7 +1459,8 @@ int solver::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
 // ========================================================================================
 // ========================================================================================
 
-DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, const size_t & tindex) {
+template<class Node>
+DFAD solver<Node>::computeObjective(const vector_RCP & F_soln, const ScalarT & time, const size_t & tindex) {
   
   if (milo_debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -1633,7 +1644,8 @@ DFAD solver::computeObjective(const vector_RCP & F_soln, const ScalarT & time, c
 // ========================================================================================
 // ========================================================================================
 
-void solver::computeSensitivities(vector_RCP & u,
+template<class Node>
+void solver<Node>::computeSensitivities(vector_RCP & u,
                           vector_RCP & a2, vector<ScalarT> & gradient) {
   
   if (milo_debug_level > 1) {
@@ -1647,8 +1659,8 @@ void solver::computeSensitivities(vector_RCP & u,
     obj_sens = this->computeObjective(u, current_time, 0);
   }
   
-  auto u_kv = u->getLocalView<HostDevice>();
-  auto a2_kv = a2->getLocalView<HostDevice>();
+  auto u_kv = u->template getLocalView<LA_device>();
+  auto a2_kv = a2->template getLocalView<LA_device>();
   
   if (params->num_active_params > 0) {
   
@@ -1661,7 +1673,7 @@ void solver::computeSensitivities(vector_RCP & u,
     vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,params->num_active_params));
     matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
     
-    auto res_kv = res->getLocalView<HostDevice>();
+    auto res_kv = res->template getLocalView<LA_device>();
     
     res_over->putScalar(0.0);
     
@@ -1727,7 +1739,7 @@ void solver::computeSensitivities(vector_RCP & u,
   if (numDiscParams > 0) {
     //params->sacadoizeParams(false);
     vector_RCP a_owned = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // adjoint solution
-    auto ao_kv = a_owned->getLocalView<HostDevice>();
+    auto ao_kv = a_owned->template getLocalView<LA_device>();
     
     for( size_t i=0; i<LA_owned.size(); i++ ) {
       ao_kv(i,0) = a2_kv(i,0);
@@ -1754,7 +1766,7 @@ void solver::computeSensitivities(vector_RCP & u,
     
     vector_RCP sens_over = Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1));
     vector_RCP sens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1));
-    auto sens_kv = sens->getLocalView<HostDevice>();
+    auto sens_kv = sens->template getLocalView<LA_device>();
     
     J->setAllToScalar(0.0);
     J->doExport(*J_over, *(params->param_exporter), Tpetra::ADD);
@@ -1798,12 +1810,13 @@ void solver::computeSensitivities(vector_RCP & u,
 // ========================================================================================
 // ========================================================================================
 
-void solver::setDirichlet(vector_RCP & u) {
+template<class Node>
+void solver<Node>::setDirichlet(vector_RCP & u) {
   
   Teuchos::TimeMonitor localtimer(*dbcsettimer);
   
   if (usestrongDBCs) {
-    auto u_kv = u->getLocalView<HostDevice>();
+    auto u_kv = u->template getLocalView<LA_device>();
     //auto meas_kv = meas->getLocalView<HostDevice>();
     
     if (!scalarDirichletData && transientDirichletData) {
@@ -1823,7 +1836,7 @@ void solver::setDirichlet(vector_RCP & u) {
       }
     }
     else {
-      auto dbc_kv = fixedDOF_soln->getLocalView<HostDevice>();
+      auto dbc_kv = fixedDOF_soln->template getLocalView<LA_device>();
       for (size_t b=0; b<dbcDOFs.size(); b++) {
         for (size_t v=0; v<dbcDOFs[b].size(); v++) {
           for (size_t i=0; i<dbcDOFs[b][v].size(); i++) {
@@ -1844,75 +1857,13 @@ void solver::setDirichlet(vector_RCP & u) {
       }
     }
   }
-  /*
-  for (size_t b=0; b<blocknames.size(); b++) {
-    string blockID = blocknames[b];
-    Kokkos::View<int**,HostDevice> side_info;
-    
-    for (int n=0; n<numVars[b]; n++) {
-      
-      vector<size_t> localDirichletSideIDs = phys->localDirichletSideIDs[b][n];
-      vector<size_t> boundDirichletElemIDs = phys->boundDirichletElemIDs[b][n];
-      int fnum = DOF->getFieldNum(varlist[b][n]);
-      for( size_t e=0; e<disc->myElements[b].size(); e++ ) { // loop through all the elements
-        side_info = phys->getSideInfo(b,n,e);
-        int numSides = side_info.extent(0);
-        DRV I_elemNodes;
-        vector<size_t> elist(1);
-        elist[0] = e;
-        mesh->mesh->getElementVertices(elist,I_elemNodes);
-        
-        // enforce the boundary conditions if the element is on the given boundary
-        
-        for( int i=0; i<numSides; i++ ) {
-          if( side_info(i,0)==1 ) {
-            vector<GO> elemGIDs;
-            int gside_index = side_info(i,1);
-            string gside = phys->sideSets[gside_index];
-            size_t elemID = disc->myElements[b][e];
-            DOF->getElementGIDs(elemID, elemGIDs, blockID); // global index of each node
-            // get the side index and the node->global mapping for the side that is on the boundary
-            const pair<vector<int>,vector<int> > SideIndex = DOF->getGIDFieldOffsets_closure(blockID, fnum, spaceDim-1, i);
-            const vector<int> elmtOffset = SideIndex.first;
-            const vector<int> basisIdMap = SideIndex.second;
-            // for each node that is on the boundary side
-            for( size_t j=0; j<elmtOffset.size(); j++ ) {
-              // get the global row and oordinate
-              LO row =  LA_overlapped_map->getLocalElement(elemGIDs[elmtOffset[j]]);
-              ScalarT x = I_elemNodes(0,basisIdMap[j],0);
-              ScalarT y = 0.0;
-              if (spaceDim > 1) {
-                y = I_elemNodes(0,basisIdMap[j],1);
-              }
-              ScalarT z = 0.0;
-              if (spaceDim > 2) {
-                z = I_elemNodes(0,basisIdMap[j],2);
-              }
-              
-              if (use_meas_as_dbcs) {
-                //init_kv(row,0) = meas_kv(row,0);
-              }
-              else {
-                // put the value into the soln vector
-                AD diri_FAD_tmp;
-                diri_FAD_tmp = phys->getDirichletValue(b, x, y, z, current_time, varlist[b][n], gside, useadjoint, assembler->wkset[b]);
-                
-                init_kv(row,0) = diri_FAD_tmp.val();
-              }
-            }
-          }
-        }
-      }
-    }
-   */
-  
 }
 
-
 // ========================================================================================
 // ========================================================================================
 
-vector_RCP solver::setInitialParams() {
+template<class Node>
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitialParams() {
   vector_RCP initial = Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1));
   ScalarT value = 2.0;
   initial->putScalar(value);
@@ -1922,7 +1873,8 @@ vector_RCP solver::setInitialParams() {
 // ========================================================================================
 // ========================================================================================
 
-vector_RCP solver::setInitial() {
+template<class Node>
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial() {
  
   Teuchos::TimeMonitor localtimer(*initsettimer);
   
@@ -1936,7 +1888,7 @@ vector_RCP solver::setInitial() {
   
   if (scalarInitialData) {
     // This will be done on the host for now
-    auto initial_kv = initial->getLocalView<HostDevice>();
+    auto initial_kv = initial->template getLocalView<LA_device>();
     for (size_t block=0; block<assembler->cells.size(); block++) {
       Kokkos::View<int**,AssemblyDevice> offsets = assembler->wkset[block]->offsets;
       auto host_offsets = Kokkos::create_mirror_view(offsets);
@@ -2003,7 +1955,8 @@ vector_RCP solver::setInitial() {
 // Linear Solver for Tpetra stack
 // ========================================================================================
 
-void solver::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+template<class Node>
+void solver<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   Teuchos::TimeMonitor localtimer(*linearsolvertimer);
   
   if (useDirect) {
@@ -2080,7 +2033,8 @@ void solver::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
 // Preconditioner for Tpetra stack
 // ========================================================================================
 
-Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > solver::buildPreconditioner(const matrix_RCP & J) {
+template<class Node>
+Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > solver<Node>::buildPreconditioner(const matrix_RCP & J) {
   Teuchos::ParameterList mueluParams;
   
   mueluParams.setName("MueLu");
@@ -2140,7 +2094,8 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > solver::buildPre
 // ========================================================================================
 // ========================================================================================
 
-void solver::setBatchID(const int & bID){
+template<class Node>
+void solver<Node>::setBatchID(const int & bID){
   batchID = bID;
   params->batchID = bID;
 }
@@ -2148,7 +2103,8 @@ void solver::setBatchID(const int & bID){
 // ========================================================================================
 // ========================================================================================
 
-vector_RCP solver::blankState(){
+template<class Node>
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::blankState(){
   vector_RCP F_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
   return F_soln;
 }
@@ -2159,7 +2115,8 @@ vector_RCP solver::blankState(){
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void solver::finalizeParams() {
+template<class Node>
+void solver<Node>::finalizeParams() {
 
   //for (size_t b=0; b<blocknames.size(); b++) {
   //  assembler->wkset[b]->paramusebasis = params->discretized_param_usebasis;
@@ -2171,7 +2128,8 @@ void solver::finalizeParams() {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void solver::finalizeMultiscale() {
+template<class Node>
+void solver<Node>::finalizeMultiscale() {
   if (multiscale_manager->subgridModels.size() > 0 ) {
     for (size_t k=0; k<multiscale_manager->subgridModels.size(); k++) {
       multiscale_manager->subgridModels[k]->paramvals_KVAD = params->paramvals_KVAD;
@@ -2201,3 +2159,4 @@ void solver::finalizeMultiscale() {
   }
 
 }
+
