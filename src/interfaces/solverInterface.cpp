@@ -114,7 +114,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
   fillParam = settings->sublist("Solver").get<ScalarT>("ILU fill param",3.0); //defaults to AztecOO default
   reuse_preconditioner = settings->sublist("Solver").get<bool>("reuse preconditioner",false); //defaults to AztecOO default
   have_symbolic_factor = false;
-  
+
   // needed information from the mesh
   mesh->mesh->getElementBlockNames(blocknames);
   
@@ -2139,53 +2139,61 @@ template<class Node>
 Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > solver<Node>::buildPreconditioner(const matrix_RCP & J) {
   Teuchos::ParameterList mueluParams;
   
+  // if the user provides a "Preconditioner Settings" sublist, use it for MueLu
+  // otherwise, set things with the simple approach
+  if(settings->sublist("Solver").isSublist("Preconditioner Settings"))
+  {
+    mueluParams = settings->sublist("Solver").sublist("Preconditioner Settings");
+  }
+  else
+  {
+    // Main settings
+    if (verbosity >= 20){
+      mueluParams.set("verbosity","high");
+    }
+    else {
+      mueluParams.set("verbosity","none");
+    }
+    //int numEqns = 1;
+    //if (assembler->cells.size() == 1) {
+    //  numEqns = numVars[0];
+    //}
+    //mueluParams.set("number of equations",numEqns);
+  
+    mueluParams.set("coarse: max size",500);
+    mueluParams.set("multigrid algorithm", multigrid_type);
+  
+    // Aggregation
+    mueluParams.set("aggregation: type","uncoupled");
+    mueluParams.set("aggregation: drop scheme","classical");
+  
+    //Smoothing
+    Teuchos::ParameterList smootherParams = mueluParams.sublist("smoother: params");
+    mueluParams.set("smoother: type",smoother_type);
+    if (smoother_type == "CHEBYSHEV") {
+      mueluParams.sublist("smoother: params").set("chebyshev: degree",2);
+      mueluParams.sublist("smoother: params").set("chebyshev: ratio eigenvalue",7.0);
+      mueluParams.sublist("smoother: params").set("chebyshev: min eigenvalue",1.0);
+      mueluParams.sublist("smoother: params").set("chebyshev: zero starting solution",true);
+    }
+    else if (smoother_type == "RELAXATION") {
+      mueluParams.sublist("smoother: params").set("relaxation: type","Jacobi");
+      //mueluParams.sublist("smoother: params").set("relaxation: type","Symmetric Gauss-Seidel");
+      //mueluParams.sublist("smoother: params").set("relaxation: sweeps",2);
+    }
+  
+    // Repartitioning
+  
+    mueluParams.set("repartition: enable",false);
+    mueluParams.set("repartition: partitioner","zoltan");
+    mueluParams.set("repartition: start level",2);
+    mueluParams.set("repartition: min rows per proc",800);
+    mueluParams.set("repartition: max imbalance", 1.1);
+    mueluParams.set("repartition: remap parts",false);
+  
+    mueluParams.set("reuse: type",preconditioner_reuse_type);
+  }
   mueluParams.setName("MueLu");
-  
-  // Main settings
-  if (verbosity >= 20){
-    mueluParams.set("verbosity","high");
-  }
-  else {
-    mueluParams.set("verbosity","none");
-  }
-  //int numEqns = 1;
-  //if (assembler->cells.size() == 1) {
-  //  numEqns = numVars[0];
-  //}
-  //mueluParams.set("number of equations",numEqns);
-  
-  mueluParams.set("coarse: max size",500);
-  mueluParams.set("multigrid algorithm", multigrid_type);
-  
-  // Aggregation
-  mueluParams.set("aggregation: type","uncoupled");
-  mueluParams.set("aggregation: drop scheme","classical");
-  
-  //Smoothing
-  Teuchos::ParameterList smootherParams = mueluParams.sublist("smoother: params");
-  mueluParams.set("smoother: type",smoother_type);
-  if (smoother_type == "CHEBYSHEV") {
-    mueluParams.sublist("smoother: params").set("chebyshev: degree",2);
-    mueluParams.sublist("smoother: params").set("chebyshev: ratio eigenvalue",7.0);
-    mueluParams.sublist("smoother: params").set("chebyshev: min eigenvalue",1.0);
-    mueluParams.sublist("smoother: params").set("chebyshev: zero starting solution",true);
-  }
-  else if (smoother_type == "RELAXATION") {
-    mueluParams.sublist("smoother: params").set("relaxation: type","Jacobi");
-    //mueluParams.sublist("smoother: params").set("relaxation: type","Symmetric Gauss-Seidel");
-    //mueluParams.sublist("smoother: params").set("relaxation: sweeps",2);
-  }
-  
-  // Repartitioning
-  
-  mueluParams.set("repartition: enable",false);
-  mueluParams.set("repartition: partitioner","zoltan");
-  mueluParams.set("repartition: start level",2);
-  mueluParams.set("repartition: min rows per proc",800);
-  mueluParams.set("repartition: max imbalance", 1.1);
-  mueluParams.set("repartition: remap parts",false);
-  
-  mueluParams.set("reuse: type",preconditioner_reuse_type);
   
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > Mnew = MueLu::CreateTpetraPreconditioner((Teuchos::RCP<LA_Operator>)J, mueluParams);
 
