@@ -87,6 +87,7 @@ typedef Kokkos::Compat::KokkosSerialWrapperNode HostNode;
   typedef Kokkos::Compat::KokkosSerialWrapperNode SolverNode;
 #endif
 typedef AssemblyNode SubgridSolverNode;
+//typedef typename SolverNode::device_type SolverDevice;
 
 // Typedef Kokkos devices based on Exec, Mem
 typedef Kokkos::Device<HostExec,HostMem> HostDevice;

@@ -492,9 +492,10 @@ vector<ScalarT> ParameterManager<Node>::getDiscretizedParamsVector() {
   vector<ScalarT> discParams(numParams);
   //auto Psol_2d = Psol[0]->getLocalView<Kokkos::Device<Node::execution_space,Node::memory_space>>();
   auto Psol_2d = Psol[0]->template getLocalView<LA_device>();
+  auto Psol_host = Kokkos::create_mirror_view(Psol_2d);
   for (size_t i = 0; i < paramOwned.size(); i++) {
     int gid = paramOwned[i];
-    discLocalParams[gid] = Psol_2d(i,0);
+    discLocalParams[gid] = Psol_host(i,0);
     //cout << gid << " " << Psol_2d(i,0) << endl;
   }
   for (int i = 0; i < numParams; i++) {

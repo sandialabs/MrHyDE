@@ -163,7 +163,7 @@ namespace MrHyDE {
     // Preconditioner for Tpetra stack
     // ========================================================================================
     
-    Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > buildPreconditioner(const matrix_RCP & J);
+    Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > buildPreconditioner(const matrix_RCP & J);
     
     // ========================================================================================
     // ========================================================================================

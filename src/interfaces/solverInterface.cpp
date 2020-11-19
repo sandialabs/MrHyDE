@@ -860,7 +860,7 @@ void solver<Node>::projectDirichlet() {
     else {
       Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(glmass, glfixedDOF_soln, glrhs));
       if (usePrecDBC) {
-        Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > P = this->buildPreconditioner(glmass);
+        Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > P = this->buildPreconditioner(glmass);
         Problem->setLeftPrec(P);
       }
       Problem->setProblem();
@@ -1815,6 +1815,8 @@ void solver<Node>::setDirichlet(vector_RCP & u) {
   
   Teuchos::TimeMonitor localtimer(*dbcsettimer);
   
+  typedef typename Node::execution_space LA_exec;
+  
   if (usestrongDBCs) {
     auto u_kv = u->template getLocalView<LA_device>();
     //auto meas_kv = meas->getLocalView<HostDevice>();
@@ -1823,38 +1825,97 @@ void solver<Node>::setDirichlet(vector_RCP & u) {
       this->projectDirichlet();
     }
     
-    vector<vector<vector<LO> > > dbcDOFs = phys->dbc_dofs;
+    vector<vector<Kokkos::View<LO*,LA_device> > > dbcDOFs = assembler->fixedDOF;
     if (scalarDirichletData) {
+      
       for (size_t b=0; b<dbcDOFs.size(); b++) {
         for (size_t v=0; v<dbcDOFs[b].size(); v++) {
-          ScalarT value = scalarDirichletValues[b][v];
-          for (size_t i=0; i<dbcDOFs[b][v].size(); i++) {
-            LO ind = dbcDOFs[b][v][i];
-            u_kv(ind,0) = value;
+          if (dbcDOFs[b][v].extent(0)>0) {
+            ScalarT value = scalarDirichletValues[b][v];
+            Kokkos::View<ScalarT[1],LA_device> scalarval("scalar value");
+            auto scval_host = Kokkos::create_mirror_view(scalarval);
+            scval_host(0) = value;
+            Kokkos::deep_copy(scalarval,scval_host);
+            
+            auto cdofs = dbcDOFs[b][v];
+            parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,cdofs.extent(0)), KOKKOS_LAMBDA (const int i ) {
+              ScalarT val = scalarval(0);
+              u_kv(cdofs(i),0) = val;
+            });
           }
         }
       }
+      /*
+      for (size_t b=0; b<dbcDOFs.size(); b++) {
+        for (size_t v=0; v<dbcDOFs[b].size(); v++) {
+          ScalarT value = scalarDirichletValues[b][v];
+          Kokkos::View<ScalarT[1],LA_device> scalarval("scalar value");
+          auto scval_host = Kokkos::create_mirror_view(scalarval);
+          scval_host(0) = value;
+          Kokkos::deep_copy(scalarval,scval_host);
+          auto dbcs = dbcDOFs[b][v];
+          bool copy_views = false;
+#if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA) // Assembly=Cuda, Solver=CPU
+          auto dbcs_dev = Kokkos::create_mirror(LA_device, dbcs);
+          copy_views = true;
+#elif !defined(MrHyDE_ASSEMBLYSPACE_CUDA) && defined(MrHyDE_SOLVERSPACE_CUDA) // Assembly=CPU, Solver=GPU
+          auto dbcs_dev = Kokkos::create_mirror_view(dbcs);
+          copy_views = true;
+#else
+          auto dbcs_dev = dbcs;
+#endif
+          if (copy_views) {
+            Kokkos::deep_copy(dbcs_dev,dbcs);
+          }
+          parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,dbcs.extent(0)), KOKKOS_LAMBDA (const int i ) {
+          //for (size_t i=0; i<dbcDOFs[b][v].size(); i++) {
+            LO ind = dbcs_dev(i);//dbcDOFs[b][v][i];
+            ScalarT val = scalarval(0);
+            u_kv(ind,0) = val;
+          });
+        }
+      }*/
     }
     else {
       auto dbc_kv = fixedDOF_soln->template getLocalView<LA_device>();
       for (size_t b=0; b<dbcDOFs.size(); b++) {
         for (size_t v=0; v<dbcDOFs[b].size(); v++) {
-          for (size_t i=0; i<dbcDOFs[b][v].size(); i++) {
-            LO ind = dbcDOFs[b][v][i];
-            u_kv(ind,0) = dbc_kv(ind,0);
+          if (dbcDOFs[b][v].extent(0)>0) {
+            auto cdofs = dbcDOFs[b][v];
+            parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,cdofs.extent(0)), KOKKOS_LAMBDA (const int i ) {
+              u_kv(cdofs(i),0) = dbc_kv(cdofs(i),0);
+            });
           }
         }
       }
+      /*
+      for (size_t b=0; b<dbcDOFs.size(); b++) {
+        for (size_t v=0; v<dbcDOFs[b].size(); v++) {
+          auto dbcs = dbcDOFs[b][v];
+          parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,dbcs.extent(0)), KOKKOS_LAMBDA (const int i ) {
+            //for (size_t i=0; i<dbcDOFs[b][v].size(); i++) {
+            LO ind = dbcs(i);//dbcDOFs[b][v][i];
+            u_kv(ind,0) = dbc_kv(ind,0);
+          });
+        }
+      }*/
     }
     
     // set point dbcs
     vector<vector<GO> > pointDOFs = phys->point_dofs;
     for (size_t b=0; b<blocknames.size(); b++) {
       vector<GO> pt_dofs = pointDOFs[b];
+      Kokkos::View<LO*,LA_device> ptdofs("pointwise dofs", pointDOFs[b].size());
+      auto ptdofs_host = Kokkos::create_mirror_view(ptdofs);
       for (size_t i = 0; i < pt_dofs.size(); i++) {
         LO row = LA_overlapped_map->getLocalElement(pt_dofs[i]);
-        u_kv(row,0) = 0.0; // fix to zero for now
+        ptdofs_host(i) = row;
       }
+      Kokkos::deep_copy(ptdofs,ptdofs_host);
+      parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,ptdofs.extent(0)), KOKKOS_LAMBDA (const int i ) {
+        LO row = ptdofs(i);
+        u_kv(row,0) = 0.0; // fix to zero for now
+      });
     }
   }
 }
@@ -1877,6 +1938,7 @@ template<class Node>
 Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial() {
  
   Teuchos::TimeMonitor localtimer(*initsettimer);
+  typedef typename Node::execution_space LA_exec;
   
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -1886,26 +1948,66 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial(
   
   vector_RCP initial = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
   
+  bool samedevice = true;
+  bool usehost = false;
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyMem>::accessible) {
+    samedevice = false;
+    if (!Kokkos::SpaceAccessibility<LA_exec, HostMem>::accessible) {
+      usehost = true;
+    }
+    else {
+      // output an error along the lines of "what the hell happened"
+    }
+  }
+  
   if (scalarInitialData) {
-    // This will be done on the host for now
+    
+    
     auto initial_kv = initial->template getLocalView<LA_device>();
+    
     for (size_t block=0; block<assembler->cells.size(); block++) {
-      Kokkos::View<int**,AssemblyDevice> offsets = assembler->wkset[block]->offsets;
-      auto host_offsets = Kokkos::create_mirror_view(offsets);
-      Kokkos::deep_copy(host_offsets,offsets);
-      for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
-        Kokkos::View<LO**,HostDevice> LIDs = assembler->cells[block][cell]->LIDs_host;
-        Kokkos::View<LO*,HostDevice> numDOF = assembler->cells[block][cell]->cellData->numDOF_host;
-        //parallel_for("solver initial scalar",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
-        for (size_type e=0; e<LIDs.extent(0); e++) {
-          for (size_type n=0; n<numDOF.extent(0); n++) {
-            for (int i=0; i<numDOF(n); i++ ) {
-              initial_kv(LIDs(e,host_offsets(n,i)),0) = scalarInitialValues[block][n];
+      
+      Kokkos::View<ScalarT*,LA_device> idata("scalar initial data",scalarInitialValues[block].size());
+      auto idata_host = Kokkos::create_mirror_view(idata);
+      for (size_t i=0; i<scalarInitialValues[block].size(); i++) {
+        idata_host(i) = scalarInitialValues[block][i];
+      }
+      Kokkos::deep_copy(idata,idata_host);
+      
+      
+      if (samedevice) {
+        auto offsets = assembler->wkset[block]->offsets;
+        auto numDOF = assembler->cellData[block]->numDOF;
+        for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
+          auto LIDs = assembler->cells[block][cell]->LIDs;
+          parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+            for (size_type n=0; n<numDOF.extent(0); n++) {
+              for (int i=0; i<numDOF(n); i++ ) {
+                initial_kv(LIDs(e,offsets(n,i)),0) = idata(n);
+              }
             }
-          }
+          });
         }
       }
+      else if (usehost) {
+        auto offsets = assembler->wkset[block]->offsets;
+        auto host_offsets = Kokkos::create_mirror_view(offsets);
+        Kokkos::deep_copy(host_offsets,offsets);
+        auto numDOF = assembler->cellData[block]->numDOF_host;
+        for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
+          auto LIDs = assembler->cells[block][cell]->LIDs_host;
+          parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+            for (size_type n=0; n<numDOF.extent(0); n++) {
+              for (int i=0; i<numDOF(n); i++ ) {
+                initial_kv(LIDs(e,host_offsets(n,i)),0) = idata(n);
+              }
+            }
+          });
+        }
+      }
+      
     }
+    
   }
   else {
   
@@ -1916,10 +2018,10 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial(
     if (initial_type == "L2-projection") {
       
       // Compute the L2 projection of the initial data into the discrete space
-      vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // reset residual
-      matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));//Tpetra::createCrsMatrix<ScalarT>(LA_overlapped_map); // reset Jacobian
-      vector_RCP glrhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // reset residual
-      matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));//Tpetra::createCrsMatrix<ScalarT>(LA_owned_map); // reset Jacobian
+      vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+      matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
+      vector_RCP glrhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+      matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));
       assembler->setInitial(rhs, mass, useadjoint);
       
       glmass->setAllToScalar(0.0);
@@ -2034,7 +2136,7 @@ void solver<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & sol
 // ========================================================================================
 
 template<class Node>
-Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > solver<Node>::buildPreconditioner(const matrix_RCP & J) {
+Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > solver<Node>::buildPreconditioner(const matrix_RCP & J) {
   Teuchos::ParameterList mueluParams;
   
   mueluParams.setName("MueLu");

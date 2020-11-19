@@ -45,7 +45,7 @@ namespace MrHyDE {
     typedef Teuchos::RCP<LA_MultiVector>            vector_RCP;
     typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
     typedef typename Node::device_type              LA_device;
-    
+    typedef typename Node::memory_space             LA_mem;
   public:
     
     // ========================================================================================
@@ -138,24 +138,27 @@ namespace MrHyDE {
     
     void performGather(const vector_RCP & vec, const int & type, const size_t & index);
     
-    void performGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, const int & type);
+    template<class ViewType>
+    void performGather(ViewType vec_dev, const int & type);
+    //void performGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, const int & type);
     
     // ========================================================================================
     //
     // ========================================================================================
     
-    void performBoundaryGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, const int & type);
+    template<class ViewType>
+    void performBoundaryGather(ViewType vec_dev, const int & type);
+    //void performBoundaryGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, const int & type);
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    template<class T>
-    void insert(T J_view, vector_RCP & res,
-                Kokkos::View<ScalarT***,HostDevice> local_res,
-                Kokkos::View<ScalarT***,HostDevice> local_J,
-                LIDView_host LIDs, LIDView_host paramLIDs,
-                const bool & compute_jacobian, const bool & compute_disc_sens);
-    
+    template<class MatType, class VecViewType, class LocalViewType, class LIDViewType>
+    void scatter(MatType J_kcrs, VecViewType res_view,
+                 LocalViewType local_res, LocalViewType local_J,
+                 LIDViewType LIDs, LIDViewType paramLIDs,
+                 const bool & compute_jacobian, const bool & compute_disc_sens);
+
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Public data members
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -185,8 +188,8 @@ namespace MrHyDE {
     Teuchos::RCP<panzer::DOFManager> DOF;
     std::vector<bool> assemble_volume_terms, assemble_boundary_terms, assemble_face_terms; // use basis functions in assembly
     std::vector<bool> build_volume_terms, build_boundary_terms, build_face_terms; // set up basis function
-    Kokkos::View<bool*,HostDevice> isFixedDOF;
-    
+    Kokkos::View<bool*,LA_device> isFixedDOF;
+    vector<vector<Kokkos::View<LO*,LA_device> > > fixedDOF;
     Teuchos::RCP<ParameterManager<Node> > params;
     int numElemPerCell;
       
@@ -194,7 +197,7 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> gathertimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - gather");
     Teuchos::RCP<Teuchos::Time> phystimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - physics evaluation");
     Teuchos::RCP<Teuchos::Time> boundarytimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - boundary evaluation");
-    Teuchos::RCP<Teuchos::Time> inserttimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - insert");
+    Teuchos::RCP<Teuchos::Time> scattertimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - insert");
     Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::dofConstraints()");
     Teuchos::RCP<Teuchos::Time> completetimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - fill complete");
     Teuchos::RCP<Teuchos::Time> msprojtimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - multiscale projection");

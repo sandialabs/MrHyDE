@@ -1416,6 +1416,7 @@ void physics::setDirichletData(Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
       dbc_settings = settings->sublist("Physics").sublist("Dirichlet conditions");
     }
     
+    //std::vector<Kokkos::View<LO*,AssemblyDevice> > block_dbc_dofs;
     std::vector<std::vector<LO> > block_dbc_dofs;
     
     for (size_t j=0; j<varlist[b].size(); j++) {
@@ -1458,6 +1459,12 @@ void physics::setDirichletData(Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
       std::sort(var_dofs.begin(), var_dofs.end());
       var_dofs.erase(std::unique(var_dofs.begin(), var_dofs.end()), var_dofs.end());
       
+      //Kokkos::View<LO*,AssemblyDevice> var_dofs_kv("dbc dofs on block",var_dofs.size());
+      //auto var_dofs_host = Kokkos::create_mirror_view(var_dofs_kv);
+      //for (size_t k=0; k<var_dofs.size(); k++) {
+      //  var_dofs_host(k) = var_dofs[k];
+      //}
+      //Kokkos::deep_copy(var_dofs_kv, var_dofs_host);
       block_dbc_dofs.push_back(var_dofs);
     }
     
