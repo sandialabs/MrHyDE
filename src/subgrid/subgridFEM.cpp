@@ -52,8 +52,8 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
     save_solution = true;
   }
   //if (save_solution) {
-    soln = Teuchos::rcp(new SolutionStorage<SG_MultiVector>(settings));
-    adjsoln = Teuchos::rcp(new SolutionStorage<SG_MultiVector>(settings));
+    soln = Teuchos::rcp(new SolutionStorage<SubgridSolverNode>(settings));
+    adjsoln = Teuchos::rcp(new SolutionStorage<SubgridSolverNode>(settings));
   //}
   
   /////////////////////////////////////////////////////////////////////////////////////

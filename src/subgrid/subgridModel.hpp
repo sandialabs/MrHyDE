@@ -22,11 +22,11 @@ namespace MrHyDE {
   
   class SubGridModel {
     
-    typedef Tpetra::CrsMatrix<ScalarT,LO,GO,AssemblyNode>   SG_CrsMatrix;
-    typedef Tpetra::MultiVector<ScalarT,LO,GO,AssemblyNode> SG_MultiVector;
-    typedef Tpetra::Map<LO, GO, AssemblyNode>               SG_Map;
-    typedef Teuchos::RCP<SG_MultiVector> vector_RCP;
-    typedef Teuchos::RCP<SG_CrsMatrix>   matrix_RCP;
+    typedef Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>   SG_CrsMatrix;
+    typedef Tpetra::MultiVector<ScalarT,LO,GO,SubgridSolverNode> SG_MultiVector;
+    typedef Tpetra::Map<LO, GO, SubgridSolverNode>               SG_Map;
+    typedef Teuchos::RCP<SG_MultiVector>                         vector_RCP;
+    typedef Teuchos::RCP<SG_CrsMatrix>                           matrix_RCP;
     
   public:
     
@@ -108,7 +108,7 @@ namespace MrHyDE {
     virtual void updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data) = 0;
     
     Teuchos::RCP<MpiComm> LocalComm;
-    Teuchos::RCP<SolutionStorage<SG_MultiVector> > soln, solndot, adjsoln;
+    Teuchos::RCP<SolutionStorage<SubgridSolverNode> > soln, solndot, adjsoln;
     
     bool useMachineLearning = false;
     

@@ -36,12 +36,12 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
     }
   }
   
-  soln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
+  soln = Teuchos::rcp(new SolutionStorage<Node>(settings));
   string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
   if (analysis_type == "forward+adjoint" || analysis_type == "ROL" || analysis_type == "ROL_SIMOPT") {
     save_solution = true; // default is false
     if (settings->sublist("Analysis").sublist("ROL").sublist("General").get<bool>("Generate data",false)) {
-      datagen_soln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
+      datagen_soln = Teuchos::rcp(new SolutionStorage<Node>(settings));
     }
   }
   

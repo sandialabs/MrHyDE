@@ -228,7 +228,7 @@ namespace MrHyDE {
     ScalarT discrete_objective_scale_factor;
     
     vector<vector<ScalarT> > scalarDirichletValues, scalarInitialValues; //[block][var]
-    Teuchos::RCP<SolutionStorage<LA_MultiVector> > soln, adj_soln, datagen_soln;
+    Teuchos::RCP<SolutionStorage<Node> > soln, adj_soln, datagen_soln;
     Teuchos::RCP<LA_MultiVector> fixedDOF_soln;
     //vector<vector_RCP> fwdsol;
     //vector<vector_RCP> adjsol;

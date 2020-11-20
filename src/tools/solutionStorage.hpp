@@ -21,13 +21,11 @@
 
 namespace MrHyDE {
   
-  template<class V>
+  template<class Node>
   class SolutionStorage {
     
-    typedef Tpetra::CrsMatrix<ScalarT,LO,GO,SolverNode>   LA_CrsMatrix;
-    typedef Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> LA_MultiVector;
-    typedef Teuchos::RCP<LA_MultiVector> vector_RCP;
-    typedef Teuchos::RCP<LA_CrsMatrix>   matrix_RCP;
+    typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> V;
+    typedef typename Node::device_type V_device;
     
   public:
     
@@ -235,20 +233,18 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    vector_RCP copyData(vector_RCP & src) {
+    
+    Teuchos::RCP<V> copyData(Teuchos::RCP<V> & src) {
       
-      vector_RCP dest = Teuchos::rcp( new LA_MultiVector(src->getMap(),1));
+      Teuchos::RCP<V> dest = Teuchos::rcp( new V(src->template getMap(),1));
       
-      auto src_kv = src->getLocalView<HostDevice>();
-      auto dest_kv = dest->getLocalView<HostDevice>();
+      auto src_kv = src->template getLocalView<V_device>();
+      auto dest_kv = dest->template getLocalView<V_device>();
+      Kokkos::deep_copy(dest_kv, src_kv);
       
-      for (size_t i=0; i<src_kv.extent(0); i++) {
-        for (size_t j=0; j<src_kv.extent(1); j++) {
-          dest_kv(i,j) = src_kv(i,j);
-        }
-      }
       return dest;
     }
+    
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -276,8 +272,8 @@ namespace MrHyDE {
     vector<vector<Teuchos::RCP<V> > > data;
     
     // Additional data needed for ML
-    vector<vector<Kokkos::View<ScalarT*,AssemblyDevice> > > inputs;
-    vector<vector<Kokkos::View<AD*,AssemblyDevice> > > outputs;
+    vector<vector<Kokkos::View<ScalarT*,V_device> > > inputs;
+    vector<vector<Kokkos::View<AD*,V_device> > > outputs;
     
     // Add data structures for PyTorch
     

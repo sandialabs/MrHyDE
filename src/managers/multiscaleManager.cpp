@@ -316,10 +316,10 @@ ScalarT MultiScale::update() {
               int lastindex = subgridModels[oldmodel]->soln->times[usernum].size()-1;
               Teuchos::RCP<SGLA_MultiVector> lastsol = subgridModels[oldmodel]->soln->data[usernum][lastindex];
               ScalarT lasttime = subgridModels[oldmodel]->soln->times[usernum][lastindex];
-              vector_RCP projvec = subgridModels[sgwinner]->getVector();
+              Teuchos::RCP<SGLA_MultiVector> projvec = subgridModels[sgwinner]->getVector();
               subgrid_projection_maps[sgwinner][oldmodel]->apply(*lastsol, *projvec);
               
-              vector_RCP newvec = subgridModels[sgwinner]->getVector();
+              Teuchos::RCP<SGLA_MultiVector> newvec = subgridModels[sgwinner]->getVector();
               subgrid_projection_solvers[sgwinner]->setB(projvec);
               subgrid_projection_solvers[sgwinner]->setX(newvec);
               
