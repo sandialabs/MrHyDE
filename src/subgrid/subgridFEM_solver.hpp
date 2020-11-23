@@ -251,7 +251,7 @@ namespace MrHyDE {
     Teuchos::RCP<SG_MultiVector> SG_rhs, SG_lhs;
     
     Teuchos::RCP<SG_LinearProblem> belos_problem;
-    Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > belos_M;
+    Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, SubgridSolverNode> > belos_M;
     Teuchos::RCP<Teuchos::ParameterList> belosList;
     Teuchos::RCP<Belos::SolverManager<ScalarT, SG_MultiVector, SG_Operator> > belos_solver;
     bool have_belos = false;
