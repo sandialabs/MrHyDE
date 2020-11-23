@@ -831,9 +831,9 @@ void solver<Node>::projectDirichlet() {
     vector_RCP glfixedDOF_soln = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
     
     vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
+    matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_overlapped_graph));
     vector_RCP glrhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
-    matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));
+    matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_owned_map, maxEntries));
     
     assembler->setDirichlet(rhs, mass, useadjoint, current_time);
     
@@ -1336,9 +1336,9 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     gNLiter = NLiter;
     
     vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
-    matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));
+    matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_owned_map, maxEntries));
     vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
+    matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_overlapped_graph));
     vector_RCP du_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
     vector_RCP du = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
     
@@ -1669,9 +1669,9 @@ void solver<Node>::computeSensitivities(vector_RCP & u,
     vector<ScalarT> localsens(params->num_active_params);
     
     vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,params->num_active_params));
-    matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));
+    matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_owned_map, maxEntries));
     vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,params->num_active_params));
-    matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
+    matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_overlapped_graph));
     
     auto res_kv = res->template getLocalView<LA_device>();
     
@@ -1746,9 +1746,9 @@ void solver<Node>::computeSensitivities(vector_RCP & u,
     }
     
     vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(params->param_owned_map,
+    matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(params->param_owned_map,
                                                                               maxEntries));
-    matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(params->param_overlapped_graph));
+    matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(params->param_overlapped_graph));
     res_over->putScalar(0.0);
     J->setAllToScalar(0.0);
     
@@ -2019,9 +2019,9 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial(
       
       // Compute the L2 projection of the initial data into the discrete space
       vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-      matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_overlapped_graph));
+      matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_overlapped_graph));
       vector_RCP glrhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
-      matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,HostNode>(LA_owned_map, maxEntries));
+      matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_owned_map, maxEntries));
       assembler->setInitial(rhs, mass, useadjoint);
       
       glmass->setAllToScalar(0.0);
@@ -2078,7 +2078,7 @@ void solver<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & sol
       if (useDomDecomp) {
         if (!reuse_preconditioner || !have_preconditioner) {
           Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
-          M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,HostNode>> ("SCHWARZ", J);
+          M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node>> ("SCHWARZ", J);
           M_dd->setParameters(ifpackList);
           M_dd->initialize();
           M_dd->compute();
@@ -2195,7 +2195,7 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > solver<Node>::buildP
   }
   mueluParams.setName("MueLu");
   
-  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, HostNode> > Mnew = MueLu::CreateTpetraPreconditioner((Teuchos::RCP<LA_Operator>)J, mueluParams);
+  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > Mnew = MueLu::CreateTpetraPreconditioner((Teuchos::RCP<LA_Operator>)J, mueluParams);
 
   //have_preconditioner = true;
   return Mnew;
