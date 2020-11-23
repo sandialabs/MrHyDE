@@ -236,7 +236,7 @@ namespace MrHyDE {
     
     Teuchos::RCP<V> copyData(Teuchos::RCP<V> & src) {
       
-      Teuchos::RCP<V> dest = Teuchos::rcp( new V(src->template getMap(),1));
+      Teuchos::RCP<V> dest = Teuchos::rcp( new V(src->getMap(),1));
       
       auto src_kv = src->template getLocalView<V_device>();
       auto dest_kv = dest->template getLocalView<V_device>();
