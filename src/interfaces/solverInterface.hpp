@@ -262,11 +262,11 @@ namespace MrHyDE {
   
   // Explicit template instantiations
   template class solver<SolverNode>;
-  #if !defined(MrHyDE_SOLVERSPACE_CUDA)
+  //#if !defined(MrHyDE_SOLVERSPACE_CUDA)
     #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
       template class solver<SubgridSolverNode>;
     #endif
-  #endif
+  //#endif
   
 }
 

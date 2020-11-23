@@ -845,8 +845,8 @@ void solver<Node>::projectDirichlet() {
     glmass->fillComplete();
     
     if (milo_debug_level>2) {
-      KokkosTools::print(glmass,"L2-projection matrix for DBCs");
-      KokkosTools::print(glrhs,"L2-projections RHS for DBCs");
+      //KokkosTools::print(glmass,"L2-projection matrix for DBCs");
+      //KokkosTools::print(glrhs,"L2-projections RHS for DBCs");
     }
     
     if (useDirect) {
@@ -1383,8 +1383,8 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     
       
     if (milo_debug_level>2) {
-      KokkosTools::print(J,"Jacobian from solver interface");
-      KokkosTools::print(res,"residual from solver interface");
+      //KokkosTools::print(J,"Jacobian from solver interface");
+      //KokkosTools::print(res,"residual from solver interface");
     }
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
     if (NLiter == 0) {
@@ -1433,7 +1433,7 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
   }
   
   if (milo_debug_level>2) {
-    KokkosTools::print(u);
+    //KokkosTools::print(u);
   }
   
   if(Comm->getRank() == 0) {
@@ -2078,7 +2078,7 @@ void solver<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & sol
       if (useDomDecomp) {
         if (!reuse_preconditioner || !have_preconditioner) {
           Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
-          M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node>> ("SCHWARZ", J);
+          M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
           M_dd->setParameters(ifpackList);
           M_dd->initialize();
           M_dd->compute();
