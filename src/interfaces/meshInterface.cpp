@@ -1044,7 +1044,8 @@ DRV meshInterface::getElemNodes(const int & block, const int & elemID) {
 // ========================================================================================
 // ========================================================================================
 
-void meshInterface::remesh(const vector_RCP & u, vector<vector<Teuchos::RCP<cell> > > & cells) {
+//template<class V>
+//void meshInterface::remesh(const Teuchos::RCP<V> & u, vector<vector<Teuchos::RCP<cell> > > & cells) {
   
   /*
   auto u_kv = u->getLocalView<HostDevice>();
@@ -1102,13 +1103,14 @@ void meshInterface::remesh(const vector_RCP & u, vector<vector<Teuchos::RCP<cell
     }
   }
    */
-}
+//}
 
 /////////////////////////////////////////////////////////////////////////////
 // Read in discretized data from an exodus mesh
 /////////////////////////////////////////////////////////////////////////////
-
-void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
+/*
+template<class Map>
+void meshInterface::readMeshData(Teuchos::RCP<const Map> & LA_overlapped_map,
                                  vector<vector<Teuchos::RCP<cell> > > & cells) {
   
   if (milo_debug_level > 0) {
@@ -1227,6 +1229,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
       delete [] var_vals;
     }
     
+    
     meas = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
     size_t b = 0;
     //meas->sync<HostDevice>();
@@ -1269,6 +1272,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
   }
   
 }
+ */
 
 // ========================================================================================
 // ========================================================================================

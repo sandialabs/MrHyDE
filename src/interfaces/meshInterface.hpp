@@ -42,9 +42,9 @@ namespace MrHyDE {
   
   class meshInterface {
     
-    typedef Tpetra::Map<LO, GO, SolverNode>               LA_Map;
-    typedef Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> LA_MultiVector;
-    typedef Teuchos::RCP<LA_MultiVector> vector_RCP;
+    //typedef Tpetra::Map<LO, GO, SolverNode>               LA_Map;
+    //typedef Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> LA_MultiVector;
+    //typedef Teuchos::RCP<LA_MultiVector> vector_RCP;
     
   public:
     
@@ -91,14 +91,17 @@ namespace MrHyDE {
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
-    
-    void remesh(const vector_RCP & u, vector<vector<Teuchos::RCP<cell> > > & cells);
+    /*
+    template<class V>
+    void remesh(const Teuchos::RCP<V> & u, vector<vector<Teuchos::RCP<cell> > > & cells);
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    void readMeshData(Teuchos::RCP<const LA_Map> & LA_overlapped_map,
+    template<class Map>
+    void readMeshData(Teuchos::RCP<const Map> & LA_overlapped_map,
                       vector<vector<Teuchos::RCP<cell> > > & cells);
+    */
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
@@ -125,7 +128,7 @@ namespace MrHyDE {
     ScalarT meshmod_TOL, meshmod_center, meshmod_layer_size;
     
     // variables read in from an exodus mesh
-    vector_RCP meas;
+    //vector_RCP meas;
     vector<vector<ScalarT> > nfield_vals, efield_vals;
     vector<string> nfield_names, efield_names;
     int numResponses;

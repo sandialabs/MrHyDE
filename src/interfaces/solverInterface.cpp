@@ -209,7 +209,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
   
   if (settings->sublist("Mesh").get<bool>("have element data", false) ||
       settings->sublist("Mesh").get<bool>("have nodal data", false)) {
-    mesh->readMeshData(LA_overlapped_map, assembler->cells);
+    //mesh->readMeshData(LA_overlapped_map, assembler->cells);
   }
   
   /////////////////////////////////////////////////////////////////////////////
