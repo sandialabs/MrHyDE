@@ -238,7 +238,7 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     
     // Static - do not depend on macro-element
-    int dimension, time_steps;
+    int dimension, time_steps, verbosity, debug_level;
     ScalarT initial_time, final_time;
     Teuchos::RCP<Teuchos::ParameterList> settings;
     string macroshape, shape, multiscale_method, error_type, combined_mesh_filename, mesh_type, mesh_file;

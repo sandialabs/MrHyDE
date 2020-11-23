@@ -1045,8 +1045,8 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
             // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
             auto LIDs_dev = Kokkos::create_mirror(LA_exec(), boundaryCells[b][e]->LIDs);
             auto paramLIDs_dev = Kokkos::create_mirror(LA_exec(), boundaryCells[b][e]->paramLIDs);
-            Kokkos::deep_copy(LIDs_dev,cells[b][e]->LIDs);
-            Kokkos::deep_copy(paramLIDs_dev,cells[b][e]->paramLIDs);
+            Kokkos::deep_copy(LIDs_dev,boundaryCells[b][e]->LIDs);
+            Kokkos::deep_copy(paramLIDs_dev,boundaryCells[b][e]->paramLIDs);
             
             this->scatter(J_kcrs, res_view, local_res_ladev, local_J_ladev,
                           LIDs_dev, paramLIDs_dev,
@@ -1157,28 +1157,19 @@ template<class Node>
 void AssemblyManager<Node>::performGather(const vector_RCP & vec, const int & type, const size_t & entry) {
   
   typedef typename LA_device::memory_space LA_mem;
-  //typedef typename AssemblyDevice::memory_space ADev_mem;
   
   auto vec_kv = vec->template getLocalView<LA_device>();
+  
+  // Even if there are multiple vectors, we only use one at a time
   auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), entry);
-  //bool samedevice = true;
-//#if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
-  //samedevice = false;
-//#elif !defined(MrHyDE_ASSEMBLYSPACE_CUDA) && defined(MrHyDE_SOLVERSPACE_CUDA)
-  //samedevice = false;
-//#endif
   
   // vector is on LA_device, but gather must happen on AssemblyDevice
-  if (Kokkos::SpaceAccessibility<AssemblyExec, LA_mem>::accessible) {
-  //if (samedevice) {
+  if (Kokkos::SpaceAccessibility<AssemblyExec, LA_mem>::accessible) { // can we avoid a copy?
     this->performGather(vec_slice, type);
     this->performBoundaryGather(vec_slice, type);
   }
-  else {
-    //okkos::View<ScalarT*,AssemblyDevice> vec_dev("tpetra vector on device",vec_kv.extent(0));
+  else { // apparently not
     auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
-    //Kokkos::deep_copy(vec_host,vec_slice);
-    //Kokkos::deep_copy(vec_dev,vec_host);
     Kokkos::deep_copy(vec_dev,vec_slice);
     this->performGather(vec_dev, type);
     this->performBoundaryGather(vec_dev, type);

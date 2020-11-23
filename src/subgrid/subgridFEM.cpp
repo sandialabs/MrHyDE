@@ -27,6 +27,8 @@ settings(settings_), macro_cellTopo(macro_cellTopo_),
 num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
   
   LocalComm = LocalComm_;
+  verbosity = settings->get<int>("verbosity",0);
+  debug_level = settings->get<int>("debug level",0);
   dimension = settings->sublist("Mesh").get<int>("dim",2);
   subgridverbose = settings->sublist("Solver").get<int>("verbosity",0);
   multiscale_method = settings->get<string>("multiscale method","mortar");
@@ -123,6 +125,12 @@ int SubGridFEM::addMacro(DRV & macronodes_,
 void SubGridFEM::setUpSubgridModels() {
   
   Teuchos::TimeMonitor subgridsetuptimer(*sgfemTotalSetUpTimer);
+  
+  if (debug_level > 0) {
+    if (LocalComm->getRank() == 0) {
+      cout << "**** Starting SubgridFEM::setupSubgridModels ..." << endl;
+    }
+  }
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Define the sub-grid mesh
@@ -801,6 +809,11 @@ void SubGridFEM::setUpSubgridModels() {
   sub_assembler->boundaryCells = boundaryCells;
   sub_physics->setWorkset(wkset);
   
+  if (debug_level > 0) {
+    if (LocalComm->getRank() == 0) {
+      cout << "**** Finished SubgridFEM::setupSubgridModels ..." << endl;
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -836,6 +849,11 @@ void SubGridFEM::finalize(const int & globalSize, const int & globalPID) {
 void SubGridFEM::addMeshData() {
   
   Teuchos::TimeMonitor localmeshtimer(*sgfemMeshDataTimer);
+  if (debug_level > 0) {
+    if (LocalComm->getRank() == 0) {
+      cout << "**** Starting SubgridFEM::addMeshData ..." << endl;
+    }
+  }
   
   if (have_mesh_data) {
     
@@ -1212,6 +1230,13 @@ void SubGridFEM::addMeshData() {
       }
     }
   }
+  
+  if (debug_level > 0) {
+    if (LocalComm->getRank() == 0) {
+      cout << "**** Finished SubgridFEM::addMeshData ..." << endl;
+    }
+  }
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1228,6 +1253,12 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
                                Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev) {
   
   Teuchos::TimeMonitor totalsolvertimer(*sgfemSolverTimer);
+  
+  if (debug_level > 0) {
+    if (LocalComm->getRank() == 0) {
+      cout << "**** Starting SubgridFEM::subgridSolver ..." << endl;
+    }
+  }
   
   // Update the cells for this macro-element (or set of macro-elements)
   this->updateLocalData(usernum);
@@ -1325,6 +1356,12 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
   }
   else if (!compute_sens) {
     soln->store(sub_solver->u,time,usernum);
+  }
+  
+  if (debug_level > 0) {
+    if (LocalComm->getRank() == 0) {
+      cout << "**** Finished SubgridFEM::subgridSolver ..." << endl;
+    }
   }
   
 }

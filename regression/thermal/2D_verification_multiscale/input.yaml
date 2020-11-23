@@ -18,6 +18,7 @@ ANONYMOUS:
       e: 1
     quadrature: 2
   Subgrid:
+    debug level: 0
     subgrid model: FEM
     Mesh:
       shape: quad

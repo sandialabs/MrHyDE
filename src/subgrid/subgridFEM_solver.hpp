@@ -102,7 +102,14 @@ namespace MrHyDE {
                          const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                          const int & num_active_params, const ScalarT & alpha, const int & usernum,
                          const bool & store_adjPrev);
-    
+
+    //////////////////////////////////////////////////////////////
+    // Fix the diagonal
+    //////////////////////////////////////////////////////////////
+
+    template<class LIDViewType, class MatType>
+    void fixDiagonal(LIDViewType LIDs, MatType localMatrix, const int startpoint);
+
     //////////////////////////////////////////////////////////////
     // Compute the derivative of the local solution w.r.t coarse
     // solution or w.r.t parameters
@@ -117,6 +124,18 @@ namespace MrHyDE {
                          const ScalarT & lambda_scale, const int & usernum,
                          Kokkos::View<ScalarT**,AssemblyDevice> subgradient);
     
+    //////////////////////////////////////////////////////////////
+    // Update the residual for the subgrid solution sensitivity wrt coarse DOFs
+    //////////////////////////////////////////////////////////////
+
+    template<class ResViewType, class DataViewType>
+    void updateResSens(const bool & use_cells, const int & usernum, const int & elem, ResViewType dres_view,
+                       DataViewType data, const bool & data_avail,
+                       const bool & use_host_LIDs, const bool & compute_sens);
+    
+    template<class LIDViewType, class ResViewType, class DataViewType>
+    void updateResSens(ResViewType res, DataViewType data, LIDViewType LIDs, const bool & compute_sens );
+
     //////////////////////////////////////////////////////////////
     // Update the flux
     //////////////////////////////////////////////////////////////
@@ -193,20 +212,27 @@ namespace MrHyDE {
     // ========================================================================================
     
     void performGather(const size_t & block, const Teuchos::RCP<SG_MultiVector> & vec, const size_t & type,
-                       const size_t & index) const ;
+                       const size_t & index);
     
     // ========================================================================================
     //
     // ========================================================================================
     
-    void performBoundaryGather(const size_t & block, const Teuchos::RCP<SG_MultiVector> & vec, const size_t & type,
-                               const size_t & index) const ;
+    template<class ViewType>
+    void performGather(const size_t & block, ViewType vec_dev, const size_t & type);
+    
+    // ========================================================================================
+    //
+    // ========================================================================================
+    
+    template<class ViewType>
+    void performBoundaryGather(const size_t & block, ViewType vec_dev, const size_t & type);
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
     // Static - do not depend on macro-element
-    int dimension, time_steps;
+    int dimension, time_steps, verbosity, debug_level;
     ScalarT initial_time, final_time;
     Teuchos::RCP<Teuchos::ParameterList> settings;
     string macroshape, shape, multiscale_method, error_type;
