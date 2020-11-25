@@ -173,10 +173,8 @@ namespace MrHyDE {
   
   // Explicit template instantiations
   template class PostprocessManager<SolverNode>;
-  #if !defined(MrHyDE_SOLVERSPACE_CUDA)
-    #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
-      template class PostprocessManager<SubgridSolverNode>;
-    #endif
+  #if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
+    template class PostprocessManager<SubgridSolverNode>;
   #endif
 
 }
