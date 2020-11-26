@@ -1109,8 +1109,9 @@ void meshInterface::remesh(const Teuchos::RCP<V> & u, vector<vector<Teuchos::RCP
 // Read in discretized data from an exodus mesh
 /////////////////////////////////////////////////////////////////////////////
 
-void meshInterface::readMeshData(Teuchos::RCP<const Tpetra::Map<LO, GO, SolverNode> > & LA_overlapped_map,
-                                 vector<vector<Teuchos::RCP<cell> > > & cells) {
+void meshInterface::readMeshData() {
+  //Teuchos::RCP<const Tpetra::Map<LO, GO, SolverNode> > & LA_overlapped_map,
+                                 //vector<vector<Teuchos::RCP<cell> > > & cells) {
   
   if (milo_debug_level > 0) {
     if (Commptr->getRank() == 0) {
@@ -1201,6 +1202,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const Tpetra::Map<LO, GO, SolverNo
     }
   }
   
+  /*
   // assign nodal vars to meas multivector
   if (settings->sublist("Mesh").get<bool>("have nodal data", false)) {
     int *connect = new int[num_el_in_blk*num_node_per_el];
@@ -1241,7 +1243,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const Tpetra::Map<LO, GO, SolverNo
     auto offsets = Kokkos::create_mirror_view(dev_offsets);
     Kokkos::deep_copy(offsets,dev_offsets);
     
-    for( size_t e=0; e<cells[b].size(); e++ ) {
+    for (size_t e=0; e<cells[b].size(); e++) {
       //cindex = cells[b][e]->index;
       auto LIDs = cells[b][e]->LIDs_host;
       auto nDOF = cells[b][e]->cellData->numDOF_host;
@@ -1262,6 +1264,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const Tpetra::Map<LO, GO, SolverNo
     delete [] connect;
     
   }
+   */
   exo_error = ex_close(exoid);
   
   if (milo_debug_level > 0) {

@@ -98,8 +98,8 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    void readMeshData(Teuchos::RCP<const Tpetra::Map<LO, GO, SolverNode> > & LA_overlapped_map,
-                      vector<vector<Teuchos::RCP<cell> > > & cells);
+    void readMeshData();//Teuchos::RCP<const Tpetra::Map<LO, GO, SolverNode> > & LA_overlapped_map,
+                        //vector<vector<Teuchos::RCP<cell> > > & cells);
     
     
     ////////////////////////////////////////////////////////////////////////////////
