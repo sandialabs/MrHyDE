@@ -194,10 +194,10 @@ namespace MrHyDE {
     int numElemPerCell;
       
     Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - total assembly");
-    Teuchos::RCP<Teuchos::Time> gathertimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - gather");
+    Teuchos::RCP<Teuchos::Time> gathertimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::gather()");
     Teuchos::RCP<Teuchos::Time> phystimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - physics evaluation");
     Teuchos::RCP<Teuchos::Time> boundarytimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - boundary evaluation");
-    Teuchos::RCP<Teuchos::Time> scattertimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - insert");
+    Teuchos::RCP<Teuchos::Time> scattertimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::scatter()");
     Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::dofConstraints()");
     Teuchos::RCP<Teuchos::Time> completetimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - fill complete");
     Teuchos::RCP<Teuchos::Time> msprojtimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::computeJacRes() - multiscale projection");
