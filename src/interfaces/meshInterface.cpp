@@ -1044,8 +1044,8 @@ DRV meshInterface::getElemNodes(const int & block, const int & elemID) {
 // ========================================================================================
 // ========================================================================================
 
-//template<class V>
-//void meshInterface::remesh(const Teuchos::RCP<V> & u, vector<vector<Teuchos::RCP<cell> > > & cells) {
+template<class V>
+void meshInterface::remesh(const Teuchos::RCP<V> & u, vector<vector<Teuchos::RCP<cell> > > & cells) {
   
   /*
   auto u_kv = u->getLocalView<HostDevice>();
@@ -1103,14 +1103,13 @@ DRV meshInterface::getElemNodes(const int & block, const int & elemID) {
     }
   }
    */
-//}
+}
 
 /////////////////////////////////////////////////////////////////////////////
 // Read in discretized data from an exodus mesh
 /////////////////////////////////////////////////////////////////////////////
-/*
-template<class Map>
-void meshInterface::readMeshData(Teuchos::RCP<const Map> & LA_overlapped_map,
+
+void meshInterface::readMeshData(Teuchos::RCP<const Tpetra::Map<LO, GO, SolverNode> > & LA_overlapped_map,
                                  vector<vector<Teuchos::RCP<cell> > > & cells) {
   
   if (milo_debug_level > 0) {
@@ -1174,7 +1173,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const Map> & LA_overlapped_map,
     int num_elem_vars = 0;
     int var_ind;
     numResponses = 1;
-    //exo_error = ex_get_var_param(exoid, "e", &num_elem_vars); // TMW: this is depracated
+    exo_error = ex_get_var_param(exoid, "e", &num_elem_vars); // TMW: this is depracated
     // This turns off this feature
     for (int i=0; i<num_elem_vars; i++) {
       char varname[MAX_STR_LENGTH+1];
@@ -1230,7 +1229,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const Map> & LA_overlapped_map,
     }
     
     
-    meas = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
+    meas = Teuchos::rcp(new Tpetra::MultiVector<ScalarT,LO,GO,SolverNode>(LA_overlapped_map,1)); // empty solution
     size_t b = 0;
     //meas->sync<HostDevice>();
     auto meas_kv = meas->getLocalView<HostDevice>();
@@ -1238,14 +1237,14 @@ void meshInterface::readMeshData(Teuchos::RCP<const Map> & LA_overlapped_map,
     //meas.modify_host();
     int index, dindex;
     
-    Kokkos::View<int**,AssemblyDevice> dev_offsets = cells[b][0]->wkset->offsets;
+    auto dev_offsets = cells[b][0]->wkset->offsets;
     auto offsets = Kokkos::create_mirror_view(dev_offsets);
     Kokkos::deep_copy(offsets,dev_offsets);
     
     for( size_t e=0; e<cells[b].size(); e++ ) {
       //cindex = cells[b][e]->index;
-      LIDView_host LIDs = cells[b][e]->LIDs_host;
-      Kokkos::View<LO*,HostDevice> nDOF = cells[b][e]->cellData->numDOF_host;
+      auto LIDs = cells[b][e]->LIDs_host;
+      auto nDOF = cells[b][e]->cellData->numDOF_host;
       
       for (int n=0; n<nDOF(0); n++) {
         //Kokkos::View<GO**,HostDevice> GIDs = assembler->cells[b][e]->GIDs;
@@ -1272,7 +1271,7 @@ void meshInterface::readMeshData(Teuchos::RCP<const Map> & LA_overlapped_map,
   }
   
 }
- */
+
 
 // ========================================================================================
 // ========================================================================================

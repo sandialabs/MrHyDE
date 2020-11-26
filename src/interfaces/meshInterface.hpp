@@ -91,17 +91,16 @@ namespace MrHyDE {
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
-    /*
+    
     template<class V>
     void remesh(const Teuchos::RCP<V> & u, vector<vector<Teuchos::RCP<cell> > > & cells);
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    template<class Map>
-    void readMeshData(Teuchos::RCP<const Map> & LA_overlapped_map,
+    void readMeshData(Teuchos::RCP<const Tpetra::Map<LO, GO, SolverNode> > & LA_overlapped_map,
                       vector<vector<Teuchos::RCP<cell> > > & cells);
-    */
+    
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
@@ -128,7 +127,7 @@ namespace MrHyDE {
     ScalarT meshmod_TOL, meshmod_center, meshmod_layer_size;
     
     // variables read in from an exodus mesh
-    //vector_RCP meas;
+    Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > meas;
     vector<vector<ScalarT> > nfield_vals, efield_vals;
     vector<string> nfield_names, efield_names;
     int numResponses;
