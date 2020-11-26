@@ -241,32 +241,32 @@ namespace MrHyDE {
     Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > M;
     Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > M_dd;
     
-    Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - total assembly");
     Teuchos::RCP<Teuchos::Time> linearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::linearSolver()");
     Teuchos::RCP<Teuchos::Time> transientsolvertimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::transientSolver()");
     Teuchos::RCP<Teuchos::Time> nonlinearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::nonlinearSolver()");
     
-    Teuchos::RCP<Teuchos::Time> gathertimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - gather");
-    Teuchos::RCP<Teuchos::Time> phystimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - physics evaluation");
-    Teuchos::RCP<Teuchos::Time> boundarytimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - boundary evaluation");
-    Teuchos::RCP<Teuchos::Time> inserttimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - insert");
-    Teuchos::RCP<Teuchos::Time> completetimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - fill complete");
-    Teuchos::RCP<Teuchos::Time> msprojtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::computeJacRes() - multiscale projection");
     Teuchos::RCP<Teuchos::Time> initsettimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::setInitial()");
     Teuchos::RCP<Teuchos::Time> dbcsettimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::setDirichlet()");
     Teuchos::RCP<Teuchos::Time> dbcprojtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::projectDirichlet()");
     Teuchos::RCP<Teuchos::Time> fixeddofsetuptimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::setupFixedDOFs()");
-    Teuchos::RCP<Teuchos::Time> LAsetuptimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::setupLinearAlgebra()");
+    Teuchos::RCP<Teuchos::Time> msprojtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::projectDirichlet()");
+    Teuchos::RCP<Teuchos::Time> setupLAtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::setupLinearAlgebra()");
+    Teuchos::RCP<Teuchos::Time> fillcompleteLAtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::nonlinearSolver() - matrix fill complete");
+    Teuchos::RCP<Teuchos::Time> resetLAtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::nonlinearSolver() - reset LA");
+    Teuchos::RCP<Teuchos::Time> exportLAtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::nonlinearSolver() - import/export LA");
+    Teuchos::RCP<Teuchos::Time> normLAtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::nonlinearSolver() - norm LA");
+    Teuchos::RCP<Teuchos::Time> updateLAtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::nonlinearSolver() - update LA");
+    
+    
+    
     
   };
   
   // Explicit template instantiations
   template class solver<SolverNode>;
-  //#if !defined(MrHyDE_SOLVERSPACE_CUDA)
-    #if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
-      template class solver<SubgridSolverNode>;
-    #endif
-  //#endif
+  #if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
+    template class solver<SubgridSolverNode>;
+  #endif
   
 }
 

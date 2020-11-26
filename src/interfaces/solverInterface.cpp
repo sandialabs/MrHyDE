@@ -209,7 +209,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
   
   if (settings->sublist("Mesh").get<bool>("have element data", false) ||
       settings->sublist("Mesh").get<bool>("have nodal data", false)) {
-    //mesh->readMeshData(LA_overlapped_map, assembler->cells);
+    mesh->readMeshData(LA_overlapped_map, assembler->cells);
   }
   
   /////////////////////////////////////////////////////////////////////////////
@@ -675,7 +675,7 @@ void solver<Node>::finalizeWorkset() {
 template<class Node>
 void solver<Node>::setupLinearAlgebra() {
   
-  Teuchos::TimeMonitor localtimer(*LAsetuptimer);
+  Teuchos::TimeMonitor localtimer(*setupLAtimer);
   
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -1329,7 +1329,7 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     maxiter = 2;
   }
   
-  while( NLerr_scaled[0]>NLtol && NLiter<maxiter ) { // while not converged
+  while (NLerr_scaled[0]>NLtol && NLiter<maxiter) { // while not converged and not reached max iterations
     
     multiscale_manager->reset();
     
@@ -1345,23 +1345,39 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     // *********************** COMPUTE THE JACOBIAN AND THE RESIDUAL **************************
     
     bool build_jacobian = true;
+    {
+      Teuchos::TimeMonitor localtimer(*resetLAtimer);
+      res_over->putScalar(0.0);
+      J_over->setAllToScalar(0.0);
+    }
+    {
+      Teuchos::TimeMonitor localtimer(*fillcompleteLAtimer);
+      J_over->fillComplete();
+    }
     
-    res_over->putScalar(0.0);
-    J_over->setAllToScalar(0.0);
-    J_over->fillComplete();
     J_over->resumeFill();
-    if ( useadjoint && (NLiter == 1))
+    if ( useadjoint && (NLiter == 1)) {
       store_adjPrev = true;
-    else
+    }
+    else {
       store_adjPrev = false;
+    }
     
     assembler->assembleJacRes(u, phi, build_jacobian, false, false,
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
                               params->num_active_params, params->Psol[0], is_final_time, deltat);
-    J_over->fillComplete();
-    J->doExport(*J_over, *exporter, Tpetra::ADD);
-    
-    J->fillComplete();
+    {
+      Teuchos::TimeMonitor localtimer(*fillcompleteLAtimer);
+      J_over->fillComplete();
+    }
+    {
+      Teuchos::TimeMonitor localtimer(*exportLAtimer);
+      J->doExport(*J_over, *exporter, Tpetra::ADD);
+    }
+    {
+      Teuchos::TimeMonitor localtimer(*fillcompleteLAtimer);
+      J->fillComplete();
+    }
     
     if (useadjoint && response_type == "discrete") {
       vector_RCP D_soln;
@@ -1377,9 +1393,14 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       }
     }
     
-    res->putScalar(0.0);
-    res->doExport(*res_over, *exporter, Tpetra::ADD);
-    
+    {
+      Teuchos::TimeMonitor localtimer(*resetLAtimer);
+      res->putScalar(0.0);
+    }
+    {
+      Teuchos::TimeMonitor localtimer(*exportLAtimer);
+      res->doExport(*res_over, *exporter, Tpetra::ADD);
+    }
     
       
     if (milo_debug_level>2) {
@@ -1388,14 +1409,20 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     }
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
     if (NLiter == 0) {
-      res->normInf(NLerr_first);
+      {
+        Teuchos::TimeMonitor localtimer(*normLAtimer);
+        res->normInf(NLerr_first);
+      }
       if (NLerr_first[0] > 1.0e-14)
         NLerr_scaled[0] = 1.0;
       else
         NLerr_scaled[0] = 0.0;
     }
     else {
-      res->normInf(NLerr);
+      {
+        Teuchos::TimeMonitor localtimer(*normLAtimer);
+        res->normInf(NLerr);
+      }
       NLerr_scaled[0] = NLerr[0]/NLerr_first[0];
     }
     
@@ -1412,13 +1439,17 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     if (NLerr_scaled[0] > NLtol && useLinearSolver) {
       
       this->linearSolver(J, res, du);
-      
-      du_over->doImport(*du, *importer, Tpetra::ADD);
-      
+      {
+        Teuchos::TimeMonitor localtimer(*exportLAtimer);
+        du_over->doImport(*du, *importer, Tpetra::ADD);
+      }
+        
       if (useadjoint) {
+        Teuchos::TimeMonitor localtimer(*updateLAtimer);
         phi->update(1.0, *du_over, 1.0);
       }
       else {
+        Teuchos::TimeMonitor localtimer(*updateLAtimer);
         u->update(1.0, *du_over, 1.0);
       }
     }
