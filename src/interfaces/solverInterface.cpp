@@ -2208,8 +2208,9 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > solver<Node>::buildP
       mueluParams.sublist("smoother: params").set("chebyshev: zero starting solution",true);
     }
     else if (smoother_type == "RELAXATION") {
-      mueluParams.sublist("smoother: params").set("relaxation: type","Jacobi");
+      //mueluParams.sublist("smoother: params").set("relaxation: type","Jacobi");
       //mueluParams.sublist("smoother: params").set("relaxation: type","Symmetric Gauss-Seidel");
+      mueluParams.sublist("smoother: params").set("relaxation: type","MT Gauss-Seidel");
       //mueluParams.sublist("smoother: params").set("relaxation: sweeps",2);
     }
   
