@@ -1366,18 +1366,6 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     assembler->assembleJacRes(u, phi, build_jacobian, false, false,
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
                               params->num_active_params, params->Psol[0], is_final_time, deltat);
-    {
-      Teuchos::TimeMonitor localtimer(*fillcompleteLAtimer);
-      J_over->fillComplete();
-    }
-    {
-      Teuchos::TimeMonitor localtimer(*exportLAtimer);
-      J->doExport(*J_over, *exporter, Tpetra::ADD);
-    }
-    {
-      Teuchos::TimeMonitor localtimer(*fillcompleteLAtimer);
-      J->fillComplete();
-    }
     
     if (useadjoint && response_type == "discrete") {
       vector_RCP D_soln;
@@ -1437,6 +1425,19 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     // *********************** SOLVE THE LINEAR SYSTEM **************************
     
     if (NLerr_scaled[0] > NLtol && useLinearSolver) {
+      
+      {
+        Teuchos::TimeMonitor localtimer(*fillcompleteLAtimer);
+        J_over->fillComplete();
+      }
+      {
+        Teuchos::TimeMonitor localtimer(*exportLAtimer);
+        J->doExport(*J_over, *exporter, Tpetra::ADD);
+      }
+      {
+        Teuchos::TimeMonitor localtimer(*fillcompleteLAtimer);
+        J->fillComplete();
+      }
       
       this->linearSolver(J, res, du);
       {
