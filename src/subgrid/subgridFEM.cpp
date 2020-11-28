@@ -734,60 +734,78 @@ void SubGridFEM::setUpSubgridModels() {
           // nothin yet
         }
         else {
-          
           for (size_t e=0; e<boundaryCells[mindex].size(); e++) {
             
             size_t numElem = boundaryCells[mindex][e]->numElem;
             
             auto sside_ip = boundaryCells[mindex][e]->ip;//wkset->ip_side_vec[BIDs[e]];
             
-            vector<DRV> currside_basis, currside_basis_grad;
+            vector<DRV> currside_basis;
             for (size_t i=0; i<macro_basis_pointers.size(); i++) {
               DRV tmp_basis = DRV("basis values",numElem,macro_basis_pointers[i]->getCardinality(),sside_ip.extent(1));
               currside_basis.push_back(tmp_basis);
             }
+            int mcount = 0;
             for (size_t c=0; c<numElem; c++) {
+              size_t mID = boundaryCells[mindex][e]->auxMIDs[c];
+              if (mID == 0) {
+                mcount++;
+              }
+            }
+            vector<DRV> refbasis;
+            for (size_t i=0; i<macro_basis_pointers.size(); i++) {
+              DRV tmp_basis = DRV("basis values",mcount,macro_basis_pointers[i]->getCardinality(),sside_ip.extent(1));
+              refbasis.push_back(tmp_basis);
+            }
+            DRV sref_side_ip("sref_side_ip", sside_ip.extent(1), sside_ip.extent(2));
+            
+            for (size_t c=0; c<mcount; c++) {
               DRV side_ip_e("side_ip_e",1, sside_ip.extent(1), sside_ip.extent(2));
               auto cip = Kokkos::subview(sside_ip,c,Kokkos::ALL(),Kokkos::ALL());
-              parallel_for("subgrid aux ip",RangePolicy<AssemblyExec>(0,cip.extent(0)), KOKKOS_LAMBDA (const int i ) {
-                for (size_type j=0; j<cip.extent(1); j++) {
-                  side_ip_e(0,i,j) = cip(i,j);
-                }
-              });
+              auto sip = Kokkos::subview(side_ip_e,0,Kokkos::ALL(),Kokkos::ALL());
+              Kokkos::deep_copy(sip,cip);
               
               DRV sref_side_ip_tmp("sref_side_ip_tmp",1, sside_ip.extent(1), sside_ip.extent(2));
-              DRV sref_side_ip("sref_side_ip", sside_ip.extent(1), sside_ip.extent(2));
-              size_t mID = boundaryCells[mindex][e]->auxMIDs[c];
+              
               DRV cnodes("tmp nodes",1,macroData[mindex]->macronodes.extent(1),
                          macroData[mindex]->macronodes.extent(2));
-              auto mnodes = Kokkos::subview(macroData[mindex]->macronodes,mID,Kokkos::ALL(),Kokkos::ALL());
-              parallel_for("subgrid aux nodes",RangePolicy<AssemblyExec>(0,mnodes.extent(0)), KOKKOS_LAMBDA (const int i ) {
-                for (size_type j=0; j<mnodes.extent(1); j++) {
-                  cnodes(0,i,j) = mnodes(i,j);
-                }
-              });
+              auto mnodes = Kokkos::subview(macroData[mindex]->macronodes,0,Kokkos::ALL(),Kokkos::ALL());
+              auto cnodes0 = Kokkos::subview(cnodes,0,Kokkos::ALL(), Kokkos::ALL());
+              Kokkos::deep_copy(cnodes0,mnodes);
               
               CellTools::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, cnodes, *macro_cellTopo);
-              parallel_for("subgrid aux ip2",RangePolicy<AssemblyExec>(0,sref_side_ip.extent(0)), KOKKOS_LAMBDA (const int i ) {
-                for (size_type j=0; j<sref_side_ip.extent(1); j++) {
-                  sref_side_ip(i,j) = sref_side_ip_tmp(0,i,j);
-                }
-              });
+              auto sip_tmp0 = Kokkos::subview(sref_side_ip_tmp,0,Kokkos::ALL(),Kokkos::ALL());
+              Kokkos::deep_copy(sref_side_ip,sip_tmp0);
               
-              Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("tmp orientation",1);
-              corientation(0) = macroData[mindex]->macroorientation(mID);
               for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-                DRV bvals = sub_disc->evaluateBasis(macro_basis_pointers[i], sref_side_ip, corientation);
-                auto cbasis = Kokkos::subview(currside_basis[i],c,Kokkos::ALL(), Kokkos::ALL());
-                parallel_for("subgrid aux bvals",RangePolicy<AssemblyExec>(0,bvals.extent(1)), KOKKOS_LAMBDA (const int k ) {
-                  for (size_type j=0; j<bvals.extent(2); j++) {
-                    cbasis(k,j) = bvals(0,k,j);
-                  }
-                });
+                DRV basisvals("basisvals", macro_basis_pointers[i]->getCardinality(), sref_side_ip.extent(0));
+                macro_basis_pointers[i]->getValues(basisvals, sref_side_ip, Intrepid2::OPERATOR_VALUE);
+                
+                DRV basisvals_Transformed("basisvals_Transformed", 1, macro_basis_pointers[i]->getCardinality(), sref_side_ip.extent(0));
+                FuncTools::HGRADtransformVALUE(basisvals_Transformed, basisvals);
+                auto crefbasis = Kokkos::subview(refbasis[i],c,Kokkos::ALL(),Kokkos::ALL());
+                auto bvt0 = Kokkos::subview(basisvals_Transformed,0,Kokkos::ALL(),Kokkos::ALL());
+                Kokkos::deep_copy(crefbasis,bvt0);
               }
-              
-              boundaryCells[mindex][e]->auxside_basis = currside_basis;
             }
+            int numIDs = numElem / mcount;
+            
+            for (int m=0; m<numIDs; m++) {
+              Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("tmp orientation",mcount);
+              for (int j=0; j<mcount; j++) {
+                corientation(j) = macroData[mindex]->macroorientation(m);
+              }
+              for (size_t i=0; i<macro_basis_pointers.size(); i++) {
+                DRV basisvals_or("basisvals", mcount, macro_basis_pointers[i]->getCardinality(), sref_side_ip.extent(0));
+            
+                OrientTools::modifyBasisByOrientation(basisvals_or, refbasis[i],
+                                                      corientation, macro_basis_pointers[i].get());
+              
+                auto mbasis = Kokkos::subview(currside_basis[i],std::make_pair(m*mcount,(m+1)*mcount),Kokkos::ALL(), Kokkos::ALL());
+                Kokkos::deep_copy(mbasis,basisvals_or);
+              }
+            }
+            boundaryCells[mindex][e]->auxside_basis = currside_basis;
           }
         }
       }
