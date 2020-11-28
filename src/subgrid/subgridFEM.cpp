@@ -792,9 +792,10 @@ void SubGridFEM::setUpSubgridModels() {
             
             for (int m=0; m<numIDs; m++) {
               Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("tmp orientation",mcount);
-              for (int j=0; j<mcount; j++) {
-                corientation(j) = macroData[mindex]->macroorientation(m);
-              }
+              Kokkos::deep_copy(corientation,macroData[mindex]->macroorientation(m));
+              //for (int j=0; j<mcount; j++) {
+              //  corientation(j) = macroData[mindex]->macroorientation(m);
+              //}
               for (size_t i=0; i<macro_basis_pointers.size(); i++) {
                 DRV basisvals_or("basisvals", mcount, macro_basis_pointers[i]->getCardinality(), sref_side_ip.extent(0));
             
