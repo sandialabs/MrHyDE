@@ -727,7 +727,8 @@ void SubGridFEM::setUpSubgridModels() {
     
     {
       Teuchos::TimeMonitor auxbasistimer(*sgfemComputeAuxBasisTimer);
-      
+      Kokkos::Timer timer;
+      timer.reset();
       nummacroVars = macro_varlist.size();
       if (mindex == 0) {
         if (multiscale_method != "mortar" ) {
@@ -758,30 +759,28 @@ void SubGridFEM::setUpSubgridModels() {
               refbasis.push_back(tmp_basis);
             }
             DRV sref_side_ip("sref_side_ip", sside_ip.extent(1), sside_ip.extent(2));
+            DRV side_ip_e("side_ip_e",1, sside_ip.extent(1), sside_ip.extent(2));
+            DRV sref_side_ip_tmp("sref_side_ip_tmp",1, sside_ip.extent(1), sside_ip.extent(2));
+            DRV cnodes("tmp nodes",1,macroData[mindex]->macronodes.extent(1),
+                       macroData[mindex]->macronodes.extent(2));
             
-            for (size_t c=0; c<mcount; c++) {
-              DRV side_ip_e("side_ip_e",1, sside_ip.extent(1), sside_ip.extent(2));
-              auto cip = Kokkos::subview(sside_ip,c,Kokkos::ALL(),Kokkos::ALL());
-              auto sip = Kokkos::subview(side_ip_e,0,Kokkos::ALL(),Kokkos::ALL());
-              Kokkos::deep_copy(sip,cip);
+            for (size_t i=0; i<macro_basis_pointers.size(); i++) {
+              DRV basisvals("basisvals", macro_basis_pointers[i]->getCardinality(), sref_side_ip.extent(0));
+              DRV basisvals_Transformed("basisvals_Transformed", 1, macro_basis_pointers[i]->getCardinality(), sref_side_ip.extent(0));
+              for (size_t c=0; c<mcount; c++) {
+                auto cip = Kokkos::subview(sside_ip,c,Kokkos::ALL(),Kokkos::ALL());
+                auto sip = Kokkos::subview(side_ip_e,0,Kokkos::ALL(),Kokkos::ALL());
+                Kokkos::deep_copy(sip,cip);
+                auto mnodes = Kokkos::subview(macroData[mindex]->macronodes,0,Kokkos::ALL(),Kokkos::ALL());
+                auto cnodes0 = Kokkos::subview(cnodes,0,Kokkos::ALL(), Kokkos::ALL());
+                Kokkos::deep_copy(cnodes0,mnodes);
               
-              DRV sref_side_ip_tmp("sref_side_ip_tmp",1, sside_ip.extent(1), sside_ip.extent(2));
+                CellTools::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, cnodes, *macro_cellTopo);
+                auto sip_tmp0 = Kokkos::subview(sref_side_ip_tmp,0,Kokkos::ALL(),Kokkos::ALL());
+                Kokkos::deep_copy(sref_side_ip,sip_tmp0);
               
-              DRV cnodes("tmp nodes",1,macroData[mindex]->macronodes.extent(1),
-                         macroData[mindex]->macronodes.extent(2));
-              auto mnodes = Kokkos::subview(macroData[mindex]->macronodes,0,Kokkos::ALL(),Kokkos::ALL());
-              auto cnodes0 = Kokkos::subview(cnodes,0,Kokkos::ALL(), Kokkos::ALL());
-              Kokkos::deep_copy(cnodes0,mnodes);
-              
-              CellTools::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, cnodes, *macro_cellTopo);
-              auto sip_tmp0 = Kokkos::subview(sref_side_ip_tmp,0,Kokkos::ALL(),Kokkos::ALL());
-              Kokkos::deep_copy(sref_side_ip,sip_tmp0);
-              
-              for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-                DRV basisvals("basisvals", macro_basis_pointers[i]->getCardinality(), sref_side_ip.extent(0));
                 macro_basis_pointers[i]->getValues(basisvals, sref_side_ip, Intrepid2::OPERATOR_VALUE);
                 
-                DRV basisvals_Transformed("basisvals_Transformed", 1, macro_basis_pointers[i]->getCardinality(), sref_side_ip.extent(0));
                 FuncTools::HGRADtransformVALUE(basisvals_Transformed, basisvals);
                 auto crefbasis = Kokkos::subview(refbasis[i],c,Kokkos::ALL(),Kokkos::ALL());
                 auto bvt0 = Kokkos::subview(basisvals_Transformed,0,Kokkos::ALL(),Kokkos::ALL());
@@ -789,23 +788,58 @@ void SubGridFEM::setUpSubgridModels() {
               }
             }
             int numIDs = numElem / mcount;
-            
-            for (int m=0; m<numIDs; m++) {
-              Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("tmp orientation",mcount);
-              Kokkos::deep_copy(corientation,macroData[mindex]->macroorientation(m));
-              //for (int j=0; j<mcount; j++) {
-              //  corientation(j) = macroData[mindex]->macroorientation(m);
-              //}
-              for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-                DRV basisvals_or("basisvals", mcount, macro_basis_pointers[i]->getCardinality(), sref_side_ip.extent(0));
+            cout << "t0 = " << timer.seconds() << endl;
+            timer.reset();
+            /*Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("tmp orientation",mcount);
+            for (size_t i=0; i<macro_basis_pointers.size(); i++) {
+              DRV basisvals_or("basisvals", mcount, macro_basis_pointers[i]->getCardinality(), sref_side_ip.extent(0));
+              for (int m=0; m<numIDs; m++) {
+                Kokkos::deep_copy(corientation,macroData[mindex]->macroorientation(m));
             
                 OrientTools::modifyBasisByOrientation(basisvals_or, refbasis[i],
                                                       corientation, macro_basis_pointers[i].get());
-              
+                
                 auto mbasis = Kokkos::subview(currside_basis[i],std::make_pair(m*mcount,(m+1)*mcount),Kokkos::ALL(), Kokkos::ALL());
                 Kokkos::deep_copy(mbasis,basisvals_or);
               }
+            }*/
+      
+            Kokkos::View<int[1],PHX::Device> mcount_kv("view of mcount");
+            Kokkos::deep_copy(mcount_kv,mcount);
+            Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("tmp orientation",numElem);
+            auto morient = macroData[mindex]->macroorientation;
+            parallel_for("subgrid macro basis",RangePolicy<PHX::Device::execution_space>(0,numIDs), KOKKOS_LAMBDA (const int m ) {
+              int mcount = mcount_kv(0);
+              for (int n=0; n<mcount; n++) {
+                int index= m*mcount+n;
+                corientation(index) = morient(m);
+              }
+            });
+            
+            for (size_t i=0; i<macro_basis_pointers.size(); i++) {
+              DRV tmp_basis("basis values",numElem,macro_basis_pointers[i]->getCardinality(),sside_ip.extent(1));
+              auto rbasis = refbasis[i];
+              parallel_for("subgrid macro basis",RangePolicy<PHX::Device::execution_space>(0,numIDs), KOKKOS_LAMBDA (const int m ) {
+                int mcount = mcount_kv(0);
+                for (int n=0; n<mcount; n++) {
+                  int index= m*mcount+n;
+                  for (size_type dof=0; dof<rbasis.extent(1); dof++) {
+                    for (size_type pt=0; pt<rbasis.extent(2); pt++) {
+                       tmp_basis(index,dof,pt) = rbasis(n,dof,pt);
+                    }
+                  }
+                }
+              });
+     
+              OrientTools::modifyBasisByOrientation(currside_basis[i], tmp_basis,
+                                                    corientation, macro_basis_pointers[i].get());
+                
+                //auto mbasis = Kokkos::subview(currside_basis[i],std::make_pair(m*mcount,(m+1)*mcount),Kokkos::ALL(), Kokkos::ALL());
+                //Kokkos::deep_copy(mbasis,basisvals_or);
+              //}
             }
+            cout << "t1 = " << timer.seconds() << endl;
+
             boundaryCells[mindex][e]->auxside_basis = currside_basis;
           }
         }
