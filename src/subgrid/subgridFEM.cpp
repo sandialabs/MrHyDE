@@ -727,8 +727,6 @@ void SubGridFEM::setUpSubgridModels() {
     
     {
       Teuchos::TimeMonitor auxbasistimer(*sgfemComputeAuxBasisTimer);
-      Kokkos::Timer timer;
-      timer.reset();
       nummacroVars = macro_varlist.size();
       if (mindex == 0) {
         if (multiscale_method != "mortar" ) {
@@ -788,21 +786,6 @@ void SubGridFEM::setUpSubgridModels() {
               }
             }
             int numIDs = numElem / mcount;
-            cout << "t0 = " << timer.seconds() << endl;
-            timer.reset();
-            /*Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("tmp orientation",mcount);
-            for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-              DRV basisvals_or("basisvals", mcount, macro_basis_pointers[i]->getCardinality(), sref_side_ip.extent(0));
-              for (int m=0; m<numIDs; m++) {
-                Kokkos::deep_copy(corientation,macroData[mindex]->macroorientation(m));
-            
-                OrientTools::modifyBasisByOrientation(basisvals_or, refbasis[i],
-                                                      corientation, macro_basis_pointers[i].get());
-                
-                auto mbasis = Kokkos::subview(currside_basis[i],std::make_pair(m*mcount,(m+1)*mcount),Kokkos::ALL(), Kokkos::ALL());
-                Kokkos::deep_copy(mbasis,basisvals_or);
-              }
-            }*/
       
             Kokkos::View<int[1],PHX::Device> mcount_kv("view of mcount");
             Kokkos::deep_copy(mcount_kv,mcount);
@@ -834,11 +817,7 @@ void SubGridFEM::setUpSubgridModels() {
               OrientTools::modifyBasisByOrientation(currside_basis[i], tmp_basis,
                                                     corientation, macro_basis_pointers[i].get());
                 
-                //auto mbasis = Kokkos::subview(currside_basis[i],std::make_pair(m*mcount,(m+1)*mcount),Kokkos::ALL(), Kokkos::ALL());
-                //Kokkos::deep_copy(mbasis,basisvals_or);
-              //}
             }
-            cout << "t1 = " << timer.seconds() << endl;
 
             boundaryCells[mindex][e]->auxside_basis = currside_basis;
           }

@@ -149,6 +149,17 @@ namespace MrHyDE {
                     const int & usernum, const ScalarT & fwt,
                     Teuchos::RCP<SubGridMacroData> & macroData);
     
+    
+    template<class ViewType>
+    void updateFlux(ViewType u_kv,
+                    ViewType du_kv,
+                    Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+                    ViewType dp_kv,
+                    const bool & compute_sens, const int macroelemindex,
+                    const ScalarT & time, workset & macrowkset,
+                    const int & usernum, const ScalarT & fwt,
+                    Teuchos::RCP<SubGridMacroData> & macroData);
+
     ///////////////////////////////////////////////////////////////////////////////////////
     // Store macro-dofs and flux (for ML-based subgrid)
     ///////////////////////////////////////////////////////////////////////////////////////

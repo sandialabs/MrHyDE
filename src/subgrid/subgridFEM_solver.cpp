@@ -1156,10 +1156,64 @@ void SubGridFEM_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
   Teuchos::TimeMonitor localtimer(*sgfemFluxTimer);
   if (debug_level > 0) {
     if (milo_solver->Comm->getRank() == 0) {
-      cout << "**** Starting SubgridFEM_Solver::updateFlux ..." << endl;
+      cout << "**** Starting SubgridFEM_Solver::updateFlux (intermediate function) ..." << endl;
     }
   }
     
+  typedef typename SubgridSolverNode::memory_space SGS_mem;
+  
+  auto u_kv = u->getLocalView<SubgridSolverNode::device_type>();
+  auto du_kv = d_u->getLocalView<SubgridSolverNode::device_type>();
+  
+  // TMW: The discretized parameters are not fully enabled at the subgrid level
+  //      This causes errors if there are no discretized parameters, so it is hacked for now.
+  auto dp_kv = u_kv;
+  //if (disc_params->getNumVectors() > 0) {
+  //  dp_kv = disc_params->getLocalView<SubgridSolverNode::device_type>();
+  //}
+  
+  if (Kokkos::SpaceAccessibility<AssemblyExec, SGS_mem>::accessible) { // can we avoid a copy?
+    this->updateFlux(u_kv, du_kv, lambda, dp_kv, compute_sens, macroelemindex,
+                     time, macrowkset, usernum, fwt, macroData);
+  }
+  else {
+    auto u_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),u_kv);
+    Kokkos::deep_copy(u_dev,u_kv);
+    auto du_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),du_kv);
+    Kokkos::deep_copy(du_dev,du_kv);
+    auto dp_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),dp_kv);
+    Kokkos::deep_copy(dp_dev,dp_kv);
+    this->updateFlux(u_dev, du_dev, lambda, dp_dev, compute_sens, macroelemindex,
+                     time, macrowkset, usernum, fwt, macroData);
+  }
+  
+  if (debug_level > 0) {
+    if (milo_solver->Comm->getRank() == 0) {
+      cout << "**** Finished SubgridFEM_Solver::updateFlux (intermediate function) ..." << endl;
+    }
+  }
+}
+
+//////////////////////////////////////////////////////////////
+// Update the flux
+//////////////////////////////////////////////////////////////
+
+template<class ViewType>
+void SubGridFEM_Solver::updateFlux(ViewType u_kv,
+                                   ViewType du_kv,
+                                   Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+                                   ViewType dp_kv,
+                                   const bool & compute_sens, const int macroelemindex,
+                                   const ScalarT & time, workset & macrowkset,
+                                   const int & usernum, const ScalarT & fwt,
+                                   Teuchos::RCP<SubGridMacroData> & macroData) {
+  
+  if (debug_level > 0) {
+    if (milo_solver->Comm->getRank() == 0) {
+      cout << "**** Starting SubgridFEM_Solver::updateFlux ..." << endl;
+    }
+  }
+  
   for (size_t e=0; e<assembler->boundaryCells[usernum].size(); e++) {
     
     if (assembler->boundaryCells[usernum][e]->sidename == "interior") {
@@ -1173,7 +1227,7 @@ void SubGridFEM_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
       assembler->wkset[0]->sidename = "interior";
       {
         Teuchos::TimeMonitor localcelltimer(*sgfemFluxCellTimer);
-        assembler->boundaryCells[usernum][e]->computeFlux(u, d_u, disc_params, lambda, time,
+        assembler->boundaryCells[usernum][e]->computeFlux(u_kv, du_kv, dp_kv, lambda, time,
                                                           0, h, compute_sens);
       }
       auto bMIDs = assembler->boundaryCells[usernum][e]->auxMIDs_dev;

@@ -775,29 +775,17 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
 // Compute flux and sensitivity wrt params
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::computeFlux(const SG_vector_RCP & gl_u,
-                               const SG_vector_RCP & gl_du,
-                               const SG_vector_RCP & params,
+/*
+template<class ViewType>
+void BoundaryCell::computeFlux(ViewType u_kv,
+                               ViewType du_kv,
+                               ViewType dp_kv,
                                Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                                const ScalarT & time, const int & side, const ScalarT & coarse_h,
                                const bool & compute_sens) {
   
   wkset->setTime(time);
-  
-  // TMW: this should change based on subgrid solver node and assembly device (host device is not relevant)
-  auto u_host = gl_u->getLocalView<HostDevice>();
-  auto du_host = gl_du->getLocalView<HostDevice>();
-  Kokkos::View<ScalarT**,AssemblyDevice> u_kv("tpetra vector on device",u_host.extent(0),u_host.extent(1));
-  Kokkos::View<ScalarT**,AssemblyDevice> du_kv("tpetra vector on device",du_host.extent(0),du_host.extent(1));
-  auto vec_host = Kokkos::create_mirror_view(u_kv);
-  auto dvec_host = Kokkos::create_mirror_view(du_kv);
-  
-  Kokkos::deep_copy(vec_host,u_host);
-  Kokkos::deep_copy(u_kv,vec_host);
-  
-  Kokkos::deep_copy(dvec_host,du_host);
-  Kokkos::deep_copy(du_kv,dvec_host);
-  
+    
   Kokkos::View<AD***,AssemblyDevice> u_AD("temp u AD",u.extent(0),u.extent(1),u.extent(2));
   Kokkos::View<AD***,AssemblyDevice> param_AD("temp u AD",1,1,1);
   
@@ -843,23 +831,6 @@ void BoundaryCell::computeFlux(const SG_vector_RCP & gl_u,
     
     wkset->resetAuxSide();
     
-    /*
-    wkset->resetAuxSide();
-    auto aoffsets = auxoffsets;
-    size_t numip = wkset->numsideip;
-    AD auxval;
-    for (size_t e=0; e<numElem; e++) {
-      for (size_type k=0; k<numAuxDOF.extent(0); k++) {
-        for(int i=0; i<numAuxDOF(k); i++ ) {
-          auxval = AD(maxDerivs, aoffsets(k,i), lambda(localElemID[e],k,i));
-          for( size_t j=0; j<numip; j++ ) {
-            wkset->local_aux_side(e,k,j) += auxval*auxside_basis[auxusebasis[k]](e,i,j);
-          }
-        }
-      }
-    }
-    */
-    
     for (size_type var=0; var<numAuxDOF.extent(0); var++) {
       auto abasis = auxside_basis[auxusebasis[var]];
       auto off = Kokkos::subview(auxoffsets,var,Kokkos::ALL());
@@ -884,6 +855,7 @@ void BoundaryCell::computeFlux(const SG_vector_RCP & gl_u,
   }
   
 }
+*/
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Get the initial condition
