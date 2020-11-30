@@ -186,29 +186,29 @@ namespace MrHyDE {
                      Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                      const ScalarT & time, const int & side, const ScalarT & coarse_h,
                      const bool & compute_sens) {
-      wkset->setTime(time);
+      //wkset->setTime(time);
         
-      Kokkos::View<AD***,AssemblyDevice> u_AD("temp u AD",u.extent(0),u.extent(1),u.extent(2));
-      Kokkos::View<AD***,AssemblyDevice> param_AD("temp u AD",1,1,1);
-      
+      auto u_AD = wkset->uvals;
+      //auto param_AD = wkset->pvals;
       auto offsets = wkset->offsets;
-      
+      auto ulocal = u;
+
       {
         Teuchos::TimeMonitor localtimer(*cellFluxGatherTimer);
         
         if (compute_sens) {
-          parallel_for("bcell flux gather",RangePolicy<AssemblyExec>(0,u_AD.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            for (size_t var=0; var<u_kv.extent(1); var++) {
-              for( size_t dof=0; dof<u_kv.extent(2); dof++ ) {
+          parallel_for("bcell flux gather",RangePolicy<AssemblyExec>(0,ulocal.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            for (size_t var=0; var<ulocal.extent(1); var++) {
+              for( size_t dof=0; dof<ulocal.extent(2); dof++ ) {
                 u_AD(elem,var,dof) = AD(u_kv(LIDs(elem,offsets(var,dof)),0));
               }
             }
           });
         }
         else {
-          parallel_for("bcell flux gather",RangePolicy<AssemblyExec>(0,u_AD.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            for (size_t var=0; var<u_AD.extent(1); var++) {
-              for( size_t dof=0; dof<u_AD.extent(2); dof++ ) {
+          parallel_for("bcell flux gather",RangePolicy<AssemblyExec>(0,ulocal.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+            for (size_t var=0; var<ulocal.extent(1); var++) {
+              for( size_t dof=0; dof<ulocal.extent(2); dof++ ) {
                 u_AD(elem,var,dof) = AD(maxDerivs, 0, u_kv(LIDs(elem,offsets(var,dof)),0));
                 for( size_t p=0; p<du_kv.extent(1); p++ ) {
                   u_AD(elem,var,dof).fastAccessDx(p) = du_kv(LIDs(elem,offsets(var,dof)),p);
@@ -221,7 +221,7 @@ namespace MrHyDE {
       
       {
         Teuchos::TimeMonitor localtimer(*cellFluxWksetTimer);
-        wkset->computeSolnSideIP(sidenum, u_AD, param_AD);
+        wkset->computeSolnSideIP(sidenum);//, u_AD, param_AD);
       }
       
       
@@ -318,6 +318,7 @@ namespace MrHyDE {
     
     Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param;
     Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
+    //Kokkos::View<AD***,AssemblyDevice> u_AD, param_AD;
     
     // basis information
     //vector<DRV> basis, basis_grad, basis_div, basis_curl;

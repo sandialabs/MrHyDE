@@ -1195,8 +1195,8 @@ void workset::computeParamSideIP(const int & side, Kokkos::View<ScalarT***,Assem
 // TMW: this function should be deprecated
 // Gets used only in the boundaryCell flux calculation
 // Will not work properly for multi-stage or multi-step
-void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDevice> u_AD,
-                                Kokkos::View<AD***,AssemblyDevice> param_AD) {
+void workset::computeSolnSideIP(const int & side) { //, Kokkos::View<AD***,AssemblyDevice> u_AD_old,
+                                //Kokkos::View<AD***,AssemblyDevice> param_AD) {
   {
     //Teuchos::TimeMonitor resettimer(*worksetResetTimer);
     //Kokkos::deep_copy(local_soln_side, 0.0);
@@ -1206,6 +1206,8 @@ void workset::computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDev
   {
     Teuchos::TimeMonitor basistimer(*worksetComputeSolnSideTimer);
     
+    auto u_AD = uvals;
+
     /////////////////////////////////////////////////////////////////////
     // HGRAD
     /////////////////////////////////////////////////////////////////////

@@ -145,8 +145,8 @@ namespace MrHyDE {
     // Compute the solutions at the side ip
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void computeSolnSideIP(const int & side, Kokkos::View<AD***,AssemblyDevice> u_AD,
-                           Kokkos::View<AD***,AssemblyDevice> param_AD);
+    void computeSolnSideIP(const int & side);//, Kokkos::View<AD***,AssemblyDevice> u_AD,
+                           //Kokkos::View<AD***,AssemblyDevice> param_AD);
     
     //////////////////////////////////////////////////////////////
     // Add Aux
