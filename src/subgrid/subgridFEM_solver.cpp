@@ -1171,22 +1171,24 @@ void SubGridFEM_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
   //if (disc_params->getNumVectors() > 0) {
   //  dp_kv = disc_params->getLocalView<SubgridSolverNode::device_type>();
   //}
-  
-  if (Kokkos::SpaceAccessibility<AssemblyExec, SGS_mem>::accessible) { // can we avoid a copy?
-    this->updateFlux(u_kv, du_kv, lambda, dp_kv, compute_sens, macroelemindex,
-                     time, macrowkset, usernum, fwt, macroData);
+  {
+    Teuchos::TimeMonitor localtimer(*sgfemTemplatedFluxTimer);
+    
+    if (Kokkos::SpaceAccessibility<AssemblyExec, SGS_mem>::accessible) { // can we avoid a copy?
+      this->updateFlux(u_kv, du_kv, lambda, dp_kv, compute_sens, macroelemindex,
+                       time, macrowkset, usernum, fwt, macroData);
+    }
+    else {
+      auto u_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),u_kv);
+      Kokkos::deep_copy(u_dev,u_kv);
+      auto du_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),du_kv);
+      Kokkos::deep_copy(du_dev,du_kv);
+      auto dp_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),dp_kv);
+      Kokkos::deep_copy(dp_dev,dp_kv);
+      this->updateFlux(u_dev, du_dev, lambda, dp_dev, compute_sens, macroelemindex,
+                       time, macrowkset, usernum, fwt, macroData);
+    }
   }
-  else {
-    auto u_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),u_kv);
-    Kokkos::deep_copy(u_dev,u_kv);
-    auto du_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),du_kv);
-    Kokkos::deep_copy(du_dev,du_kv);
-    auto dp_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),dp_kv);
-    Kokkos::deep_copy(dp_dev,dp_kv);
-    this->updateFlux(u_dev, du_dev, lambda, dp_dev, compute_sens, macroelemindex,
-                     time, macrowkset, usernum, fwt, macroData);
-  }
-  
   if (debug_level > 0) {
     if (milo_solver->Comm->getRank() == 0) {
       cout << "**** Finished SubgridFEM_Solver::updateFlux (intermediate function) ..." << endl;
@@ -1230,20 +1232,24 @@ void SubGridFEM_Solver::updateFlux(ViewType u_kv,
         assembler->boundaryCells[usernum][e]->computeFlux(u_kv, du_kv, dp_kv, lambda, time,
                                                           0, h, compute_sens);
       }
-      auto bMIDs = assembler->boundaryCells[usernum][e]->auxMIDs_dev;
-      for (size_type n=0; n<macrowkset.offsets.extent(0); n++) {
-        auto macrobasis_ip = assembler->boundaryCells[usernum][e]->auxside_basis[macrowkset.usebasis[n]];
-        auto off = Kokkos::subview(macrowkset.offsets, n, Kokkos::ALL());
-        auto flux = Kokkos::subview(assembler->wkset[0]->flux, Kokkos::ALL(), n, Kokkos::ALL());
-        auto res = macrowkset.res;
-        parallel_for("subgrid flux",RangePolicy<AssemblyExec>(0,bMIDs.extent(0)), KOKKOS_LAMBDA (const size_type c ) {
-          for (size_type j=0; j<macrobasis_ip.extent(1); j++) {
-            for (size_type i=0; i<macrobasis_ip.extent(2); i++) {
-              AD val = macrobasis_ip(c,j,i)*flux(c,i)*cwts(c,i);
-              Kokkos::atomic_add( &res(bMIDs(c),off(j)), val);
+      {
+        Teuchos::TimeMonitor localtimer(*sgfemAssembleFluxTimer);
+        
+        auto bMIDs = assembler->boundaryCells[usernum][e]->auxMIDs_dev;
+        for (size_type n=0; n<macrowkset.offsets.extent(0); n++) {
+          auto macrobasis_ip = assembler->boundaryCells[usernum][e]->auxside_basis[macrowkset.usebasis[n]];
+          auto off = Kokkos::subview(macrowkset.offsets, n, Kokkos::ALL());
+          auto flux = Kokkos::subview(assembler->wkset[0]->flux, Kokkos::ALL(), n, Kokkos::ALL());
+          auto res = macrowkset.res;
+          parallel_for("subgrid flux",RangePolicy<AssemblyExec>(0,bMIDs.extent(0)), KOKKOS_LAMBDA (const size_type c ) {
+            for (size_type j=0; j<macrobasis_ip.extent(1); j++) {
+              for (size_type i=0; i<macrobasis_ip.extent(2); i++) {
+                AD val = macrobasis_ip(c,j,i)*flux(c,i)*cwts(c,i);
+                Kokkos::atomic_add( &res(bMIDs(c),off(j)), val);
+              }
             }
-          }
-        });
+          });
+        }
       }
     }
   }
