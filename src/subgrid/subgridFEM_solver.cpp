@@ -80,7 +80,17 @@ settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
   else {
     du = du_glob;
   }
-  
+  if (useDirect) {
+    {
+      Teuchos::TimeMonitor amsetuptimer(*sgfemNonlinearSolverAmesosSetupTimer);
+      Am2Solver = Amesos2::create<SG_CrsMatrix,SG_MultiVector>(amesos_solver_type, J);
+    }
+    {
+      Teuchos::TimeMonitor amsetuptimer(*sgfemNonlinearSolverAmesosSymbFactTimer);
+      Am2Solver->symbolicFactorization();
+    }
+    have_sym_factor = true;
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -618,17 +628,9 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverSolveTimer);
       du_glob->putScalar(0.0);
       if (useDirect) {
-        if (have_sym_factor) {
-          Am2Solver->setA(J, Amesos2::SYMBFACT);
-          Am2Solver->setX(du_glob);
-          Am2Solver->setB(res);
-        }
-        else {
-          Teuchos::TimeMonitor amsetuptimer(*sgfemNonlinearSolverAmesosSetupTimer);
-          Am2Solver = Amesos2::create<SG_CrsMatrix,SG_MultiVector>(amesos_solver_type, J, du_glob, res);
-          Am2Solver->symbolicFactorization();
-          have_sym_factor = true;
-        }
+        Am2Solver->setA(J, Amesos2::SYMBFACT);
+        Am2Solver->setX(du_glob);
+        Am2Solver->setB(res);
         Am2Solver->numericFactorization().solve();
       }
       else {
