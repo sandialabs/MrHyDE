@@ -46,6 +46,7 @@ settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
   sub_NLtol = settings->sublist("Solver").get<ScalarT>("nonlinear TOL",1.0E-12);
   sub_maxNLiter = settings->sublist("Solver").get<int>("max nonlinear iters",10);
   useDirect = settings->sublist("Solver").get<bool>("use direct solver",true);
+  amesos_solver_type = settings->sublist("Solver").get<string>("Amesos solver type","KLU2");
 
   store_aux_and_flux = settings->sublist("Postprocess").get<bool>("store aux and flux",false);
   
@@ -397,6 +398,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
     int maxElem = assembler->cells[0][0]->numElem;
     int numDOF = assembler->cells[usernum][0]->LIDs.extent(1);
     
+    
     Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J;
     
     {
@@ -483,32 +485,6 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
         
       }
       
-      //Kokkos::deep_copy(local_res_host,local_res);
-      //Kokkos::deep_copy(local_J_host,local_J);
-      //KokkosTools::print(local_res);
-      //KokkosTools::print(local_J);
-      /*
-      {
-        Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverInsertTimer);
-        auto LIDs = assembler->cells[usernum][e]->LIDs_host;
-        size_type numentries = LIDs.extent(1);
-        ScalarT vals[maxDerivs];
-        LO cols[maxDerivs];
-        for (size_type i=0; i<LIDs.extent(0); i++) { // should be Kokkos::parallel_for on SubgridExec
-          for( size_type row=0; row<LIDs.extent(1); row++ ) {
-            LO rowIndex = LIDs(i,row);
-            ScalarT val = local_res_host(i,row,0);
-            res_over->sumIntoLocalValue(rowIndex,0, val);
-            for( size_type col=0; col<numentries; col++ ) {
-              vals[col] = local_J_host(i,row,col);
-              cols[col] = LIDs(i,col);
-            }
-            localMatrix.sumIntoValues(rowIndex, cols, numentries, vals, true, false); // bools: isSorted, useAtomics
-            // indices are not actually sorted, but this seems to run faster
-            // may need to set useAtomics = true if subgridexec is not Serial
-          }
-        }
-      }*/
     }
     
     ////////////////////////////////////////////////
@@ -525,9 +501,6 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
           local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",assembler->boundaryCells[usernum][e]->numElem,numDOF,1);
           local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",assembler->boundaryCells[usernum][e]->numElem,numDOF,numDOF);
         }
-        
-        auto local_res_ladev = Kokkos::create_mirror(SG_exec(),local_res);
-        auto local_J_ladev = Kokkos::create_mirror(SG_exec(),local_J);
         
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverJacResTimer);
@@ -551,6 +524,10 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
                              true, false);
         }
         else {
+          
+          auto local_res_ladev = Kokkos::create_mirror(SG_exec(),local_res);
+          auto local_J_ladev = Kokkos::create_mirror(SG_exec(),local_J);
+          
           Kokkos::deep_copy(local_J_ladev,local_J);
           Kokkos::deep_copy(local_res_ladev,local_res);
           
@@ -573,34 +550,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
           }
           
         }
-        
-        //Kokkos::deep_copy(local_res_host_m,local_res);
-        //Kokkos::deep_copy(local_J_host_m, local_J);
-        //KokkosTools::print(local_res);
-        //KokkosTools::print(local_J);
-        
-        /*
-        {
-          Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverInsertTimer);
-          auto LIDs = assembler->boundaryCells[usernum][e]->LIDs_host;
-          size_type numentries = LIDs.extent(1);
-          ScalarT vals[maxDerivs];
-          LO cols[maxDerivs];
-          for (size_type i=0; i<LIDs.extent(0); i++) { // should be Kokkos::parallel_for on SubgridExec
-            for( size_type row=0; row<LIDs.extent(1); row++ ) {
-              LO rowIndex = LIDs(i,row);
-              ScalarT val = local_res_host_m(i,row,0);
-              res_over->sumIntoLocalValue(rowIndex,0, val);
-              for( size_type col=0; col<numentries; col++ ) {
-                vals[col] = local_J_host_m(i,row,col);
-                cols[col] = LIDs(i,col);
-              }
-              localMatrix.sumIntoValues(rowIndex, cols, numentries, vals, true, false); // bools: isSorted, useAtomics
-              // indices are not actually sorted, but this seems to run faster
-              // may need to set useAtomics = true if subgridexec is not Serial
-            }
-          }
-        }*/
+                
       }
     }
     
@@ -645,21 +595,6 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       res = res_over;
     }
     
-    if (useDirect) {
-      if (have_sym_factor) {
-        Am2Solver->setA(J, Amesos2::SYMBFACT);
-        Am2Solver->setX(du_glob);
-        Am2Solver->setB(res);
-      }
-      else {
-        Am2Solver = Amesos2::create<SG_CrsMatrix,SG_MultiVector>("KLU2", J, du_glob, res);
-        Am2Solver->symbolicFactorization();
-        have_sym_factor = true;
-      }
-      //Am2Solver->numericFactorization().solve();
-    }
-    //KokkosTools::print(res);
-    
     if (iter == 0) {
       res->normInf(resnorm_initial);
       if (resnorm_initial[0] > 0.0)
@@ -683,6 +618,17 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverSolveTimer);
       du_glob->putScalar(0.0);
       if (useDirect) {
+        if (have_sym_factor) {
+          Am2Solver->setA(J, Amesos2::SYMBFACT);
+          Am2Solver->setX(du_glob);
+          Am2Solver->setB(res);
+        }
+        else {
+          Teuchos::TimeMonitor amsetuptimer(*sgfemNonlinearSolverAmesosSetupTimer);
+          Am2Solver = Amesos2::create<SG_CrsMatrix,SG_MultiVector>(amesos_solver_type, J, du_glob, res);
+          Am2Solver->symbolicFactorization();
+          have_sym_factor = true;
+        }
         Am2Solver->numericFactorization().solve();
       }
       else {

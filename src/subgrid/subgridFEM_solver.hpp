@@ -258,6 +258,7 @@ namespace MrHyDE {
     Teuchos::RCP<SG_MultiVector> d_sub_res_overm, d_sub_resm, d_sub_u_prevm, d_sub_u_overm;
     Teuchos::RCP<SG_CrsMatrix>  J, sub_J_over;
     
+    string amesos_solver_type;
     Teuchos::RCP<Amesos2::Solver<SG_CrsMatrix,SG_MultiVector> > Am2Solver;
     Teuchos::RCP<SG_MultiVector> SG_rhs, SG_lhs;
     
@@ -310,6 +311,7 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverJacResTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver - Jacobian/residual");
     Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverInsertTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver - insert");
     Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverSolveTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver - solve");
+    Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverAmesosSetupTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver - setup Amesos");
     
   };
   
