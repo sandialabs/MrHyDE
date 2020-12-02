@@ -280,7 +280,7 @@ void porous::computeFlux() {
     auto psol = Kokkos::subview(sol_side, Kokkos::ALL(), pnum, Kokkos::ALL(), 0);
     auto pgrad = Kokkos::subview(sol_grad_side, Kokkos::ALL(), pnum, Kokkos::ALL(), Kokkos::ALL());
     auto lambda = Kokkos::subview(aux_side, Kokkos::ALL(), pnum, Kokkos::ALL());
-    parallel_for("porous HGRAD flux",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HGRAD flux",RangePolicy<AssemblyExec>(0,h.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       
       for (size_type pt=0; pt<pflux.extent(1); pt++) {
         AD dens = densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));

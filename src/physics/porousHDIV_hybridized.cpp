@@ -306,14 +306,14 @@ void porousHDIV_HYBRID::computeFlux() {
   
   // Since normals get recomputed often, this needs to be reset
   auto normals = wkset->normals;
-  
+  auto h = wkset->h;
   {
     Teuchos::TimeMonitor localtime(*fluxFill);
     
     auto usol = Kokkos::subview(sol_side, Kokkos::ALL(), unum, Kokkos::ALL(), Kokkos::ALL());
     auto uflux = Kokkos::subview(flux, Kokkos::ALL(), auxlambdanum, Kokkos::ALL());
     
-    parallel_for("porous HDIV-HY flux",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HDIV-HY flux",RangePolicy<AssemblyExec>(0,h.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<uflux.extent(1); pt++) {
         AD udotn = 0.0;
         for (size_type dim=0; dim<normals.extent(2); dim++) {

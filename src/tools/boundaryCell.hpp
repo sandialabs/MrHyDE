@@ -186,7 +186,7 @@ namespace MrHyDE {
                      Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                      const ScalarT & time, const int & side, const ScalarT & coarse_h,
                      const bool & compute_sens) {
-      //wkset->setTime(time);
+      wkset->setTime(time);
         
       auto u_AD = wkset->uvals;
       //auto param_AD = wkset->pvals;

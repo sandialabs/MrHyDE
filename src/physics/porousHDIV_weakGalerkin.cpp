@@ -426,6 +426,7 @@ void porousHDIV_WG::computeFlux() {
   
   // Since normals get recomputed often, this needs to be reset
   auto normals = wkset->normals;
+  auto h = wkset->h;
 
   {
     Teuchos::TimeMonitor localtime(*fluxFill);
@@ -434,7 +435,7 @@ void porousHDIV_WG::computeFlux() {
     auto mflux = Kokkos::subview(flux, Kokkos::ALL(), auxpbndrynum, Kokkos::ALL());
     // TMW: previous code used u instead of t
     
-    parallel_for("porous WG flux",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous WG flux",RangePolicy<AssemblyExec>(0,h.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<mflux.extent(1); pt++) {
         AD tdotn = 0.0;
         for (size_type dim=0; dim<normals.extent(2); dim++) {

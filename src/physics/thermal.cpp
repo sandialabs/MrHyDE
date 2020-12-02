@@ -318,7 +318,6 @@ void thermal::computeFlux() {
     diff_side = functionManager->evaluate("thermal diffusion","side ip");
   }
   
-  // Since normals get recomputed often, this needs to be reset
   auto normals = wkset->normals;
   auto h = wkset->h;
   
@@ -332,9 +331,8 @@ void thermal::computeFlux() {
     {
       Teuchos::TimeMonitor localtime(*fluxFill);
       
-      parallel_for("Thermal flux 1D",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Thermal flux 1D",RangePolicy<AssemblyExec>(0,h.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<normals.extent(1); pt++) {
-          //fluxT(elem,pt) = sf*diff_side(elem,pt)*gradT(elem,pt,0)*normals(elem,pt,0) + 10.0/h(elem)*diff_side(elem,pt)*(lambda(elem,pt)-T(elem,pt));
           fluxT(elem,pt) = 10.0/h(elem)*diff_side(elem,pt)*(lambda(elem,pt)-T(elem,pt));
           for (size_type dim=0; dim<normals.extent(2); dim++) {
             fluxT(elem,pt) += sf*diff_side(elem,pt)*gradT(elem,pt,dim)*normals(elem,pt,dim);
