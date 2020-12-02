@@ -48,6 +48,8 @@ settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
   useDirect = settings->sublist("Solver").get<bool>("use direct solver",true);
   amesos_solver_type = settings->sublist("Solver").get<string>("Amesos solver type","KLU2");
 
+  use_preconditioner = settings->sublist("Solver").get<bool>("use preconditioner",true);
+  
   store_aux_and_flux = settings->sublist("Postprocess").get<bool>("store aux and flux",false);
   
   milo_solver = Teuchos::rcp( new solver<SubgridSolverNode>(LocalComm, settings, mesh, disc, physics, DOF, assembler, params) );
@@ -90,6 +92,27 @@ settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
       Am2Solver->symbolicFactorization();
     }
     have_sym_factor = true;
+  }
+  else {
+    Teuchos::TimeMonitor amsetuptimer(*sgfemNonlinearSolverBelosSetupTimer);
+    belos_problem = Teuchos::rcp(new SG_LinearProblem(J, u, res));
+    have_belos = true;
+    
+    // Need to read these in from input file
+    belosList = Teuchos::rcp(new Teuchos::ParameterList());
+    belosList->set("Maximum Iterations",    50); // Maximum number of iterations allowed
+    belosList->set("Convergence Tolerance", 1.0E-10);    // Relative convergence tolerance requested
+    belosList->set("Verbosity", Belos::Errors);
+    belosList->set("Output Frequency",0);
+    
+    int numEqns = milo_solver->numVars[0];
+    belosList->set("number of equations",numEqns);
+    
+    belosList->set("Output Style",          Belos::Brief);
+    belosList->set("Implicit Residual Scaling", "None");
+    
+    belos_solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT, SG_MultiVector, SG_Operator>(belos_problem, belosList));
+    
   }
 }
 
@@ -634,6 +657,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
         Am2Solver->numericFactorization().solve();
       }
       else {
+        /*
         if (have_belos) {
           //belos_problem->setProblem(du_glob, res);
         }
@@ -659,23 +683,23 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
           belos_solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT, SG_MultiVector, SG_Operator>(belos_problem, belosList));
           
         }
-        if (have_preconditioner) {
-          //MueLu::ReuseTpetraPreconditioner(J,*belos_M);
-        }
-        else {
-          belos_M = milo_solver->buildPreconditioner(J);
-          //belos_problem->setRightPrec(belos_M);
-          belos_problem->setLeftPrec(belos_M);
-          have_preconditioner = true;
-          
+         */
+        if (use_preconditioner) {
+          if (have_preconditioner) {
+            // TMW: why is this commented?
+            MueLu::ReuseTpetraPreconditioner(J,*belos_M);
+          }
+          else {
+            belos_M = milo_solver->buildPreconditioner(J);
+            //belos_problem->setRightPrec(belos_M);
+            belos_problem->setLeftPrec(belos_M);
+            //have_preconditioner = true;
+            
+          }
         }
         belos_problem->setProblem(du_glob, res);
-        {
-          Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverSolveTimer);
-          belos_solver->solve();
-          
-        }
-        //milo_solver->linearSolver(J,res,du_glob);
+        belos_solver->solve();
+        
       }
       if (milo_solver->Comm->getSize() > 1) {
         du->putScalar(0.0);

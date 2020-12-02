@@ -267,7 +267,7 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::ParameterList> belosList;
     Teuchos::RCP<Belos::SolverManager<ScalarT, SG_MultiVector, SG_Operator> > belos_solver;
     bool have_belos = false;
-    bool have_preconditioner = false;
+    bool have_preconditioner = false, use_preconditioner = true;
     
     ScalarT sub_NLtol;
     int sub_maxNLiter;
@@ -313,7 +313,7 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverSolveTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver - solve");
     Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverAmesosSetupTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver - setup Amesos");
     Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverAmesosSymbFactTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver - symbolic factor");
-    
+    Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverBelosSetupTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridNonlinearSolver - setup Belos");
   };
   
 }
