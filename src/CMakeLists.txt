@@ -16,9 +16,6 @@ LINK_DIRECTORIES (${Trilinos_LIBRARY_DIRS} ${Trilinos_TPL_LIBRARY_DIRS})
 
 ADD_EXECUTABLE(milo
 driver.cpp
-subgrid/subgridMeshFactory.cpp 
-subgrid/subgridFEM.cpp 
-subgrid/subgridFEM_solver.cpp 
 interfaces/meshInterface.cpp 
 interfaces/discretizationInterface.cpp 
 interfaces/physicsInterface.cpp 
@@ -36,6 +33,9 @@ tools/cell.cpp
 tools/boundaryCell.cpp
 tools/workset.cpp
 tools/split_mpi_communicators.cpp 
+subgrid/subgridMeshFactory.cpp 
+subgrid/subgridFEM.cpp 
+subgrid/subgridFEM_solver.cpp 
 physics/thermal.cpp
 physics/linearelasticity.cpp
 physics/helmholtz.cpp
@@ -57,32 +57,36 @@ physics/stokes.cpp)
 #physics/thermal_enthalpy.cpp
 TARGET_LINK_LIBRARIES(milo ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
-ADD_EXECUTABLE(xml_to_yaml
-tools/xml_to_yaml.cpp)
-TARGET_LINK_LIBRARIES(xml_to_yaml ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
-
-ADD_EXECUTABLE(test_views
-test/test_views.cpp)
-TARGET_LINK_LIBRARIES(test_views ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
-
-ADD_EXECUTABLE(test_percept
-test/test_percept.cpp
-subgrid/subgridMeshFactory.cpp) 
-TARGET_LINK_LIBRARIES(test_percept ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
-
-IF(MrHyDE_TEST_Compadre)
-  ADD_EXECUTABLE(test_compadre
-  test/test_compadre.cpp
-  tools/data.cpp) 
-  TARGET_LINK_LIBRARIES(test_compadre ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+IF(MrHyDE_ENABLE_XML_to_YAML)
+  ADD_EXECUTABLE(xml_to_yaml
+  tools/xml_to_yaml.cpp)
+  TARGET_LINK_LIBRARIES(xml_to_yaml ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 ENDIF()
 
-ADD_EXECUTABLE(test_functions
-test/test_functions.cpp
-tools/workset.cpp
-interfaces/discretizationInterface.cpp 
-managers/functionManager.cpp)
-TARGET_LINK_LIBRARIES(test_functions ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+IF(MrHyDE_ENABLE_TESTS)
+  ADD_EXECUTABLE(test_views
+  test/test_views.cpp)
+  TARGET_LINK_LIBRARIES(test_views ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+
+  ADD_EXECUTABLE(test_percept
+  test/test_percept.cpp
+  subgrid/subgridMeshFactory.cpp) 
+  TARGET_LINK_LIBRARIES(test_percept ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+
+  IF(MrHyDE_TEST_Compadre)
+    ADD_EXECUTABLE(test_compadre
+    test/test_compadre.cpp
+    tools/data.cpp) 
+    TARGET_LINK_LIBRARIES(test_compadre ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+  ENDIF()
+
+  ADD_EXECUTABLE(test_functions
+  test/test_functions.cpp
+  tools/workset.cpp
+  interfaces/discretizationInterface.cpp 
+  managers/functionManager.cpp)
+  TARGET_LINK_LIBRARIES(test_functions ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+ENDIF()
 
 # Copy the perm_xy.dat file over to the directory where test_compadre is located
 SET(SOURCE_FILE_FULL "${CMAKE_CURRENT_SOURCE_DIR}/test/perm_xy.dat")
