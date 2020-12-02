@@ -95,6 +95,7 @@ settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
   }
   else {
     Teuchos::TimeMonitor amsetuptimer(*sgfemNonlinearSolverBelosSetupTimer);
+    J->fillComplete(); // temporary
     belos_problem = Teuchos::rcp(new SG_LinearProblem(J, u, res));
     have_belos = true;
     
@@ -112,7 +113,7 @@ settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
     belosList->set("Implicit Residual Scaling", "None");
     
     belos_solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT, SG_MultiVector, SG_Operator>(belos_problem, belosList));
-    
+    belos_problem->setProblem(u, res);
   }
 }
 
@@ -657,37 +658,10 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
         Am2Solver->numericFactorization().solve();
       }
       else {
-        /*
-        if (have_belos) {
-          //belos_problem->setProblem(du_glob, res);
-        }
-        else {
-          belos_problem = Teuchos::rcp(new SG_LinearProblem(J, du_glob, res));
-          have_belos = true;
-          
-          belosList = Teuchos::rcp(new Teuchos::ParameterList());
-          belosList->set("Maximum Iterations",    50); // Maximum number of iterations allowed
-          belosList->set("Convergence Tolerance", 1.0E-10);    // Relative convergence tolerance requested
-          belosList->set("Verbosity", Belos::Errors);
-          belosList->set("Output Frequency",0);
-          
-          //belosList->set("Verbosity", Belos::Errors + Belos::Warnings + Belos::StatusTestDetails);
-          //belosList->set("Output Frequency",10);
-          
-          int numEqns = milo_solver->numVars[0];
-          belosList->set("number of equations",numEqns);
-          
-          belosList->set("Output Style",          Belos::Brief);
-          belosList->set("Implicit Residual Scaling", "None");
-          
-          belos_solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT, SG_MultiVector, SG_Operator>(belos_problem, belosList));
-          
-        }
-         */
         if (use_preconditioner) {
           if (have_preconditioner) {
             // TMW: why is this commented?
-            MueLu::ReuseTpetraPreconditioner(J,*belos_M);
+            //MueLu::ReuseTpetraPreconditioner(J,*belos_M);
           }
           else {
             belos_M = milo_solver->buildPreconditioner(J);
