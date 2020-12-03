@@ -63,10 +63,33 @@ int main(int argc, char * argv[]) {
       
       Kokkos::fence();
       double sol_time1 = timer.seconds();
-      printf("Baseline GPU time:   %e \n", sol_time1);
+      printf("Baseline time:   %e \n", sol_time1);
       
     }
     
+    {
+      timer.reset();
+      
+      parallel_for(Kokkos::MDRangePolicy<AssemblyExec, Kokkos::Rank<3>>({0,0,0},{basis.extent(0),sol_dof.extent(1),basis.extent(1)}), KOKKOS_LAMBDA (const int elem , const int var, const int dof) {
+        //for (size_type var=0; var<sol_dof.extent(1); var++) {
+        //  for (size_type dof=0; dof<basis.extent(1); dof++) {
+            EvalT uval = sol_dof(elem,var,dof);
+            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+              for (size_type s=0; s<basis.extent(3); s++ ) {
+                sol_ip(elem,var,pt,s) += uval*basis(elem,dof,pt,s);
+              }
+            }
+        //  }
+        //}
+      });
+      
+      Kokkos::fence();
+      double sol_time1 = timer.seconds();
+      printf("MD range time:   %e \n", sol_time1);
+      
+    }
+    
+    /*
     {
       typedef Kokkos::TeamPolicy<AssemblyExec> TeamPolicy;
       const int vector_size = 1;
@@ -97,7 +120,7 @@ int main(int argc, char * argv[]) {
       printf("GPU time (basic team):   %e \n", sol_time1);
       
     }
-    
+    */
     /*
     {
       typedef Kokkos::TeamPolicy<AssemblyExec> TeamPolicy;
