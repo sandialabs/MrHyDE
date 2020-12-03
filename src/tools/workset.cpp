@@ -600,7 +600,36 @@ void workset::computeSoln(const int & type) {
         cbasis_grad = basis_grad_face[usebasis[var]];
       }
       
-      parallel_for("wkset soln ip HGRAD",MDRangePolicy<AssemblyExec,Rank<2>>({0,0},{cbasis.extent(0),cbasis.extent(2)}), KOKKOS_LAMBDA (const size_type elem , const size_type pt) {
+      
+      /*
+      parallel_for("wkset soln ip HGRAD",
+                   MDRangePolicy<AssemblyExec,Rank<2>>({0,0},{csol.extent(0),csol.extent(1)}),
+                   KOKKOS_LAMBDA (const size_type elem , const size_type pt) {
+        csol(elem,pt) = 0.0;
+      });
+      
+      parallel_for("wkset soln ip HGRAD",
+                   MDRangePolicy<AssemblyExec,Rank<3>>({0,0,0},{csol.extent(0),csol.extent(1),csol.extent(2)}),
+                   KOKKOS_LAMBDA (const size_type elem , const size_type pt, const size_type dim) {
+        csol_grad(elem,pt,dim) = 0.0;
+      });
+      
+      parallel_for("wkset soln ip HGRAD",
+                   MDRangePolicy<AssemblyExec,Rank<3>>({0,0,0},{cbasis.extent(0),cbasis.extent(1),cbasis.extent(2)}),
+                   KOKKOS_LAMBDA (const size_type elem , const size_type dof, const size_type pt) {
+        AD uval = cuvals(elem,dof);
+        Kokkos::atomic_add(&(csol(elem,pt)), uval*cbasis(elem,dof,pt,0));
+        for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
+          Kokkos::atomic_add(&(csol_grad(elem,pt,s)), uval*cbasis_grad(elem,dof,pt,s));
+        }
+      });
+       */
+
+       
+      
+      parallel_for("wkset soln ip HGRAD",
+                   MDRangePolicy<AssemblyExec,Rank<2>>({0,0},{cbasis.extent(0),cbasis.extent(2)}),
+                   KOKKOS_LAMBDA (const size_type elem , const size_type pt) {
         for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
           AD uval = cuvals(elem,dof);
           if (dof == 0) {
@@ -617,7 +646,7 @@ void workset::computeSoln(const int & type) {
           }
         }
       });
-            
+        
       if (isTransient && type == 1) { // transient terms only needed at volumetric ip (for now)
         auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),0);
         auto cu_dotvals = Kokkos::subview(u_dotvals,Kokkos::ALL(),var,Kokkos::ALL());
