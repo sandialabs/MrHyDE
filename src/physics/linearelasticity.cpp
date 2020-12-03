@@ -625,6 +625,9 @@ void linearelasticity::computeFlux() {
   auto normals = wkset->normals;
   auto h = wkset->h;
   
+  // Just need the basis for the number of active elements (any side basis will do)
+  auto basis = wkset->basis_side[wkset->usebasis[dx_num]];
+  
   {
     Teuchos::TimeMonitor localtime(*fluxFill);
     
@@ -634,7 +637,7 @@ void linearelasticity::computeFlux() {
       auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
       auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
       auto flux_x = Kokkos::subview( flux, Kokkos::ALL(), dx_num, Kokkos::ALL());
-      parallel_for("LE flux 1D",RangePolicy<AssemblyExec>(0,h.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      parallel_for("LE flux 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (size_type k=0; k<flux_x.extent(1); k++) {
           AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
           flux_x(e,k) = 1.0*stress_side(e,k,0,0)*normals(e,k,0) + penalty*(lambdax(e,k)-dx(e,k));
@@ -648,7 +651,7 @@ void linearelasticity::computeFlux() {
       auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL());
       auto flux_x = Kokkos::subview( flux, Kokkos::ALL(), dx_num, Kokkos::ALL());
       auto flux_y = Kokkos::subview( flux, Kokkos::ALL(), dy_num, Kokkos::ALL());
-      parallel_for("LE flux 2D",RangePolicy<AssemblyExec>(0,h.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      parallel_for("LE flux 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (size_type k=0; k<flux_x.extent(1); k++) {
           AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
           flux_x(e,k) = 1.0*(stress_side(e,k,0,0)*normals(e,k,0) + stress_side(e,k,0,1)*normals(e,k,1)) + penalty*(lambdax(e,k)-dx(e,k));
@@ -666,7 +669,7 @@ void linearelasticity::computeFlux() {
       auto flux_x = Kokkos::subview( flux, Kokkos::ALL(), dx_num, Kokkos::ALL());
       auto flux_y = Kokkos::subview( flux, Kokkos::ALL(), dy_num, Kokkos::ALL());
       auto flux_z = Kokkos::subview( flux, Kokkos::ALL(), dz_num, Kokkos::ALL());
-      parallel_for("LE flux 3D",RangePolicy<AssemblyExec>(0,h.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      parallel_for("LE flux 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (size_type k=0; k<flux_x.extent(1); k++) {
           AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
           flux_x(e,k) = 1.0*(stress_side(e,k,0,0)*normals(e,k,0) + stress_side(e,k,0,1)*normals(e,k,1) + stress_side(e,k,0,2)*normals(e,k,2)) + penalty*(lambdax(e,k)-dx(e,k));

@@ -254,7 +254,9 @@ void porousHDIV::computeFlux() {
   
   // Since normals get recomputed often, this needs to be reset
   auto normals = wkset->normals;
-  auto h = wkset->h;
+  
+  // Just need the basis for the number of active elements (any side basis will do)
+  auto basis = wkset->basis_side[wkset->usebasis[unum]];
   
   {
     Teuchos::TimeMonitor localtime(*fluxFill);
@@ -262,7 +264,7 @@ void porousHDIV::computeFlux() {
     auto uflux = Kokkos::subview(flux, Kokkos::ALL(), auxpnum, Kokkos::ALL());
     auto usol = Kokkos::subview(sol_side,Kokkos::ALL(), unum, Kokkos::ALL(), Kokkos::ALL());
     
-    parallel_for("porous HDIV flux ",RangePolicy<AssemblyExec>(0,h.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HDIV flux ",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<normals.extent(1); pt++) {
         AD udotn = 0.0;
         for (size_type dim=0; dim<normals.extent(2); dim++) {

@@ -274,13 +274,16 @@ void porous::computeFlux() {
   auto normals = wkset->normals;
   auto h = wkset->h;
   
+  // Just need the basis for the number of active elements (any side basis will do)
+  auto basis = wkset->basis_side[wkset->usebasis[pnum]];
+  
   {
     Teuchos::TimeMonitor localtime(*fluxFill);
     auto pflux = Kokkos::subview(flux, Kokkos::ALL(), pnum, Kokkos::ALL());
     auto psol = Kokkos::subview(sol_side, Kokkos::ALL(), pnum, Kokkos::ALL(), 0);
     auto pgrad = Kokkos::subview(sol_grad_side, Kokkos::ALL(), pnum, Kokkos::ALL(), Kokkos::ALL());
     auto lambda = Kokkos::subview(aux_side, Kokkos::ALL(), pnum, Kokkos::ALL());
-    parallel_for("porous HGRAD flux",RangePolicy<AssemblyExec>(0,h.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HGRAD flux",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       
       for (size_type pt=0; pt<pflux.extent(1); pt++) {
         AD dens = densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
