@@ -339,7 +339,7 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
 
   // Seed the current stage solution
   if (seedwhat == 1) {
-    parallel_for("wkset transient soln 1",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+    parallel_for("wkset transient soln 1",MDRangePolicy<AssemblyExec,Rank<3>>({0,0,0},{u.extent(0),u.extent(1),u.extent(2)}), KOKKOS_LAMBDA (const size_type elem, const size_type var, const size_type dof ) {
       
       ScalarT beta_u, beta_t;
       int stage = curr_stage(0);
@@ -347,8 +347,8 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
       ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
       ScalarT timewt = 1.0/deltat/b_b(stage);
       ScalarT alpha_t = BDF(0)*timewt;
-      for (size_type var=0; var<u.extent(1); var++ ) {
-        for (size_type dof=0; dof<u.extent(2); dof++ ) {
+      //for (size_type var=0; var<u.extent(1); var++ ) {
+      //  for (size_type dof=0; dof<u.extent(2); dof++ ) {
           // Seed the stage solution
           AD stageval = AD(maxDerivs,off(var,dof),u(elem,var,dof));
           
@@ -366,8 +366,8 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
           }
           beta_t *= timewt;
           u_dot_AD(elem,var,dof) = alpha_t*stageval + beta_t;
-        }
-      }
+        //}
+      //}
     });
   }
   else if (seedwhat == 2) { // Seed one of the previous step solutions
@@ -375,15 +375,15 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
     auto host_sindex = Kokkos::create_mirror_view(sindex);
     host_sindex(0) = index;
     Kokkos::deep_copy(sindex,host_sindex);
-    parallel_for("wkset transient soln 2",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+    parallel_for("wkset transient soln 2",MDRangePolicy<AssemblyExec,Rank<3>>({0,0,0},{u.extent(0),u.extent(1),u.extent(2)}), KOKKOS_LAMBDA (const size_type elem, const size_type var, const size_type dof ) {
       AD beta_u, beta_t;
       int stage = curr_stage(0);
       ScalarT deltat = dt(0);
       ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
       ScalarT timewt = 1.0/deltat/b_b(stage);
       ScalarT alpha_t = BDF(0)*timewt;
-      for (size_type var=0; var<u.extent(1); var++ ) {
-        for (size_type dof=0; dof<u.extent(2); dof++ ) {
+      //for (size_type var=0; var<u.extent(1); var++ ) {
+      //  for (size_type dof=0; dof<u.extent(2); dof++ ) {
           // Get the stage solution
           ScalarT stageval = u(elem,var,dof);
           
@@ -410,8 +410,8 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
           }
           beta_t *= timewt;
           u_dot_AD(elem,var,dof) = alpha_t*stageval + beta_t;
-        }
-      }
+      //  }
+      //}
     });
   }
   else if (seedwhat == 3) { // Seed one of the previous stage solutions
@@ -419,15 +419,15 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
     auto host_sindex = Kokkos::create_mirror_view(sindex);
     host_sindex(0) = index;
     Kokkos::deep_copy(sindex,host_sindex);
-    parallel_for("wkset transient soln 2",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+    parallel_for("wkset transient soln 2",MDRangePolicy<AssemblyExec,Rank<3>>({0,0,0},{u.extent(0),u.extent(1),u.extent(2)}), KOKKOS_LAMBDA (const size_type elem, const size_type var, const size_type dof ) {
       AD beta_u, beta_t;
       int stage = curr_stage(0);
       ScalarT deltat = dt(0);
       ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
       ScalarT timewt = 1.0/deltat/b_b(stage);
       ScalarT alpha_t = BDF(0)*timewt;
-      for (size_type var=0; var<u.extent(1); var++ ) {
-        for (size_type dof=0; dof<u.extent(2); dof++ ) {
+      //for (size_type var=0; var<u.extent(1); var++ ) {
+      //  for (size_type dof=0; dof<u.extent(2); dof++ ) {
           // Get the stage solution
           ScalarT stageval = u(elem,var,dof);
           
@@ -452,12 +452,12 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
           }
           beta_t *= timewt;
           u_dot_AD(elem,var,dof) = alpha_t*stageval + beta_t;
-        }
-      }
+      //  }
+      //}
     });
   }
   else { // Seed nothing
-    parallel_for("wkset transient soln",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+    parallel_for("wkset transient soln",MDRangePolicy<AssemblyExec,Rank<3>>({0,0,0},{u.extent(0),u.extent(1),u.extent(2)}), KOKKOS_LAMBDA (const size_type elem , const size_type var, const size_type dof) {
       
       ScalarT beta_u, beta_t;
       int stage = curr_stage(0);
@@ -465,8 +465,8 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
       ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
       ScalarT timewt = 1.0/deltat/b_b(stage);
       ScalarT alpha_t = BDF(0)*timewt;
-      for (size_type var=0; var<u.extent(1); var++ ) {
-        for (size_type dof=0; dof<u.extent(2); dof++ ) {
+      //for (size_type var=0; var<u.extent(1); var++ ) {
+      //  for (size_type dof=0; dof<u.extent(2); dof++ ) {
           // Get the stage solution
           ScalarT stageval = u(elem,var,dof);
           
@@ -484,8 +484,8 @@ void workset::computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice>
           }
           beta_t *= timewt;
           u_dot_AD(elem,var,dof) = alpha_t*stageval + beta_t;
-        }
-      }
+      //  }
+      //}
     });
   }
   Kokkos::fence();         
@@ -505,21 +505,13 @@ void workset::computeSolnSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
   auto off = offsets;
 
   if (seedwhat == 1) {
-    parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-      for (size_type var=0; var<u.extent(1); var++ ) {
-        for (size_type dof=0; dof<u.extent(2); dof++ ) {
-          u_AD(elem,var,dof) = AD(maxDerivs,off(var,dof),u(elem,var,dof));
-        }
-      }
+    parallel_for("wkset steady soln",MDRangePolicy<AssemblyExec,Rank<3>>({0,0,0},{u.extent(0),u.extent(1),u.extent(2)}), KOKKOS_LAMBDA (const size_type elem, const size_type var, const size_type dof ) {
+      u_AD(elem,var,dof) = AD(maxDerivs,off(var,dof),u(elem,var,dof));
     });
   }
   else {
-    parallel_for("wkset steady soln",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-      for (size_type var=0; var<u.extent(1); var++ ) {
-        for (size_type dof=0; dof<u.extent(2); dof++ ) {
-          u_AD(elem,var,dof) = u(elem,var,dof);
-        }
-      }
+    parallel_for("wkset steady soln",MDRangePolicy<AssemblyExec,Rank<3>>({0,0,0},{u.extent(0),u.extent(1),u.extent(2)}), KOKKOS_LAMBDA (const size_type elem, const size_type var, const size_type dof) {
+      u_AD(elem,var,dof) = u(elem,var,dof);
     });
   }
   Kokkos::fence();
@@ -539,21 +531,21 @@ void workset::computeParamSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> p
   auto off = paramoffsets;
   
   if (seedwhat == 3) { // There is an inconsistency here with seeded the stage solutions ... not sure if this matters
-    parallel_for(RangePolicy<AssemblyExec>(0,param.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-      for (size_type var=0; var<param.extent(1); var++ ) {
-        for (size_type dof=0; dof<param.extent(2); dof++ ) {
+    parallel_for("wkset param seeded",MDRangePolicy<AssemblyExec,Rank<3>>({0,0,0},{param.extent(0),param.extent(1),param.extent(2)}), KOKKOS_LAMBDA (const size_type elem, const size_type var, const size_type dof ) {
+      //for (size_type var=0; var<param.extent(1); var++ ) {
+      //  for (size_type dof=0; dof<param.extent(2); dof++ ) {
           p_AD(elem,var,dof) = AD(maxDerivs,off(var,dof),param(elem,var,dof));
-        }
-      }
+      //  }
+      //}
     });
   }
   else {
-    parallel_for("wkset steady soln",RangePolicy<AssemblyExec>(0,param.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-      for (size_type var=0; var<param.extent(1); var++ ) {
-        for (size_type dof=0; dof<param.extent(2); dof++ ) {
+    parallel_for("wkset param unseeded",MDRangePolicy<AssemblyExec,Rank<3>>({0,0,0},{param.extent(0),param.extent(1),param.extent(2)}), KOKKOS_LAMBDA (const size_type elem, const size_type var, const size_type dof ) {
+      //for (size_type var=0; var<param.extent(1); var++ ) {
+      //  for (size_type dof=0; dof<param.extent(2); dof++ ) {
           p_AD(elem,var,dof) = param(elem,var,dof);
-        }
-      }
+      //  }
+      //}
     });
   }
   Kokkos::fence();
@@ -608,43 +600,31 @@ void workset::computeSoln(const int & type) {
         cbasis_grad = basis_grad_face[usebasis[var]];
       }
       
-      parallel_for("wkset soln ip HGRAD",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+      parallel_for("wkset soln ip HGRAD",MDRangePolicy<AssemblyExec,Rank<2>>({0,0},{cbasis.extent(0),cbasis.extent(2)}), KOKKOS_LAMBDA (const size_type elem , const size_type pt) {
         for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
           AD uval = cuvals(elem,dof);
-          if ( dof == 0) {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              csol(elem,pt) = uval*cbasis(elem,dof,pt,0);
-              for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
-                csol_grad(elem,pt,s) = uval*cbasis_grad(elem,dof,pt,s);
-              }
+          if (dof == 0) {
+            csol(elem,pt) = uval*cbasis(elem,dof,pt,0);
+            for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
+              csol_grad(elem,pt,s) = uval*cbasis_grad(elem,dof,pt,s);
             }
           }
           else {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              csol(elem,pt) += uval*cbasis(elem,dof,pt,0);
-              for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
-                csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
-              }
+            csol(elem,pt) += uval*cbasis(elem,dof,pt,0);
+            for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
+              csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
             }
           }
         }
       });
-      
-      if (isTransient && type == 1) { // transient terms only need at volumetric ip
+            
+      if (isTransient && type == 1) { // transient terms only needed at volumetric ip (for now)
         auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),0);
         auto cu_dotvals = Kokkos::subview(u_dotvals,Kokkos::ALL(),var,Kokkos::ALL());
-        parallel_for("wkset soln ip HGRAD transient",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+        parallel_for("wkset soln ip HGRAD transient",MDRangePolicy<AssemblyExec,Rank<2>>({0,0},{cbasis.extent(0),cbasis.extent(2)}), KOKKOS_LAMBDA (const size_type elem , const size_type pt) {
+          csol_dot(elem,pt) = 0.0;
           for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            if ( dof == 0) {
-              for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol_dot(elem,pt) = cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
-              }
-            }
-            else {
-              for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol_dot(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
-              }
-            }
+            csol_dot(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
           }
         });
       }

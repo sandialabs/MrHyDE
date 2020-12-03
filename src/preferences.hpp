@@ -25,6 +25,8 @@
 using Kokkos::parallel_for;
 using Kokkos::parallel_reduce;
 using Kokkos::RangePolicy;
+using Kokkos::MDRangePolicy;
+using Kokkos::Rank;
 using std::string;
 using std::vector;
 using std::cout;
