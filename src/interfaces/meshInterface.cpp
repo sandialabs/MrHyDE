@@ -445,7 +445,9 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
   //this->perturbMesh();
   
   if (verbosity>1) {
-    mesh->printMetaData(std::cout);
+    if (Commptr->getRank() == 0) {
+      mesh->printMetaData(std::cout);
+    }
   }
   
   if (settings->sublist("Postprocess").get("create optimization movie",false)) {
