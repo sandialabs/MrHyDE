@@ -40,7 +40,9 @@ namespace MrHyDE {
       int milo_debug_level = settings->get<int>("debug level",0);
       
       if (milo_debug_level > 0) {
-        cout << "**** Starting SensorManager::constructor ..." << endl;
+        if (assembler->Comm->getRank() == 0) {
+          cout << "**** Starting SensorManager::constructor ..." << endl;
+        }
       }
       
       spaceDim = settings->sublist("Mesh").get<int>("dim",2);
@@ -134,7 +136,9 @@ namespace MrHyDE {
       }
       
       if (milo_debug_level > 0) {
-        cout << "**** Finished SensorManager::constructor ..." << endl;
+        if (assembler->Comm->getRank() == 0) {
+          cout << "**** Finished SensorManager::constructor ..." << endl;
+        }
       }
       
     }
