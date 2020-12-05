@@ -30,6 +30,14 @@ ParameterManager<Node>::ParameterManager(const Teuchos::RCP<MpiComm> & Comm_,
                                    Teuchos::RCP<discretization> & disc_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), settings(settings_) {
   
+  milo_debug_level = settings->get<int>("debug level",0);
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting ParameterManager constructor ... " << endl;
+    }
+  }
+  
   /////////////////////////////////////////////////////////////////////////////
   // Parameters
   /////////////////////////////////////////////////////////////////////////////
@@ -53,6 +61,12 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), settings(settings_) {
   this->setupParameters();
   //this->setupDiscretizedParameters(cells,boundaryCells);
   
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished ParameterManager constructor" << endl;
+    }
+  }
+  
 }
 
 // ========================================================================================
@@ -62,6 +76,12 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), settings(settings_) {
 
 template<class Node>
 void ParameterManager<Node>::setupParameters() {
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting ParameterManager::setupParameters ... " << endl;
+    }
+  }
   
   Teuchos::ParameterList parameters;
   
@@ -186,6 +206,13 @@ void ParameterManager<Node>::setupParameters() {
     paramvals_KVAD = Kokkos::View<AD**,AssemblyDevice>("parameter values (AD)", paramvals.size(), maxcomp);
 
   }
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished ParameterManager::setupParameters" << endl;
+    }
+  }
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -197,6 +224,12 @@ void ParameterManager<Node>::setupParameters() {
 template<class Node>
 void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cell> > > & cells,
                                                   vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells) {
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting ParameterManager::setupDiscretizedParameters ... " << endl;
+    }
+  }
   
   if (num_discretized_params > 0) {
     // determine the unique list of basis'
@@ -438,6 +471,12 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     
     vector_RCP paramVec = this->setInitialParams(); // TMW: this will be deprecated soon
     Psol.push_back(paramVec);
+  }
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished ParameterManager::setupDiscretizedParameters" << endl;
+    }
   }
   
 }

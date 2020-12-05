@@ -135,6 +135,29 @@ params(params_), numElemPerCell(numElemPerCell_) {
   // Create worksets
   //this->createWorkset();
   
+  this->createFixedDOFs();
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished assembly manager constructor" << endl;
+    }
+  }
+  
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Create the cells
+////////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
+void AssemblyManager<Node>::createFixedDOFs() {
+
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting AssemblyManager::createFixedDOFs ... " << endl;
+    }
+  }
+  
   // create fixedDOF View of bools
   vector<vector<vector<LO> > > dbc_dofs = phys->dbc_dofs; // [block][var][dof]
   int numLocalDof = DOF->getNumOwnedAndGhosted();
@@ -170,12 +193,11 @@ params(params_), numElemPerCell(numElemPerCell_) {
   
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Finished assembly manager constructor" << endl;
+      cout << "**** Finished AssemblyManager::createFixedDOFs" << endl;
     }
   }
   
 }
-
 ////////////////////////////////////////////////////////////////////////////////
 // Create the cells
 ////////////////////////////////////////////////////////////////////////////////
