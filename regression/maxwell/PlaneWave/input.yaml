@@ -15,6 +15,11 @@ ANONYMOUS:
         'B[x]': '0.0'
         'B[y]': '0.0'
         'B[z]': '0.0'
+    Initial conditions:
+      scalar data: true
+      eblock-0_0_0:
+        E: 0.0
+        B: 0.0
   Discretization:
     eblock-0_0_0:
       order:
@@ -36,6 +41,7 @@ ANONYMOUS:
     number of steps: 10
     Initial type: none
     use preconditioner: true
+    use dom decomp: true
     preconditioner reuse type: full
     use direct solver: false
   Analysis: 
