@@ -38,13 +38,88 @@ int main(int argc, char * argv[]) {
     ////////////////////////////////////////////////
     Kokkos::Timer timer;
  
-    View4 sol_ip("solution at ip",numElem,numvars,numip,dimension);
     Kokkos::View<ScalarT****,AssemblyDevice> basis("basis",numElem,numdof,numip,dimension);
-    Kokkos::View<EvalT***,AssemblyDevice> sol_dof("sol at dof",numElem,numvars,numdof);
+    Kokkos::View<ScalarT****,AssemblyDevice> basis_grad("basis",numElem,numdof,numip,dimension);
     
     Kokkos::deep_copy(basis,1.0);
-    Kokkos::deep_copy(sol_dof,1.0);
+    Kokkos::deep_copy(basis_grad,2.0);
     
+    Kokkos::View<EvalT***,AssemblyDevice> gradT("sol grad",numElem,numip,dimension);
+    Kokkos::View<EvalT**,AssemblyDevice> diff("diff",numElem,numip);
+    Kokkos::View<EvalT**,AssemblyDevice> source("src",numElem,numip);
+    Kokkos::View<ScalarT**,AssemblyDevice> wts("wts",numElem,numip);
+    
+    Kokkos::View<EvalT**,AssemblyDevice> res("res",numElem,numdof);
+    Kokkos::View<EvalT**,AssemblyDevice> res2("res2",numElem,numdof);
+    
+    Kokkos::View<ScalarT***,AssemblyDevice> rJdiff("res",numElem,numdof,numDerivs+1);
+    
+    timer.reset();
+    parallel_for("Thermal volume resid 2D",
+                 RangePolicy<AssemblyExec>(0,basis.extent(0)),
+                 KOKKOS_LAMBDA (const int elem ) {
+      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+        AD f = -1.0*source(elem,pt);
+        AD DFx = diff(elem,pt)*gradT(elem,pt,0);
+        AD DFy = diff(elem,pt)*gradT(elem,pt,1);
+        f *= wts(elem,pt);
+        DFx *= wts(elem,pt);
+        DFy *= wts(elem,pt);
+        for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+          res(elem,dof) += f*basis(elem,dof,pt,0) + DFx*basis_grad(elem,dof,pt,0) + DFy*basis_grad(elem,dof,pt,1);
+        }
+      }
+    });
+    Kokkos::fence();
+    double sol_time1 = timer.seconds();
+    printf("Baseline time:   %e \n", sol_time1);
+    
+    
+    timer.reset();
+    parallel_for("Thermal volume resid 2D",
+                 MDRangePolicy<AssemblyExec,Kokkos::Rank<2>>({0,0},{basis.extent(0),basis.extent(1)}),
+                 KOKKOS_LAMBDA (const int elem , const int dof) {
+      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+        AD f = -1.0*source(elem,pt);
+        AD DFx = diff(elem,pt)*gradT(elem,pt,0);
+        AD DFy = diff(elem,pt)*gradT(elem,pt,1);
+        f *= wts(elem,pt);
+        DFx *= wts(elem,pt);
+        DFy *= wts(elem,pt);
+        res2(elem,dof) += f*basis(elem,dof,pt,0) + DFx*basis_grad(elem,dof,pt,0) + DFy*basis_grad(elem,dof,pt,1);
+      }
+    });
+    Kokkos::fence();
+    double sol_time2 = timer.seconds();
+    printf("MD time:   %e \n", sol_time2);
+    
+    parallel_for("Thermal volume resid 2D",
+                 RangePolicy<AssemblyExec>(0,rJdiff.extent(0)),
+                 KOKKOS_LAMBDA (const int elem ) {
+      for (size_type dof=0; dof<rJdiff.extent(1); dof++ ) {
+        rJdiff(elem,dof,0) = res(elem,dof).val() - res2(elem,dof).val();
+        for (size_type d=0; d<rJdiff.extent(2); d++) {
+          rJdiff(elem,dof,d+1) = res(elem,dof).fastAccessDx(d) - res2(elem,dof).fastAccessDx(d);
+        }
+      }
+    });
+    
+    auto rJdiff_host = Kokkos::create_mirror_view(rJdiff);
+    Kokkos::deep_copy(rJdiff_host,rJdiff);
+    
+    ScalarT valerror = 0.0, deriverror = 0.0;
+    for (size_type elem=0; elem<rJdiff_host.extent(0); elem++ ) {
+      for (size_type dof=0; dof<rJdiff_host.extent(1); dof++ ) {
+        valerror += abs(rJdiff_host(elem,dof,0));
+        for (size_type d=0; d<rJdiff_host.extent(2); d++) {
+          deriverror += abs(rJdiff_host(elem,dof,d+1));
+        }
+      }
+    }
+    std::cout << "value error: " << valerror << std::endl;
+    std::cout << "deriv error: " << deriverror << std::endl;
+  
+    /*
     {
       timer.reset();
       
@@ -88,7 +163,7 @@ int main(int argc, char * argv[]) {
       printf("MD range time:   %e \n", sol_time1);
       
     }
-    
+    */
     /*
     {
       typedef Kokkos::TeamPolicy<AssemblyExec> TeamPolicy;
