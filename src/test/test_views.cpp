@@ -98,8 +98,8 @@ int main(int argc, char * argv[]) {
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type dof=0; dof<rJdiff.extent(1); dof++ ) {
         rJdiff(elem,dof,0) = res(elem,dof).val() - res2(elem,dof).val();
-        for (size_type d=0; d<rJdiff.extent(2); d++) {
-          rJdiff(elem,dof,d+1) = res(elem,dof).fastAccessDx(d) - res2(elem,dof).fastAccessDx(d);
+        for (size_type d=1; d<rJdiff.extent(2); d++) {
+          rJdiff(elem,dof,d) = res(elem,dof).fastAccessDx(d-1) - res2(elem,dof).fastAccessDx(d-1);
         }
       }
     });
