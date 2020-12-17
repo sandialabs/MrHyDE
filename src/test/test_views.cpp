@@ -97,8 +97,9 @@ int main(int argc, char * argv[]) {
         f *= wts(elem,pt);
         DFx *= wts(elem,pt);
         DFy *= wts(elem,pt);
-        res2(elem,dof) += f*basis(elem,dof,pt,0) + DFx*basis_grad(elem,dof,pt,0) + DFy*basis_grad(elem,dof,pt,1);
+        val += f*basis(elem,dof,pt,0) + DFx*basis_grad(elem,dof,pt,0) + DFy*basis_grad(elem,dof,pt,1);
       }
+      res2(elem,dof) = val;
     });
     Kokkos::fence();
     double sol_time2 = timer.seconds();
@@ -120,9 +121,11 @@ int main(int argc, char * argv[]) {
     parallel_for("Thermal volume resid 2D",
                  MDRangePolicy<AssemblyExec,Kokkos::Rank<2>>({0,0},{basis.extent(0),basis.extent(1)}),
                  KOKKOS_LAMBDA (const int elem , const int dof) {
+      EvalT val = 0.0;
       for (size_type pt=0; pt<basis.extent(2); ++pt) {
-        res2(elem,dof) += f(elem,pt)*basis(elem,dof,pt,0) + DF(elem,pt,0)*basis_grad(elem,dof,pt,0) + DF(elem,pt,1)*basis_grad(elem,dof,pt,1);
+        val += f(elem,pt)*basis(elem,dof,pt,0) + DF(elem,pt,0)*basis_grad(elem,dof,pt,0) + DF(elem,pt,1)*basis_grad(elem,dof,pt,1);
       }
+      res2(elem,dof) = val;
     });
 
     Kokkos::fence();
