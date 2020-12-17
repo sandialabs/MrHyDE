@@ -38,7 +38,7 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settings);
+    linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_);
     
     // ========================================================================================
     // ========================================================================================

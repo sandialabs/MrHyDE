@@ -94,27 +94,44 @@ namespace MrHyDE {
     void setWorkset(Teuchos::RCP<workset> & wkset_) {
       wkset = wkset_;
       
-      sol = wkset->local_soln;
-      sol_dot = wkset->local_soln_dot;
-      sol_grad = wkset->local_soln_grad;
-      sol_div = wkset->local_soln_div;
-      sol_curl = wkset->local_soln_curl;
       
-      sol_side = wkset->local_soln_side;
-      sol_grad_side = wkset->local_soln_grad_side;
-      
-      sol_face = wkset->local_soln_face;
-      sol_grad_face = wkset->local_soln_grad_face;
+      if (isaux) {
+        sol = wkset->local_aux;
+        sol_dot = wkset->local_aux_dot;
+        sol_grad = wkset->local_aux_grad;
+        sol_div = wkset->local_aux_div;
+        sol_curl = wkset->local_aux_curl;
+        
+        sol_side = wkset->local_aux_side;
+        sol_grad_side = wkset->local_aux_grad_side;
+        
+        sol_face = wkset->local_aux_face;
+        sol_grad_face = wkset->local_aux_grad_face;
+        offsets = wkset->aux_offsets;
+        bcs = wkset->aux_var_bcs;
+      }
+      else {
+        sol = wkset->local_soln;
+        sol_dot = wkset->local_soln_dot;
+        sol_grad = wkset->local_soln_grad;
+        sol_div = wkset->local_soln_div;
+        sol_curl = wkset->local_soln_curl;
+        
+        sol_side = wkset->local_soln_side;
+        sol_grad_side = wkset->local_soln_grad_side;
+        
+        sol_face = wkset->local_soln_face;
+        sol_grad_face = wkset->local_soln_grad_face;
+        offsets = wkset->offsets;
+        bcs = wkset->var_bcs;
+      }
       
       aux = wkset->local_aux;
       aux_side = wkset->local_aux_side;
       
-      offsets = wkset->offsets;
       //res = wkset->res;
       adjrhs = wkset->adjrhs;
       flux = wkset->flux;
-      bcs = wkset->var_bcs;
-      
       
     }
     
@@ -127,12 +144,13 @@ namespace MrHyDE {
     Teuchos::RCP<FunctionManager> functionManager;
     int spaceDim;
     vector<string> myvars, mybasistypes;
-    bool include_face = false;
+    bool include_face = false, isaux = false;
+    string prefix = "";
     
     // All of these point to specific information in the workset - AND - 
     // We always take subviews, so these are ok on device
-    Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad, sol_side, sol_grad_side, aux_grad_side, sol_curl, sol_face, sol_grad_face;
-    Kokkos::View<AD***,AssemblyDevice> aux, aux_side, sol_div, flux;
+    Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad, sol_side, sol_grad_side, aux_grad_side, sol_curl, sol_face, sol_grad_face, aux, aux_side;
+    Kokkos::View<AD***,AssemblyDevice> sol_div, flux;
     Kokkos::View<int**,AssemblyDevice> offsets;
     
     // Probably not used much

@@ -69,10 +69,11 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    solver(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings_,
+    solver(const Teuchos::RCP<MpiComm> & Comm_,
+           Teuchos::RCP<Teuchos::ParameterList> & settings_,
            Teuchos::RCP<meshInterface> & mesh_,
            Teuchos::RCP<discretization> & disc_,
-           Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
+           Teuchos::RCP<physics> & phys_,
            Teuchos::RCP<AssemblyManager<Node> > & assembler_,
            Teuchos::RCP<ParameterManager<Node> > & params_);
     
@@ -103,7 +104,7 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void forwardModel(DFAD & obj);
+    void forwardModel(DFAD & objective);
     
     // ========================================================================================
     // ========================================================================================
@@ -113,6 +114,8 @@ namespace MrHyDE {
     // ========================================================================================
     /* solve the problem */
     // ========================================================================================
+    
+    void steadySolver(DFAD & objective, vector_RCP & u);
     
     void transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> & gradient,
                          ScalarT & start_time, ScalarT & end_time);
@@ -191,19 +194,18 @@ namespace MrHyDE {
     Teuchos::RCP<meshInterface>  mesh;
     Teuchos::RCP<discretization> disc;
     Teuchos::RCP<physics> phys;
-    Teuchos::RCP<const panzer::DOFManager> DOF;
     Teuchos::RCP<AssemblyManager<Node> > assembler;
     Teuchos::RCP<ParameterManager<Node> > params;
     Teuchos::RCP<PostprocessManager<Node> > postproc;
     Teuchos::RCP<MultiScale> multiscale_manager;
     
-    Teuchos::RCP<const LA_Map> LA_owned_map, LA_overlapped_map;
-    Teuchos::RCP<LA_CrsGraph> LA_owned_graph, LA_overlapped_graph;
-    Teuchos::RCP<LA_Export> exporter;
-    Teuchos::RCP<LA_Import> importer;
+    Teuchos::RCP<const LA_Map> LA_owned_map, LA_overlapped_map, aux_owned_map, aux_overlapped_map;
+    Teuchos::RCP<LA_CrsGraph> LA_owned_graph, LA_overlapped_graph, aux_owned_graph, aux_overlapped_graph;
+    Teuchos::RCP<LA_Export> exporter, aux_exporter;
+    Teuchos::RCP<LA_Import> importer, aux_importer;
     
-    LO numUnknowns, numUnknownsOS;
-    GO globalNumUnknowns;
+    //LO numUnknowns, numUnknownsOS;
+    //GO globalNumUnknowns;
     int verbosity, batchID, spaceDim, numsteps, numstages, gNLiter, milo_debug_level, MaxNLiter, time_order, liniter, kspace;
     
     size_t maxEntries;
@@ -212,7 +214,7 @@ namespace MrHyDE {
     int BDForder, startupBDForder, startupSteps, numEvaluations;
     string ButcherTab, startupButcherTab;
     
-    vector<GO> owned, ownedAndShared, LA_owned, LA_ownedAndShared;
+    //vector<GO> owned, ownedAndShared, LA_owned, LA_ownedAndShared;
     
     ScalarT NLtol, final_time, lintol, dropTol, fillParam, current_time, initial_time, deltat;
     
@@ -224,7 +226,7 @@ namespace MrHyDE {
     bool compute_objective, compute_sensitivity, compute_aux_sensitivity, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
     bool scalarDirichletData, transientDirichletData, scalarInitialData;
     Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver;
-    bool have_symbolic_factor;
+    bool have_symbolic_factor, have_initial_conditions;
     ScalarT discrete_objective_scale_factor;
     
     vector<vector<ScalarT> > scalarDirichletValues, scalarInitialValues; //[block][var]

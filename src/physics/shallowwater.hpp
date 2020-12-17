@@ -36,7 +36,7 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    shallowwater(Teuchos::RCP<Teuchos::ParameterList> & settings);
+    shallowwater(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_);
     
     // ========================================================================================
     // ========================================================================================

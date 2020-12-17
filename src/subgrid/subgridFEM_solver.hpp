@@ -69,7 +69,6 @@ namespace MrHyDE {
                       Teuchos::RCP<physics> & physics,
                       Teuchos::RCP<AssemblyManager<SubgridSolverNode> > & assembler,
                       Teuchos::RCP<ParameterManager<SubgridSolverNode> > & params,
-                      Teuchos::RCP<panzer::DOFManager> & DOF,
                       ScalarT & macro_deltat_,
                       size_t & numMacroDOF);
     
@@ -80,8 +79,6 @@ namespace MrHyDE {
                Kokkos::View<ScalarT***,AssemblyDevice> coarse_phi,
                Teuchos::RCP<SG_MultiVector> & prev_u,
                Teuchos::RCP<SG_MultiVector> & prev_phi,
-               //Teuchos::RCP<SG_MultiVector> & u,
-               //Teuchos::RCP<SG_MultiVector> & phi,
                Teuchos::RCP<SG_MultiVector> & disc_params,
                Teuchos::RCP<SubGridMacroData> & macroData,
                const ScalarT & time, const bool & isTransient, const bool & isAdjoint,

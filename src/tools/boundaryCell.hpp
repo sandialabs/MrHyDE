@@ -236,7 +236,7 @@ namespace MrHyDE {
         for (size_type var=0; var<numAuxDOF.extent(0); var++) {
           auto abasis = auxside_basis[auxusebasis[var]];
           auto off = Kokkos::subview(auxoffsets,var,Kokkos::ALL());
-          auto local_aux = Kokkos::subview(wkset->local_aux_side,Kokkos::ALL(),var,Kokkos::ALL());
+          auto local_aux = Kokkos::subview(wkset->local_aux_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
           auto localID = localElemID;
           auto varaux = Kokkos::subview(lambda,Kokkos::ALL(),var,Kokkos::ALL());
           parallel_for("bcell aux",RangePolicy<AssemblyExec>(0,localID.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {

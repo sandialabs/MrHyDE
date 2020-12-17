@@ -18,6 +18,7 @@
 #include "preferences.hpp"
 #include "Panzer_DOFManager.hpp"
 #include "Panzer_STK_Interface.hpp"
+#include "physicsInterface.hpp"
 
 namespace MrHyDE {
   /*
@@ -31,11 +32,11 @@ namespace MrHyDE {
     
     discretization() {} ;
     
-    discretization(Teuchos::RCP<Teuchos::ParameterList> & settings,
+    discretization(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                    Teuchos::RCP<MpiComm> & Comm_,
                    Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
-                   vector<vector<int> > & orders, vector<vector<string> > & types);
-    
+                   Teuchos::RCP<physics> & phys_);
+                   
     //////////////////////////////////////////////////////////////////////////////////////
     // Create a pointer to an Intrepid or Panzer basis
     //////////////////////////////////////////////////////////////////////////////////////
@@ -71,21 +72,36 @@ namespace MrHyDE {
     // to the DOF manager
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<panzer::DOFManager> buildDOF(Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
-                                              vector<vector<string> > & varlist,
-                                              vector<vector<string> > & types,
-                                              vector<vector<int> > & orders,
-                                              vector<vector<bool> > & useDG);
+    void buildDOFManagers();
+    
+    void setBCData(const bool & isaux);
+    
+    void setDirichletData(const bool & isaux);
+    
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
+    Kokkos::View<int****,HostDevice> getSideInfo(const size_t & block, Kokkos::View<int*,HostDevice> elem);
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
+    vector<vector<int> > getOffsets(const int & block);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Public data
     ////////////////////////////////////////////////////////////////////////////////
     
     int milo_debug_level, spaceDim;
+    Teuchos::RCP<Teuchos::ParameterList> settings;
     Teuchos::RCP<MpiComm> Commptr;
     Teuchos::RCP<panzer_stk::STK_Interface> mesh;
+    Teuchos::RCP<physics> phys;
     vector<vector<basis_RCP> > basis_pointers;
     vector<vector<string> > basis_types;
+    Teuchos::RCP<panzer::DOFManager> DOF, auxDOF;
+    vector<vector<GO> > point_dofs, aux_point_dofs;
+    vector<vector<vector<LO> > > dbc_dofs, aux_dbc_dofs;
     
     vector<DRV> ref_ip, ref_wts, ref_side_ip, ref_side_wts;
     vector<size_t> numip, numip_side;
@@ -93,6 +109,13 @@ namespace MrHyDE {
     vector<vector<int> > cards;
     vector<vector<size_t> > myElements;
     
+    vector<Kokkos::View<int****,HostDevice> > side_info;
+    vector<Kokkos::View<int**,HostDevice> > var_bcs, aux_var_bcs;
+    vector<vector<vector<int> > > offsets, aux_offsets;
+    bool haveDirichlet = false, haveAuxDirichlet = false;
+    
+    Teuchos::RCP<Teuchos::Time> setbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::setBCData()");
+    Teuchos::RCP<Teuchos::Time> setdbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::setDirichletData()");
     
   };
   

@@ -132,6 +132,12 @@ namespace MrHyDE {
     void computeSolnFaceIP(const size_t & facenum);
     
     ///////////////////////////////////////////////////////////////////////////////////////
+    // Map the solution to the face integration points
+    ///////////////////////////////////////////////////////////////////////////////////////
+    
+    void computeAuxSolnFaceIP(const size_t & facenum);
+    
+    ///////////////////////////////////////////////////////////////////////////////////////
     // Reset the data stored in the previous step/stage solutions
     ///////////////////////////////////////////////////////////////////////////////////////
     
@@ -338,9 +344,8 @@ namespace MrHyDE {
     
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
     Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param; // (elem,var,numdof)
-    Kokkos::View<ScalarT***,AssemblyDevice> u_avg, u_alt; // (elem,var,dim)
-    Kokkos::View<ScalarT***,AssemblyDevice> param_avg; // (elem,var,dim)
-    Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
+    Kokkos::View<ScalarT***,AssemblyDevice> u_avg, u_alt, aux_avg, param_avg; // (elem,var,dim)
+    Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, aux_prev, u_stage, phi_stage, aux_stage; // (elem,var,numdof,step or stage)
     
     // basis information
     //vector<DRV> basis, basis_grad, basis_div, basis_curl, basis_nodes;

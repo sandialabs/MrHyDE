@@ -25,10 +25,9 @@ using namespace MrHyDE;
 template<class Node>
 AssemblyManager<Node>::AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                  Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
-                                 Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
-                                 Teuchos::RCP<ParameterManager<Node>> & params_,
+                                 Teuchos::RCP<physics> & phys_, Teuchos::RCP<ParameterManager<Node>> & params_,
                                  const int & numElemPerCell_) :
-Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_),
+Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_),
 params(params_), numElemPerCell(numElemPerCell_) {
   
   // Get the required information from the settings
@@ -159,8 +158,8 @@ void AssemblyManager<Node>::createFixedDOFs() {
   }
   
   // create fixedDOF View of bools
-  vector<vector<vector<LO> > > dbc_dofs = phys->dbc_dofs; // [block][var][dof]
-  int numLocalDof = DOF->getNumOwnedAndGhosted();
+  vector<vector<vector<LO> > > dbc_dofs = disc->dbc_dofs; // [block][var][dof]
+  int numLocalDof = disc->DOF->getNumOwnedAndGhosted();
   isFixedDOF = Kokkos::View<bool*,LA_device>("logicals for fixed DOFs",numLocalDof);
   auto fixed_host = Kokkos::create_mirror_view(isFixedDOF);
   for (size_t block=0; block<dbc_dofs.size(); block++) {
@@ -216,8 +215,7 @@ void AssemblyManager<Node>::createCells() {
   vector<stk::mesh::Entity> all_meshElems;
   mesh->getMyElements(all_meshElems);
   
-  // May need to be PHX::Device
-  Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> LIDs = DOF->getLIDs();
+  Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> LIDs = disc->DOF->getLIDs();
   
   for (size_t b=0; b<blocknames.size(); b++) {
     Teuchos::RCP<CellMetaData> blockCellData;
@@ -274,7 +272,7 @@ void AssemblyManager<Node>::createCells() {
       
       blockCellData->requireBasisAtNodes = settings->sublist("Postprocess").get<bool>("plot solution at nodes",false);
       
-      vector<vector<int> > curroffsets = phys->offsets[b];
+      vector<vector<int> > curroffsets = disc->offsets[b];
       Kokkos::View<LO*,AssemblyDevice> numDOF_KV("number of DOF per variable",curroffsets.size());
       Kokkos::View<LO*,HostDevice> numDOF_host("numDOF on host",curroffsets.size());
       for (size_t k=0; k<curroffsets.size(); k++) {
@@ -284,8 +282,6 @@ void AssemblyManager<Node>::createCells() {
       
       blockCellData->numDOF = numDOF_KV;
       blockCellData->numDOF_host = numDOF_host;
-      
-      TEUCHOS_TEST_FOR_EXCEPTION(LIDs.extent(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element times the number of time stages.");
       
       if (assembly_partitioning == "sequential") {
         while (prog < numTotalElem) {
@@ -329,7 +325,7 @@ void AssemblyManager<Node>::createCells() {
           });
           
           // Set the side information (soon to be removed)-
-          Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,host_eIndex2);
+          Kokkos::View<int****,HostDevice> sideinfo = disc->getSideInfo(b,host_eIndex2);
           
           Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", currElem, numNodesPerElem);
           auto host_currind = Kokkos::create_mirror_view(currind);
@@ -458,7 +454,7 @@ void AssemblyManager<Node>::createCells() {
                 
                 //-----------------------------------------------
                 // Set the side information (soon to be removed)-
-                Kokkos::View<int****,HostDevice> sideinfo = phys->getSideInfo(b,host_eIndex2);
+                Kokkos::View<int****,HostDevice> sideinfo = disc->getSideInfo(b,host_eIndex2);
                 //-----------------------------------------------
                 
                 // Set the cell orientation ---
@@ -536,7 +532,7 @@ void AssemblyManager<Node>::createWorkset() {
                                                 disc->basis_pointers[b],
                                                 params->discretized_param_basis,
                                                 mesh->getCellTopology(blocknames[b]),
-                                                phys->var_bcs[b]) ) );
+                                                disc->var_bcs[b]) ) );
       
       wkset[b]->isInitialized = true;
       wkset[b]->block = b;
@@ -613,7 +609,7 @@ void AssemblyManager<Node>::updateJacDBC(matrix_RCP & J,
 
 template<class Node>
 void AssemblyManager<Node>::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
-                                 const bool & lumpmass) {
+                                       const bool & lumpmass, const ScalarT & scale) {
   
   // TMW: ToDo - should add a lumped mass option
   
@@ -653,7 +649,7 @@ void AssemblyManager<Node>::setInitial(vector_RCP & rhs, matrix_RCP & mass, cons
           ScalarT val = host_rhs(e,row);
           rhs->sumIntoLocalValue(rowIndex, 0, val);
           for( size_type col=0; col<LIDs.extent(1); col++ ) {
-            ScalarT vals = host_mass(e,row,col);
+            ScalarT vals = scale*host_mass(e,row,col);
             LO cols = LIDs(e,col);
             localMatrix.sumIntoValues(rowIndex, &cols, 1, &vals, true, false); // isSorted, useAtomics
             // the LIDs are actually not sorted, but this appears to run a little faster
@@ -1106,7 +1102,7 @@ void AssemblyManager<Node>::dofConstraints(matrix_RCP & J, vector_RCP & res,
   Teuchos::TimeMonitor localtimer(*dbctimer);
   
   if (usestrongDBCs) {
-    vector<vector<vector<LO> > > dbcDOFs = phys->dbc_dofs;
+    vector<vector<vector<LO> > > dbcDOFs = disc->dbc_dofs;
     for (size_t block=0; block<dbcDOFs.size(); block++) {
       for (size_t var=0; var<dbcDOFs[block].size(); var++) {
         if (compute_jacobian) {
@@ -1116,7 +1112,7 @@ void AssemblyManager<Node>::dofConstraints(matrix_RCP & J, vector_RCP & res,
     }
   }
   
-  vector<vector<GO> > fixedDOFs = phys->point_dofs;
+  vector<vector<GO> > fixedDOFs = disc->point_dofs;
   for (size_t block=0; block<fixedDOFs.size(); block++) {
     if (compute_jacobian) {
       this->updateJacDBC(J,fixedDOFs[block],compute_disc_sens);

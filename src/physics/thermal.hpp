@@ -37,7 +37,7 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    thermal(Teuchos::RCP<Teuchos::ParameterList> & settings) ;
+    thermal(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) ;
     
     // ========================================================================================
     // ========================================================================================
@@ -74,7 +74,8 @@ namespace MrHyDE {
   private:
     
     int spaceDim;
-    int e_num, ux_num, uy_num, uz_num;
+    int e_num = -1, ux_num = -1, uy_num = -1, uz_num = -1;
+    int e_basis_num = -1;
     int auxe_num = -1;
     
     bool have_nsvel;

@@ -14,7 +14,7 @@
 #include "porousHDIV.hpp"
 using namespace MrHyDE;
 
-porousHDIV::porousHDIV(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+porousHDIV::porousHDIV(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
   
   label = "porousHDIV";
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
@@ -213,7 +213,7 @@ void porousHDIV::boundaryResidual() {
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
   auto off = Kokkos::subview(offsets, unum, Kokkos::ALL());
-  auto lambda = Kokkos::subview(aux_side, Kokkos::ALL(), auxpnum, Kokkos::ALL());
+  auto lambda = Kokkos::subview(aux_side, Kokkos::ALL(), auxpnum, Kokkos::ALL(),0);
   
   if (bcs(pnum,cside) == 1) {
     parallel_for("porous HDIV bndry resid Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {

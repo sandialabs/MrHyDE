@@ -18,7 +18,7 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-helmholtz::helmholtz(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+helmholtz::helmholtz(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
   
   label = "helmholtz";
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);

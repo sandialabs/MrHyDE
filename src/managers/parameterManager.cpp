@@ -233,6 +233,7 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
   
   if (num_discretized_params > 0) {
     // determine the unique list of basis'
+    
     vector<int> disc_orders = phys->unique_orders[0];
     vector<string> disc_types = phys->unique_types[0];
     vector<int> disc_usebasis;
@@ -250,6 +251,7 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     discretized_param_usebasis = disc_usebasis;
     
     discretized_param_basis = disc->basis_pointers[0];
+    
     paramDOF = Teuchos::rcp(new panzer::DOFManager());
     Teuchos::RCP<panzer::ConnManager> conn = Teuchos::rcp(new panzer_stk::STKConnManager(mesh));
     paramDOF->setConnManager(conn,*(Comm->getRawMpiComm()));
@@ -265,6 +267,12 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     }
     
     paramDOF->buildGlobalUnknowns();
+    
+    for (size_t b=0; b<blocknames.size(); b++) {
+      int numGIDs = paramDOF->getElementBlockGIDCount(blocknames[b]);
+      TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of discretized parameter degrees of freedom per element on block: " + blocknames[b]);
+    }
+    
     paramDOF->getOwnedIndices(paramOwned);
     numParamUnknowns = (int)paramOwned.size();
     paramDOF->getOwnedAndGhostedIndices(paramOwnedAndShared);
@@ -282,9 +290,7 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     }
     
     Kokkos::View<const LO**,Kokkos::LayoutRight,PHX::Device> LIDs = paramDOF->getLIDs();
-    
-    TEUCHOS_TEST_FOR_EXCEPTION(LIDs.extent(1) > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of parameter degrees of freedom per element.");
-    
+        
     for (size_t b=0; b<cells.size(); b++) {
       if (cells[b].size() > 0) {
         int numLocalDOF = 0;
@@ -372,7 +378,6 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     //vector< vector<int> > param_nodesOS(numParamUnknownsOS); // should be overlapped
     //vector< vector<int> > param_nodes(numParamUnknowns); // not overlapped -- for bounds
     vector< vector< vector<ScalarT> > > param_initial_vals; // custom initial guess set by assembler->cells
-    
     
     vector_RCP paramVec = this->setInitialParams(); // TMW: this will be deprecated soon
     

@@ -17,9 +17,15 @@ using namespace MrHyDE;
 // ========================================================================================
 // ========================================================================================
 
-cdr::cdr(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+cdr::cdr(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
   
   label = "cdr";
+  
+  isaux = isaux_;
+  if (isaux) {
+    prefix = "aux ";
+  }
+  
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   myvars.push_back("c");
   mybasistypes.push_back("HGRAD");
@@ -38,18 +44,18 @@ void cdr::defineFunctions(Teuchos::ParameterList & fs,
   
   // Functions
   
-  functionManager->addFunction("source",fs.get<string>("source","0.0"),"ip");
-  functionManager->addFunction("diffusion",fs.get<string>("diffusion","1.0"),"ip");
-  functionManager->addFunction("specific heat",fs.get<string>("specific heat","1.0"),"ip");
-  functionManager->addFunction("density",fs.get<string>("density","1.0"),"ip");
-  functionManager->addFunction("reaction",fs.get<string>("reaction","1.0"),"ip");
-  functionManager->addFunction("xvel",fs.get<string>("xvel","1.0"),"ip");
-  functionManager->addFunction("yvel",fs.get<string>("yvel","1.0"),"ip");
-  functionManager->addFunction("zvel",fs.get<string>("zvel","1.0"),"ip");
-  functionManager->addFunction("SUPG tau",fs.get<string>("SUPG tau","0.0"),"ip");
+  functionManager->addFunction(prefix+"source",fs.get<string>("source","0.0"),"ip");
+  functionManager->addFunction(prefix+"diffusion",fs.get<string>("diffusion","1.0"),"ip");
+  functionManager->addFunction(prefix+"specific heat",fs.get<string>("specific heat","1.0"),"ip");
+  functionManager->addFunction(prefix+"density",fs.get<string>("density","1.0"),"ip");
+  functionManager->addFunction(prefix+"reaction",fs.get<string>("reaction","1.0"),"ip");
+  functionManager->addFunction(prefix+"xvel",fs.get<string>("xvel","1.0"),"ip");
+  functionManager->addFunction(prefix+"yvel",fs.get<string>("yvel","1.0"),"ip");
+  functionManager->addFunction(prefix+"zvel",fs.get<string>("zvel","1.0"),"ip");
+  functionManager->addFunction(prefix+"SUPG tau",fs.get<string>("SUPG tau","0.0"),"ip");
   
-  functionManager->addFunction("diffusion",fs.get<string>("diffusion","1.0"),"side ip");
-  functionManager->addFunction("robin alpha",fs.get<string>("robin alpha","0.0"),"side ip");
+  functionManager->addFunction(prefix+"diffusion",fs.get<string>("diffusion","1.0"),"side ip");
+  functionManager->addFunction(prefix+"robin alpha",fs.get<string>("robin alpha","0.0"),"side ip");
   
   //regParam = settings->sublist("Analysis").sublist("ROL").get<ScalarT>("regularization parameter",1.e-6);
   //moveVort = settings->sublist("Physics").get<bool>("moving vortices",true);

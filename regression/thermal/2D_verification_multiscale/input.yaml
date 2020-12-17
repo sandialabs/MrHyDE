@@ -33,6 +33,7 @@ ANONYMOUS:
       verbosity: 0
       solver: steady-state
       use direct solver: true
+      use preconditioner: false
     Functions input file: input_functions.yaml
     Discretization:
       order:

@@ -55,6 +55,7 @@ sideinfo(sideinfo_), nodes(nodes_), orientation(orientation_)
   CellTools::setJacobianDet(jacobianDet, jacobian);
   CellTools::setJacobianInv(jacobianInv, jacobian);
   
+  
   DRV tmpwts("tmp ip wts", numElem, numip);
   FuncTools::computeCellMeasure(tmpwts, jacobianDet, cellData->ref_wts);
   wts = Kokkos::View<ScalarT**,AssemblyDevice>("ip wts",numElem,numip);
@@ -633,6 +634,19 @@ void cell::computeSolnFaceIP(const size_t & facenum) {
   this->updateWorksetFaceBasis(facenum);
   //wkset->updateFace(nodes, orientation, facenum);
   wkset->computeSolnFaceIP();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Map the AD degrees of freedom to integration points
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::computeAuxSolnFaceIP(const size_t & facenum) {
+  
+  Teuchos::TimeMonitor localtimer(*computeSolnFaceTimer);
+  
+  this->updateWorksetFaceBasis(facenum);
+  //wkset->updateFace(nodes, orientation, facenum);
+  wkset->computeAuxSolnFaceIP();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

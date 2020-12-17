@@ -14,7 +14,7 @@
 #include "maxwell_hybridized.hpp"
 using namespace MrHyDE;
 
-maxwell_HYBRID::maxwell_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+maxwell_HYBRID::maxwell_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
   
   label = "maxwell_hybrid";
   spaceDim = settings->sublist("Mesh").get<int>("dim",3);

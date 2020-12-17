@@ -14,7 +14,7 @@
 #include "maxwell.hpp"
 using namespace MrHyDE;
 
-maxwell::maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+maxwell::maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
   
   label = "maxwell";
   spaceDim = settings->sublist("Mesh").get<int>("dim",3);
@@ -141,6 +141,10 @@ void maxwell::volumeResidual() {
         AD c0 = - 1.0/mu(elem,pt)*B(elem,pt,0)*wts(elem,pt);
         AD c1 = - 1.0/mu(elem,pt)*B(elem,pt,1)*wts(elem,pt);
         AD c2 = - 1.0/mu(elem,pt)*B(elem,pt,2)*wts(elem,pt);
+        //cout << dEdt(elem,pt,0) << "  " << dEdt(elem,pt,1) << "  " << dEdt(elem,pt,2) << endl;
+        //cout << B(elem,pt,0) << "  " << B(elem,pt,1) << "  " << B(elem,pt,2) << endl;
+        //cout << f0 << "  " << f1 << "  " << f2 << endl;
+        //cout << c0 << "  " << c1 << "  " << c2 << endl;
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0);
           res(elem,off(dof)) += f1*basis(elem,dof,pt,1) + c1*basis_curl(elem,dof,pt,1);

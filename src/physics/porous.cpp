@@ -14,7 +14,7 @@
 #include "porous.hpp"
 using namespace MrHyDE;
 
-porous::porous(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+porous::porous(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
   
   // Standard data
   label = "porous";
@@ -213,7 +213,7 @@ void porous::boundaryResidual() {
     });
   }
   else if (bcs(pnum,cside) == 5) { // multiscale weak Dirichlet
-    auto lambda = Kokkos::subview(aux_side,Kokkos::ALL(), pnum, Kokkos::ALL());
+    auto lambda = Kokkos::subview(aux_side,Kokkos::ALL(), pnum, Kokkos::ALL(),0);
     parallel_for("porous HGRAD bndry resid MS weak Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD pval = psol(elem,pt);
@@ -282,7 +282,7 @@ void porous::computeFlux() {
     auto pflux = Kokkos::subview(flux, Kokkos::ALL(), pnum, Kokkos::ALL());
     auto psol = Kokkos::subview(sol_side, Kokkos::ALL(), pnum, Kokkos::ALL(), 0);
     auto pgrad = Kokkos::subview(sol_grad_side, Kokkos::ALL(), pnum, Kokkos::ALL(), Kokkos::ALL());
-    auto lambda = Kokkos::subview(aux_side, Kokkos::ALL(), pnum, Kokkos::ALL());
+    auto lambda = Kokkos::subview(aux_side, Kokkos::ALL(), pnum, Kokkos::ALL(),0);
     parallel_for("porous HGRAD flux",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       
       for (size_type pt=0; pt<pflux.extent(1); pt++) {

@@ -14,7 +14,7 @@
 #include "twophasePoNo.hpp"
 using namespace MrHyDE;
 
-twophasePoNo::twophasePoNo(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+twophasePoNo::twophasePoNo(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
   
   // Standard data
   label = "twophase";

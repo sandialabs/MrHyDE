@@ -20,13 +20,14 @@ using namespace MrHyDE;
 // ========================================================================================
 
 template<class Node>
-solver<Node>::solver(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings_,
-               Teuchos::RCP<meshInterface> & mesh_,
-               Teuchos::RCP<discretization> & disc_,
-               Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
-               Teuchos::RCP<AssemblyManager<Node> > & assembler_,
-               Teuchos::RCP<ParameterManager<Node> > & params_) :
-Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF_), assembler(assembler_), params(params_) {
+solver<Node>::solver(const Teuchos::RCP<MpiComm> & Comm_,
+                     Teuchos::RCP<Teuchos::ParameterList> & settings_,
+                     Teuchos::RCP<meshInterface> & mesh_,
+                     Teuchos::RCP<discretization> & disc_,
+                     Teuchos::RCP<physics> & phys_,
+                     Teuchos::RCP<AssemblyManager<Node> > & assembler_,
+                     Teuchos::RCP<ParameterManager<Node> > & params_) :
+Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembler(assembler_), params(params_) {
   
   milo_debug_level = settings->get<int>("debug level",0);
   
@@ -121,26 +122,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
   // needed information from the physics interface
   numVars = phys->numVars; //
   vector<vector<string> > phys_varlist = phys->varlist;
-  //offsets = phys->offsets;
-  
-  // needed information from the DOF manager
-  DOF->getOwnedIndices(LA_owned);
-  numUnknowns = (LO)LA_owned.size();
-  DOF->getOwnedAndGhostedIndices(LA_ownedAndShared);
-  numUnknownsOS = (LO)LA_ownedAndShared.size();
-  GO localNumUnknowns = numUnknowns;
-  
-  DOF->getOwnedIndices(owned);
-  DOF->getOwnedAndGhostedIndices(ownedAndShared);
-  
-  globalNumUnknowns = 0;
-  Teuchos::reduceAll<LO,GO>(*Comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
-  
-  if (milo_debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "Number of global unknowns: " << globalNumUnknowns << endl;
-    }
-  }
+    
   // needed information from the disc interface
   vector<vector<int> > cards = disc->cards;
   
@@ -160,8 +142,6 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
       currnumBasis[j] = cards[b][vub];
       currmaxBasis = std::max(currmaxBasis,cards[b][vub]);
     }
-    
-    phys->setVars(b,currvarlist);
     
     varlist.push_back(currvarlist);
     useBasis.push_back(curruseBasis);
@@ -207,6 +187,8 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
   phys->setWorkset(assembler->wkset);
   params->wkset = assembler->wkset;
   
+  phys->setVars();
+  
   if (settings->sublist("Mesh").get<bool>("have element data", false) ||
       settings->sublist("Mesh").get<bool>("have nodal data", false)) {
     mesh->readMeshData();//LA_overlapped_map, assembler->cells);
@@ -221,9 +203,24 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), DOF(DOF
   this->setupFixedDOFs(settings);
   
   /////////////////////////////////////////////////////////////////////////////
+  
+  have_initial_conditions = false;
+  if (settings->sublist("Physics").isSublist("Initial conditions")) {
+    have_initial_conditions = true;
+  }
+  else {
+    for (size_t b=0; b<blocknames.size(); b++) {
+      if (settings->sublist("Physics").isSublist(blocknames[b])) {
+        if (settings->sublist("Physics").sublist(blocknames[b]).isSublist("Initial conditions")) {
+          have_initial_conditions  = true;
+        }
+      }
+    }
+  }
+  
   scalarInitialData = settings->sublist("Physics").sublist("Initial conditions").get<bool>("scalar data", false);
   
-  if (scalarInitialData) {
+  if (have_initial_conditions && scalarInitialData) {
     for (size_t b=0; b<blocknames.size(); b++) {
       
       std::string blockID = blocknames[b];
@@ -597,14 +594,14 @@ void solver<Node>::finalizeWorkset() {
   for (size_t b=0; b<assembler->cells.size(); b++) {
     
     if (assembler->cells[b].size() > 0) {
-      vector<vector<int> > voffsets = phys->offsets[b];
+      vector<vector<int> > voffsets = disc->offsets[b];
       size_t maxoff = 0;
       for (size_t i=0; i<voffsets.size(); i++) {
         if (voffsets[i].size() > maxoff) {
           maxoff = voffsets[i].size();
         }
       }
-      // GH: this will not work if AssemblyMem is Cuda
+      
       Kokkos::View<int**,AssemblyDevice> offsets_view("offsets on assembly device",voffsets.size(),maxoff);
       auto host_offsets = Kokkos::create_mirror_view(offsets_view);
       for (size_t i=0; i<voffsets.size(); i++) {
@@ -613,16 +610,15 @@ void solver<Node>::finalizeWorkset() {
         }
       }
       Kokkos::deep_copy(offsets_view,host_offsets);
-      assembler->wkset[b]->offsets = offsets_view;//phys->voffsets[b];
+      assembler->wkset[b]->offsets = offsets_view;
       
       size_t maxpoff = 0;
       for (size_t i=0; i<params->paramoffsets.size(); i++) {
         if (params->paramoffsets[i].size() > maxpoff) {
           maxpoff = params->paramoffsets[i].size();
         }
-        //maxpoff = max(maxpoff,paramoffsets[i].size());
       }
-      // GH: this will not work if AssemblyMem is Cuda
+      
       Kokkos::View<int**,AssemblyDevice> poffsets_view("param offsets on assembly device",params->paramoffsets.size(),maxpoff);
       auto host_poffsets = Kokkos::create_mirror_view(poffsets_view);
       for (size_t i=0; i<params->paramoffsets.size(); i++) {
@@ -633,7 +629,7 @@ void solver<Node>::finalizeWorkset() {
       Kokkos::deep_copy(poffsets_view,host_poffsets);
       assembler->wkset[b]->usebasis = useBasis[b];
       assembler->wkset[b]->paramusebasis = params->discretized_param_usebasis;
-      assembler->wkset[b]->paramoffsets = poffsets_view;//paramoffsets;
+      assembler->wkset[b]->paramoffsets = poffsets_view;
       assembler->wkset[b]->varlist = varlist[b];
       assembler->wkset[b]->createSolns();
       int numDOF = assembler->cells[b][0]->LIDs.extent(1);
@@ -646,7 +642,6 @@ void solver<Node>::finalizeWorkset() {
       assembler->wkset[b]->params = params->paramvals_AD;
       assembler->wkset[b]->params_AD = params->paramvals_KVAD;
       assembler->wkset[b]->paramnames = params->paramnames;
-      //assembler->wkset[b]->setupParamBasis(discretized_param_basis);
       assembler->wkset[b]->setTime(current_time);
       if (assembler->boundaryCells.size() > b) { // avoid seg faults
         for (size_t e=0; e<assembler->boundaryCells[b].size(); e++) {
@@ -669,7 +664,7 @@ void solver<Node>::finalizeWorkset() {
 
 // ========================================================================================
 // Set up the Tpetra objects (maps, importers, exporters and graphs)
-// These do need to be recomputed whenever the mesh changes */
+// These need to be recomputed whenever the mesh changes
 // ========================================================================================
 
 template<class Node>
@@ -683,51 +678,102 @@ void solver<Node>::setupLinearAlgebra() {
     }
   }
   
-  LA_owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, LA_owned, 0, Comm));
-  LA_overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, LA_ownedAndShared, 0, Comm));
-  LA_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(LA_overlapped_map,maxEntries));
-  
-  exporter = Teuchos::rcp(new LA_Export(LA_overlapped_map, LA_owned_map));
-  importer = Teuchos::rcp(new LA_Import(LA_owned_map, LA_overlapped_map));
-  
-  // Fill in the graph
-  for (size_t b=0; b<blocknames.size(); b++) {
-    vector<size_t> EIDs = disc->myElements[b];
-    for (size_t e=0; e<EIDs.size(); e++) {
-      vector<GO> gids;
-      size_t elemID = EIDs[e];
-      DOF->getElementGIDs(elemID, gids, blocknames[b]);
-      for (size_t i=0; i<gids.size(); i++) {
-        GO ind1 = gids[i];
-        LA_overlapped_graph->insertGlobalIndices(ind1,gids);
-      }
-    }
-  }
-  
-  LA_overlapped_graph->fillComplete();
-  
-  
-  if (params->num_discretized_params > 0) {
-    // Fill in the graph
-    params->param_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(params->param_overlapped_map,maxEntries));
+  // primary variable LA objects
+  {
+    vector<GO> LA_owned, LA_ownedAndShared;
     
+    disc->DOF->getOwnedIndices(LA_owned);
+    LO numUnknowns = (LO)LA_owned.size();
+    disc->DOF->getOwnedAndGhostedIndices(LA_ownedAndShared);
+    GO localNumUnknowns = numUnknowns;
+    
+    GO globalNumUnknowns = 0;
+    Teuchos::reduceAll<LO,GO>(*Comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
+    
+    LA_owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, LA_owned, 0, Comm));
+    LA_overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, LA_ownedAndShared, 0, Comm));
+    LA_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(LA_overlapped_map,maxEntries));
+    
+    exporter = Teuchos::rcp(new LA_Export(LA_overlapped_map, LA_owned_map));
+    importer = Teuchos::rcp(new LA_Import(LA_owned_map, LA_overlapped_map));
+    
+    // Fill in the graph
     for (size_t b=0; b<blocknames.size(); b++) {
       vector<size_t> EIDs = disc->myElements[b];
       for (size_t e=0; e<EIDs.size(); e++) {
         vector<GO> gids;
         size_t elemID = EIDs[e];
-        params->paramDOF->getElementGIDs(elemID, gids, blocknames[b]);
-        vector<GO> stategids;
-        DOF->getElementGIDs(elemID, stategids, blocknames[b]);
+        disc->DOF->getElementGIDs(elemID, gids, blocknames[b]);
         for (size_t i=0; i<gids.size(); i++) {
           GO ind1 = gids[i];
-          params->param_overlapped_graph->insertGlobalIndices(ind1,stategids);
+          LA_overlapped_graph->insertGlobalIndices(ind1,gids);
         }
       }
     }
     
-    params->param_overlapped_graph->fillComplete(LA_owned_map, params->param_owned_map);
+    LA_overlapped_graph->fillComplete();
+  }
+  
+  // aux variable LA objects
+  if (phys->have_aux) {
+    vector<GO> aux_owned, aux_ownedAndShared;
     
+    disc->auxDOF->getOwnedIndices(aux_owned);
+    LO numUnknowns = (LO)aux_owned.size();
+    disc->auxDOF->getOwnedAndGhostedIndices(aux_ownedAndShared);
+    GO localNumUnknowns = numUnknowns;
+    
+    GO globalNumUnknowns = 0;
+    Teuchos::reduceAll<LO,GO>(*Comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
+    
+    aux_owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, aux_owned, 0, Comm));
+    aux_overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, aux_ownedAndShared, 0, Comm));
+    aux_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(aux_overlapped_map,maxEntries));
+    
+    aux_exporter = Teuchos::rcp(new LA_Export(aux_overlapped_map, aux_owned_map));
+    aux_importer = Teuchos::rcp(new LA_Import(aux_owned_map, aux_overlapped_map));
+    
+    // Fill in the graph
+    for (size_t b=0; b<blocknames.size(); b++) {
+      vector<size_t> EIDs = disc->myElements[b];
+      for (size_t e=0; e<EIDs.size(); e++) {
+        vector<GO> gids;
+        size_t elemID = EIDs[e];
+        disc->auxDOF->getElementGIDs(elemID, gids, blocknames[b]);
+        for (size_t i=0; i<gids.size(); i++) {
+          GO ind1 = gids[i];
+          aux_overlapped_graph->insertGlobalIndices(ind1,gids);
+        }
+      }
+    }
+    
+    aux_overlapped_graph->fillComplete();
+  }
+    
+  // discretized parameter LA objects
+  {
+    if (params->num_discretized_params > 0) {
+      // Fill in the graph
+      params->param_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(params->param_overlapped_map,maxEntries));
+      
+      for (size_t b=0; b<blocknames.size(); b++) {
+        vector<size_t> EIDs = disc->myElements[b];
+        for (size_t e=0; e<EIDs.size(); e++) {
+          vector<GO> gids;
+          size_t elemID = EIDs[e];
+          params->paramDOF->getElementGIDs(elemID, gids, blocknames[b]);
+          vector<GO> stategids;
+          disc->DOF->getElementGIDs(elemID, stategids, blocknames[b]);
+          for (size_t i=0; i<gids.size(); i++) {
+            GO ind1 = gids[i];
+            params->param_overlapped_graph->insertGlobalIndices(ind1,stategids);
+          }
+        }
+      }
+      
+      params->param_overlapped_graph->fillComplete(LA_owned_map, params->param_owned_map);
+      
+    }
   }
   
   if (milo_debug_level > 0) {
@@ -753,7 +799,7 @@ void solver<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & setting
     }
   }
   
-  if (!phys->haveDirichlet) {
+  if (!disc->haveDirichlet) {
     usestrongDBCs = false;
   }
   
@@ -908,7 +954,7 @@ void solver<Node>::projectDirichlet() {
 // ========================================================================================
 
 template<class Node>
-void solver<Node>::forwardModel(DFAD & obj) {
+void solver<Node>::forwardModel(DFAD & objective) {
   
   current_time = initial_time;
   
@@ -926,27 +972,17 @@ void solver<Node>::forwardModel(DFAD & obj) {
   }
   vector_RCP u = this->setInitial();
  
-  Kokkos::fence();
- 
+  
   if (solver_type == "transient") {
     soln->store(u, current_time, 0); // copies the data
   }
   
-  vector_RCP zero_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
   if (solver_type == "steady-state") {
-    
-    this->nonlinearSolver(u, zero_soln);
-    if (compute_objective) {
-      obj = this->computeObjective(u, 0.0, 0);
-    }
-    postproc->record(current_time);
-    if (save_solution) {
-      soln->store(u, current_time, 0);
-    }
+    this->steadySolver(objective, u);
   }
   else if (solver_type == "transient") {
     vector<ScalarT> gradient; // not really used here
-    this->transientSolver(u, obj, gradient, initial_time, final_time);
+    this->transientSolver(u, objective, gradient, initial_time, final_time);
   }
   else {
     // print out an error message
@@ -961,6 +997,36 @@ void solver<Node>::forwardModel(DFAD & obj) {
   if (milo_debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished solver::forwardModel" << endl;
+    }
+  }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void solver<Node>::steadySolver(DFAD & objective, vector_RCP & u) {
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting solver::steadySolver ..." << endl;
+    }
+  }
+  
+  vector_RCP zero_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
+  
+  this->nonlinearSolver(u, zero_soln);
+  if (compute_objective) {
+    objective = this->computeObjective(u, 0.0, 0);
+  }
+  postproc->record(current_time);
+  if (save_solution) {
+    soln->store(u, current_time, 0);
+  }
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting solver::steadySolver" << endl;
     }
   }
 }
@@ -1390,7 +1456,8 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       res->doExport(*res_over, *exporter, Tpetra::ADD);
     }
     
-      
+    //KokkosTools::print(res,"residual from solver interface");
+    //KokkosTools::print(J,"Jacobian from solver interface");
     if (milo_debug_level>2) {
       //KokkosTools::print(J,"Jacobian from solver interface");
       //KokkosTools::print(res,"residual from solver interface");
@@ -1734,7 +1801,7 @@ void solver<Node>::computeSensitivities(vector_RCP & u,
       else { // coarse-scale
       
         ScalarT currsens = 0.0;
-        for( size_t i=0; i<LA_owned.size(); i++ ) {
+        for( size_t i=0; i<res_kv.extent(0); i++ ) {
           currsens += a2_kv(i,0) * res_kv(i,paramiter);
         }
         localsens[paramiter] = -currsens;
@@ -1772,11 +1839,10 @@ void solver<Node>::computeSensitivities(vector_RCP & u,
     //params->sacadoizeParams(false);
     vector_RCP a_owned = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // adjoint solution
     auto ao_kv = a_owned->template getLocalView<LA_device>();
-    
-    for( size_t i=0; i<LA_owned.size(); i++ ) {
+    //Kokkos::deep_copy(ao_kv,a2_kv);
+    for (size_t i=0; i<ao_kv.extent(0); i++) {
       ao_kv(i,0) = a2_kv(i,0);
     }
-    
     vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
     matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(params->param_owned_map,
                                                                               maxEntries));
@@ -1845,6 +1911,12 @@ void solver<Node>::computeSensitivities(vector_RCP & u,
 template<class Node>
 void solver<Node>::setDirichlet(vector_RCP & u) {
   
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting solver::setDirichlet ..." << endl;
+    }
+  }
+  
   Teuchos::TimeMonitor localtimer(*dbcsettimer);
   
   typedef typename Node::execution_space LA_exec;
@@ -1877,36 +1949,6 @@ void solver<Node>::setDirichlet(vector_RCP & u) {
           }
         }
       }
-      /*
-      for (size_t b=0; b<dbcDOFs.size(); b++) {
-        for (size_t v=0; v<dbcDOFs[b].size(); v++) {
-          ScalarT value = scalarDirichletValues[b][v];
-          Kokkos::View<ScalarT[1],LA_device> scalarval("scalar value");
-          auto scval_host = Kokkos::create_mirror_view(scalarval);
-          scval_host(0) = value;
-          Kokkos::deep_copy(scalarval,scval_host);
-          auto dbcs = dbcDOFs[b][v];
-          bool copy_views = false;
-#if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA) // Assembly=Cuda, Solver=CPU
-          auto dbcs_dev = Kokkos::create_mirror(LA_device, dbcs);
-          copy_views = true;
-#elif !defined(MrHyDE_ASSEMBLYSPACE_CUDA) && defined(MrHyDE_SOLVERSPACE_CUDA) // Assembly=CPU, Solver=GPU
-          auto dbcs_dev = Kokkos::create_mirror_view(dbcs);
-          copy_views = true;
-#else
-          auto dbcs_dev = dbcs;
-#endif
-          if (copy_views) {
-            Kokkos::deep_copy(dbcs_dev,dbcs);
-          }
-          parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,dbcs.extent(0)), KOKKOS_LAMBDA (const int i ) {
-          //for (size_t i=0; i<dbcDOFs[b][v].size(); i++) {
-            LO ind = dbcs_dev(i);//dbcDOFs[b][v][i];
-            ScalarT val = scalarval(0);
-            u_kv(ind,0) = val;
-          });
-        }
-      }*/
     }
     else {
       auto dbc_kv = fixedDOF_soln->template getLocalView<LA_device>();
@@ -1920,21 +1962,10 @@ void solver<Node>::setDirichlet(vector_RCP & u) {
           }
         }
       }
-      /*
-      for (size_t b=0; b<dbcDOFs.size(); b++) {
-        for (size_t v=0; v<dbcDOFs[b].size(); v++) {
-          auto dbcs = dbcDOFs[b][v];
-          parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,dbcs.extent(0)), KOKKOS_LAMBDA (const int i ) {
-            //for (size_t i=0; i<dbcDOFs[b][v].size(); i++) {
-            LO ind = dbcs(i);//dbcDOFs[b][v][i];
-            u_kv(ind,0) = dbc_kv(ind,0);
-          });
-        }
-      }*/
     }
     
     // set point dbcs
-    vector<vector<GO> > pointDOFs = phys->point_dofs;
+    vector<vector<GO> > pointDOFs = disc->point_dofs;
     for (size_t b=0; b<blocknames.size(); b++) {
       vector<GO> pt_dofs = pointDOFs[b];
       Kokkos::View<LO*,LA_device> ptdofs("pointwise dofs", pointDOFs[b].size());
@@ -1948,6 +1979,12 @@ void solver<Node>::setDirichlet(vector_RCP & u) {
         LO row = ptdofs(i);
         u_kv(row,0) = 0.0; // fix to zero for now
       });
+    }
+  }
+  
+  if (milo_debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished solver::setDirichlet" << endl;
     }
   }
 }
@@ -1979,6 +2016,7 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial(
   }
   
   vector_RCP initial = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+  initial->putScalar(0.0);
   
   bool samedevice = true;
   bool usehost = false;
@@ -1992,87 +2030,86 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial(
     }
   }
   
-  if (scalarInitialData) {
-    
-    
-    auto initial_kv = initial->template getLocalView<LA_device>();
-    
-    for (size_t block=0; block<assembler->cells.size(); block++) {
-      
-      Kokkos::View<ScalarT*,LA_device> idata("scalar initial data",scalarInitialValues[block].size());
-      auto idata_host = Kokkos::create_mirror_view(idata);
-      for (size_t i=0; i<scalarInitialValues[block].size(); i++) {
-        idata_host(i) = scalarInitialValues[block][i];
-      }
-      Kokkos::deep_copy(idata,idata_host);
+  if (have_initial_conditions) {
+    if (scalarInitialData) {
       
       
-      if (samedevice) {
-        auto offsets = assembler->wkset[block]->offsets;
-        auto numDOF = assembler->cellData[block]->numDOF;
-        for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
-          auto LIDs = assembler->cells[block][cell]->LIDs;
-          parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
-            for (size_type n=0; n<numDOF.extent(0); n++) {
-              for (int i=0; i<numDOF(n); i++ ) {
-                initial_kv(LIDs(e,offsets(n,i)),0) = idata(n);
-              }
-            }
-          });
+      auto initial_kv = initial->template getLocalView<LA_device>();
+      
+      for (size_t block=0; block<assembler->cells.size(); block++) {
+        
+        Kokkos::View<ScalarT*,LA_device> idata("scalar initial data",scalarInitialValues[block].size());
+        auto idata_host = Kokkos::create_mirror_view(idata);
+        for (size_t i=0; i<scalarInitialValues[block].size(); i++) {
+          idata_host(i) = scalarInitialValues[block][i];
         }
-      }
-      else if (usehost) {
-        auto offsets = assembler->wkset[block]->offsets;
-        auto host_offsets = Kokkos::create_mirror_view(offsets);
-        Kokkos::deep_copy(host_offsets,offsets);
-        auto numDOF = assembler->cellData[block]->numDOF_host;
-        for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
-          auto LIDs = assembler->cells[block][cell]->LIDs_host;
-          parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
-            for (size_type n=0; n<numDOF.extent(0); n++) {
-              for (int i=0; i<numDOF(n); i++ ) {
-                initial_kv(LIDs(e,host_offsets(n,i)),0) = idata(n);
+        Kokkos::deep_copy(idata,idata_host);
+        
+        
+        if (samedevice) {
+          auto offsets = assembler->wkset[block]->offsets;
+          auto numDOF = assembler->cellData[block]->numDOF;
+          for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
+            auto LIDs = assembler->cells[block][cell]->LIDs;
+            parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+              for (size_type n=0; n<numDOF.extent(0); n++) {
+                for (int i=0; i<numDOF(n); i++ ) {
+                  initial_kv(LIDs(e,offsets(n,i)),0) = idata(n);
+                }
               }
-            }
-          });
+            });
+          }
         }
+        else if (usehost) {
+          auto offsets = assembler->wkset[block]->offsets;
+          auto host_offsets = Kokkos::create_mirror_view(offsets);
+          Kokkos::deep_copy(host_offsets,offsets);
+          auto numDOF = assembler->cellData[block]->numDOF_host;
+          for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
+            auto LIDs = assembler->cells[block][cell]->LIDs_host;
+            parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+              for (size_type n=0; n<numDOF.extent(0); n++) {
+                for (int i=0; i<numDOF(n); i++ ) {
+                  initial_kv(LIDs(e,host_offsets(n,i)),0) = idata(n);
+                }
+              }
+            });
+          }
+        }
+        
       }
       
     }
-    
-  }
-  else {
-  
-    initial->putScalar(0.0);
-    
-    vector_RCP glinitial = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
-    
-    if (initial_type == "L2-projection") {
+    else {
       
-      // Compute the L2 projection of the initial data into the discrete space
-      vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-      matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_overlapped_graph));
-      vector_RCP glrhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
-      matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_owned_map, maxEntries));
-      assembler->setInitial(rhs, mass, useadjoint);
+      vector_RCP glinitial = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
       
-      glmass->setAllToScalar(0.0);
-      glmass->doExport(*mass, *exporter, Tpetra::ADD);
-      
-      glrhs->putScalar(0.0);
-      glrhs->doExport(*rhs, *exporter, Tpetra::ADD);
-      
-      glmass->fillComplete();
-      
-      this->linearSolver(glmass, glrhs, glinitial);
-      have_preconditioner = false; // resetting this because mass matrix may not have connectivity as Jacobians
-      initial->doImport(*glinitial, *importer, Tpetra::ADD);
-      
-    }
-    else if (initial_type == "interpolation") {
-      
-      assembler->setInitial(initial, useadjoint);
-      
+      if (initial_type == "L2-projection") {
+        // Compute the L2 projection of the initial data into the discrete space
+        vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+        matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_overlapped_graph));
+        vector_RCP glrhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+        matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_owned_map, maxEntries));
+        assembler->setInitial(rhs, mass, useadjoint);
+        
+        glmass->setAllToScalar(0.0);
+        glmass->doExport(*mass, *exporter, Tpetra::ADD);
+        
+        glrhs->putScalar(0.0);
+        glrhs->doExport(*rhs, *exporter, Tpetra::ADD);
+        
+        glmass->fillComplete();
+        
+        this->linearSolver(glmass, glrhs, glinitial);
+        have_preconditioner = false; // resetting this because mass matrix may not have connectivity as Jacobians
+        initial->doImport(*glinitial, *importer, Tpetra::ADD);
+        
+      }
+      else if (initial_type == "interpolation") {
+        
+        assembler->setInitial(initial, useadjoint);
+        
+      }
     }
   }
   
@@ -2110,6 +2147,7 @@ void solver<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & sol
       if (useDomDecomp) {
         if (!reuse_preconditioner || !have_preconditioner) {
           Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
+          ifpackList.set("schwarz: subdomain solver","garbage");
           M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
           M_dd->setParameters(ifpackList);
           M_dd->initialize();
@@ -2155,7 +2193,9 @@ void solver<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & sol
     belosList->set("number of equations",numEqns);
     
     belosList->set("Output Style",          Belos::Brief);
-    belosList->set("Implicit Residual Scaling", "Norm of Preconditioned Initial Residual");//None");
+    //belosList->set("Implicit Residual Scaling", "Norm of Preconditioned Initial Residual");//None");
+    belosList->set("Implicit Residual Scaling", "Norm of Initial Residual");//None");
+    //belosList->set("Implicit Residual Scaling", "None");//None");
     
     Teuchos::RCP<Belos::SolverManager<ScalarT, LA_MultiVector, LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT, LA_MultiVector, LA_Operator>(Problem, belosList));
     
@@ -2282,7 +2322,7 @@ void solver<Node>::finalizeMultiscale() {
     multiscale_manager->macro_wkset = assembler->wkset;
     
     multiscale_manager->setMacroInfo(disc->basis_pointers, disc->basis_types,
-                                     phys->varlist, useBasis, phys->offsets,
+                                     phys->varlist, useBasis, disc->offsets,
                                      assembler->cells[0][0]->cellData->numDOF,
                                      params->paramnames, params->discretized_param_names);
     

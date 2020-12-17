@@ -15,7 +15,7 @@
 
 using namespace MrHyDE;
 
-porousHDIV_WG::porousHDIV_WG(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+porousHDIV_WG::porousHDIV_WG(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
   
   label = "porousHDIV-WeakGalerkin";
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
@@ -337,7 +337,7 @@ void porousHDIV_WG::boundaryResidual() {
   }
   else if (bcs(pintnum,cside) == 5) {
     auto off = Kokkos::subview(offsets, unum, Kokkos::ALL());
-    auto lambda = Kokkos::subview(aux_side, Kokkos::ALL(), auxpbndrynum, Kokkos::ALL());
+    auto lambda = Kokkos::subview(aux_side, Kokkos::ALL(), auxpbndrynum, Kokkos::ALL(),0);
     parallel_for("porous WG bndry resid MS Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD lam = lambda(elem,pt)*wts(elem,pt);

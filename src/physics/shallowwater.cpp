@@ -19,7 +19,7 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-shallowwater::shallowwater(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+shallowwater::shallowwater(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
   
   label = "shallowwater";
   spaceDim = 2; // Just 2D

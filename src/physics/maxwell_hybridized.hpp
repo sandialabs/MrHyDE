@@ -56,7 +56,7 @@ namespace MrHyDE {
     
     ~maxwell_HYBRID() {};
     
-    maxwell_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings);
+    maxwell_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_);
     
     // ========================================================================================
     // ========================================================================================

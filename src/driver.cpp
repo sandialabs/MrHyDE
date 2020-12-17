@@ -104,10 +104,7 @@ int main(int argc,char * argv[]) {
     // Set up the physics
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<physics> phys = Teuchos::rcp( new physics(settings, Comm,
-                                                           mesh->cellTopo,
-                                                           mesh->sideTopo,
-                                                           mesh->mesh) );
+    Teuchos::RCP<physics> phys = Teuchos::rcp( new physics(settings, Comm, mesh->mesh) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // Mesh only needs the variable names and types to finalize
@@ -121,9 +118,8 @@ int main(int argc,char * argv[]) {
         
     Teuchos::RCP<discretization> disc = Teuchos::rcp( new discretization(settings, Comm,
                                                                          mesh->mesh,
-                                                                         phys->unique_orders,
-                                                                         phys->unique_types) );
-    
+                                                                         phys) );
+                                                                         
     ////////////////////////////////////////////////////////////////////////////////
     // Create the function managers
     ////////////////////////////////////////////////////////////////////////////////
@@ -143,28 +139,17 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     phys->defineFunctions(functionManagers);
-    
-    ////////////////////////////////////////////////////////////////////////////////
-    // The DOF-manager needs to be aware of the physics and the discretization(s)
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    Teuchos::RCP<panzer::DOFManager> DOF = disc->buildDOF(mesh->mesh, phys->varlist,
-                                                          phys->types, phys->orders,
-                                                          phys->useDG);
-    
-    phys->setBCData(settings, mesh->mesh, DOF, disc->cards);
-    phys->setDirichletData(mesh->mesh, DOF);
-    
+        
     ////////////////////////////////////////////////////////////////////////////////
     // Create the solver object
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<ParameterManager<SolverNode> > params = Teuchos::rcp( new ParameterManager<SolverNode>(Comm, settings,
-                                                                               mesh->mesh, phys, disc));
-                                                         
+                                                                                                        mesh->mesh, phys, disc));
+    
     Teuchos::RCP<AssemblyManager<SolverNode> > assembler = Teuchos::rcp( new AssemblyManager<SolverNode>(Comm, settings, mesh->mesh,
-                                                                                disc, phys, DOF, params,
-                                                                                numElemPerCell));
+                                                                                                         disc, phys, params,
+                                                                                                         numElemPerCell));
     
     mesh->setMeshData(assembler->cells);
     
@@ -184,16 +169,15 @@ int main(int argc,char * argv[]) {
     
     Teuchos::RCP<PostprocessManager<SolverNode> >
     postproc = Teuchos::rcp( new PostprocessManager<SolverNode>(Comm, settings, mesh->mesh, mesh->optimization_mesh,
-                                                    disc, phys,
-                                                    functionManagers, multiscale_manager,
-                                                    assembler, params) );
+                                                                disc, phys, functionManagers, multiscale_manager,
+                                                                assembler, params) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // Set up the solver and finalize some objects
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<solver<SolverNode> > solve = Teuchos::rcp( new solver<SolverNode>(Comm, settings, mesh,
-                                                          disc, phys, DOF, assembler, params) );
+                                                                                   disc, phys, assembler, params) );
     
     solve->multiscale_manager = multiscale_manager;
     solve->postproc = postproc;
@@ -208,25 +192,17 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     for (size_t b=0; b<eBlocks.size(); b++) {
-      functionManagers[b]->setupLists(phys->varlist[b], params->paramnames,
-                                      params->discretized_param_names);
+      functionManagers[b]->setupLists(phys->varlist[b], phys->aux_varlist[b],
+                                      params->paramnames, params->discretized_param_names);
       
       functionManagers[b]->wkset = assembler->wkset[b];
       
       functionManagers[b]->validateFunctions();
       functionManagers[b]->decomposeFunctions();
     }
+    Kokkos::fence();
     
     solve->finalizeMultiscale();
-    
-    ////////////////////////////////////////////////////////////////////////////////
-    // Create the postprocessing object
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    //Teuchos::RCP<PostprocessManager>
-    //postproc = Teuchos::rcp( new PostprocessManager(Comm, settings, mesh->mesh, disc, phys,
-    //                                                solve, DOF, assembler->cells, functionManagers,
-    //                                                assembler, params, sensors) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // Perform the requested analysis (fwd solve, adj solve, dakota run, etc.)

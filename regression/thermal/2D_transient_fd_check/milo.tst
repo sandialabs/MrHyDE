@@ -78,18 +78,34 @@ status += its.call('./run.sh')
 
   # Test 2
   #
-status += its.call('diff -y %s.log ./ref/%s.ocs' % (root, root))
-  #status += its.call("awk 'NR==1 {print substr($0,0,38)} NR>1 {print substr($0,0,41);}' < %s.ocs | diff - ref/%s.ocs" % (root, root))
+#status += its.call('diff -y %s.log ./ref/%s.ocs' % (root, root))
+#  #status += its.call("awk 'NR==1 {print substr($0,0,38)} NR>1 {print substr($0,0,41);}' < %s.ocs | diff - ref/%s.ocs" % (root, root))
 
-  # Test 3
-#  cmd = 'ichos_diff.exe -aeps %g -reps %g -r1 ref/%s.rst -r2 %s.rst %s' \
-#        %(aeps, reps, root, root, root)
-#  status += its.call(cmd)
+flog = '%s.log' % (root)
+reflog = 'ref/%s.ocs' % (root)
 
-  # Test 4
-#  cmd = 'ichos_diff.exe -aeps %g -reps %g -r1 ref/%s.adj.rst -r2 %s.adj.rst %s'\
-#        %(aeps, reps, root, root, root)
-#  status += its.call(cmd)
+testdat = [0.0, 0.0, 0.0]
+prog = 0
+for line in open(flog):
+  if "1.00000000" in  line:
+    w = line.split()
+    if len(w)>3 :
+      testdat[prog] = float(w[3])
+      prog = prog+1
+
+refdat = [0.0, 0.0, 0.0]
+prog = 0
+for line in open(reflog):
+  if "1.00000000" in  line: 
+    w = line.split()
+    if len(w)>3 :
+      refdat[prog] = float(w[3])
+      prog = prog+1
+
+for chk in range(3):
+  if abs(refdat[chk]-testdat[chk]) > aeps :
+    status += 1
+    print('  Failure: gradient error is too large.')
 
 # ------------------------------
 if its.opts.baseline and not status:

@@ -19,7 +19,7 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-stokes::stokes(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+stokes::stokes(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
   
   label = "stokes";
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);

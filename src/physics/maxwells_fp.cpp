@@ -18,7 +18,7 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-maxwells_fp::maxwells_fp(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+maxwells_fp::maxwells_fp(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
   
   //potential approach to frequency-domain Maxwell's (see Boyse et al (1992)); uses -iwt convention
   

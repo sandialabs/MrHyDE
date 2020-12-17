@@ -20,7 +20,7 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
   
   label = "linearelasticity";
   
@@ -305,7 +305,7 @@ void linearelasticity::boundaryResidual() {
       }
       else if (dx_sidetype == 5) { // weak Dirichlet for multiscale
         auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
-        auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
+        auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL(),0);
         parallel_for("LE ux bndry resid 1D wD-ms",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (size_type k=0; k<basis.extent(2); k++ ) {
             AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
@@ -355,8 +355,8 @@ void linearelasticity::boundaryResidual() {
         else if (dx_sidetype == 5) { // weak Dirichlet for multiscale
           auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
           auto dy = Kokkos::subview( sol_side, Kokkos::ALL(), dy_num, Kokkos::ALL(), 0);
-          auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
-          auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL());
+          auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL(),0);
+          auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL(),0);
           parallel_for("LE ux bndry resid 1D wD-ms",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
@@ -406,8 +406,8 @@ void linearelasticity::boundaryResidual() {
         else if (dy_sidetype == 5) { // weak Dirichlet for multiscale
           auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
           auto dy = Kokkos::subview( sol_side, Kokkos::ALL(), dy_num, Kokkos::ALL(), 0);
-          auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
-          auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL());
+          auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL(),0);
+          auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL(),0);
           parallel_for("LE uy bndry resid 2D wD-ms",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
@@ -464,9 +464,9 @@ void linearelasticity::boundaryResidual() {
           auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
           auto dy = Kokkos::subview( sol_side, Kokkos::ALL(), dy_num, Kokkos::ALL(), 0);
           auto dz = Kokkos::subview( sol_side, Kokkos::ALL(), dz_num, Kokkos::ALL(), 0);
-          auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
-          auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL());
-          auto lambdaz = Kokkos::subview( aux_side, Kokkos::ALL(), auxdz_num, Kokkos::ALL());
+          auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL(),0);
+          auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL(),0);
+          auto lambdaz = Kokkos::subview( aux_side, Kokkos::ALL(), auxdz_num, Kokkos::ALL(),0);
           parallel_for("LE ux bndry resid 3D wD-ms",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
@@ -522,9 +522,9 @@ void linearelasticity::boundaryResidual() {
           auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
           auto dy = Kokkos::subview( sol_side, Kokkos::ALL(), dy_num, Kokkos::ALL(), 0);
           auto dz = Kokkos::subview( sol_side, Kokkos::ALL(), dz_num, Kokkos::ALL(), 0);
-          auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
-          auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL());
-          auto lambdaz = Kokkos::subview( aux_side, Kokkos::ALL(), auxdz_num, Kokkos::ALL());
+          auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL(),0);
+          auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL(),0);
+          auto lambdaz = Kokkos::subview( aux_side, Kokkos::ALL(), auxdz_num, Kokkos::ALL(),0);
           parallel_for("LE uy bndry resid 3D wD-ms",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
@@ -579,9 +579,9 @@ void linearelasticity::boundaryResidual() {
           auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
           auto dy = Kokkos::subview( sol_side, Kokkos::ALL(), dy_num, Kokkos::ALL(), 0);
           auto dz = Kokkos::subview( sol_side, Kokkos::ALL(), dz_num, Kokkos::ALL(), 0);
-          auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
-          auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL());
-          auto lambdaz = Kokkos::subview( aux_side, Kokkos::ALL(), auxdz_num, Kokkos::ALL());
+          auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL(),0);
+          auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL(),0);
+          auto lambdaz = Kokkos::subview( aux_side, Kokkos::ALL(), auxdz_num, Kokkos::ALL(),0);
           parallel_for("LE uz bndry resid 3D wD-ms",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
@@ -635,7 +635,7 @@ void linearelasticity::computeFlux() {
     
     if (spaceDim == 1) {
       auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
-      auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
+      auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL(),0);
       auto flux_x = Kokkos::subview( flux, Kokkos::ALL(), dx_num, Kokkos::ALL());
       parallel_for("LE flux 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (size_type k=0; k<flux_x.extent(1); k++) {
@@ -647,8 +647,8 @@ void linearelasticity::computeFlux() {
     else if (spaceDim == 2) {
       auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
       auto dy = Kokkos::subview( sol_side, Kokkos::ALL(), dy_num, Kokkos::ALL(), 0);
-      auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
-      auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL());
+      auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL(),0);
+      auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL(),0);
       auto flux_x = Kokkos::subview( flux, Kokkos::ALL(), dx_num, Kokkos::ALL());
       auto flux_y = Kokkos::subview( flux, Kokkos::ALL(), dy_num, Kokkos::ALL());
       parallel_for("LE flux 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -663,9 +663,9 @@ void linearelasticity::computeFlux() {
       auto dx = Kokkos::subview( sol_side, Kokkos::ALL(), dx_num, Kokkos::ALL(), 0);
       auto dy = Kokkos::subview( sol_side, Kokkos::ALL(), dy_num, Kokkos::ALL(), 0);
       auto dz = Kokkos::subview( sol_side, Kokkos::ALL(), dz_num, Kokkos::ALL(), 0);
-      auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL());
-      auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL());
-      auto lambdaz = Kokkos::subview( aux_side, Kokkos::ALL(), auxdz_num, Kokkos::ALL());
+      auto lambdax = Kokkos::subview( aux_side, Kokkos::ALL(), auxdx_num, Kokkos::ALL(),0);
+      auto lambday = Kokkos::subview( aux_side, Kokkos::ALL(), auxdy_num, Kokkos::ALL(),0);
+      auto lambdaz = Kokkos::subview( aux_side, Kokkos::ALL(), auxdz_num, Kokkos::ALL(),0);
       auto flux_x = Kokkos::subview( flux, Kokkos::ALL(), dx_num, Kokkos::ALL());
       auto flux_y = Kokkos::subview( flux, Kokkos::ALL(), dy_num, Kokkos::ALL());
       auto flux_z = Kokkos::subview( flux, Kokkos::ALL(), dz_num, Kokkos::ALL());

@@ -36,7 +36,7 @@ namespace MrHyDE {
     
     ~porousHDIV_HYBRID() {};
     
-    porousHDIV_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings);
+    porousHDIV_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_);
     
     // ========================================================================================
     // ========================================================================================

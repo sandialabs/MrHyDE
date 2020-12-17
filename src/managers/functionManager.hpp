@@ -46,7 +46,9 @@ namespace MrHyDE {
     // Set the lists of variables, parameters and discretized parameters
     //////////////////////////////////////////////////////////////////////////////////////
     
-    void setupLists(const std::vector<std::string> & variables_, const std::vector<std::string> & parameters_,
+    void setupLists(const std::vector<std::string> & variables_,
+                    const std::vector<std::string> & aux_variables_,
+                    const std::vector<std::string> & parameters_,
                     const std::vector<std::string> & disc_parameters_);
     
     //////////////////////////////////////////////////////////////////////////////////////
@@ -102,7 +104,7 @@ namespace MrHyDE {
     
     std::vector<function_class> functions;
     
-    std::vector<std::string> variables, parameters, disc_parameters;
+    std::vector<std::string> variables, aux_variables, parameters, disc_parameters;
     std::vector<std::string> known_vars, known_ops;
     Teuchos::RCP<workset> wkset;
     Teuchos::RCP<Interpreter> interpreter;

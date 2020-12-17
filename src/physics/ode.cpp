@@ -17,7 +17,7 @@ using namespace MrHyDE;
 // ========================================================================================
 // ========================================================================================
 
-ODE::ODE(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+ODE::ODE(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
   
   label = "ode";
   myvars.push_back("q");

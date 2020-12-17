@@ -14,7 +14,7 @@
 #include "porousHDIV_hybridized.hpp"
 using namespace MrHyDE;
 
-porousHDIV_HYBRID::porousHDIV_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+porousHDIV_HYBRID::porousHDIV_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
   
   label = "porousHDIV-Hybrid";
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
@@ -209,7 +209,7 @@ void porousHDIV_HYBRID::boundaryResidual() {
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
   auto off = Kokkos::subview(offsets, unum, Kokkos::ALL());
-  auto lambda = Kokkos::subview(aux_side, Kokkos::ALL(), auxlambdanum, Kokkos::ALL());
+  auto lambda = Kokkos::subview(aux_side, Kokkos::ALL(), auxlambdanum, Kokkos::ALL(),0);
   
   if (bcs(pnum,cside) == 1) {
     parallel_for("porous HDIV-HY bndry resid Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {

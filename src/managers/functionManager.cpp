@@ -77,9 +77,11 @@ int FunctionManager::addFunction(const string & fname, const string & expression
 //////////////////////////////////////////////////////////////////////////////////////
 
 void FunctionManager::setupLists(const vector<string> & variables_,
+                                 const vector<string> & aux_variables_,
                                  const vector<string> & parameters_,
                                  const vector<string> & disc_parameters_) {
   variables = variables_;
+  aux_variables = aux_variables_;
   parameters = parameters_;
   disc_parameters = disc_parameters_;
 }
@@ -348,6 +350,123 @@ void FunctionManager::decomposeFunctions() {
             
           }
         }
+        
+        // IS IT ONE OF THE AUX VARIABLES
+        /*
+        if (decompose) {
+          for (unsigned int j=0; j<aux_variables.size(); j++) {
+            if (functions[fiter].terms[k].expression == aux_variables[j]) { // just scalar variables
+              functions[fiter].terms[k].isRoot = true;
+              functions[fiter].terms[k].isAD = true;
+              functions[fiter].terms[k].beenDecomposed = true;
+              decompose = false;
+              if (functions[fiter].location == "side ip") {
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux_side, Kokkos::ALL(), j, Kokkos::ALL(), 0);
+              }
+              else if (functions[fiter].location == "point") {
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux_point, Kokkos::ALL(), j, Kokkos::ALL(), 0);
+              }
+              else {
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux, Kokkos::ALL(), j, Kokkos::ALL(), 0);
+              }
+            }
+            else if (functions[fiter].terms[k].expression == (aux_variables[j]+"_x")) { // deriv. of scalar var. w.r.t x
+              functions[fiter].terms[k].isRoot = true;
+              functions[fiter].terms[k].isAD = true;
+              functions[fiter].terms[k].beenDecomposed = true;
+              decompose = false;
+              if (functions[fiter].location == "side ip") {
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux_grad_side, Kokkos::ALL(), j, Kokkos::ALL(), 0);
+              }
+              else if (functions[fiter].location == "point") {
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux_grad_point, Kokkos::ALL(), j, Kokkos::ALL(), 0);
+              }
+              else {
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux_grad, Kokkos::ALL(), j, Kokkos::ALL(), 0);
+              }
+            }
+            else if (functions[fiter].terms[k].expression == (aux_variables[j]+"_y")) { // deriv. of scalar var. w.r.t y
+              functions[fiter].terms[k].isRoot = true;
+              functions[fiter].terms[k].isAD = true;
+              functions[fiter].terms[k].beenDecomposed = true;
+              decompose = false;
+              if (functions[fiter].location == "side ip") {
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux_grad_side, Kokkos::ALL(), j, Kokkos::ALL(), 1);
+              }
+              else if (functions[fiter].location == "point") {
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux_grad_point, Kokkos::ALL(), j, Kokkos::ALL(), 1);
+              }
+              else {
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux_grad, Kokkos::ALL(), j, Kokkos::ALL(), 1);
+              }
+            }
+            else if (functions[fiter].terms[k].expression == (aux_variables[j]+"_z")) { // deriv. of scalar var. w.r.t z
+              functions[fiter].terms[k].isRoot = true;
+              functions[fiter].terms[k].isAD = true;
+              functions[fiter].terms[k].beenDecomposed = true;
+              decompose = false;
+              if (functions[fiter].location == "side ip") {
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux_grad_side, Kokkos::ALL(), j, Kokkos::ALL(), 2);
+              }
+              else if (functions[fiter].location == "point") {
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux_grad_point, Kokkos::ALL(), j, Kokkos::ALL(), 2);
+              }
+              else {
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux_grad, Kokkos::ALL(), j, Kokkos::ALL(), 2);
+              }
+            }
+            else if (functions[fiter].terms[k].expression == (aux_variables[j]+"_t")) { // deriv. of scalar var. w.r.t x
+              functions[fiter].terms[k].isRoot = true;
+              functions[fiter].terms[k].isAD = true;
+              functions[fiter].terms[k].beenDecomposed = true;
+              decompose = false;
+              if (functions[fiter].location == "side ip" || functions[fiter].location == "point") {
+                TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MILO currently does not support the time derivative of a variable on boundaries or point evaluation points.");
+              }
+              else {
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux_dot, Kokkos::ALL(), j, Kokkos::ALL(), 0);
+              }
+            }
+            else if (functions[fiter].terms[k].expression == (aux_variables[j]+"[x]")) { // x-component of vector scalar var.
+              functions[fiter].terms[k].isRoot = true;
+              functions[fiter].terms[k].isAD = true;
+              functions[fiter].terms[k].beenDecomposed = true;
+              decompose = false;
+              if (functions[fiter].location == "side ip") {
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux_side, Kokkos::ALL(), j, Kokkos::ALL(), 0);
+              }
+              else if (functions[fiter].location == "ip") { // TMW: NOT UPDATED FOR point
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux, Kokkos::ALL(), j, Kokkos::ALL(), 0);
+              }
+            }
+            else if (functions[fiter].terms[k].expression == (aux_variables[j]+"[y]")) { // y-component of vector scalar var.
+              functions[fiter].terms[k].isRoot = true;
+              functions[fiter].terms[k].isAD = true;
+              functions[fiter].terms[k].beenDecomposed = true;
+              decompose = false;
+              if (functions[fiter].location == "side ip") {
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux_side, Kokkos::ALL(), j, Kokkos::ALL(), 1);
+              }
+              else if (functions[fiter].location == "ip") { // TMW: NOT UPDATED FOR point
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux, Kokkos::ALL(), j, Kokkos::ALL(), 1);
+              }
+            }
+            else if (functions[fiter].terms[k].expression == (aux_variables[j]+"[z]")) { // z-component of vector scalar var.
+              functions[fiter].terms[k].isRoot = true;
+              functions[fiter].terms[k].isAD = true;
+              functions[fiter].terms[k].beenDecomposed = true;
+              decompose = false;
+              if (functions[fiter].location == "side ip") {
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux_side, Kokkos::ALL(), j, Kokkos::ALL(), 2);
+              }
+              else if (functions[fiter].location == "ip") { // TMW: NOT UPDATED FOR point
+                functions[fiter].terms[k].data = Kokkos::subview(wkset->local_aux, Kokkos::ALL(), j, Kokkos::ALL(), 2);
+              }
+            }
+            
+          }
+        }
+        */
         
         // IS THE TERM A SIMPLE SCALAR: 2.03, 1.0E2, etc.
         if (decompose) {

@@ -74,6 +74,8 @@ namespace MrHyDE {
     bool have_params = false; //optional
     bool have_subgrid = false; //optional
     bool have_functions = false; //optional
+    bool have_aux_phys = false; //optional
+    bool have_aux_disc = false; //optional
     
     //////////////////////////////////////////////////////////////////////////////////////////
     // Import the main input.xml file
@@ -113,6 +115,10 @@ namespace MrHyDE {
       have_subgrid = true;
     if (settings->isSublist("Functions"))
       have_functions = true;
+    if (settings->isSublist("Aux Physics"))
+      have_aux_phys = true;
+    if (settings->isSublist("Aux Discretization"))
+      have_aux_disc = true;
     
     //////////////////////////////////////////////////////////////////////////////////////////
     // Some of the sublists are required (mesh, physics, solver, analysis)
@@ -305,6 +311,52 @@ namespace MrHyDE {
           TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the functions settings file: " + filename);
       }
     }
+    
+    if (!have_aux_phys) { // this is optional (unless Aux Discretization is defined)
+      if (settings->isParameter("Aux Physics input file")) {
+        std::string filename = settings->get<std::string>("Aux Physics input file");
+        std::ifstream fn(filename.c_str());
+        if (fn.good()) {
+          Teuchos::RCP<Teuchos::ParameterList> phys_parlist = Teuchos::rcp( new Teuchos::ParameterList() );
+          int type = getFileType(filename);
+          if (type == 0)
+            Teuchos::updateParametersFromYamlFile( filename, Teuchos::Ptr<Teuchos::ParameterList>(&*phys_parlist) );
+          else if (type == 1)
+            Teuchos::updateParametersFromXmlFile( filename, Teuchos::Ptr<Teuchos::ParameterList>(&*phys_parlist) );
+          
+          settings->setParameters( *phys_parlist );
+        }
+        else
+          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the aux physics settings file: " + filename);
+      }
+    }
+    
+    if (!have_aux_disc) { // this is optional (unless Aux Physics is defined)
+      if (settings->isParameter("Aux Discretization input file")) {
+        std::string filename = settings->get<std::string>("Aux Discretization input file");
+        std::ifstream fn(filename.c_str());
+        if (fn.good()) {
+          Teuchos::RCP<Teuchos::ParameterList> disc_parlist = Teuchos::rcp( new Teuchos::ParameterList() );
+          int type = getFileType(filename);
+          if (type == 0)
+            Teuchos::updateParametersFromYamlFile( filename, Teuchos::Ptr<Teuchos::ParameterList>(&*disc_parlist) );
+          else if (type == 1)
+            Teuchos::updateParametersFromXmlFile( filename, Teuchos::Ptr<Teuchos::ParameterList>(&*disc_parlist) );
+          
+          settings->setParameters( *disc_parlist );
+        }
+        else
+          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the aux discretization settings file: " + filename);
+      }
+    }
+    
+    if (have_aux_disc && !have_aux_phys) {
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: an aux discretization was defined, but not an aux physics");
+    }
+    else if (!have_aux_disc && have_aux_phys) {
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: an aux physics was defined, but not an aux discretization");
+    }
+    
     return settings;
   }
   

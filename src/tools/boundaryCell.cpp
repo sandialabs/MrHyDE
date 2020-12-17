@@ -190,10 +190,7 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
 void BoundaryCell::computeSizeNormals() {
 
   hsize = Kokkos::View<ScalarT*,AssemblyDevice>("element sizes",numElem);
-  //auto host_hsize = Kokkos::create_mirror_view(hsize);
-  //auto host_wts = Kokkos::create_mirror_view(wts);
-  //Kokkos::deep_copy(host_wts,wts);
-
+  
   using std::pow;
   using std::sqrt;
   
@@ -205,13 +202,7 @@ void BoundaryCell::computeSizeNormals() {
     ScalarT dimscl = 1.0/((ScalarT)ip.extent(2)-1.0);
     hsize(e) = pow(vol,dimscl);
   });
-  //Kokkos::deep_copy(hsize,host_hsize);
-
-  // TMW: this might not be needed
-  // scale the normal vector (we need unit normal...)
-
-  //auto host_normals = Kokkos::create_mirror_view(normals);
-  //Kokkos::deep_copy(host_normals,normals);
+  
   parallel_for("bcell normal rescale",RangePolicy<AssemblyExec>(0,normals.extent(0)), KOKKOS_LAMBDA (const int e ) {
     for (size_type j=0; j<normals.extent(1); j++ ) {
       ScalarT normalLength = 0.0;
@@ -224,7 +215,7 @@ void BoundaryCell::computeSizeNormals() {
       }
     }
   });
-  //Kokkos::deep_copy(normals, host_normals);
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -233,15 +224,6 @@ void BoundaryCell::computeSizeNormals() {
 void BoundaryCell::setWorkset(Teuchos::RCP<workset> & wkset_) {
   
   wkset = wkset_;
-  
-  // Frequently used Views
-  //res_AD = wkset->res;
-  //offsets = wkset->offsets;
-  //paramoffsets = wkset->paramoffsets;
-  
-  //numDOF = cellData->numDOF;
-  //numParamDOF = cellData->numParamDOF;
-  //numAuxDOF = cellData->numAuxDOF;
   
 }
 
@@ -391,7 +373,7 @@ void BoundaryCell::computeSoln(const int & seedwhat) {
     for (size_type var=0; var<numAuxDOF.extent(0); var++) {
       auto abasis = auxside_basis[auxusebasis[var]];
       auto off = Kokkos::subview(auxoffsets,var,Kokkos::ALL());
-      auto local_aux = Kokkos::subview(wkset->local_aux_side,Kokkos::ALL(),var,Kokkos::ALL());
+      auto local_aux = Kokkos::subview(wkset->local_aux_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
       auto localID = localElemID;
       auto varaux = Kokkos::subview(aux,Kokkos::ALL(),var,Kokkos::ALL());
       if (seedwhat == 4) {

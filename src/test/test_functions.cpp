@@ -44,10 +44,11 @@ int main(int argc, char * argv[]) {
     
     Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager("eblock",numElem,numip,numip));
     vector<string> variables = {"a","b","c","d","p"};
+    vector<string> aux_variables = {"aux z"};
     vector<string> parameters = {"mu"};
     vector<string> disc_parameters = {"ff"};
     
-    functionManager->setupLists(variables, parameters, disc_parameters);
+    functionManager->setupLists(variables, aux_variables, parameters, disc_parameters);
     
     
     /*

@@ -70,6 +70,14 @@ namespace MrHyDE {
     
     // ========================================================================================
     // ========================================================================================
+
+    vector<std::pair<size_t,string> > addTrueSolutions(Teuchos::ParameterList & true_solns,
+                                                       vector<string> & vars,
+                                                       vector<string> & types,
+                                                       const int & block);
+
+    // ========================================================================================
+    // ========================================================================================
     
     void record(const ScalarT & currenttime);
     
@@ -110,19 +118,15 @@ namespace MrHyDE {
     Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
     Teuchos::RCP<discretization> disc;
     Teuchos::RCP<physics> phys;
-    
     Teuchos::RCP<panzer_stk::STK_Interface> optimization_mesh; // Needs to be set manually (for now)
-    
-    //Teuchos::RCP<const panzer::DOFManager> DOF;
-    //Teuchos::RCP<solver> solve;
     Teuchos::RCP<AssemblyManager<Node> > assembler;
     Teuchos::RCP<ParameterManager<Node> > params;
     Teuchos::RCP<SensorManager> sensors;
     std::vector<Teuchos::RCP<FunctionManager> > functionManagers;
     Teuchos::RCP<MultiScale> multiscale_manager;
     
-    bool compute_response, compute_error, compute_subgrid_error;
-    bool write_solution, write_subgrid_solution, write_HFACE_variables, write_optimization_solution;
+    bool compute_response, compute_error, compute_subgrid_error, compute_aux_error;
+    bool write_solution, write_aux_solution, write_subgrid_solution, write_HFACE_variables, write_optimization_solution;
     std::string exodus_filename;
     int spaceDim;                                                // spatial dimension
     //int numNodes;                                              // total number of nodes in the mesh
@@ -130,9 +134,6 @@ namespace MrHyDE {
     int numCells;                                                // number of domain cells (normall it is 1)
     size_t numBlocks;                                            // number of element blocks
     
-    std::vector<std::vector<int> > numBasis;
-    std::vector<std::vector<int> > useBasis;
-    std::vector<int> maxbasis;
     bool have_sensor_data, save_sensor_data, write_dakota_output, isTD;
     bool plot_response, save_height_file;
     std::string sname;
@@ -143,26 +144,19 @@ namespace MrHyDE {
     std::vector<Kokkos::View<ScalarT**,HostDevice> > responses; // [time](sensors,response)
     std::vector<std::vector<std::vector<Kokkos::View<ScalarT*,HostDevice> > > > subgrid_errors; // extra std::vector for multiple subgrid models [time][block][sgmodel](error_list)
     
-    std::vector<int> numVars; // Number of variables used by the application (may not be used yet)
     int numsteps;
-    std::vector<std::vector<std::string> > varlist;
+    std::vector<std::vector<std::string> > varlist, aux_varlist; // TMW: remove these at some point
     
     bool use_sol_mod_mesh, use_sol_mod_height;
     int sol_to_mod_mesh, sol_to_mod_height;
     ScalarT meshmod_TOL, layer_size;
-    //bool compute_subgrid_error, have_subgrids;
     
-    
-    
-    //Teuchos::RCP<const LA_Map> overlapped_map;
-    //Teuchos::RCP<const LA_Map> param_overlapped_map;
     std::string response_type, error_type;
     std::vector<ScalarT> plot_times, response_times, error_times; // probably always the same
     
-    //std::vector<std::vector<Teuchos::RCP<cell> > > cells;
     int verbosity, milo_debug_level;
     
-    std::vector<std::vector<std::pair<size_t,std::string> > > error_list; // [block][errors]
+    std::vector<std::vector<std::pair<size_t,std::string> > > error_list, aux_error_list; // [block][errors]
     std::vector<std::vector<std::vector<std::pair<size_t,std::string> > > > subgrid_error_lists; // [block][sgmodel][errors]
     
     // Timers

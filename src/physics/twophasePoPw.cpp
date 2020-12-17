@@ -14,7 +14,7 @@
 #include "twophasePoPw.hpp"
 using namespace MrHyDE;
 
-twophasePoPw::twophasePoPw(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+twophasePoPw::twophasePoPw(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
   
   // Standard data
   label = "twophase";

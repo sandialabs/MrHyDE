@@ -39,7 +39,7 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    msphasefield(Teuchos::RCP<Teuchos::ParameterList> & settings,
+    msphasefield(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_,
                  const Teuchos::RCP<MpiComm> & Comm_);
     
     // ========================================================================================

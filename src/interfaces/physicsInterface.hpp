@@ -79,14 +79,13 @@ namespace MrHyDE {
     physics() {} ;
     
     physics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<MpiComm> & Comm_,
-            vector<topo_RCP> & cellTopo, vector<topo_RCP> & sideTopo,
             Teuchos::RCP<panzer_stk::STK_Interface> & mesh);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     // Add the requested physics modules, variables, discretization types 
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void importPhysics();
+    void importPhysics(const bool & isaux);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     // Add the functions to the function managers
@@ -187,7 +186,7 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void setVars(size_t & block, vector<string> & vars);
+    void setVars();
     
     void setAuxVars(size_t & block, vector<string> & vars);
     
@@ -240,40 +239,6 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
-                   Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
-                   Teuchos::RCP<panzer::DOFManager> & DOF,
-                   std::vector<std::vector<int> > cards);
-    
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    
-    void setDirichletData(Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
-                          Teuchos::RCP<panzer::DOFManager> & DOF);
-    
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    
-    Kokkos::View<int****,HostDevice> getSideInfo(const size_t & block, Kokkos::View<int*,HostDevice> elem);
-    
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    
-    vector<vector<int> > getOffsets(const int & block, Teuchos::RCP<panzer::DOFManager> & DOF);
-    
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    
-    Kokkos::View<int**,HostDevice> getSideInfo(const int & block, int & num, size_t & e);
-    
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    
-    //void setPeriBCs(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<panzer_stk::STK_Interface> & mesh);
-    
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    
     void volumeResidual(const size_t block);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -306,42 +271,28 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<Teuchos::ParameterList> settings;
-    vector<vector<Teuchos::RCP<physicsbase> > > modules;
+    vector<vector<Teuchos::RCP<physicsbase> > > modules, aux_modules;
     vector<Teuchos::RCP<FunctionManager> > functionManagers;
     Teuchos::RCP<MpiComm> Commptr;
-    vector<Teuchos::ParameterList> blockPhysSettings, blockDiscSettings;
+    vector<Teuchos::ParameterList> blockPhysSettings, blockDiscSettings, aux_blockPhysSettings, aux_blockDiscSettings;
     vector<string> blocknames, sideNames;
     int spaceDim, milo_debug_level;
     size_t numBlocks;
     
+    bool have_aux = false;
+    vector<int> numVars, aux_numVars;
+    vector<vector<bool> > useSubgrid, aux_useSubgrid;
+    vector<vector<bool> > useDG, aux_useDG;
+    //bool haveDirichlet;
     
-    vector<int> numVars;
-    vector<vector<bool> > useSubgrid;
-    vector<vector<bool> > useDG;
-    bool haveDirichlet;
-    
-    vector<vector<string> > varlist;
-    vector<vector<int> > varowned;
-    vector<vector<int> > orders;
-    vector<vector<string> > types;
-    vector<vector<int> > unique_orders;
-    vector<vector<string> > unique_types;
-    vector<vector<int> > unique_index;
-    
-    vector<Kokkos::View<int****,HostDevice> > side_info;
-    //vector<vector<vector<size_t> > > localDirichletSideIDs, globalDirichletSideIDs;
-    //vector<vector<vector<size_t> > > boundDirichletElemIDs;
-    vector<vector<GO> > point_dofs;
-    vector<vector<vector<LO> > > dbc_dofs;
-    
-    vector<Kokkos::View<int**,HostDevice> > var_bcs;
-    
-    //vector<FCint> offsets;
-    vector<vector<vector<int> > > offsets;
-    vector<string> sideSets;
-    vector<string> nodeSets;
-    int numSidesPerElem, numNodesPerElem;
-    vector<size_t> numElem;
+    vector<vector<string> > varlist, aux_varlist;
+    vector<vector<int> > varowned, aux_varowned;
+    vector<vector<int> > orders, aux_orders;
+    vector<vector<string> > types, aux_types;
+    vector<vector<int> > unique_orders, aux_unique_orders;
+    vector<vector<string> > unique_types, aux_unique_types;
+    vector<vector<int> > unique_index, aux_unique_index;
+        
     string initial_type, cellfield_reduction;
     
     vector<vector<string> > extrafields_list, extracellfields_list, response_list, target_list, weight_list;

@@ -98,8 +98,11 @@ namespace MrHyDE {
     void computeSolnSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
                                  const int & seedwhat);
     
-    void computeParamSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
+    void computeParamSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> params,
                                   const int & seedwhat);
+    
+    void computeAuxSolnSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> aux,
+                                    const int & seedwhat);
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Compute the solutions at general set of points
@@ -133,6 +136,12 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////////
     
     void computeSolnFaceIP();
+    
+    ////////////////////////////////////////////////////////////////////////////////////
+    // Compute the solutions at the face ip
+    ////////////////////////////////////////////////////////////////////////////////////
+    
+    void computeAuxSolnFaceIP();
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Compute the discretized parameters at the side ip
@@ -184,14 +193,14 @@ namespace MrHyDE {
     
     // Should be the only view stored on Host
     // Used by physics modules to determine the proper contribution to the boundary residual
-    Kokkos::View<int**,HostDevice> var_bcs;
+    Kokkos::View<int**,HostDevice> var_bcs, aux_var_bcs;
     
-    Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets;
-    vector<string> varlist;
-    Kokkos::View<ScalarT**,AssemblyDevice> butcher_A;
-    Kokkos::View<ScalarT*,AssemblyDevice> butcher_b, butcher_c, BDF_wts;
+    Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets, aux_offsets;
+    vector<string> varlist, aux_varlist;
+    Kokkos::View<ScalarT**,AssemblyDevice> butcher_A, aux_butcher_A;
+    Kokkos::View<ScalarT*,AssemblyDevice> butcher_b, butcher_c, BDF_wts, aux_butcher_b, aux_butcher_c, aux_BDF_wts;
     
-    vector<int> usebasis, paramusebasis;
+    vector<int> usebasis, paramusebasis, aux_usebasis;
     vector<int> vars_HGRAD, vars_HVOL, vars_HDIV, vars_HCURL, vars_HFACE;
     vector<int> paramvars_HGRAD, paramvars_HVOL, paramvars_HDIV, paramvars_HCURL, paramvars_HFACE;
     
@@ -220,23 +229,23 @@ namespace MrHyDE {
     Kokkos::View<ScalarT***,AssemblyDevice> ip, ip_side, normals, point;
     Kokkos::View<ScalarT**,AssemblyDevice> wts, wts_side;
     
-    Kokkos::View<AD***,AssemblyDevice> uvals, u_dotvals, pvals;
+    Kokkos::View<AD***,AssemblyDevice> uvals, u_dotvals, pvals, auxvals, aux_dotvals;
     
     vector<Kokkos::View<ScalarT****,AssemblyDevice> > basis, basis_grad, basis_curl, basis_side, basis_face, basis_grad_side, basis_grad_face, basis_curl_side, basis_curl_face;
     vector<Kokkos::View<ScalarT***,AssemblyDevice> > basis_div, basis_div_side;
     
-    Kokkos::View<AD****, AssemblyDevice> local_soln, local_soln_grad, local_soln_dot, local_soln_dot_grad, local_soln_curl;
-    Kokkos::View<AD***, AssemblyDevice> local_soln_div, local_param_div, local_aux, local_aux_side;
+    Kokkos::View<AD****, AssemblyDevice> local_soln, local_soln_grad, local_soln_dot, local_aux_dot, local_soln_dot_grad, local_soln_curl;
+    Kokkos::View<AD***, AssemblyDevice> local_soln_div, local_param_div, local_aux_div;
     Kokkos::View<AD****, AssemblyDevice> local_param, local_param_side, local_param_curl;
+    Kokkos::View<AD****, AssemblyDevice> local_aux, local_aux_side, local_aux_curl;
     Kokkos::View<AD****, AssemblyDevice> local_param_grad, local_aux_grad, local_param_grad_side, local_aux_grad_side;
     Kokkos::View<AD****, AssemblyDevice> local_soln_side, local_soln_grad_side, local_soln_dot_side;
-    Kokkos::View<AD****, AssemblyDevice> local_soln_face, local_soln_grad_face;
-    
-    //Kokkos::View<AD****, AssemblyDevice> local_soln_reset, local_soln_grad_reset, local_soln_dot_reset, local_soln_curl_reset;
-    //Kokkos::View<AD***, AssemblyDevice> local_soln_div_reset;
+    Kokkos::View<AD****, AssemblyDevice> local_soln_face, local_soln_grad_face, local_aux_face, local_aux_grad_face;
     
     Kokkos::View<AD****, AssemblyDevice> local_soln_point, local_soln_grad_point, local_param_grad_point;
     Kokkos::View<AD****, AssemblyDevice> local_param_point;
+    
+    Kokkos::View<AD***, AssemblyDevice> scratch;
     
     int sidetype;
     Kokkos::View<int****,AssemblyDevice> sideinfo;

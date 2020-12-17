@@ -21,7 +21,7 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-msphasefield::msphasefield(Teuchos::RCP<Teuchos::ParameterList> & settings,
+msphasefield::msphasefield(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_,
                            const Teuchos::RCP<MpiComm> & Comm_) :
 Comm(Comm_) {
   
@@ -395,7 +395,7 @@ void msphasefield::computeFlux() {
       AD diff = DiffusionCoeff(x,y,z);
       AD penalty = 10.0*diff/wkset->h(e);
       wkset->flux(e,phi_num[0],i) += diff*wkset->local_soln_grad_side(e,phi_num[0],i,0)*wkset->normals(e,i,0)
-      + penalty*(wkset->local_aux_side(e,phi_num[0],i)-wkset->local_soln_side(e,phi_num[0],i,0));
+      + penalty*(wkset->local_aux_side(e,phi_num[0],i,0)-wkset->local_soln_side(e,phi_num[0],i,0));
       if (spaceDim > 1)
         wkset->flux(e,phi_num[0],i) += diff*wkset->local_soln_grad_side(e,phi_num[0],i,1)*wkset->normals(e,i,1);
       if (spaceDim > 2)

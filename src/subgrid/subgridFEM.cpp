@@ -189,15 +189,13 @@ void SubGridFEM::setUpSubgridModels() {
   // Define the sub-grid physics
   /////////////////////////////////////////////////////////////////////////////////////
   
-  sub_physics = Teuchos::rcp( new physics(settings, LocalComm, sub_mesh->cellTopo,
-                                          sub_mesh->sideTopo, sub_mesh->mesh) );
+  sub_physics = Teuchos::rcp( new physics(settings, LocalComm, sub_mesh->mesh) );
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the subgrid discretizations
   /////////////////////////////////////////////////////////////////////////////////////
   
-  sub_disc = Teuchos::rcp( new discretization(settings, LocalComm, sub_mesh->mesh, sub_physics->unique_orders,
-                                              sub_physics->unique_types) );
+  sub_disc = Teuchos::rcp( new discretization(settings, LocalComm, sub_mesh->mesh, sub_physics) );
   
   
   /////////////////////////////////////////////////////////////////////////////////////
@@ -225,13 +223,13 @@ void SubGridFEM::setUpSubgridModels() {
   // The DOF-manager needs to be aware of the physics and the discretization(s)
   ////////////////////////////////////////////////////////////////////////////////
   
-  Teuchos::RCP<panzer::DOFManager> DOF = sub_disc->buildDOF(sub_mesh->mesh,
-                                                            sub_physics->varlist,
-                                                            sub_physics->types,
-                                                            sub_physics->orders,
-                                                            sub_physics->useDG);
+  //Teuchos::RCP<panzer::DOFManager> DOF = sub_disc->buildDOF(sub_mesh->mesh,
+  //                                                          sub_physics->varlist,
+  //                                                          sub_physics->types,
+  //                                                          sub_physics->orders,
+  //                                                          sub_physics->useDG);
   
-  sub_physics->setBCData(settings, sub_mesh->mesh, DOF, sub_disc->cards);
+  //sub_physics->setBCData(settings, sub_mesh->mesh, DOF, sub_disc->cards);
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the parameter manager, the assembler and the solver
@@ -241,8 +239,7 @@ void SubGridFEM::setUpSubgridModels() {
                                                   sub_physics, sub_disc));
   
   sub_assembler = Teuchos::rcp( new AssemblyManager<SubgridSolverNode>(LocalComm, settings, sub_mesh->mesh,
-                                                    sub_disc, sub_physics, DOF,
-                                                    sub_params, numSubElem));
+                                                    sub_disc, sub_physics, sub_params, numSubElem));
   
   cells = sub_assembler->cells;
   
@@ -270,7 +267,7 @@ void SubGridFEM::setUpSubgridModels() {
   sub_mesh->mesh->getMyElements(blockID, stk_meshElems);
   
   // Does need to be PHX::Device
-  Kokkos::View<const LO**,Kokkos::LayoutRight, PHX::Device> LIDs = DOF->getLIDs();
+  Kokkos::View<const LO**,Kokkos::LayoutRight, PHX::Device> LIDs = sub_disc->DOF->getLIDs();
   
   for (size_t s=0; s<unique_sides.size(); s++) {
     
@@ -318,7 +315,7 @@ void SubGridFEM::setUpSubgridModels() {
       
       //-----------------------------------------------
       // Set the side information (soon to be removed)-
-      Kokkos::View<int****,HostDevice> sideinfo = sub_physics->getSideInfo(0,host_eIndex2);
+      Kokkos::View<int****,HostDevice> sideinfo = sub_disc->getSideInfo(0,host_eIndex2);
       
       //-----------------------------------------------
       // Set the cell orientation ---
@@ -377,7 +374,7 @@ void SubGridFEM::setUpSubgridModels() {
   
   size_t numMacroDOF = macroData[0]->macroLIDs.extent(1);
   sub_solver = Teuchos::rcp( new SubGridFEM_Solver(LocalComm, settings, sub_mesh, sub_disc, sub_physics,
-                                                   sub_assembler, sub_params, DOF, macro_deltat,
+                                                   sub_assembler, sub_params, macro_deltat,
                                                    numMacroDOF) );
   
   sub_postproc = Teuchos::rcp( new PostprocessManager<SubgridSolverNode>(LocalComm, settings, sub_mesh->mesh,
@@ -393,7 +390,8 @@ void SubGridFEM::setUpSubgridModels() {
     Teuchos::TimeMonitor localtimer(*sgfemLinearAlgebraSetupTimer);
     
     varlist = sub_physics->varlist[0];
-    functionManagers[0]->setupLists(sub_physics->varlist[0], macro_paramnames, macro_disc_paramnames);
+    functionManagers[0]->setupLists(sub_physics->varlist[0], sub_physics->aux_varlist[0],
+                                    macro_paramnames, macro_disc_paramnames);
     sub_assembler->wkset[0]->params_AD = paramvals_KVAD;
     
     functionManagers[0]->wkset = sub_assembler->wkset[0];

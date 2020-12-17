@@ -29,7 +29,7 @@ namespace MrHyDE {
     
     ~twophasePoPw() {};
     
-    twophasePoPw(Teuchos::RCP<Teuchos::ParameterList> & settings);
+    twophasePoPw(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_);
     
     // ========================================================================================
     // ========================================================================================

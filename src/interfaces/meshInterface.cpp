@@ -180,7 +180,9 @@ settings(settings_), Commptr(Commptr_) {
   
   // create the mesh
   //mesh = mesh_factory->buildUncommitedMesh(Commptr->Comm());
+  
   mesh = mesh_factory->buildUncommitedMesh(*(Commptr->getRawMpiComm()));
+  
   if (settings->sublist("Postprocess").get("create optimization movie",false)) {
     optimization_mesh = mesh_factory->buildUncommitedMesh(*(Commptr->getRawMpiComm()));
   }
@@ -339,7 +341,6 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
         mesh->addCellField(varlist[j], eBlocks[i]);
       }
       else if (vartypes[j] == "HFACE") { // hybridized variable
-        //mesh->addSolutionField(varlist[j], eBlocks[i]);
         mesh->addCellField(varlist[j], eBlocks[i]);
       }
       else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL") { // HDIV or HCURL
@@ -351,6 +352,31 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
         mesh->addCellField(varlist[j]+"z", eBlocks[i]);
       }
     }
+    
+    if (phys->have_aux) {
+      std::vector<string> varlist = phys->aux_varlist[i];
+      std::vector<string> vartypes = phys->aux_types[i];
+      for (size_t j=0; j<varlist.size(); j++) {
+        if (vartypes[j] == "HGRAD") {
+          mesh->addSolutionField(varlist[j], eBlocks[i]);
+        }
+        else if (vartypes[j] == "HVOL") { // PW constant
+          mesh->addCellField(varlist[j], eBlocks[i]);
+        }
+        else if (vartypes[j] == "HFACE") { // hybridized variable
+          mesh->addCellField(varlist[j], eBlocks[i]);
+        }
+        else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL") { // HDIV or HCURL
+          mesh->addSolutionField(varlist[j]+"x", eBlocks[i]);
+          mesh->addSolutionField(varlist[j]+"y", eBlocks[i]);
+          mesh->addSolutionField(varlist[j]+"z", eBlocks[i]);
+          mesh->addCellField(varlist[j]+"x", eBlocks[i]);
+          mesh->addCellField(varlist[j]+"y", eBlocks[i]);
+          mesh->addCellField(varlist[j]+"z", eBlocks[i]);
+        }
+      }
+    }
+    
     mesh->addSolutionField("dispx", eBlocks[i]);
     mesh->addSolutionField("dispy", eBlocks[i]);
     mesh->addSolutionField("dispz", eBlocks[i]);

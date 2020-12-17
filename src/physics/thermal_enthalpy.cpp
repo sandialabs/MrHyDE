@@ -19,7 +19,7 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-thermal_enthalpy::thermal_enthalpy(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+thermal_enthalpy::thermal_enthalpy(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
   
   label = "thermal_enthalpy";
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);

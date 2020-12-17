@@ -70,6 +70,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   compute_response = settings->sublist("Postprocess").get<bool>("compute responses",false);
   compute_error = settings->sublist("Postprocess").get<bool>("compute errors",false);
   write_solution = settings->sublist("Postprocess").get("write solution",false);
+  write_aux_solution = settings->sublist("Postprocess").get("write aux solution",false);
   write_subgrid_solution = settings->sublist("Postprocess").get("write subgrid solution",false);
   write_HFACE_variables = settings->sublist("Postprocess").get("write HFACE variables",false);
   exodus_filename = settings->sublist("Postprocess").get<string>("output file","output")+".exo";
@@ -83,6 +84,16 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
         for (size_t var=0; var<types[b].size(); var++) {
           if (types[b][var] == "HFACE") {
             have_HFACE_vars = true;
+          }
+        }
+      }
+      if (phys->have_aux) {
+        vector<vector<string> > types = phys->aux_types;
+        for (size_t b=0; b<types.size(); b++) {
+          for (size_t var=0; var<types[b].size(); var++) {
+            if (types[b][var] == "HFACE") {
+              have_HFACE_vars = true;
+            }
           }
         }
       }
@@ -115,8 +126,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   
   numNodesPerElem = settings->sublist("Mesh").get<int>("numNodesPerElem",4); // actually set by mesh interface
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
-  numVars = phys->numVars; //
-  
+    
   response_type = settings->sublist("Postprocess").get("response type", "pointwise"); // or "global"
   have_sensor_data = settings->sublist("Analysis").get("have sensor data", false); // or "global"
   save_sensor_data = settings->sublist("Analysis").get("save sensor data",false);
@@ -128,90 +138,19 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   sol_to_mod_mesh = settings->sublist("Postprocess").get<int>("solution for mesh mod",0);
   meshmod_TOL = settings->sublist("Postprocess").get<ScalarT>("solution based mesh mod TOL",1.0);
   layer_size = settings->sublist("Postprocess").get<ScalarT>("solution based mesh mod layer thickness",0.1);
-  
-  /*
-   string error_list = settings->sublist("Postprocess").get<string>("Error type","L2"); // or "H1"
-   // Script to break delimited list into pieces
-   {
-   string delimiter = ", ";
-   size_t pos = 0;
-   if (error_list.find(delimiter) == string::npos) {
-   error_types.push_back(error_list);
-   }
-   else {
-   string token;
-   while ((pos = error_list.find(delimiter)) != string::npos) {
-   token = error_list.substr(0, pos);
-   error_types.push_back(token);
-   error_list.erase(0, pos + delimiter.length());
-   }
-   error_types.push_back(error_list);
-   }
-   }
-   */
-  
-  /*
-   string subgrid_error_list = settings->sublist("Postprocess").get<string>("Subgrid error type","L2"); // or "H1"
-   // Script to break delimited list into pieces
-   {
-   string delimiter = ", ";
-   size_t pos = 0;
-   if (subgrid_error_list.find(delimiter) == string::npos) {
-   subgrid_error_types.push_back(subgrid_error_list);
-   }
-   else {
-   string token;
-   while ((pos = subgrid_error_list.find(delimiter)) != string::npos) {
-   token = subgrid_error_list.substr(0, pos);
-   subgrid_error_types.push_back(token);
-   subgrid_error_list.erase(0, pos + delimiter.length());
-   }
-   subgrid_error_types.push_back(subgrid_error_list);
-   }
-   }
-   */
-  
+    
   use_sol_mod_height = settings->sublist("Postprocess").get<bool>("solution based height mod",false);
   sol_to_mod_height = settings->sublist("Postprocess").get<int>("solution for height mod",0);
   
-  //have_subgrids = false;
-  //if (settings->isSublist("Subgrid"))
-  //have_subgrids = true;
   
   plot_response = settings->sublist("Postprocess").get<bool>("plot response",false);
   save_height_file = settings->sublist("Postprocess").get("save height file",false);
   
-  vector<vector<int> > cards = disc->cards;
-  vector<vector<string> > phys_varlist = phys->varlist;
-  
-  //offsets = phys->offsets;
+  varlist = phys->varlist;
+  aux_varlist = phys->aux_varlist;
   
   for (size_t b=0; b<blocknames.size(); b++) {
-    
-    vector<int> curruseBasis(numVars[b]);
-    vector<int> currnumBasis(numVars[b]);
-    vector<string> currvarlist(numVars[b]);
-    
-    int currmaxbasis = 0;
-    for (int j=0; j<numVars[b]; j++) {
-      string var = phys_varlist[b][j];
-      int vub = phys->getUniqueIndex(b,var);
-      //currvarlist[vnum] = var;
-      //curruseBasis[vnum] = vub;
-      //currnumBasis[vnum] = cards[b][vub];
-      currvarlist[j] = var;
-      curruseBasis[j] = vub;
-      currnumBasis[j] = cards[b][vub];
-      currmaxbasis = std::max(currmaxbasis,cards[b][vub]);
-    }
-    
-    //phys->setVars(currvarlist);
-    
-    varlist.push_back(currvarlist);
-    useBasis.push_back(curruseBasis);
-    numBasis.push_back(currnumBasis);
-    maxbasis.push_back(currmaxbasis);
-    
+        
     if (settings->sublist("Postprocess").isSublist("Responses")) {
       Teuchos::ParameterList resps = settings->sublist("Postprocess").sublist("Responses");
       Teuchos::ParameterList::ConstIterator rsp_itr = resps.begin();
@@ -251,90 +190,26 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     
     // Add true solutions to the function manager for verification studies
     Teuchos::ParameterList true_solns = blockPhysSettings.sublist("True solutions");
-    vector<std::pair<size_t,string> > block_error_list;
-    for (size_t j=0; j<varlist[b].size(); j++) {
-      if (true_solns.isParameter(varlist[b][j])) { // solution at volumetric ip
-        if (types[b][j] == "HGRAD" || types[b][j] == "HVOL") {
-          std::pair<size_t,string> newerr(j,"L2");
-          block_error_list.push_back(newerr);
-          string expression = true_solns.get<string>(varlist[b][j],"0.0");
-          functionManagers[b]->addFunction("true "+varlist[b][j],expression,"ip");
-        }
-      }
-      if (true_solns.isParameter("grad("+varlist[b][j]+")[x]") || true_solns.isParameter("grad("+varlist[b][j]+")[y]") || true_solns.isParameter("grad("+varlist[b][j]+")[z]")) { // GRAD of the solution at volumetric ip
-        if (types[b][j] == "HGRAD") {
-          std::pair<size_t,string> newerr(j,"GRAD");
-          block_error_list.push_back(newerr);
-          
-          string expression = true_solns.get<string>("grad("+varlist[b][j]+")[x]","0.0");
-          functionManagers[b]->addFunction("true grad("+varlist[b][j]+")[x]",expression,"ip");
-          if (spaceDim>1) {
-            expression = true_solns.get<string>("grad("+varlist[b][j]+")[y]","0.0");
-            functionManagers[b]->addFunction("true grad("+varlist[b][j]+")[y]",expression,"ip");
-          }
-          if (spaceDim>2) {
-            expression = true_solns.get<string>("grad("+varlist[b][j]+")[z]","0.0");
-            functionManagers[b]->addFunction("true grad("+varlist[b][j]+")[z]",expression,"ip");
-          }
-        }
-      }
-      if (true_solns.isParameter(varlist[b][j]+" face")) { // solution at face/side ip
-        if (types[b][j] == "HGRAD" || types[b][j] == "HFACE") {
-          std::pair<size_t,string> newerr(j,"L2 FACE");
-          block_error_list.push_back(newerr);
-          string expression = true_solns.get<string>(varlist[b][j]+" face","0.0");
-          functionManagers[b]->addFunction("true "+varlist[b][j],expression,"side ip");
-          
-        }
-      }
-      if (true_solns.isParameter(varlist[b][j]+"[x]") || true_solns.isParameter(varlist[b][j]+"[y]") || true_solns.isParameter(varlist[b][j]+"[z]")) { // vector solution at volumetric ip
-        if (types[b][j] == "HDIV" || types[b][j] == "HCURL") {
-          std::pair<size_t,string> newerr(j,"L2 VECTOR");
-          block_error_list.push_back(newerr);
-          
-          string expression = true_solns.get<string>(varlist[b][j]+"[x]","0.0");
-          functionManagers[b]->addFunction("true "+varlist[b][j]+"[x]",expression,"ip");
-          
-          if (spaceDim>1) {
-            expression = true_solns.get<string>(varlist[b][j]+"[y]","0.0");
-            functionManagers[b]->addFunction("true "+varlist[b][j]+"[y]",expression,"ip");
-          }
-          if (spaceDim>2) {
-            expression = true_solns.get<string>(varlist[b][j]+"[z]","0.0");
-            functionManagers[b]->addFunction("true "+varlist[b][j]+"[z]",expression,"ip");
-          }
-        }
-      }
-      if (true_solns.isParameter("div("+varlist[b][j]+")")) { // div of solution at volumetric ip
-        if (types[b][j] == "HDIV") {
-          std::pair<size_t,string> newerr(j,"DIV");
-          block_error_list.push_back(newerr);
-          string expression = true_solns.get<string>("div("+varlist[b][j]+")","0.0");
-          functionManagers[b]->addFunction("true div("+varlist[b][j]+")",expression,"ip");
-          
-        }
-      }
-      if (true_solns.isParameter("curl("+varlist[b][j]+")[x]") || true_solns.isParameter("curl("+varlist[b][j]+")[y]") || true_solns.isParameter("curl("+varlist[b][j]+")[z]")) { // vector solution at volumetric ip
-        if (types[b][j] == "HCURL") {
-          std::pair<size_t,string> newerr(j,"CURL");
-          block_error_list.push_back(newerr);
-          
-          string expression = true_solns.get<string>("curl("+varlist[b][j]+")[x]","0.0");
-          functionManagers[b]->addFunction("true curl("+varlist[b][j]+")[x]",expression,"ip");
-          
-          if (spaceDim>1) {
-            expression = true_solns.get<string>("curl("+varlist[b][j]+")[y]","0.0");
-            functionManagers[b]->addFunction("true curl("+varlist[b][j]+")[y]",expression,"ip");
-          }
-          if (spaceDim>2) {
-            expression = true_solns.get<string>("curl("+varlist[b][j]+")[z]","0.0");
-            functionManagers[b]->addFunction("true curl("+varlist[b][j]+")[z]",expression,"ip");
-          }
-        }
-      }
-    }
+    vector<std::pair<size_t,string> > block_error_list = this->addTrueSolutions(true_solns, varlist[b], types[b], b);
+    
     error_list.push_back(block_error_list);
     
+    if (phys->have_aux) {
+      Teuchos::ParameterList blockPhysSettings;
+      if (settings->sublist("Aux Physics").isSublist(blocknames[b])) { // adding block overwrites the default
+        blockPhysSettings = settings->sublist("Aux Physics").sublist(blocknames[b]);
+      }
+      else { // default
+        blockPhysSettings = settings->sublist("Aux Physics");
+      }
+      vector<vector<string> > types = phys->aux_types;
+      
+      // Add true solutions to the function manager for verification studies
+      Teuchos::ParameterList true_solns = blockPhysSettings.sublist("True solutions");
+      vector<std::pair<size_t,string> > block_error_list = this->addTrueSolutions(true_solns, phys->aux_varlist[b], types[b], b);
+      
+      aux_error_list.push_back(block_error_list);
+    }
   } // end block loop
   
   if (milo_debug_level > 0) {
@@ -344,6 +219,100 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   }
   
   
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+vector<std::pair<size_t,string> > PostprocessManager<Node>::addTrueSolutions(Teuchos::ParameterList & true_solns,
+                                                                             vector<string> & vars,
+                                                                             vector<string> & types,
+                                                                             const int & block) {
+  vector<std::pair<size_t,string> > block_error_list;
+  for (size_t j=0; j<vars.size(); j++) {
+    if (true_solns.isParameter(vars[j])) { // solution at volumetric ip
+      if (types[j] == "HGRAD" || types[j] == "HVOL") {
+        std::pair<size_t,string> newerr(j,"L2");
+        block_error_list.push_back(newerr);
+        string expression = true_solns.get<string>(vars[j],"0.0");
+        functionManagers[block]->addFunction("true "+vars[j],expression,"ip");
+      }
+    }
+    if (true_solns.isParameter("grad("+vars[j]+")[x]") || true_solns.isParameter("grad("+vars[j]+")[y]") || true_solns.isParameter("grad("+vars[j]+")[z]")) { // GRAD of the solution at volumetric ip
+      if (types[j] == "HGRAD") {
+        std::pair<size_t,string> newerr(j,"GRAD");
+        block_error_list.push_back(newerr);
+        
+        string expression = true_solns.get<string>("grad("+vars[j]+")[x]","0.0");
+        functionManagers[block]->addFunction("true grad("+vars[j]+")[x]",expression,"ip");
+        if (spaceDim>1) {
+          expression = true_solns.get<string>("grad("+vars[j]+")[y]","0.0");
+          functionManagers[block]->addFunction("true grad("+vars[j]+")[y]",expression,"ip");
+        }
+        if (spaceDim>2) {
+          expression = true_solns.get<string>("grad("+vars[j]+")[z]","0.0");
+          functionManagers[block]->addFunction("true grad("+vars[j]+")[z]",expression,"ip");
+        }
+      }
+    }
+    if (true_solns.isParameter(vars[j]+" face")) { // solution at face/side ip
+      if (types[j] == "HGRAD" || types[j] == "HFACE") {
+        std::pair<size_t,string> newerr(j,"L2 FACE");
+        block_error_list.push_back(newerr);
+        string expression = true_solns.get<string>(vars[j]+" face","0.0");
+        functionManagers[block]->addFunction("true "+vars[j],expression,"side ip");
+        
+      }
+    }
+    if (true_solns.isParameter(vars[j]+"[x]") || true_solns.isParameter(vars[j]+"[y]") || true_solns.isParameter(vars[j]+"[z]")) { // vector solution at volumetric ip
+      if (types[j] == "HDIV" || types[j] == "HCURL") {
+        std::pair<size_t,string> newerr(j,"L2 VECTOR");
+        block_error_list.push_back(newerr);
+        
+        string expression = true_solns.get<string>(vars[j]+"[x]","0.0");
+        functionManagers[block]->addFunction("true "+vars[j]+"[x]",expression,"ip");
+        
+        if (spaceDim>1) {
+          expression = true_solns.get<string>(vars[j]+"[y]","0.0");
+          functionManagers[block]->addFunction("true "+vars[j]+"[y]",expression,"ip");
+        }
+        if (spaceDim>2) {
+          expression = true_solns.get<string>(vars[j]+"[z]","0.0");
+          functionManagers[block]->addFunction("true "+vars[j]+"[z]",expression,"ip");
+        }
+      }
+    }
+    if (true_solns.isParameter("div("+vars[j]+")")) { // div of solution at volumetric ip
+      if (types[j] == "HDIV") {
+        std::pair<size_t,string> newerr(j,"DIV");
+        block_error_list.push_back(newerr);
+        string expression = true_solns.get<string>("div("+vars[j]+")","0.0");
+        functionManagers[block]->addFunction("true div("+vars[j]+")",expression,"ip");
+        
+      }
+    }
+    if (true_solns.isParameter("curl("+vars[j]+")[x]") || true_solns.isParameter("curl("+vars[j]+")[y]") || true_solns.isParameter("curl("+vars[j]+")[z]")) { // vector solution at volumetric ip
+      if (types[j] == "HCURL") {
+        std::pair<size_t,string> newerr(j,"CURL");
+        block_error_list.push_back(newerr);
+        
+        string expression = true_solns.get<string>("curl("+vars[j]+")[x]","0.0");
+        functionManagers[block]->addFunction("true curl("+vars[j]+")[x]",expression,"ip");
+        
+        if (spaceDim>1) {
+          expression = true_solns.get<string>("curl("+vars[j]+")[y]","0.0");
+          functionManagers[block]->addFunction("true curl("+vars[j]+")[y]",expression,"ip");
+        }
+        if (spaceDim>2) {
+          expression = true_solns.get<string>("curl("+vars[j]+")[z]","0.0");
+          functionManagers[block]->addFunction("true curl("+vars[j]+")[z]",expression,"ip");
+        }
+      }
+    }
+  }
+  
+  return block_error_list;
 }
 
 // ========================================================================================
@@ -966,14 +935,14 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
   
   for (size_t b=0; b<blocknames.size(); b++) {
     std::string blockID = blocknames[b];
-    vector<vector<int> > curroffsets = phys->offsets[b];
     vector<size_t> myElements = disc->myElements[b];
     vector<string> vartypes = phys->types[b];
     vector<int> varorders = phys->orders[b];
+    int numVars = phys->numVars[b]; // probably redundant
     
     if (myElements.size() > 0) {
       
-      for (int n = 0; n<numVars[b]; n++) {
+      for (int n = 0; n<numVars; n++) {
         
         if (vartypes[n] == "HGRAD") {
           
@@ -1074,6 +1043,114 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
           });
           Kokkos::deep_copy(soln_faceavg, soln_faceavg_dev);
           mesh->setCellFieldData(varlist[b][n], blockID, myElements, soln_faceavg);
+        }
+      }
+      
+      if (phys->have_aux && write_aux_solution) {
+        
+        vector<string> vartypes = phys->aux_types[b];
+        vector<string> vars = phys->aux_varlist[b];
+        vector<int> varorders = phys->aux_orders[b];
+        
+        for (size_t n=0; n<vars.size(); n++) {
+          string var = vars[n];
+          if (vartypes[n] == "HGRAD") {
+            
+            Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(), numNodesPerElem);
+            auto soln_computed = Kokkos::create_mirror_view(soln_dev);
+            for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+              auto eID = assembler->cells[b][e]->localElemID;
+              auto sol = Kokkos::subview(assembler->cells[b][e]->aux, Kokkos::ALL(), n, Kokkos::ALL());
+              parallel_for("postproc plot HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+                for( size_type i=0; i<soln_dev.extent(1); i++ ) {
+                  soln_dev(eID(elem),i) = sol(elem,i);
+                }
+              });
+            }
+            Kokkos::deep_copy(soln_computed, soln_dev);
+            
+            if (var == "dx") {
+              mesh->setSolutionFieldData("dispx", blockID, myElements, soln_computed);
+            }
+            if (var == "dy") {
+              mesh->setSolutionFieldData("dispy", blockID, myElements, soln_computed);
+            }
+            if (var == "dz" || var == "H") {
+              mesh->setSolutionFieldData("dispz", blockID, myElements, soln_computed);
+            }
+            
+            mesh->setSolutionFieldData(var, blockID, myElements, soln_computed);
+          }
+          else if (vartypes[n] == "HVOL") {
+            Kokkos::View<ScalarT*,AssemblyDevice> soln_dev("solution",myElements.size());
+            auto soln_computed = Kokkos::create_mirror_view(soln_dev);
+            for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+              auto eID = assembler->cells[b][e]->localElemID;
+              auto sol = Kokkos::subview(assembler->cells[b][e]->aux, Kokkos::ALL(), n, Kokkos::ALL());
+              parallel_for("postproc plot HVOL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+                soln_dev(eID(elem)) = sol(elem,0);//u_kv(pindex,0);
+              });
+            }
+            Kokkos::deep_copy(soln_computed,soln_dev);
+            mesh->setCellFieldData(var, blockID, myElements, soln_computed);
+          }
+          else if (vartypes[n] == "HDIV" || vartypes[n] == "HCURL") { // need to project each component onto PW-linear basis and PW constant basis
+            Kokkos::View<ScalarT*,AssemblyDevice> soln_x_dev("solution",myElements.size());
+            Kokkos::View<ScalarT*,AssemblyDevice> soln_y_dev("solution",myElements.size());
+            Kokkos::View<ScalarT*,AssemblyDevice> soln_z_dev("solution",myElements.size());
+            auto soln_x = Kokkos::create_mirror_view(soln_x_dev);
+            auto soln_y = Kokkos::create_mirror_view(soln_y_dev);
+            auto soln_z = Kokkos::create_mirror_view(soln_z_dev);
+            for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
+              auto eID = assembler->cells[b][e]->localElemID;
+              auto sol = Kokkos::subview(assembler->cells[b][e]->aux_avg, Kokkos::ALL(), n, Kokkos::ALL());
+              parallel_for("postproc plot HDIV/HCURL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+                soln_x_dev(eID(elem)) = sol(elem,0);
+                if (sol.extent(1) > 1) {
+                  soln_y_dev(eID(elem)) = sol(elem,1);
+                }
+                if (sol.extent(1) > 2) {
+                  soln_z_dev(eID(elem)) = sol(elem,2);
+                }
+              });
+            }
+            Kokkos::deep_copy(soln_x, soln_x_dev);
+            Kokkos::deep_copy(soln_y, soln_y_dev);
+            Kokkos::deep_copy(soln_z, soln_z_dev);
+            mesh->setCellFieldData(var+"x", blockID, myElements, soln_x);
+            mesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
+            mesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
+            
+          }
+          else if (vartypes[n] == "HFACE" && write_HFACE_variables) {
+            
+            Kokkos::View<ScalarT*,AssemblyDevice> soln_faceavg_dev("solution",myElements.size());
+            auto soln_faceavg = Kokkos::create_mirror_view(soln_faceavg_dev);
+            
+            Kokkos::View<ScalarT*,AssemblyDevice> face_measure_dev("face measure",myElements.size());
+            
+            for( size_t c=0; c<assembler->cells[b].size(); c++ ) {
+              auto eID = assembler->cells[b][c]->localElemID;
+              for (size_t face=0; face<assembler->cellData[b]->numSides; face++) {
+                int seedwhat = 0;
+                assembler->wkset[b]->computeAuxSolnSteadySeeded(assembler->cells[b][c]->aux, seedwhat);
+                assembler->cells[b][c]->computeAuxSolnFaceIP(face);
+                auto wts = assembler->wkset[b]->wts_side;
+                auto sol = Kokkos::subview(assembler->wkset[b]->local_aux_face,Kokkos::ALL(),n,Kokkos::ALL(),0);
+                parallel_for("postproc plot HFACE",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+                  for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                    face_measure_dev(eID(elem)) += wts(elem,pt);
+                    soln_faceavg_dev(eID(elem)) += sol(elem,pt).val()*wts(elem,pt);
+                  }
+                });
+              }
+            }
+            parallel_for("postproc plot HFACE 2",RangePolicy<AssemblyExec>(0,soln_faceavg_dev.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+              soln_faceavg_dev(elem) *= 1.0/face_measure_dev(elem);
+            });
+            Kokkos::deep_copy(soln_faceavg, soln_faceavg_dev);
+            mesh->setCellFieldData(var, blockID, myElements, soln_faceavg);
+          }
         }
       }
       
@@ -1279,7 +1356,7 @@ void PostprocessManager<Node>::writeOptimizationSolution(const int & numEvaluati
   
   for (size_t b=0; b<assembler->cells.size(); b++) {
     std::string blockID = blocknames[b];
-    vector<vector<int> > curroffsets = phys->offsets[b];
+    vector<vector<int> > curroffsets = disc->offsets[b];
     vector<size_t> myElements = disc->myElements[b];
     vector<string> vartypes = phys->types[b];
     vector<int> varorders = phys->orders[b];

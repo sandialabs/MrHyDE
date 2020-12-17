@@ -76,6 +76,11 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   if (isTransient) {
     u_dotvals = Kokkos::View<AD***,AssemblyDevice>("seeded uvals",numElem, numVars, maxb, maxDerivs);
   }
+  
+  // TMW: temporary setting
+  int maxscratch = dimension+1;
+  scratch = Kokkos::View<AD***,AssemblyDevice>("workset scratch",numElem, numip, maxscratch);
+  
 }
 
 
@@ -159,8 +164,8 @@ void workset::createSolns() {
   }
   
   if (numAux>0) {
-    local_aux = Kokkos::View<AD***, AssemblyDevice>("local_aux",numElem, numAux, numip, maxDerivs);
-    local_aux_side = Kokkos::View<AD***, AssemblyDevice>("local_aux_side",numElem, numAux, numsideip, maxDerivs);
+    local_aux = Kokkos::View<AD****, AssemblyDevice>("local_aux",numElem, numAux, numip, dimension, maxDerivs);
+    local_aux_side = Kokkos::View<AD****, AssemblyDevice>("local_aux_side",numElem, numAux, numsideip, dimension, maxDerivs);
   }
   
   // Arrays that are not currently used for anything
@@ -518,6 +523,41 @@ void workset::computeSolnSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
       for (size_type var=0; var<u.extent(1); var++ ) {
         for (size_type dof=0; dof<u.extent(2); dof++ ) {
           u_AD(elem,var,dof) = u(elem,var,dof);
+        }
+      }
+    });
+  }
+  Kokkos::fence();
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////
+// Compute the seeded solutions for steady-state problems
+////////////////////////////////////////////////////////////////////////////////////
+
+void workset::computeAuxSolnSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> aux,
+                                         const int & seedwhat) {
+  
+  Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
+
+  // Needed so the device can access data-members (may be a better way)
+  auto aux_AD = auxvals;
+  auto off = aux_offsets;
+
+  if (seedwhat == 1) {
+    parallel_for(RangePolicy<AssemblyExec>(0,aux.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+      for (size_type var=0; var<aux.extent(1); var++ ) {
+        for (size_type dof=0; dof<aux.extent(2); dof++ ) {
+          aux_AD(elem,var,dof) = AD(maxDerivs,off(var,dof),aux(elem,var,dof));
+        }
+      }
+    });
+  }
+  else {
+    parallel_for("wkset steady soln",RangePolicy<AssemblyExec>(0,aux.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+      for (size_type var=0; var<aux.extent(1); var++ ) {
+        for (size_type dof=0; dof<aux.extent(2); dof++ ) {
+          aux_AD(elem,var,dof) = aux(elem,var,dof);
         }
       }
     });
@@ -1170,6 +1210,14 @@ void workset::computeSolnFaceIP() {
 // Compute the solutions at the side ip
 ////////////////////////////////////////////////////////////////////////////////////
 
+void workset::computeAuxSolnFaceIP() {
+  
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+// Compute the solutions at the side ip
+////////////////////////////////////////////////////////////////////////////////////
+
 void workset::computeSolnSideIP() {
   this->computeSoln(2);
 }
@@ -1344,9 +1392,9 @@ void workset::computeSolnSideIP(const int & side) { //, Kokkos::View<AD***,Assem
 
 void workset::addAux(const size_t & naux) {
   numAux = naux;
-  local_aux = Kokkos::View<AD***, AssemblyDevice>("local_aux",numElem, numAux, numip, maxDerivs);
+  local_aux = Kokkos::View<AD****, AssemblyDevice>("local_aux",numElem, numAux, numip, dimension, maxDerivs);
   //local_aux_grad = Kokkos::View<AD****, AssemblyDevice>("local_aux_grad",numElem, numAux, numip, dimension);
-  local_aux_side = Kokkos::View<AD***, AssemblyDevice>("local_aux_side",numElem, numAux, numsideip, maxDerivs);
+  local_aux_side = Kokkos::View<AD****, AssemblyDevice>("local_aux_side",numElem, numAux, numsideip, dimension, maxDerivs);
   flux = Kokkos::View<AD***,AssemblyDevice>("flux",numElem,numAux,numsideip, maxDerivs);
   
   //local_aux_grad_side = Kokkos::View<AD****, AssemblyDevice>("local_aux_grad_side",numElem, numAux, numsideip, dimension);

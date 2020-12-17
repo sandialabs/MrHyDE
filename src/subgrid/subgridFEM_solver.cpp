@@ -27,7 +27,6 @@ SubGridFEM_Solver::SubGridFEM_Solver(const Teuchos::RCP<MpiComm> & LocalComm,
                                      Teuchos::RCP<physics> & physics,
                                      Teuchos::RCP<AssemblyManager<SubgridSolverNode> > & assembler_,
                                      Teuchos::RCP<ParameterManager<SubgridSolverNode>> & params,
-                                     Teuchos::RCP<panzer::DOFManager> & DOF,
                                      ScalarT & macro_deltat_, size_t & numMacroDOF) :
 settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
   
@@ -52,7 +51,7 @@ settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
   
   store_aux_and_flux = settings->sublist("Postprocess").get<bool>("store aux and flux",false);
   
-  milo_solver = Teuchos::rcp( new solver<SubgridSolverNode>(LocalComm, settings, mesh, disc, physics, DOF, assembler, params) );
+  milo_solver = Teuchos::rcp( new solver<SubgridSolverNode>(LocalComm, settings, mesh, disc, physics, assembler, params) );
   
   res = Teuchos::rcp( new SG_MultiVector(milo_solver->LA_owned_map,1)); // allocate residual
   J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(milo_solver->LA_overlapped_graph));

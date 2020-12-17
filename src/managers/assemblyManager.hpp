@@ -54,8 +54,7 @@ namespace MrHyDE {
     
     AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
                     Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
-                    Teuchos::RCP<physics> & phys_, Teuchos::RCP<panzer::DOFManager> & DOF_,
-                    Teuchos::RCP<ParameterManager<Node> > & params_,
+                    Teuchos::RCP<physics> & phys_, Teuchos::RCP<ParameterManager<Node> > & params_,
                     const int & numElemPerCell_);
     
     
@@ -85,7 +84,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
-                    const bool & lumpmass=false);
+                    const bool & lumpmass=false, const ScalarT & scale = 1.0);
     
     // ========================================================================================
     // ========================================================================================
@@ -190,7 +189,6 @@ namespace MrHyDE {
     
     bool usestrongDBCs, use_meas_as_dbcs, multiscale, useNewBCs, isTransient, use_atomics;
     std::string assembly_partitioning;
-    Teuchos::RCP<panzer::DOFManager> DOF;
     std::vector<bool> assemble_volume_terms, assemble_boundary_terms, assemble_face_terms; // use basis functions in assembly
     std::vector<bool> build_volume_terms, build_boundary_terms, build_face_terms; // set up basis function
     Kokkos::View<bool*,LA_device> isFixedDOF;

@@ -12,11 +12,6 @@
  ************************************************************************/
 
 #include "physicsInterface.hpp"
-#include "Panzer_IntrepidFieldPattern.hpp"
-#include "Panzer_STK_Interface.hpp"
-#include "Panzer_STK_SetupUtilities.hpp"
-
-#include "rectPeriodicMatcher.hpp"
 
 // Enabled physics modules:
 #include "porous.hpp"
@@ -56,7 +51,6 @@ using namespace MrHyDE;
 // ========================================================================================
 
 physics::physics(Teuchos::RCP<Teuchos::ParameterList> & settings_, Teuchos::RCP<MpiComm> & Comm_,
-                 vector<topo_RCP> & cellTopo, vector<topo_RCP> & sideTopo,
                  Teuchos::RCP<panzer_stk::STK_Interface> & mesh) :
 settings(settings_), Commptr(Comm_){
   
@@ -91,8 +85,34 @@ settings(settings_), Commptr(Comm_){
     }
   }
   
-  this->importPhysics();
+  this->importPhysics(false);
   
+  if (settings->isSublist("Aux Physics") && settings->isSublist("Aux Discretization")) {
+    have_aux = true;
+    for (size_t b=0; b<blocknames.size(); b++) {
+      if (settings->sublist("Aux Physics").isSublist(blocknames[b])) { // adding block overwrites the default
+        aux_blockPhysSettings.push_back(settings->sublist("Aux Physics").sublist(blocknames[b]));
+      }
+      else { // default
+        aux_blockPhysSettings.push_back(settings->sublist("Aux Physics"));
+      }
+      
+      if (settings->sublist("Aux Discretization").isSublist(blocknames[b])) { // adding block overwrites default
+        aux_blockDiscSettings.push_back(settings->sublist("Aux Discretization").sublist(blocknames[b]));
+      }
+      else { // default
+        aux_blockDiscSettings.push_back(settings->sublist("Aux Discretization"));
+      }
+    }
+    this->importPhysics(true);
+  }
+  else {
+    for (size_t b=0; b<blocknames.size(); b++) {
+      vector<string> avars;
+      aux_varlist.push_back(avars);
+    }
+  }
+
   if (milo_debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Finished physics constructor" << endl;
@@ -304,7 +324,7 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
 // Add the requested physics modules, variables, discretization types
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void physics::importPhysics() {
+void physics::importPhysics(const bool & isaux) {
   
   if (milo_debug_level > 0) {
     if (Commptr->getRank() == 0) {
@@ -323,7 +343,14 @@ void physics::importPhysics() {
     std::string var;
     int default_order = 1;
     std::string default_type = "HGRAD";
-    string module_list = blockPhysSettings[b].get<string>("modules","");
+    string module_list;
+    if (isaux) {
+      module_list = aux_blockPhysSettings[b].get<string>("modules","");
+    }
+    else {
+      module_list = blockPhysSettings[b].get<string>("modules","");
+    }
+    
     vector<string> enabled_modules;
     // Script to break delimited list into pieces
     {
@@ -348,28 +375,28 @@ void physics::importPhysics() {
       
       // Porous media (single phase slightly compressible)
       if (modname == "porous") {
-        Teuchos::RCP<porous> porous_RCP = Teuchos::rcp(new porous(settings) );
+        Teuchos::RCP<porous> porous_RCP = Teuchos::rcp(new porous(settings, isaux) );
         currmodules.push_back(porous_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_porous",false));
       }
     
       // Porous media with HDIV basis
       if (modname == "porousHDIV") {
-        Teuchos::RCP<porousHDIV> porousHDIV_RCP = Teuchos::rcp(new porousHDIV(settings) );
+        Teuchos::RCP<porousHDIV> porousHDIV_RCP = Teuchos::rcp(new porousHDIV(settings, isaux) );
         currmodules.push_back(porousHDIV_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_porousHDIV",false));
       }
       
       // Hybridized porous media with HDIV basis
       if (modname == "porousHDIV_hybrid") {
-        Teuchos::RCP<porousHDIV_HYBRID> porousHDIV_HYBRID_RCP = Teuchos::rcp(new porousHDIV_HYBRID(settings) );
+        Teuchos::RCP<porousHDIV_HYBRID> porousHDIV_HYBRID_RCP = Teuchos::rcp(new porousHDIV_HYBRID(settings, isaux) );
         currmodules.push_back(porousHDIV_HYBRID_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_porousHDIV_HYBRID",false));
       }
       
       // weak Galerkin porous media with HDIV basis
       if (modname == "porousHDIV_weakGalerkin") {
-        Teuchos::RCP<porousHDIV_WG> porousHDIV_WG_RCP = Teuchos::rcp(new porousHDIV_WG(settings) );
+        Teuchos::RCP<porousHDIV_WG> porousHDIV_WG_RCP = Teuchos::rcp(new porousHDIV_WG(settings, isaux) );
         currmodules.push_back(porousHDIV_WG_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_porousHDIV_WG",false));
       }
@@ -397,7 +424,7 @@ void physics::importPhysics() {
       */
       // Convection diffusion
       if (modname == "cdr" || modname == "CDR") {
-        Teuchos::RCP<cdr> cdr_RCP = Teuchos::rcp(new cdr(settings) );
+        Teuchos::RCP<cdr> cdr_RCP = Teuchos::rcp(new cdr(settings, isaux) );
         currmodules.push_back(cdr_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_cdr",false));
       }
@@ -411,7 +438,7 @@ void physics::importPhysics() {
       
       // Thermal
       if (modname == "thermal") {
-        Teuchos::RCP<thermal> thermal_RCP = Teuchos::rcp(new thermal(settings) );
+        Teuchos::RCP<thermal> thermal_RCP = Teuchos::rcp(new thermal(settings, isaux) );
         currmodules.push_back(thermal_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_thermal",false));
       }
@@ -433,21 +460,21 @@ void physics::importPhysics() {
       */
       // Shallow Water
       if (modname == "shallow water") {
-        Teuchos::RCP<shallowwater> shallowwater_RCP = Teuchos::rcp(new shallowwater(settings) );
+        Teuchos::RCP<shallowwater> shallowwater_RCP = Teuchos::rcp(new shallowwater(settings, isaux) );
         currmodules.push_back(shallowwater_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_shallowwater",false));
       }
       
       // Maxwell
       if (modname == "maxwell") {
-        Teuchos::RCP<maxwell> maxwell_RCP = Teuchos::rcp(new maxwell(settings) );
+        Teuchos::RCP<maxwell> maxwell_RCP = Teuchos::rcp(new maxwell(settings, isaux) );
         currmodules.push_back(maxwell_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_maxwell",false));
       }
       
       // Maxwell hybridized
       if (modname == "maxwell hybrid") {
-        Teuchos::RCP<maxwell_HYBRID> maxwell_HYBRID_RCP = Teuchos::rcp(new maxwell_HYBRID(settings) );
+        Teuchos::RCP<maxwell_HYBRID> maxwell_HYBRID_RCP = Teuchos::rcp(new maxwell_HYBRID(settings, isaux) );
         currmodules.push_back(maxwell_HYBRID_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_maxwell_hybrid",false));
       }
@@ -470,14 +497,14 @@ void physics::importPhysics() {
       
       // Multiple Species PhaseField
       if (modname == "msphasefield") {
-        Teuchos::RCP<msphasefield> msphasefield_RCP = Teuchos::rcp(new msphasefield(settings, Commptr) );
+        Teuchos::RCP<msphasefield> msphasefield_RCP = Teuchos::rcp(new msphasefield(settings, isaux, Commptr) );
         currmodules.push_back(msphasefield_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_msphasefield",false));
       }
       
       // Stokes
       if (modname == "stokes" || modname == "Stokes") {
-        Teuchos::RCP<stokes> stokes_RCP = Teuchos::rcp(new stokes(settings) );
+        Teuchos::RCP<stokes> stokes_RCP = Teuchos::rcp(new stokes(settings, isaux) );
         
         currmodules.push_back(stokes_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_stokes",false));
@@ -485,7 +512,7 @@ void physics::importPhysics() {
       
       // Navier Stokes
       if (modname == "navier stokes" || modname == "Navier Stokes") {
-        Teuchos::RCP<navierstokes> navierstokes_RCP = Teuchos::rcp(new navierstokes(settings) );
+        Teuchos::RCP<navierstokes> navierstokes_RCP = Teuchos::rcp(new navierstokes(settings, isaux) );
         
         currmodules.push_back(navierstokes_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_navierstokes",false));
@@ -500,7 +527,7 @@ void physics::importPhysics() {
       
       // Linear Elasticity
       if (modname == "linearelasticity" || modname == "linear elasticity") {
-        Teuchos::RCP<linearelasticity> linearelasticity_RCP = Teuchos::rcp(new linearelasticity(settings) );
+        Teuchos::RCP<linearelasticity> linearelasticity_RCP = Teuchos::rcp(new linearelasticity(settings, isaux) );
         currmodules.push_back(linearelasticity_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_linearelasticity",false));
       }
@@ -515,7 +542,7 @@ void physics::importPhysics() {
       
       // Helmholtz
       if (modname == "helmholtz") {
-        Teuchos::RCP<helmholtz> helmholtz_RCP = Teuchos::rcp(new helmholtz(settings) );
+        Teuchos::RCP<helmholtz> helmholtz_RCP = Teuchos::rcp(new helmholtz(settings, isaux) );
         currmodules.push_back(helmholtz_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_helmholtz",false));
       }
@@ -530,14 +557,14 @@ void physics::importPhysics() {
       
       // Maxwell's (potential of electric field, curl-curl frequency domain (Boyse et al (1992))
       if (modname == "maxwells_freq_pot"){
-        Teuchos::RCP<maxwells_fp> maxwells_fp_RCP = Teuchos::rcp(new maxwells_fp(settings) );
+        Teuchos::RCP<maxwells_fp> maxwells_fp_RCP = Teuchos::rcp(new maxwells_fp(settings, isaux) );
         currmodules.push_back(maxwells_fp_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_maxwells_freq_pot",false));
       }
       
       // Scalar ODE for testing time integrators independent of spatial discretizations
       if (modname == "ODE"){
-        Teuchos::RCP<ODE> ODE_RCP = Teuchos::rcp(new ODE(settings) );
+        Teuchos::RCP<ODE> ODE_RCP = Teuchos::rcp(new ODE(settings, isaux) );
         currmodules.push_back(ODE_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_ODE",false));
       }
@@ -551,8 +578,13 @@ void physics::importPhysics() {
        */
     }
     
-    modules.push_back(currmodules);
-    useSubgrid.push_back(currSubgrid);
+    if (isaux) {
+      aux_modules.push_back(currmodules);
+    }
+    else {
+      modules.push_back(currmodules);
+      useSubgrid.push_back(currSubgrid);
+    }
     
     for (size_t m=0; m<currmodules.size(); m++) {
       vector<string> cvars = currmodules[m]->myvars;
@@ -580,7 +612,6 @@ void physics::importPhysics() {
         currorders.push_back(blockDiscSettings[b].sublist("order").get<int>(cvars[v],default_order));
       }
     }
-    useDG.push_back(curruseDG);
     
     int currnumVars = currvarlist.size();
     //activeModules.push_back(block_activeModules);
@@ -635,14 +666,28 @@ void physics::importPhysics() {
       //  currunique_index.push_back(currunique_orders.size()-1);
       }
     }
-    orders.push_back(currorders);
-    types.push_back(currtypes);
-    varlist.push_back(currvarlist);
-    varowned.push_back(currvarowned);
-    numVars.push_back(currnumVars);
-    unique_orders.push_back(currunique_orders);
-    unique_types.push_back(currunique_types);
-    unique_index.push_back(currunique_index);
+    if (isaux) {
+      aux_orders.push_back(currorders);
+      aux_types.push_back(currtypes);
+      aux_varlist.push_back(currvarlist);
+      aux_varowned.push_back(currvarowned);
+      aux_numVars.push_back(currnumVars);
+      aux_useDG.push_back(curruseDG);
+      aux_unique_orders.push_back(currunique_orders);
+      aux_unique_types.push_back(currunique_types);
+      aux_unique_index.push_back(currunique_index);
+    }
+    else {
+      orders.push_back(currorders);
+      types.push_back(currtypes);
+      varlist.push_back(currvarlist);
+      varowned.push_back(currvarowned);
+      numVars.push_back(currnumVars);
+      useDG.push_back(curruseDG);
+      unique_orders.push_back(currunique_orders);
+      unique_types.push_back(currunique_types);
+      unique_index.push_back(currunique_index);
+    }
   }
   if (milo_debug_level > 0) {
     if (Commptr->getRank() == 0) {
@@ -987,9 +1032,13 @@ Kokkos::View<ScalarT**,AssemblyDevice> physics::getDirichlet(const Kokkos::View<
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void physics::setVars(size_t & block, vector<string> & vars) {
-  for (size_t i=0; i<modules[block].size(); i++) {
-    modules[block][i]->setVars(vars);
+void physics::setVars() {
+  for (size_t block=0; block<modules.size(); ++block) {
+    for (size_t i=0; i<modules[block].size(); ++i) {
+      if (varlist[block].size() > 0){
+        modules[block][i]->setVars(varlist[block]);
+      }
+    }
   }
 }
 
@@ -1138,391 +1187,15 @@ int physics::getUniqueIndex(const int & block, const std::string & var) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void physics::setBCData(Teuchos::RCP<Teuchos::ParameterList> & settings,
-                        Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
-                        Teuchos::RCP<panzer::DOFManager> & DOF,
-                        std::vector<std::vector<int> > cards) {
-  
-  Teuchos::TimeMonitor localtimer(*bctimer);
-  
-  if (milo_debug_level > 0) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Starting physics::setBCData ..." << endl;
-    }
-  }
-  
-  int maxvars = 0;
-  for (size_t b=0; b<blocknames.size(); b++) {
-    for (size_t j=0; j<varlist[b].size(); j++) {
-      string var = varlist[b][j];
-      int num = DOF->getFieldNum(var);
-      maxvars = std::max(num,maxvars);
-    }
-  }
-  
-  for (size_t b=0; b<blocknames.size(); b++) {
-    
-    mesh->getSidesetNames(sideSets);
-    mesh->getNodesetNames(nodeSets);
-    
-    Kokkos::View<int**,HostDevice> currbcs("boundary conditions",varlist[b].size(),sideSets.size());
-    topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
-    if (spaceDim == 1) {
-      numSidesPerElem = 2;
-    }
-    if (spaceDim == 2) {
-      numSidesPerElem = cellTopo->getEdgeCount();
-    }
-    if (spaceDim == 3) {
-      numSidesPerElem = cellTopo->getFaceCount();
-    }
-    
-    numNodesPerElem = cellTopo->getNodeCount();
-    
-    std::string blockID = blocknames[b];
-    vector<stk::mesh::Entity> stk_meshElems;
-    mesh->getMyElements(blockID, stk_meshElems);
-    size_t maxElemLID = 0;
-    for (size_t i=0; i<stk_meshElems.size(); i++) {
-      size_t lid = mesh->elementLocalId(stk_meshElems[i]);
-      maxElemLID = std::max(lid,maxElemLID);
-    }
-    std::vector<size_t> localelemmap(maxElemLID+1);
-    for (size_t i=0; i<stk_meshElems.size(); i++) {
-      size_t lid = mesh->elementLocalId(stk_meshElems[i]);
-      localelemmap[lid] = i;
-    }
-    
-    numElem.push_back(stk_meshElems.size());
-    
-    Teuchos::ParameterList blocksettings;
-    if (settings->sublist("Physics").isSublist(blockID)) {
-      blocksettings = settings->sublist("Physics").sublist(blockID);
-    }
-    else {
-      blocksettings = settings->sublist("Physics");
-    }
-    
-    Teuchos::ParameterList dbc_settings = blocksettings.sublist("Dirichlet conditions");
-    Teuchos::ParameterList nbc_settings = blocksettings.sublist("Neumann conditions");
-    bool use_weak_dbcs = dbc_settings.get<bool>("use weak Dirichlet",false);
-    int maxcard = 0;
-    for (size_t j=0; j<cards[b].size(); j++) {
-      if (cards[b][j] > maxcard)
-      maxcard = cards[b][j];
-    }
-    
-    vector<vector<int> > celloffsets;
-    Kokkos::View<int****,HostDevice> currside_info("side info",numElem[b],numVars[b],numSidesPerElem,2);
-    
-    
-    //std::vector<std::vector<size_t> > block_SideIDs, block_GlobalSideIDs;
-    //std::vector<std::vector<size_t> > block_ElemIDs;
-    std::vector<int> block_dbc_dofs;
-    
-    std::string perBCs = settings->sublist("Mesh").get<string>("Periodic Boundaries","");
-    
-    for (size_t j=0; j<varlist[b].size(); j++) {
-      string var = varlist[b][j];
-      int num = DOF->getFieldNum(var);
-      vector<int> var_offsets = DOF->getGIDFieldOffsets(blockID,num);
-      
-      celloffsets.push_back(var_offsets);
-      
-      //vector<size_t> curr_SideIDs;
-      //vector<size_t> curr_GlobalSideIDs;
-      //vector<size_t> curr_ElemIDs;
-      
-      for( size_t side=0; side<sideSets.size(); side++ ) {
-        string sideName = sideSets[side];
-        
-        vector<stk::mesh::Entity> sideEntities;
-        mesh->getMySides(sideName, blockID, sideEntities);
-        
-        bool isDiri = false;
-        //bool isPeri = false;
-        bool isNeum = false;
-        if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
-          isDiri = true;
-          if (use_weak_dbcs) {
-            currbcs(j,side) = 4;
-          }
-          else {
-            currbcs(j,side) = 1;
-          }
-        }
-        if (nbc_settings.sublist(var).isParameter("all boundaries") || nbc_settings.sublist(var).isParameter(sideName)) {
-          isNeum = true;
-          currbcs(j,side) = 2;
-        }
-        
-        vector<size_t>             local_side_Ids;
-        vector<stk::mesh::Entity> side_output;
-        vector<size_t>             local_elem_Ids;
-        panzer_stk::workset_utils::getSideElements(*mesh, blockID, sideEntities, local_side_Ids, side_output);
-        
-        for( size_t i=0; i<side_output.size(); i++ ) {
-          local_elem_Ids.push_back(mesh->elementLocalId(side_output[i]));
-          size_t localid = localelemmap[local_elem_Ids[i]];
-          if( isDiri ) {
-            //curr_SideIDs.push_back(local_side_Ids[i]);
-            //curr_GlobalSideIDs.push_back(side);
-            //curr_ElemIDs.push_back(localid);
-            //curr_ElemIDs.push_back(local_elem_Ids[i]);
-            if (use_weak_dbcs) {
-              currside_info(localid, j, local_side_Ids[i], 0) = 4;
-            }
-            else {
-              currside_info(localid, j, local_side_Ids[i], 0) = 1;
-            }
-            currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
-          }
-          else if (isNeum) { // Neumann or Robin
-            currside_info(localid, j, local_side_Ids[i], 0) = 2;
-            currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
-          }
-        }
-      }
-      //block_SideIDs.push_back(curr_SideIDs);
-      //block_GlobalSideIDs.push_back(curr_GlobalSideIDs);
-      
-      //block_ElemIDs.push_back(curr_ElemIDs);
-     
-      
-      // nodeset loop
-      string point_DBCs = blocksettings.get<std::string>(var+"_point_DBCs","");
-      
-      vector<int> dbc_nodes;
-      for( size_t node=0; node<nodeSets.size(); node++ ) {
-        string nodeName = nodeSets[node];
-        std::size_t found = point_DBCs.find(nodeName);
-        bool isDiri = false;
-        if (found!=std::string::npos) {
-          isDiri = true;
-        }
-        
-        if (isDiri) {
-          //int num = DOF->getFieldNum(var);
-          //vector<int> var_offsets = DOF->getGIDFieldOffsets(blockID,num);
-          vector<stk::mesh::Entity> nodeEntities;
-          mesh->getMyNodes(nodeName, blockID, nodeEntities);
-          vector<GO> elemGIDs;
-          
-          vector<size_t> local_elem_Ids;
-          vector<size_t> local_node_Ids;
-          vector<stk::mesh::Entity> side_output;
-          panzer_stk::workset_utils::getNodeElements(*mesh,blockID,nodeEntities,local_node_Ids,side_output);
-          
-          for( size_t i=0; i<side_output.size(); i++ ) {
-            local_elem_Ids.push_back(mesh->elementLocalId(side_output[i]));
-            size_t localid = localelemmap[local_elem_Ids[i]];
-            DOF->getElementGIDs(localid,elemGIDs,blockID);
-            block_dbc_dofs.push_back(elemGIDs[var_offsets[local_node_Ids[i]]]);
-          }
-        }
-        
-      }
-    }
-    
-    offsets.push_back(celloffsets);
-    var_bcs.push_back(currbcs);
-    
-    side_info.push_back(currside_info);
-    //localDirichletSideIDs.push_back(block_SideIDs);
-    //globalDirichletSideIDs.push_back(block_GlobalSideIDs);
-    //boundDirichletElemIDs.push_back(block_ElemIDs);
-    
-    std::sort(block_dbc_dofs.begin(), block_dbc_dofs.end());
-    block_dbc_dofs.erase(std::unique(block_dbc_dofs.begin(),
-                                     block_dbc_dofs.end()), block_dbc_dofs.end());
-    
-    int localsize = (int)block_dbc_dofs.size();
-    int globalsize = 0;
-    
-    //Teuchos::reduceAll<int, int>(*Commptr, Teuchos::REDUCE_SUM, localsize, Teuchos::outArg(globalsize));
-    Teuchos::reduceAll<int,int>(*Commptr,Teuchos::REDUCE_SUM,1,&localsize,&globalsize);
-    //Commptr->SumAll(&localsize, &globalsize, 1);
-    int gathersize = Commptr->getSize()*globalsize;
-    int *block_dbc_dofs_local = new int [globalsize];
-    int *block_dbc_dofs_global = new int [gathersize];
-    
-    int mxdof = (int) block_dbc_dofs.size();
-    for (int i = 0; i < globalsize; i++) {
-      if ( i < mxdof) {
-        block_dbc_dofs_local[i] = (int) block_dbc_dofs[i];
-      }
-      else {
-        block_dbc_dofs_local[i] = -1;
-      }
-    }
-    
-    //Commptr->GatherAll(block_dbc_dofs_local, block_dbc_dofs_global, globalsize);
-    Teuchos::gatherAll(*Commptr, globalsize, &block_dbc_dofs_local[0], gathersize, &block_dbc_dofs_global[0]);
-    vector<GO> all_dbcs;
-    
-    for (int i = 0; i < gathersize; i++) {
-      all_dbcs.push_back(block_dbc_dofs_global[i]);
-    }
-    delete [] block_dbc_dofs_local;
-    delete [] block_dbc_dofs_global;
-    
-    vector<GO> dbc_final;
-    vector<GO> ownedAndShared;
-    DOF->getOwnedAndGhostedIndices(ownedAndShared);
-    
-    sort(all_dbcs.begin(),all_dbcs.end());
-    sort(ownedAndShared.begin(),ownedAndShared.end());
-    set_intersection(all_dbcs.begin(),all_dbcs.end(),
-                     ownedAndShared.begin(),ownedAndShared.end(),
-                     back_inserter(dbc_final));
-    
-    
-    point_dofs.push_back(dbc_final);
-    //offsets.push_back(curroffsets);
-    
-  }
-  
-  if (milo_debug_level > 0) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Finished physics::setBCData" << endl;
-    }
-  }
-}
+//vector<vector<int> > physics::getOffsets(const int & block, Teuchos::RCP<panzer::DOFManager> & DOF) {
+//  return offsets[block];
+//}
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void physics::setDirichletData(Teuchos::RCP<panzer_stk::STK_Interface> & mesh,
-                               Teuchos::RCP<panzer::DOFManager> & DOF) {
-  
-  Teuchos::TimeMonitor localtimer(*dbctimer);
-  
-  if (milo_debug_level > 0) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Starting physics::setDirichletData ..." << endl;
-    }
-  }
-  
-  haveDirichlet = false;
-  for (size_t b=0; b<blocknames.size(); b++) {
-    
-    std::string blockID = blocknames[b];
-    
-    Teuchos::ParameterList dbc_settings;
-    if (settings->sublist("Physics").isSublist(blockID)) {
-      dbc_settings = settings->sublist("Physics").sublist(blockID).sublist("Dirichlet conditions");
-    }
-    else {
-      dbc_settings = settings->sublist("Physics").sublist("Dirichlet conditions");
-    }
-    
-    //std::vector<Kokkos::View<LO*,AssemblyDevice> > block_dbc_dofs;
-    std::vector<std::vector<LO> > block_dbc_dofs;
-    
-    for (size_t j=0; j<varlist[b].size(); j++) {
-      std::string var = varlist[b][j];
-      int fieldnum = DOF->getFieldNum(var);
-      std::vector<LO> var_dofs;
-      for (size_t side=0; side<sideNames.size(); side++ ) {
-        std::string sideName = sideNames[side];
-        vector<stk::mesh::Entity> sideEntities;
-        mesh->getMySides(sideName, blockID, sideEntities);
-        
-        bool isDiri = false;
-        if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
-          isDiri = true;
-          haveDirichlet = true;
-        }
-        
-        if (isDiri) {
-          
-          vector<size_t>             local_side_Ids;
-          vector<stk::mesh::Entity>  side_output;
-          vector<size_t>             local_elem_Ids;
-          panzer_stk::workset_utils::getSideElements(*mesh, blockID, sideEntities,
-                                                     local_side_Ids, side_output);
-        
-          for( size_t i=0; i<side_output.size(); i++ ) {
-            LO local_EID = mesh->elementLocalId(side_output[i]);
-            auto elemLIDs = DOF->getElementLIDs(local_EID);
-            const std::pair<vector<int>,vector<int> > SideIndex = DOF->getGIDFieldOffsets_closure(blockID, fieldnum,
-                                                                                                  spaceDim-1,
-                                                                                                  local_side_Ids[i]);
-            const vector<int> sideOffset = SideIndex.first;
-            
-            for( size_t i=0; i<sideOffset.size(); i++ ) { // for each node
-              var_dofs.push_back(elemLIDs(sideOffset[i]));
-            }
-          }
-        }
-      }
-      std::sort(var_dofs.begin(), var_dofs.end());
-      var_dofs.erase(std::unique(var_dofs.begin(), var_dofs.end()), var_dofs.end());
-      
-      //Kokkos::View<LO*,AssemblyDevice> var_dofs_kv("dbc dofs on block",var_dofs.size());
-      //auto var_dofs_host = Kokkos::create_mirror_view(var_dofs_kv);
-      //for (size_t k=0; k<var_dofs.size(); k++) {
-      //  var_dofs_host(k) = var_dofs[k];
-      //}
-      //Kokkos::deep_copy(var_dofs_kv, var_dofs_host);
-      block_dbc_dofs.push_back(var_dofs);
-    }
-    
-    dbc_dofs.push_back(block_dbc_dofs);
-    
-  }
-  
-  if (milo_debug_level > 0) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Finished physics::setDirichletData" << endl;
-    }
-  }
-}
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-Kokkos::View<int****,HostDevice> physics::getSideInfo(const size_t & block,
-                                                     Kokkos::View<int*,HostDevice> elem) {
-  
-  Teuchos::TimeMonitor localtimer(*sideinfotimer);
-  
-  size_type nelem = elem.extent(0);
-  size_type nvars = side_info[block].extent(1);
-  size_type nelemsides = side_info[block].extent(2);
-  //size_type nglobalsides = side_info[block].extent(3);
-  Kokkos::View<int****,HostDevice> currsi("side info for cell",nelem,nvars,nelemsides, 2);
-  for (size_type e=0; e<nelem; e++) {
-    for (size_type j=0; j<nelemsides; j++) {
-      for (size_type i=0; i<nvars; i++) {
-        int sidetype = side_info[block](elem(e),i,j,0);
-        if (sidetype > 0) { // TMW: why is this here?
-          currsi(e,i,j,0) = sidetype;
-          currsi(e,i,j,1) = side_info[block](elem(e),i,j,1);
-        }
-        else {
-          currsi(e,i,j,0) = sidetype;
-          currsi(e,i,j,1) = 0;
-        }
-      }
-    }
-  }
-  return currsi;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-vector<vector<int> > physics::getOffsets(const int & block, Teuchos::RCP<panzer::DOFManager> & DOF) {
-  return offsets[block];
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-Kokkos::View<int**,HostDevice> physics::getSideInfo(const int & block, int & num, size_t & e) {
-  Kokkos::View<int**,HostDevice> local_side_info = Kokkos::subview(side_info[block],e,num,Kokkos::ALL(),Kokkos::ALL());
+//Kokkos::View<int**,HostDevice> physics::getSideInfo(const int & block, int & num, size_t & e) {
+//  Kokkos::View<int**,HostDevice> local_side_info = Kokkos::subview(side_info[block],e,num,Kokkos::ALL(),Kokkos::ALL());
   /*
   for (int j=0; j<numSidesPerElem; j++) {
     for (int k=0; k<2; k++) {
@@ -1531,8 +1204,8 @@ Kokkos::View<int**,HostDevice> physics::getSideInfo(const int & block, int & num
     }
   }
   */
-  return local_side_info;
-}
+//  return local_side_info;
+//}
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
