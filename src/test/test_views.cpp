@@ -49,9 +49,9 @@ int main(int argc, char * argv[]) {
     Kokkos::deep_copy(basis,1.0);
     Kokkos::deep_copy(basis_grad,2.0);
     
-    Kokkos::View<EvalT***,AssemblyDevice> gradT("sol grad",numElem,numip,dimension);
-    Kokkos::View<EvalT**,AssemblyDevice> diff("diff",numElem,numip);
-    Kokkos::View<EvalT**,AssemblyDevice> source("src",numElem,numip);
+    Kokkos::View<EvalT***,AssemblyDevice> gradT("sol grad",numElem,numip,dimension,numDerivs);
+    Kokkos::View<EvalT**,AssemblyDevice> diff("diff",numElem,numip,numDerivs);
+    Kokkos::View<EvalT**,AssemblyDevice> source("src",numElem,numip,numDerivs);
     Kokkos::View<ScalarT**,AssemblyDevice> wts("wts",numElem,numip);
     
     Kokkos::deep_copy(gradT,100.0);
@@ -59,8 +59,8 @@ int main(int argc, char * argv[]) {
     Kokkos::deep_copy(source,1.0);
     Kokkos::deep_copy(wts,1.0);
     
-    Kokkos::View<EvalT**,AssemblyDevice> res("res",numElem,numdof);
-    Kokkos::View<EvalT**,AssemblyDevice> res2("res2",numElem,numdof);
+    Kokkos::View<EvalT**,AssemblyDevice> res("res",numElem,numdof,numDerivs);
+    Kokkos::View<EvalT**,AssemblyDevice> res2("res2",numElem,numdof,numDerivs);
     
     Kokkos::View<ScalarT***,AssemblyDevice> rJdiff("res",numElem,numdof,numDerivs+1);
     
@@ -85,6 +85,7 @@ int main(int argc, char * argv[]) {
     printf("Baseline time:   %e \n", sol_time1);
     
 
+    /*
     timer.reset();
     parallel_for("Thermal volume resid 2D",
                  MDRangePolicy<AssemblyExec,Kokkos::Rank<2>>({0,0},{basis.extent(0),basis.extent(1)}),
@@ -105,7 +106,7 @@ int main(int argc, char * argv[]) {
     double sol_time2 = timer.seconds();
     //printf("MD1 time:   %e \n", sol_time2);
     printf("MD1 ratio:   %e \n", sol_time2/sol_time1);
-    
+    */
 
     Kokkos::View<EvalT**,AssemblyDevice> f("f vals",numElem,numip);
     Kokkos::View<EvalT***,AssemblyDevice> DF("f vals",numElem,numip,2);
@@ -133,6 +134,7 @@ int main(int argc, char * argv[]) {
     //printf("MD2 time:   %e \n", sol_time3);
     printf("MD2 ratio:   %e \n", sol_time3/sol_time1);
    
+    /*
     timer.reset();
     parallel_for("Thermal volume resid 2D",
                  MDRangePolicy<AssemblyExec,Kokkos::Rank<2>>({0,0},{basis.extent(0),basis.extent(2)}),
@@ -174,8 +176,8 @@ int main(int argc, char * argv[]) {
     double sol_time5 = timer.seconds();
     //printf("MD3 time:   %e \n", sol_time4);
     printf("MD4 ratio:   %e \n", sol_time5/sol_time1);
-    
-    /* 
+    */
+     
     parallel_for("Thermal volume resid 2D",
                  RangePolicy<AssemblyExec>(0,rJdiff.extent(0)),
                  KOKKOS_LAMBDA (const int elem ) {
@@ -203,7 +205,7 @@ int main(int argc, char * argv[]) {
     }
     std::cout << "value error: " << valerror << std::endl;
     std::cout << "deriv error: " << deriverror << std::endl;
-    */
+    
     /*
     {
       timer.reset();
