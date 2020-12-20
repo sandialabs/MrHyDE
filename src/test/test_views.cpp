@@ -20,15 +20,14 @@ int main(int argc, char * argv[]) {
     }
     std::cout << "Number of elements: " << numElem << std::endl;
  
-    const int TeamSize = 1; 
+    const int TeamSize = 1;
     std::cout << "Team size: " << TeamSize << std::endl;
   
+    const int numDerivs = 32;
+    typedef Sacado::Fad::SFad<ScalarT,numDerivs> EvalT;
+    
     const int VectorSize = 32;
     std::cout << "Vector size: " << VectorSize << std::endl;
-    
-
-    const int numDerivs = 64;
-    typedef Sacado::Fad::SFad<ScalarT,numDerivs> EvalT;
     typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,VectorSize> CL;
 
     int numip = 8;
@@ -106,7 +105,7 @@ int main(int argc, char * argv[]) {
     typedef Policy::member_type member_type;
     timer.reset();
     parallel_for("Thermal volume resid 2D",
-                 Policy(basis.extent(0), TeamSize, VectorSize),
+                 Policy(basis.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (member_type team ) {
       int elem = team.league_rank();
       int ti = team.team_rank();
@@ -134,7 +133,7 @@ int main(int argc, char * argv[]) {
     
     timer.reset();
     parallel_for("Thermal volume resid 2D",
-                 Policy(basis.extent(0),TeamSize, VectorSize),
+                 Policy(basis.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (member_type team ) {
       int elem = team.league_rank();
       int ti = team.team_rank();
@@ -147,7 +146,7 @@ int main(int argc, char * argv[]) {
     });
 
     parallel_for("Thermal volume resid 2D",
-                 Policy(basis.extent(0), TeamSize, VectorSize),
+                 Policy(basis.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (member_type team ) {
       int elem = team.league_rank();
       int ti = team.team_rank();
@@ -195,6 +194,123 @@ int main(int argc, char * argv[]) {
     std::cout << "value error: " << valerror << std::endl;
     std::cout << "deriv error: " << deriverror << std::endl;
     
+
+    ////////////////////////////////////////////////
+    // Another key kernel
+    ////////////////////////////////////////////////
+
+    Kokkos::View<ScalarT****,CL,AssemblyDevice> cbasis("basis",numElem,numdof,numip,dimension);
+    Kokkos::View<ScalarT****,CL,AssemblyDevice> cbasis_grad("basis",numElem,numdof,numip,dimension);
+    
+    Kokkos::deep_copy(cbasis,1.0);
+    Kokkos::deep_copy(cbasis_grad,2.0);
+    
+    Kokkos::View<EvalT**,CL,AssemblyDevice> cuvals("sol",numElem,numdof,numDerivs);
+    
+    parallel_for("Thermal volume resid 2D",
+                 RangePolicy<AssemblyExec>(0,cuvals.extent(0)),
+                 KOKKOS_LAMBDA (const int elem ) {
+      for (size_type dof=0; dof<cuvals.extent(1); ++dof) {
+        cuvals(elem,dof) = EvalT(32,dof,100.0);
+      }
+    });
+    Kokkos::View<EvalT**,CL,AssemblyDevice> csol("diff",numElem,numip,numDerivs);
+    Kokkos::View<EvalT***,CL,AssemblyDevice> csol_grad("src",numElem,numip,dimension,numDerivs);
+    
+    ////////////////////////////////////////////////
+    // Baseline (current implementation in MrHyDE)
+    ////////////////////////////////////////////////
+
+    timer.reset();
+    parallel_for("wkset soln ip HGRAD",
+                 RangePolicy<AssemblyExec>(0,cbasis.extent(0)),
+                 KOKKOS_LAMBDA (const size_type elem ) {
+      for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+        EvalT uval = cuvals(elem,dof);
+        if ( dof == 0) {
+          for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
+            csol(elem,pt) = uval*cbasis(elem,dof,pt,0);
+            for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
+              csol_grad(elem,pt,s) = uval*cbasis_grad(elem,dof,pt,s);
+            }
+          }
+        }
+        else {
+          for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
+            csol(elem,pt) += uval*cbasis(elem,dof,pt,0);
+            for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
+              csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
+            }
+          }
+        }
+      }
+    });
+    Kokkos::fence();
+    double ker2_time = timer.seconds();
+    printf("Baseline 2:   %e \n", ker2_time);
+
+    ////////////////////////////////////////////////
+    // Simple modification
+    ////////////////////////////////////////////////
+
+    timer.reset();
+    parallel_for("wkset soln ip HGRAD",
+                 RangePolicy<AssemblyExec>(0,cbasis.extent(0)),
+                 KOKKOS_LAMBDA (const size_type elem ) {
+      for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
+        EvalT val = 0.0;
+        for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+          val += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+        }
+        csol(elem,pt) = val;
+        for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
+          val = 0.0;
+          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            val += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,s);
+          }
+          csol_grad(elem,pt,s) = val;
+        }
+      }
+    });
+    Kokkos::fence();
+    double ker2_time2 = timer.seconds();
+    printf("New baseline ratio:   %e \n", ker2_time2/ker2_time);
+
+    
+    
+    ////////////////////////////////////////////////
+    // Hierarchical modified
+    ////////////////////////////////////////////////
+    Kokkos::deep_copy(csol,0.0);
+    Kokkos::deep_copy(csol_grad,0.0);
+    
+    timer.reset();
+    parallel_for("wkset soln ip HGRAD",
+                 Policy(basis.extent(0), Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (member_type team ) {
+      int elem = team.league_rank();
+      int ti = team.team_rank();
+      int ts = team.team_size();
+      EvalT val = 0.0;
+      for (size_type pt=ti; pt<cbasis.extent(2); pt+=ts ) {
+        val = 0.0;
+        for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+          val += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+        }
+        csol(elem,pt) = val;
+        for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
+          val = 0.0;
+          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            val += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,s);
+          }
+          csol_grad(elem,pt,s) = val;
+        }
+      }
+    });
+    Kokkos::fence();
+    double ker2_time3 = timer.seconds();
+    printf("Hierarchical ratio:   %e \n", ker2_time3/ker2_time);
+
   }
   
   Kokkos::finalize();
