@@ -216,6 +216,13 @@ int main(int argc, char * argv[]) {
     });
     Kokkos::View<EvalT**,CL,AssemblyDevice> csol("diff",numElem,numip,numDerivs);
     Kokkos::View<EvalT***,CL,AssemblyDevice> csol_grad("src",numElem,numip,dimension,numDerivs);
+    Kokkos::View<EvalT**,CL,AssemblyDevice> csol2("diff",numElem,numip,numDerivs);
+    Kokkos::View<EvalT***,CL,AssemblyDevice> csol2_grad("src",numElem,numip,dimension,numDerivs);
+    Kokkos::View<EvalT**,CL,AssemblyDevice> csol3("diff",numElem,numip,numDerivs);
+    Kokkos::View<EvalT***,CL,AssemblyDevice> csol3_grad("src",numElem,numip,dimension,numDerivs);
+    
+    Kokkos::View<ScalarT**,CL,AssemblyDevice> sol2diff("error",numElem,numDerivs+1);
+    Kokkos::View<ScalarT**,CL,AssemblyDevice> sol3diff("error",numElem,numDerivs+1);
     
     ////////////////////////////////////////////////
     // Baseline (current implementation in MrHyDE)
@@ -258,17 +265,15 @@ int main(int argc, char * argv[]) {
                  RangePolicy<AssemblyExec>(0,cbasis.extent(0)),
                  KOKKOS_LAMBDA (const size_type elem ) {
       for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-        EvalT val = 0.0;
+        csol2(elem,pt) = 0.0;
         for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-          val += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+          csol2(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
         }
-        csol(elem,pt) = val;
         for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
-          val = 0.0;
+          csol2_grad(elem,pt,s) = 0.0;
           for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            val += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,s);
+            csol2_grad(elem,pt,s) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,s);
           }
-          csol_grad(elem,pt,s) = val;
         }
       }
     });
@@ -281,8 +286,6 @@ int main(int argc, char * argv[]) {
     ////////////////////////////////////////////////
     // Hierarchical modified
     ////////////////////////////////////////////////
-    Kokkos::deep_copy(csol,0.0);
-    Kokkos::deep_copy(csol_grad,0.0);
     
     timer.reset();
     parallel_for("wkset soln ip HGRAD",
@@ -291,19 +294,16 @@ int main(int argc, char * argv[]) {
       int elem = team.league_rank();
       int ti = team.team_rank();
       int ts = team.team_size();
-      EvalT val = 0.0;
       for (size_type pt=ti; pt<cbasis.extent(2); pt+=ts ) {
-        val = 0.0;
+        csol3(elem,pt) = 0.0;
         for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-          val += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+          csol3(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
         }
-        csol(elem,pt) = val;
         for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
-          val = 0.0;
+          csol3_grad(elem,pt,s) = 0.0;
           for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            val += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,s);
+            csol3_grad(elem,pt,s) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,s);
           }
-          csol_grad(elem,pt,s) = val;
         }
       }
     });
@@ -311,6 +311,53 @@ int main(int argc, char * argv[]) {
     double ker2_time3 = timer.seconds();
     printf("Hierarchical ratio:   %e \n", ker2_time3/ker2_time);
 
+    ////////////////////////////////////////////////
+    // Verify the results
+    ////////////////////////////////////////////////
+ 
+    parallel_for("Thermal volume resid 2D",
+                 RangePolicy<AssemblyExec>(0,sol2diff.extent(0)),
+                 KOKKOS_LAMBDA (const int elem ) {
+      for (size_type pt=0; pt<csol2.extent(1); pt++ ) {
+        sol2diff(elem,0) += csol(elem,pt).val() - csol2(elem,pt).val();
+        for (size_type d=0; d<csol2(elem,pt).size(); d++) {
+          sol2diff(elem,d+1) = csol(elem,pt).fastAccessDx(d) - csol2(elem,pt).fastAccessDx(d);
+        }
+        sol3diff(elem,0) += csol(elem,pt).val() - csol3(elem,pt).val();
+        for (size_type d=0; d<csol3(elem,pt).size(); d++) {
+          sol3diff(elem,d+1) = csol(elem,pt).fastAccessDx(d) - csol3(elem,pt).fastAccessDx(d);
+        }
+      }
+    });
+   
+    //std::cout << "computed diffs on device" << std::endl;
+ 
+    auto sol2diff_host = Kokkos::create_mirror_view(sol2diff);
+    Kokkos::deep_copy(sol2diff_host,sol2diff);
+    
+    auto sol3diff_host = Kokkos::create_mirror_view(sol3diff);
+    Kokkos::deep_copy(sol3diff_host,sol3diff);
+    
+    valerror = 0.0, deriverror = 0.0;
+    for (size_type elem=0; elem<sol2diff_host.extent(0); elem++ ) {
+      valerror += abs(sol2diff_host(elem,0));
+      for (size_type d=1; d<sol2diff_host.extent(2); d++) {
+        deriverror += abs(sol2diff_host(elem,d));
+      }
+    }
+    std::cout << "value error: " << valerror << std::endl;
+    std::cout << "deriv error: " << deriverror << std::endl;
+    
+    valerror = 0.0, deriverror = 0.0;
+    for (size_type elem=0; elem<sol3diff_host.extent(0); elem++ ) {
+      valerror += abs(sol3diff_host(elem,0));
+      for (size_type d=1; d<sol3diff_host.extent(2); d++) {
+        deriverror += abs(sol3diff_host(elem,d));
+      }
+    }
+    std::cout << "hier. value error: " << valerror << std::endl;
+    std::cout << "hier. deriv error: " << deriverror << std::endl;
+    
   }
   
   Kokkos::finalize();
