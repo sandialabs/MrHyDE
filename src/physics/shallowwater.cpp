@@ -69,10 +69,7 @@ void shallowwater::defineFunctions(Teuchos::ParameterList & fs,
 
 void shallowwater::volumeResidual() {
   
-  // NOTES:
-  // 1. basis and basis_grad already include the integration weights
-  
-  FDATA bath, bath_x, bath_y, visc, cor, bfric, source_Hu, source_Hv;
+  View_AD2_sv bath, bath_x, bath_y, visc, cor, bfric, source_Hu, source_Hv;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -165,7 +162,7 @@ void shallowwater::boundaryResidual() {
   
   string sidename = wkset->sidename;
   
-  FDATA nsource, nsource_Hu, nsource_Hv, bath_side;
+  View_AD2_sv nsource, nsource_Hu, nsource_Hv, bath_side;
   
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);

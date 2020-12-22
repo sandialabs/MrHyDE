@@ -180,7 +180,8 @@ void FunctionManager::decomposeFunctions() {
                 functions[fiter].terms[k].scalar_ddata = wkset->time_KV;
                 functions[fiter].terms[k].isScalar = true;
                 functions[fiter].terms[k].isConstant = false;
-                Kokkos::View<double***,AssemblyDevice> tdata("data",functions[fiter].dim0,functions[fiter].dim1,1);
+                //functions[fiter].terms[k].ddata = View_Sc2("data",functions[fiter].dim0,functions[fiter].dim1);
+                View_Sc3 tdata("data",functions[fiter].dim0,functions[fiter].dim1,1);
                 functions[fiter].terms[k].ddata = Kokkos::subview(tdata, Kokkos::ALL(), Kokkos::ALL(), 0);
                 
               }
@@ -216,9 +217,7 @@ void FunctionManager::decomposeFunctions() {
                 functions[fiter].terms[k].isConstant = true; // means in does not need to be copied every time
                 //have_data = true;
                 // Copy the data just once
-                Kokkos::View<double***,AssemblyDevice> tdata("scalar data",
-                                                             functions[fiter].dim0,
-                                                             functions[fiter].dim1,1);
+                View_Sc3 tdata("scalar data", functions[fiter].dim0, functions[fiter].dim1,1);
                 functions[fiter].terms[k].ddata = Kokkos::subview(tdata, Kokkos::ALL(), Kokkos::ALL(), 0);
                 Kokkos::deep_copy(functions[fiter].terms[k].ddata, PI);
                 decompose = false;
@@ -483,7 +482,7 @@ void FunctionManager::decomposeFunctions() {
             Kokkos::deep_copy(functions[fiter].terms[k].scalar_ddata, val);
            
             // Copy the data just once
-            Kokkos::View<double***,AssemblyDevice> tdata("scalar data",functions[fiter].dim0,functions[fiter].dim1,1);
+            View_Sc3 tdata("scalar data",functions[fiter].dim0,functions[fiter].dim1,1);
             functions[fiter].terms[k].ddata = Kokkos::subview(tdata, Kokkos::ALL(), Kokkos::ALL(), 0);
             Kokkos::deep_copy(functions[fiter].terms[k].ddata, val);
             //for (size_t k2=0; k2<functions[fiter].dim0; k2++) {
@@ -618,7 +617,7 @@ void FunctionManager::decomposeFunctions() {
               
               functions[fiter].terms[k].scalar_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
               
-              Kokkos::View<AD***,AssemblyDevice> tdata("scalar data",functions[fiter].dim0,functions[fiter].dim1,1);
+              View_AD3 tdata("scalar data",functions[fiter].dim0,functions[fiter].dim1,1);
               functions[fiter].terms[k].data = Kokkos::subview(tdata, Kokkos::ALL(), Kokkos::ALL(), 0);
               
             }
@@ -687,7 +686,7 @@ void FunctionManager::decomposeFunctions() {
                 
                 functions[fiter].terms[k].scalar_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
                 
-                Kokkos::View<AD***,AssemblyDevice> tdata("scalar data",functions[fiter].dim0,functions[fiter].dim1,1);
+                View_AD3 tdata("scalar data",functions[fiter].dim0,functions[fiter].dim1,1);
                 functions[fiter].terms[k].data = Kokkos::subview(tdata, Kokkos::ALL(), Kokkos::ALL(), 0);
               }
             }
@@ -740,21 +739,17 @@ void FunctionManager::decomposeFunctions() {
       if (termcheck) {
         functions[k].terms[j].isAD = false;
         if (!functions[k].terms[j].isRoot) {
-          Kokkos::View<double***,AssemblyDevice> tdata("data",
-                                                       functions[k].dim0,
-                                                       functions[k].dim1,1);
+          View_Sc3 tdata("data", functions[k].dim0, functions[k].dim1,1);
           functions[k].terms[j].ddata = Kokkos::subview(tdata, Kokkos::ALL(), Kokkos::ALL(), 0);
         }
         if (j==0) { // always need this allocated
-          Kokkos::View<AD***,AssemblyDevice> tdata("data",
-                                                   functions[k].dim0,
-                                                   functions[k].dim1,1);
+          View_AD3 tdata("data", functions[k].dim0, functions[k].dim1,1);
           functions[k].terms[j].data = Kokkos::subview(tdata, Kokkos::ALL(), Kokkos::ALL(), 0);
         }
       }
       else if (!functions[k].terms[j].isRoot) {
         functions[k].terms[j].isAD = true;
-        Kokkos::View<AD***,AssemblyDevice> tdata("data",functions[k].dim0,functions[k].dim1,1);
+        View_AD3 tdata("data",functions[k].dim0,functions[k].dim1,1);
         functions[k].terms[j].data = Kokkos::subview(tdata, Kokkos::ALL(), Kokkos::ALL(), 0);
       }
       //functions[k].terms[j].print();
@@ -791,14 +786,14 @@ bool FunctionManager::isScalarTerm(const int & findex, const int & tindex) {
 // Evaluate a function (probably will be deprecated)
 //////////////////////////////////////////////////////////////////////////////////////
 
-FDATA FunctionManager::evaluate(const string & fname, const string & location) {
+View_AD2_sv FunctionManager::evaluate(const string & fname, const string & location) {
   Teuchos::TimeMonitor ttimer(*evaluateTimer);
   
   
   int findex = -1;
   for (size_t i=0; i<functions.size(); i++) {
     if (fname == functions[i].function_name && functions[i].location == location) {
-      evaluate(i,0);
+      this->evaluate(i,0);
       findex = i;
     }
   }
@@ -807,10 +802,12 @@ FDATA FunctionManager::evaluate(const string & fname, const string & location) {
     TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: function manager could not evaluate: " + fname + " at " + location);
   }
   
-  FDATA output = functions[findex].terms[0].data;
+  View_AD2_sv output = functions[findex].terms[0].data;
   if (!functions[findex].terms[0].isAD) {
-    FDATAd doutput = functions[findex].terms[0].ddata;
-    parallel_for("funcman copy double to AD",RangePolicy<AssemblyExec>(0,output.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    View_Sc2_sv doutput = functions[findex].terms[0].ddata;
+    parallel_for("funcman copy double to AD",
+                 RangePolicy<AssemblyExec>(0,output.extent(0)),
+                 KOKKOS_LAMBDA (const int e ) {
       for (unsigned int n=0; n<output.extent(1); n++) {
         output(e,n) = doutput(e,n);
       }
@@ -834,18 +831,18 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex) {
   
   if (functions[findex].terms[tindex].isRoot) {
     if (functions[findex].terms[tindex].isScalar && !functions[findex].terms[tindex].isConstant) {
-      if (functions[findex].terms[tindex].isAD) {
-        FDATA data0 = functions[findex].terms[tindex].data;
-        Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> data1 = functions[findex].terms[tindex].scalar_data;
+      if (functions[findex].terms[tindex].isAD) { // TMW change to deep_copy
+        auto data0 = functions[findex].terms[tindex].data;
+        auto data1 = functions[findex].terms[tindex].scalar_data;
         parallel_for("funcman copy constant to AD",RangePolicy<AssemblyExec>(0,data0.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (unsigned int n=0; n<data0.extent(1); n++) {
             data0(e,n) = data1(0);
           }
         });
       }
-      else {
-        FDATAd data0 = functions[findex].terms[tindex].ddata;
-        Kokkos::View<double*,Kokkos::LayoutStride,AssemblyDevice> data1 = functions[findex].terms[tindex].scalar_ddata;
+      else { // TMW change to deep_copy
+        auto data0 = functions[findex].terms[tindex].ddata;
+        auto data1 = functions[findex].terms[tindex].scalar_ddata;
         parallel_for("funcman copy constant to constant",RangePolicy<AssemblyExec>(0,data0.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (unsigned int n=0; n<data0.extent(1); n++) {
             data0(e,n) = data1(0);
@@ -861,9 +858,9 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex) {
       if (functions[funcIndex].terms[0].isAD) {
         functions[findex].terms[tindex].data = functions[funcIndex].terms[0].data;
       }
-      else {
-        FDATA data0 = functions[findex].terms[tindex].data;
-        FDATAd data1 = functions[funcIndex].terms[0].ddata;
+      else { // TMW try to change to deep copy
+        auto data0 = functions[findex].terms[tindex].data;
+        auto data1 = functions[funcIndex].terms[0].ddata;
         parallel_for("funcman copy scalar to AD",RangePolicy<AssemblyExec>(0,data0.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (unsigned int n=0; n<data0.extent(1); n++) {
             data0(e,n) = data1(e,n);

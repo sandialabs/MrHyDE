@@ -67,7 +67,7 @@ void thermal::volumeResidual() {
     
   auto basis = wkset->basis[e_basis_num];
   auto basis_grad = wkset->basis_grad[e_basis_num];
-  FDATA source, diff, cp, rho;
+  View_AD2_sv source, diff, cp, rho;
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("thermal source","ip");
@@ -92,33 +92,6 @@ void thermal::volumeResidual() {
   auto gradT = Kokkos::subview( sol_grad, Kokkos::ALL(), e_num, Kokkos::ALL(), Kokkos::ALL());
   auto off = Kokkos::subview( offsets, e_num, Kokkos::ALL());
   auto scratch = wkset->scratch;
-  
-  /*
-  parallel_for("Thermal volume resid 1D",
-               MDRangePolicy<AssemblyExec,Rank<2>>({0,0},{basis.extent(0),basis.extent(2)}),
-               KOKKOS_LAMBDA (const int elem , const int pt) {
-    scratch(elem,pt,0) = (rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt))*wts(elem,pt);
-    for (size_type dim=0; dim<gradT.extent(2); ++dim) {
-      scratch(elem,pt,dim+1) = diff(elem,pt)*gradT(elem,pt,dim)*wts(elem,pt);
-    }
-  });
-  Kokkos::fence();
-  
-  parallel_for("Thermal volume resid 1D",
-               MDRangePolicy<AssemblyExec,Rank<2>>({0,0},{basis.extent(0),basis.extent(1)}),
-               KOKKOS_LAMBDA (const int elem , const int dof) {
-    AD val = 0.0;
-    for (size_type pt=0; pt<wts.extent(1); ++pt) {
-      val += scratch(elem,pt,0)*basis(elem,dof,pt,0);
-      for (size_type dim=0; dim<gradT.extent(2); ++dim) {
-        val += scratch(elem,pt,dim+1)*basis_grad(elem,dof,pt,dim);
-      }
-    }
-    res(elem,off(dof)) = val;
-  });
-  Kokkos::fence();
-  */
-  
   
   if (spaceDim == 1) {
     parallel_for("Thermal volume resid 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
@@ -229,7 +202,7 @@ void thermal::boundaryResidual() {
   auto basis = wkset->basis_side[e_basis_num];
   auto basis_grad = wkset->basis_grad_side[e_basis_num];
   
-  FDATA nsource, diff_side, robin_alpha;
+  View_AD2_sv nsource, diff_side, robin_alpha;
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
@@ -339,7 +312,7 @@ void thermal::computeFlux() {
     sf = formparam;
   }
   
-  FDATA diff_side;
+  View_AD2_sv diff_side;
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
     diff_side = functionManager->evaluate("thermal diffusion","side ip");

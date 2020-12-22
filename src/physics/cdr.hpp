@@ -70,8 +70,6 @@ namespace MrHyDE {
     
   private:
     
-    //FDATA diff, rho, cp, xvel, yvel, zvel, reax, tau, source, nsource, diff_side, robin_alpha;
-    
     int spaceDim;
     int cnum;
     

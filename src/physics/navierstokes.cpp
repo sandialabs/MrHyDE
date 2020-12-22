@@ -81,7 +81,7 @@ void navierstokes::defineFunctions(Teuchos::ParameterList & fs,
 
 void navierstokes::volumeResidual() {
   
-  FDATA dens, visc, source_ux, source_pr, source_uy, source_uz;
+  View_AD2_sv dens, visc, source_ux, source_pr, source_uy, source_uz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);

@@ -149,12 +149,12 @@ namespace MrHyDE {
     
     // All of these point to specific information in the workset - AND - 
     // We always take subviews, so these are ok on device
-    Kokkos::View<AD****,AssemblyDevice> sol, sol_dot, sol_grad, sol_side, sol_grad_side, aux_grad_side, sol_curl, sol_face, sol_grad_face, aux, aux_side;
-    Kokkos::View<AD***,AssemblyDevice> sol_div, flux;
+    View_AD4 sol, sol_dot, sol_grad, sol_side, sol_grad_side, aux_grad_side, sol_curl, sol_face, sol_grad_face, aux, aux_side;
+    View_AD3 sol_div, flux;
     Kokkos::View<int**,AssemblyDevice> offsets;
     
     // Probably not used much
-    Kokkos::View<AD**,AssemblyDevice> adjrhs;
+    View_AD2 adjrhs;
     
     // On host, so ok
     Kokkos::View<int**,HostDevice> bcs;

@@ -76,8 +76,8 @@ namespace MrHyDE {
     bool isRoot, beenDecomposed, isFunc, isScalar, isAD, isConstant;
     int funcIndex, scalarIndex;
     
-    FDATA data;
-    FDATAd ddata;
+    View_AD2_sv data;
+    View_Sc2_sv ddata;
     Kokkos::View<double*,Kokkos::LayoutStride,AssemblyDevice> scalar_ddata;
     Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> scalar_data;
     

@@ -41,7 +41,7 @@ void ODE::defineFunctions(Teuchos::ParameterList & fs,
 
 void ODE::volumeResidual() {
   
-  FDATA source;
+  View_AD2_sv source;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);

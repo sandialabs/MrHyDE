@@ -84,10 +84,10 @@ void helmholtz::volumeResidual() {
   int ur_basis_num = wkset->usebasis[ur_num];
   int ui_basis_num = wkset->usebasis[ui_num];
   
-  FDATA source_r, source_i;
-  FDATA omega2r, omega2i, omegar, omegai;
-  FDATA c2r_x, c2i_x, c2r_y, c2i_y, c2r_z, c2i_z;
-  FDATA alphaHr, alphaHi,alphaTr, alphaTi, freqExp; //fractional
+  View_AD2_sv source_r, source_i;
+  View_AD2_sv omega2r, omega2i, omegar, omegai;
+  View_AD2_sv c2r_x, c2i_x, c2r_y, c2i_y, c2r_z, c2i_z;
+  View_AD2_sv alphaHr, alphaHi,alphaTr, alphaTi, freqExp; //fractional
   
   c2r_x = functionManager->evaluate("c2r_x","ip");
   c2i_x = functionManager->evaluate("c2i_x","ip");
@@ -254,11 +254,11 @@ void helmholtz::boundaryResidual() {
   
   // Set the parameters
   
-  FDATA c2r_side_x, c2i_side_x, c2r_side_y, c2i_side_y, c2r_side_z, c2i_side_z;
-  FDATA robin_alpha_r, robin_alpha_i;
-  FDATA source_r_side, source_i_side;
-  FDATA omega2r, omega2i;
-  FDATA alphaHr, alphaHi,alphaTr, alphaTi, freqExp; //fractional
+  View_AD2_sv c2r_side_x, c2i_side_x, c2r_side_y, c2i_side_y, c2r_side_z, c2i_side_z;
+  View_AD2_sv robin_alpha_r, robin_alpha_i;
+  View_AD2_sv source_r_side, source_i_side;
+  View_AD2_sv omega2r, omega2i;
+  View_AD2_sv alphaHr, alphaHi,alphaTr, alphaTi, freqExp; //fractional
   
   c2r_side_x = functionManager->evaluate("c2r_x","side ip");
   c2i_side_x = functionManager->evaluate("c2i_x","side ip");

@@ -26,6 +26,7 @@ using Kokkos::parallel_for;
 using Kokkos::parallel_reduce;
 using Kokkos::RangePolicy;
 using Kokkos::MDRangePolicy;
+using Kokkos::TeamPolicy;
 using Kokkos::Rank;
 using std::string;
 using std::vector;
@@ -38,11 +39,19 @@ typedef double ScalarT;
 typedef int LO; // same as panzer::LocalOrdinal
 typedef panzer::GlobalOrdinal GO;
 
+// Number of derivatives in SFAD objects
 #ifdef MrHyDE_SET_MAX_DERIVS
   #define maxDerivs MrHyDE_SET_MAX_DERIVS // allow us to set this at configure-time with the MrHyDE_MAX_DERIVS flag
 #else
   #define maxDerivs 64 // adjust this to improve performance
 #endif
+
+// Size of vectors for hierarchical parallel policies
+//#ifdef MrHyDE_SET_VECTOR_SIZE
+//  #define VectorSize MrHyDE_SET_VECTOR_SIZE // allow us to set this at configure-time with the MrHyDE_VECTOR_SIZE flag
+//#else
+//  #define VectorSize 32 // probably fine for most architectures
+//#endif
 
 
 #define PI 3.141592653589793238463
@@ -61,6 +70,10 @@ typedef Kokkos::Serial HostExec; // cannot be Cuda right now
 #else
   typedef Kokkos::Serial AssemblyExec;
 #endif
+
+// Kokkos contiguous layout for optimal use of hierarchical parallelism
+typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,32> ContLayout;
+//typedef Kokkos::LayoutContiguous<Kokkos::LayoutStride,VectorSize> ContLayout;
 
 // Kokkos Memory Space typedefs
 // Format: Kokkos::*
@@ -97,11 +110,24 @@ typedef Kokkos::Device<AssemblyExec,AssemblyMem> AssemblyDevice;
 
 // Kokkos object typedefs (preferable to use Kokkos::View<*,Device>)
 typedef Kokkos::DynRankView<ScalarT,PHX::Device> DRV; // for interacting with Intrepid2/Panzer
-typedef Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> FDATA;
-typedef Kokkos::View<ScalarT**,Kokkos::LayoutStride,AssemblyDevice> FDATAd;
 typedef Kokkos::View<LO**,AssemblyDevice> LIDView;
 typedef Kokkos::View<LO**,HostDevice> LIDView_host;
 typedef Kokkos::View<ScalarT*>::size_type size_type;
+
+// Use ContLayout for faster hierarchical parallelism
+typedef Kokkos::View<AD*,ContLayout,AssemblyDevice> View_AD1;
+typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2; // replaces FDATA
+typedef Kokkos::View<AD***,ContLayout,AssemblyDevice> View_AD3;
+typedef Kokkos::View<AD****,ContLayout,AssemblyDevice> View_AD4;
+typedef Kokkos::View<ScalarT*,AssemblyDevice> View_Sc1;
+typedef Kokkos::View<ScalarT**,AssemblyDevice> View_Sc2; // replaces FDATAd
+typedef Kokkos::View<ScalarT***,AssemblyDevice> View_Sc3;
+typedef Kokkos::View<ScalarT****,AssemblyDevice> View_Sc4;
+
+// Special Views for function manager
+// These must be created as subviews and cannot be constructed directly without a given stride
+typedef Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> View_AD2_sv; // replaces FDATA
+typedef Kokkos::View<ScalarT**,Kokkos::LayoutStride,AssemblyDevice> View_Sc2_sv; // replaces FDATAd
 
 // Intrepid and shards typedefs
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;

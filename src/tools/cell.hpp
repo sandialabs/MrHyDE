@@ -155,8 +155,8 @@ namespace MrHyDE {
                        const bool & compute_jacobian, const bool & compute_sens,
                        const int & num_active_params, const bool & compute_disc_sens,
                        const bool & compute_aux_sens, const bool & store_adjPrev,
-                       Kokkos::View<ScalarT***,AssemblyDevice> res,
-                       Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                       View_Sc3 res,
+                       View_Sc3 local_J,
                        const bool & assemble_volume_terms,
                        const bool & assemble_face_terms);
     
@@ -170,56 +170,56 @@ namespace MrHyDE {
     // Use the AD res to update the scalarT res
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res);
+    void updateRes(const bool & compute_sens, View_Sc3 local_res);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Update the adjoint res
     ///////////////////////////////////////////////////////////////////////////////////////
-    void updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res);
+    void updateAdjointRes(const bool & compute_sens, View_Sc3 local_res);
     
     void updateAdjointRes(const bool & compute_jacobian, const bool & isTransient,
                           const bool & compute_aux_sens, const bool & store_adjPrev,
-                          Kokkos::View<ScalarT***,AssemblyDevice> local_J,
-                          Kokkos::View<ScalarT***,AssemblyDevice> local_res);
+                          View_Sc3 local_J,
+                          View_Sc3 local_res);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Use the AD res to update the scalarT J
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J);
+    void updateJac(const bool & useadjoint, View_Sc3 local_J);
     
-    void fixDiagJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J,
-                    Kokkos::View<ScalarT***,AssemblyDevice> local_res);
+    void fixDiagJac(View_Sc3 local_J,
+                    View_Sc3 local_res);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Use the AD res to update the scalarT Jparam
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J);
+    void updateParamJac(View_Sc3 local_J);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Use the AD res to update the scalarT Jaux
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J);
+    void updateAuxJac(View_Sc3 local_J);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Get the initial condition
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<ScalarT**,AssemblyDevice> getInitial(const bool & project, const bool & isAdjoint);
+    View_Sc2 getInitial(const bool & project, const bool & isAdjoint);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Get the mass matrix
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<ScalarT***,AssemblyDevice> getMass();
+    View_Sc3 getMass();
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Compute the response at the integration points given the solution and solve times
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<AD***,AssemblyDevice> computeResponse(const int & seedwhat);
+    View_AD3 computeResponse(const int & seedwhat);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Compute volumetric contribution to the regularization
@@ -232,21 +232,19 @@ namespace MrHyDE {
     // Compute the objective function given the solution and solve times
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<AD**,AssemblyDevice> computeObjective(const ScalarT & solvetime,
-                                                       const size_t & tindex,
-                                                       const int & seedwhat);
+    View_AD2 computeObjective(const ScalarT & solvetime, const size_t & tindex, const int & seedwhat);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Compute the target function given the solve times
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<AD***,AssemblyDevice> computeTarget(const ScalarT & solvetime);
+    View_AD3 computeTarget(const ScalarT & solvetime);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Compute the weight functino given the solve times
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<AD***,AssemblyDevice> computeWeight(const ScalarT & solvetime);
+    View_AD3 computeWeight(const ScalarT & solvetime);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Add sensor information
@@ -275,15 +273,15 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     void setUpAdjointPrev(const int & numDOF, const int & numsteps, const int & numstages) {
-      adj_prev = Kokkos::View<ScalarT***,AssemblyDevice>("previous step adjoint",numElem,numDOF,numsteps);
-      adj_stage_prev = Kokkos::View<ScalarT***,AssemblyDevice>("previous stage adjoint",numElem,numDOF,numstages);
+      adj_prev = View_Sc3("previous step adjoint",numElem,numDOF,numsteps);
+      adj_stage_prev = View_Sc3("previous stage adjoint",numElem,numDOF,numstages);
     }
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
     void setUpSubGradient(const int & numParams) {
-      subgradient = Kokkos::View<ScalarT**,AssemblyDevice>("subgrid gradient",numElem,numParams);
+      subgradient = View_Sc2("subgrid gradient",numElem,numParams);
     }
     
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -335,30 +333,26 @@ namespace MrHyDE {
     
     // Data created here (Views should all be AssemblyDevice)
     size_t numElem;
-    //DRV ip, wts;
-    Kokkos::View<ScalarT***,AssemblyDevice> ip; // numElem x numip x dimension
-    Kokkos::View<ScalarT**,AssemblyDevice> wts; // numElem x numip
-    //vector<DRV> ip_face, wts_face, normals_face;
-    vector<Kokkos::View<ScalarT***,AssemblyDevice> > ip_face, normals_face; // numElem x numip x dimension
-    vector<Kokkos::View<ScalarT**,AssemblyDevice> > wts_face; // numElem x numip
+    View_Sc3 ip; // numElem x numip x dimension
+    View_Sc2 wts; // numElem x numip
+    vector<View_Sc3> ip_face, normals_face; // numElem x numip x dimension
+    vector<View_Sc2 > wts_face; // numElem x numip
     
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
-    Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param; // (elem,var,numdof)
-    Kokkos::View<ScalarT***,AssemblyDevice> u_avg, u_alt, aux_avg, param_avg; // (elem,var,dim)
-    Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, aux_prev, u_stage, phi_stage, aux_stage; // (elem,var,numdof,step or stage)
+    View_Sc3 u, phi, aux, param; // (elem,var,numdof)
+    View_Sc3 u_avg, u_alt, aux_avg, param_avg; // (elem,var,dim)
+    View_Sc4 u_prev, phi_prev, aux_prev, u_stage, phi_stage, aux_stage; // (elem,var,numdof,step or stage)
     
     // basis information
-    //vector<DRV> basis, basis_grad, basis_div, basis_curl, basis_nodes;
-    vector<Kokkos::View<ScalarT****,AssemblyDevice> > basis, basis_grad, basis_curl, basis_nodes;
-    vector<Kokkos::View<ScalarT***,AssemblyDevice> > basis_div;
+    vector<View_Sc4> basis, basis_grad, basis_curl, basis_nodes;
+    vector<View_Sc3> basis_div;
     
     //vector<vector<DRV> > basis_face, basis_grad_face;
-    vector<vector<Kokkos::View<ScalarT****,AssemblyDevice> > > basis_face, basis_grad_face;
-    Kokkos::View<ScalarT*,AssemblyDevice> hsize;
+    vector<vector<View_Sc4>> basis_face, basis_grad_face;
+    View_Sc1 hsize;
     
     // Aux variable Information
     vector<string> auxlist;
-    //Kokkos::View<LO*,AssemblyDevice> numAuxDOF;
     Kokkos::View<LO**,AssemblyDevice> auxoffsets;
     vector<int> auxusebasis;
     vector<basis_RCP> auxbasisPointers;

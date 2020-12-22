@@ -58,7 +58,7 @@ void porous::volumeResidual() {
   auto wts = wkset->wts;
   auto res = wkset->res;
   
-  FDATA perm, porosity, viscosity, densref, pref, comp, gravity, source;
+  View_AD2_sv perm, porosity, viscosity, densref, pref, comp, gravity, source;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -140,7 +140,7 @@ void porous::boundaryResidual() {
   auto basis = wkset->basis_side[basis_num];
   auto basis_grad = wkset->basis_grad_side[basis_num];
   
-  FDATA perm, porosity, viscosity, densref, pref, comp, gravity, source;
+  View_AD2_sv perm, porosity, viscosity, densref, pref, comp, gravity, source;
   
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
@@ -257,7 +257,7 @@ void porous::computeFlux() {
     sf = formparam;
   }
   
-  FDATA perm, porosity, viscosity, densref, pref, comp, gravity, source;
+  View_AD2_sv perm, porosity, viscosity, densref, pref, comp, gravity, source;
   
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
@@ -319,9 +319,9 @@ void porous::setVars(std::vector<string> & varlist) {
 // ========================================================================================
 // ========================================================================================
 
-void porous::updatePerm(FDATA perm) {
+void porous::updatePerm(View_AD2_sv perm) {
   
-  Kokkos::View<ScalarT**,AssemblyDevice> data = wkset->extra_data;
+  View_Sc2 data = wkset->extra_data;
   
   parallel_for("porous HGRAD update perm",RangePolicy<AssemblyExec>(0,perm.extent(0)), KOKKOS_LAMBDA (const int elem ) {
     for (size_type pt=0; pt<perm.extent(1); pt++) {

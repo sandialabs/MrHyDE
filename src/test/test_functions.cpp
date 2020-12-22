@@ -98,11 +98,11 @@ int main(int argc, char * argv[]) {
     
     //functionManager->printFunctions();
     
-    FDATA datax = functionManager->evaluate("pres","ip");
+    View_AD2_sv datax = functionManager->evaluate("pres","ip");
     
-    FDATA data1 = functionManager->evaluate("bubble","ip");
-    FDATA data2 = functionManager->evaluate("well","ip");
-    FDATA data3 = functionManager->evaluate("source","ip");
+    View_AD2_sv data1 = functionManager->evaluate("bubble","ip");
+    View_AD2_sv data2 = functionManager->evaluate("well","ip");
+    View_AD2_sv data3 = functionManager->evaluate("source","ip");
     
     /*
      parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
@@ -127,11 +127,11 @@ int main(int argc, char * argv[]) {
        }
        });
        */
-      FDATA datap = functionManager->evaluate("pres","ip");
+      View_AD2_sv datap = functionManager->evaluate("pres","ip");
       
-      FDATA data1 = functionManager->evaluate("wellr","ip");
-      FDATA data2 = functionManager->evaluate("welll","ip");
-      FDATA data3 = functionManager->evaluate("source","ip");
+      View_AD2_sv data1 = functionManager->evaluate("wellr","ip");
+      View_AD2_sv data2 = functionManager->evaluate("welll","ip");
+      View_AD2_sv data3 = functionManager->evaluate("source","ip");
       /*
        parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
        for (size_t j=0; j<numip; j++) {

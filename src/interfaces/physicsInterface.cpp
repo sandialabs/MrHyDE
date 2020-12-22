@@ -731,7 +731,7 @@ AD physics::getDirichletValue(const int & block, const ScalarT & x, const Scalar
   wkset->time_KV(0) = t;
   
   // evaluate the response
-  FDATA ddata = functionManagers[block]->evaluate("Dirichlet " + var + " " + gside,"point");
+  auto ddata = functionManagers[block]->evaluate("Dirichlet " + var + " " + gside,"point");
   AD val = 0.0;
   return ddata(0,0);
   
@@ -750,7 +750,7 @@ ScalarT physics::getInitialValue(const int & block, const ScalarT & x, const Sca
   wkset->point_KV(0,0,2) = z;
   
   // evaluate the response
-  FDATA idata = functionManager->evaluate("initial " + var,"point",block);
+  View_AD2_sv idata = functionManager->evaluate("initial " + var,"point",block);
   return idata(0,0).val();
   */
   return 0.0;
@@ -775,19 +775,16 @@ int physics::getNumResponses(const int & block) {
 // Really designed for sensor responses, but can be used for ip responses (global)
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<AD***,AssemblyDevice> physics::getPointResponse(const int & block,
-                                                             Kokkos::View<AD****,AssemblyDevice> u_ip,
-                                                             Kokkos::View<AD****,AssemblyDevice> ugrad_ip,
-                                                             Kokkos::View<AD****,AssemblyDevice> p_ip,
-                                                             Kokkos::View<AD****,AssemblyDevice> pgrad_ip,
-                                                             const DRV ip, const ScalarT & time,
-                                                             Teuchos::RCP<workset> & wkset) {
+View_AD3 physics::getPointResponse(const int & block, View_AD4 u_ip, View_AD4 ugrad_ip,
+                                   View_AD4 p_ip, View_AD4 pgrad_ip,
+                                   const DRV ip, const ScalarT & time,
+                                   Teuchos::RCP<workset> & wkset) {
   
   size_t numElem = u_ip.extent(0);
   size_t numip = ip.extent(1);
   size_t numResponses = response_list[block].size();
   
-  Kokkos::View<AD***,AssemblyDevice> responsetotal("responses",numElem,numResponses,numip);
+  View_AD3 responsetotal("responses",numElem,numResponses,numip);
   
   auto point = Kokkos::subview(wkset->point, 0, 0, Kokkos::ALL());
   auto sol = Kokkos::subview(wkset->local_soln_point, 0, Kokkos::ALL(), 0, Kokkos::ALL());
@@ -821,7 +818,7 @@ Kokkos::View<AD***,AssemblyDevice> physics::getPointResponse(const int & block,
         host_indices(2) = r;
         Kokkos::deep_copy(indices,host_indices);
         // evaluate the response
-        FDATA rdata = functionManagers[block]->evaluate(response_list[block][r],"point");
+        auto rdata = functionManagers[block]->evaluate(response_list[block][r],"point");
         // copy data into responsetotal
         // again clumsy
         parallel_for("physics point response",RangePolicy<AssemblyExec>(0,1), KOKKOS_LAMBDA (const int elem ) {
@@ -837,19 +834,17 @@ Kokkos::View<AD***,AssemblyDevice> physics::getPointResponse(const int & block,
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
-                                                        Kokkos::View<AD****,AssemblyDevice> u_ip,
-                                                        Kokkos::View<AD****,AssemblyDevice> ugrad_ip,
-                                                        Kokkos::View<AD****,AssemblyDevice> p_ip,
-                                                        Kokkos::View<AD****,AssemblyDevice> pgrad_ip,
-                                                        const Kokkos::View<ScalarT***,AssemblyDevice> ip,
-                                                        const ScalarT & time,
-                                                        Teuchos::RCP<workset> & wkset) {
+View_AD3 physics::getResponse(const int & block, View_AD4 u_ip, View_AD4 ugrad_ip,
+                              View_AD4 p_ip, View_AD4 pgrad_ip,
+                              const View_Sc3 ip,
+                              const ScalarT & time,
+                              Teuchos::RCP<workset> & wkset) {
+  
   size_t numElem = u_ip.extent(0);
   size_t numip = ip.extent(1);
   size_t numResponses = response_list[block].size();
   
-  Kokkos::View<AD***,AssemblyDevice> responsetotal("responses",numElem,numResponses,numip);
+  View_AD3 responsetotal("responses",numElem,numResponses,numip);
   
   //wkset->ip_KV = ip;
   Kokkos::deep_copy(wkset->ip,ip);
@@ -863,7 +858,7 @@ Kokkos::View<AD***,AssemblyDevice> physics::getResponse(const int & block,
   for (size_t r=0; r<numResponses; r++) {
     
     // evaluate the response
-    FDATA rdata = functionManagers[block]->evaluate(response_list[block][r],"ip");
+    auto rdata = functionManagers[block]->evaluate(response_list[block][r],"ip");
     
     auto cresp = Kokkos::subview(responsetotal,Kokkos::ALL(), r, Kokkos::ALL());
     Kokkos::deep_copy(cresp,rdata);
@@ -906,16 +901,14 @@ bool physics::checkFace(const size_t & block){
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<AD***,AssemblyDevice> physics::target(const int & block,
-                                                   const Kokkos::View<ScalarT***,AssemblyDevice> ip,
-                                                   const ScalarT & current_time,
-                                                   Teuchos::RCP<workset> & wkset) {
+View_AD3 physics::target(const int & block, const View_Sc3 ip,
+                         const ScalarT & current_time,
+                         Teuchos::RCP<workset> & wkset) {
   
-  Kokkos::View<AD***,AssemblyDevice> targettotal("target",ip.extent(0),
-                                                 target_list[block].size(),ip.extent(1));
+  View_AD3 targettotal("target",ip.extent(0), target_list[block].size(),ip.extent(1));
   
   for (size_t t=0; t<target_list[block].size(); t++) {
-    FDATA tdata = functionManagers[block]->evaluate(target_list[block][t],"ip");
+    auto tdata = functionManagers[block]->evaluate(target_list[block][t],"ip");
     auto ctarg = Kokkos::subview(targettotal,Kokkos::ALL(), t, Kokkos::ALL());
     Kokkos::deep_copy(ctarg,tdata);
   }
@@ -925,16 +918,14 @@ Kokkos::View<AD***,AssemblyDevice> physics::target(const int & block,
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<AD***,AssemblyDevice> physics::weight(const int & block,
-                                                   const Kokkos::View<ScalarT***,AssemblyDevice> ip,
-                                                   const ScalarT & current_time,
-                                                   Teuchos::RCP<workset> & wkset) {
+View_AD3 physics::weight(const int & block, const View_Sc3 ip,
+                         const ScalarT & current_time,
+                         Teuchos::RCP<workset> & wkset) {
   
-  Kokkos::View<AD***,AssemblyDevice> weighttotal("weight",ip.extent(0),
-                                                 weight_list[block].size(),ip.extent(1));
+  View_AD3 weighttotal("weight",ip.extent(0), weight_list[block].size(),ip.extent(1));
   
   for (size_t t=0; t<weight_list[block].size(); t++) {
-    FDATA wdata = functionManagers[block]->evaluate(weight_list[block][t],"ip");
+    auto wdata = functionManagers[block]->evaluate(weight_list[block][t],"ip");
     auto cwt = Kokkos::subview(weighttotal,Kokkos::ALL(), t, Kokkos::ALL());
     Kokkos::deep_copy(cwt,wdata);
   }
@@ -945,23 +936,21 @@ Kokkos::View<AD***,AssemblyDevice> physics::weight(const int & block,
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT***,AssemblyDevice> physics::getInitial(const Kokkos::View<ScalarT***,AssemblyDevice> ip,
-                                                            const int & block,
-                                                            const bool & project,
-                                                            Teuchos::RCP<workset> & wkset) {
+View_Sc3 physics::getInitial(const View_Sc3 ip, const int & block,
+                             const bool & project, Teuchos::RCP<workset> & wkset) {
   
   
   size_t numElem = ip.extent(0);
   size_t numVars = varlist[block].size();
   size_t numip = ip.extent(1);
   
-  Kokkos::View<ScalarT***,AssemblyDevice> ivals("temp invals", numElem, numVars, numip);
+  View_Sc3 ivals("temp invals", numElem, numVars, numip);
   
   if (project) {
     // ip in wkset are set in cell::getInitial
     for (size_t n=0; n<varlist[block].size(); n++) {
   
-      FDATA ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"ip");
+      auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"ip");
       auto cvals = Kokkos::subview( ivals, Kokkos::ALL(), n, Kokkos::ALL());
       //copy
       parallel_for("physics fill initial values",RangePolicy<AssemblyExec>(0,cvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -973,7 +962,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> physics::getInitial(const Kokkos::View<S
   }
   else {
     // TMW: will not work on device yet
-    Kokkos::View<ScalarT***,AssemblyDevice> point_KV = wkset->point;
+    auto point_KV = wkset->point;
     auto host_ivals = Kokkos::create_mirror_view(ivals);
     for (size_t e=0; e<numElem; e++) {
       for (size_t i=0; i<numip; i++) {
@@ -986,7 +975,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> physics::getInitial(const Kokkos::View<S
         
         for (size_t n=0; n<varlist[block].size(); n++) {
           // evaluate
-          FDATA ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"point");
+          auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"point");
           
           ivals(e,n,i) = ivals_AD(0,0).val();
           // copy
@@ -1006,19 +995,19 @@ Kokkos::View<ScalarT***,AssemblyDevice> physics::getInitial(const Kokkos::View<S
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT**,AssemblyDevice> physics::getDirichlet(const Kokkos::View<ScalarT***,AssemblyDevice> ip, const int & var,
-                                                              const int & block,
-                                                              const std::string & sidename,
-                                                              Teuchos::RCP<workset> & wkset) {
+View_Sc2 physics::getDirichlet(const View_Sc3 ip, const int & var,
+                               const int & block,
+                               const std::string & sidename,
+                               Teuchos::RCP<workset> & wkset) {
   
   
   size_t numElem = ip.extent(0);
   size_t numip = ip.extent(1);
   
-  Kokkos::View<ScalarT**,AssemblyDevice> dvals("temp dnvals", numElem, numip);
+  View_Sc2 dvals("temp dnvals", numElem, numip);
   
   // evaluate
-  FDATA dvals_AD = functionManagers[block]->evaluate("Dirichlet " + varlist[block][var] + " " + sidename,"side ip");
+  auto dvals_AD = functionManagers[block]->evaluate("Dirichlet " + varlist[block][var] + " " + sidename,"side ip");
   
   // copy values
   parallel_for("physics fill Dirichlet values",RangePolicy<AssemblyExec>(0,dvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -1102,22 +1091,20 @@ vector<string> physics::getExtraCellFieldNames(const int & block) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT**,AssemblyDevice> physics::getExtraFields(const int & block,
-                                                                const int & fnum,
-                                                                const DRV & ip,
-                                                                const ScalarT & time,
-                                                                Teuchos::RCP<workset> & wkset) {
+View_Sc2 physics::getExtraFields(const int & block, const int & fnum,
+                                 const DRV & ip, const ScalarT & time,
+                                 Teuchos::RCP<workset> & wkset) {
   
-  Kokkos::View<ScalarT**,AssemblyDevice> fields("field data",ip.extent(0),ip.extent(1));
+  View_Sc2 fields("field data",ip.extent(0),ip.extent(1));
   
   for (size_type e=0; e<ip.extent(0); e++) {
     for (size_type j=0; j<ip.extent(1); j++) {
       for (int s=0; s<spaceDim; s++) {
         wkset->point(0,0,s) = ip(e,j,s);
       }
-      FDATA efdata = functionManagers[block]->evaluate(extrafields_list[block][fnum],"point");
+      auto eView_AD2_sv = functionManagers[block]->evaluate(extrafields_list[block][fnum],"point");
       parallel_for("physics get extra fields",RangePolicy<AssemblyExec>(0,1), KOKKOS_LAMBDA (const int elem ) {
-        fields(e,j) = efdata(0,0).val();
+        fields(e,j) = eView_AD2_sv(0,0).val();
       });
     }
   }
@@ -1127,14 +1114,12 @@ Kokkos::View<ScalarT**,AssemblyDevice> physics::getExtraFields(const int & block
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT*,AssemblyDevice> physics::getExtraCellFields(const int & block,
-                                                                  const int & fnum,
-                                                                  Kokkos::View<ScalarT**,AssemblyDevice> wts) {
+View_Sc1 physics::getExtraCellFields(const int & block, const int & fnum, View_Sc2 wts) {
   
   int numElem = wts.extent(0);
-  Kokkos::View<ScalarT*,AssemblyDevice> fields("cell field data",numElem);
+  View_Sc1 fields("cell field data",numElem);
   
-  FDATA efdata = functionManagers[block]->evaluate(extracellfields_list[block][fnum],"ip");
+  auto ecf = functionManagers[block]->evaluate(extracellfields_list[block][fnum],"ip");
   
   if (cellfield_reduction == "mean") { // default
     parallel_for("physics get extra cell fields",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -1143,7 +1128,7 @@ Kokkos::View<ScalarT*,AssemblyDevice> physics::getExtraCellFields(const int & bl
         cellmeas += wts(e,pt);
       }
       for (size_t j=0; j<wts.extent(1); j++) {
-        ScalarT val = efdata(e,j).val();
+        ScalarT val = ecf(e,j).val();
         fields(e) += val*wts(e,j)/cellmeas;
       }
     });
@@ -1151,7 +1136,7 @@ Kokkos::View<ScalarT*,AssemblyDevice> physics::getExtraCellFields(const int & bl
   else if (cellfield_reduction == "max") {
     parallel_for("physics get extra cell fields",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (size_t j=0; j<wts.extent(1); j++) {
-        ScalarT val = efdata(e,j).val();
+        ScalarT val = ecf(e,j).val();
         if (val>fields(e)) {
           fields(e) = val;
         }
@@ -1161,7 +1146,7 @@ Kokkos::View<ScalarT*,AssemblyDevice> physics::getExtraCellFields(const int & bl
   if (cellfield_reduction == "min") {
     parallel_for("physics get extra cell fields",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
       for (size_t j=0; j<wts.extent(1); j++) {
-        ScalarT val = efdata(e,j).val();
+        ScalarT val = ecf(e,j).val();
         if (val<fields(e)) {
           fields(e) = val;
         }

@@ -44,10 +44,10 @@ namespace MrHyDE {
       // ScalarT R_ = esettings.get<ScalarT>("R",0.0);
       
       // Elastic tensor in lattice frame
-      C = Kokkos::View<ScalarT*****,AssemblyDevice>("CE-C",numElem,3,3,3,3);
+      C = Kokkos::View<ScalarT*****,ContLayout,AssemblyDevice>("CE-C",numElem,3,3,3,3);
       
       // Elastic tensor in rotated frame
-      Cr = Kokkos::View<ScalarT*****,AssemblyDevice>("CE-Cr",numElem,3,3,3,3);
+      Cr = Kokkos::View<ScalarT*****,ContLayout,AssemblyDevice>("CE-Cr",numElem,3,3,3,3);
       
       // default to cubic symmetry
       c11_ = esettings.get<ScalarT>("C11",2.0*mu+lambda);
@@ -64,52 +64,52 @@ namespace MrHyDE {
       c35_ = esettings.get<ScalarT>("C35",0.0);
       c46_ = esettings.get<ScalarT>("C46",0.0);
       
-      
+      auto C_host = Kokkos::create_mirror_view(C);
       // fill tensor
       for (int e=0; e<numElem; e++) {
-        C(e,0,0,0,0) = c11_;
-        C(e,1,1,1,1) = c22_;
-        C(e,2,2,2,2) = c33_;
-        C(e,0,0,1,1) = c12_;
-        C(e,1,1,0,0) = c12_;
-        C(e,0,0,2,2) = c13_;
-        C(e,2,2,0,0) = c13_;
-        C(e,1,1,2,2) = c23_;
-        C(e,2,2,1,1) = c23_;
-        C(e,0,1,0,1) = c66_;
-        C(e,1,0,1,0) = c66_;
-        C(e,0,1,1,0) = c66_;
-        C(e,1,0,0,1) = c66_;
-        C(e,2,0,2,0) = c55_;
-        C(e,0,2,0,2) = c55_;
-        C(e,2,0,0,2) = c55_;
-        C(e,0,2,0,0) = c55_;
-        C(e,2,1,2,1) = c44_;
-        C(e,1,2,1,2) = c44_;
-        C(e,1,2,2,1) = c44_;
-        C(e,2,1,1,2) = c44_;
-        C(e,0,0,0,2) = c15_;
-        C(e,0,0,2,0) = c15_;
-        C(e,0,2,0,0) = c15_;
-        C(e,2,0,0,0) = c15_;
-        C(e,1,1,0,2) = c25_;
-        C(e,1,1,2,0) = c25_;
-        C(e,0,2,1,1) = c25_;
-        C(e,2,0,1,1) = c25_;
-        C(e,2,2,0,2) = c35_;
-        C(e,2,2,2,0) = c35_;
-        C(e,0,2,2,2) = c35_;
-        C(e,2,0,2,2) = c35_;
-        C(e,1,2,0,1) = c46_;
-        C(e,1,2,1,0) = c46_;
-        C(e,2,1,0,1) = c46_;
-        C(e,2,1,1,0) = c46_;
-        C(e,0,1,1,2) = c46_;
-        C(e,1,0,1,2) = c46_;
-        C(e,0,1,2,1) = c46_;
-        C(e,1,0,2,1) = c46_;
+        C_host(e,0,0,0,0) = c11_;
+        C_host(e,1,1,1,1) = c22_;
+        C_host(e,2,2,2,2) = c33_;
+        C_host(e,0,0,1,1) = c12_;
+        C_host(e,1,1,0,0) = c12_;
+        C_host(e,0,0,2,2) = c13_;
+        C_host(e,2,2,0,0) = c13_;
+        C_host(e,1,1,2,2) = c23_;
+        C_host(e,2,2,1,1) = c23_;
+        C_host(e,0,1,0,1) = c66_;
+        C_host(e,1,0,1,0) = c66_;
+        C_host(e,0,1,1,0) = c66_;
+        C_host(e,1,0,0,1) = c66_;
+        C_host(e,2,0,2,0) = c55_;
+        C_host(e,0,2,0,2) = c55_;
+        C_host(e,2,0,0,2) = c55_;
+        C_host(e,0,2,0,0) = c55_;
+        C_host(e,2,1,2,1) = c44_;
+        C_host(e,1,2,1,2) = c44_;
+        C_host(e,1,2,2,1) = c44_;
+        C_host(e,2,1,1,2) = c44_;
+        C_host(e,0,0,0,2) = c15_;
+        C_host(e,0,0,2,0) = c15_;
+        C_host(e,0,2,0,0) = c15_;
+        C_host(e,2,0,0,0) = c15_;
+        C_host(e,1,1,0,2) = c25_;
+        C_host(e,1,1,2,0) = c25_;
+        C_host(e,0,2,1,1) = c25_;
+        C_host(e,2,0,1,1) = c25_;
+        C_host(e,2,2,0,2) = c35_;
+        C_host(e,2,2,2,0) = c35_;
+        C_host(e,0,2,2,2) = c35_;
+        C_host(e,2,0,2,2) = c35_;
+        C_host(e,1,2,0,1) = c46_;
+        C_host(e,1,2,1,0) = c46_;
+        C_host(e,2,1,0,1) = c46_;
+        C_host(e,2,1,1,0) = c46_;
+        C_host(e,0,1,1,2) = c46_;
+        C_host(e,1,0,1,2) = c46_;
+        C_host(e,0,1,2,1) = c46_;
+        C_host(e,1,0,2,1) = c46_;
       }
-      
+      Kokkos::deep_copy(C,C_host);
     }
     
     //----------------------------------------------------------------------------
@@ -192,58 +192,57 @@ namespace MrHyDE {
       c35_ = 0.0;
       c46_ = 0.0;
       
-      
+      auto C_host = Kokkos::create_mirror_view(C);
       // fill tensor
       for (int e=0; e<numElem; e++) {
-        C(e,0,0,0,0) = c11_;
-        C(e,1,1,1,1) = c22_;
-        C(e,2,2,2,2) = c33_;
-        C(e,0,0,1,1) = c12_;
-        C(e,1,1,0,0) = c12_;
-        C(e,0,0,2,2) = c13_;
-        C(e,2,2,0,0) = c13_;
-        C(e,1,1,2,2) = c23_;
-        C(e,2,2,1,1) = c23_;
-        C(e,0,1,0,1) = c66_;
-        C(e,1,0,1,0) = c66_;
-        C(e,0,1,1,0) = c66_;
-        C(e,1,0,0,1) = c66_;
-        C(e,2,0,2,0) = c55_;
-        C(e,0,2,0,2) = c55_;
-        C(e,2,0,0,2) = c55_;
-        C(e,0,2,0,0) = c55_;
-        C(e,2,1,2,1) = c44_;
-        C(e,1,2,1,2) = c44_;
-        C(e,1,2,2,1) = c44_;
-        C(e,2,1,1,2) = c44_;
-        C(e,0,0,0,2) = c15_;
-        C(e,0,0,2,0) = c15_;
-        C(e,0,2,0,0) = c15_;
-        C(e,2,0,0,0) = c15_;
-        C(e,1,1,0,2) = c25_;
-        C(e,1,1,2,0) = c25_;
-        C(e,0,2,1,1) = c25_;
-        C(e,2,0,1,1) = c25_;
-        C(e,2,2,0,2) = c35_;
-        C(e,2,2,2,0) = c35_;
-        C(e,0,2,2,2) = c35_;
-        C(e,2,0,2,2) = c35_;
-        C(e,1,2,0,1) = c46_;
-        C(e,1,2,1,0) = c46_;
-        C(e,2,1,0,1) = c46_;
-        C(e,2,1,1,0) = c46_;
-        C(e,0,1,1,2) = c46_;
-        C(e,1,0,1,2) = c46_;
-        C(e,0,1,2,1) = c46_;
-        C(e,1,0,2,1) = c46_;
+        C_host(e,0,0,0,0) = c11_;
+        C_host(e,1,1,1,1) = c22_;
+        C_host(e,2,2,2,2) = c33_;
+        C_host(e,0,0,1,1) = c12_;
+        C_host(e,1,1,0,0) = c12_;
+        C_host(e,0,0,2,2) = c13_;
+        C_host(e,2,2,0,0) = c13_;
+        C_host(e,1,1,2,2) = c23_;
+        C_host(e,2,2,1,1) = c23_;
+        C_host(e,0,1,0,1) = c66_;
+        C_host(e,1,0,1,0) = c66_;
+        C_host(e,0,1,1,0) = c66_;
+        C_host(e,1,0,0,1) = c66_;
+        C_host(e,2,0,2,0) = c55_;
+        C_host(e,0,2,0,2) = c55_;
+        C_host(e,2,0,0,2) = c55_;
+        C_host(e,0,2,0,0) = c55_;
+        C_host(e,2,1,2,1) = c44_;
+        C_host(e,1,2,1,2) = c44_;
+        C_host(e,1,2,2,1) = c44_;
+        C_host(e,2,1,1,2) = c44_;
+        C_host(e,0,0,0,2) = c15_;
+        C_host(e,0,0,2,0) = c15_;
+        C_host(e,0,2,0,0) = c15_;
+        C_host(e,2,0,0,0) = c15_;
+        C_host(e,1,1,0,2) = c25_;
+        C_host(e,1,1,2,0) = c25_;
+        C_host(e,0,2,1,1) = c25_;
+        C_host(e,2,0,1,1) = c25_;
+        C_host(e,2,2,0,2) = c35_;
+        C_host(e,2,2,2,0) = c35_;
+        C_host(e,0,2,2,2) = c35_;
+        C_host(e,2,0,2,2) = c35_;
+        C_host(e,1,2,0,1) = c46_;
+        C_host(e,1,2,1,0) = c46_;
+        C_host(e,2,1,0,1) = c46_;
+        C_host(e,2,1,1,0) = c46_;
+        C_host(e,0,1,1,2) = c46_;
+        C_host(e,1,0,1,2) = c46_;
+        C_host(e,0,1,2,1) = c46_;
+        C_host(e,1,0,2,1) = c46_;
       }
+      Kokkos::deep_copy(C,C_host);
     }
     
     //----------------------------------------------------------------------------
     
-    Kokkos::View<AD****,AssemblyDevice> computeStress(Teuchos::RCP<workset> & wkset,
-                                                      vector<int> & indices,
-                                                      const bool & onside)
+    View_AD4 computeStress(Teuchos::RCP<workset> & wkset, vector<int> & indices, const bool & onside)
     {
       
       int dxnum = indices[0];
@@ -268,9 +267,9 @@ namespace MrHyDE {
       
       this->computeRotation(wkset);
       
-      Kokkos::View<AD****,AssemblyDevice> F("CE-F",numElem,numip,dimension,dimension);
-      Kokkos::View<AD****,AssemblyDevice> sol_grad = wkset->local_soln_grad;
-      Kokkos::View<AD****,AssemblyDevice> sol = wkset->local_soln;
+      View_AD4 F("CE-F",numElem,numip,dimension,dimension);
+      View_AD4 sol_grad = wkset->local_soln_grad;
+      View_AD4 sol = wkset->local_soln;
       if (onside) {
         sol_grad = wkset->local_soln_grad_side;
         sol = wkset->local_soln_side;
@@ -308,8 +307,7 @@ namespace MrHyDE {
         }
       }
       
-      //FCAD Ft = FCMatrixTools<AD>::transpose(F);
-      Kokkos::View<AD****,AssemblyDevice> E("CE-E",numElem,numip,dimension,dimension);
+      View_AD4 E("CE-E",numElem,numip,dimension,dimension);
       
       for (int e=0; e<numElem; e++) {
         for (int k=0; k<numip; k++) {
@@ -321,7 +319,7 @@ namespace MrHyDE {
         }
       }
       
-      Kokkos::View<AD****,AssemblyDevice> stress("CE-stress",numElem,numip,dimension,dimension);
+      View_AD4 stress("CE-stress",numElem,numip,dimension,dimension);
       // compute S = Cr*E
       
       for (int e=0; e<numElem; e++) {
@@ -424,8 +422,8 @@ namespace MrHyDE {
     // Public Data
     int dimension, numElem;
     ScalarT c11_,c22_,c33_,c44_,c55_,c66_,c12_,c13_,c23_,c15_,c25_,c35_,c46_;
-    Kokkos::View<ScalarT*****,AssemblyDevice> C; // unrotated stiffness tensor
-    Kokkos::View<ScalarT*****,AssemblyDevice> Cr; // rotated stiffness tensor
+    Kokkos::View<ScalarT*****,ContLayout,AssemblyDevice> C; // unrotated stiffness tensor
+    Kokkos::View<ScalarT*****,ContLayout,AssemblyDevice> Cr; // rotated stiffness tensor
     ScalarT lambda, mu, e_ref, alpha_T;
   };
   

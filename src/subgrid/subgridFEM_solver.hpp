@@ -75,8 +75,8 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    void solve(Kokkos::View<ScalarT***,AssemblyDevice> coarse_u,
-               Kokkos::View<ScalarT***,AssemblyDevice> coarse_phi,
+    void solve(View_Sc3 coarse_u,
+               View_Sc3 coarse_phi,
                Teuchos::RCP<SG_MultiVector> & prev_u,
                Teuchos::RCP<SG_MultiVector> & prev_phi,
                Teuchos::RCP<SG_MultiVector> & disc_params,
@@ -95,7 +95,7 @@ namespace MrHyDE {
     
     void nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
                          Teuchos::RCP<SG_MultiVector> & sub_phi,
-                         Teuchos::RCP<SG_MultiVector> & sub_params, Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+                         Teuchos::RCP<SG_MultiVector> & sub_params, View_Sc3 lambda,
                          const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                          const int & num_active_params, const ScalarT & alpha, const int & usernum,
                          const bool & store_adjPrev);
@@ -115,7 +115,7 @@ namespace MrHyDE {
     void computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u, const bool & compute_sens,
                          Teuchos::RCP<SG_MultiVector> & sub_u,
                          Teuchos::RCP<SG_MultiVector> & sub_phi,
-                         Teuchos::RCP<SG_MultiVector> & sub_param, Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+                         Teuchos::RCP<SG_MultiVector> & sub_param, View_Sc3 lambda,
                          const ScalarT & time,
                          const bool & isTransient, const bool & isAdjoint, const int & num_active_params, const ScalarT & alpha,
                          const ScalarT & lambda_scale, const int & usernum,
@@ -139,7 +139,7 @@ namespace MrHyDE {
     
     void updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
                     const Teuchos::RCP<SG_MultiVector> & d_u,
-                    Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+                    View_Sc3 lambda,
                     const Teuchos::RCP<SG_MultiVector> & disc_params,
                     const bool & compute_sens, const int macroelemindex,
                     const ScalarT & time, workset & macrowkset,
@@ -150,7 +150,7 @@ namespace MrHyDE {
     template<class ViewType>
     void updateFlux(ViewType u_kv,
                     ViewType du_kv,
-                    Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+                    View_Sc3 lambda,
                     ViewType dp_kv,
                     const bool & compute_sens, const int macroelemindex,
                     const ScalarT & time, workset & macrowkset,
@@ -161,7 +161,7 @@ namespace MrHyDE {
     // Store macro-dofs and flux (for ML-based subgrid)
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void storeFluxData(Kokkos::View<ScalarT***,AssemblyDevice> lambda, Kokkos::View<AD**,AssemblyDevice> flux);
+    void storeFluxData(View_Sc3 lambda, View_AD2 flux);
     
     //////////////////////////////////////////////////////////////
     // Compute the initial values for the subgrid solution

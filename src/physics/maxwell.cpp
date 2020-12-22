@@ -53,8 +53,8 @@ void maxwell::volumeResidual() {
   int E_basis = wkset->usebasis[Enum];
   int B_basis = wkset->usebasis[Bnum];
   
-  FDATA mu, epsilon, sigma;
-  FDATA current_x, current_y, current_z;
+  View_AD2_sv mu, epsilon, sigma;
+  View_AD2_sv current_x, current_y, current_z;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);

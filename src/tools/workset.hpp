@@ -79,15 +79,15 @@ namespace MrHyDE {
     // Compute the solutions at the volumetric ip
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void computeSolnVolIP(Kokkos::View<ScalarT***,AssemblyDevice> u);
+    void computeSolnVolIP(View_Sc3 u);
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Compute the seeded solutions for general transient problems
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void computeSolnTransientSeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
-                                    Kokkos::View<ScalarT****,AssemblyDevice> u_prev,
-                                    Kokkos::View<ScalarT****,AssemblyDevice> u_stage,
+    void computeSolnTransientSeeded(View_Sc3 u,
+                                    View_Sc4 u_prev,
+                                    View_Sc4 u_stage,
                                     const int & seedwhat,
                                     const int & index=0);
     
@@ -95,14 +95,11 @@ namespace MrHyDE {
     // Compute the seeded solutions for steady-state problems
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void computeSolnSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> u,
-                                 const int & seedwhat);
+    void computeSolnSteadySeeded(View_Sc3 u, const int & seedwhat);
     
-    void computeParamSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> params,
-                                  const int & seedwhat);
+    void computeParamSteadySeeded(View_Sc3 params, const int & seedwhat);
     
-    void computeAuxSolnSteadySeeded(Kokkos::View<ScalarT***,AssemblyDevice> aux,
-                                    const int & seedwhat);
+    void computeAuxSolnSteadySeeded(View_Sc3 aux, const int & seedwhat);
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Compute the solutions at general set of points
@@ -122,8 +119,7 @@ namespace MrHyDE {
     // Compute the discretized parameters at the volumetric ip
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void computeParamVolIP(Kokkos::View<ScalarT***,AssemblyDevice> param,
-                           const int & seedwhat);
+    void computeParamVolIP(View_Sc3 param, const int & seedwhat);
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Compute the solutions at the side ip
@@ -147,15 +143,13 @@ namespace MrHyDE {
     // Compute the discretized parameters at the side ip
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void computeParamSideIP(const int & side, Kokkos::View<ScalarT***,AssemblyDevice> param,
-                            const int & seedwhat);
+    void computeParamSideIP(const int & side, View_Sc3 param, const int & seedwhat);
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Compute the solutions at the side ip
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void computeSolnSideIP(const int & side);//, Kokkos::View<AD***,AssemblyDevice> u_AD,
-                           //Kokkos::View<AD***,AssemblyDevice> param_AD);
+    void computeSolnSideIP(const int & side);
     
     //////////////////////////////////////////////////////////////
     // Add Aux
@@ -223,40 +217,40 @@ namespace MrHyDE {
     Kokkos::View<ScalarT*,AssemblyDevice> time_KV;
     Kokkos::View<ScalarT*,AssemblyDevice> deltat_KV;
     
-    Kokkos::View<ScalarT*,AssemblyDevice> h;
     size_t block, localEID, globalEID;
     
-    Kokkos::View<ScalarT***,AssemblyDevice> ip, ip_side, normals, point;
-    Kokkos::View<ScalarT**,AssemblyDevice> wts, wts_side;
+    // Views that use ContLayout for hierarchical parallelism
+    View_Sc1 h;
+    View_Sc3 ip, ip_side, normals, point;
+    View_Sc2 wts, wts_side;
     
-    Kokkos::View<AD***,AssemblyDevice> uvals, u_dotvals, pvals, auxvals, aux_dotvals;
+    View_AD3 uvals, u_dotvals, pvals, auxvals, aux_dotvals;
     
-    vector<Kokkos::View<ScalarT****,AssemblyDevice> > basis, basis_grad, basis_curl, basis_side, basis_face, basis_grad_side, basis_grad_face, basis_curl_side, basis_curl_face;
-    vector<Kokkos::View<ScalarT***,AssemblyDevice> > basis_div, basis_div_side;
+    vector<View_Sc4> basis, basis_grad, basis_curl, basis_side, basis_face, basis_grad_side, basis_grad_face, basis_curl_side, basis_curl_face;
+    vector<View_Sc3> basis_div, basis_div_side;
     
-    Kokkos::View<AD****, AssemblyDevice> local_soln, local_soln_grad, local_soln_dot, local_aux_dot, local_soln_dot_grad, local_soln_curl;
-    Kokkos::View<AD***, AssemblyDevice> local_soln_div, local_param_div, local_aux_div;
-    Kokkos::View<AD****, AssemblyDevice> local_param, local_param_side, local_param_curl;
-    Kokkos::View<AD****, AssemblyDevice> local_aux, local_aux_side, local_aux_curl;
-    Kokkos::View<AD****, AssemblyDevice> local_param_grad, local_aux_grad, local_param_grad_side, local_aux_grad_side;
-    Kokkos::View<AD****, AssemblyDevice> local_soln_side, local_soln_grad_side, local_soln_dot_side;
-    Kokkos::View<AD****, AssemblyDevice> local_soln_face, local_soln_grad_face, local_aux_face, local_aux_grad_face;
+    View_AD4 local_soln, local_soln_grad, local_soln_dot, local_aux_dot, local_soln_dot_grad, local_soln_curl;
+    View_AD3 local_soln_div, local_param_div, local_aux_div;
+    View_AD4 local_param, local_param_side, local_param_curl;
+    View_AD4 local_aux, local_aux_side, local_aux_curl;
+    View_AD4 local_param_grad, local_aux_grad, local_param_grad_side, local_aux_grad_side;
+    View_AD4 local_soln_side, local_soln_grad_side, local_soln_dot_side;
+    View_AD4 local_soln_face, local_soln_grad_face, local_aux_face, local_aux_grad_face;
     
-    Kokkos::View<AD****, AssemblyDevice> local_soln_point, local_soln_grad_point, local_param_grad_point;
-    Kokkos::View<AD****, AssemblyDevice> local_param_point;
+    View_AD4 local_soln_point, local_soln_grad_point, local_param_grad_point;
+    View_AD4 local_param_point;
     
-    Kokkos::View<AD***, AssemblyDevice> scratch;
+    View_AD3 scratch, flux;
+    View_AD2 res, adjrhs;
     
     int sidetype;
     Kokkos::View<int****,AssemblyDevice> sideinfo;
     string sidename, var;
     int currentside;
-    Kokkos::View<AD**,AssemblyDevice> res, adjrhs;
-    Kokkos::View<AD***,AssemblyDevice> flux;
     
     bool have_rotation, have_rotation_phi;
-    Kokkos::View<ScalarT***,AssemblyDevice> rotation;
-    Kokkos::View<ScalarT**,AssemblyDevice> rotation_phi, extra_data;
+    View_Sc3 rotation;
+    View_Sc2 rotation_phi, extra_data;
     
     // Profile timers
     Teuchos::RCP<Teuchos::Time> worksetUpdateIPTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::update - integration data");

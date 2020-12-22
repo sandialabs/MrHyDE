@@ -12,6 +12,8 @@ int main(int argc, char * argv[]) {
   Kokkos::initialize();
 
   
+  typedef Kokkos::TeamPolicy<AssemblyExec> Policy;
+  typedef Policy::member_type member_type;
   
   {
     int numElem = 1000;
@@ -50,6 +52,8 @@ int main(int argc, char * argv[]) {
     Kokkos::View<EvalT**,CL,AssemblyDevice> diff("diff",numElem,numip,numDerivs);
     Kokkos::View<EvalT**,CL,AssemblyDevice> source("src",numElem,numip,numDerivs);
     Kokkos::View<ScalarT**,CL,AssemblyDevice> wts("wts",numElem,numip);
+    
+    Kokkos::View<AD**,CL,AssemblyDevice> sv = Kokkos::subview(gradT,Kokkos::ALL(),0,Kokkos::ALL());
     
     parallel_for("Thermal volume resid 2D",
                  RangePolicy<AssemblyExec>(0,basis.extent(0)),
@@ -101,8 +105,6 @@ int main(int argc, char * argv[]) {
     // Hierarchical version 1: team over (elem,dof)
     ////////////////////////////////////////////////
       
-    typedef Kokkos::TeamPolicy<AssemblyExec> Policy;
-    typedef Policy::member_type member_type;
     timer.reset();
     parallel_for("Thermal volume resid 2D",
                  Policy(basis.extent(0), Kokkos::AUTO, VectorSize),
@@ -320,11 +322,11 @@ int main(int argc, char * argv[]) {
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<csol2.extent(1); pt++ ) {
         sol2diff(elem,0) += csol(elem,pt).val() - csol2(elem,pt).val();
-        for (size_type d=0; d<csol2(elem,pt).size(); d++) {
+        for (size_t d=0; d<csol2(elem,pt).size(); d++) {
           sol2diff(elem,d+1) = csol(elem,pt).fastAccessDx(d) - csol2(elem,pt).fastAccessDx(d);
         }
         sol3diff(elem,0) += csol(elem,pt).val() - csol3(elem,pt).val();
-        for (size_type d=0; d<csol3(elem,pt).size(); d++) {
+        for (size_t d=0; d<csol3(elem,pt).size(); d++) {
           sol3diff(elem,d+1) = csol(elem,pt).fastAccessDx(d) - csol3(elem,pt).fastAccessDx(d);
         }
       }

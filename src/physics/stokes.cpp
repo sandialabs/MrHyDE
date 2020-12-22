@@ -73,7 +73,7 @@ void stokes::defineFunctions(Teuchos::ParameterList & fs,
 
 void stokes::volumeResidual() {
   
-  FDATA visc, source_ux, source_pr, source_uy, source_uz;
+  View_AD2_sv visc, source_ux, source_pr, source_uy, source_uz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);

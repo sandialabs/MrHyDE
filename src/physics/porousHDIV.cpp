@@ -74,16 +74,16 @@ void porousHDIV::volumeResidual() {
   auto wts = wkset->wts;
   auto res = wkset->res;
   
-  FDATA source, bsource, Kinv_xx, Kinv_yy, Kinv_zz;
+  View_AD2_sv source, bsource, Kinv_xx, Kinv_yy, Kinv_zz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("source","ip");
     
     if (usePermData) {
-      Kinv_xx = Kokkos::View<AD**,AssemblyDevice>("K inverse xx",wts.extent(0),wts.extent(1));
-      Kinv_yy = Kokkos::View<AD**,AssemblyDevice>("K inverse yy",wts.extent(0),wts.extent(1));
-      Kinv_zz = Kokkos::View<AD**,AssemblyDevice>("K inverse zz",wts.extent(0),wts.extent(1));
+      Kinv_xx = View_AD2("K inverse xx",wts.extent(0),wts.extent(1));
+      Kinv_yy = View_AD2("K inverse yy",wts.extent(0),wts.extent(1));
+      Kinv_zz = View_AD2("K inverse zz",wts.extent(0),wts.extent(1));
       this->updatePerm(Kinv_xx, Kinv_yy, Kinv_zz);
     }
     else {
@@ -200,7 +200,7 @@ void porousHDIV::boundaryResidual() {
   auto res = wkset->res;
   auto normals = wkset->normals;
   
-  FDATA bsource;
+  View_AD2_sv bsource;
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
@@ -315,9 +315,9 @@ void porousHDIV::setAuxVars(std::vector<string> & auxvarlist) {
 // ========================================================================================
 // ========================================================================================
 
-void porousHDIV::updatePerm(FDATA Kinv_xx, FDATA Kinv_yy, FDATA Kinv_zz) {
+void porousHDIV::updatePerm(View_AD2_sv Kinv_xx, View_AD2_sv Kinv_yy, View_AD2_sv Kinv_zz) {
   
-  Kokkos::View<ScalarT**,AssemblyDevice> data = wkset->extra_data;
+  View_Sc2 data = wkset->extra_data;
   
   parallel_for("porous HDIV update perm",RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_LAMBDA (const int elem ) {
     for (size_type pt=0; pt<Kinv_xx.extent(1); pt++) {

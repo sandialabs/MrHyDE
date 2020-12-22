@@ -124,26 +124,18 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<AD***,AssemblyDevice> getPointResponse(const int & block,
-                                                        Kokkos::View<AD****,AssemblyDevice> u_ip,
-                                                        Kokkos::View<AD****,AssemblyDevice> ugrad_ip,
-                                                        Kokkos::View<AD****,AssemblyDevice> p_ip,
-                                                        Kokkos::View<AD****,AssemblyDevice> pgrad_ip,
-                                                        const DRV ip, const ScalarT & time,
-                                                        Teuchos::RCP<workset> & wkset);
+    View_AD3 getPointResponse(const int & block, View_AD4 u_ip, View_AD4 ugrad_ip,
+                              View_AD4 p_ip, View_AD4 pgrad_ip,
+                              const DRV ip, const ScalarT & time,
+                              Teuchos::RCP<workset> & wkset);
     
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<AD***,AssemblyDevice> getResponse(const int & block,
-                                                   Kokkos::View<AD****,AssemblyDevice> u_ip,
-                                                   Kokkos::View<AD****,AssemblyDevice> ugrad_ip,
-                                                   Kokkos::View<AD****,AssemblyDevice> p_ip,
-                                                   Kokkos::View<AD****,AssemblyDevice> pgrad_ip,
-                                                   const Kokkos::View<ScalarT***,AssemblyDevice> ip,
-                                                   const ScalarT & time,
-                                                   Teuchos::RCP<workset> & wkset);
+    View_AD3 getResponse(const int & block, View_AD4 u_ip, View_AD4 ugrad_ip,
+                         View_AD4 p_ip, View_AD4 pgrad_ip, const View_Sc3 ip,
+                         const ScalarT & time, Teuchos::RCP<workset> & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -153,35 +145,27 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<AD***,AssemblyDevice> target(const int & block,
-                                              const Kokkos::View<ScalarT***,AssemblyDevice> ip,
-                                              const ScalarT & current_time,
-                                              Teuchos::RCP<workset> & wkset);
+    View_AD3 target(const int & block, const View_Sc3 ip,
+                    const ScalarT & current_time, Teuchos::RCP<workset> & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<AD***,AssemblyDevice> weight(const int & block,
-                                              const Kokkos::View<ScalarT***,AssemblyDevice> ip,
-                                              const ScalarT & current_time,
-                                              Teuchos::RCP<workset> & wkset);
+    View_AD3 weight(const int & block, const View_Sc3 ip,
+                    const ScalarT & current_time, Teuchos::RCP<workset> & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<ScalarT***,AssemblyDevice> getInitial(const Kokkos::View<ScalarT***,AssemblyDevice> ip,
-                                                       const int & block,
-                                                       const bool & project,
-                                                       Teuchos::RCP<workset> & wkset);
+    View_Sc3 getInitial(const View_Sc3 ip, const int & block,
+                        const bool & project, Teuchos::RCP<workset> & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<ScalarT**,AssemblyDevice> getDirichlet(const Kokkos::View<ScalarT***,AssemblyDevice> ip,
-                                                        const int & var,
-                                                        const int & block,
-                                                        const std::string & sidename,
-                                                        Teuchos::RCP<workset> & wkset);
+    View_Sc2 getDirichlet(const View_Sc3 ip, const int & var,
+                          const int & block, const std::string & sidename,
+                          Teuchos::RCP<workset> & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -213,23 +197,19 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    vector<Kokkos::View<ScalarT***,AssemblyDevice> > getExtraFields(const int & block);
+    vector<View_Sc3> getExtraFields(const int & block);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<ScalarT**,AssemblyDevice> getExtraFields(const int & block,
-                                                          const int & fnum,
-                                                          const DRV & ip,
-                                                          const ScalarT & time,
-                                                          Teuchos::RCP<workset> & wkset);
+    View_Sc2 getExtraFields(const int & block, const int & fnum,
+                            const DRV & ip, const ScalarT & time,
+                            Teuchos::RCP<workset> & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<ScalarT*,AssemblyDevice> getExtraCellFields(const int & block,
-                                                             const int & fnum,
-                                                             Kokkos::View<ScalarT**,AssemblyDevice> wts);
+    View_Sc1 getExtraCellFields(const int & block, const int & fnum, View_Sc2 wts);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////

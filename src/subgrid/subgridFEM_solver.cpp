@@ -119,8 +119,8 @@ settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM_Solver::solve(Kokkos::View<ScalarT***,AssemblyDevice> coarse_u,
-                              Kokkos::View<ScalarT***,AssemblyDevice> coarse_phi,
+void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
+                              View_Sc3 coarse_phi,
                               Teuchos::RCP<SG_MultiVector> & prev_u,
                               Teuchos::RCP<SG_MultiVector> & prev_phi,
                               Teuchos::RCP<SG_MultiVector> & disc_params,
@@ -160,7 +160,7 @@ void SubGridFEM_Solver::solve(Kokkos::View<ScalarT***,AssemblyDevice> coarse_u,
   // Solve the subgrid problem(s)
   ///////////////////////////////////////////////////////////////////////////////////
   
-  Kokkos::View<ScalarT***,AssemblyDevice> lambda = coarse_u;
+  View_Sc3 lambda = coarse_u;
   if (isAdjoint) {
     lambda = coarse_phi;
   }
@@ -329,9 +329,10 @@ void SubGridFEM_Solver::solve(Kokkos::View<ScalarT***,AssemblyDevice> coarse_u,
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Store macro-dofs and flux (for ML-based subgrid)
+// Does not work on GPU for obvious reasons
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM_Solver::storeFluxData(Kokkos::View<ScalarT***,AssemblyDevice> lambda, Kokkos::View<AD**,AssemblyDevice> flux) {
+void SubGridFEM_Solver::storeFluxData(View_Sc3 lambda, View_AD2 flux) {
   
   //int num_dof_lambda = lambda.extent(1)*lambda.extent(2);
   

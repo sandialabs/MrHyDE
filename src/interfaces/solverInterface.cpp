@@ -1603,9 +1603,8 @@ DFAD solver<Node>::computeObjective(const vector_RCP & F_soln, const ScalarT & t
       
       for (size_t e=0; e<assembler->cells[b].size(); e++) {
         
-        Kokkos::View<AD**,AssemblyDevice> obj_dev = assembler->cells[b][e]->computeObjective(time, tindex, 0);
-        Kokkos::View<ScalarT***,AssemblyDevice> obj_sc_dev("obj func as scalar on device",obj_dev.extent(0),
-                                                           obj_dev.extent(1),numParams+1);
+        auto obj_dev = assembler->cells[b][e]->computeObjective(time, tindex, 0);
+        View_Sc3 obj_sc_dev("obj func as scalar on device",obj_dev.extent(0),obj_dev.extent(1),numParams+1);
         
         parallel_for("cell objective",RangePolicy<AssemblyExec>(0,obj_dev.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
           for (size_type i=0; i<obj_dev.extent(1); i++) {

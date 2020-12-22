@@ -602,11 +602,10 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
         }
         for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
           int var = error_list[altblock][etype].first;
-          
           if (error_list[altblock][etype].second == "L2") {
             // compute the true solution
             string expression = "true " + varlist[altblock][var];
-            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+            View_AD2_sv tsol = functionManagers[altblock]->evaluate(expression,"ip");
             auto sol = assembler->wkset[altblock]->local_soln;
             auto wts = assembler->cells[block][cell]->wts;
             ScalarT error = 0.0;
@@ -621,7 +620,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           else if (error_list[altblock][etype].second == "GRAD") {
             // compute the true x-component of grad
             string expression = "true grad(" + varlist[altblock][var] + ")[x]";
-            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+            View_AD2_sv tsol = functionManagers[altblock]->evaluate(expression,"ip");
             auto sol_grad = assembler->wkset[altblock]->local_soln_grad;
             auto wts = assembler->cells[block][cell]->wts;
             // add in the L2 difference at the volumetric ip
@@ -637,7 +636,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             if (spaceDim > 1) {
               // compute the true y-component of grad
               string expression = "true grad(" + varlist[altblock][var] + ")[y]";
-              FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+              View_AD2_sv tsol = functionManagers[altblock]->evaluate(expression,"ip");
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
@@ -653,7 +652,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             if (spaceDim >2) {
               // compute the true z-component of grad
               string expression = "true grad(" + varlist[altblock][var] + ")[z]";
-              FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+              View_AD2_sv tsol = functionManagers[altblock]->evaluate(expression,"ip");
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
@@ -669,7 +668,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           else if (error_list[altblock][etype].second == "DIV") {
             // compute the true divergence
             string expression = "true div(" + varlist[altblock][var] + ")";
-            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+            View_AD2_sv tsol = functionManagers[altblock]->evaluate(expression,"ip");
             auto sol_div = assembler->wkset[altblock]->local_soln_div;
             auto wts = assembler->cells[block][cell]->wts;
             
@@ -686,7 +685,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           else if (error_list[altblock][etype].second == "CURL") {
             // compute the true x-component of grad
             string expression = "true curl(" + varlist[altblock][var] + ")[x]";
-            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+            View_AD2_sv tsol = functionManagers[altblock]->evaluate(expression,"ip");
             auto sol_curl = assembler->wkset[altblock]->local_soln_curl;
             auto wts = assembler->cells[block][cell]->wts;
             
@@ -703,7 +702,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             if (spaceDim > 1) {
               // compute the true y-component of grad
               string expression = "true curl(" + varlist[altblock][var] + ")[y]";
-              FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+              View_AD2_sv tsol = functionManagers[altblock]->evaluate(expression,"ip");
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
@@ -719,7 +718,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             if (spaceDim >2) {
               // compute the true z-component of grad
               string expression = "true curl(" + varlist[altblock][var] + ")[z]";
-              FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+              View_AD2_sv tsol = functionManagers[altblock]->evaluate(expression,"ip");
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
@@ -735,7 +734,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           else if (error_list[altblock][etype].second == "L2 VECTOR") {
             // compute the true x-component of grad
             string expression = "true " + varlist[altblock][var] + "[x]";
-            FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+            View_AD2_sv tsol = functionManagers[altblock]->evaluate(expression,"ip");
             auto sol = assembler->wkset[altblock]->local_soln;
             auto wts = assembler->cells[block][cell]->wts;
             
@@ -752,7 +751,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             if (spaceDim > 1) {
               // compute the true y-component of grad
               string expression = "true " + varlist[altblock][var] + "[y]";
-              FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+              View_AD2_sv tsol = functionManagers[altblock]->evaluate(expression,"ip");
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
@@ -765,10 +764,10 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               blockerrors(etype) += error;
             }
             
-            if (spaceDim >2) {
+            if (spaceDim > 2) {
               // compute the true z-component of grad
               string expression = "true " + varlist[altblock][var] + "[z]";
-              FDATA tsol = functionManagers[altblock]->evaluate(expression,"ip");
+              View_AD2_sv tsol = functionManagers[altblock]->evaluate(expression,"ip");
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
@@ -792,7 +791,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               if (error_list[altblock][etype].second == "L2 FACE") {
                 // compute the true z-component of grad
                 string expression = "true " + varlist[altblock][var];
-                FDATA tsol = functionManagers[altblock]->evaluate(expression,"side ip");
+                View_AD2_sv tsol = functionManagers[altblock]->evaluate(expression,"side ip");
                 auto sol = assembler->wkset[altblock]->local_soln_face;
                 auto wts = assembler->cells[block][cell]->wts_face[face];
                 
@@ -887,7 +886,7 @@ void PostprocessManager<Node>::computeResponse(const ScalarT & currenttime) {
   for (size_t b=0; b<assembler->cells.size(); b++) {
     for (size_t e=0; e<assembler->cells[b].size(); e++) {
   
-      Kokkos::View<AD***,AssemblyDevice> responsevals = assembler->cells[b][e]->computeResponse(0);
+      auto responsevals = assembler->cells[b][e]->computeResponse(0);
       
       //auto host_response = Kokkos::create_mirror_view(responsevals);
       Kokkos::View<AD***,HostDevice> host_response("response on host",responsevals.extent(0),
@@ -1231,7 +1230,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
       
       vector<string> extrafieldnames = phys->getExtraFieldNames(b);
       for (size_t j=0; j<extrafieldnames.size(); j++) {
-        Kokkos::View<ScalarT**,HostDevice> efdata("field data",myElements.size(), numNodesPerElem);
+        Kokkos::View<ScalarT**,HostDevice> eView_AD2_sv("field data",myElements.size(), numNodesPerElem);
         
         for (size_t k=0; k<assembler->cells[b].size(); k++) {
           auto nodes = assembler->cells[b][k]->nodes;
@@ -1244,11 +1243,11 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
           Kokkos::deep_copy(host_cfields,cfields);
           for (size_type p=0; p<host_eID.extent(0); p++) {
             for (size_t i=0; i<host_cfields.extent(1); i++) {
-              efdata(host_eID(p),i) = host_cfields(p,i);
+              eView_AD2_sv(host_eID(p),i) = host_cfields(p,i);
             }
           }
         }
-        mesh->setSolutionFieldData(extrafieldnames[j], blockID, myElements, efdata);
+        mesh->setSolutionFieldData(extrafieldnames[j], blockID, myElements, eView_AD2_sv);
       }
       
       ////////////////////////////////////////////////////////////////
@@ -1258,8 +1257,8 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
       vector<string> extracellfieldnames = phys->getExtraCellFieldNames(b);
       
       for (size_t j=0; j<extracellfieldnames.size(); j++) {
-        Kokkos::View<ScalarT*,AssemblyDevice> efdata_dev("cell data",myElements.size());
-        auto efdata = Kokkos::create_mirror_view(efdata_dev);
+        Kokkos::View<ScalarT*,AssemblyDevice> eView_AD2_sv_dev("cell data",myElements.size());
+        auto eView_AD2_sv = Kokkos::create_mirror_view(eView_AD2_sv_dev);
         for (size_t k=0; k<assembler->cells[b].size(); k++) {
           auto eID = assembler->cells[b][k]->localElemID;
           
@@ -1273,11 +1272,11 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
           auto cfields = phys->getExtraCellFields(b, j, assembler->cells[b][k]->wts);
           
           parallel_for("postproc plot param HVOL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-            efdata_dev(eID(elem)) = cfields(elem);
+            eView_AD2_sv_dev(eID(elem)) = cfields(elem);
           });
         }
-        Kokkos::deep_copy(efdata, efdata_dev);
-        mesh->setCellFieldData(extracellfieldnames[j], blockID, myElements, efdata);
+        Kokkos::deep_copy(eView_AD2_sv, eView_AD2_sv_dev);
+        mesh->setCellFieldData(extracellfieldnames[j], blockID, myElements, eView_AD2_sv);
       }
       
       ////////////////////////////////////////////////////////////////

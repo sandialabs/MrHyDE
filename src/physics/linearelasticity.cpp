@@ -78,15 +78,11 @@ void linearelasticity::defineFunctions(Teuchos::ParameterList & fs,
   functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),"side ip");
   functionManager->addFunction("mu",fs.get<string>("mu","0.5"),"side ip");
   
-  stress_vol = Kokkos::View<AD****,AssemblyDevice>("stress tensor",
-                                                   functionManager->numElem,
-                                                   functionManager->numip,
-                                                   spaceDim, spaceDim);
+  stress_vol = View_AD4("stress tensor", functionManager->numElem,
+                        functionManager->numip, spaceDim, spaceDim);
   
-  stress_side = Kokkos::View<AD****,AssemblyDevice>("stress tensor",
-                                                    functionManager->numElem,
-                                                    functionManager->numip_side,
-                                                    spaceDim, spaceDim);
+  stress_side = View_AD4("stress tensor", functionManager->numElem,
+                         functionManager->numip_side, spaceDim, spaceDim);
   
 }
 // ========================================================================================
@@ -94,7 +90,7 @@ void linearelasticity::defineFunctions(Teuchos::ParameterList & fs,
 
 void linearelasticity::volumeResidual() {
   
-  FDATA lambda, mu, source_dx, source_dy, source_dz;
+  View_AD2_sv lambda, mu, source_dx, source_dy, source_dz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -243,7 +239,7 @@ void linearelasticity::boundaryResidual() {
     dz_sidetype = bcs(dz_num,cside);
   }
   
-  FDATA lambda_side, mu_side, sourceN_dx, sourceN_dy, sourceN_dz;
+  View_AD2_sv lambda_side, mu_side, sourceN_dx, sourceN_dy, sourceN_dz;
   
   if (dx_sidetype > 1 || dy_sidetype > 1 || dz_sidetype > 1) {
     
@@ -614,7 +610,7 @@ void linearelasticity::computeFlux() {
   //if (wkset->isAdjoint) {
   //  sf = modelparams(0);
   //}
-  FDATA lambda_side, mu_side;
+  View_AD2_sv lambda_side, mu_side;
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
     
@@ -741,7 +737,7 @@ void linearelasticity::setAuxVars(std::vector<string> & auxvarlist) {
 // return the stress
 // ========================================================================================
 
-void linearelasticity::computeStress(FDATA lambda, FDATA mu, const bool & onside) {
+void linearelasticity::computeStress(View_AD2_sv lambda, View_AD2_sv mu, const bool & onside) {
   
   Teuchos::TimeMonitor localtime(*fillStress);
            

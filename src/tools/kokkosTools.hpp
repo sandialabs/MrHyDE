@@ -155,7 +155,7 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    static void print(FDATA V, const string & message="") {
+    static void print(View_AD2 V, const string & message="") {
       std::cout << std::endl;
       std::cout << message << std::endl;
       std::cout << "Printing data for View: " << V.label() << std::endl;

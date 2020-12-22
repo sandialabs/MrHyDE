@@ -82,7 +82,7 @@ namespace MrHyDE {
     // return the stress
     // ========================================================================================
     
-    void computeStress(FDATA lambda, FDATA mu, const bool & onside);
+    void computeStress(View_AD2_sv lambda, View_AD2_sv mu, const bool & onside);
         
     // ========================================================================================
     // TMW: needs to be deprecated
@@ -98,7 +98,7 @@ namespace MrHyDE {
     int dx_num, dy_num, dz_num, e_num, p_num;
     int auxdx_num = -1, auxdy_num = -1, auxdz_num = -1, auxe_num = -1, auxp_num = -1;
     
-    Kokkos::View<AD****,AssemblyDevice> stress_vol, stress_side;
+    View_AD4 stress_vol, stress_side;
     
     bool useLame, addBiot, useCE, incplanestress, disp_response_type;
     //ScalarT formparam, biot_alpha, e_ref, alpha_T, epen;

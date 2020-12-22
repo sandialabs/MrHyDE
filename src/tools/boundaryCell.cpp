@@ -61,7 +61,7 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
   DRV tmptangents("tmp boundary tangents", numElem, numip, dimension);
   
   CellTools::mapToPhysicalFrame(tmpip, ref_ip, nodes, *(cellData->cellTopo));
-  ip = Kokkos::View<ScalarT***,AssemblyDevice>("side ip", numElem, numip, dimension);
+  ip = View_Sc3("side ip", numElem, numip, dimension);
   Kokkos::deep_copy(ip,tmpip);
   
   CellTools::setJacobian(ijac, ref_ip, nodes, *(cellData->cellTopo));
@@ -101,13 +101,13 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
     
   }
   
-  wts = Kokkos::View<ScalarT**,AssemblyDevice>("side wts", numElem, numip);
+  wts = View_Sc2("side wts", numElem, numip);
   Kokkos::deep_copy(wts,tmpwts);
   
-  normals = Kokkos::View<ScalarT***,AssemblyDevice>("side normals", numElem, numip, dimension);
+  normals = View_Sc3("side normals", numElem, numip, dimension);
   Kokkos::deep_copy(normals,tmpnormals);
   
-  tangents = Kokkos::View<ScalarT***,AssemblyDevice>("side tangents", numElem, numip, dimension);
+  tangents = View_Sc3("side tangents", numElem, numip, dimension);
   Kokkos::deep_copy(tangents,tmptangents);
   
   this->computeSizeNormals();
@@ -116,8 +116,8 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
   for (size_t i=0; i<cellData->basis_pointers.size(); i++) {
     
     int numb = cellData->basis_pointers[i]->getCardinality();
-    Kokkos::View<ScalarT****,AssemblyDevice> basis_vals, basis_grad_vals, basis_curl_vals;
-    Kokkos::View<ScalarT***,AssemblyDevice> basis_div_vals;
+    View_Sc4 basis_vals, basis_grad_vals, basis_curl_vals;
+    View_Sc3 basis_div_vals;
     
     DRV ref_basis_vals = cellData->ref_side_basis[localSideID_host(0)][i];
     
@@ -128,7 +128,7 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
       DRV bvals("basis_vals",numElem, numb, numip);
       OrientTools::modifyBasisByOrientation(bvals, bvals_tmp, orientation,
                                             cellData->basis_pointers[i].get());
-      basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,1);
+      basis_vals = View_Sc4("basis vals",numElem,numb,numip,1);
       auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
       Kokkos::deep_copy(basis_vals_slice,bvals);
       
@@ -139,7 +139,7 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
       DRV bgrad_vals("basis_grad_vals",numElem,numb,numip,dimension);
       OrientTools::modifyBasisByOrientation(bgrad_vals, bgrad_vals_tmp, orientation,
                                             cellData->basis_pointers[i].get());
-      basis_grad_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,dimension);
+      basis_grad_vals = View_Sc4("basis vals",numElem,numb,numip,dimension);
       Kokkos::deep_copy(basis_grad_vals,bgrad_vals);
       
     }
@@ -147,7 +147,7 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
       
       DRV bvals("basis_vals",numElem, numb, numip);
       FuncTools::HGRADtransformVALUE(bvals, ref_basis_vals);
-      basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,1);
+      basis_vals = View_Sc4("basis vals",numElem,numb,numip,1);
       auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
       Kokkos::deep_copy(basis_vals_slice,bvals);
     }
@@ -158,7 +158,7 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
       DRV bvals("basis_vals",numElem, numb, numip);
       OrientTools::modifyBasisByOrientation(bvals, bvals_tmp, orientation,
                                             cellData->basis_pointers[i].get());
-      basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,1);
+      basis_vals = View_Sc4("basis vals",numElem,numb,numip,1);
       auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
       Kokkos::deep_copy(basis_vals_slice,bvals);
     }
@@ -170,7 +170,7 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
       DRV bvals("basis_vals",numElem, numb, numip, dimension);
       OrientTools::modifyBasisByOrientation(bvals, bvals_tmp, orientation,
                                             cellData->basis_pointers[i].get());
-      basis_vals = Kokkos::View<ScalarT****,AssemblyDevice>("basis vals",numElem,numb,numip,dimension);
+      basis_vals = View_Sc4("basis vals",numElem,numb,numip,dimension);
       Kokkos::deep_copy(basis_vals,bvals);
     }
     else if (cellData->basis_types[i] == "HCURL"){
@@ -189,7 +189,7 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
 
 void BoundaryCell::computeSizeNormals() {
 
-  hsize = Kokkos::View<ScalarT*,AssemblyDevice>("element sizes",numElem);
+  hsize = View_Sc1("element sizes",numElem);
   
   using std::pow;
   using std::sqrt;
@@ -276,10 +276,10 @@ void BoundaryCell::setUseBasis(vector<int> & usebasis_, const int & numsteps, co
       maxnbasis = cellData->numDOF_host(i);
     }
   }
-  u = Kokkos::View<ScalarT***,AssemblyDevice>("u",numElem,cellData->numDOF.extent(0),maxnbasis);
-  phi = Kokkos::View<ScalarT***,AssemblyDevice>("phi",numElem,cellData->numDOF.extent(0),maxnbasis);
-  u_prev = Kokkos::View<ScalarT****,AssemblyDevice>("u previous",numElem,cellData->numDOF.extent(0),maxnbasis,numsteps);
-  u_stage = Kokkos::View<ScalarT****,AssemblyDevice>("u stages",numElem,cellData->numDOF.extent(0),maxnbasis,numstages);
+  u = View_Sc3("u",numElem,cellData->numDOF.extent(0),maxnbasis);
+  phi = View_Sc3("phi",numElem,cellData->numDOF.extent(0),maxnbasis);
+  u_prev = View_Sc4("u previous",numElem,cellData->numDOF.extent(0),maxnbasis,numsteps);
+  u_stage = View_Sc4("u stages",numElem,cellData->numDOF.extent(0),maxnbasis,numstages);
   
 }
 
@@ -298,7 +298,7 @@ void BoundaryCell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & para
       maxnbasis = numParamDOF(i);
     }
   }
-  param = Kokkos::View<ScalarT***,AssemblyDevice>("param",numElem,
+  param = View_Sc3("param",numElem,
                                                   numParamDOF.extent(0),maxnbasis);
   
 }
@@ -317,7 +317,7 @@ void BoundaryCell::setAuxUseBasis(vector<int> & ausebasis_) {
       maxnbasis = numAuxDOF(i);
     }
   }
-  aux = Kokkos::View<ScalarT***,AssemblyDevice>("aux",numElem,numAuxDOF.extent(0),maxnbasis);
+  aux = View_Sc3("aux",numElem,numAuxDOF.extent(0),maxnbasis);
   
 }
 
@@ -408,8 +408,8 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
                                  const bool & compute_jacobian, const bool & compute_sens,
                                  const int & num_active_params, const bool & compute_disc_sens,
                                  const bool & compute_aux_sens, const bool & store_adjPrev,
-                                 Kokkos::View<ScalarT***,AssemblyDevice> local_res,
-                                 Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
+                                 View_Sc3 local_res,
+                                 View_Sc3 local_J) {
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Compute the local contribution to the global residual and Jacobians
@@ -489,7 +489,7 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
 // Use the AD res to update the scalarT res
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
+void BoundaryCell::updateRes(const bool & compute_sens, View_Sc3 local_res) {
   
   auto res_AD = wkset->res;
   auto offsets = wkset->offsets;
@@ -521,8 +521,8 @@ void BoundaryCell::updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,
 // Use the AD res to update the scalarT res
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
-  Kokkos::View<AD**,AssemblyDevice> adjres_AD = wkset->adjrhs;
+void BoundaryCell::updateAdjointRes(const bool & compute_sens, View_Sc3 local_res) {
+  View_AD2 adjres_AD = wkset->adjrhs;
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
   
@@ -553,7 +553,7 @@ void BoundaryCell::updateAdjointRes(const bool & compute_sens, Kokkos::View<Scal
 // Use the AD res to update the scalarT J
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
+void BoundaryCell::updateJac(const bool & useadjoint, View_Sc3 local_J) {
   
   auto res_AD = wkset->res;
   auto offsets = wkset->offsets;
@@ -591,7 +591,7 @@ void BoundaryCell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,As
 // Use the AD res to update the scalarT Jparam
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
+void BoundaryCell::updateParamJac(View_Sc3 local_J) {
   
   auto res_AD = wkset->res;
   auto offsets = wkset->offsets;
@@ -616,7 +616,7 @@ void BoundaryCell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_
 // Use the AD res to update the scalarT Jaux
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
+void BoundaryCell::updateAuxJac(View_Sc3 local_J) {
   
   auto res_AD = wkset->res;
   auto offsets = wkset->offsets;
@@ -762,14 +762,14 @@ template<class ViewType>
 void BoundaryCell::computeFlux(ViewType u_kv,
                                ViewType du_kv,
                                ViewType dp_kv,
-                               Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+                               View_Sc3 lambda,
                                const ScalarT & time, const int & side, const ScalarT & coarse_h,
                                const bool & compute_sens) {
   
   wkset->setTime(time);
     
-  Kokkos::View<AD***,AssemblyDevice> u_AD("temp u AD",u.extent(0),u.extent(1),u.extent(2));
-  Kokkos::View<AD***,AssemblyDevice> param_AD("temp u AD",1,1,1);
+  View_AD3 u_AD("temp u AD",u.extent(0),u.extent(1),u.extent(2));
+  View_AD3 param_AD("temp u AD",1,1,1);
   
   auto offsets = wkset->offsets;
   
@@ -843,9 +843,9 @@ void BoundaryCell::computeFlux(ViewType u_kv,
 // Get the initial condition
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT**,AssemblyDevice> BoundaryCell::getDirichlet() {
+View_Sc2 BoundaryCell::getDirichlet() {
   
-  Kokkos::View<ScalarT**,AssemblyDevice> dvals("initial values",numElem,LIDs.extent(1));
+  View_Sc2 dvals("initial values",numElem,LIDs.extent(1));
   this->updateWorksetBasis();
   //wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
   
@@ -899,9 +899,9 @@ Kokkos::View<ScalarT**,AssemblyDevice> BoundaryCell::getDirichlet() {
 // Get the mass matrix
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT***,AssemblyDevice> BoundaryCell::getMass() {
+View_Sc3 BoundaryCell::getMass() {
   
-  Kokkos::View<ScalarT***,AssemblyDevice> mass("local mass",numElem,
+  View_Sc3 mass("local mass",numElem,
                                                LIDs.extent(1), LIDs.extent(1));
   
   Kokkos::View<int**,HostDevice> bcs = wkset->var_bcs;

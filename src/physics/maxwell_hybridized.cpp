@@ -81,7 +81,7 @@ void maxwell_HYBRID::volumeResidual() {
   int Ex_basis_num = wkset->usebasis[Ex_num];
   int Hx_basis_num = wkset->usebasis[Hx_num];
   
-  FDATA mu, epsilon;
+  View_AD2_sv mu, epsilon;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -283,7 +283,7 @@ void maxwell_HYBRID::boundaryResidual() {
   int lambdax_basis = wkset->usebasis[lambdax_num];
   auto basis = wkset->basis_side[lambdax_basis];
 
-  FDATA bsourcex, bsourcey, bsourcez, current_x, current_y, current_z;
+  View_AD2_sv bsourcex, bsourcey, bsourcez, current_x, current_y, current_z;
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
 
@@ -342,7 +342,7 @@ void maxwell_HYBRID::faceResidual() {
   auto normals = wkset->normals;
   auto res = wkset->res;
   
-  FDATA mu, epsilon;
+  View_AD2_sv mu, epsilon;
   {
     // It should still be possible to evaluate and use these, right?
     // TODO: add a timer for this

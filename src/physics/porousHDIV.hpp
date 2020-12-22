@@ -73,7 +73,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void updatePerm(FDATA Kinv_xx, FDATA Kinv_yy, FDATA Kinv_zz);
+    void updatePerm(View_AD2_sv Kinv_xx, View_AD2_sv Kinv_yy, View_AD2_sv Kinv_zz);
     
   private:
     

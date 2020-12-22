@@ -119,56 +119,56 @@ namespace MrHyDE {
                        const bool & compute_jacobian, const bool & compute_sens,
                        const int & num_active_params, const bool & compute_disc_sens,
                        const bool & compute_aux_sens, const bool & store_adjPrev,
-                       Kokkos::View<ScalarT***,AssemblyDevice> res,
-                       Kokkos::View<ScalarT***,AssemblyDevice> local_J);
+                       View_Sc3 res,
+                       View_Sc3 local_J);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Use the AD res to update the scalarT res
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res);
+    void updateRes(const bool & compute_sens, View_Sc3 local_res);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Update the adjoint res
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res);
+    void updateAdjointRes(const bool & compute_sens, View_Sc3 local_res);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Use the AD res to update the scalarT J
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J);
+    void updateJac(const bool & useadjoint, View_Sc3 local_J);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Use the AD res to update the scalarT Jdot
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateJacDot(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot);
+    void updateJacDot(const bool & useadjoint, View_Sc3 local_Jdot);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Use the AD res to update the scalarT Jparam
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J);
+    void updateParamJac(View_Sc3 local_J);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Use the AD res to update the scalarT Jdot
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateParamJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot);
+    void updateParamJacDot(View_Sc3 local_Jdot);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Use the AD res to update the scalarT Jaux
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J);
+    void updateAuxJac(View_Sc3 local_J);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Use the AD res to update the scalarT Jdot
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateAuxJacDot(Kokkos::View<ScalarT***,AssemblyDevice> local_Jdot);
+    void updateAuxJacDot(View_Sc3 local_Jdot);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Compute boundary contribution to the regularization and nodes located on the boundary
@@ -183,7 +183,7 @@ namespace MrHyDE {
     
     template<class ViewType>
     void computeFlux(ViewType u_kv, ViewType du_kv, ViewType dp_kv,
-                     Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+                     View_Sc3 lambda,
                      const ScalarT & time, const int & side, const ScalarT & coarse_h,
                      const bool & compute_sens) {
       wkset->setTime(time);
@@ -197,7 +197,9 @@ namespace MrHyDE {
         Teuchos::TimeMonitor localtimer(*cellFluxGatherTimer);
         
         if (compute_sens) {
-          parallel_for("bcell flux gather",RangePolicy<AssemblyExec>(0,ulocal.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          parallel_for("bcell flux gather",
+                       RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
+                       KOKKOS_LAMBDA (const int elem ) {
             for (size_t var=0; var<ulocal.extent(1); var++) {
               for( size_t dof=0; dof<ulocal.extent(2); dof++ ) {
                 u_AD(elem,var,dof) = AD(u_kv(LIDs(elem,offsets(var,dof)),0));
@@ -206,7 +208,9 @@ namespace MrHyDE {
           });
         }
         else {
-          parallel_for("bcell flux gather",RangePolicy<AssemblyExec>(0,ulocal.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          parallel_for("bcell flux gather",
+                       RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
+                       KOKKOS_LAMBDA (const int elem ) {
             for (size_t var=0; var<ulocal.extent(1); var++) {
               for( size_t dof=0; dof<ulocal.extent(2); dof++ ) {
                 u_AD(elem,var,dof) = AD(maxDerivs, 0, u_kv(LIDs(elem,offsets(var,dof)),0));
@@ -239,7 +243,9 @@ namespace MrHyDE {
           auto local_aux = Kokkos::subview(wkset->local_aux_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
           auto localID = localElemID;
           auto varaux = Kokkos::subview(lambda,Kokkos::ALL(),var,Kokkos::ALL());
-          parallel_for("bcell aux",RangePolicy<AssemblyExec>(0,localID.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+          parallel_for("bcell aux",
+                       RangePolicy<AssemblyExec>(0,localID.extent(0)),
+                       KOKKOS_LAMBDA (const size_type elem ) {
             for (size_type dof=0; dof<abasis.extent(1); ++dof) {
               AD auxval = AD(maxDerivs,off(dof), varaux(localID(elem),dof));
               for (size_type pt=0; pt<abasis.extent(2); ++pt) {
@@ -276,12 +282,12 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<ScalarT**,AssemblyDevice> getDirichlet();
+    View_Sc2 getDirichlet();
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<ScalarT***,AssemblyDevice> getMass();
+    View_Sc3 getMass();
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -298,9 +304,9 @@ namespace MrHyDE {
     size_t numElem = 0; // default value ... used to check if proc. has elements on boundary
     int sidenum, cellID, wksetBID;
     DRV nodes;
-    Kokkos::View<ScalarT***,AssemblyDevice> ip, normals, tangents;
-    Kokkos::View<ScalarT**,AssemblyDevice> wts;
-    Kokkos::View<ScalarT*,AssemblyDevice> hsize;
+    View_Sc3 ip, normals, tangents;
+    View_Sc2 wts;
+    View_Sc1 hsize;
     
     Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
     string sidename;
@@ -316,14 +322,14 @@ namespace MrHyDE {
     // Creating LIDs on host device for host assembly
     LIDView_host LIDs_host, paramLIDs_host, auxLIDs_host;
     
-    Kokkos::View<ScalarT***,AssemblyDevice> u, phi, aux, param;
-    Kokkos::View<ScalarT****,AssemblyDevice> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
+    View_Sc3 u, phi, aux, param;
+    View_Sc4 u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
     //Kokkos::View<AD***,AssemblyDevice> u_AD, param_AD;
     
     // basis information
     //vector<DRV> basis, basis_grad, basis_div, basis_curl;
-    vector<Kokkos::View<ScalarT****,AssemblyDevice> > basis, basis_grad, basis_curl;
-    vector<Kokkos::View<ScalarT***,AssemblyDevice> > basis_div;
+    vector<View_Sc4> basis, basis_grad, basis_curl;
+    vector<View_Sc3> basis_div;
     
     // Aux variable Information
     vector<string> auxlist;

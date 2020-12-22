@@ -1613,7 +1613,7 @@ Kokkos::View<AD*,AssemblyDevice> SubGridFEM::computeObjective(const string & res
     //this->performGather(usernum, Psol[0], 4, 0);
     
     for (size_t e=0; e<cells[0].size(); e++) {
-      Kokkos::View<AD**,AssemblyDevice> curr_obj = cells[0][e]->computeObjective(time, tindex, seedwhat);
+      auto curr_obj = cells[0][e]->computeObjective(time, tindex, seedwhat);
       if (!beensized && curr_obj.extent(1)>0) {
         objective = Kokkos::View<AD*,AssemblyDevice>("objective", curr_obj.extent(1));
         beensized = true;

@@ -93,7 +93,7 @@ void porousHDIV_WG::volumeResidual() {
   int u_basis = wkset->usebasis[unum];
   int t_basis = wkset->usebasis[tnum];
   
-  FDATA source, perm;
+  View_AD2_sv source, perm;
 
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -101,7 +101,8 @@ void porousHDIV_WG::volumeResidual() {
     //perm = functionManager->evaluate("perm","ip");
     if (usePermData) {
       auto wts = wkset->wts;
-      perm = Kokkos::View<AD**,AssemblyDevice>("permeability",wts.extent(0),wts.extent(1));
+      View_AD3 tperm("permeability",wts.extent(0),wts.extent(1),1);
+      perm = Kokkos::subview(tperm,Kokkos::ALL(),Kokkos::ALL(),0);
       this->updatePerm(perm);
     }
     else {
@@ -303,7 +304,7 @@ void porousHDIV_WG::boundaryResidual() {
   
   auto basis = wkset->basis_side[u_basis];
   
-  FDATA bsource;
+  View_AD2_sv bsource;
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
@@ -491,9 +492,9 @@ void porousHDIV_WG::setAuxVars(std::vector<string> & auxvarlist) {
 // ========================================================================================
 // ========================================================================================
 
-void porousHDIV_WG::updatePerm(FDATA perm) {
+void porousHDIV_WG::updatePerm(View_AD2_sv perm) {
   
-  Kokkos::View<ScalarT**,AssemblyDevice> data = wkset->extra_data;
+  View_Sc2 data = wkset->extra_data;
   parallel_for("porous WG update perm",RangePolicy<AssemblyExec>(0,perm.extent(0)), KOKKOS_LAMBDA (const int elem ) {
     for (size_type pt=0; pt<perm.extent(1); pt++) {
       perm(elem,pt) = data(elem,0);
