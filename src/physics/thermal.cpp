@@ -94,18 +94,106 @@ void thermal::volumeResidual() {
   
   auto T = wkset->getData("e");
   auto dTdt = wkset->getData("e_t");
-  auto dTdx = wkset->getData("grad(e)[x]");
-  auto dTdy = wkset->getData("grad(e)[y]");
-  auto dTdz = wkset->getData("grad(e)[z]");
   
   auto off = Kokkos::subview( offsets, e_num, Kokkos::ALL());
   auto scratch = wkset->scratch;
   
   if (spaceDim == 1) {
-    parallel_for("Thermal volume resid 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    auto dTdx = wkset->getData("grad(e)[x]");
+    parallel_for("Thermal volume resid 1D",
+                 TeamPolicy<AssemblyExec>(basis.extent(0), Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type pt=team.team_rank(); pt<source.extent(1); pt+=team.team_size() ) {
+        scratch(elem,pt,0) = (rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt))*wts(elem,pt);
+        scratch(elem,pt,1) = diff(elem,pt)*dTdx(elem,pt)*wts(elem,pt);
+      }
+    });
+    
+    parallel_for("Thermal volume resid 1D",
+                 TeamPolicy<AssemblyExec>(basis.extent(0), Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      int ti = team.team_rank();
+      int ts = team.team_size();
+    
+      for (size_type dof=ti; dof<basis.extent(1); dof+=ts ) {
+        for (size_type pt=0; pt<basis.extent(2); ++pt ) {
+          res(elem,off(dof)) += scratch(elem,pt,0)*basis(elem,dof,pt,0) + scratch(elem,pt,1)*basis_grad(elem,dof,pt,0);
+        }
+      }
+    });
+  }
+  else if (spaceDim == 2) {
+    auto dTdx = wkset->getData("grad(e)[x]");
+    auto dTdy = wkset->getData("grad(e)[y]");
+    
+    parallel_for("Thermal volume resid 1D",
+                 TeamPolicy<AssemblyExec>(basis.extent(0), Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type pt=team.team_rank(); pt<source.extent(1); pt+=team.team_size() ) {
+        scratch(elem,pt,0) = (rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt))*wts(elem,pt);
+        scratch(elem,pt,1) = diff(elem,pt)*dTdx(elem,pt)*wts(elem,pt);
+        scratch(elem,pt,2) = diff(elem,pt)*dTdy(elem,pt)*wts(elem,pt);
+      }
+    });
+    
+    parallel_for("Thermal volume resid 1D",
+                 TeamPolicy<AssemblyExec>(basis.extent(0), Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      int ti = team.team_rank();
+      int ts = team.team_size();
+    
+      for (size_type dof=ti; dof<basis.extent(1); dof+=ts ) {
+        for (size_type pt=0; pt<basis.extent(2); ++pt ) {
+          res(elem,off(dof)) += scratch(elem,pt,0)*basis(elem,dof,pt,0) + scratch(elem,pt,1)*basis_grad(elem,dof,pt,0) + scratch(elem,pt,2)*basis_grad(elem,dof,pt,1);
+        }
+      }
+    });
+    
+  }
+  else {
+    auto dTdx = wkset->getData("grad(e)[x]");
+    auto dTdy = wkset->getData("grad(e)[y]");
+    auto dTdz = wkset->getData("grad(e)[z]");
+    
+    parallel_for("Thermal volume resid 1D",
+                 TeamPolicy<AssemblyExec>(basis.extent(0), Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type pt=team.team_rank(); pt<source.extent(1); pt+=team.team_size() ) {
+        scratch(elem,pt,0) = (rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt))*wts(elem,pt);
+        scratch(elem,pt,1) = diff(elem,pt)*dTdx(elem,pt)*wts(elem,pt);
+        scratch(elem,pt,2) = diff(elem,pt)*dTdy(elem,pt)*wts(elem,pt);
+        scratch(elem,pt,3) = diff(elem,pt)*dTdz(elem,pt)*wts(elem,pt);
+      }
+    });
+    
+    parallel_for("Thermal volume resid 1D",
+                 TeamPolicy<AssemblyExec>(basis.extent(0), Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      int ti = team.team_rank();
+      int ts = team.team_size();
+    
+      for (size_type dof=ti; dof<basis.extent(1); dof+=ts ) {
+        for (size_type pt=0; pt<basis.extent(2); ++pt ) {
+          res(elem,off(dof)) += scratch(elem,pt,0)*basis(elem,dof,pt,0) + scratch(elem,pt,1)*basis_grad(elem,dof,pt,0) + scratch(elem,pt,2)*basis_grad(elem,dof,pt,1) + scratch(elem,pt,3)*basis_grad(elem,dof,pt,2);
+        }
+      }
+    });
+  }
+  Kokkos::fence();
+  /*
+  if (spaceDim == 1) {
+    auto dTdx = wkset->getData("grad(e)[x]");
+    parallel_for("Thermal volume resid 1D",
+                 RangePolicy<AssemblyExec>(0,basis.extent(0)),
+                 KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt);
-        //AD DFx = diff(elem,pt)*gradT(elem,pt,0);
         AD DFx = diff(elem,pt)*dTdx(elem,pt);
         f *= wts(elem,pt);
         DFx *= wts(elem,pt);
@@ -116,11 +204,13 @@ void thermal::volumeResidual() {
     });
   }
   else if (spaceDim == 2) {
-    parallel_for("Thermal volume resid 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    auto dTdx = wkset->getData("grad(e)[x]");
+    auto dTdy = wkset->getData("grad(e)[y]");
+    parallel_for("Thermal volume resid 2D",
+                 RangePolicy<AssemblyExec>(0,basis.extent(0)),
+                 KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt);
-        //AD DFx = diff(elem,pt)*gradT(elem,pt,0);
-        //AD DFy = diff(elem,pt)*gradT(elem,pt,1);
         AD DFx = diff(elem,pt)*dTdx(elem,pt);
         AD DFy = diff(elem,pt)*dTdy(elem,pt);
         f *= wts(elem,pt);
@@ -133,12 +223,14 @@ void thermal::volumeResidual() {
     });
   }
   else {
-    parallel_for("Thermal volume resid 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    auto dTdx = wkset->getData("grad(e)[x]");
+    auto dTdy = wkset->getData("grad(e)[y]");
+    auto dTdz = wkset->getData("grad(e)[z]");
+    parallel_for("Thermal volume resid 3D",
+                 RangePolicy<AssemblyExec>(0,basis.extent(0)),
+                 KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt);
-        //AD DFx = diff(elem,pt)*gradT(elem,pt,0);
-        //AD DFy = diff(elem,pt)*gradT(elem,pt,1);
-        //AD DFz = diff(elem,pt)*gradT(elem,pt,2);
         AD DFx = diff(elem,pt)*dTdx(elem,pt);
         AD DFy = diff(elem,pt)*dTdy(elem,pt);
         AD DFz = diff(elem,pt)*dTdy(elem,pt);
@@ -153,6 +245,7 @@ void thermal::volumeResidual() {
     });
   }
   Kokkos::fence();
+  */
   
   // Contributes:
   // (f(u),v)

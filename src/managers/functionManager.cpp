@@ -166,6 +166,7 @@ void FunctionManager::decomposeFunctions() {
               functions[fiter].terms[k].isRoot = true;
               functions[fiter].terms[k].beenDecomposed = true;
               functions[fiter].terms[k].isAD = false;
+              
               if (known_vars[j] == "x") {
                 if (functions[fiter].location == "side ip") {
                   functions[fiter].terms[k].ddata = Kokkos::subview(wkset->ip_side, Kokkos::ALL(), Kokkos::ALL(), 0);
