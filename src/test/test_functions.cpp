@@ -28,6 +28,9 @@ int main(int argc, char * argv[]) {
     int numElem = 10;
     int numip = 4;
     int numvars = 5;
+    vector<string> variables = {"a","b","c","d","p"};
+    vector<string> aux_variables = {"aux z"};
+    vector<string> param_vars;
     
     vector<int> cellinfo = {2,numvars,1,0,numElem};
     DRV ip, wts, sip, swts;
@@ -43,8 +46,6 @@ int main(int argc, char * argv[]) {
                                                             btypes, basis, basis, cellTopo,bcs) );
     
     Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager("eblock",numElem,numip,numip));
-    vector<string> variables = {"a","b","c","d","p"};
-    vector<string> aux_variables = {"aux z"};
     vector<string> parameters = {"mu"};
     vector<string> disc_parameters = {"ff"};
     

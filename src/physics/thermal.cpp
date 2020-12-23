@@ -87,9 +87,17 @@ void thermal::volumeResidual() {
   
   auto wts = wkset->wts;
   auto res = wkset->res;
-  auto T = Kokkos::subview( sol, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
-  auto dTdt = Kokkos::subview( sol_dot, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
-  auto gradT = Kokkos::subview( sol_grad, Kokkos::ALL(), e_num, Kokkos::ALL(), Kokkos::ALL());
+    
+  //auto T = Kokkos::subview( sol, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
+  //auto dTdt = Kokkos::subview( sol_dot, Kokkos::ALL(), e_num, Kokkos::ALL(), 0);
+  //auto gradT = Kokkos::subview( sol_grad, Kokkos::ALL(), e_num, Kokkos::ALL(), Kokkos::ALL());
+  
+  auto T = wkset->getData("e");
+  auto dTdt = wkset->getData("e_t");
+  auto dTdx = wkset->getData("grad(e)[x]");
+  auto dTdy = wkset->getData("grad(e)[y]");
+  auto dTdz = wkset->getData("grad(e)[z]");
+  
   auto off = Kokkos::subview( offsets, e_num, Kokkos::ALL());
   auto scratch = wkset->scratch;
   
@@ -97,7 +105,8 @@ void thermal::volumeResidual() {
     parallel_for("Thermal volume resid 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt);
-        AD DFx = diff(elem,pt)*gradT(elem,pt,0);
+        //AD DFx = diff(elem,pt)*gradT(elem,pt,0);
+        AD DFx = diff(elem,pt)*dTdx(elem,pt);
         f *= wts(elem,pt);
         DFx *= wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -110,8 +119,10 @@ void thermal::volumeResidual() {
     parallel_for("Thermal volume resid 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt);
-        AD DFx = diff(elem,pt)*gradT(elem,pt,0);
-        AD DFy = diff(elem,pt)*gradT(elem,pt,1);
+        //AD DFx = diff(elem,pt)*gradT(elem,pt,0);
+        //AD DFy = diff(elem,pt)*gradT(elem,pt,1);
+        AD DFx = diff(elem,pt)*dTdx(elem,pt);
+        AD DFy = diff(elem,pt)*dTdy(elem,pt);
         f *= wts(elem,pt);
         DFx *= wts(elem,pt);
         DFy *= wts(elem,pt);
@@ -125,9 +136,12 @@ void thermal::volumeResidual() {
     parallel_for("Thermal volume resid 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt);
-        AD DFx = diff(elem,pt)*gradT(elem,pt,0);
-        AD DFy = diff(elem,pt)*gradT(elem,pt,1);
-        AD DFz = diff(elem,pt)*gradT(elem,pt,2);
+        //AD DFx = diff(elem,pt)*gradT(elem,pt,0);
+        //AD DFy = diff(elem,pt)*gradT(elem,pt,1);
+        //AD DFz = diff(elem,pt)*gradT(elem,pt,2);
+        AD DFx = diff(elem,pt)*dTdx(elem,pt);
+        AD DFy = diff(elem,pt)*dTdy(elem,pt);
+        AD DFz = diff(elem,pt)*dTdy(elem,pt);
         f *= wts(elem,pt);
         DFx *= wts(elem,pt);
         DFy *= wts(elem,pt);
@@ -144,6 +158,7 @@ void thermal::volumeResidual() {
   // (f(u),v)
   // f(u) = U * grad(e) (U from Navier Stokes)
   
+  /*
   if (have_nsvel) {
     if (spaceDim == 1) {
       auto Ux = Kokkos::subview( sol, Kokkos::ALL(), ux_num, Kokkos::ALL(), 0);
@@ -185,7 +200,7 @@ void thermal::volumeResidual() {
       });
     }
   }
-  
+  */
 }
 
 

@@ -632,6 +632,7 @@ void solver<Node>::finalizeWorkset() {
       assembler->wkset[b]->paramoffsets = poffsets_view;
       assembler->wkset[b]->varlist = varlist[b];
       assembler->wkset[b]->createSolns();
+      
       int numDOF = assembler->cells[b][0]->LIDs.extent(1);
       for (size_t e=0; e<assembler->cells[b].size(); e++) {
         assembler->cells[b][e]->setWorkset(assembler->wkset[b]);

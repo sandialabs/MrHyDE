@@ -132,7 +132,31 @@ void FunctionManager::decomposeFunctions() {
         if (functions[fiter].terms[k].isRoot || functions[fiter].terms[k].beenDecomposed) {
           decompose = false;
         }
-        
+        if (decompose) {
+          vector<string> data_labels = wkset->data_labels;
+          for (size_t j=0; j<data_labels.size(); j++) {
+            if (functions[fiter].terms[k].expression == data_labels[j]) {
+              decompose = false;
+              functions[fiter].terms[k].isRoot = true;
+              functions[fiter].terms[k].beenDecomposed = true;
+              functions[fiter].terms[k].isAD = true;
+              functions[fiter].terms[k].data = wkset->data[j];
+            }
+          }
+        }
+        if (decompose) {
+          vector<string> data_Sc_labels = wkset->data_Sc_labels;
+          for (size_t j=0; j<data_Sc_labels.size(); j++) {
+            if (functions[fiter].terms[k].expression == data_Sc_labels[j]) {
+              decompose = false;
+              functions[fiter].terms[k].isRoot = true;
+              functions[fiter].terms[k].beenDecomposed = true;
+              functions[fiter].terms[k].isAD = false;
+              functions[fiter].terms[k].ddata = wkset->data_Sc[j];
+            }
+          }
+        }
+          
         // IS THE TERM ONE OF THE KNOWN VARIABLES: x,y,z,t
         if (decompose) {
           for (size_t j=0; j<known_vars.size(); j++) {

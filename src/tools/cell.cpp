@@ -510,6 +510,35 @@ void cell::updateWorksetBasis() {
     Kokkos::deep_copy(wkset->ip,ip);
   }
   
+  auto x = wkset->getDataSc("x");
+  parallel_for("wkset transient soln 1",
+               RangePolicy<AssemblyExec>(0,ip.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    for (size_type pt=0; pt<ip.extent(1); pt++) {
+      x(elem,pt) = ip(elem,pt,0);
+    }
+  });
+  if (ip.extent(2) > 1) {
+    auto y = wkset->getDataSc("y");
+    parallel_for("wkset transient soln 1",
+                 RangePolicy<AssemblyExec>(0,ip.extent(0)),
+                 KOKKOS_LAMBDA (const size_type elem ) {
+      for (size_type pt=0; pt<ip.extent(1); pt++) {
+        y(elem,pt) = ip(elem,pt,1);
+      }
+    });
+  }
+  if (ip.extent(2) > 2) {
+    auto z = wkset->getDataSc("z");
+    parallel_for("wkset transient soln 1",
+                 RangePolicy<AssemblyExec>(0,ip.extent(0)),
+                 KOKKOS_LAMBDA (const size_type elem ) {
+      for (size_type pt=0; pt<ip.extent(1); pt++) {
+        z(elem,pt) = ip(elem,pt,2);
+      }
+    });
+  }
+  
   wkset->basis = basis;
   wkset->basis_grad = basis_grad;
   wkset->basis_div = basis_div;

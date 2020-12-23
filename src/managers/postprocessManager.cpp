@@ -605,13 +605,13 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           if (error_list[altblock][etype].second == "L2") {
             // compute the true solution
             string expression = "true " + varlist[altblock][var];
-            View_AD2_sv tsol = functionManagers[altblock]->evaluate(expression,"ip");
-            auto sol = assembler->wkset[altblock]->local_soln;
+            auto tsol = functionManagers[altblock]->evaluate(expression,"ip");
+            auto sol = assembler->wkset[altblock]->getData(varlist[altblock][var]);
             auto wts = assembler->cells[block][cell]->wts;
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-                ScalarT diff = sol(elem,var,pt,0).val() - tsol(elem,pt).val();
+                ScalarT diff = sol(elem,pt).val() - tsol(elem,pt).val();
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -620,14 +620,14 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           else if (error_list[altblock][etype].second == "GRAD") {
             // compute the true x-component of grad
             string expression = "true grad(" + varlist[altblock][var] + ")[x]";
-            View_AD2_sv tsol = functionManagers[altblock]->evaluate(expression,"ip");
-            auto sol_grad = assembler->wkset[altblock]->local_soln_grad;
+            auto tsol = functionManagers[altblock]->evaluate(expression,"ip");
+            auto sol_x = assembler->wkset[altblock]->getData("grad("+varlist[altblock][var]+")[x]");
             auto wts = assembler->cells[block][cell]->wts;
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-                ScalarT diff = sol_grad(elem,var,pt,0).val() - tsol(elem,pt).val();
+                ScalarT diff = sol_x(elem,pt).val() - tsol(elem,pt).val();
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -636,13 +636,14 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             if (spaceDim > 1) {
               // compute the true y-component of grad
               string expression = "true grad(" + varlist[altblock][var] + ")[y]";
-              View_AD2_sv tsol = functionManagers[altblock]->evaluate(expression,"ip");
+              auto tsol = functionManagers[altblock]->evaluate(expression,"ip");
+              auto sol_y = assembler->wkset[altblock]->getData("grad("+varlist[altblock][var]+")[y]");
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-                  ScalarT diff = sol_grad(elem,var,pt,1).val() - tsol(elem,pt).val();
+                  ScalarT diff = sol_y(elem,pt).val() - tsol(elem,pt).val();
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -652,13 +653,14 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             if (spaceDim >2) {
               // compute the true z-component of grad
               string expression = "true grad(" + varlist[altblock][var] + ")[z]";
-              View_AD2_sv tsol = functionManagers[altblock]->evaluate(expression,"ip");
+              auto tsol = functionManagers[altblock]->evaluate(expression,"ip");
+              auto sol_z = assembler->wkset[altblock]->getData("grad("+varlist[altblock][var]+")[z]");
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-                  ScalarT diff = sol_grad(elem,var,pt,2).val() - tsol(elem,pt).val();
+                  ScalarT diff = sol_z(elem,pt).val() - tsol(elem,pt).val();
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);

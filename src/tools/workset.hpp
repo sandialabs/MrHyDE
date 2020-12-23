@@ -32,7 +32,7 @@ namespace MrHyDE {
             const vector<string> & basis_types_,
             const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
             const topo_RCP & topo, Kokkos::View<int**,HostDevice> & var_bcs_);
-    
+            
     ////////////////////////////////////////////////////////////////////////////////////
     // Public functions
     ////////////////////////////////////////////////////////////////////////////////////
@@ -181,6 +181,22 @@ namespace MrHyDE {
     
     void setStage(const int & newstage);
     
+    View_AD2 getData(const string & label);
+    
+    View_Sc2 getDataSc(const string & label);
+    
+    void addData(const string & label, const int & dim0, const int & dim1);
+    
+    void addDataSc(const string & label, const int & dim0, const int & dim1);
+    
+    void setData(const string & label, View_AD2 newdata);
+    
+    void setDataSc(const string & label, View_Sc2 newdata);
+    
+    void reorderData();
+    
+    void printMetaData();
+    
     ////////////////////////////////////////////////////////////////////////////////////
     // Public data
     ////////////////////////////////////////////////////////////////////////////////////
@@ -190,7 +206,7 @@ namespace MrHyDE {
     Kokkos::View<int**,HostDevice> var_bcs, aux_var_bcs;
     
     Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets, aux_offsets;
-    vector<string> varlist, aux_varlist;
+    vector<string> varlist, aux_varlist, param_varlist;
     Kokkos::View<ScalarT**,AssemblyDevice> butcher_A, aux_butcher_A;
     Kokkos::View<ScalarT*,AssemblyDevice> butcher_b, butcher_c, BDF_wts, aux_butcher_b, aux_butcher_c, aux_BDF_wts;
     
@@ -198,6 +214,7 @@ namespace MrHyDE {
     vector<int> vars_HGRAD, vars_HVOL, vars_HDIV, vars_HCURL, vars_HFACE;
     vector<int> paramvars_HGRAD, paramvars_HVOL, paramvars_HDIV, paramvars_HCURL, paramvars_HFACE;
     
+    vector<string> varlist_HGRAD;
     bool isAdjoint, onlyTransient, isTransient;
     bool isInitialized, usebcs;
     topo_RCP celltopo;
@@ -220,6 +237,14 @@ namespace MrHyDE {
     size_t block, localEID, globalEID;
     
     // Views that use ContLayout for hierarchical parallelism
+    vector<View_AD2> data; // data can change, but pointer cannot
+    vector<string> data_labels;
+    vector<int> data_usage;
+    
+    vector<View_Sc2> data_Sc; // data can change, but pointer cannot
+    vector<string> data_Sc_labels;
+    vector<int> data_Sc_usage;
+    
     View_Sc1 h;
     View_Sc3 ip, ip_side, normals, point;
     View_Sc2 wts, wts_side;
@@ -267,6 +292,8 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> worksetComputeSolnSideTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::computeSolnSideIP");
     Teuchos::RCP<Teuchos::Time> worksetComputeParamVolTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::computeParamVolIP");
     Teuchos::RCP<Teuchos::Time> worksetComputeParamSideTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::computeParamSideIP");
+    Teuchos::RCP<Teuchos::Time> worksetgetDataTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::getData");
+    Teuchos::RCP<Teuchos::Time> worksetgetDataScTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::getDataSc");
     
     Teuchos::RCP<Teuchos::Time> worksetDebugTimer0 = Teuchos::TimeMonitor::getNewCounter("MILO::workset::debug0");
     Teuchos::RCP<Teuchos::Time> worksetDebugTimer1 = Teuchos::TimeMonitor::getNewCounter("MILO::workset::debug1");

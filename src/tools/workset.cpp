@@ -52,9 +52,25 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   
   // these cannot point to different arrays ... data must be deep copied into them
   ip = View_Sc3("ip",numElem,numip,dimension);
+  this->addDataSc("x",numElem,numip);
+  this->addDataSc("y",numElem,numip);
+  this->addDataSc("z",numElem,numip);
+  
   ip_side = View_Sc3("side ip",numElem,numsideip,dimension);
+  this->addDataSc("x side",numElem,numsideip);
+  this->addDataSc("y side",numElem,numsideip);
+  this->addDataSc("z side",numElem,numsideip);
+  
   normals = View_Sc3("side normals",numElem,numsideip,dimension);
+  this->addDataSc("nx",numElem,numip);
+  this->addDataSc("ny",numElem,numip);
+  this->addDataSc("nz",numElem,numip);
+  
   point = View_Sc3("point",1,1,dimension);
+  this->addDataSc("x point",1,1);
+  this->addDataSc("y point",1,1);
+  this->addDataSc("z point",1,1);
+  
   res = View_AD2("residual",numElem, maxDerivs, maxDerivs);
   adjrhs = View_AD2("adjoint RHS",numElem, maxDerivs, maxDerivs);
   
@@ -92,17 +108,52 @@ void workset::createSolns() {
 
   for (size_t i=0; i<usebasis.size(); i++) {
     int bind = usebasis[i];
+    string var = varlist[i];
     if (basis_types[bind] == "HGRAD") {
       vars_HGRAD.push_back(i);
+      varlist_HGRAD.push_back(var);
+      this->addData(var,numElem,numip);
+      this->addData("grad("+var+")[x]",numElem,numip);
+      this->addData("grad("+var+")[y]",numElem,numip);
+      this->addData("grad("+var+")[z]",numElem,numip);
+      this->addData(var+"_t",numElem,numip);
+      
+      this->addData(var+" side",numElem,numsideip);
+      this->addData(var+"_x side",numElem,numsideip);
+      this->addData(var+"_y side",numElem,numsideip);
+      this->addData(var+"_z side",numElem,numsideip);
+      
+      this->addData(var+" face",numElem,numsideip);
+      this->addData(var+"_x face",numElem,numsideip);
+      this->addData(var+"_y face",numElem,numsideip);
+      this->addData(var+"_z face",numElem,numsideip);
+      
+      this->addData(var+" point",1,1);
+      this->addData(var+"_x point",1,1);
+      this->addData(var+"_y point",1,1);
+      this->addData(var+"_z point",1,1);
+      
     }
     else if (basis_types[bind] == "HDIV") {
       vars_HDIV.push_back(i);
+      this->addData(var+"[x]",numElem,numip);
+      this->addData(var+"[y]",numElem,numip);
+      this->addData(var+"[z]",numElem,numip);
+      this->addData("div("+var+")",numElem,numip);
     }
     else if (basis_types[bind] == "HVOL") {
       vars_HVOL.push_back(i);
+      this->addData(var,numElem,numip);
     }
     else if (basis_types[bind] == "HCURL") {
       vars_HCURL.push_back(i);
+      this->addData(var+"[x]",numElem,numip);
+      this->addData(var+"[y]",numElem,numip);
+      this->addData(var+"[z]",numElem,numip);
+      this->addData("curl("+var+")[x]",numElem,numip);
+      this->addData("curl("+var+")[y]",numElem,numip);
+      this->addData("curl("+var+")[z]",numElem,numip);
+      
     }
     else if (basis_types[bind] == "HFACE") {
       vars_HFACE.push_back(i);
@@ -622,6 +673,77 @@ void workset::computeSoln(const int & type) {
     // HGRAD
     /////////////////////////////////////////////////////////////////////
     
+    for (size_t i=0; i<varlist_HGRAD.size(); i++) {
+      string var = varlist_HGRAD[i];
+      int varind = vars_HGRAD[i];
+      View_AD2 csol, csol_x, csol_y, csol_z, csol_t;
+      View_Sc4 cbasis;
+      View_Sc4 cbasis_grad;
+      
+      // TMW: this might be ok ... have to check
+      auto cuvals = Kokkos::subview(uvals,Kokkos::ALL(),varind,Kokkos::ALL());
+      
+      if (type == 1) { // volumetric ip
+        csol = this->getData(var);
+        csol_x = this->getData("grad("+var+")[x]");
+        csol_y = this->getData("grad("+var+")[y]");
+        csol_z = this->getData("grad("+var+")[z]");
+        cbasis = basis[usebasis[varind]];
+        cbasis_grad = basis_grad[usebasis[varind]];
+      }
+      /*
+      else if (type == 2) { // boundary ip
+        csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
+        csol_grad = Kokkos::subview(local_soln_grad_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+        cbasis = basis_side[usebasis[var]];
+        cbasis_grad = basis_grad_side[usebasis[var]];
+      }
+      else if (type == 3) { // face ip
+        csol = Kokkos::subview(local_soln_face,Kokkos::ALL(),var,Kokkos::ALL(),0);
+        csol_grad = Kokkos::subview(local_soln_grad_face,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
+        cbasis = basis_face[usebasis[var]];
+        cbasis_grad = basis_grad_face[usebasis[var]];
+      }
+      */
+      Kokkos::deep_copy(csol,0.0);
+      Kokkos::deep_copy(csol_x,0.0);
+      Kokkos::deep_copy(csol_y,0.0);
+      Kokkos::deep_copy(csol_z,0.0);
+      parallel_for("wkset soln ip HGRAD",
+                   RangePolicy<AssemblyExec>(0,cbasis.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+          AD uval = cuvals(elem,dof);
+          size_type dim = cbasis_grad.extent(3);
+          for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
+            csol(elem,pt) += uval*cbasis(elem,dof,pt,0);
+            csol_x(elem,pt) += uval*cbasis_grad(elem,dof,pt,0);
+            if (dim>1) {
+              csol_y(elem,pt) += uval*cbasis_grad(elem,dof,pt,1);
+            }
+            if (dim>2) {
+              csol_z(elem,pt) += uval*cbasis_grad(elem,dof,pt,2);
+            }
+          }
+        }
+      });
+      
+      if (isTransient && type == 1) { // transient terms only need at volumetric ip
+        auto csol_t = this->getData(var+"_t");
+        Kokkos::deep_copy(csol_t,0.0);
+        auto cu_dotvals = Kokkos::subview(u_dotvals,Kokkos::ALL(),varind,Kokkos::ALL());
+        parallel_for("wkset soln ip HGRAD transient",
+                     RangePolicy<AssemblyExec>(0,cbasis.extent(0)),
+                     KOKKOS_LAMBDA (const size_type elem ) {
+          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
+              csol_t(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
+            }
+          }
+        });
+      }
+    }
+    /*
     for (size_t i=0; i<vars_HGRAD.size(); i++) {
       int var = vars_HGRAD[i];
       auto csol = Kokkos::subview(local_soln,Kokkos::ALL(),var,Kokkos::ALL(),0);
@@ -688,6 +810,7 @@ void workset::computeSoln(const int & type) {
         });
       }
     }
+    */
     
     /////////////////////////////////////////////////////////////////////
     // HVOL
@@ -1447,4 +1570,72 @@ void workset::setDeltat(const ScalarT & newdt) {
 void workset::setStage(const int & newstage) {
   current_stage = newstage;
   Kokkos::deep_copy(current_stage_KV, newstage);
+}
+
+//////////////////////////////////////////////////////////////
+// Add a data view
+//////////////////////////////////////////////////////////////
+
+void workset::addData(const string & label, const int & dim0, const int & dim1) {
+  data.push_back(View_AD2(label,dim0,dim1));
+  data_labels.push_back(label);
+  data_usage.push_back(0);
+}
+
+void workset::addDataSc(const string & label, const int & dim0, const int & dim1) {
+  data_Sc.push_back(View_Sc2(label,dim0,dim1));
+  data_Sc_labels.push_back(label);
+  data_Sc_usage.push_back(0);
+}
+
+View_AD2 workset::getData(const string & label) {
+  
+  Teuchos::TimeMonitor basistimer(*worksetgetDataTimer);
+  
+  bool found = false;
+  size_t ind = 0;
+  while (!found && ind<data_labels.size()) {
+    if (label == data_labels[ind]) {
+      found = true;
+      data_usage[ind] += 1;
+    }
+    else {
+      ++ind;
+    }
+  }
+  return data[ind];
+  
+}
+
+View_Sc2 workset::getDataSc(const string & label) {
+  
+  Teuchos::TimeMonitor basistimer(*worksetgetDataScTimer);
+  
+  bool found = false;
+  size_t ind = 0;
+  while (!found && ind<data_Sc_labels.size()) {
+    if (label == data_Sc_labels[ind]) {
+      found = true;
+      data_Sc_usage[ind] += 1;
+    }
+    else {
+      ++ind;
+    }
+  }
+  
+  return data_Sc[ind];
+  
+}
+
+
+void workset::printMetaData() {
+  std::cout << "Number of View_AD2 stored: " << data.size() << std::endl;
+  for (size_t i=0; i<data.size(); ++i) {
+    std::cout << data_labels[i] << std::endl;
+  }
+  
+  std::cout << "Number of View_Sc2 stored: " << data_Sc.size() << std::endl;
+  for (size_t i=0; i<data_Sc.size(); ++i) {
+    std::cout << data_Sc_labels[i] << std::endl;
+  }
 }
