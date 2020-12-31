@@ -435,10 +435,11 @@ View_AD2 FunctionManager::evaluate(const string & fname, const string & location
   if (!functions[findex].terms[0].isAD) {
     auto doutput = functions[findex].terms[0].ddata;
     parallel_for("funcman copy double to AD",
-                 RangePolicy<AssemblyExec>(0,output.extent(0)),
-                 KOKKOS_LAMBDA (const int e ) {
-      for (unsigned int n=0; n<output.extent(1); n++) {
-        output(e,n) = doutput(e,n);
+                 TeamPolicy<AssemblyExec>(output.extent(0), Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type pt=team.team_rank(); pt<output.extent(1); pt+=team.team_size() ) {
+        output(elem,pt) = doutput(elem,pt);
       }
     });
   }
@@ -463,18 +464,24 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex) {
       if (functions[findex].terms[tindex].isAD) { // TMW change to deep_copy
         auto data0 = functions[findex].terms[tindex].data;
         auto data1 = functions[findex].terms[tindex].scalar_data;
-        parallel_for("funcman copy constant to AD",RangePolicy<AssemblyExec>(0,data0.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          for (unsigned int n=0; n<data0.extent(1); n++) {
-            data0(e,n) = data1(0);
+        parallel_for("funcman copy scalar to View_AD2",
+                     TeamPolicy<AssemblyExec>(data0.extent(0), Kokkos::AUTO, 32),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pt=team.team_rank(); pt<data0.extent(1); pt+=team.team_size() ) {
+            data0(elem,pt) = data1(0);
           }
         });
       }
       else { // TMW change to deep_copy
         auto data0 = functions[findex].terms[tindex].ddata;
         auto data1 = functions[findex].terms[tindex].scalar_ddata;
-        parallel_for("funcman copy constant to constant",RangePolicy<AssemblyExec>(0,data0.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          for (unsigned int n=0; n<data0.extent(1); n++) {
-            data0(e,n) = data1(0);
+        parallel_for("funcman copy scalar to View_Sc2",
+                     TeamPolicy<AssemblyExec>(data0.extent(0), Kokkos::AUTO, 32),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pt=team.team_rank(); pt<data0.extent(1); pt+=team.team_size() ) {
+            data0(elem,pt) = data1(0);
           }
         });
       }
@@ -490,9 +497,12 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex) {
       else { // TMW try to change to deep copy
         auto data0 = functions[findex].terms[tindex].data;
         auto data1 = functions[funcIndex].terms[0].ddata;
-        parallel_for("funcman copy scalar to AD",RangePolicy<AssemblyExec>(0,data0.extent(0)), KOKKOS_LAMBDA (const int e ) {
-          for (unsigned int n=0; n<data0.extent(1); n++) {
-            data0(e,n) = data1(e,n);
+        parallel_for("funcman copy View_Sc2 to View_AD2",
+                     TeamPolicy<AssemblyExec>(data0.extent(0), Kokkos::AUTO, 32),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pt=team.team_rank(); pt<data0.extent(1); pt+=team.team_size() ) {
+            data0(elem,pt) = data1(elem,pt);
           }
         });
       }
@@ -541,102 +551,138 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   using namespace std;
 
   if (op == "") {
-    parallel_for("funcman evaluate equals",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate equals",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        data(e,n) = tdata(e,n);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = tdata(elem,pt);
       }
     });
   }
   else if (op == "plus") {
-    parallel_for("funcman evaluate plus",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate plus",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        data(e,n) += tdata(e,n);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) += tdata(elem,pt);
       }
     });
   }
   else if (op == "minus") {
-    parallel_for("funcman evaluate minus",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate minus",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        data(e,n) += -tdata(e,n);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) += -tdata(elem,pt);
       }
     });
   }
   else if (op == "times") {
-    parallel_for("funcman evaluate times",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate times",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        data(e,n) *= tdata(e,n);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) *= tdata(elem,pt);
       }
     });
   }
   else if (op == "divide") {
-    parallel_for("funcman evaluate divide",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate divide",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        data(e,n) /= tdata(e,n);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) /= tdata(elem,pt);
       }
     });
   }
   else if (op == "power") {
-    parallel_for("funcman evaluate power",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate power",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        data(e,n) = pow(data(e,n),tdata(e,n));
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = pow(data(elem,pt),tdata(elem,pt));
       }
     });
   }
   else if (op == "sin") {
-    parallel_for("funcman evaluate sin",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate sin",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        data(e,n) = sin(tdata(e,n));
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = sin(tdata(elem,pt));
       }
     });
   }
   else if (op == "cos") {
-    parallel_for("funcman evaluate cos",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate cos",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        data(e,n) = cos(tdata(e,n));
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = cos(tdata(elem,pt));
       }
     });
   }
   else if (op == "tan") {
-    parallel_for("funcman evaluate tan",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate tan",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        data(e,n) = tan(tdata(e,n));
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = tan(tdata(elem,pt));
       }
     });
   }
   else if (op == "exp") {
-    parallel_for("funcman evaluate exp",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate exp",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        data(e,n) = exp(tdata(e,n));
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = exp(tdata(elem,pt));
       }
     });
   }
   else if (op == "log") {
-    parallel_for("funcman evaluate log",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate log",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        data(e,n) = log(tdata(e,n));
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = log(tdata(elem,pt));
       }
     });
   }
   else if (op == "abs") {
-    parallel_for("funcman evaluate abs",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate abs",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        if (tdata(e,n) < 0.0) {
-          data(e,n) = -tdata(e,n);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        if (tdata(elem,pt) < 0.0) {
+          data(elem,pt) = -tdata(elem,pt);
         }
         else {
-          data(e,n) = tdata(e,n);
+          data(elem,pt) = tdata(elem,pt);
         }
       }
     });
@@ -683,14 +729,17 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   else if (op == "lt") {
-    parallel_for("funcman evaluate lt",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate lt",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        if (data(e,n) < tdata(e,n)) {
-          data(e,n) = 1.0;
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        if (data(elem,pt) < tdata(elem,pt)) {
+          data(elem,pt) = 1.0;
         }
         else {
-          data(e,n) = 0.0;
+          data(elem,pt) = 0.0;
         }
       }
     });
@@ -709,14 +758,17 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }*/
   else if (op == "gt") {
-    parallel_for("funcman evaluate gt",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("funcman evaluate gt",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        if (data(e,n) > tdata(e,n)) {
-          data(e,n) = 1.0;
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        if (data(elem,pt) > tdata(elem,pt)) {
+          data(elem,pt) = 1.0;
         }
         else {
-          data(e,n) = 0.0;
+          data(elem,pt) = 0.0;
         }
       }
     });
