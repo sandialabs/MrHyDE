@@ -18,11 +18,8 @@
 #include "porousHDIV.hpp"
 #include "porousHDIV_hybridized.hpp"
 #include "porousHDIV_weakGalerkin.hpp"
-//#include "twophasePoNo.hpp"
-//#include "twophasePoPw.hpp"
 #include "cdr.hpp"
 #include "thermal.hpp"
-//#include "thermal_enthalpy.hpp"
 #include "msphasefield.hpp"
 #include "stokes.hpp"
 #include "navierstokes.hpp"
@@ -31,10 +28,13 @@
 #include "maxwells_fp.hpp"
 #include "shallowwater.hpp"
 #include "maxwell.hpp"
-#include "maxwell_hybridized.hpp"
+//#include "maxwell_hybridized.hpp"
 #include "ode.hpp"
 
 // Disabled/out-of-date physics modules
+//#include "thermal_enthalpy.hpp"
+//#include "twophasePoNo.hpp"
+//#include "twophasePoPw.hpp"
 //#include "msconvdiff.hpp"
 //#include "phasesolidification.hpp"
 //#include "mwhelmholtz.hpp"
@@ -422,6 +422,7 @@ void physics::importPhysics(const bool & isaux) {
         
       }
       */
+      
       // Convection diffusion
       if (modname == "cdr" || modname == "CDR") {
         Teuchos::RCP<cdr> cdr_RCP = Teuchos::rcp(new cdr(settings, isaux) );
@@ -458,6 +459,8 @@ void physics::importPhysics(const bool & isaux) {
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_thermal_enthalpy",false));
       }
       */
+      
+      
       // Shallow Water
       if (modname == "shallow water") {
         Teuchos::RCP<shallowwater> shallowwater_RCP = Teuchos::rcp(new shallowwater(settings, isaux) );
@@ -465,20 +468,21 @@ void physics::importPhysics(const bool & isaux) {
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_shallowwater",false));
       }
       
+      
       // Maxwell
       if (modname == "maxwell") {
         Teuchos::RCP<maxwell> maxwell_RCP = Teuchos::rcp(new maxwell(settings, isaux) );
         currmodules.push_back(maxwell_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_maxwell",false));
       }
-      
+      /*
       // Maxwell hybridized
       if (modname == "maxwell hybrid") {
         Teuchos::RCP<maxwell_HYBRID> maxwell_HYBRID_RCP = Teuchos::rcp(new maxwell_HYBRID(settings, isaux) );
         currmodules.push_back(maxwell_HYBRID_RCP);
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_maxwell_hybrid",false));
       }
-      
+      */
       /* not setting up correctly
        // Burgers (entropy viscosity)
        if (blockPhysSettings[b].get<bool>("solve_burgers",false)) {
@@ -539,7 +543,6 @@ void physics::importPhysics(const bool & isaux) {
        }
        */
       
-      
       // Helmholtz
       if (modname == "helmholtz") {
         Teuchos::RCP<helmholtz> helmholtz_RCP = Teuchos::rcp(new helmholtz(settings, isaux) );
@@ -547,13 +550,13 @@ void physics::importPhysics(const bool & isaux) {
         currSubgrid.push_back(blockPhysSettings[b].get<bool>("subgrid_helmholtz",false));
       }
       
-      
       /* not setting up correctly
        // Helmholtz with multiple wavenumbers
        if (blocksettings.get<bool>("solve_mwhelmholtz",false)){
        currmodules.push_back(mwhelmholtz_RCP);
        }
        */
+      
       
       // Maxwell's (potential of electric field, curl-curl frequency domain (Boyse et al (1992))
       if (modname == "maxwells_freq_pot"){
@@ -724,11 +727,18 @@ AD physics::getDirichletValue(const int & block, const ScalarT & x, const Scalar
                               Teuchos::RCP<workset> & wkset) {
   
   // update point in wkset
-  wkset->point(0,0,0) = x;
-  wkset->point(0,0,1) = y;
-  if(spaceDim == 3)
-    wkset->point(0,0,2) = z;
-  wkset->time_KV(0) = t;
+  auto xpt = wkset->getDataSc("x point");
+  Kokkos::deep_copy(xpt,x);
+  
+  auto ypt = wkset->getDataSc("y point");
+  Kokkos::deep_copy(ypt,y);
+  
+  if (spaceDim == 3) {
+    auto zpt = wkset->getDataSc("z point");
+    Kokkos::deep_copy(zpt,z);
+  }
+  
+  wkset->setTime(t);
   
   // evaluate the response
   auto ddata = functionManagers[block]->evaluate("Dirichlet " + var + " " + gside,"point");
@@ -777,7 +787,7 @@ int physics::getNumResponses(const int & block) {
 
 View_AD3 physics::getPointResponse(const int & block, View_AD4 u_ip, View_AD4 ugrad_ip,
                                    View_AD4 p_ip, View_AD4 pgrad_ip,
-                                   const DRV ip, const ScalarT & time,
+                                   const View_Sc3 ip, const ScalarT & time,
                                    Teuchos::RCP<workset> & wkset) {
   
   size_t numElem = u_ip.extent(0);
@@ -786,25 +796,53 @@ View_AD3 physics::getPointResponse(const int & block, View_AD4 u_ip, View_AD4 ug
   
   View_AD3 responsetotal("responses",numElem,numResponses,numip);
   
-  auto point = Kokkos::subview(wkset->point, 0, 0, Kokkos::ALL());
-  auto sol = Kokkos::subview(wkset->local_soln_point, 0, Kokkos::ALL(), 0, Kokkos::ALL());
-  auto sol_grad = Kokkos::subview(wkset->local_soln_grad_point, 0, Kokkos::ALL(), 0, Kokkos::ALL());
+  View_Sc2 x,y,z;
+  x = wkset->getDataSc("x point");
+  if (ip.extent(2)>1) {
+    y = wkset->getDataSc("y point");
+  }
+  if (ip.extent(2)>2) {
+    z = wkset->getDataSc("z point");
+  }
+  
+  //auto point = Kokkos::subview(wkset->point, 0, 0, Kokkos::ALL());
+  //auto sol = Kokkos::subview(wkset->local_soln_point, 0, Kokkos::ALL(), 0, Kokkos::ALL());
+  //auto sol_grad = Kokkos::subview(wkset->local_soln_grad_point, 0, Kokkos::ALL(), 0, Kokkos::ALL());
   
   // This is very clumsy
   Kokkos::View<size_t*, AssemblyDevice> indices("view to hold indices",3);
   auto host_indices = Kokkos::create_mirror_view(indices);
+  
+  // Cannot parallelize over elements if wkset point data structures only use one point at a time
   for (size_t e=0; e<numElem; e++) {
     host_indices(0) = e;
     for (size_t k=0; k<numip; k++) {
       host_indices(1) = k;
-      auto ip_sv = Kokkos::subview(ip, e, k, Kokkos::ALL());
+      auto ip_sv = subview(ip, e, k, ALL());
+      parallel_for("physics point response",
+                   RangePolicy<AssemblyExec>(0,1),
+                   KOKKOS_LAMBDA (const int elem ) {
+        x(0,0) = ip_sv(0);
+        if (ip_sv.extent(0)>1) {
+          y(0,0) = ip_sv(1);
+        }
+        if (ip_sv.extent(0)>2) {
+          z(0,0) = ip_sv(2);
+        }
+      });
+      
       auto u_sv = Kokkos::subview(u_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
-      auto ugrad_sv = Kokkos::subview(ugrad_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
+      //auto ugrad_sv = Kokkos::subview(ugrad_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
+      wkset->setSolutionPoint(u_sv);
+      //Kokkos::deep_copy(point, ip_sv);
+      //Kokkos::deep_copy(sol, u_sv);
+      //Kokkos::deep_copy(sol_grad, ugrad_sv);
+      //cout << e << " " << k << " " << wkset->time << endl;
+      //cout << u_sv(0,0) << endl;
+      //auto e_pt = wkset->getData("e point");
+      //cout << e_pt(0,0) << endl;
       
-      Kokkos::deep_copy(point, ip_sv);
-      Kokkos::deep_copy(sol, u_sv);
-      Kokkos::deep_copy(sol_grad, ugrad_sv);
-      
+      /*
       if (p_ip.extent(0) > 0) {
         auto param = Kokkos::subview(wkset->local_param_point, 0, Kokkos::ALL(), 0, 0);
         auto param_grad = Kokkos::subview(wkset->local_param_grad_point, 0, Kokkos::ALL(), 0, Kokkos::ALL());
@@ -813,7 +851,7 @@ View_AD3 physics::getPointResponse(const int & block, View_AD4 u_ip, View_AD4 ug
         Kokkos::deep_copy(param, p_sv);
         Kokkos::deep_copy(param_grad, pgrad_sv);
       }
-      
+      */
       for (size_t r=0; r<numResponses; r++) {
         host_indices(2) = r;
         Kokkos::deep_copy(indices,host_indices);
@@ -821,12 +859,15 @@ View_AD3 physics::getPointResponse(const int & block, View_AD4 u_ip, View_AD4 ug
         auto rdata = functionManagers[block]->evaluate(response_list[block][r],"point");
         // copy data into responsetotal
         // again clumsy
+        //cout << e << " " << k << " " << r << endl;
+        //cout << rdata(0,0) << endl;
         parallel_for("physics point response",RangePolicy<AssemblyExec>(0,1), KOKKOS_LAMBDA (const int elem ) {
           responsetotal(indices(0),indices(2),indices(1)) = rdata(0,0);
         });
       }
     }
   }
+  
   
   return responsetotal;
 }
@@ -846,14 +887,17 @@ View_AD3 physics::getResponse(const int & block, View_AD4 u_ip, View_AD4 ugrad_i
   
   View_AD3 responsetotal("responses",numElem,numResponses,numip);
   
+  
   //wkset->ip_KV = ip;
-  Kokkos::deep_copy(wkset->ip,ip);
-  Kokkos::deep_copy(wkset->local_soln,u_ip);
+  //Kokkos::deep_copy(wkset->ip,ip);
+  wkset->setSolution(u_ip);
+  //Kokkos::deep_copy(wkset->local_soln,u_ip);
   if (wkset->vars_HGRAD.size() > 0) {
-    Kokkos::deep_copy(wkset->local_soln_grad, ugrad_ip);
+    wkset->setSolutionGrad(ugrad_ip);
+    //Kokkos::deep_copy(wkset->local_soln_grad, ugrad_ip);
   }
   if (p_ip.extent(0) > 0) {
-    Kokkos::deep_copy(wkset->local_param,p_ip);
+    //Kokkos::deep_copy(wkset->local_param,p_ip);
   }
   for (size_t r=0; r<numResponses; r++) {
     
@@ -864,6 +908,7 @@ View_AD3 physics::getResponse(const int & block, View_AD4 u_ip, View_AD4 ugrad_i
     Kokkos::deep_copy(cresp,rdata);
     
   }
+  
   
   return responsetotal;
 }
@@ -946,12 +991,13 @@ View_Sc3 physics::getInitial(const View_Sc3 ip, const int & block,
   
   View_Sc3 ivals("temp invals", numElem, numVars, numip);
   
+  
   if (project) {
     // ip in wkset are set in cell::getInitial
     for (size_t n=0; n<varlist[block].size(); n++) {
   
       auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"ip");
-      auto cvals = Kokkos::subview( ivals, Kokkos::ALL(), n, Kokkos::ALL());
+      auto cvals = subview( ivals, ALL(), n, ALL());
       //copy
       parallel_for("physics fill initial values",RangePolicy<AssemblyExec>(0,cvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (size_t i=0; i<cvals.extent(1); i++) {
@@ -962,15 +1008,32 @@ View_Sc3 physics::getInitial(const View_Sc3 ip, const int & block,
   }
   else {
     // TMW: will not work on device yet
-    auto point_KV = wkset->point;
+    
+    size_type dim = ip.extent(2);
+    View_Sc2 x,y,z;
+    x = wkset->getDataSc("x point");
+    if (dim > 1) {
+      y = wkset->getDataSc("y point");
+    }
+    if (dim > 2) {
+      z = wkset->getDataSc("z point");
+    }
+    //auto point_KV = wkset->point;
     auto host_ivals = Kokkos::create_mirror_view(ivals);
     for (size_t e=0; e<numElem; e++) {
       for (size_t i=0; i<numip; i++) {
         // set the node in wkset
-        auto node = Kokkos::subview( ip, e, i, Kokkos::ALL());
+        auto node = subview( ip, e, i, ALL());
         
         parallel_for("physics initial set point",RangePolicy<AssemblyExec>(0,node.extent(0)), KOKKOS_LAMBDA (const int s ) {
-          point_KV(0,0,s) = node(s);
+          x(0,0) = node(0);
+          if (dim > 1) {
+            y(0,0) = node(1);
+          }
+          if (dim > 2) {
+            z(0,0) = node(2);
+          }
+          
         });
         
         for (size_t n=0; n<varlist[block].size(); n++) {
@@ -987,6 +1050,7 @@ View_Sc3 physics::getInitial(const View_Sc3 ip, const int & block,
       }
     }
   }
+   
   //KokkosTools::print(ivals);
   return ivals;
 }
@@ -1025,7 +1089,7 @@ void physics::setVars() {
   for (size_t block=0; block<modules.size(); ++block) {
     for (size_t i=0; i<modules[block].size(); ++i) {
       if (varlist[block].size() > 0){
-        modules[block][i]->setVars(varlist[block]);
+        //modules[block][i]->setVars(varlist[block]);
       }
     }
   }
@@ -1033,7 +1097,7 @@ void physics::setVars() {
 
 void physics::setAuxVars(size_t & block, vector<string> & vars) {
   for (size_t i=0; i<modules[block].size(); i++) {
-    modules[block][i]->setAuxVars(vars);
+    //modules[block][i]->setAuxVars(vars);
   }
 }
 
@@ -1096,7 +1160,7 @@ View_Sc2 physics::getExtraFields(const int & block, const int & fnum,
                                  Teuchos::RCP<workset> & wkset) {
   
   View_Sc2 fields("field data",ip.extent(0),ip.extent(1));
-  
+  /*
   for (size_type e=0; e<ip.extent(0); e++) {
     for (size_type j=0; j<ip.extent(1); j++) {
       for (int s=0; s<spaceDim; s++) {
@@ -1108,6 +1172,7 @@ View_Sc2 physics::getExtraFields(const int & block, const int & fnum,
       });
     }
   }
+   */
   return fields;
 }
 
@@ -1225,9 +1290,11 @@ void physics::computeFlux(const size_t block) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 void physics::setWorkset(vector<Teuchos::RCP<workset> > & wkset) {
-  for (size_t block = 0; block<wkset.size(); block++){
-    for (size_t i=0; i<modules[block].size(); i++) {
-      modules[block][i]->setWorkset(wkset[block]);//setWorkset(wkset[block]);
+  for (size_t block = 0; block<wkset.size(); block++) {
+    if (wkset[block]->isInitialized) {
+      for (size_t i=0; i<modules[block].size(); i++) {
+        modules[block][i]->setWorkset(wkset[block]);//setWorkset(wkset[block]);
+      }
     }
   }
 }

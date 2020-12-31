@@ -905,10 +905,10 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
         assembler->cells[usernum][elem]->updateData();
         
         assembler->cells[usernum][elem]->computeJacRes(time, isTransient, isAdjoint,
-                                                    true, false, num_active_params, false, true, false,
-                                                    local_res, local_J,
-                                                    assembler->assemble_volume_terms[0],
-                                                    assembler->assemble_face_terms[0]);
+                                                       true, false, num_active_params, false, true, false,
+                                                       local_res, local_J,
+                                                       assembler->assemble_volume_terms[0],
+                                                       assembler->assemble_face_terms[0]);
         
         this->updateResSens(true, usernum, elem, dres_view, local_J,
                             data_avail, use_host_LIDs, false);
@@ -930,8 +930,8 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
         Kokkos::deep_copy(local_J, 0.0);
         
         assembler->boundaryCells[usernum][elem]->computeJacRes(time, isTransient, isAdjoint,
-                                                            true, false, num_active_params, false, true, false,
-                                                            local_res, local_J);
+                                                               true, false, num_active_params, false, true, false,
+                                                               local_res, local_J);
         
         this->updateResSens(false, usernum, elem, dres_view, local_J,
                             data_avail, use_host_LIDs, false);
@@ -945,6 +945,8 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
     else {
       d_sub_res = d_sub_res_over;
     }
+    
+    //KokkosTools::print(d_sub_res);
     
     if (useDirect) {
       

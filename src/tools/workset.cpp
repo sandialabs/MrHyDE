@@ -47,30 +47,25 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   
   current_stage_KV = Kokkos::View<int*,AssemblyDevice>("stage number on device",1);
   Kokkos::deep_copy(current_stage_KV,0);
-  // Integration information
   time_KV = Kokkos::View<ScalarT*,AssemblyDevice>("time",1); // defaults to 0.0
   
-  // these cannot point to different arrays ... data must be deep copied into them
-  ip = View_Sc3("ip",numElem,numip,dimension);
+  // Add scalar views to store ips
   this->addDataSc("x",numElem,numip);
   this->addDataSc("y",numElem,numip);
   this->addDataSc("z",numElem,numip);
   
-  ip_side = View_Sc3("side ip",numElem,numsideip,dimension);
   this->addDataSc("x side",numElem,numsideip);
   this->addDataSc("y side",numElem,numsideip);
   this->addDataSc("z side",numElem,numsideip);
   
-  normals = View_Sc3("side normals",numElem,numsideip,dimension);
-  this->addDataSc("nx",numElem,numip);
-  this->addDataSc("ny",numElem,numip);
-  this->addDataSc("nz",numElem,numip);
+  this->addDataSc("nx side",numElem,numsideip);
+  this->addDataSc("ny side",numElem,numsideip);
+  this->addDataSc("nz side",numElem,numsideip);
   
-  point = View_Sc3("point",1,1,dimension);
   this->addDataSc("x point",1,1);
   this->addDataSc("y point",1,1);
   this->addDataSc("z point",1,1);
-  
+    
   res = View_AD2("residual",numElem, maxDerivs, maxDerivs);
   adjrhs = View_AD2("adjoint RHS",numElem, maxDerivs, maxDerivs);
   
@@ -88,9 +83,12 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
     maxb = std::max(maxb,numb);
   }
   
-  uvals = View_AD3("seeded uvals",numElem, numVars, maxb, maxDerivs);
-  if (isTransient) {
-    u_dotvals = View_AD3("seeded uvals",numElem, numVars, maxb, maxDerivs);
+  // These are stored as vector<View_AD2> instead of View_AD3 to avoid subviews
+  for (size_t k=0; k<numVars; ++k) {
+    uvals.push_back(View_AD2("seeded uvals",numElem, maxb, maxDerivs));
+    if (isTransient) {
+      u_dotvals.push_back(View_AD2("seeded uvals",numElem, maxb, maxDerivs));
+    }
   }
   
   // TMW: temporary setting
@@ -117,115 +115,141 @@ void workset::createSolns() {
       this->addData("grad("+var+")[y]",numElem,numip);
       this->addData("grad("+var+")[z]",numElem,numip);
       this->addData(var+"_t",numElem,numip);
-      
       this->addData(var+" side",numElem,numsideip);
-      this->addData(var+"_x side",numElem,numsideip);
-      this->addData(var+"_y side",numElem,numsideip);
-      this->addData(var+"_z side",numElem,numsideip);
-      
-      this->addData(var+" face",numElem,numsideip);
-      this->addData(var+"_x face",numElem,numsideip);
-      this->addData(var+"_y face",numElem,numsideip);
-      this->addData(var+"_z face",numElem,numsideip);
-      
+      this->addData("grad("+var+")[x] side",numElem,numsideip);
+      this->addData("grad("+var+")[y] side",numElem,numsideip);
+      this->addData("grad("+var+")[z] side",numElem,numsideip);
       this->addData(var+" point",1,1);
-      this->addData(var+"_x point",1,1);
-      this->addData(var+"_y point",1,1);
-      this->addData(var+"_z point",1,1);
-      
+      this->addData("grad("+var+")[x] point",1,1);
+      this->addData("grad("+var+")[y] point",1,1);
+      this->addData("grad("+var+")[z] point",1,1);
     }
     else if (basis_types[bind] == "HDIV") {
       vars_HDIV.push_back(i);
+      varlist_HDIV.push_back(var);
       this->addData(var+"[x]",numElem,numip);
       this->addData(var+"[y]",numElem,numip);
       this->addData(var+"[z]",numElem,numip);
       this->addData("div("+var+")",numElem,numip);
+      this->addData(var+"_t[x]",numElem,numip);
+      this->addData(var+"_t[y]",numElem,numip);
+      this->addData(var+"_t[z]",numElem,numip);
+      this->addData(var+"[x] side",numElem,numsideip);
+      this->addData(var+"[y] side",numElem,numsideip);
+      this->addData(var+"[z] side",numElem,numsideip);
+      this->addData(var+"[x] point",1,1);
+      this->addData(var+"[y] point",1,1);
+      this->addData(var+"[z] point",1,1);
     }
     else if (basis_types[bind] == "HVOL") {
       vars_HVOL.push_back(i);
+      varlist_HVOL.push_back(var);
       this->addData(var,numElem,numip);
+      this->addData(var+"_t",numElem,numip);
+      this->addData(var+" side",numElem,numsideip);
+      this->addData(var+" point",1,1);
     }
     else if (basis_types[bind] == "HCURL") {
       vars_HCURL.push_back(i);
+      varlist_HCURL.push_back(var);
       this->addData(var+"[x]",numElem,numip);
       this->addData(var+"[y]",numElem,numip);
       this->addData(var+"[z]",numElem,numip);
       this->addData("curl("+var+")[x]",numElem,numip);
       this->addData("curl("+var+")[y]",numElem,numip);
       this->addData("curl("+var+")[z]",numElem,numip);
-      
+      this->addData(var+"_t[x]",numElem,numip);
+      this->addData(var+"_t[y]",numElem,numip);
+      this->addData(var+"_t[z]",numElem,numip);
+      this->addData(var+"[x] side",numElem,numsideip);
+      this->addData(var+"[y] side",numElem,numsideip);
+      this->addData(var+"[z] side",numElem,numsideip);
+      this->addData(var+"[x] point",1,1);
+      this->addData(var+"[y] point",1,1);
+      this->addData(var+"[z] point",1,1);
     }
     else if (basis_types[bind] == "HFACE") {
       vars_HFACE.push_back(i);
+      varlist_HFACE.push_back(var);
+      this->addData(var+" side",numElem,numsideip);
     }
   }
   
-  // Local solutions that are always used
-  local_soln = View_AD4("local_soln",numElem, numVars, numip, dimension, maxDerivs);
-  local_soln_side = View_AD4("local_soln_side",numElem, numVars, numsideip, dimension, maxDerivs);
-  local_soln_face = View_AD4("local_soln_face",numElem, numVars, numsideip, dimension, maxDerivs);
-  local_soln_point = View_AD4("local_soln point",1, numVars, 1, dimension, maxDerivs);
-  local_soln_dot = View_AD4("local_soln_dot",numElem, numVars, numip, dimension, maxDerivs);
-  
-  if (vars_HGRAD.size() > 0) {
-    local_soln_grad = View_AD4("local_soln_grad",numElem, numVars, numip, dimension, maxDerivs);
-    local_soln_grad_side = View_AD4("local_soln_grad_side",numElem, numVars, numsideip, dimension, maxDerivs);
-    local_soln_grad_face = View_AD4("local_soln_grad_face",numElem, numVars, numsideip, dimension, maxDerivs);
-    local_soln_grad_point = View_AD4("local_soln point",1, numVars, 1, dimension, maxDerivs);
-  }
-  if (vars_HDIV.size() > 0) {
-    local_soln_div = View_AD3("local_soln_div",numElem, numVars, numip, maxDerivs);
-  }
-  if (vars_HCURL.size() > 0) {
-    local_soln_curl = View_AD4("local_soln_curl",numElem, numVars, numip, dimension, maxDerivs);
+  for (size_t k=0; k<paramusebasis.size(); ++k) {
+    pvals.push_back(View_AD2("seeded uvals",numElem, uvals[0].extent(1), maxDerivs));
   }
   
-  if (paramusebasis.size()>0) {
-    for (size_t i=0; i<paramusebasis.size(); i++) {
-      int bind = paramusebasis[i];
-      if (basis_types[bind] == "HGRAD") {
-        paramvars_HGRAD.push_back(i);
-      }
-      else if (basis_types[bind] == "HDIV") {
-        paramvars_HDIV.push_back(i);
-      }
-      else if (basis_types[bind] == "HVOL") {
-        paramvars_HVOL.push_back(i);
-      }
-      else if (basis_types[bind] == "HCURL") {
-        paramvars_HCURL.push_back(i);
-      }
-    }
-    local_param = View_AD4("local_param",numElem, numParams, numip, dimension, maxDerivs);
-    local_param_side = View_AD4("local_param_side",numElem, numParams, numsideip, dimension, maxDerivs);
-    local_param_point = View_AD4("local_soln point",1, numParams, 1, dimension, maxDerivs);
+  for (size_t i=0; i<paramusebasis.size(); i++) {
+    int bind = paramusebasis[i];
+    string var = param_varlist[i];
     
-    if (paramvars_HGRAD.size() > 0) {
-      local_param_grad = View_AD4("local_param_grad",numElem, numParams, numip, dimension, maxDerivs);
-      local_param_grad_side = View_AD4("local_param_grad_side",numElem, numParams, numsideip, dimension, maxDerivs);
-      local_param_grad_point = View_AD4("local_param grad point",1, numParams, 1, dimension, maxDerivs);
+    if (basis_types[bind] == "HGRAD") {
+      paramvars_HGRAD.push_back(i);
+      paramvarlist_HGRAD.push_back(var);
+      this->addData(var,numElem,numip);
+      this->addData("grad("+var+")[x]",numElem,numip);
+      this->addData("grad("+var+")[y]",numElem,numip);
+      this->addData("grad("+var+")[z]",numElem,numip);
+      this->addData(var+"_t",numElem,numip);
+      this->addData(var+" side",numElem,numsideip);
+      this->addData("grad("+var+")[x] side",numElem,numsideip);
+      this->addData("grad("+var+")[y] side",numElem,numsideip);
+      this->addData("grad("+var+")[z] side",numElem,numsideip);
+      this->addData(var+" point",1,1);
+      this->addData("grad("+var+")[x] point",1,1);
+      this->addData("grad("+var+")[y] point",1,1);
+      this->addData("grad("+var+")[z] point",1,1);
     }
-    if (paramvars_HDIV.size() > 0) {
-      local_param_div = View_AD3("local_param_div",numElem, numVars, numip, maxDerivs);
+    else if (basis_types[bind] == "HDIV") {
+      paramvars_HDIV.push_back(i);
+      paramvarlist_HDIV.push_back(var);
+      this->addData(var+"[x]",numElem,numip);
+      this->addData(var+"[y]",numElem,numip);
+      this->addData(var+"[z]",numElem,numip);
+      this->addData("div("+var+")",numElem,numip);
+      this->addData(var+"_t[x]",numElem,numip);
+      this->addData(var+"_t[y]",numElem,numip);
+      this->addData(var+"_t[z]",numElem,numip);
+      this->addData(var+"[x] side",numElem,numsideip);
+      this->addData(var+"[y] side",numElem,numsideip);
+      this->addData(var+"[z] side",numElem,numsideip);
+      this->addData(var+"[x] point",1,1);
+      this->addData(var+"[y] point",1,1);
+      this->addData(var+"[z] point",1,1);
     }
-    if (paramvars_HCURL.size() > 0) {
-      local_param_curl = View_AD4("local_param_curl",numElem, numVars, numip, dimension, maxDerivs);
+    else if (basis_types[bind] == "HVOL") {
+      paramvars_HVOL.push_back(i);
+      paramvarlist_HVOL.push_back(var);
+      this->addData(var,numElem,numip);
+      this->addData(var+"_t",numElem,numip);
+      this->addData(var+" side",numElem,numsideip);
+      this->addData(var+" point",1,1);
     }
-    pvals = View_AD3("seeded uvals",numElem, paramusebasis.size(), uvals.extent(2), maxDerivs);
+    else if (basis_types[bind] == "HCURL") {
+      paramvars_HCURL.push_back(i);
+      paramvarlist_HCURL.push_back(var);
+      this->addData(var+"[x]",numElem,numip);
+      this->addData(var+"[y]",numElem,numip);
+      this->addData(var+"[z]",numElem,numip);
+      this->addData("curl("+var+")[x]",numElem,numip);
+      this->addData("curl("+var+")[y]",numElem,numip);
+      this->addData("curl("+var+")[z]",numElem,numip);
+      this->addData(var+"_t[x]",numElem,numip);
+      this->addData(var+"_t[y]",numElem,numip);
+      this->addData(var+"_t[z]",numElem,numip);
+      this->addData(var+"[x] side",numElem,numsideip);
+      this->addData(var+"[y] side",numElem,numsideip);
+      this->addData(var+"[z] side",numElem,numsideip);
+      this->addData(var+"[x] point",1,1);
+      this->addData(var+"[y] point",1,1);
+      this->addData(var+"[z] point",1,1);
+    }
+    else if (basis_types[bind] == "HFACE") {
+      paramvars_HFACE.push_back(i);
+      paramvarlist_HFACE.push_back(var);
+      this->addData(var+" side",numElem,numsideip);
+    }
   }
-  
-  if (numAux>0) {
-    local_aux = View_AD4("local_aux",numElem, numAux, numip, dimension, maxDerivs);
-    local_aux_side = View_AD4("local_aux_side",numElem, numAux, numsideip, dimension, maxDerivs);
-  }
-  
-  // Arrays that are not currently used for anything
-  /*
-  local_aux_grad = Kokkos::View<AD****, AssemblyDevice>("local_aux_grad",numElem, numAux, numip, dimension);
-  local_aux_grad_side = Kokkos::View<AD****, AssemblyDevice>("local_aux_grad_side",numElem, numAux, numsideip, dimension);
-  local_soln_dot_grad = Kokkos::View<AD****, AssemblyDevice>("local_soln_dot_grad",numElem, numVars, numip, dimension);
-  local_soln_dot_side = Kokkos::View<AD****, AssemblyDevice>("local_soln_dot_side",numElem, numVars, numsideip, dimension);
-  */
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -260,114 +284,9 @@ void workset::resetFlux() {
 // Reset solution to zero
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::resetAux() {
-  Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-  Kokkos::deep_copy(local_aux,0.0);
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-// Reset solution to zero
-////////////////////////////////////////////////////////////////////////////////////
-
-void workset::resetAuxSide() {
-  Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-  Kokkos::deep_copy(local_aux_side,0.0);
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-// Reset solution to zero
-////////////////////////////////////////////////////////////////////////////////////
-
 void workset::resetAdjointRHS() {
   Teuchos::TimeMonitor resettimer(*worksetResetTimer);
   Kokkos::deep_copy(adjrhs,0.0);
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-// Compute the solutions at the volumetric ip
-////////////////////////////////////////////////////////////////////////////////////
-
-// TMW: This function should be deprecated
-void workset::computeSolnVolIP(View_Sc3 u) {
-  
-  // Reset the values
-  {
-    Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-    Kokkos::deep_copy(local_soln,0.0);
-    Kokkos::deep_copy(local_soln_grad,0.0);
-    Kokkos::deep_copy(local_soln_curl,0.0);
-    Kokkos::deep_copy(local_soln_div,0.0);
-  }
-  
-  {
-    Teuchos::TimeMonitor basistimer(*worksetComputeSolnVolTimer);
-    AD uval = 0.0;
-    for (size_t k=0; k<numVars; k++) {
-      int kubasis = usebasis[k];
-      int knbasis = numbasis[kubasis];
-      string kutype = basis_types[kubasis];
-      
-      if (kutype == "HGRAD") {
-        auto kbasis_uw = basis[kubasis];
-        auto kbasis_grad_uw = basis_grad[kubasis];
-        
-        for (int i=0; i<knbasis; i++ ) {
-          for (int e=0; e<numElem; e++) {
-            uval = u(e,k,i);
-            for (size_t j=0; j<numip; j++ ) {
-              local_soln(e,k,j,0) += uval*kbasis_uw(e,i,j,0);
-              for (int s=0; s<dimension; s++ ) {
-                local_soln_grad(e,k,j,s) += uval*kbasis_grad_uw(e,i,j,s);
-              }
-            }
-          }
-        }
-      }
-      else if (kutype == "HVOL") {
-        auto kbasis_uw = basis[kubasis];
-        for( int i=0; i<knbasis; i++ ) {
-          for (int e=0; e<numElem; e++) {
-            uval = u(e,k,i);
-            for( size_t j=0; j<numip; j++ ) {
-              local_soln(e,k,j,0) += uval*kbasis_uw(e,i,j,0);
-            }
-          }
-        }
-      }
-      else if (basis_types[usebasis[k]] == "HDIV"){
-        auto kbasis_uw = basis[kubasis];
-        auto kbasis_div_uw = basis_div[kubasis];
-        
-        for (int i=0; i<knbasis; i++ ) {
-          for (int e=0; e<numElem; e++) {
-            uval = u(e,k,i);
-            for (size_t j=0; j<numip; j++ ) {
-              for (int s=0; s<dimension; s++ ) {
-                local_soln(e,k,j,s) += uval*kbasis_uw(e,i,j,s);
-              }
-              local_soln_div(e,k,j) += uval*kbasis_div_uw(e,i,j);
-            }
-          }
-        }
-      }
-      else if (basis_types[usebasis[k]] == "HCURL"){
-        auto kbasis_uw = basis[kubasis];
-        auto kbasis_curl_uw = basis_curl[kubasis];
-        
-        for (int i=0; i<knbasis; i++ ) {
-          for (int e=0; e<numElem; e++) {
-            uval = u(e,k,i);
-            for (size_t j=0; j<numip; j++ ) {
-              for (int s=0; s<dimension; s++ ) {
-                local_soln(e,k,j,s) += uval*kbasis_uw(e,i,j,s);
-                local_soln_curl(e,k,j,s) += uval*kbasis_curl_uw(e,i,j,s);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -382,10 +301,8 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
   
   Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
   
+  
   // These need to be set locally to be available to AssemblyDevice
-  auto u_AD = uvals;
-  auto u_dot_AD = u_dotvals;
-  auto off = offsets;
   auto dt = deltat_KV;
   auto curr_stage = current_stage_KV;
   auto b_A = butcher_A;
@@ -395,156 +312,186 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
 
   // Seed the current stage solution
   if (seedwhat == 1) {
-    parallel_for("wkset transient soln 1",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-      
-      ScalarT beta_u, beta_t;
-      int stage = curr_stage(0);
-      ScalarT deltat = dt(0);
-      ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-      ScalarT timewt = 1.0/deltat/b_b(stage);
-      ScalarT alpha_t = BDF(0)*timewt;
-      for (size_type var=0; var<u.extent(1); var++ ) {
-        for (size_type dof=0; dof<u.extent(2); dof++ ) {
+    for (size_type var=0; var<u.extent(1); var++ ) {
+      auto u_AD = uvals[var];
+      auto u_dot_AD = u_dotvals[var];
+      auto off = subview(offsets,var,ALL());
+      auto cu = subview(u,ALL(),var,ALL());
+      auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
+      auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+      parallel_for("wkset transient soln 1",RangePolicy<AssemblyExec>(0,cu.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+        
+        ScalarT beta_u, beta_t;
+        int stage = curr_stage(0);
+        ScalarT deltat = dt(0);
+        ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+        ScalarT timewt = 1.0/deltat/b_b(stage);
+        ScalarT alpha_t = BDF(0)*timewt;
+        for (size_type dof=0; dof<cu.extent(1); dof++ ) {
           // Seed the stage solution
-          AD stageval = AD(maxDerivs,off(var,dof),u(elem,var,dof));
+          AD stageval = AD(maxDerivs,off(dof),cu(elem,dof));
           
           // Compute the evaluating solution
-          beta_u = (1.0-alpha_u)*u_prev(elem,var,dof,0);
+          beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
           for (int s=0; s<stage; s++) {
-            beta_u += b_A(stage,s)/b_b(s) * (u_stage(elem,var,dof,s) - u_prev(elem,var,dof,0));
+            beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
           }
-          u_AD(elem,var,dof) = alpha_u*stageval+beta_u;
+          u_AD(elem,dof) = alpha_u*stageval+beta_u;
           
           // Compute the time derivative
           beta_t = 0.0;
           for (size_type s=1; s<BDF.extent(0); s++) {
-            beta_t += BDF(s)*u_prev(elem,var,dof,s-1);
+            beta_t += BDF(s)*cu_prev(elem,dof,s-1);
           }
           beta_t *= timewt;
-          u_dot_AD(elem,var,dof) = alpha_t*stageval + beta_t;
+          u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
         }
-      }
-    });
+        
+      });
+    }
   }
   else if (seedwhat == 2) { // Seed one of the previous step solutions
     Kokkos::View<size_t[1],AssemblyDevice> sindex("seed index on device");
     auto host_sindex = Kokkos::create_mirror_view(sindex);
     host_sindex(0) = index;
     Kokkos::deep_copy(sindex,host_sindex);
-    parallel_for("wkset transient soln 2",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-      AD beta_u, beta_t;
-      int stage = curr_stage(0);
-      ScalarT deltat = dt(0);
-      ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-      ScalarT timewt = 1.0/deltat/b_b(stage);
-      ScalarT alpha_t = BDF(0)*timewt;
-      for (size_type var=0; var<u.extent(1); var++ ) {
-        for (size_type dof=0; dof<u.extent(2); dof++ ) {
+    for (size_type var=0; var<u.extent(1); var++ ) {
+      auto u_AD = uvals[var];
+      auto u_dot_AD = u_dotvals[var];
+      auto off = subview(offsets,var,ALL());
+      auto cu = subview(u,ALL(),var,ALL());
+      auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
+      auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+    
+      parallel_for("wkset transient soln 2",RangePolicy<AssemblyExec>(0,cu.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+        AD beta_u, beta_t;
+        int stage = curr_stage(0);
+        ScalarT deltat = dt(0);
+        ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+        ScalarT timewt = 1.0/deltat/b_b(stage);
+        ScalarT alpha_t = BDF(0)*timewt;
+        for (size_type dof=0; dof<cu.extent(1); dof++ ) {
           // Get the stage solution
-          ScalarT stageval = u(elem,var,dof);
+          ScalarT stageval = cu(elem,dof);
           
           // Compute the evaluating solution
-          AD u_prev_val = u_prev(elem,var,dof,0);
+          AD u_prev_val = cu_prev(elem,dof,0);
           if (sindex(0) == 0) {
-            u_prev_val = AD(maxDerivs,off(var,dof),u_prev(elem,var,dof,0));
+            u_prev_val = AD(maxDerivs,off(dof),cu_prev(elem,dof,0));
           }
           
           beta_u = (1.0-alpha_u)*u_prev_val;
           for (int s=0; s<stage; s++) {
-            beta_u += b_A(stage,s)/b_b(s) * (u_stage(elem,var,dof,s) - u_prev_val);
+            beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - u_prev_val);
           }
-          u_AD(elem,var,dof) = alpha_u*stageval+beta_u;
+          u_AD(elem,dof) = alpha_u*stageval+beta_u;
           
           // Compute and seed the time derivative
           beta_t = 0.0;
           for (size_type s=1; s<BDF.extent(0); s++) {
-            AD u_prev_val = u_prev(elem,var,dof,s-1);
+            AD u_prev_val = cu_prev(elem,dof,s-1);
             if (sindex(0) == (s-1)) {
-              u_prev_val = AD(maxDerivs,off(var,dof),u_prev(elem,var,dof,s-1));
+              u_prev_val = AD(maxDerivs,off(dof),cu_prev(elem,dof,s-1));
             }
             beta_t += BDF(s)*u_prev_val;
           }
           beta_t *= timewt;
-          u_dot_AD(elem,var,dof) = alpha_t*stageval + beta_t;
+          u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
         }
-      }
-    });
+      });
+    }
   }
   else if (seedwhat == 3) { // Seed one of the previous stage solutions
     Kokkos::View<int[1],AssemblyDevice> sindex("seed index on device");
     auto host_sindex = Kokkos::create_mirror_view(sindex);
     host_sindex(0) = index;
     Kokkos::deep_copy(sindex,host_sindex);
-    parallel_for("wkset transient soln 2",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-      AD beta_u, beta_t;
-      int stage = curr_stage(0);
-      ScalarT deltat = dt(0);
-      ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-      ScalarT timewt = 1.0/deltat/b_b(stage);
-      ScalarT alpha_t = BDF(0)*timewt;
-      for (size_type var=0; var<u.extent(1); var++ ) {
-        for (size_type dof=0; dof<u.extent(2); dof++ ) {
+    for (size_type var=0; var<u.extent(1); var++ ) {
+      auto u_AD = uvals[var];
+      auto u_dot_AD = u_dotvals[var];
+      auto off = subview(offsets,var,ALL());
+      auto cu = subview(u,ALL(),var,ALL());
+      auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
+      auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+    
+      
+      parallel_for("wkset transient soln 2",RangePolicy<AssemblyExec>(0,cu.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+        AD beta_u, beta_t;
+        int stage = curr_stage(0);
+        ScalarT deltat = dt(0);
+        ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+        ScalarT timewt = 1.0/deltat/b_b(stage);
+        ScalarT alpha_t = BDF(0)*timewt;
+        for (size_type dof=0; dof<cu.extent(1); dof++ ) {
           // Get the stage solution
-          ScalarT stageval = u(elem,var,dof);
+          ScalarT stageval = cu(elem,dof);
           
           // Compute the evaluating solution
-          ScalarT u_prev_val = u_prev(elem,var,dof,0);
+          ScalarT u_prev_val = cu_prev(elem,dof,0);
           
           beta_u = (1.0-alpha_u)*u_prev_val;
           for (int s=0; s<stage; s++) {
-            AD u_stage_val = u_stage(elem,var,dof,s);
+            AD u_stage_val = cu_stage(elem,dof,s);
             if (sindex(0) == s) {
-              u_stage_val = AD(maxDerivs,off(var,dof),u_stage(elem,var,dof,s));
+              u_stage_val = AD(maxDerivs,off(dof),cu_stage(elem,dof,s));
             }
             beta_u += b_A(stage,s)/b_b(s) * (u_stage_val - u_prev_val);
           }
-          u_AD(elem,var,dof) = alpha_u*stageval+beta_u;
+          u_AD(elem,dof) = alpha_u*stageval+beta_u;
           
           // Compute and seed the time derivative
           beta_t = 0.0;
           for (size_type s=1; s<BDF.extent(0); s++) {
-            ScalarT u_prev_val = u_prev(elem,var,dof,s-1);
+            ScalarT u_prev_val = cu_prev(elem,dof,s-1);
             beta_t += BDF(s)*u_prev_val;
           }
           beta_t *= timewt;
-          u_dot_AD(elem,var,dof) = alpha_t*stageval + beta_t;
+          u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
         }
-      }
-    });
+      });
+    }
   }
   else { // Seed nothing
-    parallel_for("wkset transient soln",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-      
-      ScalarT beta_u, beta_t;
-      int stage = curr_stage(0);
-      ScalarT deltat = dt(0);
-      ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-      ScalarT timewt = 1.0/deltat/b_b(stage);
-      ScalarT alpha_t = BDF(0)*timewt;
-      for (size_type var=0; var<u.extent(1); var++ ) {
-        for (size_type dof=0; dof<u.extent(2); dof++ ) {
+    for (size_type var=0; var<u.extent(1); var++ ) {
+      auto u_AD = uvals[var];
+      auto u_dot_AD = u_dotvals[var];
+      auto off = subview(offsets,var,ALL());
+      auto cu = subview(u,ALL(),var,ALL());
+      auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
+      auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+    
+      parallel_for("wkset transient soln",RangePolicy<AssemblyExec>(0,cu.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+        
+        ScalarT beta_u, beta_t;
+        int stage = curr_stage(0);
+        ScalarT deltat = dt(0);
+        ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+        ScalarT timewt = 1.0/deltat/b_b(stage);
+        ScalarT alpha_t = BDF(0)*timewt;
+        for (size_type dof=0; dof<cu.extent(1); dof++ ) {
           // Get the stage solution
-          ScalarT stageval = u(elem,var,dof);
+          ScalarT stageval = cu(elem,dof);
           
           // Compute the evaluating solution
-          beta_u = (1.0-alpha_u)*u_prev(elem,var,dof,0);
+          beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
           for (int s=0; s<stage; s++) {
-            beta_u += b_A(stage,s)/b_b(s) * (u_stage(elem,var,dof,s) - u_prev(elem,var,dof,0));
+            beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
           }
-          u_AD(elem,var,dof) = alpha_u*stageval+beta_u;
+          u_AD(elem,dof) = alpha_u*stageval+beta_u;
           
           // Compute the time derivative
           beta_t = 0.0;
           for (size_type s=1; s<BDF.extent(0); s++) {
-            beta_t += BDF(s)*u_prev(elem,var,dof,s-1);
+            beta_t += BDF(s)*cu_prev(elem,dof,s-1);
           }
           beta_t *= timewt;
-          u_dot_AD(elem,var,dof) = alpha_t*stageval + beta_t;
+          u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
         }
-      }
-    });
+      });
+    }
   }
-  Kokkos::fence();         
+  Kokkos::fence();
+   
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -557,26 +504,30 @@ void workset::computeSolnSteadySeeded(View_Sc3 u,
   Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
 
   // Needed so the device can access data-members (may be a better way)
-  auto u_AD = uvals;
-  auto off = offsets;
-
-  if (seedwhat == 1) {
-    parallel_for(RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-      for (size_type var=0; var<u.extent(1); var++ ) {
-        for (size_type dof=0; dof<u.extent(2); dof++ ) {
-          u_AD(elem,var,dof) = AD(maxDerivs,off(var,dof),u(elem,var,dof));
+  
+  for (size_type var=0; var<u.extent(1); var++ ) {
+  
+    auto u_AD = uvals[var];
+    auto off = subview(offsets,var,ALL());
+    auto cu = subview(u,ALL(),var,ALL());
+    if (seedwhat == 1) {
+      parallel_for("wkset steady soln",
+                   RangePolicy<AssemblyExec>(0,u.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
+          u_AD(elem,dof) = AD(maxDerivs,off(dof),cu(elem,dof));
         }
-      }
-    });
-  }
-  else {
-    parallel_for("wkset steady soln",RangePolicy<AssemblyExec>(0,u.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-      for (size_type var=0; var<u.extent(1); var++ ) {
-        for (size_type dof=0; dof<u.extent(2); dof++ ) {
-          u_AD(elem,var,dof) = u(elem,var,dof);
+      });
+    }
+    else {
+      parallel_for("wkset steady soln",
+                   RangePolicy<AssemblyExec>(0,u.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
+          u_AD(elem,dof) = cu(elem,dof);
         }
-      }
-    });
+      });
+    }
   }
   Kokkos::fence();
 }
@@ -591,6 +542,7 @@ void workset::computeAuxSolnSteadySeeded(View_Sc3 aux,
   
   Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
 
+  /*
   // Needed so the device can access data-members (may be a better way)
   auto aux_AD = auxvals;
   auto off = aux_offsets;
@@ -613,6 +565,7 @@ void workset::computeAuxSolnSteadySeeded(View_Sc3 aux,
       }
     });
   }
+   */
   Kokkos::fence();
 }
 
@@ -625,27 +578,29 @@ void workset::computeParamSteadySeeded(View_Sc3 param,
   
   Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
   
-  // Needed so the device can access data-members (may be a better way)
-  auto p_AD = pvals;
-  auto off = paramoffsets;
+  for (size_type var=0; var<param.extent(1); var++ ) {
   
-  if (seedwhat == 3) { // There is an inconsistency here with seeded the stage solutions ... not sure if this matters
-    parallel_for(RangePolicy<AssemblyExec>(0,param.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-      for (size_type var=0; var<param.extent(1); var++ ) {
-        for (size_type dof=0; dof<param.extent(2); dof++ ) {
-          p_AD(elem,var,dof) = AD(maxDerivs,off(var,dof),param(elem,var,dof));
+    auto p_AD = pvals[var];
+    auto off = subview(paramoffsets,var,ALL());
+    auto cp = subview(param,ALL(),var,ALL());
+    if (seedwhat == 3) {
+      parallel_for("wkset steady soln",
+                   RangePolicy<AssemblyExec>(0,param.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type dof=0; dof<p_AD.extent(1); dof++ ) {
+          p_AD(elem,dof) = AD(maxDerivs,off(dof),cp(elem,dof));
         }
-      }
-    });
-  }
-  else {
-    parallel_for("wkset steady soln",RangePolicy<AssemblyExec>(0,param.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-      for (size_type var=0; var<param.extent(1); var++ ) {
-        for (size_type dof=0; dof<param.extent(2); dof++ ) {
-          p_AD(elem,var,dof) = param(elem,var,dof);
+      });
+    }
+    else {
+      parallel_for("wkset steady soln",
+                   RangePolicy<AssemblyExec>(0,param.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type dof=0; dof<p_AD.extent(1); dof++ ) {
+          p_AD(elem,dof) = cp(elem,dof);
         }
-      }
-    });
+      });
+    }
   }
   Kokkos::fence();
 }
@@ -655,213 +610,191 @@ void workset::computeParamSteadySeeded(View_Sc3 param,
 ////////////////////////////////////////////////////////////////////////////////////
 
 void workset::computeSolnVolIP() {
-  this->computeSoln(1);
+  this->computeSoln(1,false);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Compute the seeded solutions at specified ip
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::computeSoln(const int & type) {
-    
-  // type specifications: 1 - volume; 2 - boundary; 3 - face
+void workset::computeSoln(const int & type, const bool & onside) {
     
   {
     Teuchos::TimeMonitor basistimer(*worksetComputeSolnVolTimer);
+    
+    vector<string> list_HGRAD, list_HVOL, list_HDIV, list_HCURL, list_HFACE;
+    vector<int> index_HGRAD, index_HVOL, index_HDIV, index_HCURL, index_HFACE;
+    vector<int> basis_index;
+    vector<View_AD2> solvals, soldotvals;
+    bool include_transient = isTransient;
+    if (onside) {
+      include_transient = false;
+    }
+    
+    if (type == 1) { // soln
+      list_HGRAD = varlist_HGRAD;
+      list_HVOL = varlist_HVOL;
+      list_HDIV = varlist_HDIV;
+      list_HCURL = varlist_HCURL;
+      list_HFACE = varlist_HFACE;
+      index_HGRAD = vars_HGRAD;
+      index_HVOL = vars_HVOL;
+      index_HDIV = vars_HDIV;
+      index_HCURL = vars_HCURL;
+      index_HFACE = vars_HFACE;
+      basis_index = usebasis;
+      solvals = uvals;
+      soldotvals = u_dotvals;
+    }
+    else if (type == 2) { // discr. params
+      list_HGRAD = paramvarlist_HGRAD;
+      list_HVOL = paramvarlist_HVOL;
+      list_HDIV = paramvarlist_HDIV;
+      list_HCURL = paramvarlist_HCURL;
+      list_HFACE = paramvarlist_HFACE;
+      index_HGRAD = paramvars_HGRAD;
+      index_HVOL = paramvars_HVOL;
+      index_HDIV = paramvars_HDIV;
+      index_HCURL = paramvars_HCURL;
+      index_HFACE = paramvars_HFACE;
+      include_transient = false;
+      basis_index = paramusebasis;
+      solvals = pvals;
+    }
+    else if (type == 3) { // aux
+      list_HGRAD = auxvarlist_HGRAD;
+      list_HVOL = auxvarlist_HVOL;
+      list_HDIV = auxvarlist_HDIV;
+      list_HCURL = auxvarlist_HCURL;
+      list_HFACE = auxvarlist_HFACE;
+      index_HGRAD = auxvars_HGRAD;
+      index_HVOL = auxvars_HVOL;
+      index_HDIV = auxvars_HDIV;
+      index_HCURL = auxvars_HCURL;
+      index_HFACE = auxvars_HFACE;
+      basis_index = auxusebasis;
+      solvals = auxvals;
+      soldotvals = aux_dotvals;
+    }
     
     /////////////////////////////////////////////////////////////////////
     // HGRAD
     /////////////////////////////////////////////////////////////////////
     
-    for (size_t i=0; i<varlist_HGRAD.size(); i++) {
-      string var = varlist_HGRAD[i];
-      int varind = vars_HGRAD[i];
+    for (size_t i=0; i<list_HGRAD.size(); i++) {
+      string var = list_HGRAD[i];
+      int varind = index_HGRAD[i];
       View_AD2 csol, csol_x, csol_y, csol_z, csol_t;
       View_Sc4 cbasis;
       View_Sc4 cbasis_grad;
       
-      // TMW: this might be ok ... have to check
-      auto cuvals = Kokkos::subview(uvals,Kokkos::ALL(),varind,Kokkos::ALL());
+      auto cuvals = solvals[varind];
       
-      if (type == 1) { // volumetric ip
+      if (!onside) { // volumetric ip
         csol = this->getData(var);
         csol_x = this->getData("grad("+var+")[x]");
         csol_y = this->getData("grad("+var+")[y]");
         csol_z = this->getData("grad("+var+")[z]");
-        cbasis = basis[usebasis[varind]];
-        cbasis_grad = basis_grad[usebasis[varind]];
+        cbasis = basis[basis_index[varind]];
+        cbasis_grad = basis_grad[basis_index[varind]];
       }
-      /*
-      else if (type == 2) { // boundary ip
-        csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
-        csol_grad = Kokkos::subview(local_soln_grad_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        cbasis = basis_side[usebasis[var]];
-        cbasis_grad = basis_grad_side[usebasis[var]];
+      else { // boundary ip
+        csol = this->getData(var+" side");
+        csol_x = this->getData("grad("+var+")[x] side");
+        csol_y = this->getData("grad("+var+")[y] side");
+        csol_z = this->getData("grad("+var+")[z] side");
+        cbasis = basis_side[basis_index[varind]];
+        cbasis_grad = basis_grad_side[basis_index[varind]];
       }
-      else if (type == 3) { // face ip
-        csol = Kokkos::subview(local_soln_face,Kokkos::ALL(),var,Kokkos::ALL(),0);
-        csol_grad = Kokkos::subview(local_soln_grad_face,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        cbasis = basis_face[usebasis[var]];
-        cbasis_grad = basis_grad_face[usebasis[var]];
-      }
-      */
-      Kokkos::deep_copy(csol,0.0);
-      Kokkos::deep_copy(csol_x,0.0);
-      Kokkos::deep_copy(csol_y,0.0);
-      Kokkos::deep_copy(csol_z,0.0);
+      
       parallel_for("wkset soln ip HGRAD",
-                   RangePolicy<AssemblyExec>(0,cbasis.extent(0)),
-                   KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-          AD uval = cuvals(elem,dof);
-          size_type dim = cbasis_grad.extent(3);
-          for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-            csol(elem,pt) += uval*cbasis(elem,dof,pt,0);
-            csol_x(elem,pt) += uval*cbasis_grad(elem,dof,pt,0);
-            if (dim>1) {
-              csol_y(elem,pt) += uval*cbasis_grad(elem,dof,pt,1);
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        size_type dim = cbasis_grad.extent(3);
+        for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+          csol(elem,pt) = 0.0;
+          csol_x(elem,pt) = 0.0;
+          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+            csol_x(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,0);
+          }
+          if (dim>1) {
+            csol_y(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csol_y(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,1);
             }
-            if (dim>2) {
-              csol_z(elem,pt) += uval*cbasis_grad(elem,dof,pt,2);
+          }
+          if (dim>2) {
+            csol_z(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csol_z(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,2);
             }
           }
         }
       });
       
-      if (isTransient && type == 1) { // transient terms only need at volumetric ip
+      if (include_transient) { // transient terms only need at volumetric ip
         auto csol_t = this->getData(var+"_t");
-        Kokkos::deep_copy(csol_t,0.0);
-        auto cu_dotvals = Kokkos::subview(u_dotvals,Kokkos::ALL(),varind,Kokkos::ALL());
+        auto cu_dotvals = soldotvals[varind];
         parallel_for("wkset soln ip HGRAD transient",
-                     RangePolicy<AssemblyExec>(0,cbasis.extent(0)),
-                     KOKKOS_LAMBDA (const size_type elem ) {
-          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+            csol_t(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
               csol_t(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
             }
           }
         });
       }
     }
-    /*
-    for (size_t i=0; i<vars_HGRAD.size(); i++) {
-      int var = vars_HGRAD[i];
-      auto csol = Kokkos::subview(local_soln,Kokkos::ALL(),var,Kokkos::ALL(),0);
-      auto csol_grad = Kokkos::subview(local_soln_grad,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-      View_Sc4 cbasis;
-      View_Sc4 cbasis_grad;
-      auto cuvals = Kokkos::subview(uvals,Kokkos::ALL(),var,Kokkos::ALL());
-      
-      if (type == 1) { // volumetric ip
-        cbasis = basis[usebasis[var]];
-        cbasis_grad = basis_grad[usebasis[var]];
-      }
-      else if (type == 2) { // boundary ip
-        csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
-        csol_grad = Kokkos::subview(local_soln_grad_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        cbasis = basis_side[usebasis[var]];
-        cbasis_grad = basis_grad_side[usebasis[var]];
-      }
-      else if (type == 3) { // face ip
-        csol = Kokkos::subview(local_soln_face,Kokkos::ALL(),var,Kokkos::ALL(),0);
-        csol_grad = Kokkos::subview(local_soln_grad_face,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        cbasis = basis_face[usebasis[var]];
-        cbasis_grad = basis_grad_face[usebasis[var]];
-      }
-      
-      parallel_for("wkset soln ip HGRAD",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-          AD uval = cuvals(elem,dof);
-          if ( dof == 0) {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              csol(elem,pt) = uval*cbasis(elem,dof,pt,0);
-              for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
-                csol_grad(elem,pt,s) = uval*cbasis_grad(elem,dof,pt,s);
-              }
-            }
-          }
-          else {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              csol(elem,pt) += uval*cbasis(elem,dof,pt,0);
-              for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
-                csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
-              }
-            }
-          }
-        }
-      });
-      
-      if (isTransient && type == 1) { // transient terms only need at volumetric ip
-        auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),0);
-        auto cu_dotvals = Kokkos::subview(u_dotvals,Kokkos::ALL(),var,Kokkos::ALL());
-        parallel_for("wkset soln ip HGRAD transient",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            if ( dof == 0) {
-              for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol_dot(elem,pt) = cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
-              }
-            }
-            else {
-              for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol_dot(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
-              }
-            }
-          }
-        });
-      }
-    }
-    */
     
     /////////////////////////////////////////////////////////////////////
     // HVOL
     /////////////////////////////////////////////////////////////////////
-    
-    for (size_t i=0; i<vars_HVOL.size(); i++) {
-      int var = vars_HVOL[i];
-      auto csol = Kokkos::subview(local_soln,Kokkos::ALL(),var,Kokkos::ALL(),0);
-      View_Sc4 cbasis;
-      if (type == 1) {
-        cbasis = basis[usebasis[var]];
-      }
-      else if (type == 2) {
-        csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
-        cbasis = basis_side[usebasis[var]];
-      }
-      else if (type == 3) {
-        csol = Kokkos::subview(local_soln_face,Kokkos::ALL(),var,Kokkos::ALL(),0);
-        cbasis = basis_face[usebasis[var]];
-      }
-      auto cuvals = Kokkos::subview(uvals,Kokkos::ALL(),var,Kokkos::ALL());
+    for (size_t i=0; i<list_HVOL.size(); i++) {
       
-      parallel_for("wkset soln ip HVOL",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-          if ( dof == 0) {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              csol(elem,pt) = cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-            }
-          }
-          else {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-            }
+      string var = list_HVOL[i];
+      int varind = index_HVOL[i];
+      View_AD2 csol, csol_t;
+      View_Sc4 cbasis;
+      
+      auto cuvals = solvals[varind];
+      
+      if (!onside) { // volumetric ip
+        csol = this->getData(var);
+        cbasis = basis[basis_index[varind]];
+      }
+      else { // boundary ip
+        csol = this->getData(var+" side");
+        cbasis = basis_side[basis_index[varind]];
+      }
+      
+      parallel_for("wkset soln ip HGRAD",
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+          csol(elem,pt) = 0.0;
+          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
           }
         }
       });
       
-      if (isTransient && type == 1) {
-        auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),0);
-        auto cu_dotvals = Kokkos::subview(u_dotvals,Kokkos::ALL(),var,Kokkos::ALL());
-        parallel_for("wkset soln ip HVOL transient",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            if ( dof == 0) {
-              for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol_dot(elem,pt) = cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
-              }
-            }
-            else {
-              for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol_dot(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
-              }
+      if (include_transient) { // transient terms only need at volumetric ip
+        auto csol_t = this->getData(var+"_t");
+        auto cu_dotvals = soldotvals[varind];
+        parallel_for("wkset soln ip HGRAD transient",
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+            csol_t(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csol_t(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
             }
           }
         });
@@ -872,80 +805,95 @@ void workset::computeSoln(const int & type) {
     // HDIV
     /////////////////////////////////////////////////////////////////////
     
-    for (size_t i=0; i<vars_HDIV.size(); i++) {
-      int var = vars_HDIV[i];
-      auto csol = Kokkos::subview(local_soln,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-      auto csol_div = Kokkos::subview(local_soln_div,Kokkos::ALL(),var,Kokkos::ALL());
+    for (size_t i=0; i<list_HDIV.size(); i++) {
+      string var = list_HDIV[i];
+      int varind = index_HDIV[i];
+      
+      View_AD2 csolx, csoly, csolz, csol_div;
       View_Sc4 cbasis;
       View_Sc3 cbasis_div;
       
-      if (type == 1) {
-        cbasis = basis[usebasis[var]];
-        cbasis_div = basis_div[usebasis[var]];
+      if (!onside) {
+        csolx = this->getData(var+"[x]");
+        csoly = this->getData(var+"[y]");
+        csolz = this->getData(var+"[z]");
+        csol_div = this->getData("div("+var+")");
+        cbasis = basis[basis_index[varind]];
+        cbasis_div = basis_div[basis_index[varind]];
       }
-      else if (type == 2) {
-        csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        cbasis = basis_side[usebasis[var]];
+      else {
+        csolx = this->getData(var+"[x] side");
+        csoly = this->getData(var+"[y] side");
+        csolz = this->getData(var+"[z] side");
+        cbasis = basis_side[basis_index[varind]];
       }
-      else if (type == 3) {
-        csol = Kokkos::subview(local_soln_face,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        cbasis = basis_face[usebasis[var]];
-      }
-      auto cuvals = Kokkos::subview(uvals,Kokkos::ALL(),var,Kokkos::ALL());
       
-      parallel_for("wkset soln ip HDIV",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-          if ( dof == 0) {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                csol(elem,pt,s) = cbasis(elem,dof,pt,s)*cuvals(elem,dof);
-              }
+      auto cuvals = solvals[varind];
+      
+      parallel_for("wkset soln ip HGRAD",
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        size_type dim = cbasis.extent(3);
+        for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+          csolx(elem,pt) = 0.0;
+          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+          }
+          if (dim>1) {
+            csoly(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
             }
           }
-          else {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                csol(elem,pt,s) += cbasis(elem,dof,pt,s)*cuvals(elem,dof);
-              }
+          if (dim>2) {
+            csolz(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csolz(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,2);
             }
           }
         }
       });
-      
-      if (type == 1) {
-        parallel_for("wkset soln ip HDIV",RangePolicy<AssemblyExec>(0,cbasis_div.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-          for (size_type dof=0; dof<cbasis_div.extent(1); dof++ ) {
-            if ( dof == 0) {
-              for (size_type pt=0; pt<cbasis_div.extent(2); pt++ ) {
-                csol_div(elem,pt) = cbasis_div(elem,dof,pt)*cuvals(elem,dof);
-              }
-            }
-            else {
-              for (size_t pt=0; pt<cbasis_div.extent(2); pt++ ) {
-                csol_div(elem,pt) += cbasis_div(elem,dof,pt)*cuvals(elem,dof);
-              }
+      if (!onside) {
+        parallel_for("wkset soln ip HGRAD",
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+            csol_div(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csol_div(elem,pt) += cuvals(elem,dof)*cbasis_div(elem,dof,pt);
             }
           }
         });
       }
       
-      if (isTransient && type == 1) {
-        auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        auto cu_dotvals = Kokkos::subview(u_dotvals,Kokkos::ALL(),var,Kokkos::ALL());
-        parallel_for("wkset soln ip HDIV transient",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            if ( dof == 0) {
-              for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                  csol_dot(elem,pt,s) = cbasis(elem,dof,pt,s)*cu_dotvals(elem,dof);
-                }
+      if (include_transient) {
+        
+        auto csol_tx = this->getData(var+"_t[x]");
+        auto csol_ty = this->getData(var+"_t[y]");
+        auto csol_tz = this->getData(var+"_t[z]");
+        auto cu_dotvals = soldotvals[varind];
+        parallel_for("wkset soln ip HGRAD transient",
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          size_type dim = cbasis.extent(3);
+          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+            csol_tx(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
+            }
+            if (dim>1) {
+              csol_ty(elem,pt) = 0.0;
+              for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+                csol_ty(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,1);
               }
             }
-            else {
-              for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                  csol_dot(elem,pt,s) += cbasis(elem,dof,pt,s)*cu_dotvals(elem,dof);
-                }
+            if (dim>2) {
+              csol_tz(elem,pt) = 0.0;
+              for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+                csol_tz(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,2);
               }
             }
           }
@@ -957,86 +905,114 @@ void workset::computeSoln(const int & type) {
     // HCURL
     /////////////////////////////////////////////////////////////////////
     
-    for (size_t i=0; i<vars_HCURL.size(); i++) {
-      int var = vars_HCURL[i];
-      auto csol = Kokkos::subview(local_soln,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-      auto csol_curl = Kokkos::subview(local_soln_curl,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-      View_Sc4 cbasis;
-      View_Sc4 cbasis_curl;
-      if (type == 1) {
-        cbasis = basis[usebasis[var]];
-        cbasis_curl = basis_curl[usebasis[var]];
-      }
-      else if (type == 2) {
-        csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        cbasis = basis_side[usebasis[var]];
-      }
-      else if (type == 3) {
-        csol = Kokkos::subview(local_soln_face,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        cbasis = basis_face[usebasis[var]];
-      }
-      auto cuvals = Kokkos::subview(uvals,Kokkos::ALL(),var,Kokkos::ALL());
+    for (size_t i=0; i<list_HCURL.size(); i++) {
+      string var = list_HCURL[i];
+      int varind = index_HCURL[i];
       
-      parallel_for("wkset soln ip HCURL",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-          if ( dof == 0) {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                csol(elem,pt,s) = cbasis(elem,dof,pt,s)*cuvals(elem,dof);
-              }
+      View_AD2 csolx, csoly, csolz, csol_curlx,csol_curly,csol_curlz;
+      View_Sc4 cbasis, cbasis_curl;
+      
+      if (!onside) {
+        csolx = this->getData(var+"[x]");
+        csoly = this->getData(var+"[y]");
+        csolz = this->getData(var+"[z]");
+        csol_curlx = this->getData("curl("+var+")[x]");
+        csol_curly = this->getData("curl("+var+")[y]");
+        csol_curlz = this->getData("curl("+var+")[z]");
+        
+        cbasis = basis[basis_index[varind]];
+        cbasis_curl = basis_curl[basis_index[varind]];
+      }
+      else {
+        csolx = this->getData(var+"[x] side");
+        csoly = this->getData(var+"[y] side");
+        csolz = this->getData(var+"[z] side");
+        cbasis = basis_side[basis_index[varind]];
+      }
+      
+      auto cuvals = solvals[varind];
+      
+      parallel_for("wkset soln ip HGRAD",
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        size_type dim = cbasis.extent(3);
+        for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+          csolx(elem,pt) = 0.0;
+          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+          }
+          if (dim>1) {
+            csoly(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
             }
           }
-          else {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                csol(elem,pt,s) += cbasis(elem,dof,pt,s)*cuvals(elem,dof);
-              }
+          if (dim>2) {
+            csolz(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csolz(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,2);
             }
           }
         }
       });
       
-      if (type == 1) {
-        parallel_for("wkset soln ip HCURL",RangePolicy<AssemblyExec>(0,cbasis_curl.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            if ( dof == 0) {
-              for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                  csol_curl(elem,pt,s) = cbasis_curl(elem,dof,pt,s)*cuvals(elem,dof);
-                }
+      if (!onside) { // no curl on boundary?
+        parallel_for("wkset soln ip HGRAD",
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          size_type dim = cbasis.extent(3);
+          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+            csol_curlx(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csol_curlx(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,0);
+            }
+            if (dim>1) {
+              csol_curly(elem,pt) = 0.0;
+              for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+                csol_curly(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,1);
               }
             }
-            else {
-              for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                  csol_curl(elem,pt,s) += cbasis_curl(elem,dof,pt,s)*cuvals(elem,dof);
-                }
+            if (dim>2) {
+              csol_curlz(elem,pt) = 0.0;
+              for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+                csol_curlz(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,2);
               }
             }
           }
         });
       }
-      if (isTransient && type == 1) {
-        auto csol_dot = Kokkos::subview(local_soln_dot, Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        auto cu_dotvals = Kokkos::subview(u_dotvals,Kokkos::ALL(),var,Kokkos::ALL());
-        parallel_for("wkset soln ip HCURL transient",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            if ( dof == 0) {
-              for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-                for(size_type s=0; s<cbasis.extent(3); s++ ) {
-                  csol_dot(elem,pt,s) = cbasis(elem,dof,pt,s)*cu_dotvals(elem,dof);
-                }
+      if (include_transient) {
+        auto csol_tx = this->getData(var+"_t[x]");
+        auto csol_ty = this->getData(var+"_t[y]");
+        auto csol_tz = this->getData(var+"_t[z]");
+        auto cu_dotvals = soldotvals[varind];
+        parallel_for("wkset soln ip HGRAD transient",
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          size_type dim = cbasis.extent(3);
+          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+            csol_tx(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
+            }
+            if (dim>1) {
+              csol_ty(elem,pt) = 0.0;
+              for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+                csol_ty(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,1);
               }
             }
-            else {
-              for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                  csol_dot(elem,pt,s) += cbasis(elem,dof,pt,s)*cu_dotvals(elem,dof);
-                }
+            if (dim>2) {
+              csol_tz(elem,pt) = 0.0;
+              for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+                csol_tz(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,2);
               }
             }
           }
         });
+        
       }
     }
     
@@ -1044,31 +1020,26 @@ void workset::computeSoln(const int & type) {
     // HFACE
     /////////////////////////////////////////////////////////////////////
     
-    for (size_t i=0; i<vars_HFACE.size(); i++) {
-      if (type == 2 || type == 3) {
-        int var = vars_HFACE[i];
-        auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
+    for (size_t i=0; i<list_HFACE.size(); i++) {
+      if (onside) {
+        string var = list_HFACE[i];
+        int varind = index_HFACE[i];
+        View_AD2 csol;
         View_Sc4 cbasis;
-        if (type == 2) {
-          cbasis = basis_side[usebasis[var]];
-        }
-        else if (type == 3) {
-          csol = Kokkos::subview(local_soln_face,Kokkos::ALL(),var,Kokkos::ALL(),0);
-          cbasis = basis_face[usebasis[var]];
-        }
-        auto cuvals = Kokkos::subview(uvals,Kokkos::ALL(),var,Kokkos::ALL());
         
-        parallel_for("wkset soln ip HFACE",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            if ( dof == 0) {
-              for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol(elem,pt) = cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-              }
-            }
-            else {
-              for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-                csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-              }
+        auto cuvals = solvals[varind];
+        
+        csol = this->getData(var+" side");
+        cbasis = basis_side[basis_index[varind]];
+        
+        parallel_for("wkset soln ip HGRAD",
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+            csol(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
             }
           }
         });
@@ -1077,232 +1048,6 @@ void workset::computeSoln(const int & type) {
     
   }  
 }
-  
-////////////////////////////////////////////////////////////////////////////////////
-// Compute the seeded solutions at specified ip
-////////////////////////////////////////////////////////////////////////////////////
-
-void workset::computeParam(const int & type) {
-  
-  // type specifications: 1 - volume; 2 - boundary; 3 - face
-  
-  {
-    Teuchos::TimeMonitor basistimer(*worksetComputeSolnVolTimer);
-    
-    /////////////////////////////////////////////////////////////////////
-    // HGRAD
-    /////////////////////////////////////////////////////////////////////
-    
-    for (size_t i=0; i<paramvars_HGRAD.size(); i++) {
-      int var = paramvars_HGRAD[i];
-      auto csol = Kokkos::subview(local_param,Kokkos::ALL(),var,Kokkos::ALL(),0);
-      auto csol_grad = Kokkos::subview(local_param_grad,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-      auto cbasis = basis[paramusebasis[var]];
-      auto cbasis_grad = basis_grad[paramusebasis[var]];
-      auto cuvals = Kokkos::subview(pvals,Kokkos::ALL(),var,Kokkos::ALL());
-      /*
-      if (type == 1) { // volumetric ip
-        csol = Kokkos::subview(local_param,Kokkos::ALL(),var,Kokkos::ALL(),0);
-        csol_grad = Kokkos::subview(local_param_grad,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        cbasis = basis[paramusebasis[var]];
-        cbasis_grad = basis_grad[paramusebasis[var]];
-      }*/
-      if (type == 2) { // boundary ip
-        csol = Kokkos::subview(local_param_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
-        csol_grad = Kokkos::subview(local_param_grad_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        cbasis = basis_side[paramusebasis[var]];
-        cbasis_grad = basis_grad_side[paramusebasis[var]];
-      }
-      
-      parallel_for("wkset soln ip HGRAD",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-          AD uval = cuvals(elem,dof);
-          if ( dof == 0) {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              csol(elem,pt) = uval*cbasis(elem,dof,pt,0);
-              for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
-                csol_grad(elem,pt,s) = uval*cbasis_grad(elem,dof,pt,s);
-              }
-            }
-          }
-          else {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              csol(elem,pt) += uval*cbasis(elem,dof,pt,0);
-              for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
-                csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
-              }
-            }
-          }
-        }
-      });
-      
-    }
-    
-    /////////////////////////////////////////////////////////////////////
-    // HVOL
-    /////////////////////////////////////////////////////////////////////
-    
-    for (size_t i=0; i<paramvars_HVOL.size(); i++) {
-      int var = paramvars_HVOL[i];
-      auto csol = Kokkos::subview(local_param,Kokkos::ALL(),var,Kokkos::ALL(),0);
-      auto cbasis = basis[paramusebasis[var]];
-      //if (type == 1) {
-      //  csol = Kokkos::subview(local_param,Kokkos::ALL(),var,Kokkos::ALL(),0);
-      //  cbasis = basis[paramusebasis[var]];
-      //}
-      if (type == 2) {
-        csol = Kokkos::subview(local_param_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
-        cbasis = basis_side[paramusebasis[var]];
-      }
-      auto cuvals = Kokkos::subview(pvals,Kokkos::ALL(),var,Kokkos::ALL());
-      
-      parallel_for("wkset soln ip HVOL",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-          if ( dof == 0) {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              csol(elem,pt) = cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-            }
-          }
-          else {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-            }
-          }
-        }
-      });
-    }
-    
-    /////////////////////////////////////////////////////////////////////
-    // HDIV
-    /////////////////////////////////////////////////////////////////////
-    
-    for (size_t i=0; i<paramvars_HDIV.size(); i++) {
-      int var = paramvars_HDIV[i];
-      auto csol = Kokkos::subview(local_param,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-      auto csol_div = Kokkos::subview(local_param_div,Kokkos::ALL(),var,Kokkos::ALL());
-      auto cbasis = basis[paramusebasis[var]];
-      auto cbasis_div = basis_div[paramusebasis[var]];
-      /*
-      if (type == 1) {
-        csol = Kokkos::subview(local_param,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        csol_div = Kokkos::subview(local_param_div,Kokkos::ALL(),var,Kokkos::ALL());
-        cbasis = basis[paramusebasis[var]];
-        cbasis_div = basis_div[paramusebasis[var]];
-      }*/
-      if (type == 2) {
-        csol = Kokkos::subview(local_param_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        cbasis = basis_side[paramusebasis[var]];
-      }
-      auto cuvals = Kokkos::subview(pvals,Kokkos::ALL(),var,Kokkos::ALL());
-      
-      parallel_for("wkset soln ip HDIV",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-          if ( dof == 0) {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                csol(elem,pt,s) = cbasis(elem,dof,pt,s)*cuvals(elem,dof);
-              }
-            }
-          }
-          else {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                csol(elem,pt,s) += cbasis(elem,dof,pt,s)*cuvals(elem,dof);
-              }
-            }
-          }
-        }
-      });
-      
-      if (type == 1) {
-        parallel_for("wkset soln ip HDIV",RangePolicy<AssemblyExec>(0,cbasis_div.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-          for (size_type dof=0; dof<cbasis_div.extent(1); dof++ ) {
-            if ( dof == 0) {
-              for (size_type pt=0; pt<cbasis_div.extent(2); pt++ ) {
-                csol_div(elem,pt) = cbasis_div(elem,dof,pt)*cuvals(elem,dof);
-              }
-            }
-            else {
-              for (size_type pt=0; pt<cbasis_div.extent(2); pt++ ) {
-                csol_div(elem,pt) += cbasis_div(elem,dof,pt)*cuvals(elem,dof);
-              }
-            }
-          }
-        });
-      }
-    }
-    
-    /////////////////////////////////////////////////////////////////////
-    // HCURL
-    /////////////////////////////////////////////////////////////////////
-    
-    for (size_t i=0; i<paramvars_HCURL.size(); i++) {
-      int var = paramvars_HCURL[i];
-      auto csol = Kokkos::subview(local_param,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-      auto csol_curl = Kokkos::subview(local_param_curl,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-      auto cbasis = basis[paramusebasis[var]];
-      auto cbasis_curl = basis_curl[paramusebasis[var]];
-      /*
-      if (type == 1) {
-        csol = Kokkos::subview(local_param,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        csol_curl = Kokkos::subview(local_param_curl,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        cbasis = basis[paramusebasis[var]];
-        cbasis_curl = basis_curl[paramusebasis[var]];
-      }*/
-      if (type == 2) {
-        csol = Kokkos::subview(local_param_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-        cbasis = basis_side[paramusebasis[var]];
-      }
-      auto cuvals = Kokkos::subview(pvals,Kokkos::ALL(),var,Kokkos::ALL());
-      
-      parallel_for("wkset soln ip HCURL",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-          if ( dof == 0) {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                csol(elem,pt,s) = cbasis(elem,dof,pt,s)*cuvals(elem,dof);
-              }
-            }
-          }
-          else {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                csol(elem,pt,s) += cbasis(elem,dof,pt,s)*cuvals(elem,dof);
-              }
-            }
-          }
-        }
-      });
-      
-      if (type == 1) {
-        parallel_for("wkset soln ip HCURL",RangePolicy<AssemblyExec>(0,cbasis_curl.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            if ( dof == 0) {
-              for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                  csol_curl(elem,pt,s) = cbasis_curl(elem,dof,pt,s)*cuvals(elem,dof);
-                }
-              }
-            }
-            else {
-              for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-                for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                  csol_curl(elem,pt,s) += cbasis_curl(elem,dof,pt,s)*cuvals(elem,dof);
-                }
-              }
-            }
-          }
-        });
-      }
-    }
-    
-    /////////////////////////////////////////////////////////////////////
-    // HFACE
-    /////////////////////////////////////////////////////////////////////
-    // Not currently used
-  }
-}
-
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Compute the discretized parameters at the volumetric ip
@@ -1314,33 +1059,18 @@ void workset::computeParamVolIP(View_Sc3 param,
   if (numParams > 0) {
     
     this->computeParamSteadySeeded(param,seedwhat);
-    this->computeParam(1);
+    this->computeSoln(2,false);
     
   }
 }
 
-////////////////////////////////////////////////////////////////////////////////////
-// Compute the solutions at the side ip
-////////////////////////////////////////////////////////////////////////////////////
-
-void workset::computeSolnFaceIP() {
-  this->computeSoln(3);
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-// Compute the solutions at the side ip
-////////////////////////////////////////////////////////////////////////////////////
-
-void workset::computeAuxSolnFaceIP() {
-  
-}
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Compute the solutions at the side ip
 ////////////////////////////////////////////////////////////////////////////////////
 
 void workset::computeSolnSideIP() {
-  this->computeSoln(2);
+  this->computeSoln(1,true);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1352,9 +1082,9 @@ void workset::computeParamSideIP(const int & side, View_Sc3 param,
   
   if (numParams>0) {
     this->computeParamSteadySeeded(param,seedwhat);
-    this->computeParam(2);
+    this->computeSoln(2,true);
   }
-  AssemblyExec::execution_space().fence();
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1366,76 +1096,76 @@ void workset::computeParamSideIP(const int & side, View_Sc3 param,
 // Will not work properly for multi-stage or multi-step
 void workset::computeSolnSideIP(const int & side) { //, Kokkos::View<AD***,AssemblyDevice> u_AD_old,
                                 //Kokkos::View<AD***,AssemblyDevice> param_AD) {
-  {
-    //Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-    //Kokkos::deep_copy(local_soln_side, 0.0);
-    //Kokkos::deep_copy(local_soln_grad_side, 0.0);
-  }
   
   {
     Teuchos::TimeMonitor basistimer(*worksetComputeSolnSideTimer);
     
-    auto u_AD = uvals;
-
     /////////////////////////////////////////////////////////////////////
     // HGRAD
     /////////////////////////////////////////////////////////////////////
     
-    for (size_t i=0; i<vars_HGRAD.size(); i++) {
-      int var = vars_HGRAD[i];
+    for (size_t i=0; i<varlist_HGRAD.size(); i++) {
+      string var = varlist_HGRAD[i];
+      int varind = vars_HGRAD[i];
       
-      auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
-      auto csol_grad = Kokkos::subview(local_soln_grad_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-      auto cbasis = basis_side[usebasis[var]];
-      auto cbasis_grad = basis_grad_side[usebasis[var]];
-      auto cuvals = Kokkos::subview(u_AD,Kokkos::ALL(),var,Kokkos::ALL());
+      auto cuvals = uvals[varind];
       
-      parallel_for("wkset flux soln ip HGRAD",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-          AD uval = cuvals(elem,dof);
-          if ( dof == 0) {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              csol(elem,pt) = uval*cbasis(elem,dof,pt,0);
-              for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
-                csol_grad(elem,pt,s) = uval*cbasis_grad(elem,dof,pt,s);
-              }
+      auto csol = this->getData(var+" side");
+      auto csol_x = this->getData("grad("+var+")[x] side");
+      auto csol_y = this->getData("grad("+var+")[y] side");
+      auto csol_z = this->getData("grad("+var+")[z] side");
+      auto cbasis = basis_side[usebasis[varind]];
+      auto cbasis_grad = basis_grad_side[usebasis[varind]];
+      
+      parallel_for("wkset soln ip HGRAD",
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        size_type dim = cbasis_grad.extent(3);
+        for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+          csol(elem,pt) = 0.0;
+          csol_x(elem,pt) = 0.0;
+          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+            csol_x(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,0);
+          }
+          if (dim>1) {
+            csol_y(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csol_y(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,1);
             }
           }
-          else {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              csol(elem,pt) += uval*cbasis(elem,dof,pt,0);
-              for (size_type s=0; s<cbasis_grad.extent(3); s++ ) {
-                csol_grad(elem,pt,s) += uval*cbasis_grad(elem,dof,pt,s);
-              }
+          if (dim>2) {
+            csol_z(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csol_z(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,2);
             }
           }
         }
       });
     }
-      
+    
     /////////////////////////////////////////////////////////////////////
     // HVOL
     /////////////////////////////////////////////////////////////////////
     
     for (size_t i=0; i<vars_HVOL.size(); i++) {
-      int var = vars_HVOL[i];
+      string var = varlist_HVOL[i];
+      int varind = vars_HVOL[i];
       
-      auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
-      auto cbasis = basis_side[usebasis[var]];
-      auto cuvals = Kokkos::subview(u_AD,Kokkos::ALL(),var,Kokkos::ALL());
+      auto cuvals = uvals[varind];
       
-      parallel_for("wkset flux soln ip HVOL",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-          AD uval = cuvals(elem,dof);
-          if ( dof == 0) {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              csol(elem,pt) = uval*cbasis(elem,dof,pt,0);
-            }
-          }
-          else {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              csol(elem,pt) += uval*cbasis(elem,dof,pt,0);
-            }
+      auto csol = this->getData(var+" side");
+      auto cbasis = basis_side[usebasis[varind]];
+      
+      parallel_for("wkset soln ip HGRAD",
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+          csol(elem,pt) = 0.0;
+          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
           }
         }
       });
@@ -1446,27 +1176,36 @@ void workset::computeSolnSideIP(const int & side) { //, Kokkos::View<AD***,Assem
     /////////////////////////////////////////////////////////////////////
     
     for (size_t i=0; i<vars_HDIV.size(); i++) {
-      int var = vars_HDIV[i];
+      string var = varlist_HDIV[i];
+      int varind = vars_HDIV[i];
       
-      auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-      auto cbasis = basis_side[usebasis[var]];
-      auto cuvals = Kokkos::subview(u_AD,Kokkos::ALL(),var,Kokkos::ALL());
+      auto cuvals = uvals[varind];
       
-      parallel_for("wkset flux soln ip HDIV",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-          AD uval = cuvals(elem,dof);
-          if ( dof == 0) {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                csol(elem,pt,s) = uval*cbasis(elem,dof,pt,s);
-              }
+      auto csolx = this->getData(var+"[x] side");
+      auto csoly = this->getData(var+"[y] side");
+      auto csolz = this->getData(var+"[z] side");
+      auto cbasis = basis_side[usebasis[varind]];
+      
+      parallel_for("wkset soln ip HGRAD",
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        size_type dim = cbasis.extent(3);
+        for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+          csolx(elem,pt) = 0.0;
+          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+          }
+          if (dim>1) {
+            csoly(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
             }
           }
-          else {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
-              }
+          if (dim>2) {
+            csolz(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csolz(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,2);
             }
           }
         }
@@ -1477,28 +1216,37 @@ void workset::computeSolnSideIP(const int & side) { //, Kokkos::View<AD***,Assem
     // HCURL
     /////////////////////////////////////////////////////////////////////
     
-    for (size_t i=0; i<vars_HCURL.size(); i++) {
-      int var = vars_HCURL[i];
+    for (size_t i=0; i<vars_HDIV.size(); i++) {
+      string var = varlist_HDIV[i];
+      int varind = vars_HDIV[i];
       
-      auto csol = Kokkos::subview(local_soln_side,Kokkos::ALL(),var,Kokkos::ALL(),Kokkos::ALL());
-      auto cbasis = basis_side[usebasis[var]];
-      auto cuvals = Kokkos::subview(u_AD,Kokkos::ALL(),var,Kokkos::ALL());
+      auto cuvals = uvals[varind];
       
-      parallel_for("wkset flux soln ip HCURL",RangePolicy<AssemblyExec>(0,cbasis.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-          AD uval = cuvals(elem,dof);
-          if ( dof == 0) {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                csol(elem,pt,s) = uval*cbasis(elem,dof,pt,s);
-              }
+      auto csolx = this->getData(var+"[x] side");
+      auto csoly = this->getData(var+"[y] side");
+      auto csolz = this->getData(var+"[z] side");
+      auto cbasis = basis_side[usebasis[varind]];
+      
+      parallel_for("wkset soln ip HGRAD",
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        size_type dim = cbasis.extent(3);
+        for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+          csolx(elem,pt) = 0.0;
+          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+          }
+          if (dim>1) {
+            csoly(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
             }
           }
-          else {
-            for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-              for (size_type s=0; s<cbasis.extent(3); s++ ) {
-                csol(elem,pt,s) += uval*cbasis(elem,dof,pt,s);
-              }
+          if (dim>2) {
+            csolz(elem,pt) = 0.0;
+            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csolz(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,2);
             }
           }
         }
@@ -1511,14 +1259,16 @@ void workset::computeSolnSideIP(const int & side) { //, Kokkos::View<AD***,Assem
 // Add Aux
 //////////////////////////////////////////////////////////////
 
-void workset::addAux(const size_t & naux) {
-  numAux = naux;
-  local_aux = View_AD4("local_aux",numElem, numAux, numip, dimension, maxDerivs);
-  //local_aux_grad = Kokkos::View<AD****, AssemblyDevice>("local_aux_grad",numElem, numAux, numip, dimension);
-  local_aux_side = View_AD4("local_aux_side",numElem, numAux, numsideip, dimension, maxDerivs);
+void workset::addAux(const vector<string> & auxvars) {
+  aux_varlist = auxvars;
+  numAux = aux_varlist.size();
   flux = View_AD3("flux",numElem,numAux,numsideip, maxDerivs);
   
-  //local_aux_grad_side = Kokkos::View<AD****, AssemblyDevice>("local_aux_grad_side",numElem, numAux, numsideip, dimension);
+  for (size_t i=0; i<aux_varlist.size(); ++i) {
+    string var = aux_varlist[i];
+    this->addData("aux "+var,numElem,numip);
+    this->addData("aux "+var+" side",numElem,numsideip);
+  }
 }
 
 //////////////////////////////////////////////////////////////
@@ -1603,6 +1353,10 @@ View_AD2 workset::getData(const string & label) {
       ++ind;
     }
   }
+  if (!found) {
+    std::cout << "Error: could not find data named " << label << std::endl;
+    this->printMetaData();
+  }
   return data[ind];
   
 }
@@ -1623,19 +1377,396 @@ View_Sc2 workset::getDataSc(const string & label) {
     }
   }
   
+  if (!found) {
+    std::cout << "Error: could not find scalar data named " << label << std::endl;
+  }
+  
   return data_Sc[ind];
   
 }
 
+void workset::get(const string & label, View_AD2 & dataout) {
+  
+  Teuchos::TimeMonitor basistimer(*worksetgetTimer);
+  
+  bool found = false;
+  size_t ind = 0;
+  while (!found && ind<data_labels.size()) {
+    if (label == data_labels[ind]) {
+      found = true;
+      data_usage[ind] += 1;
+      dataout = data[ind];
+    }
+    else {
+      ++ind;
+    }
+  }
+  if (!found) {
+    std::cout << "Warning: could not find data with label: " << label << std::endl;
+    std::cout << "An error will probably occur if this view is accessed" << std::endl;
+    this->printMetaData();
+  }
+}
 
-void workset::printMetaData() {
-  std::cout << "Number of View_AD2 stored: " << data.size() << std::endl;
-  for (size_t i=0; i<data.size(); ++i) {
-    std::cout << data_labels[i] << std::endl;
+void workset::get(const string & label, View_Sc2 & dataout) {
+  
+  Teuchos::TimeMonitor basistimer(*worksetgetTimer);
+  
+  bool found = false;
+  size_t ind = 0;
+  while (!found && ind<data_Sc_labels.size()) {
+    if (label == data_Sc_labels[ind]) {
+      found = true;
+      data_Sc_usage[ind] += 1;
+      dataout = data_Sc[ind];
+    }
+    else {
+      ++ind;
+    }
   }
   
-  std::cout << "Number of View_Sc2 stored: " << data_Sc.size() << std::endl;
-  for (size_t i=0; i<data_Sc.size(); ++i) {
-    std::cout << data_Sc_labels[i] << std::endl;
+  if (!found) {
+    std::cout << "Warning: could not find data with label: " << label << std::endl;
+    std::cout << "An error will probably occur if this view is accessed" << std::endl;
+    this->printMetaData();
   }
+}
+
+
+void workset::printMetaData() {
+  std::cout << "Number of View_AD2 stored: " << data.size() << std::endl << std::endl;
+  std::cout << "Label                | dim0 | dim1 | Num. requests" << std::endl;
+  
+  for (size_t i=0; i<data.size(); ++i) {
+    string pad = "";
+    for (size_t j=0; j<20-data_labels[i].size(); ++j) {
+      pad += " ";
+    }
+    std::cout << data_labels[i] << pad << "   " << data[i].extent(0) << "     " << data[i].extent(1) << "     " << data_usage[i] << std::endl;
+  }
+  std::cout << std::endl << std::endl;
+  
+  std::cout << "Number of View_Sc2 stored: " << data_Sc.size() << std::endl;
+  std::cout << "Label                | dim0 | dim1 | Num. requests" << std::endl;
+  
+  for (size_t i=0; i<data_Sc.size(); ++i) {
+    string pad = "";
+    for (size_t j=0; j<20-data_Sc_labels[i].size(); ++j) {
+      pad += " ";
+    }
+    std::cout << data_Sc_labels[i] << pad << "   " << data_Sc[i].extent(0) << "     " << data_Sc[i].extent(1) << "     " << data_Sc_usage[i] << std::endl;
+  }
+  
+}
+
+
+void workset::setIP(View_Sc3 newip, const string & pfix) {
+  size_type dim = newip.extent(2);
+  auto x = this->getDataSc("x"+pfix);
+  bool sizes_match = true;
+  if (newip.extent(0) < x.extent(0)) {
+    sizes_match = false;
+  }
+  auto newx = subview(newip,ALL(),ALL(),0);
+  if (sizes_match) {
+    Kokkos::deep_copy(x,newx);
+  }
+  else {
+    parallel_for("wkset transient soln 1",
+                 TeamPolicy<AssemblyExec>(newx.extent(0), Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type pt=team.team_rank(); pt<newx.extent(1); pt+=team.team_size() ) {
+        x(elem,pt) = newx(elem,pt);
+      }
+    });
+  }
+  if (dim > 1) {
+    auto y = this->getDataSc("y"+pfix);
+    auto newy = subview(newip,ALL(),ALL(),1);
+    if (sizes_match) {
+      Kokkos::deep_copy(y,newy);
+    }
+    else {
+      parallel_for("wkset transient soln 1",
+                   TeamPolicy<AssemblyExec>(newy.extent(0), Kokkos::AUTO, 32),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type pt=team.team_rank(); pt<newy.extent(1); pt+=team.team_size() ) {
+          y(elem,pt) = newy(elem,pt);
+        }
+      });
+    }
+  }
+  if (dim > 2) {
+    auto z = this->getDataSc("z"+pfix);
+    auto newz = subview(newip,ALL(),ALL(),2);
+    if (sizes_match) {
+      Kokkos::deep_copy(z,newz);
+    }
+    else {
+      parallel_for("wkset transient soln 1",
+                   TeamPolicy<AssemblyExec>(newz.extent(0), Kokkos::AUTO, 32),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type pt=team.team_rank(); pt<newz.extent(1); pt+=team.team_size() ) {
+          z(elem,pt) = newz(elem,pt);
+        }
+      });
+    }
+  }
+}
+
+void workset::setNormals(View_Sc3 newnormals) {
+  size_type dim = newnormals.extent(2);
+  auto nx = this->getDataSc("nx side");
+  bool sizes_match = true;
+  if (newnormals.extent(0) < nx.extent(0)) {
+    sizes_match = false;
+  }
+  auto newnx = subview(newnormals,ALL(),ALL(),0);
+  if (sizes_match) {
+    Kokkos::deep_copy(nx,newnx);
+  }
+  else {
+    parallel_for("wkset transient soln 1",
+                 TeamPolicy<AssemblyExec>(newnx.extent(0), Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type pt=team.team_rank(); pt<newnx.extent(1); pt+=team.team_size() ) {
+        nx(elem,pt) = newnx(elem,pt);
+      }
+    });
+  }
+  if (dim > 1) {
+    auto ny = this->getDataSc("ny side");
+    auto newny = subview(newnormals,ALL(),ALL(),1);
+    if (sizes_match) {
+      Kokkos::deep_copy(ny,newny);
+    }
+    else {
+      parallel_for("wkset transient soln 1",
+                   TeamPolicy<AssemblyExec>(newny.extent(0), Kokkos::AUTO, 32),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type pt=team.team_rank(); pt<newny.extent(1); pt+=team.team_size() ) {
+          ny(elem,pt) = newny(elem,pt);
+        }
+      });
+    }
+  }
+  if (dim > 2) {
+    auto nz = this->getDataSc("nz side");
+    auto newnz = subview(newnormals,ALL(),ALL(),2);
+    if (sizes_match) {
+      Kokkos::deep_copy(nz,newnz);
+    }
+    else {
+      parallel_for("wkset transient soln 1",
+                   TeamPolicy<AssemblyExec>(newnz.extent(0), Kokkos::AUTO, 32),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type pt=team.team_rank(); pt<newnz.extent(1); pt+=team.team_size() ) {
+          nz(elem,pt) = newnz(elem,pt);
+        }
+      });
+    }
+  }
+}
+
+void workset::setSolution(View_AD4 newsol, const string & pfix) {
+  // newsol has dims numElem x numvars x numip x dimension
+  for (size_t i=0; i<varlist_HGRAD.size(); i++) {
+    string var = varlist_HGRAD[i];
+    int varind = vars_HGRAD[i];
+    auto csol = this->getData(var+pfix);
+    auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
+    Kokkos::deep_copy(csol,cnsol);
+  }
+  for (size_t i=0; i<varlist_HVOL.size(); i++) {
+    string var = varlist_HVOL[i];
+    int varind = vars_HVOL[i];
+    auto csol = this->getData(var+pfix);
+    auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
+    Kokkos::deep_copy(csol,cnsol);
+  }
+  for (size_t i=0; i<varlist_HFACE.size(); i++) {
+    string var = varlist_HFACE[i];
+    int varind = vars_HFACE[i];
+    auto csol = this->getData(var+pfix);
+    auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
+    Kokkos::deep_copy(csol,cnsol);
+  }
+  for (size_t i=0; i<varlist_HDIV.size(); i++) {
+    string var = varlist_HDIV[i];
+    int varind = vars_HDIV[i];
+    size_type dim = newsol.extent(3);
+    auto csol = this->getData(var+"[x]"+pfix);
+    auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
+    Kokkos::deep_copy(csol,cnsol);
+    if (dim>1) {
+      auto csol = this->getData(var+"[y]"+pfix);
+      auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
+      Kokkos::deep_copy(csol,cnsol);
+    }
+    if (dim>2) {
+      auto csol = this->getData(var+"[z]"+pfix);
+      auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
+      Kokkos::deep_copy(csol,cnsol);
+    }
+  }
+  for (size_t i=0; i<varlist_HCURL.size(); i++) {
+    string var = varlist_HCURL[i];
+    int varind = vars_HCURL[i];
+    size_type dim = newsol.extent(3);
+    auto csol = this->getData(var+"[x]"+pfix);
+    auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
+    Kokkos::deep_copy(csol,cnsol);
+    if (dim>1) {
+      auto csol = this->getData(var+"[y]"+pfix);
+      auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
+      Kokkos::deep_copy(csol,cnsol);
+    }
+    if (dim>2) {
+      auto csol = this->getData(var+"[z]"+pfix);
+      auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
+      Kokkos::deep_copy(csol,cnsol);
+    }
+  }
+  
+}
+
+void workset::setSolutionGrad(View_AD4 newsol, const string & pfix) {
+  for (size_t i=0; i<varlist_HGRAD.size(); i++) {
+    string var = varlist_HGRAD[i];
+    int varind = vars_HGRAD[i];
+    size_type dim = newsol.extent(3);
+    auto csol = this->getData("grad("+var+")[x]"+pfix);
+    auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
+    Kokkos::deep_copy(csol,cnsol);
+    if (dim>1) {
+      auto csol = this->getData("grad("+var+")[y]"+pfix);
+      auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
+      Kokkos::deep_copy(csol,cnsol);
+    }
+    if (dim>2) {
+      auto csol = this->getData("grad("+var+")[z]"+pfix);
+      auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
+      Kokkos::deep_copy(csol,cnsol);
+    }
+  }
+}
+
+void workset::setSolutionDiv(View_AD3 newsol, const string & pfix) {
+  for (size_t i=0; i<varlist_HDIV.size(); i++) {
+    string var = varlist_HDIV[i];
+    int varind = vars_HDIV[i];
+    auto csol = this->getData("div("+var+")");
+    auto cnsol = subview(newsol,ALL(),varind,ALL());
+  }
+}
+
+void workset::setSolutionCurl(View_AD4 newsol, const string & pfix) {
+  for (size_t i=0; i<varlist_HCURL.size(); i++) {
+    string var = varlist_HCURL[i];
+    int varind = vars_HCURL[i];
+    size_type dim = newsol.extent(3);
+    auto csol = this->getData("curl("+var+")[x]"+pfix);
+    auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
+    Kokkos::deep_copy(csol,cnsol);
+    if (dim>1) {
+      auto csol = this->getData("curl("+var+")[y]"+pfix);
+      auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
+      Kokkos::deep_copy(csol,cnsol);
+    }
+    if (dim>2) {
+      auto csol = this->getData("curl("+var+")[z]"+pfix);
+      auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
+      Kokkos::deep_copy(csol,cnsol);
+    }
+  }
+}
+
+
+void workset::setSolutionPoint(View_AD2 newsol) {
+  // newsol has dims numElem x numvars x numip x dimension
+  for (size_t i=0; i<varlist_HGRAD.size(); i++) {
+    string var = varlist_HGRAD[i];
+    int varind = vars_HGRAD[i];
+    auto csol = this->getData(var+" point");
+    auto cnsol = subview(newsol,varind,ALL());
+    parallel_for("physics point response",
+                 RangePolicy<AssemblyExec>(0,1),
+                 KOKKOS_LAMBDA (const int elem ) {
+      csol(0,0) = cnsol(0);
+    });
+  }
+  for (size_t i=0; i<varlist_HVOL.size(); i++) {
+    string var = varlist_HVOL[i];
+    int varind = vars_HVOL[i];
+    auto csol = this->getData(var+" point");
+    auto cnsol = subview(newsol,varind,ALL());
+    parallel_for("physics point response",
+                 RangePolicy<AssemblyExec>(0,1),
+                 KOKKOS_LAMBDA (const int elem ) {
+      csol(0,0) = cnsol(0);
+    });
+  }
+  for (size_t i=0; i<varlist_HDIV.size(); i++) {
+    string var = varlist_HDIV[i];
+    int varind = vars_HDIV[i];
+    size_type dim = newsol.extent(3);
+    auto csol = this->getData(var+"[x] point");
+    auto cnsol = subview(newsol,varind,ALL());
+    parallel_for("physics point response",
+                 RangePolicy<AssemblyExec>(0,1),
+                 KOKKOS_LAMBDA (const int elem ) {
+      csol(0,0) = cnsol(0);
+    });
+    if (dim>1) {
+      auto csol = this->getData(var+"[y] point");
+      parallel_for("physics point response",
+                   RangePolicy<AssemblyExec>(0,1),
+                   KOKKOS_LAMBDA (const int elem ) {
+        csol(0,0) = cnsol(1);
+      });
+    }
+    if (dim>2) {
+      auto csol = this->getData(var+"[z] point");
+      parallel_for("physics point response",
+                   RangePolicy<AssemblyExec>(0,1),
+                   KOKKOS_LAMBDA (const int elem ) {
+        csol(0,0) = cnsol(2);
+      });
+    }
+  }
+  for (size_t i=0; i<varlist_HCURL.size(); i++) {
+    string var = varlist_HCURL[i];
+    int varind = vars_HCURL[i];
+    size_type dim = newsol.extent(3);
+    auto csol = this->getData(var+"[x] point");
+    auto cnsol = subview(newsol,varind,ALL());
+    parallel_for("physics point response",
+                 RangePolicy<AssemblyExec>(0,1),
+                 KOKKOS_LAMBDA (const int elem ) {
+      csol(0,0) = cnsol(0);
+    });
+    if (dim>1) {
+      auto csol = this->getData(var+"[y] point");
+      parallel_for("physics point response",
+                   RangePolicy<AssemblyExec>(0,1),
+                   KOKKOS_LAMBDA (const int elem ) {
+        csol(0,0) = cnsol(1);
+      });
+    }
+    if (dim>2) {
+      auto csol = this->getData(var+"[z] point");
+      parallel_for("physics point response",
+                   RangePolicy<AssemblyExec>(0,1),
+                   KOKKOS_LAMBDA (const int elem ) {
+        csol(0,0) = cnsol(2);
+      });
+    }
+  }
+  
 }

@@ -53,8 +53,8 @@ void maxwell::volumeResidual() {
   int E_basis = wkset->usebasis[Enum];
   int B_basis = wkset->usebasis[Bnum];
   
-  View_AD2_sv mu, epsilon, sigma;
-  View_AD2_sv current_x, current_y, current_z;
+  View_AD2 mu, epsilon, sigma;
+  View_AD2 current_x, current_y, current_z;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -100,17 +100,22 @@ void maxwell::volumeResidual() {
     // (dB/dt + curl E,V) = 0
     
     auto basis = wkset->basis[B_basis];
-    auto dBdt = Kokkos::subview(sol_dot, Kokkos::ALL(), Bnum, Kokkos::ALL(), Kokkos::ALL());
-    auto curlE = Kokkos::subview(sol_curl, Kokkos::ALL(), Enum, Kokkos::ALL(), Kokkos::ALL());
-    auto off = Kokkos::subview(offsets, Bnum, Kokkos::ALL());
+    auto dBx_dt = wkset->getData("B_t[x]");
+    auto dBy_dt = wkset->getData("B_t[y]");
+    auto dBz_dt = wkset->getData("B_t[z]");
+    auto curlE_x = wkset->getData("curl(E)[x]");
+    auto curlE_y = wkset->getData("curl(E)[y]");
+    auto curlE_z = wkset->getData("curl(E)[z]");
+    
+    auto off = subview(wkset->offsets, Bnum, ALL());
     auto wts = wkset->wts;
     auto res = wkset->res;
     
     parallel_for("Maxwells B volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD f0 = (dBdt(elem,pt,0) + curlE(elem,pt,0))*wts(elem,pt);
-        AD f1 = (dBdt(elem,pt,1) + curlE(elem,pt,1))*wts(elem,pt);
-        AD f2 = (dBdt(elem,pt,2) + curlE(elem,pt,2))*wts(elem,pt);
+        AD f0 = (dBx_dt(elem,pt) + curlE_x(elem,pt))*wts(elem,pt);
+        AD f1 = (dBy_dt(elem,pt) + curlE_y(elem,pt))*wts(elem,pt);
+        AD f2 = (dBz_dt(elem,pt) + curlE_z(elem,pt))*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
           res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
@@ -126,21 +131,27 @@ void maxwell::volumeResidual() {
     
     auto basis = wkset->basis[E_basis];
     auto basis_curl = wkset->basis_curl[E_basis];
-    auto dEdt = Kokkos::subview(sol_dot, Kokkos::ALL(), Enum, Kokkos::ALL(), Kokkos::ALL());
-    auto B = Kokkos::subview(sol, Kokkos::ALL(), Bnum, Kokkos::ALL(), Kokkos::ALL());
-    auto E = Kokkos::subview(sol, Kokkos::ALL(), Enum, Kokkos::ALL(), Kokkos::ALL());
-    auto off = Kokkos::subview(offsets, Enum, Kokkos::ALL());
+    auto dEx_dt = wkset->getData("E_t[x]");
+    auto dEy_dt = wkset->getData("E_t[y]");
+    auto dEz_dt = wkset->getData("E_t[z]");
+    auto Bx = wkset->getData("B[x]");
+    auto By = wkset->getData("B[y]");
+    auto Bz = wkset->getData("B[z]");
+    auto Ex = wkset->getData("E[x]");
+    auto Ey = wkset->getData("E[y]");
+    auto Ez = wkset->getData("E[z]");
+    auto off = subview(wkset->offsets, Enum, ALL());
     auto wts = wkset->wts;
     auto res = wkset->res;
     
     parallel_for("Maxwells E volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD f0 = (epsilon(elem,pt)*dEdt(elem,pt,0) + sigma(elem,pt)*E(elem,pt,0) + current_x(elem,pt))*wts(elem,pt);
-        AD f1 = (epsilon(elem,pt)*dEdt(elem,pt,1) + sigma(elem,pt)*E(elem,pt,1) + current_y(elem,pt))*wts(elem,pt);
-        AD f2 = (epsilon(elem,pt)*dEdt(elem,pt,2) + sigma(elem,pt)*E(elem,pt,2) + current_z(elem,pt))*wts(elem,pt);
-        AD c0 = - 1.0/mu(elem,pt)*B(elem,pt,0)*wts(elem,pt);
-        AD c1 = - 1.0/mu(elem,pt)*B(elem,pt,1)*wts(elem,pt);
-        AD c2 = - 1.0/mu(elem,pt)*B(elem,pt,2)*wts(elem,pt);
+        AD f0 = (epsilon(elem,pt)*dEx_dt(elem,pt) + sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt))*wts(elem,pt);
+        AD f1 = (epsilon(elem,pt)*dEy_dt(elem,pt) + sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt))*wts(elem,pt);
+        AD f2 = (epsilon(elem,pt)*dEz_dt(elem,pt) + sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt))*wts(elem,pt);
+        AD c0 = - 1.0/mu(elem,pt)*Bx(elem,pt)*wts(elem,pt);
+        AD c1 = - 1.0/mu(elem,pt)*By(elem,pt)*wts(elem,pt);
+        AD c2 = - 1.0/mu(elem,pt)*Bz(elem,pt)*wts(elem,pt);
         //cout << dEdt(elem,pt,0) << "  " << dEdt(elem,pt,1) << "  " << dEdt(elem,pt,2) << endl;
         //cout << B(elem,pt,0) << "  " << B(elem,pt,1) << "  " << B(elem,pt,2) << endl;
         //cout << f0 << "  " << f1 << "  " << f2 << endl;
@@ -178,7 +189,12 @@ void maxwell::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void maxwell::setVars(std::vector<string> & varlist) {
+void maxwell::setWorkset(Teuchos::RCP<workset> & wkset_) {
+
+  wkset = wkset_;
+ 
+  vector<string> varlist = wkset->varlist;
+  
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "E")
       Enum = i;

@@ -30,7 +30,7 @@ ANONYMOUS:
   Solver: 
     solver: steady-state
     workset size: 40
-    nonlinear TOL: 1.0e-07
+    nonlinear TOL: 1.0e-08
     max nonlinear iters: 2
     use strong DBCs: true
   Analysis: 

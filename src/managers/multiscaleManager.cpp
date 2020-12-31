@@ -124,7 +124,7 @@ ScalarT MultiScale::initialize() {
       for (size_t s=0; s<subgridModels.size(); s++) {
         std::stringstream ss;
         ss << s;
-        View_AD2_sv usagecheck = macro_functionManagers[0]->evaluate("Subgrid " + ss.str() + " usage","ip");
+        auto usagecheck = macro_functionManagers[0]->evaluate("Subgrid " + ss.str() + " usage","ip");
         Kokkos::View<ScalarT**,AssemblyDevice> usagecheck_tmp("temp usage check",usagecheck.extent(0),usagecheck.extent(1));
         parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,usagecheck.extent(0)), KOKKOS_LAMBDA (const int i ) {
           for (size_type j=0; j<usagecheck.extent(1); j++) {
@@ -286,7 +286,7 @@ ScalarT MultiScale::update() {
           for (size_t s=0; s<subgridModels.size(); s++) {
             std::stringstream ss;
             ss << s;
-            View_AD2_sv usagecheck = macro_functionManagers[0]->evaluate("Subgrid " + ss.str() + " usage","ip");
+            auto usagecheck = macro_functionManagers[0]->evaluate("Subgrid " + ss.str() + " usage","ip");
             for (size_t p=0; p<cells[b][e]->numElem; p++) {
               for (size_t j=0; j<usagecheck.extent(1); j++) {
                 if (usagecheck(p,j).val() >= 1.0) {

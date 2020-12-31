@@ -111,6 +111,8 @@ namespace MrHyDE {
     // Update the workset
     ///////////////////////////////////////////////////////////////////////////////////////
     
+    void updateWorksetIP();
+    
     void updateWorksetBasis();
     
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -363,7 +365,7 @@ namespace MrHyDE {
     bool useSensors, usealtsol = false;
     size_t numSensors;
     vector<Kokkos::View<ScalarT**,HostDevice> > sensorLocations, sensorData;
-    DRV sensorPoints;
+    View_Sc3 sensorPoints;
     vector<int> sensorElem, mySensorIDs;
     vector<vector<DRV> > sensorBasis, param_sensorBasis, sensorBasisGrad, param_sensorBasisGrad;
     Kokkos::View<ScalarT**,AssemblyDevice> subgradient, cell_data;

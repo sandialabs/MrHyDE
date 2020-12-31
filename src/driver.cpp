@@ -216,7 +216,11 @@ int main(int argc,char * argv[]) {
       Teuchos::TimeMonitor rtimer(*runTimer);
       analys->run();
     }
-    
+    if (verbosity >= 10) {
+      for (size_t b=0; b<assembler->wkset.size(); ++b) {
+        assembler->wkset[b]->printMetaData();
+      }
+    }
   }
   
   if (verbosity >= 10) {

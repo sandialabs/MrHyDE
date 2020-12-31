@@ -28,6 +28,9 @@ using Kokkos::RangePolicy;
 using Kokkos::MDRangePolicy;
 using Kokkos::TeamPolicy;
 using Kokkos::Rank;
+using Kokkos::subview;
+using Kokkos::ALL;
+
 using std::string;
 using std::vector;
 using std::cout;
@@ -126,8 +129,8 @@ typedef Kokkos::View<ScalarT****,AssemblyDevice> View_Sc4;
 
 // Special Views for function manager
 // These must be created as subviews and cannot be constructed directly without a given stride
-typedef Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> View_AD2_sv; // replaces FDATA
-typedef Kokkos::View<ScalarT**,Kokkos::LayoutStride,AssemblyDevice> View_Sc2_sv; // replaces FDATAd
+//typedef Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> View_AD2_sv; // replaces FDATA
+//typedef Kokkos::View<ScalarT**,Kokkos::LayoutStride,AssemblyDevice> View_Sc2_sv; // replaces FDATAd
 
 // Intrepid and shards typedefs
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;

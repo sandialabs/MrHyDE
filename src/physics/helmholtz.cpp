@@ -84,10 +84,10 @@ void helmholtz::volumeResidual() {
   int ur_basis_num = wkset->usebasis[ur_num];
   int ui_basis_num = wkset->usebasis[ui_num];
   
-  View_AD2_sv source_r, source_i;
-  View_AD2_sv omega2r, omega2i, omegar, omegai;
-  View_AD2_sv c2r_x, c2i_x, c2r_y, c2i_y, c2r_z, c2i_z;
-  View_AD2_sv alphaHr, alphaHi,alphaTr, alphaTi, freqExp; //fractional
+  View_AD2 source_r, source_i;
+  View_AD2 omega2r, omega2i, omegar, omegai;
+  View_AD2 c2r_x, c2i_x, c2r_y, c2i_y, c2r_z, c2i_z;
+  View_AD2 alphaHr, alphaHi,alphaTr, alphaTi, freqExp; //fractional
   
   c2r_x = functionManager->evaluate("c2r_x","ip");
   c2i_x = functionManager->evaluate("c2i_x","ip");
@@ -117,28 +117,39 @@ void helmholtz::volumeResidual() {
   
   auto res = wkset->res;
   auto wts = wkset->wts;
-  auto sol = wkset->local_soln;
-  auto sol_grad = wkset->local_soln_grad;
-  auto sol_dot = wkset->local_soln_dot;
+  
+  View_AD2 Ur, Ui, dUr_dx, dUi_dx, dUr_dy, dUr_dz, dUi_dy, dUi_dz;
+  Ur = wkset->getData("ureal");
+  Ui = wkset->getData("uimag");
+  dUr_dx = wkset->getData("grad(ureal)[x]");
+  dUi_dx = wkset->getData("grad(uimag)[x]");
+  if (spaceDim > 1) {
+    dUr_dy = wkset->getData("grad(ureal)[y]");
+    dUi_dy = wkset->getData("grad(uimag)[y]");
+  }
+  if (spaceDim > 2) {
+    dUr_dz = wkset->getData("grad(ureal)[z]");
+    dUi_dz = wkset->getData("grad(uimag)[z]");
+  }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
   // TMW: this won't actually work on a GPU ... need to use subviews of sol, etc. and remove conditionals
   parallel_for("helmholtz volume resid",RangePolicy<AssemblyExec>(0,urbasis.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    for (size_type k=0; k<sol.extent(2); k++ ) {
-      AD ur = sol(e,ur_num,k,0);
-      AD durdx = sol_grad(e,ur_num,k,0);
-      AD ui = sol(e,ui_num,k,0);
-      AD duidx = sol_grad(e,ui_num,k,0);
+    for (size_type k=0; k<Ur.extent(1); k++ ) {
+      AD ur = Ur(e,k);
+      AD durdx = dUr_dx(e,k);
+      AD ui = Ui(e,k);
+      AD duidx = dUi_dx(e,k);
       
       AD durdy= 0.0, duidy= 0.0, durdz= 0.0, duidz= 0.0;
       if (spaceDim > 1) {
-        durdy = sol_grad(e,ur_num,k,1);
-        duidy = sol_grad(e,ui_num,k,1);
+        durdy = dUr_dy(e,k);
+        duidy = dUi_dy(e,k);
       }
       if (spaceDim > 2) {
-        durdz = sol_grad(e,ur_num,k,2);
-        duidz = sol_grad(e,ui_num,k,2);
+        durdz = dUr_dz(e,k);
+        duidz = dUi_dz(e,k);
       }
       
       
@@ -254,11 +265,11 @@ void helmholtz::boundaryResidual() {
   
   // Set the parameters
   
-  View_AD2_sv c2r_side_x, c2i_side_x, c2r_side_y, c2i_side_y, c2r_side_z, c2i_side_z;
-  View_AD2_sv robin_alpha_r, robin_alpha_i;
-  View_AD2_sv source_r_side, source_i_side;
-  View_AD2_sv omega2r, omega2i;
-  View_AD2_sv alphaHr, alphaHi,alphaTr, alphaTi, freqExp; //fractional
+  View_AD2 c2r_side_x, c2i_side_x, c2r_side_y, c2i_side_y, c2r_side_z, c2i_side_z;
+  View_AD2 robin_alpha_r, robin_alpha_i;
+  View_AD2 source_r_side, source_i_side;
+  View_AD2 omega2r, omega2i;
+  View_AD2 alphaHr, alphaHi,alphaTr, alphaTi, freqExp; //fractional
   
   c2r_side_x = functionManager->evaluate("c2r_x","side ip");
   c2i_side_x = functionManager->evaluate("c2i_x","side ip");
@@ -279,7 +290,6 @@ void helmholtz::boundaryResidual() {
   
   //sideinfo = wkset->sideinfo;
   auto offsets = wkset->offsets;
-  auto normals = wkset->normals;
   auto res = wkset->res;
   auto wts = wkset->wts_side;
   
@@ -290,46 +300,61 @@ void helmholtz::boundaryResidual() {
   auto uibasis = wkset->basis_side[ui_basis_num];
   auto uibasis_grad = wkset->basis_grad_side[ui_basis_num];
   
-  auto sol = wkset->local_soln_side;
-  auto sol_grad = wkset->local_soln_grad_side;
+  View_Sc2 nx,ny,nz;
+  nx = wkset->getDataSc("nx side");
+  
+  View_AD2 Ur, Ui, dUr_dx, dUi_dx, dUr_dy, dUr_dz, dUi_dy, dUi_dz;
+  Ur = wkset->getData("ureal side");
+  Ui = wkset->getData("uimag side");
+  dUr_dx = wkset->getData("grad(ureal)[x] side");
+  dUi_dx = wkset->getData("grad(uimag)[x] side");
+  if (spaceDim > 1) {
+    ny = wkset->getDataSc("ny side");
+    dUr_dy = wkset->getData("grad(ureal)[y] side");
+    dUi_dy = wkset->getData("grad(uimag)[y] side");
+  }
+  if (spaceDim > 2) {
+    nz = wkset->getDataSc("nz side");
+    dUr_dz = wkset->getData("grad(ureal)[z] side");
+    dUi_dz = wkset->getData("grad(uimag)[z] side");
+  }
   
   //Robin boundary condition of form alpha*u + dudn - source = 0, where u is the state and dudn is its normal derivative
   if (bcs(ur_num,cside) == 2) {
     for (size_type e=0; e<urbasis.extent(0); e++) { // not parallelized yet
       for( size_type k=0; k<urbasis.extent(2); k++ ) {
         
-        
-        AD ur = sol(e,ur_num,k,0);
-        AD ui = sol(e,ui_num,k,0);
-        AD durdx = sol_grad(e,ur_num,k,0);
-        AD duidx = sol_grad(e,ui_num,k,0);
-        AD durdn = durdx*normals(e,k,0);
-        AD duidn = duidx*normals(e,k,0);
+        AD ur = Ur(e,k);
+        AD ui = Ui(e,k);
+        AD durdx = dUr_dx(e,k);
+        AD duidx = dUi_dx(e,k);
+        AD durdn = durdx*nx(e,k);
+        AD duidn = duidx*nx(e,k);
         
         AD durdy= 0.0, duidy= 0.0;
         if (spaceDim > 1){
-          durdy = sol_grad(e,ur_num,k,1);
-          duidy = sol_grad(e,ui_num,k,1);
-          durdn += durdy*normals(e,k,1);
-          duidn += duidy*normals(e,k,1);
+          durdy = dUr_dy(e,k);
+          duidy = dUi_dy(e,k);
+          durdn += durdy*ny(e,k);
+          duidn += duidy*ny(e,k);
         }
         AD durdz = 0.0, duidz= 0.0;
         if (spaceDim > 2) {
-          durdz = sol_grad(e,ur_num,k,2);
-          duidz = sol_grad(e,ui_num,k,2);
-          durdn += durdz*normals(e,k,2);
-          duidn += duidz*normals(e,k,2);
+          durdz = dUr_dz(e,k);
+          duidz = dUi_dz(e,k);
+          durdn += durdz*nz(e,k);
+          duidn += duidz*nz(e,k);
         }
         
-        AD c2durdn = (c2r_side_x(e,k)*durdx - c2i_side_x(e,k)*duidx)*normals(e,k,0)
-        + (c2r_side_y(e,k)*durdy - c2i_side_y(e,k)*duidy)*normals(e,k,1);
+        AD c2durdn = (c2r_side_x(e,k)*durdx - c2i_side_x(e,k)*duidx)*nx(e,k)
+        + (c2r_side_y(e,k)*durdy - c2i_side_y(e,k)*duidy)*ny(e,k);
         
-        AD c2duidn = (c2r_side_x(e,k)*duidx + c2i_side_x(e,k)*durdx)*normals(e,k,0)
-        + (c2r_side_y(e,k)*duidy + c2i_side_y(e,k)*durdy)*normals(e,k,1);
+        AD c2duidn = (c2r_side_x(e,k)*duidx + c2i_side_x(e,k)*durdx)*nx(e,k)
+        + (c2r_side_y(e,k)*duidy + c2i_side_y(e,k)*durdy)*ny(e,k);
         
         if (spaceDim > 2) {
-          c2durdn +=(c2r_side_z(e,k)*durdz - c2i_side_z(e,k)*duidz)*normals(e,k,2);
-          c2duidn +=(c2r_side_z(e,k)*duidz + c2i_side_z(e,k)*durdz)*normals(e,k,2);
+          c2durdn +=(c2r_side_z(e,k)*durdz - c2i_side_z(e,k)*duidz)*nz(e,k);
+          c2duidn +=(c2r_side_z(e,k)*duidz + c2i_side_z(e,k)*durdz)*nz(e,k);
         }
         
         if(!fractional) {       // fractional exponent on time operator or i_omega in frequency mode
@@ -412,7 +437,10 @@ void helmholtz::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void helmholtz::setVars(std::vector<string> & varlist) {
+void helmholtz::setWorkset(Teuchos::RCP<workset> & wkset_) {
+
+  wkset = wkset_;
+  vector<string> varlist = wkset->varlist;
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "ureal"){
       ur_num = i;

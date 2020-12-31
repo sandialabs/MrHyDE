@@ -69,7 +69,7 @@ void shallowwater::defineFunctions(Teuchos::ParameterList & fs,
 
 void shallowwater::volumeResidual() {
   
-  View_AD2_sv bath, bath_x, bath_y, visc, cor, bfric, source_Hu, source_Hv;
+  View_AD2 bath, bath_x, bath_y, visc, cor, bfric, source_Hu, source_Hv;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -101,18 +101,18 @@ void shallowwater::volumeResidual() {
   
   //KokkosTools::print(bath);
   
-  auto xi = Kokkos::subview( sol, Kokkos::ALL(), H_num, Kokkos::ALL(), 0);
-  auto xi_dot = Kokkos::subview( sol_dot, Kokkos::ALL(), H_num, Kokkos::ALL(), 0);
+  auto xi = wkset->getData("H");
+  auto xi_dot = wkset->getData("H_t");
   
-  auto Hu = Kokkos::subview( sol, Kokkos::ALL(), Hu_num, Kokkos::ALL(), 0);
-  auto Hu_dot = Kokkos::subview( sol_dot, Kokkos::ALL(), Hu_num, Kokkos::ALL(), 0);
+  auto Hu = wkset->getData("Hu");
+  auto Hu_dot = wkset->getData("Hu_t");
   
-  auto Hv = Kokkos::subview( sol, Kokkos::ALL(), Hv_num, Kokkos::ALL(), 0);
-  auto Hv_dot = Kokkos::subview( sol_dot, Kokkos::ALL(), Hv_num, Kokkos::ALL(), 0);
+  auto Hv = wkset->getData("Hv");
+  auto Hv_dot = wkset->getData("Hv_t");
   
-  auto Hoff = Kokkos::subview(offsets, H_num, Kokkos::ALL());
-  auto Huoff = Kokkos::subview(offsets, Hu_num, Kokkos::ALL());
-  auto Hvoff = Kokkos::subview(offsets, Hv_num, Kokkos::ALL());
+  auto Hoff  = subview(wkset->offsets, H_num,  ALL());
+  auto Huoff = subview(wkset->offsets, Hu_num, ALL());
+  auto Hvoff = subview(wkset->offsets, Hv_num, ALL());
   
   parallel_for("SW volume resid",RangePolicy<AssemblyExec>(0,Hbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
     ScalarT gravity = 9.8;
@@ -160,9 +160,10 @@ void shallowwater::boundaryResidual() {
   // NOTES:
   // 1. basis and basis_grad already include the integration weights
   
+  /*
   string sidename = wkset->sidename;
   
-  View_AD2_sv nsource, nsource_Hu, nsource_Hv, bath_side;
+  View_AD2 nsource, nsource_Hu, nsource_Hv, bath_side;
   
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
@@ -253,7 +254,7 @@ void shallowwater::boundaryResidual() {
       }
     }
   }
-  
+  */
 }
 
 
@@ -268,7 +269,12 @@ void shallowwater::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void shallowwater::setVars(std::vector<string> & varlist) {
+void shallowwater::setWorkset(Teuchos::RCP<workset> & wkset_) {
+
+  wkset = wkset_;
+  
+  vector<string> varlist = wkset->varlist;
+
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "H")
       H_num = i;

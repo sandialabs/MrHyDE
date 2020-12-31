@@ -59,12 +59,13 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setVars(vector<string> & varlist_);
+    void setWorkset(Teuchos::RCP<workset> & wkset_);
     
     
   private:
     
     int qnum;
+    View_AD2 dqdt;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::ODE::volumeResidual() - function evaluation");
     Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::ODE::volumeResidual() - evaluation of residual");

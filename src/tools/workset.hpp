@@ -61,25 +61,7 @@ namespace MrHyDE {
     // Reset solution to zero
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void resetAux();
-    
-    ////////////////////////////////////////////////////////////////////////////////////
-    // Reset solution to zero
-    ////////////////////////////////////////////////////////////////////////////////////
-    
-    void resetAuxSide();
-    
-    ////////////////////////////////////////////////////////////////////////////////////
-    // Reset solution to zero
-    ////////////////////////////////////////////////////////////////////////////////////
-    
     void resetAdjointRHS();
-    
-    ////////////////////////////////////////////////////////////////////////////////////
-    // Compute the solutions at the volumetric ip
-    ////////////////////////////////////////////////////////////////////////////////////
-    
-    void computeSolnVolIP(View_Sc3 u);
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Compute the seeded solutions for general transient problems
@@ -105,9 +87,7 @@ namespace MrHyDE {
     // Compute the solutions at general set of points
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void computeSoln(const int & type);
-    
-    void computeParam(const int & type);
+    void computeSoln(const int & type, const bool & onside);
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Compute the solutions at the volumetric ip
@@ -128,18 +108,6 @@ namespace MrHyDE {
     void computeSolnSideIP();
     
     ////////////////////////////////////////////////////////////////////////////////////
-    // Compute the solutions at the face ip
-    ////////////////////////////////////////////////////////////////////////////////////
-    
-    void computeSolnFaceIP();
-    
-    ////////////////////////////////////////////////////////////////////////////////////
-    // Compute the solutions at the face ip
-    ////////////////////////////////////////////////////////////////////////////////////
-    
-    void computeAuxSolnFaceIP();
-    
-    ////////////////////////////////////////////////////////////////////////////////////
     // Compute the discretized parameters at the side ip
     ////////////////////////////////////////////////////////////////////////////////////
     
@@ -155,7 +123,7 @@ namespace MrHyDE {
     // Add Aux
     //////////////////////////////////////////////////////////////
     
-    void addAux(const size_t & naux);
+    void addAux(const vector<string> & auxlist);
     
     //////////////////////////////////////////////////////////////
     // Get a pointer to vector of parameters
@@ -185,6 +153,10 @@ namespace MrHyDE {
     
     View_Sc2 getDataSc(const string & label);
     
+    void get(const string & label, View_AD2 & dataout);
+    
+    void get(const string & label, View_Sc2 & dataout);
+    
     void addData(const string & label, const int & dim0, const int & dim1);
     
     void addDataSc(const string & label, const int & dim0, const int & dim1);
@@ -196,6 +168,36 @@ namespace MrHyDE {
     void reorderData();
     
     void printMetaData();
+    
+    void setIP(View_Sc3 newip, const string & pfix = "");
+    
+    void setNormals(View_Sc3 newnormals);
+    
+    void setSolution(View_AD4 newsol, const string & pfix = "");
+    
+    void setSolutionGrad(View_AD4 newsolgrad, const string & pfix = "");
+    
+    void setSolutionDiv(View_AD3 newsoldiv, const string & pfix = "");
+    
+    void setSolutionCurl(View_AD4 newsolcurl, const string & pfix = "");
+    
+    void setSolutionPoint(View_AD2 newsol);
+      
+    void setParam(View_AD4 newsol, const string & pfix = "");
+    
+    void setParamGrad(View_AD4 newsolgrad, const string & pfix = "");
+    
+    void setParamDiv(View_AD3 newsoldiv, const string & pfix = "");
+    
+    void setParamCurl(View_AD4 newsolcurl, const string & pfix = "");
+    
+    void setAux(View_AD4 newsol, const string & pfix = "");
+    
+    void setAuxGrad(View_AD4 newsolgrad, const string & pfix = "");
+    
+    void setAuxDiv(View_AD3 newsoldiv, const string & pfix = "");
+    
+    void setAuxCurl(View_AD4 newsolcurl, const string & pfix = "");
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Public data
@@ -210,11 +212,15 @@ namespace MrHyDE {
     Kokkos::View<ScalarT**,AssemblyDevice> butcher_A, aux_butcher_A;
     Kokkos::View<ScalarT*,AssemblyDevice> butcher_b, butcher_c, BDF_wts, aux_butcher_b, aux_butcher_c, aux_BDF_wts;
     
-    vector<int> usebasis, paramusebasis, aux_usebasis;
+    vector<int> usebasis, paramusebasis, auxusebasis;
     vector<int> vars_HGRAD, vars_HVOL, vars_HDIV, vars_HCURL, vars_HFACE;
     vector<int> paramvars_HGRAD, paramvars_HVOL, paramvars_HDIV, paramvars_HCURL, paramvars_HFACE;
+    vector<int> auxvars_HGRAD, auxvars_HVOL, auxvars_HDIV, auxvars_HCURL, auxvars_HFACE;
     
-    vector<string> varlist_HGRAD;
+    vector<string> varlist_HGRAD, varlist_HVOL, varlist_HDIV, varlist_HCURL, varlist_HFACE;
+    vector<string> paramvarlist_HGRAD, paramvarlist_HVOL, paramvarlist_HDIV, paramvarlist_HCURL, paramvarlist_HFACE;
+    vector<string> auxvarlist_HGRAD, auxvarlist_HVOL, auxvarlist_HDIV, auxvarlist_HCURL, auxvarlist_HFACE;
+    
     bool isAdjoint, onlyTransient, isTransient;
     bool isInitialized, usebcs;
     topo_RCP celltopo;
@@ -237,34 +243,22 @@ namespace MrHyDE {
     size_t block, localEID, globalEID;
     
     // Views that use ContLayout for hierarchical parallelism
-    vector<View_AD2> data; // data can change, but pointer cannot
+    vector<View_AD2> data;
     vector<string> data_labels;
     vector<int> data_usage;
     
-    vector<View_Sc2> data_Sc; // data can change, but pointer cannot
+    vector<View_Sc2> data_Sc;
     vector<string> data_Sc_labels;
     vector<int> data_Sc_usage;
     
     View_Sc1 h;
-    View_Sc3 ip, ip_side, normals, point;
     View_Sc2 wts, wts_side;
     
-    View_AD3 uvals, u_dotvals, pvals, auxvals, aux_dotvals;
+    vector<View_AD2> uvals, u_dotvals, pvals, auxvals, aux_dotvals;
     
-    vector<View_Sc4> basis, basis_grad, basis_curl, basis_side, basis_face, basis_grad_side, basis_grad_face, basis_curl_side, basis_curl_face;
-    vector<View_Sc3> basis_div, basis_div_side;
-    
-    View_AD4 local_soln, local_soln_grad, local_soln_dot, local_aux_dot, local_soln_dot_grad, local_soln_curl;
-    View_AD3 local_soln_div, local_param_div, local_aux_div;
-    View_AD4 local_param, local_param_side, local_param_curl;
-    View_AD4 local_aux, local_aux_side, local_aux_curl;
-    View_AD4 local_param_grad, local_aux_grad, local_param_grad_side, local_aux_grad_side;
-    View_AD4 local_soln_side, local_soln_grad_side, local_soln_dot_side;
-    View_AD4 local_soln_face, local_soln_grad_face, local_aux_face, local_aux_grad_face;
-    
-    View_AD4 local_soln_point, local_soln_grad_point, local_param_grad_point;
-    View_AD4 local_param_point;
-    
+    vector<View_Sc4> basis, basis_grad, basis_curl, basis_side, basis_grad_side, basis_curl_side;
+    vector<View_Sc3> basis_div;
+        
     View_AD3 scratch, flux;
     View_AD2 res, adjrhs;
     
@@ -292,6 +286,7 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> worksetComputeSolnSideTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::computeSolnSideIP");
     Teuchos::RCP<Teuchos::Time> worksetComputeParamVolTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::computeParamVolIP");
     Teuchos::RCP<Teuchos::Time> worksetComputeParamSideTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::computeParamSideIP");
+    Teuchos::RCP<Teuchos::Time> worksetgetTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::get()");
     Teuchos::RCP<Teuchos::Time> worksetgetDataTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::getData");
     Teuchos::RCP<Teuchos::Time> worksetgetDataScTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::getDataSc");
     

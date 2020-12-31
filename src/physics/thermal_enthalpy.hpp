@@ -85,7 +85,7 @@ namespace MrHyDE {
     AD ux, uy, uz;
     ScalarT latent_heat = 2.7e5;
     
-    View_AD2_sv diff, rho, cp, source, nsource, diff_side, robin_alpha;
+    View_AD2 diff, rho, cp, source, nsource, diff_side, robin_alpha;
     
     Kokkos::View<int****,AssemblyDevice> sideinfo;
     

@@ -64,12 +64,17 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setVars(std::vector<string> & varlist_);
+    //void setVars(std::vector<string> & varlist_);
     
     // ========================================================================================
     // ========================================================================================
     
-    void setAuxVars(std::vector<string> & auxvarlist);
+    //void setAuxVars(std::vector<string> & auxvarlist);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void setWorkset(Teuchos::RCP<workset> & wkset_);
     
   private:
     
@@ -77,6 +82,11 @@ namespace MrHyDE {
     int e_num = -1, ux_num = -1, uy_num = -1, uz_num = -1;
     int e_basis_num = -1;
     int auxe_num = -1;
+    
+    View_AD2 e_vol, dedt_vol, dedx_vol, dedy_vol, dedz_vol;
+    View_AD2 e_side, dedx_side, dedy_side, dedz_side;
+    View_AD2 e_face, dedx_face, dedy_face, dedz_face;
+    View_AD2 ux_vol, uy_vol, uz_vol;
     
     bool have_nsvel;
     ScalarT formparam;

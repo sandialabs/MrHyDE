@@ -41,7 +41,7 @@ void ODE::defineFunctions(Teuchos::ParameterList & fs,
 
 void ODE::volumeResidual() {
   
-  View_AD2_sv source;
+  View_AD2 source;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -52,11 +52,11 @@ void ODE::volumeResidual() {
   int q_basis = wkset->usebasis[qnum];
   auto basis = wkset->basis[q_basis];
   auto res = wkset->res;
-  auto sol_dot = Kokkos::subview(wkset->local_soln_dot,Kokkos::ALL(),qnum,0,0);  
+  
   // Simply solves q_dot = f(q,t)
-  auto off = Kokkos::subview(offsets,qnum,Kokkos::ALL());
+  auto off = subview(wkset->offsets,qnum,ALL());
   parallel_for("ODE volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
-    res(e,off(0)) += sol_dot(e) - source(e,0);
+    res(e,off(0)) += dqdt(e,0) - source(e,0);
   });
 }
 
@@ -82,10 +82,16 @@ void ODE::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void ODE::setVars(vector<string> & varlist) {
+void ODE::setWorkset(Teuchos::RCP<workset> & wkset_) {
+  
+  wkset = wkset_;
+  
+  vector<string> varlist = wkset->varlist;
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "q") {
       qnum = i;
     }
   }
+  
+  dqdt = wkset->getData("q_t");
 }

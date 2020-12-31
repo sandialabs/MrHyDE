@@ -81,7 +81,7 @@ void navierstokes::defineFunctions(Teuchos::ParameterList & fs,
 
 void navierstokes::volumeResidual() {
   
-  View_AD2_sv dens, visc, source_ux, source_pr, source_uy, source_uz;
+  View_AD2 dens, visc, source_ux, source_pr, source_uy, source_uz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -106,18 +106,18 @@ void navierstokes::volumeResidual() {
       int ux_basis = wkset->usebasis[ux_num];
       auto basis = wkset->basis[ux_basis];
       auto basis_grad = wkset->basis_grad[ux_basis];
-      auto Ux = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),ux_num,Kokkos::ALL(),0);
-      auto Ux_dot = Kokkos::subview(wkset->local_soln_dot,Kokkos::ALL(),ux_num,Kokkos::ALL(),0);
-      auto gradUx = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),ux_num,Kokkos::ALL(),Kokkos::ALL());
-      auto Pr = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),pr_num,Kokkos::ALL(),0);
+      auto ux = wkset->getData("ux");
+      auto dux_dt = wkset->getData("ux_t");
+      auto dux_dx = wkset->getData("grad(ux)[x]");
+      auto pr = wkset->getData("pr");
       auto off = Kokkos::subview(wkset->offsets,ux_num,Kokkos::ALL());
       
       // Ux equation
       parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = visc(elem,pt)*gradUx(elem,pt,0) - Pr(elem,pt);
+          AD Fx = visc(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
           Fx *= wts(elem,pt);
-          AD F = Ux_dot(elem,pt) + Ux(elem,pt)*gradUx(elem,pt,0) - source_ux(elem,pt);
+          AD F = dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) - source_ux(elem,pt);
           F *= dens(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + F*basis(elem,dof,pt,0);
@@ -128,7 +128,7 @@ void navierstokes::volumeResidual() {
       // Energy contribution
       if (have_energy) {
         auto params = model_params;
-        auto E = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),e_num,Kokkos::ALL(),0);
+        auto E = wkset->getData("e");
         parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt)*wts(elem,pt);
@@ -143,15 +143,15 @@ void navierstokes::volumeResidual() {
       
       if (useSUPG) {
         auto h = wkset->h;
-        auto gradPr = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),pr_num,Kokkos::ALL(),Kokkos::ALL());
+        auto dpr_dx = wkset->getData("grad(pr)[x]");
         parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD nvel = sqrt(1.0e-12 + Ux(elem,pt)*Ux(elem,pt));
+            AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt));
             AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
-            AD stabres = dens(elem,pt)*Ux_dot(elem,pt) + dens(elem,pt)*(Ux(elem,pt)*gradUx(elem,pt,0)) + gradPr(elem,pt,0) - dens(elem,pt)*source_ux(elem,pt);
-            AD Sx = tau*stabres*Ux(elem,pt)*wts(elem,pt);
+            AD stabres = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
+            AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0);
             }
@@ -160,15 +160,15 @@ void navierstokes::volumeResidual() {
         
         if (have_energy) {
           auto params = model_params;
-          auto E = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),e_num,Kokkos::ALL(),0);
+          auto E = wkset->getData("e");
           parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD nvel = sqrt(1.0e-12 + Ux(elem,pt)*Ux(elem,pt));
+              AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt));
               AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
               AD stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_ux(elem,pt);
-              AD Sx = tau*stabres*Ux(elem,pt)*wts(elem,pt);
+              AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
               for( size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0);
               }
@@ -186,12 +186,12 @@ void navierstokes::volumeResidual() {
       int pr_basis = wkset->usebasis[pr_num];
       auto basis = wkset->basis[pr_basis];
       auto basis_grad = wkset->basis_grad[pr_basis];
-      auto gradUx = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),ux_num,Kokkos::ALL(),Kokkos::ALL());
+      auto dux_dx = wkset->getData("grad(ux)[x]");
       auto off = Kokkos::subview(wkset->offsets,pr_num,Kokkos::ALL());
       
       parallel_for("NS pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD divu = gradUx(elem,pt,0)*wts(elem,pt);
+          AD divu = dux_dx(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += divu*basis(elem,dof,pt,0);
           }
@@ -201,17 +201,17 @@ void navierstokes::volumeResidual() {
       if (usePSPG) {
         
         auto h = wkset->h;
-        auto gradPr = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),pr_num,Kokkos::ALL(),Kokkos::ALL());
-        auto Ux = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),ux_num,Kokkos::ALL(),0);
-        auto Ux_dot = Kokkos::subview(wkset->local_soln_dot,Kokkos::ALL(),ux_num,Kokkos::ALL(),0);
+        auto dpr_dx = wkset->getData("grad(pr)[x]");
+        auto ux = wkset->getData("ux");
+        auto dux_dt = wkset->getData("ux_t");
         
         parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD nvel = sqrt(1.0e-12 + Ux(elem,pt)*Ux(elem,pt));
+            AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt));
             AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
-            AD stabres = dens(elem,pt)*Ux_dot(elem,pt) + dens(elem,pt)*(Ux(elem,pt)*gradUx(elem,pt,0)) + gradPr(elem,pt,0) - dens(elem,pt)*source_ux(elem,pt);
+            AD stabres = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
             AD Sx = tau*stabres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0);
@@ -220,12 +220,12 @@ void navierstokes::volumeResidual() {
         });
         if (have_energy) {
           auto params = model_params;
-          auto E = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),e_num,Kokkos::ALL(),0);
+          auto E = wkset->getData("e");
           parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD nvel = sqrt(1.0e-12 + Ux(elem,pt)*Ux(elem,pt));
+              AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt));
               AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
               AD stabres = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt);
               AD Sx = tau*stabres*wts(elem,pt);
@@ -244,21 +244,22 @@ void navierstokes::volumeResidual() {
       int ux_basis = wkset->usebasis[ux_num];
       auto basis = wkset->basis[ux_basis];
       auto basis_grad = wkset->basis_grad[ux_basis];
-      auto Ux = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),ux_num,Kokkos::ALL(),0);
-      auto Uy = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),uy_num,Kokkos::ALL(),0);
-      auto Ux_dot = Kokkos::subview(wkset->local_soln_dot,Kokkos::ALL(),ux_num,Kokkos::ALL(),0);
-      auto gradUx = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),ux_num,Kokkos::ALL(),Kokkos::ALL());
-      auto Pr = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),pr_num,Kokkos::ALL(),0);
+      auto ux = wkset->getData("ux");
+      auto uy = wkset->getData("uy");
+      auto dux_dt = wkset->getData("ux_t");
+      auto dux_dx = wkset->getData("grad(ux)[x]");
+      auto dux_dy = wkset->getData("grad(ux)[y]");
+      auto pr = wkset->getData("pr");
       auto off = Kokkos::subview(wkset->offsets,ux_num,Kokkos::ALL());
       
       // Ux equation
       parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = visc(elem,pt)*gradUx(elem,pt,0) - Pr(elem,pt);
+          AD Fx = visc(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
           Fx *= wts(elem,pt);
-          AD Fy = visc(elem,pt)*gradUx(elem,pt,1);
+          AD Fy = visc(elem,pt)*dux_dy(elem,pt);
           Fy *= wts(elem,pt);
-          AD F = Ux_dot(elem,pt) + Ux(elem,pt)*gradUx(elem,pt,0) + Uy(elem,pt)*gradUx(elem,pt,1) - source_ux(elem,pt);
+          AD F = dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) - source_ux(elem,pt);
           F *= dens(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + F*basis(elem,dof,pt,0);
@@ -269,7 +270,7 @@ void navierstokes::volumeResidual() {
       // Energy contribution
       if (have_energy) {
         auto params = model_params;
-        auto E = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),e_num,Kokkos::ALL(),0);
+        auto E = wkset->getData("e");
         parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt)*wts(elem,pt);
@@ -284,16 +285,17 @@ void navierstokes::volumeResidual() {
       
       if (useSUPG) {
         auto h = wkset->h;
-        auto gradPr = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),pr_num,Kokkos::ALL(),Kokkos::ALL());
+        auto dpr_dx = wkset->getData("grad(pr)[x]");
+        auto dpr_dy = wkset->getData("grad(pr)[y]");
         parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD nvel = sqrt(1.0e-12 + Ux(elem,pt)*Ux(elem,pt) + Uy(elem,pt)*Uy(elem,pt));
+            AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt) + uy(elem,pt)*uy(elem,pt));
             AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
-            AD stabres = dens(elem,pt)*Ux_dot(elem,pt) + dens(elem,pt)*(Ux(elem,pt)*gradUx(elem,pt,0) + Uy(elem,pt)*gradUx(elem,pt,1)) + gradPr(elem,pt,0) - dens(elem,pt)*source_ux(elem,pt);
-            AD Sx = tau*stabres*Ux(elem,pt)*wts(elem,pt);
-            AD Sy = tau*stabres*Uy(elem,pt)*wts(elem,pt);
+            AD stabres = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
+            AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
+            AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
             }
@@ -302,16 +304,16 @@ void navierstokes::volumeResidual() {
         
         if (have_energy) {
           auto params = model_params;
-          auto E = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),e_num,Kokkos::ALL(),0);
+          auto E = wkset->getData("e");
           parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD nvel = sqrt(1.0e-12 + Ux(elem,pt)*Ux(elem,pt) + Uy(elem,pt)*Uy(elem,pt));
+              AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt) + uy(elem,pt)*uy(elem,pt));
               AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
               AD stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_ux(elem,pt);
-              AD Sx = tau*stabres*Ux(elem,pt)*wts(elem,pt);
-              AD Sy = tau*stabres*Uy(elem,pt)*wts(elem,pt);
+              AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
+              AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
               for( size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
               }
@@ -326,20 +328,21 @@ void navierstokes::volumeResidual() {
       int uy_basis = wkset->usebasis[uy_num];
       auto basis = wkset->basis[uy_basis];
       auto basis_grad = wkset->basis_grad[uy_basis];
-      auto Ux = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),ux_num,Kokkos::ALL(),0);
-      auto Uy = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),uy_num,Kokkos::ALL(),0);
-      auto Uy_dot = Kokkos::subview(wkset->local_soln_dot,Kokkos::ALL(),uy_num,Kokkos::ALL(),0);
-      auto gradUy = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),uy_num,Kokkos::ALL(),Kokkos::ALL());
-      auto Pr = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),pr_num,Kokkos::ALL(),0);
+      auto ux = wkset->getData("ux");
+      auto uy = wkset->getData("uy");
+      auto duy_dt = wkset->getData("uy_t");
+      auto duy_dx = wkset->getData("grad(uy)[x]");
+      auto duy_dy = wkset->getData("grad(uy)[y]");
+      auto pr = wkset->getData("pr");
       auto off = Kokkos::subview(wkset->offsets,uy_num,Kokkos::ALL());
       
       parallel_for("NS uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = visc(elem,pt)*gradUy(elem,pt,0);
+          AD Fx = visc(elem,pt)*duy_dx(elem,pt);
           Fx *= wts(elem,pt);
-          AD Fy = visc(elem,pt)*gradUy(elem,pt,1) - Pr(elem,pt);
+          AD Fy = visc(elem,pt)*duy_dy(elem,pt) - pr(elem,pt);
           Fy *= wts(elem,pt);
-          AD F = Uy_dot(elem,pt) + Ux(elem,pt)*gradUy(elem,pt,0) + Uy(elem,pt)*gradUy(elem,pt,1) - source_uy(elem,pt);
+          AD F = duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) - source_uy(elem,pt);
           F *= dens(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + F*basis(elem,dof,pt,0);
@@ -350,7 +353,7 @@ void navierstokes::volumeResidual() {
       // Energy contribution
       if (have_energy) {
         auto params = model_params;
-        auto E = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),e_num,Kokkos::ALL(),0);
+        auto E = wkset->getData("e");
         parallel_for("NS uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uy(elem,pt)*wts(elem,pt);
@@ -365,16 +368,16 @@ void navierstokes::volumeResidual() {
       
       if (useSUPG) {
         auto h = wkset->h;
-        auto gradPr = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),pr_num,Kokkos::ALL(),Kokkos::ALL());
+        auto dpr_dy = wkset->getData("grad(pr)[y]");
         parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD nvel = sqrt(1.0e-12 + Ux(elem,pt)*Ux(elem,pt) + Uy(elem,pt)*Uy(elem,pt));
+            AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt) + uy(elem,pt)*uy(elem,pt));
             AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
-            AD stabres = dens(elem,pt)*Uy_dot(elem,pt) + dens(elem,pt)*(Ux(elem,pt)*gradUy(elem,pt,0) + Uy(elem,pt)*gradUy(elem,pt,1)) + gradPr(elem,pt,1) - dens(elem,pt)*source_uy(elem,pt);
-            AD Sx = tau*stabres*Ux(elem,pt)*wts(elem,pt);
-            AD Sy = tau*stabres*Uy(elem,pt)*wts(elem,pt);
+            AD stabres = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
+            AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
+            AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
             }
@@ -383,16 +386,16 @@ void navierstokes::volumeResidual() {
         
         if (have_energy) {
           auto params = model_params;
-          auto E = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),e_num,Kokkos::ALL(),0);
+          auto E = wkset->getData("e");
           parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD nvel = sqrt(1.0e-12 + Ux(elem,pt)*Ux(elem,pt) + Uy(elem,pt)*Uy(elem,pt));
+              AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt) + uy(elem,pt)*uy(elem,pt));
               AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
               AD stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_uy(elem,pt);
-              AD Sx = tau*stabres*Ux(elem,pt)*wts(elem,pt);
-              AD Sy = tau*stabres*Uy(elem,pt)*wts(elem,pt);
+              AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
+              AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
               for( size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
               }
@@ -410,13 +413,13 @@ void navierstokes::volumeResidual() {
       int pr_basis = wkset->usebasis[pr_num];
       auto basis = wkset->basis[pr_basis];
       auto basis_grad = wkset->basis_grad[pr_basis];
-      auto gradUx = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),ux_num,Kokkos::ALL(),Kokkos::ALL());
-      auto gradUy = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),uy_num,Kokkos::ALL(),Kokkos::ALL());
+      auto dux_dx = wkset->getData("grad(ux)[x]");
+      auto duy_dy = wkset->getData("grad(uy)[y]");
       auto off = Kokkos::subview(wkset->offsets,pr_num,Kokkos::ALL());
       
       parallel_for("NS pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD divu = (gradUx(elem,pt,0) + gradUy(elem,pt,1))*wts(elem,pt);
+          AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt))*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += divu*basis(elem,dof,pt,0);
           }
@@ -426,21 +429,24 @@ void navierstokes::volumeResidual() {
       if (usePSPG) {
         
         auto h = wkset->h;
-        auto gradPr = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),pr_num,Kokkos::ALL(),Kokkos::ALL());
-        auto Ux = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),ux_num,Kokkos::ALL(),0);
-        auto Uy = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),uy_num,Kokkos::ALL(),0);
-        auto Ux_dot = Kokkos::subview(wkset->local_soln_dot,Kokkos::ALL(),ux_num,Kokkos::ALL(),0);
-        auto Uy_dot = Kokkos::subview(wkset->local_soln_dot,Kokkos::ALL(),uy_num,Kokkos::ALL(),0);
+        auto dpr_dx = wkset->getData("grad(pr)[x]");
+        auto dpr_dy = wkset->getData("grad(pr)[y]");
+        auto ux =wkset->getData("ux");
+        auto uy = wkset->getData("uy");
+        auto dux_dt = wkset->getData("ux_t");
+        auto duy_dt = wkset->getData("uy_t");
+        auto dux_dy = wkset->getData("grad(ux)[y]");
+        auto duy_dx = wkset->getData("grad(uy)[x]");
         
         parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD nvel = sqrt(1.0e-12+Ux(elem,pt)*Ux(elem,pt) + Uy(elem,pt)*Uy(elem,pt));
+            AD nvel = sqrt(1.0e-12+ux(elem,pt)*ux(elem,pt) + uy(elem,pt)*uy(elem,pt));
             AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
-            AD Sx = dens(elem,pt)*Ux_dot(elem,pt) + dens(elem,pt)*(Ux(elem,pt)*gradUx(elem,pt,0) + Uy(elem,pt)*gradUx(elem,pt,1)) + gradPr(elem,pt,0) - dens(elem,pt)*source_ux(elem,pt);
+            AD Sx = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
             Sx *= tau*wts(elem,pt);
-            AD Sy = dens(elem,pt)*Uy_dot(elem,pt) + dens(elem,pt)*(Ux(elem,pt)*gradUy(elem,pt,0) + Uy(elem,pt)*gradUy(elem,pt,1)) + gradPr(elem,pt,1) - dens(elem,pt)*source_uy(elem,pt);
+            AD Sy = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dy(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
             Sy *= tau*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
@@ -449,12 +455,12 @@ void navierstokes::volumeResidual() {
         });
         if (have_energy) {
           auto params = model_params;
-          auto E = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),e_num,Kokkos::ALL(),0);
+          auto E = wkset->getData("e");
           parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD nvel = sqrt(1.0e-12+Ux(elem,pt)*Ux(elem,pt) + Uy(elem,pt)*Uy(elem,pt));
+              AD nvel = sqrt(1.0e-12+ux(elem,pt)*ux(elem,pt) + uy(elem,pt)*uy(elem,pt));
               AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
               AD Sx = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt);
               Sx *= tau*wts(elem,pt);
@@ -475,24 +481,26 @@ void navierstokes::volumeResidual() {
       int ux_basis = wkset->usebasis[ux_num];
       auto basis = wkset->basis[ux_basis];
       auto basis_grad = wkset->basis_grad[ux_basis];
-      auto Ux = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),ux_num,Kokkos::ALL(),0);
-      auto Uy = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),uy_num,Kokkos::ALL(),0);
-      auto Uz = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),uz_num,Kokkos::ALL(),0);
-      auto Ux_dot = Kokkos::subview(wkset->local_soln_dot,Kokkos::ALL(),ux_num,Kokkos::ALL(),0);
-      auto gradUx = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),ux_num,Kokkos::ALL(),Kokkos::ALL());
-      auto Pr = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),pr_num,Kokkos::ALL(),0);
+      auto ux = wkset->getData("ux");
+      auto uy = wkset->getData("uy");
+      auto uz = wkset->getData("uz");
+      auto dux_dt = wkset->getData("ux_t");
+      auto dux_dx = wkset->getData("grad(ux)[x]");
+      auto dux_dy = wkset->getData("grad(ux)[y]");
+      auto dux_dz = wkset->getData("grad(ux)[z]");
+      auto pr = wkset->getData("pr");
       auto off = Kokkos::subview(wkset->offsets,ux_num,Kokkos::ALL());
       
       // Ux equation
       parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = visc(elem,pt)*gradUx(elem,pt,0) - Pr(elem,pt);
+          AD Fx = visc(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
           Fx *= wts(elem,pt);
-          AD Fy = visc(elem,pt)*gradUx(elem,pt,1);
+          AD Fy = visc(elem,pt)*dux_dy(elem,pt);
           Fy *= wts(elem,pt);
-          AD Fz = visc(elem,pt)*gradUx(elem,pt,2);
+          AD Fz = visc(elem,pt)*dux_dz(elem,pt);
           Fz *= wts(elem,pt);
-          AD F = Ux_dot(elem,pt) + Ux(elem,pt)*gradUx(elem,pt,0) + Uy(elem,pt)*gradUx(elem,pt,1) + Uz(elem,pt)*gradUx(elem,pt,2) - source_ux(elem,pt);
+          AD F = dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt) - source_ux(elem,pt);
           F *= dens(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
@@ -503,7 +511,7 @@ void navierstokes::volumeResidual() {
       // Energy contribution
       if (have_energy) {
         auto params = model_params;
-        auto E = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),e_num,Kokkos::ALL(),0);
+        auto E = wkset->getData("e");
         parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt)*wts(elem,pt);
@@ -518,17 +526,17 @@ void navierstokes::volumeResidual() {
       
       if (useSUPG) {
         auto h = wkset->h;
-        auto gradPr = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),pr_num,Kokkos::ALL(),Kokkos::ALL());
+        auto dpr_dx = wkset->getData("grad(pr)[x]");
         parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD nvel = sqrt(1.0e-12 + Ux(elem,pt)*Ux(elem,pt) + Uy(elem,pt)*Uy(elem,pt) + Uz(elem,pt)*Uz(elem,pt));
+            AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt) + uy(elem,pt)*uy(elem,pt) + uz(elem,pt)*uz(elem,pt));
             AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
-            AD stabres = dens(elem,pt)*Ux_dot(elem,pt) + dens(elem,pt)*(Ux(elem,pt)*gradUx(elem,pt,0) + Uy(elem,pt)*gradUx(elem,pt,1) + Uz(elem,pt)*gradUx(elem,pt,2)) + gradPr(elem,pt,0) - dens(elem,pt)*source_ux(elem,pt);
-            AD Sx = tau*stabres*Ux(elem,pt)*wts(elem,pt);
-            AD Sy = tau*stabres*Uy(elem,pt)*wts(elem,pt);
-            AD Sz = tau*stabres*Uz(elem,pt)*wts(elem,pt);
+            AD stabres = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
+            AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
+            AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
+            AD Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
             }
@@ -537,17 +545,17 @@ void navierstokes::volumeResidual() {
         
         if (have_energy) {
           auto params = model_params;
-          auto E = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),e_num,Kokkos::ALL(),0);
+          auto E = wkset->getData("e");
           parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD nvel = sqrt(1.0e-12 + Ux(elem,pt)*Ux(elem,pt) + Uy(elem,pt)*Uy(elem,pt) + Uz(elem,pt)*Uz(elem,pt));
+              AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt) + uy(elem,pt)*uy(elem,pt) + uz(elem,pt)*uz(elem,pt));
               AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
               AD stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_ux(elem,pt);
-              AD Sx = tau*stabres*Ux(elem,pt)*wts(elem,pt);
-              AD Sy = tau*stabres*Uy(elem,pt)*wts(elem,pt);
-              AD Sz = tau*stabres*Uz(elem,pt)*wts(elem,pt);
+              AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
+              AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
+              AD Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);
               for( size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
               }
@@ -562,23 +570,25 @@ void navierstokes::volumeResidual() {
       int uy_basis = wkset->usebasis[uy_num];
       auto basis = wkset->basis[uy_basis];
       auto basis_grad = wkset->basis_grad[uy_basis];
-      auto Ux = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),ux_num,Kokkos::ALL(),0);
-      auto Uy = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),uy_num,Kokkos::ALL(),0);
-      auto Uz = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),uz_num,Kokkos::ALL(),0);
-      auto Uy_dot = Kokkos::subview(wkset->local_soln_dot,Kokkos::ALL(),uy_num,Kokkos::ALL(),0);
-      auto gradUy = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),uy_num,Kokkos::ALL(),Kokkos::ALL());
-      auto Pr = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),pr_num,Kokkos::ALL(),0);
+      auto ux = wkset->getData("ux");
+      auto uy = wkset->getData("uy");
+      auto uz = wkset->getData("uz");
+      auto duy_dt = wkset->getData("uy_t");
+      auto duy_dx = wkset->getData("grad(uy)[x]");
+      auto duy_dy = wkset->getData("grad(uy)[y]");
+      auto duy_dz = wkset->getData("grad(uy)[z]");
+      auto pr = wkset->getData("pr");
       auto off = Kokkos::subview(wkset->offsets,uy_num,Kokkos::ALL());
       
       parallel_for("NS uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = visc(elem,pt)*gradUy(elem,pt,0);
+          AD Fx = visc(elem,pt)*duy_dy(elem,pt);
           Fx *= wts(elem,pt);
-          AD Fy = visc(elem,pt)*gradUy(elem,pt,1) - Pr(elem,pt);
+          AD Fy = visc(elem,pt)*duy_dy(elem,pt) - pr(elem,pt);
           Fy *= wts(elem,pt);
-          AD Fz = visc(elem,pt)*gradUy(elem,pt,2);
+          AD Fz = visc(elem,pt)*duy_dz(elem,pt);
           Fz *= wts(elem,pt);
-          AD F = Uy_dot(elem,pt) + Ux(elem,pt)*gradUy(elem,pt,0) + Uy(elem,pt)*gradUy(elem,pt,1) + Uz(elem,pt)*gradUy(elem,pt,2) - source_uy(elem,pt);
+          AD F = duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt) - source_uy(elem,pt);
           F *= dens(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
@@ -589,7 +599,7 @@ void navierstokes::volumeResidual() {
       // Energy contribution
       if (have_energy) {
         auto params = model_params;
-        auto E = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),e_num,Kokkos::ALL(),0);
+        auto E = wkset->getData("e");
         parallel_for("NS uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uy(elem,pt)*wts(elem,pt);
@@ -604,17 +614,17 @@ void navierstokes::volumeResidual() {
       
       if (useSUPG) {
         auto h = wkset->h;
-        auto gradPr = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),pr_num,Kokkos::ALL(),Kokkos::ALL());
+        auto dpr_dy = wkset->getData("grad(pr)[y]");
         parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD nvel = sqrt(1.0e-12 + Ux(elem,pt)*Ux(elem,pt) + Uy(elem,pt)*Uy(elem,pt) + Uz(elem,pt)*Uz(elem,pt));
+            AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt) + uy(elem,pt)*uy(elem,pt) + uz(elem,pt)*uz(elem,pt));
             AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
-            AD stabres = dens(elem,pt)*Uy_dot(elem,pt) + dens(elem,pt)*(Ux(elem,pt)*gradUy(elem,pt,0) + Uy(elem,pt)*gradUy(elem,pt,1) + Uz(elem,pt)*gradUy(elem,pt,2)) + gradPr(elem,pt,1) - dens(elem,pt)*source_uy(elem,pt);
-            AD Sx = tau*stabres*Ux(elem,pt)*wts(elem,pt);
-            AD Sy = tau*stabres*Uy(elem,pt)*wts(elem,pt);
-            AD Sz = tau*stabres*Uz(elem,pt)*wts(elem,pt);
+            AD stabres = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
+            AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
+            AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
+            AD Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
             }
@@ -623,17 +633,17 @@ void navierstokes::volumeResidual() {
         
         if (have_energy) {
           auto params = model_params;
-          auto E = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),e_num,Kokkos::ALL(),0);
+          auto E = wkset->getData("e");
           parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD nvel = sqrt(1.0e-12 + Ux(elem,pt)*Ux(elem,pt) + Uy(elem,pt)*Uy(elem,pt) + Uz(elem,pt)*Uz(elem,pt));
+              AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt) + uy(elem,pt)*uy(elem,pt) + uz(elem,pt)*uz(elem,pt));
               AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
               AD stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_uy(elem,pt);
-              AD Sx = tau*stabres*Ux(elem,pt)*wts(elem,pt);
-              AD Sy = tau*stabres*Uy(elem,pt)*wts(elem,pt);
-              AD Sz = tau*stabres*Uz(elem,pt)*wts(elem,pt);
+              AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
+              AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
+              AD Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);
               for( size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
               }
@@ -648,23 +658,25 @@ void navierstokes::volumeResidual() {
       int uz_basis = wkset->usebasis[uz_num];
       auto basis = wkset->basis[uz_basis];
       auto basis_grad = wkset->basis_grad[uz_basis];
-      auto Ux = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),ux_num,Kokkos::ALL(),0);
-      auto Uy = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),uy_num,Kokkos::ALL(),0);
-      auto Uz = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),uz_num,Kokkos::ALL(),0);
-      auto Uz_dot = Kokkos::subview(wkset->local_soln_dot,Kokkos::ALL(),uz_num,Kokkos::ALL(),0);
-      auto gradUz = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),uz_num,Kokkos::ALL(),Kokkos::ALL());
-      auto Pr = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),pr_num,Kokkos::ALL(),0);
+      auto ux = wkset->getData("ux");
+      auto uy = wkset->getData("uy");
+      auto uz = wkset->getData("uz");
+      auto duz_dt = wkset->getData("uz_t");
+      auto duz_dx = wkset->getData("grad(uz)[x]");
+      auto duz_dy = wkset->getData("grad(uz)[y]");
+      auto duz_dz = wkset->getData("grad(uz)[z]");
+      auto pr = wkset->getData("pr");
       auto off = Kokkos::subview(wkset->offsets,uy_num,Kokkos::ALL());
       
       parallel_for("NS uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = visc(elem,pt)*gradUz(elem,pt,0);
+          AD Fx = visc(elem,pt)*duz_dx(elem,pt);
           Fx *= wts(elem,pt);
-          AD Fy = visc(elem,pt)*gradUz(elem,pt,1);
+          AD Fy = visc(elem,pt)*duz_dy(elem,pt);
           Fy *= wts(elem,pt);
-          AD Fz = visc(elem,pt)*gradUz(elem,pt,2) - Pr(elem,pt);
+          AD Fz = visc(elem,pt)*duz_dz(elem,pt) - pr(elem,pt);
           Fz *= wts(elem,pt);
-          AD F = Uz_dot(elem,pt) + Ux(elem,pt)*gradUz(elem,pt,0) + Uy(elem,pt)*gradUz(elem,pt,1) + Uz(elem,pt)*gradUz(elem,pt,2) - source_uz(elem,pt);
+          AD F = duz_dt(elem,pt) + ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt) - source_uz(elem,pt);
           F *= dens(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
@@ -675,7 +687,7 @@ void navierstokes::volumeResidual() {
       // Energy contribution
       if (have_energy) {
         auto params = model_params;
-        auto E = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),e_num,Kokkos::ALL(),0);
+        auto E = wkset->getData("e");
         parallel_for("NS uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uz(elem,pt)*wts(elem,pt);
@@ -690,17 +702,17 @@ void navierstokes::volumeResidual() {
       
       if (useSUPG) {
         auto h = wkset->h;
-        auto gradPr = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),pr_num,Kokkos::ALL(),Kokkos::ALL());
+        auto dpr_dz = wkset->getData("grad(pr)[z]");
         parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD nvel = sqrt(1.0e-12 + Ux(elem,pt)*Ux(elem,pt) + Uy(elem,pt)*Uy(elem,pt) + Uz(elem,pt)*Uz(elem,pt));
+            AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt) + uy(elem,pt)*uy(elem,pt) + uz(elem,pt)*uz(elem,pt));
             AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
-            AD stabres = dens(elem,pt)*Uz_dot(elem,pt) + dens(elem,pt)*(Ux(elem,pt)*gradUz(elem,pt,0) + Uy(elem,pt)*gradUz(elem,pt,1) + Uz(elem,pt)*gradUz(elem,pt,2)) + gradPr(elem,pt,2) - dens(elem,pt)*source_uz(elem,pt);
-            AD Sx = tau*stabres*Ux(elem,pt)*wts(elem,pt);
-            AD Sy = tau*stabres*Uy(elem,pt)*wts(elem,pt);
-            AD Sz = tau*stabres*Uz(elem,pt)*wts(elem,pt);
+            AD stabres = dens(elem,pt)*duz_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) + dpr_dz(elem,pt) - dens(elem,pt)*source_uz(elem,pt);
+            AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
+            AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
+            AD Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
             }
@@ -709,17 +721,17 @@ void navierstokes::volumeResidual() {
         
         if (have_energy) {
           auto params = model_params;
-          auto E = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),e_num,Kokkos::ALL(),0);
+          auto E = wkset->getData("e");
           parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD nvel = sqrt(1.0e-12 + Ux(elem,pt)*Ux(elem,pt) + Uy(elem,pt)*Uy(elem,pt) + Uz(elem,pt)*Uz(elem,pt));
+              AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt) + uy(elem,pt)*uy(elem,pt) + uz(elem,pt)*uz(elem,pt));
               AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
               AD stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_uz(elem,pt);
-              AD Sx = tau*stabres*Ux(elem,pt)*wts(elem,pt);
-              AD Sy = tau*stabres*Uy(elem,pt)*wts(elem,pt);
-              AD Sz = tau*stabres*Uz(elem,pt)*wts(elem,pt);
+              AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
+              AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
+              AD Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);
               for( size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
               }
@@ -737,14 +749,14 @@ void navierstokes::volumeResidual() {
       int pr_basis = wkset->usebasis[pr_num];
       auto basis = wkset->basis[pr_basis];
       auto basis_grad = wkset->basis_grad[pr_basis];
-      auto gradUx = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),ux_num,Kokkos::ALL(),Kokkos::ALL());
-      auto gradUy = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),uy_num,Kokkos::ALL(),Kokkos::ALL());
-      auto gradUz = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),uz_num,Kokkos::ALL(),Kokkos::ALL());
+      auto dux_dx = wkset->getData("grad(ux)[x]");
+      auto duy_dy = wkset->getData("grad(uy)[y]");
+      auto duz_dz = wkset->getData("grad(uz)[z]");
       auto off = Kokkos::subview(wkset->offsets,pr_num,Kokkos::ALL());
       
       parallel_for("NS pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD divu = (gradUx(elem,pt,0) + gradUy(elem,pt,1) + gradUz(elem,pt,2))*wts(elem,pt);
+          AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += divu*basis(elem,dof,pt,0);
           }
@@ -754,25 +766,33 @@ void navierstokes::volumeResidual() {
       if (usePSPG) {
         
         auto h = wkset->h;
-        auto gradPr = Kokkos::subview(wkset->local_soln_grad,Kokkos::ALL(),pr_num,Kokkos::ALL(),Kokkos::ALL());
-        auto Ux = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),ux_num,Kokkos::ALL(),0);
-        auto Uy = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),uy_num,Kokkos::ALL(),0);
-        auto Uz = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),uz_num,Kokkos::ALL(),0);
-        auto Ux_dot = Kokkos::subview(wkset->local_soln_dot,Kokkos::ALL(),ux_num,Kokkos::ALL(),0);
-        auto Uy_dot = Kokkos::subview(wkset->local_soln_dot,Kokkos::ALL(),uy_num,Kokkos::ALL(),0);
-        auto Uz_dot = Kokkos::subview(wkset->local_soln_dot,Kokkos::ALL(),uz_num,Kokkos::ALL(),0);
+        auto dpr_dx = wkset->getData("grad(pr)[x]");
+        auto dpr_dy = wkset->getData("grad(pr)[y]");
+        auto dpr_dz = wkset->getData("grad(pr)[z]");
+        auto ux = wkset->getData("ux");
+        auto uy = wkset->getData("uy");
+        auto uz = wkset->getData("uz");
+        auto dux_dt = wkset->getData("ux_t");
+        auto duy_dt = wkset->getData("uy_t");
+        auto duz_dt = wkset->getData("uz_t");
+        auto dux_dy = wkset->getData("grad(ux)[y]");
+        auto dux_dz = wkset->getData("grad(ux)[z]");
+        auto duy_dx = wkset->getData("grad(uy)[x]");
+        auto duy_dz = wkset->getData("grad(uy)[z]");
+        auto duz_dx = wkset->getData("grad(uz)[x]");
+        auto duz_dy = wkset->getData("grad(uz)[y]");
         
         parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD nvel = sqrt(1.0e-12+Ux(elem,pt)*Ux(elem,pt) + Uy(elem,pt)*Uy(elem,pt) + Uz(elem,pt)*Uz(elem,pt));
+            AD nvel = sqrt(1.0e-12+ux(elem,pt)*ux(elem,pt) + uy(elem,pt)*uy(elem,pt) + uz(elem,pt)*uz(elem,pt));
             AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
-            AD Sx = dens(elem,pt)*Ux_dot(elem,pt) + dens(elem,pt)*(Ux(elem,pt)*gradUx(elem,pt,0) + Uy(elem,pt)*gradUx(elem,pt,1) + Uz(elem,pt)*gradUx(elem,pt,2)) + gradPr(elem,pt,0) - dens(elem,pt)*source_ux(elem,pt);
+            AD Sx = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
             Sx *= tau*wts(elem,pt);
-            AD Sy = dens(elem,pt)*Uy_dot(elem,pt) + dens(elem,pt)*(Ux(elem,pt)*gradUy(elem,pt,0) + Uy(elem,pt)*gradUy(elem,pt,1) + Uz(elem,pt)*gradUy(elem,pt,2)) + gradPr(elem,pt,1) - dens(elem,pt)*source_uy(elem,pt);
+            AD Sy = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
             Sy *= tau*wts(elem,pt);
-            AD Sz = dens(elem,pt)*Uz_dot(elem,pt) + dens(elem,pt)*(Ux(elem,pt)*gradUz(elem,pt,0) + Uy(elem,pt)*gradUz(elem,pt,1) + Uz(elem,pt)*gradUz(elem,pt,2)) + gradPr(elem,pt,2) - dens(elem,pt)*source_uz(elem,pt);
+            AD Sz = dens(elem,pt)*duz_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) + dpr_dz(elem,pt) - dens(elem,pt)*source_uz(elem,pt);
             Sz *= tau*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
@@ -781,12 +801,12 @@ void navierstokes::volumeResidual() {
         });
         if (have_energy) {
           auto params = model_params;
-          auto E = Kokkos::subview(wkset->local_soln,Kokkos::ALL(),e_num,Kokkos::ALL(),0);
+          auto E = wkset->getData("e");
           parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD nvel = sqrt(1.0e-12+Ux(elem,pt)*Ux(elem,pt) + Uy(elem,pt)*Uy(elem,pt));
+              AD nvel = sqrt(1.0e-12+ux(elem,pt)*ux(elem,pt) + uy(elem,pt)*uy(elem,pt) + uz(elem,pt)*uz(elem,pt));
               AD tau = 1.0/(C1*visc(elem,pt)/h(elem)/h(elem) + C2*(nvel)/h(elem));
               AD Sx = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt);
               Sx *= tau*wts(elem,pt);
@@ -826,8 +846,14 @@ void navierstokes::computeFlux() {
 
 // ========================================================================================
 // ========================================================================================
+// ========================================================================================
+// ========================================================================================
 
-void navierstokes::setVars(std::vector<string> & varlist) {
+void navierstokes::setWorkset(Teuchos::RCP<workset> & wkset_) {
+
+  wkset = wkset_;
+
+  vector<string> varlist = wkset->varlist;
   e_num = -1;
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "ux")

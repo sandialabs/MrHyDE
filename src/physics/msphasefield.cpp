@@ -212,34 +212,44 @@ void msphasefield::volumeResidual() {
   std::vector<AD>  phi_dot;
   AD  sumphi = 0.0;
   
-  auto sol = wkset->local_soln;
-  auto sol_dot = wkset->local_soln_dot;
-  auto sol_grad = wkset->local_soln_grad;
+  vector<View_AD2> sol, sol_dot, dsol_dx, dsol_dy, dsol_dz;
+  
+  for (size_t k=0; k<myvars.size(); k++) {
+    sol.push_back(wkset->getData(myvars[k]));
+    sol_dot.push_back(wkset->getData(myvars[k]+"_t"));
+    dsol_dx.push_back(wkset->getData("grad("+myvars[k]+")[x]"));
+    if (spaceDim > 1) {
+      dsol_dy.push_back(wkset->getData("grad("+myvars[k]+")[y]"));
+    }
+    if (spaceDim > 2) {
+      dsol_dz.push_back(wkset->getData("grad("+myvars[k]+")[z]"));
+    }
+  }
   
   auto basis = wkset->basis[phi_basis];
   auto basis_grad = wkset->basis_grad[phi_basis];
   auto offsets = wkset->offsets;
-  auto ip = wkset->ip;
+  //auto ip = wkset->ip;
   auto res = wkset->res;
   auto wts = wkset->wts;
   
   for (size_type e=0; e<basis.extent(0); e++) {
-    for(size_type k=0; k<ip.extent(1); k++ ) {
+    for(size_type k=0; k<basis.extent(2); k++ ) {
       //x = ip(e,k,0);
       
       sumphi = 0.0;
       for(int j=0; j<numphases; j++) {
-        phi.push_back(sol(e,phi_num[j],k,0));
-        phi_dot.push_back(sol_dot(e,phi_num[j],k,0));
-        dphidx.push_back(sol_grad(e,phi_num[j],k,0));
+        phi.push_back(sol[j](e,k));
+        phi_dot.push_back(sol_dot[j](e,k));
+        dphidx.push_back(dsol_dx[j](e,k));
         
         if (spaceDim > 1) {
           //y = ip(e,k,1);
-          dphidy.push_back(sol_grad(e,phi_num[j],k,1));
+          dphidy.push_back(dsol_dy[j](e,k));
         }
         if (spaceDim > 2) {
           //z = ip(e,k,2);
-          dphidz.push_back(sol_grad(e,phi_num[j],k,2));
+          dphidz.push_back(dsol_dz[j](e,k));
         }
         sumphi +=  phi[j]*phi[j];
       }
@@ -379,6 +389,7 @@ void msphasefield::edgeResidual() {
 
 void msphasefield::computeFlux() {
   
+  /*
   ScalarT x = 0.0;
   ScalarT y = 0.0;
   ScalarT z = 0.0;
@@ -402,12 +413,16 @@ void msphasefield::computeFlux() {
         wkset->flux(e,phi_num[0],i) += diff*wkset->local_soln_grad_side(e,phi_num[0],i,2)*wkset->normals(e,i,2);
     }
   }
+   */
 }
 
 // ========================================================================================
 // ========================================================================================
 
-void msphasefield::setVars(std::vector<string> & varlist) {
+void msphasefield::setWorkset(Teuchos::RCP<workset> & wkset_) {
+
+  wkset = wkset_;
+  vector<string> varlist = wkset->varlist;
   for (size_t i=0; i<varlist.size(); i++) {
     for (int j=1; j<numphases+1; j++) {
       //	std::string name = "phi";

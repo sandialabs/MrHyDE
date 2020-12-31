@@ -71,18 +71,20 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setVars(std::vector<string> & varlist_);
+    //void setVars(std::vector<string> & varlist_);
     
     // ========================================================================================
     // ========================================================================================
     
-    void setAuxVars(std::vector<string> & auxvarlist);
+    //void setAuxVars(std::vector<string> & auxvarlist);
+    
+    void setWorkset(Teuchos::RCP<workset> & wkset_);
     
     // ========================================================================================
     // return the stress
     // ========================================================================================
     
-    void computeStress(View_AD2_sv lambda, View_AD2_sv mu, const bool & onside);
+    void computeStress(View_AD2 lambda, View_AD2 mu, const bool & onside);
         
     // ========================================================================================
     // TMW: needs to be deprecated

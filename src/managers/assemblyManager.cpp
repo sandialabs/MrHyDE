@@ -721,7 +721,6 @@ void AssemblyManager<Node>::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
       
       int numElem = boundaryCells[b][e]->numElem;
       auto LIDs = boundaryCells[b][e]->LIDs_host;
-      
       auto localrhs = boundaryCells[b][e]->getDirichlet();
       auto localmass = boundaryCells[b][e]->getMass();
       auto host_rhs = Kokkos::create_mirror_view(localrhs);

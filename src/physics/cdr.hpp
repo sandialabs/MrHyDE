@@ -59,7 +59,8 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setVars(vector<string> & varlist_);
+    void setWorkset(Teuchos::RCP<workset> & wkset_);
+    //void setVars(vector<string> & varlist_);
     
     // ========================================================================================
     // return the value of the stabilization parameter 

@@ -69,9 +69,9 @@ namespace MrHyDE {
     ScalarT formparam;
     int Ponum, Nonum;
     
-    View_AD2_sv perm, porosity, gravity, cp, dcp;
-    View_AD2_sv relperm_o, source_o, viscosity_o, densref_o, pref_o, comp_o;
-    View_AD2_sv relperm_w, source_w, viscosity_w, densref_w, pref_w, comp_w;
+    View_AD2 perm, porosity, gravity, cp, dcp;
+    View_AD2 relperm_o, source_o, viscosity_o, densref_o, pref_o, comp_o;
+    View_AD2 relperm_w, source_w, viscosity_w, densref_w, pref_w, comp_w;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porous2p::volumeResidual() - function evaluation");
     Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porous2p::volumeResidual() - evaluation of residual");

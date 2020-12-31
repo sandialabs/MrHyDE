@@ -63,8 +63,10 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setVars(std::vector<string> & varlist_);
+    //void setVars(std::vector<string> & varlist_);
     
+    void setWorkset(Teuchos::RCP<workset> & wkset_);
+
   private:
     
     

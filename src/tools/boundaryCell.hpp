@@ -182,44 +182,46 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     template<class ViewType>
-    void computeFlux(ViewType u_kv, ViewType du_kv, ViewType dp_kv,
-                     View_Sc3 lambda,
+    void computeFlux(ViewType u_kv, ViewType du_kv, ViewType dp_kv, View_Sc3 lambda,
                      const ScalarT & time, const int & side, const ScalarT & coarse_h,
                      const bool & compute_sens) {
+      
       wkset->setTime(time);
-        
-      auto u_AD = wkset->uvals;
+      vector<View_AD2> uvals = wkset->uvals;
       //auto param_AD = wkset->pvals;
-      auto offsets = wkset->offsets;
       auto ulocal = u;
-
+      
       {
         Teuchos::TimeMonitor localtimer(*cellFluxGatherTimer);
         
         if (compute_sens) {
-          parallel_for("bcell flux gather",
-                       RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_t var=0; var<ulocal.extent(1); var++) {
-              for( size_t dof=0; dof<ulocal.extent(2); dof++ ) {
-                u_AD(elem,var,dof) = AD(u_kv(LIDs(elem,offsets(var,dof)),0));
+          for (size_t var=0; var<ulocal.extent(1); var++) {
+            auto u_AD = uvals[var];
+            auto offsets = subview(wkset->offsets,var,ALL());
+            parallel_for("bcell flux gather",
+                         RangePolicy<AssemblyExec>(0,u_AD.extent(0)),
+                         KOKKOS_LAMBDA (const int elem ) {
+              for( size_t dof=0; dof<u_AD.extent(1); dof++ ) {
+                u_AD(elem,dof) = AD(u_kv(LIDs(elem,offsets(dof)),0));
               }
-            }
-          });
+            });
+          }
         }
         else {
-          parallel_for("bcell flux gather",
-                       RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_t var=0; var<ulocal.extent(1); var++) {
-              for( size_t dof=0; dof<ulocal.extent(2); dof++ ) {
-                u_AD(elem,var,dof) = AD(maxDerivs, 0, u_kv(LIDs(elem,offsets(var,dof)),0));
+          for (size_t var=0; var<ulocal.extent(1); var++) {
+            auto u_AD = wkset->uvals[var];
+            auto offsets = subview(wkset->offsets,var,ALL());
+            parallel_for("bcell flux gather",
+                         RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
+                         KOKKOS_LAMBDA (const int elem ) {
+              for( size_t dof=0; dof<u_AD.extent(1); dof++ ) {
+                u_AD(elem,dof) = AD(maxDerivs, 0, u_kv(LIDs(elem,offsets(dof)),0));
                 for( size_t p=0; p<du_kv.extent(1); p++ ) {
-                  u_AD(elem,var,dof).fastAccessDx(p) = du_kv(LIDs(elem,offsets(var,dof)),p);
+                  u_AD(elem,dof).fastAccessDx(p) = du_kv(LIDs(elem,offsets(dof)),p);
                 }
               }
-            }
-          });
+            });
+          }
         }
       }
       
@@ -228,21 +230,21 @@ namespace MrHyDE {
         wkset->computeSolnSideIP(sidenum);//, u_AD, param_AD);
       }
       
-      
       if (wkset->numAux > 0) {
         
         Teuchos::TimeMonitor localtimer(*cellFluxAuxTimer);
       
         auto numAuxDOF = cellData->numAuxDOF;
         
-        wkset->resetAuxSide();
-        
         for (size_type var=0; var<numAuxDOF.extent(0); var++) {
           auto abasis = auxside_basis[auxusebasis[var]];
-          auto off = Kokkos::subview(auxoffsets,var,Kokkos::ALL());
-          auto local_aux = Kokkos::subview(wkset->local_aux_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
+          auto off = subview(auxoffsets,var,ALL());
+          string varname = wkset->aux_varlist[var];
+          auto local_aux = wkset->getData("aux "+varname+" side");
+          Kokkos::deep_copy(local_aux,0.0);
+          //auto local_aux = Kokkos::subview(wkset->local_aux_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
           auto localID = localElemID;
-          auto varaux = Kokkos::subview(lambda,Kokkos::ALL(),var,Kokkos::ALL());
+          auto varaux = subview(lambda,ALL(),var,ALL());
           parallel_for("bcell aux",
                        RangePolicy<AssemblyExec>(0,localID.extent(0)),
                        KOKKOS_LAMBDA (const size_type elem ) {

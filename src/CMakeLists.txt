@@ -36,25 +36,25 @@ tools/split_mpi_communicators.cpp
 subgrid/subgridMeshFactory.cpp 
 subgrid/subgridFEM.cpp 
 subgrid/subgridFEM_solver.cpp 
-physics/thermal.cpp
-physics/linearelasticity.cpp
+physics/cdr.cpp
 physics/helmholtz.cpp
+physics/ode.cpp
 physics/maxwell.cpp
+physics/linearelasticity.cpp
 physics/maxwells_fp.cpp
-physics/maxwell_hybridized.cpp
 physics/msphasefield.cpp
 physics/navierstokes.cpp
-physics/cdr.cpp
-physics/ode.cpp
 physics/porous.cpp
 physics/porousHDIV.cpp
 physics/porousHDIV_hybridized.cpp
 physics/porousHDIV_weakGalerkin.cpp
 physics/shallowwater.cpp
+physics/thermal.cpp
 physics/stokes.cpp)
-#physics/twophasePoNo.cpp
-#physics/twophasePoPw.cpp
-#physics/thermal_enthalpy.cpp
+#physics/maxwell_hybridized.cpp
+##physics/twophasePoNo.cpp
+##physics/twophasePoPw.cpp
+##physics/thermal_enthalpy.cpp
 TARGET_LINK_LIBRARIES(milo ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
 IF(MrHyDE_ENABLE_XML_to_YAML)

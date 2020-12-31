@@ -63,17 +63,19 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setVars(std::vector<string> & varlist_);
+    void setWorkset(Teuchos::RCP<workset> & wkset_);
+
+    //void setVars(std::vector<string> & varlist_);
     
     // ========================================================================================
     // ========================================================================================
     
-    void setAuxVars(std::vector<string> & auxvarlist);
+    //void setAuxVars(std::vector<string> & auxvarlist);
     
     // ========================================================================================
     // ========================================================================================
     
-    void updatePerm(View_AD2_sv Kinv_xx, View_AD2_sv Kinv_yy, View_AD2_sv Kinv_zz);
+    void updatePerm(View_AD2 Kinv_xx, View_AD2 Kinv_yy, View_AD2 Kinv_zz);
     
   private:
     
@@ -83,6 +85,7 @@ namespace MrHyDE {
     int dxnum,dynum,dznum;
     bool isTD, addBiot, usePermData, useWells;
     ScalarT biot_alpha;
+    string auxvar;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV::volumeResidual() - function evaluation");
     Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::porousHDIV::volumeResidual() - evaluation of residual");

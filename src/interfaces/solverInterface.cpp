@@ -187,11 +187,11 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   phys->setWorkset(assembler->wkset);
   params->wkset = assembler->wkset;
   
-  phys->setVars();
+  //phys->setVars();
   
   if (settings->sublist("Mesh").get<bool>("have element data", false) ||
       settings->sublist("Mesh").get<bool>("have nodal data", false)) {
-    mesh->readMeshData();//LA_overlapped_map, assembler->cells);
+    mesh->readMeshData();
   }
   
   /////////////////////////////////////////////////////////////////////////////
@@ -631,6 +631,8 @@ void solver<Node>::finalizeWorkset() {
       assembler->wkset[b]->paramusebasis = params->discretized_param_usebasis;
       assembler->wkset[b]->paramoffsets = poffsets_view;
       assembler->wkset[b]->varlist = varlist[b];
+      assembler->wkset[b]->aux_varlist = phys->aux_varlist[b];
+      assembler->wkset[b]->param_varlist = params->discretized_param_names;
       assembler->wkset[b]->createSolns();
       
       int numDOF = assembler->cells[b][0]->LIDs.extent(1);
@@ -1506,6 +1508,8 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
         Teuchos::TimeMonitor localtimer(*fillcompleteLAtimer);
         J->fillComplete();
       }
+      
+      //KokkosTools::print(J,"Jacobian from solver interface");
       
       this->linearSolver(J, res, du);
       {

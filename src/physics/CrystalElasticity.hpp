@@ -245,16 +245,6 @@ namespace MrHyDE {
     View_AD4 computeStress(Teuchos::RCP<workset> & wkset, vector<int> & indices, const bool & onside)
     {
       
-      int dxnum = indices[0];
-      int dynum = 0;
-      if (dimension > 1) {
-        dynum = indices[1];
-      }
-      int dznum = 0;
-      if (dimension > 2) {
-        dznum = indices[2];
-      }
-      
       int e_num = indices[3];
       bool have_energy = false;
       if (e_num >= 0)
@@ -268,41 +258,55 @@ namespace MrHyDE {
       this->computeRotation(wkset);
       
       View_AD4 F("CE-F",numElem,numip,dimension,dimension);
-      View_AD4 sol_grad = wkset->local_soln_grad;
-      View_AD4 sol = wkset->local_soln;
+      string postfix = "";
       if (onside) {
-        sol_grad = wkset->local_soln_grad_side;
-        sol = wkset->local_soln_side;
+        postfix = " side";
+        //sol_grad = wkset->local_soln_grad_side;
+        //sol = wkset->local_soln_side;
       }
       if (dimension == 1) {
+        auto dx_x = wkset->getData("grad(dx)[x]"+postfix);
         for (int e=0; e<numElem; e++) {
           for (int k=0; k<numip; k++) {
-            F(e,k,0,0) = sol_grad(e,dxnum,k,0);
+            F(e,k,0,0) = dx_x(e,k);
           }
         }
       }
       else if (dimension == 2) {
+        auto dx_x = wkset->getData("grad(dx)[x]"+postfix);
+        auto dx_y = wkset->getData("grad(dx)[y]"+postfix);
+        auto dy_x = wkset->getData("grad(dy)[x]"+postfix);
+        auto dy_y = wkset->getData("grad(dy)[y]"+postfix);
         for (int e=0; e<numElem; e++) {
           for (int k=0; k<numip; k++) {
-            F(e,k,0,0) = sol_grad(e,dxnum,k,0);
-            F(e,k,0,1) = sol_grad(e,dxnum,k,1);
-            F(e,k,1,0) = sol_grad(e,dynum,k,0);
-            F(e,k,1,1) = sol_grad(e,dynum,k,1);
+            F(e,k,0,0) = dx_x(e,k);
+            F(e,k,0,1) = dx_y(e,k);
+            F(e,k,1,0) = dy_x(e,k);
+            F(e,k,1,1) = dy_y(e,k);
           }
         }
       }
       else if (dimension == 3) {
+        auto dx_x = wkset->getData("grad(dx)[x]"+postfix);
+        auto dx_y = wkset->getData("grad(dx)[y]"+postfix);
+        auto dx_z = wkset->getData("grad(dx)[z]"+postfix);
+        auto dy_x = wkset->getData("grad(dy)[x]"+postfix);
+        auto dy_y = wkset->getData("grad(dy)[y]"+postfix);
+        auto dy_z = wkset->getData("grad(dy)[z]"+postfix);
+        auto dz_x = wkset->getData("grad(dz)[x]"+postfix);
+        auto dz_y = wkset->getData("grad(dz)[y]"+postfix);
+        auto dz_z = wkset->getData("grad(dz)[z]"+postfix);
         for (int e=0; e<numElem; e++) {
           for (int k=0; k<numip; k++) {
-            F(e,k,0,0) = sol_grad(e,dxnum,k,0);
-            F(e,k,0,1) = sol_grad(e,dxnum,k,1);
-            F(e,k,0,2) = sol_grad(e,dxnum,k,2);
-            F(e,k,1,0) = sol_grad(e,dynum,k,0);
-            F(e,k,1,1) = sol_grad(e,dynum,k,1);
-            F(e,k,1,2) = sol_grad(e,dynum,k,2);
-            F(e,k,2,0) = sol_grad(e,dznum,k,0);
-            F(e,k,2,1) = sol_grad(e,dznum,k,1);
-            F(e,k,2,2) = sol_grad(e,dznum,k,2);
+            F(e,k,0,0) = dx_x(e,k);
+            F(e,k,0,1) = dx_y(e,k);
+            F(e,k,0,2) = dx_z(e,k);
+            F(e,k,1,0) = dy_x(e,k);
+            F(e,k,1,1) = dy_y(e,k);
+            F(e,k,1,2) = dy_z(e,k);
+            F(e,k,2,0) = dz_x(e,k);
+            F(e,k,2,1) = dz_y(e,k);
+            F(e,k,2,2) = dz_z(e,k);
           }
         }
       }
@@ -337,9 +341,10 @@ namespace MrHyDE {
           } // end i
         }
         if (have_energy) {
+          auto T = wkset->getData("e");
           for (int q=0; q<numip; q++) {
             for ( int i = 0; i < dimension; ++i ) {
-              stress(e,q,i,i) += -alpha_T*(3*lambda+2*mu)*(sol(e,e_num,q,0)-e_ref);
+              stress(e,q,i,i) += -alpha_T*(3*lambda+2*mu)*(T(e,q)-e_ref);
             }
           }
         }

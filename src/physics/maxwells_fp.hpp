@@ -117,7 +117,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setVars(std::vector<string> & varlist_);
+    void setWorkset(Teuchos::RCP<workset> & wkset_);
     
     // ========================================================================================
     // TMW: this needs to be deprecated
@@ -139,8 +139,7 @@ namespace MrHyDE {
     vector<AD> source_params, boundary_params;
     
     int spaceDim;
-    int Axr_num, phir_num, Ayr_num, Azr_num,
-    Axi_num, phii_num, Ayi_num, Azi_num;
+    int Axr_num, phir_num, Ayr_num, Azr_num, Axi_num, phii_num, Ayi_num, Azi_num;
     
     int verbosity, test;
     

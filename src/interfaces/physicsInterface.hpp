@@ -126,7 +126,7 @@ namespace MrHyDE {
     
     View_AD3 getPointResponse(const int & block, View_AD4 u_ip, View_AD4 ugrad_ip,
                               View_AD4 p_ip, View_AD4 pgrad_ip,
-                              const DRV ip, const ScalarT & time,
+                              const View_Sc3 ip, const ScalarT & time,
                               Teuchos::RCP<workset> & wkset);
     
     

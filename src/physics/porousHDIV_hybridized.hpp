@@ -69,17 +69,19 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setVars(std::vector<string> & varlist_);
+    void setWorkset(Teuchos::RCP<workset> & wkset_);
+
+    //void setVars(std::vector<string> & varlist_);
     
     // ========================================================================================
     // ========================================================================================
     
-    void setAuxVars(std::vector<string> & auxvarlist);
+    //void setAuxVars(std::vector<string> & auxvarlist);
     
     // ========================================================================================
     // ========================================================================================
     
-    void updatePerm(View_AD2_sv Kinv_xx, View_AD2_sv Kinv_yy, View_AD2_sv Kinv_zz);
+    void updatePerm(View_AD2 Kinv_xx, View_AD2 Kinv_yy, View_AD2 Kinv_zz);
     
   private:
     

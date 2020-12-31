@@ -99,11 +99,10 @@ int main(int argc, char * argv[]) {
     
     //functionManager->printFunctions();
     
-    View_AD2_sv datax = functionManager->evaluate("pres","ip");
-    
-    View_AD2_sv data1 = functionManager->evaluate("bubble","ip");
-    View_AD2_sv data2 = functionManager->evaluate("well","ip");
-    View_AD2_sv data3 = functionManager->evaluate("source","ip");
+    auto datax = functionManager->evaluate("pres","ip");
+    auto data1 = functionManager->evaluate("bubble","ip");
+    auto data2 = functionManager->evaluate("well","ip");
+    auto data3 = functionManager->evaluate("source","ip");
     
     /*
      parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
@@ -128,11 +127,10 @@ int main(int argc, char * argv[]) {
        }
        });
        */
-      View_AD2_sv datap = functionManager->evaluate("pres","ip");
-      
-      View_AD2_sv data1 = functionManager->evaluate("wellr","ip");
-      View_AD2_sv data2 = functionManager->evaluate("welll","ip");
-      View_AD2_sv data3 = functionManager->evaluate("source","ip");
+      auto datap = functionManager->evaluate("pres","ip");
+      auto data1 = functionManager->evaluate("wellr","ip");
+      auto data2 = functionManager->evaluate("welll","ip");
+      auto data3 = functionManager->evaluate("source","ip");
       /*
        parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
        for (size_t j=0; j<numip; j++) {

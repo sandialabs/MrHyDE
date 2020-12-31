@@ -1,6 +1,7 @@
 %YAML 1.1
 ---
 ANONYMOUS:
+  debug level: 0
   Mesh input file: input_mesh.yaml
   Physics: 
     modules: thermal

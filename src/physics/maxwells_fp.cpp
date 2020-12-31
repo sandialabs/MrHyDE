@@ -81,8 +81,10 @@ void maxwells_fp::defineFunctions(Teuchos::ParameterList & fs,
 
 void maxwells_fp::volumeResidual() {
   
+  // TMW: this entire module needs to be rewritten from scratch
+  //      it does not use the proper parallel_for loops to run on a GPU
+  
   int resindex;
-  int numCubPoints = wkset->ip.extent(1);
   int phir_basis_num = wkset->usebasis[phir_num];
   int phii_basis_num = wkset->usebasis[phii_num];
   
@@ -129,69 +131,138 @@ void maxwells_fp::volumeResidual() {
   auto phii_basis = wkset->basis[phii_basis_num];
   auto phii_basis_grad = wkset->basis_grad[phii_basis_num];
   
-  auto ip = wkset->ip;
   auto res = wkset->res;
+  auto offsets = wkset->offsets;
+  
+  View_AD2 Ax_r, Ax_i, phi_r, phi_i, Ay_r, Ay_i, Az_r, Az_i;
+  Ax_r = wkset->getData("Arx");
+  Ax_i = wkset->getData("Aix");
+  phi_r = wkset->getData("phir");
+  phi_i = wkset->getData("phii");
+  
+  View_AD2 dAxr_dt, dAxi_dt, dphir_dt, dphii_dt, dAyr_dt, dAyi_dt, dAzr_dt, dAzi_dt;
+  dAxr_dt = wkset->getData("Arx_t");
+  dAxi_dt = wkset->getData("Aix_t");
+  dphir_dt = wkset->getData("phir_t");
+  dphii_dt = wkset->getData("phii_t");
+  
+  View_AD2 dAxr_dx, dAxi_dx, dphir_dx, dphii_dx, dAyr_dx, dAyi_dx, dAzr_dx, dAzi_dx;
+  dAxr_dx = wkset->getData("grad(Arx)[x]");
+  dAxi_dx = wkset->getData("grad(Aix)[x]");
+  dphir_dx = wkset->getData("grad(phir)[x]");
+  dphii_dx = wkset->getData("grad(phii)[x]");
+  
+  View_AD2 dAxr_dy, dAxi_dy, dphir_dy, dphii_dy, dAyr_dy, dAyi_dy, dAzr_dy, dAzi_dy;
+  View_AD2 dAxr_dz, dAxi_dz, dphir_dz, dphii_dz, dAyr_dz, dAyi_dz, dAzr_dz, dAzi_dz;
+  
+  if (spaceDim > 1) {
+    Ay_r = wkset->getData("Ary");
+    Ay_i = wkset->getData("Aiy");
+    dAyr_dt = wkset->getData("Ary_t");
+    dAyi_dt = wkset->getData("Aiy_t");
+    dAxr_dy = wkset->getData("grad(Arx)[y]");
+    dAxi_dy = wkset->getData("grad(Aix)[y]");
+    dphir_dy = wkset->getData("grad(phir)[y]");
+    dphii_dy = wkset->getData("grad(phii)[y]");
+    dAyr_dx = wkset->getData("grad(Ary)[x]");
+    dAyi_dx = wkset->getData("grad(Aiy)[x]");
+    dAyr_dy = wkset->getData("grad(Ary)[y]");
+    dAyi_dy = wkset->getData("grad(Aiy)[y]");
+  }
+  if (spaceDim > 2) {
+    Az_r = wkset->getData("Arz");
+    Az_i = wkset->getData("Aiz");
+    dAzr_dt = wkset->getData("Arz_t");
+    dAzi_dt = wkset->getData("Aiz_t");
+    dAxr_dz = wkset->getData("grad(Arx)[z]");
+    dAxi_dz = wkset->getData("grad(Aix)[z]");
+    dAyr_dz = wkset->getData("grad(Ary)[z]");
+    dAyi_dz = wkset->getData("grad(Aiy)[z]");
+  
+    dphir_dz = wkset->getData("grad(phir)[z]");
+    dphii_dz = wkset->getData("grad(phii)[z]");
+    dAzr_dx = wkset->getData("grad(Arz)[x]");
+    dAzi_dx = wkset->getData("grad(Aiz)[x]");
+    dAzr_dy = wkset->getData("grad(Arz)[y]");
+    dAzi_dy = wkset->getData("grad(Aiz)[y]");
+    dAzr_dz = wkset->getData("grad(Arz)[z]");
+    dAzi_dz = wkset->getData("grad(Aiz)[z]");
+  
+  }
+  
+  View_Sc2 ip_x, ip_y, ip_z;
+  ip_x = wkset->getDataSc("x");
+  if (spaceDim > 1) {
+    ip_y = wkset->getDataSc("y");
+  }
+  if (spaceDim > 2) {
+    ip_z = wkset->getDataSc("z");
+  }
+  int numCubPoints = ip_x.extent(1);
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
   for (size_type e=0; e<res.extent(0); e++) {
-    for( size_type k=0; k<sol.extent(2); k++ ) {
+    for( size_type k=0; k<ip_x.extent(1); k++ ) {
       
       // gather up all the information at the integration point
-      x = ip(e,k,0);
+      x = ip_x(e,k);
       
-      Axr = sol(e,Axr_num,k,0);
-      Axrdot = sol_dot(e,Axr_num,k,0);
-      dAxrdx = sol_grad(e,Axr_num,k,0);
-      Axi = sol(e,Axi_num,k,0);
-      Axidot = sol_dot(e,Axi_num,k,0);
-      dAxidx = sol_grad(e,Axi_num,k,0);
+      Axr = Ax_r(e,k);
+      Axrdot = dAxr_dt(e,k);
+      dAxrdx = dAxr_dx(e,k);
+      Axi = Ax_i(e,k);
+      Axidot = dAxi_dt(e,k);
+      dAxidx = dAxi_dx(e,k);
       
-      phir = sol(e,phir_num,k,0);
-      phii = sol(e,phii_num,k,0);
+      phir = phi_r(e,k);
+      phii = phi_i(e,k);
       
-      phirdot = sol_dot(e,phir_num,k,0);
-      phiidot = sol_dot(e,phii_num,k,0);
-      dphirdx = sol_grad(e,phir_num,k,0);
-      dphiidx = sol_grad(e,phii_num,k,0);
+      phirdot = dphir_dt(e,k);
+      phiidot = dphii_dt(e,k);
+      dphirdx = dphir_dx(e,k);
+      dphiidx = dphii_dx(e,k);
       
       if(spaceDim > 1){
-        y = wkset->ip(e,k,1);
-        dAxrdy = sol_grad(e,Axr_num,k,1);
-        dAxidy = sol_grad(e,Axi_num,k,1);
+        y = ip_y(e,k);
+        dAxrdy = dAxr_dy(e,k);
+        dAxidy = dAxi_dy(e,k);
         
-        Ayr = sol(e,Ayr_num,k,0);
-        Ayrdot = sol_dot(e,Ayr_num,k,0);
-        dAyrdx = sol_grad(e,Ayr_num,k,0);
-        dAyrdy = sol_grad(e,Ayr_num,k,1);
-        Ayi = sol(e,Ayi_num,k,0);
-        Ayidot = sol_dot(e,Ayi_num,k,0);
-        dAyidx = sol_grad(e,Ayi_num,k,0);
-        dAyidy = sol_grad(e,Ayi_num,k,1);
-        dphirdy = sol_grad(e,phir_num,k,1);
-        dphiidy = sol_grad(e,phii_num,k,1);
+        Ayr = Ay_r(e,k);
+        Ayrdot = dAyr_dt(e,k);
+        dAyrdx = dAyr_dx(e,k);
+        dAyrdy = dAyr_dy(e,k);
+        
+        Ayi = Ay_i(e,k);
+        Ayidot = dAyi_dt(e,k);
+        dAyidx = dAyi_dx(e,k);
+        dAyidy = dAyi_dy(e,k);
+        
+        dphirdy = dphir_dy(e,k);
+        dphiidy = dphii_dy(e,k);
       }
       if(spaceDim > 2){
-        z = wkset->ip(e,k,2);
+        z = ip_z(e,k);
         
-        dAxrdz = sol_grad(e,Axr_num,k,2);
-        dAxidz = sol_grad(e,Axi_num,k,2);
+        dAxrdz = dAxr_dz(e,k);
+        dAxidz = dAxi_dz(e,k);
         
-        dAyrdz = sol_grad(e,Ayr_num,k,2);
-        dAyidz = sol_grad(e,Ayi_num,k,2);
+        dAyrdz = dAyr_dz(e,k);
+        dAyidz = dAyi_dz(e,k);
         
-        Azr = sol(e,Azr_num,k,0);
-        Azrdot = sol_dot(e,Azr_num,k,0);
-        dAzrdx = sol_grad(e,Azr_num,k,0);
-        dAzrdy = sol_grad(e,Azr_num,k,1);
-        dAzrdz = sol_grad(e,Azr_num,k,2);
-        Azi = sol(e,Azi_num,k,0);
-        Azidot = sol_dot(e,Azi_num,k,0);
-        dAzidx = sol_grad(e,Azi_num,k,0);
-        dAzidy = sol_grad(e,Azi_num,k,1);
-        dAzidz = sol_grad(e,Azi_num,k,2);
-        dphirdz = sol_grad(e,phir_num,k,2);
-        dphiidz = sol_grad(e,phii_num,k,2);
+        Azr = Az_r(e,k);
+        Azrdot = dAzr_dt(e,k);
+        dAzrdx = dAzr_dx(e,k);
+        dAzrdy = dAzr_dy(e,k);
+        dAzrdz = dAzr_dz(e,k);
+        
+        Azi = Az_i(e,k);
+        Azidot = dAzi_dt(e,k);
+        dAzidx = dAzi_dx(e,k);
+        dAzidy = dAzi_dy(e,k);
+        dAzidz = dAzi_dz(e,k);
+        dphirdz = dphir_dz(e,k);
+        dphiidz = dphii_dz(e,k);
       }
       
       for (size_type i=0; i<phir_basis.extent(1); i++ ) { // TMW: this will fail if using different basis for phir and phii
@@ -406,6 +477,7 @@ void maxwells_fp::volumeResidual() {
 
 void maxwells_fp::boundaryResidual() {
   
+  
   int resindex;
   //int Axr_basis = wkset->usebasis[Axr_num];
   //int Axi_basis = wkset->usebasis[Axi_num];
@@ -461,11 +533,8 @@ void maxwells_fp::boundaryResidual() {
   
   ScalarT current_time = wkset->time;
   
-  //sideinfo = wkset->sideinfo;
-  auto ip = wkset->ip_side;
-  // Since normals get recomputed often, this needs to be reset
-  auto normals  = wkset->normals;
   auto res = wkset->res;
+  auto offsets = wkset->offsets;
   
   auto phir_basis = wkset->basis_side[phir_basis_num];
   auto phir_basis_grad = wkset->basis_grad_side[phir_basis_num];
@@ -481,62 +550,122 @@ void maxwells_fp::boundaryResidual() {
   weakEssScale = essScale/1.0;  //bvbw replace
   //    for( int i=0; i<numBasis; i++ ) {
   
+  View_AD2 Ax_r, Ax_i, phi_r, phi_i, Ay_r, Ay_i, Az_r, Az_i;
+  Ax_r = wkset->getData("Arx side");
+  Ax_i = wkset->getData("Aix side");
+  phi_r = wkset->getData("phir side");
+  phi_i = wkset->getData("phii side");
+  
+  View_AD2 dAxr_dx, dAxi_dx, dphir_dx, dphii_dx, dAyr_dx, dAyi_dx, dAzr_dx, dAzi_dx;
+  dAxr_dx = wkset->getData("grad(Arx)[x] side");
+  dAxi_dx = wkset->getData("grad(Aix)[x] side");
+  dphir_dx = wkset->getData("grad(phir)[x] side");
+  dphii_dx = wkset->getData("grad(phii)[x] side");
+  
+  View_AD2 dAxr_dy, dAxi_dy, dphir_dy, dphii_dy, dAyr_dy, dAyi_dy, dAzr_dy, dAzi_dy;
+  View_AD2 dAxr_dz, dAxi_dz, dphir_dz, dphii_dz, dAyr_dz, dAyi_dz, dAzr_dz, dAzi_dz;
+  
+  if (spaceDim > 1) {
+    Ay_r = wkset->getData("Ary side");
+    Ay_i = wkset->getData("Aiy side");
+    dAxr_dy = wkset->getData("grad(Arx)[y] side");
+    dAxi_dy = wkset->getData("grad(Aix)[y] side");
+    dphir_dy = wkset->getData("grad(phir)[y] side");
+    dphii_dy = wkset->getData("grad(phii)[y] side");
+    dAyr_dx = wkset->getData("grad(Ary)[x] side");
+    dAyi_dx = wkset->getData("grad(Aiy)[x] side");
+    dAyr_dy = wkset->getData("grad(Ary)[y] side");
+    dAyi_dy = wkset->getData("grad(Aiy)[y] side");
+  }
+  if (spaceDim > 2) {
+    Az_r = wkset->getData("Arz side");
+    Az_i = wkset->getData("Aiz side");
+    dAxr_dz = wkset->getData("grad(Arx)[z] side");
+    dAxi_dz = wkset->getData("grad(Aix)[z] side");
+    dAyr_dz = wkset->getData("grad(Ary)[z] side");
+    dAyi_dz = wkset->getData("grad(Aiy)[z] side");
+  
+    dphir_dz = wkset->getData("grad(phir)[z] side");
+    dphii_dz = wkset->getData("grad(phii)[z] side");
+    dAzr_dx = wkset->getData("grad(Arz)[x] side");
+    dAzi_dx = wkset->getData("grad(Aiz)[x] side");
+    dAzr_dy = wkset->getData("grad(Arz)[y] side");
+    dAzi_dy = wkset->getData("grad(Aiz)[y] side");
+    dAzr_dz = wkset->getData("grad(Arz)[z] side");
+    dAzi_dz = wkset->getData("grad(Aiz)[z] side");
+  
+  }
+  
+  View_Sc2 ip_x, ip_y, ip_z, n_x, n_y, n_z;
+  ip_x = wkset->getDataSc("x side");
+  n_x = wkset->getDataSc("nx side");
+  if (spaceDim > 1) {
+    ip_y = wkset->getDataSc("y side");
+    n_y = wkset->getDataSc("ny side");
+  }
+  if (spaceDim > 2) {
+    ip_z = wkset->getDataSc("z side");
+    n_z = wkset->getDataSc("nz side");
+  }
+  
+  
   for (size_type e=0; e<res.extent(0); e++) { // elements in workset
     
-    for( size_type k=0; k<ip.extent(1); k++) {
+    for( size_type k=0; k<ip_x.extent(1); k++) {
       
-      x = ip(e,k,0);
+      x = ip_x(e,k);
+      nx = n_x(e,k);
       
-      Axr = sol_side(e,Axr_num,k,0);
-      dAxrdx = sol_grad_side(e,Axr_num,k,0);
-      Axi = sol(e,Axi_num,k,0);
-      dAxidx = sol_grad_side(e,Axi_num,k,0);
+      Axr = Ax_r(e,k);
+      dAxrdx = dAxr_dx(e,k);
+      Axi = Ax_i(e,k);
+      dAxidx = dAxi_dx(e,k);
       
-      phir = sol_side(e,phir_num,k,0);
-      phii = sol_side(e,phii_num,k,0);
-      dphirdx = sol_grad_side(e,phir_num,k,0);
-      dphiidx = sol_grad_side(e,phii_num,k,0);
+      phir = phi_r(e,k);
+      phii = phi_i(e,k);
       
-      nx = normals(e,k,0);
+      dphirdx = dphir_dx(e,k);
+      dphiidx = dphii_dx(e,k);
       
       if(spaceDim > 1){
-        y = ip(e,k,1);
+        y = ip_y(e,k);
+        ny = n_y(e,k);
         
-        dAxrdy = sol_grad_side(e,Axr_num,k,1);
-        dAxidy = sol_grad_side(e,Axi_num,k,1);
-        Ayr = sol_side(e,Ayr_num,k,0);
-        dAyrdx = sol_grad_side(e,Ayr_num,k,0);
-        dAyrdy = sol_grad_side(e,Ayr_num,k,1);
-        Ayi = sol_side(e,Ayi_num,k,0);
-        dAyidx = sol_grad_side(e,Ayi_num,k,0);
-        dAyidy = sol_grad_side(e,Ayi_num,k,1);
+        dAxrdy = dAxr_dy(e,k);
+        dAxidy = dAxi_dy(e,k);
         
-        dphirdy = sol_grad_side(e,phir_num,k,1);
-        dphiidy = sol_grad_side(e,phii_num,k,1);
+        Ayr = Ay_r(e,k);
+        dAyrdx = dAyr_dx(e,k);
+        dAyrdy = dAyr_dy(e,k);
         
-        ny = normals(e,k,1);
+        Ayi = Ay_i(e,k);
+        dAyidx = dAyi_dx(e,k);
+        dAyidy = dAyi_dy(e,k);
+        
+        dphirdy = dphir_dy(e,k);
+        dphiidy = dphii_dy(e,k);
       }
       if(spaceDim > 2){
-        z = ip(e,k,2);
+        z = ip_z(e,k);
+        nz = n_z(e,k);
         
-        dAxrdz = sol_grad_side(e,Axr_num,k,2);
-        dAxidz = sol_grad_side(e,Axi_num,k,2);
-        dAyrdz = sol_grad_side(e,Ayr_num,k,2);
-        dAyidz = sol_grad_side(e,Ayi_num,k,2);
+        dAxrdz = dAxr_dz(e,k);
+        dAxidz = dAxi_dz(e,k);
         
-        Azr = sol_side(e,Azr_num,k,0);
-        dAzrdx = sol_grad_side(e,Azr_num,k,0);
-        dAzrdy = sol_grad_side(e,Azr_num,k,1);
-        dAzrdz = sol_grad_side(e,Azr_num,k,2);
-        Azi = sol_side(e,Azi_num,k,0);
-        dAzidx = sol_grad_side(e,Azi_num,k,0);
-        dAzidy = sol_grad_side(e,Azi_num,k,1);
-        dAzidz = sol_grad_side(e,Azi_num,k,2);
+        dAyrdz = dAyr_dz(e,k);
+        dAyidz = dAyi_dz(e,k);
         
-        dphirdz = sol_grad_side(e,phir_num,k,2);
-        dphiidz = sol_grad_side(e,phii_num,k,2);
+        Azr = Az_r(e,k);
+        dAzrdx = dAzr_dx(e,k);
+        dAzrdy = dAzr_dy(e,k);
+        dAzrdz = dAzr_dz(e,k);
         
-        nz = normals(e,k,2);
+        Azi = Az_i(e,k);
+        dAzidx = dAzi_dx(e,k);
+        dAzidy = dAzi_dy(e,k);
+        dAzidz = dAzi_dz(e,k);
+        dphirdz = dphir_dz(e,k);
+        dphiidz = dphii_dz(e,k);
       }
       
       
@@ -931,7 +1060,10 @@ vector<AD> maxwells_fp::getBoundaryCharge(const ScalarT & x, const ScalarT & y, 
 // ========================================================================================
 // ========================================================================================
 
-void maxwells_fp::setVars(std::vector<string> & varlist) {
+void maxwells_fp::setWorkset(Teuchos::RCP<workset> & wkset_) {
+
+  wkset = wkset_;
+  vector<string> varlist = wkset->varlist;
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "Arx")
       Axr_num = i;
