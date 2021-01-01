@@ -1402,10 +1402,11 @@ View_Sc2 cell::getInitial(const bool & project, const bool & isAdjoint) {
       auto cbasis = basis[wkset->usebasis[n]];
       auto off = Kokkos::subview(offsets, n, Kokkos::ALL());
       auto initvar = Kokkos::subview(initialip, Kokkos::ALL(), n, Kokkos::ALL());
-      parallel_for("cell get init",
-                   RangePolicy<AssemblyExec>(0,initvar.extent(0)),
-                   KOKKOS_LAMBDA (const size_type elem ) {
-        for(size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+      parallel_for("cell init project",
+                   TeamPolicy<AssemblyExec>(initvar.extent(0), Kokkos::AUTO),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type dof=team.team_rank(); dof<cbasis.extent(1); dof+=team.team_size() ) {
           for(size_type pt=0; pt<cwts.extent(1); pt++ ) {
             initialvals(elem,off(dof)) += initvar(elem,pt)*cbasis(elem,dof,pt,0)*cwts(elem,pt);
           }
@@ -1423,10 +1424,11 @@ View_Sc2 cell::getInitial(const bool & project, const bool & isAdjoint) {
     for (size_type n=0; n<numDOF.extent(0); n++) {
       auto off = Kokkos::subview( offsets, n, Kokkos::ALL());
       auto initvar = Kokkos::subview(initialnodes, Kokkos::ALL(), n, Kokkos::ALL());
-      parallel_for("cell get init interp",
-                   RangePolicy<AssemblyExec>(0,initialnodes.extent(0)),
-                   KOKKOS_LAMBDA (const size_type elem ) {
-        for(size_type dof=0; dof<initvar.extent(1); dof++ ) {
+      parallel_for("cell init project",
+                   TeamPolicy<AssemblyExec>(initvar.extent(0), Kokkos::AUTO),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type dof=team.team_rank(); dof<initvar.extent(1); dof+=team.team_size() ) {
           initialvals(elem,off(dof)) = initvar(elem,dof);
         }
       });
