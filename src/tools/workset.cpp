@@ -97,7 +97,6 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////////
 // Public functions
 ////////////////////////////////////////////////////////////////////////////////////
@@ -319,15 +318,18 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
       auto cu = subview(u,ALL(),var,ALL());
       auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
       auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
-      parallel_for("wkset transient soln 1",RangePolicy<AssemblyExec>(0,cu.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-        
+      parallel_for("wkset transient sol seedwhat 1",
+                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, 32),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
         ScalarT beta_u, beta_t;
         int stage = curr_stage(0);
         ScalarT deltat = dt(0);
         ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
         ScalarT timewt = 1.0/deltat/b_b(stage);
         ScalarT alpha_t = BDF(0)*timewt;
-        for (size_type dof=0; dof<cu.extent(1); dof++ ) {
+        for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
+      
           // Seed the stage solution
           AD stageval = AD(maxDerivs,off(dof),cu(elem,dof));
           
@@ -363,14 +365,18 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
       auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
       auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
     
-      parallel_for("wkset transient soln 2",RangePolicy<AssemblyExec>(0,cu.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+      parallel_for("wkset transient sol seedwhat 1",
+                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, 32),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
         AD beta_u, beta_t;
         int stage = curr_stage(0);
         ScalarT deltat = dt(0);
         ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
         ScalarT timewt = 1.0/deltat/b_b(stage);
         ScalarT alpha_t = BDF(0)*timewt;
-        for (size_type dof=0; dof<cu.extent(1); dof++ ) {
+        for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
+          
           // Get the stage solution
           ScalarT stageval = cu(elem,dof);
           
@@ -415,14 +421,18 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
       auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
     
       
-      parallel_for("wkset transient soln 2",RangePolicy<AssemblyExec>(0,cu.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+      parallel_for("wkset transient sol seedwhat 1",
+                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, 32),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
         AD beta_u, beta_t;
         int stage = curr_stage(0);
         ScalarT deltat = dt(0);
         ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
         ScalarT timewt = 1.0/deltat/b_b(stage);
         ScalarT alpha_t = BDF(0)*timewt;
-        for (size_type dof=0; dof<cu.extent(1); dof++ ) {
+        for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
+          
           // Get the stage solution
           ScalarT stageval = cu(elem,dof);
           
@@ -460,15 +470,17 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
       auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
       auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
     
-      parallel_for("wkset transient soln",RangePolicy<AssemblyExec>(0,cu.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-        
+      parallel_for("wkset transient sol seedwhat 1",
+                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, 32),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
         ScalarT beta_u, beta_t;
         int stage = curr_stage(0);
         ScalarT deltat = dt(0);
         ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
         ScalarT timewt = 1.0/deltat/b_b(stage);
         ScalarT alpha_t = BDF(0)*timewt;
-        for (size_type dof=0; dof<cu.extent(1); dof++ ) {
+        for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
           // Get the stage solution
           ScalarT stageval = cu(elem,dof);
           
@@ -1064,7 +1076,6 @@ void workset::computeParamVolIP(View_Sc3 param,
   }
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////////
 // Compute the solutions at the side ip
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1094,6 +1105,7 @@ void workset::computeParamSideIP(const int & side, View_Sc3 param,
 // TMW: this function should be deprecated
 // Gets used only in the boundaryCell flux calculation
 // Will not work properly for multi-stage or multi-step
+
 void workset::computeSolnSideIP(const int & side) { //, Kokkos::View<AD***,AssemblyDevice> u_AD_old,
                                 //Kokkos::View<AD***,AssemblyDevice> param_AD) {
   
@@ -1294,7 +1306,6 @@ vector<AD> workset::getParam(const string & name, bool & found) {
   return pvec;
 }
 
-
 //////////////////////////////////////////////////////////////
 // Set the time
 //////////////////////////////////////////////////////////////
@@ -1472,7 +1483,7 @@ void workset::setIP(View_Sc3 newip, const string & pfix) {
     Kokkos::deep_copy(x,newx);
   }
   else {
-    parallel_for("wkset transient soln 1",
+    parallel_for("wkset setIP x",
                  TeamPolicy<AssemblyExec>(newx.extent(0), Kokkos::AUTO, 32),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
@@ -1488,7 +1499,7 @@ void workset::setIP(View_Sc3 newip, const string & pfix) {
       Kokkos::deep_copy(y,newy);
     }
     else {
-      parallel_for("wkset transient soln 1",
+      parallel_for("wkset setIP y",
                    TeamPolicy<AssemblyExec>(newy.extent(0), Kokkos::AUTO, 32),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
@@ -1505,7 +1516,7 @@ void workset::setIP(View_Sc3 newip, const string & pfix) {
       Kokkos::deep_copy(z,newz);
     }
     else {
-      parallel_for("wkset transient soln 1",
+      parallel_for("wkset setIP z",
                    TeamPolicy<AssemblyExec>(newz.extent(0), Kokkos::AUTO, 32),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
@@ -1529,7 +1540,7 @@ void workset::setNormals(View_Sc3 newnormals) {
     Kokkos::deep_copy(nx,newnx);
   }
   else {
-    parallel_for("wkset transient soln 1",
+    parallel_for("wkset setNormals nx",
                  TeamPolicy<AssemblyExec>(newnx.extent(0), Kokkos::AUTO, 32),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
@@ -1545,7 +1556,7 @@ void workset::setNormals(View_Sc3 newnormals) {
       Kokkos::deep_copy(ny,newny);
     }
     else {
-      parallel_for("wkset transient soln 1",
+      parallel_for("wkset setNormals ny",
                    TeamPolicy<AssemblyExec>(newny.extent(0), Kokkos::AUTO, 32),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
@@ -1562,7 +1573,7 @@ void workset::setNormals(View_Sc3 newnormals) {
       Kokkos::deep_copy(nz,newnz);
     }
     else {
-      parallel_for("wkset transient soln 1",
+      parallel_for("wkset setNormals nz",
                    TeamPolicy<AssemblyExec>(newnz.extent(0), Kokkos::AUTO, 32),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();

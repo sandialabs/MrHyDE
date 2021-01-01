@@ -314,10 +314,7 @@ void cell::computeSize() {
   // These computations are performed on Host until the std namespace is removed
 
   hsize = View_Sc1("element sizes", numElem);
-  //auto host_wts = Kokkos::create_mirror_view(wts);
-  //Kokkos::deep_copy(host_wts,wts);
   
-  //auto host_hsize = Kokkos::create_mirror_view(hsize);
   parallel_for("cell hsize",
                RangePolicy<AssemblyExec>(0,wts.extent(0)),
                KOKKOS_LAMBDA (const size_type elem ) {
@@ -328,8 +325,7 @@ void cell::computeSize() {
     ScalarT dimscl = 1.0/(ScalarT)ip.extent(2);
     hsize(elem) = pow(vol,dimscl);
   });
-  //Kokkos::deep_copy(hsize,host_hsize);
-
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -338,23 +334,22 @@ void cell::computeSize() {
 void cell::rescaleNormals(DRV snormals) {
   // These computations are performed on Host until the std namespace is removed
 
-  //auto host_snormals = Kokkos::create_mirror_view(snormals);
-  //Kokkos::deep_copy(host_snormals, snormals);
-  parallel_for("cell normal unnecessary rescale",
-               RangePolicy<AssemblyExec>(0,snormals.extent(0)),
-               KOKKOS_LAMBDA (const size_type e ) {
-    for (size_type j=0; j<snormals.extent(1); j++ ) {
+  parallel_for("wkset transient sol seedwhat 1",
+               TeamPolicy<AssemblyExec>(snormals.extent(0), Kokkos::AUTO, 32),
+               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+    int elem = team.league_rank();
+    for (size_type pt=team.team_rank(); pt<snormals.extent(1); pt+=team.team_size() ) {
       ScalarT normalLength = 0.0;
       for (size_type sd=0; sd<snormals.extent(2); sd++) {
-        normalLength += snormals(e,j,sd)*snormals(e,j,sd);
+        normalLength += snormals(elem,pt,sd)*snormals(elem,pt,sd);
       }
       normalLength = sqrt(normalLength);
       for (size_type sd=0; sd<snormals.extent(2); sd++) {
-        snormals(e,j,sd) = snormals(e,j,sd) / normalLength;
+        snormals(elem,pt,sd) = snormals(elem,pt,sd) / normalLength;
       }
     }
   });
-  //Kokkos::deep_copy(snormals, host_snormals);
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -667,15 +662,10 @@ void cell::computeSolAvg() {
 
 void cell::updateWorksetFaceBasis(const size_t & facenum) {
   
-  //wkset->ip_side = ip_face[facenum];
   wkset->wts_side = wts_face[facenum];
-  //wkset->normals = normals_face[facenum];
   wkset->h = hsize;
   wkset->setIP(ip_face[facenum]," side");
   wkset->setNormals(normals_face[facenum]);
-  
-  //auto fip = ip_face[facenum];
-  //auto fnormals = normals_face[facenum];
   
   wkset->basis_side = basis_face[facenum];
   wkset->basis_grad_side = basis_grad_face[facenum];
@@ -689,10 +679,9 @@ void cell::updateWorksetFaceBasis(const size_t & facenum) {
 void cell::computeSolnFaceIP(const size_t & facenum) {
   
   Teuchos::TimeMonitor localtimer(*computeSolnFaceTimer);
-  
   this->updateWorksetFaceBasis(facenum);
-  //wkset->updateFace(nodes, orientation, facenum);
   wkset->computeSolnSideIP();
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -700,12 +689,10 @@ void cell::computeSolnFaceIP(const size_t & facenum) {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void cell::computeAuxSolnFaceIP(const size_t & facenum) {
-  
+
   Teuchos::TimeMonitor localtimer(*computeSolnFaceTimer);
-  
   this->updateWorksetFaceBasis(facenum);
-  //wkset->updateFace(nodes, orientation, facenum);
-  //wkset->computeAuxSolnFaceIP();
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -719,13 +706,14 @@ void cell::resetPrevSoln() {
   
   // shift previous step solns
   if (sol_prev.extent(3)>1) {
-    parallel_for("cell shift prev soln",
-                 RangePolicy<AssemblyExec>(0,sol_prev.extent(0)),
-                 KOKKOS_LAMBDA (const size_type e ) {
-      for (size_type i=0; i<sol_prev.extent(1); i++) {
+    parallel_for("cell reset prev soln 1",
+                 TeamPolicy<AssemblyExec>(sol_prev.extent(0), Kokkos::AUTO, 32),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type i=team.team_rank(); i<sol_prev.extent(1); i+=team.team_size() ) {
         for (size_type j=0; j<sol_prev.extent(2); j++) {
           for (size_type s=sol_prev.extent(3)-1; s>0; s--) {
-            sol_prev(e,i,j,s) = sol_prev(e,i,j,s-1);
+            sol_prev(elem,i,j,s) = sol_prev(elem,i,j,s-1);
           }
         }
       }
@@ -733,12 +721,13 @@ void cell::resetPrevSoln() {
   }
   
   // copy current u into first step
-  parallel_for("cell copy prev soln",
-               RangePolicy<AssemblyExec>(0,sol.extent(0)),
-               KOKKOS_LAMBDA (const size_type e ) {
-    for (size_type i=0; i<sol.extent(1); i++) {
+  parallel_for("cell reset prev soln 2",
+               TeamPolicy<AssemblyExec>(sol_prev.extent(0), Kokkos::AUTO, 32),
+               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+    int elem = team.league_rank();
+    for (size_type i=team.team_rank(); i<sol_prev.extent(1); i+=team.team_size() ) {
       for (size_type j=0; j<sol.extent(2); j++) {
-        sol_prev(e,i,j,0) = sol(e,i,j);
+        sol_prev(elem,i,j,0) = sol(elem,i,j);
       }
     }
   });
@@ -754,18 +743,19 @@ void cell::resetStageSoln() {
   auto sol = u;
   auto sol_stage = u_stage;
   
-  parallel_for("cell reset stage soln",
-               RangePolicy<AssemblyExec>(0,sol_stage.extent(0)),
-               KOKKOS_LAMBDA (const size_type e ) {
-    for (size_type i=0; i<sol_stage.extent(1); i++) {
+  parallel_for("cell reset stage 1",
+               TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, 32),
+               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+    int elem = team.league_rank();
+    for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
       for (size_type j=0; j<sol_stage.extent(2); j++) {
         for (size_type k=0; k<sol_stage.extent(3); k++) {
-          sol_stage(e,i,j,k) = sol(e,i,j);
+          sol_stage(elem,i,j,k) = sol(elem,i,j);
         }
       }
     }
   });
-  //KokkosTools::print(u_stage);
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -779,17 +769,17 @@ void cell::updateStageSoln() {
   
   // add u into the current stage soln (done after stage solution is computed)
   auto snum = wkset->current_stage_KV;
-  parallel_for("cell update stage soln",
-               RangePolicy<AssemblyExec>(0,sol_stage.extent(0)),
-               KOKKOS_LAMBDA (const size_type e ) {
+  parallel_for("wkset transient sol seedwhat 1",
+               TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, 32),
+               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+    int elem = team.league_rank();
     int stage = snum(0);
-    for (size_type i=0; i<sol_stage.extent(1); i++) {
+    for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
       for (size_type j=0; j<sol_stage.extent(2); j++) {
-        sol_stage(e,i,j,stage) = sol(e,i,j);
+        sol_stage(elem,i,j,stage) = sol(elem,i,j);
       }
     }
   });
-  //KokkosTools::print(u_stage);
   
 }
 
@@ -939,25 +929,27 @@ void cell::updateRes(const bool & compute_sens, View_Sc3 local_res) {
   auto numDOF = cellData->numDOF;
   
   if (compute_sens) {
-    parallel_for("cell update res sens",
-                 RangePolicy<AssemblyExec>(0,local_res.extent(0)),
-                 KOKKOS_LAMBDA (const size_type e ) {
-      for (size_type r=0; r<local_res.extent(2); r++) {
-        for (size_type n=0; n<numDOF.extent(0); n++) {
-          for (int j=0; j<numDOF(n); j++) {
-            local_res(e,offsets(n,j),r) -= res_AD(e,offsets(n,j)).fastAccessDx(r);
+    parallel_for("cell res sens",
+                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
+        for (int j=0; j<numDOF(n); j++) {
+          for (size_type r=0; r<local_res.extent(2); r++) {
+            local_res(elem,offsets(n,j),r) -= res_AD(elem,offsets(n,j)).fastAccessDx(r);
           }
         }
       }
     });
   }
   else {
-    parallel_for("cell update res",
-                 RangePolicy<AssemblyExec>(0,local_res.extent(0)),
-                 KOKKOS_LAMBDA (const size_type e ) {
-      for (size_type n=0; n<numDOF.extent(0); n++) {
+    parallel_for("cell res",
+                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
         for (int j=0; j<numDOF(n); j++) {
-          local_res(e,offsets(n,j),0) -= res_AD(e,offsets(n,j)).val();
+          local_res(elem,offsets(n,j),0) -= res_AD(elem,offsets(n,j)).val();
         }
       }
     });
@@ -974,21 +966,27 @@ void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,A
   auto numDOF = cellData->numDOF;
   
   if (compute_sens) {
-    parallel_for("cell update adjoint res sens",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const size_type e ) {
-      for (int r=0; r<maxDerivs; r++) {
-        for (size_type n=0; n<numDOF.extent(0); n++) {
-          for (int j=0; j<numDOF(n); j++) {
-            local_res(e,offsets(n,j),r) -= adjres_AD(e,offsets(n,j)).fastAccessDx(r);
+    parallel_for("cell adj res sens",
+                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
+        for (int j=0; j<numDOF(n); j++) {
+          for (int r=0; r<maxDerivs; r++) {
+            local_res(elem,offsets(n,j),r) -= adjres_AD(elem,offsets(n,j)).fastAccessDx(r);
           }
         }
       }
     });
   }
   else {
-    parallel_for("cell update adjoint res",RangePolicy<AssemblyExec>(0,local_res.extent(0)), KOKKOS_LAMBDA (const size_type e ) {
-      for (size_type n=0; n<numDOF.extent(0); n++) {
+    parallel_for("cell adj res",
+                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
         for (int j=0; j<numDOF(n); j++) {
-          local_res(e,offsets(n,j),0) -= adjres_AD(e,offsets(n,j)).val();
+          local_res(elem,offsets(n,j),0) -= adjres_AD(elem,offsets(n,j)).val();
         }
       }
     });
@@ -1263,12 +1261,15 @@ void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDe
   auto numDOF = cellData->numDOF;
   
   if (useadjoint) {
-    parallel_for("cell update jac adj",RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const size_type e ) {
-      for (size_type n=0; n<numDOF.extent(0); n++) {
+    parallel_for("cell J adj",
+                 TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
         for (int j=0; j<numDOF(n); j++) {
           for (size_type m=0; m<numDOF.extent(0); m++) {
             for (int k=0; k<numDOF(m); k++) {
-              local_J(e,offsets(m,k),offsets(n,j)) += res_AD(e,offsets(n,j)).fastAccessDx(offsets(m,k));
+              local_J(elem,offsets(m,k),offsets(n,j)) += res_AD(elem,offsets(n,j)).fastAccessDx(offsets(m,k));
             }
           }
         }
@@ -1276,12 +1277,15 @@ void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDe
     });
   }
   else {
-    parallel_for("cell update jac",RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const size_type e ) {
-      for (size_type n=0; n<numDOF.extent(0); n++) {
+    parallel_for("cell J",
+                 TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
         for (int j=0; j<numDOF(n); j++) {
           for (size_type m=0; m<numDOF.extent(0); m++) {
             for (int k=0; k<numDOF(m); k++) {
-              local_J(e,offsets(n,j),offsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(offsets(m,k));
+              local_J(elem,offsets(n,j),offsets(m,k)) += res_AD(elem,offsets(n,j)).fastAccessDx(offsets(m,k));
             }
           }
         }
@@ -1332,12 +1336,15 @@ void cell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
   
-  parallel_for("cell update param jac",RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const size_type e ) {
-    for (size_type n=0; n<numDOF.extent(0); n++) {
+  parallel_for("cell param J",
+               TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO),
+               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+    int elem = team.league_rank();
+    for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
       for (int j=0; j<numDOF(n); j++) {
         for (size_type m=0; m<numParamDOF.extent(0); m++) {
           for (int k=0; k<numParamDOF(m); k++) {
-            local_J(e,offsets(n,j),paramoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(paramoffsets(m,k));
+            local_J(elem,offsets(n,j),paramoffsets(m,k)) += res_AD(elem,offsets(n,j)).fastAccessDx(paramoffsets(m,k));
           }
         }
       }
@@ -1357,12 +1364,15 @@ void cell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   auto numDOF = cellData->numDOF;
   auto numAuxDOF = cellData->numAuxDOF;
   
-  parallel_for("cell update aux jac",RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const size_type e ) {
-    for (size_type n=0; n<numDOF.extent(0); n++) {
+  parallel_for("cell aux J",
+               TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO),
+               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+    int elem = team.league_rank();
+    for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
       for (int j=0; j<numDOF(n); j++) {
         for (size_type m=0; m<numAuxDOF.extent(0); m++) {
           for (int k=0; k<numAuxDOF(m); k++) {
-            local_J(e,offsets(n,j),auxoffsets(m,k)) += res_AD(e,offsets(n,j)).fastAccessDx(aoffsets(m,k));
+            local_J(elem,offsets(n,j),auxoffsets(m,k)) += res_AD(elem,offsets(n,j)).fastAccessDx(aoffsets(m,k));
           }
         }
       }
@@ -1392,7 +1402,9 @@ View_Sc2 cell::getInitial(const bool & project, const bool & isAdjoint) {
       auto cbasis = basis[wkset->usebasis[n]];
       auto off = Kokkos::subview(offsets, n, Kokkos::ALL());
       auto initvar = Kokkos::subview(initialip, Kokkos::ALL(), n, Kokkos::ALL());
-      parallel_for("cell get init",RangePolicy<AssemblyExec>(0,initvar.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+      parallel_for("cell get init",
+                   RangePolicy<AssemblyExec>(0,initvar.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
         for(size_type dof=0; dof<cbasis.extent(1); dof++ ) {
           for(size_type pt=0; pt<cwts.extent(1); pt++ ) {
             initialvals(elem,off(dof)) += initvar(elem,pt)*cbasis(elem,dof,pt,0)*cwts(elem,pt);
@@ -1411,7 +1423,9 @@ View_Sc2 cell::getInitial(const bool & project, const bool & isAdjoint) {
     for (size_type n=0; n<numDOF.extent(0); n++) {
       auto off = Kokkos::subview( offsets, n, Kokkos::ALL());
       auto initvar = Kokkos::subview(initialnodes, Kokkos::ALL(), n, Kokkos::ALL());
-      parallel_for("cell get init interp",RangePolicy<AssemblyExec>(0,initialnodes.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+      parallel_for("cell get init interp",
+                   RangePolicy<AssemblyExec>(0,initialnodes.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
         for(size_type dof=0; dof<initvar.extent(1); dof++ ) {
           initialvals(elem,off(dof)) = initvar(elem,dof);
         }
