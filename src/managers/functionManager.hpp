@@ -101,6 +101,7 @@ namespace MrHyDE {
     
     std::string blockname;
     int numElem, numip, numip_side;
+    const int vectorSize = 32, teamSize = 1;
     
     std::vector<function_class> functions;
     
