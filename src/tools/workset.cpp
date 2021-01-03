@@ -258,6 +258,14 @@ void workset::createSolns() {
 void workset::resetResidual() {
   Teuchos::TimeMonitor resettimer(*worksetResetTimer);
   Kokkos::deep_copy(res,0.0);
+  parallel_for("wkset reset res",
+               TeamPolicy<AssemblyExec>(res.extent(0), Kokkos::AUTO, 32),
+               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+    int elem = team.league_rank();
+    for (size_type dof=team.team_rank(); dof<res.extent(1); dof+=team.team_size() ) {
+      res(elem,dof) = 0.0;
+    }
+  });
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
