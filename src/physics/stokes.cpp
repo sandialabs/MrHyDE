@@ -45,8 +45,8 @@ stokes::stokes(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isa
   }
   
   
-  //useSUPG = settings->sublist("Physics").get<bool>("useSUPG",false);
-  //usePSPG = settings->sublist("Physics").get<bool>("usePSPG",false);
+  useLSIC = settings->sublist("Physics").get<bool>("useLSIC",false);
+  usePSPG = settings->sublist("Physics").get<bool>("usePSPG",false);
   T_ambient = settings->sublist("Physics").get<ScalarT>("T_ambient",0.0);
   beta = settings->sublist("Physics").get<ScalarT>("beta",1.0);
   
@@ -131,6 +131,42 @@ void stokes::volumeResidual() {
           }
         }
       });
+
+      if (usePSPG) {
+        
+        auto h = wkset->h;
+        auto dpr_dx = wkset->getData("grad(pr)[x]");
+        
+        parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        ScalarT alpha = 1.0;
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+	    AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
+	    AD stabres = dpr_dx(elem,pt) + source_ux(elem,pt);
+	    AD Sx = tau*stabres*wts(elem,pt);
+	    for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+	      res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0);
+	    }
+	  }
+	});
+      }
+
+      if (useLSIC) {
+        
+        auto h = wkset->h;
+        auto dux_dx = wkset->getData("grad(ux)[x]");
+        
+        parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        ScalarT alpha = 1.0;
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+	    AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
+	    AD stabres = dux_dx(elem,pt);
+	    AD S = tau*stabres*wts(elem,pt);
+	    for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+	      res(elem,off(dof)) += S*basis_grad(elem,dof,pt,0);
+	    }
+	  }
+	});
+      }
     }
   }
   
@@ -193,6 +229,46 @@ void stokes::volumeResidual() {
           }
         }
       });
+
+      if (usePSPG) {
+        
+        auto h = wkset->h;
+        auto dpr_dx = wkset->getData("grad(pr)[x]");
+        auto dpr_dy = wkset->getData("grad(pr)[y]");
+        
+        parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+	  ScalarT alpha = 1.0;
+	  for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+	    AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
+	    AD Sx = dpr_dx(elem,pt) + source_ux(elem,pt);
+	    Sx *= tau*wts(elem,pt);
+	    AD Sy = dpr_dy(elem,pt) + source_uy(elem,pt);
+	    Sy *= tau*wts(elem,pt);
+	    for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+	      res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
+	    }
+	  }
+	});
+      }
+
+      if (useLSIC) {
+        
+        auto h = wkset->h;
+        auto dux_dx = wkset->getData("grad(ux)[x]");
+        auto duy_dy = wkset->getData("grad(uy)[y]");
+        
+        parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        ScalarT alpha = 1.0;
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+	    AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
+	    AD stabres = dux_dx(elem,pt) + duy_dy(elem,pt);
+	    AD S = tau*stabres*wts(elem,pt);
+	    for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+	      res(elem,off(dof)) += S*(basis_grad(elem,dof,pt,0) + basis_grad(elem,dof,pt,1));
+	    }
+	  }
+	});
+      }
     }
   }
   
@@ -270,6 +346,7 @@ void stokes::volumeResidual() {
         }
       });
     }
+
     {
       int pr_basis = wkset->usebasis[pr_num];
       auto basis = wkset->basis[pr_basis];
@@ -285,6 +362,50 @@ void stokes::volumeResidual() {
           }
         }
       });
+
+      if (usePSPG) {
+        
+        auto h = wkset->h;
+        auto dpr_dx = wkset->getData("grad(pr)[x]");
+        auto dpr_dy = wkset->getData("grad(pr)[y]");
+        auto dpr_dz = wkset->getData("grad(pr)[z]");
+        
+        parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+	  ScalarT alpha = 1.0;
+	  for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+	    AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
+	    AD Sx = dpr_dx(elem,pt) + source_ux(elem,pt);
+	    Sx *= tau*wts(elem,pt);
+	    AD Sy = dpr_dy(elem,pt) + source_uy(elem,pt);
+	    Sy *= tau*wts(elem,pt);
+	    AD Sz = dpr_dz(elem,pt) + source_uz(elem,pt);
+	    Sz *= tau*wts(elem,pt);
+	    for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+	      res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
+	    }
+	  }
+	});
+      }
+
+      if (useLSIC) {
+        
+        auto h = wkset->h;
+        auto dux_dx = wkset->getData("grad(ux)[x]");
+        auto duy_dy = wkset->getData("grad(uy)[y]");
+        auto duz_dz = wkset->getData("grad(uz)[z]");
+        
+        parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        ScalarT alpha = 1.0;
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+	    AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
+	    AD stabres = dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt);
+	    AD S = tau*stabres*wts(elem,pt);
+	    for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+	      res(elem,off(dof)) += S*(basis_grad(elem,dof,pt,0) + basis_grad(elem,dof,pt,1) + basis_grad(elem,dof,pt,2));
+	    }
+	  }
+	});
+      }
     }
   }
 }

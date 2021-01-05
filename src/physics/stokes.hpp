@@ -70,7 +70,7 @@ namespace MrHyDE {
     int spaceDim;
     int ux_num, uy_num, uz_num, pr_num;//, e_num;
     
-    bool isTD, useSUPG, usePSPG; // GH: might not need these
+    bool useLSIC, usePSPG;
     
     vector<ScalarT> pik;
     bool pin_pr;//, have_energy;

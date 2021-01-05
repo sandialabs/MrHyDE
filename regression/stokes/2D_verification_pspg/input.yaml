@@ -1,0 +1,47 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  Mesh input file: input_mesh.yaml
+  Physics: 
+    usePSPG: true
+    modules: Stokes
+    Dirichlet conditions:
+      ux:
+        bottom: '0.0'
+        top: '0.0'
+      uy:
+        bottom: '0.0'
+        top: '0.0'
+    True solutions:
+      ux: '0.5*y*(1.0-y)'
+      uy: '0.0'
+      pr: '0.0'
+  Parameters input file: input_params.yaml
+  Solver: 
+    solver: steady-state
+    workset size: 1
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 2
+    final time: 1.0
+    number of steps: 10
+    initial type: none
+    use direct solver: false
+  Discretization:
+    order:
+      ux: 1
+      uy: 1
+      pr: 1
+    quadrature: 1
+  Analysis:
+    analysis type: forward
+  Postprocess: 
+    response type: global
+    compute errors: true
+    compute response: false
+    write solution: false
+    compute objective: false
+    compute sensitivities: false
+  Functions:
+    source ux: '1.0'
+...
