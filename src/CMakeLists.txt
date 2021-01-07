@@ -2,64 +2,39 @@
 # and links  main  against the library and all Trilinos libraries.
 
 INCLUDE_DIRECTORIES ( ./
-                     ${Trilinos_INCLUDE_DIRS} ${Trilinos_TPL_INCLUDE_DIRS}
-physics
-interfaces
-managers
-tools
-subgrid
-optimization
-user
-../sparsegrid)
+  ${Trilinos_INCLUDE_DIRS} 
+  ${Trilinos_TPL_INCLUDE_DIRS}
+  physics
+  interfaces
+  managers
+  tools
+  subgrid
+  optimization
+)
 
-LINK_DIRECTORIES (${Trilinos_LIBRARY_DIRS} ${Trilinos_TPL_LIBRARY_DIRS})
+LINK_DIRECTORIES (
+  ${Trilinos_LIBRARY_DIRS} 
+  ${Trilinos_TPL_LIBRARY_DIRS}
+)
+
+file(GLOB tst
+  "*.cpp"
+  "interfaces/*.cpp"
+  "managers/*.cpp"
+  "tools/*.cpp"
+  "physics/*.cpp"
+  "subgrid/*.cpp"
+)
 
 ADD_EXECUTABLE(milo
-driver.cpp
-interfaces/meshInterface.cpp 
-interfaces/discretizationInterface.cpp 
-interfaces/physicsInterface.cpp 
-interfaces/solverInterface.cpp 
-interfaces/analysisInterface.cpp 
-managers/uqManager.cpp 
-managers/multiscaleManager.cpp 
-managers/postprocessManager.cpp 
-managers/assemblyManager.cpp
-managers/parameterManager.cpp
-managers/functionManager.cpp
-tools/data.cpp
-tools/cellMetaData.cpp
-tools/cell.cpp
-tools/boundaryCell.cpp
-tools/workset.cpp
-tools/split_mpi_communicators.cpp 
-subgrid/subgridMeshFactory.cpp 
-subgrid/subgridFEM.cpp 
-subgrid/subgridFEM_solver.cpp 
-physics/cdr.cpp
-physics/helmholtz.cpp
-physics/ode.cpp
-physics/maxwell.cpp
-physics/linearelasticity.cpp
-physics/maxwells_fp.cpp
-physics/msphasefield.cpp
-physics/navierstokes.cpp
-physics/porous.cpp
-physics/porousHDIV.cpp
-physics/porousHDIV_hybridized.cpp
-physics/porousHDIV_weakGalerkin.cpp
-physics/shallowwater.cpp
-physics/thermal.cpp
-physics/stokes.cpp)
-#physics/maxwell_hybridized.cpp
-##physics/twophasePoNo.cpp
-##physics/twophasePoPw.cpp
-##physics/thermal_enthalpy.cpp
+  ${tst}
+)
+
 TARGET_LINK_LIBRARIES(milo ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
 IF(MrHyDE_ENABLE_XML_to_YAML)
   ADD_EXECUTABLE(xml_to_yaml
-  tools/xml_to_yaml.cpp)
+  ../scripts/utils/xml_to_yaml.cpp)
   TARGET_LINK_LIBRARIES(xml_to_yaml ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 ENDIF()
 
