@@ -6,7 +6,8 @@ ANONYMOUS:
   Mesh input file: input_mesh.yaml
   Functions input file: input_functions.yaml
   Physics:
-    modules: thermal
+    Extra variables:
+      e: HGRAD
     assemble face terms: true
     Dirichlet conditions:
       e:
@@ -15,7 +16,8 @@ ANONYMOUS:
       e face: sin(2*pi*x)*sin(2*pi*y)
   Discretization:
     order:
-      e: 1
+      Extra variables:
+        e: 1
     quadrature: 2
   Subgrid:
     debug level: 0
