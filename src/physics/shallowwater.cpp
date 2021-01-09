@@ -114,7 +114,9 @@ void shallowwater::volumeResidual() {
   auto Huoff = subview(wkset->offsets, Hu_num, ALL());
   auto Hvoff = subview(wkset->offsets, Hv_num, ALL());
   
-  parallel_for("SW volume resid",RangePolicy<AssemblyExec>(0,Hbasis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+  parallel_for("SW volume resid",
+               RangePolicy<AssemblyExec>(0,Hbasis.extent(0)),
+               KOKKOS_LAMBDA (const int elem ) {
     ScalarT gravity = 9.8;
     for (size_type pt=0; pt<Hbasis.extent(2); pt++ ) {
       

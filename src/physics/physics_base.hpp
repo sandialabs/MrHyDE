@@ -16,7 +16,6 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-//#include "data.hpp"
 #include "klexpansion.hpp"
 #include "workset.hpp"
 #include "functionManager.hpp"
@@ -48,14 +47,14 @@ namespace MrHyDE {
     // ========================================================================================
     
     virtual
-    void volumeResidual() = 0;
+    void volumeResidual() {};
     
     // ========================================================================================
     // The boundary contributions to the residual
     // ========================================================================================
     
     virtual
-    void boundaryResidual() = 0;
+    void boundaryResidual() {};
     
     // ========================================================================================
     // The edge (2D) and face (3D) contributions to the residual
@@ -69,29 +68,18 @@ namespace MrHyDE {
     // ========================================================================================
     
     virtual
-    void computeFlux() = 0;
-    
-    // ========================================================================================
-    // Set the global index for each variable
-    // ========================================================================================
-    
-    //virtual void setVars(vector<string> & varlist_) = 0;
-    
-    // ========================================================================================
-    // Set the global index for each variable
-    // ========================================================================================
-    
-    //virtual void setAuxVars(vector<string> & auxvarlist) {} ;
+    void computeFlux() {};
     
     // ========================================================================================
     // ========================================================================================
     
-    virtual void updateParameters(const vector<Teuchos::RCP<vector<AD> > > & params, const std::vector<string> & paramnames) {} ;
+    virtual void updateParameters(const vector<Teuchos::RCP<vector<AD> > > & params,
+                                  const std::vector<string> & paramnames) {} ;
     
     // ========================================================================================
     // ========================================================================================
     
-    virtual void setWorkset(Teuchos::RCP<workset> & wkset_) = 0;
+    virtual void setWorkset(Teuchos::RCP<workset> & wkset_) {};
     
     // ========================================================================================
     // ========================================================================================
@@ -104,12 +92,6 @@ namespace MrHyDE {
     vector<string> myvars, mybasistypes;
     bool include_face = false, isaux = false;
     string prefix = "";
-    
-    // All of these point to specific information in the workset - AND - 
-    // We always take subviews, so these are ok on device
-    //View_AD4 sol, sol_dot, sol_grad, sol_side, sol_grad_side, aux_grad_side, sol_curl, sol_face, sol_grad_face, aux, aux_side;
-    //View_AD3 sol_div, flux;
-    //Kokkos::View<int**,AssemblyDevice> offsets;
     
     // Probably not used much
     View_AD2 adjrhs;

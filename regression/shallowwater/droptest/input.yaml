@@ -1,7 +1,7 @@
 %YAML 1.1
 ---
 ANONYMOUS:
-  verbosity: 0
+  verbosity: 10
   profile: false
   Mesh input file: input_mesh.yaml
   Physics: 
@@ -37,8 +37,8 @@ ANONYMOUS:
     solver: transient
     transient Butcher tableau: DIRK-1,2
     workset size: 100
-    final time: 5.0000000000000000e-3
-    delta t: 1.0000000000000000e-3
+    final time: 5.0e-3
+    delta t: 1.0e-3
   Analysis: 
     analysis type: forward
   Postprocess: 

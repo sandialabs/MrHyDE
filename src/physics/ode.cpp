@@ -49,34 +49,18 @@ void ODE::volumeResidual() {
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
-  int q_basis = wkset->usebasis[qnum];
-  auto basis = wkset->basis[q_basis];
+  
+  auto basis = wkset->basis[wkset->usebasis[qnum]];
   auto res = wkset->res;
+  auto off = subview(wkset->offsets,qnum,ALL());
   
   // Simply solves q_dot = f(q,t)
-  auto off = subview(wkset->offsets,qnum,ALL());
-  parallel_for("ODE volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for("ODE volume resid",
+               RangePolicy<AssemblyExec>(0,basis.extent(0)),
+               KOKKOS_LAMBDA (const int e ) {
     res(e,off(0)) += dqdt(e,0) - source(e,0);
   });
-}
-
-// ========================================================================================
-// ========================================================================================
-
-void ODE::boundaryResidual() {
   
-}
-
-// ========================================================================================
-// ========================================================================================
-
-void ODE::edgeResidual() {}
-
-// ========================================================================================
-// The boundary/edge flux
-// ========================================================================================
-
-void ODE::computeFlux() {
 }
 
 // ========================================================================================

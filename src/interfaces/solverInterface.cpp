@@ -2198,8 +2198,8 @@ void solver<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & sol
     
     belosList->set("Output Style",          Belos::Brief);
     //belosList->set("Implicit Residual Scaling", "Norm of Preconditioned Initial Residual");//None");
-    belosList->set("Implicit Residual Scaling", "Norm of Initial Residual");//None");
-    //belosList->set("Implicit Residual Scaling", "None");//None");
+    //belosList->set("Implicit Residual Scaling", "Norm of Initial Residual");//None");
+    belosList->set("Implicit Residual Scaling", "None");//None");
     
     Teuchos::RCP<Belos::SolverManager<ScalarT, LA_MultiVector, LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT, LA_MultiVector, LA_Operator>(Problem, belosList));
     
@@ -2253,9 +2253,9 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > solver<Node>::buildP
       mueluParams.sublist("smoother: params").set("chebyshev: zero starting solution",true);
     }
     else if (smoother_type == "RELAXATION") {
-      //mueluParams.sublist("smoother: params").set("relaxation: type","Jacobi");
+      mueluParams.sublist("smoother: params").set("relaxation: type","Jacobi");
       //mueluParams.sublist("smoother: params").set("relaxation: type","Symmetric Gauss-Seidel");
-      mueluParams.sublist("smoother: params").set("relaxation: type","MT Gauss-Seidel");
+      //mueluParams.sublist("smoother: params").set("relaxation: type","MT Gauss-Seidel");
       //mueluParams.sublist("smoother: params").set("relaxation: sweeps",2);
     }
   

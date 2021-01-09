@@ -138,16 +138,16 @@ void stokes::volumeResidual() {
         auto dpr_dx = wkset->getData("grad(pr)[x]");
         
         parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        ScalarT alpha = 1.0;
+          ScalarT alpha = 1.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-	    AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
-	    AD stabres = dpr_dx(elem,pt) + source_ux(elem,pt);
-	    AD Sx = tau*stabres*wts(elem,pt);
-	    for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-	      res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0);
-	    }
-	  }
-	});
+            AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
+            AD stabres = dpr_dx(elem,pt) + source_ux(elem,pt);
+            AD Sx = tau*stabres*wts(elem,pt);
+            for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0);
+            }
+          }
+        });
       }
 
       if (useLSIC) {
@@ -156,16 +156,16 @@ void stokes::volumeResidual() {
         auto dux_dx = wkset->getData("grad(ux)[x]");
         
         parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        ScalarT alpha = 1.0;
+          ScalarT alpha = 1.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-	    AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
-	    AD stabres = dux_dx(elem,pt);
-	    AD S = tau*stabres*wts(elem,pt);
-	    for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-	      res(elem,off(dof)) += S*basis_grad(elem,dof,pt,0);
-	    }
-	  }
-	});
+            AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
+            AD stabres = dux_dx(elem,pt);
+            AD S = tau*stabres*wts(elem,pt);
+            for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += S*basis_grad(elem,dof,pt,0);
+            }
+          }
+        });
       }
     }
   }
@@ -237,18 +237,19 @@ void stokes::volumeResidual() {
         auto dpr_dy = wkset->getData("grad(pr)[y]");
         
         parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-	  ScalarT alpha = 1.0;
-	  for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-	    AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
-	    AD Sx = dpr_dx(elem,pt) + source_ux(elem,pt);
-	    Sx *= tau*wts(elem,pt);
-	    AD Sy = dpr_dy(elem,pt) + source_uy(elem,pt);
-	    Sy *= tau*wts(elem,pt);
-	    for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-	      res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
-	    }
-	  }
-	});
+          ScalarT alpha = 1.0;
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            //AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
+            AD tau = alpha*h(elem)/(2.*visc(elem,pt));
+            AD Sx = dpr_dx(elem,pt) + source_ux(elem,pt);
+            Sx *= tau*wts(elem,pt);
+            AD Sy = dpr_dy(elem,pt) + source_uy(elem,pt);
+            Sy *= tau*wts(elem,pt);
+            for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
+            }
+          }
+        });
       }
 
       if (useLSIC) {
@@ -258,16 +259,16 @@ void stokes::volumeResidual() {
         auto duy_dy = wkset->getData("grad(uy)[y]");
         
         parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        ScalarT alpha = 1.0;
+          ScalarT alpha = 1.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-	    AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
-	    AD stabres = dux_dx(elem,pt) + duy_dy(elem,pt);
-	    AD S = tau*stabres*wts(elem,pt);
-	    for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-	      res(elem,off(dof)) += S*(basis_grad(elem,dof,pt,0) + basis_grad(elem,dof,pt,1));
-	    }
-	  }
-	});
+            AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
+            AD stabres = dux_dx(elem,pt) + duy_dy(elem,pt);
+            AD S = tau*stabres*wts(elem,pt);
+            for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += S*(basis_grad(elem,dof,pt,0) + basis_grad(elem,dof,pt,1));
+            }
+          }
+        });
       }
     }
   }

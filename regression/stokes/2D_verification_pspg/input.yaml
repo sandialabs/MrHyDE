@@ -2,6 +2,7 @@
 ---
 ANONYMOUS:
   debug level: 0
+  verbosity: 0
   Mesh input file: input_mesh.yaml
   Physics: 
     usePSPG: true
@@ -20,19 +21,21 @@ ANONYMOUS:
   Parameters input file: input_params.yaml
   Solver: 
     solver: steady-state
-    workset size: 1
-    nonlinear TOL: 1.0e-07
+    workset size: 16
+    nonlinear TOL: 1.0e-10
+    linear TOL: 1.0e-10
     max nonlinear iters: 2
     final time: 1.0
     number of steps: 10
     initial type: none
     use direct solver: false
+    smoother type: RELAXATION
   Discretization:
     order:
       ux: 1
       uy: 1
       pr: 1
-    quadrature: 1
+    quadrature: 2
   Analysis:
     analysis type: forward
   Postprocess: 
