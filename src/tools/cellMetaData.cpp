@@ -49,8 +49,10 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   dimension = cellTopo->getDimension();
   numip = ref_ip_.extent(0);
   numsideip = ref_side_ip_.extent(0);
-  
-  if (dimension == 2) {
+  if (dimension == 1) {
+    numSides = 2;
+  }
+  else if (dimension == 2) {
     numSides = cellTopo->getSideCount();
   }
   else if (dimension == 3) {
@@ -63,29 +65,53 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   have_extra_data = false;
   
   numsideip = ref_side_ip_.extent(0);
-  for (size_t s=0; s<numSides; s++) {
-    DRV refSidePoints("refSidePoints",numsideip, dimension);
-    CellTools::mapToReferenceSubcell(refSidePoints, ref_side_ip_, dimension-1, s, *cellTopo);
-    ref_side_ip.push_back(refSidePoints);
-    ref_side_wts.push_back(ref_side_wts_);
+  if (dimension == 1) {
+    DRV leftpt("refSidePoints",1, dimension);
+    Kokkos::deep_copy(leftpt,-1.0);
+    DRV rightpt("refSidePoints",1, dimension);
+    Kokkos::deep_copy(rightpt,1.0);
+    ref_side_ip.push_back(leftpt);
+    ref_side_ip.push_back(rightpt);
     
-    DRV refSideNormals("refSideNormals", dimension);
-    DRV refSideTangents("refSideTangents", dimension);
-    DRV refSideTangentsU("refSideTangents U", dimension);
-    DRV refSideTangentsV("refSideTangents V", dimension);
+    DRV leftwt("refSideWts",1, dimension);
+    Kokkos::deep_copy(leftwt,1.0);
+    DRV rightwt("refSideWts",1, dimension);
+    Kokkos::deep_copy(rightwt,1.0);
+    ref_side_wts.push_back(leftwt);
+    ref_side_wts.push_back(rightwt);
     
-    if (dimension == 2) {
-      CellTools::getReferenceSideNormal(refSideNormals,s,*cellTopo);
-      CellTools::getReferenceEdgeTangent(refSideTangents,s,*cellTopo);
+    DRV leftn("refSideNormals",1, dimension);
+    Kokkos::deep_copy(leftwt,-1.0);
+    DRV rightn("refSideNormals",1, dimension);
+    Kokkos::deep_copy(rightwt,1.0);
+    ref_side_normals.push_back(leftn);
+    ref_side_normals.push_back(rightn);
+  }
+  else {
+    for (size_t s=0; s<numSides; s++) {
+      DRV refSidePoints("refSidePoints",numsideip, dimension);
+      CellTools::mapToReferenceSubcell(refSidePoints, ref_side_ip_, dimension-1, s, *cellTopo);
+      ref_side_ip.push_back(refSidePoints);
+      ref_side_wts.push_back(ref_side_wts_);
+      
+      DRV refSideNormals("refSideNormals", dimension);
+      DRV refSideTangents("refSideTangents", dimension);
+      DRV refSideTangentsU("refSideTangents U", dimension);
+      DRV refSideTangentsV("refSideTangents V", dimension);
+      
+      if (dimension == 2) {
+        CellTools::getReferenceSideNormal(refSideNormals,s,*cellTopo);
+        CellTools::getReferenceEdgeTangent(refSideTangents,s,*cellTopo);
+      }
+      else if (dimension == 3) {
+        CellTools::getReferenceFaceTangents(refSideTangentsU, refSideTangentsV, s, *cellTopo);
+      }
+      
+      ref_side_normals.push_back(refSideNormals);
+      ref_side_tangents.push_back(refSideTangents);
+      ref_side_tangentsU.push_back(refSideTangentsU);
+      ref_side_tangentsV.push_back(refSideTangentsV);
     }
-    else if (dimension == 3) {
-      CellTools::getReferenceFaceTangents(refSideTangentsU, refSideTangentsV, s, *cellTopo);
-    }
-    
-    ref_side_normals.push_back(refSideNormals);
-    ref_side_tangents.push_back(refSideTangents);
-    ref_side_tangentsU.push_back(refSideTangentsU);
-    ref_side_tangentsV.push_back(refSideTangentsV);
   }
   
   this->setupReferenceBasis();
@@ -159,7 +185,6 @@ void CellMetaData::setupReferenceBasis() {
       if (basis_types[i] == "HGRAD" || basis_types[i] == "HVOL" || basis_types[i] == "HFACE"){
         basisvals = DRV("basisvals",numb, numsideip);
         basis_pointers[i]->getValues(basisvals, ref_side_ip[s], Intrepid2::OPERATOR_VALUE);
-        
         basisgrad = DRV("basisgrad",numb, numsideip, dimension);
         basis_pointers[i]->getValues(basisgrad, ref_side_ip[s], Intrepid2::OPERATOR_GRAD);
       }

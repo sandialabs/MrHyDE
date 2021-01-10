@@ -892,7 +892,6 @@ void solver<Node>::projectDirichlet() {
     glrhs->doExport(*rhs, *exporter, Tpetra::ADD);
     
     glmass->fillComplete();
-    
     if (milo_debug_level>2) {
       //KokkosTools::print(glmass,"L2-projection matrix for DBCs");
       //KokkosTools::print(glrhs,"L2-projections RHS for DBCs");

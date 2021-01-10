@@ -67,8 +67,10 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
   CellTools::setJacobian(ijac, ref_ip, nodes, *(cellData->cellTopo));
   CellTools::setJacobianInv(ijacInv, ijac);
   CellTools::setJacobianDet(ijacDet, ijac);
-  
-  if (dimension == 2) {
+  if (dimension == 1) {
+    Kokkos::deep_copy(tmpwts,1.0);
+  }
+  else if (dimension == 2) {
     DRV ref_tangents = cellData->ref_side_tangents[localSideID_host(0)];
     RealTools::matvec(tmptangents, ijac, ref_tangents);
     
@@ -844,8 +846,7 @@ View_Sc2 BoundaryCell::getDirichlet() {
 
 View_Sc3 BoundaryCell::getMass() {
   
-  View_Sc3 mass("local mass",numElem,
-                                               LIDs.extent(1), LIDs.extent(1));
+  View_Sc3 mass("local mass", numElem, LIDs.extent(1), LIDs.extent(1));
   
   Kokkos::View<int**,HostDevice> bcs = wkset->var_bcs;
   auto offsets = wkset->offsets;

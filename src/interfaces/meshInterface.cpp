@@ -73,8 +73,8 @@ settings(settings_), Commptr(Commptr_) {
   shards::CellTopology sTopo;
   
   if (spaceDim == 1) {
-    //Sh_cellTopo = shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() );// lin. cell topology on the interior
-    //Sh_sideTopo = shards::CellTopology(shards::getCellTopologyData<shards::Node<> >() );          // line cell topology on the boundary
+    cTopo = shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() );// lin. cell topology on the interior
+    sTopo = shards::CellTopology(shards::getCellTopologyData<shards::Node>() );          // line cell topology on the boundary
   }
   if (spaceDim == 2) {
     if (shape == "quad") {
@@ -100,7 +100,10 @@ settings(settings_), Commptr(Commptr_) {
   // Get dimensions
   numNodesPerElem = cTopo.getNodeCount();
   settings->sublist("Mesh").set("numNodesPerElem",numNodesPerElem,"number of nodes per element");
-  sideDim = sTopo.getDimension();
+  sideDim = 0;
+  if (spaceDim > 1) {
+    sTopo.getDimension();
+  }
   settings->sublist("Mesh").set("sideDim",sideDim,"dimension of the sides of each element");
   numSides = cTopo.getSideCount();
   numFaces = cTopo.getFaceCount();
@@ -123,8 +126,8 @@ settings(settings_), Commptr(Commptr_) {
     pl->set("X Elements",settings->sublist("Mesh").get("NX",20));
     pl->set("X0",settings->sublist("Mesh").get("xmin",0.0));
     pl->set("Xf",settings->sublist("Mesh").get("xmax",1.0));
-    pl->set("X Procs", settings->sublist("Mesh").get("Xprocs",Commptr->getSize()));
     if (spaceDim > 1) {
+      pl->set("X Procs", settings->sublist("Mesh").get("Xprocs",Commptr->getSize()));
       pl->set("Y Blocks",settings->sublist("Mesh").get("Yblocks",1));
       pl->set("Y Elements",settings->sublist("Mesh").get("NY",20));
       pl->set("Y0",settings->sublist("Mesh").get("ymin",0.0));
@@ -138,9 +141,10 @@ settings(settings_), Commptr(Commptr_) {
       pl->set("Zf",settings->sublist("Mesh").get("zmax",1.0));
       pl->set("Z Procs", settings->sublist("Mesh").get("Zprocs",1));
     }
-    if (spaceDim == 1)
-    mesh_factory = Teuchos::rcp(new panzer_stk::LineMeshFactory());
-    if (spaceDim == 2) {
+    if (spaceDim == 1) {
+      mesh_factory = Teuchos::rcp(new panzer_stk::LineMeshFactory());
+    }
+    else if (spaceDim == 2) {
       if (shape == "quad") {
         mesh_factory = Teuchos::rcp(new panzer_stk::SquareQuadMeshFactory());
       }
@@ -148,7 +152,7 @@ settings(settings_), Commptr(Commptr_) {
         mesh_factory = Teuchos::rcp(new panzer_stk::SquareTriMeshFactory());
       }
     }
-    if (spaceDim == 3) {
+    else if (spaceDim == 3) {
       if (shape == "hex") {
         mesh_factory = Teuchos::rcp(new panzer_stk::CubeHexMeshFactory());
       }

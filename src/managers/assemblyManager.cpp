@@ -230,8 +230,6 @@ void AssemblyManager<Node>::createCells() {
     int spaceDim = phys->spaceDim;
     LO numTotalElem = static_cast<LO>(stk_meshElems.size());
     
-    //cout << "PID = " << Comm->getRank() << "  block: " << blocknames[b] << "  Nelem: " << numTotalElem << endl;
-    
     if (numTotalElem>0) {
       
       vector<size_t> localIds;
@@ -258,6 +256,7 @@ void AssemblyManager<Node>::createCells() {
       
       vector<string> sideSets;
       mesh->getSidesetNames(sideSets);
+      
       blockCellData = Teuchos::rcp( new CellMetaData(settings, cellTopo,
                                                      phys, b, 0,
                                                      build_face_terms[b],

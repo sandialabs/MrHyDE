@@ -29,6 +29,7 @@
 #include "shallowwater.hpp"
 #include "maxwell.hpp"
 #include "ode.hpp"
+#include "burgers.hpp"
 
 // Disabled/out-of-date physics modules
 //#include "maxwell_hybridized.hpp"
@@ -162,6 +163,10 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
       modules.push_back(Teuchos::rcp(new ODE(settings, isaux) ) );
     }
     
+    // Scalar Burgers equation
+    if (modname == "Burgers"){
+      modules.push_back(Teuchos::rcp(new Burgers(settings, isaux) ) );
+    }
   }
   
   return modules;

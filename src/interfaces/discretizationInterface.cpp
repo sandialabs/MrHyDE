@@ -172,7 +172,7 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
     topo_RCP sideTopo;
     
     if (spaceDim == 1) {
-      //sideTopo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Node<> >() ));
+      sideTopo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Node >() ));
     }
     if (spaceDim == 2) {
       if (shape == "quad") {
@@ -192,8 +192,16 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
     }
     
     DRV side_qpts, side_qwts;
-    int side_quadorder = db_settings.sublist(blockID).get<int>("side quadrature",2*mxorder);
-    this->getQuadrature(sideTopo, side_quadorder, side_qpts, side_qwts);
+    if (spaceDim == 1) {
+      side_qpts = DRV("side qpts",1,1);
+      Kokkos::deep_copy(side_qpts,-1.0);
+      side_qwts = DRV("side wts",1,1);
+      Kokkos::deep_copy(side_qwts,1.0);
+    }
+    else {
+      int side_quadorder = db_settings.sublist(blockID).get<int>("side quadrature",2*mxorder);
+      this->getQuadrature(sideTopo, side_quadorder, side_qpts, side_qwts);
+    }
     
     ///////////////////////////////////////////////////////////////////////////
     // Store locally
