@@ -715,16 +715,24 @@ void workset::computeSoln(const int & type, const bool & onside) {
       if (!onside) { // volumetric ip
         csol = this->getData(var);
         csol_x = this->getData("grad("+var+")[x]");
-        csol_y = this->getData("grad("+var+")[y]");
-        csol_z = this->getData("grad("+var+")[z]");
+        if (dimension > 1) {
+          csol_y = this->getData("grad("+var+")[y]");
+        }
+        if (dimension > 2) {
+          csol_z = this->getData("grad("+var+")[z]");
+        }
         cbasis = basis[basis_index[varind]];
         cbasis_grad = basis_grad[basis_index[varind]];
       }
       else { // boundary ip
         csol = this->getData(var+" side");
         csol_x = this->getData("grad("+var+")[x] side");
-        csol_y = this->getData("grad("+var+")[y] side");
-        csol_z = this->getData("grad("+var+")[z] side");
+        if (dimension > 1) {
+          csol_y = this->getData("grad("+var+")[y] side");
+        }
+        if (dimension > 2) {
+          csol_z = this->getData("grad("+var+")[z] side");
+        }
         cbasis = basis_side[basis_index[varind]];
         cbasis_grad = basis_grad_side[basis_index[varind]];
       }
@@ -837,16 +845,24 @@ void workset::computeSoln(const int & type, const bool & onside) {
       
       if (!onside) {
         csolx = this->getData(var+"[x]");
-        csoly = this->getData(var+"[y]");
-        csolz = this->getData(var+"[z]");
+        if (dimension > 1) {
+          csoly = this->getData(var+"[y]");
+        }
+        if (dimension > 2) {
+          csolz = this->getData(var+"[z]");
+        }
         csol_div = this->getData("div("+var+")");
         cbasis = basis[basis_index[varind]];
         cbasis_div = basis_div[basis_index[varind]];
       }
       else {
         csolx = this->getData(var+"[x] side");
-        csoly = this->getData(var+"[y] side");
-        csolz = this->getData(var+"[z] side");
+        if (dimension > 1) {
+          csoly = this->getData(var+"[y] side");
+        }
+        if (dimension > 2) {
+          csolz = this->getData(var+"[z] side");
+        }
         cbasis = basis_side[basis_index[varind]];
       }
       
@@ -891,10 +907,14 @@ void workset::computeSoln(const int & type, const bool & onside) {
       }
       
       if (include_transient) {
-        
-        auto csol_tx = this->getData(var+"_t[x]");
-        auto csol_ty = this->getData(var+"_t[y]");
-        auto csol_tz = this->getData(var+"_t[z]");
+        View_AD2 csol_tx, csol_ty, csol_tz;
+        csol_tx = this->getData(var+"_t[x]");
+        if (dimension > 1) {
+          csol_ty = this->getData(var+"_t[y]");
+        }
+        if (dimension > 2) {
+          csol_tz = this->getData(var+"_t[z]");
+        }
         auto cu_dotvals = soldotvals[varind];
         parallel_for("wkset soln ip HGRAD transient",
                      TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
@@ -936,19 +956,26 @@ void workset::computeSoln(const int & type, const bool & onside) {
       
       if (!onside) {
         csolx = this->getData(var+"[x]");
-        csoly = this->getData(var+"[y]");
-        csolz = this->getData(var+"[z]");
         csol_curlx = this->getData("curl("+var+")[x]");
-        csol_curly = this->getData("curl("+var+")[y]");
-        csol_curlz = this->getData("curl("+var+")[z]");
-        
+        if (dimension > 1) {
+          csoly = this->getData(var+"[y]");
+          csol_curly = this->getData("curl("+var+")[y]");
+        }
+        if (dimension > 2) {
+          csolz = this->getData(var+"[z]");
+          csol_curlz = this->getData("curl("+var+")[z]");
+        }
         cbasis = basis[basis_index[varind]];
         cbasis_curl = basis_curl[basis_index[varind]];
       }
       else {
         csolx = this->getData(var+"[x] side");
-        csoly = this->getData(var+"[y] side");
-        csolz = this->getData(var+"[z] side");
+        if (dimension > 1) {
+          csoly = this->getData(var+"[y] side");
+        }
+        if (dimension > 1) {
+          csolz = this->getData(var+"[z] side");
+        }
         cbasis = basis_side[basis_index[varind]];
       }
       
@@ -1006,9 +1033,14 @@ void workset::computeSoln(const int & type, const bool & onside) {
         });
       }
       if (include_transient) {
-        auto csol_tx = this->getData(var+"_t[x]");
-        auto csol_ty = this->getData(var+"_t[y]");
-        auto csol_tz = this->getData(var+"_t[z]");
+        View_AD2 csol_tx, csol_ty, csol_tz;
+        csol_tx = this->getData(var+"_t[x]");
+        if (dimension > 1) {
+          csol_ty = this->getData(var+"_t[y]");
+        }
+        if (dimension > 2) {
+          csol_tz = this->getData(var+"_t[z]");
+        }
         auto cu_dotvals = soldotvals[varind];
         parallel_for("wkset soln ip HGRAD transient",
                      TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
@@ -1494,7 +1526,7 @@ void workset::setIP(View_Sc3 newip, const string & pfix) {
   }
   else {
     parallel_for("wkset setIP x",
-                 TeamPolicy<AssemblyExec>(newx.extent(0), Kokkos::AUTO, 32),
+                 TeamPolicy<AssemblyExec>(newx.extent(0), Kokkos::AUTO),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type pt=team.team_rank(); pt<newx.extent(1); pt+=team.team_size() ) {
@@ -1510,7 +1542,7 @@ void workset::setIP(View_Sc3 newip, const string & pfix) {
     }
     else {
       parallel_for("wkset setIP y",
-                   TeamPolicy<AssemblyExec>(newy.extent(0), Kokkos::AUTO, 32),
+                   TeamPolicy<AssemblyExec>(newy.extent(0), Kokkos::AUTO),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<newy.extent(1); pt+=team.team_size() ) {
@@ -1527,7 +1559,7 @@ void workset::setIP(View_Sc3 newip, const string & pfix) {
     }
     else {
       parallel_for("wkset setIP z",
-                   TeamPolicy<AssemblyExec>(newz.extent(0), Kokkos::AUTO, 32),
+                   TeamPolicy<AssemblyExec>(newz.extent(0), Kokkos::AUTO),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<newz.extent(1); pt+=team.team_size() ) {
@@ -1551,7 +1583,7 @@ void workset::setNormals(View_Sc3 newnormals) {
   }
   else {
     parallel_for("wkset setNormals nx",
-                 TeamPolicy<AssemblyExec>(newnx.extent(0), Kokkos::AUTO, 32),
+                 TeamPolicy<AssemblyExec>(newnx.extent(0), Kokkos::AUTO),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type pt=team.team_rank(); pt<newnx.extent(1); pt+=team.team_size() ) {
@@ -1567,7 +1599,7 @@ void workset::setNormals(View_Sc3 newnormals) {
     }
     else {
       parallel_for("wkset setNormals ny",
-                   TeamPolicy<AssemblyExec>(newny.extent(0), Kokkos::AUTO, 32),
+                   TeamPolicy<AssemblyExec>(newny.extent(0), Kokkos::AUTO),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<newny.extent(1); pt+=team.team_size() ) {
@@ -1584,7 +1616,7 @@ void workset::setNormals(View_Sc3 newnormals) {
     }
     else {
       parallel_for("wkset setNormals nz",
-                   TeamPolicy<AssemblyExec>(newnz.extent(0), Kokkos::AUTO, 32),
+                   TeamPolicy<AssemblyExec>(newnz.extent(0), Kokkos::AUTO),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<newnz.extent(1); pt+=team.team_size() ) {
