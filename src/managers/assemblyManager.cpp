@@ -251,7 +251,7 @@ void AssemblyManager<Node>::createCells() {
       CellTools::getReferenceSubcellVertices(refnodes, spaceDim, 0, *cellTopo);
       
       // LO is int, but just in case that changes ...
-      LO elemPerCell = static_cast<LO>(settings->sublist("Solver").get<int>("workset size",1));
+      LO elemPerCell = static_cast<LO>(settings->sublist("Solver").get<int>("workset size",100));
       LO prog = 0;
       
       vector<string> sideSets;
@@ -362,7 +362,7 @@ void AssemblyManager<Node>::createCells() {
     
       if (build_boundary_terms[b]) {
         // TMW: this is just for ease of use
-        int numBoundaryElem = settings->sublist("Solver").get<int>("workset size",1);
+        int numBoundaryElem = settings->sublist("Solver").get<int>("workset size",100);
         
         ///////////////////////////////////////////////////////////////////////////////////
         // Rules for grouping elements into boundary cells
