@@ -114,7 +114,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     isTD = true;
   }
   
-  if (isTD) {
+  if (isTD && write_solution) {
     mesh->setupExodusFile(exodus_filename);
   }
   if (write_optimization_solution) {
