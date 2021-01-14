@@ -1391,6 +1391,10 @@ void workset::addDataSc(const string & label, const int & dim0, const int & dim1
   data_Sc_usage.push_back(0);
 }
 
+//////////////////////////////////////////////////////////////
+// Extract a VIEW_AD2 (2-dimensional array with AD entries)
+//////////////////////////////////////////////////////////////
+
 View_AD2 workset::getData(const string & label) {
   
   Teuchos::TimeMonitor basistimer(*worksetgetDataTimer);
@@ -1413,6 +1417,10 @@ View_AD2 workset::getData(const string & label) {
   return data[ind];
   
 }
+
+//////////////////////////////////////////////////////////////
+// Extract a View_Sc2 (2-dimensional array with ScalarT entries)
+//////////////////////////////////////////////////////////////
 
 View_Sc2 workset::getDataSc(const string & label) {
   
@@ -1438,6 +1446,10 @@ View_Sc2 workset::getDataSc(const string & label) {
   
 }
 
+//////////////////////////////////////////////////////////////
+// Another method to extract a View_AD2
+//////////////////////////////////////////////////////////////
+
 void workset::get(const string & label, View_AD2 & dataout) {
   
   Teuchos::TimeMonitor basistimer(*worksetgetTimer);
@@ -1460,6 +1472,10 @@ void workset::get(const string & label, View_AD2 & dataout) {
     this->printMetaData();
   }
 }
+
+//////////////////////////////////////////////////////////////
+// Another method to extract a View_Sc2
+//////////////////////////////////////////////////////////////
 
 void workset::get(const string & label, View_Sc2 & dataout) {
   
@@ -1485,6 +1501,297 @@ void workset::get(const string & label, View_Sc2 & dataout) {
   }
 }
 
+//////////////////////////////////////////////////////////////
+// Function to determine which basis a variable uses
+//////////////////////////////////////////////////////////////
+
+bool workset::findBasisIndex(const string & var, int & basisindex) {
+  bool found = false;
+  int index;
+  found = this->isVar(var,index);
+  if (found) {
+    basisindex = usebasis[index];
+  }
+  else {
+    found = this->isParameter(var,index);
+    if (found) {
+      basisindex = paramusebasis[index];
+    }
+    else {
+      found = this->isAux(var,index);
+      if (found) {
+        basisindex = auxusebasis[index];
+      }
+      else {
+        std::cout << "Warning: could not find basis for: " << var << std::endl;
+        std::cout << "An error will probably occur if this view is accessed" << std::endl;
+      }
+    }
+  }
+  return found;
+}
+
+//////////////////////////////////////////////////////////////
+// Check if a string is a variable
+//////////////////////////////////////////////////////////////
+
+bool workset::isVar(const string & var, int & index) {
+  bool found = false;
+  size_t varindex = 0;
+  while (!found && varindex<varlist.size()) {
+    if (varlist[varindex] == var) {
+      found = true;
+      index = varindex;
+    }
+  }
+  return found;
+}
+
+//////////////////////////////////////////////////////////////
+// Check if a string is a discretized parameter
+//////////////////////////////////////////////////////////////
+
+bool workset::isParameter(const string & var, int & index) {
+  bool found = false;
+  size_t varindex = 0;
+  while (!found && varindex<param_varlist.size()) {
+    if (param_varlist[varindex] == var) {
+      found = true;
+      index = varindex;
+    }
+  }
+  return found;
+}
+
+//////////////////////////////////////////////////////////////
+// Check if a string is an aux variable
+//////////////////////////////////////////////////////////////
+
+bool workset::isAux(const string & var, int & index) {
+  bool found = false;
+  size_t varindex = 0;
+  while (!found && varindex<aux_varlist.size()) {
+    if (aux_varlist[varindex] == var) {
+      found = true;
+      index = varindex;
+    }
+  }
+  return found;
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by a variable name (slower)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getBasis(const string & var) {
+
+  Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
+  
+  View_Sc4 dataout;
+  int basisindex;
+  
+  bool found = this->findBasisIndex(var, basisindex);
+  if (found) {
+    dataout = this->getBasis(basisindex);
+  }
+  return dataout;
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by an index (faster)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getBasis(const int & index) {
+  return basis[index];
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by a variable name (slower)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getBasisGrad(const string & var) {
+
+  Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
+  
+  View_Sc4 dataout;
+  int basisindex;
+  
+  bool found = this->findBasisIndex(var, basisindex);
+  if (found) {
+    dataout = this->getBasisGrad(basisindex);
+  }
+  return dataout;
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by an index (faster)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getBasisGrad(const int & index) {
+  return basis_grad[index];
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by a variable name (slower)
+//////////////////////////////////////////////////////////////
+
+View_Sc3 workset::getBasisDiv(const string & var) {
+
+  Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
+  
+  View_Sc3 dataout;
+  int basisindex;
+  
+  bool found = this->findBasisIndex(var, basisindex);
+  if (found) {
+    dataout = this->getBasisDiv(basisindex);
+  }
+  return dataout;
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by an index (faster)
+//////////////////////////////////////////////////////////////
+
+View_Sc3 workset::getBasisDiv(const int & index) {
+  return basis_div[index];
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by a variable name (slower)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getBasisCurl(const string & var) {
+
+  Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
+  
+  View_Sc4 dataout;
+  int basisindex;
+  
+  bool found = this->findBasisIndex(var, basisindex);
+  if (found) {
+    dataout = this->getBasisCurl(basisindex);
+  }
+  return dataout;
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by an index (faster)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getBasisCurl(const int & index) {
+  return basis_curl[index];
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by a variable name (slower)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getBasisSide(const string & var) {
+
+  Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
+  
+  View_Sc4 dataout;
+  int basisindex;
+  
+  bool found = this->findBasisIndex(var, basisindex);
+  if (found) {
+    dataout = this->getBasisSide(basisindex);
+  }
+  return dataout;
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by an index (faster)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getBasisSide(const int & index) {
+  return basis_side[index];
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by a variable name (slower)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getBasisGradSide(const string & var) {
+
+  Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
+  
+  View_Sc4 dataout;
+  int basisindex;
+  
+  bool found = this->findBasisIndex(var, basisindex);
+  if (found) {
+    dataout = this->getBasisGradSide(basisindex);
+  }
+  return dataout;
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by an index (faster)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getBasisGradSide(const int & index) {
+  return basis_grad_side[index];
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by a variable name (slower)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getBasisCurlSide(const string & var) {
+
+  Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
+  
+  View_Sc4 dataout;
+  int basisindex;
+  
+  bool found = this->findBasisIndex(var, basisindex);
+  if (found) {
+    dataout = this->getBasisCurlSide(basisindex);
+  }
+  return dataout;
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by an index (faster)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getBasisCurlSide(const int & index) {
+  return basis_curl_side[index];
+}
+
+//////////////////////////////////////////////////////////////
+// Extract all of the offsets
+//////////////////////////////////////////////////////////////
+
+Kokkos::View<int**,AssemblyDevice> workset::getOffsets() {
+  return offsets;
+}
+
+//////////////////////////////////////////////////////////////
+// Extract the offsets for a particular variable
+//////////////////////////////////////////////////////////////
+
+Kokkos::View<int*,Kokkos::LayoutStride,AssemblyDevice> workset::getOffsets(const string & var) {
+  
+  Kokkos::View<int*,Kokkos::LayoutStride,AssemblyDevice> reqdata;
+  
+  int index;
+  bool found = this->isVar(var, index);
+  if (found) {
+    reqdata = subview(offsets,index,ALL());
+  }
+  else {
+    std::cout << "Warning: could not find variable: " << var << std::endl;
+    std::cout << "An error will probably occur if this view is accessed" << std::endl;
+  }
+  return reqdata;
+}
+
+//////////////////////////////////////////////////////////////
+// Print the meta-data associated with the stored View_AD2 and View_Sc2
+//////////////////////////////////////////////////////////////
 
 void workset::printMetaData() {
   std::cout << "Number of View_AD2 stored: " << data.size() << std::endl << std::endl;
@@ -1512,6 +1819,9 @@ void workset::printMetaData() {
   
 }
 
+//////////////////////////////////////////////////////////////
+// Set the integration points
+//////////////////////////////////////////////////////////////
 
 void workset::setIP(View_Sc3 newip, const string & pfix) {
   size_type dim = newip.extent(2);
@@ -1570,6 +1880,10 @@ void workset::setIP(View_Sc3 newip, const string & pfix) {
   }
 }
 
+//////////////////////////////////////////////////////////////
+// Set the side/face normals
+//////////////////////////////////////////////////////////////
+
 void workset::setNormals(View_Sc3 newnormals) {
   size_type dim = newnormals.extent(2);
   auto nx = this->getDataSc("nx side");
@@ -1626,6 +1940,10 @@ void workset::setNormals(View_Sc3 newnormals) {
     }
   }
 }
+
+//////////////////////////////////////////////////////////////
+// Set the solutions
+//////////////////////////////////////////////////////////////
 
 void workset::setSolution(View_AD4 newsol, const string & pfix) {
   // newsol has dims numElem x numvars x numip x dimension
@@ -1689,6 +2007,10 @@ void workset::setSolution(View_AD4 newsol, const string & pfix) {
   
 }
 
+//////////////////////////////////////////////////////////////
+// Set the solution GRADs
+//////////////////////////////////////////////////////////////
+
 void workset::setSolutionGrad(View_AD4 newsol, const string & pfix) {
   for (size_t i=0; i<varlist_HGRAD.size(); i++) {
     string var = varlist_HGRAD[i];
@@ -1710,6 +2032,10 @@ void workset::setSolutionGrad(View_AD4 newsol, const string & pfix) {
   }
 }
 
+//////////////////////////////////////////////////////////////
+// Set the solution DIVs
+//////////////////////////////////////////////////////////////
+
 void workset::setSolutionDiv(View_AD3 newsol, const string & pfix) {
   for (size_t i=0; i<varlist_HDIV.size(); i++) {
     string var = varlist_HDIV[i];
@@ -1718,6 +2044,10 @@ void workset::setSolutionDiv(View_AD3 newsol, const string & pfix) {
     auto cnsol = subview(newsol,ALL(),varind,ALL());
   }
 }
+
+//////////////////////////////////////////////////////////////
+// Set the solution CURLs
+//////////////////////////////////////////////////////////////
 
 void workset::setSolutionCurl(View_AD4 newsol, const string & pfix) {
   for (size_t i=0; i<varlist_HCURL.size(); i++) {
@@ -1740,6 +2070,9 @@ void workset::setSolutionCurl(View_AD4 newsol, const string & pfix) {
   }
 }
 
+//////////////////////////////////////////////////////////////
+// Set the solution at a point
+//////////////////////////////////////////////////////////////
 
 void workset::setSolutionPoint(View_AD2 newsol) {
   // newsol has dims numElem x numvars x numip x dimension

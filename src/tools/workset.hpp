@@ -149,6 +149,10 @@ namespace MrHyDE {
     
     void setStage(const int & newstage);
     
+    //////////////////////////////////////////////////////////////
+    // Data extraction methods
+    //////////////////////////////////////////////////////////////
+    
     View_AD2 getData(const string & label);
     
     View_Sc2 getDataSc(const string & label);
@@ -157,9 +161,61 @@ namespace MrHyDE {
     
     void get(const string & label, View_Sc2 & dataout);
     
+    View_Sc4 getBasis(const string & var);
+    
+    View_Sc4 getBasis(const int & varindex);
+    
+    View_Sc4 getBasisGrad(const string & var);
+    
+    View_Sc4 getBasisGrad(const int & varindex);
+    
+    View_Sc4 getBasisCurl(const string & var);
+    
+    View_Sc4 getBasisCurl(const int & varindex);
+    
+    View_Sc3 getBasisDiv(const string & var);
+    
+    View_Sc3 getBasisDiv(const int & varindex);
+    
+    View_Sc4 getBasisSide(const string & var);
+    
+    View_Sc4 getBasisSide(const int & varindex);
+    
+    View_Sc4 getBasisGradSide(const string & var);
+    
+    View_Sc4 getBasisGradSide(const int & varindex);
+    
+    View_Sc4 getBasisCurlSide(const string & var);
+    
+    View_Sc4 getBasisCurlSide(const int & varindex);
+    
+    Kokkos::View<int**,AssemblyDevice> getOffsets();
+    
+    Kokkos::View<int*,Kokkos::LayoutStride,AssemblyDevice> getOffsets(const string & var);
+    
+    //////////////////////////////////////////////////////////////
+    // Checks to determine if a string is a known variable
+    //////////////////////////////////////////////////////////////
+    
+    bool findBasisIndex(const string & var, int & basisindex);
+
+    bool isVar(const string & var, int & index);
+    
+    bool isParameter(const string & var, int & index);
+    
+    bool isAux(const string & var, int & index);
+    
+    //////////////////////////////////////////////////////////////
+    // Functions to add data to storage
+    //////////////////////////////////////////////////////////////
+    
     void addData(const string & label, const int & dim0, const int & dim1);
     
     void addDataSc(const string & label, const int & dim0, const int & dim1);
+    
+    //////////////////////////////////////////////////////////////
+    // Functions to set the data
+    //////////////////////////////////////////////////////////////
     
     void setData(const string & label, View_AD2 newdata);
     
@@ -172,6 +228,10 @@ namespace MrHyDE {
     void setIP(View_Sc3 newip, const string & pfix = "");
     
     void setNormals(View_Sc3 newnormals);
+    
+    //////////////////////////////////////////////////////////////
+    // Functions to set solution data (these are not all implemented and will be deprecated eventually)
+    //////////////////////////////////////////////////////////////
     
     void setSolution(View_AD4 newsol, const string & pfix = "");
     
@@ -289,6 +349,7 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> worksetgetTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::get()");
     Teuchos::RCP<Teuchos::Time> worksetgetDataTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::getData");
     Teuchos::RCP<Teuchos::Time> worksetgetDataScTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::getDataSc");
+    Teuchos::RCP<Teuchos::Time> worksetgetBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::workset::getBasis*");
     
     Teuchos::RCP<Teuchos::Time> worksetDebugTimer0 = Teuchos::TimeMonitor::getNewCounter("MILO::workset::debug0");
     Teuchos::RCP<Teuchos::Time> worksetDebugTimer1 = Teuchos::TimeMonitor::getNewCounter("MILO::workset::debug1");
