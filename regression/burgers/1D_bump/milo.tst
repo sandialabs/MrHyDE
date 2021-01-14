@@ -33,8 +33,8 @@ fdtol= 5.0e-10     # finite difference gradient tolerance
 
 # These comments are for testing with the runtest.py utility.
 #TESTING active
-#TESTING -n 4
-#TESTING -k Maxwells,planewave,transient,PML,HDIV,HCURL 
+#TESTING -n 1
+#TESTING -k Burgers,transient,1D 
 
 # ==============================================================================
 status = 0
