@@ -22,8 +22,10 @@ using namespace MrHyDE;
 // ========================================================================================
 
 msphasefield::msphasefield(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_,
-                           const Teuchos::RCP<MpiComm> & Comm_) :
-Comm(Comm_) {
+                           const Teuchos::RCP<MpiComm> & Comm_)
+  : physicsbase(settings, isaux_),
+  Comm(Comm_)
+{
   
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   numphases = settings->sublist("Physics").get<int>("number_phases",1);

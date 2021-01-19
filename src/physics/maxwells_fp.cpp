@@ -18,15 +18,15 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-maxwells_fp::maxwells_fp(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
+maxwells_fp::maxwells_fp(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
+  : physicsbase(settings, isaux_)
+{
   
   //potential approach to frequency-domain Maxwell's (see Boyse et al (1992)); uses -iwt convention
   
   spaceDim = settings->sublist("Mesh").get<int>("dim",3);
   if(spaceDim < 2)
     cout << "Not all aspects may be well-defined in 1D..." << endl;
-  
-  verbosity = settings->sublist("Physics").get<int>("Verbosity",0);
   
   myvars.push_back("Arx");
   myvars.push_back("Aix");

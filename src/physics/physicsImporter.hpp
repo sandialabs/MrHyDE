@@ -16,7 +16,7 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 
 namespace MrHyDE {
   

@@ -14,7 +14,7 @@
 #ifndef POROUSHDIVHYBRID_H
 #define POROUSHDIVHYBRID_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 
 namespace MrHyDE {
   /*

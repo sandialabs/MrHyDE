@@ -14,7 +14,9 @@
 #include "maxwell.hpp"
 using namespace MrHyDE;
 
-maxwell::maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
+maxwell::maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
+  : physicsbase(settings, isaux_)
+{
   
   label = "maxwell";
   spaceDim = settings->sublist("Mesh").get<int>("dim",3);

@@ -14,7 +14,9 @@
 #include "porous.hpp"
 using namespace MrHyDE;
 
-porous::porous(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
+porous::porous(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
+  : physicsbase(settings, isaux_)
+{
   
   // Standard data
   label = "porous";

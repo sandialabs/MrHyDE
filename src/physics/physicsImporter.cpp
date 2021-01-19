@@ -30,6 +30,7 @@
 #include "maxwell.hpp"
 #include "ode.hpp"
 #include "burgers.hpp"
+#include "kuramotoSivashinsky.hpp"
 
 // Disabled/out-of-date physics modules
 //#include "maxwell_hybridized.hpp"
@@ -166,6 +167,11 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
     // Scalar Burgers equation
     if (modname == "Burgers"){
       modules.push_back(Teuchos::rcp(new Burgers(settings, isaux) ) );
+    }
+
+    // Kuramoto-Sivashinsky equation
+    if (modname == "Kuramoto-Sivashinsky"){
+      modules.push_back(Teuchos::rcp(new KuramotoSivashinsky(settings, isaux) ) );
     }
   }
   

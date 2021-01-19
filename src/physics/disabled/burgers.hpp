@@ -12,7 +12,7 @@
 #ifndef BURGERS_H
 #define BURGERS_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 
 class burgers : public physicsbase {
 public:

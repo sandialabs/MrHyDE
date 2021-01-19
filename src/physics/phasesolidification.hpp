@@ -14,7 +14,7 @@
 #ifndef PHASESOLIDIFICATION_H
 #define PHASESOLIDIFICATION_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 #include <random>
 #include <math.h>
 #include <time.h>

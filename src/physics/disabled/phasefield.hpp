@@ -12,7 +12,7 @@
 #ifndef PHASEFIELD_H
 #define PHASEFIELD_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 
 class phasefield : public physicsbase {
   public:

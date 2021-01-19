@@ -14,7 +14,7 @@
 #ifndef LINEARELAST_H
 #define LINEARELAST_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 #include "CrystalElasticity.hpp"
 #include <string>
 

@@ -11,24 +11,24 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef ODE_H
-#define ODE_H
+#ifndef KURAMOTO_SIVASHINSKY_H
+#define KURAMOTO_SIVASHINSKY_H
 
 #include "physicsBase.hpp"
 
 namespace MrHyDE {
   
-  class ODE : public physicsbase {
+  class KuramotoSivashinsky : public physicsbase {
   public:
     
-    ODE() {} ;
+    KuramotoSivashinsky() {} ;
     
-    ~ODE() {};
+    ~KuramotoSivashinsky() {};
     
     // ========================================================================================
     // ========================================================================================
     
-    ODE(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_);
+    KuramotoSivashinsky(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_);
     
     // ========================================================================================
     // ========================================================================================
@@ -40,20 +40,6 @@ namespace MrHyDE {
     // ========================================================================================
     
     void volumeResidual();
-    
-    // ========================================================================================
-    // ========================================================================================
-    
-    void setWorkset(Teuchos::RCP<workset> & wkset_);
-    
-    
-  private:
-    
-    int qnum;
-    View_AD2 dqdt;
-    
-    Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::ODE::volumeResidual() - function evaluation");
-    Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::ODE::volumeResidual() - evaluation of residual");
     
   };
   

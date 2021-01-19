@@ -19,12 +19,12 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-navierstokes::navierstokes(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
+navierstokes::navierstokes(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
+  : physicsbase(settings, isaux_)
+{
   
   label = "navierstokes";
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
-  
-  verbosity = settings->sublist("Physics").get<int>("Verbosity",0);
   
   myvars.push_back("ux");
   myvars.push_back("pr");

@@ -12,7 +12,7 @@
 #ifndef THERMAL_FR_H
 #define THERMAL_FR_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 
 class thermal_fr : public physicsbase {
 public:

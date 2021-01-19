@@ -14,7 +14,7 @@
 #ifndef MAXWELLS_FP_H
 #define MAXWELLS_FP_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 
 namespace MrHyDE {
   /*
@@ -141,7 +141,7 @@ namespace MrHyDE {
     int spaceDim;
     int Axr_num, phir_num, Ayr_num, Azr_num, Axi_num, phii_num, Ayi_num, Azi_num;
     
-    int verbosity, test;
+    int test;
     
     Kokkos::View<ScalarT***,AssemblyDevice> Erx, Ery, Erz, Eix, Eiy, Eiz; //corresponding electric field
     bool calcE; //whether to calculate E field here (does not give smooth result like Paraview does; cause unknown)

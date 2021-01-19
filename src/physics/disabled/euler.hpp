@@ -12,7 +12,7 @@
 #ifndef EULER_H
 #define EULER_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 
 class euler : public physicsbase {
 public:

@@ -14,7 +14,7 @@
 #ifndef HELMHOLTZ_H
 #define HELMHOLTZ_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 
 namespace MrHyDE {
   /*
@@ -72,8 +72,6 @@ namespace MrHyDE {
     
     int spaceDim;
     int ur_num, ui_num;
-    
-    int verbosity;
     
     AD ur, durdx, durdy, durdz, durdn, c2durdn;
     AD ui, duidx, duidy, duidz, duidn, c2duidn;

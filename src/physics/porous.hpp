@@ -14,7 +14,7 @@
 #ifndef POROUS_H
 #define POROUS_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 
 namespace MrHyDE {
   

@@ -15,7 +15,9 @@
 
 using namespace MrHyDE;
 
-porousHDIV_WG::porousHDIV_WG(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
+porousHDIV_WG::porousHDIV_WG(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
+  : physicsbase(settings, isaux_)
+{
   
   label = "porousHDIV-WeakGalerkin";
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);

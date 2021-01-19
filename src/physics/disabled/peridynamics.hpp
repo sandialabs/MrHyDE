@@ -12,7 +12,7 @@
 #ifndef PERI_H
 #define PERI_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 
 class peridynamics : public physicsbase {
 public:

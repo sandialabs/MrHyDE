@@ -14,7 +14,7 @@
 #ifndef POROUSHDIVWG_H
 #define POROUSHDIVWG_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 
 namespace MrHyDE {
   /*

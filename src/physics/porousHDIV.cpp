@@ -14,7 +14,9 @@
 #include "porousHDIV.hpp"
 using namespace MrHyDE;
 
-porousHDIV::porousHDIV(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
+porousHDIV::porousHDIV(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
+  : physicsbase(settings, isaux_)
+{
   
   label = "porousHDIV";
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);

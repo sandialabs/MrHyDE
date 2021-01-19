@@ -28,11 +28,16 @@ namespace MrHyDE {
     
     physicsbase() {} ;
     
+    virtual ~physicsbase() {};
+
     // ========================================================================================
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    virtual ~physicsbase() {};
+    physicsbase(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
+      verbosity = settings->sublist("Physics").get<int>("Verbosity",0);
+    };
+
     
     // ========================================================================================
     // Define the functions for this module (not necessary, but probably need to be defined in all modules)
@@ -40,41 +45,66 @@ namespace MrHyDE {
     
     virtual
     void defineFunctions(Teuchos::ParameterList & fs,
-                         Teuchos::RCP<FunctionManager> & functionManager_) {} ;
+                         Teuchos::RCP<FunctionManager> & functionManager_) {
+      if(verbosity > 10) {
+        // GH: these print statements may be annoying when running on multiple MPI ranks
+	//std::cout << "Warning: physicsBase::defineFunctions called!" << std::endl;
+      }
+    };
     
     // ========================================================================================
     // The volumetric contributions to the residual
     // ========================================================================================
     
     virtual
-    void volumeResidual() {};
+    void volumeResidual() {
+      if(verbosity > 10) {
+	//std::cout << "Warning: physicsBase::volumeResidual called!" << std::endl;
+      }
+    };
     
     // ========================================================================================
     // The boundary contributions to the residual
     // ========================================================================================
     
     virtual
-    void boundaryResidual() {};
+    void boundaryResidual() {
+      if(verbosity > 10) {
+	//std::cout << "Warning: physicsBase::boundaryResidual called!" << std::endl;
+      }
+    };
     
     // ========================================================================================
     // The edge (2D) and face (3D) contributions to the residual
     // ========================================================================================
     
     virtual
-    void faceResidual() {};
+    void faceResidual() {
+      if(verbosity > 10) {
+	//std::cout << "Warning: physicsBase::faceResidual called!" << std::endl;
+      }
+    };
     
     // ========================================================================================
     // The boundary/edge flux
     // ========================================================================================
     
     virtual
-    void computeFlux() {};
+    void computeFlux() {
+      if(verbosity > 10) {
+	//std::cout << "Warning: physicsBase::computeFlux called!" << std::endl;
+      }
+    };
     
     // ========================================================================================
     // ========================================================================================
     
     virtual void updateParameters(const vector<Teuchos::RCP<vector<AD> > > & params,
-                                  const std::vector<string> & paramnames) {} ;
+                                  const std::vector<string> & paramnames) {
+      if(verbosity > 10) {
+	//std::cout << "Warning: physicsBase::updateParameters called!" << std::endl;
+      }
+    };
     
     // ========================================================================================
     // ========================================================================================
@@ -94,6 +124,7 @@ namespace MrHyDE {
     vector<string> myvars, mybasistypes;
     bool include_face = false, isaux = false;
     string prefix = "";
+    int verbosity;
     
     // Probably not used much
     View_AD2 adjrhs;

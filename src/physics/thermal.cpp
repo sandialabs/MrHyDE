@@ -19,7 +19,9 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-thermal::thermal(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
+thermal::thermal(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
+  : physicsbase(settings, isaux_)
+{
   
   // Standard data
   isaux = isaux_;

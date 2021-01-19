@@ -13,7 +13,7 @@
 #ifndef MWHELMHOLTZ_H
 #define MWHELMHOLTZ_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 
 class mwhelmholtz : public physicsbase {
 public:

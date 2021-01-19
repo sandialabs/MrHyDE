@@ -14,7 +14,7 @@
 #ifndef SHALLOWWATER_H
 #define SHALLOWWATER_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 
 namespace MrHyDE {
   /*

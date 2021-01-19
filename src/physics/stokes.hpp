@@ -14,7 +14,7 @@
 #ifndef STOKES_H
 #define STOKES_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 
 namespace MrHyDE {
   /*
@@ -74,9 +74,7 @@ namespace MrHyDE {
     
     vector<ScalarT> pik;
     bool pin_pr;//, have_energy;
-    ScalarT pin_tol, pin_scale, T_ambient, beta;
-    
-    int verbosity;
+    ScalarT pin_tol, pin_scale;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::stokes::volumeResidual() - function evaluation");
     Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MILO::stokes::volumeResidual() - evaluation of residual");

@@ -17,7 +17,9 @@ using namespace MrHyDE;
 // ========================================================================================
 // ========================================================================================
 
-cdr::cdr(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
+cdr::cdr(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
+  : physicsbase(settings, isaux_)
+{
   
   label = "cdr";
   

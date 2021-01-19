@@ -20,7 +20,9 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
+linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
+  : physicsbase(settings, isaux_)
+{
   
   label = "linearelasticity";
   

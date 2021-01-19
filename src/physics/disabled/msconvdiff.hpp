@@ -12,7 +12,7 @@
 #ifndef MSCONVDIFF_H
 #define MSCONVDIFF_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 
 class msconvdiff : public physicsbase {
 public:

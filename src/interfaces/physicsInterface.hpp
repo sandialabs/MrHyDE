@@ -17,7 +17,7 @@
 #include "trilinos.hpp"
 #include "preferences.hpp"
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 #include "workset.hpp"
 
 #include "Panzer_STK_Interface.hpp"

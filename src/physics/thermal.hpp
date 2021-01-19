@@ -14,7 +14,7 @@
 #ifndef THERMAL_H
 #define THERMAL_H
 
-#include "physics_base.hpp"
+#include "physicsBase.hpp"
 
 namespace MrHyDE {
   

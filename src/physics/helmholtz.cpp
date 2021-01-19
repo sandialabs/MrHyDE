@@ -18,11 +18,12 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-helmholtz::helmholtz(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
+helmholtz::helmholtz(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
+  : physicsbase(settings, isaux_)
+{
   
   label = "helmholtz";
   spaceDim = settings->sublist("Mesh").get<int>("dim",2);
-  verbosity = settings->sublist("Physics").get<int>("Verbosity",0);
   fractional = settings->sublist("Physics").get<bool>("fractional",false);
   
   myvars.push_back("ureal");
