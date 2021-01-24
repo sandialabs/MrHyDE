@@ -298,7 +298,7 @@ basis_RCP discretization::getBasis(const int & spaceDim, const topo_RCP & cellTo
   }
   else if (type == "HDIV") {
     if (spaceDim == 1) {
-      // need to throw an error
+      basis = Teuchos::rcp(new Basis_HGRAD_LINE_C1_FEM<PHX::Device::execution_space>() );
     }
     else if (spaceDim == 2) {
       if (shape == "Quadrilateral_4") {

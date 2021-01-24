@@ -47,7 +47,8 @@ settings(settings_), cells(cells_), macro_functionManagers(macro_functionManager
     for (size_t n=0; n<subgridModels.size(); n++) {
       std::stringstream ss;
       ss << n;
-      macro_functionManagers[0]->addFunction("Subgrid " + ss.str() + " usage",subgridModels[n]->usage, "ip");
+      int macro_block = subgridModels[n]->macro_block;
+      macro_functionManagers[macro_block]->addFunction("Subgrid " + ss.str() + " usage",subgridModels[n]->usage, "ip");
     }
      
   }
@@ -71,7 +72,7 @@ void MultiScale::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
                               vector<vector<string> > & macro_varlist,
                               vector<vector<int> > macro_usebasis,
                               vector<vector<vector<int> > > & macro_offsets,
-                              Kokkos::View<int*,AssemblyDevice> & macro_numDOF,
+                              vector<Kokkos::View<int*,AssemblyDevice>> & macro_numDOF,
                               vector<string> & macro_paramnames,
                               vector<string> & macro_disc_paramnames) {
   
@@ -82,7 +83,7 @@ void MultiScale::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
     subgridModels[j]->macro_varlist = macro_varlist[mblock];
     subgridModels[j]->macro_usebasis = macro_usebasis[mblock];
     subgridModels[j]->macro_offsets = macro_wkset[mblock]->offsets;
-    subgridModels[j]->macro_numDOF = macro_numDOF;
+    subgridModels[j]->macro_numDOF = macro_numDOF[mblock];
     subgridModels[j]->macro_paramnames = macro_paramnames;
     subgridModels[j]->macro_disc_paramnames = macro_disc_paramnames;
     subgridModels[j]->subgrid_static = subgrid_static;
@@ -107,73 +108,80 @@ ScalarT MultiScale::initialize() {
   ScalarT my_cost = 0.0;
   size_t numusers = 0;
   for (size_t b=0; b<cells.size(); b++) {
-    for (size_t e=0; e<cells[b].size(); e++) {
-      // needs to be updated
-      //vector<size_t> sgnum = udfunc->getSubgridModel(cells[b][e]->nodes, macro_wkset[b],
-      //                                               cells[b][e]->u, subgridModels.size());
-      //vector<size_t> usernum;
-      //int numElem = cells[b][e]->numElem;
-      
-      cells[b][e]->updateWorksetBasis();
-      macro_wkset[b]->computeSolnSteadySeeded(cells[b][e]->u, 0);
-      macro_wkset[b]->computeParamVolIP(cells[b][e]->param, 0);
-      cells[b][e]->computeSolnVolIP();
-      
-      vector<int> sgvotes(subgridModels.size(),0);
-      
-      for (size_t s=0; s<subgridModels.size(); s++) {
-        std::stringstream ss;
-        ss << s;
-        auto usagecheck = macro_functionManagers[0]->evaluate("Subgrid " + ss.str() + " usage","ip");
-        Kokkos::View<ScalarT**,AssemblyDevice> usagecheck_tmp("temp usage check",usagecheck.extent(0),usagecheck.extent(1));
-        parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,usagecheck.extent(0)), KOKKOS_LAMBDA (const int i ) {
-          for (size_type j=0; j<usagecheck.extent(1); j++) {
-            usagecheck_tmp(i,j) = usagecheck(i,j).val();
-          }
-        });
+    
+    bool uses_subgrid = false;
+    for (size_t s=0; s<subgridModels.size(); s++) {
+      if (subgridModels[s]->macro_block == b) {
+        uses_subgrid = true;
+      }
+    }
+    if (uses_subgrid) {
+      for (size_t e=0; e<cells[b].size(); e++) {
         
-        auto host_usagecheck = Kokkos::create_mirror_view(usagecheck_tmp);
-        Kokkos::deep_copy(host_usagecheck, usagecheck_tmp);
-        for (size_t p=0; p<cells[b][e]->numElem; p++) {
-          for (size_t j=0; j<host_usagecheck.extent(1); j++) {
-            if (host_usagecheck(p,j) >= 1.0) {
-              sgvotes[s] += 1;
+        cells[b][e]->updateWorksetBasis();
+        macro_wkset[b]->computeSolnSteadySeeded(cells[b][e]->u, 0);
+        macro_wkset[b]->computeParamVolIP(cells[b][e]->param, 0);
+        cells[b][e]->computeSolnVolIP();
+        
+        vector<int> sgvotes(subgridModels.size(),0);
+        
+        for (size_t s=0; s<subgridModels.size(); s++) {
+          if (subgridModels[s]->macro_block == b) {
+            std::stringstream ss;
+            ss << s;
+            auto usagecheck = macro_functionManagers[b]->evaluate("Subgrid " + ss.str() + " usage","ip");
+            Kokkos::View<ScalarT**,AssemblyDevice> usagecheck_tmp("temp usage check",usagecheck.extent(0),usagecheck.extent(1));
+            parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,usagecheck.extent(0)), KOKKOS_LAMBDA (const int i ) {
+              for (size_type j=0; j<usagecheck.extent(1); j++) {
+                usagecheck_tmp(i,j) = usagecheck(i,j).val();
+              }
+            });
+            
+            auto host_usagecheck = Kokkos::create_mirror_view(usagecheck_tmp);
+            Kokkos::deep_copy(host_usagecheck, usagecheck_tmp);
+            for (size_t p=0; p<cells[b][e]->numElem; p++) {
+              for (size_t j=0; j<host_usagecheck.extent(1); j++) {
+                if (host_usagecheck(p,j) >= 1.0) {
+                  sgvotes[s] += 1;
+                }
+              }
             }
           }
         }
-      }
-      int maxvotes = -1;
-      int sgwinner = -1;
-      for (size_t i=0; i<sgvotes.size(); i++) {
-        if (sgvotes[i] >= maxvotes) {
-          maxvotes = sgvotes[i];
-          sgwinner = i;
-        }
-      }
-      
-      size_t sgusernum = 0;
-      if (subgrid_static) { // only add each cell to one subgrid model
         
-        sgusernum = subgridModels[sgwinner]->addMacro(cells[b][e]->nodes,
-                                                      cells[b][e]->sideinfo,
-                                                      cells[b][e]->LIDs,
-                                                      cells[b][e]->orientation);
-        
-      }
-      else {
-        for (size_t s=0; s<subgridModels.size(); s++) { // needs to add this cell info to all of them (sgusernum is same for all)
-          sgusernum = subgridModels[s]->addMacro(cells[b][e]->nodes,
-                                                 cells[b][e]->sideinfo,
-                                                 cells[b][e]->LIDs,
-                                                 cells[b][e]->orientation);
+        int maxvotes = -1;
+        int sgwinner = -1;
+        for (size_t i=0; i<sgvotes.size(); i++) {
+          if (sgvotes[i] >= maxvotes) {
+            maxvotes = sgvotes[i];
+            sgwinner = i;
+          }
         }
+        
+        size_t sgusernum = 0;
+        if (subgrid_static) { // only add each cell to one subgrid model
+          
+          sgusernum = subgridModels[sgwinner]->addMacro(cells[b][e]->nodes,
+                                                        cells[b][e]->sideinfo,
+                                                        cells[b][e]->LIDs,
+                                                        cells[b][e]->orientation);
+          
+        }
+        else {
+          for (size_t s=0; s<subgridModels.size(); s++) { // needs to add this cell info to all of them (sgusernum is same for all)
+            sgusernum = subgridModels[s]->addMacro(cells[b][e]->nodes,
+                                                   cells[b][e]->sideinfo,
+                                                   cells[b][e]->LIDs,
+                                                   cells[b][e]->orientation);
+          }
+        }
+        cells[b][e]->subgridModels = subgridModels;
+        cells[b][e]->subgrid_model_index.push_back(sgwinner);
+        cells[b][e]->subgrid_usernum = sgusernum;
+        cells[b][e]->cellData->multiscale = true;
+        my_cost = subgridModels[sgwinner]->cost_estimate * cells[b][e]->numElem;
+        numusers += 1;
       }
-      cells[b][e]->subgridModels = subgridModels;
-      cells[b][e]->subgrid_model_index.push_back(sgwinner);
-      cells[b][e]->subgrid_usernum = sgusernum;
-      cells[b][e]->cellData->multiscale = true;
-      my_cost = subgridModels[sgwinner]->cost_estimate * cells[b][e]->numElem;
-      numusers += 1;
     }
   }
   
@@ -284,13 +292,15 @@ ScalarT MultiScale::update() {
           vector<int> sgvotes(subgridModels.size(),0);
           
           for (size_t s=0; s<subgridModels.size(); s++) {
-            std::stringstream ss;
-            ss << s;
-            auto usagecheck = macro_functionManagers[0]->evaluate("Subgrid " + ss.str() + " usage","ip");
-            for (size_t p=0; p<cells[b][e]->numElem; p++) {
-              for (size_t j=0; j<usagecheck.extent(1); j++) {
-                if (usagecheck(p,j).val() >= 1.0) {
-                  sgvotes[s] += 1;
+            if (subgridModels[s]->macro_block == b) {
+              std::stringstream ss;
+              ss << s;
+              auto usagecheck = macro_functionManagers[b]->evaluate("Subgrid " + ss.str() + " usage","ip");
+              for (size_t p=0; p<cells[b][e]->numElem; p++) {
+                for (size_t j=0; j<usagecheck.extent(1); j++) {
+                  if (usagecheck(p,j).val() >= 1.0) {
+                    sgvotes[s] += 1;
+                  }
                 }
               }
             }

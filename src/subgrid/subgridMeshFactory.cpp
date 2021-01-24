@@ -174,10 +174,5 @@ namespace panzer_stk{
     return validparams;
   }
   
-  ///////////////////////////////////////////////////////////////
-  //! what is the 2D tuple describe this processor distribution
-  ///////////////////////////////////////////////////////////////
-  
-  //Teuchos::Tuple<std::size_t,2> SubGridMeshFactory::procRankToProcTuple(std::size_t procRank) const {}
 }
 

@@ -183,6 +183,12 @@ void SubGridFEM::setUpSubgridModels() {
     
     sub_mesh = Teuchos::rcp(new meshInterface(settings, LocalComm) );
     sub_mesh->mesh = mesh;
+    if (debug_level > 1) {
+      if (LocalComm->getRank() == 0) {
+        mesh->printMetaData(std::cout);
+      }
+    }
+    
   }
   
   /////////////////////////////////////////////////////////////////////////////////////
@@ -196,7 +202,6 @@ void SubGridFEM::setUpSubgridModels() {
   /////////////////////////////////////////////////////////////////////////////////////
   
   sub_disc = Teuchos::rcp( new discretization(settings, LocalComm, sub_mesh->mesh, sub_physics) );
-  
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the function managers
@@ -212,6 +217,7 @@ void SubGridFEM::setUpSubgridModels() {
                                                               numSubElem,
                                                               sub_disc->numip[0],
                                                               sub_disc->numip_side[0])));
+  
   
   ////////////////////////////////////////////////////////////////////////////////
   // Define the functions on each block
@@ -236,10 +242,10 @@ void SubGridFEM::setUpSubgridModels() {
   /////////////////////////////////////////////////////////////////////////////////////
   
   sub_params = Teuchos::rcp( new ParameterManager<SubgridSolverNode>(LocalComm, settings, sub_mesh->mesh,
-                                                  sub_physics, sub_disc));
+                                                                     sub_physics, sub_disc));
   
   sub_assembler = Teuchos::rcp( new AssemblyManager<SubgridSolverNode>(LocalComm, settings, sub_mesh->mesh,
-                                                    sub_disc, sub_physics, sub_params, numSubElem));
+                                                                       sub_disc, sub_physics, sub_params, numSubElem));
   
   cells = sub_assembler->cells;
   
@@ -722,7 +728,7 @@ void SubGridFEM::setUpSubgridModels() {
     // at the sub-grid integration points
     // Used to map the macro-scale solution to the sub-grid evaluation/integration pts
     ////////////////////////////////////////////////////////////////////////////////
-    
+   
     {
       Teuchos::TimeMonitor auxbasistimer(*sgfemComputeAuxBasisTimer);
       nummacroVars = macro_varlist.size();
@@ -736,7 +742,6 @@ void SubGridFEM::setUpSubgridModels() {
             size_t numElem = boundaryCells[mindex][e]->numElem;
             
             auto sside_ip = boundaryCells[mindex][e]->ip;//wkset->ip_side_vec[BIDs[e]];
-            
             vector<DRV> currside_basis;
             for (size_t i=0; i<macro_basis_pointers.size(); i++) {
               DRV tmp_basis = DRV("basis values",numElem,macro_basis_pointers[i]->getCardinality(),sside_ip.extent(1));
@@ -866,7 +871,7 @@ void SubGridFEM::finalize(const int & globalSize, const int & globalPID) {
   if (combined_outputfile) {
     std::stringstream ss;
     ss << globalSize << "." << globalPID;
-    combined_mesh_filename = "subgrid_data/subgrid_combined_output." + ss.str();
+    combined_mesh_filename = "subgrid_data/subgrid_combined_output." + ss.str() + ".exo";
     
     this->setupCombinedExodus();
     

@@ -42,6 +42,10 @@ params(params_), numElemPerCell(numElemPerCell_) {
   verbosity = settings->get<int>("verbosity",0);
   usestrongDBCs = settings->sublist("Solver").get<bool>("use strong DBCs",true);
   useNewBCs = settings->sublist("Solver").get<bool>("use new BCs",true);
+  
+  // TMW: the following flag should only be used if there are extra variables, but no corresponding equation/constraint
+  fix_zero_rows = settings->sublist("Solver").get<bool>("fix zero rows",false);
+  
   use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("use measurements as DBCs", false);
   
   assembly_partitioning = settings->sublist("Solver").get<string>("assembly partitioning","sequential"); // "neighbor-avoiding"
@@ -268,7 +272,6 @@ void AssemblyManager<Node>::createCells() {
                                                      params->num_discretized_params,
                                                      refnodes));
       
-      
       blockCellData->requireBasisAtNodes = settings->sublist("Postprocess").get<bool>("plot solution at nodes",false);
       
       vector<vector<int> > curroffsets = disc->offsets[b];
@@ -295,20 +298,14 @@ void AssemblyManager<Node>::createCells() {
           
           auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
           Kokkos::View<LO*,HostDevice> host_eIndex2("element indices on host",currElem);
-          //auto host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
           
           auto nodes_sub = Kokkos::subview(blocknodes,std::make_pair(prog, prog+currElem), Kokkos::ALL(), Kokkos::ALL());
           Kokkos::deep_copy(currnodes,nodes_sub);
           
           for (size_t e=0; e<host_eIndex.extent(0); e++) {
-            //for (int n=0; n<currnodes.extent(1); n++) {
-            //  for (int m=0; m<currnodes.extent(2); m++) {
-            //    currnodes(e,n,m) = blocknodes(prog+e,n,m);
-            //  }
-            //}
             host_eIndex(e) = prog+static_cast<LO>(e);//disc->myElements[b][prog+e]; // TMW: why here?;prog+e;
           }
-          //Kokkos::deep_copy(currnodes,host_currnodes);
+          
           Kokkos::deep_copy(eIndex,host_eIndex);
           Kokkos::deep_copy(host_eIndex2,host_eIndex);
           // This subview only works if the cells use a continuous ordering of elements
@@ -359,7 +356,6 @@ void AssemblyManager<Node>::createCells() {
       // Boundary cells
       //////////////////////////////////////////////////////////////////////////////////
       
-    
       if (build_boundary_terms[b]) {
         // TMW: this is just for ease of use
         int numBoundaryElem = settings->sublist("Solver").get<int>("workset size",100);
@@ -1078,6 +1074,28 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
   // Apply constraints, e.g., strongly imposed Dirichlet
   this->dofConstraints(J, res, current_time, compute_jacobian, compute_disc_sens);
   
+  
+  if (fix_zero_rows) {
+    size_t numrows = J->getNodeNumRows();
+    
+    parallel_for("assembly insert Jac",
+                 RangePolicy<LA_exec>(0,numrows),
+                 KOKKOS_LAMBDA (const size_t row ) {
+      auto rowdata = J_kcrs.row(row);
+      ScalarT abssum = 0.0;
+      for (int col=0; col<rowdata.length; ++col ) {
+        abssum += abs(rowdata.value(col));
+      }
+      ScalarT val[1];
+      LO cols[1];
+      if (abssum<1.0e-14) {
+        val[0] = 1.0;
+        cols[0] = row;
+        J_kcrs.replaceValues(row,cols,1,val,false,false);
+      }
+    });
+  }
+   
 }
 
 
@@ -1361,8 +1379,9 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
     
     if (compute_disc_sens) {
       if (use_atomics) { // If LA_device = Kokkos::Serial or if Worksets are colored
-        parallel_for("assembly insert Jac sens",RangePolicy<LA_exec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        //for( size_t elem=0; elem<LIDs.extent(0); elem++ ) {
+        parallel_for("assembly insert Jac sens",
+                     RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                     KOKKOS_LAMBDA (const int elem ) {
           for (size_t row=0; row<LIDs.extent(1); row++ ) {
             LO rowIndex = LIDs(elem,row);
             for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
@@ -1374,8 +1393,9 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
         });
       }
       else {
-        parallel_for("assembly insert Jac sens",RangePolicy<LA_exec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        //for( size_t elem=0; elem<LIDs.extent(0); elem++ ) {
+        parallel_for("assembly insert Jac sens",
+                     RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                     KOKKOS_LAMBDA (const int elem ) {
           for (size_t row=0; row<LIDs.extent(1); row++ ) {
             LO rowIndex = LIDs(elem,row);
             for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
@@ -1390,13 +1410,12 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
     }
     else {
       if (use_atomics) { // If LA_device = Kokkos::Serial or if Worksets are colored
-        parallel_for("assembly insert Jac",RangePolicy<LA_exec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        //for( size_t elem=0; elem<LIDs.extent(0); elem++ ) {
-          
+        parallel_for("assembly insert Jac",
+                     RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                     KOKKOS_LAMBDA (const int elem ) {
           const size_type numVals = LIDs.extent(1);
           LO cols[maxDerivs];
           ScalarT vals[maxDerivs];
-          
           for (size_type row=0; row<LIDs.extent(1); row++ ) {
             LO rowIndex = LIDs(elem,row);
             if (!fixedDOF(rowIndex)) {
@@ -1410,13 +1429,12 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
         });
       }
       else {
-        parallel_for("assembly insert Jac",RangePolicy<LA_exec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-        //for( size_t elem=0; elem<LIDs.extent(0); elem++ ) {
-          
+        parallel_for("assembly insert Jac",
+                     RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                     KOKKOS_LAMBDA (const int elem ) {
           const size_type numVals = LIDs.extent(1);
           LO cols[maxDerivs];
           ScalarT vals[maxDerivs];
-          
           for (size_type row=0; row<LIDs.extent(1); row++ ) {
             LO rowIndex = LIDs(elem,row);
             if (!fixedDOF(rowIndex)) {

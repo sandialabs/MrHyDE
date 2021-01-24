@@ -62,6 +62,10 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   this->addDataSc("ny side",numElem,numsideip);
   this->addDataSc("nz side",numElem,numsideip);
   
+  this->addDataSc("tx side",numElem,numsideip);
+  this->addDataSc("ty side",numElem,numsideip);
+  this->addDataSc("tz side",numElem,numsideip);
+  
   this->addDataSc("x point",1,1);
   this->addDataSc("y point",1,1);
   this->addDataSc("z point",1,1);
@@ -1935,6 +1939,67 @@ void workset::setNormals(View_Sc3 newnormals) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<newnz.extent(1); pt+=team.team_size() ) {
           nz(elem,pt) = newnz(elem,pt);
+        }
+      });
+    }
+  }
+}
+
+//////////////////////////////////////////////////////////////
+// Set the side/face normals
+//////////////////////////////////////////////////////////////
+
+void workset::setTangents(View_Sc3 newtangents) {
+  size_type dim = newtangents.extent(2);
+  auto tx = this->getDataSc("tx side");
+  bool sizes_match = true;
+  if (newtangents.extent(0) < tx.extent(0)) {
+    sizes_match = false;
+  }
+  auto newtx = subview(newtangents,ALL(),ALL(),0);
+  if (sizes_match) {
+    Kokkos::deep_copy(tx,newtx);
+  }
+  else {
+    parallel_for("wkset setTangents tx",
+                 TeamPolicy<AssemblyExec>(newtx.extent(0), Kokkos::AUTO),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type pt=team.team_rank(); pt<newtx.extent(1); pt+=team.team_size() ) {
+        tx(elem,pt) = newtx(elem,pt);
+      }
+    });
+  }
+  if (dim > 1) {
+    auto ty = this->getDataSc("ty side");
+    auto newty = subview(newtangents,ALL(),ALL(),1);
+    if (sizes_match) {
+      Kokkos::deep_copy(ty,newty);
+    }
+    else {
+      parallel_for("wkset setTangents ty",
+                   TeamPolicy<AssemblyExec>(newty.extent(0), Kokkos::AUTO),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type pt=team.team_rank(); pt<newty.extent(1); pt+=team.team_size() ) {
+          ty(elem,pt) = newty(elem,pt);
+        }
+      });
+    }
+  }
+  if (dim > 2) {
+    auto tz = this->getDataSc("tz side");
+    auto newtz = subview(newtangents,ALL(),ALL(),2);
+    if (sizes_match) {
+      Kokkos::deep_copy(tz,newtz);
+    }
+    else {
+      parallel_for("wkset setTangetns tz",
+                   TeamPolicy<AssemblyExec>(newtz.extent(0), Kokkos::AUTO),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type pt=team.team_rank(); pt<newtz.extent(1); pt+=team.team_size() ) {
+          tz(elem,pt) = newtz(elem,pt);
         }
       });
     }

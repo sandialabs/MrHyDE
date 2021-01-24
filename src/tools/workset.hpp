@@ -229,6 +229,8 @@ namespace MrHyDE {
     
     void setNormals(View_Sc3 newnormals);
     
+    void setTangents(View_Sc3 newtangents);
+    
     //////////////////////////////////////////////////////////////
     // Functions to set solution data (these are not all implemented and will be deprecated eventually)
     //////////////////////////////////////////////////////////////

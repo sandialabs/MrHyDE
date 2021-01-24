@@ -3,23 +3,22 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  Mesh input file: input_mesh.yaml
-  Physics: 
-    Active variables:
-      p: HFACE
-    eblock-0_0: 
-      modules: porousHDIV
-      assemble face terms: true
-      Dirichlet conditions:
-        p:
-          left: '0.0'
-          right: '0.0'
-          top: '0.0'
-          bottom: '0.0'
-      True solutions:
-        p face: sin(2*pi*x)*sin(2*pi*y)
-  Parameters input file: input_params.yaml
-  Functions input file: input_functions.yaml
+  Mesh:
+    dim: 1
+    shape: interval
+    xmin: 0.0
+    xmax: 1.0
+    NX: 40
+    blocknames: eblock-0
+  Physics:
+    Extra variables:
+      lambda: HGRAD
+    Dirichlet conditions:
+      lambda:
+        left: '0.0'
+        right: '0.0'
+    True solutions:
+      lambda: sin(2*pi*x)
   Solver: 
     solver: steady-state
     workset size: 10
@@ -29,29 +28,30 @@ ANONYMOUS:
     use direct solver: false
     use preconditioner: true
   Discretization:
-    eblock-0_0:
-      order:
-        p: 1
-      quadrature: 2
+    order:
+      Extra variables:
+        lambda: 1
+    quadrature: 2
   Subgrid:
+    debug level: 0
     subgrid model: FEM
     Mesh:
       mesh type: panzer
-      shape: quad
-      refinements: 2
-      dim: 2
+      shape: interval
+      refinements: 4
+      dim: 1
       blocknames: eblock
     Physics:
       modules: porousHDIV
       use permeability data: false
       True solutions:
-        p: sin(2*pi*x)*sin(2*pi*y)
-        'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
-        'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
+        p: sin(2*pi*x)
+        'u': -2*pi*cos(2*pi*x)
     Solver:
       solver: steady-state
       use direct solver: true
-    Functions input file: input_functions.yaml
+    Functions:
+      source: 4*(pi*pi)*sin(2*pi*x)
     Discretization:
       order:
         p: 0
@@ -63,8 +63,6 @@ ANONYMOUS:
       plot solution at nodes: false
   Analysis:
     analysis type: forward
-    Have Sensor Points: false
-    Have Sensor Data: false
   Postprocess: 
     response type: global
     compute errors: true

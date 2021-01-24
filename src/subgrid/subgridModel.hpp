@@ -122,7 +122,7 @@ namespace MrHyDE {
     Kokkos::View<int*,AssemblyDevice> macro_numDOF;
     
     vector<string> macro_paramnames, macro_disc_paramnames, macrosidenames;
-    int macro_block;
+    size_t macro_block;
     ScalarT cost_estimate;
     bool subgrid_static;
     

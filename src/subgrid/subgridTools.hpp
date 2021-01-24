@@ -84,12 +84,12 @@ namespace MrHyDE {
           pl->set("X Elements", numEPerD);
           pl->set("X0", -1.0);
           pl->set("Xf", 1.0);
-          pl->set("X Procs", 1);
           if (dimension > 1) {
             pl->set("Y Blocks", 1);
             pl->set("Y Elements", numEPerD);
             pl->set("Y0", -1.0);
             pl->set("Yf", 1.0);
+            pl->set("X Procs", 1);
             pl->set("Y Procs", 1);
           }
           if (dimension > 2) {

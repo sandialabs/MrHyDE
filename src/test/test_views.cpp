@@ -53,7 +53,7 @@ int main(int argc, char * argv[]) {
     Kokkos::View<EvalT**,CL,AssemblyDevice> source("src",numElem,numip,numDerivs);
     Kokkos::View<ScalarT**,CL,AssemblyDevice> wts("wts",numElem,numip);
     
-    Kokkos::View<AD**,CL,AssemblyDevice> sv = Kokkos::subview(gradT,Kokkos::ALL(),0,Kokkos::ALL());
+    auto sv = Kokkos::subview(gradT,Kokkos::ALL(),0,Kokkos::ALL());
     
     parallel_for("Thermal volume resid 2D",
                  RangePolicy<AssemblyExec>(0,basis.extent(0)),

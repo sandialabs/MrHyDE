@@ -43,9 +43,15 @@ namespace MrHyDE {
         Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = rcp(new Teuchos::ParameterList("Subgrid"));
         subgrid_pl->setParameters(settings->sublist("Subgrid"));
         string subgrid_model_type = subgrid_pl->get<string>("subgrid model","FEM");
-        int macro_block = subgrid_pl->get<int>("macro block",0);
+        string macro_block_name = subgrid_pl->get<string>("macro block","eblock-0_0_0");
         std::vector<string> macro_blocknames;
         macromesh->getElementBlockNames(macro_blocknames);
+        int macro_block = 0; // default to single block case
+        for (size_t m=0; m<macro_blocknames.size(); ++m) {
+          if (macro_blocknames[m] == macro_block_name) {
+            macro_block = m;
+          }
+        }
         topo_RCP macro_topo = macromesh->getCellTopology(macro_blocknames[macro_block]);
         if (subgrid_model_type == "FEM") {
           subgridModels.push_back(Teuchos::rcp( new SubGridFEM(Comm, subgrid_pl, macro_topo,
@@ -71,9 +77,15 @@ namespace MrHyDE {
             Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = rcp(new Teuchos::ParameterList("Subgrid"));
             subgrid_pl->setParameters(settings->sublist("Subgrid").sublist("Model" + ss.str()));
             string subgrid_model_type = subgrid_pl->get<string>("subgrid model","FEM");
-            int macro_block = subgrid_pl->get<int>("macro block",0);
+            string macro_block_name = subgrid_pl->get<string>("macro block","eblock-0_0_0");
             std::vector<string> macro_blocknames;
             macromesh->getElementBlockNames(macro_blocknames);
+            int macro_block = 0; // default to single block case
+            for (size_t m=0; m<macro_blocknames.size(); ++m) {
+              if (macro_blocknames[m] == macro_block_name) {
+                macro_block = m;
+              }
+            }
             topo_RCP macro_topo = macromesh->getCellTopology(macro_blocknames[macro_block]);
             
             if (subgrid_model_type == "FEM") {

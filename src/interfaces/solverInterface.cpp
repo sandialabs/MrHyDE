@@ -1458,11 +1458,8 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       res->doExport(*res_over, *exporter, Tpetra::ADD);
     }
     
-    //KokkosTools::print(res,"residual from solver interface");
-    //KokkosTools::print(J,"Jacobian from solver interface");
     if (milo_debug_level>2) {
-      //KokkosTools::print(J,"Jacobian from solver interface");
-      //KokkosTools::print(res,"residual from solver interface");
+      KokkosTools::print(res,"residual from solver interface");
     }
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
     if (NLiter == 0) {
@@ -1508,7 +1505,9 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
         J->fillComplete();
       }
       
-      //KokkosTools::print(J,"Jacobian from solver interface");
+      if (milo_debug_level>2) {
+        KokkosTools::print(J,"Jacobian from solver interface");
+      }
       
       this->linearSolver(J, res, du);
       {
@@ -2323,10 +2322,13 @@ void solver<Node>::finalizeMultiscale() {
     }
     
     multiscale_manager->macro_wkset = assembler->wkset;
-    
+    vector<Kokkos::View<int*,AssemblyDevice>> macro_numDOF;
+    for (size_t b=0; b<assembler->cellData.size(); ++b) {
+      macro_numDOF.push_back(assembler->cellData[b]->numDOF);
+    }
     multiscale_manager->setMacroInfo(disc->basis_pointers, disc->basis_types,
                                      phys->varlist, useBasis, disc->offsets,
-                                     assembler->cells[0][0]->cellData->numDOF,
+                                     macro_numDOF,
                                      params->paramnames, params->discretized_param_names);
     
     ScalarT my_cost = multiscale_manager->initialize();

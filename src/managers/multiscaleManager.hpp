@@ -56,7 +56,7 @@ namespace MrHyDE {
                       std::vector<std::vector<std::string> > & macro_varlist,
                       std::vector<std::vector<int> > macro_usebasis,
                       std::vector<std::vector<std::vector<int> > > & macro_offsets,
-                      Kokkos::View<int*,AssemblyDevice> & macro_numDOF,
+                      std::vector<Kokkos::View<int*,AssemblyDevice>> & macro_numDOF,
                       std::vector<std::string> & macro_paramnames,
                       std::vector<std::string> & macro_disc_paramnames);
     

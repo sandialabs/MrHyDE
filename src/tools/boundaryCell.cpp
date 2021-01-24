@@ -69,6 +69,13 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
   CellTools::setJacobianDet(ijacDet, ijac);
   if (dimension == 1) {
     Kokkos::deep_copy(tmpwts,1.0);
+    auto ref_normals = cellData->ref_side_normals[localSideID_host(0)];
+    parallel_for("bcell 1D normal copy",
+                 RangePolicy<AssemblyExec>(0,tmpnormals.extent(0)),
+                 KOKKOS_LAMBDA (const int elem ) {
+      tmpnormals(elem,0,0) = ref_normals(0,0);
+    });
+    
   }
   else if (dimension == 2) {
     DRV ref_tangents = cellData->ref_side_tangents[localSideID_host(0)];
@@ -305,8 +312,7 @@ void BoundaryCell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & para
       maxnbasis = numParamDOF(i);
     }
   }
-  param = View_Sc3("param",numElem,
-                                                  numParamDOF.extent(0),maxnbasis);
+  param = View_Sc3("param",numElem,numParamDOF.extent(0),maxnbasis);
   
 }
 
@@ -339,6 +345,7 @@ void BoundaryCell::updateWorksetBasis() {
   wkset->h = hsize;
   wkset->setIP(ip," side");
   wkset->setNormals(normals);
+  wkset->setTangents(tangents);
   
   wkset->basis_side = basis;
   wkset->basis_grad_side = basis_grad;

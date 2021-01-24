@@ -49,6 +49,7 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   dimension = cellTopo->getDimension();
   numip = ref_ip_.extent(0);
   numsideip = ref_side_ip_.extent(0);
+  
   if (dimension == 1) {
     numSides = 2;
   }
@@ -65,6 +66,7 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   have_extra_data = false;
   
   numsideip = ref_side_ip_.extent(0);
+  
   if (dimension == 1) {
     DRV leftpt("refSidePoints",1, dimension);
     Kokkos::deep_copy(leftpt,-1.0);
@@ -81,9 +83,9 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
     ref_side_wts.push_back(rightwt);
     
     DRV leftn("refSideNormals",1, dimension);
-    Kokkos::deep_copy(leftwt,-1.0);
+    Kokkos::deep_copy(leftn,-1.0);
     DRV rightn("refSideNormals",1, dimension);
-    Kokkos::deep_copy(rightwt,1.0);
+    Kokkos::deep_copy(rightn,1.0);
     ref_side_normals.push_back(leftn);
     ref_side_normals.push_back(rightn);
   }
@@ -115,6 +117,7 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   }
   
   this->setupReferenceBasis();
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
