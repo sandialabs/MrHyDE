@@ -38,6 +38,7 @@ ANONYMOUS:
     solver: transient
     workset size: 10
     nonlinear TOL: 1.0e-07
+    linear TOL: 1.0e-10
     max nonlinear iters: 4
     final time: 1.0
     number of steps: 10
