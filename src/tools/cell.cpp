@@ -1302,11 +1302,15 @@ void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDe
 void cell::fixDiagJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J,
                       Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
   
-  ScalarT JTOL = 1.0E-14;
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
-  
-  parallel_for("cell fix diag",RangePolicy<AssemblyExec>(0,local_J.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
+
+  using namespace std;
+
+  parallel_for("cell fix diag",
+               RangePolicy<AssemblyExec>(0,local_J.extent(0)), 
+               KOKKOS_LAMBDA (const size_type elem ) {
+    ScalarT JTOL = 1.0E-14;
     for (size_type var=0; var<offsets.extent(0); var++) {
       for (int dof=0; dof<numDOF(var); dof++) {
         int diag = offsets(var,dof);
