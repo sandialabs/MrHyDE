@@ -41,6 +41,7 @@ ANONYMOUS:
     solver: steady-state
     workset size: 100
     max nonlinear iters: 2
+    linear TOL: 1.0e-10
   Postprocess: 
     response type: pointwise
     compute response: false
