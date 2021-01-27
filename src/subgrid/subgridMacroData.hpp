@@ -58,7 +58,7 @@ namespace MrHyDE {
     Kokkos::View<int****,HostDevice> macrosideinfo;
     LIDView macroLIDs;
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> macroorientation;
-    Kokkos::View<int**,HostDevice> bcs;
+    Kokkos::View<string**,HostDevice> bcs;
     Kokkos::View<int*,AssemblyDevice> macroIDs;
   };
   

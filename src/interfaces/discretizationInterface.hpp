@@ -110,7 +110,7 @@ namespace MrHyDE {
     vector<vector<size_t> > myElements;
     
     vector<Kokkos::View<int****,HostDevice> > side_info;
-    vector<Kokkos::View<int**,HostDevice> > var_bcs, aux_var_bcs;
+    vector<Kokkos::View<string**,HostDevice> > var_bcs, aux_var_bcs;
     vector<vector<vector<int> > > offsets, aux_offsets;
     bool haveDirichlet = false, haveAuxDirichlet = false;
     

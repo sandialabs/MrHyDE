@@ -798,14 +798,14 @@ View_Sc2 BoundaryCell::getDirichlet() {
   this->updateWorksetBasis();
   //wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
   
-  Kokkos::View<int**,HostDevice> bcs = wkset->var_bcs;
+  Kokkos::View<string**,HostDevice> bcs = wkset->var_bcs;
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
   auto cwts = wts;
   auto cnormals = normals;
   
   for (size_t n=0; n<wkset->varlist.size(); n++) {
-    if (bcs(n,sidenum) == 1) { // is this a strong DBC for this variable
+    if (bcs(n,sidenum) == "Dirichlet") { // is this a strong DBC for this variable
       auto dip = cellData->physics_RCP->getDirichlet(ip,n,
                                                      cellData->myBlock,
                                                      sidename,
@@ -855,13 +855,13 @@ View_Sc3 BoundaryCell::getMass() {
   
   View_Sc3 mass("local mass", numElem, LIDs.extent(1), LIDs.extent(1));
   
-  Kokkos::View<int**,HostDevice> bcs = wkset->var_bcs;
+  Kokkos::View<string**,HostDevice> bcs = wkset->var_bcs;
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
   auto cwts = wts;
   
   for (size_type n=0; n<numDOF.extent(0); n++) {
-    if (bcs(n,sidenum) == 1) { // is this a strong DBC for this variable
+    if (bcs(n,sidenum) == "Dirichlet") { // is this a strong DBC for this variable
       int bind = wkset->usebasis[n];
       auto cbasis = basis[bind];
       auto off = Kokkos::subview(offsets,n,Kokkos::ALL());

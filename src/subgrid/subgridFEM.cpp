@@ -355,7 +355,7 @@ void SubGridFEM::setUpSubgridModels() {
   
   sub_assembler->boundaryCells = boundaryCells;
   
-  Kokkos::View<int**,HostDevice> currbcs("boundary conditions",
+  Kokkos::View<string**,HostDevice> currbcs("boundary conditions",
                                          sideinfo.extent(1),
                                          macroData[0]->macrosideinfo.extent(2));
   for (size_t i=0; i<sideinfo.extent(1); i++) { // number of variables
@@ -369,7 +369,19 @@ void SubGridFEM::setUpSubgridModels() {
         if (sideinfo(c,i,j,0) > 1) { // TMW: should != 5
           for (size_t p=0; p<unique_sides.size(); p++) {
             if (unique_sides[p] == sideinfo(c,i,j,1)) {
-              currbcs(i,p) = sideinfo(c,i,j,0);
+              if (sideinfo(c,i,j,0) == 1) {
+                currbcs(i,p) = "Dirichlet";
+              }
+              else if (sideinfo(c,i,j,0) == 2) {
+                currbcs(i,p) = "Neumann";
+              }
+              else if (sideinfo(c,i,j,0) == 4) {
+                currbcs(i,p) = "weak Dirichlet";
+              }
+              else if (sideinfo(c,i,j,0) == 5) {
+                currbcs(i,p) = "interface";
+              }
+              //currbcs(i,p) = sideinfo(c,i,j,0);
             }
           }
         }
@@ -621,7 +633,7 @@ void SubGridFEM::setUpSubgridModels() {
       }
       boundaryCells.push_back(newbcells);
       
-      Kokkos::View<int**,HostDevice> currbcs("boundary conditions",
+      Kokkos::View<string**,HostDevice> currbcs("boundary conditions",
                                              subsideinfo.extent(1),
                                              macroData[mindex]->macrosideinfo.extent(2));
       for (size_t i=0; i<subsideinfo.extent(1); i++) { // number of variables
@@ -635,7 +647,20 @@ void SubGridFEM::setUpSubgridModels() {
             if (subsideinfo(c,i,j,0) > 1) { // TMW: should != 5
               for (size_t p=0; p<unique_sides.size(); p++) {
                 if (unique_sides[p] == subsideinfo(c,i,j,1)) {
-                  currbcs(i,p) = subsideinfo(c,i,j,0);
+                  if (subsideinfo(c,i,j,0) == 1) {
+                    currbcs(i,p) = "Dirichlet";
+                  }
+                  else if (subsideinfo(c,i,j,0) == 2) {
+                    currbcs(i,p) = "Neumann";
+                  }
+                  else if (subsideinfo(c,i,j,0) == 4) {
+                    currbcs(i,p) = "weak Dirichlet";
+                  }
+                  else if (subsideinfo(c,i,j,0) == 5) {
+                    currbcs(i,p) = "interface";
+                  }
+                  
+                  //currbcs(i,p) = subsideinfo(c,i,j,0);
                 }
               }
             }

@@ -21,7 +21,7 @@ using namespace MrHyDE;
 workset::workset(const vector<int> & cellinfo, const bool & isTransient_,
                  const vector<string> & basis_types_,
                  const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
-                 const topo_RCP & topo, Kokkos::View<int**,HostDevice> & var_bcs_) :
+                 const topo_RCP & topo, Kokkos::View<string**,HostDevice> & var_bcs_) :
 var_bcs(var_bcs_), isTransient(isTransient_), celltopo(topo),
 basis_types(basis_types_), basis_pointers(basis_pointers_) {
 

@@ -31,7 +31,7 @@ namespace MrHyDE {
     workset(const vector<int> & cellinfo, const bool & isTransient_,
             const vector<string> & basis_types_,
             const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
-            const topo_RCP & topo, Kokkos::View<int**,HostDevice> & var_bcs_);
+            const topo_RCP & topo, Kokkos::View<string**,HostDevice> & var_bcs_);
             
     ////////////////////////////////////////////////////////////////////////////////////
     // Public functions
@@ -267,7 +267,7 @@ namespace MrHyDE {
     
     // Should be the only view stored on Host
     // Used by physics modules to determine the proper contribution to the boundary residual
-    Kokkos::View<int**,HostDevice> var_bcs, aux_var_bcs;
+    Kokkos::View<string**,HostDevice> var_bcs, aux_var_bcs;
     
     Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets, aux_offsets;
     vector<string> varlist, aux_varlist, param_varlist;

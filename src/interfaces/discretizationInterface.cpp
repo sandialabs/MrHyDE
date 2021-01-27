@@ -608,8 +608,8 @@ void discretization::setBCData(const bool & isaux) {
   vector<size_t> numElem;
   for (size_t b=0; b<blocknames.size(); b++) {
     
-    Kokkos::View<int**,HostDevice> currbcs("boundary conditions",
-                                           varlist[b].size(),sideSets.size());
+    Kokkos::View<string**,HostDevice> currbcs("boundary conditions",
+                                              varlist[b].size(),sideSets.size());
     topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
     int numSidesPerElem = 2; // default to 1D for some reason
     if (spaceDim == 2) {
@@ -685,15 +685,15 @@ void discretization::setBCData(const bool & isaux) {
         if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
           isDiri = true;
           if (use_weak_dbcs) {
-            currbcs(j,side) = 4;
+            currbcs(j,side) = "weak Dirichlet";
           }
           else {
-            currbcs(j,side) = 1;
+            currbcs(j,side) = "Dirichlet";
           }
         }
         if (nbc_settings.sublist(var).isParameter("all boundaries") || nbc_settings.sublist(var).isParameter(sideName)) {
           isNeum = true;
-          currbcs(j,side) = 2;
+          currbcs(j,side) = "Neumann";
         }
         
         vector<size_t>             local_side_Ids;

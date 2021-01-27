@@ -130,7 +130,7 @@ namespace MrHyDE {
     View_AD2 adjrhs;
     
     // On host, so ok
-    Kokkos::View<int**,HostDevice> bcs;
+    // Kokkos::View<int**,HostDevice> bcs;
     
     
   };

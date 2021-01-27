@@ -41,7 +41,7 @@ int main(int argc, char * argv[]) {
     cellinfo.push_back(ip.extent(0));
     cellinfo.push_back(sip.extent(0));
     vector<string> btypes = {"HGRAD"};
-    Kokkos::View<int**,HostDevice> bcs("bcs",1,1);
+    Kokkos::View<string**,HostDevice> bcs("bcs",1,1);
     Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset(cellinfo, false,
                                                             btypes, basis, basis, cellTopo,bcs) );
     

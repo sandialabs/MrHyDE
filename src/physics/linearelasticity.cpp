@@ -221,7 +221,7 @@ void linearelasticity::volumeResidual() {
 
 void linearelasticity::boundaryResidual() {
   
-  bcs = wkset->var_bcs;
+  auto bcs = wkset->var_bcs;
   
   int cside = wkset->currentside;
   
@@ -231,9 +231,9 @@ void linearelasticity::boundaryResidual() {
   //  sf = 1.0;
   //}
   
-  int dy_sidetype = 0;
-  int dz_sidetype = 0;
-  int dx_sidetype = bcs(dx_num,cside);
+  string dx_sidetype = bcs(dx_num,cside);
+  string dy_sidetype = "Dirichlet";
+  string dz_sidetype = "Dirichlet";
   if (spaceDim > 1) {
     dy_sidetype = bcs(dy_num,cside);
   }
@@ -243,17 +243,17 @@ void linearelasticity::boundaryResidual() {
   
   View_AD2 lambda_side, mu_side, sourceN_dx, sourceN_dy, sourceN_dz;
   
-  if (dx_sidetype > 1 || dy_sidetype > 1 || dz_sidetype > 1) {
+  if (dx_sidetype != "Dirichlet" || dy_sidetype != "Dirichlet" || dz_sidetype != "Dirichlet") {
     
     {
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
-      if (dx_sidetype == 2) {
+      if (dx_sidetype == "Neumann") {
         sourceN_dx = functionManager->evaluate("Neumann dx " + wkset->sidename,"side ip");
       }
-      if (dy_sidetype == 2) {
+      if (dy_sidetype == "Neumann") {
         sourceN_dy = functionManager->evaluate("Neumann dy " + wkset->sidename,"side ip");
       }
-      if (dz_sidetype == 2) {
+      if (dz_sidetype == "Neumann") {
         sourceN_dz = functionManager->evaluate("Neumann dz " + wkset->sidename,"side ip");
       }
       
@@ -278,7 +278,7 @@ void linearelasticity::boundaryResidual() {
       auto basis_grad = wkset->basis_grad_side[dx_basis];
       auto off = Kokkos::subview( wkset->offsets, dx_num, Kokkos::ALL());
       auto nx = wkset->getDataSc("nx side");
-      if (dx_sidetype == 2) { // Neumann
+      if (dx_sidetype == "Neumann") { // Neumann
         parallel_for("LE ux bndry resid 1D N",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (size_type k=0; k<basis.extent(2); k++ ) {
             for (size_type i=0; i<basis.extent(1); i++ ) {
@@ -287,7 +287,7 @@ void linearelasticity::boundaryResidual() {
           }
         });
       }
-      else if (dx_sidetype == 4) { // weak Dirichlet
+      else if (dx_sidetype == "weak Dirichlet") { // weak Dirichlet
         auto dx = wkset->getData("dx side");
         parallel_for("LE ux bndry resid 1D wD",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
           for (size_type k=0; k<basis.extent(2); k++ ) {
@@ -300,7 +300,7 @@ void linearelasticity::boundaryResidual() {
           }
         });
       }
-      else if (dx_sidetype == 5) { // weak Dirichlet for multiscale
+      else if (dx_sidetype == "interface") { // weak Dirichlet for multiscale
         auto dx = wkset->getData("dx side");
         auto lambdax = wkset->getData("aux dx side");
         parallel_for("LE ux bndry resid 1D wD-ms",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -326,7 +326,7 @@ void linearelasticity::boundaryResidual() {
         auto basis_grad = wkset->basis_grad_side[dx_basis];
         auto off = Kokkos::subview( wkset->offsets, dx_num, Kokkos::ALL());
         
-        if (dx_sidetype == 2) { // traction (Neumann)
+        if (dx_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("LE ux bndry resid 2D N",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
@@ -335,7 +335,7 @@ void linearelasticity::boundaryResidual() {
             }
           });
         }
-        else if (dx_sidetype == 4) { // weak Dirichlet (set to 0.0)
+        else if (dx_sidetype == "weak Dirichlet") { // weak Dirichlet (set to 0.0)
           auto dx = wkset->getData("dx side");
           auto dy = wkset->getData("dy side");
           parallel_for("LE ux bndry resid 2D wD",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -352,7 +352,7 @@ void linearelasticity::boundaryResidual() {
             }
           });
         }
-        else if (dx_sidetype == 5) { // weak Dirichlet for multiscale
+        else if (dx_sidetype == "interface") { // weak Dirichlet for multiscale
           auto dx = wkset->getData("dx side");
           auto dy = wkset->getData("dy side");
           auto lambdax = wkset->getData("aux dx side");
@@ -378,7 +378,7 @@ void linearelasticity::boundaryResidual() {
         auto basis = wkset->basis_side[dy_basis];
         auto basis_grad = wkset->basis_grad_side[dy_basis];
         auto off = Kokkos::subview( wkset->offsets, dy_num, Kokkos::ALL());
-        if (dy_sidetype == 2) { // traction (Neumann)
+        if (dy_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("LE uy bndry resid 2D N",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
@@ -387,7 +387,7 @@ void linearelasticity::boundaryResidual() {
             }
           });
         }
-        else if (dy_sidetype == 4) { // weak Dirichlet (set to 0.0)
+        else if (dy_sidetype == "weak Dirichlet") { // weak Dirichlet (set to 0.0)
           auto dx = wkset->getData("dx side");
           auto dy = wkset->getData("dy side");
           parallel_for("LE uy bndry resid 2D wD",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
@@ -403,7 +403,7 @@ void linearelasticity::boundaryResidual() {
             }
           });
         }
-        else if (dy_sidetype == 5) { // weak Dirichlet for multiscale
+        else if (dy_sidetype == "interface") { // weak Dirichlet for multiscale
           auto dx = wkset->getData("dx side");
           auto dy = wkset->getData("dy side");
           auto lambdax = wkset->getData("aux dx side");
@@ -435,7 +435,7 @@ void linearelasticity::boundaryResidual() {
         auto basis = wkset->basis_side[dx_basis];
         auto basis_grad = wkset->basis_grad_side[dx_basis];
         auto off = Kokkos::subview( wkset->offsets, dx_num, Kokkos::ALL());
-        if (dx_sidetype == 2) { // traction (Neumann)
+        if (dx_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("LE ux bndry resid 3D N",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
@@ -444,7 +444,7 @@ void linearelasticity::boundaryResidual() {
             }
           });
         }
-        else if (dx_sidetype == 4) { // weak Dirichlet (set to 0.0)
+        else if (dx_sidetype == "weak Dirichlet") { // weak Dirichlet (set to 0.0)
           auto dx = wkset->getData("dx side");
           auto dy = wkset->getData("dy side");
           auto dz = wkset->getData("dz side");
@@ -463,7 +463,7 @@ void linearelasticity::boundaryResidual() {
             }
           });
         }
-        else if (dx_sidetype == 5) { // weak Dirichlet for multiscale
+        else if (dx_sidetype == "interface") { // weak Dirichlet for multiscale
           auto dx = wkset->getData("dx side");
           auto dy = wkset->getData("dy side");
           auto dz = wkset->getData("dz side");
@@ -493,7 +493,7 @@ void linearelasticity::boundaryResidual() {
         auto basis = wkset->basis_side[dy_basis];
         auto basis_grad = wkset->basis_grad_side[dy_basis];
         auto off = Kokkos::subview( wkset->offsets, dy_num, Kokkos::ALL());
-        if (dy_sidetype == 2) { // traction (Neumann)
+        if (dy_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("LE uy bndry resid 3D N",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
@@ -502,7 +502,7 @@ void linearelasticity::boundaryResidual() {
             }
           });
         }
-        else if (dy_sidetype == 4) { // weak Dirichlet (set to 0.0)
+        else if (dy_sidetype == "weak Dirichlet") { // weak Dirichlet (set to 0.0)
           auto dx = wkset->getData("dx side");
           auto dy = wkset->getData("dy side");
           auto dz = wkset->getData("dz side");
@@ -521,7 +521,7 @@ void linearelasticity::boundaryResidual() {
             }
           });
         }
-        else if (dy_sidetype == 5) { // weak Dirichlet for multiscale
+        else if (dy_sidetype == "interface") { // weak Dirichlet for multiscale
           auto dx = wkset->getData("dx side");
           auto dy = wkset->getData("dy side");
           auto dz = wkset->getData("dz side");
@@ -550,7 +550,7 @@ void linearelasticity::boundaryResidual() {
         auto basis = wkset->basis_side[dz_basis];
         auto basis_grad = wkset->basis_grad_side[dz_basis];
         auto off = Kokkos::subview( wkset->offsets, dz_num, Kokkos::ALL());
-        if (dz_sidetype == 2) { // traction (Neumann)
+        if (dz_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("LE uz bndry resid 3D N",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
@@ -559,7 +559,7 @@ void linearelasticity::boundaryResidual() {
             }
           });
         }
-        else if (dz_sidetype == 4) { // weak Dirichlet (set to 0.0)
+        else if (dz_sidetype == "weak Dirichlet") { // weak Dirichlet (set to 0.0)
           auto dx = wkset->getData("dx side");
           auto dy = wkset->getData("dy side");
           auto dz = wkset->getData("dz side");
@@ -578,7 +578,7 @@ void linearelasticity::boundaryResidual() {
             }
           });
         }
-        else if (dz_sidetype == 5) { // weak Dirichlet for multiscale
+        else if (dz_sidetype == "interface") { // weak Dirichlet for multiscale
           auto dx = wkset->getData("dx side");
           auto dy = wkset->getData("dy side");
           auto dz = wkset->getData("dz side");

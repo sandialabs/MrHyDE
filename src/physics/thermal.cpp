@@ -214,10 +214,10 @@ void thermal::volumeResidual() {
 
 void thermal::boundaryResidual() {
   
-  bcs = wkset->var_bcs;
+  auto bcs = wkset->var_bcs;
   
   int cside = wkset->currentside;
-  int sidetype = bcs(e_num,cside);
+  string bctype = bcs(e_num,cside);
 
   auto basis = wkset->basis_side[e_basis_num];
   auto basis_grad = wkset->basis_grad_side[e_basis_num];
@@ -226,10 +226,10 @@ void thermal::boundaryResidual() {
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
-    if (sidetype == 4 ) {
+    if (bctype == "weak Dirichlet" ) {
       nsource = functionManager->evaluate("Dirichlet e " + wkset->sidename,"side ip");
     }
-    else if (sidetype == 2) {
+    else if (bctype == "Neumann") {
       nsource = functionManager->evaluate("Neumann e " + wkset->sidename,"side ip");
     }
     diff_side = functionManager->evaluate("thermal diffusion","side ip");
@@ -254,7 +254,7 @@ void thermal::boundaryResidual() {
   // Contributes
   // <g(u),v> + <p(u),grad(v)\cdot n>
   
-  if (bcs(e_num,cside) == 2) { // Neumann BCs
+  if (bcs(e_num,cside) == "Neumann") { // Neumann BCs
     parallel_for("Thermal bndry resid part 1",
                  TeamPolicy<AssemblyExec>(basis.extent(0), Kokkos::AUTO, 32),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
@@ -274,7 +274,7 @@ void thermal::boundaryResidual() {
       }
     });
   }
-  else if (bcs(e_num,cside) == 4 || bcs(e_num,cside) == 5) {
+  else if (bcs(e_num,cside) == "weak Dirichlet" || bcs(e_num,cside) == "interface") {
     auto T = e_side;
     auto dTdx = dedx_side;
     auto dTdy = dedy_side;
@@ -283,10 +283,10 @@ void thermal::boundaryResidual() {
     auto ny = wkset->getDataSc("ny side");
     auto nz = wkset->getDataSc("nz side");
     View_AD2 bdata;
-    if (bcs(e_num,cside) == 4) {
+    if (bcs(e_num,cside) == "weak Dirichlet") {
       bdata = nsource;
     }
-    else if (bcs(e_num,cside) == 5) {
+    else if (bcs(e_num,cside) == "interface") {
       bdata = wkset->getData("aux e side");
     }
     parallel_for("Thermal bndry resid wD",

@@ -189,10 +189,10 @@ void porousHDIV_HYBRID::volumeResidual() {
 
 void porousHDIV_HYBRID::boundaryResidual() {
   
-  bcs = wkset->var_bcs;
+  auto bcs = wkset->var_bcs;
   
   int cside = wkset->currentside;
-  int sidetype = bcs(pnum,cside);
+  string bctype = bcs(pnum,cside);
   
   int u_basis = wkset->usebasis[unum];
   
@@ -214,7 +214,7 @@ void porousHDIV_HYBRID::boundaryResidual() {
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
-    if (sidetype == 1 ) {
+    if (bctype == "Dirichlet" ) {
       bsource = functionManager->evaluate("Dirichlet p " + wkset->sidename,"side ip");
     }
     
@@ -229,7 +229,7 @@ void porousHDIV_HYBRID::boundaryResidual() {
   
   auto off = subview(wkset->offsets, unum, ALL());
   
-  if (bcs(pnum,cside) == 1) {
+  if (bcs(pnum,cside) == "Dirichlet") {
     parallel_for("porous HDIV-HY bndry resid Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -247,7 +247,7 @@ void porousHDIV_HYBRID::boundaryResidual() {
       }
     });
   }
-  else if (bcs(pnum,cside) == 5) {
+  else if (bcs(pnum,cside) == "interface") {
     auto lambda = wkset->getData("aux p side");
     parallel_for("porous HDIV-HY bndry resid MS Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);

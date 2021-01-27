@@ -138,10 +138,10 @@ void porous::volumeResidual() {
 void porous::boundaryResidual() {
   
   
-  bcs = wkset->var_bcs;
+  auto bcs = wkset->var_bcs;
   
   int cside = wkset->currentside;
-  int sidetype = bcs(pnum,cside);
+  string bctype = bcs(pnum,cside);
   
   int basis_num = wkset->usebasis[pnum];
   auto basis = wkset->basis_side[basis_num];
@@ -152,10 +152,10 @@ void porous::boundaryResidual() {
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
-    if (sidetype == 4 ) {
+    if (bctype == "weak Dirichlet" ) {
       source = functionManager->evaluate("Dirichlet p " + wkset->sidename,"side ip");
     }
-    else if (sidetype == 2) {
+    else if (bctype == "Neumann") {
       source = functionManager->evaluate("Neumann p " + wkset->sidename,"side ip");
     }
     perm = functionManager->evaluate("permeability","side ip");
@@ -197,7 +197,7 @@ void porous::boundaryResidual() {
   auto psol = wkset->getData("p side");
   auto off = subview(wkset->offsets, pnum, ALL());
   
-  if (bcs(pnum,cside) == 2) { //Neumann
+  if (bcs(pnum,cside) == "Neumann") { //Neumann
     parallel_for("porous HGRAD bndry resid Neumann",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD s = -source(elem,pt)*wts(elem,pt);
@@ -207,7 +207,7 @@ void porous::boundaryResidual() {
       }
     });
   }
-  else if (bcs(pnum,cside) == 4) { // weak Dirichlet
+  else if (bcs(pnum,cside) == "weak Dirichlet") { // weak Dirichlet
     parallel_for("porous HGRAD bndry resid weak Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis_grad.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -238,7 +238,7 @@ void porous::boundaryResidual() {
       }
     });
   }
-  else if (bcs(pnum,cside) == 5) { // multiscale weak Dirichlet
+  else if (bcs(pnum,cside) == "interface") { // multiscale weak Dirichlet
     auto lambda = wkset->getData("aux p side");
     parallel_for("porous HGRAD bndry resid MS weak Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis_grad.extent(3);
