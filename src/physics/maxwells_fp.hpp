@@ -138,7 +138,6 @@ namespace MrHyDE {
     vector<AD> freq_params; //frequency
     vector<AD> source_params, boundary_params;
     
-    int spaceDim;
     int Axr_num, phir_num, Ayr_num, Azr_num, Axi_num, phii_num, Ayi_num, Azi_num;
     
     int test;

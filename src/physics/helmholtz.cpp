@@ -23,7 +23,6 @@ helmholtz::helmholtz(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool
 {
   
   label = "helmholtz";
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   fractional = settings->sublist("Physics").get<bool>("fractional",false);
   
   myvars.push_back("ureal");
@@ -79,9 +78,7 @@ void helmholtz::defineFunctions(Teuchos::ParameterList & fs,
 
 void helmholtz::volumeResidual() {
   
-  // NOTES:
-  // 1. basis and basis_grad already include the integration weights
-  
+  int spaceDim = wkset->dimension;
   int ur_basis_num = wkset->usebasis[ur_num];
   int ui_basis_num = wkset->usebasis[ui_num];
   
@@ -255,9 +252,7 @@ void helmholtz::volumeResidual() {
 
 void helmholtz::boundaryResidual() {
   
-  // NOTES:
-  // 1. basis and basis_grad already include the integration weights
-  
+  int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
   int cside = wkset->currentside;
   

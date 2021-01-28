@@ -72,7 +72,6 @@ namespace MrHyDE {
     
   private:
     
-    int spaceDim;
     int H_num, Hu_num, Hv_num;
     ScalarT alpha;
     //ScalarT gravity;

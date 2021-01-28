@@ -4,22 +4,20 @@ ANONYMOUS:
   verbosity: 0
   debug level: 0
   Mesh:
-    dim: 1
+    dimension: 1
     shape: interval
     xmin: 0.0
     xmax: 1.0
     NX: 32
-    blocknames: eblock-0
   Physics:
-    eblock-0:
-      modules: porousHDIV
-      Dirichlet conditions:
-        p:
-          left: '1.0'
-          right: '1.0'
-      True solutions:
-        p: 1.0+sin(2*pi*x)
-        u: -2*pi*cos(2*pi*x)
+    modules: porousHDIV
+    Dirichlet conditions:
+      p:
+        left: '1.0'
+        right: '1.0'
+    True solutions:
+      p: 1.0+sin(2*pi*x)
+      u: -2*pi*cos(2*pi*x)
   Functions:
     source: 4*(pi*pi)*sin(2*pi*x)
   Solver: 

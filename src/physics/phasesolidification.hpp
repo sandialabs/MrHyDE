@@ -37,7 +37,7 @@ namespace MrHyDE {
                         const size_t & numip_side_) :
     Comm(Comm_), numip(numip_), numip_side(numip_side_) {
       
-      spaceDim = settings->sublist("Mesh").get<int>("dim",2);
+      spaceDim = settings->sublist("Mesh").get<int>("dimension",2);
       numphases = settings->sublist("Physics").get<int>("number_phases",1);
       numdisks = settings->sublist("Physics").get<int>("numdisks",3);
       disksize = settings->sublist("Physics").get<ScalarT>("disksize",10.0);
@@ -160,9 +160,7 @@ namespace MrHyDE {
     
     void volumeResidual() {
       
-      // NOTES:
-      // 1. basis and basis_grad already include the integration weights
-      
+      int spaceDim = wkset->dimension;
       int numCubPoints = wkset->ip.extent(1);
       int e_basis = wkset->usebasis[e_num[0]];
       int numBasis = wkset->basis[e_basis].extent(1);
@@ -299,6 +297,7 @@ namespace MrHyDE {
     
     void computeFlux() {
       
+      int spaceDim = wkset->dimension;
       ScalarT x = 0.0;
       ScalarT y = 0.0;
       ScalarT z = 0.0;

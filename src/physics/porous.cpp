@@ -20,7 +20,6 @@ porous::porous(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isa
   
   // Standard data
   label = "porous";
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   myvars.push_back("p");
   mybasistypes.push_back("HGRAD");
   formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
@@ -51,9 +50,7 @@ void porous::defineFunctions(Teuchos::ParameterList & fs,
 
 void porous::volumeResidual() {
   
-  // NOTES:
-  // 1. basis and basis_grad already include the integration weights
-  
+  int spaceDim = wkset->dimension;
   int p_basis_num = wkset->usebasis[pnum];
   auto basis = wkset->basis[p_basis_num];
   auto basis_grad = wkset->basis_grad[p_basis_num];
@@ -137,7 +134,7 @@ void porous::volumeResidual() {
 
 void porous::boundaryResidual() {
   
-  
+  int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
   
   int cside = wkset->currentside;
@@ -285,6 +282,7 @@ void porous::edgeResidual() {
 
 void porous::computeFlux() {
   
+  int spaceDim = wkset->dimension;
   ScalarT sf = 1.0; // TMW: not on device
   if (wkset->isAdjoint) {
     sf = formparam;
@@ -370,7 +368,9 @@ void porous::updatePerm(View_AD2 perm) {
   
   View_Sc2 data = wkset->extra_data;
   
-  parallel_for("porous HGRAD update perm",RangePolicy<AssemblyExec>(0,perm.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+  parallel_for("porous HGRAD update perm",
+               RangePolicy<AssemblyExec>(0,perm.extent(0)),
+               KOKKOS_LAMBDA (const int elem ) {
     for (size_type pt=0; pt<perm.extent(1); pt++) {
       perm(elem,pt) = data(elem,0);
     }

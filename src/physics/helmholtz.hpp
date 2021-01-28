@@ -70,7 +70,6 @@ namespace MrHyDE {
     
   private:
     
-    int spaceDim;
     int ur_num, ui_num;
     
     AD ur, durdx, durdy, durdz, durdn, c2durdn;

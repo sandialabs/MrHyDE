@@ -20,7 +20,6 @@ porousHDIV_WG::porousHDIV_WG(Teuchos::RCP<Teuchos::ParameterList> & settings, co
 {
   
   label = "porousHDIV-WeakGalerkin";
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   include_face = settings->sublist("Physics").get<bool>("Include face terms","true");
   
   if (settings->sublist("Physics").isSublist("Active variables")) {
@@ -88,9 +87,7 @@ void porousHDIV_WG::defineFunctions(Teuchos::ParameterList & fs,
 
 void porousHDIV_WG::volumeResidual() {
   
-  // NOTES:
-  // 1. basis and basis_grad already include the integration weights
-  
+  int spaceDim = wkset->dimension;
   int pint_basis = wkset->usebasis[pintnum];
   int u_basis = wkset->usebasis[unum];
   int t_basis = wkset->usebasis[tnum];
@@ -310,6 +307,7 @@ void porousHDIV_WG::volumeResidual() {
 
 void porousHDIV_WG::boundaryResidual() {
   
+  int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
   
   int cside = wkset->currentside;
@@ -398,6 +396,7 @@ void porousHDIV_WG::boundaryResidual() {
 
 void porousHDIV_WG::faceResidual() {
   
+  int spaceDim = wkset->dimension;
   int pbndry_basis = wkset->usebasis[pbndrynum];
   int u_basis = wkset->usebasis[unum];
   
@@ -479,6 +478,8 @@ void porousHDIV_WG::faceResidual() {
 // ========================================================================================
 
 void porousHDIV_WG::computeFlux() {
+  
+  int spaceDim = wkset->dimension;
   
   View_Sc2 nx, ny, nz;
   View_AD2 tx, ty, tz;

@@ -71,7 +71,6 @@ namespace MrHyDE {
     
   private:
     
-    int spaceDim;
     int cnum;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MILO::cdr::volumeResidual() - function evaluation");

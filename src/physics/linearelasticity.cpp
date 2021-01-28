@@ -26,7 +26,14 @@ linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settin
   
   label = "linearelasticity";
   
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
+  spaceDim = 0;
+  spaceDim = settings->sublist("Mesh").get<int>("dim",0);
+  if (spaceDim == 0) {
+    spaceDim = settings->sublist("Mesh").get<int>("dimension",0);
+  }
+  if (spaceDim == 0) {
+    // output an error
+  }
   
   if (spaceDim == 1) {
     myvars = {"dx"};
@@ -92,6 +99,7 @@ void linearelasticity::defineFunctions(Teuchos::ParameterList & fs,
 
 void linearelasticity::volumeResidual() {
   
+  int spaceDim = wkset->dimension;
   View_AD2 lambda, mu, source_dx, source_dy, source_dz;
   
   {
@@ -221,6 +229,7 @@ void linearelasticity::volumeResidual() {
 
 void linearelasticity::boundaryResidual() {
   
+  int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
   
   int cside = wkset->currentside;
@@ -619,6 +628,8 @@ void linearelasticity::computeFlux() {
   //if (wkset->isAdjoint) {
   //  sf = modelparams(0);
   //}
+  
+  int spaceDim = wkset->dimension;
   View_AD2 lambda_side, mu_side;
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
@@ -751,6 +762,7 @@ void linearelasticity::computeStress(View_AD2 lambda, View_AD2 mu, const bool & 
   Teuchos::TimeMonitor localtime(*fillStress);
            
   auto mp = modelparams;
+  int spaceDim = wkset->dimension;
   
   if (useCE) {
     vector<int> indices = {dx_num, dy_num, dz_num, e_num};

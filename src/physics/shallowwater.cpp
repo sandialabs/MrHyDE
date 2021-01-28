@@ -24,7 +24,6 @@ shallowwater::shallowwater(Teuchos::RCP<Teuchos::ParameterList> & settings, cons
 {
   
   label = "shallowwater";
-  spaceDim = 2; // Just 2D
   
   myvars.push_back("H");
   myvars.push_back("Hu");

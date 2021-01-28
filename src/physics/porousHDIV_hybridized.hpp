@@ -85,8 +85,6 @@ namespace MrHyDE {
     
   private:
     
-    int spaceDim;
-    
     int pnum=-1, unum=-1, lambdanum=-1;
     int auxpnum=-1, auxunum=-1, auxlambdanum=-1;
     int dxnum=-1, dynum=-1, dznum=-1;

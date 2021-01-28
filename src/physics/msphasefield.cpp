@@ -27,7 +27,6 @@ msphasefield::msphasefield(Teuchos::RCP<Teuchos::ParameterList> & settings, cons
   Comm(Comm_)
 {
   
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   numphases = settings->sublist("Physics").get<int>("number_phases",1);
   numdisks = settings->sublist("Physics").get<int>("numdisks",3);
   disksize = settings->sublist("Physics").get<ScalarT>("disksize",10.0);
@@ -191,6 +190,7 @@ void msphasefield::volumeResidual() {
   // 1. basis and basis_grad already include the integration weights
   
   int resindex;
+  int spaceDim = wkset->dimension;
   
   //int numCubPoints = wkset->ip.extent(1);
   int phi_basis = wkset->usebasis[phi_num[0]];
@@ -442,6 +442,8 @@ void msphasefield::setWorkset(Teuchos::RCP<workset> & wkset_) {
 
 AD msphasefield::SourceTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z,
                             const std::vector<AD > & tsource) const {
+  
+  int spaceDim = wkset->dimension;
   if(spaceDim == 1) {
     return tsource[0]*12*PI*PI*sin(2*PI*x);
   }else if (spaceDim == 2) {

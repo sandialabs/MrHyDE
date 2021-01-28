@@ -19,7 +19,6 @@ porousHDIV_HYBRID::porousHDIV_HYBRID(Teuchos::RCP<Teuchos::ParameterList> & sett
 {
   
   label = "porousHDIV-Hybrid";
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   include_face = true;
   
   if (settings->sublist("Physics").isSublist("Active variables")) {
@@ -74,9 +73,7 @@ void porousHDIV_HYBRID::defineFunctions(Teuchos::ParameterList & fs,
 
 void porousHDIV_HYBRID::volumeResidual() {
   
-  // NOTES:
-  // 1. basis and basis_grad already include the integration weights
-  
+  int spaceDim = wkset->dimension;
   int p_basis = wkset->usebasis[pnum];
   int u_basis = wkset->usebasis[unum];
   auto wts = wkset->wts;
@@ -189,6 +186,7 @@ void porousHDIV_HYBRID::volumeResidual() {
 
 void porousHDIV_HYBRID::boundaryResidual() {
   
+  int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
   
   int cside = wkset->currentside;
@@ -274,6 +272,7 @@ void porousHDIV_HYBRID::boundaryResidual() {
 
 void porousHDIV_HYBRID::faceResidual() {
   
+  int spaceDim = wkset->dimension;
   int lambda_basis = wkset->usebasis[lambdanum];
   int u_basis = wkset->usebasis[unum];
   
@@ -350,6 +349,7 @@ void porousHDIV_HYBRID::faceResidual() {
 
 void porousHDIV_HYBRID::computeFlux() {
   
+  int spaceDim = wkset->dimension;
   // Just need the basis for the number of active elements (any side basis will do)
   auto basis = wkset->basis_side[wkset->usebasis[unum]];
   

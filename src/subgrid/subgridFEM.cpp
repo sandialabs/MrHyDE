@@ -29,14 +29,14 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
   LocalComm = LocalComm_;
   verbosity = settings->get<int>("verbosity",0);
   debug_level = settings->get<int>("debug level",0);
-  dimension = settings->sublist("Mesh").get<int>("dim",2);
+  dimension = settings->sublist("Mesh").get<int>("dimension",2);
   subgridverbose = settings->sublist("Solver").get<int>("verbosity",0);
   multiscale_method = settings->get<string>("multiscale method","mortar");
   mesh_type = settings->sublist("Mesh").get<string>("mesh type","inline"); // or "Exodus" or "panzer"
   mesh_file = settings->sublist("Mesh").get<string>("mesh file","mesh.exo"); // or "Exodus" or "panzer"
   numrefine = settings->sublist("Mesh").get<int>("refinements",0);
-  shape = settings->sublist("Mesh").get<string>("shape","quad");
-  macroshape = settings->sublist("Mesh").get<string>("macro-shape","quad");
+  shape = settings->sublist("Mesh").get<string>("element type","quad");
+  macroshape = settings->sublist("Mesh").get<string>("macro element type","quad");
   time_steps = settings->sublist("Solver").get<int>("number of steps",1);
   initial_time = settings->sublist("Solver").get<ScalarT>("initial time",0.0);
   final_time = settings->sublist("Solver").get<ScalarT>("final time",1.0);

@@ -3,8 +3,21 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  Mesh input file: input_mesh.yaml
-  Functions input file: input_functions.yaml
+  Mesh:
+    dimension: 2
+    shape: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 40
+    NY: 40
+  Functions:
+    source: (8*(pi*pi)+0.5*sin(2*pi*x)*sin(2*pi*y))*sin(2*pi*x)*sin(2*pi*y) + 2.0*2*pi*cos(2*pi*x)*sin(2*pi*y) + 1.0*2*pi*sin(2*pi*x)*cos(2*pi*y)
+    xvel: '2.0'
+    yvel: '1.0'
+    reaction: '0.5*c*c'
+    SUPG tau: '0.0'
   Physics: 
     modules: cdr
     Dirichlet conditions:
@@ -18,7 +31,6 @@ ANONYMOUS:
     order:
       c: 1
     quadrature: 2
-  Parameters input file: input_params.yaml
   Solver: 
     solver: steady-state
     workset size: 40
@@ -30,10 +42,5 @@ ANONYMOUS:
   Analysis: 
     analysis type: forward
   Postprocess: 
-    response type: global
     compute errors: true
-    compute response: false
-    compute objective: false
-    compute sensitivities: false
-    write solution: false
 ...

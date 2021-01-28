@@ -19,7 +19,7 @@ porousHDIV::porousHDIV(Teuchos::RCP<Teuchos::ParameterList> & settings, const bo
 {
   
   label = "porousHDIV";
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
+  int spaceDim = settings->sublist("Mesh").get<int>("dimension",2);
   
   if (settings->sublist("Physics").isSublist("Active variables")) {
     if (settings->sublist("Physics").sublist("Active variables").isParameter("p")) {
@@ -75,9 +75,7 @@ void porousHDIV::defineFunctions(Teuchos::ParameterList & fs,
 
 void porousHDIV::volumeResidual() {
   
-  // NOTES:
-  // 1. basis and basis_grad already include the integration weights
-  
+  int spaceDim = wkset->dimension;
   int p_basis = wkset->usebasis[pnum];
   int u_basis = wkset->usebasis[unum];
   auto wts = wkset->wts;
@@ -216,6 +214,7 @@ void porousHDIV::volumeResidual() {
 
 void porousHDIV::boundaryResidual() {
   
+  int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
   
   int cside = wkset->currentside;
@@ -308,6 +307,8 @@ void porousHDIV::boundaryResidual() {
 // ========================================================================================
 
 void porousHDIV::computeFlux() {
+  
+  int spaceDim = wkset->dimension;
   
   // Just need the basis for the number of active elements (any side basis will do)
   auto basis = wkset->basis_side[wkset->usebasis[unum]];

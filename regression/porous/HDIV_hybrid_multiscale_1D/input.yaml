@@ -4,12 +4,11 @@ ANONYMOUS:
   verbosity: 0
   debug level: 0
   Mesh:
-    dim: 1
-    shape: interval
+    dimension: 1
+    element type: interval
     xmin: 0.0
     xmax: 1.0
     NX: 40
-    blocknames: eblock-0
   Physics:
     Extra variables:
       lambda: HGRAD
@@ -32,44 +31,9 @@ ANONYMOUS:
       Extra variables:
         lambda: 1
     quadrature: 2
-  Subgrid:
-    debug level: 0
-    subgrid model: FEM
-    Mesh:
-      mesh type: panzer
-      shape: interval
-      refinements: 4
-      dim: 1
-      blocknames: eblock
-    Physics:
-      modules: porousHDIV
-      use permeability data: false
-      True solutions:
-        p: sin(2*pi*x)
-        'u': -2*pi*cos(2*pi*x)
-    Solver:
-      solver: steady-state
-      use direct solver: true
-    Functions:
-      source: 4*(pi*pi)*sin(2*pi*x)
-    Discretization:
-      order:
-        p: 0
-        u: 1
-      quadrature: 2
-    Postprocess:
-      store aux and flux: false
-      write solution: false
-      plot solution at nodes: false
+  Subgrid input file: subgrid_input.yaml
   Analysis:
     analysis type: forward
   Postprocess: 
-    response type: global
     compute errors: true
-    compute response: false
-    write solution: false
-    write subgrid solution: false
-    write HFACE variables: false
-    compute objective: false
-    compute sensitivities: false
 ...

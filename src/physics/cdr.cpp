@@ -28,7 +28,6 @@ cdr::cdr(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
     prefix = "aux ";
   }
   
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   myvars.push_back("c");
   mybasistypes.push_back("HGRAD");
   
@@ -73,6 +72,7 @@ void cdr::volumeResidual() {
   // NOTES:
   // 1. basis and basis_grad already include the integration weights
   
+  int spaceDim = wkset->dimension;
   int c_basis_num = wkset->usebasis[cnum];
   auto basis = wkset->basis[c_basis_num];
   auto basis_grad = wkset->basis_grad[c_basis_num];
@@ -187,6 +187,7 @@ T cdr::computeTau(const T & localdiff, const T & xvl, const T & yvl, const T & z
   
   ScalarT C1 = 4.0;
   ScalarT C2 = 2.0;
+  int spaceDim = wkset->dimension;
   
   T nvel;
   if (spaceDim == 1)

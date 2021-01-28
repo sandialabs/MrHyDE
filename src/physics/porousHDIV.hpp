@@ -79,8 +79,6 @@ namespace MrHyDE {
     
   private:
     
-    int spaceDim;
-    
     int pnum=-1, unum=-1, auxpnum=-1, auxunum=-1;
     int dxnum,dynum,dznum;
     bool isTD, addBiot, usePermData, useWells;

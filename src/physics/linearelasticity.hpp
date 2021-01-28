@@ -96,8 +96,7 @@ namespace MrHyDE {
     
   private:
     
-    int spaceDim;
-    int dx_num, dy_num, dz_num, e_num, p_num;
+    int spaceDim, dx_num, dy_num, dz_num, e_num, p_num;
     int auxdx_num = -1, auxdy_num = -1, auxdz_num = -1, auxe_num = -1, auxp_num = -1;
     
     View_AD4 stress_vol, stress_side;

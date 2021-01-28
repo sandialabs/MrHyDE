@@ -24,7 +24,7 @@ stokes::stokes(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isa
 {
   
   label = "stokes";
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
+  int spaceDim = settings->sublist("Mesh").get<int>("dimension",2);
   
   myvars.push_back("ux");
   myvars.push_back("pr");
@@ -71,6 +71,7 @@ void stokes::defineFunctions(Teuchos::ParameterList & fs,
 
 void stokes::volumeResidual() {
   
+  int spaceDim = wkset->dimension;
   View_AD2 visc, source_ux, source_pr, source_uy, source_uz;
   
   {

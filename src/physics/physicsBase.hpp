@@ -120,7 +120,6 @@ namespace MrHyDE {
     
     Teuchos::RCP<workset> wkset;
     Teuchos::RCP<FunctionManager> functionManager;
-    int spaceDim;
     vector<string> myvars, mybasistypes;
     bool include_face = false, isaux = false;
     string prefix = "";

@@ -26,7 +26,6 @@ thermal::thermal(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & i
   // Standard data
   isaux = isaux_;
   label = "thermal";
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
   if (settings->sublist("Physics").isSublist("Active variables")) {
     if (settings->sublist("Physics").sublist("Active variables").isParameter("e")) {
       myvars.push_back("e");
@@ -67,6 +66,7 @@ void thermal::defineFunctions(Teuchos::ParameterList & fs,
 
 void thermal::volumeResidual() {
   
+  int spaceDim = wkset->dimension;
   auto basis = wkset->basis[e_basis_num];
   auto basis_grad = wkset->basis_grad[e_basis_num];
   View_AD2 source, diff, cp, rho;
@@ -333,7 +333,7 @@ void thermal::boundaryResidual() {
 
 void thermal::computeFlux() {
   
-  
+  int spaceDim = wkset->dimension;
   // TMW: sf is still an issue for GPUs
   ScalarT sf = 1.0;
   if (wkset->isAdjoint) {

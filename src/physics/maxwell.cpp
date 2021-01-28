@@ -19,7 +19,6 @@ maxwell::maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & i
 {
   
   label = "maxwell";
-  spaceDim = settings->sublist("Mesh").get<int>("dim",3);
   
   myvars.push_back("E");
   myvars.push_back("B");
@@ -49,9 +48,7 @@ void maxwell::defineFunctions(Teuchos::ParameterList & fs,
 
 void maxwell::volumeResidual() {
   
-  // NOTES:
-  // 1. basis and basis_grad already include the integration weights
-  
+  int spaceDim = wkset->dimension;
   int E_basis = wkset->usebasis[Enum];
   int B_basis = wkset->usebasis[Bnum];
   

@@ -24,8 +24,8 @@ maxwells_fp::maxwells_fp(Teuchos::RCP<Teuchos::ParameterList> & settings, const 
   
   //potential approach to frequency-domain Maxwell's (see Boyse et al (1992)); uses -iwt convention
   
-  spaceDim = settings->sublist("Mesh").get<int>("dim",3);
-  if(spaceDim < 2)
+  int spaceDim = settings->sublist("Mesh").get<int>("dimension",3);
+  if (spaceDim < 2)
     cout << "Not all aspects may be well-defined in 1D..." << endl;
   
   myvars.push_back("Arx");
@@ -81,9 +81,7 @@ void maxwells_fp::defineFunctions(Teuchos::ParameterList & fs,
 
 void maxwells_fp::volumeResidual() {
   
-  // TMW: this entire module needs to be rewritten from scratch
-  //      it does not use the proper parallel_for loops to run on a GPU
-  
+  int spaceDim = wkset->dimension;
   int resindex;
   int phir_basis_num = wkset->usebasis[phir_num];
   int phii_basis_num = wkset->usebasis[phii_num];
@@ -477,7 +475,7 @@ void maxwells_fp::volumeResidual() {
 
 void maxwells_fp::boundaryResidual() {
   
-  
+  int spaceDim = wkset->dimension;
   int resindex;
   //int Axr_basis = wkset->usebasis[Axr_num];
   //int Axi_basis = wkset->usebasis[Axi_num];

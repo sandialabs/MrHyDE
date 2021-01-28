@@ -24,7 +24,7 @@ navierstokes::navierstokes(Teuchos::RCP<Teuchos::ParameterList> & settings, cons
 {
   
   label = "navierstokes";
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
+  int spaceDim = settings->sublist("Mesh").get<int>("dimension",2);
   
   myvars.push_back("ux");
   myvars.push_back("pr");
@@ -81,6 +81,7 @@ void navierstokes::defineFunctions(Teuchos::ParameterList & fs,
 
 void navierstokes::volumeResidual() {
   
+  int spaceDim = wkset->dimension;
   View_AD2 dens, visc, source_ux, source_pr, source_uy, source_uz;
   
   {
@@ -878,6 +879,7 @@ void navierstokes::setWorkset(Teuchos::RCP<workset> & wkset_) {
 
 AD navierstokes::computeTau(const AD & localdiff, const AD & xvl, const AD & yvl, const AD & zvl, const ScalarT & h) const {
   
+  int spaceDim = wkset->dimension;
   ScalarT C1 = 4.0;
   ScalarT C2 = 2.0;
   

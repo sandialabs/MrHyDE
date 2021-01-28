@@ -75,7 +75,6 @@ namespace MrHyDE {
     
   private:
     
-    int spaceDim;
     int ux_num, uy_num, uz_num, pr_num, e_num;
     
     bool useSUPG, usePSPG;

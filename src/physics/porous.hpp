@@ -73,7 +73,6 @@ namespace MrHyDE {
     
   private:
     
-    int spaceDim;
     int pnum;
     bool addBiot;
     ScalarT biot_alpha, formparam;
