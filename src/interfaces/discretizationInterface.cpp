@@ -88,11 +88,9 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
   // Collect some information
   ////////////////////////////////////////////////////////////////////////////////
   
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
+  spaceDim = mesh->getDimension();
   std::vector<string> blocknames;
   mesh->getElementBlockNames(blocknames);
-  
-  string shape = settings->sublist("Mesh").get<string>("shape","quad");
   
   ////////////////////////////////////////////////////////////////////////////////
   // Assemble the information we always store
@@ -124,6 +122,8 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
     ///////////////////////////////////////////////////////////////////////////
     
     topo_RCP cellTopo = mesh->getCellTopology(blockID);
+    string shape = cellTopo->getName();
+    
     vector<int> blockcards;
     vector<basis_RCP> blockbasis;//(blockmaxorder);
     
@@ -175,18 +175,18 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
       sideTopo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Node >() ));
     }
     if (spaceDim == 2) {
-      if (shape == "quad") {
+      if (shape == "Quadrilateral_4") {
         sideTopo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() ));
       }
-      if (shape == "tri") {
+      if (shape == "Triangle_3") {
         sideTopo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() ));
       }
     }
     if (spaceDim == 3) {
-      if (shape == "hex") {
+      if (shape == "Hexahedron_8") {
         sideTopo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() ));
       }
-      if (shape == "tet") {
+      if (shape == "Tetrahedron_4") {
         sideTopo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Triangle<> >() ));
       }
     }

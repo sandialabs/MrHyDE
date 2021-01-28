@@ -50,7 +50,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   //adj_soln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
   
   // Get the required information from the settings
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
+  spaceDim = mesh->mesh->getDimension();
   isInitial = false;
   initial_time = settings->sublist("Solver").get<ScalarT>("initial time",0.0);
   current_time = initial_time;
@@ -1562,7 +1562,8 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
 // ========================================================================================
 
 template<class Node>
-DFAD solver<Node>::computeObjective(const vector_RCP & F_soln, const ScalarT & time, const size_t & tindex) {
+DFAD solver<Node>::computeObjective(const vector_RCP & F_soln, const ScalarT & time,
+                                    const size_t & tindex) {
   
   if (milo_debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -1579,6 +1580,7 @@ DFAD solver<Node>::computeObjective(const vector_RCP & F_soln, const ScalarT & t
   params->sacadoizeParams(true);
   
   int numParams = params->num_active_params + params->globalParamUnknowns;
+  
   vector<ScalarT> regGradient(numParams);
   vector<ScalarT> dmGradient(numParams);
   
@@ -1598,7 +1600,7 @@ DFAD solver<Node>::computeObjective(const vector_RCP & F_soln, const ScalarT & t
       std::cout << "Error: did not find a data-generating solution" << std::endl;
     }
   }
-  else {
+  else if (response_type != "none"){
     for (size_t b=0; b<assembler->cells.size(); b++) {
       
       assembler->performGather(F_soln, 0, 0);

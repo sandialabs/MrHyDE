@@ -45,7 +45,7 @@ namespace MrHyDE {
         }
       }
       
-      spaceDim = settings->sublist("Mesh").get<int>("dim",2);
+      spaceDim = mesh->mesh->getDimension();
       have_sensor_data = false;
       have_sensor_points = false;
       numSensors = 0;

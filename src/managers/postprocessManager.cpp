@@ -125,7 +125,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   mesh->getElementBlockNames(blocknames);
   
   numNodesPerElem = settings->sublist("Mesh").get<int>("numNodesPerElem",4); // actually set by mesh interface
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
+  spaceDim = mesh->getDimension();
     
   response_type = settings->sublist("Postprocess").get("response type", "pointwise"); // or "global"
   have_sensor_data = settings->sublist("Analysis").get("have sensor data", false); // or "global"

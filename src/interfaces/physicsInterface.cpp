@@ -36,7 +36,7 @@ settings(settings_), Commptr(Comm_){
   mesh->getSidesetNames(sideNames);
   
   numBlocks = blocknames.size();
-  spaceDim = settings->sublist("Mesh").get<int>("dim");
+  spaceDim = mesh->getDimension();
   cellfield_reduction = settings->sublist("Postprocess").get<string>("extra cell field reduction","mean");
   
   for (size_t b=0; b<blocknames.size(); b++) {

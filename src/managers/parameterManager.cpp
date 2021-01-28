@@ -43,7 +43,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), settings(settings_) {
   /////////////////////////////////////////////////////////////////////////////
   
   mesh->getElementBlockNames(blocknames);
-  spaceDim = settings->sublist("Mesh").get<int>("dim");
+  spaceDim = mesh->getDimension();
   verbosity = settings->get<int>("verbosity",0);
   milo_debug_level = settings->get<int>("debug level",0);
   

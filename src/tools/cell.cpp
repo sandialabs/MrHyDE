@@ -1012,6 +1012,8 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
   
+  cout << cellData->response_type << endl;
+  
   if (!(cellData->mortar_objective) && cellData->response_type != "discrete") {
     for (size_t w=1; w < cellData->dimension+2; w++) {
       

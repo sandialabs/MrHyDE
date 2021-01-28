@@ -36,9 +36,15 @@ settings(settings_), Commptr(Commptr_) {
     }
   }
   
-  shape = settings->sublist("Mesh").get<string>("shape","quad");
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
-  verbosity = settings->get<int>("verbosity",1);
+  shape = settings->sublist("Mesh").get<string>("shape","none");
+  if (shape == "none") { // new keywords, but allowing BWDS compat.
+    shape = settings->sublist("Mesh").get<string>("element type","quad");
+  }
+  spaceDim = settings->sublist("Mesh").get<int>("dim",0);
+  if (spaceDim == 0) {
+    spaceDim = settings->sublist("Mesh").get<int>("dimension",2);
+  }
+  verbosity = settings->get<int>("verbosity",0);
   
   have_mesh_data = false;
   compute_mesh_data = settings->sublist("Mesh").get<bool>("compute mesh data",false);
@@ -166,27 +172,13 @@ settings(settings_), Commptr(Commptr_) {
   if (settings->sublist("Mesh").isSublist("Periodic BCs")) {
     pl->sublist("Periodic BCs").setParameters( settings->sublist("Mesh").sublist("Periodic BCs") );
   }
-  /*
-  Teuchos::ParameterList& per_pl = pl->sublist("Periodic BCs");
-  if (spaceDim == 3) {
-    per_pl.set("Count", 3);
-    per_pl.set("Periodic Condition 1", "xz-all 1e-10,3D: top;bottom");
-    per_pl.set("Periodic Condition 2", "yz-all 1e-10,3D: left;right");
-    per_pl.set("Periodic Condition 3", "xy-all 1e-10,3D: front;back");
-  }
-  else if (spaceDim == 2) {
-    per_pl.set("Count", 2);
-    per_pl.set("Periodic Condition 1", "x-all 1e-8: top;bottom");
-    per_pl.set("Periodic Condition 2", "y-all 1e-8: left;right");
-  }
-  }*/
+  
   mesh_factory->setParameterList(pl);
   
   // create the mesh
-  //mesh = mesh_factory->buildUncommitedMesh(Commptr->Comm());
-  
   mesh = mesh_factory->buildUncommitedMesh(*(Commptr->getRawMpiComm()));
   
+  // create a mesh for an optmization movie
   if (settings->sublist("Postprocess").get("create optimization movie",false)) {
     optimization_mesh = mesh_factory->buildUncommitedMesh(*(Commptr->getRawMpiComm()));
   }
@@ -202,7 +194,7 @@ settings(settings_), Commptr(Commptr_) {
     topo_RCP cellTopo = mesh->getCellTopology(eBlocks[b]);
     string shape = cellTopo->getName();
     if (spaceDim == 1) {
-      // nothing to do here?
+      // nothing to do here
     }
     if (spaceDim == 2) {
       if (shape == "Quadrilateral_4") {
