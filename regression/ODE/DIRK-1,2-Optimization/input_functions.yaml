@@ -1,6 +1,0 @@
-%YAML 1.1
----
-ANONYMOUS:
-  Functions: 
-    ODE source: -1.0*ptest*q 
-...

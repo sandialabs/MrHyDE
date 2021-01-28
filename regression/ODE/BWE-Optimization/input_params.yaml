@@ -1,9 +1,0 @@
-%YAML 1.1
----
-ANONYMOUS:
-  Parameters: 
-    ptest: 
-      type: scalar
-      value: 1.0
-      usage: active
-...

@@ -3,9 +3,18 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  Mesh input file: input_mesh.yaml
-  Functions input file: input_functions.yaml
-  Physics: 
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 2
+    NY: 2
+  Functions:
+    ODE source: -1.0*q
+  Physics:
     modules: ODE
     assemble boundary terms: false
     Initial conditions:
@@ -16,8 +25,7 @@ ANONYMOUS:
     order:
       q: 1
     quadrature: 1
-  Parameters input file: input_params.yaml
-  Solver: 
+  Solver:
     solver: transient
     transient BDF order: 1
     transient Butcher tableau: custom
@@ -33,10 +41,5 @@ ANONYMOUS:
   Analysis: 
     analysis type: forward
   Postprocess: 
-    response type: global
     compute errors: true
-    compute response: false
-    compute objective: false
-    compute sensitivities: false
-    write solution: false
 ...
