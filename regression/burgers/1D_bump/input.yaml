@@ -4,8 +4,8 @@ ANONYMOUS:
   verbosity: 0
   debug level: 0
   Mesh:
-    dim: 1
-    shape: interval
+    dimension: 1
+    element type: interval
     xmin: 0.0
     xmax: 1.0
     NX: 100
@@ -45,10 +45,5 @@ ANONYMOUS:
   Analysis: 
     analysis type: forward
   Postprocess: 
-    response type: global
     compute errors: true
-    compute response: false
-    compute objective: false
-    compute sensitivities: false
-    write solution: false
 ...
