@@ -1,0 +1,33 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Subgrid:
+    subgrid model: FEM
+    Mesh:
+      mesh type: panzer
+      element type: quad
+      refinements: 2
+      dimension: 2
+      blocknames: eblock
+    Physics:
+      modules: porousHDIV
+      use permeability data: false
+      True solutions:
+        p: sin(2*pi*x)*sin(2*pi*y)
+        'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
+        'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
+    Solver:
+      solver: steady-state
+      use direct solver: true
+    Functions:
+      source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
+    Discretization:
+      order:
+        p: 0
+        u: 1
+      quadrature: 2
+    Postprocess:
+      store aux and flux: false
+      write solution: false
+      plot solution at nodes: false
+...

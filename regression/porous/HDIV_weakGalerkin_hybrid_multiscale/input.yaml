@@ -3,7 +3,15 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  Mesh input file: input_mesh.yaml
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 10
+    NY: 10
   Physics:  
     Active variables:
       pbndry: HFACE
@@ -18,9 +26,9 @@ ANONYMOUS:
           bottom: '0.0'
       True solutions:
         pbndry face: sin(2*pi*x)*sin(2*pi*y)
-  Parameters input file: input_params.yaml
-  Functions input file: input_functions.yaml
-  Solver: 
+  Functions:
+    source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
+  Solver:
     solver: steady-state
     initial type: none
     use direct solver: false
@@ -31,45 +39,9 @@ ANONYMOUS:
       order:
         pbndry: 1
       quadrature: 2
-  Subgrid:
-    subgrid model: FEM
-    Mesh:
-      shape: quad
-      refinements: 2
-      dim: 2
-      blocknames: eblock
-    Physics:
-      modules: porousHDIV_weakGalerkin
-      Active variables:
-        pint: HVOL
-        u: HDIV
-        t: HDIV
-      True solutions:
-        p: sin(2*pi*x)*sin(2*pi*y)
-        'u[x]': 2*pi*cos(2*pi*x)*sin(2*pi*y)
-        'u[y]': 2*pi*sin(2*pi*x)*cos(2*pi*y)
-        't[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
-        't[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
-    Solver:
-      solver: steady-state
-      use direct solver: true
-    Functions input file: input_functions.yaml
-    Discretization:
-      order:
-        p: 0
-        u: 1
-        t: 1
-      quadrature: 2
-    Postprocess:
-      store aux and flux: false
+  Subgrid input file: subgrid_input.yaml
   Analysis:
     analysis type: forward
   Postprocess: 
-    response type: global
     compute errors: true
-    compute response: false
-    write solution: false
-    write subgrid solution: false
-    compute objective: false
-    compute sensitivities: false
 ...

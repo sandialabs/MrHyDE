@@ -3,7 +3,15 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  Mesh input file: input_mesh.yaml
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 8
+    NY: 8
   Physics: 
     Active variables:
       p: HVOL
@@ -23,9 +31,9 @@ ANONYMOUS:
         p: sin(2*pi*x)*sin(2*pi*y)
         'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
         'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
-  Parameters input file: input_params.yaml
-  Functions input file: input_functions.yaml
-  Solver: 
+  Functions:
+    source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
+  Solver:
     solver: steady-state
     workset size: 1
     nonlinear TOL: 1.0e-07
@@ -45,10 +53,5 @@ ANONYMOUS:
   Analysis:
     analysis type: forward
   Postprocess: 
-    response type: global
     compute errors: true
-    compute response: false
-    write solution: false
-    compute objective: false
-    compute sensitivities: false
 ...
