@@ -7,8 +7,6 @@ import string
 import shutil
 sys.path.append("../../scripts")
 from milo_test_support import *
-#from numpy import isnan, isinf
-#from math import isnan, isinf
 
 # ==============================================================================
 # Parsing input
@@ -45,21 +43,12 @@ if its.opts.preprocess:
   if its.opts.verbose != 'none': print('---> Preprocessing %s' % (root))
   status += its.call('echo "  No preprocessing, yet."')
 
-status += its.call('./run.sh')
-# ------------------------------
-#if its.opts.execute:
-#  if its.opts.verbose != 'none': print '---> Execute %s' % (root)
-#  os.chdir('obj-org')
-#  #status += its.ichos(root)
-#  status += its.call('./run.sh')
-#  os.chdir('..')
-#  #status += its.call('ichos_clean')
-#  #status += its.ichos_opt(root)
-#  #status += its.call('./run.sh')
+status += its.call('export LC_ALL=C')
+status += its.call('mpiexec -n 1 ../../milo >& milo.log')
 
 # ------------------------------
 flog = '%s.log' % (root)
-reflog = 'ref/%s.ocs' % (root)
+reflog = '%s.gold' % (root)
 
 for line in open(flog):
   if "L2 norm of the error for dx" in  line: uxline = line

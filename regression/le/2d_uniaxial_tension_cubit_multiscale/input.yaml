@@ -5,44 +5,10 @@ ANONYMOUS:
   verbosity: 0
   Mesh: 
     blocknames: eblock_0-0
-    dim: 2
+    dimension: 2
     source: Exodus
     mesh file: tiny.g
-  Subgrid:
-    subgrid model: 'FEM'
-    Mesh: 
-      shape: quad
-      refinements: 0
-      dim: 2
-      blocknames: eblock
-    Physics: 
-      modules: linearelasticity
-      form_param: 0.0
-      True solutions:
-        dx: '-0.5*x'
-        dy: 'y'
-      Neumann conditions:
-        dx:
-          top: '0.0'
-          bottom: '0.0'
-          ileft: '0.0'
-          iright: '0.0'
-        dy:
-          top: '1.5'
-          bottom: '-1.5'
-          ileft: '0.0'
-          iright: '0.0'
-    Discretization:
-      order:
-        dx: 1
-        dy: 1
-      quadrature: 2
-    Solver:
-      solver: steady-state
-    Parameters input file: input_params.yaml
-    Functions:
-      lambda: '1.0'
-      mu: '0.5'
+  Subgrid input file: subgrid_input.yaml
   Physics:
     modules: linearelasticity
     assemble face terms: true
@@ -70,12 +36,9 @@ ANONYMOUS:
   Solver:
     solver: steady-state
   Postprocess: 
-    response type: pointwise
-    compute response: false
-    write solution: true
     compute errors: true
-  Parameters input file: input_params.yaml
-  Analysis input file: input_fwd.yaml
+  Analysis:
+    analysis type: forward
   Functions:
     lambda: '1.0'
     mu: '0.5'

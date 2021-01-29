@@ -4,45 +4,45 @@ ANONYMOUS:
   Parameters: 
     lambda1: 
       type: scalar
-      value: 1.00000000000000000e+00
+      value: 1.0
       usage: inactive
     mufield: 
       type: HGRAD
       order: 1
       usage: discretized
-      initial_value: 3.00000000000000000e+00
-      lower_bound: 1.00000000000000000e+00
-      upper_bound: 1.00000000000000000e+01
+      initial_value: 3.0
+      lower_bound: 1.0
+      upper_bound: 1.0e+01
       reg_type: 1
-      reg_constant: 1.00000000000000008e-05
+      reg_constant: 1.0e-05
       isDomainParam: true
     disc_trac: 
       type: HGRAD
       order: 1
       usage: discretized
-      initial_value: 1.00000000000000000e+00
-      lower_bound: -2.00000000000000000e+01
-      upper_bound: 2.00000000000000000e+01
+      initial_value: 1.0
+      lower_bound: -2.0e+01
+      upper_bound: 2.0e+01
       reg_type: 1
-      reg_constant: 1.00000000000000008e-05
-      nreg_constant: 1.00000000000000008e05
+      reg_constant: 1.0e-05
+      nreg_constant: 1.0e05
       isDomainParam: false
       sides: top
     source_x: 
       type: scalar
-      value: 0.00000000000000000e+00
+      value: 0.0
       usage: inactive
     source_y: 
       type: scalar
-      value: 0.00000000000000000e+00
+      value: 0.0
       usage: inactive
     nbcx: 
       type: scalar
-      value: 0.00000000000000000e+00
+      value: 0.0
       usage: inactive
     nbcy: 
       type: scalar
-      value: 1.00000000000000000e+00
+      value: 1.0
       usage: inactive
       bounds--: data/nbcy_bounds.dat
 ...

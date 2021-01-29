@@ -4,7 +4,7 @@ ANONYMOUS:
   debug level: 0
   Mesh: 
     blocknames: eblock_0-0
-    dim: 2
+    dimension: 2
     source: Exodus
     mesh file: tiny.g
   Physics: 
@@ -29,12 +29,9 @@ ANONYMOUS:
   Solver:
     solver: steady-state
   Postprocess: 
-    response type: pointwise
-    compute response: false
     compute errors: true
-    write solution: false
-  Parameters input file: input_params.yaml
-  Analysis input file: input_fwd.yaml
+  Analysis:
+    analysis type: forward
   Functions:
     lambda: '1.0'
     mu: '0.5'

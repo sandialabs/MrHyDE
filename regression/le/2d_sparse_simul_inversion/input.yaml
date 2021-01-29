@@ -4,7 +4,7 @@ ANONYMOUS:
   debug level: 0
   Mesh: 
     blocknames: eblock-0_0
-    dim: 2
+    dimension: 2
     Source: Exodus
     mesh file: input_mesh_dp1_n2.exo
     have element data: true

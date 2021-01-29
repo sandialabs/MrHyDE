@@ -3,7 +3,15 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  Mesh input file: input_mesh.yaml
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 40
+    NY: 40
   Physics:
     modules: linearelasticity
     Dirichlet conditions:
@@ -43,10 +51,7 @@ ANONYMOUS:
     max nonlinear iters: 2
     linear TOL: 1.0e-10
   Postprocess: 
-    response type: pointwise
-    compute response: false
     compute errors: true
-    write solution: false
-  Parameters input file: input_params.yaml
-  Analysis input file: input_fwd.yaml
+  Analysis:
+    analysis type: forward
 ...
