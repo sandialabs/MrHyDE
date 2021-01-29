@@ -43,7 +43,7 @@ if its.opts.preprocess:
   if its.opts.verbose != 'none': print('---> Preprocessing %s' % (root))
   status += its.call('echo "  No preprocessing, yet."')
 
-status += its.call('mpiexec -n 4 ../../milo >& milo.logi')
+status += its.call('mpiexec -n 4 ../../milo >& milo.log')
 
 status += its.call('diff -y %s.log %s.gold' % (root, root))
 

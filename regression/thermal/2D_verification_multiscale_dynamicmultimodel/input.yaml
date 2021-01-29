@@ -3,7 +3,15 @@
 ANONYMOUS:
   debug level: 0
   verbosity: 0
-  Mesh input file: input_mesh.yaml
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 25
+    NY: 25
   Physics: 
     modules: thermal
     Dirichlet conditions:
@@ -15,78 +23,19 @@ ANONYMOUS:
       e: 0.0
     True solutions:
       e: sin(2.0*pi*x)*sin(2.0*pi*y)
-  Subgrid:
-    static subgrids: true
-    number of models: 3
-    Model0:
-      usage: '1.0'
-      Mesh: 
-        shape: quad
-        refinements: 0
-        dim: 2
-      Physics: 
-        modules: thermal
-        True solutions:
-          e: sin(2.0*pi*x)*sin(2.0*pi*y)
-      Discretization:
-        order:
-          e: 1
-        quadrature: 2
-      Solver:
-        solver: transient
-      Functions input file: input_functions.yaml
-    Model1:
-      usage: '(x-t)>0.5'
-      Mesh: 
-        shape: quad
-        refinements: 1
-        dim: 2
-      Physics: 
-        modules: thermal
-        True solutions:
-          e: sin(2.0*pi*x)*sin(2.0*pi*y)
-      Discretization:
-        order:
-          e: 1
-        quadrature: 2
-      Solver:
-        solver: transient
-      Functions input file: input_functions.yaml
-    Model2:
-      usage: '(x-t)>0.75'
-      Mesh: 
-        shape: quad
-        refinements: 2
-        dim: 2
-      Physics: 
-        modules: thermal
-        True solutions:
-          e: sin(2.0*pi*x)*sin(2.0*pi*y)
-      Discretization:
-        order:
-          e: 1
-        quadrature: 2
-      Solver:
-        solver: transient
-      Functions input file: input_functions.yaml
-  Parameters input file: input_params.yaml
+  Subgrid input file: subgrid_input.yaml
   Discretization:
     order:
       e: 1
     quadrature: 2
   Solver:
     solver: transient
-    final time: 4.000000000000000e-01
+    final time: 4.0e-01
     number of steps: 4
   Analysis: 
     analysis type: forward
   Postprocess: 
-    response type: global
     compute errors: true
-    write solution: false
-    compute response: false
-    compute objective: false
-    compute sensitivities: false
-    Subgrid Error: false
-  Functions input file: input_functions.yaml
+  Functions:
+    thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
 ...

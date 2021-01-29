@@ -1,0 +1,27 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Subgrid:
+    Mesh:
+      element type: quad
+      refinements: 1
+      dimension: 2
+      blocknames: eblock
+    Physics: 
+      modules: thermal
+      Responses:
+        resp: 'e'
+      Targets:
+        targ: sin(pi*x)*sin(pi*y)
+      Weights:
+        wt: '1.0'
+      form_param: 1.0
+    Solver: 
+      solver: steady-state
+    Discretization:
+      order:
+        e: 1
+      quadrature: 2
+    Functions:
+      thermal source: thermal_source(0)*2.0*pi*pi*sin(pi*x)*sin(pi*y)
+...

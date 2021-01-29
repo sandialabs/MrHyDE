@@ -1,6 +1,0 @@
-%YAML 1.1
----
-ANONYMOUS:
-  Functions: 
-    thermal source: (8*(pi*pi)*sin(2*pi*t)+2*pi*cos(2*pi*t))*sin(2*pi*x)*sin(2*pi*y) 
-...

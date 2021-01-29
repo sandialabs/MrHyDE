@@ -1,7 +1,15 @@
 %YAML 1.1
 ---
 ANONYMOUS:
-  Mesh input file: input_mesh.yaml
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 20
+    NY: 20
   verbosity: 0
   Physics: 
     modules: thermal
@@ -16,7 +24,15 @@ ANONYMOUS:
       targ: '0.0'
     Weights:
       wt: '1.0'
-  Parameters input file: input_params.yaml
+  Parameters:
+    thermal_diff:
+      type: scalar
+      value: 1.0
+      usage: active
+    thermal_source:
+      type: scalar
+      value: 1.0
+      usage: inactive
   Discretization:
     order:
       e: 1
@@ -27,7 +43,7 @@ ANONYMOUS:
     nonlinear TOL: 1.0e-14
     linear TOL: 1.0e-13
     max nonlinear iters: 4
-    final time: 5.00000000000000000e-01
+    final time: 5.0e-01
     number of steps: 4
   Analysis input file: input_rol2.yaml
   Postprocess: 

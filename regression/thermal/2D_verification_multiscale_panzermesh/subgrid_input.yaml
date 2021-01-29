@@ -1,0 +1,29 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Subgrid:
+    subgrid model: FEM
+    Mesh:
+      mesh type: panzer
+      shape: quad
+      refinements: 2
+      dim: 2
+      blocknames: eblock
+    Physics: 
+      modules: thermal
+      True solutions:
+        e: sin(2*pi*x)*sin(2*pi*y)
+    Solver:
+      verbosity: 0
+      solver: steady-state
+      use direct solver: true
+      write subgrid to one file: false
+    Functions:
+      thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
+    Discretization:
+      order:
+        e: 1
+      quadrature: 2
+    Postprocess: 
+      store aux and flux: false
+...

@@ -4,18 +4,10 @@ ANONYMOUS:
   Parameters: 
     thermal_diff: 
       type: scalar
-      value: 1.00000000000000000e+00
+      value: 1.0
       usage: inactive
     thermal_source: 
       type: scalar
-      value: 1.00000000000000000e+00
+      value: 1.0
       usage: active
-    lambda1: 
-      type: scalar
-      value: 1.00000000000000000e+00
-      usage: inactive
-    mu: 
-      type: scalar
-      value: 1.00000000000000000e+00
-      usage: inactive
 ...

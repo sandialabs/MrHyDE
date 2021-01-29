@@ -1,0 +1,61 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Subgrid:
+    static subgrids: true
+    number of models: 3
+    Model0:
+      usage: '1.0'
+      Mesh: 
+        element type: quad
+        refinements: 0
+        dimension: 2
+      Physics: 
+        modules: thermal
+        True solutions:
+          e: sin(2.0*pi*x)*sin(2.0*pi*y)
+      Discretization:
+        order:
+          e: 1
+        quadrature: 2
+      Solver:
+        solver: transient
+      Functions:
+        thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
+    Model1:
+      usage: '(x-t)>0.5'
+      Mesh: 
+        element type: quad
+        refinements: 1
+        dimension: 2
+      Physics: 
+        modules: thermal
+        True solutions:
+          e: sin(2.0*pi*x)*sin(2.0*pi*y)
+      Discretization:
+        order:
+          e: 1
+        quadrature: 2
+      Solver:
+        solver: transient
+      Functions:
+        thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
+    Model2:
+      usage: '(x-t)>0.75'
+      Mesh: 
+        elemnent type: quad
+        refinements: 2
+        dimension: 2
+      Physics: 
+        modules: thermal
+        True solutions:
+          e: sin(2.0*pi*x)*sin(2.0*pi*y)
+      Discretization:
+        order:
+          e: 1
+        quadrature: 2
+      Solver:
+        solver: transient
+      Functions:
+        thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
+...

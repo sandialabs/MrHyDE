@@ -5,7 +5,7 @@ ANONYMOUS:
   verbosity: 0
   Mesh:
     dimension: 2
-    element: tri
+    element type: tri
     xmin: 0.0
     xmax: 1.0
     ymin: 0.0
@@ -38,6 +38,7 @@ ANONYMOUS:
     solver: steady-state
     use strong DBCs: false
     nonlinear TOL: 1.0e-12
+    linear TOL: 1.0e-12
   Analysis: 
     analysis type: forward
   Postprocess: 

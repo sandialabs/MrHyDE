@@ -7,8 +7,6 @@ import string
 import shutil
 sys.path.append("../../scripts")
 from milo_test_support import *
-#from numpy import isnan, isinf
-#from math import isnan, isinf
 
 # ==============================================================================
 # Parsing input
@@ -45,52 +43,10 @@ if its.opts.preprocess:
   if its.opts.verbose != 'none': print('---> Preprocessing %s' % (root))
   status += its.call('echo "  No preprocessing, yet."')
 
-status += its.call('./run.sh')
-# ------------------------------
-#if its.opts.execute:
-#  if its.opts.verbose != 'none': print '---> Execute %s' % (root)
-#  os.chdir('obj-org')
-#  #status += its.ichos(root)
-#  status += its.call('./run.sh')
-#  os.chdir('..')
-#  #status += its.call('ichos_clean')
-#  #status += its.ichos_opt(root)
-#  #status += its.call('./run.sh')
+status += its.call('mpiexec -n 4 ../../milo >& milo.log')
+status += its.call('rm final_params.dat param_stash.dat ROL_out.txt')
 
-# ------------------------------
-#if its.opts.diff:
-#  if its.opts.verbose != 'none': print '---> Diff %s' % (root)
-#  # Test 1
-#  fline = ''
-#  if its.opts.nprocs > 1:
-#    flog = '%s.%i.log' % (root, its.opts.nprocs)
-#  else:
-#    flog = '%s.log' % (root)
-#  for line in open(flog):
-#    #if "err w.r.t. fourth order fd" in line: fline = line
-#    if "Value of Objective Function" in  line: fline = line
-#  w = fline.split()
-#  fderr = float(w[6])
-#  if its.opts.verbose != 'none':
-#    print '\n-> Is 4th order FD error, %g, > %g?' % (abs(fderr), fdtol)
-#  if abs(fderr) > fdtol or isnan(fderr) or isinf(fderr):
-#    status += 1
-#    print '  Failure 4th order FD error too large.'
-
-  # Test 2
-  #
-status += its.call('diff -y %s.log ./ref/%s.ocs' % (root, root))
-  #status += its.call("awk 'NR==1 {print substr($0,0,38)} NR>1 {print substr($0,0,41);}' < %s.ocs | diff - ref/%s.ocs" % (root, root))
-
-  # Test 3
-#  cmd = 'ichos_diff.exe -aeps %g -reps %g -r1 ref/%s.rst -r2 %s.rst %s' \
-#        %(aeps, reps, root, root, root)
-#  status += its.call(cmd)
-
-  # Test 4
-#  cmd = 'ichos_diff.exe -aeps %g -reps %g -r1 ref/%s.adj.rst -r2 %s.adj.rst %s'\
-#        %(aeps, reps, root, root, root)
-#  status += its.call(cmd)
+status += its.call('diff -y %s.log %s.gold' % (root, root))
 
 # ------------------------------
 if its.opts.baseline and not status:
