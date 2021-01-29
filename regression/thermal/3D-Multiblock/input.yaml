@@ -4,8 +4,8 @@ ANONYMOUS:
   verbosity: 0
   debug level: 0
   Mesh: 
-    dim: 3
-    shape: hex
+    dimension: 3
+    element type: hex
     source: Exodus
     mesh file: two_block_3D.e
   Physics:
@@ -48,9 +48,5 @@ ANONYMOUS:
   Analysis: 
     analysis_type: forward
   Postprocess:
-    response type: global
-    compute response: false
     compute errors: true
-    compute sensitivities: false
-    write solution: false
 ...

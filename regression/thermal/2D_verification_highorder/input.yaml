@@ -1,8 +1,17 @@
 %YAML 1.1
 ---
 ANONYMOUS:
-  Mesh input file: input_mesh.yaml
-  Functions input file: input_functions.yaml
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 10
+    NY: 10
+  Functions:
+    thermal source: 8*pi*pi*sin(2*pi*x)*sin(2*pi*y)
   Physics: 
     eblock-0_0: 
       modules: thermal
@@ -18,7 +27,6 @@ ANONYMOUS:
       order:
         e: 4
       quadrature: 8
-  Parameters input file: input_params.yaml
   Solver: 
     solver: steady-state
     workset size: 10
@@ -27,10 +35,5 @@ ANONYMOUS:
   Analysis: 
     analysis type: forward
   Postprocess: 
-    response type: global
     compute errors: true
-    compute response: false
-    compute objective: false
-    compute sensitivities: false
-    write solution: false
 ...

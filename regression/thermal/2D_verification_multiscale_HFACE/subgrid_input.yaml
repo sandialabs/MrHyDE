@@ -1,0 +1,26 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Subgrid:
+    subgrid model: FEM
+    Mesh:
+      element type: quad
+      refinements: 2
+      dimension: 2
+      blocknames: eblock
+    Physics: 
+      modules: thermal
+      True solutions:
+        e: sin(2*pi*x)*sin(2*pi*y)
+    Solver:
+      solver: steady-state
+      use direct solver: true
+    Functions:
+      thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
+    Discretization:
+      order:
+        e: 1
+      quadrature: 2
+    Postprocess: 
+      store aux and flux: false
+...

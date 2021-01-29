@@ -2,7 +2,18 @@
 ---
 ANONYMOUS:
   debug level: 0
-  Mesh input file: input_mesh.yaml
+  Mesh:
+    dimension: 3
+    element type: hex
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    zmin: 0.0
+    zmax: 1.0
+    NX: 10
+    NY: 10
+    NZ: 10
   Physics: 
     eblock-0_0_0: 
       modules: thermal
@@ -18,8 +29,8 @@ ANONYMOUS:
       order:
         e: 1
       quadrature: 2
-  Parameters input file: input_params.yaml
-  Functions input file: input_functions.yaml
+  Functions:
+    thermal source: 12*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
   Solver: 
     solver: steady-state
   Analysis: 

@@ -4,8 +4,17 @@ ANONYMOUS:
   verbosity: 0
   debug level: 0
   profile: false
-  Mesh input file: input_mesh.yaml
-  Functions input file: input_functions.yaml
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 40
+    NY: 40
+  Functions:
+    thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
   Physics: 
     modules: thermal
     assemble boundary terms: false
@@ -28,8 +37,7 @@ ANONYMOUS:
     order:
       e: 1
     quadrature: 2
-  Parameters input file: input_params.yaml
-  Solver: 
+  Solver:
     solver: steady-state
     workset size: 100
     nonlinear TOL: 1.0e-07
@@ -38,10 +46,5 @@ ANONYMOUS:
   Analysis: 
     analysis type: forward
   Postprocess: 
-    response type: global
     compute errors: true
-    compute response: false
-    compute objective: false
-    compute sensitivities: false
-    write solution: false
 ...
