@@ -27,7 +27,7 @@ namespace MrHyDE {
     CrystalElastic( Teuchos::RCP<Teuchos::ParameterList> & settings , const int & numElem_)
     {
       
-      dimension = settings->sublist("Mesh").get<int>("dim",3);
+      dimension = settings->sublist("Mesh").get<int>("dimension",3);
       numElem = numElem_;//settings->sublist("Solver").get<int>("Workset size",1);
       
       Teuchos::ParameterList esettings = settings->sublist("Physics").sublist("Elastic Coefficients");

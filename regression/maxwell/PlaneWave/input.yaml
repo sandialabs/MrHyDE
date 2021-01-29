@@ -26,7 +26,6 @@ ANONYMOUS:
         E: 1
         B: 1
       quadrature: 2
-  Parameters input file: input_params.yaml
   Functions input file: input_functions.yaml
   Solver: 
     solver: 'transient'
@@ -48,7 +47,5 @@ ANONYMOUS:
   Analysis: 
     analysis type: forward
   Postprocess: 
-    response type: global
-    write solution: false
     compute errors: true
 ...

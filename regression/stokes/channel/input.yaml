@@ -2,8 +2,16 @@
 ---
 ANONYMOUS:
   debug level: 0
-  Mesh input file: input_mesh.yaml
-  Physics: 
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 4
+    NY: 4
+  Physics:
     modules: Stokes
     Dirichlet conditions:
       ux:
@@ -16,8 +24,7 @@ ANONYMOUS:
       ux: '0.5*y*(1.0-y)'
       uy: '0.0'
       pr: '0.0'
-  Parameters input file: input_params.yaml
-  Solver: 
+  Solver:
     solver: steady-state
     workset size: 1
     nonlinear TOL: 1.0e-07
@@ -35,12 +42,7 @@ ANONYMOUS:
   Analysis:
     analysis type: forward
   Postprocess: 
-    response type: global
     compute errors: true
-    compute response: false
-    write solution: false
-    compute objective: false
-    compute sensitivities: false
   Functions:
     source ux: '1.0'
 ...

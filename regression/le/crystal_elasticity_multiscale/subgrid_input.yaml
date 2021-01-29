@@ -1,0 +1,41 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Subgrid:
+    debug level: 0
+    Mesh:
+      macro element type: hex
+      element type: hex
+      refinements: 0
+      dimension: 3
+      blocknames: eblock
+      data file: mesh_data_rotations
+      data points file: mesh_data_pts
+      have mesh data rotations: true
+    Discretization:
+      order:
+        dx: 1
+        dy: 1
+        dz: 1
+      quadrature: 2
+    Physics:
+      use crystal elasticity: true
+      modules: linearelasticity
+      form_param: -1.0
+      Neumann conditions:
+        dy:
+          top: '1.0'
+        dx:
+          top: '0.0'
+        dz:
+          top: '0.0'
+      True solutions:
+        dx: '0.0'
+        dy: '0.0'
+        dz: '0.0'
+    Solver: 
+      solver: steady-state
+      use direct solver: true
+    Functions:
+    Parameters:
+...

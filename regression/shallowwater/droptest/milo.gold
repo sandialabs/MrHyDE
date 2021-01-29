@@ -1,0 +1,22 @@
+
+*********************************************************
+***** Computing errors ******
+
+***** L2 norm of the error for H = 1.00321  (time = 0)
+***** L2 norm of the error for H = 1.00321  (time = 0.001)
+***** L2 norm of the error for H = 1.00321  (time = 0.002)
+***** L2 norm of the error for H = 1.00321  (time = 0.003)
+***** L2 norm of the error for H = 1.00321  (time = 0.004)
+***** L2 norm of the error for H = 1.00321  (time = 0.005)
+***** L2 norm of the error for Hu = 1.06644e-08  (time = 0)
+***** L2 norm of the error for Hu = 0.00250518  (time = 0.001)
+***** L2 norm of the error for Hu = 0.00498972  (time = 0.002)
+***** L2 norm of the error for Hu = 0.0074334  (time = 0.003)
+***** L2 norm of the error for Hu = 0.00981684  (time = 0.004)
+***** L2 norm of the error for Hu = 0.0121219  (time = 0.005)
+***** L2 norm of the error for Hv = 1.0667e-08  (time = 0)
+***** L2 norm of the error for Hv = 0.00250518  (time = 0.001)
+***** L2 norm of the error for Hv = 0.00498972  (time = 0.002)
+***** L2 norm of the error for Hv = 0.0074334  (time = 0.003)
+***** L2 norm of the error for Hv = 0.00981684  (time = 0.004)
+***** L2 norm of the error for Hv = 0.0121219  (time = 0.005)

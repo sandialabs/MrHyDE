@@ -3,8 +3,19 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  Mesh input file: input_mesh.yaml
-  Physics: 
+  Mesh:
+    dimension: 3
+    element type: hex
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    zmin: 0.0
+    zmax: 1.0
+    NX: 4
+    NY: 4
+    NZ: 4
+  Physics:
     modules: thermal
     assemble face terms: true
     Dirichlet conditions:
@@ -14,29 +25,9 @@ ANONYMOUS:
       e: '0.0'
     True solutions:
       e face: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
-  Subgrid:
-    Mesh:
-      mesh type: Exodus
-      mesh file: cube_tet.e 
-      shape: tet
-      macro-shape: hex
-      refinements: 0
-      dim: 3
-      blocknames: eblock
-    Physics: 
-      modules: thermal
-      True solutions:
-        e: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
-    Solver: 
-      solver: steady-state
-    Parameters input file: input_params.yaml
-    Functions input file: input_functions.yaml
-    Discretization:
-      order:
-        e: 1
-      quadrature: 2
-  Parameters input file: input_params.yaml
-  Functions input file: input_functions.yaml
+  Subgrid input file: subgrid_input.yaml
+  Functions:
+    thermal source: 12*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
   Discretization:
     order:
       e: 1

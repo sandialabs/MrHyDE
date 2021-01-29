@@ -1,10 +1,18 @@
 %YAML 1.1
 ---
 ANONYMOUS:
-  verbosity: 10
+  verbosity: 0
   profile: false
-  Mesh input file: input_mesh.yaml
-  Physics: 
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 40
+    NY: 40
+  Physics:
     modules: shallow water
     assemble boundary terms: false
     compute boundary terms: false
@@ -32,8 +40,7 @@ ANONYMOUS:
         Hu: 1
         Hv: 1
       quadrature: 2
-  Parameters input file: input_params.yaml
-  Solver: 
+  Solver:
     solver: transient
     transient Butcher tableau: DIRK-1,2
     workset size: 100
@@ -42,12 +49,7 @@ ANONYMOUS:
   Analysis: 
     analysis type: forward
   Postprocess: 
-    response type: global
     compute errors: true
-    write solution: false
-    compute response: false
-    compute objective: false
-    compute sensitivities: false
   Functions:
     hump: -100.0*(x-0.5)*(x-0.5) - 100*(y-0.5)*(y-0.5)
 

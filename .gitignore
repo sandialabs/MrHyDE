@@ -6,6 +6,7 @@
 *.log
 *.dat
 *.bak
+*.xml
 *._*
 *~
 *-Host.memspace_usage

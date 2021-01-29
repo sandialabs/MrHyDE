@@ -3,15 +3,14 @@
 ANONYMOUS:
   verbosity: 0
   Mesh: 
-    dim: 2
-    shape: quad
-    xmin: 0.00000000000000000e+00
-    xmax: 1.00000000000000000e+00
-    ymin: 0.00000000000000000e+00
-    ymax: 1.00000000000000000e+00
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
     NX: 100
     NY: 100
-    blocknames: eblock-0_0
   Physics: 
     modules: helmholtz
     Dirichlet conditions:
@@ -66,11 +65,20 @@ ANONYMOUS:
     smoother type: ILUT
     nonlinear TOL: 1.0e-8
   Postprocess: 
-    response type: global
-    compute response: false
-    compute objective: false
-    write solution: false
     compute errors: true
-  Parameters input file: input_params.yaml
-  Analysis input file: input_fwd.yaml
+  Parameters:
+    helmholtz_freq:
+      type: scalar
+      value: 1.0
+      usage: inactive
+    helmholtz_source:
+      type: scalar
+      value: 1.0
+      usage: inactive
+    helmholtz_velocity:
+      type: scalar
+      value: 1.0
+      usage: inactive
+  Analysis:
+    analysis type: forward
 ...

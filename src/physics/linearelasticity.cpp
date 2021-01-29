@@ -32,7 +32,7 @@ linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settin
     spaceDim = settings->sublist("Mesh").get<int>("dimension",0);
   }
   if (spaceDim == 0) {
-    // output an error
+    //
   }
   
   if (spaceDim == 1) {

@@ -2,11 +2,19 @@
 ---
 ANONYMOUS:
   verbosity: 0
-  Mesh input file: input_mesh.yaml
-  Physics: 
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0e+02
+    ymin: 0.0
+    ymax: 1.0e+02
+    NX: 100
+    NY: 100
+  Physics:
     number_phases: 3
     numdisks: 1
-    disksize: 1.00000000000000000e+01
+    disksize: 1.0e+01
     uniform: true
     initialType: test
     modules: msphasefield
@@ -31,16 +39,25 @@ ANONYMOUS:
     initial type: interpolation
     nonlinear TOL: 1.0e-07
     max nonlinear iters: 10
-    final time: 5.00000000000000000e-01
-    delta t: 5.00000000000000000e-01
+    final time: 5.0e-01
+    delta t: 5.0e-01
   Postprocess: 
-    response type: global
-    compute response: false
     compute errors: true
-    compute measurements: false
-    write solution: false
-  Parameters input file: input_params.yaml
-  Analysis input file: input_fwd.yaml
+  Parameters:
+    thermal_diff:
+      type: scalar
+      value: 2.0
+      usage: inactive
+    L:
+      type: scalar
+      value: 2.0
+      usage: active
+    A:
+      type: scalar
+      value: 2.0e-01
+      usage: inactive
+  Analysis:
+    analysis type: forward
   Functions:
     rone: ((x-37.5)*(x-37.5) + (y-50.0)*(y-50.0))^(0.5)
     rtwo: ((x-61.5)*(x-61.5) + (y-50.0)*(y-50.0))^(0.5)

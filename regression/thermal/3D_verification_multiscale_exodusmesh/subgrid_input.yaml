@@ -1,0 +1,25 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Subgrid:
+    Mesh:
+      mesh type: Exodus
+      mesh file: cube_tet.e 
+      element type: tet
+      macro element type: hex
+      refinements: 0
+      dimension: 3
+      blocknames: eblock
+    Physics: 
+      modules: thermal
+      True solutions:
+        e: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+    Solver: 
+      solver: steady-state
+    Functions:
+      thermal source: 12*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+    Discretization:
+      order:
+        e: 1
+      quadrature: 2
+...

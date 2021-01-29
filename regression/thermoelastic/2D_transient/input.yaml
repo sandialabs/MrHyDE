@@ -3,7 +3,15 @@
 ANONYMOUS:
   debug level: 0
   verbosity: 0
-  Mesh input file: input_mesh.yaml
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 20
+    NY: 20
   Physics: 
     eblock-0_0: 
       modules: thermal, linearelasticity
@@ -31,10 +39,13 @@ ANONYMOUS:
         dx: 1
         dy: 1
       quadrature: 2
-  Parameters input file: input_params.yaml
-  Functions input file: input_functions.yaml
-  Analysis input file: input_fwd.yaml
-  Solver: 
+  Functions:
+    thermal source: 2*pi*pi*sin(pi*x)*sin(pi*y)
+    lambda: '1.0'
+    mu: '1.0'
+  Analysis:
+    analysis type: forward
+  Solver:
     solver: transient
     workset size: 10
     nonlinear TOL: 1.0e-07
@@ -43,7 +54,5 @@ ANONYMOUS:
     final time: 1.0
     number of steps: 10
   Postprocess: 
-    response type: global
     compute errors: true
-    write solution: false
 ...

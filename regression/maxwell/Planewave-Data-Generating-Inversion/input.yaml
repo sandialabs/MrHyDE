@@ -1,7 +1,7 @@
 %YAML 1.1
 ---
 ANONYMOUS:
-  debug level: 2
+  debug level: 0
   verbosity: 0
   Mesh input file: input_mesh.yaml
   Physics: 
