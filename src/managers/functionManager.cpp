@@ -45,7 +45,7 @@ blockname(blockname_), numElem(numElem_), numip(numip_), numip_side(numip_side_)
 // Add a user defined function
 //////////////////////////////////////////////////////////////////////////////////////
 
-int FunctionManager::addFunction(const string & fname, const string & expression, const string & location) {
+int FunctionManager::addFunction(const string & fname, string & expression, const string & location) {
   bool found = false;
   int findex = 0;
   
@@ -98,7 +98,6 @@ void FunctionManager::validateFunctions(){
   }
   for (size_t k=0; k<functions.size(); k++) {
     vector<string> vars = interpreter->getVars(functions[k].expression, known_ops);
-    
     int numfails = interpreter->validateTerms(vars,known_vars,variables,parameters,disc_parameters,function_names);
     if (numfails > 0) {
       TEUCHOS_TEST_FOR_EXCEPTION(false,std::runtime_error,"Error: MILO could not identify one or more terms in: " + functions[k].function_name);
@@ -334,7 +333,7 @@ void FunctionManager::decomposeFunctions() {
             if (functions[fiter].terms[k].expression == functions[j].function_name &&
                 functions[fiter].location == functions[j].location) {
               functions[fiter].terms[k].isFunc = true;
-              functions[fiter].terms[k].isAD = functions[j].terms[0].isAD;
+              functions[fiter].terms[k].isAD = true;//functions[j].terms[0].isAD;
               functions[fiter].terms[k].funcIndex = j;
               functions[fiter].terms[k].beenDecomposed = true;
               functions[fiter].terms[k].data = functions[j].terms[0].data;
@@ -401,6 +400,9 @@ bool FunctionManager::isScalarTerm(const int & findex, const int & tindex) {
     if (functions[findex].terms[tindex].isAD) {
       is_scalar = false;
     }
+  }
+  else if (functions[findex].terms[tindex].isFunc) {
+    is_scalar = false;
   }
   else {
     for (size_t k=0; k<functions[findex].terms[tindex].dep_list.size(); k++){

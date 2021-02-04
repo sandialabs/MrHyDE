@@ -58,6 +58,7 @@ IF(MrHyDE_ENABLE_TESTS)
   ADD_EXECUTABLE(test_functions
   test/test_functions.cpp
   tools/workset.cpp
+  tools/interpreter.cpp
   interfaces/discretizationInterface.cpp 
   managers/functionManager.cpp)
   TARGET_LINK_LIBRARIES(test_functions ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 

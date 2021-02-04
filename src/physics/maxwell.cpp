@@ -48,7 +48,6 @@ void maxwell::defineFunctions(Teuchos::ParameterList & fs,
 
 void maxwell::volumeResidual() {
   
-  int spaceDim = wkset->dimension;
   int E_basis = wkset->usebasis[Enum];
   int B_basis = wkset->usebasis[Bnum];
   

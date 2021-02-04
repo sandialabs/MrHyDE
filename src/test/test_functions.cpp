@@ -5,6 +5,8 @@
 #include "workset.hpp"
 #include "discretizationInterface.hpp"
 
+#include <Kokkos_Random.hpp>
+
 using namespace std;
 using namespace MrHyDE;
 
@@ -15,9 +17,11 @@ int main(int argc, char * argv[]) {
   
   Kokkos::initialize();
 
-  //typedef Kokkos::DynRankView<ScalarT,Kokkos::LayoutStride,AssemblyExec> DRVtst;
-  
   {
+    //----------------------------------------------------------------------
+    // Set up a dummy workset just to test interplay between function manager and workset
+    //----------------------------------------------------------------------
+    
     Teuchos::RCP<discretization> disc = Teuchos::rcp( new discretization() );
     
     topo_RCP cellTopo = Teuchos::rcp( new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() ) );
@@ -26,18 +30,17 @@ int main(int argc, char * argv[]) {
     vector<basis_RCP> basis = {Teuchos::rcp(new Intrepid2::Basis_HGRAD_QUAD_C1_FEM<PHX::Device::execution_space>() )};
     int quadorder = 2;
     int numElem = 10;
-    int numip = 4;
     int numvars = 5;
     vector<string> variables = {"a","b","c","d","p"};
-    vector<string> aux_variables = {"aux z"};
+    vector<string> aux_variables;
     vector<string> param_vars;
     
     vector<int> cellinfo = {2,numvars,1,0,numElem};
     DRV ip, wts, sip, swts;
-    //DRVtst tst("testing",numip,2,2,2);
- 
+    
     disc->getQuadrature(cellTopo, quadorder, ip, wts);
     disc->getQuadrature(sideTopo, quadorder, sip, swts);
+    int numip = ip.extent(0);
     cellinfo.push_back(ip.extent(0));
     cellinfo.push_back(sip.extent(0));
     vector<string> btypes = {"HGRAD"};
@@ -45,110 +48,267 @@ int main(int argc, char * argv[]) {
     Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset(cellinfo, false,
                                                             btypes, basis, basis, cellTopo,bcs) );
     
+    vector<int> usebasis = {0,0,0,0,0};
+    wkset->usebasis = usebasis;
+    wkset->varlist = variables;
+    
+    wkset->createSolns();
+    
     Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager("eblock",numElem,numip,numip));
-    vector<string> parameters = {"mu"};
-    vector<string> disc_parameters = {"ff"};
+    vector<string> parameters;
+    vector<string> disc_parameters;
     
     functionManager->setupLists(variables, aux_variables, parameters, disc_parameters);
     
-    
-    /*
-     parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
-     for (size_t j=0; j<numip; j++) {
-     for (size_t k=0; k<numvars; k++) {
-     wkset->local_soln(i,j,k,0) = k+2;
-     }
-     for (size_t k=0; k<2; k++) {
-     wkset->ip_KV(i,j,k) = k+2;
-     }
-     }
-     });
-     */
-    
-    //KokkosTools::print(wkset->ip);
-    
-    
     functionManager->wkset = wkset;
     
-    string test1 = "sin(a+b+c)";
-    functionManager->addFunction("test1",test1,"ip");
+    View_AD4 sol("sol",numElem,numvars,numip,1);
+    vector<AD> solvals = {1.0, 2.5, 3.3, -1.2, 13.2};
     
-    string test2 = "a+exp(b)";
-    functionManager->addFunction("test2",test2,"ip");
+    // This won't actually work on a GPU
+    parallel_for("sol vals",
+                 RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                 KOKKOS_LAMBDA (const size_type elem ) {
+      for (size_type var=0; var<sol.extent(1); ++var) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          sol(elem,var,pt,0) = solvals[var];
+        }
+      }
+    });
     
-    string test3 = "8*(pi^2)*sin(2*pi*x+1)*sin(2*pi*y+1)";
-    functionManager->addFunction("g",test3,"ip");
+    wkset->setSolution(sol);
     
-    string bubble = "-0.001*(x*x+y*y)";
-    string well = "100.0*exp(bubble)";
-    string welll = "p*well";
-    string wellr = "2.0*well";
+    View_Sc3 pip("int pts",numElem,numip,2);
+    Kokkos::Random_XorShift64_Pool<> rand_pool(1979);
+    Kokkos::fill_random(pip,rand_pool,0.0,1.0);
+    wkset->setIP(pip);
     
-    string source = "wellr - welll";
-    //  source = "0.5*p*p+2";
-    functionManager->addFunction("pres","p","ip");
+    //----------------------------------------------------------------------
+    // Add some functions to test
+    //----------------------------------------------------------------------
     
-    functionManager->addFunction("bubble",bubble,"ip");
-    functionManager->addFunction("well",well,"ip");
-    functionManager->addFunction("welll",welll,"ip");
-    functionManager->addFunction("wellr",wellr,"ip");
-    functionManager->addFunction("source",source,"ip");
+    vector<string> ref_names, ref_funcs;
+    vector<View_AD2> ref_vals;
+    
+    auto a = wkset->getData("a");
+    auto b = wkset->getData("b");
+    auto c = wkset->getData("c");
+    auto x = wkset->getDataSc("x");
+    auto y = wkset->getDataSc("y");
+    
+    {
+      string name = "test1";
+      string test = "sin(a+b+c)";
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          ref(elem,pt) = sin(a(elem,pt)+b(elem,pt) + c(elem,pt));
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+    }
+    
+    {
+      string name = "test2";
+      string test = "a+exp(b)";
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          ref(elem,pt) = a(elem,pt) + exp(b(elem,pt));
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+    }
+    
+    {
+      string name = "test3";
+      string test = "8*(pi^2)*sin(2*pi*x+1)*sin(2*pi*y+1)";
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          ref(elem,pt) = 8*PI*PI*sin(2.0*PI*x(elem,pt)+1.0)*sin(2.0*PI*y(elem,pt)+1.0);
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+    }
+    
+    {
+      string name = "test4";
+      string test = "-exp(x)";
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          ref(elem,pt) = -exp(x(elem,pt));
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+    }
+    
+    
+    {
+      string name = "test5";
+      string test = "(a-sin(x))^(2+b)";
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          ref(elem,pt) = std::pow(a(elem,pt)-sin(x(elem,pt)),2.0+b(elem,pt));
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+    }
+    
+    {
+      string name = "test6";
+      string test = "(a+2.0)*(b-pi)";
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          ref(elem,pt) = (a(elem,pt)+2.0)*(b(elem,pt)-PI);
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+    }
+    
+    {
+      string name = "test7";
+      string test = "-a";
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          ref(elem,pt) = -a(elem,pt);
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+    }
+    
+    {
+      string name = "test8";
+      string test = "(a+b) + ((x+y)*a - 2.0)";
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          ref(elem,pt) = (a(elem,pt)+b(elem,pt)) + ((x(elem,pt)+y(elem,pt))*a(elem,pt) - 2.0);
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+    }
+    
+    {
+      string name = "test9";
+      string test = "exp(-(a+b)^2)";
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          ref(elem,pt) = exp(-pow(a(elem,pt)+b(elem,pt),2.0));
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+    }
+    
+    {
+      string name = "testten";
+      string test = "sin(gtst)";
+      string g = "a+b";
+      functionManager->addFunction("gtst",g,"ip");
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          ref(elem,pt) = sin(a(elem,pt)+b(elem,pt));
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+    }
+    
+    //----------------------------------------------------------------------
+    // Make sure everything is defined properly and setup decompositions
+    //----------------------------------------------------------------------
     
     functionManager->validateFunctions();
     functionManager->decomposeFunctions();
     
-    //functionManager->printFunctions();
+    //----------------------------------------------------------------------
+    // Evaluate the functions and check against ref solutions
+    //----------------------------------------------------------------------
     
-    auto datax = functionManager->evaluate("pres","ip");
-    auto data1 = functionManager->evaluate("bubble","ip");
-    auto data2 = functionManager->evaluate("well","ip");
-    auto data3 = functionManager->evaluate("source","ip");
-    
-    /*
-     parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
-     for (size_t j=0; j<numip; j++) {
-     printf("data1(i,j) : %f\n", data1(i,j).val());
-     printf("data2(i,j) : %f\n", data2(i,j).val());
-     printf("data3(i,j) : %f\n", data3(i,j).val());
-     //cout << "data1(i,j) = " << data1(i,j) << endl;
-     //cout << "data2(i,j) = " << data2(i,j) << endl;
-     //cout << "data3(i,j) = " << data3(i,j) << endl;
-     }
-     });
-     */
-    
-    for (int m=0; m<10; m++) {
-      /*
-       parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
-       for (size_t j=0; j<numip; j++) {
-       for (size_t k=0; k<numvars; k++) {
-       wkset->local_soln(i,k,j,0) = k+3; // +m (but m is not on device)
-       }
-       }
-       });
-       */
-      auto datap = functionManager->evaluate("pres","ip");
-      auto data1 = functionManager->evaluate("wellr","ip");
-      auto data2 = functionManager->evaluate("welll","ip");
-      auto data3 = functionManager->evaluate("source","ip");
-      /*
-       parallel_for(RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int i ) {
-       for (size_t j=0; j<numip; j++) {
-       printf("datap(i,j) : %f\n", datap(i,j).val());
-       printf("data1(i,j) : %f\n", data1(i,j).val());
-       printf("data2(i,j) : %f\n", data2(i,j).val());
-       printf("data3(i,j) : %f\n", data3(i,j).val());
-       //cout << "datap(i,j) = " << datap(i,j) << endl;
-       //cout << "data1(i,j) = " << data1(i,j) << endl;
-       //cout << "data2(i,j) = " << data2(i,j) << endl;
-       //cout << "data3(i,j) = " << data3(i,j) << endl;
-       }
-       });
-       */
+    for (size_t tst=0; tst<ref_names.size(); ++tst) {
+      auto vals = functionManager->evaluate(ref_names[tst],"ip");
+      double err = 0.0, normref = 0.0, normtst = 0.0;
+      auto refsol = ref_vals[tst];
+      for (size_type elem=0; elem<vals.extent(0); ++elem) {
+        for (size_type pt=0; pt<vals.extent(1); ++pt) {
+          normref += abs(refsol(elem,pt).val());
+          normtst += abs(vals(elem,pt).val());
+          err += abs(refsol(elem,pt).val() - vals(elem,pt).val());
+        }
+      }
+      cout << endl;
+      cout << "---------------------------------------------------" << endl;
+      cout << ref_names[tst] << ": " << ref_funcs[tst] << endl;
+      cout << "Norm of ref: " << normref <<endl;
+      cout << "Norm of test: " << normtst <<endl;
+      cout << "Error: " << err <<endl;
+      cout << "---------------------------------------------------" << endl;
     }
-    
-    
-    //Teuchos::TimeMonitor::summarize();
   }
   
   Kokkos::finalize();
