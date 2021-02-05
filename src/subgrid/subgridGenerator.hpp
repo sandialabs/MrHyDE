@@ -37,7 +37,7 @@ namespace MrHyDE {
       
       int nummodels = settings->sublist("Subgrid").get<int>("number of models",1);
       int  num_macro_time_steps = settings->sublist("Solver").get("number of steps",1);
-      ScalarT finaltime = settings->sublist("Solver").get<ScalarT>("finaltime",1.0);
+      ScalarT finaltime = settings->sublist("Solver").get<ScalarT>("final time",1.0);
       ScalarT macro_deltat = finaltime/num_macro_time_steps;
       if (nummodels == 1) {
         Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = rcp(new Teuchos::ParameterList("Subgrid"));

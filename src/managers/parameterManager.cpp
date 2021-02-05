@@ -151,8 +151,8 @@ void ParameterManager<Node>::setupParameters() {
           stochastic_distribution.push_back(newparam.get<string>("distribution","uniform"));
           stochastic_mean.push_back(newparam.get<ScalarT>("mean",0.0));
           stochastic_variance.push_back(newparam.get<ScalarT>("variance",1.0));
-          stochastic_min.push_back(newparam.get<ScalarT>("min",0.0));
-          stochastic_max.push_back(newparam.get<ScalarT>("max",0.0));
+          stochastic_min.push_back(newparam.get<ScalarT>("min",-1.0));
+          stochastic_max.push_back(newparam.get<ScalarT>("max",1.0));
         }
       }
       else if (newparam.get<string>("usage") == "discrete") {

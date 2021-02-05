@@ -1,0 +1,36 @@
+%YAML 1.1
+# This input file is incomplete, but many settings are similar to the macro-scale input file
+# Also, this is specific to the case of 1 subgrid model
+# The syntax is similar for the multimodel case (see regression/thermal/2D_verification_multiscale_multimodel)
+---
+ANONYMOUS:
+  Subgrid: # many options are the same as macro-scale input file
+    debug level: 0
+    verbosity: 0
+    multiscale method: mortar
+    number of models: 1
+    static subgrids: true
+    subgrid model: FEM
+    macro block: eblock-0_0_0
+    usage: 1.0
+    Mesh:
+      mesh type: inline # or Exodus, panzer
+      macro element type: quad
+      element type: quad
+      refinements: 0
+      dimension: 2
+      blocknames: eblock
+      data file: none
+      data points file: mesh_data_pts
+      have mesh data phi: false
+      have mesh data rotations: false
+      have multiple mesh data files: false
+      number mesh data files: 1
+      compute mesh data: false
+    Discretization: # same options as macro
+    Physics: # same options as macro
+    Solver: # not quite the same as macro
+      solver: steady-state
+      use direct solver: true
+    Functions: # optional sublist (subgrids use their own functions, but share parameters with each other and macro ... otherwise optimization would be impossible)
+...

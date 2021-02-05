@@ -241,8 +241,8 @@ namespace MrHyDE {
     int dimension, time_steps, verbosity, debug_level;
     ScalarT initial_time, final_time;
     Teuchos::RCP<Teuchos::ParameterList> settings;
-    string macroshape, shape, multiscale_method, error_type, combined_mesh_filename, mesh_type, mesh_file;
-    int nummacroVars, subgridverbose, numrefine, assemble_together;
+    string macroshape, shape, multiscale_method, combined_mesh_filename, mesh_type, mesh_file;
+    int nummacroVars, numrefine, assemble_together;
     topo_RCP cellTopo, macro_cellTopo;
     
     vector<string> stoch_param_types;
@@ -262,12 +262,10 @@ namespace MrHyDE {
     vector<Teuchos::RCP<SG_MultiVector> > Psol;
     
     // Dynamic - depend on the macro-element
-    //vector<Teuchos::RCP<SubGridLocalData> > localData;
     vector<Teuchos::RCP<SubGridMacroData> > macroData;
     
     int num_macro_time_steps;
     ScalarT macro_deltat;
-    bool write_subgrid_state, combined_outputfile, save_solution;
     
     // Collection of users
     vector<vector<Teuchos::RCP<cell> > > cells;
@@ -281,12 +279,8 @@ namespace MrHyDE {
     vector<int> randomSeeds;
     
     // Storage of macro solution and flux (with derivatives)
-    //Teuchos::RCP<SolutionStorage<LA_MultiVector> > fluxdata;
-    bool store_aux_and_flux = false;
     vector<Kokkos::View<ScalarT***,AssemblyDevice> > auxdata;
     vector<Kokkos::View<AD***,AssemblyDevice> > fluxdata;
-    //vector<vector<std:pair<size_t,string> > > subgrid_error_list;
-    
     
     // Timers
     Teuchos::RCP<Teuchos::Time> sgfemSolverTimer = Teuchos::TimeMonitor::getNewCounter("MILO::subgridFEM::subgridSolver()");

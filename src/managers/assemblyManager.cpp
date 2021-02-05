@@ -41,7 +41,6 @@ params(params_), numElemPerCell(numElemPerCell_) {
   
   verbosity = settings->get<int>("verbosity",0);
   usestrongDBCs = settings->sublist("Solver").get<bool>("use strong DBCs",true);
-  useNewBCs = settings->sublist("Solver").get<bool>("use new BCs",true);
   
   // TMW: the following flag should only be used if there are extra variables, but no corresponding equation/constraint
   fix_zero_rows = settings->sublist("Solver").get<bool>("fix zero rows",false);
@@ -1345,14 +1344,14 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
   auto fixedDOF = isFixedDOF;
   
   if (use_atomics) { // If LA_device = Kokkos::Serial or if Worksets are colored
-    parallel_for("assembly scatter res",RangePolicy<LA_exec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-      //for( size_type elem=0; elem<LIDs.extent(0); elem++ ) {
+    parallel_for("assembly scatter res",
+                 RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                 KOKKOS_LAMBDA (const int elem ) {
       for( size_type row=0; row<LIDs.extent(1); row++ ) {
         LO rowIndex = LIDs(elem,row);
         if (!fixedDOF(rowIndex)) {
           for (size_type g=0; g<local_res.extent(2); g++) {
             ScalarT val = local_res(elem,row,g);
-            //res->sumIntoLocalValue(rowIndex,g, val);
             Kokkos::atomic_add(&(res_view(rowIndex,g)), val);
           }
         }
@@ -1360,14 +1359,14 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
     });
   }
   else {
-    parallel_for("assembly scatter res",RangePolicy<LA_exec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-    //for( size_type elem=0; elem<LIDs.extent(0); elem++ ) {
+    parallel_for("assembly scatter res",
+                 RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                 KOKKOS_LAMBDA (const int elem ) {
       for( size_type row=0; row<LIDs.extent(1); row++ ) {
         LO rowIndex = LIDs(elem,row);
         if (!fixedDOF(rowIndex)) {
           for (size_type g=0; g<local_res.extent(2); g++) {
             ScalarT val = local_res(elem,row,g);
-            //res->sumIntoLocalValue(rowIndex,g, val);
             res_view(rowIndex,g) += val;
           }
         }

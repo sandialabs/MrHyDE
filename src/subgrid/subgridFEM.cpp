@@ -30,7 +30,6 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
   verbosity = settings->get<int>("verbosity",0);
   debug_level = settings->get<int>("debug level",0);
   dimension = settings->sublist("Mesh").get<int>("dimension",2);
-  subgridverbose = settings->sublist("Solver").get<int>("verbosity",0);
   multiscale_method = settings->get<string>("multiscale method","mortar");
   mesh_type = settings->sublist("Mesh").get<string>("mesh type","inline"); // or "Exodus" or "panzer"
   mesh_file = settings->sublist("Mesh").get<string>("mesh file","mesh.exo"); // or "Exodus" or "panzer"
@@ -40,23 +39,12 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
   time_steps = settings->sublist("Solver").get<int>("number of steps",1);
   initial_time = settings->sublist("Solver").get<ScalarT>("initial time",0.0);
   final_time = settings->sublist("Solver").get<ScalarT>("final time",1.0);
-  write_subgrid_state = settings->sublist("Solver").get<bool>("write subgrid state",false);
-  combined_outputfile = settings->sublist("Solver").get<bool>("write subgrid to one file",true);
-  error_type = settings->sublist("Postprocess").get<string>("error type","L2"); // or "H1"
-  store_aux_and_flux = settings->sublist("Postprocess").get<bool>("store aux and flux",false);
   string solver = settings->sublist("Solver").get<string>("solver","steady-state");
   if (solver == "steady-state") {
     final_time = 0.0;
   }
-  save_solution = false;
-  string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
-  if (analysis_type == "forward+adjoint" || analysis_type == "ROL" || analysis_type == "ROL_SIMOPT") {
-    save_solution = true;
-  }
-  //if (save_solution) {
-    soln = Teuchos::rcp(new SolutionStorage<SubgridSolverNode>(settings));
-    adjsoln = Teuchos::rcp(new SolutionStorage<SubgridSolverNode>(settings));
-  //}
+  soln = Teuchos::rcp(new SolutionStorage<SubgridSolverNode>(settings));
+  adjsoln = Teuchos::rcp(new SolutionStorage<SubgridSolverNode>(settings));
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Define the sub-grid physics
@@ -518,9 +506,6 @@ void SubGridFEM::setUpSubgridModels() {
         orientation = cells[0][0]->orientation;
       }
       else { // subviews do not work, so performing a deep copy (should only be on last cell)
-        //localID = Kokkos::subview(cells[0][0]->localElemID,std::make_pair(0,numElem));
-        //LIDs = Kokkos::subview(cells[0][0]->LIDs,std::make_pair(0,numElem), Kokkos::ALL());
-        //orientation = Kokkos::subview(cells[0][0]->orientation,std::make_pair(0,numElem));
         localID = Kokkos::View<LO*,AssemblyDevice>("local elem ids",numElem);
         LIDs = LIDView("LIDs",numElem,cells[0][0]->LIDs.extent(1));
         orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("orientation",numElem);
@@ -568,15 +553,11 @@ void SubGridFEM::setUpSubgridModels() {
         
         DRV currnodes("currnodes", group.size(), numNodesPerElem, dimension);
         
-        //vector<size_t> mIDs;
         parallel_for("subgrid bcell group",RangePolicy<AssemblyExec>(0,currnodes.extent(0)), KOKKOS_LAMBDA (const int e ) {
           size_t eIndex = group_KV(e);
-          //size_t mID = macroData[mindex]->macroIDs(eIndex);//localData[mindex]->getMacroID(eIndex);
-          
-          //mIDs.push_back(mID);
           for (size_type n=0; n<currnodes.extent(1); n++) {
             for (size_type m=0; m<currnodes.extent(2); m++) {
-              currnodes(e,n,m) = newnodes(eIndex,n,m);//newnodes[connectivity[eIndex][n]][m];
+              currnodes(e,n,m) = newnodes(eIndex,n,m);
             }
           }
         });
@@ -622,14 +603,12 @@ void SubGridFEM::setUpSubgridModels() {
                                                           newbcells.size(), LIDs, subsideinfo, orientation)));
         
       
-        //for(size_t e=0; e<boundaryCells[0].size(); e++) {
-          newbcells[s]->addAuxVars(macro_varlist);
-          newbcells[s]->cellData->numAuxDOF = macro_numDOF;
-          //newbcells[s]->numAuxDOF = macro_numDOF;
-          newbcells[s]->setAuxUseBasis(macro_usebasis);
-          newbcells[s]->auxoffsets = macro_offsets;
-          newbcells[s]->wkset = wkset[0];
-        //}
+        newbcells[s]->addAuxVars(macro_varlist);
+        newbcells[s]->cellData->numAuxDOF = macro_numDOF;
+        newbcells[s]->setAuxUseBasis(macro_usebasis);
+        newbcells[s]->auxoffsets = macro_offsets;
+        newbcells[s]->wkset = wkset[0];
+        
       }
       boundaryCells.push_back(newbcells);
       
@@ -659,8 +638,6 @@ void SubGridFEM::setUpSubgridModels() {
                   else if (subsideinfo(c,i,j,0) == 5) {
                     currbcs(i,p) = "interface";
                   }
-                  
-                  //currbcs(i,p) = subsideinfo(c,i,j,0);
                 }
               }
             }
@@ -707,8 +684,6 @@ void SubGridFEM::setUpSubgridModels() {
       });
       Kokkos::deep_copy(mID_host,mID_dev);
       for (size_type c=0; c<mID_host.extent(0); c++) {
-        //size_t eIndex = boundaryCells[mindex][e]->localElemID(c);
-        //size_t mID = macroData[mindex]->macroIDs(eIndex);//localData[mindex]->getMacroID(eIndex);
         mIDs.push_back(mID_host(c));
       }
       boundaryCells[mindex][e]->auxMIDs = mIDs;
@@ -893,14 +868,12 @@ void SubGridFEM::finalize(const int & globalSize, const int & globalPID) {
     }
   }
   
-  if (combined_outputfile) {
-    std::stringstream ss;
-    ss << globalSize << "." << globalPID;
-    combined_mesh_filename = "subgrid_data/subgrid_combined_output." + ss.str() + ".exo";
-    
-    this->setupCombinedExodus();
-    
-  }
+  std::stringstream ss;
+  ss << globalSize << "." << globalPID;
+  combined_mesh_filename = "subgrid_data/subgrid_combined_output." + ss.str() + ".exo";
+  
+  this->setupCombinedExodus();
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1335,7 +1308,9 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
   // TMW: update for device (subgrid or assembly?)
   // Need to move localData[]->macroIDs to a Kokkos::View on the appropriate device
   auto macroIDs = macroData[usernum]->macroIDs;
-  parallel_for("subgrid set coarse sol",RangePolicy<AssemblyExec>(0,coarse_u.extent(0)), KOKKOS_LAMBDA (const size_type e ) {
+  parallel_for("subgrid set coarse sol",
+               RangePolicy<AssemblyExec>(0,coarse_u.extent(0)),
+               KOKKOS_LAMBDA (const size_type e ) {
     for (size_type i=0; i<coarse_u.extent(1); i++) {
       for (size_type j=0; j<coarse_u.extent(2); j++) {
         coarse_u(e,i,j) = coarse_fwdsoln(macroIDs(e),i,j);
@@ -1343,7 +1318,9 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
     }
   });
   if (isAdjoint) {
-    parallel_for("subgrid set coarse adj",RangePolicy<AssemblyExec>(0,coarse_phi.extent(0)), KOKKOS_LAMBDA (const size_type e ) {
+    parallel_for("subgrid set coarse adj",
+                 RangePolicy<AssemblyExec>(0,coarse_phi.extent(0)),
+                 KOKKOS_LAMBDA (const size_type e ) {
       for (size_type i=0; i<coarse_phi.extent(1); i++) {
         for (size_type j=0; j<coarse_phi.extent(2); j++) {
           coarse_phi(e,i,j) = coarse_adjsoln(macroIDs(e),i,j);
@@ -1807,7 +1784,7 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
 
   Teuchos::TimeMonitor outputtimer(*sgfemCombinedMeshOutputTimer);
   
-  if (macroData.size()>0 && combined_outputfile) {
+  if (macroData.size()>0) {
     
     bool isTD = false;
     string solver = settings->sublist("Solver").get<string>("solver","steady-state");

@@ -134,18 +134,6 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   stddev = settings->sublist("Analysis").get("additive normal noise standard dev",0.0);
   write_dakota_output = settings->sublist("Postprocess").get("write Dakota output",false);
   
-  use_sol_mod_mesh = settings->sublist("Postprocess").get<bool>("solution based mesh mod",false);
-  sol_to_mod_mesh = settings->sublist("Postprocess").get<int>("solution for mesh mod",0);
-  meshmod_TOL = settings->sublist("Postprocess").get<ScalarT>("solution based mesh mod TOL",1.0);
-  layer_size = settings->sublist("Postprocess").get<ScalarT>("solution based mesh mod layer thickness",0.1);
-    
-  use_sol_mod_height = settings->sublist("Postprocess").get<bool>("solution based height mod",false);
-  sol_to_mod_height = settings->sublist("Postprocess").get<int>("solution for height mod",0);
-  
-  
-  plot_response = settings->sublist("Postprocess").get<bool>("plot response",false);
-  save_height_file = settings->sublist("Postprocess").get("save height file",false);
-  
   varlist = phys->varlist;
   aux_varlist = phys->aux_varlist;
   
@@ -1323,7 +1311,9 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
       
       for (size_t k=0; k<assembler->cells[b].size(); k++) {
         auto eID = assembler->cells[b][k]->localElemID;
-        parallel_for("postproc plot param HVOL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("postproc plot param HVOL",
+                     RangePolicy<AssemblyExec>(0,eID.extent(0)),
+                     KOKKOS_LAMBDA (const int elem ) {
           cellnum_dev(eID(elem)) = elem; // TMW: is this what we want?
         });
       }
@@ -1381,13 +1371,14 @@ void PostprocessManager<Node>::writeOptimizationSolution(const int & numEvaluati
         for (size_t n=0; n<dpnames.size(); n++) {
           int bnum = dp_usebasis[n];
           if (discParamTypes[bnum] == "HGRAD") {
-            Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(),
-                                                                                                     numNodesPerElem);
+            Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(),numNodesPerElem);
             auto soln_computed = Kokkos::create_mirror_view(soln_dev);
             for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
               auto eID = assembler->cells[b][e]->localElemID;
               auto sol = Kokkos::subview(assembler->cells[b][e]->param, Kokkos::ALL(), n, Kokkos::ALL());
-              parallel_for("postproc plot param HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+              parallel_for("postproc plot param HGRAD",
+                           RangePolicy<AssemblyExec>(0,eID.extent(0)),
+                           KOKKOS_LAMBDA (const int elem ) {
                 for( size_type i=0; i<soln_dev.extent(1); i++ ) {
                   soln_dev(eID(elem),i) = sol(elem,i);
                 }
@@ -1403,7 +1394,9 @@ void PostprocessManager<Node>::writeOptimizationSolution(const int & numEvaluati
             for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
               auto eID = assembler->cells[b][e]->localElemID;
               auto sol = Kokkos::subview(assembler->cells[b][e]->param, Kokkos::ALL(), n, Kokkos::ALL());
-              parallel_for("postproc plot param HVOL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+              parallel_for("postproc plot param HVOL",
+                           RangePolicy<AssemblyExec>(0,eID.extent(0)),
+                           KOKKOS_LAMBDA (const int elem ) {
                 soln_dev(eID(elem)) = sol(elem,0);
               });
             }

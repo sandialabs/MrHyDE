@@ -34,6 +34,7 @@ ANONYMOUS: # Comments
     data grid Ny: 0
     data grid Nz: 0
     random seed: 1234 # usually for microstructure
+    fast and crude microstructure: false
     number of xseeds: 10
     number of yseeds: 10
     number of zseeds: 10
@@ -45,7 +46,12 @@ ANONYMOUS: # Comments
     have element data: false
   Physics: 
     modules: # this cannot be empty, but no defaults
-    assemble boundary terms: false
+    build volume terms: true
+    build boundary terms: true
+    build face terms: false # most expensive and rarely needed
+    assemble volume terms: true
+    assemble boundary terms: true
+    assemble face terms: false # most expensive and rarely needed
     Dirichlet conditions:
       scalar data: false # more efficient, but use with care
       transient data: false # set to true if BCs change in time
@@ -60,6 +66,7 @@ ANONYMOUS: # Comments
     Targets: # sublist
     Weights: # sublist
     Extra variables: # sublist
+    use custom initial param guess: false # might be deprecated
   Aux Physics: # optional
   Discretization:
     order: # sublist
@@ -117,6 +124,9 @@ ANONYMOUS: # Comments
     solution based mesh mod smoother: false # capability is currently deprecated
     solution based mesh mod param: 0.1 # capability is currently deprecated
     solution based mesh mod layer thickness: 0.1 # capability is currently deprecated
+    fix zero rows: false # experimental
+    use atomics: false # flag for assembly
+    assembly partitioning: "sequential" # future options: coloring, random, neighbor-avoinding
   Analysis: 
     analysis type: forward
     Sampling: # sublist used if analysis type is "Sampling"
@@ -129,10 +139,21 @@ ANONYMOUS: # Comments
       regenerate mesh data: false
       output frequency: 1
       use surrogate: false # not enabled yet
+      surrogate nodel: regression # not used yet
+      compute mean: true
+      compute variance: true
+      Probability levels: # sublist of values (change this)
     ROL: # sublist, see input-rol-defaults.yaml
     sensitivities IC: false # may be used in optimization
     write output: false # may be used in optimization
+    have sensor data: false
+    save sensor data: false
+    have sensor points: false
+    sensor prefix: sensor
+    additive noise standard deviation: 0.0
+    
   Postprocess:
+    compute response: false # typically to produce reference QoI
     response type: pointwise # global, functional (to be changed)
     compute objective: false
     scale factor for discrete objective: 1.0
@@ -142,6 +163,12 @@ ANONYMOUS: # Comments
     compute errors: true
     create optimization movie: false
     write solution: false
+    write aux solution: false
+    write HFACE variables: false
+    write subgrid solution: false # might be unused
+    output file: output # .exo gets added automatically
+    plot solution at nodes: false # useful for certain basis types
+    write Dakota output: false
     write Hessian: false # may be used in optimization
     Hessian output file: hess.dat
     compute response forward gradient: false # used in UQ studies

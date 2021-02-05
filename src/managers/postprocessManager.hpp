@@ -135,7 +135,6 @@ namespace MrHyDE {
     size_t numBlocks;                                            // number of element blocks
     
     bool have_sensor_data, save_sensor_data, write_dakota_output, isTD;
-    bool plot_response, save_height_file;
     std::string sname;
     ScalarT stddev;
     
@@ -146,10 +145,6 @@ namespace MrHyDE {
     
     int numsteps;
     std::vector<std::vector<std::string> > varlist, aux_varlist; // TMW: remove these at some point
-    
-    bool use_sol_mod_mesh, use_sol_mod_height;
-    int sol_to_mod_mesh, sol_to_mod_height;
-    ScalarT meshmod_TOL, layer_size;
     
     std::string response_type, error_type;
     std::vector<ScalarT> plot_times, response_times, error_times; // probably always the same

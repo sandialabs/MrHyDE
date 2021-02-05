@@ -40,10 +40,7 @@ settings(settings_), cells(cells_), macro_functionManagers(macro_functionManager
     // Define the subgrid models specified in the input file
     ////////////////////////////////////////////////////////////////////////////////
     
-    //int nummodels = settings->sublist("Subgrid").get<int>("number of models",1);
     subgrid_static = settings->sublist("Subgrid").get<bool>("static subgrids",true);
-    macro_concurrency = settings->sublist("Subgrid").get<int>("macro-element concurrency",1);
-    //int numElem = settings->sublist("Solver").get<int>("workset size",1);
     for (size_t n=0; n<subgridModels.size(); n++) {
       std::stringstream ss;
       ss << n;

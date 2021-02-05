@@ -34,7 +34,6 @@ settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
   debug_level = settings->get<int>("debug level",0);
   dimension = settings->sublist("Mesh").get<int>("dim",2);
   multiscale_method = settings->get<string>("multiscale method","mortar");
-  subgridverbose = settings->sublist("Solver").get<int>("verbosity",0);
   shape = settings->sublist("Mesh").get<string>("shape","quad");
   macroshape = settings->sublist("Mesh").get<string>("macro-shape","quad");
   time_steps = settings->sublist("Solver").get<int>("number of steps",1);
@@ -640,7 +639,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       res->normInf(resnorm);
       resnorm_scaled[0] = resnorm[0]/resnorm_initial[0];
     }
-    if(milo_solver->Comm->getRank() == 0 && subgridverbose>5) {
+    if(milo_solver->Comm->getRank() == 0 && verbosity>5) {
       cout << endl << "*********************************************************" << endl;
       cout << "***** Subgrid Nonlinear Iteration: " << iter << endl;
       cout << "***** Scaled Norm of nonlinear residual: " << resnorm_scaled << endl;
@@ -1065,7 +1064,9 @@ void SubGridFEM_Solver::updateResSens(ResViewType res, DataViewType data, LIDVie
   typedef typename SubgridSolverNode::execution_space SG_exec;
 
   if (compute_sens) {
-    parallel_for("subgrid diagonal fix",RangePolicy<SG_exec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("subgrid diagonal fix",
+                 RangePolicy<SG_exec>(0,LIDs.extent(0)),
+                 KOKKOS_LAMBDA (const int elem ) {
       for (size_type row=0; row<LIDs.extent(1); row++ ) {
         LO rowIndex = LIDs(elem,row);
         for (size_type col=0; col<data.extent(2); col++ ) {
@@ -1075,7 +1076,9 @@ void SubGridFEM_Solver::updateResSens(ResViewType res, DataViewType data, LIDVie
     });
   }
   else {
-    parallel_for("subgrid diagonal fix",RangePolicy<SG_exec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("subgrid diagonal fix",
+                 RangePolicy<SG_exec>(0,LIDs.extent(0)),
+                 KOKKOS_LAMBDA (const int elem ) {
       for (size_type row=0; row<LIDs.extent(1); row++ ) {
         LO rowIndex = LIDs(elem,row);
         for (size_type col=0; col<data.extent(2); col++ ) {
@@ -1189,7 +1192,9 @@ void SubGridFEM_Solver::updateFlux(ViewType u_kv,
           auto off = Kokkos::subview(macrowkset.offsets, n, Kokkos::ALL());
           auto flux = Kokkos::subview(assembler->wkset[0]->flux, Kokkos::ALL(), n, Kokkos::ALL());
           auto res = macrowkset.res;
-          parallel_for("subgrid flux",RangePolicy<AssemblyExec>(0,bMIDs.extent(0)), KOKKOS_LAMBDA (const size_type c ) {
+          parallel_for("subgrid flux",
+                       RangePolicy<AssemblyExec>(0,bMIDs.extent(0)),
+                       KOKKOS_LAMBDA (const size_type c ) {
             for (size_type j=0; j<macrobasis_ip.extent(1); j++) {
               for (size_type i=0; i<macrobasis_ip.extent(2); i++) {
                 AD val = macrobasis_ip(c,j,i)*flux(c,i)*cwts(c,i);
@@ -1323,19 +1328,6 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM_So
         
       }
     }
-    /*
-     Kokkos::View<GO**,HostDevice> GIDs = cells[usernum][e]->GIDs;
-     Kokkos::View<ScalarT***,AssemblyDevice> localmass = cells[usernum][e]->getMass();
-     for (int c=0; c<numElem; c++) {
-     for( size_t row=0; row<GIDs.extent(1); row++ ) {
-     GO rowIndex = GIDs(c,row);
-     for( size_t col=0; col<GIDs.extent(1); col++ ) {
-     GO colIndex = GIDs(c,col);
-     ScalarT val = localmass(c,row,col);
-     mass->insertGlobalValues(rowIndex, 1, &val, &colIndex);
-     }
-     }
-     }*/
   }
   
   mass->fillComplete();
@@ -1380,8 +1372,6 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM_Solver::e
       
       CellTools::mapToReferenceFrame(refpts, pts, cnodes, *(milo_solver->mesh->cellTopo[0]));
       CellTools::checkPointwiseInclusion(inRefCell, refpts, *(milo_solver->mesh->cellTopo[0]), 1.0e-12);
-      //KokkosTools::print(refpts);
-      //KokkosTools::print(inRefCell);
       for (size_t i=0; i<numpts; i++) {
         if (inRefCell(0,i) == 1) {
           owners(i,0) = e;//cells[0][e]->localElemID[c];
@@ -1562,13 +1552,12 @@ void SubGridFEM_Solver::performGather(const size_t & b, ViewType vec_dev, const 
   for (size_t c=0; c < assembler->cells[b].size(); c++) {
     switch(type) {
       case 0 :
-        //index = cells[b][c]->index;
         numDOF = assembler->cells[b][c]->cellData->numDOF;
         data = assembler->cells[b][c]->u;
         LIDs = assembler->cells[b][c]->LIDs;
         offsets = assembler->wkset[0]->offsets;
         break;
-      case 1 : // deprecated
+      case 1 : // deprecated (was udot)
         break;
       case 2 :
         numDOF = assembler->cells[b][c]->cellData->numDOF;
@@ -1576,7 +1565,7 @@ void SubGridFEM_Solver::performGather(const size_t & b, ViewType vec_dev, const 
         LIDs = assembler->cells[b][c]->LIDs;
         offsets = assembler->wkset[0]->offsets;
         break;
-      case 3 : // deprecated
+      case 3 : // deprecated (was phidot)
         break;
       case 4:
         numDOF = assembler->cells[b][c]->cellData->numParamDOF;
@@ -1629,7 +1618,7 @@ void SubGridFEM_Solver::performBoundaryGather(const size_t & b, ViewType vec_dev
             LIDs = assembler->boundaryCells[b][c]->LIDs;
             offsets = assembler->wkset[0]->offsets;
             break;
-          case 1 : // deprecated
+          case 1 : // deprecated (was udot)
             break;
           case 2 :
             numDOF = assembler->boundaryCells[b][c]->cellData->numDOF;
@@ -1637,7 +1626,7 @@ void SubGridFEM_Solver::performBoundaryGather(const size_t & b, ViewType vec_dev
             LIDs = assembler->boundaryCells[b][c]->LIDs;
             offsets = assembler->wkset[0]->offsets;
             break;
-          case 3 : // deprecated
+          case 3 : // deprecated (was phidot)
             break;
           case 4:
             numDOF = assembler->boundaryCells[b][c]->cellData->numParamDOF;
