@@ -241,8 +241,14 @@ mesh_factory(mesh_factory_), mesh(mesh_), settings(settings_), Commptr(Commptr_)
     }
   }
   
-  shape = settings->sublist("Mesh").get<string>("shape","quad");
-  spaceDim = settings->sublist("Mesh").get<int>("dim",2);
+  shape = settings->sublist("Mesh").get<string>("shape","none");
+  if (shape == "none") { // new keywords, but allowing BWDS compat.
+    shape = settings->sublist("Mesh").get<string>("element type","quad");
+  }
+  spaceDim = settings->sublist("Mesh").get<int>("dim",0);
+  if (spaceDim == 0) {
+    spaceDim = settings->sublist("Mesh").get<int>("dimension",2);
+  }
   
   have_mesh_data = false;
   compute_mesh_data = settings->sublist("Mesh").get<bool>("compute mesh data",false);
@@ -797,7 +803,7 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
   have_rotation_phi = false;
   
   Kokkos::View<ScalarT**,HostDevice> seeds;
-  int randSeed = settings->sublist("Mesh").get<int>("Random seed",1234);
+  int randSeed = settings->sublist("Mesh").get<int>("random seed",1234);
   randomSeeds.push_back(randSeed);
   std::default_random_engine generator(randSeed);
   numSeeds = 0;

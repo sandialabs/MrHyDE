@@ -61,8 +61,8 @@ ANONYMOUS:
   Solver: 
     use new BCs: true
     solver: steady-state
-    multigrid type: sa
-    smoother type: ILUT
+    Preconditioner Settings:
+      'smoother: type': ILUT
     nonlinear TOL: 1.0e-8
   Postprocess: 
     compute errors: true

@@ -56,7 +56,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   current_time = initial_time;
   final_time = settings->sublist("Solver").get<ScalarT>("final time",1.0);
   if (settings->sublist("Solver").isParameter("delta t")) {
-    deltat = settings->sublist("Solver").get<ScalarT>("delta t");
+    deltat = settings->sublist("Solver").get<ScalarT>("delta t",1.0);
   //  numsteps = std::ceil((final_time - initial_time)/deltat);
   }
   else {
@@ -68,11 +68,9 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("use measurements as DBCs", false);
   
   solver_type = settings->sublist("Solver").get<string>("solver","none"); // or "transient"
-  allow_remesh = settings->sublist("Solver").get<bool>("remesh",false);
   time_order = settings->sublist("Solver").get<int>("time order",1);
   NLtol = settings->sublist("Solver").get<ScalarT>("nonlinear TOL",1.0E-6);
-  MaxNLiter = settings->sublist("Solver").get<int>("max nonlinear iters",10);
-  NLsolver = settings->sublist("Solver").get<string>("nonlinear solver","Newton");
+  maxNLiter = settings->sublist("Solver").get<int>("max nonlinear iters",10);
   
   ButcherTab = settings->sublist("Solver").get<string>("transient Butcher tableau","BWE");
   BDForder = settings->sublist("Solver").get<int>("transient BDF order",1);
@@ -95,24 +93,15 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   response_type = settings->sublist("Postprocess").get("response type", "pointwise"); // or "global"
   compute_objective = settings->sublist("Postprocess").get("compute objective",false);
   discrete_objective_scale_factor = settings->sublist("Postprocess").get("scale factor for discrete objective",1.0);
-  compute_sensitivity = settings->sublist("Postprocess").get("compute sensitivities",false);
-  compute_aux_sensitivity = settings->sublist("Solver").get("compute aux sensitivities",false);
-  compute_flux = settings->sublist("Solver").get("compute flux",false);
   
   initial_type = settings->sublist("Solver").get<string>("initial type","L2-projection");
-  multigrid_type = settings->sublist("Solver").get<string>("multigrid type","sa");
-  smoother_type = settings->sublist("Solver").get<string>("smoother type","CHEBYSHEV"); // or RELAXATION
-  preconditioner_reuse_type = settings->sublist("Solver").get<string>("preconditioner reuse type","none"); // or RELAXATION
-  useLinearSolver = settings->sublist("Solver").get<bool>("use linear solver",true);
   lintol = settings->sublist("Solver").get<ScalarT>("linear TOL",1.0E-7);
   liniter = settings->sublist("Solver").get<int>("max linear iters",100);
   kspace = settings->sublist("Solver").get<int>("krylov vectors",100);
-  useDomDecomp = settings->sublist("Solver").get<bool>("use dom decomp",false);
+  useDomDecomp = settings->sublist("Solver").get<bool>("use domain decomposition",false);
   useDirect = settings->sublist("Solver").get<bool>("use direct solver",false);
   usePrec = settings->sublist("Solver").get<bool>("use preconditioner",true);
   usePrecDBC = settings->sublist("Solver").get<bool>("use preconditioner for DBCs",true);
-  dropTol = settings->sublist("Solver").get<ScalarT>("ILU drop tol",0.0); //defaults to AztecOO default
-  fillParam = settings->sublist("Solver").get<ScalarT>("ILU fill param",3.0); //defaults to AztecOO default
   reuse_preconditioner = settings->sublist("Solver").get<bool>("reuse preconditioner",false); //defaults to AztecOO default
   have_symbolic_factor = false;
 
@@ -1391,8 +1380,7 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     this->setDirichlet(u);
   }
   
-  //this->setConstantPin(u); //pinning attempt
-  int maxiter = MaxNLiter;
+  int maxiter = maxNLiter;
   if (useadjoint) {
     maxiter = 2;
   }
@@ -1490,7 +1478,7 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     
     // *********************** SOLVE THE LINEAR SYSTEM **************************
     
-    if (NLerr_scaled[0] > NLtol && useLinearSolver) {
+    if (NLerr_scaled[0] > NLtol) {
       
       {
         Teuchos::TimeMonitor localtimer(*fillcompleteLAtimer);
@@ -1540,8 +1528,7 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
   
   if(Comm->getRank() == 0) {
     if (!useadjoint) {
-      //if( (NLiter>MaxNLiter || NLerr_scaled[0]>NLtol) && verbosity > 1) {
-      if( (NLiter>MaxNLiter) && verbosity > 1) {
+      if( (NLiter>maxNLiter) && verbosity > 1) {
         status = 1;
         cout << endl << endl << "********************" << endl;
         cout << endl << "SOLVER FAILED TO CONVERGE CONVERGED in " << NLiter
@@ -2214,67 +2201,44 @@ void solver<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & sol
 template<class Node>
 Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > solver<Node>::buildPreconditioner(const matrix_RCP & J) {
   Teuchos::ParameterList mueluParams;
+  // MrHyDE default settings
+  mueluParams.set("verbosity","none");
+  mueluParams.set("coarse: max size",500);
+  mueluParams.set("multigrid algorithm", "sa");
+
+  // Aggregation
+  mueluParams.set("aggregation: type","uncoupled");
+  mueluParams.set("aggregation: drop scheme","classical");
+
+  //Smoothing
+  mueluParams.set("smoother: type","CHEBYSHEV");
+  
+  // Repartitioning
+  mueluParams.set("repartition: enable",false);
+  
+  // Reuse
+  mueluParams.set("reuse: type","none");
   
   // if the user provides a "Preconditioner Settings" sublist, use it for MueLu
   // otherwise, set things with the simple approach
-  if(settings->sublist("Solver").isSublist("Preconditioner Settings"))
-  {
-    mueluParams = settings->sublist("Solver").sublist("Preconditioner Settings");
+  if(settings->sublist("Solver").isSublist("Preconditioner Settings")) {
+    Teuchos::ParameterList inputPrecParams = settings->sublist("Solver").sublist("Preconditioner Settings");
+    mueluParams.setParameters(inputPrecParams);
   }
-  else
-  {
-    // Main settings
-    if (verbosity >= 20){
-      mueluParams.set("verbosity","high");
-    }
-    else {
-      mueluParams.set("verbosity","none");
-    }
-    //int numEqns = 1;
-    //if (assembler->cells.size() == 1) {
-    //  numEqns = numVars[0];
-    //}
-    //mueluParams.set("number of equations",numEqns);
+  else { // safe to define defaults for chebyshev smoother
+    mueluParams.sublist("smoother: params").set("chebyshev: degree",2);
+    mueluParams.sublist("smoother: params").set("chebyshev: ratio eigenvalue",7.0);
+    mueluParams.sublist("smoother: params").set("chebyshev: min eigenvalue",1.0);
+    mueluParams.sublist("smoother: params").set("chebyshev: zero starting solution",true);
+  }
   
-    mueluParams.set("coarse: max size",500);
-    mueluParams.set("multigrid algorithm", multigrid_type);
-  
-    // Aggregation
-    mueluParams.set("aggregation: type","uncoupled");
-    mueluParams.set("aggregation: drop scheme","classical");
-  
-    //Smoothing
-    Teuchos::ParameterList smootherParams = mueluParams.sublist("smoother: params");
-    mueluParams.set("smoother: type",smoother_type);
-    if (smoother_type == "CHEBYSHEV") {
-      mueluParams.sublist("smoother: params").set("chebyshev: degree",2);
-      mueluParams.sublist("smoother: params").set("chebyshev: ratio eigenvalue",7.0);
-      mueluParams.sublist("smoother: params").set("chebyshev: min eigenvalue",1.0);
-      mueluParams.sublist("smoother: params").set("chebyshev: zero starting solution",true);
-    }
-    else if (smoother_type == "RELAXATION") {
-      mueluParams.sublist("smoother: params").set("relaxation: type","Jacobi");
-      //mueluParams.sublist("smoother: params").set("relaxation: type","Symmetric Gauss-Seidel");
-      //mueluParams.sublist("smoother: params").set("relaxation: type","MT Gauss-Seidel");
-      //mueluParams.sublist("smoother: params").set("relaxation: sweeps",2);
-    }
-  
-    // Repartitioning
-  
-    mueluParams.set("repartition: enable",false);
-    mueluParams.set("repartition: partitioner","zoltan");
-    mueluParams.set("repartition: start level",2);
-    mueluParams.set("repartition: min rows per proc",800);
-    mueluParams.set("repartition: max imbalance", 1.1);
-    mueluParams.set("repartition: remap parts",false);
-  
-    mueluParams.set("reuse: type",preconditioner_reuse_type);
+  if (verbosity >= 20){
+    mueluParams.set("verbosity","high");
   }
   mueluParams.setName("MueLu");
   
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > Mnew = MueLu::CreateTpetraPreconditioner((Teuchos::RCP<LA_Operator>)J, mueluParams);
 
-  //have_preconditioner = true;
   return Mnew;
 }
 

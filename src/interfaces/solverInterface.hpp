@@ -204,9 +204,7 @@ namespace MrHyDE {
     Teuchos::RCP<LA_Export> exporter, aux_exporter;
     Teuchos::RCP<LA_Import> importer, aux_importer;
     
-    //LO numUnknowns, numUnknownsOS;
-    //GO globalNumUnknowns;
-    int verbosity, batchID, spaceDim, numsteps, numstages, gNLiter, milo_debug_level, MaxNLiter, time_order, liniter, kspace;
+    int verbosity, batchID, spaceDim, numsteps, numstages, gNLiter, milo_debug_level, maxNLiter, time_order, liniter, kspace;
     
     size_t maxEntries;
     bool have_preconditioner=false, reuse_preconditioner, save_solution=false;
@@ -214,16 +212,13 @@ namespace MrHyDE {
     int BDForder, startupBDForder, startupSteps, numEvaluations;
     string ButcherTab, startupButcherTab;
     
-    //vector<GO> owned, ownedAndShared, LA_owned, LA_ownedAndShared;
+    ScalarT NLtol, final_time, lintol, current_time, initial_time, deltat;
     
-    ScalarT NLtol, final_time, lintol, dropTol, fillParam, current_time, initial_time, deltat;
+    string solver_type, initial_type, response_type;
     
-    string solver_type, NLsolver, initial_type, response_type, multigrid_type, smoother_type;
-    string TDsolver, preconditioner_reuse_type;
-    
-    bool line_search, useL2proj, allow_remesh, useDomDecomp, useDirect, usePrec, usePrecDBC, discretized_stochastic;
-    bool isInitial, isTransient, useadjoint, is_final_time, usestrongDBCs, compute_flux, useLinearSolver, timeImplicit;
-    bool compute_objective, compute_sensitivity, compute_aux_sensitivity, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
+    bool line_search, useL2proj, useDomDecomp, useDirect, usePrec, usePrecDBC, discretized_stochastic;
+    bool isInitial, isTransient, useadjoint, is_final_time, usestrongDBCs;
+    bool compute_objective, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
     bool scalarDirichletData, transientDirichletData, scalarInitialData;
     Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver;
     bool have_symbolic_factor, have_initial_conditions;
@@ -232,8 +227,6 @@ namespace MrHyDE {
     vector<vector<ScalarT> > scalarDirichletValues, scalarInitialValues; //[block][var]
     Teuchos::RCP<SolutionStorage<Node> > soln, adj_soln, datagen_soln;
     Teuchos::RCP<LA_MultiVector> fixedDOF_soln;
-    //vector<vector_RCP> fwdsol;
-    //vector<vector_RCP> adjsol;
     vector<string> blocknames;
     vector<vector<string> > varlist;
     

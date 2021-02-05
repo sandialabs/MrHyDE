@@ -1020,7 +1020,9 @@ View_Sc1 physics::getExtraCellFields(const int & block, const int & fnum, View_S
   auto ecf = functionManagers[block]->evaluate(extracellfields_list[block][fnum],"ip");
   
   if (cellfield_reduction == "mean") { // default
-    parallel_for("physics get extra cell fields",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("physics get extra cell fields",
+                 RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                 KOKKOS_LAMBDA (const int e ) {
       ScalarT cellmeas = 0.0;
       for (size_t pt=0; pt<wts.extent(1); pt++) {
         cellmeas += wts(e,pt);
@@ -1032,7 +1034,9 @@ View_Sc1 physics::getExtraCellFields(const int & block, const int & fnum, View_S
     });
   }
   else if (cellfield_reduction == "max") {
-    parallel_for("physics get extra cell fields",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("physics get extra cell fields",
+                 RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                 KOKKOS_LAMBDA (const int e ) {
       for (size_t j=0; j<wts.extent(1); j++) {
         ScalarT val = ecf(e,j).val();
         if (val>fields(e)) {
@@ -1042,7 +1046,9 @@ View_Sc1 physics::getExtraCellFields(const int & block, const int & fnum, View_S
     });
   }
   if (cellfield_reduction == "min") {
-    parallel_for("physics get extra cell fields",RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int e ) {
+    parallel_for("physics get extra cell fields",
+                 RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                 KOKKOS_LAMBDA (const int e ) {
       for (size_t j=0; j<wts.extent(1); j++) {
         ScalarT val = ecf(e,j).val();
         if (val<fields(e)) {

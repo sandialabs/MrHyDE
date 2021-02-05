@@ -34,7 +34,7 @@ ANONYMOUS:
     number of steps: 10
     Initial type: none
     use preconditioner: true
-    use dom decomp: true
+    use domain decomposition: true
     preconditioner reuse type: full
     use direct solver: false
   Analysis input file: input_rol.yaml 

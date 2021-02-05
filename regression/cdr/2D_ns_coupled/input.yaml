@@ -39,8 +39,10 @@ ANONYMOUS:
     quadrature: 2
   Solver:
     solver: steady-state
-    multigrid type: sa
-    smoother type: RELAXATION
+    Preconditioner Settings:
+      'smoother: type': RELAXATION
+      'smoother: params':
+        'relaxation: type': Jacobi
     workset Size: 1
     nonlinear TOL: 1.0e-7
     linear TOL: 1.0e-9

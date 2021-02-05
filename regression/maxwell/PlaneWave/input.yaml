@@ -41,7 +41,7 @@ ANONYMOUS:
     Initial type: none
     use preconditioner: true
     reuse preconditioner: true
-    use dom decomp: true
+    use domain decomposition: true
     preconditioner reuse type: full
     use direct solver: false
   Analysis: 

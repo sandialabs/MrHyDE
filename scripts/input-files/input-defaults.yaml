@@ -1,0 +1,149 @@
+%YAML 1.1
+---
+ANONYMOUS: # Comments
+  verbosity: 0
+  debug level: 0
+  Mesh:
+    dimension: 2
+    element type: quad # or: interval,tri,hex,tet
+    source: Internal # or: Exodus
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 20
+    Xblocks: 1
+    Xprocs: 1
+    NY: 20
+    Yblocks: 1
+    Yprocs: 1
+    Periodic BCs: # default is an empty sublist
+    compute mesh data: false
+    data file: none
+    data points file: mesh_data_pts # not used if data file is none
+    have mesh data phi: false
+    have nodal data: false
+    have mesh data rotations: true # not necessarily used
+    have multiple mesh data files: false
+    number of mesh data files: 1
+    modify mesh height: false
+    modify mesh: false
+    mesh pert file: meshpert.dat # not necessarily used
+    data on grid: false
+    data grid Nx: 0
+    data grid Ny: 0
+    data grid Nz: 0
+    random seed: 1234 # usually for microstructure
+    number of xseeds: 10
+    number of yseeds: 10
+    number of zseeds: 10
+    number of seeds: 1000 # used if data is not on grid
+    x weight: 1.0 # for anisotropic Voronoi cells
+    y weight: 1.0 # for anisotropic Voronoi cells
+    z weight: 1.0 # for anisotropic Voronoi cells
+    mesh file: mesh.exo # used to import mesh data
+    have element data: false
+  Physics: 
+    modules: # this cannot be empty, but no defaults
+    assemble boundary terms: false
+    Dirichlet conditions:
+      scalar data: false # more efficient, but use with care
+      transient data: false # set to true if BCs change in time
+    Neumann conditions:
+    use weak Dirichlet: false # used by discretization interface
+    Initial conditions:
+      scalar data: false # more efficient, but use with care
+    True solutions: # sublist
+    Extra fields: # sublist
+    Extra cell fields: # sublist
+    Responses: # sublist
+    Targets: # sublist
+    Weights: # sublist
+    Extra variables: # sublist
+  Aux Physics: # optional
+  Discretization:
+    order: # sublist
+    quadrature: # default is 2*max(order)
+    side quadrature: # default is 2*max(order)
+  Aux Discretization: # optional
+  Functions: # sublist
+  Parameters: # sublist
+  Solver:
+    solver: none # or: steady-state, transient
+    transient Butcher tableau: BWE # or: DIRK-1,1, FWE, CN, SSPRK-3,3, RK-4,4, DIRK-1,2, DIRK-2,2, DIRK-2,3, DIRK-3,3, custom
+    transient Butcher A: 1.0 # only used with custom option
+    transient Butcher b: 1.0 # only used with custom option
+    transient Butcher c: 1.0 # only used with custom option
+    transient BDF order: 1 # or: 2,3,4
+    transient startup Butcher tableau: BWE # same as above
+    transient startup BDF order: 1 # same as above
+    transient startup steps: 1 # should be the BDF order
+    workset size: 100
+    nonlinear TOL: 1.0e-06
+    max nonlinear iters: 10
+    linear TOL: 1.0e-7
+    max linear iters: 100
+    krylov vectors: 100
+    initial time: 0.0
+    final time: 1.0
+    delta t: 1.0
+    number of steps: 1
+    initial type: L2-projection
+    Preconditioner Settings: # these are the defaults for MrHyDE, not MueLu
+      verbosity: none
+      multigrid algorithm: sa
+      'coarse: max size': 500
+      'aggregation: type': uncoupled
+      'aggregation: drop scheme': classical
+      'smoother: type': CHEBYSHEV # RELAXATION, ILUT
+      'smoother: params':
+        'chebyshev: degree': 2
+        'chebyshev: ratio eigenvalue': 7.0
+        'chebyshev: min eigenvalue': 1.0
+        'chebyshev: zero starting solution': true
+        # 'relaxation: type': Jacobi # Symmetric Gauss-Seidel, MT Gauss-Seidel
+      'repartition: enable': false
+      'reuse: type': none
+    use strong DBCs: true # used in solver interface
+    use measurements as DBCs: false # very special use case
+    use direct solver: false
+    use preconditioner: true
+    use preconditioner for DBCs: true
+    reuse preconditioner: false
+    solution for x-mesh mod: -1 # capability is currently deprecated
+    solution for y-mesh mod: -1 # capability is currently deprecated
+    solution for z-mesh mod: -1 # capability is currently deprecated
+    solution based mesh mod TOL: 1.0 # capability is currently deprecated
+    solution based mesh mod smoother: false # capability is currently deprecated
+    solution based mesh mod param: 0.1 # capability is currently deprecated
+    solution based mesh mod layer thickness: 0.1 # capability is currently deprecated
+  Analysis: 
+    analysis type: forward
+    Sampling: # sublist used if analysis type is "Sampling"
+      dimension: 2
+      source: samples.dat
+    UQ: # sublist used if analysis type is "UQ"
+      samples: 100
+      max samples: 100
+      seed: 1234
+      regenerate mesh data: false
+      output frequency: 1
+      use surrogate: false # not enabled yet
+    ROL: # sublist, see input-rol-defaults.yaml
+    sensitivities IC: false # may be used in optimization
+    write output: false # may be used in optimization
+  Postprocess:
+    response type: pointwise # global, functional (to be changed)
+    compute objective: false
+    scale factor for discrete objective: 1.0
+    compute sensitivities: false
+    compute aux sensitivities: false
+    compute flux: false
+    compute errors: true
+    create optimization movie: false
+    write solution: false
+    write Hessian: false # may be used in optimization
+    Hessian output file: hess.dat
+    compute response forward gradient: false # used in UQ studies
+    extra cell field reduction: mean # or max, min
+...

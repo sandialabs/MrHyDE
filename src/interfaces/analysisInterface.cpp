@@ -88,7 +88,7 @@ void analysis::run() {
     Teuchos::ParameterList sampsettings = settings->sublist("Analysis").sublist("Sampling");
     
     // Read in the samples
-    int ptsdim = sampsettings.get<int>("dimension");
+    int ptsdim = sampsettings.get<int>("dimension",2);
     data sdata("Sample Points", ptsdim, sampsettings.get("source","samples.dat"));
     Kokkos::View<ScalarT**,HostDevice> samples = sdata.getpoints();
     int numsamples = samples.extent(0);
@@ -539,10 +539,10 @@ void analysis::run() {
       respOUT2.close();
     }
     
-    if (settings->sublist("Postprocess").get("Write Hessian",false)){
-      obj->printHess(settings->sublist("Postprocess").get("Hessian Output File","hess.dat"),x,Comm->getRank());
+    if (settings->sublist("Postprocess").get("write Hessian",false)){
+      obj->printHess(settings->sublist("Postprocess").get("Hessian output file","hess.dat"),x,Comm->getRank());
     }
-    if (settings->sublist("Analysis").get("Write Output",false)) {
+    if (settings->sublist("Analysis").get("write output",false)) {
       DFAD val = 0.0;
       solve->forwardModel(val);
       //postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
@@ -751,10 +751,10 @@ void analysis::run() {
       respOUT2.close();
     }
     
-    if (settings->sublist("Postprocess").get("Write Hessian",false)){
-      obj->printHess(settings->sublist("Postprocess").get("Hessian Output File","hess.dat"),x,Comm->getRank());
+    if (settings->sublist("Postprocess").get("write Hessian",false)){
+      obj->printHess(settings->sublist("Postprocess").get("Hessian output file","hess.dat"),x,Comm->getRank());
     }
-    if (settings->sublist("Analysis").get("Write Output",false)) {
+    if (settings->sublist("Analysis").get("write output",false)) {
       DFAD val = 0.0;
       solve->forwardModel(val);
       //postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
