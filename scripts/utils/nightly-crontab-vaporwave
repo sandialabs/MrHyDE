@@ -1,0 +1,138 @@
+#!/bin/bash
+
+HOME_DIR="/ascldap/users/gbharpe"
+source ${HOME_DIR}/.bash_profile # call bash_profile (which calls bashrc) to set up the environment properly
+
+# load the correct modules
+# gcc 6.1 may be causing issues, so we'll try gcc 9.2
+# gcc 9.2 causes issues with TPLs. back to gcc 6.1...
+echo "Nightly MrHyDE tester running..."
+echo "Loading modules..."
+module load sems-devpack-gcc/6.1.0
+module load sems-ninja_fortran/1.8.2
+module load sems-cmake/3.17.1
+module load sems-numpy/1.9.1/base
+#module unload sems-gcc/6.1.0 
+#module load sems-gcc/9.2.0 
+
+# setup directories and variables
+SCRIPTS_FOLDER="/ascldap/users/gbharpe/Programming/cpp/scripts/vaporwave"
+NIGHTLY_FOLDER="/ascldap/users/MrHyDE/nightly"
+TRILINOS_SOURCE_PREFIX="${NIGHTLY_FOLDER}/Trilinos"
+MrHyDE_SOURCE_PREFIX="${NIGHTLY_FOLDER}/MrHyDE"
+TRILINOS_SOURCE="${TRILINOS_SOURCE_PREFIX}/Trilinos-source"
+TRILINOS_BUILD="${TRILINOS_SOURCE_PREFIX}/Trilinos-build"
+MrHyDE_SOURCE="${MrHyDE_SOURCE_PREFIX}/MrHyDE-source"
+MrHyDE_BUILD="${MrHyDE_SOURCE_PREFIX}/MrHyDE-build"
+
+# destroy last night's results
+cd ${NIGHTLY_FOLDER}
+rm -rf ${TRILINOS_SOURCE_PREFIX}
+rm -rf ${MrHyDE_SOURCE_PREFIX}
+
+mkdir Trilinos
+mkdir MrHyDE
+
+# create some status variables
+STATUS_LOG=""
+STATUS_TRILINOS_CLONE=0
+STATUS_TRILINOS_BUILD=0
+STATUS_MrHyDE_CLONE=0
+STATUS_MrHyDE_BUILD=0
+
+# start with Trilinos
+echo "Starting Trilinos..."
+cd ${TRILINOS_SOURCE_PREFIX}
+git clone https://github.com/Trilinos/trilinos.git Trilinos-source
+
+if [ $? -eq 0 ]; then # check the exit status of the most recently executed command
+  cd ${TRILINOS_SOURCE}
+  git checkout develop
+  TRILINOS_COMMIT=$(git show | grep commit | tr " " "\n" | tail -1)
+
+  cd ${TRILINOS_SOURCE_PREFIX}
+  cp ${SCRIPTS_FOLDER}/configure-nightly-trilinos-MrHyDE ${TRILINOS_SOURCE_PREFIX}
+  mkdir Trilinos-build
+
+  cd ${TRILINOS_BUILD}
+  source ${TRILINOS_SOURCE_PREFIX}/configure-nightly-trilinos-MrHyDE
+  ninja install
+
+  if [ $? -eq 0 ]; then # check the exit status of the most recently executed command
+    echo "Trilinos build success!"
+  else
+    STATUS_TRILINOS_BUILD=$?
+    echo "Trilinos build failed with status ${STATUS_TRILINOS_BUILD}!"
+    STATUS_LOG="${STATUS_LOG}Trilinos build failed with status ${STATUS_TRILINOS_BUILD} using commit SHA ${TRILINOS_COMMIT} on Vaporwave, $(date)\n"
+  fi
+
+else
+  STATUS_TRILINOS_CLONE=$?
+  echo "Trilinos git clone failed with status ${STATUS_TRILINOS_CLONE}!"
+  STATUS_LOG="${STATUS_LOG}Trilinos git clone failed with status ${STATUS_TRILINOS_CLONE} on Vaporwave, $(date)\n"
+fi
+
+# now build MrHyDE
+echo "Starting MrHyDE..."
+cd ${MrHyDE_SOURCE_PREFIX}
+git clone https://github.com/TimWildey/MrHyDE.git MrHyDE-source
+
+if [ $? -eq 0 ]; then # check the exit status of the most recently executed command
+  cd ${MrHyDE_SOURCE}
+  MrHyDE_COMMIT=$(git show | grep commit | tr " " "\n" | tail -1)
+
+  cd ${MrHyDE_SOURCE_PREFIX}
+  cp ${SCRIPTS_FOLDER}/configure-nightly-MrHyDE ${MrHyDE_SOURCE_PREFIX}
+  mkdir MrHyDE-build
+
+  cd MrHyDE-build
+  source ${MrHyDE_SOURCE_PREFIX}/configure-nightly-MrHyDE
+  ninja
+
+  if [ $? -eq 0 ]; then # check the exit status of the most recently executed command
+    echo "MrHyDE build success!"
+  else
+    STATUS_MrHyDE_BUILD=$?
+    echo "MrHyDE build failed!"
+    STATUS_LOG="${STATUS_LOG}MrHyDE build failed with status ${STATUS_MrHyDE_BUILD} using commit MrHyDE SHA ${MrHyDE_COMMIT} and Trilinos SHA ${TRILINOS_COMMIT} on Vaporwave, $(date)\n"
+  fi
+
+else
+  STATUS_MrHyDE_CLONE=$?
+  echo "MrHyDE git clone failed!"
+  STATUS_LOG="${STATUS_LOG}MrHyDE git clone failed with status ${STATUS_MrHyDE_CLONE} on Vaporwave, $(date)\n"
+fi
+
+# now run the testsuite and count the failures
+echo "Running the testsuite..."
+cd ${MrHyDE_SOURCE}/regression
+ln -s ${MrHyDE_BUILD}/src/milo ${MrHyDE_SOURCE}/regression/milo
+./runtests.py -s > ${MrHyDE_SOURCE_PREFIX}/MrHyDE-nightly-vaporwave.txt
+
+
+cd ${MrHyDE_SOURCE_PREFIX}
+NUM_FAILS=$(cat MrHyDE-nightly-vaporwave.txt | grep Fail | tr -s " " "\n" | sed '5q;d') # This should probably be explained... find the Fail line in the testsuite log, squeeze all whitespaces then replace them with new lines, and grab line 5. This is the number of failures.
+
+# check if the number of failures is empty. if so, let me know
+if [ -z "$NUM_FAILS" ]; then
+  STATUS_LOG="${STATUS_LOG}Number of testsuite failures is empty for MrHyDE on Vaporwave, $(date)\n"
+fi
+
+# similar nonsense to grab month and day and year
+# currently unused
+MONTH=$(date | tr " " "\n" | sed '2q;d')
+DAY=$(date | tr " " "\n" | sed '3q;d')
+YEAR=$(date | tr " " "\n" | sed '6q;d')
+
+
+# finally, send the report
+echo "Sending the report..."
+
+# if there's nothing unusual, send a normal email. otherwise, report 'no tests run'
+if [ -z "$STATUS_LOG" ]; then
+  cat MrHyDE-nightly-vaporwave.txt | mail -s "MrHyDE on Vaporwave: ${NUM_FAILS} failures" gbharpe@sandia.gov
+  cat MrHyDE-nightly-vaporwave.txt | mail -s "MrHyDE on Vaporwave: ${NUM_FAILS} failures" tmwilde@sandia.gov
+else
+  echo -e ${STATUS_LOG} | mail -s "MrHyDE on Vaporwave: no tests run" gbharpe@sandia.gov
+  echo -e ${STATUS_LOG} | mail -s "MrHyDE on Vaporwave: no tests run" tmwilde@sandia.gov
+fi
