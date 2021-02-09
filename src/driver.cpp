@@ -17,9 +17,10 @@ Bart van Bloemen Waanders (bartv@sandia.gov)
 #include "parameterManager.hpp"
 #include "sensorManager.hpp"
 #include "multiscaleManager.hpp"
-#include "solverInterface.hpp"
+#include "linearAlgebraInterface.hpp"
+#include "solverManager.hpp"
 #include "postprocessManager.hpp"
-#include "analysisInterface.hpp"
+#include "analysisManager.hpp"
 #include "trilinos.hpp"
 #include "Panzer_DOFManager.hpp"
 
@@ -179,6 +180,7 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<solver<SolverNode> > solve = Teuchos::rcp( new solver<SolverNode>(Comm, settings, mesh,
                                                                                    disc, phys, assembler, params) );
     
+    
     solve->multiscale_manager = multiscale_manager;
     solve->postproc = postproc;
     
@@ -206,7 +208,6 @@ int main(int argc,char * argv[]) {
     
     ////////////////////////////////////////////////////////////////////////////////
     // Perform the requested analysis (fwd solve, adj solve, dakota run, etc.)
-    // stored in settings->get<std::string>("analysis_type")
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<analysis> analys = Teuchos::rcp( new analysis(Comm, settings,
@@ -216,6 +217,7 @@ int main(int argc,char * argv[]) {
       Teuchos::TimeMonitor rtimer(*runTimer);
       analys->run();
     }
+    
     if (verbosity >= 20) {
       for (size_t b=0; b<assembler->wkset.size(); ++b) {
         assembler->wkset[b]->printMetaData();

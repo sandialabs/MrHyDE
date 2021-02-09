@@ -92,7 +92,7 @@ namespace MrHyDE {
     // Public data
     ////////////////////////////////////////////////////////////////////////////////
     
-    int milo_debug_level, spaceDim;
+    int debug_level, verbosity, spaceDim;
     Teuchos::RCP<Teuchos::ParameterList> settings;
     Teuchos::RCP<MpiComm> Commptr;
     Teuchos::RCP<panzer_stk::STK_Interface> mesh;

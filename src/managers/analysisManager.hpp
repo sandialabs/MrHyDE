@@ -11,12 +11,12 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef ANALYSIS_H
-#define ANALYSIS_H
+#ifndef MRHYDE_ANALYSIS_H
+#define MRHYDE_ANALYSIS_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "solverInterface.hpp"
+#include "solverManager.hpp"
 #include "postprocessManager.hpp"
 #include "parameterManager.hpp"
 
@@ -34,7 +34,7 @@ namespace MrHyDE {
     
     typedef Tpetra::Map<LO, GO, SolverNode>               LA_Map;
     typedef Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> LA_MultiVector;
-    typedef Teuchos::RCP<LA_MultiVector> vector_RCP;
+    typedef Teuchos::RCP<LA_MultiVector>                  vector_RCP;
     
   public:
     

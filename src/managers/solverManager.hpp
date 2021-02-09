@@ -11,12 +11,10 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef SOLVER_H
-#define SOLVER_H
+#ifndef MRHYDE_SOLVER_MANAGER
+#define MRHYDE_SOLVER_MANAGER
 
 #include "trilinos.hpp"
-#include "Panzer_DOFManager.hpp"
-
 #include "preferences.hpp"
 #include "meshInterface.hpp"
 #include "physicsInterface.hpp"
@@ -26,22 +24,7 @@
 #include "parameterManager.hpp"
 #include "postprocessManager.hpp"
 #include "solutionStorage.hpp"
-
-// Belos
-#include <BelosConfigDefs.hpp>
-#include <BelosLinearProblem.hpp>
-#include <BelosTpetraAdapter.hpp>
-#include <BelosBlockGmresSolMgr.hpp>
-
-// MueLu
-#include <MueLu.hpp>
-#include <MueLu_TpetraOperator.hpp>
-#include <MueLu_CreateTpetraPreconditioner.hpp>
-#include <MueLu_Utilities.hpp>
-
-// Amesos includes
-#include "Amesos2.hpp"
-
+#include "linearAlgebraInterface.hpp"
 
 namespace MrHyDE {
   /*
@@ -53,16 +36,11 @@ namespace MrHyDE {
   class solver {
 
     typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
-    typedef Tpetra::CrsGraph<LO,GO,Node>            LA_CrsGraph;
-    typedef Tpetra::Export<LO, GO, Node>            LA_Export;
-    typedef Tpetra::Import<LO, GO, Node>            LA_Import;
-    typedef Tpetra::Map<LO, GO, Node>               LA_Map;
-    typedef Tpetra::Operator<ScalarT,LO,GO,Node>    LA_Operator;
     typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> LA_MultiVector;
-    typedef Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator> LA_LinearProblem;
     typedef Teuchos::RCP<LA_MultiVector>            vector_RCP;
     typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
     typedef typename Node::device_type              LA_device;
+  
   public:
     
     // ========================================================================================
@@ -88,11 +66,7 @@ namespace MrHyDE {
     void setBackwardDifference(const int & order);
     
     // ========================================================================================
-    // Set up the Tpetra objects (maps, importers, exporters and graphs)
-    // These do need to be recomputed whenever the mesh changes */
     // ========================================================================================
-    
-    void setupLinearAlgebra();
     
     void setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & settings);
     
@@ -155,20 +129,6 @@ namespace MrHyDE {
     vector_RCP setInitial();
     
     // ========================================================================================
-    // Linear solver for Tpetra stack
-    // ========================================================================================
-    
-    void linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
-    
-    //void setupMassSolver(matrix_RCP & mass, vector_RCP & r, vector_RCP & soln);
-    
-    // ========================================================================================
-    // Preconditioner for Tpetra stack
-    // ========================================================================================
-    
-    Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > buildPreconditioner(const matrix_RCP & J);
-    
-    // ========================================================================================
     // ========================================================================================
     
     void setBatchID(const LO & bID);
@@ -194,20 +154,15 @@ namespace MrHyDE {
     Teuchos::RCP<meshInterface>  mesh;
     Teuchos::RCP<discretization> disc;
     Teuchos::RCP<physics> phys;
+    Teuchos::RCP<linearAlgebra<Node> > linalg;
     Teuchos::RCP<AssemblyManager<Node> > assembler;
     Teuchos::RCP<ParameterManager<Node> > params;
     Teuchos::RCP<PostprocessManager<Node> > postproc;
     Teuchos::RCP<MultiScale> multiscale_manager;
     
-    Teuchos::RCP<const LA_Map> LA_owned_map, LA_overlapped_map, aux_owned_map, aux_overlapped_map;
-    Teuchos::RCP<LA_CrsGraph> LA_owned_graph, LA_overlapped_graph, aux_owned_graph, aux_overlapped_graph;
-    Teuchos::RCP<LA_Export> exporter, aux_exporter;
-    Teuchos::RCP<LA_Import> importer, aux_importer;
+    int verbosity, batchID, spaceDim, numsteps, numstages, gNLiter, milo_debug_level, maxNLiter, time_order;
     
-    int verbosity, batchID, spaceDim, numsteps, numstages, gNLiter, milo_debug_level, maxNLiter, time_order, liniter, kspace;
-    
-    size_t maxEntries;
-    bool have_preconditioner=false, reuse_preconditioner, save_solution=false;
+    bool save_solution=false;
     
     int BDForder, startupBDForder, startupSteps, numEvaluations;
     string ButcherTab, startupButcherTab;
@@ -216,12 +171,11 @@ namespace MrHyDE {
     
     string solver_type, initial_type, response_type;
     
-    bool line_search, useL2proj, useDomDecomp, useDirect, usePrec, usePrecDBC, discretized_stochastic;
+    bool line_search, useL2proj, discretized_stochastic;
     bool isInitial, isTransient, useadjoint, is_final_time, usestrongDBCs;
     bool compute_objective, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
     bool scalarDirichletData, transientDirichletData, scalarInitialData;
-    Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver;
-    bool have_symbolic_factor, have_initial_conditions;
+    bool have_initial_conditions;
     ScalarT discrete_objective_scale_factor;
     
     vector<vector<ScalarT> > scalarDirichletValues, scalarInitialValues; //[block][var]
@@ -232,11 +186,7 @@ namespace MrHyDE {
     
     vector<vector<LO> > numBasis, useBasis;
     vector<LO> maxBasis, numVars;
-    
-    Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > M;
-    Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > M_dd;
-    
-    Teuchos::RCP<Teuchos::Time> linearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::linearSolver()");
+        
     Teuchos::RCP<Teuchos::Time> transientsolvertimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::transientSolver()");
     Teuchos::RCP<Teuchos::Time> nonlinearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::nonlinearSolver()");
     
@@ -245,15 +195,8 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> dbcprojtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::projectDirichlet()");
     Teuchos::RCP<Teuchos::Time> fixeddofsetuptimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::setupFixedDOFs()");
     Teuchos::RCP<Teuchos::Time> msprojtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::projectDirichlet()");
-    Teuchos::RCP<Teuchos::Time> setupLAtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::setupLinearAlgebra()");
-    Teuchos::RCP<Teuchos::Time> fillcompleteLAtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::nonlinearSolver() - matrix fill complete");
-    Teuchos::RCP<Teuchos::Time> resetLAtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::nonlinearSolver() - reset LA");
-    Teuchos::RCP<Teuchos::Time> exportLAtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::nonlinearSolver() - import/export LA");
     Teuchos::RCP<Teuchos::Time> normLAtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::nonlinearSolver() - norm LA");
     Teuchos::RCP<Teuchos::Time> updateLAtimer = Teuchos::TimeMonitor::getNewCounter("MILO::solver::nonlinearSolver() - update LA");
-    
-    
-    
     
   };
   

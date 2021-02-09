@@ -46,6 +46,7 @@ namespace MrHyDE {
     typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
     typedef typename Node::device_type              LA_device;
     typedef typename Node::memory_space             LA_mem;
+    
   public:
     
     // ========================================================================================

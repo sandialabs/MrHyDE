@@ -11,7 +11,7 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#include "analysisInterface.hpp"
+#include "analysisManager.hpp"
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
 #include "uqManager.hpp"
@@ -169,8 +169,9 @@ void analysis::run() {
     // Evaluate MILO or a surrogate at these samples
     vector<Kokkos::View<ScalarT***,HostDevice> > response_values;
     vector<Kokkos::View<ScalarT****,HostDevice> > response_grads;
-    Teuchos::RCP<const LA_Map> emap = solve->LA_overlapped_map;
-    vector_RCP avgsoln = Teuchos::rcp(new LA_MultiVector(emap, 2));
+    //Teuchos::RCP<const LA_Map> emap = solve->LA_overlapped_map;
+    //vector_RCP avgsoln = Teuchos::rcp(new LA_MultiVector(emap, 2));
+    vector_RCP avgsoln = solve->linalg->getNewOverlappedVector(2);
     int output_freq = uqsettings.get<int>("output frequency",1);
     if (uqsettings.get<bool>("use surrogate",false)) {
       

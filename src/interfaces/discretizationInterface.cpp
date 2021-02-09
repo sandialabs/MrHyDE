@@ -76,9 +76,10 @@ discretization::discretization(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                Teuchos::RCP<physics> & phys_) :
 settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
   
-  milo_debug_level = settings->get<int>("debug level",0);
+  debug_level = settings->get<int>("debug level",0);
+  verbosity = settings->get<int>("verbosity",0);
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Starting discretization constructor..." << endl;
     }
@@ -229,7 +230,7 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
     this->setDirichletData(true);
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Finished discretization constructor" << endl;
     }
@@ -483,7 +484,7 @@ DRV discretization::evaluateBasisGrads(const basis_RCP & basis_pointer, const DR
 
 void discretization::buildDOFManagers() {
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Starting physics::buildDOF ..." << endl;
     }
@@ -524,6 +525,11 @@ void discretization::buildDOFManagers() {
       int numGIDs = DOF->getElementBlockGIDCount(blocknames[b]);
       TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element on block: " + blocknames[b]);
     }
+    if (verbosity>1) {
+      if (Commptr->getRank() == 0) {
+        DOF->printFieldInformation(std::cout);
+      }
+    }
   }
   
   // DOF manager for the aux variables
@@ -554,9 +560,14 @@ void discretization::buildDOFManagers() {
       int numGIDs = auxDOF->getElementBlockGIDCount(blocknames[b]);
       TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of aux degrees of freedom per element on block: " + blocknames[b]);
     }
+    if (verbosity>1) {
+      if (Commptr->getRank() == 0) {
+        auxDOF->printFieldInformation(std::cout);
+      }
+    }
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Finished physics::buildDOF" << endl;
     }
@@ -571,7 +582,7 @@ void discretization::setBCData(const bool & isaux) {
   
   Teuchos::TimeMonitor localtimer(*setbctimer);
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Starting discretization::setBCData ..." << endl;
     }
@@ -813,7 +824,7 @@ void discretization::setBCData(const bool & isaux) {
     
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Finished discretization::setBCData" << endl;
     }
@@ -827,7 +838,7 @@ void discretization::setDirichletData(const bool & isaux) {
   
   Teuchos::TimeMonitor localtimer(*setdbctimer);
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Starting discretization::setDirichletData ..." << endl;
     }
@@ -926,7 +937,7 @@ void discretization::setDirichletData(const bool & isaux) {
     }
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Finished discretization::setDirichletData" << endl;
     }

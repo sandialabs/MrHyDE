@@ -715,11 +715,13 @@ void SubGridFEM::setUpSubgridModels() {
     {
       Teuchos::TimeMonitor localtimer(*sgfemSubICTimer);
       
-      Teuchos::RCP<SG_MultiVector> init = Teuchos::rcp(new SG_MultiVector(sub_solver->milo_solver->LA_overlapped_map,1));
+      Teuchos::RCP<SG_MultiVector> init = sub_solver->milo_solver->linalg->getNewOverlappedVector();
+      //Teuchos::rcp(new SG_MultiVector(sub_solver->milo_solver->LA_overlapped_map,1));
       this->setInitial(init, mindex, false);
       soln->store(init,initial_time,mindex);
       
-      Teuchos::RCP<SG_MultiVector> inita = Teuchos::rcp(new SG_MultiVector(sub_solver->milo_solver->LA_overlapped_map,1));
+      Teuchos::RCP<SG_MultiVector> inita = sub_solver->milo_solver->linalg->getNewOverlappedVector();
+      //Teuchos::rcp(new SG_MultiVector(sub_solver->milo_solver->LA_overlapped_map,1));
       adjsoln->store(inita,final_time,mindex);
     }
     
@@ -768,7 +770,7 @@ void SubGridFEM::setUpSubgridModels() {
             for (size_t i=0; i<macro_basis_pointers.size(); i++) {
               DRV basisvals("basisvals", macro_basis_pointers[i]->getCardinality(), sref_side_ip.extent(0));
               DRV basisvals_Transformed("basisvals_Transformed", 1, macro_basis_pointers[i]->getCardinality(), sref_side_ip.extent(0));
-              for (size_t c=0; c<mcount; c++) {
+              for (int c=0; c<mcount; c++) {
                 auto cip = Kokkos::subview(sside_ip,c,Kokkos::ALL(),Kokkos::ALL());
                 auto sip = Kokkos::subview(side_ip_e,0,Kokkos::ALL(),Kokkos::ALL());
                 Kokkos::deep_copy(sip,cip);

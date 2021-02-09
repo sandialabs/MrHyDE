@@ -127,11 +127,6 @@ typedef Kokkos::View<ScalarT**,AssemblyDevice> View_Sc2; // replaces FDATAd
 typedef Kokkos::View<ScalarT***,AssemblyDevice> View_Sc3;
 typedef Kokkos::View<ScalarT****,AssemblyDevice> View_Sc4;
 
-// Special Views for function manager
-// These must be created as subviews and cannot be constructed directly without a given stride
-//typedef Kokkos::View<AD**,Kokkos::LayoutStride,AssemblyDevice> View_AD2_sv; // replaces FDATA
-//typedef Kokkos::View<ScalarT**,Kokkos::LayoutStride,AssemblyDevice> View_Sc2_sv; // replaces FDATAd
-
 // Intrepid and shards typedefs
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
 typedef Teuchos::RCP<Intrepid2::Basis<PHX::Device::execution_space, ScalarT, ScalarT > > basis_RCP;

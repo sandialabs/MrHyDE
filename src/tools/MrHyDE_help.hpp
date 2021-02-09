@@ -22,9 +22,9 @@
 #include "meshInterface.hpp"
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
-#include "solverInterface.hpp"
+#include "solverManager.hpp"
 #include "postprocessManager.hpp"
-#include "analysisInterface.hpp"
+#include "analysisManager.hpp"
 #include "multiscaleManager.hpp"
 #include "uqManager.hpp"
 

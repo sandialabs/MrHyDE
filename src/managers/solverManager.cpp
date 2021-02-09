@@ -11,7 +11,7 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#include "solverInterface.hpp"
+#include "solverManager.hpp"
 
 using namespace MrHyDE;
 
@@ -47,7 +47,6 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   }
   
   numEvaluations = 0;
-  //adj_soln = Teuchos::rcp(new SolutionStorage<LA_MultiVector>(settings));
   
   // Get the required information from the settings
   spaceDim = mesh->mesh->getDimension();
@@ -57,7 +56,6 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   final_time = settings->sublist("Solver").get<ScalarT>("final time",1.0);
   if (settings->sublist("Solver").isParameter("delta t")) {
     deltat = settings->sublist("Solver").get<ScalarT>("delta t",1.0);
-  //  numsteps = std::ceil((final_time - initial_time)/deltat);
   }
   else {
     int numTimesteps = settings->sublist("Solver").get<int>("number of steps",1);
@@ -95,16 +93,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   discrete_objective_scale_factor = settings->sublist("Postprocess").get("scale factor for discrete objective",1.0);
   
   initial_type = settings->sublist("Solver").get<string>("initial type","L2-projection");
-  lintol = settings->sublist("Solver").get<ScalarT>("linear TOL",1.0E-7);
-  liniter = settings->sublist("Solver").get<int>("max linear iters",100);
-  kspace = settings->sublist("Solver").get<int>("krylov vectors",100);
-  useDomDecomp = settings->sublist("Solver").get<bool>("use domain decomposition",false);
-  useDirect = settings->sublist("Solver").get<bool>("use direct solver",false);
-  usePrec = settings->sublist("Solver").get<bool>("use preconditioner",true);
-  usePrecDBC = settings->sublist("Solver").get<bool>("use preconditioner for DBCs",true);
-  reuse_preconditioner = settings->sublist("Solver").get<bool>("reuse preconditioner",false); //defaults to AztecOO default
-  have_symbolic_factor = false;
-
+  
   // needed information from the mesh
   mesh->mesh->getElementBlockNames(blocknames);
   
@@ -140,31 +129,20 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   }
   
   /////////////////////////////////////////////////////////////////////////////
-  // Tpetra maps maxEntries per row (not quite precise)
+  // Create linear algebra interface
   /////////////////////////////////////////////////////////////////////////////
   
-  maxEntries = 256;
-  
-  if (spaceDim == 1) {
-    maxEntries = 2*maxDerivs;
-  }
-  else if (spaceDim == 2) {
-    maxEntries = 4*maxDerivs;
-  }
-  else if (spaceDim == 3) {
-    maxEntries = 8*maxDerivs;
-  }
-  //maxEntries = 512;
-  
-  this->setupLinearAlgebra();
+  linalg = Teuchos::rcp( new linearAlgebra<SolverNode>(Comm, settings, disc, params) );
   
   /////////////////////////////////////////////////////////////////////////////
   // Worksets
   /////////////////////////////////////////////////////////////////////////////
   
   assembler->createWorkset();
+  
   numsteps = 0;
   numstages = 0;
+  
   this->setBackwardDifference(BDForder);
   this->setButcherTableau(ButcherTab);
   if (BDForder > 1) {
@@ -494,9 +472,8 @@ template<class Node>
 void solver<Node>::setBackwardDifference(const int & order) { // using order as an input to allow for dynamic changes
   
   Kokkos::View<ScalarT*,AssemblyDevice> dev_BDF_wts;
-  //Kokkos::View<ScalarT*,HostDevice> BDF_wts; // not using a mirror view on purpose
-  //auto BDF_wts = Kokkos::create_mirror_view(dev_BDF_wts);
   Kokkos::View<ScalarT*,HostDevice> BDF_wts;
+  
   // Note that these do not include 1/deltat (added in wkset)
   // Not going to work properly for adaptive time stepping if BDForder>1
   if (isTransient) {
@@ -562,8 +539,6 @@ void solver<Node>::setBackwardDifference(const int & order) { // using order as 
   for (size_t b=0; b<assembler->cells.size(); b++) {
     assembler->wkset[b]->BDF_wts = dev_BDF_wts;
   }
-  
-  //KokkosTools::print(BDF_wts);
   
 }
 
@@ -655,128 +630,6 @@ void solver<Node>::finalizeWorkset() {
 }
 
 // ========================================================================================
-// Set up the Tpetra objects (maps, importers, exporters and graphs)
-// These need to be recomputed whenever the mesh changes
-// ========================================================================================
-
-template<class Node>
-void solver<Node>::setupLinearAlgebra() {
-  
-  Teuchos::TimeMonitor localtimer(*setupLAtimer);
-  
-  if (milo_debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting solver::setupLinearAlgebra..." << endl;
-    }
-  }
-  
-  // primary variable LA objects
-  {
-    vector<GO> LA_owned, LA_ownedAndShared;
-    
-    disc->DOF->getOwnedIndices(LA_owned);
-    LO numUnknowns = (LO)LA_owned.size();
-    disc->DOF->getOwnedAndGhostedIndices(LA_ownedAndShared);
-    GO localNumUnknowns = numUnknowns;
-    
-    GO globalNumUnknowns = 0;
-    Teuchos::reduceAll<LO,GO>(*Comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
-    
-    LA_owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, LA_owned, 0, Comm));
-    LA_overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, LA_ownedAndShared, 0, Comm));
-    LA_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(LA_overlapped_map,maxEntries));
-    
-    exporter = Teuchos::rcp(new LA_Export(LA_overlapped_map, LA_owned_map));
-    importer = Teuchos::rcp(new LA_Import(LA_owned_map, LA_overlapped_map));
-    
-    // Fill in the graph
-    for (size_t b=0; b<blocknames.size(); b++) {
-      vector<size_t> EIDs = disc->myElements[b];
-      for (size_t e=0; e<EIDs.size(); e++) {
-        vector<GO> gids;
-        size_t elemID = EIDs[e];
-        disc->DOF->getElementGIDs(elemID, gids, blocknames[b]);
-        for (size_t i=0; i<gids.size(); i++) {
-          GO ind1 = gids[i];
-          LA_overlapped_graph->insertGlobalIndices(ind1,gids);
-        }
-      }
-    }
-    
-    LA_overlapped_graph->fillComplete();
-  }
-  
-  // aux variable LA objects
-  if (phys->have_aux) {
-    vector<GO> aux_owned, aux_ownedAndShared;
-    
-    disc->auxDOF->getOwnedIndices(aux_owned);
-    LO numUnknowns = (LO)aux_owned.size();
-    disc->auxDOF->getOwnedAndGhostedIndices(aux_ownedAndShared);
-    GO localNumUnknowns = numUnknowns;
-    
-    GO globalNumUnknowns = 0;
-    Teuchos::reduceAll<LO,GO>(*Comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
-    
-    aux_owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, aux_owned, 0, Comm));
-    aux_overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, aux_ownedAndShared, 0, Comm));
-    aux_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(aux_overlapped_map,maxEntries));
-    
-    aux_exporter = Teuchos::rcp(new LA_Export(aux_overlapped_map, aux_owned_map));
-    aux_importer = Teuchos::rcp(new LA_Import(aux_owned_map, aux_overlapped_map));
-    
-    // Fill in the graph
-    for (size_t b=0; b<blocknames.size(); b++) {
-      vector<size_t> EIDs = disc->myElements[b];
-      for (size_t e=0; e<EIDs.size(); e++) {
-        vector<GO> gids;
-        size_t elemID = EIDs[e];
-        disc->auxDOF->getElementGIDs(elemID, gids, blocknames[b]);
-        for (size_t i=0; i<gids.size(); i++) {
-          GO ind1 = gids[i];
-          aux_overlapped_graph->insertGlobalIndices(ind1,gids);
-        }
-      }
-    }
-    
-    aux_overlapped_graph->fillComplete();
-  }
-    
-  // discretized parameter LA objects
-  {
-    if (params->num_discretized_params > 0) {
-      // Fill in the graph
-      params->param_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(params->param_overlapped_map,maxEntries));
-      
-      for (size_t b=0; b<blocknames.size(); b++) {
-        vector<size_t> EIDs = disc->myElements[b];
-        for (size_t e=0; e<EIDs.size(); e++) {
-          vector<GO> gids;
-          size_t elemID = EIDs[e];
-          params->paramDOF->getElementGIDs(elemID, gids, blocknames[b]);
-          vector<GO> stategids;
-          disc->DOF->getElementGIDs(elemID, stategids, blocknames[b]);
-          for (size_t i=0; i<gids.size(); i++) {
-            GO ind1 = gids[i];
-            params->param_overlapped_graph->insertGlobalIndices(ind1,stategids);
-          }
-        }
-      }
-      
-      params->param_overlapped_graph->fillComplete(LA_owned_map, params->param_owned_map);
-      
-    }
-  }
-  
-  if (milo_debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished solver::setupLinearAlgebra" << endl;
-    }
-  }
-  
-}
-
-// ========================================================================================
 // Set up the logicals and data structures for the fixed DOF (Dirichlet and point constraints)
 // ========================================================================================
 
@@ -796,7 +649,7 @@ void solver<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & setting
   }
   
   if (usestrongDBCs) {
-    fixedDOF_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    fixedDOF_soln = linalg->getNewOverlappedVector();
     
     scalarDirichletData = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("scalar data", false);
     transientDirichletData = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("transient data", false);
@@ -865,72 +718,28 @@ void solver<Node>::projectDirichlet() {
     }
   }
   if (usestrongDBCs) {
-    fixedDOF_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    vector_RCP glfixedDOF_soln = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+    fixedDOF_soln = linalg->getNewOverlappedVector();
+    vector_RCP glfixedDOF_soln = linalg->getNewVector();
     
-    vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_overlapped_graph));
-    vector_RCP glrhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
-    matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_owned_map, maxEntries));
+    vector_RCP rhs = linalg->getNewOverlappedVector();
+    matrix_RCP mass = linalg->getNewOverlappedMatrix();
+    vector_RCP glrhs = linalg->getNewVector();
+    matrix_RCP glmass = linalg->getNewMatrix();
     
     assembler->setDirichlet(rhs, mass, useadjoint, current_time);
     
-    glmass->setAllToScalar(0.0);
-    glmass->doExport(*mass, *exporter, Tpetra::ADD);
-    glrhs->putScalar(0.0);
-    glrhs->doExport(*rhs, *exporter, Tpetra::ADD);
+    linalg->exportMatrixFromOverlapped(glmass, mass);
+    linalg->exportVectorFromOverlapped(glrhs, rhs);
+    linalg->fillComplete(glmass);
     
-    glmass->fillComplete();
     if (milo_debug_level>2) {
       //KokkosTools::print(glmass,"L2-projection matrix for DBCs");
       //KokkosTools::print(glrhs,"L2-projections RHS for DBCs");
     }
     
-    if (useDirect) {
-      Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > L2Solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>("KLU2", glmass, glrhs, glfixedDOF_soln);
-      L2Solver->symbolicFactorization();
-      L2Solver->setA(glmass, Amesos2::SYMBFACT);
-      L2Solver->setX(glfixedDOF_soln);
-      L2Solver->setB(glrhs);
-      L2Solver->numericFactorization().solve();
-    }
-    else {
-      Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(glmass, glfixedDOF_soln, glrhs));
-      if (usePrecDBC) {
-        Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > P = this->buildPreconditioner(glmass);
-        Problem->setLeftPrec(P);
-      }
-      Problem->setProblem();
-      
-      Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList());
-      belosList->set("Maximum Iterations",    liniter); // Maximum number of iterations allowed
-      belosList->set("Convergence Tolerance", lintol);    // Relative convergence tolerance requested
-      if (verbosity > 9) {
-        belosList->set("Verbosity", Belos::Errors + Belos::Warnings + Belos::StatusTestDetails);
-      }
-      else {
-        belosList->set("Verbosity", Belos::Errors);
-      }
-      if (verbosity > 8) {
-        belosList->set("Output Frequency",10);
-      }
-      else {
-        belosList->set("Output Frequency",0);
-      }
-      int numEqns = 1;
-      if (assembler->cells.size() == 1) {
-        numEqns = numVars[0];
-      }
-      belosList->set("number of equations",numEqns);
-      
-      belosList->set("Output Style",          Belos::Brief);
-      belosList->set("Implicit Residual Scaling", "Norm of Preconditioned Initial Residual");//None");
-      
-      Teuchos::RCP<Belos::SolverManager<ScalarT, LA_MultiVector, LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT, LA_MultiVector, LA_Operator>(Problem, belosList));
-      
-      solver->solve();
-    }
-    fixedDOF_soln->doImport(*glfixedDOF_soln, *importer, Tpetra::ADD);
+    linalg->linearSolverBoundaryL2(glmass, glrhs, glfixedDOF_soln);
+    linalg->importVectorToOverlapped(fixedDOF_soln, glfixedDOF_soln);
+    
   }
   if (milo_debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -1004,7 +813,7 @@ void solver<Node>::steadySolver(DFAD & objective, vector_RCP & u) {
     }
   }
   
-  vector_RCP zero_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
+  vector_RCP zero_soln = linalg->getNewOverlappedVector();
   
   this->nonlinearSolver(u, zero_soln);
   if (compute_objective) {
@@ -1040,7 +849,7 @@ void solver<Node>::adjointModel(vector<ScalarT> & gradient) {
   
   vector_RCP phi = setInitial();
   
-  vector_RCP zero_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
+  vector_RCP zero_soln = linalg->getNewOverlappedVector();
   
   if (solver_type == "steady-state") {
     vector_RCP u;
@@ -1091,7 +900,7 @@ void solver<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vector<Scal
     }
   }
   
-  vector_RCP zero_vec = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+  vector_RCP zero_vec = linalg->getNewOverlappedVector();
   zero_vec->putScalar(0.0);
   
   current_time = start_time;
@@ -1154,13 +963,13 @@ void solver<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vector<Scal
         cout << "*******************************************************" << endl << endl << endl;
       }
       
-      vector_RCP u_prev = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+      vector_RCP u_prev = linalg->getNewOverlappedVector();
       u_prev->update(1.0,*u,0.0);
       
       int status = 1;
       for (int stage = 0; stage<numstages; stage++) {
         // Need a stage solution
-        vector_RCP u_stage = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+        vector_RCP u_stage = linalg->getNewOverlappedVector();
         // Set the initial guess for stage solution
         u_stage->update(1.0,*u,0.0);
         
@@ -1212,9 +1021,9 @@ void solver<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vector<Scal
     current_time = final_time;
     is_final_time = true;
     
-    vector_RCP u = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    vector_RCP u_prev = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    vector_RCP phi = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+    vector_RCP u = linalg->getNewOverlappedVector();
+    vector_RCP u_prev = linalg->getNewOverlappedVector();
+    vector_RCP phi = linalg->getNewOverlappedVector();
     
     size_t numFwdSteps = soln->times[0].size()-1;
     
@@ -1223,7 +1032,7 @@ void solver<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vector<Scal
     
     for (size_t timeiter = 0; timeiter<numFwdSteps; timeiter++) {
       size_t cindex = numFwdSteps-timeiter;
-      vector_RCP phi_prev = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+      vector_RCP phi_prev = linalg->getNewOverlappedVector();
       phi_prev->update(1.0,*phi,0.0);
       if(Comm->getRank() == 0 && verbosity > 0) {
         cout << endl << endl << "*******************************************************" << endl;
@@ -1261,7 +1070,7 @@ void solver<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vector<Scal
         std::vector<vector_RCP> stage_solns;
         for (int stage = 0; stage<numstages; stage++) {
           // Need a stage solution
-          vector_RCP u_stage = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+          vector_RCP u_stage = linalg->getNewOverlappedVector();
           // Set the initial guess for stage solution
           u_stage->update(1.0,*u,0.0);
           
@@ -1311,7 +1120,7 @@ void solver<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vector<Scal
         
         for (int stage = numstages-1; stage>=0; stage--) {
           // Need a stage solution
-          vector_RCP phi_stage = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+          vector_RCP phi_stage = linalg->getNewOverlappedVector();
           // Set the initial guess for stage solution
           phi_stage->update(1.0,*phi,0.0);
           
@@ -1391,25 +1200,20 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     
     gNLiter = NLiter;
     
-    vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
-    matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_owned_map, maxEntries));
-    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_overlapped_graph));
-    vector_RCP du_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    vector_RCP du = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+    vector_RCP res = linalg->getNewVector();
+    matrix_RCP J = linalg->getNewMatrix();
+    vector_RCP res_over = linalg->getNewOverlappedVector();
+    matrix_RCP J_over = linalg->getNewOverlappedMatrix();
+    vector_RCP du_over = linalg->getNewOverlappedVector();
+    vector_RCP du = linalg->getNewVector();
     
     // *********************** COMPUTE THE JACOBIAN AND THE RESIDUAL **************************
     
     bool build_jacobian = true;
-    {
-      Teuchos::TimeMonitor localtimer(*resetLAtimer);
-      res_over->putScalar(0.0);
-      J_over->setAllToScalar(0.0);
-    }
-    {
-      Teuchos::TimeMonitor localtimer(*fillcompleteLAtimer);
-      J_over->fillComplete();
-    }
+    res_over->putScalar(0.0);
+    J_over->setAllToScalar(0.0);
+    
+    linalg->fillComplete(J_over);
     
     J_over->resumeFill();
     if ( useadjoint && (NLiter == 1)) {
@@ -1427,7 +1231,7 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       vector_RCP D_soln;
       bool fnd = datagen_soln->extract(D_soln, 0, current_time+deltat);
       if (fnd) {
-        vector_RCP diff = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+        vector_RCP diff = linalg->getNewOverlappedVector();
         diff->update(1.0, *u, 0.0);
         diff->update(-1.0, *D_soln, 1.0);
         res_over->update(-1.0*discrete_objective_scale_factor,*diff,1.0);
@@ -1437,14 +1241,7 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       }
     }
     
-    {
-      Teuchos::TimeMonitor localtimer(*resetLAtimer);
-      res->putScalar(0.0);
-    }
-    {
-      Teuchos::TimeMonitor localtimer(*exportLAtimer);
-      res->doExport(*res_over, *exporter, Tpetra::ADD);
-    }
+    linalg->exportVectorFromOverlapped(res, res_over);
     
     if (milo_debug_level>2) {
       KokkosTools::print(res,"residual from solver interface");
@@ -1480,28 +1277,16 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     
     if (NLerr_scaled[0] > NLtol) {
       
-      {
-        Teuchos::TimeMonitor localtimer(*fillcompleteLAtimer);
-        J_over->fillComplete();
-      }
-      {
-        Teuchos::TimeMonitor localtimer(*exportLAtimer);
-        J->doExport(*J_over, *exporter, Tpetra::ADD);
-      }
-      {
-        Teuchos::TimeMonitor localtimer(*fillcompleteLAtimer);
-        J->fillComplete();
-      }
+      linalg->fillComplete(J_over);
+      linalg->exportMatrixFromOverlapped(J, J_over);
+      linalg->fillComplete(J);
       
       if (milo_debug_level>2) {
         KokkosTools::print(J,"Jacobian from solver interface");
       }
       
-      this->linearSolver(J, res, du);
-      {
-        Teuchos::TimeMonitor localtimer(*exportLAtimer);
-        du_over->doImport(*du, *importer, Tpetra::ADD);
-      }
+      linalg->linearSolver(J, res, du);
+      linalg->importVectorToOverlapped(du_over, du);
         
       if (useadjoint) {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
@@ -1575,7 +1360,7 @@ DFAD solver<Node>::computeObjective(const vector_RCP & F_soln, const ScalarT & t
     vector_RCP D_soln;
     bool fnd = datagen_soln->extract(D_soln, 0, time);
     if (fnd) {
-      vector_RCP diff = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+      vector_RCP diff = linalg->getNewOverlappedVector();
       diff->update(1.0, *F_soln, 0.0);
       diff->update(-1.0, *D_soln, 1.0);
       Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> obj(1);
@@ -1758,10 +1543,10 @@ void solver<Node>::computeSensitivities(vector_RCP & u,
     
     vector<ScalarT> localsens(params->num_active_params);
     
-    vector_RCP res = Teuchos::rcp(new LA_MultiVector(LA_owned_map,params->num_active_params));
-    matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_owned_map, maxEntries));
-    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,params->num_active_params));
-    matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_overlapped_graph));
+    vector_RCP res = linalg->getNewVector(params->num_active_params);
+    matrix_RCP J = linalg->getNewMatrix();
+    vector_RCP res_over = linalg->getNewOverlappedVector(params->num_active_params);
+    matrix_RCP J_over = linalg->getNewOverlappedMatrix();
     
     auto res_kv = res->template getLocalView<LA_device>();
     
@@ -1775,8 +1560,7 @@ void solver<Node>::computeSensitivities(vector_RCP & u,
                               params->num_active_params, params->Psol[0], is_final_time, deltat);
     useadjoint = curradjstatus;
     
-    res->putScalar(0.0);
-    res->doExport(*res_over, *exporter, Tpetra::ADD);
+    linalg->exportVectorFromOverlapped(res, res_over);
     
     for (int paramiter=0; paramiter < params->num_active_params; paramiter++) {
       // fine-scale
@@ -1828,16 +1612,15 @@ void solver<Node>::computeSensitivities(vector_RCP & u,
   
   if (numDiscParams > 0) {
     //params->sacadoizeParams(false);
-    vector_RCP a_owned = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1)); // adjoint solution
+    vector_RCP a_owned = linalg->getNewVector();
     auto ao_kv = a_owned->template getLocalView<LA_device>();
     //Kokkos::deep_copy(ao_kv,a2_kv);
     for (size_t i=0; i<ao_kv.extent(0); i++) {
       ao_kv(i,0) = a2_kv(i,0);
     }
-    vector_RCP res_over = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-    matrix_RCP J = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(params->param_owned_map,
-                                                                              maxEntries));
-    matrix_RCP J_over = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(params->param_overlapped_graph));
+    vector_RCP res_over = linalg->getNewOverlappedVector();
+    matrix_RCP J = linalg->getNewParamMatrix();
+    matrix_RCP J_over = linalg->getNewParamOverlappedMatrix();
     res_over->putScalar(0.0);
     J->setAllToScalar(0.0);
     
@@ -1851,15 +1634,14 @@ void solver<Node>::computeSensitivities(vector_RCP & u,
                               params->num_active_params, params->Psol[0], is_final_time, deltat);
     useadjoint = curradjstatus;
     
-    J_over->fillComplete(LA_owned_map, params->param_owned_map);
+    linalg->fillCompleteParam(J_over);
     
-    vector_RCP sens_over = Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1));
-    vector_RCP sens = Teuchos::rcp(new LA_MultiVector(params->param_owned_map,1));
+    vector_RCP sens_over = linalg->getNewParamOverlappedVector(); Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1));
+    vector_RCP sens = linalg->getNewParamVector();
     auto sens_kv = sens->template getLocalView<LA_device>();
     
-    J->setAllToScalar(0.0);
-    J->doExport(*J_over, *(params->param_exporter), Tpetra::ADD);
-    J->fillComplete(LA_owned_map, params->param_owned_map);
+    linalg->exportParamMatrixFromOverlapped(J, J_over);
+    linalg->fillCompleteParam(J);
     
     J->apply(*a_owned,*sens);
     
@@ -1962,7 +1744,7 @@ void solver<Node>::setDirichlet(vector_RCP & u) {
       Kokkos::View<LO*,LA_device> ptdofs("pointwise dofs", pointDOFs[b].size());
       auto ptdofs_host = Kokkos::create_mirror_view(ptdofs);
       for (size_t i = 0; i < pt_dofs.size(); i++) {
-        LO row = LA_overlapped_map->getLocalElement(pt_dofs[i]);
+        LO row = linalg->overlapped_map->getLocalElement(pt_dofs[i]); // TMW: this is a temporary fix
         ptdofs_host(i) = row;
       }
       Kokkos::deep_copy(ptdofs,ptdofs_host);
@@ -1985,7 +1767,7 @@ void solver<Node>::setDirichlet(vector_RCP & u) {
 
 template<class Node>
 Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitialParams() {
-  vector_RCP initial = Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1));
+  vector_RCP initial = linalg->getNewParamOverlappedVector();
   ScalarT value = 2.0;
   initial->putScalar(value);
   return initial;
@@ -2006,7 +1788,7 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial(
     }
   }
   
-  vector_RCP initial = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
+  vector_RCP initial = linalg->getNewOverlappedVector();
   initial->putScalar(0.0);
   
   bool samedevice = true;
@@ -2073,28 +1855,21 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial(
     }
     else {
       
-      vector_RCP glinitial = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
+      vector_RCP glinitial = linalg->getNewVector();
       
       if (initial_type == "L2-projection") {
         // Compute the L2 projection of the initial data into the discrete space
-        vector_RCP rhs = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1));
-        matrix_RCP mass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_overlapped_graph));
-        vector_RCP glrhs = Teuchos::rcp(new LA_MultiVector(LA_owned_map,1));
-        matrix_RCP glmass = Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,Node>(LA_owned_map, maxEntries));
+        vector_RCP rhs = linalg->getNewOverlappedVector();
+        matrix_RCP mass = linalg->getNewOverlappedMatrix();
+        vector_RCP glrhs = linalg->getNewVector();
+        matrix_RCP glmass = linalg->getNewMatrix();
         assembler->setInitial(rhs, mass, useadjoint);
         
-        glmass->setAllToScalar(0.0);
-        glmass->doExport(*mass, *exporter, Tpetra::ADD);
-        
-        glrhs->putScalar(0.0);
-        glrhs->doExport(*rhs, *exporter, Tpetra::ADD);
-        
-        glmass->fillComplete();
-        
-        this->linearSolver(glmass, glrhs, glinitial);
-        have_preconditioner = false; // resetting this because mass matrix may not have connectivity as Jacobians
-        initial->doImport(*glinitial, *importer, Tpetra::ADD);
-        
+        linalg->exportMatrixFromOverlapped(glmass, mass);
+        linalg->exportVectorFromOverlapped(glrhs, rhs);
+        linalg->fillComplete(glmass);
+        linalg->linearSolverL2(glmass, glrhs, glinitial);
+        linalg->importVectorToOverlapped(initial, glinitial);
       }
       else if (initial_type == "interpolation") {
         
@@ -2114,135 +1889,6 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial(
 }
 
 // ========================================================================================
-// Linear Solver for Tpetra stack
-// ========================================================================================
-
-template<class Node>
-void solver<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
-  Teuchos::TimeMonitor localtimer(*linearsolvertimer);
-  
-  if (useDirect) {
-    if (!have_symbolic_factor) {
-      Am2Solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>("KLU2", J, r, soln);
-      Am2Solver->symbolicFactorization();
-      have_symbolic_factor = true;
-    }
-    Am2Solver->setA(J, Amesos2::SYMBFACT);
-    Am2Solver->setX(soln);
-    Am2Solver->setB(r);
-    Am2Solver->numericFactorization().solve();
-  }
-  else {
-    Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
-    if (usePrec) {
-      if (useDomDecomp) {
-        if (!reuse_preconditioner || !have_preconditioner) {
-          Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
-          ifpackList.set("schwarz: subdomain solver","garbage");
-          M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
-          M_dd->setParameters(ifpackList);
-          M_dd->initialize();
-          M_dd->compute();
-          have_preconditioner = true;
-        }
-        Problem->setLeftPrec(M_dd);
-      }
-      else {
-        if (!have_preconditioner) {
-          M = this->buildPreconditioner(J);
-          have_preconditioner = true;
-        }
-        else {
-          MueLu::ReuseTpetraPreconditioner(J,*M);
-        }
-        Problem->setLeftPrec(M);
-      }
-      
-      //Problem->setRightPrec(M);
-    }
-    Problem->setProblem();
-    
-    Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList());
-    belosList->set("Maximum Iterations",    liniter); // Maximum number of iterations allowed
-    belosList->set("Convergence Tolerance", lintol);    // Relative convergence tolerance requested
-    if (verbosity > 9) {
-      belosList->set("Verbosity", Belos::Errors + Belos::Warnings + Belos::StatusTestDetails);
-    }
-    else {
-      belosList->set("Verbosity", Belos::Errors);
-    }
-    if (verbosity > 8) {
-      belosList->set("Output Frequency",10);
-    }
-    else {
-      belosList->set("Output Frequency",0);
-    }
-    int numEqns = 1;
-    if (assembler->cells.size() == 1) {
-      numEqns = numVars[0];
-    }
-    belosList->set("number of equations",numEqns);
-    
-    belosList->set("Output Style",          Belos::Brief);
-    //belosList->set("Implicit Residual Scaling", "Norm of Preconditioned Initial Residual");//None");
-    //belosList->set("Implicit Residual Scaling", "Norm of Initial Residual");//None");
-    belosList->set("Implicit Residual Scaling", "None");//None");
-    
-    Teuchos::RCP<Belos::SolverManager<ScalarT, LA_MultiVector, LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT, LA_MultiVector, LA_Operator>(Problem, belosList));
-    
-    solver->solve();
-  }
-}
-
-// ========================================================================================
-// Preconditioner for Tpetra stack
-// ========================================================================================
-
-template<class Node>
-Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > solver<Node>::buildPreconditioner(const matrix_RCP & J) {
-  Teuchos::ParameterList mueluParams;
-  // MrHyDE default settings
-  mueluParams.set("verbosity","none");
-  mueluParams.set("coarse: max size",500);
-  mueluParams.set("multigrid algorithm", "sa");
-
-  // Aggregation
-  mueluParams.set("aggregation: type","uncoupled");
-  mueluParams.set("aggregation: drop scheme","classical");
-
-  //Smoothing
-  mueluParams.set("smoother: type","CHEBYSHEV");
-  
-  // Repartitioning
-  mueluParams.set("repartition: enable",false);
-  
-  // Reuse
-  mueluParams.set("reuse: type","none");
-  
-  // if the user provides a "Preconditioner Settings" sublist, use it for MueLu
-  // otherwise, set things with the simple approach
-  if(settings->sublist("Solver").isSublist("Preconditioner Settings")) {
-    Teuchos::ParameterList inputPrecParams = settings->sublist("Solver").sublist("Preconditioner Settings");
-    mueluParams.setParameters(inputPrecParams);
-  }
-  else { // safe to define defaults for chebyshev smoother
-    mueluParams.sublist("smoother: params").set("chebyshev: degree",2);
-    mueluParams.sublist("smoother: params").set("chebyshev: ratio eigenvalue",7.0);
-    mueluParams.sublist("smoother: params").set("chebyshev: min eigenvalue",1.0);
-    mueluParams.sublist("smoother: params").set("chebyshev: zero starting solution",true);
-  }
-  
-  if (verbosity >= 20){
-    mueluParams.set("verbosity","high");
-  }
-  mueluParams.setName("MueLu");
-  
-  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > Mnew = MueLu::CreateTpetraPreconditioner((Teuchos::RCP<LA_Operator>)J, mueluParams);
-
-  return Mnew;
-}
-
-// ========================================================================================
 // ========================================================================================
 
 template<class Node>
@@ -2256,7 +1902,7 @@ void solver<Node>::setBatchID(const int & bID){
 
 template<class Node>
 Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::blankState(){
-  vector_RCP F_soln = Teuchos::rcp(new LA_MultiVector(LA_overlapped_map,1)); // empty solution
+  vector_RCP F_soln = linalg->getNewOverlappedVector();
   return F_soln;
 }
 

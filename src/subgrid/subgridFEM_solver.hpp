@@ -18,7 +18,7 @@
 
 #include "preferences.hpp"
 #include "assemblyManager.hpp"
-#include "solverInterface.hpp"
+#include "solverManager.hpp"
 #include "parameterManager.hpp"
 #include "subgridMacroData.hpp"
 

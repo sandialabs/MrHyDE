@@ -18,7 +18,7 @@
 #include "ROL_BoundConstraint.hpp"
 #include "Teuchos_ParameterList.hpp"
 
-#include "solverInterface.hpp"
+#include "solverManager.hpp"
 #include "postprocessManager.hpp"
 #include "parameterManager.hpp"
 
