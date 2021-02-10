@@ -48,9 +48,8 @@ namespace MrHyDE {
                  const int & sidenum_, const string & sidename_,
                  const int & cellID_,
                  LIDView LIDs_,
-                 Kokkos::View<int****,HostDevice> sideinfo_,
-                 Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation_);
-    
+                 Kokkos::View<int****,HostDevice> sideinfo_);
+                 
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     

@@ -19,6 +19,9 @@
 #include "Panzer_DOFManager.hpp"
 #include "Panzer_STK_Interface.hpp"
 #include "physicsInterface.hpp"
+#include "cellMetaData.hpp"
+#include "cell.hpp"
+#include "boundaryCell.hpp"
 
 namespace MrHyDE {
   /*
@@ -49,6 +52,17 @@ namespace MrHyDE {
     
     void getQuadrature(const topo_RCP & cellTopo, const int & order, DRV & ip, DRV & wts);
     
+    //////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////
+    
+    void setReferenceData(Teuchos::RCP<CellMetaData> & cellData);
+    
+    void setPhysicalData(Teuchos::RCP<CellMetaData> & cellData,
+                         vector<Teuchos::RCP<cell> > & cells);
+
+    void setPhysicalData(Teuchos::RCP<CellMetaData> & cellData,
+                         vector<Teuchos::RCP<BoundaryCell> > & bcells);
+
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
     

@@ -19,7 +19,7 @@
 #include "workset.hpp"
 #include "subgridModel.hpp"
 #include "cellMetaData.hpp"
-#include "discretizationInterface.hpp"
+//#include "discretizationInterface.hpp"
 
 #include <iostream>     
 #include <iterator>     
@@ -43,15 +43,8 @@ namespace MrHyDE {
          const DRV nodes_,
          const Kokkos::View<LO*,AssemblyDevice> localID_,
          LIDView LIDs_,
-         Kokkos::View<int****,HostDevice> sideinfo_,
-         Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation_);
-    
-    ///////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////
-    
-    void computeSize();
-    
-    void rescaleNormals(DRV snormals);
+         Kokkos::View<int****,HostDevice> sideinfo_);
+         //Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation_);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -251,12 +244,13 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     // Add sensor information
     ///////////////////////////////////////////////////////////////////////////////////////
-    
+    /*
     void addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, const ScalarT & sensor_loc_tol,
                     const vector<Kokkos::View<ScalarT**,HostDevice> > & sensor_data, const bool & have_sensor_data,
                     Teuchos::RCP<discretization> & disc,
                     const vector<basis_RCP> & basis_pointers,
                     const vector<basis_RCP> & param_basis_pointers);
+    */
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Subgrid Plotting

@@ -331,7 +331,7 @@ void SubGridFEM::setUpSubgridModels() {
       
       newbcells.push_back(Teuchos::rcp(new BoundaryCell(cellData,currnodes,eIndex,sideIndex,
                                                         sideID, sidename, newbcells.size(),
-                                                        cellLIDs, sideinfo, orient_drv)));
+                                                        cellLIDs, sideinfo)));//, orient_drv)));
       
       prog += currElem;
     }
@@ -339,6 +339,7 @@ void SubGridFEM::setUpSubgridModels() {
     
   }
   
+  sub_disc->setPhysicalData(cellData, newbcells);
   boundaryCells.push_back(newbcells);
   
   sub_assembler->boundaryCells = boundaryCells;
@@ -498,23 +499,18 @@ void SubGridFEM::setUpSubgridModels() {
       
       Kokkos::View<LO*,AssemblyDevice> localID;
       LIDView LIDs;
-      Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
       
       if (numElem == maxElem) { // reuse if possible
         localID = cells[0][0]->localElemID;
         LIDs = cells[0][0]->LIDs;
-        orientation = cells[0][0]->orientation;
       }
       else { // subviews do not work, so performing a deep copy (should only be on last cell)
         localID = Kokkos::View<LO*,AssemblyDevice>("local elem ids",numElem);
         LIDs = LIDView("LIDs",numElem,cells[0][0]->LIDs.extent(1));
-        orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("orientation",numElem);
         Kokkos::View<LO*,AssemblyDevice> localID_0 = cells[0][0]->localElemID;
         LIDView LIDs_0 = cells[0][0]->LIDs;
-        Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation_0 = cells[0][0]->orientation;
         parallel_for("subgrid LIDs",RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int e ) {
           localID(e) = localID_0(e);
-          orientation(e) = orientation_0(e);
           for (size_t j=0; j<LIDs.extent(1); j++) {
             LIDs(e,j) = LIDs_0(e,j);
           }
@@ -523,10 +519,7 @@ void SubGridFEM::setUpSubgridModels() {
       }
       newcells.push_back(Teuchos::rcp(new cell(sub_assembler->cellData[0],
                                                newnodes, localID,
-                                               LIDs, subsideinfo,
-                                               orientation)));
-      
-      cells.push_back(newcells);
+                                               LIDs, subsideinfo)));
       
       //////////////////////////////////////////////////////////////
       // New boundary cells (more complicated than interior cells)
@@ -600,7 +593,7 @@ void SubGridFEM::setUpSubgridModels() {
         
         newbcells.push_back(Teuchos::rcp(new BoundaryCell(sub_assembler->cellData[0], currnodes,
                                                           localID, sideID, sidenum, unique_names[s],
-                                                          newbcells.size(), LIDs, subsideinfo, orientation)));
+                                                          newbcells.size(), LIDs, subsideinfo)));//, orientation)));
         
       
         newbcells[s]->addAuxVars(macro_varlist);
@@ -610,6 +603,11 @@ void SubGridFEM::setUpSubgridModels() {
         newbcells[s]->wkset = wkset[0];
         
       }
+      sub_disc->setPhysicalData(sub_assembler->cellData[0], newcells);
+      sub_disc->setPhysicalData(sub_assembler->cellData[0], newbcells);
+      
+      cells.push_back(newcells);
+      
       boundaryCells.push_back(newbcells);
       
       Kokkos::View<string**,HostDevice> currbcs("boundary conditions",
@@ -2021,8 +2019,8 @@ void SubGridFEM::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_poin
                             const vector<Kokkos::View<ScalarT**,HostDevice> > & sensor_data, const bool & have_sensor_data,
                             const vector<basis_RCP> & basisTypes, const int & usernum) {
   for (size_t e=0; e<cells[usernum].size(); e++) {
-    cells[usernum][e]->addSensors(sensor_points,sensor_loc_tol,sensor_data,
-                                  have_sensor_data, sub_disc, basisTypes, basisTypes);
+    //cells[usernum][e]->addSensors(sensor_points,sensor_loc_tol,sensor_data,
+    //                              have_sensor_data, sub_disc, basisTypes, basisTypes);
   }
 }
 

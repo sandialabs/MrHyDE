@@ -250,9 +250,6 @@ void AssemblyManager<Node>::createCells() {
       }
       Kokkos::deep_copy(eIDs, host_eIDs);
       
-      DRV refnodes("nodes on reference element",numNodesPerElem,spaceDim);
-      CellTools::getReferenceSubcellVertices(refnodes, spaceDim, 0, *cellTopo);
-      
       // LO is int, but just in case that changes ...
       LO elemPerCell = static_cast<LO>(settings->sublist("Solver").get<int>("workset size",100));
       LO prog = 0;
@@ -264,12 +261,10 @@ void AssemblyManager<Node>::createCells() {
                                                      phys, b, 0,
                                                      build_face_terms[b],
                                                      assemble_face_terms[b],
-                                                     sideSets, disc->ref_ip[b],
-                                                     disc->ref_wts[b], disc->ref_side_ip[b],
-                                                     disc->ref_side_wts[b], disc->basis_types[b],
-                                                     disc->basis_pointers[b],
-                                                     params->num_discretized_params,
-                                                     refnodes));
+                                                     sideSets,
+                                                     params->num_discretized_params));
+                                                     
+      disc->setReferenceData(blockCellData);
       
       blockCellData->requireBasisAtNodes = settings->sublist("Postprocess").get<bool>("plot solution at nodes",false);
       
@@ -322,24 +317,8 @@ void AssemblyManager<Node>::createCells() {
           // Set the side information (soon to be removed)-
           Kokkos::View<int****,HostDevice> sideinfo = disc->getSideInfo(b,host_eIndex2);
           
-          Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", currElem, numNodesPerElem);
-          auto host_currind = Kokkos::create_mirror_view(currind);
-          
-          for (LO i=0; i<currElem; i++) {
-            vector<stk::mesh::EntityId> stk_nodeids;
-            LO elemID = prog+i;//host_eIndex(i);
-            mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
-            for (int n=0; n<numNodesPerElem; n++) {
-              host_currind(i,n) = stk_nodeids[n];
-            }
-          }
-          Kokkos::deep_copy(currind, host_currind);
-          
-          Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orient_drv("kv to orients",currElem);
-          OrientTools::getOrientation(orient_drv, currind, *cellTopo);
-          
           blockcells.push_back(Teuchos::rcp(new cell(blockCellData, currnodes, eIndex,
-                                                     cellLIDs, sideinfo, orient_drv)));
+                                                     cellLIDs, sideinfo)));
           prog += elemPerCell;
         }
       }
@@ -349,8 +328,7 @@ void AssemblyManager<Node>::createCells() {
       else if (assembly_partitioning == "neighbor-avoiding") { // not implemented yet
         // need neighbor information
       }
-      
-    
+            
       //////////////////////////////////////////////////////////////////////////////////
       // Boundary cells
       //////////////////////////////////////////////////////////////////////////////////
@@ -452,7 +430,7 @@ void AssemblyManager<Node>::createCells() {
                 //-----------------------------------------------
                 
                 // Set the cell orientation ---
-                
+                /*
                 Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices",
                                                                                 currElem, numNodesPerElem);
                 
@@ -470,17 +448,23 @@ void AssemblyManager<Node>::createCells() {
                 
                 Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orient_drv("kv to orients",currElem);
                 OrientTools::getOrientation(orient_drv, currind, *cellTopo);
+                */
                 
                 bcells.push_back(Teuchos::rcp(new BoundaryCell(blockCellData, currnodes, eIndex, sideIndex,
                                                                side, sideName, bcells.size(),
-                                                               cellLIDs, sideinfo, orient_drv)));
+                                                               cellLIDs, sideinfo)));//, orient_drv)));
                 prog += currElem;
               }
             }
           }
         }
       }
+      
+      disc->setPhysicalData(blockCellData, blockcells);
+      disc->setPhysicalData(blockCellData, bcells);
+      
     }
+    
     
     cellData.push_back(blockCellData);
     cells.push_back(blockcells);
