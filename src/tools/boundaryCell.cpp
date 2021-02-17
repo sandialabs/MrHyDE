@@ -29,17 +29,32 @@ BoundaryCell::BoundaryCell(const Teuchos::RCP<CellMetaData> & cellData_,
                            const int & sidenum_, const string & sidename_,
                            const int & cellID_,
                            LIDView LIDs_,
-                           Kokkos::View<int****,HostDevice> sideinfo_) :
+                           Kokkos::View<int****,HostDevice> sideinfo_,
+                           Teuchos::RCP<discretization> & disc_) :
 cellData(cellData_), localElemID(localID_), localSideID(sideID_),
-sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename(sidename_), LIDs(LIDs_)   {
+sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename(sidename_), LIDs(LIDs_), disc(disc_)   {
 
   numElem = nodes.extent(0);
 
   auto LIDs_tmp = Kokkos::create_mirror_view(LIDs);
   Kokkos::deep_copy(LIDs_tmp,LIDs);  
-  LIDs_host = LIDView_host("LIDs on host",LIDs.extent(0), LIDs.extent(1)); //Kokkos::create_mirror_view(LIDs);
+  LIDs_host = LIDView_host("LIDs on host",LIDs.extent(0), LIDs.extent(1));
   Kokkos::deep_copy(LIDs_host,LIDs_tmp);
   
+  if (cellData->storeAll) {
+    int numip = cellData->ref_side_ip[0].extent(0);
+    int dimension = cellData->dimension;
+    ip = View_Sc3("physical ip",numElem, numip, dimension);
+    normals = View_Sc3("physical normals",numElem, numip, dimension);
+    tangents = View_Sc3("physical tangents",numElem, numip, dimension);
+    wts = View_Sc2("physical wts",numElem, numip);
+    hsize = View_Sc1("physical meshsize",numElem);
+    orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
+    disc->getPhysicalBoundaryData(cellData, nodes, localElemID, localSideID, orientation,
+                                  ip, wts, normals, tangents, hsize,
+                                  basis, basis_grad, basis_curl, basis_div);
+    
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -56,12 +71,8 @@ void BoundaryCell::setWorkset(Teuchos::RCP<workset> & wkset_) {
 
 void BoundaryCell::setParams(LIDView paramLIDs_) {
   paramLIDs = paramLIDs_;
-  paramLIDs_host = LIDView_host("param LIDs on host", paramLIDs.extent(0), paramLIDs.extent(1)); //Kokkos::create_mirror_view(paramLIDs);
+  paramLIDs_host = LIDView_host("param LIDs on host", paramLIDs.extent(0), paramLIDs.extent(1));
   Kokkos::deep_copy(paramLIDs_host, paramLIDs);
-  
-  // This has now been set
-  //numParamDOF = cellData->numParamDOF;
-  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -149,17 +160,40 @@ void BoundaryCell::setAuxUseBasis(vector<int> & ausebasis_) {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void BoundaryCell::updateWorksetBasis() {
-  //wkset->ip_side = ip;
-  wkset->wts_side = wts;
-  //wkset->normals = normals;
-  wkset->h = hsize;
-  wkset->setIP(ip," side");
-  wkset->setNormals(normals);
-  wkset->setTangents(tangents);
   
-  wkset->basis_side = basis;
-  wkset->basis_grad_side = basis_grad;
-  
+  if (cellData->storeAll) {
+    wkset->wts_side = wts;
+    wkset->h = hsize;
+    wkset->setIP(ip," side");
+    wkset->setNormals(normals);
+    wkset->setTangents(tangents);
+    wkset->basis_side = basis;
+    wkset->basis_grad_side = basis_grad;
+  }
+  else {
+    int numip = cellData->ref_side_ip[0].extent(0);
+    int dimension = cellData->dimension;
+    View_Sc3 tip("physical ip",numElem, numip, dimension);
+    View_Sc3 tnormals("physical normals",numElem, numip, dimension);
+    View_Sc3 ttangents("physical tangents",numElem, numip, dimension);
+    View_Sc2 twts("physical wts",numElem, numip);
+    View_Sc1 thsize("physical meshsize",numElem);
+    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> torientation("kv to orients",numElem);
+    vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
+    vector<View_Sc3> tbasis_div;
+    disc->getPhysicalBoundaryData(cellData, nodes, localElemID,
+                                  localSideID, torientation,
+                                  tip, twts, tnormals, ttangents, thsize,
+                                  tbasis, tbasis_grad, tbasis_curl, tbasis_div);
+    
+    wkset->wts_side = twts;
+    wkset->h = thsize;
+    wkset->setIP(tip," side");
+    wkset->setNormals(tnormals);
+    wkset->setTangents(ttangents);
+    wkset->basis_side = tbasis;
+    wkset->basis_grad_side = tbasis_grad;
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -171,7 +205,7 @@ void BoundaryCell::computeSoln(const int & seedwhat) {
   Teuchos::TimeMonitor localtimer(*computeSolnSideTimer);
   
   wkset->computeSolnSideIP();
-  //wkset->computeParamSideIP(sidenum, param, seedwhat);
+  //wkset->computeParamSideIP();
   
   
   if (wkset->numAux > 0) {
@@ -260,9 +294,10 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
     else { // steady-state
       wkset->computeSolnSteadySeeded(u, seedwhat);
     }
+    wkset->computeParamSteadySeeded(param, seedwhat);
     
     this->computeSoln(seedwhat);
-    wkset->computeParamSideIP(sidenum, param, seedwhat);
+    wkset->computeParamSideIP();
     
     //wkset->resetResidual(numElem);
     wkset->resetResidual();

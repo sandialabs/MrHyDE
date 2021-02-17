@@ -23,10 +23,9 @@ cell::cell(const Teuchos::RCP<CellMetaData> & cellData_,
            const DRV nodes_,
            const Kokkos::View<LO*,AssemblyDevice> localID_,
            LIDView LIDs_,
-           Kokkos::View<int****,HostDevice> sideinfo_) :
-           //Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation_) :
-LIDs(LIDs_), cellData(cellData_), localElemID(localID_),
-sideinfo(sideinfo_), nodes(nodes_) //, orientation(orientation_)
+           Kokkos::View<int****,HostDevice> sideinfo_,
+           Teuchos::RCP<discretization> & disc_) :
+LIDs(LIDs_), cellData(cellData_), localElemID(localID_), sideinfo(sideinfo_), nodes(nodes_), disc(disc_)
 {
   numElem = nodes.extent(0);
   useSensors = false;
@@ -34,9 +33,46 @@ sideinfo(sideinfo_), nodes(nodes_) //, orientation(orientation_)
   auto LIDs_tmp = Kokkos::create_mirror_view(LIDs);
   Kokkos::deep_copy(LIDs_tmp,LIDs); 
  
-  LIDs_host = LIDView_host("LIDs on host",LIDs.extent(0), LIDs.extent(1)); //Kokkos::create_mirror_view(LIDs);
+  LIDs_host = LIDView_host("LIDs on host",LIDs.extent(0), LIDs.extent(1));
   Kokkos::deep_copy(LIDs_host,LIDs_tmp);
   
+  // Compute integration data and basis functions
+  if (cellData->storeAll) {
+    size_type numip = cellData->ref_ip.extent(0);
+    size_t dimension = cellData->dimension;
+    ip = View_Sc3("physical ip",numElem, numip, dimension);
+    wts = View_Sc2("physical wts",numElem, numip);
+    hsize = View_Sc1("physical meshsize",numElem);
+    orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
+    disc->getPhysicalVolumetricData(cellData, nodes, localElemID,
+                                    ip, wts, hsize, orientation,
+                                    basis, basis_grad, basis_curl,
+                                    basis_div, basis_nodes);
+    
+    if (cellData->build_face_terms) {
+      for (size_type side=0; side<cellData->numSides; side++) {
+        int numip = cellData->ref_side_ip[side].extent(0);
+        int dimension = cellData->dimension;
+        View_Sc3 face_ip("face ip", numElem, numip, dimension);
+        View_Sc3 face_normals("face normals", numElem, numip, dimension);
+        View_Sc2 face_wts("face wts", numElem, numip);
+        View_Sc1 face_hsize("face hsize", numElem);
+        vector<View_Sc4> face_basis, face_basis_grad;
+                
+        disc->getPhysicalFaceData(cellData, side, nodes, localElemID, orientation,
+                                  face_ip, face_wts, face_normals, face_hsize,
+                                  face_basis, face_basis_grad);
+        
+        ip_face.push_back(face_ip);
+        wts_face.push_back(face_wts);
+        normals_face.push_back(face_normals);
+        hsize_face.push_back(face_hsize);
+        basis_face.push_back(face_basis);
+        basis_grad_face.push_back(face_basis_grad);
+      }
+      
+    }
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -193,23 +229,49 @@ void cell::updateWorksetBasis() {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void cell::computeSolnVolIP() {
-  // seedwhat key: 0-nothing; 1-sol; 2-soldot; 3-disc.params.; 4-aux.vars
-  // Note: seeding u_dot is now deprecated
   
   Teuchos::TimeMonitor localtimer(*computeSolnVolTimer);
-  //wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
-  this->updateWorksetBasis();
+  
+  if (cellData->storeAll) {
+    wkset->wts = wts;
+    wkset->h = hsize;
+    wkset->setIP(ip);
+    wkset->basis = basis;
+    wkset->basis_grad = basis_grad;
+    wkset->basis_div = basis_div;
+    wkset->basis_curl = basis_curl;
+  }
+  else {
+    View_Sc3 tip("physical ip",numElem, cellData->ref_ip.extent(0), cellData->dimension);
+    View_Sc2 twts("physical wts",numElem, cellData->ref_ip.extent(0));
+    View_Sc1 thsize("physical meshsize",numElem);
+    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> torientation("kv to orients",numElem);
+    vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
+    vector<View_Sc3> tbasis_div;
+    disc->getPhysicalVolumetricData(cellData, nodes, localElemID,
+                                    tip, twts, thsize, torientation,
+                                    tbasis, tbasis_grad, tbasis_curl,
+                                    tbasis_div, tbasis_nodes);
+    wkset->wts = twts;
+    wkset->h = thsize;
+    wkset->setIP(tip);
+    wkset->basis = tbasis;
+    wkset->basis_grad = tbasis_grad;
+    wkset->basis_div = tbasis_div;
+    wkset->basis_curl = tbasis_curl;
+  }
   Kokkos::fence();
 
   wkset->computeSolnVolIP();
   Kokkos::fence();
   
-  //wkset->computeParamVolIP(param, seedwhat);
   if (cellData->compute_sol_avg) {
     this->computeSolAvg();
   }
   Kokkos::fence();
 
+  wkset->computeParamVolIP();
+  Kokkos::fence();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -224,7 +286,7 @@ void cell::computeSolAvg() {
 
   // Compute the average weight, i.e., the size of each elem
   // May consider storing this
-  auto cwts = wts;
+  auto cwts = wkset->wts;
   View_Sc1 avgwts("elem size",cwts.extent(0));
   parallel_for("cell sol avg",
                RangePolicy<AssemblyExec>(0,cwts.extent(0)),
@@ -350,10 +412,9 @@ void cell::computeSolAvg() {
 void cell::updateWorksetFaceBasis(const size_t & facenum) {
   
   wkset->wts_side = wts_face[facenum];
-  wkset->h = hsize;
+  wkset->h = hsize_face[facenum];
   wkset->setIP(ip_face[facenum]," side");
   wkset->setNormals(normals_face[facenum]);
-  
   wkset->basis_side = basis_face[facenum];
   wkset->basis_grad_side = basis_grad_face[facenum];
   
@@ -366,9 +427,37 @@ void cell::updateWorksetFaceBasis(const size_t & facenum) {
 void cell::computeSolnFaceIP(const size_t & facenum) {
   
   Teuchos::TimeMonitor localtimer(*computeSolnFaceTimer);
-  this->updateWorksetFaceBasis(facenum);
-  wkset->computeSolnSideIP();
+  //this->updateWorksetFaceBasis(facenum);
+  if (cellData->storeAll) {
+    wkset->wts_side = wts_face[facenum];
+    wkset->h = hsize;
+    wkset->setIP(ip_face[facenum]," side");
+    wkset->setNormals(normals_face[facenum]);
+    wkset->basis_side = basis_face[facenum];
+    wkset->basis_grad_side = basis_grad_face[facenum];
+  }
+  else {
+    int numip = cellData->ref_side_ip[facenum].extent(0);
+    int dimension = cellData->dimension;
+    View_Sc3 tip("face ip", numElem, numip, dimension);
+    View_Sc3 tnormals("face normals", numElem, numip, dimension);
+    View_Sc2 twts("face wts", numElem, numip);
+    View_Sc1 thsize("face hsize", numElem);
+    vector<View_Sc4> tbasis, tbasis_grad;
   
+    disc->getPhysicalFaceData(cellData, facenum, nodes, localElemID, orientation,
+                              tip, twts, tnormals, thsize, tbasis, tbasis_grad);
+    
+    wkset->wts_side = twts;
+    wkset->h = thsize;
+    wkset->setIP(tip," side");
+    wkset->setNormals(tnormals);
+    wkset->basis_side = tbasis;
+    wkset->basis_grad_side = tbasis_grad;
+  }
+  wkset->computeSolnSideIP();
+  wkset->computeParamSideIP();
+  Kokkos::fence();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -539,8 +628,8 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
       fixJacDiag = true;
     }
     else {
+      wkset->computeParamSteadySeeded(param, seedwhat);
       this->computeSolnVolIP();
-      wkset->computeParamVolIP(param, seedwhat);
       cellData->physics_RCP->volumeResidual(cellData->myBlock);
     }
   }
@@ -721,7 +810,9 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
               auto sres = Kokkos::subview(local_res,e,Kokkos::ALL(),0);
               if (w == 1) {
                 auto sbasis = Kokkos::subview(sensorBasis[s][wkset->usebasis[n]],0,Kokkos::ALL(),s);
-                parallel_for("cell adjust adjoint res sensor",RangePolicy<AssemblyExec>(0,cellData->numDOF_host(n)), KOKKOS_LAMBDA (const int j ) {
+                parallel_for("cell adjust adjoint res sensor",
+                             RangePolicy<AssemblyExec>(0,cellData->numDOF_host(n)),
+                             KOKKOS_LAMBDA (const int j ) {
                   int nn = scratch(0);
                   int elem = scratch(1);
                   for (int i=0; i<numDOF(nn); i++) {
@@ -731,7 +822,9 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
               }
               else {
                 auto sbasis = Kokkos::subview(sensorBasisGrad[s][wkset->usebasis[n]],0,Kokkos::ALL(),s,w-2);
-                parallel_for("cell adjust adjoint res sensor grad", RangePolicy<AssemblyExec>(0,cellData->numDOF_host(n)), KOKKOS_LAMBDA (const int j ) {
+                parallel_for("cell adjust adjoint res sensor grad",
+                             RangePolicy<AssemblyExec>(0,cellData->numDOF_host(n)),
+                             KOKKOS_LAMBDA (const int j ) {
                   int nn = scratch(0);
                   int elem = scratch(1);
                   for (int i=0; i<numDOF(nn); i++) {
@@ -859,7 +952,7 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
         int seedwhat = 2; // 2 for J wrt previous step solutions
         for (size_type step=0; step<u_prev.extent(3); step++) {
           wkset->computeSolnTransientSeeded(u, u_prev, u_stage, seedwhat, step);
-          wkset->computeParamVolIP(param, seedwhat);
+          wkset->computeParamSteadySeeded(param, seedwhat);
           this->computeSolnVolIP();
        
           wkset->resetResidual();
@@ -1623,7 +1716,8 @@ AD cell::computeDomainRegularization(const vector<ScalarT> reg_constants, const 
   //bool seedParams = true;
   //int numip = wkset->numip;
   this->updateWorksetBasis();
-  wkset->computeParamVolIP(param, 3);
+  wkset->computeParamSteadySeeded(param, 3);
+  wkset->computeParamVolIP();
   
   auto cwts = wts;
   

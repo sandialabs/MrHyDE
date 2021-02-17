@@ -121,7 +121,7 @@ namespace MrHyDE {
     Teuchos::RCP<panzer_stk::STK_Interface> optimization_mesh; // Needs to be set manually (for now)
     Teuchos::RCP<AssemblyManager<Node> > assembler;
     Teuchos::RCP<ParameterManager<Node> > params;
-    Teuchos::RCP<SensorManager> sensors;
+    Teuchos::RCP<SensorManager<Node> > sensors;
     std::vector<Teuchos::RCP<FunctionManager> > functionManagers;
     Teuchos::RCP<MultiScale> multiscale_manager;
     
@@ -161,10 +161,10 @@ namespace MrHyDE {
   };
   
   // Explicit template instantiations
-  template class PostprocessManager<SolverNode>;
-  #if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
-    template class PostprocessManager<SubgridSolverNode>;
-  #endif
+  //template class PostprocessManager<SolverNode>;
+  //#if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
+  //  template class PostprocessManager<SubgridSolverNode>;
+  //#endif
 
 }
 

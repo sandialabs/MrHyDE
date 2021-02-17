@@ -18,6 +18,12 @@
 
 using namespace MrHyDE;
 
+// Explicit template instantiations
+template class MrHyDE::ParameterManager<SolverNode>;
+#if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
+  template class MrHyDE::ParameterManager<SubgridSolverNode>;
+#endif
+
 // ========================================================================================
 /* Constructor to set up the problem */
 // ========================================================================================

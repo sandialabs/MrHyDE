@@ -131,10 +131,10 @@ void SubGridFEM::setUpSubgridModels() {
   Kokkos::View<int****,HostDevice> sideinfo;
   
   vector<string> eBlocks;
+  Teuchos::RCP<discretization> tmp_disc = Teuchos::rcp(new discretization());
   
-  DRV refnodes("nodes on reference element",macroData[0]->macronodes.extent(1), dimension);
-  CellTools::getReferenceSubcellVertices(refnodes, dimension, 0, *macro_cellTopo);
-
+  DRV refnodes = tmp_disc->getReferenceNodes(macro_cellTopo);
+  
   SubGridTools sgt(LocalComm, macroshape, shape, refnodes,
                    macroData[0]->macrosideinfo, mesh_type, mesh_file);
   
@@ -143,7 +143,8 @@ void SubGridFEM::setUpSubgridModels() {
     
     sgt.createSubMesh(numrefine);
     
-    nodes = sgt.getListOfPhysicalNodes(macroData[0]->macronodes, macro_cellTopo);
+    Teuchos::RCP<discretization> tmp_disc = Teuchos::rcp( new discretization());
+    nodes = sgt.getListOfPhysicalNodes(macroData[0]->macronodes, macro_cellTopo, tmp_disc);
     
     int reps = macroData[0]->macronodes.extent(0);
     connectivity = sgt.getPhysicalConnectivity(reps);
@@ -331,7 +332,7 @@ void SubGridFEM::setUpSubgridModels() {
       
       newbcells.push_back(Teuchos::rcp(new BoundaryCell(cellData,currnodes,eIndex,sideIndex,
                                                         sideID, sidename, newbcells.size(),
-                                                        cellLIDs, sideinfo)));//, orient_drv)));
+                                                        cellLIDs, sideinfo, sub_disc)));//, orient_drv)));
       
       prog += currElem;
     }
@@ -339,7 +340,6 @@ void SubGridFEM::setUpSubgridModels() {
     
   }
   
-  sub_disc->setPhysicalData(cellData, newbcells);
   boundaryCells.push_back(newbcells);
   
   sub_assembler->boundaryCells = boundaryCells;
@@ -461,7 +461,8 @@ void SubGridFEM::setUpSubgridModels() {
     if (mindex > 0) {
     
       // Use the subgrid mesh interface to define new nodes
-      DRV newnodes = sgt.getPhysicalNodes(macroData[mindex]->macronodes, macro_cellTopo);
+      DRV newnodes = sgt.getPhysicalNodes(macroData[mindex]->macronodes,
+                                          macro_cellTopo, sub_disc);
       
       //DRV newnodes = sgt.getNewNodes(macroData[mindex]->macronodes);
       
@@ -519,7 +520,7 @@ void SubGridFEM::setUpSubgridModels() {
       }
       newcells.push_back(Teuchos::rcp(new cell(sub_assembler->cellData[0],
                                                newnodes, localID,
-                                               LIDs, subsideinfo)));
+                                               LIDs, subsideinfo, sub_disc)));
       
       //////////////////////////////////////////////////////////////
       // New boundary cells (more complicated than interior cells)
@@ -593,7 +594,7 @@ void SubGridFEM::setUpSubgridModels() {
         
         newbcells.push_back(Teuchos::rcp(new BoundaryCell(sub_assembler->cellData[0], currnodes,
                                                           localID, sideID, sidenum, unique_names[s],
-                                                          newbcells.size(), LIDs, subsideinfo)));//, orientation)));
+                                                          newbcells.size(), LIDs, subsideinfo, sub_disc)));//, orientation)));
         
       
         newbcells[s]->addAuxVars(macro_varlist);
@@ -603,8 +604,6 @@ void SubGridFEM::setUpSubgridModels() {
         newbcells[s]->wkset = wkset[0];
         
       }
-      sub_disc->setPhysicalData(sub_assembler->cellData[0], newcells);
-      sub_disc->setPhysicalData(sub_assembler->cellData[0], newbcells);
       
       cells.push_back(newcells);
       
@@ -761,7 +760,7 @@ void SubGridFEM::setUpSubgridModels() {
             }
             DRV sref_side_ip("sref_side_ip", sside_ip.extent(1), sside_ip.extent(2));
             DRV side_ip_e("side_ip_e",1, sside_ip.extent(1), sside_ip.extent(2));
-            DRV sref_side_ip_tmp("sref_side_ip_tmp",1, sside_ip.extent(1), sside_ip.extent(2));
+            //DRV sref_side_ip_tmp("sref_side_ip_tmp",1, sside_ip.extent(1), sside_ip.extent(2));
             DRV cnodes("tmp nodes",1,macroData[mindex]->macronodes.extent(1),
                        macroData[mindex]->macronodes.extent(2));
             
@@ -776,16 +775,18 @@ void SubGridFEM::setUpSubgridModels() {
                 auto cnodes0 = Kokkos::subview(cnodes,0,Kokkos::ALL(), Kokkos::ALL());
                 Kokkos::deep_copy(cnodes0,mnodes);
               
-                CellTools::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, cnodes, *macro_cellTopo);
+                DRV sref_side_ip_tmp = sub_disc->mapPointsToReference(side_ip_e,cnodes,macro_cellTopo);
+                //CellTools::mapToReferenceFrame(sref_side_ip_tmp, side_ip_e, cnodes, *macro_cellTopo);
                 auto sip_tmp0 = Kokkos::subview(sref_side_ip_tmp,0,Kokkos::ALL(),Kokkos::ALL());
                 Kokkos::deep_copy(sref_side_ip,sip_tmp0);
-              
+                
                 macro_basis_pointers[i]->getValues(basisvals, sref_side_ip, Intrepid2::OPERATOR_VALUE);
                 
-                FuncTools::HGRADtransformVALUE(basisvals_Transformed, basisvals);
+                //FuncTools::HGRADtransformVALUE(basisvals_Transformed, basisvals);
                 auto crefbasis = Kokkos::subview(refbasis[i],c,Kokkos::ALL(),Kokkos::ALL());
-                auto bvt0 = Kokkos::subview(basisvals_Transformed,0,Kokkos::ALL(),Kokkos::ALL());
-                Kokkos::deep_copy(crefbasis,bvt0);
+                //auto bvt0 = Kokkos::subview(basisvals_Transformed,0,Kokkos::ALL(),Kokkos::ALL());
+                //Kokkos::deep_copy(crefbasis,bvt0);
+                Kokkos::deep_copy(crefbasis,basisvals);
               }
             }
             int numIDs = numElem / mcount;
@@ -817,8 +818,9 @@ void SubGridFEM::setUpSubgridModels() {
                 }
               });
      
-              OrientTools::modifyBasisByOrientation(currside_basis[i], tmp_basis,
-                                                    corientation, macro_basis_pointers[i].get());
+              currside_basis[i] = sub_disc->applyOrientation(tmp_basis,corientation,macro_basis_pointers[i]);
+              //OrientTools::modifyBasisByOrientation(currside_basis[i], tmp_basis,
+              //                                      corientation, macro_basis_pointers[i].get());
                 
             }
 
@@ -1658,8 +1660,9 @@ void SubGridFEM::setupCombinedExodus() {
     //////////////////////////////////////////////////////////////
     
     // Create an initial mesh using the first macroelem
-    DRV refnodes("nodes on reference element",macroData[0]->macronodes.extent(1), dimension);
-    CellTools::getReferenceSubcellVertices(refnodes, dimension, 0, *macro_cellTopo);
+    //DRV refnodes("nodes on reference element",macroData[0]->macronodes.extent(1), dimension);
+    //CellTools::getReferenceSubcellVertices(refnodes, dimension, 0, *macro_cellTopo);
+    DRV refnodes = sub_disc->getReferenceNodes(macro_cellTopo);
     
     SubGridTools sgt(LocalComm, macroshape, shape, refnodes,//macroData[0]->macronodes,
                      macroData[0]->macrosideinfo, mesh_type, mesh_file);
@@ -1678,7 +1681,7 @@ void SubGridFEM::setupCombinedExodus() {
     size_t nprog = 0;
     for (size_t usernum=0; usernum<macroData.size(); usernum++) {
       //vector<vector<ScalarT> > nodes = sgt.getNodes(macroData[usernum]->macronodes);
-      Kokkos::View<ScalarT**,HostDevice> nodes = sgt.getListOfPhysicalNodes(macroData[usernum]->macronodes, macro_cellTopo);
+      Kokkos::View<ScalarT**,HostDevice> nodes = sgt.getListOfPhysicalNodes(macroData[usernum]->macronodes, macro_cellTopo, sub_disc);
       for (size_type n=0; n<nodes.extent(0); n++) {
         for (int s=0; s<dimension; s++) {
           comb_nodes(nprog+n,s) = nodes(n,s);
@@ -1982,8 +1985,9 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
           cells[usernum][e]->updateWorksetBasis();
           wkset[0]->time = time;
           wkset[0]->computeSolnSteadySeeded(cells[usernum][e]->u, 0);
+          wkset[0]->computeParamSteadySeeded(cells[usernum][e]->param, 0);
           wkset[0]->computeSolnVolIP();
-          wkset[0]->computeParamVolIP(cells[usernum][e]->param, 0);
+          wkset[0]->computeParamVolIP();
           
           Kokkos::View<ScalarT*,AssemblyDevice> cfields = sub_physics->getExtraCellFields(0, j, cells[usernum][e]->wts);
           
@@ -2130,7 +2134,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluate
     DRV nodes = cells[0][e]->nodes;
     for (int c=0; c<numElem;c++) {
       DRV refpts("refpts",1, numpts, dimpts);
-      Kokkos::DynRankView<int,PHX::Device> inRefCell("inRefCell",1,numpts);
+      //Kokkos::DynRankView<int,PHX::Device> inRefCell("inRefCell",1,numpts);
       DRV cnodes("current nodes",1,nodes.extent(1), nodes.extent(2));
       for (unsigned int i=0; i<nodes.extent(1); i++) {
         for (unsigned int j=0; j<nodes.extent(2); j++) {
@@ -2138,8 +2142,10 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluate
         }
       }
       
-      CellTools::mapToReferenceFrame(refpts, pts, cnodes, *(sub_mesh->cellTopo[0]));
-      CellTools::checkPointwiseInclusion(inRefCell, refpts, *(sub_mesh->cellTopo[0]), 1.0e-12);
+      Kokkos::DynRankView<int,PHX::Device> inRefCell = sub_disc->checkInclusionPhysicalData(pts,cnodes,
+                                                                                            sub_mesh->cellTopo[0], 1.0e-12);
+      //CellTools::mapToReferenceFrame(refpts, pts, cnodes, *(sub_mesh->cellTopo[0]));
+      //CellTools::checkPointwiseInclusion(inRefCell, refpts, *(sub_mesh->cellTopo[0]), 1.0e-12);
       for (size_t i=0; i<numpts; i++) {
         if (inRefCell(0,i) == 1) {
           owners(i,0) = e;//cells[0][e]->localElemID[c];
@@ -2156,7 +2162,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluate
   vector<DRV> ptsBasis;
   for (size_t i=0; i<numpts; i++) {
     vector<DRV> currBasis;
-    DRV refpt_buffer("refpt_buffer",1,1,dimpts);
+    //DRV refpt_buffer("refpt_buffer",1,1,dimpts);
     DRV cpt("cpt",1,1,dimpts);
     for (size_t s=0; s<dimpts; s++) {
       cpt(0,0,s) = pts(0,i,s);
@@ -2168,7 +2174,8 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluate
         cnodes(0,k,j) = nodes(owners(i,1),k,j);
       }
     }
-    CellTools::mapToReferenceFrame(refpt_buffer, cpt, cnodes, *(sub_mesh->cellTopo[0]));
+    DRV refpt_buffer = sub_disc->mapPointsToReference(cpt,cnodes,sub_mesh->cellTopo[0]);
+    //CellTools::mapToReferenceFrame(refpt_buffer, cpt, cnodes, *(sub_mesh->cellTopo[0]));
     DRV refpt("refpt",1,dimpts);
     Kokkos::deep_copy(refpt,Kokkos::subdynrankview(refpt_buffer,0,Kokkos::ALL(),Kokkos::ALL()));
     Kokkos::View<int**,AssemblyDevice> offsets = wkset[0]->offsets;

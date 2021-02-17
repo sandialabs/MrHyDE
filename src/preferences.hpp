@@ -16,10 +16,6 @@
 
 #include "PanzerCore_config.hpp"
 #include "Intrepid2_Basis.hpp"
-#include "Intrepid2_FunctionSpaceTools.hpp"
-#include "Intrepid2_CellTools.hpp"
-#include "Intrepid2_Orientation.hpp"
-#include "Intrepid2_OrientationTools.hpp"
 #include "Phalanx_DataLayout.hpp"
 
 using Kokkos::parallel_for;
@@ -130,10 +126,5 @@ typedef Kokkos::View<ScalarT****,AssemblyDevice> View_Sc4;
 // Intrepid and shards typedefs
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
 typedef Teuchos::RCP<Intrepid2::Basis<PHX::Device::execution_space, ScalarT, ScalarT > > basis_RCP;
-typedef Intrepid2::CellTools<PHX::Device::execution_space> CellTools;
-typedef Intrepid2::FunctionSpaceTools<PHX::Device::execution_space> FuncTools;
-typedef Intrepid2::OrientationTools<PHX::Device::execution_space> OrientTools;
-typedef Intrepid2::RealSpaceTools<PHX::Device::execution_space> RealTools;
-typedef Intrepid2::ArrayTools<PHX::Device::execution_space> ArrayTools;
 
 #endif

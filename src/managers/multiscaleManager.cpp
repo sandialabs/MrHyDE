@@ -117,7 +117,7 @@ ScalarT MultiScale::initialize() {
         
         cells[b][e]->updateWorksetBasis();
         macro_wkset[b]->computeSolnSteadySeeded(cells[b][e]->u, 0);
-        macro_wkset[b]->computeParamVolIP(cells[b][e]->param, 0);
+        macro_wkset[b]->computeParamSteadySeeded(cells[b][e]->param, 0);
         cells[b][e]->computeSolnVolIP();
         
         vector<int> sgvotes(subgridModels.size(),0);
@@ -283,7 +283,7 @@ ScalarT MultiScale::update() {
           
           cells[b][e]->updateWorksetBasis();
           macro_wkset[b]->computeSolnSteadySeeded(cells[b][e]->u, 0);
-          macro_wkset[b]->computeParamVolIP(cells[b][e]->param, 0);
+          macro_wkset[b]->computeParamSteadySeeded(cells[b][e]->param, 0);
           cells[b][e]->computeSolnVolIP();
           
           vector<int> sgvotes(subgridModels.size(),0);

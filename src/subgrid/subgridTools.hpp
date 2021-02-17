@@ -16,6 +16,7 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
+#include "discretizationInterface.hpp"
 #include "Panzer_STK_MeshFactory.hpp"
 #include "Panzer_STK_LineMeshFactory.hpp"
 #include "Panzer_STK_SquareQuadMeshFactory.hpp"
@@ -1248,10 +1249,13 @@ namespace MrHyDE {
     // Get the sub-grid nodes as a list: output is (Nnodes x dimension)
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<ScalarT**,HostDevice> getListOfPhysicalNodes(DRV newmacronodes, topo_RCP & macro_topo) {
+    Kokkos::View<ScalarT**,HostDevice> getListOfPhysicalNodes(DRV newmacronodes, topo_RCP & macro_topo,
+                                                              Teuchos::RCP<discretization> & disc) {
       
-      DRV newnodes("nodes on phys elem", newmacronodes.extent(0), subnodes_list.extent(0), dimension);
-      CellTools::mapToPhysicalFrame(newnodes, subnodes_list, newmacronodes, *macro_topo);
+      //DRV newnodes("nodes on phys elem", newmacronodes.extent(0), subnodes_list.extent(0), dimension);
+      //CellTools::mapToPhysicalFrame(newnodes, subnodes_list, newmacronodes, *macro_topo);
+      DRV newnodes = disc->mapPointsToPhysical(subnodes_list, newmacronodes, macro_topo);
+      
       auto newnodes_host = Kokkos::create_mirror_view(newnodes);
       Kokkos::deep_copy(newnodes_host,newnodes);
       
@@ -1274,10 +1278,12 @@ namespace MrHyDE {
     // Get the sub-grid nodes on each element: output is (Nelem x Nnperelem x dimension)
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    DRV getPhysicalNodes(DRV newmacronodes, topo_RCP & macro_topo) {
+    DRV getPhysicalNodes(DRV newmacronodes, topo_RCP & macro_topo,
+                         Teuchos::RCP<discretization> & disc) {
       
-      DRV newnodes("nodes on phys elem", newmacronodes.extent(0), subnodes_list.extent(0), subnodes_list.extent(1));
-      CellTools::mapToPhysicalFrame(newnodes, subnodes_list, newmacronodes, *macro_topo);
+      //DRV newnodes("nodes on phys elem", newmacronodes.extent(0), subnodes_list.extent(0), subnodes_list.extent(1));
+      //CellTools::mapToPhysicalFrame(newnodes, subnodes_list, newmacronodes, *macro_topo);
+      DRV newnodes = disc->mapPointsToPhysical(subnodes_list, newmacronodes, macro_topo);
       auto newnodes_host = Kokkos::create_mirror_view(newnodes);
       Kokkos::deep_copy(newnodes_host, newnodes);
       

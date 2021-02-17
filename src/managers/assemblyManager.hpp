@@ -164,6 +164,15 @@ namespace MrHyDE {
                  LIDViewType LIDs, LIDViewType paramLIDs,
                  const bool & compute_jacobian, const bool & compute_disc_sens);
 
+    template<class MatType, class VecViewType, class LIDViewType>
+    void scatter(MatType J_kcrs, VecViewType res_view,
+                 LIDViewType LIDs, LIDViewType paramLIDs,
+                 const int & block,
+                 const bool & compute_jacobian,
+                 const bool & compute_sens,
+                 const bool & compute_disc_sens,
+                 const bool & isAdjoint);
+    
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Public data members
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -181,14 +190,14 @@ namespace MrHyDE {
     Teuchos::RCP<physics> phys;
     
     size_t globalParamUnknowns;
-    int verbosity, milo_debug_level;
+    int verbosity, debug_level;
     
     std::vector<Teuchos::RCP<CellMetaData> > cellData;
     std::vector<std::vector<Teuchos::RCP<cell> > > cells;
     std::vector<std::vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
     std::vector<Teuchos::RCP<workset> > wkset;
     
-    bool usestrongDBCs, use_meas_as_dbcs, multiscale, isTransient, use_atomics, fix_zero_rows;
+    bool usestrongDBCs, use_meas_as_dbcs, multiscale, isTransient, fix_zero_rows;
     std::string assembly_partitioning;
     std::vector<bool> assemble_volume_terms, assemble_boundary_terms, assemble_face_terms; // use basis functions in assembly
     std::vector<bool> build_volume_terms, build_boundary_terms, build_face_terms; // set up basis function
@@ -211,11 +220,6 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> wksettimer = Teuchos::TimeMonitor::getNewCounter("MILO::assembly::createWorkset()");
     
   };
-  
-  template class AssemblyManager<SolverNode>;
-  #if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
-    template class AssemblyManager<SubgridSolverNode>;
-  #endif
   
 }
 

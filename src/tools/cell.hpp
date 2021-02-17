@@ -19,7 +19,7 @@
 #include "workset.hpp"
 #include "subgridModel.hpp"
 #include "cellMetaData.hpp"
-//#include "discretizationInterface.hpp"
+#include "discretizationInterface.hpp"
 
 #include <iostream>     
 #include <iterator>     
@@ -43,9 +43,9 @@ namespace MrHyDE {
          const DRV nodes_,
          const Kokkos::View<LO*,AssemblyDevice> localID_,
          LIDView LIDs_,
-         Kokkos::View<int****,HostDevice> sideinfo_);
-         //Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation_);
-    
+         Kokkos::View<int****,HostDevice> sideinfo_,
+         Teuchos::RCP<discretization> & disc_);
+         
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
@@ -242,17 +242,6 @@ namespace MrHyDE {
     View_AD3 computeWeight(const ScalarT & solvetime);
     
     ///////////////////////////////////////////////////////////////////////////////////////
-    // Add sensor information
-    ///////////////////////////////////////////////////////////////////////////////////////
-    /*
-    void addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, const ScalarT & sensor_loc_tol,
-                    const vector<Kokkos::View<ScalarT**,HostDevice> > & sensor_data, const bool & have_sensor_data,
-                    Teuchos::RCP<discretization> & disc,
-                    const vector<basis_RCP> & basis_pointers,
-                    const vector<basis_RCP> & param_basis_pointers);
-    */
-    
-    ///////////////////////////////////////////////////////////////////////////////////////
     // Subgrid Plotting
     ///////////////////////////////////////////////////////////////////////////////////////
     
@@ -327,12 +316,15 @@ namespace MrHyDE {
     vector<size_t> subgrid_model_index; // which subgrid model is used for each time step
     size_t subgrid_usernum; // what is the index for this cell in the subgrid model (should be deprecated)
     
+    Teuchos::RCP<discretization> disc;
+    
     // Data created here (Views should all be AssemblyDevice)
     size_t numElem;
     View_Sc3 ip; // numElem x numip x dimension
     View_Sc2 wts; // numElem x numip
     vector<View_Sc3> ip_face, normals_face; // numElem x numip x dimension
     vector<View_Sc2 > wts_face; // numElem x numip
+    vector<View_Sc1> hsize_face;
     
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
     View_Sc3 u, phi, aux, param; // (elem,var,numdof)

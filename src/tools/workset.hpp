@@ -99,7 +99,7 @@ namespace MrHyDE {
     // Compute the discretized parameters at the volumetric ip
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void computeParamVolIP(View_Sc3 param, const int & seedwhat);
+    void computeParamVolIP();
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Compute the solutions at the side ip
@@ -111,7 +111,7 @@ namespace MrHyDE {
     // Compute the discretized parameters at the side ip
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void computeParamSideIP(const int & side, View_Sc3 param, const int & seedwhat);
+    void computeParamSideIP();
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Compute the solutions at the side ip

@@ -1356,17 +1356,21 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM_Solver::e
     int numElem = assembler->cells[0][e]->numElem;
     DRV nodes = assembler->cells[0][e]->nodes;
     for (int c=0; c<numElem;c++) {
-      DRV refpts("refpts",1, numpts, dimpts);
-      Kokkos::DynRankView<int,PHX::Device> inRefCell("inRefCell",1,numpts);
+      //DRV refpts("refpts",1, numpts, dimpts);
+      //Kokkos::DynRankView<int,PHX::Device> inRefCell("inRefCell",1,numpts);
       DRV cnodes("current nodes",1,nodes.extent(1), nodes.extent(2));
-      for (unsigned int i=0; i<nodes.extent(1); i++) {
-        for (unsigned int j=0; j<nodes.extent(2); j++) {
-          cnodes(0,i,j) = nodes(c,i,j);
-        }
-      }
+      auto tmp0 = subview(cnodes,0,ALL(),ALL());
+      auto tmp1 = subview(nodes,c,ALL(),ALL());
+      Kokkos::deep_copy(tmp0,tmp1);
+      //for (unsigned int i=0; i<nodes.extent(1); i++) {
+      //  for (unsigned int j=0; j<nodes.extent(2); j++) {
+      //    cnodes(0,i,j) = nodes(c,i,j);
+      //  }
+      //}
       
-      CellTools::mapToReferenceFrame(refpts, pts, cnodes, *(milo_solver->mesh->cellTopo[0]));
-      CellTools::checkPointwiseInclusion(inRefCell, refpts, *(milo_solver->mesh->cellTopo[0]), 1.0e-12);
+      Kokkos::DynRankView<int,PHX::Device> inRefCell = milo_solver->disc->checkInclusionPhysicalData(pts, cnodes, milo_solver->mesh->cellTopo[0], 1.0e-12);
+      //CellTools::mapToReferenceFrame(refpts, pts, cnodes, *(milo_solver->mesh->cellTopo[0]));
+      //CellTools::checkPointwiseInclusion(inRefCell, refpts, *(milo_solver->mesh->cellTopo[0]), 1.0e-12);
       for (size_t i=0; i<numpts; i++) {
         if (inRefCell(0,i) == 1) {
           owners(i,0) = e;//cells[0][e]->localElemID[c];
@@ -1383,19 +1387,26 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM_Solver::e
   vector<DRV> ptsBasis;
   for (size_t i=0; i<numpts; i++) {
     vector<DRV> currBasis;
-    DRV refpt_buffer("refpt_buffer",1,1,dimpts);
+    //DRV refpt_buffer("refpt_buffer",1,1,dimpts);
     DRV cpt("cpt",1,1,dimpts);
-    for (size_t s=0; s<dimpts; s++) {
-      cpt(0,0,s) = pts(0,i,s);
-    }
+    auto tmp0 = subview(cpt,0,0,ALL());
+    auto tmp1 = subview(pts,0,i,ALL());
+    Kokkos::deep_copy(tmp0,tmp1);
+    //for (size_t s=0; s<dimpts; s++) {
+    //  cpt(0,0,s) = pts(0,i,s);
+    //}
     DRV nodes = assembler->cells[0][owners(i,0)]->nodes;
     DRV cnodes("current nodes",1,nodes.extent(1), nodes.extent(2));
-    for (unsigned int k=0; k<nodes.extent(1); k++) {
-      for (unsigned int j=0; j<nodes.extent(2); j++) {
-        cnodes(0,k,j) = nodes(owners(i,1),k,j);
-      }
-    }
-    CellTools::mapToReferenceFrame(refpt_buffer, cpt, cnodes, *(milo_solver->mesh->cellTopo[0]));
+    auto tmp2 = subview(cnodes,0,ALL(),ALL());
+    auto tmp3 = subview(nodes,owners(i,1),ALL(),ALL());
+    Kokkos::deep_copy(tmp2,tmp3);
+    //for (unsigned int k=0; k<nodes.extent(1); k++) {
+    //  for (unsigned int j=0; j<nodes.extent(2); j++) {
+    //    cnodes(0,k,j) = nodes(owners(i,1),k,j);
+    //  }
+    //}
+    DRV refpt_buffer = milo_solver->disc->mapPointsToReference(cpt,cnodes,milo_solver->mesh->cellTopo[0]);
+    //CellTools::mapToReferenceFrame(refpt_buffer, cpt, cnodes, *(milo_solver->mesh->cellTopo[0]));
     DRV refpt("refpt",1,dimpts);
     Kokkos::deep_copy(refpt,Kokkos::subdynrankview(refpt_buffer,0,Kokkos::ALL(),Kokkos::ALL()));
     Kokkos::View<int**,AssemblyDevice> offsets = assembler->wkset[0]->offsets;
@@ -1403,9 +1414,14 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM_Solver::e
     DRV basisvals("basisvals",offsets.extent(0),numLIDs);
     for (size_t n=0; n<offsets.extent(0); n++) {
       DRV bvals = milo_solver->disc->evaluateBasis(milo_solver->disc->basis_pointers[0][usebasis[n]], refpt);
-      for (size_t m=0; m<offsets.extent(1); m++) {
-        basisvals(n,offsets(n,m)) = bvals(0,m,0);
-      }
+      auto tmpb0 = subview(basisvals,n,ALL());
+      auto tmpb1 = subview(bvals,0,ALL(),0);
+      auto off = subview(offsets,n,ALL());
+      parallel_for("ODE volume resid",
+                   RangePolicy<AssemblyExec>(0,off.extent(0)),
+                   KOKKOS_LAMBDA (const int m ) {
+        tmpb0(off(m)) = tmpb1(m);
+      });
     }
     ptsBasis.push_back(basisvals);
     

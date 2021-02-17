@@ -35,6 +35,7 @@ cellTopo(cellTopo_) {
   loadSensorFiles = settings->sublist("Analysis").get<bool>("Load Sensor Files",false);
   writeSensorFiles = settings->sublist("Analysis").get<bool>("Write Sensor Files",false);
   mortar_objective = settings->sublist("Solver").get<bool>("Use Mortar Objective",false);
+  storeAll = settings->sublist("Solver").get<bool>("store all cell data",true);
   
   //if (settings->sublist("Postprocess").get<bool>("write solution", false)) {
     compute_sol_avg = true;

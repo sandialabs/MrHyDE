@@ -18,6 +18,11 @@
 
 using namespace MrHyDE;
 
+template class MrHyDE::AssemblyManager<SolverNode>;
+#if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
+  template class MrHyDE::AssemblyManager<SubgridSolverNode>;
+#endif
+
 // ========================================================================================
 /* Constructor to set up the problem */
 // ========================================================================================
@@ -31,9 +36,9 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_),
 params(params_), numElemPerCell(numElemPerCell_) {
   
   // Get the required information from the settings
-  milo_debug_level = settings->get<int>("debug level",0);
+  debug_level = settings->get<int>("debug level",0);
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting assembly manager constructor ..." << endl;
     }
@@ -50,10 +55,12 @@ params(params_), numElemPerCell(numElemPerCell_) {
   assembly_partitioning = settings->sublist("Solver").get<string>("assembly partitioning","sequential"); // "neighbor-avoiding"
   
   // TMW: Do we really want the user to have control over this?  Probably not ... redefining if on Cuda
-  use_atomics = settings->sublist("Solver").get<bool>("use atomics",false); // not needed if assembly partitioning is done correctly
-#if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
-  use_atomics = true;
-#endif
+  //use_atomics = settings->sublist("Solver").get<bool>("use atomics",false); // not needed if assembly partitioning is done correctly
+  #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+    #define use_atomics true
+  #else
+    #define use_atomics false
+  #endif
   string solver_type = settings->sublist("Solver").get<string>("solver","none"); // or "transient"
   isTransient = false;
   if (solver_type == "transient") {
@@ -139,7 +146,7 @@ params(params_), numElemPerCell(numElemPerCell_) {
   
   this->createFixedDOFs();
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished assembly manager constructor" << endl;
     }
@@ -154,7 +161,7 @@ params(params_), numElemPerCell(numElemPerCell_) {
 template<class Node>
 void AssemblyManager<Node>::createFixedDOFs() {
 
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::createFixedDOFs ... " << endl;
     }
@@ -193,7 +200,7 @@ void AssemblyManager<Node>::createFixedDOFs() {
     fixedDOF.push_back(block_dofs);
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished AssemblyManager::createFixedDOFs" << endl;
     }
@@ -209,7 +216,7 @@ void AssemblyManager<Node>::createCells() {
   
   Teuchos::TimeMonitor localtimer(*celltimer);
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::createCells ..." << endl;
     }
@@ -318,7 +325,7 @@ void AssemblyManager<Node>::createCells() {
           Kokkos::View<int****,HostDevice> sideinfo = disc->getSideInfo(b,host_eIndex2);
           
           blockcells.push_back(Teuchos::rcp(new cell(blockCellData, currnodes, eIndex,
-                                                     cellLIDs, sideinfo)));
+                                                     cellLIDs, sideinfo, disc)));
           prog += elemPerCell;
         }
       }
@@ -427,42 +434,16 @@ void AssemblyManager<Node>::createCells() {
                 //-----------------------------------------------
                 // Set the side information (soon to be removed)-
                 Kokkos::View<int****,HostDevice> sideinfo = disc->getSideInfo(b,host_eIndex2);
-                //-----------------------------------------------
-                
-                // Set the cell orientation ---
-                /*
-                Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices",
-                                                                                currElem, numNodesPerElem);
-                
-                auto host_currind = Kokkos::create_mirror_view(currind);
-                
-                for (size_t i=0; i<currElem; i++) {
-                  vector<stk::mesh::EntityId> stk_nodeids;
-                  size_t elemID = host_eIndex(i);
-                  mesh->getNodeIdsForElement(all_meshElems[elemID], stk_nodeids);
-                  for (int n=0; n<numNodesPerElem; n++) {
-                    host_currind(i,n) = stk_nodeids[n];
-                  }
-                }
-                Kokkos::deep_copy(currind, host_currind);
-                
-                Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orient_drv("kv to orients",currElem);
-                OrientTools::getOrientation(orient_drv, currind, *cellTopo);
-                */
                 
                 bcells.push_back(Teuchos::rcp(new BoundaryCell(blockCellData, currnodes, eIndex, sideIndex,
                                                                side, sideName, bcells.size(),
-                                                               cellLIDs, sideinfo)));//, orient_drv)));
+                                                               cellLIDs, sideinfo, disc)));//, orient_drv)));
                 prog += currElem;
               }
             }
           }
         }
       }
-      
-      disc->setPhysicalData(blockCellData, blockcells);
-      disc->setPhysicalData(blockCellData, bcells);
-      
     }
     
     
@@ -472,7 +453,7 @@ void AssemblyManager<Node>::createCells() {
     
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished AssemblyManager::createCells" << endl;
     }
@@ -488,7 +469,7 @@ void AssemblyManager<Node>::createWorkset() {
   
   Teuchos::TimeMonitor localtimer(*wksettimer);
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::createWorkset ..." << endl;
     }
@@ -525,7 +506,7 @@ void AssemblyManager<Node>::createWorkset() {
   //phys->setWorkset(wkset);
   //params->wkset = wkset;
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished AssemblyManager::createWorkset" << endl;
     }
@@ -593,7 +574,7 @@ void AssemblyManager<Node>::setInitial(vector_RCP & rhs, matrix_RCP & mass, cons
   
   Teuchos::TimeMonitor localtimer(*setinittimer);
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::setInitial ..." << endl;
     }
@@ -641,7 +622,7 @@ void AssemblyManager<Node>::setInitial(vector_RCP & rhs, matrix_RCP & mass, cons
   
   mass->fillComplete();
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished AssemblyManager::setInitial ..." << endl;
     }
@@ -685,7 +666,7 @@ void AssemblyManager<Node>::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
   
   Teuchos::TimeMonitor localtimer(*setdbctimer);
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::setDirichlet ..." << endl;
     }
@@ -764,7 +745,7 @@ void AssemblyManager<Node>::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
   
   mass->fillComplete();
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished AssemblyManager::setDirichlet ..." << endl;
     }
@@ -788,7 +769,7 @@ void AssemblyManager<Node>::assembleJacRes(vector_RCP & u, vector_RCP & phi,
                                      vector_RCP & Psol, const bool & is_final_time,
                                      const ScalarT & deltat) {
   
-  if (milo_debug_level > 1) {
+  if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "******** Starting AssemblyManager::assembleJacRes ..." << endl;
     }
@@ -817,7 +798,7 @@ void AssemblyManager<Node>::assembleJacRes(vector_RCP & u, vector_RCP & phi,
     }
   }
   
-  if (milo_debug_level > 1) {
+  if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "******** Finished AssemblyManager::assembleJacRes" << endl;
     }
@@ -862,6 +843,13 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
     }
   }
   
+  // Determine if we can use the reduced memory version of assembly
+  // This is the preferred approach, but not features are enabled yet
+  bool reduce_memory = true;
+  if (!data_avail || useadjoint || cellData[b]->multiscale) {
+    reduce_memory = false;
+  }
+  
   //////////////////////////////////////////////////////////////////////////////////////
   // Set up the worksets and allocate the local residual and Jacobians
   //////////////////////////////////////////////////////////////////////////////////////
@@ -891,26 +879,29 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
   // Optimizing layout for AssemblyExec
   Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J;
   
-  if (compute_sens) {
-    local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual on device",numElem,numDOF,num_active_params);
+  if (!reduce_memory) {
+    if (compute_sens) {
+      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual on device",numElem,numDOF,num_active_params);
+    }
+    else {
+      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual on device",numElem,numDOF,1);
+    }
+    
+    if (compute_disc_sens) {
+      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian on device",numElem,numDOF,numParamDOF);
+    }
+    else { // note that this does increase memory as numElem increases
+      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian on device",numElem,numDOF,numDOF);
+    }
   }
-  else {
-    local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual on device",numElem,numDOF,1);
-  }
-  
-  if (compute_disc_sens) {
-    local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian on device",numElem,numDOF,numParamDOF);
-  }
-  else { // note that this does increase memory as numElem increases
-    local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian on device",numElem,numDOF,numDOF);
-  }
-  
   auto local_res_ladev = create_mirror(LA_exec(),local_res);
   auto local_J_ladev = create_mirror(LA_exec(),local_J);
   
   /////////////////////////////////////////////////////////////////////////////
   // Volume contribution
   /////////////////////////////////////////////////////////////////////////////
+  
+  // Note: Cannot parallelize over cells since data structures are re-used
   
   for (size_t e=0; e < cells[b].size(); e++) {
 
@@ -929,47 +920,160 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
     // Compute the local residual and Jacobian on this cell
     /////////////////////////////////////////////////////////////////////////////
     
+    bool fixJacDiag = false;
+    
     {
       Teuchos::TimeMonitor localtimer(*phystimer);
-      Kokkos::deep_copy(local_res,0.0);
-      Kokkos::deep_copy(local_J,0.0);
       
-      cells[b][e]->computeJacRes(current_time, isTransient, useadjoint, compute_jacobian, compute_sens,
-                                 num_active_params, compute_disc_sens, false, store_adjPrev,
-                                 local_res, local_J, assemble_volume_terms[b], assemble_face_terms[b]);
+      wkset[b]->resetResidual();
+      
+      if (useadjoint) {
+        wkset[b]->resetAdjointRHS();
+      }
+      
+      //////////////////////////////////////////////////////////////
+      // Compute the AD-seeded solutions at integration points
+      //////////////////////////////////////////////////////////////
+      
+      int seedwhat = 0;
+      if (compute_jacobian) {
+        if (compute_disc_sens) {
+          seedwhat = 3;
+        }
+        else {
+          seedwhat = 1;
+        }
+      }
+      
+      if (!(cellData[b]->multiscale)) {
+        if (isTransient) {
+          wkset[b]->computeSolnTransientSeeded(cells[b][e]->u,
+                                               cells[b][e]->u_prev,
+                                               cells[b][e]->u_stage,
+                                               seedwhat);
+        }
+        else { // steady-state
+          wkset[b]->computeSolnSteadySeeded(cells[b][e]->u, seedwhat);
+        }
+        if (wkset[b]->numParams > 0) {
+          wkset[b]->computeParamSteadySeeded(cells[b][e]->param, seedwhat);
+        }
+      }
+      Kokkos::fence();
+      
+      //////////////////////////////////////////////////////////////
+      // Compute res and J=dF/du
+      //////////////////////////////////////////////////////////////
+      
+      // Volumetric contribution
+      if (assemble_volume_terms[b]) {
+        if (cellData[b]->multiscale) {
+          int sgindex = cells[b][e]->subgrid_model_index[cells[b][e]->subgrid_model_index.size()-1];
+          cells[b][e]->subgridModels[sgindex]->subgridSolver(cells[b][e]->u, cells[b][e]->phi, wkset[b]->time, isTransient, useadjoint,
+                                                             compute_jacobian, compute_sens, num_active_params,
+                                                             compute_disc_sens, false,
+                                                             *(wkset[b]), cells[b][e]->subgrid_usernum, 0,
+                                                             cells[b][e]->subgradient, store_adjPrev);
+          fixJacDiag = true;
+        }
+        else {
+          cells[b][e]->computeSolnVolIP();
+          phys->volumeResidual(b);
+        }
+      }
+      Kokkos::fence();
+      
+      ///////////////////////////////////////////////////////////////////////////
+      // Edge/face contribution
+      ///////////////////////////////////////////////////////////////////////////
+      
+      if (assemble_face_terms[b]) {
+        if (cellData[b]->multiscale) {
+          // do nothing
+        }
+        else {
+          for (size_t s=0; s<cellData[b]->numSides; s++) {
+            cells[b][e]->computeSolnFaceIP(s);
+            phys->faceResidual(b);
+          }
+        }
+      }
       
     }
-    
+        
     ///////////////////////////////////////////////////////////////////////////
     // Scatter into global matrix/vector
     ///////////////////////////////////////////////////////////////////////////
     
-    if (data_avail) {
-      this->scatter(J_kcrs, res_view, local_res, local_J,
-                   cells[b][e]->LIDs, cells[b][e]->paramLIDs,
-                   compute_jacobian, compute_disc_sens);
+    if (reduce_memory) { // skip local_res and local_J
+      this->scatter(J_kcrs, res_view,
+                    cells[b][e]->LIDs, cells[b][e]->paramLIDs, b,
+                    compute_jacobian, compute_sens, compute_disc_sens, useadjoint);
     }
-    else {
-      Kokkos::deep_copy(local_J_ladev,local_J);
-      Kokkos::deep_copy(local_res_ladev,local_res);
+    else { // fill local_res and local_J and then scatter
+    
+      Kokkos::deep_copy(local_res,0.0);
+      Kokkos::deep_copy(local_J,0.0);
       
-      if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-        this->scatter(J_kcrs, res_view, local_res_ladev, local_J_ladev,
-                      cells[b][e]->LIDs_host, cells[b][e]->paramLIDs_host,
-                      compute_jacobian, compute_disc_sens);
+      // Use AD residual to update local Jacobian
+      if (compute_jacobian) {
+        if (compute_disc_sens) {
+          cells[b][e]->updateParamJac(local_J);
+        }
+        else {
+          cells[b][e]->updateJac(useadjoint, local_J);
+        }
       }
-      else { // LA_device = CUDA, AssemblyDevice = Host
-        // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
-        auto LIDs_dev = Kokkos::create_mirror(LA_exec(), cells[b][e]->LIDs);
-        auto paramLIDs_dev = Kokkos::create_mirror(LA_exec(), cells[b][e]->paramLIDs);
-        Kokkos::deep_copy(LIDs_dev,cells[b][e]->LIDs);
-        Kokkos::deep_copy(paramLIDs_dev,cells[b][e]->paramLIDs);
+      
+      if (compute_jacobian && fixJacDiag) {
+        cells[b][e]->fixDiagJac(local_J, local_res);
+      }
+      
+      // Update the local residual
+      if (useadjoint) {
+        cells[b][e]->updateAdjointRes(compute_sens, local_res);
+      }
+      else {
+        cells[b][e]->updateRes(compute_sens, local_res);
+      }
+      
+      if (useadjoint) {
+        cells[b][e]->updateAdjointRes(compute_jacobian, isTransient,
+                                      false, store_adjPrev,
+                                      local_J, local_res);
         
-        this->scatter(J_kcrs, res_view, local_res_ladev, local_J_ladev,
-                      LIDs_dev, paramLIDs_dev,
-                      compute_jacobian, compute_disc_sens);
+        
       }
       
+      // Now scatter from local_res and local_J
+      
+      if (data_avail) {
+        this->scatter(J_kcrs, res_view, local_res, local_J,
+                      cells[b][e]->LIDs, cells[b][e]->paramLIDs,
+                      compute_jacobian, compute_disc_sens);
+      }
+      else {
+        Kokkos::deep_copy(local_J_ladev,local_J);
+        Kokkos::deep_copy(local_res_ladev,local_res);
+        
+        if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
+          this->scatter(J_kcrs, res_view, local_res_ladev, local_J_ladev,
+                        cells[b][e]->LIDs_host, cells[b][e]->paramLIDs_host,
+                        compute_jacobian, compute_disc_sens);
+        }
+        else { // LA_device = CUDA, AssemblyDevice = Host
+          // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
+          auto LIDs_dev = Kokkos::create_mirror(LA_exec(), cells[b][e]->LIDs);
+          auto paramLIDs_dev = Kokkos::create_mirror(LA_exec(), cells[b][e]->paramLIDs);
+          Kokkos::deep_copy(LIDs_dev,cells[b][e]->LIDs);
+          Kokkos::deep_copy(paramLIDs_dev,cells[b][e]->paramLIDs);
+          
+          this->scatter(J_kcrs, res_view, local_res_ladev, local_J_ladev,
+                        LIDs_dev, paramLIDs_dev,
+                        compute_jacobian, compute_disc_sens);
+        }
+        
+      }
     }
     
   } // element loop
@@ -980,20 +1084,21 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
   
   if (!cells[b][0]->cellData->multiscale && assemble_boundary_terms[b]) {
     
-    if (compute_sens) {
-      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,num_active_params);
+    if (!reduce_memory) {
+      if (compute_sens) {
+        local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,num_active_params);
+      }
+      else {
+        local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,1);
+      }
+      
+      if (compute_disc_sens) {
+        local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numParamDOF);
+      }
+      else {
+        local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numDOF);
+      }
     }
-    else {
-      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,1);
-    }
-    
-    if (compute_disc_sens) {
-      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numParamDOF);
-    }
-    else {
-      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numDOF);
-    }
-    
     auto local_res_ladev = create_mirror(LA_exec(),local_res);
     auto local_J_ladev = create_mirror(LA_exec(),local_J);
     
@@ -1008,13 +1113,38 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
         
         {
           Teuchos::TimeMonitor localtimer(*phystimer);
+          wkset[b]->sidename = boundaryCells[b][e]->sidename;
+          wkset[b]->currentside = boundaryCells[b][e]->sidenum;
           
-          Kokkos::deep_copy(local_res,0.0);
-          Kokkos::deep_copy(local_J,0.0);
+          int seedwhat = 0;
+          if (compute_jacobian) {
+            if (compute_disc_sens) {
+              seedwhat = 3;
+            }
+            else {
+              seedwhat = 1;
+            }
+          }
           
-          boundaryCells[b][e]->computeJacRes(current_time, isTransient, useadjoint, compute_jacobian, compute_sens,
-                                             num_active_params, compute_disc_sens, false, store_adjPrev,
-                                             local_res, local_J);
+          if (isTransient) {
+            wkset[b]->computeSolnTransientSeeded(boundaryCells[b][e]->u,
+                                                 boundaryCells[b][e]->u_prev,
+                                                 boundaryCells[b][e]->u_stage,
+                                                 seedwhat);
+          }
+          else { // steady-state
+            wkset[b]->computeSolnSteadySeeded(boundaryCells[b][e]->u, seedwhat);
+          }
+          if (wkset[b]->numParams > 0) {
+            wkset[b]->computeParamSteadySeeded(boundaryCells[b][e]->param, seedwhat);
+          }
+        
+          boundaryCells[b][e]->updateWorksetBasis();
+          boundaryCells[b][e]->computeSoln(seedwhat);
+          
+          wkset[b]->resetResidual();
+          
+          phys->boundaryResidual(b);
           
         }
         
@@ -1022,32 +1152,61 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
         // Scatter into global matrix/vector
         ///////////////////////////////////////////////////////////////////////////
         
-        if (data_avail) {
-          this->scatter(J_kcrs, res_view, local_res, local_J,
-                       boundaryCells[b][e]->LIDs, boundaryCells[b][e]->paramLIDs,
-                       compute_jacobian, compute_disc_sens);
+        if (reduce_memory) { // skip local_res and local_J
+          this->scatter(J_kcrs, res_view,
+                        boundaryCells[b][e]->LIDs, boundaryCells[b][e]->paramLIDs, b,
+                        compute_jacobian, compute_sens, compute_disc_sens, useadjoint);
         }
-        else {
-          Kokkos::deep_copy(local_J_ladev,local_J);
-          Kokkos::deep_copy(local_res_ladev,local_res);
+        else { // fill local_res and local_J and then scatter
+        
+          Kokkos::deep_copy(local_res,0.0);
+          Kokkos::deep_copy(local_J,0.0);
+        
+          // Use AD residual to update local Jacobian
+          if (compute_jacobian) {
+            if (compute_disc_sens) {
+              boundaryCells[b][e]->updateParamJac(local_J);
+            }
+            else {
+              boundaryCells[b][e]->updateJac(useadjoint, local_J);
+            }
+          }
           
-          if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-            this->scatter(J_kcrs, res_view, local_res_ladev, local_J_ladev,
-                          boundaryCells[b][e]->LIDs_host, boundaryCells[b][e]->paramLIDs_host,
+          // Update the local residual (forward mode)
+          if (useadjoint) {
+            boundaryCells[b][e]->updateAdjointRes(compute_sens, local_res);
+          }
+          else {
+            boundaryCells[b][e]->updateRes(compute_sens, local_res);
+          }
+         
+          if (data_avail) {
+            this->scatter(J_kcrs, res_view, local_res, local_J,
+                          boundaryCells[b][e]->LIDs, boundaryCells[b][e]->paramLIDs,
                           compute_jacobian, compute_disc_sens);
           }
-          else { // LA_device = CUDA, AssemblyDevice = Host
-            // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
-            auto LIDs_dev = Kokkos::create_mirror(LA_exec(), boundaryCells[b][e]->LIDs);
-            auto paramLIDs_dev = Kokkos::create_mirror(LA_exec(), boundaryCells[b][e]->paramLIDs);
-            Kokkos::deep_copy(LIDs_dev,boundaryCells[b][e]->LIDs);
-            Kokkos::deep_copy(paramLIDs_dev,boundaryCells[b][e]->paramLIDs);
+          else {
+            Kokkos::deep_copy(local_J_ladev,local_J);
+            Kokkos::deep_copy(local_res_ladev,local_res);
             
-            this->scatter(J_kcrs, res_view, local_res_ladev, local_J_ladev,
-                          LIDs_dev, paramLIDs_dev,
-                          compute_jacobian, compute_disc_sens);
+            if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
+              this->scatter(J_kcrs, res_view, local_res_ladev, local_J_ladev,
+                            boundaryCells[b][e]->LIDs_host, boundaryCells[b][e]->paramLIDs_host,
+                            compute_jacobian, compute_disc_sens);
+            }
+            else { // LA_device = CUDA, AssemblyDevice = Host
+              // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
+              auto LIDs_dev = Kokkos::create_mirror(LA_exec(), boundaryCells[b][e]->LIDs);
+              auto paramLIDs_dev = Kokkos::create_mirror(LA_exec(), boundaryCells[b][e]->paramLIDs);
+              Kokkos::deep_copy(LIDs_dev,boundaryCells[b][e]->LIDs);
+              Kokkos::deep_copy(paramLIDs_dev,boundaryCells[b][e]->paramLIDs);
+              
+              this->scatter(J_kcrs, res_view, local_res_ladev, local_J_ladev,
+                            LIDs_dev, paramLIDs_dev,
+                            compute_jacobian, compute_disc_sens);
+            }
+            
           }
-          
         }
         
       }
@@ -1071,7 +1230,7 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
       }
       ScalarT val[1];
       LO cols[1];
-      if (abssum<1.0e-14) {
+      if (abssum<1.0e-14) { // needs to be generalized!
         val[0] = 1.0;
         cols[0] = row;
         J_kcrs.replaceValues(row,cols,1,val,false,false);
@@ -1092,7 +1251,7 @@ void AssemblyManager<Node>::dofConstraints(matrix_RCP & J, vector_RCP & res,
                                      const bool & compute_jacobian,
                                      const bool & compute_disc_sens) {
   
-  if (milo_debug_level > 1) {
+  if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "******** Starting AssemblyManager::dofConstraints" << endl;
     }
@@ -1118,7 +1277,7 @@ void AssemblyManager<Node>::dofConstraints(matrix_RCP & J, vector_RCP & res,
     }
   }
   
-  if (milo_debug_level > 1) {
+  if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "******** Finished AssemblyManager::dofConstraints" << endl;
     }
@@ -1426,6 +1585,180 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
                 cols[col] = LIDs(elem,col);
               }
               J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, true, false); // isSorted, useAtomics
+            }
+          }
+        });
+      }
+    }
+  }
+}
+
+
+template<class Node>
+template<class MatType, class VecViewType, class LIDViewType>
+void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
+                                    LIDViewType LIDs, LIDViewType paramLIDs,
+                                    const int & block,
+                                    const bool & compute_jacobian,
+                                    const bool & compute_sens,
+                                    const bool & compute_disc_sens,
+                                    const bool & isAdjoint) {
+
+  Teuchos::TimeMonitor localtimer(*scattertimer);
+  
+  typedef typename Node::execution_space LA_exec;
+  
+  /////////////////////////////////////
+  // This scatter needs to happen on the LA_device due to the use of J_kcrs->sumIntoValues()
+  // Could be changed to the AssemblyDevice, but would require a mirror view of this data and filling such a view is nontrivial
+  /////////////////////////////////////
+  
+  auto fixedDOF = isFixedDOF;
+  auto res = wkset[block]->res;
+  if (isAdjoint) {
+    res = wkset[block]->adjrhs;
+  }
+  auto offsets = wkset[block]->offsets;
+  auto numDOF = cellData[block]->numDOF;
+  
+  if (use_atomics) { // If LA_device = Kokkos::Serial or if Worksets are colored
+    if (compute_sens) {
+      parallel_for("assembly insert Jac",
+                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type n=0; n<numDOF.extent(0); ++n) {
+          for (int j=0; j<numDOF(n); j++) {
+            int row = offsets(n,j);
+            LO rowIndex = LIDs(elem,row);
+            if (!fixedDOF(rowIndex)) {
+              for (size_type r=0; r<res_view.extent(1); ++r) {
+                ScalarT val = -res(elem,row).fastAccessDx(r);
+                Kokkos::atomic_add(&(res_view(rowIndex,r)), val);
+              }
+            }
+          }
+        }
+      });
+    }
+    else {
+      parallel_for("assembly insert Jac",
+                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type n=0; n<numDOF.extent(0); ++n) {
+          for (int j=0; j<numDOF(n); j++) {
+            int row = offsets(n,j);
+            LO rowIndex = LIDs(elem,row);
+            if (!fixedDOF(rowIndex)) {
+              ScalarT val = -res(elem,row).val();
+              Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
+            }
+          }
+        }
+      });
+    }
+  }
+  else {
+    if (compute_sens) {
+      parallel_for("assembly insert Jac",
+                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type n=0; n<numDOF.extent(0); ++n) {
+          for (int j=0; j<numDOF(n); j++) {
+            int row = offsets(n,j);
+            LO rowIndex = LIDs(elem,row);
+            if (!fixedDOF(rowIndex)) {
+              for (size_type r=0; r<res_view.extent(1); ++r) {
+                ScalarT val = -res(elem,row).fastAccessDx(r);
+                res_view(rowIndex,r) += val;
+              }
+            }
+          }
+        }
+      });
+    }
+    else {
+      parallel_for("assembly insert Jac",
+                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type n=0; n<numDOF.extent(0); ++n) {
+          for (int j=0; j<numDOF(n); j++) {
+            int row = offsets(n,j);
+            LO rowIndex = LIDs(elem,row);
+            if (!fixedDOF(rowIndex)) {
+              ScalarT val = -res(elem,row).val();
+              res_view(rowIndex,0) += val;
+            }
+          }
+        }
+      });
+    }
+  }
+  
+  if (compute_jacobian) {
+    
+    if (compute_disc_sens) {
+      /*
+      parallel_for("assembly insert Jac sens",
+                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_t row=0; row<LIDs.extent(1); row++ ) {
+          LO rowIndex = LIDs(elem,row);
+          for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
+            LO colIndex = paramLIDs(elem,col);
+            ScalarT val = local_J(elem,row,col);
+            J_kcrs.sumIntoValues(colIndex, &rowIndex, 1, &val, true, use_atomics); // isSorted, useAtomics
+          }
+        }
+      });
+      */
+    }
+    else {
+      if (isAdjoint) {
+        parallel_for("assembly insert Jac",
+                     RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                     KOKKOS_LAMBDA (const int elem ) {
+          const size_type numVals = LIDs.extent(1);
+          LO cols[maxDerivs];
+          ScalarT vals[maxDerivs];
+          for (size_type n=0; n<numDOF.extent(0); ++n) {
+            for (int j=0; j<numDOF(n); j++) {
+              int row = offsets(n,j);
+              LO rowIndex = LIDs(elem,row);
+              if (!fixedDOF(rowIndex)) {
+                for (size_type m=0; m<numDOF.extent(0); m++) {
+                  for (int k=0; k<numDOF(m); k++) {
+                    int col = offsets(m,k);
+                    vals[col] = res(elem,col).fastAccessDx(row);
+                    cols[col] = LIDs(elem,col);
+                  }
+                }
+                J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics); // isSorted, useAtomics
+              }
+            }
+          }
+        });
+      }
+      else {
+        parallel_for("assembly insert Jac",
+                     RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                     KOKKOS_LAMBDA (const int elem ) {
+          const size_type numVals = LIDs.extent(1);
+          LO cols[maxDerivs];
+          ScalarT vals[maxDerivs];
+          for (size_type n=0; n<numDOF.extent(0); ++n) {
+            for (int j=0; j<numDOF(n); j++) {
+              int row = offsets(n,j);
+              LO rowIndex = LIDs(elem,row);
+              if (!fixedDOF(rowIndex)) {
+                for (size_type m=0; m<numDOF.extent(0); m++) {
+                  for (int k=0; k<numDOF(m); k++) {
+                    int col = offsets(m,k);
+                    vals[col] = res(elem,row).fastAccessDx(col);
+                    cols[col] = LIDs(elem,col);
+                  }
+                }
+                J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics); // isSorted, useAtomics
+              }
             }
           }
         });

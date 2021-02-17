@@ -602,33 +602,36 @@ void workset::computeAuxSolnSteadySeeded(View_Sc3 aux,
 void workset::computeParamSteadySeeded(View_Sc3 param,
                                       const int & seedwhat) {
   
-  Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
+  if (numParams>0) {
+    Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
   
-  for (size_type var=0; var<param.extent(1); var++ ) {
-  
-    auto p_AD = pvals[var];
-    auto off = subview(paramoffsets,var,ALL());
-    auto cp = subview(param,ALL(),var,ALL());
-    if (seedwhat == 3) {
-      parallel_for("wkset steady soln",
-                   RangePolicy<AssemblyExec>(0,param.extent(0)),
-                   KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<p_AD.extent(1); dof++ ) {
-          p_AD(elem,dof) = AD(maxDerivs,off(dof),cp(elem,dof));
-        }
-      });
+    for (size_type var=0; var<param.extent(1); var++ ) {
+      
+      auto p_AD = pvals[var];
+      auto off = subview(paramoffsets,var,ALL());
+      auto cp = subview(param,ALL(),var,ALL());
+      if (seedwhat == 3) {
+        parallel_for("wkset steady soln",
+                     RangePolicy<AssemblyExec>(0,param.extent(0)),
+                     KOKKOS_LAMBDA (const size_type elem ) {
+          for (size_type dof=0; dof<p_AD.extent(1); dof++ ) {
+            p_AD(elem,dof) = AD(maxDerivs,off(dof),cp(elem,dof));
+          }
+        });
+      }
+      else {
+        parallel_for("wkset steady soln",
+                     RangePolicy<AssemblyExec>(0,param.extent(0)),
+                     KOKKOS_LAMBDA (const size_type elem ) {
+          for (size_type dof=0; dof<p_AD.extent(1); dof++ ) {
+            p_AD(elem,dof) = cp(elem,dof);
+          }
+        });
+      }
     }
-    else {
-      parallel_for("wkset steady soln",
-                   RangePolicy<AssemblyExec>(0,param.extent(0)),
-                   KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<p_AD.extent(1); dof++ ) {
-          p_AD(elem,dof) = cp(elem,dof);
-        }
-      });
-    }
+    Kokkos::fence();
   }
-  Kokkos::fence();
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1111,12 +1114,11 @@ void workset::computeSoln(const int & type, const bool & onside) {
 // Compute the discretized parameters at the volumetric ip
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::computeParamVolIP(View_Sc3 param,
-                                const int & seedwhat) {
+void workset::computeParamVolIP() {
   
   if (numParams > 0) {
     
-    this->computeParamSteadySeeded(param,seedwhat);
+    //this->computeParamSteadySeeded(param,seedwhat);
     this->computeSoln(2,false);
     
   }
@@ -1134,11 +1136,10 @@ void workset::computeSolnSideIP() {
 // Compute the discretized parameters at the side ip
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::computeParamSideIP(const int & side, View_Sc3 param,
-                                 const int & seedwhat) {
+void workset::computeParamSideIP() {
   
   if (numParams>0) {
-    this->computeParamSteadySeeded(param,seedwhat);
+    //this->computeParamSteadySeeded(param,seedwhat);
     this->computeSoln(2,true);
   }
   

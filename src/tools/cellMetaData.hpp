@@ -43,11 +43,12 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    bool assemble_face_terms, build_face_terms, requireBasisAtNodes = false;
+    bool assemble_face_terms, build_face_terms, storeBasisAtIP = true, requireBasisAtNodes = false;
     size_t myBlock, myLevel;
     Teuchos::RCP<physics> physics_RCP;
     string response_type;
     vector<string> sidenames;
+    bool storeAll;
     
     // Geometry Information
     size_t numnodes, numSides, dimension, numip, numsideip, numDiscParams;

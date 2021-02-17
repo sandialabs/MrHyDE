@@ -15,6 +15,13 @@
 
 using namespace MrHyDE;
 
+// Explicit template instantiations
+template class MrHyDE::PostprocessManager<SolverNode>;
+#if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
+  template class MrHyDE::PostprocessManager<SubgridSolverNode>;
+#endif
+
+
 // ========================================================================================
 /* Minimal constructor to set up the problem */
 // ========================================================================================
@@ -588,15 +595,17 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           assembler->wkset[altblock]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
           assembler->cells[block][cell]->computeSolnVolIP();
         }
+        auto wts = assembler->cells[block][cell]->wkset->wts;
+        
         for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
           int var = error_list[altblock][etype].first;
           string varname = varlist[altblock][var];
+          
           if (error_list[altblock][etype].second == "L2") {
             // compute the true solution
             string expression = varname;
             auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
             auto sol = assembler->wkset[altblock]->getData(expression);
-            auto wts = assembler->cells[block][cell]->wts;
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
@@ -611,7 +620,6 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             string expression = "grad(" + varname + ")[x]";
             auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
             auto sol_x = assembler->wkset[altblock]->getData(expression);
-            auto wts = assembler->cells[block][cell]->wts;
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
@@ -661,7 +669,6 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             string expression = "div(" + varname + ")";
             auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
             auto sol_div = assembler->wkset[altblock]->getData(expression);
-            auto wts = assembler->cells[block][cell]->wts;
             
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
@@ -678,7 +685,6 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             string expression = "curl(" + varlist[altblock][var] + ")[x]";
             auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
             auto sol_curl_x = assembler->wkset[altblock]->getData(expression);
-            auto wts = assembler->cells[block][cell]->wts;
             
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
@@ -729,7 +735,6 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             string expression = varlist[altblock][var] + "[x]";
             auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
             auto sol_x = assembler->wkset[altblock]->getData(expression);
-            auto wts = assembler->cells[block][cell]->wts;
             
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
@@ -788,11 +793,12 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
                 string expression = varlist[altblock][var];
                 auto tsol = functionManagers[altblock]->evaluate("true "+expression,"side ip");
                 auto sol = assembler->wkset[altblock]->getData(expression+" side");
-                auto wts = assembler->cells[block][cell]->wts_face[face];
+                auto wts = assembler->cells[block][cell]->wkset->wts_side;
                 
                 // add in the L2 difference at the volumetric ip
                 ScalarT error = 0.0;
-                parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+                parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                                KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                   double facemeasure = 0.0;
                   for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                     facemeasure += wts(elem,pt);
@@ -1261,8 +1267,9 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
           assembler->cells[b][k]->updateWorksetBasis();
           assembler->wkset[b]->setTime(currenttime);
           assembler->wkset[b]->computeSolnSteadySeeded(assembler->cells[b][k]->u, 0);
+          assembler->wkset[b]->computeParamSteadySeeded(assembler->cells[b][k]->param, 0);
           assembler->wkset[b]->computeSolnVolIP();
-          assembler->wkset[b]->computeParamVolIP(assembler->cells[b][k]->param, 0);
+          assembler->wkset[b]->computeParamVolIP();
           
           auto cfields = phys->getExtraCellFields(b, j, assembler->cells[b][k]->wts);
           

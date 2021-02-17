@@ -18,6 +18,7 @@
 #include "preferences.hpp"
 #include "workset.hpp"
 #include "cellMetaData.hpp"
+#include "discretizationInterface.hpp"
 
 #include <iostream>     
 #include <iterator>     
@@ -48,7 +49,8 @@ namespace MrHyDE {
                  const int & sidenum_, const string & sidename_,
                  const int & cellID_,
                  LIDView LIDs_,
-                 Kokkos::View<int****,HostDevice> sideinfo_);
+                 Kokkos::View<int****,HostDevice> sideinfo_,
+                 Teuchos::RCP<discretization> & disc_);
                  
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -311,14 +313,11 @@ namespace MrHyDE {
     
     Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
     string sidename;
-    
-    // Frequently used Views (None of these are allocated in the cells)
-    //Kokkos::View<AD**,AssemblyDevice> res_AD;
-    //Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets;
-    //Kokkos::View<LO*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
-    
+        
     // DOF information
     LIDView LIDs, paramLIDs, auxLIDs;
+    
+    Teuchos::RCP<discretization> disc;
     
     // Creating LIDs on host device for host assembly
     LIDView_host LIDs_host, paramLIDs_host, auxLIDs_host;

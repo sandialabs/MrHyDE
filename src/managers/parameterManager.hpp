@@ -224,12 +224,6 @@ namespace MrHyDE {
      */
   };
   
-  // Explicit template instantiations
-  template class ParameterManager<SolverNode>;
-  #if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
-    template class ParameterManager<SubgridSolverNode>;
-  #endif
-
 }
 
 #endif
