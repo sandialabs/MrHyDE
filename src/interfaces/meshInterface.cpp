@@ -323,6 +323,11 @@ mesh_factory(mesh_factory_), mesh(mesh_), settings(settings_), Commptr(Commptr_)
 
 void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
   
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting mesh interface finalize ..." << endl;
+    }
+  }
   ////////////////////////////////////////////////////////////////////////////////
   // Add fields to the mesh
   ////////////////////////////////////////////////////////////////////////////////
@@ -513,6 +518,11 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
     }
   }
   
+  if (milo_debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished mesh interface finalize" << endl;
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
