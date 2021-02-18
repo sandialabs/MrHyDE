@@ -77,7 +77,8 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void updateJacDBC(matrix_RCP & J, const std::vector<GO> & dofs, const bool & compute_disc_sens);
+    void updateJacDBC(matrix_RCP & J, const std::vector<std::vector<GO> > & dofs,
+                      const size_t & block, const bool & compute_disc_sens);
     
     void updateJacDBC(matrix_RCP & J, const std::vector<LO> & dofs, const bool & compute_disc_sens);
     

@@ -519,28 +519,26 @@ void AssemblyManager<Node>::createWorkset() {
 
 // TMW: this might be deprecated
 template<class Node>
-void AssemblyManager<Node>::updateJacDBC(matrix_RCP & J,
-                                   const vector<GO> & dofs, const bool & compute_disc_sens) {
+void AssemblyManager<Node>::updateJacDBC(matrix_RCP & J, const vector<vector<GO> > & dofs,
+                                         const size_t & block, const bool & compute_disc_sens) {
   
   // given a "block" and the unknown field update jacobian to enforce Dirichlet BCs
-  //size_t numcols = J->getGlobalNumCols();
-  for( size_t i=0; i<dofs.size(); i++ ) { // for each node
+  for( size_t i=0; i<dofs[block].size(); i++ ) { // for each node
     if (compute_disc_sens) {
       int numcols = globalParamUnknowns; // TMW fix this!
       for( int col=0; col<numcols; col++ ) {
         ScalarT m_val = 0.0; // set ALL of the entries to 0 in the Jacobian
-        //J.ReplaceGlobalValues(row, 1, &m_val, &ind);
-        J->replaceGlobalValues(col, 1, &m_val, &dofs[i]);
+        J->replaceGlobalValues(col, 1, &m_val, &dofs[block][i]);
       }
     }
     else {
       GO numcols = J->getGlobalNumCols(); // TMW fix this!
       for( GO col=0; col<numcols; col++ ) {
         ScalarT m_val = 0.0; // set ALL of the entries to 0 in the Jacobian
-        J->replaceGlobalValues(dofs[i], 1, &m_val, &col);
+        J->replaceGlobalValues(dofs[block][i], 1, &m_val, &col);
       }
       ScalarT val = 1.0; // set diagonal entry to 1
-      J->replaceGlobalValues(dofs[i], 1, &val, &dofs[i]);
+      J->replaceGlobalValues(dofs[block][i], 1, &val, &dofs[block][i]);
     }
   }
 }
@@ -550,7 +548,7 @@ void AssemblyManager<Node>::updateJacDBC(matrix_RCP & J,
 
 template<class Node>
 void AssemblyManager<Node>::updateJacDBC(matrix_RCP & J,
-                                   const vector<LO> & dofs, const bool & compute_disc_sens) {
+                                         const vector<LO> & dofs, const bool & compute_disc_sens) {
   
   if (compute_disc_sens) {
     // nothing to do here
@@ -1273,7 +1271,7 @@ void AssemblyManager<Node>::dofConstraints(matrix_RCP & J, vector_RCP & res,
   vector<vector<GO> > fixedDOFs = disc->point_dofs;
   for (size_t block=0; block<fixedDOFs.size(); block++) {
     if (compute_jacobian) {
-      this->updateJacDBC(J,fixedDOFs[block],compute_disc_sens);
+      this->updateJacDBC(J,fixedDOFs,block,compute_disc_sens);
     }
   }
   
