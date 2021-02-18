@@ -149,6 +149,11 @@ namespace MrHyDE {
     DRV applyOrientation(DRV basis, Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                          basis_RCP & basis_pointer);
 
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
+    void purgeMemory();
+    
     ////////////////////////////////////////////////////////////////////////////////
     // Public data
     ////////////////////////////////////////////////////////////////////////////////
@@ -181,6 +186,32 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> setbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::setBCData()");
     Teuchos::RCP<Teuchos::Time> setdbctimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::setDirichletData()");
     
+    Teuchos::RCP<Teuchos::Time> physVolDataTotalTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalVolumetricData - total");
+    Teuchos::RCP<Teuchos::Time> physVolDataIPTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalVolumetricData - ip");
+    Teuchos::RCP<Teuchos::Time> physVolDataSetJacTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalVolumetricData - set Jac");
+    Teuchos::RCP<Teuchos::Time> physVolDataOtherJacTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalVolumetricData - other Jac");
+    Teuchos::RCP<Teuchos::Time> physVolDataHsizeTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalVolumetricData - hsize");
+    Teuchos::RCP<Teuchos::Time> physVolDataOrientTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalVolumetricData - orientations");
+    Teuchos::RCP<Teuchos::Time> physVolDataWtsTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalVolumetricData - wts");
+    Teuchos::RCP<Teuchos::Time> physVolDataBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalVolumetricData - basis");
+    
+    Teuchos::RCP<Teuchos::Time> physFaceDataTotalTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalFaceData - total");
+    Teuchos::RCP<Teuchos::Time> physFaceDataIPTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalFaceData - ip");
+    Teuchos::RCP<Teuchos::Time> physFaceDataSetJacTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalFaceData - set Jac");
+    Teuchos::RCP<Teuchos::Time> physFaceDataOtherJacTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalFaceData - other Jac");
+    Teuchos::RCP<Teuchos::Time> physFaceDataHsizeTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalFaceData - hsize");
+    Teuchos::RCP<Teuchos::Time> physFaceDataOrientTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalFaceData - orientations");
+    Teuchos::RCP<Teuchos::Time> physFaceDataWtsTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalFaceData - wts");
+    Teuchos::RCP<Teuchos::Time> physFaceDataBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalFaceData - basis");
+    
+    Teuchos::RCP<Teuchos::Time> physBndryDataTotalTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalBoundaryData - total");
+    Teuchos::RCP<Teuchos::Time> physBndryDataIPTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalBoundaryData - ip");
+    Teuchos::RCP<Teuchos::Time> physBndryDataSetJacTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalBoundaryData - set Jac");
+    Teuchos::RCP<Teuchos::Time> physBndryDataOtherJacTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalBoundaryData - other Jac");
+    Teuchos::RCP<Teuchos::Time> physBndryDataHsizeTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalBoundaryData - hsize");
+    Teuchos::RCP<Teuchos::Time> physBndryDataOrientTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalBoundaryData - orientations");
+    Teuchos::RCP<Teuchos::Time> physBndryDataWtsTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalBoundaryData - wts");
+    Teuchos::RCP<Teuchos::Time> physBndryDataBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalBoundaryData - basis");
   };
   
 }

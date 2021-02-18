@@ -213,6 +213,8 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<analysis> analys = Teuchos::rcp( new analysis(Comm, settings,
                                                                solve, postproc, params) );
     
+    disc->purgeMemory();
+    
     {
       Teuchos::TimeMonitor rtimer(*runTimer);
       analys->run();

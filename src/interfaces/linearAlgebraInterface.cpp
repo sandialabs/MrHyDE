@@ -266,7 +266,7 @@ Teuchos::RCP<Teuchos::ParameterList> linearAlgebra<Node>::getBelosParameterList(
   }
   int numEqns = 1;
   if (disc->mesh->getNumElementBlocks() == 1) {
-    numEqns = disc->DOF->getNumFields();
+    numEqns = disc->phys->numVars[0];
   }
   belosList->set("number of equations", numEqns);
   
