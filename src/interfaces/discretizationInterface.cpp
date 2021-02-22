@@ -99,7 +99,6 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
   ////////////////////////////////////////////////////////////////////////////////
   
   spaceDim = mesh->getDimension();
-  std::vector<string> blocknames;
   mesh->getElementBlockNames(blocknames);
   
   
@@ -610,15 +609,14 @@ void discretization::getPhysicalVolumetricData(Teuchos::RCP<CellMetaData> & cell
                                                Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                                vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
                                                vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
-                                               vector<View_Sc4> & basis_nodes) {
+                                               vector<View_Sc4> & basis_nodes,
+                                               const bool & recompute_jac,
+                                               const bool & recompute_orient) {
 
   Teuchos::TimeMonitor localtimer(*physVolDataTotalTimer);
   
   int dimension = cellData->dimension;
-  int block = cellData->myBlock;
-    
   int numip = cellData->ref_ip.extent(0);
-  int numNodesPerElem = cellData->cellTopo->getNodeCount();
   size_t numElem = nodes.extent(0);
   
   // -------------------------------------------------
@@ -672,25 +670,11 @@ void discretization::getPhysicalVolumetricData(Teuchos::RCP<CellMetaData> & cell
   }
   
   // -------------------------------------------------
-  // Compute the element orientations
+  // Compute the element orientations (probably never happens)
   // -------------------------------------------------
   
-  {
-    Teuchos::TimeMonitor localtimer(*physVolDataOrientTimer);
-    Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", numElem, numNodesPerElem);
-    auto host_currind = Kokkos::create_mirror_view(currind);
-    auto host_eIndex = Kokkos::create_mirror_view(eIndex);
-    Kokkos::deep_copy(host_eIndex,eIndex);
-    for (size_t i=0; i<numElem; i++) {
-      vector<stk::mesh::EntityId> stk_nodeids;
-      LO elemID = host_eIndex(i); //prog+i;//host_eIndex(i);
-      mesh->getNodeIdsForElement(block_stkElems[block][elemID], stk_nodeids);
-      for (int n=0; n<numNodesPerElem; n++) {
-        host_currind(i,n) = stk_nodeids[n];
-      }
-    }
-    Kokkos::deep_copy(currind, host_currind);
-    OrientTools::getOrientation(orientation, currind, *(cellData->cellTopo));
+  if (recompute_orient) {
+    this->getPhysicalOrientations(cellData, eIndex, orientation, true);
   }
   
   // -------------------------------------------------
@@ -801,6 +785,37 @@ void discretization::getPhysicalVolumetricData(Teuchos::RCP<CellMetaData> & cell
   }
 }
 
+void discretization::getPhysicalOrientations(Teuchos::RCP<CellMetaData> & cellData,
+                                             Kokkos::View<LO*,AssemblyDevice> eIndex,
+                                             Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+                                             const bool & use_block) {
+  
+  Teuchos::TimeMonitor localtimer(*physOrientTimer);
+  
+  int block = cellData->myBlock;
+  int numNodesPerElem = cellData->cellTopo->getNodeCount();
+  size_type numElem = eIndex.extent(0);
+  
+  Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", numElem, numNodesPerElem);
+  auto host_currind = Kokkos::create_mirror_view(currind);
+  auto host_eIndex = Kokkos::create_mirror_view(eIndex);
+  Kokkos::deep_copy(host_eIndex,eIndex);
+  for (size_t i=0; i<numElem; i++) {
+    vector<stk::mesh::EntityId> stk_nodeids;
+    LO elemID = host_eIndex(i);
+    if (use_block) {
+      mesh->getNodeIdsForElement(block_stkElems[block][elemID], stk_nodeids);
+    }
+    else {
+      mesh->getNodeIdsForElement(all_stkElems[elemID], stk_nodeids);
+    }
+    for (int n=0; n<numNodesPerElem; n++) {
+      host_currind(i,n) = stk_nodeids[n];
+    }
+  }
+  Kokkos::deep_copy(currind, host_currind);
+  OrientTools::getOrientation(orientation, currind, *(cellData->cellTopo));
+}
 
 // -------------------------------------------------
 // Compute the basis functions at the face ip
@@ -810,7 +825,9 @@ void discretization::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & cellData, 
                                          DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
                                          Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                          View_Sc3 face_ip, View_Sc2 face_wts, View_Sc3 face_normals, View_Sc1 face_hsize,
-                                         vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad) {
+                                         vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
+                                         const bool & recompute_jac,
+                                         const bool & recompute_orient) {
 
   Teuchos::TimeMonitor localtimer(*physFaceDataTotalTimer);
   
@@ -926,6 +943,14 @@ void discretization::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & cellData, 
     }
   }
   
+  // -------------------------------------------------
+  // Compute the element orientations
+  // -------------------------------------------------
+  
+  if (recompute_orient) {
+    this->getPhysicalOrientations(cellData, eIndex, orientation, true);
+  }
+  
   // Step 2: define basis functions at these integration points
   
   {
@@ -1008,13 +1033,13 @@ void discretization::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData> & cellDa
                                              Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                              View_Sc3 ip, View_Sc2 wts, View_Sc3 normals, View_Sc3 tangents, View_Sc1 hsize,
                                              vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
-                                             vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div) {
+                                             vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
+                                             const bool & recompute_jac,
+                                             const bool & recompute_orient) {
   
   Teuchos::TimeMonitor localtimer(*physBndryDataTotalTimer);
   
   int dimension = cellData->dimension;
-  
-  int numNodesPerElem = cellData->cellTopo->getNodeCount();
   
   auto localSideID_host = Kokkos::create_mirror_view(localSideID);
   Kokkos::deep_copy(localSideID_host,localSideID);
@@ -1148,6 +1173,15 @@ void discretization::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData> & cellDa
   // Compute the element orientations
   // -------------------------------------------------
   
+  // -------------------------------------------------
+  // Compute the element orientations
+  // -------------------------------------------------
+  
+  if (recompute_orient) {
+    this->getPhysicalOrientations(cellData, eIndex, orientation, false);
+  }
+  
+  /*
   {
     Teuchos::TimeMonitor localtimer(*physBndryDataOrientTimer);
     Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", numElem, numNodesPerElem);
@@ -1165,7 +1199,7 @@ void discretization::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData> & cellDa
     Kokkos::deep_copy(currind, host_currind);
     
     OrientTools::getOrientation(orientation, currind, *(cellData->cellTopo));
-  }
+  }*/
   
   {
     Teuchos::TimeMonitor localtimer(*physBndryDataBasisTimer);
@@ -1341,8 +1375,6 @@ void discretization::buildDOFManagers() {
     }
   }
   
-  std::vector<string> blocknames;
-  mesh->getElementBlockNames(blocknames);
   Teuchos::RCP<panzer::ConnManager> conn = Teuchos::rcp(new panzer_stk::STKConnManager(mesh));
 
   // DOF manager for the primary variables
@@ -1439,8 +1471,7 @@ void discretization::setBCData(const bool & isaux) {
     }
   }
   
-  vector<string> blocknames, sideSets, nodeSets;
-  mesh->getElementBlockNames(blocknames);
+  vector<string> sideSets, nodeSets;
   mesh->getSidesetNames(sideSets);
   mesh->getNodesetNames(nodeSets);
   
@@ -1695,8 +1726,7 @@ void discretization::setDirichletData(const bool & isaux) {
     }
   }
   
-  vector<string> blocknames, sideNames;
-  mesh->getElementBlockNames(blocknames);
+  vector<string> sideNames;
   mesh->getSidesetNames(sideNames);
   
   vector<vector<string> > varlist;
@@ -1900,5 +1930,10 @@ void discretization::purgeMemory() {
   if (storeAll) {
     all_stkElems.clear();
     block_stkElems.clear();
+  }
+  
+  bool write_solution = settings->sublist("Postprocess").get("write solution",false);
+  if (!write_solution) {
+    mesh.reset();
   }
 }

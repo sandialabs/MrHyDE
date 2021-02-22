@@ -25,7 +25,7 @@ namespace MrHyDE {
   
   vector<Teuchos::RCP<SubGridModel> > subgridGenerator(const Teuchos::RCP<MpiComm> & Comm,
                                                        Teuchos::RCP<Teuchos::ParameterList> & settings,
-                                                       Teuchos::RCP<panzer_stk::STK_Interface> & macromesh ) {
+                                                       Teuchos::RCP<meshInterface> & macromesh ) {
     
     vector<Teuchos::RCP<SubGridModel> > subgridModels;
     
@@ -45,14 +45,14 @@ namespace MrHyDE {
         string subgrid_model_type = subgrid_pl->get<string>("subgrid model","FEM");
         string macro_block_name = subgrid_pl->get<string>("macro block","eblock-0_0_0");
         std::vector<string> macro_blocknames;
-        macromesh->getElementBlockNames(macro_blocknames);
+        macromesh->stk_mesh->getElementBlockNames(macro_blocknames);
         int macro_block = 0; // default to single block case
         for (size_t m=0; m<macro_blocknames.size(); ++m) {
           if (macro_blocknames[m] == macro_block_name) {
             macro_block = m;
           }
         }
-        topo_RCP macro_topo = macromesh->getCellTopology(macro_blocknames[macro_block]);
+        topo_RCP macro_topo = macromesh->stk_mesh->getCellTopology(macro_blocknames[macro_block]);
         if (subgrid_model_type == "FEM") {
           subgridModels.push_back(Teuchos::rcp( new SubGridFEM(Comm, subgrid_pl, macro_topo,
                                                                num_macro_time_steps,
@@ -79,14 +79,14 @@ namespace MrHyDE {
             string subgrid_model_type = subgrid_pl->get<string>("subgrid model","FEM");
             string macro_block_name = subgrid_pl->get<string>("macro block","eblock-0_0_0");
             std::vector<string> macro_blocknames;
-            macromesh->getElementBlockNames(macro_blocknames);
+            macromesh->stk_mesh->getElementBlockNames(macro_blocknames);
             int macro_block = 0; // default to single block case
             for (size_t m=0; m<macro_blocknames.size(); ++m) {
               if (macro_blocknames[m] == macro_block_name) {
                 macro_block = m;
               }
             }
-            topo_RCP macro_topo = macromesh->getCellTopology(macro_blocknames[macro_block]);
+            topo_RCP macro_topo = macromesh->stk_mesh->getCellTopology(macro_blocknames[macro_block]);
             
             if (subgrid_model_type == "FEM") {
               subgridModels.push_back(Teuchos::rcp( new SubGridFEM(Comm, subgrid_pl, macro_topo,

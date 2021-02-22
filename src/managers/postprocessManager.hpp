@@ -43,8 +43,9 @@ namespace MrHyDE {
     
     PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                        Teuchos::RCP<Teuchos::ParameterList> & settings,
-                       Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
-                       Teuchos::RCP<panzer_stk::STK_Interface> & optimization_mesh_,
+                       Teuchos::RCP<meshInterface> & mesh_,
+                       //Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                       //Teuchos::RCP<panzer_stk::STK_Interface> & optimization_mesh_,
                        Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                        std::vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
                        Teuchos::RCP<AssemblyManager<Node> > & assembler_);
@@ -55,8 +56,9 @@ namespace MrHyDE {
     
     PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                        Teuchos::RCP<Teuchos::ParameterList> & settings,
-                       Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
-                       Teuchos::RCP<panzer_stk::STK_Interface> & optimization_mesh_,
+                       Teuchos::RCP<meshInterface> & mesh_,
+                       //Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                       //Teuchos::RCP<panzer_stk::STK_Interface> & optimization_mesh_,
                        Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                        std::vector<Teuchos::RCP<FunctionManager> > & functionManagers,
                        Teuchos::RCP<MultiScale> & multiscale_manager_,
@@ -115,10 +117,11 @@ namespace MrHyDE {
     // ========================================================================================
     
     Teuchos::RCP<MpiComm> Comm;
-    Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
+    Teuchos::RCP<meshInterface>  mesh;
+    //Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
     Teuchos::RCP<discretization> disc;
     Teuchos::RCP<physics> phys;
-    Teuchos::RCP<panzer_stk::STK_Interface> optimization_mesh; // Needs to be set manually (for now)
+    //Teuchos::RCP<panzer_stk::STK_Interface> optimization_mesh; // Needs to be set manually (for now)
     Teuchos::RCP<AssemblyManager<Node> > assembler;
     Teuchos::RCP<ParameterManager<Node> > params;
     Teuchos::RCP<SensorManager<Node> > sensors;

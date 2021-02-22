@@ -55,7 +55,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   numEvaluations = 0;
   
   // Get the required information from the settings
-  spaceDim = mesh->mesh->getDimension();
+  spaceDim = mesh->stk_mesh->getDimension();
   isInitial = false;
   initial_time = settings->sublist("Solver").get<ScalarT>("initial time",0.0);
   current_time = initial_time;
@@ -101,7 +101,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   initial_type = settings->sublist("Solver").get<string>("initial type","L2-projection");
   
   // needed information from the mesh
-  mesh->mesh->getElementBlockNames(blocknames);
+  mesh->stk_mesh->getElementBlockNames(blocknames);
   
   // needed information from the physics interface
   numVars = phys->numVars; //
@@ -157,6 +157,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   }
   
   this->finalizeWorkset();
+    
   phys->setWorkset(assembler->wkset);
   params->wkset = assembler->wkset;
   
@@ -603,6 +604,7 @@ void solver<Node>::finalizeWorkset() {
       assembler->wkset[b]->varlist = varlist[b];
       assembler->wkset[b]->aux_varlist = phys->aux_varlist[b];
       assembler->wkset[b]->param_varlist = params->discretized_param_names;
+      
       assembler->wkset[b]->createSolns();
       
       int numDOF = assembler->cells[b][0]->LIDs.extent(1);
@@ -612,6 +614,7 @@ void solver<Node>::finalizeWorkset() {
         assembler->cells[b][e]->setUpAdjointPrev(numDOF, numsteps, numstages);
         assembler->cells[b][e]->setUpSubGradient(params->num_active_params);
       }
+      
       assembler->wkset[b]->params = params->paramvals_AD;
       assembler->wkset[b]->params_AD = params->paramvals_KVAD;
       assembler->wkset[b]->paramnames = params->paramnames;

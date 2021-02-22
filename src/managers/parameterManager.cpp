@@ -1034,4 +1034,15 @@ vector<ScalarT> ParameterManager<Node>::getFractionalParams(const std::string & 
 }
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////
+// After the setup phase, we can get rid of a few things
+/////////////////////////////////////////////////////////////////////////////////////////////
 
+template<class Node>
+void ParameterManager<Node>::purgeMemory() {
+    
+  bool write_solution = settings->sublist("Postprocess").get("write solution",false);
+  if (!write_solution) {
+    mesh.reset();
+  }
+}

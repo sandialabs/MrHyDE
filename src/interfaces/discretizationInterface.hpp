@@ -61,13 +61,22 @@ namespace MrHyDE {
                                    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                    vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
                                    vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
-                                   vector<View_Sc4> & basis_nodes);
+                                   vector<View_Sc4> & basis_nodes,
+                                   const bool & recompute_jac = true,
+                                   const bool & recompute_orient = true);
+    
+    void getPhysicalOrientations(Teuchos::RCP<CellMetaData> & cellData,
+                                 Kokkos::View<LO*,AssemblyDevice> eIndex,
+                                 Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+                                 const bool & use_block);
     
     void getPhysicalFaceData(Teuchos::RCP<CellMetaData> & cellData, const int & side,
                              DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
                              Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                              View_Sc3 face_ip, View_Sc2 face_wts, View_Sc3 face_normals, View_Sc1 face_hsize,
-                             vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad);
+                             vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
+                             const bool & recompute_jac = true,
+                             const bool & recompute_orient = true);
     
     void getPhysicalBoundaryData(Teuchos::RCP<CellMetaData> & cellData,
                                  DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
@@ -75,7 +84,9 @@ namespace MrHyDE {
                                  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                  View_Sc3 ip, View_Sc2 wts, View_Sc3 normals, View_Sc3 tangents, View_Sc1 hsize,
                                  vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
-                                 vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div);
+                                 vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
+                                 const bool & recompute_jac = true,
+                                 const bool & recompute_orient = true);
 
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
@@ -165,12 +176,14 @@ namespace MrHyDE {
     Teuchos::RCP<physics> phys;
     vector<vector<basis_RCP> > basis_pointers;
     vector<vector<string> > basis_types;
-    Teuchos::RCP<panzer::DOFManager> DOF, auxDOF;
     vector<vector<GO> > point_dofs, aux_point_dofs;
     vector<vector<vector<LO> > > dbc_dofs, aux_dbc_dofs;
+    vector<string> blocknames;
     
+    // Purgable
     vector<stk::mesh::Entity> all_stkElems;
     vector<vector<stk::mesh::Entity> > block_stkElems;
+    Teuchos::RCP<panzer::DOFManager> DOF, auxDOF;
     
     vector<DRV> ref_ip, ref_wts, ref_side_ip, ref_side_wts;
     vector<size_t> numip, numip_side;
@@ -191,7 +204,7 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> physVolDataSetJacTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalVolumetricData - set Jac");
     Teuchos::RCP<Teuchos::Time> physVolDataOtherJacTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalVolumetricData - other Jac");
     Teuchos::RCP<Teuchos::Time> physVolDataHsizeTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalVolumetricData - hsize");
-    Teuchos::RCP<Teuchos::Time> physVolDataOrientTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalVolumetricData - orientations");
+    Teuchos::RCP<Teuchos::Time> physOrientTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalOrientations");
     Teuchos::RCP<Teuchos::Time> physVolDataWtsTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalVolumetricData - wts");
     Teuchos::RCP<Teuchos::Time> physVolDataBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalVolumetricData - basis");
     
@@ -200,7 +213,6 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> physFaceDataSetJacTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalFaceData - set Jac");
     Teuchos::RCP<Teuchos::Time> physFaceDataOtherJacTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalFaceData - other Jac");
     Teuchos::RCP<Teuchos::Time> physFaceDataHsizeTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalFaceData - hsize");
-    Teuchos::RCP<Teuchos::Time> physFaceDataOrientTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalFaceData - orientations");
     Teuchos::RCP<Teuchos::Time> physFaceDataWtsTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalFaceData - wts");
     Teuchos::RCP<Teuchos::Time> physFaceDataBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalFaceData - basis");
     
@@ -209,7 +221,6 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> physBndryDataSetJacTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalBoundaryData - set Jac");
     Teuchos::RCP<Teuchos::Time> physBndryDataOtherJacTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalBoundaryData - other Jac");
     Teuchos::RCP<Teuchos::Time> physBndryDataHsizeTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalBoundaryData - hsize");
-    Teuchos::RCP<Teuchos::Time> physBndryDataOrientTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalBoundaryData - orientations");
     Teuchos::RCP<Teuchos::Time> physBndryDataWtsTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalBoundaryData - wts");
     Teuchos::RCP<Teuchos::Time> physBndryDataBasisTimer = Teuchos::TimeMonitor::getNewCounter("MILO::discretization::getPhysicalBoundaryData - basis");
   };

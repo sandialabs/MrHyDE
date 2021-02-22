@@ -36,10 +36,23 @@ cellTopo(cellTopo_) {
   writeSensorFiles = settings->sublist("Analysis").get<bool>("Write Sensor Files",false);
   mortar_objective = settings->sublist("Solver").get<bool>("Use Mortar Objective",false);
   storeAll = settings->sublist("Solver").get<bool>("store all cell data",true);
+  storeJac = settings->sublist("Solver").get<bool>("store all cell Jacobians",true);
+  storeOrient = settings->sublist("Solver").get<bool>("store all cell orientation",true);
   
-  //if (settings->sublist("Postprocess").get<bool>("write solution", false)) {
-    compute_sol_avg = true;
-  //}
+  requiresTransient = true;
+  if (settings->sublist("Solver").get<string>("solver","steady-state") == "steady-state") {
+    requiresTransient = false;
+  }
+  
+  requiresAdjoint = true;
+  if (settings->sublist("Analysis").get<string>("analysis type","forward") == "forward") {
+    requiresAdjoint = false;
+  }
+  
+  compute_sol_avg = true;
+  if (!(settings->sublist("Postprocess").get<bool>("write solution", false))) {
+    compute_sol_avg = false;
+  }
   
   multiscale = false;
   numnodes = cellTopo->getNodeCount();

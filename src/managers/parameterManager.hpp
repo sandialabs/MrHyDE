@@ -149,6 +149,11 @@ namespace MrHyDE {
     
     std::vector<ScalarT> getFractionalParams(const std::string & whichparam);
     
+    // ========================================================================================
+    // ========================================================================================
+    
+    void purgeMemory();
+    
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Public data members
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -210,8 +215,6 @@ namespace MrHyDE {
     //fractional parameters
     std::vector<ScalarT> s_exp;
     std::vector<ScalarT> h_mesh;
-    
-  private:
     
     Teuchos::RCP<MpiComm> Comm;
     Teuchos::RCP<panzer_stk::STK_Interface>  mesh;

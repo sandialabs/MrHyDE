@@ -105,7 +105,7 @@ int main(int argc,char * argv[]) {
     // Set up the physics
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<physics> phys = Teuchos::rcp( new physics(settings, Comm, mesh->mesh) );
+    Teuchos::RCP<physics> phys = Teuchos::rcp( new physics(settings, Comm, mesh->stk_mesh) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // Mesh only needs the variable names and types to finalize
@@ -118,15 +118,15 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
         
     Teuchos::RCP<discretization> disc = Teuchos::rcp( new discretization(settings, Comm,
-                                                                         mesh->mesh,
+                                                                         mesh->stk_mesh,
                                                                          phys) );
-                                                                         
+    
     ////////////////////////////////////////////////////////////////////////////////
     // Create the function managers
     ////////////////////////////////////////////////////////////////////////////////
     
     std::vector<std::string> eBlocks;
-    mesh->mesh->getElementBlockNames(eBlocks);
+    mesh->stk_mesh->getElementBlockNames(eBlocks);
     std::vector<Teuchos::RCP<FunctionManager> > functionManagers;
     for (size_t b=0; b<eBlocks.size(); b++) {
       functionManagers.push_back(Teuchos::rcp(new FunctionManager(eBlocks[b],
@@ -146,9 +146,9 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<ParameterManager<SolverNode> > params = Teuchos::rcp( new ParameterManager<SolverNode>(Comm, settings,
-                                                                                                        mesh->mesh, phys, disc));
+                                                                                                        mesh->stk_mesh, phys, disc));
     
-    Teuchos::RCP<AssemblyManager<SolverNode> > assembler = Teuchos::rcp( new AssemblyManager<SolverNode>(Comm, settings, mesh->mesh,
+    Teuchos::RCP<AssemblyManager<SolverNode> > assembler = Teuchos::rcp( new AssemblyManager<SolverNode>(Comm, settings, mesh->stk_mesh,
                                                                                                          disc, phys, params,
                                                                                                          numElemPerCell));
     
@@ -158,7 +158,7 @@ int main(int argc,char * argv[]) {
     // Set up the subgrid discretizations/models if using multiscale method
     ////////////////////////////////////////////////////////////////////////////////
     
-    std::vector<Teuchos::RCP<SubGridModel> > subgridModels = subgridGenerator(subgridComm, settings, mesh->mesh);
+    std::vector<Teuchos::RCP<SubGridModel> > subgridModels = subgridGenerator(subgridComm, settings, mesh);
     
     Teuchos::RCP<MultiScale> multiscale_manager = Teuchos::rcp( new MultiScale(Comm, subgridComm, settings,
                                                                                assembler->cells, subgridModels,
@@ -169,7 +169,7 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<PostprocessManager<SolverNode> >
-    postproc = Teuchos::rcp( new PostprocessManager<SolverNode>(Comm, settings, mesh->mesh, mesh->optimization_mesh,
+    postproc = Teuchos::rcp( new PostprocessManager<SolverNode>(Comm, settings, mesh, //mesh->stk_optimization_mesh,
                                                                 disc, phys, functionManagers, multiscale_manager,
                                                                 assembler, params) );
     
@@ -207,14 +207,23 @@ int main(int argc,char * argv[]) {
     solve->finalizeMultiscale();
     
     ////////////////////////////////////////////////////////////////////////////////
+    // Purge Panzer memory before solving
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    if (settings->get<bool>("enable memory purge",false)) {
+      disc->purgeMemory();
+      mesh->purgeMemory();
+      params->purgeMemory();
+      assembler->purgeMemory();
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////////
     // Perform the requested analysis (fwd solve, adj solve, dakota run, etc.)
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<analysis> analys = Teuchos::rcp( new analysis(Comm, settings,
                                                                solve, postproc, params) );
-    
-    //disc->purgeMemory();
-    
+        
     {
       Teuchos::TimeMonitor rtimer(*runTimer);
       analys->run();
@@ -225,6 +234,7 @@ int main(int argc,char * argv[]) {
         assembler->wkset[b]->printMetaData();
       }
     }
+    
   }
   
   if (verbosity >= 10) {

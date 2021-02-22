@@ -42,15 +42,9 @@ namespace MrHyDE {
   
   class meshInterface {
     
-    //typedef Tpetra::Map<LO, GO, SolverNode>               LA_Map;
-    //typedef Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> LA_MultiVector;
-    //typedef Teuchos::RCP<LA_MultiVector> vector_RCP;
-    
   public:
     
     meshInterface() {};
-    
-    //~meshInterface();
     
     meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_, const Teuchos::RCP<MpiComm> & Commptr_);
     
@@ -98,9 +92,7 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    void readMeshData();//Teuchos::RCP<const Tpetra::Map<LO, GO, SolverNode> > & LA_overlapped_map,
-                        //vector<vector<Teuchos::RCP<cell> > > & cells);
-    
+    void readMeshData();
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
@@ -108,14 +100,20 @@ namespace MrHyDE {
     void updateMeshData(const int & newrandseed, vector<vector<Teuchos::RCP<cell> > > & cells,
                         Teuchos::RCP<MultiScale> & multiscale_manager);
     
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
+    void purgeMemory();
+    
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
     // Public data members
-    Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory;
-    Teuchos::RCP<panzer_stk::STK_Interface> mesh, optimization_mesh;
     Teuchos::RCP<Teuchos::ParameterList>  settings;
     Teuchos::RCP<MpiComm> Commptr;
+    Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory;
+    Teuchos::RCP<panzer_stk::STK_Interface> stk_mesh, stk_optimization_mesh;
+    
     bool have_mesh_data, compute_mesh_data, have_rotations, have_rotation_phi, have_multiple_data_files;
     string shape, mesh_data_file_tag, mesh_data_pts_tag, mesh_data_tag;
     int spaceDim, verbosity, number_mesh_data_files, milo_debug_level;
@@ -126,11 +124,11 @@ namespace MrHyDE {
     bool meshmod_usesmoother;
     ScalarT meshmod_TOL, meshmod_center, meshmod_layer_size;
     
-    // variables read in from an exodus mesh
-    Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > meas;
-    vector<vector<ScalarT> > nfield_vals, efield_vals;
     vector<string> nfield_names, efield_names;
     int numResponses;
+    
+    Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > meas;
+    vector<vector<ScalarT> > nfield_vals, efield_vals;
     
   };
   

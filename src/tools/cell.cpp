@@ -47,7 +47,7 @@ LIDs(LIDs_), cellData(cellData_), localElemID(localID_), sideinfo(sideinfo_), no
     disc->getPhysicalVolumetricData(cellData, nodes, localElemID,
                                     ip, wts, hsize, orientation,
                                     basis, basis_grad, basis_curl,
-                                    basis_div, basis_nodes);
+                                    basis_div, basis_nodes,true,true);
     
     if (cellData->build_face_terms) {
       for (size_type side=0; side<cellData->numSides; side++) {
@@ -61,7 +61,7 @@ LIDs(LIDs_), cellData(cellData_), localElemID(localID_), sideinfo(sideinfo_), no
                 
         disc->getPhysicalFaceData(cellData, side, nodes, localElemID, orientation,
                                   face_ip, face_wts, face_normals, face_hsize,
-                                  face_basis, face_basis_grad);
+                                  face_basis, face_basis_grad,true,false);
         
         ip_face.push_back(face_ip);
         wts_face.push_back(face_wts);
@@ -72,6 +72,12 @@ LIDs(LIDs_), cellData(cellData_), localElemID(localID_), sideinfo(sideinfo_), no
       }
       
     }
+  }
+  else {
+    orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
+    disc->getPhysicalOrientations(cellData, localElemID,
+                                  orientation, true);
+    
   }
 }
 
@@ -155,16 +161,23 @@ void cell::setUseBasis(vector<int> & usebasis_, const int & numsteps, const int 
   }
   //maxnbasis *= nstages;
   u = View_Sc3("u",numElem,cellData->numDOF.extent(0),maxnbasis);
-  phi = View_Sc3("phi",numElem,cellData->numDOF.extent(0),maxnbasis);
+  if (cellData->requiresAdjoint) {
+    phi = View_Sc3("phi",numElem,cellData->numDOF.extent(0),maxnbasis);
+  }
   
   // This does add a little extra un-used memory for steady-state problems, but not a concern
-  u_prev = View_Sc4("u previous",numElem,cellData->numDOF.extent(0),maxnbasis,numsteps);
-  phi_prev = View_Sc4("phi previous",numElem,cellData->numDOF.extent(0),maxnbasis,numsteps);
+  if (cellData->requiresTransient) {
+    u_prev = View_Sc4("u previous",numElem,cellData->numDOF.extent(0),maxnbasis,numsteps);
+    u_stage = View_Sc4("u stages",numElem,cellData->numDOF.extent(0),maxnbasis,numstages);
+    if (cellData->requiresAdjoint) {
+      phi_prev = View_Sc4("phi previous",numElem,cellData->numDOF.extent(0),maxnbasis,numsteps);
+      phi_stage = View_Sc4("phi stages",numElem,cellData->numDOF.extent(0),maxnbasis,numstages);
+    }
+  }
   
-  u_stage = View_Sc4("u stages",numElem,cellData->numDOF.extent(0),maxnbasis,numstages);
-  phi_stage = View_Sc4("phi stages",numElem,cellData->numDOF.extent(0),maxnbasis,numstages);
- 
-  u_avg = View_Sc3("u spatial average",numElem,cellData->numDOF.extent(0),cellData->dimension);
+  if (cellData->compute_sol_avg) {
+    u_avg = View_Sc3("u spatial average",numElem,cellData->numDOF.extent(0),cellData->dimension);
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -173,7 +186,6 @@ void cell::setUseBasis(vector<int> & usebasis_, const int & numsteps, const int 
 
 void cell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasis_) {
   vector<int> paramusebasis = pusebasis_;
-  //wkset->paramusebasis = pusebasis_;
   
   int maxnbasis = 0;
   for (size_type i=0; i<cellData->numParamDOF.extent(0); i++) {
@@ -182,8 +194,10 @@ void cell::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasi
     }
   }
   param = View_Sc3("param",numElem,cellData->numParamDOF.extent(0),maxnbasis);
-  param_avg = View_Sc3("param",numElem,cellData->numParamDOF.extent(0), cellData->dimension);
   
+  if (cellData->compute_sol_avg) {
+    param_avg = View_Sc3("param",numElem,cellData->numParamDOF.extent(0), cellData->dimension);
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -245,13 +259,12 @@ void cell::computeSolnVolIP() {
     View_Sc3 tip("physical ip",numElem, cellData->ref_ip.extent(0), cellData->dimension);
     View_Sc2 twts("physical wts",numElem, cellData->ref_ip.extent(0));
     View_Sc1 thsize("physical meshsize",numElem);
-    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> torientation("kv to orients",numElem);
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
     vector<View_Sc3> tbasis_div;
     disc->getPhysicalVolumetricData(cellData, nodes, localElemID,
-                                    tip, twts, thsize, torientation,
+                                    tip, twts, thsize, orientation,
                                     tbasis, tbasis_grad, tbasis_curl,
-                                    tbasis_div, tbasis_nodes);
+                                    tbasis_div, tbasis_nodes,true,false);
     wkset->wts = twts;
     wkset->h = thsize;
     wkset->setIP(tip);
@@ -427,7 +440,6 @@ void cell::updateWorksetFaceBasis(const size_t & facenum) {
 void cell::computeSolnFaceIP(const size_t & facenum) {
   
   Teuchos::TimeMonitor localtimer(*computeSolnFaceTimer);
-  //this->updateWorksetFaceBasis(facenum);
   if (cellData->storeAll) {
     wkset->wts_side = wts_face[facenum];
     wkset->h = hsize;
@@ -446,7 +458,7 @@ void cell::computeSolnFaceIP(const size_t & facenum) {
     vector<View_Sc4> tbasis, tbasis_grad;
   
     disc->getPhysicalFaceData(cellData, facenum, nodes, localElemID, orientation,
-                              tip, twts, tnormals, thsize, tbasis, tbasis_grad);
+                              tip, twts, tnormals, thsize, tbasis, tbasis_grad, true, false);
     
     wkset->wts_side = twts;
     wkset->h = thsize;

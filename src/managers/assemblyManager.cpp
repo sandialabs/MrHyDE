@@ -444,6 +444,8 @@ void AssemblyManager<Node>::createCells() {
           }
         }
       }
+    
+      
     }
     
     
@@ -1765,3 +1767,15 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
   }
 }
 
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+// After the setup phase, we can get rid of a few things
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
+void AssemblyManager<Node>::purgeMemory() {
+  bool write_solution = settings->sublist("Postprocess").get("write solution",false);
+  if (!write_solution) {
+    mesh.reset();
+  }
+}

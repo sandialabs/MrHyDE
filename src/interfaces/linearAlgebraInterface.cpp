@@ -15,6 +15,12 @@
 
 using namespace MrHyDE;
 
+// Explicit template instantiations
+template class linearAlgebra<SolverNode>;
+#if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
+  template class linearAlgebra<SubgridSolverNode>;
+#endif
+
 // ========================================================================================
 // Constructor  
 // ========================================================================================
@@ -112,8 +118,7 @@ void linearAlgebra<Node>::setupLinearAlgebra() {
   }
   //maxEntries = 512;
   
-  std::vector<string> blocknames;
-  disc->mesh->getElementBlockNames(blocknames);
+  std::vector<string> blocknames = disc->blocknames;
   
   // --------------------------------------------------
   // primary variable LA objects
@@ -265,7 +270,7 @@ Teuchos::RCP<Teuchos::ParameterList> linearAlgebra<Node>::getBelosParameterList(
     belosList->set("Output Frequency",0);
   }
   int numEqns = 1;
-  if (disc->mesh->getNumElementBlocks() == 1) {
+  if (disc->blocknames.size() == 1) {
     numEqns = disc->phys->numVars[0];
   }
   belosList->set("number of equations", numEqns);

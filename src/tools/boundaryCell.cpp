@@ -52,8 +52,12 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
     orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
     disc->getPhysicalBoundaryData(cellData, nodes, localElemID, localSideID, orientation,
                                   ip, wts, normals, tangents, hsize,
-                                  basis, basis_grad, basis_curl, basis_div);
+                                  basis, basis_grad, basis_curl, basis_div, true, true);
     
+  }
+  else {
+    orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
+    disc->getPhysicalOrientations(cellData, localElemID, orientation, false);
   }
 }
 
@@ -112,10 +116,13 @@ void BoundaryCell::setUseBasis(vector<int> & usebasis_, const int & numsteps, co
     }
   }
   u = View_Sc3("u",numElem,cellData->numDOF.extent(0),maxnbasis);
-  phi = View_Sc3("phi",numElem,cellData->numDOF.extent(0),maxnbasis);
-  u_prev = View_Sc4("u previous",numElem,cellData->numDOF.extent(0),maxnbasis,numsteps);
-  u_stage = View_Sc4("u stages",numElem,cellData->numDOF.extent(0),maxnbasis,numstages);
-  
+  if (cellData->requiresAdjoint) {
+    phi = View_Sc3("phi",numElem,cellData->numDOF.extent(0),maxnbasis);
+  }
+  if (cellData->requiresTransient) {
+    u_prev = View_Sc4("u previous",numElem,cellData->numDOF.extent(0),maxnbasis,numsteps);
+    u_stage = View_Sc4("u stages",numElem,cellData->numDOF.extent(0),maxnbasis,numstages);
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -178,13 +185,12 @@ void BoundaryCell::updateWorksetBasis() {
     View_Sc3 ttangents("physical tangents",numElem, numip, dimension);
     View_Sc2 twts("physical wts",numElem, numip);
     View_Sc1 thsize("physical meshsize",numElem);
-    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> torientation("kv to orients",numElem);
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
     vector<View_Sc3> tbasis_div;
     disc->getPhysicalBoundaryData(cellData, nodes, localElemID,
-                                  localSideID, torientation,
+                                  localSideID, orientation,
                                   tip, twts, tnormals, ttangents, thsize,
-                                  tbasis, tbasis_grad, tbasis_curl, tbasis_div);
+                                  tbasis, tbasis_grad, tbasis_curl, tbasis_div, true, false);
     
     wkset->wts_side = twts;
     wkset->h = thsize;

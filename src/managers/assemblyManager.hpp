@@ -146,7 +146,6 @@ namespace MrHyDE {
     
     template<class ViewType>
     void performGather(ViewType vec_dev, const int & type);
-    //void performGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, const int & type);
     
     // ========================================================================================
     //
@@ -154,7 +153,6 @@ namespace MrHyDE {
     
     template<class ViewType>
     void performBoundaryGather(ViewType vec_dev, const int & type);
-    //void performBoundaryGather(Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, const int & type);
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
@@ -173,6 +171,11 @@ namespace MrHyDE {
                  const bool & compute_sens,
                  const bool & compute_disc_sens,
                  const bool & isAdjoint);
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    void purgeMemory();
     
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Public data members

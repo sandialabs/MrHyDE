@@ -34,7 +34,7 @@ settings(settings_), mesh(mesh_), assembler(assembler_) {
     }
   }
   
-  spaceDim = mesh->mesh->getDimension();
+  spaceDim = mesh->stk_mesh->getDimension();
   have_sensor_data = false;
   have_sensor_points = false;
   numSensors = 0;

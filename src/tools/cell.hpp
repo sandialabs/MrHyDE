@@ -258,15 +258,19 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     void setUpAdjointPrev(const int & numDOF, const int & numsteps, const int & numstages) {
-      adj_prev = View_Sc3("previous step adjoint",numElem,numDOF,numsteps);
-      adj_stage_prev = View_Sc3("previous stage adjoint",numElem,numDOF,numstages);
+      if (cellData->requiresTransient && cellData->requiresAdjoint) {
+        adj_prev = View_Sc3("previous step adjoint",numElem,numDOF,numsteps);
+        adj_stage_prev = View_Sc3("previous stage adjoint",numElem,numDOF,numstages);
+      }
     }
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
     void setUpSubGradient(const int & numParams) {
-      subgradient = View_Sc2("subgrid gradient",numElem,numParams);
+      if (cellData->requiresAdjoint) {
+        subgradient = View_Sc2("subgrid gradient",numElem,numParams);
+      }
     }
     
     ///////////////////////////////////////////////////////////////////////////////////////
