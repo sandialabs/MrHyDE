@@ -160,7 +160,7 @@ namespace MrHyDE {
     Teuchos::RCP<PostprocessManager<Node> > postproc;
     Teuchos::RCP<MultiScale> multiscale_manager;
     
-    int verbosity, batchID, spaceDim, numsteps, numstages, gNLiter, milo_debug_level, maxNLiter, time_order;
+    int verbosity, batchID, spaceDim, numsteps, numstages, gNLiter, debug_level, maxNLiter, time_order;
     
     bool save_solution=false;
     

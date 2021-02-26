@@ -24,9 +24,9 @@ physics::physics(Teuchos::RCP<Teuchos::ParameterList> & settings_, Teuchos::RCP<
                  Teuchos::RCP<panzer_stk::STK_Interface> & mesh) :
 settings(settings_), Commptr(Comm_){
   
-  milo_debug_level = settings->get<int>("debug level",0);
+  debug_level = settings->get<int>("debug level",0);
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Starting physics constructor ..." << endl;
     }
@@ -83,7 +83,7 @@ settings(settings_), Commptr(Comm_){
     }
   }
 
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Finished physics constructor" << endl;
     }
@@ -296,7 +296,7 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
 
 void physics::importPhysics(const bool & isaux) {
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Starting physics::importPhysics ..." << endl;
     }
@@ -525,7 +525,7 @@ void physics::importPhysics(const bool & isaux) {
       unique_index.push_back(currunique_index);
     }
   }
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Finished physics::importPhysics ..." << endl;
     }
@@ -1077,8 +1077,18 @@ int physics::getUniqueIndex(const int & block, const std::string & var) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 void physics::volumeResidual(const size_t block) {
+  if (debug_level > 1) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting physics volume residual ..." << endl;
+    }
+  }
   for (size_t i=0; i<modules[block].size(); i++) {
     modules[block][i]->volumeResidual();
+  }
+  if (debug_level > 1) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished physics volume residual" << endl;
+    }
   }
 }
 

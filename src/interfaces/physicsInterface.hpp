@@ -256,7 +256,7 @@ namespace MrHyDE {
     Teuchos::RCP<MpiComm> Commptr;
     vector<Teuchos::ParameterList> blockPhysSettings, blockDiscSettings, aux_blockPhysSettings, aux_blockDiscSettings;
     vector<string> blocknames, sideNames;
-    int spaceDim, milo_debug_level;
+    int spaceDim, debug_level;
     size_t numBlocks;
     
     bool have_aux = false;
