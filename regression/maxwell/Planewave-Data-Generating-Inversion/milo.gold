@@ -2,14 +2,14 @@ p=0 | CubeHexMesh: Building sub cells
 
 Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
   iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
-  0     2.826284e-09   1.717553e+02                  1.000000e-11   
-  1     7.661199e-11   9.422786e+00   1.000000e-11   2.500000e-11   2         2         0         1         3         
+  0     5.932859e-10   1.419785e+02                  1.000000e-11   
+  1     1.442040e-11   6.245150e+00   1.000000e-11   1.000000e-11   2         2         0         1         3         
 Optimization Terminated with Status: Iteration Limit Exceeded
 
 Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
   iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
-  0     2.826284e-09   1.717553e+02                  1.000000e-11   
-  1     7.661199e-11   9.422786e+00   1.000000e-11   2.500000e-11   2         2         0         1         3         
+  0     5.932859e-10   1.419785e+02                  1.000000e-11   
+  1     1.442040e-11   6.245150e+00   1.000000e-11   1.000000e-11   2         2         0         1         3         
 Optimization Terminated with Status: Iteration Limit Exceeded
 param 0 = 8e-12
 param 1 = 8e-12
@@ -183,66 +183,66 @@ param 168 = 8.00001e-12
 param 169 = 8.00001e-12
 param 170 = 8.00001e-12
 param 171 = 8.00001e-12
-param 172 = 8.00006e-12
-param 173 = 8.00006e-12
-param 174 = 8.00006e-12
-param 175 = 8.00006e-12
-param 176 = 8.00028e-12
-param 177 = 8.00028e-12
-param 178 = 8.00028e-12
-param 179 = 8.00028e-12
-param 180 = 8.01936e-12
-param 181 = 8.01936e-12
-param 182 = 8.01936e-12
-param 183 = 8.01936e-12
-param 184 = 8.15223e-12
-param 185 = 8.15223e-12
-param 186 = 8.15223e-12
-param 187 = 8.15223e-12
-param 188 = 8.56989e-12
-param 189 = 8.56989e-12
-param 190 = 8.56989e-12
-param 191 = 8.56989e-12
-param 192 = 9.46846e-12
-param 193 = 9.46846e-12
-param 194 = 9.46846e-12
-param 195 = 9.46846e-12
-param 196 = 1.05487e-11
-param 197 = 1.05487e-11
-param 198 = 1.05487e-11
-param 199 = 1.05487e-11
-param 200 = 1.08462e-11
-param 201 = 1.08462e-11
-param 202 = 1.06737e-11
-param 203 = 1.06737e-11
-param 204 = 1.04646e-11
-param 205 = 1.04646e-11
-param 206 = 1.03804e-11
-param 207 = 1.03804e-11
-param 208 = 9.46846e-12
-param 209 = 9.46846e-12
-param 210 = 9.46846e-12
-param 211 = 9.46846e-12
-param 212 = 8.56989e-12
-param 213 = 8.56989e-12
-param 214 = 8.56989e-12
-param 215 = 8.56989e-12
-param 216 = 8.15223e-12
-param 217 = 8.15223e-12
-param 218 = 8.15223e-12
-param 219 = 8.15223e-12
-param 220 = 8.01936e-12
-param 221 = 8.01936e-12
-param 222 = 8.01936e-12
-param 223 = 8.01936e-12
-param 224 = 8.00028e-12
-param 225 = 8.00028e-12
-param 226 = 8.00028e-12
-param 227 = 8.00028e-12
-param 228 = 8.00006e-12
-param 229 = 8.00006e-12
-param 230 = 8.00006e-12
-param 231 = 8.00006e-12
+param 172 = 8.00008e-12
+param 173 = 8.00008e-12
+param 174 = 8.00008e-12
+param 175 = 8.00008e-12
+param 176 = 8.00035e-12
+param 177 = 8.00035e-12
+param 178 = 8.00035e-12
+param 179 = 8.00035e-12
+param 180 = 8.02332e-12
+param 181 = 8.02332e-12
+param 182 = 8.02332e-12
+param 183 = 8.02332e-12
+param 184 = 8.1849e-12
+param 185 = 8.1849e-12
+param 186 = 8.1849e-12
+param 187 = 8.1849e-12
+param 188 = 8.66517e-12
+param 189 = 8.66517e-12
+param 190 = 8.66517e-12
+param 191 = 8.66517e-12
+param 192 = 9.53136e-12
+param 193 = 9.53136e-12
+param 194 = 9.53136e-12
+param 195 = 9.53136e-12
+param 196 = 1.0511e-11
+param 197 = 1.0511e-11
+param 198 = 1.0511e-11
+param 199 = 1.0511e-11
+param 200 = 1.07947e-11
+param 201 = 1.07947e-11
+param 202 = 1.06248e-11
+param 203 = 1.06248e-11
+param 204 = 1.04285e-11
+param 205 = 1.04285e-11
+param 206 = 1.03459e-11
+param 207 = 1.03459e-11
+param 208 = 9.53136e-12
+param 209 = 9.53136e-12
+param 210 = 9.53136e-12
+param 211 = 9.53136e-12
+param 212 = 8.66517e-12
+param 213 = 8.66517e-12
+param 214 = 8.66517e-12
+param 215 = 8.66517e-12
+param 216 = 8.1849e-12
+param 217 = 8.1849e-12
+param 218 = 8.1849e-12
+param 219 = 8.1849e-12
+param 220 = 8.02332e-12
+param 221 = 8.02332e-12
+param 222 = 8.02332e-12
+param 223 = 8.02332e-12
+param 224 = 8.00035e-12
+param 225 = 8.00035e-12
+param 226 = 8.00035e-12
+param 227 = 8.00035e-12
+param 228 = 8.00008e-12
+param 229 = 8.00008e-12
+param 230 = 8.00008e-12
+param 231 = 8.00008e-12
 param 232 = 8.00001e-12
 param 233 = 8.00001e-12
 param 234 = 8.00001e-12

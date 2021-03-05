@@ -1236,21 +1236,26 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
                               params->num_active_params, params->Psol[0], is_final_time, deltat);
     
+    linalg->exportVectorFromOverlapped(res, res_over);
+    
     if (useadjoint && response_type == "discrete") {
       vector_RCP D_soln;
       bool fnd = datagen_soln->extract(D_soln, 0, current_time+deltat);
       if (fnd) {
-        vector_RCP diff = linalg->getNewOverlappedVector();
-        diff->update(1.0, *u, 0.0);
-        diff->update(-1.0, *D_soln, 1.0);
-        res_over->update(-1.0*discrete_objective_scale_factor,*diff,1.0);
+        // TMW: this is unecessarily complicated because we store the overlapped soln
+        vector_RCP diff = linalg->getNewVector();
+        vector_RCP u_no = linalg->getNewVector();
+        vector_RCP D_no = linalg->getNewVector();
+        u_no->doExport(*u, *(linalg->exporter), Tpetra::REPLACE);
+        D_no->doExport(*D_soln, *(linalg->exporter), Tpetra::REPLACE);
+        diff->update(1.0, *u_no, 0.0);
+        diff->update(-1.0, *D_no, 1.0);
+        res->update(-1.0*discrete_objective_scale_factor,*diff,1.0);
       }
       else {
         std::cout << "Error: did not find a data-generating solution" << std::endl;
       }
     }
-    
-    linalg->exportVectorFromOverlapped(res, res_over);
     
     if (debug_level>2) {
       KokkosTools::print(res,"residual from solver interface");
@@ -1343,7 +1348,7 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
 // ========================================================================================
 
 template<class Node>
-DFAD solver<Node>::computeObjective(const vector_RCP & F_soln, const ScalarT & time,
+DFAD solver<Node>::computeObjective(vector_RCP & F_soln, const ScalarT & time,
                                     const size_t & tindex) {
   
   if (debug_level > 1) {
@@ -1369,12 +1374,20 @@ DFAD solver<Node>::computeObjective(const vector_RCP & F_soln, const ScalarT & t
     vector_RCP D_soln;
     bool fnd = datagen_soln->extract(D_soln, 0, time);
     if (fnd) {
-      vector_RCP diff = linalg->getNewOverlappedVector();
-      diff->update(1.0, *F_soln, 0.0);
-      diff->update(-1.0, *D_soln, 1.0);
+      vector_RCP diff = linalg->getNewVector();
+      vector_RCP F_no = linalg->getNewVector();
+      vector_RCP D_no = linalg->getNewVector();
+      F_no->doExport(*F_soln, *(linalg->exporter), Tpetra::REPLACE);
+      D_no->doExport(*D_soln, *(linalg->exporter), Tpetra::REPLACE);
+      
+      diff->update(1.0, *F_no, 0.0);
+      diff->update(-1.0, *D_no, 1.0);
       Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> obj(1);
       diff->norm2(obj);
-      totaldiff = 0.5*discrete_objective_scale_factor*obj[0]*obj[0];
+      
+      if (Comm->getRank() == 0) { // TMW: is this really the best way to do this
+        totaldiff = 0.5*discrete_objective_scale_factor*obj[0]*obj[0];
+      }
       //cout << "objfun = " << totaldiff << endl;
     }
     else {
