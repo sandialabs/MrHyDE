@@ -109,7 +109,9 @@ void maxwell::volumeResidual() {
     auto wts = wkset->wts;
     auto res = wkset->res;
     
-    parallel_for("Maxwells B volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("Maxwells B volume resid",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f0 = (dBx_dt(elem,pt) + curlE_x(elem,pt))*wts(elem,pt);
         AD f1 = (dBy_dt(elem,pt) + curlE_y(elem,pt))*wts(elem,pt);
@@ -142,7 +144,9 @@ void maxwell::volumeResidual() {
     auto wts = wkset->wts;
     auto res = wkset->res;
     
-    parallel_for("Maxwells E volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("Maxwells E volume resid",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f0 = (epsilon(elem,pt)*dEx_dt(elem,pt) + sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt))*wts(elem,pt);
         AD f1 = (epsilon(elem,pt)*dEy_dt(elem,pt) + sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt))*wts(elem,pt);
@@ -150,10 +154,6 @@ void maxwell::volumeResidual() {
         AD c0 = - 1.0/mu(elem,pt)*Bx(elem,pt)*wts(elem,pt);
         AD c1 = - 1.0/mu(elem,pt)*By(elem,pt)*wts(elem,pt);
         AD c2 = - 1.0/mu(elem,pt)*Bz(elem,pt)*wts(elem,pt);
-        //cout << dEdt(elem,pt,0) << "  " << dEdt(elem,pt,1) << "  " << dEdt(elem,pt,2) << endl;
-        //cout << B(elem,pt,0) << "  " << B(elem,pt,1) << "  " << B(elem,pt,2) << endl;
-        //cout << f0 << "  " << f1 << "  " << f2 << endl;
-        //cout << c0 << "  " << c1 << "  " << c2 << endl;
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0);
           res(elem,off(dof)) += f1*basis(elem,dof,pt,1) + c1*basis_curl(elem,dof,pt,1);

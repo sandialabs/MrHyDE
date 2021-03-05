@@ -103,7 +103,9 @@ void stokes::volumeResidual() {
       auto basis = wkset->basis[ux_basis];
       auto basis_grad = wkset->basis_grad[ux_basis];
       auto off = subview(wkset->offsets,ux_num,ALL());
-      parallel_for("Stokes ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Stokes ux volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*dux_dx(elem,pt) - Pr(elem,pt);
           Fx *= wts(elem,pt);
@@ -121,7 +123,9 @@ void stokes::volumeResidual() {
       auto basis_grad = wkset->basis_grad[pr_basis];
       auto off = subview(wkset->offsets,pr_num,ALL());
       
-      parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Stokes pr volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for( size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD divu = dux_dx(elem,pt);
           divu *= wts(elem,pt);
@@ -136,7 +140,9 @@ void stokes::volumeResidual() {
         auto h = wkset->h;
         auto dpr_dx = wkset->getData("grad(pr)[x]");
         
-        parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("Stokes pr volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           ScalarT alpha = 1.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
@@ -154,7 +160,9 @@ void stokes::volumeResidual() {
         auto h = wkset->h;
         auto dux_dx = wkset->getData("grad(ux)[x]");
         
-        parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("Stokes pr volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           ScalarT alpha = 1.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
@@ -180,7 +188,9 @@ void stokes::volumeResidual() {
       auto basis = wkset->basis[ux_basis];
       auto basis_grad = wkset->basis_grad[ux_basis];
       auto off = Kokkos::subview(wkset->offsets,ux_num,Kokkos::ALL());
-      parallel_for("Stokes ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Stokes ux volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*dux_dx(elem,pt) - Pr(elem,pt);
           Fx *= wts(elem,pt);
@@ -199,7 +209,9 @@ void stokes::volumeResidual() {
       auto basis = wkset->basis[uy_basis];
       auto basis_grad = wkset->basis_grad[uy_basis];
       auto off = subview(wkset->offsets,uy_num,ALL());
-      parallel_for("Stokes uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Stokes uy volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for( size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*duy_dx(elem,pt);
           Fx *= wts(elem,pt);
@@ -219,7 +231,9 @@ void stokes::volumeResidual() {
       auto basis_grad = wkset->basis_grad[pr_basis];
       auto off = Kokkos::subview(wkset->offsets,pr_num,Kokkos::ALL());
       
-      parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Stokes pr volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for( size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD divu = dux_dx(elem,pt) + duy_dy(elem,pt);
           divu *= wts(elem,pt);
@@ -235,7 +249,9 @@ void stokes::volumeResidual() {
         auto dpr_dx = wkset->getData("grad(pr)[x]");
         auto dpr_dy = wkset->getData("grad(pr)[y]");
         
-        parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("Stokes pr volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           ScalarT alpha = 1.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             //AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
@@ -257,7 +273,9 @@ void stokes::volumeResidual() {
         auto dux_dx = wkset->getData("grad(ux)[x]");
         auto duy_dy = wkset->getData("grad(uy)[y]");
         
-        parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("Stokes pr volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           ScalarT alpha = 1.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
@@ -289,7 +307,9 @@ void stokes::volumeResidual() {
       auto basis = wkset->basis[ux_basis];
       auto basis_grad = wkset->basis_grad[ux_basis];
       auto off = subview(wkset->offsets,ux_num,ALL());
-      parallel_for("Stokes ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Stokes ux volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*dux_dx(elem,pt) - Pr(elem,pt);
           Fx *= wts(elem,pt);
@@ -310,7 +330,9 @@ void stokes::volumeResidual() {
       auto basis = wkset->basis[uy_basis];
       auto basis_grad = wkset->basis_grad[uy_basis];
       auto off = subview(wkset->offsets,uy_num,ALL());
-      parallel_for("Stokes uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Stokes uy volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for( size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*duy_dx(elem,pt);
           Fx *= wts(elem,pt);
@@ -331,7 +353,9 @@ void stokes::volumeResidual() {
       auto basis = wkset->basis[uz_basis];
       auto basis_grad = wkset->basis_grad[uz_basis];
       auto off = subview(wkset->offsets,uz_num,ALL());
-      parallel_for("Stokes uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Stokes uy volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for( size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*duz_dx(elem,pt);
           Fx *= wts(elem,pt);
@@ -353,7 +377,9 @@ void stokes::volumeResidual() {
       auto basis_grad = wkset->basis_grad[pr_basis];
       auto off = subview(wkset->offsets,pr_num,ALL());
       
-      parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("Stokes pr volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for( size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD divu = dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt);
           divu *= wts(elem,pt);
@@ -370,7 +396,9 @@ void stokes::volumeResidual() {
         auto dpr_dy = wkset->getData("grad(pr)[y]");
         auto dpr_dz = wkset->getData("grad(pr)[z]");
         
-        parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("Stokes pr volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
 	  ScalarT alpha = 1.0;
 	  for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 	    AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
@@ -394,7 +422,9 @@ void stokes::volumeResidual() {
         auto duy_dy = wkset->getData("grad(uy)[y]");
         auto duz_dz = wkset->getData("grad(uz)[z]");
         
-        parallel_for("Stokes pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("Stokes pr volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
         ScalarT alpha = 1.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 	    AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));

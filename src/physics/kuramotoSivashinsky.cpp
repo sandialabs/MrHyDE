@@ -65,7 +65,7 @@ void KuramotoSivashinsky::volumeResidual() {
     auto w = wkset->getData("w");
     auto dwdx = wkset->getData("grad(w)[x]");
     parallel_for("Kuramoto-Sivashinsky volume resid",
-                 RangePolicy<AssemblyExec>(0,basis.extent(0)),
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD gradu_sq = 0.5*dudx(elem,pt)*dudx(elem,pt);
@@ -84,7 +84,7 @@ void KuramotoSivashinsky::volumeResidual() {
     auto dwdx = wkset->getData("grad(w)[x]");
     auto dwdy = wkset->getData("grad(w)[y]");
     parallel_for("Kuramoto-Sivashinsky volume resid",
-                 RangePolicy<AssemblyExec>(0,basis.extent(0)),
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD gradu_sq = 0.5*(dudx(elem,pt)*dudx(elem,pt) + dudy(elem,pt)*dudy(elem,pt));
@@ -107,7 +107,7 @@ void KuramotoSivashinsky::volumeResidual() {
     auto dwdy = wkset->getData("grad(w)[y]");
     auto dwdz = wkset->getData("grad(w)[z]");
     parallel_for("Kuramoto-Sivashinsky volume resid",
-                 RangePolicy<AssemblyExec>(0,basis.extent(0)),
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD gradu_sq = 0.5*(dudx(elem,pt)*dudx(elem,pt) + dudy(elem,pt)*dudy(elem,pt) + dudz(elem,pt)*dudz(elem,pt));
@@ -130,7 +130,7 @@ void KuramotoSivashinsky::volumeResidual() {
     auto dudx = wkset->getData("grad(u)[x]");
     auto w = wkset->getData("w");
     parallel_for("Kuramoto-Sivashinsky volume resid",
-                 RangePolicy<AssemblyExec>(0,basis.extent(0)),
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = (w(elem,pt))*wts(elem,pt);
@@ -146,7 +146,7 @@ void KuramotoSivashinsky::volumeResidual() {
     auto dudy = wkset->getData("grad(u)[y]");
     auto w = wkset->getData("w");
     parallel_for("Kuramoto-Sivashinsky volume resid",
-                 RangePolicy<AssemblyExec>(0,basis.extent(0)),
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = (w(elem,pt))*wts(elem,pt);
@@ -165,7 +165,7 @@ void KuramotoSivashinsky::volumeResidual() {
     auto dudz = wkset->getData("grad(u)[z]");
     auto w = wkset->getData("w");
     parallel_for("Kuramoto-Sivashinsky volume resid",
-                 RangePolicy<AssemblyExec>(0,basis.extent(0)),
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = (w(elem,pt))*wts(elem,pt);

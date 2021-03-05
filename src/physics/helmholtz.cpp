@@ -133,7 +133,9 @@ void helmholtz::volumeResidual() {
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
   // TMW: this won't actually work on a GPU ... need to use subviews of sol, etc. and remove conditionals
-  parallel_for("helmholtz volume resid",RangePolicy<AssemblyExec>(0,urbasis.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for("helmholtz volume resid",
+               RangePolicy<AssemblyExec>(0,wkset->numElem),
+               KOKKOS_LAMBDA (const int e ) {
     for (size_type k=0; k<Ur.extent(1); k++ ) {
       AD ur = Ur(e,k);
       AD durdx = dUr_dx(e,k);
@@ -317,7 +319,7 @@ void helmholtz::boundaryResidual() {
   
   //Robin boundary condition of form alpha*u + dudn - source = 0, where u is the state and dudn is its normal derivative
   if (bcs(ur_num,cside) == "Neumann") {
-    for (size_type e=0; e<urbasis.extent(0); e++) { // not parallelized yet
+    for (int e=0; e<wkset->numElem; e++) { // not parallelized yet
       for( size_type k=0; k<urbasis.extent(2); k++ ) {
         
         AD ur = Ur(e,k);
