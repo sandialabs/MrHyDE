@@ -26,6 +26,12 @@ using Kokkos::TeamPolicy;
 using Kokkos::Rank;
 using Kokkos::subview;
 using Kokkos::ALL;
+using Kokkos::create_mirror_view;
+using Kokkos::deep_copy;
+using Kokkos::fence;
+
+using Teuchos::RCP;
+using Teuchos::rcp;
 
 using std::string;
 using std::vector;
