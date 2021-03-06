@@ -36,7 +36,7 @@ int main(int argc, char * argv[]) {
   Teuchos::RCP<MpiComm> Comm = Teuchos::rcp( new MpiComm(MPI_COMM_WORLD) );
 
   int myRank = Comm->getRank();
-  int numRanks = Comm->getSize();
+  //int numRanks = Comm->getSize();
 
   Kokkos::initialize();
   { // Begin Kokkos scope

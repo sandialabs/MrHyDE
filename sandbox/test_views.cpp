@@ -322,11 +322,11 @@ int main(int argc, char * argv[]) {
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<csol2.extent(1); pt++ ) {
         sol2diff(elem,0) += csol(elem,pt).val() - csol2(elem,pt).val();
-        for (size_t d=0; d<csol2(elem,pt).size(); d++) {
+        for (int d=0; d<csol2(elem,pt).size(); d++) {
           sol2diff(elem,d+1) = csol(elem,pt).fastAccessDx(d) - csol2(elem,pt).fastAccessDx(d);
         }
         sol3diff(elem,0) += csol(elem,pt).val() - csol3(elem,pt).val();
-        for (size_t d=0; d<csol3(elem,pt).size(); d++) {
+        for (int d=0; d<csol3(elem,pt).size(); d++) {
           sol3diff(elem,d+1) = csol(elem,pt).fastAccessDx(d) - csol3(elem,pt).fastAccessDx(d);
         }
       }
