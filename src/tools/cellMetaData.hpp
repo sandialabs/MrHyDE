@@ -48,7 +48,7 @@ namespace MrHyDE {
     Teuchos::RCP<physics> physics_RCP;
     string response_type;
     vector<string> sidenames;
-    bool storeAll, storeJac, storeOrient, requiresTransient, requiresAdjoint;
+    bool storeAll, requiresTransient, requiresAdjoint;
     
     // Geometry Information
     size_t numnodes, numSides, dimension, numip, numsideip, numDiscParams;

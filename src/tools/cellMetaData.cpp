@@ -36,8 +36,6 @@ cellTopo(cellTopo_) {
   writeSensorFiles = settings->sublist("Analysis").get<bool>("Write Sensor Files",false);
   mortar_objective = settings->sublist("Solver").get<bool>("Use Mortar Objective",false);
   storeAll = settings->sublist("Solver").get<bool>("store all cell data",true);
-  storeJac = settings->sublist("Solver").get<bool>("store all cell Jacobians",true);
-  storeOrient = settings->sublist("Solver").get<bool>("store all cell orientation",true);
   
   requiresTransient = true;
   if (settings->sublist("Solver").get<string>("solver","steady-state") == "steady-state") {
