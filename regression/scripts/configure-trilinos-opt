@@ -4,9 +4,9 @@ rm -rf CMakeFiles
 
 EXTRA_ARGS=$@
 
-TRILINOS_HOME='/scratch/bartv/regression-milo-nxtgen/Trilinos'
+TRILINOS_HOME='/scratch/bartv/regression-mrhyde-nxtgen/Trilinos'
 
-INSTALL_DIR='/scratch/bartv/regression-milo-nxtgen/Trilinos-install/OPT'
+INSTALL_DIR='/scratch/bartv/regression-mrhyde-nxtgen/Trilinos-install/OPT'
 
 BOOST_INCLUDE_DIR='/scratch/bartv/software/boost_1_64_0/install/include'
 

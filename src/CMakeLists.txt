@@ -26,11 +26,11 @@ file(GLOB tst
   "subgrid/*.cpp"
 )
 
-ADD_EXECUTABLE(milo
+ADD_EXECUTABLE(mrhyde
   ${tst}
 )
 
-TARGET_LINK_LIBRARIES(milo ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+TARGET_LINK_LIBRARIES(mrhyde ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
 IF(MrHyDE_ENABLE_XML_to_YAML)
   ADD_EXECUTABLE(xml_to_yaml

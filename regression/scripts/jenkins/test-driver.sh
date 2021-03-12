@@ -29,18 +29,18 @@ echo -e "pwd: `pwd`"
 
 # Set build directories
 trilinos_build_opt_path=${WORKSPACE}/trilinos/build-opt
-milo_build_opt_path=${WORKSPACE}/milo/build-opt
+mrhyde_build_opt_path=${WORKSPACE}/mrhyde/build-opt
 
 
 # Wipe out build dir(s) if parameters say so...
 if [[ $PARAM_REBUILD_TRILINOS == "true" ]]; then
       echo "PARAM_REBUILD_TRILINOS is set, clearing build dirs"
       rm -rf ${trilinos_build_opt_path}
-      rm -rf ${milo_build_opt_path}
+      rm -rf ${mrhyde_build_opt_path}
 fi
 if [[ $PARAM_REBUILD_MILO == "true" ]]; then
-      echo "PARAM_REBUILD_MILO is set, clearing milo build dir"
-      rm -rf ${milo_build_opt_path}
+      echo "PARAM_REBUILD_MILO is set, clearing mrhyde build dir"
+      rm -rf ${mrhyde_build_opt_path}
 fi
 
 
@@ -60,7 +60,7 @@ if [ ! -e ${trilinos_build_opt_path} ]; then
     mkdir -p ${trilinos_build_opt_path}
 fi
 
-cp ${WORKSPACE}/milo/regression/scripts/jenkins/config-trilinos.sh ${trilinos_build_opt_path}/.
+cp ${WORKSPACE}/mrhyde/regression/scripts/jenkins/config-trilinos.sh ${trilinos_build_opt_path}/.
 
 cd ${WORKSPACE:?}
 echo -e "pwd: `pwd`"
@@ -128,20 +128,20 @@ echo "-------------------------"
 echo "========================================"
 echo "= Prepare Milo"
 echo "========================================"
-#if [ -e ${milo_build_opt_path} ]; then
-#    rm -rf ${milo_build_opt_path}
+#if [ -e ${mrhyde_build_opt_path} ]; then
+#    rm -rf ${mrhyde_build_opt_path}
 #fi
-mkdir -p ${milo_build_opt_path}
+mkdir -p ${mrhyde_build_opt_path}
 
-cp ${WORKSPACE}/milo/regression/scripts/jenkins/config-milo.sh ${milo_build_opt_path}
+cp ${WORKSPACE}/mrhyde/regression/scripts/jenkins/config-mrhyde.sh ${mrhyde_build_opt_path}
 
 
 echo "========================================"
 echo "= Configure Milo"
 echo "========================================"
-cd ${milo_build_opt_path}
+cd ${mrhyde_build_opt_path}
 echo -e "pwd: `pwd`"
-./config-milo.sh
+./config-mrhyde.sh
 err=$?
 if [ ! $err -eq 0 ]; then
     exit $err
@@ -156,7 +156,7 @@ echo "-----------------------"
 echo "========================================"
 echo "= Build Milo"
 echo "========================================"
-cd ${milo_build_opt_path}
+cd ${mrhyde_build_opt_path}
 echo -e "pwd: `pwd`"
 make -j ${PARAM_NUM_CORES}
 err=$?
@@ -173,11 +173,11 @@ echo "-------------------"
 echo "========================================"
 echo "= Test Milo"
 echo "========================================"
-# Expected milo executable and path location
-milo_exe=milo
-milo_exe_path=${WORKSPACE}/milo/build-opt/src/
+# Expected mrhyde executable and path location
+mrhyde_exe=mrhyde
+mrhyde_exe_path=${WORKSPACE}/mrhyde/build-opt/src/
 
-regression_path=${WORKSPACE}/milo/regression
+regression_path=${WORKSPACE}/mrhyde/regression
 
 if [ -d ${WORKSPACE}/TESTING ]; then
     rm -rf ${WORKSPACE}/TESTING
@@ -196,20 +196,20 @@ echo -e "pwd: `pwd`"
 #fi
 #ln -s ${regression_path}/scripts/runtests.py runtests.py
 
-# Verify that the milo executable is there.
-if [ ! -e ${milo_exe_path:?}/${milo_exe:?} ]; then
+# Verify that the mrhyde executable is there.
+if [ ! -e ${mrhyde_exe_path:?}/${mrhyde_exe:?} ]; then
     echo -e "ERROR: MILO executable not found."
-    echo -e "       Expected: ${milo_exe_path:?}/${milo_exe:?}"
+    echo -e "       Expected: ${mrhyde_exe_path:?}/${mrhyde_exe:?}"
     exit 16
 fi
 
-# Reset the symlink to the milo executable 
-if [ -L ${milo_exe:?} ]; then
-    rm ${milo_exe:?}
+# Reset the symlink to the mrhyde executable 
+if [ -L ${mrhyde_exe:?} ]; then
+    rm ${mrhyde_exe:?}
 fi
-ln -s ${milo_exe_path:?}/${milo_exe:?}
+ln -s ${mrhyde_exe_path:?}/${mrhyde_exe:?}
 
-# Run the milo tests
+# Run the mrhyde tests
 set -x
 ./runtests.py \
       -s \

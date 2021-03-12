@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 
 # verify expected environment variables exist
-: ${WORKSPACE?"Error: [config-milo] Expected environment variable WORKSPACE does not exist"}
-: ${WORKSPACE:?"Error: [config-milo] Expected environment variable WORKSPACE is empty"}
-: ${SEMS_CMAKE_ROOT?"Error: [config-milo] Expected environment varaible SEMS_CMAKE_ROOT does not exist"}
-: ${SEMS_CMAKE_ROOT:?"Error: [config-milo] Expected environment varaible SEMS_CMAKE_ROOT is empty"}
-: ${SEMS_BOOST_INCLUDE_PATH?"Error: [config-milo] Expected environment varaible SEMS_BOOST_INCLUDE_PATH does not exist"}
-: ${SEMS_BOOST_INCLUDE_PATH:?"Error: [config-milo] Expected environment varaible SEMS_BOOST_INCLUDE_PATH is empty"}
-: ${SEMS_BOOST_LIBRARY_PATH?"Error: [config-milo] Expected environment varaible SEMS_BOOST_LIBRARY_PATH does not exist"}
-: ${SEMS_BOOST_LIBRARY_PATH:?"Error: [config-milo] Expected environment varaible SEMS_BOOST_LIBRARY_PATH is empty"}
-: ${SEMS_NETCDF_INCLUDE_PATH?"Error: [config-milo] Expected environment varaible SEMS_NETCDF_INCLUDE_PATH does not exist"}
-: ${SEMS_NETCDF_INCLUDE_PATH:?"Error: [config-milo] Expected environment varaible SEMS_NETCDF_INCLUDE_PATH is empty"}
-: ${SEMS_NETCDF_LIBRARY_PATH?"Error: [config-milo] Expected environment varaible SEMS_NETCDF_LIBRARY_PATH does not exist"}
-: ${SEMS_NETCDF_LIBRARY_PATH:?"Error: [config-milo] Expected environment varaible SEMS_NETCDF_LIBRARY_PATH is empty"}
+: ${WORKSPACE?"Error: [config-mrhyde] Expected environment variable WORKSPACE does not exist"}
+: ${WORKSPACE:?"Error: [config-mrhyde] Expected environment variable WORKSPACE is empty"}
+: ${SEMS_CMAKE_ROOT?"Error: [config-mrhyde] Expected environment varaible SEMS_CMAKE_ROOT does not exist"}
+: ${SEMS_CMAKE_ROOT:?"Error: [config-mrhyde] Expected environment varaible SEMS_CMAKE_ROOT is empty"}
+: ${SEMS_BOOST_INCLUDE_PATH?"Error: [config-mrhyde] Expected environment varaible SEMS_BOOST_INCLUDE_PATH does not exist"}
+: ${SEMS_BOOST_INCLUDE_PATH:?"Error: [config-mrhyde] Expected environment varaible SEMS_BOOST_INCLUDE_PATH is empty"}
+: ${SEMS_BOOST_LIBRARY_PATH?"Error: [config-mrhyde] Expected environment varaible SEMS_BOOST_LIBRARY_PATH does not exist"}
+: ${SEMS_BOOST_LIBRARY_PATH:?"Error: [config-mrhyde] Expected environment varaible SEMS_BOOST_LIBRARY_PATH is empty"}
+: ${SEMS_NETCDF_INCLUDE_PATH?"Error: [config-mrhyde] Expected environment varaible SEMS_NETCDF_INCLUDE_PATH does not exist"}
+: ${SEMS_NETCDF_INCLUDE_PATH:?"Error: [config-mrhyde] Expected environment varaible SEMS_NETCDF_INCLUDE_PATH is empty"}
+: ${SEMS_NETCDF_LIBRARY_PATH?"Error: [config-mrhyde] Expected environment varaible SEMS_NETCDF_LIBRARY_PATH does not exist"}
+: ${SEMS_NETCDF_LIBRARY_PATH:?"Error: [config-mrhyde] Expected environment varaible SEMS_NETCDF_LIBRARY_PATH is empty"}
 
 EXTRA_ARGS=$@
 

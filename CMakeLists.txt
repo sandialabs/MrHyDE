@@ -83,7 +83,7 @@ SET(CMAKE_Fortran_FLAGS  "${Trilinos_Fortran_COMPILER_FLAGS} ${CMAKE_Fortran_FLA
 # End of setup and error checking
 #  NOTE: PROJECT command checks for compilers, so this statement
 #        is moved AFTER setting CMAKE_CXX_COMPILER from Trilinos
-PROJECT(milo)
+PROJECT(mrhyde)
 
 # SET(CMAKE_CXX_FLAGS  "${Trilinos_CXX_COMPILER_FLAGS} ${CMAKE_CXX_FLAGS}")
 
