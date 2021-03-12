@@ -107,7 +107,9 @@ void cdr::volumeResidual() {
   auto res = wkset->res;
   
   if (spaceDim == 1) {
-    parallel_for("cdr volume resid 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("cdr volume resid 1D",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = (dC_dt(elem,pt) + xvel(elem,pt)*dC_dx(elem,pt) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC_dx(elem,pt)*wts(elem,pt);
@@ -118,7 +120,9 @@ void cdr::volumeResidual() {
     });
   }
   else if (spaceDim == 2) {
-    parallel_for("cdr volume resid 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("cdr volume resid 2D",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = (dC_dt(elem,pt) + xvel(elem,pt)*dC_dx(elem,pt) + yvel(elem,pt)*dC_dy(elem,pt) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC_dx(elem,pt)*wts(elem,pt);
@@ -130,7 +134,9 @@ void cdr::volumeResidual() {
     });
   }
   else if (spaceDim == 3) {
-    parallel_for("cdr volume resid 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("cdr volume resid 3D",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = (dC_dt(elem,pt) + xvel(elem,pt)*dC_dx(elem,pt) + yvel(elem,pt)*dC_dy(elem,pt) + zvel(elem,pt)*dC_dz(elem,pt) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC_dx(elem,pt)*wts(elem,pt);

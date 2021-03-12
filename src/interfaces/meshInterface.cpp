@@ -229,7 +229,7 @@ meshInterface::meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                              const Teuchos::RCP<MpiComm> & Commptr_,
                              Teuchos::RCP<panzer_stk::STK_MeshFactory> & mesh_factory_,
                              Teuchos::RCP<panzer_stk::STK_Interface> & stk_mesh_) :
-mesh_factory(mesh_factory_), stk_mesh(stk_mesh_), settings(settings_), Commptr(Commptr_) {
+settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), stk_mesh(stk_mesh_) {
   
   using Teuchos::RCP;
   using Teuchos::rcp;
@@ -1206,7 +1206,7 @@ void meshInterface::readMeshData() {
   exo_error = ex_get_block_param(exoid, &eblock);
   
   int num_el_in_blk = eblock.num_entry;
-  int num_node_per_el = eblock.num_nodes_per_entry;
+  //int num_node_per_el = eblock.num_nodes_per_entry;
   
   
   // get elem vars
@@ -1214,7 +1214,8 @@ void meshInterface::readMeshData() {
     int num_elem_vars = 0;
     int var_ind;
     numResponses = 1;
-    exo_error = ex_get_var_param(exoid, "e", &num_elem_vars); // TMW: this is depracated
+    //exo_error = ex_get_var_param(exoid, "e", &num_elem_vars); // TMW: this is depracated
+    exo_error = ex_get_variable_param(exoid, EX_ELEM_BLOCK, &num_elem_vars); // TMW: this is depracated
     // This turns off this feature
     for (int i=0; i<num_elem_vars; i++) {
       char varname[MAX_STR_LENGTH+1];
@@ -1404,15 +1405,15 @@ void meshInterface::updateMeshData(const int & newrandseed,
 
 void meshInterface::purgeMemory() {
   
-  bool write_solution = settings->sublist("Postprocess").get("write solution",false);
-  
   mesh_factory.reset();
   nfield_vals.clear();
   efield_vals.clear();
   meas.reset();
   
-  if (!write_solution) {
+  bool write_solution = settings->sublist("Postprocess").get("write solution",false);
+  bool write_aux_solution = settings->sublist("Postprocess").get("write aux solution",false);
+  bool create_optim_movie = settings->sublist("Postprocess").get("create optimization movie",false);
+  if (!write_solution && !write_aux_solution && !create_optim_movie) {
     stk_mesh.reset();
-    stk_optimization_mesh.reset();
   }
 }

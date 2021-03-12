@@ -168,6 +168,7 @@ void BoundaryCell::setAuxUseBasis(vector<int> & ausebasis_) {
 
 void BoundaryCell::updateWorksetBasis() {
   
+  wkset->numElem = numElem;
   if (cellData->storeAll) {
     wkset->wts_side = wts;
     wkset->h = hsize;

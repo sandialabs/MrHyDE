@@ -35,9 +35,9 @@ solver<Node>::solver(const Teuchos::RCP<MpiComm> & Comm_,
                      Teuchos::RCP<ParameterManager<Node> > & params_) :
 Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembler(assembler_), params(params_) {
   
-  milo_debug_level = settings->get<int>("debug level",0);
+  debug_level = settings->get<int>("debug level",0);
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting solver constructor ..." << endl;
     }
@@ -223,7 +223,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
     }
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished solver constructor" << endl;
     }
@@ -556,7 +556,7 @@ void solver<Node>::setBackwardDifference(const int & order) { // using order as 
 template<class Node>
 void solver<Node>::finalizeWorkset() {
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting solver::finalizeWorkset ..." << endl;
     }
@@ -630,7 +630,7 @@ void solver<Node>::finalizeWorkset() {
     }
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished solver::finalizeWorkset" << endl;
     }
@@ -647,7 +647,7 @@ void solver<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & setting
   
   Teuchos::TimeMonitor localtimer(*fixeddofsetuptimer);
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting solver::setupFixedDOFs()" << endl;
     }
@@ -704,7 +704,7 @@ void solver<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & setting
     }
   }
     
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished solver::setupFixedDOFs()" << endl;
     }
@@ -721,7 +721,7 @@ void solver<Node>::projectDirichlet() {
 
   Teuchos::TimeMonitor localtimer(*dbcprojtimer);
   
-  if (milo_debug_level > 1) {
+  if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting solver::projectDirichlet()" << endl;
     }
@@ -741,7 +741,7 @@ void solver<Node>::projectDirichlet() {
     linalg->exportVectorFromOverlapped(glrhs, rhs);
     linalg->fillComplete(glmass);
     
-    if (milo_debug_level>2) {
+    if (debug_level>2) {
       //KokkosTools::print(glmass,"L2-projection matrix for DBCs");
       //KokkosTools::print(glrhs,"L2-projections RHS for DBCs");
     }
@@ -750,7 +750,7 @@ void solver<Node>::projectDirichlet() {
     linalg->importVectorToOverlapped(fixedDOF_soln, glfixedDOF_soln);
     
   }
-  if (milo_debug_level > 1) {
+  if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished solver::projectDirichlet()" << endl;
     }
@@ -767,7 +767,7 @@ void solver<Node>::forwardModel(DFAD & objective) {
   
   current_time = initial_time;
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting solver::forwardModel ..." << endl;
     }
@@ -803,7 +803,7 @@ void solver<Node>::forwardModel(DFAD & objective) {
   
   numEvaluations++;
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished solver::forwardModel" << endl;
     }
@@ -816,7 +816,7 @@ void solver<Node>::forwardModel(DFAD & objective) {
 template<class Node>
 void solver<Node>::steadySolver(DFAD & objective, vector_RCP & u) {
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting solver::steadySolver ..." << endl;
     }
@@ -833,7 +833,7 @@ void solver<Node>::steadySolver(DFAD & objective, vector_RCP & u) {
     soln->store(u, current_time, 0);
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting solver::steadySolver" << endl;
     }
@@ -846,7 +846,7 @@ void solver<Node>::steadySolver(DFAD & objective, vector_RCP & u) {
 template<class Node>
 void solver<Node>::adjointModel(vector<ScalarT> & gradient) {
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting solver::adjointModel ..." << endl;
     }
@@ -881,7 +881,7 @@ void solver<Node>::adjointModel(vector<ScalarT> & gradient) {
   
   useadjoint = false;
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished solver::adjointModel" << endl;
     }
@@ -896,11 +896,11 @@ void solver<Node>::adjointModel(vector<ScalarT> & gradient) {
 
 template<class Node>
 void solver<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> & gradient,
-                             ScalarT & start_time, ScalarT & end_time) {
+                                   ScalarT & start_time, ScalarT & end_time) {
   
   Teuchos::TimeMonitor localtimer(*transientsolvertimer);
   
-  if (milo_debug_level > 1) {
+  if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "******** Starting solver::transientSolver ..." << endl;
       cout << "******** Start time = " << start_time << endl;
@@ -1163,7 +1163,7 @@ void solver<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vector<Scal
     }
   }
   
-  if (milo_debug_level > 1) {
+  if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "******** Finished solver::transientSolver" << endl;
     }
@@ -1179,7 +1179,7 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
   
   Teuchos::TimeMonitor localtimer(*nonlinearsolvertimer);
   
-  if (milo_debug_level > 1) {
+  if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "******** Starting solver::nonlinearSolver ..." << endl;
     }
@@ -1236,23 +1236,28 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
                               res_over, J_over, isTransient, current_time, useadjoint, store_adjPrev,
                               params->num_active_params, params->Psol[0], is_final_time, deltat);
     
+    linalg->exportVectorFromOverlapped(res, res_over);
+    
     if (useadjoint && response_type == "discrete") {
       vector_RCP D_soln;
       bool fnd = datagen_soln->extract(D_soln, 0, current_time+deltat);
       if (fnd) {
-        vector_RCP diff = linalg->getNewOverlappedVector();
-        diff->update(1.0, *u, 0.0);
-        diff->update(-1.0, *D_soln, 1.0);
-        res_over->update(-1.0*discrete_objective_scale_factor,*diff,1.0);
+        // TMW: this is unecessarily complicated because we store the overlapped soln
+        vector_RCP diff = linalg->getNewVector();
+        vector_RCP u_no = linalg->getNewVector();
+        vector_RCP D_no = linalg->getNewVector();
+        u_no->doExport(*u, *(linalg->exporter), Tpetra::REPLACE);
+        D_no->doExport(*D_soln, *(linalg->exporter), Tpetra::REPLACE);
+        diff->update(1.0, *u_no, 0.0);
+        diff->update(-1.0, *D_no, 1.0);
+        res->update(-1.0*discrete_objective_scale_factor,*diff,1.0);
       }
       else {
         std::cout << "Error: did not find a data-generating solution" << std::endl;
       }
     }
     
-    linalg->exportVectorFromOverlapped(res, res_over);
-    
-    if (milo_debug_level>2) {
+    if (debug_level>2) {
       KokkosTools::print(res,"residual from solver interface");
     }
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
@@ -1290,7 +1295,7 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       linalg->exportMatrixFromOverlapped(J, J_over);
       linalg->fillComplete(J);
       
-      if (milo_debug_level>2) {
+      if (debug_level>2) {
         KokkosTools::print(J,"Jacobian from solver interface");
       }
       
@@ -1308,7 +1313,7 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     }
     NLiter++; // increment number of iterations
   } // while loop
-  if (milo_debug_level>1) {
+  if (debug_level>1) {
     Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> normu(1);
     u->norm2(normu);
     if (Comm->getRank() == 0) {
@@ -1316,7 +1321,7 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     }
   }
   
-  if (milo_debug_level>2) {
+  if (debug_level>2) {
     //KokkosTools::print(u);
   }
   
@@ -1331,7 +1336,7 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       }
     }
   }
-  if (milo_debug_level > 1) {
+  if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "******** Finished solver::nonlinearSolver" << endl;
     }
@@ -1343,10 +1348,10 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
 // ========================================================================================
 
 template<class Node>
-DFAD solver<Node>::computeObjective(const vector_RCP & F_soln, const ScalarT & time,
+DFAD solver<Node>::computeObjective(vector_RCP & F_soln, const ScalarT & time,
                                     const size_t & tindex) {
   
-  if (milo_debug_level > 1) {
+  if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       std::cout << "******** Starting solver::computeObjective ..." << std::endl;
     }
@@ -1369,12 +1374,20 @@ DFAD solver<Node>::computeObjective(const vector_RCP & F_soln, const ScalarT & t
     vector_RCP D_soln;
     bool fnd = datagen_soln->extract(D_soln, 0, time);
     if (fnd) {
-      vector_RCP diff = linalg->getNewOverlappedVector();
-      diff->update(1.0, *F_soln, 0.0);
-      diff->update(-1.0, *D_soln, 1.0);
+      vector_RCP diff = linalg->getNewVector();
+      vector_RCP F_no = linalg->getNewVector();
+      vector_RCP D_no = linalg->getNewVector();
+      F_no->doExport(*F_soln, *(linalg->exporter), Tpetra::REPLACE);
+      D_no->doExport(*D_soln, *(linalg->exporter), Tpetra::REPLACE);
+      
+      diff->update(1.0, *F_no, 0.0);
+      diff->update(-1.0, *D_no, 1.0);
       Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> obj(1);
       diff->norm2(obj);
-      totaldiff = 0.5*discrete_objective_scale_factor*obj[0]*obj[0];
+      
+      if (Comm->getRank() == 0) { // TMW: is this really the best way to do this
+        totaldiff = 0.5*discrete_objective_scale_factor*obj[0]*obj[0];
+      }
       //cout << "objfun = " << totaldiff << endl;
     }
     else {
@@ -1515,7 +1528,7 @@ DFAD solver<Node>::computeObjective(const vector_RCP & F_soln, const ScalarT & t
   
   params->sacadoizeParams(false);
   
-  if (milo_debug_level > 1) {
+  if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       std::cout << "******** Finished solver::computeObjective ..." << std::endl;
     }
@@ -1530,9 +1543,10 @@ DFAD solver<Node>::computeObjective(const vector_RCP & F_soln, const ScalarT & t
 
 template<class Node>
 void solver<Node>::computeSensitivities(vector_RCP & u,
-                          vector_RCP & a2, vector<ScalarT> & gradient) {
+                                        vector_RCP & a2,
+                                        vector<ScalarT> & gradient) {
   
-  if (milo_debug_level > 1) {
+  if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       std::cout << "******** Starting solver::computeSensitivities ..." << std::endl;
     }
@@ -1678,7 +1692,7 @@ void solver<Node>::computeSensitivities(vector_RCP & u,
     }
   }
   
-  if (milo_debug_level > 1) {
+  if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       std::cout << "******** Finished solver::computeSensitivities ..." << std::endl;
     }
@@ -1693,7 +1707,7 @@ void solver<Node>::computeSensitivities(vector_RCP & u,
 template<class Node>
 void solver<Node>::setDirichlet(vector_RCP & u) {
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting solver::setDirichlet ..." << endl;
     }
@@ -1764,7 +1778,7 @@ void solver<Node>::setDirichlet(vector_RCP & u) {
     }
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished solver::setDirichlet" << endl;
     }
@@ -1791,7 +1805,7 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial(
   Teuchos::TimeMonitor localtimer(*initsettimer);
   typedef typename Node::execution_space LA_exec;
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting solver::setInitial ..." << endl;
     }
@@ -1888,7 +1902,7 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial(
     }
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished solver::setInitial ..." << endl;
     }

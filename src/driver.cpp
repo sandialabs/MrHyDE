@@ -210,7 +210,7 @@ int main(int argc,char * argv[]) {
     // Purge Panzer memory before solving
     ////////////////////////////////////////////////////////////////////////////////
     
-    if (settings->get<bool>("enable memory purge",false)) {
+    if (settings->get<bool>("enable memory purge",true)) {
       disc->purgeMemory();
       mesh->purgeMemory();
       params->purgeMemory();

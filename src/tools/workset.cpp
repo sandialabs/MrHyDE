@@ -110,6 +110,12 @@ void workset::createSolns() {
   for (size_t i=0; i<usebasis.size(); i++) {
     int bind = usebasis[i];
     string var = varlist[i];
+    int numb = basis_pointers[bind]->getCardinality();
+    uvals.push_back(View_AD2("seeded uvals",numElem, numb, maxDerivs));
+    if (isTransient) {
+      u_dotvals.push_back(View_AD2("seeded uvals",numElem, numb, maxDerivs));
+    }
+    
     if (basis_types[bind] == "HGRAD") {
       vars_HGRAD.push_back(i);
       varlist_HGRAD.push_back(var);
@@ -178,13 +184,12 @@ void workset::createSolns() {
     }
   }
   
-  for (size_t k=0; k<paramusebasis.size(); ++k) {
-    pvals.push_back(View_AD2("seeded uvals",numElem, uvals[0].extent(1), maxDerivs));
-  }
   
   for (size_t i=0; i<paramusebasis.size(); i++) {
     int bind = paramusebasis[i];
     string var = param_varlist[i];
+    int numb = basis_pointers[bind]->getCardinality();
+    pvals.push_back(View_AD2("seeded uvals",numElem, numb, maxDerivs));
     
     if (basis_types[bind] == "HGRAD") {
       paramvars_HGRAD.push_back(i);

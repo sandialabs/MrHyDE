@@ -108,7 +108,9 @@ void porousHDIV_HYBRID::volumeResidual() {
     
     if (spaceDim == 1) { // easier to place conditional here than on device
       auto ux = wkset->getData("u[x]");
-      parallel_for("porous HDIV-HY volume resid u 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("porous HDIV-HY volume resid u 1D",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD p = psol(elem,pt)*wts(elem,pt);
           AD Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
@@ -123,7 +125,9 @@ void porousHDIV_HYBRID::volumeResidual() {
     else if (spaceDim == 2) {
       auto ux = wkset->getData("u[x]");
       auto uy = wkset->getData("u[y]");
-      parallel_for("porous HDIV-HY volume resid u 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("porous HDIV-HY volume resid u 2D",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD p = psol(elem,pt)*wts(elem,pt);
           AD Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
@@ -141,7 +145,9 @@ void porousHDIV_HYBRID::volumeResidual() {
       auto ux = wkset->getData("u[x]");
       auto uy = wkset->getData("u[y]");
       auto uz = wkset->getData("u[z]");
-      parallel_for("porous HDIV-HY volume resid u 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("porous HDIV-HY volume resid u 3D",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD p = psol(elem,pt)*wts(elem,pt);
           AD Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
@@ -167,7 +173,9 @@ void porousHDIV_HYBRID::volumeResidual() {
     auto udiv = wkset->getData("div(u)");
     auto off = subview(wkset->offsets, pnum, ALL());
     
-    parallel_for("porous HDIV-HY volume resid div(u)",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HDIV-HY volume resid div(u)",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD divu = udiv(elem,pt)*wts(elem,pt);
         AD src = source(elem,pt)*wts(elem,pt);
@@ -228,7 +236,9 @@ void porousHDIV_HYBRID::boundaryResidual() {
   auto off = subview(wkset->offsets, unum, ALL());
   
   if (bcs(pnum,cside) == "Dirichlet") {
-    parallel_for("porous HDIV-HY bndry resid Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HDIV-HY bndry resid Dirichlet",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD src = bsource(elem,pt)*wts(elem,pt);
@@ -247,7 +257,9 @@ void porousHDIV_HYBRID::boundaryResidual() {
   }
   else if (bcs(pnum,cside) == "interface") {
     auto lambda = wkset->getData("aux p side");
-    parallel_for("porous HDIV-HY bndry resid MS Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HDIV-HY bndry resid MS Dirichlet",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD lam = lambda(elem,pt)*wts(elem,pt);
@@ -300,7 +312,9 @@ void porousHDIV_HYBRID::faceResidual() {
     auto off = subview(wkset->offsets, unum, ALL());
     auto lambda = wkset->getData("lambda side");
     
-    parallel_for("porous HDIV-HY face resid lambda",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HDIV-HY face resid lambda",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD lam = lambda(elem,pt)*wts(elem,pt);
@@ -324,7 +338,9 @@ void porousHDIV_HYBRID::faceResidual() {
     auto ubasis = wkset->basis_side[u_basis];
     auto off = subview(wkset->offsets, lambdanum, ALL());
     
-    parallel_for("porous HDIV-HY face resid u dot n",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HDIV-HY face resid u dot n",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       size_type dim = ubasis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD udotn = ux(elem,pt)*nx(elem,pt);
@@ -352,7 +368,7 @@ void porousHDIV_HYBRID::computeFlux() {
   int spaceDim = wkset->dimension;
   // Just need the basis for the number of active elements (any side basis will do)
   auto basis = wkset->basis_side[wkset->usebasis[unum]];
-  
+ 
   {
     Teuchos::TimeMonitor localtime(*fluxFill);
     auto uflux = subview(wkset->flux, ALL(), auxpnum, ALL());
@@ -369,7 +385,9 @@ void porousHDIV_HYBRID::computeFlux() {
       uz = wkset->getData("u[z] side");
     }
     
-    parallel_for("porous HDIV flux ",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HDIV flux ",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<nx.extent(1); pt++) {
         AD udotn = ux(elem,pt)*nx(elem,pt);
@@ -429,7 +447,9 @@ void porousHDIV_HYBRID::updatePerm(View_AD2 Kinv_xx, View_AD2 Kinv_yy, View_AD2 
   
   View_Sc2 data = wkset->extra_data;
   
-  parallel_for(RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+  parallel_for("porous HDIV update perm",
+               RangePolicy<AssemblyExec>(0,wkset->numElem),
+               KOKKOS_LAMBDA (const int elem ) {
     for (size_type pt=0; pt<Kinv_xx.extent(1); pt++) {
       Kinv_xx(elem,pt) = data(elem,0);
       Kinv_yy(elem,pt) = data(elem,0);

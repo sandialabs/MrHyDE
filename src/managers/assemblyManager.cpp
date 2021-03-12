@@ -14,7 +14,7 @@
 #include "assemblyManager.hpp"
 #include "cellMetaData.hpp"
 
-#include <boost/algorithm/string.hpp>
+//#include <boost/algorithm/string.hpp>
 
 using namespace MrHyDE;
 
@@ -846,7 +846,7 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
   // Determine if we can use the reduced memory version of assembly
   // This is the preferred approach, but not features are enabled yet
   bool reduce_memory = true;
-  if (!data_avail || useadjoint || cellData[b]->multiscale) {
+  if (!data_avail || useadjoint || cellData[b]->multiscale || compute_disc_sens || compute_sens) {
     reduce_memory = false;
   }
   
@@ -864,6 +864,7 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
     wkset[b]->setDeltat(deltat);
     wkset[b]->alpha = 1.0/deltat;
   }
+  
   wkset[b]->isTransient = isTransient;
   wkset[b]->isAdjoint = useadjoint;
   
@@ -1775,7 +1776,9 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
 template<class Node>
 void AssemblyManager<Node>::purgeMemory() {
   bool write_solution = settings->sublist("Postprocess").get("write solution",false);
-  if (!write_solution) {
+  bool write_aux_solution = settings->sublist("Postprocess").get("write aux solution",false);
+  bool create_optim_movie = settings->sublist("Postprocess").get("create optimization movie",false);
+  if (!write_solution && !write_aux_solution && !create_optim_movie) {
     mesh.reset();
   }
 }

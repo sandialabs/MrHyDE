@@ -66,7 +66,7 @@ void Burgers::volumeResidual() {
   if (wkset->dimension == 1) {
     auto dudx = wkset->getData("grad(u)[x]");
     parallel_for("Burgers volume resid",
-                 RangePolicy<AssemblyExec>(0,basis.extent(0)),
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD usq = 0.5*u(elem,pt)*u(elem,pt);
@@ -83,7 +83,7 @@ void Burgers::volumeResidual() {
     auto dudy = wkset->getData("grad(u)[y]");
     auto vy = functionManager->evaluate("yvel","ip");
     parallel_for("Burgers volume resid",
-                 RangePolicy<AssemblyExec>(0,basis.extent(0)),
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD usq = 0.5*u(elem,pt)*u(elem,pt);
@@ -104,7 +104,7 @@ void Burgers::volumeResidual() {
     auto vy = functionManager->evaluate("yvel","ip");
     auto vz = functionManager->evaluate("zvel","ip");
     parallel_for("Burgers volume resid",
-                 RangePolicy<AssemblyExec>(0,basis.extent(0)),
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD usq = 0.5*u(elem,pt)*u(elem,pt);

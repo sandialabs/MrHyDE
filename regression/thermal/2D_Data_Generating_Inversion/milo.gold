@@ -1,0 +1,139 @@
+
+Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
+  iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
+  0     8.916511e+01   1.938337e+00                  1.000000e+02   
+  1     8.544754e+01   1.897494e+00   1.938337e+00   2.500000e+02   2         2         0         1         0         
+  2     8.489226e-03   3.696114e-03   9.005442e+01   6.250000e+02   3         3         0         2         0         
+  3     7.854185e-03   3.544350e-03   1.754174e-01   1.562500e+03   4         4         0         2         0         
+  4     4.571940e-04   3.056628e-04   4.157467e+00   3.906250e+03   5         5         0         3         0         
+Optimization Terminated with Status: Iteration Limit Exceeded
+
+Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
+  iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
+  0     8.916511e+01   1.938337e+00                  1.000000e+02   
+  1     8.544754e+01   1.897494e+00   1.938337e+00   2.500000e+02   2         2         0         1         0         
+  2     8.489226e-03   3.696114e-03   9.005442e+01   6.250000e+02   3         3         0         2         0         
+  3     7.854185e-03   3.544350e-03   1.754174e-01   1.562500e+03   4         4         0         2         0         
+  4     4.571940e-04   3.056628e-04   4.157467e+00   3.906250e+03   5         5         0         3         0         
+Optimization Terminated with Status: Iteration Limit Exceeded
+param 0 = 1.03115
+param 1 = 1.19759
+param 2 = 1.4356
+param 3 = 1.66286
+param 4 = 1.82083
+param 5 = 1.87677
+param 6 = 1.19759
+param 7 = 2.23932
+param 8 = 3.67752
+param 9 = 5.03045
+param 10 = 5.96682
+param 11 = 6.29793
+param 12 = 1.4356
+param 13 = 3.67752
+param 14 = 6.56563
+param 15 = 9.19193
+param 16 = 10.9898
+param 17 = 11.6233
+param 18 = 1.66286
+param 19 = 5.03045
+param 20 = 9.19193
+param 21 = 12.8709
+param 22 = 15.3602
+param 23 = 16.234
+param 24 = 1.82083
+param 25 = 5.96682
+param 26 = 10.9898
+param 27 = 15.3602
+param 28 = 18.2945
+param 29 = 19.3214
+param 30 = 1.87677
+param 31 = 6.29793
+param 32 = 11.6233
+param 33 = 16.234
+param 34 = 19.3214
+param 35 = 20.4007
+param 36 = 1.82083
+param 37 = 5.96682
+param 38 = 10.9898
+param 39 = 15.3602
+param 40 = 18.2945
+param 41 = 19.3214
+param 42 = 1.66286
+param 43 = 5.03045
+param 44 = 9.19193
+param 45 = 12.8709
+param 46 = 15.3602
+param 47 = 16.234
+param 48 = 1.4356
+param 49 = 3.67752
+param 50 = 6.56563
+param 51 = 9.19193
+param 52 = 10.9898
+param 53 = 11.6233
+param 54 = 1.19759
+param 55 = 2.23932
+param 56 = 3.67752
+param 57 = 5.03045
+param 58 = 5.96682
+param 59 = 6.29793
+param 60 = 1.03115
+param 61 = 1.19759
+param 62 = 1.4356
+param 63 = 1.66286
+param 64 = 1.82083
+param 65 = 1.87677
+param 66 = 1.82083
+param 67 = 1.66286
+param 68 = 1.4356
+param 69 = 1.19759
+param 70 = 1.03115
+param 71 = 5.96682
+param 72 = 5.03045
+param 73 = 3.67752
+param 74 = 2.23932
+param 75 = 1.19759
+param 76 = 10.9898
+param 77 = 9.19193
+param 78 = 6.56563
+param 79 = 3.67752
+param 80 = 1.4356
+param 81 = 15.3602
+param 82 = 12.8709
+param 83 = 9.19193
+param 84 = 5.03045
+param 85 = 1.66286
+param 86 = 18.2945
+param 87 = 15.3602
+param 88 = 10.9898
+param 89 = 5.96682
+param 90 = 1.82083
+param 91 = 19.3214
+param 92 = 16.234
+param 93 = 11.6233
+param 94 = 6.29793
+param 95 = 1.87677
+param 96 = 18.2945
+param 97 = 15.3602
+param 98 = 10.9898
+param 99 = 5.96682
+param 100 = 1.82083
+param 101 = 15.3602
+param 102 = 12.8709
+param 103 = 9.19193
+param 104 = 5.03045
+param 105 = 1.66286
+param 106 = 10.9898
+param 107 = 9.19193
+param 108 = 6.56563
+param 109 = 3.67752
+param 110 = 1.4356
+param 111 = 5.96682
+param 112 = 5.03045
+param 113 = 3.67752
+param 114 = 2.23932
+param 115 = 1.19759
+param 116 = 1.82083
+param 117 = 1.66286
+param 118 = 1.4356
+param 119 = 1.19759
+param 120 = 1.03115

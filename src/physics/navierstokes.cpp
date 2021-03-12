@@ -50,10 +50,10 @@ navierstokes::navierstokes(Teuchos::RCP<Teuchos::ParameterList> & settings, cons
   T_ambient = settings->sublist("Physics").get<ScalarT>("T_ambient",0.0);
   beta = settings->sublist("Physics").get<ScalarT>("beta",1.0);
   model_params = Kokkos::View<ScalarT*,AssemblyDevice>("NS params on device",2);
-  auto host_params = Kokkos::create_mirror_view(model_params);
+  auto host_params = create_mirror_view(model_params);
   host_params(0) = T_ambient;
   host_params(1) = beta;
-  Kokkos::deep_copy(model_params,host_params);
+  deep_copy(model_params,host_params);
   
   have_energy = false;
   
@@ -111,10 +111,12 @@ void navierstokes::volumeResidual() {
       auto dux_dt = wkset->getData("ux_t");
       auto dux_dx = wkset->getData("grad(ux)[x]");
       auto pr = wkset->getData("pr");
-      auto off = Kokkos::subview(wkset->offsets,ux_num,Kokkos::ALL());
+      auto off = subview(wkset->offsets,ux_num,ALL());
       
       // Ux equation
-      parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("NS ux volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
           Fx *= wts(elem,pt);
@@ -130,7 +132,9 @@ void navierstokes::volumeResidual() {
       if (have_energy) {
         auto params = model_params;
         auto E = wkset->getData("e");
-        parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("NS ux volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -145,7 +149,9 @@ void navierstokes::volumeResidual() {
       if (useSUPG) {
         auto h = wkset->h;
         auto dpr_dx = wkset->getData("grad(pr)[x]");
-        parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("NS ux volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -162,7 +168,9 @@ void navierstokes::volumeResidual() {
         if (have_energy) {
           auto params = model_params;
           auto E = wkset->getData("e");
-          parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          parallel_for("NS ux volume resid",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -188,9 +196,11 @@ void navierstokes::volumeResidual() {
       auto basis = wkset->basis[pr_basis];
       auto basis_grad = wkset->basis_grad[pr_basis];
       auto dux_dx = wkset->getData("grad(ux)[x]");
-      auto off = Kokkos::subview(wkset->offsets,pr_num,Kokkos::ALL());
+      auto off = subview(wkset->offsets,pr_num,ALL());
       
-      parallel_for("NS pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("NS pr volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD divu = dux_dx(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -206,7 +216,9 @@ void navierstokes::volumeResidual() {
         auto ux = wkset->getData("ux");
         auto dux_dt = wkset->getData("ux_t");
         
-        parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("NS ux volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -222,7 +234,9 @@ void navierstokes::volumeResidual() {
         if (have_energy) {
           auto params = model_params;
           auto E = wkset->getData("e");
-          parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          parallel_for("NS ux volume resid",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -235,7 +249,7 @@ void navierstokes::volumeResidual() {
               }
             }
           });
-          //stabres += dens(e,k)*(eval-T_ambient)*source_ux(e,k);
+          
         }
       }
     }
@@ -251,10 +265,12 @@ void navierstokes::volumeResidual() {
       auto dux_dx = wkset->getData("grad(ux)[x]");
       auto dux_dy = wkset->getData("grad(ux)[y]");
       auto pr = wkset->getData("pr");
-      auto off = Kokkos::subview(wkset->offsets,ux_num,Kokkos::ALL());
+      auto off = subview(wkset->offsets,ux_num,ALL());
       
       // Ux equation
-      parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("NS ux volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
           Fx *= wts(elem,pt);
@@ -272,7 +288,9 @@ void navierstokes::volumeResidual() {
       if (have_energy) {
         auto params = model_params;
         auto E = wkset->getData("e");
-        parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("NS ux volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -288,7 +306,9 @@ void navierstokes::volumeResidual() {
         auto h = wkset->h;
         auto dpr_dx = wkset->getData("grad(pr)[x]");
         auto dpr_dy = wkset->getData("grad(pr)[y]");
-        parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("NS ux volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -306,7 +326,9 @@ void navierstokes::volumeResidual() {
         if (have_energy) {
           auto params = model_params;
           auto E = wkset->getData("e");
-          parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          parallel_for("NS ux volume resid",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -335,9 +357,11 @@ void navierstokes::volumeResidual() {
       auto duy_dx = wkset->getData("grad(uy)[x]");
       auto duy_dy = wkset->getData("grad(uy)[y]");
       auto pr = wkset->getData("pr");
-      auto off = Kokkos::subview(wkset->offsets,uy_num,Kokkos::ALL());
+      auto off = subview(wkset->offsets,uy_num,ALL());
       
-      parallel_for("NS uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("NS uy volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*duy_dx(elem,pt);
           Fx *= wts(elem,pt);
@@ -355,7 +379,9 @@ void navierstokes::volumeResidual() {
       if (have_energy) {
         auto params = model_params;
         auto E = wkset->getData("e");
-        parallel_for("NS uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("NS uy volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -370,7 +396,9 @@ void navierstokes::volumeResidual() {
       if (useSUPG) {
         auto h = wkset->h;
         auto dpr_dy = wkset->getData("grad(pr)[y]");
-        parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("NS ux volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -388,7 +416,9 @@ void navierstokes::volumeResidual() {
         if (have_energy) {
           auto params = model_params;
           auto E = wkset->getData("e");
-          parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          parallel_for("NS ux volume resid",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -416,9 +446,11 @@ void navierstokes::volumeResidual() {
       auto basis_grad = wkset->basis_grad[pr_basis];
       auto dux_dx = wkset->getData("grad(ux)[x]");
       auto duy_dy = wkset->getData("grad(uy)[y]");
-      auto off = Kokkos::subview(wkset->offsets,pr_num,Kokkos::ALL());
+      auto off = subview(wkset->offsets,pr_num,ALL());
       
-      parallel_for("NS pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("NS pr volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt))*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -439,7 +471,9 @@ void navierstokes::volumeResidual() {
         auto dux_dy = wkset->getData("grad(ux)[y]");
         auto duy_dx = wkset->getData("grad(uy)[x]");
         
-        parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("NS ux volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -457,7 +491,9 @@ void navierstokes::volumeResidual() {
         if (have_energy) {
           auto params = model_params;
           auto E = wkset->getData("e");
-          parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          parallel_for("NS ux volume resid",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -490,10 +526,12 @@ void navierstokes::volumeResidual() {
       auto dux_dy = wkset->getData("grad(ux)[y]");
       auto dux_dz = wkset->getData("grad(ux)[z]");
       auto pr = wkset->getData("pr");
-      auto off = Kokkos::subview(wkset->offsets,ux_num,Kokkos::ALL());
+      auto off = subview(wkset->offsets,ux_num,ALL());
       
       // Ux equation
-      parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("NS ux volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
           Fx *= wts(elem,pt);
@@ -513,7 +551,9 @@ void navierstokes::volumeResidual() {
       if (have_energy) {
         auto params = model_params;
         auto E = wkset->getData("e");
-        parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("NS ux volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -528,7 +568,9 @@ void navierstokes::volumeResidual() {
       if (useSUPG) {
         auto h = wkset->h;
         auto dpr_dx = wkset->getData("grad(pr)[x]");
-        parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("NS ux volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -547,7 +589,9 @@ void navierstokes::volumeResidual() {
         if (have_energy) {
           auto params = model_params;
           auto E = wkset->getData("e");
-          parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          parallel_for("NS ux volume resid",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -579,9 +623,11 @@ void navierstokes::volumeResidual() {
       auto duy_dy = wkset->getData("grad(uy)[y]");
       auto duy_dz = wkset->getData("grad(uy)[z]");
       auto pr = wkset->getData("pr");
-      auto off = Kokkos::subview(wkset->offsets,uy_num,Kokkos::ALL());
+      auto off = subview(wkset->offsets,uy_num,ALL());
       
-      parallel_for("NS uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("NS uy volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*duy_dy(elem,pt);
           Fx *= wts(elem,pt);
@@ -601,7 +647,9 @@ void navierstokes::volumeResidual() {
       if (have_energy) {
         auto params = model_params;
         auto E = wkset->getData("e");
-        parallel_for("NS uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("NS uy volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -616,7 +664,9 @@ void navierstokes::volumeResidual() {
       if (useSUPG) {
         auto h = wkset->h;
         auto dpr_dy = wkset->getData("grad(pr)[y]");
-        parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("NS ux volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -635,7 +685,9 @@ void navierstokes::volumeResidual() {
         if (have_energy) {
           auto params = model_params;
           auto E = wkset->getData("e");
-          parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          parallel_for("NS ux volume resid",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -667,9 +719,11 @@ void navierstokes::volumeResidual() {
       auto duz_dy = wkset->getData("grad(uz)[y]");
       auto duz_dz = wkset->getData("grad(uz)[z]");
       auto pr = wkset->getData("pr");
-      auto off = Kokkos::subview(wkset->offsets,uy_num,Kokkos::ALL());
+      auto off = subview(wkset->offsets,uy_num,ALL());
       
-      parallel_for("NS uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("NS uy volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD Fx = visc(elem,pt)*duz_dx(elem,pt);
           Fx *= wts(elem,pt);
@@ -689,7 +743,9 @@ void navierstokes::volumeResidual() {
       if (have_energy) {
         auto params = model_params;
         auto E = wkset->getData("e");
-        parallel_for("NS uy volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("NS uy volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uz(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -704,7 +760,9 @@ void navierstokes::volumeResidual() {
       if (useSUPG) {
         auto h = wkset->h;
         auto dpr_dz = wkset->getData("grad(pr)[z]");
-        parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("NS ux volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -723,7 +781,9 @@ void navierstokes::volumeResidual() {
         if (have_energy) {
           auto params = model_params;
           auto E = wkset->getData("e");
-          parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          parallel_for("NS ux volume resid",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -753,9 +813,11 @@ void navierstokes::volumeResidual() {
       auto dux_dx = wkset->getData("grad(ux)[x]");
       auto duy_dy = wkset->getData("grad(uy)[y]");
       auto duz_dz = wkset->getData("grad(uz)[z]");
-      auto off = Kokkos::subview(wkset->offsets,pr_num,Kokkos::ALL());
+      auto off = subview(wkset->offsets,pr_num,ALL());
       
-      parallel_for("NS pr volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("NS pr volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -783,7 +845,9 @@ void navierstokes::volumeResidual() {
         auto duz_dx = wkset->getData("grad(uz)[x]");
         auto duz_dy = wkset->getData("grad(uz)[y]");
         
-        parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("NS ux volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           ScalarT C1 = 4.0;
           ScalarT C2 = 2.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -803,7 +867,9 @@ void navierstokes::volumeResidual() {
         if (have_energy) {
           auto params = model_params;
           auto E = wkset->getData("e");
-          parallel_for("NS ux volume resid",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          parallel_for("NS ux volume resid",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       KOKKOS_LAMBDA (const int elem ) {
             ScalarT C1 = 4.0;
             ScalarT C2 = 2.0;
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {

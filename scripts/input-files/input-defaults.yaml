@@ -3,6 +3,7 @@
 ANONYMOUS: # Comments
   verbosity: 0
   debug level: 0
+  enable memory purge: true
   Mesh:
     dimension: 2
     element type: quad # or: interval,tri,hex,tet
@@ -127,6 +128,7 @@ ANONYMOUS: # Comments
     fix zero rows: false # experimental
     use atomics: false # flag for assembly
     assembly partitioning: "sequential" # future options: coloring, random, neighbor-avoinding
+    store all cell data: true
   Analysis: 
     analysis type: forward
     Sampling: # sublist used if analysis type is "Sampling"
@@ -151,7 +153,6 @@ ANONYMOUS: # Comments
     have sensor points: false
     sensor prefix: sensor
     additive noise standard deviation: 0.0
-    
   Postprocess:
     compute response: false # typically to produce reference QoI
     response type: pointwise # global, functional (to be changed)

@@ -1042,7 +1042,9 @@ template<class Node>
 void ParameterManager<Node>::purgeMemory() {
     
   bool write_solution = settings->sublist("Postprocess").get("write solution",false);
-  if (!write_solution) {
+  bool write_aux_solution = settings->sublist("Postprocess").get("write aux solution",false);
+  bool create_optim_movie = settings->sublist("Postprocess").get("create optimization movie",false);
+  if (!write_solution && !write_aux_solution && !create_optim_movie) {
     mesh.reset();
   }
 }

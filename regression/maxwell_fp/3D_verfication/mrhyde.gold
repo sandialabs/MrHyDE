@@ -1,0 +1,13 @@
+p=0 | CubeHexMesh: Building sub cells
+
+*********************************************************
+***** Computing errors ******
+
+***** L2 norm of the error for Arx = 0.0115417  (time = 0)
+***** L2 norm of the error for Aix = 0.013503  (time = 0)
+***** L2 norm of the error for phir = 0.0108162  (time = 0)
+***** L2 norm of the error for phii = 0.0124067  (time = 0)
+***** L2 norm of the error for Ary = 0.0104865  (time = 0)
+***** L2 norm of the error for Aiy = 0.0126923  (time = 0)
+***** L2 norm of the error for Arz = 0.0209644  (time = 0)
+***** L2 norm of the error for Aiz = 0.0253728  (time = 0)

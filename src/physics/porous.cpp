@@ -79,7 +79,9 @@ void porous::volumeResidual() {
   
   if (spaceDim == 1) {
     auto dpdx = wkset->getData("grad(p)[x]");
-    parallel_for("porous HGRAD volume resid 1D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HGRAD volume resid 1D",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<psol.extent(1); pt++ ) {
         AD Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
         AD M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
@@ -94,7 +96,9 @@ void porous::volumeResidual() {
   else if (spaceDim == 2) {
     auto dpdx = wkset->getData("grad(p)[x]");
     auto dpdy = wkset->getData("grad(p)[y]");
-    parallel_for("porous HGRAD volume resid 2D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HGRAD volume resid 2D",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<psol.extent(1); pt++ ) {
         AD Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
         AD M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
@@ -111,7 +115,9 @@ void porous::volumeResidual() {
     auto dpdx = wkset->getData("grad(p)[x]");
     auto dpdy = wkset->getData("grad(p)[y]");
     auto dpdz = wkset->getData("grad(p)[z]");
-    parallel_for("porous HGRAD volume resid 3D",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HGRAD volume resid 3D",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<psol.extent(1); pt++ ) {
         AD Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
         AD M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
@@ -170,8 +176,6 @@ void porous::boundaryResidual() {
     adjrhs = wkset->adjrhs;
   }
   
-  // Since normals, wts and h get re-directed often, these need to be reset
-  //auto normals = wkset->normals;
   auto wts = wkset->wts_side;
   auto h = wkset->h;
   auto res = wkset->res;
@@ -195,7 +199,9 @@ void porous::boundaryResidual() {
   auto off = subview(wkset->offsets, pnum, ALL());
   
   if (bcs(pnum,cside) == "Neumann") { //Neumann
-    parallel_for("porous HGRAD bndry resid Neumann",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HGRAD bndry resid Neumann",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD s = -source(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -205,7 +211,9 @@ void porous::boundaryResidual() {
     });
   }
   else if (bcs(pnum,cside) == "weak Dirichlet") { // weak Dirichlet
-    parallel_for("porous HGRAD bndry resid weak Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HGRAD bndry resid weak Dirichlet",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis_grad.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD pval = psol(elem,pt);
@@ -237,7 +245,9 @@ void porous::boundaryResidual() {
   }
   else if (bcs(pnum,cside) == "interface") { // multiscale weak Dirichlet
     auto lambda = wkset->getData("aux p side");
-    parallel_for("porous HGRAD bndry resid MS weak Dirichlet",RangePolicy<AssemblyExec>(0,basis.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HGRAD bndry resid MS weak Dirichlet",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis_grad.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD pval = psol(elem,pt);
@@ -301,12 +311,9 @@ void porous::computeFlux() {
     
   }
   
-  // Since normals get recomputed often, this needs to be reset
   auto h = wkset->h;
-  
-  // Just need the basis for the number of active elements (any side basis will do)
-  auto basis_grad = wkset->basis_grad_side[wkset->usebasis[pnum]];
-  
+  auto basis_grad = wkset->basis_side[wkset->usebasis[pnum]];
+ 
   {
     Teuchos::TimeMonitor localtime(*fluxFill);
     View_Sc2 nx, ny, nz;
@@ -324,9 +331,10 @@ void porous::computeFlux() {
     
     auto pflux = subview(wkset->flux, ALL(), pnum, ALL());
     auto psol = wkset->getData("p side");
-    //auto pgrad = Kokkos::subview(sol_grad_side, Kokkos::ALL(), pnum, Kokkos::ALL(), Kokkos::ALL());
     auto lambda = wkset->getData("aux p side");
-    parallel_for("porous HGRAD flux",RangePolicy<AssemblyExec>(0,basis_grad.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+    parallel_for("porous HGRAD flux",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis_grad.extent(3);
       for (size_type pt=0; pt<pflux.extent(1); pt++) {
         AD dens = densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));

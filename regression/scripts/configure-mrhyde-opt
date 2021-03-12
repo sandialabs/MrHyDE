@@ -1,0 +1,20 @@
+EXTRA_ARGS=$@
+
+rm CMakeCache.txt
+
+TRILINOS_HOME='/scratch/bartv/regression-mrhyde-nxtgen/Trilinos'
+
+TRILINOS_INSTALL='/scratch/bartv/regression-mrhyde-nxtgen/Trilinos-install/OPT'
+
+CODE_HOME='/scratch/bartv/regression-mrhyde-nxtgen/mrhyde'
+
+CODE_INSTALL='/scratch/bartv/regression-mrhyde-nxtgen/mrhyde-install'
+
+/scratch/bartv/software/cmake-3.9.0-Linux-x86_64/bin/cmake \
+-D Trilinos_SRC_DIR=${TRILINOS_HOME} \
+-D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
+-D CMAKE_VERBOSE_CONFIGURE:BOOL=OFF \
+-D CMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+-D CMAKE_INSTALL_PREFIX:PATH=${CODE_INSTALL} \
+${EXTRA-ARGS} \
+${CODE_HOME}
