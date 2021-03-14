@@ -330,12 +330,12 @@ class xml_document:
     if self.opts.printKeywords :
       stmt2 = '%4i/%i %10s%8.2fs  np=%s    %55s    %s' \
               % (test.index+1, self.list_length, \
-                 test.statusStr, runtime, test.nprocs, test.fname[0:-9], test.include_keywords)
+                 test.statusStr, runtime, test.nprocs, test.fname[0:-11], test.include_keywords)
       print stmt2 + ' '*(max(0,len(test.stmt)-len(stmt2)))
     else :
       stmt2 = '%4i/%i %10s%8.2fs  np=%s    %55s' \
               % (test.index+1, self.list_length, \
-                 test.statusStr, runtime, test.nprocs, test.fname[0:-9])
+                 test.statusStr, runtime, test.nprocs, test.fname[0:-11])
       print stmt2 + ' '*(max(0,len(test.stmt)-len(stmt2)))
     
 
