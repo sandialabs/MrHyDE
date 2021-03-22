@@ -106,7 +106,7 @@ fi
 # now run the testsuite and count the failures
 echo "Running the testsuite..."
 cd ${MrHyDE_SOURCE}/regression
-ln -s ${MrHyDE_BUILD}/src/milo ${MrHyDE_SOURCE}/regression/milo
+ln -s ${MrHyDE_BUILD}/src/mrhyde ${MrHyDE_SOURCE}/regression/mrhyde
 ./runtests.py -s > ${MrHyDE_SOURCE_PREFIX}/MrHyDE-nightly-vaporwave.txt
 
 
