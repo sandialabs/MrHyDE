@@ -28,7 +28,8 @@ ANONYMOUS:
     quadrature: 2
   Parameters input file: input_params.yaml
   Analysis input file: input_rol2.yaml
-  Solver: 
+  Solver:
+    workset size: 10 
     solver: transient
     nonlinear TOL: 1.0e-10
     linear TOL: 1.0e-13

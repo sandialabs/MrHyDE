@@ -116,7 +116,7 @@ namespace MrHyDE {
     
     bool have_mesh_data, compute_mesh_data, have_rotations, have_rotation_phi, have_multiple_data_files;
     string shape, mesh_data_file_tag, mesh_data_pts_tag, mesh_data_tag;
-    int spaceDim, verbosity, number_mesh_data_files, milo_debug_level;
+    int spaceDim, verbosity, number_mesh_data_files, debug_level;
     int numNodesPerElem, sideDim, numSides, numFaces, numSeeds;
     vector<int> randomSeeds;
     vector<topo_RCP> cellTopo, sideTopo;
@@ -124,7 +124,7 @@ namespace MrHyDE {
     bool meshmod_usesmoother;
     ScalarT meshmod_TOL, meshmod_center, meshmod_layer_size;
     
-    vector<string> nfield_names, efield_names;
+    vector<string> block_names, nfield_names, efield_names;
     int numResponses;
     
     Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > meas;

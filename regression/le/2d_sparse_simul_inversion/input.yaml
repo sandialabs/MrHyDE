@@ -1,6 +1,7 @@
 %YAML 1.1
 ---
 ANONYMOUS:
+  verbosity: 0
   debug level: 0
   Mesh: 
     blocknames: eblock-0_0
@@ -38,6 +39,7 @@ ANONYMOUS:
       dy: 1
     quadrature: 2
   Solver:
+    workset size: 1
     solver: steady-state
   Postprocess: 
     response type: pointwise

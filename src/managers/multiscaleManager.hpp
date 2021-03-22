@@ -99,7 +99,7 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
      
     bool subgrid_static;
-    int milo_debug_level;
+    int debug_level;
     std::vector<Teuchos::RCP<SubGridModel> > subgridModels;
     Teuchos::RCP<MpiComm> Comm, MacroComm;
     Teuchos::RCP<Teuchos::ParameterList> settings;
@@ -109,9 +109,9 @@ namespace MrHyDE {
     std::vector<Teuchos::RCP<Amesos2::Solver<SGLA_CrsMatrix,SGLA_MultiVector> > > subgrid_projection_solvers;
     std::vector<Teuchos::RCP<FunctionManager> > macro_functionManagers;
     
-    Teuchos::RCP<Teuchos::Time> resettimer = Teuchos::TimeMonitor::getNewCounter("MILO::multiscale::reset()");
-    Teuchos::RCP<Teuchos::Time> initializetimer = Teuchos::TimeMonitor::getNewCounter("MILO::multiscale::initialize()");
-    Teuchos::RCP<Teuchos::Time> updatetimer = Teuchos::TimeMonitor::getNewCounter("MILO::multiscale::update()");
+    Teuchos::RCP<Teuchos::Time> resettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::multiscale::reset()");
+    Teuchos::RCP<Teuchos::Time> initializetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::multiscale::initialize()");
+    Teuchos::RCP<Teuchos::Time> updatetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::multiscale::update()");
   };
 }
 

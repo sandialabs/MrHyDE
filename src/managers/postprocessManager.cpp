@@ -68,9 +68,9 @@ template<class Node>
 void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   
-  milo_debug_level = settings->get<int>("debug level",0);
+  debug_level = settings->get<int>("debug level",0);
   
-  if (milo_debug_level > 0 && Comm->getRank() == 0) {
+  if (debug_level > 0 && Comm->getRank() == 0) {
     cout << "**** Starting PostprocessManager::setup()" << endl;
   }
   
@@ -140,6 +140,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   have_sensor_data = settings->sublist("Analysis").get("have sensor data", false); // or "global"
   save_sensor_data = settings->sublist("Analysis").get("save sensor data",false);
   sname = settings->sublist("Analysis").get("sensor prefix","sensor");
+    
   stddev = settings->sublist("Analysis").get("additive normal noise standard dev",0.0);
   write_dakota_output = settings->sublist("Postprocess").get("write Dakota output",false);
   
@@ -209,7 +210,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     }
   } // end block loop
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished PostprocessManager::setup()" << endl;
     }
@@ -545,7 +546,7 @@ void PostprocessManager<Node>::report() {
 template<class Node>
 void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
   
-  if (milo_debug_level > 1) {
+  if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting PostprocessManager::computeError(time)" << endl;
     }
@@ -860,7 +861,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
     }
   }
   
-  if (milo_debug_level > 1) {
+  if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished PostprocessManager::computeError(time)" << endl;
     }

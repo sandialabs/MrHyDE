@@ -63,7 +63,7 @@ namespace MrHyDE {
     
     ScalarT response;
     vector<ScalarT> gradient;
-    int verbosity, milo_debug_level;
+    int verbosity, debug_level;
     
     bool sensIC;
   };

@@ -10,27 +10,27 @@ ANONYMOUS:
       type: HGRAD
       order: 1
       usage: discretized
-      initial_value: 2.00000000000000000e+00
-      lower_bound: 1.00000000000000000e+00
-      upper_bound: 1.00000000000000000e+01
+      initial_value: 2.0
+      lower_bound: 1.0
+      upper_bound: 10.0
       reg_type: 1
-      reg_constant: 0.00000000000000000e+00
+      reg_constant: 0.0
       isDomainParam: true
     source_x: 
       type: scalar
-      value: 0.00000000000000000e+00
+      value: 0.0
       usage: inactive
     source_y: 
       type: scalar
-      value: 0.00000000000000000e+00
+      value: 0.0
       usage: inactive
     nbcx: 
       type: scalar
-      value: 0.00000000000000000e+00
+      value: 0.0
       usage: inactive
     nbcy: 
       type: scalar
-      value: -1.00000000000000000e+00
+      value: -1.0
       usage: inactive
       bounds: data/nbcy_bounds.dat
 ...

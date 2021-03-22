@@ -55,6 +55,9 @@ namespace MrHyDE {
     vector<Kokkos::View<ScalarT**,HostDevice> > sensor_data;
     Kokkos::View<ScalarT**,HostDevice> sensor_points;
     
+    Teuchos::RCP<Teuchos::Time> importexodustimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SensorManager::importSensorsFromExodus()");
+    Teuchos::RCP<Teuchos::Time> importfiletimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SensorManager::importSensorsFromFiles()");
+    
   };
   
   template class SensorManager<SolverNode>;

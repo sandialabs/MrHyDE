@@ -38,7 +38,7 @@ analysis::analysis(const Teuchos::RCP<MpiComm> & Comm_,
 Comm(Comm_), settings(settings_), solve(solver_),
 postproc(postproc_), params(params_) {
   verbosity = settings->get<int>("verbosity",0);
-  milo_debug_level = settings->get<int>("debug level",0);
+  debug_level = settings->get<int>("debug level",0);
   // No debug output on this constructor
 }
 
@@ -49,7 +49,7 @@ postproc(postproc_), params(params_) {
 
 void analysis::run() {
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting analysis::run ..." << endl;
     }
@@ -495,6 +495,10 @@ void analysis::run() {
           (*d_rcp)[i] = 10.0*(ScalarT)rand()/(ScalarT)RAND_MAX - 5.0;
         }
       }
+      double fd_scale = ROLsettings.sublist("General").get("FD Check Scale",1.0);
+      for ( int i = 0; i < numParams; i++ ) {
+        (*d_rcp)[i] *= fd_scale;
+      }
       ROL::StdVector<RealT> d(d_rcp);
       // check gradient and Hessian-vector computation using finite differences
       (*obj).checkGradient(x, d, (Comm->getRank() == 0));
@@ -766,7 +770,7 @@ void analysis::run() {
     std::cout << "Valid and tested options: forward, forward+adjoint, UQ, ROL" << std::endl;
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished analysis::run" << endl;
     }

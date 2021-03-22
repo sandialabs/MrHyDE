@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef PP_H
-#define PP_H
+#ifndef POSTPROCESS_H
+#define POSTPROCESS_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
@@ -24,14 +24,69 @@
 #include "parameterManager.hpp"
 #include "sensorManager.hpp"
 
-//using namespace std;
-
 namespace MrHyDE {
-  /*
-  void static postprocessHelp(const std::string & details) {
-    cout << "********** Help and Documentation for the Postprocess Interface **********" << endl;
-  }
-  */
+  
+  // ========================================================================================
+  // Class for storing an objective function settings
+  // ========================================================================================
+  
+  class objective {
+  public:
+    
+    objective(Teuchos::ParameterList & objsettings) {
+      type = objsettings.get<string>("type","none");
+      weight = objsettings.get<ScalarT>("weight",1.0);
+      
+      sensor_points_file = "";
+      sensor_data_file = "";
+      save_data = false;
+      response = "";
+      target = 0.0;
+      function = "";
+      
+      if (type == "sensors") {
+        sensor_points_file = objsettings.get<string>("sensor points file","sensor_points.dat");
+        sensor_data_file = objsettings.get<string>("sensor data file","sensor_data.dat");
+        save_data = objsettings.get<bool>("save sensor data",false);
+        response = objsettings.get<string>("response","0.0");
+      }
+      else if (type == "integrated response") {
+        response = objsettings.get<string>("response","0.0");
+        target = objsettings.get<ScalarT>("target",0.0);
+        save_data = objsettings.get<bool>("save response data",false);
+      }
+      else if (type == "integrated control") {
+        function = objsettings.get<string>("function","0.0");
+      }
+      else if (type == "discrete control") {
+        // nothing else is needed
+      }
+    }
+    
+    string type, location, response, function, boundary_name, response_file, sensor_points_file, sensor_data_file;
+    ScalarT weight, target;
+    bool save_data;
+  };
+  
+  // ========================================================================================
+  // Class for storing a regularization function settings
+  // ========================================================================================
+  
+  class regularization {
+  public:
+    
+    regularization(Teuchos::ParameterList & regsettings) {
+      type = regsettings.get<string>("type","integrated");
+      function = regsettings.get<string>("function","0.0");
+      location = regsettings.get<string>("location","volume");
+      boundary_name = regsettings.get<string>("boundary name","");
+      weight = regsettings.get<ScalarT>("weight",1.0);
+    }
+    
+    string type, location, function, boundary_name;
+    ScalarT weight;
+    
+  };
   
   template<class Node>
   class PostprocessManager {
@@ -44,8 +99,6 @@ namespace MrHyDE {
     PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                        Teuchos::RCP<Teuchos::ParameterList> & settings,
                        Teuchos::RCP<meshInterface> & mesh_,
-                       //Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
-                       //Teuchos::RCP<panzer_stk::STK_Interface> & optimization_mesh_,
                        Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                        std::vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
                        Teuchos::RCP<AssemblyManager<Node> > & assembler_);
@@ -57,8 +110,6 @@ namespace MrHyDE {
     PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                        Teuchos::RCP<Teuchos::ParameterList> & settings,
                        Teuchos::RCP<meshInterface> & mesh_,
-                       //Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
-                       //Teuchos::RCP<panzer_stk::STK_Interface> & optimization_mesh_,
                        Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
                        std::vector<Teuchos::RCP<FunctionManager> > & functionManagers,
                        Teuchos::RCP<MultiScale> & multiscale_manager_,
@@ -128,6 +179,9 @@ namespace MrHyDE {
     std::vector<Teuchos::RCP<FunctionManager> > functionManagers;
     Teuchos::RCP<MultiScale> multiscale_manager;
     
+    vector<vector<objective> > objectives;
+    vector<vector<regularization> > regularizations;
+    
     bool compute_response, compute_error, compute_subgrid_error, compute_aux_error;
     bool write_solution, write_aux_solution, write_subgrid_solution, write_HFACE_variables, write_optimization_solution;
     std::string exodus_filename;
@@ -152,15 +206,15 @@ namespace MrHyDE {
     std::string response_type, error_type;
     std::vector<ScalarT> plot_times, response_times, error_times; // probably always the same
     
-    int verbosity, milo_debug_level;
+    int verbosity, debug_level;
     
     std::vector<std::vector<std::pair<size_t,std::string> > > error_list, aux_error_list; // [block][errors]
     std::vector<std::vector<std::vector<std::pair<size_t,std::string> > > > subgrid_error_lists; // [block][sgmodel][errors]
     
     // Timers
-    Teuchos::RCP<Teuchos::Time> computeErrorTimer = Teuchos::TimeMonitor::getNewCounter("MILO::postprocess::computeError");
-    Teuchos::RCP<Teuchos::Time> writeSolutionTimer = Teuchos::TimeMonitor::getNewCounter("MILO::postprocess::writeSolution");
-    Teuchos::RCP<Teuchos::Time> writeSolutionSolIPTimer = Teuchos::TimeMonitor::getNewCounter("MILO::postprocess::writeSolution - solution to ip");
+    Teuchos::RCP<Teuchos::Time> computeErrorTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::postprocess::computeError");
+    Teuchos::RCP<Teuchos::Time> writeSolutionTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::postprocess::writeSolution");
+    Teuchos::RCP<Teuchos::Time> writeSolutionSolIPTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::postprocess::writeSolution - solution to ip");
   };
   
   // Explicit template instantiations

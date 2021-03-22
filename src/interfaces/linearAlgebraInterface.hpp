@@ -312,13 +312,13 @@ namespace MrHyDE {
     Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > M, M_aux; // AMG preconditioner for Jacobians
     Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > M_dd, M_dd_aux; // domain decomposition preconditioner for Jacobians
     
-    Teuchos::RCP<Teuchos::Time> setupLAtimer = Teuchos::TimeMonitor::getNewCounter("MILO::linearAlgebra::setup");
-    Teuchos::RCP<Teuchos::Time> newvectortimer = Teuchos::TimeMonitor::getNewCounter("MILO::linearAlgebra::getNew*Vector()");
-    Teuchos::RCP<Teuchos::Time> newmatrixtimer = Teuchos::TimeMonitor::getNewCounter("MILO::linearAlgebra::getNew*Matrix()");
-    Teuchos::RCP<Teuchos::Time> linearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MILO::linearAlgebra::linearSolver*()");
-    Teuchos::RCP<Teuchos::Time> fillcompletetimer = Teuchos::TimeMonitor::getNewCounter("MILO::linearAlgebra::fillComplete*()");
-    Teuchos::RCP<Teuchos::Time> exporttimer = Teuchos::TimeMonitor::getNewCounter("MILO::linearAlgebra::export*()");
-    Teuchos::RCP<Teuchos::Time> importtimer = Teuchos::TimeMonitor::getNewCounter("MILO::linearAlgebra::import*()");
+    Teuchos::RCP<Teuchos::Time> setupLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::linearAlgebra::setup");
+    Teuchos::RCP<Teuchos::Time> newvectortimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::linearAlgebra::getNew*Vector()");
+    Teuchos::RCP<Teuchos::Time> newmatrixtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::linearAlgebra::getNew*Matrix()");
+    Teuchos::RCP<Teuchos::Time> linearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::linearAlgebra::linearSolver*()");
+    Teuchos::RCP<Teuchos::Time> fillcompletetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::linearAlgebra::fillComplete*()");
+    Teuchos::RCP<Teuchos::Time> exporttimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::linearAlgebra::export*()");
+    Teuchos::RCP<Teuchos::Time> importtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::linearAlgebra::import*()");
     
     
   };

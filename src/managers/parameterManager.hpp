@@ -159,7 +159,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////////
     
     std::vector<std::string> blocknames;
-    int spaceDim, milo_debug_level;
+    int spaceDim, debug_level;
     
     Teuchos::RCP<const LA_Map> param_owned_map;
     Teuchos::RCP<const LA_Map> param_overlapped_map;
@@ -222,9 +222,6 @@ namespace MrHyDE {
     Teuchos::RCP<physics> phys;
     Teuchos::RCP<Teuchos::ParameterList> settings;
     
-    /* // Timers
-     Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MILO::ParameterManager::timer _1 - description");
-     */
   };
   
 }

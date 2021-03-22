@@ -1098,7 +1098,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
         csol = this->getData(var+" side");
         cbasis = basis_side[basis_index[varind]];
         
-        parallel_for("wkset soln ip HGRAD",
+        parallel_for("wkset soln ip HFACE",
                      TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
@@ -1830,63 +1830,47 @@ void workset::printMetaData() {
 }
 
 //////////////////////////////////////////////////////////////
+// Copy data carefully
+//////////////////////////////////////////////////////////////
+
+template<class V1, class V2>
+void workset::copyData(V1 view1, V2 view2) {
+  // Copy data from view2 into view1
+  // Both are rank-2 and second dimensions are the same
+  // However, view2 may be shorter in first dimension
+  if (view1.extent(0) == view2.extent(0)) {
+    deep_copy(view1,view2);
+  }
+  else {
+    deep_copy(view1,0.0);
+    parallel_for("wkset copy data",
+                 RangePolicy<AssemblyExec>(0,view2.extent(0)),
+                 KOKKOS_LAMBDA (const size_type elem ) {
+      for (size_type pt=0; pt<view1.extent(1); ++pt) {
+        view1(elem,pt) = view2(elem,pt);
+      }
+    });
+  }
+}
+
+//////////////////////////////////////////////////////////////
 // Set the integration points
 //////////////////////////////////////////////////////////////
 
 void workset::setIP(View_Sc3 newip, const string & pfix) {
   size_type dim = newip.extent(2);
   auto x = this->getDataSc("x"+pfix);
-  bool sizes_match = true;
-  if (newip.extent(0) < x.extent(0)) {
-    sizes_match = false;
-  }
   auto newx = subview(newip,ALL(),ALL(),0);
-  if (sizes_match) {
-    Kokkos::deep_copy(x,newx);
-  }
-  else {
-    parallel_for("wkset setIP x",
-                 TeamPolicy<AssemblyExec>(newx.extent(0), Kokkos::AUTO),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      for (size_type pt=team.team_rank(); pt<newx.extent(1); pt+=team.team_size() ) {
-        x(elem,pt) = newx(elem,pt);
-      }
-    });
-  }
+  this->copyData(x,newx);
   if (dim > 1) {
     auto y = this->getDataSc("y"+pfix);
     auto newy = subview(newip,ALL(),ALL(),1);
-    if (sizes_match) {
-      Kokkos::deep_copy(y,newy);
-    }
-    else {
-      parallel_for("wkset setIP y",
-                   TeamPolicy<AssemblyExec>(newy.extent(0), Kokkos::AUTO),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        for (size_type pt=team.team_rank(); pt<newy.extent(1); pt+=team.team_size() ) {
-          y(elem,pt) = newy(elem,pt);
-        }
-      });
-    }
+    this->copyData(y,newy);
   }
   if (dim > 2) {
     auto z = this->getDataSc("z"+pfix);
     auto newz = subview(newip,ALL(),ALL(),2);
-    if (sizes_match) {
-      Kokkos::deep_copy(z,newz);
-    }
-    else {
-      parallel_for("wkset setIP z",
-                   TeamPolicy<AssemblyExec>(newz.extent(0), Kokkos::AUTO),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        for (size_type pt=team.team_rank(); pt<newz.extent(1); pt+=team.team_size() ) {
-          z(elem,pt) = newz(elem,pt);
-        }
-      });
-    }
+    this->copyData(z,newz);
   }
 }
 
@@ -1897,57 +1881,17 @@ void workset::setIP(View_Sc3 newip, const string & pfix) {
 void workset::setNormals(View_Sc3 newnormals) {
   size_type dim = newnormals.extent(2);
   auto nx = this->getDataSc("nx side");
-  bool sizes_match = true;
-  if (newnormals.extent(0) < nx.extent(0)) {
-    sizes_match = false;
-  }
   auto newnx = subview(newnormals,ALL(),ALL(),0);
-  if (sizes_match) {
-    Kokkos::deep_copy(nx,newnx);
-  }
-  else {
-    parallel_for("wkset setNormals nx",
-                 TeamPolicy<AssemblyExec>(newnx.extent(0), Kokkos::AUTO),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      for (size_type pt=team.team_rank(); pt<newnx.extent(1); pt+=team.team_size() ) {
-        nx(elem,pt) = newnx(elem,pt);
-      }
-    });
-  }
+  this->copyData(nx,newnx);
   if (dim > 1) {
     auto ny = this->getDataSc("ny side");
     auto newny = subview(newnormals,ALL(),ALL(),1);
-    if (sizes_match) {
-      Kokkos::deep_copy(ny,newny);
-    }
-    else {
-      parallel_for("wkset setNormals ny",
-                   TeamPolicy<AssemblyExec>(newny.extent(0), Kokkos::AUTO),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        for (size_type pt=team.team_rank(); pt<newny.extent(1); pt+=team.team_size() ) {
-          ny(elem,pt) = newny(elem,pt);
-        }
-      });
-    }
+    this->copyData(ny,newny);
   }
   if (dim > 2) {
     auto nz = this->getDataSc("nz side");
     auto newnz = subview(newnormals,ALL(),ALL(),2);
-    if (sizes_match) {
-      Kokkos::deep_copy(nz,newnz);
-    }
-    else {
-      parallel_for("wkset setNormals nz",
-                   TeamPolicy<AssemblyExec>(newnz.extent(0), Kokkos::AUTO),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        for (size_type pt=team.team_rank(); pt<newnz.extent(1); pt+=team.team_size() ) {
-          nz(elem,pt) = newnz(elem,pt);
-        }
-      });
-    }
+    this->copyData(nz,newnz);
   }
 }
 
@@ -1958,57 +1902,17 @@ void workset::setNormals(View_Sc3 newnormals) {
 void workset::setTangents(View_Sc3 newtangents) {
   size_type dim = newtangents.extent(2);
   auto tx = this->getDataSc("tx side");
-  bool sizes_match = true;
-  if (newtangents.extent(0) < tx.extent(0)) {
-    sizes_match = false;
-  }
   auto newtx = subview(newtangents,ALL(),ALL(),0);
-  if (sizes_match) {
-    Kokkos::deep_copy(tx,newtx);
-  }
-  else {
-    parallel_for("wkset setTangents tx",
-                 TeamPolicy<AssemblyExec>(newtx.extent(0), Kokkos::AUTO),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      for (size_type pt=team.team_rank(); pt<newtx.extent(1); pt+=team.team_size() ) {
-        tx(elem,pt) = newtx(elem,pt);
-      }
-    });
-  }
+  this->copyData(tx,newtx);
   if (dim > 1) {
     auto ty = this->getDataSc("ty side");
     auto newty = subview(newtangents,ALL(),ALL(),1);
-    if (sizes_match) {
-      Kokkos::deep_copy(ty,newty);
-    }
-    else {
-      parallel_for("wkset setTangents ty",
-                   TeamPolicy<AssemblyExec>(newty.extent(0), Kokkos::AUTO),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        for (size_type pt=team.team_rank(); pt<newty.extent(1); pt+=team.team_size() ) {
-          ty(elem,pt) = newty(elem,pt);
-        }
-      });
-    }
+    this->copyData(ty,newty);
   }
   if (dim > 2) {
     auto tz = this->getDataSc("tz side");
     auto newtz = subview(newtangents,ALL(),ALL(),2);
-    if (sizes_match) {
-      Kokkos::deep_copy(tz,newtz);
-    }
-    else {
-      parallel_for("wkset setTangetns tz",
-                   TeamPolicy<AssemblyExec>(newtz.extent(0), Kokkos::AUTO),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        for (size_type pt=team.team_rank(); pt<newtz.extent(1); pt+=team.team_size() ) {
-          tz(elem,pt) = newtz(elem,pt);
-        }
-      });
-    }
+    this->copyData(tz,newtz);
   }
 }
 
@@ -2018,26 +1922,28 @@ void workset::setTangents(View_Sc3 newtangents) {
 
 void workset::setSolution(View_AD4 newsol, const string & pfix) {
   // newsol has dims numElem x numvars x numip x dimension
+  // however, this numElem may be smaller than the size of the data arrays
+  
   for (size_t i=0; i<varlist_HGRAD.size(); i++) {
     string var = varlist_HGRAD[i];
     int varind = vars_HGRAD[i];
     auto csol = this->getData(var+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
-    Kokkos::deep_copy(csol,cnsol);
+    this->copyData(csol,cnsol);
   }
   for (size_t i=0; i<varlist_HVOL.size(); i++) {
     string var = varlist_HVOL[i];
     int varind = vars_HVOL[i];
     auto csol = this->getData(var+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
-    Kokkos::deep_copy(csol,cnsol);
+    this->copyData(csol,cnsol);
   }
   for (size_t i=0; i<varlist_HFACE.size(); i++) {
     string var = varlist_HFACE[i];
     int varind = vars_HFACE[i];
     auto csol = this->getData(var+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
-    Kokkos::deep_copy(csol,cnsol);
+    this->copyData(csol,cnsol);
   }
   for (size_t i=0; i<varlist_HDIV.size(); i++) {
     string var = varlist_HDIV[i];
@@ -2045,16 +1951,16 @@ void workset::setSolution(View_AD4 newsol, const string & pfix) {
     size_type dim = newsol.extent(3);
     auto csol = this->getData(var+"[x]"+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
-    Kokkos::deep_copy(csol,cnsol);
+    this->copyData(csol,cnsol);
     if (dim>1) {
       auto csol = this->getData(var+"[y]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
-      Kokkos::deep_copy(csol,cnsol);
+      this->copyData(csol,cnsol);
     }
     if (dim>2) {
       auto csol = this->getData(var+"[z]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
-      Kokkos::deep_copy(csol,cnsol);
+      this->copyData(csol,cnsol);
     }
   }
   for (size_t i=0; i<varlist_HCURL.size(); i++) {
@@ -2063,16 +1969,16 @@ void workset::setSolution(View_AD4 newsol, const string & pfix) {
     size_type dim = newsol.extent(3);
     auto csol = this->getData(var+"[x]"+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
-    Kokkos::deep_copy(csol,cnsol);
+    this->copyData(csol,cnsol);
     if (dim>1) {
       auto csol = this->getData(var+"[y]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
-      Kokkos::deep_copy(csol,cnsol);
+      this->copyData(csol,cnsol);
     }
     if (dim>2) {
       auto csol = this->getData(var+"[z]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
-      Kokkos::deep_copy(csol,cnsol);
+      this->copyData(csol,cnsol);
     }
   }
   
@@ -2089,16 +1995,16 @@ void workset::setSolutionGrad(View_AD4 newsol, const string & pfix) {
     size_type dim = newsol.extent(3);
     auto csol = this->getData("grad("+var+")[x]"+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
-    Kokkos::deep_copy(csol,cnsol);
+    this->copyData(csol,cnsol);
     if (dim>1) {
       auto csol = this->getData("grad("+var+")[y]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
-      Kokkos::deep_copy(csol,cnsol);
+      this->copyData(csol,cnsol);
     }
     if (dim>2) {
       auto csol = this->getData("grad("+var+")[z]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
-      Kokkos::deep_copy(csol,cnsol);
+      this->copyData(csol,cnsol);
     }
   }
 }
@@ -2113,6 +2019,7 @@ void workset::setSolutionDiv(View_AD3 newsol, const string & pfix) {
     int varind = vars_HDIV[i];
     auto csol = this->getData("div("+var+")");
     auto cnsol = subview(newsol,ALL(),varind,ALL());
+    this->copyData(csol,cnsol);
   }
 }
 
@@ -2127,16 +2034,16 @@ void workset::setSolutionCurl(View_AD4 newsol, const string & pfix) {
     size_type dim = newsol.extent(3);
     auto csol = this->getData("curl("+var+")[x]"+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
-    Kokkos::deep_copy(csol,cnsol);
+    this->copyData(csol,cnsol);
     if (dim>1) {
       auto csol = this->getData("curl("+var+")[y]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
-      Kokkos::deep_copy(csol,cnsol);
+      this->copyData(csol,cnsol);
     }
     if (dim>2) {
       auto csol = this->getData("curl("+var+")[z]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
-      Kokkos::deep_copy(csol,cnsol);
+      this->copyData(csol,cnsol);
     }
   }
 }
@@ -2226,4 +2133,233 @@ void workset::setSolutionPoint(View_AD2 newsol) {
     }
   }
   
+}
+
+//////////////////////////////////////////////////////////////
+// Set the solution at a point
+//////////////////////////////////////////////////////////////
+
+void workset::setSolutionGradPoint(View_AD2 newsol) {
+  // newsol has dims numElem x numvars x numip x dimension
+  for (size_t i=0; i<varlist_HGRAD.size(); i++) {
+    string var = varlist_HGRAD[i];
+    int varind = vars_HGRAD[i];
+    size_type dim = newsol.extent(1);
+    auto csol = this->getData("grad("+var+")[x]"+" point");
+    auto cnsol = subview(newsol,varind,ALL());
+    parallel_for("physics point response",
+                 RangePolicy<AssemblyExec>(0,1),
+                 KOKKOS_LAMBDA (const int elem ) {
+      csol(0,0) = cnsol(0);
+    });
+    if (dim>1) {
+      auto csol = this->getData("grad("+var+")[y]"+" point");
+      parallel_for("physics point response",
+                   RangePolicy<AssemblyExec>(0,1),
+                   KOKKOS_LAMBDA (const int elem ) {
+        csol(0,0) = cnsol(1);
+      });
+    }
+    if (dim>2) {
+      auto csol = this->getData("grad("+var+")[z]"+" point");
+      parallel_for("physics point response",
+                   RangePolicy<AssemblyExec>(0,1),
+                   KOKKOS_LAMBDA (const int elem ) {
+        csol(0,0) = cnsol(2);
+      });
+    }
+  }
+
+}
+
+//////////////////////////////////////////////////////////////
+// Set the parameter solutions
+//////////////////////////////////////////////////////////////
+
+void workset::setParam(View_AD4 newsol, const string & pfix) {
+  // newsol has dims numElem x numvars x numip x dimension
+  // however, this numElem may be smaller than the size of the data arrays
+  
+  for (size_t i=0; i<paramvarlist_HGRAD.size(); i++) {
+    string var = paramvarlist_HGRAD[i];
+    int varind = paramvars_HGRAD[i];
+    auto csol = this->getData(var+pfix);
+    auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
+    this->copyData(csol,cnsol);
+  }
+  for (size_t i=0; i<paramvarlist_HVOL.size(); i++) {
+    string var = paramvarlist_HVOL[i];
+    int varind = paramvars_HVOL[i];
+    auto csol = this->getData(var+pfix);
+    auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
+    this->copyData(csol,cnsol);
+  }
+  for (size_t i=0; i<paramvarlist_HFACE.size(); i++) {
+    string var = paramvarlist_HFACE[i];
+    int varind = paramvars_HFACE[i];
+    auto csol = this->getData(var+pfix);
+    auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
+    this->copyData(csol,cnsol);
+  }
+  for (size_t i=0; i<paramvarlist_HDIV.size(); i++) {
+    string var = paramvarlist_HDIV[i];
+    int varind = paramvars_HDIV[i];
+    size_type dim = newsol.extent(3);
+    auto csol = this->getData(var+"[x]"+pfix);
+    auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
+    this->copyData(csol,cnsol);
+    if (dim>1) {
+      auto csol = this->getData(var+"[y]"+pfix);
+      auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
+      this->copyData(csol,cnsol);
+    }
+    if (dim>2) {
+      auto csol = this->getData(var+"[z]"+pfix);
+      auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
+      this->copyData(csol,cnsol);
+    }
+  }
+  for (size_t i=0; i<varlist_HCURL.size(); i++) {
+    string var = paramvarlist_HCURL[i];
+    int varind = paramvars_HCURL[i];
+    size_type dim = newsol.extent(3);
+    auto csol = this->getData(var+"[x]"+pfix);
+    auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
+    this->copyData(csol,cnsol);
+    if (dim>1) {
+      auto csol = this->getData(var+"[y]"+pfix);
+      auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
+      this->copyData(csol,cnsol);
+    }
+    if (dim>2) {
+      auto csol = this->getData(var+"[z]"+pfix);
+      auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
+      this->copyData(csol,cnsol);
+    }
+  }
+  
+}
+
+//////////////////////////////////////////////////////////////
+// Set the solution at a point
+//////////////////////////////////////////////////////////////
+
+void workset::setParamPoint(View_AD2 newsol) {
+  // newsol has dims numElem x numvars x numip x dimension
+  for (size_t i=0; i<paramvarlist_HGRAD.size(); i++) {
+    string var = paramvarlist_HGRAD[i];
+    int varind = paramvars_HGRAD[i];
+    auto csol = this->getData(var+" point");
+    auto cnsol = subview(newsol,varind,ALL());
+    parallel_for("physics point response",
+                 RangePolicy<AssemblyExec>(0,1),
+                 KOKKOS_LAMBDA (const int elem ) {
+      csol(0,0) = cnsol(0);
+    });
+  }
+  for (size_t i=0; i<paramvarlist_HVOL.size(); i++) {
+    string var = paramvarlist_HVOL[i];
+    int varind = paramvars_HVOL[i];
+    auto csol = this->getData(var+" point");
+    auto cnsol = subview(newsol,varind,ALL());
+    parallel_for("physics point response",
+                 RangePolicy<AssemblyExec>(0,1),
+                 KOKKOS_LAMBDA (const int elem ) {
+      csol(0,0) = cnsol(0);
+    });
+  }
+  for (size_t i=0; i<paramvarlist_HDIV.size(); i++) {
+    string var = paramvarlist_HDIV[i];
+    int varind = paramvars_HDIV[i];
+    size_type dim = newsol.extent(3);
+    auto csol = this->getData(var+"[x] point");
+    auto cnsol = subview(newsol,varind,ALL());
+    parallel_for("physics point response",
+                 RangePolicy<AssemblyExec>(0,1),
+                 KOKKOS_LAMBDA (const int elem ) {
+      csol(0,0) = cnsol(0);
+    });
+    if (dim>1) {
+      auto csol = this->getData(var+"[y] point");
+      parallel_for("physics point response",
+                   RangePolicy<AssemblyExec>(0,1),
+                   KOKKOS_LAMBDA (const int elem ) {
+        csol(0,0) = cnsol(1);
+      });
+    }
+    if (dim>2) {
+      auto csol = this->getData(var+"[z] point");
+      parallel_for("physics point response",
+                   RangePolicy<AssemblyExec>(0,1),
+                   KOKKOS_LAMBDA (const int elem ) {
+        csol(0,0) = cnsol(2);
+      });
+    }
+  }
+  for (size_t i=0; i<paramvarlist_HCURL.size(); i++) {
+    string var = paramvarlist_HCURL[i];
+    int varind = paramvars_HCURL[i];
+    size_type dim = newsol.extent(3);
+    auto csol = this->getData(var+"[x] point");
+    auto cnsol = subview(newsol,varind,ALL());
+    parallel_for("physics point response",
+                 RangePolicy<AssemblyExec>(0,1),
+                 KOKKOS_LAMBDA (const int elem ) {
+      csol(0,0) = cnsol(0);
+    });
+    if (dim>1) {
+      auto csol = this->getData(var+"[y] point");
+      parallel_for("physics point response",
+                   RangePolicy<AssemblyExec>(0,1),
+                   KOKKOS_LAMBDA (const int elem ) {
+        csol(0,0) = cnsol(1);
+      });
+    }
+    if (dim>2) {
+      auto csol = this->getData(var+"[z] point");
+      parallel_for("physics point response",
+                   RangePolicy<AssemblyExec>(0,1),
+                   KOKKOS_LAMBDA (const int elem ) {
+        csol(0,0) = cnsol(2);
+      });
+    }
+  }
+  
+}
+
+//////////////////////////////////////////////////////////////
+// Set the solution at a point
+//////////////////////////////////////////////////////////////
+
+void workset::setParamGradPoint(View_AD2 newsol) {
+  // newsol has dims numElem x numvars x numip x dimension
+  for (size_t i=0; i<paramvarlist_HGRAD.size(); i++) {
+    string var = paramvarlist_HGRAD[i];
+    int varind = paramvars_HGRAD[i];
+    size_type dim = newsol.extent(1);
+    auto csol = this->getData("grad("+var+")[x]"+" point");
+    auto cnsol = subview(newsol,varind,ALL());
+    parallel_for("physics point response",
+                 RangePolicy<AssemblyExec>(0,1),
+                 KOKKOS_LAMBDA (const int elem ) {
+      csol(0,0) = cnsol(0);
+    });
+    if (dim>1) {
+      auto csol = this->getData("grad("+var+")[y]"+" point");
+      parallel_for("physics point response",
+                   RangePolicy<AssemblyExec>(0,1),
+                   KOKKOS_LAMBDA (const int elem ) {
+        csol(0,0) = cnsol(1);
+      });
+    }
+    if (dim>2) {
+      auto csol = this->getData("grad("+var+")[z]"+" point");
+      parallel_for("physics point response",
+                   RangePolicy<AssemblyExec>(0,1),
+                   KOKKOS_LAMBDA (const int elem ) {
+        csol(0,0) = cnsol(2);
+      });
+    }
+  }
+
 }

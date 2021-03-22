@@ -91,6 +91,7 @@ void FunctionManager::setupLists(const vector<string> & variables_,
 // Validate all of the functions
 //////////////////////////////////////////////////////////////////////////////////////
 
+// TMW: THIS HAS BEEN DEPRECATED
 void FunctionManager::validateFunctions(){
   vector<string> function_names;
   for (size_t k=0; k<functions.size(); k++) {
@@ -100,7 +101,7 @@ void FunctionManager::validateFunctions(){
     vector<string> vars = interpreter->getVars(functions[k].expression, known_ops);
     int numfails = interpreter->validateTerms(vars,known_vars,variables,parameters,disc_parameters,function_names);
     if (numfails > 0) {
-      TEUCHOS_TEST_FOR_EXCEPTION(false,std::runtime_error,"Error: MILO could not identify one or more terms in: " + functions[k].function_name);
+      TEUCHOS_TEST_FOR_EXCEPTION(false,std::runtime_error,"Error: MrHyDE could not identify one or more terms in: " + functions[k].function_name);
     }
   }
 }
@@ -132,6 +133,8 @@ void FunctionManager::decomposeFunctions() {
         if (functions[fiter].terms[k].isRoot || functions[fiter].terms[k].beenDecomposed) {
           decompose = false;
         }
+        
+        // Is it an AD data stored in the workset?
         if (decompose) {
           vector<string> data_labels = wkset->data_labels;
           string label = functions[fiter].terms[k].expression;
@@ -141,16 +144,23 @@ void FunctionManager::decomposeFunctions() {
           else if (functions[fiter].location == "point") {
             label += " point";
           }
-          for (size_t j=0; j<data_labels.size(); j++) {
-            if (functions[fiter].terms[k].expression == data_labels[j]) {
+          bool found = 0;
+          size_t j=0;
+          while (!found && j<data_labels.size()) {
+            if (label == data_labels[j]) {
               decompose = false;
               functions[fiter].terms[k].isRoot = true;
               functions[fiter].terms[k].beenDecomposed = true;
               functions[fiter].terms[k].isAD = true;
               functions[fiter].terms[k].data = wkset->data[j];
+              
+              found = true;
             }
+            j++;
           }
         }
+        
+        // Is it a Scalar data stored in the workset?
         if (decompose) {
           vector<string> data_Sc_labels = wkset->data_Sc_labels;
           string label = functions[fiter].terms[k].expression;
@@ -160,79 +170,20 @@ void FunctionManager::decomposeFunctions() {
           else if (functions[fiter].location == "point") {
             label += " point";
           }
-          for (size_t j=0; j<data_Sc_labels.size(); j++) {
+          bool found = 0;
+          size_t j=0;
+          while (!found && j<data_Sc_labels.size()) {
             if (label == data_Sc_labels[j]) {
               decompose = false;
               functions[fiter].terms[k].isRoot = true;
               functions[fiter].terms[k].beenDecomposed = true;
               functions[fiter].terms[k].isAD = false;
               functions[fiter].terms[k].ddata = wkset->data_Sc[j];
+              found = true;
             }
+            j++;
           }
         }
-          
-        // IS THE TERM ONE OF THE KNOWN VARIABLES: x,y,z,t
-        if (decompose) {
-          for (size_t j=0; j<known_vars.size(); j++) {
-            if (functions[fiter].terms[k].expression == known_vars[j]) {
-              decompose = false;
-              //bool have_data = false;
-              functions[fiter].terms[k].isRoot = true;
-              functions[fiter].terms[k].beenDecomposed = true;
-              functions[fiter].terms[k].isAD = false;
-              
-              if (known_vars[j] == "t") {
-                functions[fiter].terms[k].scalar_ddata = wkset->time_KV;
-                functions[fiter].terms[k].isScalar = true;
-                functions[fiter].terms[k].isConstant = false;
-                functions[fiter].terms[k].ddata = View_Sc2("data",functions[fiter].dim0,functions[fiter].dim1);
-              }
-              else if (known_vars[j] == "pi") {
-                functions[fiter].terms[k].isRoot = true;
-                functions[fiter].terms[k].isAD = false;
-                functions[fiter].terms[k].beenDecomposed = true;
-                functions[fiter].terms[k].isScalar = true;
-                functions[fiter].terms[k].isConstant = true; // means in does not need to be copied every time
-                View_Sc2 tdata("scalar data", functions[fiter].dim0, functions[fiter].dim1);
-                functions[fiter].terms[k].ddata = tdata;
-                
-                Kokkos::deep_copy(functions[fiter].terms[k].ddata, PI);
-                decompose = false;
-              }
-            }
-          }
-        } // end known_vars
-        
-        // IS THIS TERM ONE OF THE KNOWN OPERATORS: sin(...), exp(...), etc.
-        if (decompose) {
-          bool isop = interpreter->isOperator(functions[fiter].terms, k, known_ops);
-          // isOperator takes care of the decomposition if it is of this form
-          if (isop) {
-            decompose = false;
-          }
-        }
-        
-        // IS THE TERM A SIMPLE SCALAR: 2.03, 1.0E2, etc.
-        if (decompose) {
-          bool isnum = interpreter->isScalar(functions[fiter].terms[k].expression);
-          if (isnum) {
-            functions[fiter].terms[k].isRoot = true;
-            functions[fiter].terms[k].isAD = false;
-            functions[fiter].terms[k].beenDecomposed = true;
-            functions[fiter].terms[k].isScalar = true;
-            functions[fiter].terms[k].isConstant = true; // means in does not need to be copied every time
-            functions[fiter].terms[k].scalar_ddata = Kokkos::View<double*,AssemblyDevice>("scalar double data",1);
-            ScalarT val = std::stod(functions[fiter].terms[k].expression);
-            Kokkos::deep_copy(functions[fiter].terms[k].scalar_ddata, val);
-           
-            // Copy the data just once
-            View_Sc2 tdata("scalar data",functions[fiter].dim0,functions[fiter].dim1);
-            functions[fiter].terms[k].ddata = tdata;
-            Kokkos::deep_copy(functions[fiter].terms[k].ddata, val);
-            decompose = false;
-          }
-        }
-        
         
         // check if it is a parameter
         if (decompose) {
@@ -343,6 +294,67 @@ void FunctionManager::decomposeFunctions() {
           }
         }
         
+        // IS THE TERM A SIMPLE SCALAR: 2.03, 1.0E2, etc.
+        if (decompose) {
+          bool isnum = interpreter->isScalar(functions[fiter].terms[k].expression);
+          if (isnum) {
+            functions[fiter].terms[k].isRoot = true;
+            functions[fiter].terms[k].isAD = false;
+            functions[fiter].terms[k].beenDecomposed = true;
+            functions[fiter].terms[k].isScalar = true;
+            functions[fiter].terms[k].isConstant = true; // means in does not need to be copied every time
+            functions[fiter].terms[k].scalar_ddata = Kokkos::View<double*,AssemblyDevice>("scalar double data",1);
+            ScalarT val = std::stod(functions[fiter].terms[k].expression);
+            Kokkos::deep_copy(functions[fiter].terms[k].scalar_ddata, val);
+           
+            // Copy the data just once
+            View_Sc2 tdata("scalar data",functions[fiter].dim0,functions[fiter].dim1);
+            functions[fiter].terms[k].ddata = tdata;
+            Kokkos::deep_copy(functions[fiter].terms[k].ddata, val);
+            decompose = false;
+          }
+        }
+        
+        // IS THE TERM ONE OF THE KNOWN VARIABLES: x,y,z,t
+        if (decompose) {
+          for (size_t j=0; j<known_vars.size(); j++) {
+            if (functions[fiter].terms[k].expression == known_vars[j]) {
+              decompose = false;
+              //bool have_data = false;
+              functions[fiter].terms[k].isRoot = true;
+              functions[fiter].terms[k].beenDecomposed = true;
+              functions[fiter].terms[k].isAD = false;
+              
+              if (known_vars[j] == "t") {
+                functions[fiter].terms[k].scalar_ddata = wkset->time_KV;
+                functions[fiter].terms[k].isScalar = true;
+                functions[fiter].terms[k].isConstant = false;
+                functions[fiter].terms[k].ddata = View_Sc2("data",functions[fiter].dim0,functions[fiter].dim1);
+              }
+              else if (known_vars[j] == "pi") {
+                functions[fiter].terms[k].isRoot = true;
+                functions[fiter].terms[k].isAD = false;
+                functions[fiter].terms[k].beenDecomposed = true;
+                functions[fiter].terms[k].isScalar = true;
+                functions[fiter].terms[k].isConstant = true; // means in does not need to be copied every time
+                View_Sc2 tdata("scalar data", functions[fiter].dim0, functions[fiter].dim1);
+                functions[fiter].terms[k].ddata = tdata;
+                
+                Kokkos::deep_copy(functions[fiter].terms[k].ddata, PI);
+                decompose = false;
+              }
+            }
+          }
+        } // end known_vars
+        
+        // IS THIS TERM ONE OF THE KNOWN OPERATORS: sin(...), exp(...), etc.
+        if (decompose) {
+          bool isop = interpreter->isOperator(functions[fiter].terms, k, known_ops);
+          if (isop) {
+            decompose = false;
+          }
+        }
+        
         if (decompose) {
           interpreter->split(functions[fiter].terms,k);
           functions[fiter].terms[k].beenDecomposed = true;
@@ -360,7 +372,7 @@ void FunctionManager::decomposeFunctions() {
     }
     
     if (!done && iter >= maxiter) {
-      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MILO reached the maximum number of recursive function calls for " + functions[fiter].function_name + ".  See functionInterface.hpp to increase this");
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was not able to decompose " + functions[fiter].function_name);
     }
   }
   

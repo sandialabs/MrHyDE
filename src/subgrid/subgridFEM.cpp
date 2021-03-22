@@ -59,7 +59,7 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
       settings->setParameters( *functions_parlist );
     }
     else // this sublist is not required, but if you specify a file then an exception will be thrown if it cannot be found
-      TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the functions input file: " + filename);
+      TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MrHyDE could not find the functions input file: " + filename);
   }
   
   ////////////////////////////////////////////////////////////////////////////////
@@ -234,7 +234,7 @@ void SubGridFEM::setUpSubgridModels() {
                                                                      sub_physics, sub_disc));
   
   sub_assembler = Teuchos::rcp( new AssemblyManager<SubgridSolverNode>(LocalComm, settings, sub_mesh->stk_mesh,
-                                                                       sub_disc, sub_physics, sub_params, numSubElem));
+                                                                       sub_disc, sub_physics, sub_params));
   
   cells = sub_assembler->cells;
   
@@ -403,7 +403,7 @@ void SubGridFEM::setUpSubgridModels() {
     
     functionManagers[0]->wkset = sub_assembler->wkset[0];
     
-    functionManagers[0]->validateFunctions();
+    //functionManagers[0]->validateFunctions();
     functionManagers[0]->decomposeFunctions();
   }
   

@@ -25,7 +25,7 @@ porousHDIV_WG::porousHDIV_WG(Teuchos::RCP<Teuchos::ParameterList> & settings, co
   if (settings->sublist("Physics").isSublist("Active variables")) {
     if (settings->sublist("Physics").sublist("Active variables").isParameter("pint")) {
       myvars.push_back("pint");
-      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("p","HVOL"));
+      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("pint","HVOL"));
     }
     if (settings->sublist("Physics").sublist("Active variables").isParameter("pbndry")) {
       myvars.push_back("pbndry");
@@ -487,7 +487,7 @@ void porousHDIV_WG::faceResidual() {
         
         
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          ScalarT qbndry = basis(elem,dof,pt,0);
+          ScalarT qbndry = basis(elem,dof,pt,0)*wts(elem,pt);
           res(elem,off(dof)) -= tdotn*qbndry;
         }
       }

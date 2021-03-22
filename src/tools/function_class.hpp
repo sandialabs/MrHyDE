@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef MILO_FUNCTION_H
-#define MILO_FUNCTION_H
+#ifndef MRHYDE_FUNCTION_H
+#define MRHYDE_FUNCTION_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"

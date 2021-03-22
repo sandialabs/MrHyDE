@@ -29,8 +29,8 @@ settings(settings_), Commptr(Commptr_) {
   using Teuchos::RCP;
   using Teuchos::rcp;
   
-  milo_debug_level = settings->get<int>("debug level",0);
-  if (milo_debug_level > 0) {
+  debug_level = settings->get<int>("debug level",0);
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Starting mesh interface constructor ..." << endl;
     }
@@ -183,15 +183,14 @@ settings(settings_), Commptr(Commptr_) {
     stk_optimization_mesh = mesh_factory->buildUncommitedMesh(*(Commptr->getRawMpiComm()));
   }
   
-  vector<string> eBlocks;
-  stk_mesh->getElementBlockNames(eBlocks);
+  stk_mesh->getElementBlockNames(block_names);
 
-  for (size_t b=0; b<eBlocks.size(); b++) {
-    cellTopo.push_back(stk_mesh->getCellTopology(eBlocks[b]));
+  for (size_t b=0; b<block_names.size(); b++) {
+    cellTopo.push_back(stk_mesh->getCellTopology(block_names[b]));
   }
   
-  for (size_t b=0; b<eBlocks.size(); b++) {
-    topo_RCP cellTopo = stk_mesh->getCellTopology(eBlocks[b]);
+  for (size_t b=0; b<block_names.size(); b++) {
+    topo_RCP cellTopo = stk_mesh->getCellTopology(block_names[b]);
     string shape = cellTopo->getName();
     if (spaceDim == 1) {
       // nothing to do here
@@ -215,7 +214,7 @@ settings(settings_), Commptr(Commptr_) {
     
   }
 
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Finished mesh interface constructor" << endl;
     }
@@ -234,8 +233,8 @@ settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), stk_mesh(st
   using Teuchos::RCP;
   using Teuchos::rcp;
   
-  milo_debug_level = settings->get<int>("debug level",0);
-  if (milo_debug_level > 0) {
+  debug_level = settings->get<int>("debug level",0);
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Starting mesh interface constructor ..." << endl;
     }
@@ -279,15 +278,14 @@ settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), stk_mesh(st
   meshmod_center = settings->sublist("Solver").get<ScalarT>("solution based mesh mod param",0.1);
   meshmod_layer_size = settings->sublist("Solver").get<ScalarT>("solution based mesh mod layer thickness",0.1);
   
-  vector<string> eBlocks;
-  stk_mesh->getElementBlockNames(eBlocks);
+  stk_mesh->getElementBlockNames(block_names);
   
-  for (size_t b=0; b<eBlocks.size(); b++) {
-    cellTopo.push_back(stk_mesh->getCellTopology(eBlocks[b]));
+  for (size_t b=0; b<block_names.size(); b++) {
+    cellTopo.push_back(stk_mesh->getCellTopology(block_names[b]));
   }
   
-  for (size_t b=0; b<eBlocks.size(); b++) {
-    topo_RCP cellTopo = stk_mesh->getCellTopology(eBlocks[b]);
+  for (size_t b=0; b<block_names.size(); b++) {
+    topo_RCP cellTopo = stk_mesh->getCellTopology(block_names[b]);
     string shape = cellTopo->getName();
     if (spaceDim == 1) {
       // nothing to do here?
@@ -311,7 +309,7 @@ settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), stk_mesh(st
     
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Finished mesh interface constructor" << endl;
     }
@@ -323,40 +321,38 @@ settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), stk_mesh(st
 
 void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Starting mesh interface finalize ..." << endl;
     }
   }
+  
   ////////////////////////////////////////////////////////////////////////////////
   // Add fields to the mesh
   ////////////////////////////////////////////////////////////////////////////////
-  
-  vector<string> eBlocks;
-  stk_mesh->getElementBlockNames(eBlocks);
-  
-  for(std::size_t i=0;i<eBlocks.size();i++) {
+    
+  for(std::size_t i=0;i<block_names.size();i++) {
     
     std::vector<string> varlist = phys->varlist[i];
     std::vector<string> vartypes = phys->types[i];
     
     for (size_t j=0; j<varlist.size(); j++) {
       if (vartypes[j] == "HGRAD") {
-        stk_mesh->addSolutionField(varlist[j], eBlocks[i]);
+        stk_mesh->addSolutionField(varlist[j], block_names[i]);
       }
       else if (vartypes[j] == "HVOL") { // PW constant
-        stk_mesh->addCellField(varlist[j], eBlocks[i]);
+        stk_mesh->addCellField(varlist[j], block_names[i]);
       }
       else if (vartypes[j] == "HFACE") { // hybridized variable
-        stk_mesh->addCellField(varlist[j], eBlocks[i]);
+        stk_mesh->addCellField(varlist[j], block_names[i]);
       }
       else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL") { // HDIV or HCURL
-        stk_mesh->addSolutionField(varlist[j]+"x", eBlocks[i]);
-        stk_mesh->addSolutionField(varlist[j]+"y", eBlocks[i]);
-        stk_mesh->addSolutionField(varlist[j]+"z", eBlocks[i]);
-        stk_mesh->addCellField(varlist[j]+"x", eBlocks[i]);
-        stk_mesh->addCellField(varlist[j]+"y", eBlocks[i]);
-        stk_mesh->addCellField(varlist[j]+"z", eBlocks[i]);
+        stk_mesh->addSolutionField(varlist[j]+"x", block_names[i]);
+        stk_mesh->addSolutionField(varlist[j]+"y", block_names[i]);
+        stk_mesh->addSolutionField(varlist[j]+"z", block_names[i]);
+        stk_mesh->addCellField(varlist[j]+"x", block_names[i]);
+        stk_mesh->addCellField(varlist[j]+"y", block_names[i]);
+        stk_mesh->addCellField(varlist[j]+"z", block_names[i]);
       }
     }
     
@@ -365,84 +361,84 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
       std::vector<string> vartypes = phys->aux_types[i];
       for (size_t j=0; j<varlist.size(); j++) {
         if (vartypes[j] == "HGRAD") {
-          stk_mesh->addSolutionField(varlist[j], eBlocks[i]);
+          stk_mesh->addSolutionField(varlist[j], block_names[i]);
         }
         else if (vartypes[j] == "HVOL") { // PW constant
-          stk_mesh->addCellField(varlist[j], eBlocks[i]);
+          stk_mesh->addCellField(varlist[j], block_names[i]);
         }
         else if (vartypes[j] == "HFACE") { // hybridized variable
-          stk_mesh->addCellField(varlist[j], eBlocks[i]);
+          stk_mesh->addCellField(varlist[j], block_names[i]);
         }
         else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL") { // HDIV or HCURL
-          stk_mesh->addSolutionField(varlist[j]+"x", eBlocks[i]);
-          stk_mesh->addSolutionField(varlist[j]+"y", eBlocks[i]);
-          stk_mesh->addSolutionField(varlist[j]+"z", eBlocks[i]);
-          stk_mesh->addCellField(varlist[j]+"x", eBlocks[i]);
-          stk_mesh->addCellField(varlist[j]+"y", eBlocks[i]);
-          stk_mesh->addCellField(varlist[j]+"z", eBlocks[i]);
+          stk_mesh->addSolutionField(varlist[j]+"x", block_names[i]);
+          stk_mesh->addSolutionField(varlist[j]+"y", block_names[i]);
+          stk_mesh->addSolutionField(varlist[j]+"z", block_names[i]);
+          stk_mesh->addCellField(varlist[j]+"x", block_names[i]);
+          stk_mesh->addCellField(varlist[j]+"y", block_names[i]);
+          stk_mesh->addCellField(varlist[j]+"z", block_names[i]);
         }
       }
     }
     
-    stk_mesh->addSolutionField("dispx", eBlocks[i]);
-    stk_mesh->addSolutionField("dispy", eBlocks[i]);
-    stk_mesh->addSolutionField("dispz", eBlocks[i]);
+    stk_mesh->addSolutionField("dispx", block_names[i]);
+    stk_mesh->addSolutionField("dispy", block_names[i]);
+    stk_mesh->addSolutionField("dispz", block_names[i]);
     
     
     Teuchos::ParameterList efields;
-    if (settings->sublist("Physics").isSublist(eBlocks[i])) {
-      efields = settings->sublist("Physics").sublist(eBlocks[i]).sublist("Extra fields");
+    if (settings->sublist("Physics").isSublist(block_names[i])) {
+      efields = settings->sublist("Physics").sublist(block_names[i]).sublist("Extra fields");
     }
     else {
       efields = settings->sublist("Physics").sublist("Extra fields");
     }
     Teuchos::ParameterList::ConstIterator ef_itr = efields.begin();
     while (ef_itr != efields.end()) {
-      stk_mesh->addSolutionField(ef_itr->first, eBlocks[i]);
+      stk_mesh->addSolutionField(ef_itr->first, block_names[i]);
       ef_itr++;
     }
     
     Teuchos::ParameterList ecfields;
-    if (settings->sublist("Physics").isSublist(eBlocks[i])) {
-      ecfields = settings->sublist("Physics").sublist(eBlocks[i]).sublist("Extra cell fields");
+    if (settings->sublist("Physics").isSublist(block_names[i])) {
+      ecfields = settings->sublist("Physics").sublist(block_names[i]).sublist("Extra cell fields");
     }
     else {
       ecfields = settings->sublist("Physics").sublist("Extra cell fields");
     }
     Teuchos::ParameterList::ConstIterator ecf_itr = ecfields.begin();
     while (ecf_itr != ecfields.end()) {
-      stk_mesh->addCellField(ecf_itr->first, eBlocks[i]);
+      stk_mesh->addCellField(ecf_itr->first, block_names[i]);
       if (settings->isSublist("Subgrid")) {
         string sgfn = "subgrid_mean_" + ecf_itr->first;
-        stk_mesh->addCellField(sgfn, eBlocks[i]);
+        stk_mesh->addCellField(sgfn, block_names[i]);
       }
       ecf_itr++;
     }
     /*
     std::vector<string> extrafields = phys->getExtraFieldNames(i);
     for (size_t j=0; j<extrafields.size(); j++) {
-      stk_mesh->addSolutionField(extrafields[j], eBlocks[i]);
+      stk_mesh->addSolutionField(extrafields[j], block_names[i]);
     }
     
     std::vector<string> extracellfields = phys->getExtraCellFieldNames(i);
     for (size_t j=0; j<extracellfields.size(); j++) {
-      stk_mesh->addCellField(extracellfields[j], eBlocks[i]);
+      stk_mesh->addCellField(extracellfields[j], block_names[i]);
     }
     if (settings->isSublist("Subgrid")) {
       for (size_t j=0; j<extracellfields.size(); j++) {
         string sgfn = "subgrid_mean_" + extracellfields[j];
-        stk_mesh->addCellField(sgfn, eBlocks[i]);
+        stk_mesh->addCellField(sgfn, block_names[i]);
       }
     }
     */
     if (have_mesh_data || compute_mesh_data) {
-      stk_mesh->addCellField("mesh_data_seed", eBlocks[i]);
-      stk_mesh->addCellField("mesh_data", eBlocks[i]);
+      stk_mesh->addCellField("mesh_data_seed", block_names[i]);
+      stk_mesh->addCellField("mesh_data", block_names[i]);
     }
     
-    stk_mesh->addCellField("subgrid model", eBlocks[i]);
+    stk_mesh->addCellField("subgrid model", block_names[i]);
     
-    stk_mesh->addCellField("cell number", eBlocks[i]);
+    stk_mesh->addCellField("cell number", block_names[i]);
     
     if (settings->isSublist("Parameters")) {
       Teuchos::ParameterList parameters = settings->sublist("Parameters");
@@ -451,15 +447,15 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
         Teuchos::ParameterList newparam = parameters.sublist(pl_itr->first);
         if (newparam.get<string>("usage") == "discretized") {
           if (newparam.get<string>("type") == "HGRAD") {
-            stk_mesh->addSolutionField(pl_itr->first, eBlocks[i]);
+            stk_mesh->addSolutionField(pl_itr->first, block_names[i]);
           }
           else if (newparam.get<string>("type") == "HVOL") {
-            stk_mesh->addCellField(pl_itr->first, eBlocks[i]);
+            stk_mesh->addCellField(pl_itr->first, block_names[i]);
           }
           else if (newparam.get<string>("type") == "HDIV" || newparam.get<string>("type") == "HCURL") {
-            stk_mesh->addCellField(pl_itr->first+"_x", eBlocks[i]);
-            stk_mesh->addCellField(pl_itr->first+"_y", eBlocks[i]);
-            stk_mesh->addCellField(pl_itr->first+"_z", eBlocks[i]);
+            stk_mesh->addCellField(pl_itr->first+"_x", block_names[i]);
+            stk_mesh->addCellField(pl_itr->first+"_y", block_names[i]);
+            stk_mesh->addCellField(pl_itr->first+"_z", block_names[i]);
           }
         }
         pl_itr++;
@@ -484,10 +480,8 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
   }
   
   if (settings->sublist("Postprocess").get("create optimization movie",false)) {
-    vector<string> eBlocks;
-    stk_mesh->getElementBlockNames(eBlocks);
     
-    for(std::size_t i=0;i<eBlocks.size();i++) {
+    for(std::size_t i=0;i<block_names.size();i++) {
       
       if (settings->isSublist("Parameters")) {
         Teuchos::ParameterList parameters = settings->sublist("Parameters");
@@ -496,15 +490,15 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
           Teuchos::ParameterList newparam = parameters.sublist(pl_itr->first);
           if (newparam.get<string>("usage") == "discretized") {
             if (newparam.get<string>("type") == "HGRAD") {
-              stk_optimization_mesh->addSolutionField(pl_itr->first, eBlocks[i]);
+              stk_optimization_mesh->addSolutionField(pl_itr->first, block_names[i]);
             }
             else if (newparam.get<string>("type") == "HVOL") {
-              stk_optimization_mesh->addCellField(pl_itr->first, eBlocks[i]);
+              stk_optimization_mesh->addCellField(pl_itr->first, block_names[i]);
             }
             else if (newparam.get<string>("type") == "HDIV" || newparam.get<string>("type") == "HCURL") {
-              stk_optimization_mesh->addCellField(pl_itr->first+"_x", eBlocks[i]);
-              stk_optimization_mesh->addCellField(pl_itr->first+"_y", eBlocks[i]);
-              stk_optimization_mesh->addCellField(pl_itr->first+"_z", eBlocks[i]);
+              stk_optimization_mesh->addCellField(pl_itr->first+"_x", block_names[i]);
+              stk_optimization_mesh->addCellField(pl_itr->first+"_y", block_names[i]);
+              stk_optimization_mesh->addCellField(pl_itr->first+"_z", block_names[i]);
             }
           }
           pl_itr++;
@@ -518,7 +512,7 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
     }
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Finished mesh interface finalize" << endl;
     }
@@ -534,13 +528,10 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
   // Perturb the mesh (if requested)
   ////////////////////////////////////////////////////////////////////////////////
   
-  vector<string> eBlocks;
-  stk_mesh->getElementBlockNames(eBlocks);
-  
-  //for (size_t b=0; b<eBlocks.size(); b++) {
+  //for (size_t b=0; b<block_names.size(); b++) {
     //vector<size_t> localIds;
     //DRV blocknodes;
-    //panzer_stk::workset_utils::getIdsAndVertices(*mesh, eBlocks[b], localIds, blocknodes);
+    //panzer_stk::workset_utils::getIdsAndVertices(*mesh, block_names[b], localIds, blocknodes);
     int numNodesPerElem = blocknodes.extent(1);
     DRV blocknodePert("blocknodePert",blocknodes.extent(0),numNodesPerElem,spaceDim);
     
@@ -639,7 +630,7 @@ void meshInterface::setMeshData(vector<vector<Teuchos::RCP<cell> > > & cells) {
 
 void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells) {
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Starting mesh::importMeshData ..." << endl;
     }
@@ -789,7 +780,7 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
     cout << "mesh data import time: " << meshimporttimer.totalElapsedTime(false) << endl;
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Finished mesh::meshDataImport" << endl;
     }
@@ -801,7 +792,7 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
 
 void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells) {
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Starting mesh::computeMeshData ..." << endl;
     }
@@ -1051,7 +1042,7 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
     cout << "mesh data compute time: " << meshimporttimer.totalElapsedTime(false) << endl;
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Finished mesh:computeMeshData" << endl;
     }
@@ -1065,10 +1056,8 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
 DRV meshInterface::getElemNodes(const int & block, const int & elemID) {
   vector<size_t> localIds;
   DRV blocknodes;
-  vector<string> eBlocks;
-  stk_mesh->getElementBlockNames(eBlocks);
   
-  panzer_stk::workset_utils::getIdsAndVertices(*stk_mesh, eBlocks[block], localIds, blocknodes);
+  panzer_stk::workset_utils::getIdsAndVertices(*stk_mesh, block_names[block], localIds, blocknodes);
   int nnodes = blocknodes.extent(1);
   
   DRV cnodes("element nodes",1,nnodes,spaceDim);
@@ -1153,7 +1142,7 @@ void meshInterface::readMeshData() {
   //Teuchos::RCP<const Tpetra::Map<LO, GO, SolverNode> > & LA_overlapped_map,
                                  //vector<vector<Teuchos::RCP<cell> > > & cells) {
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Starting mesh::readMeshData ..." << endl;
     }
@@ -1308,7 +1297,7 @@ void meshInterface::readMeshData() {
    */
   exo_error = ex_close(exoid);
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
       cout << "**** Finished mesh::readMeshData" << endl;
     }

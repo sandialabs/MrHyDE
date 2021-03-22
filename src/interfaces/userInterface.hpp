@@ -61,9 +61,9 @@ namespace MrHyDE {
     using Teuchos::RCP;
     using Teuchos::rcp;
     
-    RCP<Teuchos::ParameterList> settings = rcp(new Teuchos::ParameterList("MILO"));
+    RCP<Teuchos::ParameterList> settings = rcp(new Teuchos::ParameterList("MrHyDE"));
     
-    // MILO uses a set of input files ... one for each interface: mesh, physics, solver, analysis, postprocessing, parameters
+    // MrHyDE uses a set of input files ... one for each interface: mesh, physics, solver, analysis, postprocessing, parameters
     
     bool have_mesh = false;
     bool have_phys = false;
@@ -93,7 +93,7 @@ namespace MrHyDE {
       settings->setParameters( *main_parlist );
     }
     else {
-      TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: MILO could not find the main input file: " + filename);
+      TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: MrHyDE could not find the main input file: " + filename);
     }
     
     
@@ -141,7 +141,7 @@ namespace MrHyDE {
           settings->setParameters( *mesh_parlist );
         }
         else {
-          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the mesh settings file: " + filename);
+          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MrHyDE could not find the mesh settings file: " + filename);
         }
       }
       else
@@ -163,7 +163,7 @@ namespace MrHyDE {
           settings->setParameters( *phys_parlist );
         }
         else
-          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the physics settings file: " + filename);
+          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MrHyDE could not find the physics settings file: " + filename);
       }
       else
         TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: the input.xml needs to contain either a Physics sublist or a path to a physics settings file!");
@@ -184,7 +184,7 @@ namespace MrHyDE {
           settings->setParameters( *disc_parlist );
         }
         else
-          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the discretization settings file: " + filename);
+          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MrHyDE could not find the discretization settings file: " + filename);
       }
       else
         TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: the input.xml needs to contain either a Discretization sublist or a path to a Discretization settings file!");
@@ -205,7 +205,7 @@ namespace MrHyDE {
           settings->setParameters( *solver_parlist );
         }
         else
-          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the solver settings file:" + filename);
+          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MrHyDE could not find the solver settings file:" + filename);
       }
       else
         TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: the input.xml needs to contain either a Solver sublist or a path to a solver settings file!");
@@ -226,7 +226,7 @@ namespace MrHyDE {
           settings->setParameters( *analysis_parlist );
         }
         else
-          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the analysis settings file: " + filename);
+          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MrHyDE could not find the analysis settings file: " + filename);
       }
       else
         TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: the input.xml needs to contain either an Analysis sublist or a path to an analysis settings file!");
@@ -247,7 +247,7 @@ namespace MrHyDE {
           settings->setParameters( *pp_parlist );
         }
         else // this sublist is not required, but if you specify a file then an exception will be thrown if it cannot be found
-          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the postprocess settings file: " + filename);
+          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MrHyDE could not find the postprocess settings file: " + filename);
       }
       else
         settings->sublist("Postprocess",false,"Empty sublist for postprocessing.");
@@ -268,7 +268,7 @@ namespace MrHyDE {
           settings->setParameters( *param_parlist );
         }
         else // this sublist is not required, but if you specify a file then an exception will be thrown if it cannot be found
-          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the parameters settings file: " + filename);
+          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MrHyDE could not find the parameters settings file: " + filename);
       }
       else
         settings->sublist("Parameters",false,"Empty sublist for parameters.");
@@ -289,7 +289,7 @@ namespace MrHyDE {
           settings->setParameters( *subgrid_parlist );
         }
         else // this sublist is not required, but if you specify a file then an exception will be thrown if it cannot be found
-          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the subgrid settings file: " + filename);
+          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MrHyDE could not find the subgrid settings file: " + filename);
       }
     }
     
@@ -308,7 +308,7 @@ namespace MrHyDE {
           settings->setParameters( *functions_parlist );
         }
         else // this sublist is not required, but if you specify a file then an exception will be thrown if it cannot be found
-          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the functions settings file: " + filename);
+          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MrHyDE could not find the functions settings file: " + filename);
       }
     }
     
@@ -327,7 +327,7 @@ namespace MrHyDE {
           settings->setParameters( *phys_parlist );
         }
         else
-          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the aux physics settings file: " + filename);
+          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MrHyDE could not find the aux physics settings file: " + filename);
       }
     }
     
@@ -346,7 +346,7 @@ namespace MrHyDE {
           settings->setParameters( *disc_parlist );
         }
         else
-          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MILO could not find the aux discretization settings file: " + filename);
+          TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MrHyDE could not find the aux discretization settings file: " + filename);
       }
     }
     

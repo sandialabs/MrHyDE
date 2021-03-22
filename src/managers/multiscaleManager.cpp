@@ -28,8 +28,8 @@ MultiScale::MultiScale(const Teuchos::RCP<MpiComm> & MacroComm_,
 subgridModels(subgridModels_), Comm(Comm_), MacroComm(MacroComm_),
 settings(settings_), cells(cells_), macro_functionManagers(macro_functionManagers_) {
 
-  milo_debug_level = settings->get<int>("debug level",0);
-  if (milo_debug_level > 0) {
+  debug_level = settings->get<int>("debug level",0);
+  if (debug_level > 0) {
     if (MacroComm->getRank() == 0) {
       cout << "**** Starting multiscale manager constructor ..." << endl;
     }
@@ -53,7 +53,7 @@ settings(settings_), cells(cells_), macro_functionManagers(macro_functionManager
     subgrid_static = true;
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (MacroComm->getRank() == 0) {
       cout << "**** Finished multiscale manager constructor" << endl;
     }
@@ -97,7 +97,7 @@ ScalarT MultiScale::initialize() {
   
   Teuchos::TimeMonitor localtimer(*initializetimer);
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (MacroComm->getRank() == 0) {
       cout << "**** Starting multiscale manager initialize" << endl;
     }
@@ -241,7 +241,7 @@ ScalarT MultiScale::initialize() {
     subgridModels[s]->addMeshData();
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (MacroComm->getRank() == 0) {
       cout << "**** Finished multiscale manager initialize" << endl;
     }

@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef MILO_TERM_H
-#define MILO_TERM_H
+#ifndef FUNCTION_TERM_H
+#define FUNCTION_TERM_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"

@@ -109,8 +109,8 @@ namespace MrHyDE {
     std::vector<std::string> known_vars, known_ops;
     Teuchos::RCP<workset> wkset;
     Teuchos::RCP<Interpreter> interpreter;
-    Teuchos::RCP<Teuchos::Time> decomposeTimer = Teuchos::TimeMonitor::getNewCounter("MILO::function::decompose");
-    Teuchos::RCP<Teuchos::Time> evaluateTimer = Teuchos::TimeMonitor::getNewCounter("MILO::function::evaluate");
+    Teuchos::RCP<Teuchos::Time> decomposeTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::function::decompose");
+    Teuchos::RCP<Teuchos::Time> evaluateTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::function::evaluate");
     
   };
   

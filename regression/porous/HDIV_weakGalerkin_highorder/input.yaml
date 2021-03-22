@@ -11,6 +11,7 @@ ANONYMOUS:
     ymin: 0.0
     ymax: 1.0
     NX: 10
+    NY: 10
   Physics:  
     Active variables:
       pint: HGRAD-DG

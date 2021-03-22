@@ -143,10 +143,10 @@ namespace MrHyDE {
     Kokkos::View<ScalarT*,HostDevice> sensorGrid_x, sensorGrid_y, sensorGrid_z;
     
     // Profile timers
-    Teuchos::RCP<Teuchos::Time> dataImportTimer = Teuchos::TimeMonitor::getNewCounter("MILO::data - import data");
-    Teuchos::RCP<Teuchos::Time> pointImportTimer = Teuchos::TimeMonitor::getNewCounter("MILO::data - import points");
-    Teuchos::RCP<Teuchos::Time> dataClosestTimer = Teuchos::TimeMonitor::getNewCounter("MILO::data::findClosestNode()");
-    Teuchos::RCP<Teuchos::Time> dataValueTimer = Teuchos::TimeMonitor::getNewCounter("MILO::data::getValue()");
+    Teuchos::RCP<Teuchos::Time> dataImportTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::data - import data");
+    Teuchos::RCP<Teuchos::Time> pointImportTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::data - import points");
+    Teuchos::RCP<Teuchos::Time> dataClosestTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::data::findClosestNode()");
+    Teuchos::RCP<Teuchos::Time> dataValueTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::data::getValue()");
     
   };
 }

@@ -16,9 +16,9 @@
 using namespace MrHyDE;
 
 // Explicit template instantiations
-template class linearAlgebra<SolverNode>;
+template class MrHyDE::linearAlgebra<SolverNode>;
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
-  template class linearAlgebra<SubgridSolverNode>;
+  template class MrHyDE::linearAlgebra<SubgridSolverNode>;
 #endif
 
 // ========================================================================================

@@ -10,8 +10,8 @@ ANONYMOUS:
     xmax: 1.0
     ymin: 0.0
     ymax: 1.0
-    NX: 10
-    NY: 10
+    NX: 15
+    NY: 15
   Physics: 
     incplanestress: true
     simulation_number: 7
@@ -27,28 +27,35 @@ ANONYMOUS:
       dx:
         top: '0.0'
       dy:
-        top: 'nbcy'
+        top: '-1.0'
     Initial conditions:
       scalar data: true
       dx: 1.0
       dy: 1.0
     Responses:
-      sxx: 4.0*mufield*dx_x + 2.0*mufield*dy_y
-      sxy: mufield*(dx_y+dy_x)
-      syx: mufield*(dx_y+dy_x)
-      syy: 4.0*mufield*dy_y + 2.0*mufield*dx_x
+      sxx: '4.0*mufield*grad(dx)[x] + 2.0*mufield*grad(dy)[y]'
+      sxy: 'mufield*(grad(dx)[y]+grad(dy)[x])'
+      syx: 'mufield*(grad(dx)[y]+grad(dy)[x])'
+      syy: '4.0*mufield*grad(dy)[y] + 2.0*mufield*grad(dx)[x]'
   Discretization:
     order:
       dx: 1
       dy: 1
     quadrature: 2
   Solver:
+    workset size: 1
     solver: steady-state
+    #use direct solver: true
   Postprocess: 
     response type: pointwise
     compute response: true
     compute objective: true
     write solution: false
+    Objective functions:
+      sxx:
+        type: sensors
+        sensor points:
+        sensor data:
   Parameters input file: input_paramsIG.yaml
   Analysis input file: input_rol2.yaml
   Functions:

@@ -86,7 +86,6 @@ int main(int argc,char * argv[]) {
     
     verbosity = settings->get<int>("verbosity",0);
     profile = settings->get<bool>("profile",false);
-    int numElemPerCell = settings->sublist("Solver").get<int>("workset size",1);
     
     ////////////////////////////////////////////////////////////////////////////////
     // split comm for SOL or multiscale runs (deprecated)
@@ -120,17 +119,27 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<discretization> disc = Teuchos::rcp( new discretization(settings, Comm,
                                                                          mesh->stk_mesh,
                                                                          phys) );
+            
+    ////////////////////////////////////////////////////////////////////////////////
+    // Create the solver object
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    Teuchos::RCP<ParameterManager<SolverNode> > params = Teuchos::rcp( new ParameterManager<SolverNode>(Comm, settings,
+                                                                                                        mesh->stk_mesh, phys, disc));
+    
+    Teuchos::RCP<AssemblyManager<SolverNode> > assembler = Teuchos::rcp( new AssemblyManager<SolverNode>(Comm, settings, mesh->stk_mesh,
+                                                                                                         disc, phys, params));
+    
+    mesh->setMeshData(assembler->cells);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Create the function managers
     ////////////////////////////////////////////////////////////////////////////////
     
-    std::vector<std::string> eBlocks;
-    mesh->stk_mesh->getElementBlockNames(eBlocks);
     std::vector<Teuchos::RCP<FunctionManager> > functionManagers;
-    for (size_t b=0; b<eBlocks.size(); b++) {
-      functionManagers.push_back(Teuchos::rcp(new FunctionManager(eBlocks[b],
-                                                                  numElemPerCell,
+    for (size_t b=0; b<mesh->block_names.size(); b++) {
+      functionManagers.push_back(Teuchos::rcp(new FunctionManager(mesh->block_names[b],
+                                                                  assembler->cellData[b]->numElem,
                                                                   disc->numip[b],
                                                                   disc->numip_side[b])));
     }
@@ -140,19 +149,6 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     phys->defineFunctions(functionManagers);
-        
-    ////////////////////////////////////////////////////////////////////////////////
-    // Create the solver object
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    Teuchos::RCP<ParameterManager<SolverNode> > params = Teuchos::rcp( new ParameterManager<SolverNode>(Comm, settings,
-                                                                                                        mesh->stk_mesh, phys, disc));
-    
-    Teuchos::RCP<AssemblyManager<SolverNode> > assembler = Teuchos::rcp( new AssemblyManager<SolverNode>(Comm, settings, mesh->stk_mesh,
-                                                                                                         disc, phys, params,
-                                                                                                         numElemPerCell));
-    
-    mesh->setMeshData(assembler->cells);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Set up the subgrid discretizations/models if using multiscale method
@@ -169,7 +165,7 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<PostprocessManager<SolverNode> >
-    postproc = Teuchos::rcp( new PostprocessManager<SolverNode>(Comm, settings, mesh, //mesh->stk_optimization_mesh,
+    postproc = Teuchos::rcp( new PostprocessManager<SolverNode>(Comm, settings, mesh,
                                                                 disc, phys, functionManagers, multiscale_manager,
                                                                 assembler, params) );
     
@@ -193,13 +189,13 @@ int main(int argc,char * argv[]) {
     // Finalize the functions
     ////////////////////////////////////////////////////////////////////////////////
     
-    for (size_t b=0; b<eBlocks.size(); b++) {
+    for (size_t b=0; b<functionManagers.size(); b++) {
       functionManagers[b]->setupLists(phys->varlist[b], phys->aux_varlist[b],
                                       params->paramnames, params->discretized_param_names);
       
       functionManagers[b]->wkset = assembler->wkset[b];
       
-      functionManagers[b]->validateFunctions();
+      //functionManagers[b]->validateFunctions();
       functionManagers[b]->decomposeFunctions();
     }
     Kokkos::fence();

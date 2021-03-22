@@ -40,12 +40,12 @@ settings(settings_), mesh(mesh_), assembler(assembler_) {
   numSensors = 0;
   
   if (settings->sublist("Mesh").get<bool>("have element data", false)) {
+    Teuchos::TimeMonitor localtimer(*importexodustimer);
     this->importSensorsFromExodus();
   }
   else {
+    Teuchos::TimeMonitor localtimer(*importfiletimer);
     this->importSensorsFromFiles();
-    
-    
   }
   
   if (debug_level > 0) {
@@ -61,6 +61,13 @@ settings(settings_), mesh(mesh_), assembler(assembler_) {
 
 template<class Node>
 void SensorManager<Node>::importSensorsFromExodus() {
+  
+  if (debug_level > 0) {
+    if (assembler->Comm->getRank() == 0) {
+      cout << "**** Starting SensorManager::importSensorsFromExodus() ..." << endl;
+    }
+  }
+  
   for (size_t i=0; i<assembler->cells[0].size(); i++) {
     vector<Kokkos::View<ScalarT**,HostDevice> > sensorLocations;
     vector<Kokkos::View<ScalarT**,HostDevice> > sensorData;
@@ -114,7 +121,7 @@ void SensorManager<Node>::importSensorsFromExodus() {
   Kokkos::View<ScalarT**,HostDevice> tmp_sensor_points;
   vector<Kokkos::View<ScalarT**,HostDevice> > tmp_sensor_data;
   //bool have_sensor_data = true;
-  ScalarT sensor_loc_tol = 1.0;
+  //ScalarT sensor_loc_tol = 1.0;
   // only needed for passing of basis pointers
   
   assembler->cellData[0]->response_type = "pointwise";
@@ -147,22 +154,27 @@ void SensorManager<Node>::importSensorsFromExodus() {
       vector<DRV> csensorBasisGrad;
       
       for (size_t b=0; b<assembler->disc->basis_pointers[0].size(); b++) {
-        csensorBasis.push_back(assembler->disc->evaluateBasis(assembler->disc->basis_pointers[0][b], refsenspts, assembler->cells[0][j]->orientation));
-        csensorBasisGrad.push_back(assembler->disc->evaluateBasisGrads(assembler->disc->basis_pointers[0][b], assembler->cells[0][j]->nodes, refsenspts,
-                                                                       assembler->cellData[0]->cellTopo, assembler->cells[0][j]->orientation));
+        csensorBasis.push_back(assembler->disc->evaluateBasis(assembler->disc->basis_pointers[0][b],
+                                                              refsenspts, assembler->cells[0][j]->orientation));
+        csensorBasisGrad.push_back(assembler->disc->evaluateBasisGrads(assembler->disc->basis_pointers[0][b],
+                                                                       assembler->cells[0][j]->nodes, refsenspts,
+                                                                       assembler->cellData[0]->cellTopo,
+                                                                       assembler->cells[0][j]->orientation));
       }
       
       assembler->cells[0][j]->sensorBasis.push_back(csensorBasis);
       assembler->cells[0][j]->sensorBasisGrad.push_back(csensorBasisGrad);
       
-      
       vector<DRV> cpsensorBasis;
       vector<DRV> cpsensorBasisGrad;
       
       for (size_t b=0; b<assembler->params->discretized_param_basis.size(); b++) {
-        cpsensorBasis.push_back(assembler->disc->evaluateBasis(assembler->params->discretized_param_basis[b], refsenspts, assembler->cells[0][j]->orientation));
-        cpsensorBasisGrad.push_back(assembler->disc->evaluateBasisGrads(assembler->params->discretized_param_basis[b], assembler->cells[0][j]->nodes,
-                                                                        refsenspts, assembler->cellData[0]->cellTopo, assembler->cells[0][j]->orientation));
+        cpsensorBasis.push_back(assembler->disc->evaluateBasis(assembler->params->discretized_param_basis[b],
+                                                               refsenspts, assembler->cells[0][j]->orientation));
+        cpsensorBasisGrad.push_back(assembler->disc->evaluateBasisGrads(assembler->params->discretized_param_basis[b],
+                                                                        assembler->cells[0][j]->nodes,
+                                                                        refsenspts, assembler->cellData[0]->cellTopo,
+                                                                        assembler->cells[0][j]->orientation));
       }
       
       assembler->cells[0][j]->param_sensorBasis.push_back(cpsensorBasis);
@@ -170,6 +182,13 @@ void SensorManager<Node>::importSensorsFromExodus() {
     }
     
   }
+  
+  if (debug_level > 0) {
+    if (assembler->Comm->getRank() == 0) {
+      cout << "**** Finished SensorManager::importSensorsFromExodus() ..." << endl;
+    }
+  }
+  
 }
 
 // ========================================================================================
@@ -177,6 +196,13 @@ void SensorManager<Node>::importSensorsFromExodus() {
 
 template<class Node>
 void SensorManager<Node>::importSensorsFromFiles() {
+  
+  if (debug_level > 0) {
+    if (assembler->Comm->getRank() == 0) {
+      cout << "**** Starting SensorManager::importSensorsFromFiles() ..." << endl;
+    }
+  }
+  
   if (settings->sublist("Analysis").get("have sensor data",false)) {
     data sdata("Sensor Measurements", spaceDim,
                settings->sublist("Analysis").get("sensor location file","sensor_points.dat"),
@@ -207,7 +233,6 @@ void SensorManager<Node>::importSensorsFromFiles() {
         useFineScale = false;
       }
       
-      
       for (size_t j=0; j<assembler->cells[b].size(); j++) {
         //assembler->cells[b][j]->addSensors(sensor_points, sensor_loc_tol, sensor_data, have_sensor_data, disc, disc->basis_pointers[b], params->discretized_param_basis);
         
@@ -218,12 +243,14 @@ void SensorManager<Node>::importSensorsFromFiles() {
           for (size_t i=0; i<assembler->cells[b][j]->subgridModels.size(); i++) {
             //if (subgrid_model_index[0] == i) {
             assembler->cells[b][j]->subgridModels[i]->addSensors(sensor_points,sensor_loc_tol,sensor_data,have_sensor_data,
-                                                                 assembler->disc->basis_pointers[b], assembler->cells[b][j]->subgrid_usernum);
+                                                                 assembler->disc->basis_pointers[b],
+                                                                 assembler->cells[b][j]->subgrid_usernum);
             //}
           }
           
         }
         else {
+          
           DRV phys_points("phys_points",1,sensor_points.extent(0),sensor_points.extent(1));
           auto pp_sub = subview(phys_points,0,ALL(),ALL());
           Kokkos::deep_copy(pp_sub,sensor_points);
@@ -250,8 +277,8 @@ void SensorManager<Node>::importSensorsFromFiles() {
                 if (inRefCell(0,i) == 1) {
                   
                   Kokkos::View<ScalarT**,HostDevice> newsenspt("new sensor point",1,assembler->cellData[b]->dimension);
-                  for (size_t j=0; j<assembler->cellData[b]->dimension; j++) {
-                    newsenspt(0,j) = sensor_points(i,j);
+                  for (size_t s=0; s<assembler->cellData[b]->dimension; s++) {
+                    newsenspt(0,s) = sensor_points(i,s);
                   }
                   assembler->cells[b][j]->sensorLocations.push_back(newsenspt);
                   assembler->cells[b][j]->mySensorIDs.push_back(i);
@@ -317,14 +344,13 @@ void SensorManager<Node>::importSensorsFromFiles() {
               DRV cnodes("current nodes",1,
                          assembler->cells[b][j]->nodes.extent(1),
                          assembler->cells[b][j]->nodes.extent(2));
-              for (size_t j=0; j<assembler->cellData[b]->dimension; j++) {
-                csensorPoints(0,0,j) = assembler->cells[b][j]->sensorLocations[i](0,j);
-                sp_host(0,i,j) = assembler->cells[b][j]->sensorLocations[i](0,j);
+              for (size_t s=0; s<assembler->cellData[b]->dimension; s++) {
+                csensorPoints(0,0,s) = assembler->cells[b][j]->sensorLocations[i](0,s);
+                sp_host(0,i,s) = assembler->cells[b][j]->sensorLocations[i](0,s);
                 for (size_type k=0; k<assembler->cells[b][j]->nodes.extent(1); k++) {
-                  cnodes(0,k,j) = assembler->cells[b][j]->nodes(assembler->cells[b][j]->sensorElem[i],k,j);
+                  cnodes(0,k,s) = assembler->cells[b][j]->nodes(assembler->cells[b][j]->sensorElem[i],k,s);
                 }
               }
-              
               
               //DRV refsenspts_buffer("refsenspts_buffer",1,1,assembler->cellData[b]->dimension);
               DRV refsenspts("refsenspts",1,assembler->cellData[b]->dimension);
@@ -347,7 +373,6 @@ void SensorManager<Node>::importSensorsFromFiles() {
               assembler->cells[b][j]->sensorBasis.push_back(csensorBasis);
               assembler->cells[b][j]->sensorBasisGrad.push_back(csensorBasisGrad);
               
-              
               vector<DRV> cpsensorBasis;
               vector<DRV> cpsensorBasisGrad;
               
@@ -355,11 +380,10 @@ void SensorManager<Node>::importSensorsFromFiles() {
                 cpsensorBasis.push_back(assembler->disc->evaluateBasis(assembler->params->discretized_param_basis[b], refsenspts,
                                                             assembler->cells[b][j]->orientation));
                 cpsensorBasisGrad.push_back(assembler->disc->evaluateBasisGrads(assembler->params->discretized_param_basis[b],
-                                                                                assembler->cells[b][j]->nodes, refsenspts,
+                                                                                cnodes, refsenspts,
                                                                                 assembler->cellData[b]->cellTopo,
                                                                                 assembler->cells[b][j]->orientation));
               }
-              
               assembler->cells[b][j]->param_sensorBasis.push_back(cpsensorBasis);
               assembler->cells[b][j]->param_sensorBasisGrad.push_back(cpsensorBasisGrad);
             }
@@ -371,5 +395,12 @@ void SensorManager<Node>::importSensorsFromFiles() {
       }
     }
   }
+  
+  if (debug_level > 0) {
+    if (assembler->Comm->getRank() == 0) {
+      cout << "**** Finished SensorManager::importSensorsFromFiles() ..." << endl;
+    }
+  }
+  
 }
 

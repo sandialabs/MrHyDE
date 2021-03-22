@@ -169,7 +169,6 @@ void porousHDIV_HYBRID::volumeResidual() {
     // -(div u,q) + (src,q) (src not added yet)
     
     auto basis = wkset->basis[p_basis];
-    
     auto udiv = wkset->getData("div(u)");
     auto off = subview(wkset->offsets, pnum, ALL());
     

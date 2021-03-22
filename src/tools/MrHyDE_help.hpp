@@ -43,8 +43,8 @@ namespace MrHyDE {
         cout << endl;
         cout << "********** Help and Documentation for --help **********" << endl << endl;
         cout << "Purpose: To provide the user with information about some of the core functions" << endl;
-        cout << "         within MILO without requiring the user to dig into the code." << endl << endl;
-        cout << "Usage: mpiexec -n 1 milo --help helpwhat details" << endl;
+        cout << "         within MrHyDE without requiring the user to dig into the code." << endl << endl;
+        cout << "Usage: mpiexec -n 1 MrHyDE --help helpwhat details" << endl;
         cout << "Options:" << endl;
         cout << "helpwhat: get information about a particular interface/tool.  Examples include user, cell, mesh, discretization, physics, solver, postprocess, analysis, multiscale, UQ, help (default) " << endl;
         cout << "details: get specific details about a topic within an interface/tool." << endl << endl;

@@ -14,8 +14,6 @@
 #include "assemblyManager.hpp"
 #include "cellMetaData.hpp"
 
-//#include <boost/algorithm/string.hpp>
-
 using namespace MrHyDE;
 
 template class MrHyDE::AssemblyManager<SolverNode>;
@@ -30,10 +28,8 @@ template class MrHyDE::AssemblyManager<SolverNode>;
 template<class Node>
 AssemblyManager<Node>::AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                  Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
-                                 Teuchos::RCP<physics> & phys_, Teuchos::RCP<ParameterManager<Node>> & params_,
-                                 const int & numElemPerCell_) :
-Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_),
-params(params_), numElemPerCell(numElemPerCell_) {
+                                 Teuchos::RCP<physics> & phys_, Teuchos::RCP<ParameterManager<Node>> & params_) :
+Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(params_) {
   
   // Get the required information from the settings
   debug_level = settings->get<int>("debug level",0);
@@ -259,13 +255,15 @@ void AssemblyManager<Node>::createCells() {
       
       // LO is int, but just in case that changes ...
       LO elemPerCell = static_cast<LO>(settings->sublist("Solver").get<int>("workset size",100));
+      elemPerCell = std::min(elemPerCell,numTotalElem);
+      
       LO prog = 0;
       
       vector<string> sideSets;
       mesh->getSidesetNames(sideSets);
       
       blockCellData = Teuchos::rcp( new CellMetaData(settings, cellTopo,
-                                                     phys, b, 0,
+                                                     phys, b, 0, elemPerCell,
                                                      build_face_terms[b],
                                                      assemble_face_terms[b],
                                                      sideSets,
@@ -447,7 +445,9 @@ void AssemblyManager<Node>::createCells() {
     
       
     }
-    
+    else {
+      blockCellData = Teuchos::rcp( new CellMetaData());
+    }
     
     cellData.push_back(blockCellData);
     cells.push_back(blockcells);
@@ -904,7 +904,7 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
   
   // Note: Cannot parallelize over cells since data structures are re-used
   
-  for (size_t e=0; e < cells[b].size(); e++) {
+  for (size_t e=0; e<cells[b].size(); e++) {
 
     wkset[b]->localEID = e;
     cells[b][e]->updateData();

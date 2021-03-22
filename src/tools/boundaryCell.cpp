@@ -212,7 +212,7 @@ void BoundaryCell::computeSoln(const int & seedwhat) {
   Teuchos::TimeMonitor localtimer(*computeSolnSideTimer);
   
   wkset->computeSolnSideIP();
-  //wkset->computeParamSideIP();
+  wkset->computeParamSideIP();
   
   
   if (wkset->numAux > 0) {
@@ -561,25 +561,119 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
   //int gside = sideinfo[e](side,1); // =-1 if is an interior edge
   
   //DRV side_weights = wkset->wts_side;
-  int paramIndex, reg_type;
-  ScalarT reg_constant;
-  string reg_side;
-  size_t found;
   
   // TMW needs to be updated
-  /*
+  vector<string> pvarlist = wkset->param_varlist;
+  
   for (int i = 0; i < numParams; i++) {
-    paramIndex = reg_indices[i];
-    reg_constant = reg_constants[i];
-    reg_type = reg_types[i];
-    reg_side = reg_sides[i];
-    found = reg_side.find(sidename);
+    int paramIndex = reg_indices[i];
+    string pname = pvarlist[paramIndex];
+    ScalarT reg_constant = reg_constants[i];
+    int reg_type = reg_types[i];
+    string reg_side = reg_sides[i];
+    size_t found = reg_side.find(sidename);
+    
     if (found != string::npos) {
       
       //wkset->updateSide(sidenum, cellID);
       this->updateWorksetBasis();
-      wkset->computeParamSideIP(sidenum, param, 3);
-      
+      this->computeSoln(3);
+      //wkset->computeParamSideIP(sidenum, param, 3);
+  
+      auto pvals = wkset->getData(pname+" side");
+      if (reg_type == 0) { // L2
+        for (size_t e=0; e<numElem; e++) {
+          for (int k = 0; k < numip; k++) {
+            AD p = pvals(e,k);
+            reg += 0.5*reg_constant*p*p*wts(e,k);
+          }
+        }
+      }
+      else {
+        if (cellData->dimension == 1) {
+          auto dpdx = wkset->getData("grad("+pname+")[x] side");
+          auto nx = wkset->getDataSc("nx side");
+          if (reg_type == 1) { // H1
+            for (size_t e=0; e<numElem; e++) {
+              for (int k = 0; k < numip; k++) {
+                AD gpdn = dpdx(e,k)*nx(e,k);
+                AD sx = dpdx(e,k) - gpdn*nx(e,k);
+                reg += 0.5*reg_constant*(sx*sx)*wts(e,k);
+              }
+            }
+          }
+          else if (reg_type == 2) { // TV
+            ScalarT offset = 1.0e-5;
+            for (size_t e=0; e<numElem; e++) {
+              for (int k = 0; k < numip; k++) {
+                AD gpdn = dpdx(e,k)*nx(e,k);
+                AD sx = dpdx(e,k) - gpdn*nx(e,k);
+                reg += reg_constant*sqrt(sx*sx + offset*offset)*wts(e,k);
+              }
+            }
+          }
+        }
+        if (cellData->dimension == 2) {
+          auto dpdx = wkset->getData("grad("+pname+")[x] side");
+          auto nx = wkset->getDataSc("nx side");
+          auto dpdy = wkset->getData("grad("+pname+")[y] side");
+          auto ny = wkset->getDataSc("ny side");
+          if (reg_type == 1) { // H1
+            for (size_t e=0; e<numElem; e++) {
+              for (int k = 0; k < numip; k++) {
+                AD gpdn = dpdx(e,k)*nx(e,k) + dpdy(e,k)*ny(e,k);
+                AD sx = dpdx(e,k) - gpdn*nx(e,k);
+                AD sy = dpdy(e,k) - gpdn*ny(e,k);
+                reg += 0.5*reg_constant*(sx*sx + sy*sy)*wts(e,k);
+              }
+            }
+          }
+          else if (reg_type == 2) { // TV
+            ScalarT offset = 1.0e-5;
+            for (size_t e=0; e<numElem; e++) {
+              for (int k = 0; k < numip; k++) {
+                AD gpdn = dpdx(e,k)*nx(e,k) + dpdy(e,k)*ny(e,k);
+                AD sx = dpdx(e,k) - gpdn*nx(e,k);
+                AD sy = dpdy(e,k) - gpdn*ny(e,k);
+                reg += reg_constant*sqrt(sx*sx + sy*sy + offset*offset)*wts(e,k);
+              }
+            }
+          }
+        }
+        if (cellData->dimension == 3) {
+          auto dpdx = wkset->getData("grad("+pname+")[x] side");
+          auto nx = wkset->getDataSc("nx side");
+          auto dpdy = wkset->getData("grad("+pname+")[y] side");
+          auto ny = wkset->getDataSc("ny side");
+          auto dpdz = wkset->getData("grad("+pname+")[z] side");
+          auto nz = wkset->getDataSc("nz side");
+          
+          if (reg_type == 1) { // H1
+            for (size_t e=0; e<numElem; e++) {
+              for (int k = 0; k < numip; k++) {
+                AD gpdn = dpdx(e,k)*nx(e,k) + dpdy(e,k)*ny(e,k) + dpdz(e,k)*nz(e,k);
+                AD sx = dpdx(e,k) - gpdn*nx(e,k);
+                AD sy = dpdy(e,k) - gpdn*ny(e,k);
+                AD sz = dpdz(e,k) - gpdn*nz(e,k);
+                reg += 0.5*reg_constant*(sx*sx + sy*sy + sz*sz)*wts(e,k);
+              }
+            }
+          }
+          else if (reg_type == 2) { // TV
+            ScalarT offset = 1.0e-5;
+            for (size_t e=0; e<numElem; e++) {
+              for (int k = 0; k < numip; k++) {
+                AD gpdn = dpdx(e,k)*nx(e,k) + dpdy(e,k)*ny(e,k) + dpdz(e,k)*nz(e,k);
+                AD sx = dpdx(e,k) - gpdn*nx(e,k);
+                AD sy = dpdy(e,k) - gpdn*ny(e,k);
+                AD sz = dpdz(e,k) - gpdn*nz(e,k);
+                reg += reg_constant*sqrt(sx*sx + sy*sy + sz*sz + offset*offset)*wts(e,k);
+              }
+            }
+          }
+        }
+      }
+      /*
       AD p, dpdx, dpdy, dpdz; // parameters
       ScalarT offset = 1.0e-5;
       for (size_t e=0; e<numElem; e++) {
@@ -626,13 +720,15 @@ AD BoundaryCell::computeBoundaryRegularization(const vector<ScalarT> reg_constan
           }
         }
         //}
-      }
+      }*/
     }
+    //cout << pname << "  reg = " << reg << endl;
+    
   }
   //}
   //}
   //}
-  */
+  
   //cout << "reg = " << reg << endl;
   
   return reg;

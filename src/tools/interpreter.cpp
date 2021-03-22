@@ -21,6 +21,7 @@ using namespace MrHyDE;
 //
 //////////////////////////////////////////////////////////////////////////////////////
 
+// TMW: THIS HAS BEEN DEPRECATED
 vector<string> Interpreter::getVars(const string & s, const vector<string> & knownops) {
   vector<string> vars;
   bool interm = false;
@@ -87,6 +88,7 @@ vector<string> Interpreter::getVars(const string & s, const vector<string> & kno
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// TMW: THIS HAS BEEN DEPRECATED
 int Interpreter::validateTerms(const vector<string> & terms,
                                const vector<string> & known_vars,
                                const vector<string> & variables,

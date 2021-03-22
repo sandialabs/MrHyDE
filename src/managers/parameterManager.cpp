@@ -36,9 +36,9 @@ ParameterManager<Node>::ParameterManager(const Teuchos::RCP<MpiComm> & Comm_,
                                    Teuchos::RCP<discretization> & disc_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), settings(settings_) {
   
-  milo_debug_level = settings->get<int>("debug level",0);
+  debug_level = settings->get<int>("debug level",0);
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting ParameterManager constructor ... " << endl;
     }
@@ -51,7 +51,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), settings(settings_) {
   mesh->getElementBlockNames(blocknames);
   spaceDim = mesh->getDimension();
   verbosity = settings->get<int>("verbosity",0);
-  milo_debug_level = settings->get<int>("debug level",0);
+  debug_level = settings->get<int>("debug level",0);
   
   num_inactive_params = 0;
   num_active_params = 0;
@@ -67,7 +67,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), settings(settings_) {
   this->setupParameters();
   //this->setupDiscretizedParameters(cells,boundaryCells);
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished ParameterManager constructor" << endl;
     }
@@ -83,7 +83,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), settings(settings_) {
 template<class Node>
 void ParameterManager<Node>::setupParameters() {
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting ParameterManager::setupParameters ... " << endl;
     }
@@ -213,7 +213,7 @@ void ParameterManager<Node>::setupParameters() {
 
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished ParameterManager::setupParameters" << endl;
     }
@@ -231,7 +231,7 @@ template<class Node>
 void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cell> > > & cells,
                                                   vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells) {
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting ParameterManager::setupDiscretizedParameters ... " << endl;
     }
@@ -484,7 +484,7 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     Psol.push_back(paramVec);
   }
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished ParameterManager::setupDiscretizedParameters" << endl;
     }
@@ -568,7 +568,7 @@ template<class Node>
 Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::setInitialParams() {
 //vector_RCP ParameterManager<Node>::setInitialParams() {
   
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting ParameterManager::setInitialParams ..." << endl;
     }
@@ -634,7 +634,7 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::s
     }
   }
   */
-  if (milo_debug_level > 0) {
+  if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished ParameterManager::setInitialParams ..." << endl;
     }

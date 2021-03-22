@@ -628,7 +628,8 @@ View_AD3 physics::getPointResponse(const int & block, View_AD4 u_ip, View_AD4 ug
   size_t numResponses = response_list[block].size();
   
   View_AD3 responsetotal("responses",numElem,numResponses,numip);
-  
+  cout << ip.extent(0) << " " << ip.extent(1) << " " << ip.extent(2) << endl;
+  cout << u_ip.extent(0) << " " << u_ip.extent(1) << " " << u_ip.extent(2) << " " << u_ip.extent(3) << endl;
   View_Sc2 x,y,z;
   x = wkset->getDataSc("x point");
   if (ip.extent(2)>1) {
@@ -652,6 +653,7 @@ View_AD3 physics::getPointResponse(const int & block, View_AD4 u_ip, View_AD4 ug
     for (size_t k=0; k<numip; k++) {
       host_indices(1) = k;
       auto ip_sv = subview(ip, e, k, ALL());
+      cout << ip_sv(0) << " " << ip_sv(1) << endl;
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -665,13 +667,25 @@ View_AD3 physics::getPointResponse(const int & block, View_AD4 u_ip, View_AD4 ug
       });
       
       auto u_sv = Kokkos::subview(u_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
-      //auto ugrad_sv = Kokkos::subview(ugrad_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
+      auto p_sv = Kokkos::subview(p_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
+      auto ugrad_sv = Kokkos::subview(ugrad_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
+      auto pgrad_sv = Kokkos::subview(pgrad_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
       wkset->setSolutionPoint(u_sv);
+      wkset->setSolutionGradPoint(ugrad_sv);
+      wkset->setParamPoint(p_sv);
+      wkset->setParamGradPoint(pgrad_sv);
+      
+      //auto dx_pt = wkset->getData("dx point");
+      //auto dx = wkset->getData("dx");
       //Kokkos::deep_copy(point, ip_sv);
       //Kokkos::deep_copy(sol, u_sv);
       //Kokkos::deep_copy(sol_grad, ugrad_sv);
       //cout << e << " " << k << " " << wkset->time << endl;
       //cout << u_sv(0,0) << endl;
+      //cout << dx_pt(0,0) << endl;
+      //cout << dx(0,0) << endl;
+      //cout << ugrad_sv(0,0) << endl;
+      //cout << p_sv(0,0) << endl;
       //auto e_pt = wkset->getData("e point");
       //cout << e_pt(0,0) << endl;
       
@@ -693,8 +707,10 @@ View_AD3 physics::getPointResponse(const int & block, View_AD4 u_ip, View_AD4 ug
         // copy data into responsetotal
         // again clumsy
         //cout << e << " " << k << " " << r << endl;
-        //cout << rdata(0,0) << endl;
-        parallel_for("physics point response",RangePolicy<AssemblyExec>(0,1), KOKKOS_LAMBDA (const int elem ) {
+        //cout << response_list[block][r] << "  " << rdata(0,0) << endl;
+        parallel_for("physics point response",
+                     RangePolicy<AssemblyExec>(0,1),
+                     KOKKOS_LAMBDA (const int elem ) {
           responsetotal(indices(0),indices(2),indices(1)) = rdata(0,0);
         });
       }
@@ -720,7 +736,6 @@ View_AD3 physics::getResponse(const int & block, View_AD4 u_ip, View_AD4 ugrad_i
   
   View_AD3 responsetotal("responses",numElem,numResponses,numip);
   
-  
   //wkset->ip_KV = ip;
   //Kokkos::deep_copy(wkset->ip,ip);
   wkset->setSolution(u_ip);
@@ -730,6 +745,7 @@ View_AD3 physics::getResponse(const int & block, View_AD4 u_ip, View_AD4 ugrad_i
     //Kokkos::deep_copy(wkset->local_soln_grad, ugrad_ip);
   }
   if (p_ip.extent(0) > 0) {
+    wkset->setParam(p_ip);
     //Kokkos::deep_copy(wkset->local_param,p_ip);
   }
   for (size_t r=0; r<numResponses; r++) {
@@ -738,10 +754,20 @@ View_AD3 physics::getResponse(const int & block, View_AD4 u_ip, View_AD4 ugrad_i
     auto rdata = functionManagers[block]->evaluate(response_list[block][r],"ip");
     
     auto cresp = Kokkos::subview(responsetotal,Kokkos::ALL(), r, Kokkos::ALL());
-    Kokkos::deep_copy(cresp,rdata);
     
+    if (cresp.extent(0) == rdata.extent(0)) {
+      deep_copy(cresp,rdata);
+    }
+    else {
+      parallel_for("wkset copy data",
+                   RangePolicy<AssemblyExec>(0,cresp.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<cresp.extent(1); ++pt) {
+          cresp(elem,pt) = rdata(elem,pt);
+        }
+      });
+    }
   }
-  
   
   return responsetotal;
 }
@@ -788,7 +814,18 @@ View_AD3 physics::target(const int & block, const View_Sc3 ip,
   for (size_t t=0; t<target_list[block].size(); t++) {
     auto tdata = functionManagers[block]->evaluate(target_list[block][t],"ip");
     auto ctarg = Kokkos::subview(targettotal,Kokkos::ALL(), t, Kokkos::ALL());
-    Kokkos::deep_copy(ctarg,tdata);
+    if (ctarg.extent(0) == tdata.extent(0)) {
+      deep_copy(ctarg,tdata);
+    }
+    else {
+      parallel_for("wkset copy data",
+                   RangePolicy<AssemblyExec>(0,ctarg.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<ctarg.extent(1); ++pt) {
+          ctarg(elem,pt) = tdata(elem,pt);
+        }
+      });
+    }
   }
   return targettotal;
 }
@@ -805,7 +842,18 @@ View_AD3 physics::weight(const int & block, const View_Sc3 ip,
   for (size_t t=0; t<weight_list[block].size(); t++) {
     auto wdata = functionManagers[block]->evaluate(weight_list[block][t],"ip");
     auto cwt = Kokkos::subview(weighttotal,Kokkos::ALL(), t, Kokkos::ALL());
-    Kokkos::deep_copy(cwt,wdata);
+    if (cwt.extent(0) == wdata.extent(0)) {
+      deep_copy(cwt,wdata);
+    }
+    else {
+      parallel_for("wkset copy data",
+                   RangePolicy<AssemblyExec>(0,cwt.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<cwt.extent(1); ++pt) {
+          cwt(elem,pt) = wdata(elem,pt);
+        }
+      });
+    }
   }
   return weighttotal;
 }

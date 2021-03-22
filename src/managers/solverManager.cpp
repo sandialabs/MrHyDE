@@ -1659,7 +1659,7 @@ void solver<Node>::computeSensitivities(vector_RCP & u,
     
     linalg->fillCompleteParam(J_over);
     
-    vector_RCP sens_over = linalg->getNewParamOverlappedVector(); Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1));
+    vector_RCP sens_over = linalg->getNewParamOverlappedVector(); //Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1));
     vector_RCP sens = linalg->getNewParamVector();
     auto sens_kv = sens->template getLocalView<LA_device>();
     

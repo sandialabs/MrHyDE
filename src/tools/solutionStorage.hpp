@@ -278,10 +278,10 @@ namespace MrHyDE {
     // Add data structures for PyTorch
     
     // Timers
-    Teuchos::RCP<Teuchos::Time> solnStorageStoreTimer = Teuchos::TimeMonitor::getNewCounter("MILO::SolutionStorage::store");
-    Teuchos::RCP<Teuchos::Time> solnStorageExtractTimer = Teuchos::TimeMonitor::getNewCounter("MILO::SolutionStorage::extract");
-    Teuchos::RCP<Teuchos::Time> solnStorageTrainDNNTimer = Teuchos::TimeMonitor::getNewCounter("MILO::SolutionStorage::trainDNN");
-    Teuchos::RCP<Teuchos::Time> solnStorageUseDNNTimer = Teuchos::TimeMonitor::getNewCounter("MILO::SolutionStorage::useDNN");
+    Teuchos::RCP<Teuchos::Time> solnStorageStoreTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolutionStorage::store");
+    Teuchos::RCP<Teuchos::Time> solnStorageExtractTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolutionStorage::extract");
+    Teuchos::RCP<Teuchos::Time> solnStorageTrainDNNTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolutionStorage::trainDNN");
+    Teuchos::RCP<Teuchos::Time> solnStorageUseDNNTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolutionStorage::useDNN");
     
     
     
