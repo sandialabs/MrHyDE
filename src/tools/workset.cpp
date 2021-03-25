@@ -133,7 +133,7 @@ void workset::createSolns() {
       this->addData("grad("+var+")[y] point",1,1);
       this->addData("grad("+var+")[z] point",1,1);
     }
-    else if (basis_types[bind] == "HDIV") {
+    else if (basis_types[bind] == "HDIV" || basis_types[bind] == "HDIV_AC") {
       vars_HDIV.push_back(i);
       varlist_HDIV.push_back(var);
       this->addData(var+"[x]",numElem,numip);

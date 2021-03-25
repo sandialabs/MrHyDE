@@ -365,6 +365,10 @@ void physics::importPhysics(const bool & isaux) {
           currtypes.push_back("HDIV");
           curruseDG.push_back(true);
         }
+        else if (ctypes[v] == "HDIV_AC-DG") {
+          currtypes.push_back("HDIV_AC");
+          curruseDG.push_back(true);
+        }
         else if (ctypes[v] == "HCURL-DG") {
           currtypes.push_back("HCURL");
           curruseDG.push_back(true);
