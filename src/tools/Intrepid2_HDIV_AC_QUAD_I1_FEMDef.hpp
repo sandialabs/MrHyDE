@@ -94,7 +94,7 @@ namespace Intrepid2 {
       default: {
         INTREPID2_TEST_FOR_ABORT( opType != OPERATOR_VALUE &&
                                   opType != OPERATOR_DIV,
-                                  ">>> ERROR: (Intrepid2::Basis_HDIV_QUAD_C1_FEM::Serial::getValues) operator is not supported");
+                                  ">>> ERROR: (Intrepid2::Basis_HDIV_AC_QUAD_I1_FEM::Serial::getValues) operator is not supported");
 
       }
       }
