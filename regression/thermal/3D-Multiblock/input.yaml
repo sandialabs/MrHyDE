@@ -16,15 +16,11 @@ ANONYMOUS:
       Dirichlet conditions:
         e:
           all boundaries: 0.0
-      True solutions:
-        e: 'sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)'
     material_1:
       modules: thermal
       Dirichlet conditions:
         e:
           all boundaries: 0.0
-      True solutions:
-        e: 'sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)'
   Discretization:
     material_0:
       order:
@@ -49,4 +45,7 @@ ANONYMOUS:
     analysis_type: forward
   Postprocess:
     compute errors: true
+    True solutions:
+      e: 'sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)'
+ 
 ...

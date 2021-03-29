@@ -16,12 +16,6 @@ ANONYMOUS:
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
-    Responses:
-      resp: 'e'
-    Targets:
-      targ: 2.0*pi*pi*sin(pi*x)*sin(pi*y)*sin(pi*t) - pi*sin(pi*x)*sin(pi*y)*cos(pi*t)
-    Weights:
-      wt: '1.0'
   Discretization:
     order:
       e: 1
@@ -35,12 +29,19 @@ ANONYMOUS:
     linear TOL: 1.0e-13
     max nonlnear iters: 4
     finaltime: 1.0
-    number of steps: 3
+    number of steps: 4
   Postprocess: 
     response type: pointwise
     verification: compute errors
     write solution: false
     compute objective: true
+    Objective functions:
+      obj0:
+        type: sensors
+        sensor points file: sensor_points.dat
+        sensor data file: sensor_data.dat
+        response: 'e'
+        weight: 0.125
   Functions:
     thermal diffusion: thermal_diff(0)
     thermal source: thermal_source(0)*(2*pi*pi*sin(pi*t) + pi*cos(pi*t))*sin(pi*x)*sin(pi*y)

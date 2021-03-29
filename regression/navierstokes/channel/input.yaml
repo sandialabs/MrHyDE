@@ -22,10 +22,6 @@ ANONYMOUS:
       uy:
         bottom: 0.0
         top: 0.0
-    True solutions:
-      ux: '0.5*y*(1.0-y)'
-      uy: '0.0'
-      pr: '0.0'
     Initial conditions:
       scalar data: true
       ux: 0.0
@@ -45,6 +41,10 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      ux: '0.5*y*(1.0-y)'
+      uy: '0.0'
+      pr: '0.0'
   Functions:
     source ux: '1.0'
 ...

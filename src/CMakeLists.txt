@@ -19,11 +19,11 @@ LINK_DIRECTORIES (
 
 file(GLOB mrhyde-all
   "*.cpp"
+  "subgrid/*.cpp"
   "interfaces/*.cpp"
   "managers/*.cpp"
   "tools/*.cpp"
   "physics/*.cpp"
-  "subgrid/*.cpp"
 )
 
 ADD_EXECUTABLE(mrhyde

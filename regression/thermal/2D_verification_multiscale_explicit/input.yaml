@@ -10,8 +10,6 @@ ANONYMOUS:
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
-    true solutions:
-      e: sin(2*pi*x)*sin(2*pi*y)
   Discretization:
     order:
       e: 1
@@ -62,4 +60,6 @@ ANONYMOUS:
     compute sensitivities: false
     Error type: L2-face
     Subgrid error type: L2
+    true solutions:
+      e: sin(2*pi*x)*sin(2*pi*y)
 ...

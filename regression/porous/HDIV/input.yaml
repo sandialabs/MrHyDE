@@ -21,10 +21,6 @@ ANONYMOUS:
           right: '1.0'
           top: '1.0'
           bottom: '1.0'
-      True solutions:
-        p: 1.0+sin(2*pi*x)*sin(2*pi*y)
-        'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
-        'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
   Functions:
     source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
   Solver:
@@ -46,4 +42,8 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      p: 1.0+sin(2*pi*x)*sin(2*pi*y)
+      'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
+      'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
 ...

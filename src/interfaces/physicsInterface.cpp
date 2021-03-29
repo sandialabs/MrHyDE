@@ -37,7 +37,6 @@ settings(settings_), Commptr(Comm_){
   
   numBlocks = blocknames.size();
   spaceDim = mesh->getDimension();
-  cellfield_reduction = settings->sublist("Postprocess").get<string>("extra cell field reduction","mean");
   
   for (size_t b=0; b<blocknames.size(); b++) {
     if (settings->sublist("Physics").isSublist(blocknames[b])) { // adding block overwrites the default
@@ -194,6 +193,7 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
       }
     }
     
+    /*
     vector<string> block_ef;
     Teuchos::ParameterList efields = blockPhysSettings[b].sublist("Extra fields");
     Teuchos::ParameterList::ConstIterator ef_itr = efields.begin();
@@ -216,7 +216,9 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
       ecf_itr++;
     }
     extracellfields_list.push_back(block_ecf);
+    */
     
+    /*
     vector<string> block_resp;
     Teuchos::ParameterList rfields = blockPhysSettings[b].sublist("Responses");
     Teuchos::ParameterList::ConstIterator r_itr = rfields.begin();
@@ -252,6 +254,7 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
       w_itr++;
     }
     weight_list.push_back(block_wts);
+    */
     
   }
   
@@ -272,22 +275,7 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
       fnc_itr++;
     }
   }
-  
-  /*
-  if (functions.isSublist("Side")) {
-    Teuchos::ParameterList side_functions = functions.sublist("Side");
     
-    for (size_t b=0; b<blocknames.size(); b++) {
-      Teuchos::ParameterList::ConstIterator fnc_itr = side_functions.begin();
-      while (fnc_itr != side_functions.end()) {
-        string entry = side_functions.get<string>(fnc_itr->first);
-        functionManagers[b]->addFunction(fnc_itr->first,entry,"side ip");
-        fnc_itr++;
-      }
-    }
-  }
-  */
-  
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -600,193 +588,6 @@ ScalarT physics::getInitialValue(const int & block, const ScalarT & x, const Sca
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
-// TMW: the following function will soon be removed
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-int physics::getNumResponses(const int & block, const string & var) {
-  return response_list[block].size();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-int physics::getNumResponses(const int & block) {
-  return response_list[block].size();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-// Really designed for sensor responses, but can be used for ip responses (global)
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-View_AD3 physics::getPointResponse(const int & block, View_AD4 u_ip, View_AD4 ugrad_ip,
-                                   View_AD4 p_ip, View_AD4 pgrad_ip,
-                                   const View_Sc3 ip, const ScalarT & time,
-                                   Teuchos::RCP<workset> & wkset) {
-  
-  size_t numElem = u_ip.extent(0);
-  size_t numip = ip.extent(1);
-  size_t numResponses = response_list[block].size();
-  
-  View_AD3 responsetotal("responses",numElem,numResponses,numip);
-  cout << ip.extent(0) << " " << ip.extent(1) << " " << ip.extent(2) << endl;
-  cout << u_ip.extent(0) << " " << u_ip.extent(1) << " " << u_ip.extent(2) << " " << u_ip.extent(3) << endl;
-  View_Sc2 x,y,z;
-  x = wkset->getDataSc("x point");
-  if (ip.extent(2)>1) {
-    y = wkset->getDataSc("y point");
-  }
-  if (ip.extent(2)>2) {
-    z = wkset->getDataSc("z point");
-  }
-  
-  //auto point = Kokkos::subview(wkset->point, 0, 0, Kokkos::ALL());
-  //auto sol = Kokkos::subview(wkset->local_soln_point, 0, Kokkos::ALL(), 0, Kokkos::ALL());
-  //auto sol_grad = Kokkos::subview(wkset->local_soln_grad_point, 0, Kokkos::ALL(), 0, Kokkos::ALL());
-  
-  // This is very clumsy
-  Kokkos::View<size_t*, AssemblyDevice> indices("view to hold indices",3);
-  auto host_indices = Kokkos::create_mirror_view(indices);
-  
-  // Cannot parallelize over elements if wkset point data structures only use one point at a time
-  for (size_t e=0; e<numElem; e++) {
-    host_indices(0) = e;
-    for (size_t k=0; k<numip; k++) {
-      host_indices(1) = k;
-      auto ip_sv = subview(ip, e, k, ALL());
-      cout << ip_sv(0) << " " << ip_sv(1) << endl;
-      parallel_for("physics point response",
-                   RangePolicy<AssemblyExec>(0,1),
-                   KOKKOS_LAMBDA (const int elem ) {
-        x(0,0) = ip_sv(0);
-        if (ip_sv.extent(0)>1) {
-          y(0,0) = ip_sv(1);
-        }
-        if (ip_sv.extent(0)>2) {
-          z(0,0) = ip_sv(2);
-        }
-      });
-      
-      auto u_sv = Kokkos::subview(u_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
-      auto p_sv = Kokkos::subview(p_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
-      auto ugrad_sv = Kokkos::subview(ugrad_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
-      auto pgrad_sv = Kokkos::subview(pgrad_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
-      wkset->setSolutionPoint(u_sv);
-      wkset->setSolutionGradPoint(ugrad_sv);
-      wkset->setParamPoint(p_sv);
-      wkset->setParamGradPoint(pgrad_sv);
-      
-      //auto dx_pt = wkset->getData("dx point");
-      //auto dx = wkset->getData("dx");
-      //Kokkos::deep_copy(point, ip_sv);
-      //Kokkos::deep_copy(sol, u_sv);
-      //Kokkos::deep_copy(sol_grad, ugrad_sv);
-      //cout << e << " " << k << " " << wkset->time << endl;
-      //cout << u_sv(0,0) << endl;
-      //cout << dx_pt(0,0) << endl;
-      //cout << dx(0,0) << endl;
-      //cout << ugrad_sv(0,0) << endl;
-      //cout << p_sv(0,0) << endl;
-      //auto e_pt = wkset->getData("e point");
-      //cout << e_pt(0,0) << endl;
-      
-      /*
-      if (p_ip.extent(0) > 0) {
-        auto param = Kokkos::subview(wkset->local_param_point, 0, Kokkos::ALL(), 0, 0);
-        auto param_grad = Kokkos::subview(wkset->local_param_grad_point, 0, Kokkos::ALL(), 0, Kokkos::ALL());
-        auto p_sv = Kokkos::subview(p_ip, e, Kokkos::ALL(), k, 0);
-        auto pgrad_sv = Kokkos::subview(pgrad_ip, e, Kokkos::ALL(), k, Kokkos::ALL());
-        Kokkos::deep_copy(param, p_sv);
-        Kokkos::deep_copy(param_grad, pgrad_sv);
-      }
-      */
-      for (size_t r=0; r<numResponses; r++) {
-        host_indices(2) = r;
-        Kokkos::deep_copy(indices,host_indices);
-        // evaluate the response
-        auto rdata = functionManagers[block]->evaluate(response_list[block][r],"point");
-        // copy data into responsetotal
-        // again clumsy
-        //cout << e << " " << k << " " << r << endl;
-        //cout << response_list[block][r] << "  " << rdata(0,0) << endl;
-        parallel_for("physics point response",
-                     RangePolicy<AssemblyExec>(0,1),
-                     KOKKOS_LAMBDA (const int elem ) {
-          responsetotal(indices(0),indices(2),indices(1)) = rdata(0,0);
-        });
-      }
-    }
-  }
-  
-  
-  return responsetotal;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-View_AD3 physics::getResponse(const int & block, View_AD4 u_ip, View_AD4 ugrad_ip,
-                              View_AD4 p_ip, View_AD4 pgrad_ip,
-                              const View_Sc3 ip,
-                              const ScalarT & time,
-                              Teuchos::RCP<workset> & wkset) {
-  
-  size_t numElem = u_ip.extent(0);
-  size_t numip = ip.extent(1);
-  size_t numResponses = response_list[block].size();
-  
-  View_AD3 responsetotal("responses",numElem,numResponses,numip);
-  
-  //wkset->ip_KV = ip;
-  //Kokkos::deep_copy(wkset->ip,ip);
-  wkset->setSolution(u_ip);
-  //Kokkos::deep_copy(wkset->local_soln,u_ip);
-  if (wkset->vars_HGRAD.size() > 0) {
-    wkset->setSolutionGrad(ugrad_ip);
-    //Kokkos::deep_copy(wkset->local_soln_grad, ugrad_ip);
-  }
-  if (p_ip.extent(0) > 0) {
-    wkset->setParam(p_ip);
-    //Kokkos::deep_copy(wkset->local_param,p_ip);
-  }
-  for (size_t r=0; r<numResponses; r++) {
-    
-    // evaluate the response
-    auto rdata = functionManagers[block]->evaluate(response_list[block][r],"ip");
-    
-    auto cresp = Kokkos::subview(responsetotal,Kokkos::ALL(), r, Kokkos::ALL());
-    
-    if (cresp.extent(0) == rdata.extent(0)) {
-      deep_copy(cresp,rdata);
-    }
-    else {
-      parallel_for("wkset copy data",
-                   RangePolicy<AssemblyExec>(0,cresp.extent(0)),
-                   KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type pt=0; pt<cresp.extent(1); ++pt) {
-          cresp(elem,pt) = rdata(elem,pt);
-        }
-      });
-    }
-  }
-  
-  return responsetotal;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-// TMW: following function may be removed
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-AD physics::computeTopoResp(const size_t & block){
-  AD topoResp = 0.0;
-  for (size_t i=0; i<modules[block].size(); i++) {
-    // needs to be updated
-    //topoResp += udfunc->penaltyTopo();
-  }
-  
-  return topoResp;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
 //
 /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -801,63 +602,6 @@ bool physics::checkFace(const size_t & block){
   
   return include_face;
 }
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-View_AD3 physics::target(const int & block, const View_Sc3 ip,
-                         const ScalarT & current_time,
-                         Teuchos::RCP<workset> & wkset) {
-  
-  View_AD3 targettotal("target",ip.extent(0), target_list[block].size(),ip.extent(1));
-  
-  for (size_t t=0; t<target_list[block].size(); t++) {
-    auto tdata = functionManagers[block]->evaluate(target_list[block][t],"ip");
-    auto ctarg = Kokkos::subview(targettotal,Kokkos::ALL(), t, Kokkos::ALL());
-    if (ctarg.extent(0) == tdata.extent(0)) {
-      deep_copy(ctarg,tdata);
-    }
-    else {
-      parallel_for("wkset copy data",
-                   RangePolicy<AssemblyExec>(0,ctarg.extent(0)),
-                   KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type pt=0; pt<ctarg.extent(1); ++pt) {
-          ctarg(elem,pt) = tdata(elem,pt);
-        }
-      });
-    }
-  }
-  return targettotal;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-View_AD3 physics::weight(const int & block, const View_Sc3 ip,
-                         const ScalarT & current_time,
-                         Teuchos::RCP<workset> & wkset) {
-  
-  View_AD3 weighttotal("weight",ip.extent(0), weight_list[block].size(),ip.extent(1));
-  
-  for (size_t t=0; t<weight_list[block].size(); t++) {
-    auto wdata = functionManagers[block]->evaluate(weight_list[block][t],"ip");
-    auto cwt = Kokkos::subview(weighttotal,Kokkos::ALL(), t, Kokkos::ALL());
-    if (cwt.extent(0) == wdata.extent(0)) {
-      deep_copy(cwt,wdata);
-    }
-    else {
-      parallel_for("wkset copy data",
-                   RangePolicy<AssemblyExec>(0,cwt.extent(0)),
-                   KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type pt=0; pt<cwt.extent(1); ++pt) {
-          cwt(elem,pt) = wdata(elem,pt);
-        }
-      });
-    }
-  }
-  return weighttotal;
-}
-
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -997,116 +741,6 @@ void physics::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params,
     }
   }
   
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-std::vector<string> physics::getResponseFieldNames(const int & block) {
-  vector<string> fields;
-  vector<vector<string> > rfields;
-  /*
-  for (size_t i=0; i<modules[block].size(); i++) {
-    rfields.push_back(modules[block][i]->ResponseFieldNames());
-  }
-  for (size_t i=0; i<rfields.size(); i++) {
-    for (size_t j=0; j<rfields[i].size(); j++) {
-      fields.push_back(rfields[i][j]);
-    }
-  }
-   */
-  return fields;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-std::vector<string> physics::getExtraFieldNames(const int & block) {
-  return extrafields_list[block];
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-vector<string> physics::getExtraCellFieldNames(const int & block) {
-  return extracellfields_list[block];
-}
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-View_Sc2 physics::getExtraFields(const int & block, const int & fnum,
-                                 const DRV & ip, const ScalarT & time,
-                                 Teuchos::RCP<workset> & wkset) {
-  
-  View_Sc2 fields("field data",ip.extent(0),ip.extent(1));
-  /*
-  for (size_type e=0; e<ip.extent(0); e++) {
-    for (size_type j=0; j<ip.extent(1); j++) {
-      for (int s=0; s<spaceDim; s++) {
-        wkset->point(0,0,s) = ip(e,j,s);
-      }
-      auto eView_AD2_sv = functionManagers[block]->evaluate(extrafields_list[block][fnum],"point");
-      parallel_for("physics get extra fields",RangePolicy<AssemblyExec>(0,1), KOKKOS_LAMBDA (const int elem ) {
-        fields(e,j) = eView_AD2_sv(0,0).val();
-      });
-    }
-  }
-   */
-  return fields;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
-View_Sc1 physics::getExtraCellFields(const int & block, const int & fnum, View_Sc2 wts) {
-  
-  int numElem = wts.extent(0);
-  View_Sc1 fields("cell field data",numElem);
-  
-  auto ecf = functionManagers[block]->evaluate(extracellfields_list[block][fnum],"ip");
-  
-  if (cellfield_reduction == "mean") { // default
-    parallel_for("physics get extra cell fields",
-                 RangePolicy<AssemblyExec>(0,wts.extent(0)),
-                 KOKKOS_LAMBDA (const int e ) {
-      ScalarT cellmeas = 0.0;
-      for (size_t pt=0; pt<wts.extent(1); pt++) {
-        cellmeas += wts(e,pt);
-      }
-      for (size_t j=0; j<wts.extent(1); j++) {
-        ScalarT val = ecf(e,j).val();
-        fields(e) += val*wts(e,j)/cellmeas;
-      }
-    });
-  }
-  else if (cellfield_reduction == "max") {
-    parallel_for("physics get extra cell fields",
-                 RangePolicy<AssemblyExec>(0,wts.extent(0)),
-                 KOKKOS_LAMBDA (const int e ) {
-      for (size_t j=0; j<wts.extent(1); j++) {
-        ScalarT val = ecf(e,j).val();
-        if (val>fields(e)) {
-          fields(e) = val;
-        }
-      }
-    });
-  }
-  if (cellfield_reduction == "min") {
-    parallel_for("physics get extra cell fields",
-                 RangePolicy<AssemblyExec>(0,wts.extent(0)),
-                 KOKKOS_LAMBDA (const int e ) {
-      for (size_t j=0; j<wts.extent(1); j++) {
-        ScalarT val = ecf(e,j).val();
-        if (val<fields(e)) {
-          fields(e) = val;
-        }
-      }
-    });
-  }
-  
-  return fields;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

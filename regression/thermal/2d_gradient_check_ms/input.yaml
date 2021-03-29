@@ -2,7 +2,7 @@
 ---
 ANONYMOUS:
   verbosity: 0
-  debug level: 0
+  debug level: 2
   Mesh:
     dimension: 2
     element type: quad

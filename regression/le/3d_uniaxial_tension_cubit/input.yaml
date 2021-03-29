@@ -17,10 +17,6 @@ ANONYMOUS:
       dx: '0.0'
       dy: '0.0'
       dz: '0.0'
-    True solutions:
-      dx: '-0.25*x'
-      dy: 'y'
-      dz: '-0.25*z'
     Neumann conditions:
       dx:
         top: '0.0'
@@ -45,6 +41,10 @@ ANONYMOUS:
     compute response: false
     compute errors: true
     write solution: false
+    True solutions:
+      dx: '-0.25*x'
+      dy: 'y'
+      dz: '-0.25*z'
   Analysis:
     analysis type: forward
   Functions:

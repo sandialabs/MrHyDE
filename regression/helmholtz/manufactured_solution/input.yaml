@@ -32,9 +32,6 @@ ANONYMOUS:
       scalar data: true
       ureal: 0.0
       uimag: 0.0
-    True solutions:
-      ureal: sin(2*pi*x)*sin(2*pi*y)
-      uimag: sin(2*pi*x)*sin(2*pi*y)
     test: 4
   Functions:
     source_r_side: 2.0*pi*cos(2*pi*x)*sin(2*pi*y)
@@ -66,6 +63,9 @@ ANONYMOUS:
     nonlinear TOL: 1.0e-8
   Postprocess: 
     compute errors: true
+    True solutions:
+      ureal: sin(2*pi*x)*sin(2*pi*y)
+      uimag: sin(2*pi*x)*sin(2*pi*y)
   Parameters:
     helmholtz_freq:
       type: scalar

@@ -138,29 +138,28 @@ namespace MrHyDE {
     void updateStageSoln();
     
     // ========================================================================================
-    //
+    // Gather (TpetraMV -> cell solns)
     // ========================================================================================
     
     void performGather(const vector_RCP & vec, const int & type, const size_t & index);
     
     template<class ViewType>
     void performGather(ViewType vec_dev, const int & type);
-    
-    // ========================================================================================
-    //
-    // ========================================================================================
-    
+        
     template<class ViewType>
     void performBoundaryGather(ViewType vec_dev, const int & type);
     
-    ////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+    // ========================================================================================
+    // Scatter (local data structures -> TpetraMV and TpetraCRS)
+    // ========================================================================================
     
-    template<class MatType, class VecViewType, class LocalViewType, class LIDViewType>
-    void scatter(MatType J_kcrs, VecViewType res_view,
-                 LocalViewType local_res, LocalViewType local_J,
-                 LIDViewType LIDs, LIDViewType paramLIDs,
-                 const bool & compute_jacobian, const bool & compute_disc_sens);
+    template<class MatType, class LocalViewType, class LIDViewType>
+    void scatterJac(MatType J_kcrs, LocalViewType local_J,
+                    LIDViewType LIDs, LIDViewType paramLIDs,
+                    const bool & compute_disc_sens);
+
+    template<class VecViewType, class LocalViewType, class LIDViewType>
+    void scatterRes(VecViewType res_view, LocalViewType local_res, LIDViewType LIDs);
 
     template<class MatType, class VecViewType, class LIDViewType>
     void scatter(MatType J_kcrs, VecViewType res_view,

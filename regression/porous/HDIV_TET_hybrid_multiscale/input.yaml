@@ -32,8 +32,6 @@ ANONYMOUS:
     Initial conditions:
       scalar data: true
       p: 0.0
-    True solutions:
-      p face: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
   Functions:
     source: 12*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
   Solver:
@@ -55,4 +53,6 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      p face: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
 ...

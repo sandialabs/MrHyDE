@@ -17,12 +17,6 @@ ANONYMOUS:
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
-    Responses:
-      resp: 'e'
-    Targets:
-      targ: sin(pi*x)*sin(pi*y)
-    Weights:
-      wt: '1.0'
   Parameters:
     datagen:
       type: scalar
@@ -50,6 +44,10 @@ ANONYMOUS:
     compute sensitivities: true
     write solution: false
     Write output: false
+    Objective functions:
+      obj1:
+        type: discrete control
+        weight: 0.5
   Functions:
     thermal source: datagen(0)*2.0*pi*pi*sin(pi*x)*sin(pi*y)+(1.0-datagen(0))*sfield
 ...

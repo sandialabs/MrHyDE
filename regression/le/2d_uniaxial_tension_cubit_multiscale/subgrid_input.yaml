@@ -11,9 +11,6 @@ ANONYMOUS:
     Physics: 
       modules: linearelasticity
       form_param: 0.0
-      True solutions:
-        dx: '-0.5*x'
-        dy: 'y'
       Neumann conditions:
         dx:
           top: '0.0'
@@ -35,4 +32,8 @@ ANONYMOUS:
     Functions:
       lambda: '1.0'
       mu: '0.5'
+    Postprocess:
+      True solutions:
+        dx: '-0.5*x'
+        dy: 'y'
 ...

@@ -40,10 +40,13 @@ ANONYMOUS:
   Analysis input file: input_rol.yaml 
   Postprocess: 
     response type: discrete
-    scale factor for discrete objective: 1.0e8
     write solution: false
     compute errors: false
     compute objective: true
     compute sensitivity: false
     create optimization movie: false
+    Objective functions:
+      obj0:
+        type: discrete control
+        weight: 0.5e8
 ...

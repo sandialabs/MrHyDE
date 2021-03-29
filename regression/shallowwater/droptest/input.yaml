@@ -29,10 +29,6 @@ ANONYMOUS:
       H: 1.0 + 0.1*exp(hump)
       Hu: '0.0'
       Hv: '0.0'
-    True solutions:
-      H: '0.0'
-      Hu: '0.0'
-      Hv: '0.0'
   Discretization:
     eblock-0_0:
       order:
@@ -50,6 +46,10 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      H: '0.0'
+      Hu: '0.0'
+      Hv: '0.0'
   Functions:
     hump: -100.0*(x-0.5)*(x-0.5) - 100*(y-0.5)*(y-0.5)
 

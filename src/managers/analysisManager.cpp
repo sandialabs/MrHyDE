@@ -452,15 +452,17 @@ void analysis::run() {
         vector<double> pval = {1.0};
         params->setParam(pval,"datagen");
       }
-      solve->response_type = "none";
+      postproc->response_type = "none";
+      postproc->compute_objective = false;
       solve->forwardModel(objfun);
       //std::cout << "Storing data ... " << std::endl;
       
-      vector<vector<ScalarT> > times = solve->soln->times;
-      vector<vector<Teuchos::RCP<LA_MultiVector> > > data = solve->soln->data;
+      vector<vector<ScalarT> > times = postproc->soln->times;
+      vector<vector<Teuchos::RCP<LA_MultiVector> > > data = postproc->soln->data;
+      
       for (size_t i=0; i<times.size(); i++) {
         for (size_t j=0; j<times[i].size(); j++) {
-          solve->datagen_soln->store(data[i][j], times[i][j], i);
+          postproc->datagen_soln->store(data[i][j], times[i][j], i);
         }
       }
       //std::cout << "Finished storing data" << std::endl;
@@ -468,7 +470,8 @@ void analysis::run() {
         vector<double> pval = {0.0};
         params->setParam(pval,"datagen");
       }
-      solve->response_type = "discrete";
+      postproc->response_type = "discrete";
+      postproc->compute_objective = true;
       //std::cout << "Finished generating data for inversion " << std::endl;
     }
     
@@ -511,10 +514,12 @@ void analysis::run() {
     
     // Run algorithm.
     vector<std::string> output;
-    if(bound_vars)
-    output = algo.run(x, *obj, *con, (Comm->getRank() == 0 )); //only processor of rank 0 print outs
-    else
-    output = algo.run(x, *obj, (Comm->getRank() == 0)); //only processor of rank 0 prints out
+    if (bound_vars) {
+      output = algo.run(x, *obj, *con, (Comm->getRank() == 0 )); //only processor of rank 0 print outs
+    }
+    else {
+      output = algo.run(x, *obj, (Comm->getRank() == 0)); //only processor of rank 0 prints out
+    }
     
     ScalarT optTime = timer.stop();
     if (Comm->getRank() == 0 ) {

@@ -19,8 +19,6 @@ ANONYMOUS:
     modules: ODE
     Initial conditions:
       q: '1.0'
-    True solutions:
-      q: 1.0*exp(-1.0*t)
   Discretization:
     order:
       q: 1
@@ -42,4 +40,6 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      q: 1.0*exp(-1.0*t)
 ...

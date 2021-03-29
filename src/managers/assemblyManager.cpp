@@ -1049,18 +1049,21 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
       // Now scatter from local_res and local_J
       
       if (data_avail) {
-        this->scatter(J_kcrs, res_view, local_res, local_J,
-                      cells[b][e]->LIDs, cells[b][e]->paramLIDs,
-                      compute_jacobian, compute_disc_sens);
+        this->scatterRes(res_view, local_res, cells[b][e]->LIDs);
+        if (compute_jacobian) {
+          this->scatterJac(J_kcrs, local_J, cells[b][e]->LIDs, cells[b][e]->paramLIDs, compute_disc_sens);
+        }
       }
       else {
         Kokkos::deep_copy(local_J_ladev,local_J);
         Kokkos::deep_copy(local_res_ladev,local_res);
         
         if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-          this->scatter(J_kcrs, res_view, local_res_ladev, local_J_ladev,
-                        cells[b][e]->LIDs_host, cells[b][e]->paramLIDs_host,
-                        compute_jacobian, compute_disc_sens);
+          this->scatterRes(res_view, local_res_ladev, cells[b][e]->LIDs_host);
+          if (compute_jacobian) {
+            this->scatterJac(J_kcrs, local_J_ladev, cells[b][e]->LIDs_host, cells[b][e]->paramLIDs_host, compute_disc_sens);
+          }
+          
         }
         else { // LA_device = CUDA, AssemblyDevice = Host
           // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
@@ -1069,9 +1072,10 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
           Kokkos::deep_copy(LIDs_dev,cells[b][e]->LIDs);
           Kokkos::deep_copy(paramLIDs_dev,cells[b][e]->paramLIDs);
           
-          this->scatter(J_kcrs, res_view, local_res_ladev, local_J_ladev,
-                        LIDs_dev, paramLIDs_dev,
-                        compute_jacobian, compute_disc_sens);
+          this->scatterRes(res_view, local_res_ladev, LIDs_dev);
+          if (compute_jacobian) {
+            this->scatterJac(J_kcrs, local_J_ladev, LIDs_dev, paramLIDs_dev, compute_disc_sens);
+          }
         }
         
       }
@@ -1182,18 +1186,22 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
           }
          
           if (data_avail) {
-            this->scatter(J_kcrs, res_view, local_res, local_J,
-                          boundaryCells[b][e]->LIDs, boundaryCells[b][e]->paramLIDs,
-                          compute_jacobian, compute_disc_sens);
+            this->scatterRes(res_view, local_res, boundaryCells[b][e]->LIDs);
+            if (compute_jacobian) {
+              this->scatterJac(J_kcrs, local_J, boundaryCells[b][e]->LIDs, boundaryCells[b][e]->paramLIDs, compute_disc_sens);
+            }
           }
           else {
             Kokkos::deep_copy(local_J_ladev,local_J);
             Kokkos::deep_copy(local_res_ladev,local_res);
             
             if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-              this->scatter(J_kcrs, res_view, local_res_ladev, local_J_ladev,
-                            boundaryCells[b][e]->LIDs_host, boundaryCells[b][e]->paramLIDs_host,
-                            compute_jacobian, compute_disc_sens);
+              this->scatterRes(res_view, local_res_ladev, boundaryCells[b][e]->LIDs_host);
+              if (compute_jacobian) {
+                this->scatterJac(J_kcrs, local_J_ladev,
+                                 boundaryCells[b][e]->LIDs_host, boundaryCells[b][e]->paramLIDs_host,
+                                 compute_disc_sens);
+              }
             }
             else { // LA_device = CUDA, AssemblyDevice = Host
               // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
@@ -1202,9 +1210,10 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
               Kokkos::deep_copy(LIDs_dev,boundaryCells[b][e]->LIDs);
               Kokkos::deep_copy(paramLIDs_dev,boundaryCells[b][e]->paramLIDs);
               
-              this->scatter(J_kcrs, res_view, local_res_ladev, local_J_ladev,
-                            LIDs_dev, paramLIDs_dev,
-                            compute_jacobian, compute_disc_sens);
+              this->scatterRes(res_view, local_res_ladev, LIDs_dev);
+              if (compute_jacobian) {
+                this->scatterJac(J_kcrs, local_J_ladev, LIDs_dev, paramLIDs_dev, compute_disc_sens);
+              }
             }
             
           }
@@ -1469,12 +1478,99 @@ void AssemblyManager<Node>::performBoundaryGather(ViewType vec_dev, const int & 
 ////////////////////////////////////////////////////////////////////////////////
 
 template<class Node>
-template<class MatType, class VecViewType, class LocalViewType, class LIDViewType>
-void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
-                                    LocalViewType local_res, LocalViewType local_J,
-                                    LIDViewType LIDs, LIDViewType paramLIDs,
-                                    const bool & compute_jacobian,
-                                    const bool & compute_disc_sens) {
+template<class MatType, class LocalViewType, class LIDViewType>
+void AssemblyManager<Node>::scatterJac(MatType J_kcrs, LocalViewType local_J,
+                                       LIDViewType LIDs, LIDViewType paramLIDs,
+                                       const bool & compute_disc_sens) {
+
+  Teuchos::TimeMonitor localtimer(*scattertimer);
+  
+  typedef typename Node::execution_space LA_exec;
+  
+  /////////////////////////////////////
+  // This scatter needs to happen on the LA_device due to the use of J_kcrs->sumIntoValues()
+  // Could be changed to the AssemblyDevice, but would require a mirror view of this data and filling such a view is nontrivial
+  /////////////////////////////////////
+  
+  auto fixedDOF = isFixedDOF;
+  
+  if (compute_disc_sens) {
+    if (use_atomics) { // If LA_device = Kokkos::Serial or if Worksets are colored
+      parallel_for("assembly insert Jac sens",
+                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_t row=0; row<LIDs.extent(1); row++ ) {
+          LO rowIndex = LIDs(elem,row);
+          for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
+            LO colIndex = paramLIDs(elem,col);
+            ScalarT val = local_J(elem,row,col);
+            J_kcrs.sumIntoValues(colIndex, &rowIndex, 1, &val, true, true); // isSorted, useAtomics
+          }
+        }
+      });
+    }
+    else {
+      parallel_for("assembly insert Jac sens",
+                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_t row=0; row<LIDs.extent(1); row++ ) {
+          LO rowIndex = LIDs(elem,row);
+          for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
+            LO colIndex = paramLIDs(elem,col);
+            ScalarT val = local_J(elem,row,col);
+            J_kcrs.sumIntoValues(colIndex, &rowIndex, 1, &val, true, false); // isSorted, useAtomics
+          }
+        }
+      });
+    }
+    
+  }
+  else {
+    if (use_atomics) { // If LA_device = Kokkos::Serial or if Worksets are colored
+      parallel_for("assembly insert Jac",
+                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
+        const size_type numVals = LIDs.extent(1);
+        LO cols[maxDerivs];
+        ScalarT vals[maxDerivs];
+        for (size_type row=0; row<LIDs.extent(1); row++ ) {
+          LO rowIndex = LIDs(elem,row);
+          if (!fixedDOF(rowIndex)) {
+            for (size_type col=0; col<LIDs.extent(1); col++ ) {
+              vals[col] = local_J(elem,row,col);
+              cols[col] = LIDs(elem,col);
+            }
+            J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, true, true); // isSorted, useAtomics
+          }
+        }
+      });
+    }
+    else {
+      parallel_for("assembly insert Jac",
+                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
+        const size_type numVals = LIDs.extent(1);
+        LO cols[maxDerivs];
+        ScalarT vals[maxDerivs];
+        for (size_type row=0; row<LIDs.extent(1); row++ ) {
+          LO rowIndex = LIDs(elem,row);
+          if (!fixedDOF(rowIndex)) {
+            for (size_type col=0; col<LIDs.extent(1); col++ ) {
+              vals[col] = local_J(elem,row,col);
+              cols[col] = LIDs(elem,col);
+            }
+            J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, true, false); // isSorted, useAtomics
+          }
+        }
+      });
+    }
+  }
+  
+}
+
+template<class Node>
+template<class VecViewType, class LocalViewType, class LIDViewType>
+void AssemblyManager<Node>::scatterRes(VecViewType res_view, LocalViewType local_res, LIDViewType LIDs) {
 
   Teuchos::TimeMonitor localtimer(*scattertimer);
   
@@ -1516,81 +1612,6 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
         }
       }
     });
-  }
-  
-  if (compute_jacobian) {
-    
-    if (compute_disc_sens) {
-      if (use_atomics) { // If LA_device = Kokkos::Serial or if Worksets are colored
-        parallel_for("assembly insert Jac sens",
-                     RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
-          for (size_t row=0; row<LIDs.extent(1); row++ ) {
-            LO rowIndex = LIDs(elem,row);
-            for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
-              LO colIndex = paramLIDs(elem,col);
-              ScalarT val = local_J(elem,row,col);
-              J_kcrs.sumIntoValues(colIndex, &rowIndex, 1, &val, true, true); // isSorted, useAtomics
-            }
-          }
-        });
-      }
-      else {
-        parallel_for("assembly insert Jac sens",
-                     RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
-          for (size_t row=0; row<LIDs.extent(1); row++ ) {
-            LO rowIndex = LIDs(elem,row);
-            for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
-              LO colIndex = paramLIDs(elem,col);
-              ScalarT val = local_J(elem,row,col);
-              J_kcrs.sumIntoValues(colIndex, &rowIndex, 1, &val, true, false); // isSorted, useAtomics
-            }
-          }
-        });
-      }
-      
-    }
-    else {
-      if (use_atomics) { // If LA_device = Kokkos::Serial or if Worksets are colored
-        parallel_for("assembly insert Jac",
-                     RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
-          const size_type numVals = LIDs.extent(1);
-          LO cols[maxDerivs];
-          ScalarT vals[maxDerivs];
-          for (size_type row=0; row<LIDs.extent(1); row++ ) {
-            LO rowIndex = LIDs(elem,row);
-            if (!fixedDOF(rowIndex)) {
-              for (size_type col=0; col<LIDs.extent(1); col++ ) {
-                vals[col] = local_J(elem,row,col);
-                cols[col] = LIDs(elem,col);
-              }
-              J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, true, true); // isSorted, useAtomics
-            }
-          }
-        });
-      }
-      else {
-        parallel_for("assembly insert Jac",
-                     RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
-          const size_type numVals = LIDs.extent(1);
-          LO cols[maxDerivs];
-          ScalarT vals[maxDerivs];
-          for (size_type row=0; row<LIDs.extent(1); row++ ) {
-            LO rowIndex = LIDs(elem,row);
-            if (!fixedDOF(rowIndex)) {
-              for (size_type col=0; col<LIDs.extent(1); col++ ) {
-                vals[col] = local_J(elem,row,col);
-                cols[col] = LIDs(elem,col);
-              }
-              J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, true, false); // isSorted, useAtomics
-            }
-          }
-        });
-      }
-    }
   }
 }
 

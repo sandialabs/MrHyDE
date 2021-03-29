@@ -29,10 +29,6 @@ ANONYMOUS:
       dx: 0.0
       dy: 0.0
       dz: 0.0
-    True solutions:
-      dx: sin(A*pi*x)*sin(A*pi*y)*sin(A*pi*z)
-      dy: sin(B*pi*x)*sin(B*pi*y)*sin(B*pi*z)
-      dz: sin(C*pi*x)*sin(C*pi*y)*sin(C*pi*z)
   Functions:
     lambda: '1.0'
     mu: '1.0'
@@ -73,6 +69,10 @@ ANONYMOUS:
     use direct solver: false
   Postprocess: 
     compute errors: true
+    True solutions:
+      dx: sin(A*pi*x)*sin(A*pi*y)*sin(A*pi*z)
+      dy: sin(B*pi*x)*sin(B*pi*y)*sin(B*pi*z)
+      dz: sin(C*pi*x)*sin(C*pi*y)*sin(C*pi*z)
   Analysis:
     analysis type: forward
 ...

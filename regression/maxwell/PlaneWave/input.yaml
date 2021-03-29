@@ -8,13 +8,6 @@ ANONYMOUS:
     eblock-0_0_0:
       modules: maxwell
       assemble boundary terms: false
-      True solutions:
-        'E[x]': '0.0'
-        'E[y]': '0.0'
-        'E[z]': '0.0'
-        'B[x]': '0.0'
-        'B[y]': '0.0'
-        'B[z]': '0.0'
     Initial conditions:
       scalar data: true
       eblock-0_0_0:
@@ -48,4 +41,13 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    eblock-0_0_0:
+      True solutions:
+        'E[x]': '0.0'
+        'E[y]': '0.0'
+        'E[z]': '0.0'
+        'B[x]': '0.0'
+        'B[y]': '0.0'
+        'B[z]': '0.0'
+    
 ...

@@ -26,11 +26,6 @@ ANONYMOUS:
     Initial conditions:
       scalar data: true
       p: 0.0
-    True solutions:
-      p: sin(2*pi*x)*sin(2*pi*y)
-      p face: sin(2*pi*x)*sin(2*pi*y)
-      'grad(p)[x]': 2*pi*cos(2*pi*x)*sin(2*pi*y)
-      'grad(p)[y]': 2*pi*sin(2*pi*x)*cos(2*pi*y)
   Discretization:
     order:
       p: 1
@@ -55,4 +50,9 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      p: sin(2*pi*x)*sin(2*pi*y)
+      p face: sin(2*pi*x)*sin(2*pi*y)
+      'grad(p)[x]': 2*pi*cos(2*pi*x)*sin(2*pi*y)
+      'grad(p)[y]': 2*pi*sin(2*pi*x)*cos(2*pi*y)
 ...

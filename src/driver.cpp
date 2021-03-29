@@ -179,7 +179,8 @@ int main(int argc,char * argv[]) {
     
     solve->multiscale_manager = multiscale_manager;
     solve->postproc = postproc;
-    
+    postproc->linalg = solve->linalg;
+        
     Teuchos::RCP<SensorManager<SolverNode> > sensors = Teuchos::rcp( new SensorManager<SolverNode>(settings, mesh,
                                                                                                    assembler) );
     

@@ -16,12 +16,6 @@ ANONYMOUS:
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
-    Responses:
-      resp: 'e'
-    Targets:
-      targ: 2.0*pi*pi*sin(pi*x)*sin(pi*y)*sin(pi*t) - pi*sin(pi*x)*sin(pi*y)*cos(pi*t)
-    Weights:
-      wt: '1.0'
   Discretization:
     order:
       e: 1
@@ -39,6 +33,12 @@ ANONYMOUS:
   Postprocess: 
     response type: global
     compute objective: true
+    Objective functions:
+      obj0:
+        type: integrated control
+        function: '1.0*(e-targ)^2'
+        weight: 0.05
   Functions: 
-    thermal source: thermal_source(0)*(2*pi*pi*sin(pi*t)+pi*cos(pi*t))*sin(pi*x)*sin(pi*y) 
+    thermal source: thermal_source(0)*(2*pi*pi*sin(pi*t)+pi*cos(pi*t))*sin(pi*x)*sin(pi*y)
+    targ: 2.0*pi*pi*sin(pi*x)*sin(pi*y)*sin(pi*t) - pi*sin(pi*x)*sin(pi*y)*cos(pi*t)
 ...

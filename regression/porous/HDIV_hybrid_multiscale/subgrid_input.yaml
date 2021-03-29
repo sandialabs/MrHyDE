@@ -12,10 +12,6 @@ ANONYMOUS:
     Physics:
       modules: porousHDIV
       use permeability data: false
-      True solutions:
-        p: sin(2*pi*x)*sin(2*pi*y)
-        'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
-        'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
     Solver:
       solver: steady-state
       use direct solver: true
@@ -30,4 +26,8 @@ ANONYMOUS:
       store aux and flux: false
       write solution: false
       plot solution at nodes: false
+      True solutions:
+        p: sin(2*pi*x)*sin(2*pi*y)
+        'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
+        'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
 ...

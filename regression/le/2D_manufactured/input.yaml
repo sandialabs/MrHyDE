@@ -24,9 +24,6 @@ ANONYMOUS:
       scalar data: true
       dx: 0.0
       dy: 0.0
-    True solutions:
-      dx: sin(A*pi*x)*sin(A*pi*y)
-      dy: sin(B*pi*x)*sin(B*pi*y)
   Functions:
     lambda: '1.0'
     mu: '1.0'
@@ -52,6 +49,9 @@ ANONYMOUS:
     linear TOL: 1.0e-10
   Postprocess: 
     compute errors: true
+    True solutions:
+      dx: sin(A*pi*x)*sin(A*pi*y)
+      dy: sin(B*pi*x)*sin(B*pi*y)
   Analysis:
     analysis type: forward
 ...

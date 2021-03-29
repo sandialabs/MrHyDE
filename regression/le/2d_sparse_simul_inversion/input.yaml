@@ -30,9 +30,6 @@ ANONYMOUS:
       scalar data: true
       dx: 0.0
       dy: 0.0
-    Responses:
-      rdx: 'dx'
-      rdy: 'dy'
   Discretization:
     order:
       dx: 1
@@ -46,6 +43,37 @@ ANONYMOUS:
     compute response: false
     compute objective: true
     write solution: false
+    Objective functions:
+      obj0:
+        type: sensors
+        sensor points file: mesh
+        sensor data file: 'sensor_1_Val_1'
+        response: dx
+        weight: 0.5
+        Regularization functions:
+          regv0:
+            type: integrated
+            location: volume
+            function: 'sqrt(gradmus + 1.0e-10)'
+            weight: 1.0e-3
+          regb0:
+            type: integrated
+            location: boundary
+            boundary name: top
+            function: 'grad(xtrac)[x]*grad(xtrac)[x]'
+            weight: 0.5e-4
+          regb1:
+            type: integrated
+            location: boundary
+            boundary name: top
+            function: 'grad(ytrac)[x]*grad(ytrac)[x]'
+            weight: 0.5e-4
+      obj1:
+        type: sensors
+        sensor points file: mesh
+        sensor data file: 'sensor_1_Val_2'
+        response: dy
+        weight: 0.5
   Parameters input file: input_params.yaml
   Analysis input file: input_rol2.yaml
   Functions:
@@ -53,4 +81,5 @@ ANONYMOUS:
     Neumann source dx: xtrac*ny
     Neumann source dy: ytrac*ny
     source dx: '0.0'
+    gradmus: 'grad(mufield)[x]*grad(mufield)[x] + grad(mufield)[y]*grad(mufield)[y]'
 ...

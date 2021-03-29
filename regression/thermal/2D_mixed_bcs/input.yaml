@@ -23,8 +23,6 @@ ANONYMOUS:
         bottom: -2*pi*sin(2*pi*x)*cos(2*pi*y)
     Initial conditions:
       e: '0.0'
-    True solutions:
-      e: sin(2*pi*x)*sin(2*pi*y)
   Discretization:
     order:
       e: 1
@@ -40,4 +38,6 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      e: sin(2*pi*x)*sin(2*pi*y)
 ...

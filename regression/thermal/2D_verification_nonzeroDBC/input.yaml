@@ -24,13 +24,6 @@ ANONYMOUS:
         all boundaries: sin(x)*sin(y)
     Initial conditions:
       e: '0.0'
-    True solutions:
-      e: sin(x)*sin(y)
-      e face: sin(x)*sin(y)
-      'grad(e)[x]': cos(x)*sin(y)
-      'grad(e)[y]': sin(x)*cos(y)
-    Extra fields:
-      es: e*e
   Discretization:
     order:
       e: 1
@@ -47,4 +40,11 @@ ANONYMOUS:
   Postprocess: 
     compute errors: true
     compute response: true
+    True solutions:
+      e: sin(x)*sin(y)
+      e face: sin(x)*sin(y)
+      'grad(e)[x]': cos(x)*sin(y)
+      'grad(e)[y]': sin(x)*cos(y)
+    Extra fields:
+      es: e*e
 ...

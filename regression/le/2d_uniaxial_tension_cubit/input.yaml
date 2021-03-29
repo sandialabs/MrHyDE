@@ -11,9 +11,6 @@ ANONYMOUS:
     modules: linearelasticity
     dx_point_DBCs: xfix
     dy_point_DBCs: yfix
-    True solutions:
-      dx: '-0.5*x'
-      dy: 'y'
     Neumann conditions:
       dx:
         top: '0.0'
@@ -30,6 +27,9 @@ ANONYMOUS:
     solver: steady-state
   Postprocess: 
     compute errors: true
+    True solutions:
+      dx: '-0.5*x'
+      dy: 'y'
   Analysis:
     analysis type: forward
   Functions:

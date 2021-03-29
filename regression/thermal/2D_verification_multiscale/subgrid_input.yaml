@@ -11,8 +11,6 @@ ANONYMOUS:
       blocknames: eblock
     Physics: 
       modules: thermal
-      True solutions:
-        e: sin(2*pi*x)*sin(2*pi*y)
     Solver:
       verbosity: 0
       solver: steady-state
@@ -26,4 +24,6 @@ ANONYMOUS:
       quadrature: 2
     Postprocess: 
       store aux and flux: false
+      True solutions:
+        e: sin(2*pi*x)*sin(2*pi*y)
 ...

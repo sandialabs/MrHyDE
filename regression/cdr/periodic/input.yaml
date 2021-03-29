@@ -27,8 +27,6 @@ ANONYMOUS:
     modules: cdr
     Initial conditions:
       c: 'exp(bubble)'
-    True solutions:
-      c: '0.0'
   Discretization:
     order:
       c: 1
@@ -45,4 +43,6 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      c: '0.0'
 ...

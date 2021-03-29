@@ -14,8 +14,6 @@ ANONYMOUS:
         blocknames: eblock
       Physics: 
         modules: thermal
-        True solutions:
-          e: sin(2*pi*x)*sin(2*pi*y)
       Solver:
         solver: steady-state
       Functions:
@@ -24,6 +22,9 @@ ANONYMOUS:
         order:
           e: 1
         quadrature: 2
+      Postprocess:
+        True solutions:
+          e: sin(2*pi*x)*sin(2*pi*y)
     Model1:
       usage: '(x<0.5)*(y>0.5)'
       Mesh:
@@ -33,8 +34,6 @@ ANONYMOUS:
         blocknames: eblock
       Physics: 
         modules: thermal
-        True solutions:
-          e: sin(2*pi*x)*sin(2*pi*y)
       Solver:
         solver: steady-state
       Functions:
@@ -43,4 +42,7 @@ ANONYMOUS:
         order:
           e: 1
         quadrature: 2
+      Postprocess:
+        True solutions:
+          e: sin(2*pi*x)*sin(2*pi*y)
 ...

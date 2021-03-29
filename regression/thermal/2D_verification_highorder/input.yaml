@@ -20,8 +20,6 @@ ANONYMOUS:
           all boundaries: '0.0'
       Initial conditions:
         e: '0.0'
-      True solutions:
-        e: sin(2*pi*x)*sin(2*pi*y)
   Discretization:
     eblock-0_0:
       order:
@@ -36,4 +34,6 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      e: sin(2*pi*x)*sin(2*pi*y)
 ...

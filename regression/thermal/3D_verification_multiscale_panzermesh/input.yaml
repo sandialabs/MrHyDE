@@ -21,8 +21,6 @@ ANONYMOUS:
         all boundaries: '0.0'
     Initial conditions:
       e: '0.0'
-    True solutions:
-      e face: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
   Subgrid input file: subgrid_input.yaml
   Functions:
     thermal source: 12*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
@@ -38,4 +36,6 @@ ANONYMOUS:
   Postprocess: 
     compute errors: true
     write solution: false
+    True solutions:
+      e face: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
 ...

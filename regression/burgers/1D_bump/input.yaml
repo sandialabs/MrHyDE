@@ -20,8 +20,6 @@ ANONYMOUS:
         right: 0.0
     Initial conditions:
       u: 'exp(bubble)'
-    True solutions:
-      u: '0.0'
   Discretization:
     order:
       u: 1
@@ -46,4 +44,6 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      u: '0.0'
 ...

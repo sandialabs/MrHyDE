@@ -22,10 +22,6 @@ ANONYMOUS:
       uy:
         bottom: '0.0'
         top: '0.0'
-    True solutions:
-      ux: '0.5*y*(1.0-y)'
-      uy: '0.0'
-      pr: '0.0'
   Solver:
     solver: steady-state
     workset size: 16
@@ -47,6 +43,10 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      ux: '0.5*y*(1.0-y)'
+      uy: '0.0'
+      pr: '0.0'
   Functions:
     source ux: '1.0'
 ...

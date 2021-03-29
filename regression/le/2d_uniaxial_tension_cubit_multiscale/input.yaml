@@ -14,9 +14,6 @@ ANONYMOUS:
     assemble face terms: true
     dx_point_DBCs: xfix
     dy_point_DBCs: yfix
-    True solutions:
-      dx face: '-0.5*x'
-      dy face: 'y'
     Neumann conditions:
       dx:
         top: '0.0'
@@ -37,6 +34,9 @@ ANONYMOUS:
     solver: steady-state
   Postprocess: 
     compute errors: true
+    True solutions:
+      dx face: '-0.5*x'
+      dy face: 'y'
   Analysis:
     analysis type: forward
   Functions:

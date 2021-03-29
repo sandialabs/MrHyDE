@@ -21,8 +21,6 @@ ANONYMOUS:
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
-    True solutions:
-      e face: sin(2*pi*x)*sin(2*pi*y)
   Discretization:
     order:
       Extra variables:
@@ -34,6 +32,10 @@ ANONYMOUS:
     workset size: 4
   Analysis: 
     analysis type: forward
-  Postprocess: 
+  Postprocess:
+    write solution: false
+    write subgrid solution: false
     compute errors: true
+    True solutions:
+      e face: sin(2*pi*x)*sin(2*pi*y)
 ...

@@ -32,11 +32,6 @@ ANONYMOUS:
       scalar data: true
       dx: 1.0
       dy: 1.0
-    Responses:
-      sxx: '4.0*mufield*grad(dx)[x] + 2.0*mufield*grad(dy)[y]'
-      sxy: 'mufield*(grad(dx)[y]+grad(dy)[x])'
-      syx: 'mufield*(grad(dx)[y]+grad(dy)[x])'
-      syy: '4.0*mufield*grad(dy)[y] + 2.0*mufield*grad(dx)[x]'
   Discretization:
     order:
       dx: 1
@@ -48,14 +43,34 @@ ANONYMOUS:
     #use direct solver: true
   Postprocess: 
     response type: pointwise
-    compute response: true
+    compute responses: true
     compute objective: true
     write solution: false
     Objective functions:
       sxx:
         type: sensors
-        sensor points:
-        sensor data:
+        sensor points file: sensor_points.dat
+        sensor data file: sensor_sxx.dat
+        response: '4.0*mufield*grad(dx)[x] + 2.0*mufield*grad(dy)[y]'
+        weight: 0.5
+      sxy:
+        type: sensors
+        sensor points file: sensor_points.dat
+        sensor data file: sensor_sxy.dat
+        response: 'mufield*(grad(dx)[y]+grad(dy)[x])'
+        weight: 0.5
+      syx:
+        type: sensors
+        sensor points file: sensor_points.dat
+        sensor data file: sensor_syx.dat
+        response: 'mufield*(grad(dx)[y]+grad(dy)[x])'
+        weight: 0.5
+      syy:
+        type: sensors
+        sensor points file: sensor_points.dat
+        sensor data file: sensor_syy.dat
+        response: '4.0*mufield*grad(dy)[y] + 2.0*mufield*grad(dx)[x]'
+        weight: 0.5
   Parameters input file: input_paramsIG.yaml
   Analysis input file: input_rol2.yaml
   Functions:

@@ -9,14 +9,15 @@ ANONYMOUS:
       dim: 2
     Physics: 
       modules: thermal
-      True solutions:
-        e: sin(2*pi*t)*sin(2.0*pi*x)*sin(2.0*pi*y)
     Discretization:
       order:
         e: 1
       quadrature: 2
     Solver:
       solver: transient
+    Postprocess:
+      True solutions:
+        e: sin(2*pi*t)*sin(2.0*pi*x)*sin(2.0*pi*y)
     Functions:
       thermal source: (8*(pi*pi)*sin(2*pi*t)+2*pi*cos(2*pi*t))*sin(2*pi*x)*sin(2*pi*y)
 ...

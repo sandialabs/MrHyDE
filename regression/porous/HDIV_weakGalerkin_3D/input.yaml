@@ -27,16 +27,7 @@ ANONYMOUS:
           bottom: '0.0'
           front: '0.0'
           back: '0.0'
-      True solutions:
-        pint: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
-        pbndry face: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
-        'u[x]': 2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
-        'u[y]': 2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
-        'u[z]': 2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
-        't[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
-        't[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
-        't[z]': -2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
-  Functions:
+   Functions:
     source: 12*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
   Solver:
     solver: steady-state
@@ -56,4 +47,13 @@ ANONYMOUS:
   Postprocess: 
     compute errors: true
     write solution: false
+    True solutions:
+      pint: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+      pbndry face: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+      'u[x]': 2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+      'u[y]': 2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
+      'u[z]': 2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
+      't[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+      't[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
+      't[z]': -2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
 ...

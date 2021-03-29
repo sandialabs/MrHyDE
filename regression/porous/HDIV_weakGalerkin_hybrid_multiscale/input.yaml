@@ -24,8 +24,6 @@ ANONYMOUS:
           right: '0.0'
           top: '0.0'
           bottom: '0.0'
-      True solutions:
-        pbndry face: sin(2*pi*x)*sin(2*pi*y)
   Functions:
     source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
   Solver:
@@ -44,4 +42,7 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      pbndry face: sin(2*pi*x)*sin(2*pi*y)
+  
 ...

@@ -13,10 +13,6 @@ ANONYMOUS:
       Active variables:
         p: HVOL
         u: HDIV
-      True solutions:
-        p: sin(2*pi*x)*sin(2*pi*y)
-        'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
-        'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
     Solver:
       solver: steady-state
       use direct solver: true
@@ -29,4 +25,8 @@ ANONYMOUS:
       quadrature: 2
     Postprocess:
       store aux and flux: false
+      True solutions:
+        p: sin(2*pi*x)*sin(2*pi*y)
+        'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
+        'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
 ...

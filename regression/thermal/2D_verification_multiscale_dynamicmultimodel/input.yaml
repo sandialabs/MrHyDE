@@ -21,8 +21,6 @@ ANONYMOUS:
     Initial conditions:
       scalar data: true
       e: 0.0
-    True solutions:
-      e: sin(2.0*pi*x)*sin(2.0*pi*y)
   Subgrid input file: subgrid_input.yaml
   Discretization:
     order:
@@ -36,6 +34,8 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      e: sin(2.0*pi*x)*sin(2.0*pi*y)
   Functions:
     thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
 ...

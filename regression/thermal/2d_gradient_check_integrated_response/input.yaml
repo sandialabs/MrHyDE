@@ -1,0 +1,52 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 20
+    NY: 20
+  Physics: 
+    modules: thermal
+    Dirichlet conditions:
+      e:
+        all boundaries: '0.0'
+  Parameters:
+    thermal_diff:
+      type: scalar
+      value: 1.0
+      usage: inactive
+    thermal_source:
+      type: scalar
+      value: 0.0
+      usage: active
+  Discretization:
+    order:
+      e: 1
+    quadrature: 2
+  Analysis input file: input_rol2.yaml
+  Solver: 
+    solver: steady-state
+  Postprocess: 
+    response type: global
+    compute errors: false
+    compute response: true
+    compute objective: true
+    compute sensitivities: true
+    write solution: false
+    Write output: false
+    Objective functions:
+      obj0:
+        type: integrated response
+        response: 'e'
+        target: 1.0
+        weight: 0.5
+  Functions:
+    thermal source: thermal_source(0)*2.0*pi*pi*sin(pi*x)*sin(pi*y)
+...

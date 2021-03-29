@@ -16,9 +16,7 @@ ANONYMOUS:
       lambda:
         left: '0.0'
         right: '0.0'
-    True solutions:
-      lambda: sin(2*pi*x)
-  Solver: 
+  Solver:
     solver: steady-state
     workset size: 10
     initial type: none
@@ -36,4 +34,6 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      lambda: sin(2*pi*x)
 ...

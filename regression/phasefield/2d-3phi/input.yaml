@@ -23,10 +23,6 @@ ANONYMOUS:
       phi1: '1.0*(rone<12.5)'
       phi2: '1.0*(rtwo<12.5)'
       phi3: '1.0*(rthree<12.5)'
-    True solutions:
-      phi1: sin(2*pi*x)*sin(2*pi*y)
-      phi2: sin(2*pi*x)*sin(2*pi*y)
-      phi3: sin(2*pi*x)*sin(2*pi*y)
   Discretization:
     order:
       phi1: 1
@@ -43,6 +39,10 @@ ANONYMOUS:
     delta t: 5.0e-01
   Postprocess: 
     compute errors: true
+    True solutions:
+      phi1: sin(2*pi*x)*sin(2*pi*y)
+      phi2: sin(2*pi*x)*sin(2*pi*y)
+      phi3: sin(2*pi*x)*sin(2*pi*y)
   Parameters:
     thermal_diff:
       type: scalar

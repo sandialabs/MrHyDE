@@ -65,7 +65,7 @@ namespace ROL {
       params->updateParams(*Paramsp, 1);
       params->updateParams(*Paramsp, 4);
       
-      DFAD val= 0.0;
+      DFAD val = 0.0;
       solver_MILO->forwardModel(val);
       
       params->stashParams(); //dumping to file, for long runs...

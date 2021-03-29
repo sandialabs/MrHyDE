@@ -11,9 +11,7 @@ ANONYMOUS:
       blocknames: eblock
     Physics: 
       modules: thermal
-      True solutions:
-        e: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
-    Solver: 
+    Solver:
       solver: steady-state
     Functions:
       thermal source: 12*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
@@ -21,4 +19,7 @@ ANONYMOUS:
       order:
         e: 1
       quadrature: 2
+    Postprocess:
+      True solutions:
+        e: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
 ...

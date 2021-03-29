@@ -35,15 +35,6 @@ ANONYMOUS:
           all boundaries: '0.0'
         phii:
           all boundaries: '0.0'
-      True solutions:
-        Arx: sin(pi*x)*sin(pi*y)*sin(pi*z)
-        Aix: sin(pi*x)*sin(pi*y)*sin(pi*z)
-        Ary: -1.0*sin(pi*x)*sin(pi*y)*sin(pi*z)
-        Aiy: -1.0*sin(pi*x)*sin(pi*y)*sin(pi*z)
-        Arz: 2.0*sin(pi*x)*sin(pi*y)*sin(pi*z)
-        Aiz: 2.0*sin(pi*x)*sin(pi*y)*sin(pi*z)
-        phir: sin(pi*x)*sin(pi*y)*sin(pi*z)
-        phii: sin(pi*x)*sin(pi*y)*sin(pi*z)
     test: 2
   Discretization:
     eblock-0_0_0:
@@ -67,6 +58,15 @@ ANONYMOUS:
     use dom decomp: true
   Postprocess: 
     compute errors: true
+    True solutions:
+      Arx: sin(pi*x)*sin(pi*y)*sin(pi*z)
+      Aix: sin(pi*x)*sin(pi*y)*sin(pi*z)
+      Ary: -1.0*sin(pi*x)*sin(pi*y)*sin(pi*z)
+      Aiy: -1.0*sin(pi*x)*sin(pi*y)*sin(pi*z)
+      Arz: 2.0*sin(pi*x)*sin(pi*y)*sin(pi*z)
+      Aiz: 2.0*sin(pi*x)*sin(pi*y)*sin(pi*z)
+      phir: sin(pi*x)*sin(pi*y)*sin(pi*z)
+      phii: sin(pi*x)*sin(pi*y)*sin(pi*z)
   Parameters:
     maxwells_fp_mu:
       type: scalar

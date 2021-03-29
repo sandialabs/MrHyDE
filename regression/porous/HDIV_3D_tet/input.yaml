@@ -18,11 +18,6 @@ ANONYMOUS:
   Physics: 
     eblock-0_0_0: 
       modules: porousHDIV
-      True solutions:
-        p: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
-        'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
-        'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
-        'u[z]': -2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
   Functions:
     source: 12*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
   Solver:
@@ -44,4 +39,9 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      p: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+      'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+      'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
+      'u[z]': -2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
 ...

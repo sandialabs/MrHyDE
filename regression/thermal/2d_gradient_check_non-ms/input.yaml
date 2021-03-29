@@ -17,12 +17,6 @@ ANONYMOUS:
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
-    Responses:
-      resp: 'e'
-    Targets:
-      targ: sin(pi*x)*sin(pi*y)
-    Weights:
-      wt: '1.0'
   Parameters:
     thermal_diff:
       type: scalar
@@ -47,6 +41,11 @@ ANONYMOUS:
     compute sensitivities: true
     write solution: false
     Write output: false
+    Objective functions:
+      obj0:
+        type: integrated control
+        function: '1.0*(e-sin(pi*x)*sin(pi*y))^2'
+        weight: 0.5
   Functions:
     thermal source: thermal_source(0)*2.0*pi*pi*sin(pi*x)*sin(pi*y)
 ...

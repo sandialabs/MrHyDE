@@ -18,12 +18,6 @@ ANONYMOUS:
         all boundaries: '0.0'
     Initial conditions:
       e: '0.0'
-    Responses:
-      resp: 'e'
-    Targets:
-      targ: '0.0'
-    Weights:
-      wt: '1.0'
   Parameters:
     thermal_diff:
       type: scalar
@@ -53,8 +47,14 @@ ANONYMOUS:
     compute response: false
     compute objective: true
     compute sensitivities: false
+    Objective functions:
+      obj0:
+        type: integrated control
+        function: '1.0*(e-targ)^2'
+        weight: 0.0625
   Functions:
     tcoeff: 8*pi*pi*sin(2*pi*t)+2*pi*cos(2*pi*t)
     thermal source: tcoeff*sin(2*pi*x)*sin(2*pi*y)
     thermal diffusion: thermal_diff(0)
+    targ: '0.0'
 ...

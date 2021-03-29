@@ -17,8 +17,6 @@ ANONYMOUS:
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
-    True solutions:
-      e face: sin(2*pi*x)*sin(2*pi*y)
   Subgrid input file: subgrid_input.yaml
   Discretization:
     order:
@@ -30,4 +28,6 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      e face: sin(2*pi*x)*sin(2*pi*y)
 ...

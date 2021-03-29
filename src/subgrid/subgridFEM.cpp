@@ -1604,6 +1604,8 @@ Kokkos::View<ScalarT**,HostDevice> SubGridFEM::computeError(vector<std::pair<siz
 Kokkos::View<AD*,AssemblyDevice> SubGridFEM::computeObjective(const string & response_type, const int & seedwhat,
                                                               const ScalarT & time, const int & usernum) {
   
+  Kokkos::View<AD*,AssemblyDevice> objective;
+  /*
   int tindex = -1;
   //for (int tt=0; tt<soln[usernum].size(); tt++) {
   //  if (abs(soln[usernum][tt].first - time)<1.0e-10) {
@@ -1614,7 +1616,6 @@ Kokkos::View<AD*,AssemblyDevice> SubGridFEM::computeObjective(const string & res
   Teuchos::RCP<SG_MultiVector> currsol;
   bool found = soln->extract(currsol,usernum,time,tindex);
   
-  Kokkos::View<AD*,AssemblyDevice> objective;
   if (found) {
     this->updateLocalData(usernum);
     bool beensized = false;
@@ -1634,7 +1635,7 @@ Kokkos::View<AD*,AssemblyDevice> SubGridFEM::computeObjective(const string & res
       }
     }
   }
-  
+  */
   return objective;
 }
 
@@ -1737,14 +1738,40 @@ void SubGridFEM::setupCombinedExodus() {
         combined_mesh->addSolutionField(sub_physics->varlist[0][j]+"z", subeBlocks[0]);
       }
     }
-    vector<string> subextrafieldnames = sub_physics->getExtraFieldNames(0);
-    for (size_t j=0; j<subextrafieldnames.size(); j++) {
-      combined_mesh->addSolutionField(subextrafieldnames[j], subeBlocks[0]);
+    //vector<string> subextrafieldnames = sub_physics->getExtraFieldNames(0);
+    //for (size_t j=0; j<subextrafieldnames.size(); j++) {
+    //  combined_mesh->addSolutionField(subextrafieldnames[j], subeBlocks[0]);
+    //}
+    Teuchos::ParameterList efields;
+    if (settings->sublist("Postprocess").isSublist(subeBlocks[0])) {
+      efields = settings->sublist("Postprocess").sublist(subeBlocks[0]).sublist("Extra fields");
     }
-    vector<string> subextracellfields = sub_physics->getExtraCellFieldNames(0);
-    for (size_t j=0; j<subextracellfields.size(); j++) {
-      combined_mesh->addCellField(subextracellfields[j], subeBlocks[0]);
+    else {
+      efields = settings->sublist("Postprocess").sublist("Extra fields");
     }
+    Teuchos::ParameterList::ConstIterator ef_itr = efields.begin();
+    while (ef_itr != efields.end()) {
+      combined_mesh->addSolutionField(ef_itr->first, subeBlocks[0]);
+      ef_itr++;
+    }
+    
+    //vector<string> subextracellfields = sub_physics->getExtraCellFieldNames(0);
+    //for (size_t j=0; j<subextracellfields.size(); j++) {
+    //  combined_mesh->addCellField(subextracellfields[j], subeBlocks[0]);
+    //}
+    Teuchos::ParameterList ecfields;
+    if (settings->sublist("Postprocess").isSublist(subeBlocks[0])) {
+      ecfields = settings->sublist("Postprocess").sublist(subeBlocks[0]).sublist("Extra cell fields");
+    }
+    else {
+      ecfields = settings->sublist("Postprocess").sublist("Extra cell fields");
+    }
+    Teuchos::ParameterList::ConstIterator ecf_itr = ecfields.begin();
+    while (ecf_itr != ecfields.end()) {
+      combined_mesh->addCellField(ecf_itr->first, subeBlocks[0]);
+      ecf_itr++;
+    }
+    
     combined_mesh->addCellField("mesh_data_seed", subeBlocks[0]);
     combined_mesh->addCellField("mesh_data", subeBlocks[0]);
     
@@ -1947,9 +1974,10 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
     // Extra nodal fields
     ////////////////////////////////////////////////////////////////
     
-    vector<string> extrafieldnames = sub_physics->getExtraFieldNames(0);
+    vector<string> extrafieldnames = sub_postproc->extrafields_list[0];
     for (size_t j=0; j<extrafieldnames.size(); j++) {
       Kokkos::View<ScalarT**,HostDevice> efdata("field data",myElements.size(), numNodesPerElem);
+      /*
       size_t eprog = 0;
       for (size_t usernum=0; usernum<cells.size(); usernum++) {
         for (size_t e=0; e<cells[usernum].size(); e++) {
@@ -1965,6 +1993,7 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
           }
         }
       }
+       */
       combined_mesh->setSolutionFieldData(extrafieldnames[j], blockID, myElements, efdata);
     }
     
@@ -1972,8 +2001,43 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
     // Extra cell fields
     ////////////////////////////////////////////////////////////////
     
-    vector<string> extracellfieldnames = sub_physics->getExtraCellFieldNames(0);
+    vector<string> extracellfieldnames = sub_postproc->extracellfields_list[0];
     
+    Kokkos::View<ScalarT**,HostDevice> ecd("cell data",myElements.size(),
+                                           extracellfieldnames.size());
+    
+    eprog = 0;
+    for (size_t usernum=0; usernum<cells.size(); usernum++) {
+      for (size_t e=0; e<cells[usernum].size(); e++) {
+    
+        cells[usernum][e]->updateData();
+        cells[usernum][e]->updateWorksetBasis();
+        wkset[0]->time = time;
+        wkset[0]->computeSolnSteadySeeded(cells[usernum][e]->u, 0);
+        wkset[0]->computeParamSteadySeeded(cells[usernum][e]->param, 0);
+        wkset[0]->computeSolnVolIP();
+        wkset[0]->computeParamVolIP();
+               
+        auto cfields = sub_postproc->getExtraCellFields(0, cells[usernum][e]->wts);
+      
+        auto host_cfields = Kokkos::create_mirror_view(cfields);
+        Kokkos::deep_copy(host_cfields, cfields);
+        for (size_type p=0; p<host_cfields.extent(0); p++) {
+          for (size_type r=0; r<host_cfields.extent(1); ++r) {
+            ecd(eprog,r) = cfields(p,r);
+          }
+          eprog++;
+        }
+      }
+    }
+    //Kokkos::deep_copy(ecd, ecd_dev);
+    
+    for (size_t j=0; j<extracellfieldnames.size(); j++) {
+      auto ccd = subview(ecd,ALL(),j);
+      combined_mesh->setCellFieldData(extracellfieldnames[j], blockID, myElements, ccd);
+    }
+    
+    /*
     for (size_t j=0; j<extracellfieldnames.size(); j++) {
       Kokkos::View<ScalarT*,HostDevice> efdata("cell data",myElements.size());
       
@@ -2001,7 +2065,7 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
       }
       combined_mesh->setCellFieldData(extracellfieldnames[j], blockID, myElements, efdata);
     }
-    
+    */
     
     if (isTD) {
       combined_mesh->writeToExodus(time);

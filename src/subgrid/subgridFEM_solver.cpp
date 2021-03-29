@@ -482,28 +482,30 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       {
         Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverJacResTimer);
         assembler->cells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
-                                              true, false, num_active_params, false, false, false,
-                                              local_res, local_J,
-                                              assembler->assemble_volume_terms[0],
-                                              assembler->assemble_face_terms[0]);
+                                                    true, false, num_active_params, false, false, false,
+                                                    local_res, local_J,
+                                                    assembler->assemble_volume_terms[0],
+                                                    assembler->assemble_face_terms[0]);
         
       }
       
       if (data_avail) {
-        assembler->scatter(localMatrix, res_view, local_res, local_J,
-                           assembler->cells[usernum][e]->LIDs,
-                           assembler->cells[usernum][e]->paramLIDs,
-                           true, false);
+        assembler->scatterRes(res_view, local_res, assembler->cells[usernum][e]->LIDs);
+        assembler->scatterJac(localMatrix, local_J,
+                              assembler->cells[usernum][e]->LIDs,
+                              assembler->cells[usernum][e]->paramLIDs,
+                              false);
       }
       else {
         Kokkos::deep_copy(local_J_ladev,local_J);
         Kokkos::deep_copy(local_res_ladev,local_res);
         
         if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-          assembler->scatter(localMatrix, res_view, local_res_ladev, local_J_ladev,
-                             assembler->cells[usernum][e]->LIDs_host,
-                             assembler->cells[usernum][e]->paramLIDs_host,
-                             true, false);
+          assembler->scatterRes(res_view, local_res_ladev, assembler->cells[usernum][e]->LIDs_host);
+          assembler->scatterJac(localMatrix, local_J_ladev,
+                                assembler->cells[usernum][e]->LIDs_host,
+                                assembler->cells[usernum][e]->paramLIDs_host,
+                                false);
         }
         else { // LA_device = CUDA, AssemblyDevice = Host
           // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
@@ -512,9 +514,8 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
           Kokkos::deep_copy(LIDs_dev, assembler->cells[usernum][e]->LIDs);
           Kokkos::deep_copy(paramLIDs_dev, assembler->cells[usernum][e]->paramLIDs);
           
-          assembler->scatter(localMatrix, res_view, local_res_ladev, local_J_ladev,
-                             LIDs_dev, paramLIDs_dev,
-                             true, false);
+          assembler->scatterRes(res_view, local_res_ladev, LIDs_dev);
+          assembler->scatterJac(localMatrix, local_J_ladev, LIDs_dev, paramLIDs_dev, false);
         }
         
       }
@@ -552,10 +553,11 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
         ///////////////////////////////////////////////////////////////////////////
         
         if (data_avail) {
-          assembler->scatter(localMatrix, res_view, local_res, local_J,
-                             assembler->boundaryCells[usernum][e]->LIDs,
-                             assembler->boundaryCells[usernum][e]->paramLIDs,
-                             true, false);
+          assembler->scatterRes(res_view, local_res, assembler->boundaryCells[usernum][e]->LIDs);
+          assembler->scatterJac(localMatrix, local_J,
+                                assembler->boundaryCells[usernum][e]->LIDs,
+                                assembler->boundaryCells[usernum][e]->paramLIDs,
+                                false);
         }
         else {
           
@@ -566,10 +568,11 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
           Kokkos::deep_copy(local_res_ladev,local_res);
           
           if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-            assembler->scatter(localMatrix, res_view, local_res_ladev, local_J_ladev,
-                               assembler->boundaryCells[usernum][e]->LIDs_host,
-                               assembler->boundaryCells[usernum][e]->paramLIDs_host,
-                               true, false);
+            assembler->scatterRes(res_view, local_res_ladev, assembler->boundaryCells[usernum][e]->LIDs_host);
+            assembler->scatterJac(localMatrix, local_J_ladev,
+                                  assembler->boundaryCells[usernum][e]->LIDs_host,
+                                  assembler->boundaryCells[usernum][e]->paramLIDs_host,
+                                  false);
           }
           else { // LA_device = CUDA, AssemblyDevice = Host
             // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
@@ -578,9 +581,8 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
             Kokkos::deep_copy(LIDs_dev, assembler->boundaryCells[usernum][e]->LIDs);
             Kokkos::deep_copy(paramLIDs_dev, assembler->boundaryCells[usernum][e]->paramLIDs);
             
-            assembler->scatter(localMatrix, res_view, local_res_ladev, local_J_ladev,
-                               LIDs_dev, paramLIDs_dev,
-                               true, false);
+            assembler->scatterRes(res_view, local_res_ladev, LIDs_dev);
+            assembler->scatterJac(localMatrix, local_J_ladev, LIDs_dev, paramLIDs_dev, false);
           }
           
         }

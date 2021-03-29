@@ -125,5 +125,5 @@ ANONYMOUS:
         Gradient Tolerance: 9.99999999999999980e-13
         Constraint Tolerance: 1.00000000000000002e-08
         Step Tolerance: 9.99999999999999980e-13
-        Iteration Limit: 10
+        Iteration Limit: 3
 ...

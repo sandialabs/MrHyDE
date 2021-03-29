@@ -91,6 +91,9 @@ namespace MrHyDE {
     
     void steadySolver(DFAD & objective, vector_RCP & u);
     
+    // ========================================================================================
+    // ========================================================================================
+    
     void transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> & gradient,
                          ScalarT & start_time, ScalarT & end_time);
     
@@ -102,19 +105,10 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    DFAD computeObjective(vector_RCP & F_soln, const ScalarT & time, const size_t & tindex);
-    
-    // ========================================================================================
-    // ========================================================================================
-    
-    void computeSensitivities(vector_RCP & u,
-                              vector_RCP & a2, vector<ScalarT> & gradient);
-    
-    
-    // ========================================================================================
-    // ========================================================================================
-    
     void setDirichlet(vector_RCP & u);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     void projectDirichlet();
     
@@ -162,24 +156,20 @@ namespace MrHyDE {
     
     int verbosity, batchID, spaceDim, numsteps, numstages, gNLiter, debug_level, maxNLiter, time_order;
     
-    bool save_solution=false;
-    
     int BDForder, startupBDForder, startupSteps, numEvaluations;
     string ButcherTab, startupButcherTab;
     
     ScalarT NLtol, final_time, lintol, current_time, initial_time, deltat;
     
-    string solver_type, initial_type, response_type;
+    string solver_type, initial_type;
     
     bool line_search, useL2proj, discretized_stochastic;
-    bool isInitial, isTransient, useadjoint, is_final_time, usestrongDBCs;
+    bool isInitial, isTransient, is_adjoint, is_final_time, usestrongDBCs;
     bool compute_objective, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
     bool scalarDirichletData, transientDirichletData, scalarInitialData;
     bool have_initial_conditions;
-    ScalarT discrete_objective_scale_factor;
-    
+        
     vector<vector<ScalarT> > scalarDirichletValues, scalarInitialValues; //[block][var]
-    Teuchos::RCP<SolutionStorage<Node> > soln, adj_soln, datagen_soln;
     Teuchos::RCP<LA_MultiVector> fixedDOF_soln;
     vector<string> blocknames;
     vector<vector<string> > varlist;

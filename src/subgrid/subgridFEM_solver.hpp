@@ -18,24 +18,9 @@
 
 #include "preferences.hpp"
 #include "assemblyManager.hpp"
-#include "solverManager.hpp"
+#include "solverManager.hpp" // includes belos, muelu, amesos2
 #include "parameterManager.hpp"
 #include "subgridMacroData.hpp"
-
-// Belos
-#include <BelosConfigDefs.hpp>
-#include <BelosLinearProblem.hpp>
-#include <BelosTpetraAdapter.hpp>
-#include <BelosBlockGmresSolMgr.hpp>
-
-// MueLu
-#include <MueLu.hpp>
-#include <MueLu_TpetraOperator.hpp>
-#include <MueLu_CreateTpetraPreconditioner.hpp>
-#include <MueLu_Utilities.hpp>
-
-// Amesos includes
-#include "Amesos2.hpp"
 
 namespace MrHyDE {
   

@@ -15,9 +15,6 @@ ANONYMOUS:
       p:
         left: '1.0'
         right: '1.0'
-    True solutions:
-      p: 1.0+sin(2*pi*x)
-      u: -2*pi*cos(2*pi*x)
   Functions:
     source: 4*(pi*pi)*sin(2*pi*x)
   Solver: 
@@ -44,4 +41,7 @@ ANONYMOUS:
     write solution: false
     compute objective: false
     compute sensitivities: false
+    True solutions:
+      p: 1.0+sin(2*pi*x)
+      u: -2*pi*cos(2*pi*x)
 ...

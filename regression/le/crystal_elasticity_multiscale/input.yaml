@@ -43,10 +43,6 @@ ANONYMOUS:
         top: '0.0'
       dz:
         top: '0.0'
-    True solutions:
-      dx face: '0.0'
-      dy face: '0.0'
-      dz face: '0.0'
   Solver:
     solver: steady-state
     use strong DBCs: true
@@ -55,6 +51,10 @@ ANONYMOUS:
     response type: pointwise
     compute response: false
     write solution: false
+    True solutions:
+      dx face: '0.0'
+      dy face: '0.0'
+      dz face: '0.0'
   Analysis:
     analysis type: forward
   Functions:

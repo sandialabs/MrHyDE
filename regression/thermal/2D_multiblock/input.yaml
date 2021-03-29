@@ -28,8 +28,6 @@ ANONYMOUS:
     Initial conditions:
       scalar data: true
       e: 0.0
-    True solutions:
-      e: sin(pi*x)*sin(pi*y)
   Discretization:
     order:
       e: 1
@@ -41,6 +39,8 @@ ANONYMOUS:
     analysis_type: forward
   Postprocess: 
     compute errors: true
+    True solutions:
+      e: sin(pi*x)*sin(pi*y)
   Functions:
     thermal source: 2*(pi*pi)*sin(pi*x)*sin(pi*y)
 ...

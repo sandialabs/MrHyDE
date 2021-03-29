@@ -28,10 +28,6 @@ ANONYMOUS:
         e: '0.0'
         dx: '0.0'
         dy: '0.0'
-      True solutions:
-        e: '0.0'
-        dx: '0.0'
-        dy: '0.0'
   Discretization:
     eblock-0_0:
       order:
@@ -55,4 +51,8 @@ ANONYMOUS:
     number of steps: 10
   Postprocess: 
     compute errors: true
+    True solutions:
+      e: '0.0'
+      dx: '0.0'
+      dy: '0.0'
 ...

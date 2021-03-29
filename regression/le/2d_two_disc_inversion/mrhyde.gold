@@ -2,15 +2,15 @@
 Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
 Trust-Region Model: Kelley-Sachs
   iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
-  0     2.067720e+00   5.285692e-01                  1.000000e+01   
-  1     1.565149e+00   4.572995e-01   5.285692e-01   2.500000e+01   3         3         0         1         0         
+  0     2.067810e+00   5.285686e-01                  1.000000e+01   
+  1     1.565243e+00   4.572942e-01   5.285686e-01   2.500000e+01   3         3         0         1         0         
 Optimization Terminated with Status: Iteration Limit Exceeded
 
 Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
 Trust-Region Model: Kelley-Sachs
   iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
-  0     2.067720e+00   5.285692e-01                  1.000000e+01   
-  1     1.565149e+00   4.572995e-01   5.285692e-01   2.500000e+01   3         3         0         1         0         
+  0     2.067810e+00   5.285686e-01                  1.000000e+01   
+  1     1.565243e+00   4.572942e-01   5.285686e-01   2.500000e+01   3         3         0         1         0         
 Optimization Terminated with Status: Iteration Limit Exceeded
 param 0 = 3.00403
 param 1 = 1
@@ -18,7 +18,7 @@ param 2 = 3.00693
 param 3 = 1
 param 4 = 3.00631
 param 5 = 1
-param 6 = 3.00613
+param 6 = 3.00612
 param 7 = 1
 param 8 = 3.00605
 param 9 = 1
@@ -26,7 +26,7 @@ param 10 = 3.00603
 param 11 = 1
 param 12 = 3.00605
 param 13 = 1
-param 14 = 3.00613
+param 14 = 3.00612
 param 15 = 1
 param 16 = 3.00631
 param 17 = 1
@@ -40,15 +40,15 @@ param 24 = 3.01366
 param 25 = 1
 param 26 = 3.01282
 param 27 = 1
-param 28 = 3.01245
+param 28 = 3.01244
 param 29 = 1
-param 30 = 3.01229
+param 30 = 3.01228
 param 31 = 1
 param 32 = 3.01224
 param 33 = 1
-param 34 = 3.01229
+param 34 = 3.01228
 param 35 = 1
-param 36 = 3.01245
+param 36 = 3.01244
 param 37 = 1
 param 38 = 3.01282
 param 39 = 1
@@ -122,7 +122,7 @@ param 106 = 3.01103
 param 107 = 1
 param 108 = 3.0053
 param 109 = 1
-param 110 = 3.00477
+param 110 = 3.00476
 param 111 = 1
 param 112 = 3.00985
 param 113 = 1
@@ -142,13 +142,13 @@ param 126 = 3.0102
 param 127 = 1
 param 128 = 3.00985
 param 129 = 1
-param 130 = 3.00477
+param 130 = 3.00476
 param 131 = 1
 param 132 = 3.00412
 param 133 = 1
 param 134 = 3.00845
 param 135 = 1
-param 136 = 3.00872
+param 136 = 3.00871
 param 137 = 1
 param 138 = 3.00888
 param 139 = 1
@@ -160,7 +160,7 @@ param 144 = 3.00896
 param 145 = 1
 param 146 = 3.00888
 param 147 = 1
-param 148 = 3.00872
+param 148 = 3.00871
 param 149 = 1
 param 150 = 3.00845
 param 151 = 1
@@ -190,9 +190,9 @@ param 174 = 3.00333
 param 175 = 1
 param 176 = 3.00239
 param 177 = 1
-param 178 = 3.00484
+param 178 = 3.00483
 param 179 = 1
-param 180 = 3.00494
+param 180 = 3.00493
 param 181 = 1
 param 182 = 3.00503
 param 183 = 1
@@ -204,13 +204,13 @@ param 188 = 3.00509
 param 189 = 1
 param 190 = 3.00503
 param 191 = 1
-param 192 = 3.00494
+param 192 = 3.00493
 param 193 = 1
-param 194 = 3.00484
+param 194 = 3.00483
 param 195 = 1
 param 196 = 3.00239
 param 197 = 1
-param 198 = 3.00129
+param 198 = 3.00128
 param 199 = 1
 param 200 = 3.00258
 param 201 = 1
@@ -230,12 +230,12 @@ param 214 = 3.00265
 param 215 = 1
 param 216 = 3.00258
 param 217 = 1
-param 218 = 3.00129
+param 218 = 3.00128
 param 219 = 1
 param 220 = 3.00034
-param 221 = 0.837575
+param 221 = 0.837558
 param 222 = 3.00069
-param 223 = 0.673008
+param 223 = 0.673017
 param 224 = 3.00072
 param 225 = 0.670667
 param 226 = 3.00076
@@ -251,6 +251,6 @@ param 235 = 0.66934
 param 236 = 3.00072
 param 237 = 0.670667
 param 238 = 3.00069
-param 239 = 0.673008
+param 239 = 0.673017
 param 240 = 3.00034
 param 241 = 0.837558

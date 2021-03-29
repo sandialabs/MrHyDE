@@ -386,11 +386,11 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
     
     
     Teuchos::ParameterList efields;
-    if (settings->sublist("Physics").isSublist(block_names[i])) {
-      efields = settings->sublist("Physics").sublist(block_names[i]).sublist("Extra fields");
+    if (settings->sublist("Postprocess").isSublist(block_names[i])) {
+      efields = settings->sublist("Postprocess").sublist(block_names[i]).sublist("Extra fields");
     }
     else {
-      efields = settings->sublist("Physics").sublist("Extra fields");
+      efields = settings->sublist("Postprocess").sublist("Extra fields");
     }
     Teuchos::ParameterList::ConstIterator ef_itr = efields.begin();
     while (ef_itr != efields.end()) {
@@ -399,11 +399,11 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
     }
     
     Teuchos::ParameterList ecfields;
-    if (settings->sublist("Physics").isSublist(block_names[i])) {
-      ecfields = settings->sublist("Physics").sublist(block_names[i]).sublist("Extra cell fields");
+    if (settings->sublist("Postprocess").isSublist(block_names[i])) {
+      ecfields = settings->sublist("Postprocess").sublist(block_names[i]).sublist("Extra cell fields");
     }
     else {
-      ecfields = settings->sublist("Physics").sublist("Extra cell fields");
+      ecfields = settings->sublist("Postprocess").sublist("Extra cell fields");
     }
     Teuchos::ParameterList::ConstIterator ecf_itr = ecfields.begin();
     while (ecf_itr != ecfields.end()) {
@@ -463,15 +463,7 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
     }
   }
   
-  //mesh_factory->completeMeshConstruction(*mesh,Commptr->Comm());
   mesh_factory->completeMeshConstruction(*stk_mesh,*(Commptr->getRawMpiComm()));
-  
-  //int refinements = settings->sublist("Mesh").get<int>("refinements",0);
-  //if (refinements>0) {
-  //  mesh->refineMesh(refinements, true);
-  //}
-  
-  //this->perturbMesh();
   
   if (verbosity>1) {
     if (Commptr->getRank() == 0) {
@@ -510,6 +502,11 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
     if (verbosity>1) {
       stk_optimization_mesh->printMetaData(std::cout);
     }
+  }
+  
+  if (settings->sublist("Mesh").get<bool>("have element data", false) ||
+      settings->sublist("Mesh").get<bool>("have nodal data", false)) {
+    this->readMeshData();
   }
   
   if (debug_level > 0) {

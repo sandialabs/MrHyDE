@@ -18,8 +18,6 @@ ANONYMOUS:
     modules: ODE
     Initial conditions:
       q: '1.0'
-    True solutions:
-      q: 1.0*exp(-1.0*t)
     Responses:
       resp: 'q'
     Targets:
@@ -53,4 +51,11 @@ ANONYMOUS:
     compute objective: true
     compute sensitivities: true
     write solution: false
+    True solutions:
+      q: 1.0*exp(-1.0*t)
+    Objective functions:
+      obj0:
+        type: integrated control
+        function: 1.0*(q-exp(-0.9*t))^2
+        weight: 0.05
 ...

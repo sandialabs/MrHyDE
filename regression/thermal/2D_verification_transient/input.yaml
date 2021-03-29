@@ -19,8 +19,6 @@ ANONYMOUS:
         all boundaries: '0.0'
     Initial conditions:
       e: '0.0'
-    True solutions:
-      e: sin(2*pi*t)*sin(2*pi*x)*sin(2*pi*y)
   Discretization:
     order:
       e: 1
@@ -38,4 +36,6 @@ ANONYMOUS:
   Postprocess: 
     compute errors: true
     write solution: false
+    True solutions:
+      e: sin(2*pi*t)*sin(2*pi*x)*sin(2*pi*y)
 ...

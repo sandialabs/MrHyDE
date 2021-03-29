@@ -40,17 +40,17 @@ ANONYMOUS:
         top: '0.0'
       dz:
         top: '0.0'
-    True solutions:
-      dx: '0.0'
-      dy: '0.0'
-      dz: '0.0'
-  Solver: 
+  Solver:
     solver: steady-state
   Postprocess: 
     compute errors: true
     response type: pointwise
     compute response: false
     write solution: false
+    True solutions:
+      dx: '0.0'
+      dy: '0.0'
+      dz: '0.0'
   Analysis:
     analysis type: forward
 ...
