@@ -44,7 +44,7 @@ CompadreTools_constructNeighborLists(const Kokkos::View<ScalarT**, AssemblyDevic
   LO dimension = sensor_coords.extent(1);
   TEUCHOS_ASSERT(cell_coords.extent(1)==sensor_coords.extent(1));
   int min_neighbors = 1; // must find at least 1 neighbor
-  double epsilon_mult = 1.; // if you want to search for many neighbors within a multiplied radius of the closest neighbor, increase this
+  double epsilon_mult = 1.001; // if you want to search for many neighbors within a multiplied radius of the closest neighbor, increase this
 
   Kokkos::View<int*, AssemblyDevice> neighbor_lists_device("neighbor lists", 0); // first column is # of neighbors
   Kokkos::View<int*>::HostMirror neighbor_lists = Kokkos::create_mirror_view(neighbor_lists_device);
