@@ -39,6 +39,9 @@
 #include "Intrepid2_HDIV_TET_I1_FEM.hpp"
 #include "Intrepid2_HDIV_TET_In_FEM.hpp"
 
+// HDIV AC functionality
+#include "Intrepid2_HDIV_AC_QUAD_I1_FEM.hpp"
+
 // HCURL functionality
 #include "Intrepid2_HCURL_QUAD_I1_FEM.hpp"
 #include "Intrepid2_HCURL_QUAD_In_FEM.hpp"
@@ -351,6 +354,24 @@ basis_RCP discretization::getBasis(const int & spaceDim, const topo_RCP & cellTo
     }
     
   }
+  else if (type == "HDIV_AC") {
+    if (spaceDim == 2) {
+      if (shape == "Quadrilateral_4") {
+        if (degree == 1) {
+          basis = Teuchos::rcp(new Basis_HDIV_AC_QUAD_I1_FEM<PHX::Device::execution_space>() );
+	}
+        else {
+	  TEUCHOS_ASSERT(false); // there is no HDIV_AC higher order implemented yet
+        }
+      }
+      else {
+ 	TEUCHOS_ASSERT(false); // HDIV_AC is only defined on quadrilaterals
+      }
+    }  
+    else {
+      TEUCHOS_ASSERT(false); // HDIV_AC is only defined in 2D
+    }
+  }
   else if (type == "HCURL") {
     if (spaceDim == 1) {
       // need to throw an error
@@ -532,7 +553,7 @@ void discretization::setReferenceData(Teuchos::RCP<CellMetaData> & cellData) {
       basis_pointers[block][i]->getValues(basisgrad, cellData->ref_ip, Intrepid2::OPERATOR_GRAD);
       
     }
-    else if (basis_types[block][i] == "HDIV"){
+    else if (basis_types[block][i] == "HDIV" || basis_types[block][i] == "HDIV_AC"){
       
       basisvals = DRV("basisvals",numb, cellData->numip, dimension);
       basis_pointers[block][i]->getValues(basisvals, cellData->ref_ip, Intrepid2::OPERATOR_VALUE);
@@ -579,7 +600,7 @@ void discretization::setReferenceData(Teuchos::RCP<CellMetaData> & cellData) {
         basisgrad = DRV("basisgrad",numb, cellData->numsideip, dimension);
         basis_pointers[block][i]->getValues(basisgrad, cellData->ref_side_ip[s], Intrepid2::OPERATOR_GRAD);
       }
-      else if (basis_types[block][i] == "HDIV"){
+      else if (basis_types[block][i] == "HDIV" || basis_types[block][i] == "HDIV_AC"){
         basisvals = DRV("basisvals",numb, cellData->numsideip, dimension);
         basis_pointers[block][i]->getValues(basisvals, cellData->ref_side_ip[s], Intrepid2::OPERATOR_VALUE);
       }
@@ -718,7 +739,7 @@ void discretization::getPhysicalVolumetricData(Teuchos::RCP<CellMetaData> & cell
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals);
       }
-      else if (cellData->basis_types[i] == "HDIV"){
+      else if (cellData->basis_types[i] == "HDIV" || cellData->basis_types[i] == "HDIV_AC"){
         
         DRV bvals("basis",numElem,numb,numip,dimension);
         DRV bvals_tmp("basis tmp",numElem,numb,numip,dimension);
@@ -991,7 +1012,7 @@ void discretization::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & cellData, 
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals);
       }
-      else if (cellData->basis_types[i] == "HDIV"){
+      else if (cellData->basis_types[i] == "HDIV" || cellData->basis_types[i] == "HDIV_AC"){
         
         DRV bvals_tmp("tmp basis_vals",numElem, numb, numip, dimension);
         DRV bvals("basis_vals",numElem, numb, numip, dimension);

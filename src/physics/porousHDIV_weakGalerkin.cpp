@@ -21,7 +21,8 @@ porousHDIV_WG::porousHDIV_WG(Teuchos::RCP<Teuchos::ParameterList> & settings, co
   
   label = "porousHDIV-WeakGalerkin";
   include_face = settings->sublist("Physics").get<bool>("Include face terms","true");
-  
+  useAC = settings->sublist("Physics").get<bool>("useAC",false);
+
   if (settings->sublist("Physics").isSublist("Active variables")) {
     if (settings->sublist("Physics").sublist("Active variables").isParameter("pint")) {
       myvars.push_back("pint");
@@ -47,8 +48,15 @@ porousHDIV_WG::porousHDIV_WG(Teuchos::RCP<Teuchos::ParameterList> & settings, co
     myvars.push_back("t");
     mybasistypes.push_back("HVOL");
     mybasistypes.push_back("HFACE"); // TODO: turn into HFACE-DG
-    mybasistypes.push_back("HDIV-DG");
-    mybasistypes.push_back("HDIV-DG");
+
+    if(useAC) {
+      mybasistypes.push_back("HDIV_AC-DG");
+      mybasistypes.push_back("HDIV_AC-DG");
+    }
+    else {
+      mybasistypes.push_back("HDIV-DG");
+      mybasistypes.push_back("HDIV-DG");
+    }
   }
   
   usePermData = settings->sublist("Physics").get<bool>("use permeability data",false);

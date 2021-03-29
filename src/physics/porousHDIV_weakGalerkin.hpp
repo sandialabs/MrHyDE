@@ -112,6 +112,7 @@ namespace MrHyDE {
     
     
     bool usePermData;
+    bool useAC; // use HDIV if this is false, otherwise use HDIV_AC
     
     vector<string> varlist;
     Kokkos::View<int****,AssemblyDevice> sideinfo;
