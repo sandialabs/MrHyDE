@@ -31,7 +31,7 @@ reps = 1.0e-12     # relative error tolerance
 fdtol= 5.0e-10     # finite difference gradient tolerance
 
 # These comments are for testing with the runtest.py utility.
-#TESTING active
+#TESTING inactive
 #TESTING -n 4
 #TESTING -k thermal,multiscale,optimization,scalar-parameters
 
