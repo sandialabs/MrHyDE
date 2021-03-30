@@ -1,0 +1,20 @@
+EXTRA_ARGS=$@
+
+rm CMakeCache.txt
+rm -rf CMakeFiles/
+
+TRILINOS_HOME='/Users/tmwilde/Software/Trilinos'
+
+TRILINOS_INSTALL='/Users/tmwilde/Software/Trilinos/trilinos-gcc-minimal'
+
+TUTORIAL_HOME='/Users/tmwilde/Software/MrHyDE/doc/Tutorial/Exercises'
+
+
+cmake \
+-G Ninja \
+-D Trilinos_SRC_DIR=${TRILINOS_HOME} \
+-D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
+-D CMAKE_CXX_FLAGS:STRING="-Wall" \
+-D CMAKE_CXX_EXTENSIONS=Off \
+${EXTRA-ARGS} \
+${TUTORIAL_HOME}
