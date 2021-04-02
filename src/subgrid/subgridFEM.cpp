@@ -948,8 +948,12 @@ void SubGridFEM::addMeshData() {
               }
               ScalarT distance = 0.0;
               
+              // Compadre interface doesn't work with GPUs yet
+#if !defined(MrHyDE_ASSEMBLYSPACE_CUDA)
               int cnode = mesh_data->findClosestGridNode(center(0,0), center(0,1), center(0,2), distance);
-              
+#else
+              int cnode = 0;
+#endif
               bool iscloser = true;
               if (p>0){
                 if (cells[b][e]->cell_data_distance[c] < distance) {
@@ -992,12 +996,16 @@ void SubGridFEM::addMeshData() {
                   center(c,j) += nodes(c,i,j)/(ScalarT)numnodes;
                 }
               }
-	    }
+            }
             
-	    Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
-	    Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);  
+            Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
+            Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
+            
+            // Compadre interface doesn't work with GPUs yet
+#if !defined(MrHyDE_ASSEMBLYSPACE_CUDA)
             mesh_data->findClosestNode(center,cnode,distance);
-              
+#endif
+            
             for(size_t c=0; c<numElem; ++c) {
               bool iscloser = true;
               if (p>0){

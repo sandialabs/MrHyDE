@@ -694,8 +694,13 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
               }
             }
             ScalarT distance = 0.0;
-            
+
+            // Compadre interface doesn't work with GPUs yet
+#if !defined(MrHyDE_ASSEMBLYSPACE_CUDA)
             int cnode = mesh_data->findClosestGridNode(center(0,0), center(0,1), center(0,2), distance);
+#else
+            int cnode = 0; // should probably warn the user too, but Cmpadre should be fixed soon
+#endif
             bool iscloser = true;
             if (p>0){
               if (cells[b][e]->cell_data_distance[c] < distance) {
@@ -737,12 +742,16 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
                 center(c,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
               }
             }
-	  }
-
-	  Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
-	  Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);  
+          }
+          
+          Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
+          Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
+          
+          // Compadre interface doesn't work with GPUs yet
+#if !defined(MrHyDE_ASSEMBLYSPACE_CUDA)
           mesh_data->findClosestNode(center,cnode,distance);
-
+#endif
+          
           bool iscloser = true;
           for (int c=0; c<numElem; c++) {
             if (p>0){

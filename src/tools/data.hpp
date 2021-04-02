@@ -93,6 +93,8 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
 
+    // Compadre interface doesn't work with GPUs yet
+#if !defined(MrHyDE_ASSEMBLYSPACE_CUDA)
     void findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords, 
                          Kokkos::View<int*, AssemblyDevice> &cnode) const;
     
@@ -102,6 +104,7 @@ namespace MrHyDE {
     void findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords, 
                          Kokkos::View<int*, AssemblyDevice> &cnode, 
                          Kokkos::View<ScalarT*, AssemblyDevice> &distance) const;
+#endif
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////

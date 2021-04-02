@@ -31,7 +31,9 @@
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-// returns a Compadre::NeighborLists object which lists which sensor is 
+// Compadre interface doesn't work with GPUs yet
+#if !defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+// returns a Compadre::NeighborLists object which lists which sensor is
 // closest to each cell.
 KOKKOS_INLINE_FUNCTION
 Compadre::NeighborLists<Kokkos::View<int*> > 
@@ -74,6 +76,7 @@ CompadreTools_constructNeighborLists(const Kokkos::View<ScalarT**, AssemblyDevic
   return neighbor_lists_object;
 }
 
+#endif
 
 
 
