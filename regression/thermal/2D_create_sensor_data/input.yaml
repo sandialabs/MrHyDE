@@ -1,0 +1,59 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 10
+    NY: 10
+  Physics: 
+    modules: thermal
+    Dirichlet conditions:
+      e:
+        all boundaries: '0.0'
+  Discretization:
+    order:
+      e: 1
+    quadrature: 2
+  Analysis:
+    analysis type: forward
+  Solver:
+    workset size: 10 
+    solver: steady-state
+  Postprocess: 
+    response type: pointwise
+    verification: compute errors
+    write solution: false
+    compute objective: false
+    compute responses: true
+    Objective functions:
+      objgrad:
+        type: sensors
+        sensor points file: sensor_points.dat
+        save sensor data: true
+        response: '(grad(e)[x])^2 + (grad(e)[y])^2'
+        weight: 1.0
+      objval:
+        type: sensors
+        sensor points file: sensor_points.dat
+        save sensor data: true
+        response: 'e'
+        weight: 1.0
+  Functions:
+    thermal diffusion: thermal_diff(0)
+    thermal source: thermal_source(0)*(2*pi*pi*sin(pi*t) + pi*cos(pi*t))*sin(pi*x)*sin(pi*y)
+  Parameters:
+    thermal_diff:
+      type: scalar
+      value: 2.0
+      usage: active
+    thermal_source:
+      type: scalar
+      value: 3.0
+      usage: active
+...
