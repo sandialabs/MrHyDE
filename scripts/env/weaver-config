@@ -1,0 +1,3 @@
+export ATDM_CONFIG_REGISTER_CUSTOM_CONFIG_DIR=/ascldap/users/tmwilde/Trilinos/cmake/std/atdm/contributed/weaver
+source /ascldap/users/tmwilde/Trilinos/cmake/std/atdm/load-env.sh weaver-cuda-10.1-opt
+#source /ascldap/users/tmwilde/Trilinos/cmake/std/atdm/load-env.sh weaver-gnu-opt
