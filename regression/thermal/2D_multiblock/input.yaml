@@ -14,7 +14,6 @@ ANONYMOUS:
     NY: 10
     Xblocks: 2
     Yblocks: 2
-    iblocknames: eblock-0_0 eblock-1_0 eblock-0_1 eblock-1_1
   Physics: 
     modules: thermal
     assemble boundary terms: false

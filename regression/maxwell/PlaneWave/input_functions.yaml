@@ -2,7 +2,6 @@
 ---
 ANONYMOUS:
   Functions: 
-    icurrent x: '1.0'
     current x: 'exp(-1.0*timebub)*sin(-2.0*omega*t)*(z<zmax)*(z>zmin)'
     permittivity: 'refperm*(1.0 + 10.5*(z>zt)'
     refperm: '1.0e-11'

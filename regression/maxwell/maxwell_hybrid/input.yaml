@@ -25,16 +25,6 @@ ANONYMOUS:
           bottom: '0.0'
           front: '0.0'
           back: '0.0'
-      true solutions:
-        Ex: '0.0'
-        Ey: '0.0'
-        Ez: '0.0'
-        Hx: '0.0'
-        Hy: '0.0'
-        Hz: '0.0'
-        lambdax: '0.0'
-        lambday: '0.0'
-        lambdaz: '0.0'
   Parameters Settings File: input_params.yaml
   Functions Settings File: input_functions.yaml
   Solver: 
@@ -67,9 +57,8 @@ ANONYMOUS:
     Have Sensor Data: false
   Postprocess: 
     response type: global
-    Verbosity: 0
-    verification: true
-    compute response: false
+    compute errors: true
+    compute responses: false
     write solution: false
     compute objective: false
     compute sensitivities: false

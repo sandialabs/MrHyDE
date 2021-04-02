@@ -13,9 +13,6 @@ ANONYMOUS:
       initial_value: 2.0
       lower_bound: 1.0
       upper_bound: 10.0
-      reg_type: 1
-      reg_constant: 0.0
-      isDomainParam: true
     source_x: 
       type: scalar
       value: 0.0

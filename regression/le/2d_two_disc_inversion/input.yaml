@@ -24,9 +24,6 @@ ANONYMOUS:
         top: '0.0'
       dy:
         top: 'disc_trac'
-    Responses:
-      rdx: 'dx'
-      rdy: 'dy'
   Discretization:
     order:
       dx: 1

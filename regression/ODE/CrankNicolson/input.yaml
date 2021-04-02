@@ -38,5 +38,4 @@ ANONYMOUS:
     compute errors: true
     True solutions:
       q: 1.0*exp(-1.0*t)
-  
 ...

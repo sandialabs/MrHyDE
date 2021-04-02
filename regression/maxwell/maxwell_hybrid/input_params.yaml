@@ -4,10 +4,10 @@ ANONYMOUS:
   Parameters: 
     mu: 
       type: scalar
-      value: 1.00000000000000000e+00
+      value: 1.0
       usage: inactive
     epsilon: 
       type: scalar
-      value: 1.00000000000000000e+00
+      value: 1.0
       usage: inactive
 ...

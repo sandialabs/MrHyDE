@@ -4,10 +4,10 @@ ANONYMOUS:
   Parameters: 
     diff: 
       type: scalar
-      value: 1.00000000000000000e+00
+      value: 1.0
       usage: inactive
     source: 
       type: scalar
-      value: 2.00000000000000000e+00
+      value: 2.0
       usage: active
 ...

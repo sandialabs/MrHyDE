@@ -2,7 +2,6 @@
 ---
 ANONYMOUS:
   Functions: 
-    #source: '(p-1.0)*2.0' #'(p-pwone)*Ione + (p-pwtwo)*Itwo'
     source: '(p-pwone)*Ione + (p-pwtwo)*Itwo + (p-pwthree)*Ithree + (p-pwfour)*Ifour + (p-pwfive)*Ifive'
     pwone: '2.0'
     pwtwo: '1.8'
