@@ -1913,7 +1913,6 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
           
         }
         
-#if !defined(MrHyDE_ASSEMBLYSPACE_CUDA)
         if (data_avail) {
           assembler->scatterRes(grad_view, local_grad, assembler->cells[block][e]->LIDs);
         }
@@ -1931,7 +1930,6 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
           }
           
         }
-#endif
         
       }
       
@@ -1958,6 +1956,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
                             assembler->cells[block][e]->numElem,
                             assembler->cells[block][e]->LIDs.extent(1),1);
         
+        auto local_grad_ladev = create_mirror(LA_exec(),local_grad);
+                
         for (int w=0; w<spaceDim+1; ++w) {
           
           // Seed the state and compute the solution at the ip
@@ -2161,8 +2161,23 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
           
         }
         
-        assembler->scatterRes(grad_view, local_grad, assembler->cells[block][e]->LIDs);
-        
+        if (data_avail) {
+          assembler->scatterRes(grad_view, local_grad, assembler->cells[block][e]->LIDs);
+        }
+        else {
+          Kokkos::deep_copy(local_grad_ladev,local_grad);
+          
+          if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
+            assembler->scatterRes(grad_view, local_grad_ladev, assembler->cells[block][e]->LIDs_host);
+          }
+          else { // LA_device = CUDA, AssemblyDevice = Host
+            // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
+            auto LIDs_dev = Kokkos::create_mirror(LA_exec(), assembler->cells[block][e]->LIDs);
+            Kokkos::deep_copy(LIDs_dev,assembler->cells[block][e]->LIDs);
+            assembler->scatterRes(grad_view, local_grad_ladev, LIDs_dev);
+          }
+          
+        }
       }
       
       // Right now grad_over = dresponse/du
