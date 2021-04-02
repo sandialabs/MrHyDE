@@ -429,7 +429,7 @@ ScalarT data::getvalue(const ScalarT & x, const ScalarT & y, const ScalarT & z,
 /////////////////////////////////////////////////////////////////////////////
 
 // Compadre interface doesn't work with GPUs yet
-#if !defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+#if !defined(MrHyDE_DISABLE_COMPADRE)
 void data::findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords,
                            Kokkos::View<int*, AssemblyDevice> &cnode) const {
   

@@ -32,7 +32,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 // Compadre interface doesn't work with GPUs yet
-#if !defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+#if !defined(MrHyDE_DISABLE_COMPADRE)
 // returns a Compadre::NeighborLists object which lists which sensor is
 // closest to each cell.
 KOKKOS_INLINE_FUNCTION

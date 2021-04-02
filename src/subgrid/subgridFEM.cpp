@@ -949,7 +949,7 @@ void SubGridFEM::addMeshData() {
               ScalarT distance = 0.0;
               
               // Compadre interface doesn't work with GPUs yet
-#if !defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+#if !defined(MrHyDE_DISABLE_COMPADRE)
               int cnode = mesh_data->findClosestGridNode(center(0,0), center(0,1), center(0,2), distance);
 #else
               int cnode = 0;
@@ -1002,7 +1002,7 @@ void SubGridFEM::addMeshData() {
             Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
             
             // Compadre interface doesn't work with GPUs yet
-#if !defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+#if !defined(MrHyDE_DISABLE_COMPADRE)
             mesh_data->findClosestNode(center,cnode,distance);
 #endif
             

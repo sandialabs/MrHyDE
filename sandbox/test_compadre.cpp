@@ -9,7 +9,6 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
 ************************************************************************/
 
-
 #include "trilinos.hpp"
 #include "preferences.hpp"
 
@@ -31,6 +30,9 @@
 // 2. Compares the timing results of both approaches to see if one is advantageous over the other
 
 int main(int argc, char * argv[]) {
+
+  
+#if !defined(MrHyDE_DISABLE_COMPADRE)
 
   Teuchos::GlobalMPISession mpiSession(&argc, &argv,0);
   Teuchos::RCP<MpiComm> Comm = Teuchos::rcp( new MpiComm(MPI_COMM_WORLD) );
@@ -159,7 +161,8 @@ int main(int argc, char * argv[]) {
 
   } // End Kokkos scope
   Kokkos::finalize();
-
+#endif
+  
   return 0;
 }
 

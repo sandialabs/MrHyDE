@@ -34,6 +34,11 @@ MESSAGE("End of Trilinos details\n")
 MESSAGE("Checking if Kokkos has the GPU enabled...")
 kokkos_check(DEVICES CUDA RETURN_VALUE HAS_CUDA) # GH: This doesn't seem to work on my desktop, but it works on other machines.
 
+IF(HAS_CUDA)
+  MESSAGE("MrHyDE is temprarily disabling Compadre functionality since a GPU is available.  Affects data import.")
+  ADD_DEFINITIONS(-DMrHyDE_DISABLE_COMPADRE)
+ENDIF()
+
 # Flags to set the Kokkos devices at configuration time
 IF(MrHyDE_ALL_CPU)
   MESSAGE("Configuration specified using a serial configuration for MrHyDE.")
