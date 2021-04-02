@@ -1913,7 +1913,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
           
         }
         
-        
+#if !defined(MrHyDE_ASSEMBLYSPACE_CUDA)
         if (data_avail) {
           assembler->scatterRes(grad_view, local_grad, assembler->cells[block][e]->LIDs);
         }
@@ -1931,6 +1931,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
           }
           
         }
+#endif
         
       }
       
