@@ -186,7 +186,8 @@ void analysis::run() {
         DFAD objfun = 0.0;
         params->updateParams(currparams,2);
         if (regenerate_meshdata) {
-          solve->mesh->updateMeshData(sampleints(j),solve->assembler->cells, solve->multiscale_manager);
+          this->updateCellData(sampleints(j));
+          //solve->mesh->updateMeshData(sampleints(j),solve->assembler->cells, solve->multiscale_manager);
         }
         solve->forwardModel(objfun);
         //vector_RCP A_soln = solve->adjointModel(F_soln, gradient);
@@ -781,4 +782,84 @@ void analysis::run() {
     }
   }
   
+}
+
+
+// ========================================================================================
+// ========================================================================================
+
+void analysis::updateCellData(const int & newrandseed) {
+  
+  // Determine how many seeds there are
+  size_t localnumSeeds = 0;
+  size_t numSeeds = 0;
+  for (size_t b=0; b<solve->assembler->cells.size(); b++) {
+    for (size_t e=0; e<solve->assembler->cells[b].size(); e++) {
+      for (size_t k=0; k<solve->assembler->cells[b][e]->numElem; k++) {
+        if (solve->assembler->cells[b][e]->cell_data_seed[k] > localnumSeeds) {
+          localnumSeeds = solve->assembler->cells[b][e]->cell_data_seed[k];
+        }
+      }
+    }
+  }
+  //Comm->MaxAll(&localnumSeeds, &numSeeds, 1);
+  Teuchos::reduceAll<int,size_t>(*Comm,Teuchos::REDUCE_MAX,1,&localnumSeeds,&numSeeds);
+  numSeeds += 1; //To properly allocate and iterate
+  
+  // Create a random number generator
+  std::default_random_engine generator(newrandseed);
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Set seed data
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  int numdata = 9;
+  
+  //cout << "solver numSeeds = " << numSeeds << endl;
+  
+  std::normal_distribution<ScalarT> ndistribution(0.0,1.0);
+  Kokkos::View<ScalarT**,HostDevice> rotation_data("cell_data",numSeeds,numdata);
+  for (size_t k=0; k<numSeeds; k++) {
+    ScalarT x = ndistribution(generator);
+    ScalarT y = ndistribution(generator);
+    ScalarT z = ndistribution(generator);
+    ScalarT w = ndistribution(generator);
+    
+    ScalarT r = sqrt(x*x + y*y + z*z + w*w);
+    x *= 1.0/r;
+    y *= 1.0/r;
+    z *= 1.0/r;
+    w *= 1.0/r;
+    
+    rotation_data(k,0) = w*w + x*x - y*y - z*z;
+    rotation_data(k,1) = 2.0*(x*y - w*z);
+    rotation_data(k,2) = 2.0*(x*z + w*y);
+    
+    rotation_data(k,3) = 2.0*(x*y + w*z);
+    rotation_data(k,4) = w*w - x*x + y*y - z*z;
+    rotation_data(k,5) = 2.0*(y*z - w*x);
+    
+    rotation_data(k,6) = 2.0*(x*z - w*y);
+    rotation_data(k,7) = 2.0*(y*z + w*x);
+    rotation_data(k,8) = w*w - x*x - y*y + z*z;
+    
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Set cell data
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  for (size_t b=0; b<solve->assembler->cells.size(); b++) {
+    for (size_t e=0; e<solve->assembler->cells[b].size(); e++) {
+      int numElem = solve->assembler->cells[b][e]->numElem;
+      for (int c=0; c<numElem; c++) {
+        int cnode = solve->assembler->cells[b][e]->cell_data_seed[c];
+        for (int i=0; i<9; i++) {
+          solve->assembler->cells[b][e]->cell_data(c,i) = rotation_data(cnode,i);
+        }
+      }
+    }
+  }
+  
+  solve->multiscale_manager->updateMeshData(rotation_data);
 }

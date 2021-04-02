@@ -359,13 +359,13 @@ basis_RCP discretization::getBasis(const int & spaceDim, const topo_RCP & cellTo
       if (shape == "Quadrilateral_4") {
         if (degree == 1) {
           basis = Teuchos::rcp(new Basis_HDIV_AC_QUAD_I1_FEM<PHX::Device::execution_space>() );
-	}
+        }
         else {
-	  TEUCHOS_ASSERT(false); // there is no HDIV_AC higher order implemented yet
+          TEUCHOS_ASSERT(false); // there is no HDIV_AC higher order implemented yet
         }
       }
       else {
- 	TEUCHOS_ASSERT(false); // HDIV_AC is only defined on quadrilaterals
+        TEUCHOS_ASSERT(false); // HDIV_AC is only defined on quadrilaterals
       }
     }  
     else {

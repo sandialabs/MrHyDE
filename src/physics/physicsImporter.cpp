@@ -31,20 +31,7 @@
 #include "ode.hpp"
 #include "burgers.hpp"
 #include "kuramotoSivashinsky.hpp"
-
-// Disabled/out-of-date physics modules
-//#include "maxwell_hybridized.hpp"
-//#include "thermal_enthalpy.hpp"
-//#include "twophasePoNo.hpp"
-//#include "twophasePoPw.hpp"
-//#include "msconvdiff.hpp"
-//#include "phasesolidification.hpp"
-//#include "mwhelmholtz.hpp"
-//#include "peridynamics.hpp"
-//#include "euler.hpp"
-//#include "burgers.hpp"
-//#include "phasefield.hpp"
-//#include "thermal_fr.hpp"
+#include "llamas.hpp"
 
 using namespace MrHyDE;
 
@@ -77,24 +64,7 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
     if (modname == "porousHDIV_weakGalerkin") {
       modules.push_back(Teuchos::rcp(new porousHDIV_WG(settings, isaux) ) );
     }
-    
-    /*
-     // Two phase porous media
-     if (modname == "twophase") {
-     string formulation = blockPhysSettings[b].get<string>("formulation","PoNo");
-     if (formulation == "PoPw"){
-     //modules.push_back(Teuchos::rcp(new twophasePoPw(settings) ) );
-     }
-     else if (formulation == "PoNo"){
-     modules.push_back(Teuchos::rcp(new twophasePoNo(settings) ) );
-     }
-     else if (formulation == "PoPw"){
-     modules.push_back(Teuchos::rcp(new twophasePoPw(settings) ) );
-     }
-     
-     }
-     */
-    
+        
     // Convection diffusion
     if (modname == "cdr" || modname == "CDR") {
       modules.push_back(Teuchos::rcp(new cdr(settings, isaux) ) );
@@ -105,13 +75,6 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
       modules.push_back(Teuchos::rcp(new thermal(settings, isaux) ) );
     }
     
-    /*
-     // Thermal with enthalpy variable
-     if (modname == "thermal enthalpy") {
-     modules.push_back(Teuchos::rcp(new thermal_enthalpy(settings) ) );
-     }
-     */
-    
     // Shallow Water
     if (modname == "shallow water") {
       modules.push_back(Teuchos::rcp(new shallowwater(settings, isaux) ) );
@@ -121,13 +84,6 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
     if (modname == "maxwell") {
       modules.push_back(Teuchos::rcp(new maxwell(settings, isaux) ) );
     }
-    
-    /*
-     // Maxwell hybridized
-     if (modname == "maxwell hybrid") {
-     modules.push_back(Teuchos::rcp(new maxwell_HYBRID(settings, isaux) ) );
-     }
-     */
     
     // Multiple Species PhaseField
     if (modname == "msphasefield") {
@@ -172,6 +128,11 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
     // Kuramoto-Sivashinsky equation
     if (modname == "Kuramoto-Sivashinsky"){
       modules.push_back(Teuchos::rcp(new KuramotoSivashinsky(settings, isaux) ) );
+    }
+    
+    // Llamas equation
+    if (modname == "llamas"){
+      modules.push_back(Teuchos::rcp(new llamas(settings, isaux) ) );
     }
   }
   

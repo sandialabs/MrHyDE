@@ -24,14 +24,12 @@
 #include "Panzer_STK_SetupUtilities.hpp"
 #include "Panzer_STK_Interface.hpp"
 #include "Panzer_STK_ExodusReaderFactory.hpp"
-//#include "Panzer_STK_PamgenReaderFactory.hpp"
 
 #include "preferences.hpp"
 #include "physicsInterface.hpp"
 #include "cell.hpp"
 #include "data.hpp"
 #include "boundaryCell.hpp"
-#include "multiscaleManager.hpp"
 
 namespace MrHyDE {
   /*
@@ -97,12 +95,6 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    void updateMeshData(const int & newrandseed, vector<vector<Teuchos::RCP<cell> > > & cells,
-                        Teuchos::RCP<MultiScale> & multiscale_manager);
-    
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
     void purgeMemory();
     
     ////////////////////////////////////////////////////////////////////////////////

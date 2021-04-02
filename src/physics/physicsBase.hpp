@@ -29,7 +29,7 @@ namespace MrHyDE {
     physicsbase() {} ;
     
     virtual ~physicsbase() {};
-
+    
     // ========================================================================================
     /* Constructor to set up the problem */
     // ========================================================================================
@@ -37,7 +37,7 @@ namespace MrHyDE {
     physicsbase(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
       verbosity = settings->sublist("Physics").get<int>("verbosity",0);
     };
-
+    
     
     // ========================================================================================
     // Define the functions for this module (not necessary, but probably need to be defined in all modules)
@@ -46,9 +46,10 @@ namespace MrHyDE {
     virtual
     void defineFunctions(Teuchos::ParameterList & fs,
                          Teuchos::RCP<FunctionManager> & functionManager_) {
+      functionManager = functionManager_;
       if(verbosity > 10) {
         // GH: these print statements may be annoying when running on multiple MPI ranks
-	std::cout << "Warning: physicsBase::defineFunctions called!" << std::endl;
+        std::cout << "Warning: physicsBase::defineFunctions called!" << std::endl;
       }
     };
     
@@ -59,7 +60,7 @@ namespace MrHyDE {
     virtual
     void volumeResidual() {
       if(verbosity > 10) {
-	std::cout << "Warning: physicsBase::volumeResidual called!" << std::endl;
+        std::cout << "Warning: physicsBase::volumeResidual called!" << std::endl;
       }
     };
     
@@ -70,7 +71,7 @@ namespace MrHyDE {
     virtual
     void boundaryResidual() {
       if(verbosity > 10) {
-	std::cout << "Warning: physicsBase::boundaryResidual called!" << std::endl;
+        std::cout << "Warning: physicsBase::boundaryResidual called!" << std::endl;
       }
     };
     
@@ -81,7 +82,7 @@ namespace MrHyDE {
     virtual
     void faceResidual() {
       if(verbosity > 10) {
-	std::cout << "Warning: physicsBase::faceResidual called!" << std::endl;
+        std::cout << "Warning: physicsBase::faceResidual called!" << std::endl;
       }
     };
     
@@ -92,7 +93,7 @@ namespace MrHyDE {
     virtual
     void computeFlux() {
       if(verbosity > 10) {
-	std::cout << "Warning: physicsBase::computeFlux called!" << std::endl;
+        std::cout << "Warning: physicsBase::computeFlux called!" << std::endl;
       }
     };
     
@@ -102,7 +103,7 @@ namespace MrHyDE {
     virtual void updateParameters(const vector<Teuchos::RCP<vector<AD> > > & params,
                                   const std::vector<string> & paramnames) {
       if(verbosity > 10) {
-	std::cout << "Warning: physicsBase::updateParameters called!" << std::endl;
+        std::cout << "Warning: physicsBase::updateParameters called!" << std::endl;
       }
     };
     
@@ -123,7 +124,7 @@ namespace MrHyDE {
     vector<string> myvars, mybasistypes;
     bool include_face = false, isaux = false;
     string prefix = "";
-    int verbosity;
+    int verbosity=0;
     
     // Probably not used much
     View_AD2 adjrhs;

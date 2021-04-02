@@ -153,6 +153,12 @@ namespace MrHyDE {
     // Data extraction methods
     //////////////////////////////////////////////////////////////
     
+    View_AD2 getResidual();
+    
+    View_Sc2 getWeights();
+    
+    View_Sc2 getSideWeights();
+    
     View_AD2 getData(const string & label);
     
     View_Sc2 getDataSc(const string & label);

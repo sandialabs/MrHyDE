@@ -344,27 +344,19 @@ void physics::importPhysics(const bool & isaux) {
       vector<string> ctypes = currmodules[m]->mybasistypes;
       for (size_t v=0; v<cvars.size(); v++) {
         currvarlist.push_back(cvars[v]);
-        
-        if (ctypes[v] == "HGRAD-DG") {
-          currtypes.push_back("HGRAD");
-          curruseDG.push_back(true);
-        }
-        else if (ctypes[v] == "HDIV-DG") {
-          currtypes.push_back("HDIV");
-          curruseDG.push_back(true);
-        }
-        else if (ctypes[v] == "HDIV_AC-DG") {
-          currtypes.push_back("HDIV_AC");
-          curruseDG.push_back(true);
-        }
-        else if (ctypes[v] == "HCURL-DG") {
-          currtypes.push_back("HCURL");
+        string DGflag("-DG");
+        size_t found = ctypes[v].find(DGflag);
+        if (found!=string::npos) {
+          string name = ctypes[v];
+          name.erase(name.end()-3, name.end());
+          currtypes.push_back(name);
           curruseDG.push_back(true);
         }
         else {
           currtypes.push_back(ctypes[v]);
           curruseDG.push_back(false);
         }
+        
         currvarowned.push_back(m);
         currorders.push_back(blockDiscSettings[b].sublist("order").get<int>(cvars[v],default_order));
       }
@@ -379,23 +371,18 @@ void physics::importPhysics(const bool & isaux) {
           currvarlist.push_back(newvar);
           
           string newtype = evars.get<string>(pl_itr->first);
-          if (newtype == "HGRAD-DG") {
-            currtypes.push_back("HGRAD");
-            curruseDG.push_back(true);
-          }
-          else if (newtype == "HDIV-DG") {
-            currtypes.push_back("HDIV");
-            curruseDG.push_back(true);
-          }
-          else if (newtype == "HCURL-DG") {
-            currtypes.push_back("HCURL");
+          string DGflag("-DG");
+          size_t found = newtype.find(DGflag);
+          if (found!=string::npos) {
+            string name = newtype;
+            name.erase(name.end()-3, name.end());
+            currtypes.push_back(name);
             curruseDG.push_back(true);
           }
           else {
             currtypes.push_back(newtype);
             curruseDG.push_back(false);
           }
-          //currvarowned.push_back(m);
           
           int neworder = default_order;
           if (aux_blockDiscSettings[b].sublist("order").isSublist("Extra variables")) {
@@ -415,23 +402,18 @@ void physics::importPhysics(const bool & isaux) {
           currvarlist.push_back(newvar);
           
           string newtype = evars.get<string>(pl_itr->first);
-          if (newtype == "HGRAD-DG") {
-            currtypes.push_back("HGRAD");
-            curruseDG.push_back(true);
-          }
-          else if (newtype == "HDIV-DG") {
-            currtypes.push_back("HDIV");
-            curruseDG.push_back(true);
-          }
-          else if (newtype == "HCURL-DG") {
-            currtypes.push_back("HCURL");
+          string DGflag("-DG");
+          size_t found = newtype.find(DGflag);
+          if (found!=string::npos) {
+            string name = newtype;
+            name.erase(name.end()-3, name.end());
+            currtypes.push_back(name);
             curruseDG.push_back(true);
           }
           else {
             currtypes.push_back(newtype);
             curruseDG.push_back(false);
           }
-          //currvarowned.push_back(m);
           
           int neworder = default_order;
           if (blockDiscSettings[b].sublist("order").isSublist("Extra variables")) {

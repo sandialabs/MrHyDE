@@ -51,10 +51,11 @@ void ODE::volumeResidual() {
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
-  
-  auto basis = wkset->basis[wkset->usebasis[qnum]];
-  auto res = wkset->res;
-  auto off = subview(wkset->offsets,qnum,ALL());
+    
+  auto basis = wkset->getBasis("q");
+  auto res = wkset->getResidual();
+  auto off = wkset->getOffsets("q");
+  auto dqdt = wkset->getData("q_t");
   
   // Simply solves q_dot = f(q,t)
   parallel_for("ODE volume resid",
@@ -63,21 +64,4 @@ void ODE::volumeResidual() {
     res(e,off(0)) += dqdt(e,0) - source(e,0);
   });
   
-}
-
-// ========================================================================================
-// ========================================================================================
-
-void ODE::setWorkset(Teuchos::RCP<workset> & wkset_) {
-  
-  wkset = wkset_;
-  
-  vector<string> varlist = wkset->varlist;
-  for (size_t i=0; i<varlist.size(); i++) {
-    if (varlist[i] == "q") {
-      qnum = i;
-    }
-  }
-  
-  dqdt = wkset->getData("q_t");
 }

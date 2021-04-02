@@ -47,10 +47,14 @@ namespace MrHyDE {
              Teuchos::RCP<PostprocessManager<SolverNode> > & postproc_, Teuchos::RCP<ParameterManager<SolverNode> > & params_);
     
     // ========================================================================================
-    /* given the parameters, solve the forward  problem */
     // ========================================================================================
     
     void run();
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void updateCellData(const int & newrandseed);
     
   protected:
     

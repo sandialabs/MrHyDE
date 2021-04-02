@@ -12,6 +12,8 @@
  ************************************************************************/
 
 #include "multiscaleManager.hpp"
+#include "split_mpi_communicators.hpp"
+#include "subgridFEM.hpp"
 
 using namespace MrHyDE;
 
@@ -20,13 +22,11 @@ using namespace MrHyDE;
 // ========================================================================================
 
 MultiScale::MultiScale(const Teuchos::RCP<MpiComm> & MacroComm_,
-                       const Teuchos::RCP<MpiComm> & Comm_,
+                       Teuchos::RCP<meshInterface> & mesh_,
                        Teuchos::RCP<Teuchos::ParameterList> & settings_,
                        vector<vector<Teuchos::RCP<cell> > > & cells_,
-                       vector<Teuchos::RCP<SubGridModel> > subgridModels_,
                        vector<Teuchos::RCP<FunctionManager> > macro_functionManagers_ ) :
-subgridModels(subgridModels_), Comm(Comm_), MacroComm(MacroComm_),
-settings(settings_), cells(cells_), macro_functionManagers(macro_functionManagers_) {
+MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManagers(macro_functionManagers_) {
 
   debug_level = settings->get<int>("debug level",0);
   if (debug_level > 0) {
@@ -34,7 +34,97 @@ settings(settings_), cells(cells_), macro_functionManagers(macro_functionManager
       cout << "**** Starting multiscale manager constructor ..." << endl;
     }
   }
+  
+  Teuchos::RCP<MpiComm> unusedComm;
+  SplitComm(settings, *MacroComm, unusedComm, Comm);
+  
+  //subgridModels = subgridGenerator(Comm, settings, mesh_);
+  
   if (settings->isSublist("Subgrid")) {
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    // Define the subgrid models specified in the input file
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    int nummodels = settings->sublist("Subgrid").get<int>("number of models",1);
+    int  num_macro_time_steps = settings->sublist("Solver").get("number of steps",1);
+    ScalarT finaltime = settings->sublist("Solver").get<ScalarT>("final time",1.0);
+    ScalarT macro_deltat = finaltime/num_macro_time_steps;
+    if (nummodels == 1) {
+      Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = rcp(new Teuchos::ParameterList("Subgrid"));
+      subgrid_pl->setParameters(settings->sublist("Subgrid"));
+      string subgrid_model_type = subgrid_pl->get<string>("subgrid model","FEM");
+      string macro_block_name = subgrid_pl->get<string>("macro block","eblock-0_0_0");
+      std::vector<string> macro_blocknames;
+      mesh_->stk_mesh->getElementBlockNames(macro_blocknames);
+      int macro_block = 0; // default to single block case
+      for (size_t m=0; m<macro_blocknames.size(); ++m) {
+        if (macro_blocknames[m] == macro_block_name) {
+          macro_block = m;
+        }
+      }
+      topo_RCP macro_topo = mesh_->stk_mesh->getCellTopology(macro_blocknames[macro_block]);
+      if (subgrid_model_type == "FEM") {
+        subgridModels.push_back(Teuchos::rcp( new SubGridFEM(Comm, subgrid_pl, macro_topo,
+                                                             num_macro_time_steps,
+                                                             macro_deltat) ) );
+      }
+      else if (subgrid_model_type == "Explicit FEM") {
+        // subgridModels.push_back(Teuchos::rcp( new SubGridExpFEM(Comm, subgrid_pl, macro_topo,
+        //                                                         num_macro_time_steps,
+        //                                                         macro_deltat) ) );
+      }
+      else if (subgrid_model_type == "FEM2") {
+        //subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo, num_macro_time_steps, macro_deltat) ) );
+      }
+      subgridModels[subgridModels.size()-1]->macro_block = macro_block;
+      subgridModels[subgridModels.size()-1]->usage = "1.0";
+    }
+    else {
+      for (int j=0; j<nummodels; j++) {
+        std::stringstream ss;
+        ss << j;
+        if (settings->sublist("Subgrid").isSublist("Model" + ss.str())) {
+          Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = rcp(new Teuchos::ParameterList("Subgrid"));
+          subgrid_pl->setParameters(settings->sublist("Subgrid").sublist("Model" + ss.str()));
+          string subgrid_model_type = subgrid_pl->get<string>("subgrid model","FEM");
+          string macro_block_name = subgrid_pl->get<string>("macro block","eblock-0_0_0");
+          std::vector<string> macro_blocknames;
+          mesh_->stk_mesh->getElementBlockNames(macro_blocknames);
+          int macro_block = 0; // default to single block case
+          for (size_t m=0; m<macro_blocknames.size(); ++m) {
+            if (macro_blocknames[m] == macro_block_name) {
+              macro_block = m;
+            }
+          }
+          topo_RCP macro_topo = mesh_->stk_mesh->getCellTopology(macro_blocknames[macro_block]);
+          
+          if (subgrid_model_type == "FEM") {
+            subgridModels.push_back(Teuchos::rcp( new SubGridFEM(Comm, subgrid_pl, macro_topo,
+                                                                 num_macro_time_steps,
+                                                                 macro_deltat ) ) );
+          }
+          else if (subgrid_model_type == "Explicit FEM") {
+            // subgridModels.push_back(Teuchos::rcp( new SubGridExpFEM(Comm, subgrid_pl, macro_topo,
+            //                                                          num_macro_time_steps,
+            //                                                          macro_deltat ) ) );
+          }
+          else if (subgrid_model_type == "FEM2") {
+            //subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo, num_macro_time_steps, macro_deltat ) ) );
+          }
+          subgridModels[subgridModels.size()-1]->macro_block = macro_block;
+          string usage;
+          if (j==0) {// to enable default behavior
+            usage = subgrid_pl->get<string>("usage","1.0");
+          }
+          else {
+            usage = subgrid_pl->get<string>("usage","0.0");
+          }
+          subgridModels[subgridModels.size()-1]->usage = usage;
+        }
+      }
+      
+    }
     
     ////////////////////////////////////////////////////////////////////////////////
     // Define the subgrid models specified in the input file

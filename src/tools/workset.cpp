@@ -116,7 +116,7 @@ void workset::createSolns() {
       u_dotvals.push_back(View_AD2("seeded uvals",numElem, numb, maxDerivs));
     }
     
-    if (basis_types[bind] == "HGRAD") {
+    if (basis_types[bind].substr(0,5) == "HGRAD") {
       vars_HGRAD.push_back(i);
       varlist_HGRAD.push_back(var);
       this->addData(var,numElem,numip);
@@ -133,7 +133,7 @@ void workset::createSolns() {
       this->addData("grad("+var+")[y] point",1,1);
       this->addData("grad("+var+")[z] point",1,1);
     }
-    else if (basis_types[bind] == "HDIV" || basis_types[bind] == "HDIV_AC") {
+    else if (basis_types[bind].substr(0,4) == "HDIV" ) {
       vars_HDIV.push_back(i);
       varlist_HDIV.push_back(var);
       this->addData(var+"[x]",numElem,numip);
@@ -150,7 +150,7 @@ void workset::createSolns() {
       this->addData(var+"[y] point",1,1);
       this->addData(var+"[z] point",1,1);
     }
-    else if (basis_types[bind] == "HVOL") {
+    else if (basis_types[bind].substr(0,4) == "HVOL") {
       vars_HVOL.push_back(i);
       varlist_HVOL.push_back(var);
       this->addData(var,numElem,numip);
@@ -158,7 +158,7 @@ void workset::createSolns() {
       this->addData(var+" side",numElem,numsideip);
       this->addData(var+" point",1,1);
     }
-    else if (basis_types[bind] == "HCURL") {
+    else if (basis_types[bind].substr(0,5) == "HCURL") {
       vars_HCURL.push_back(i);
       varlist_HCURL.push_back(var);
       this->addData(var+"[x]",numElem,numip);
@@ -177,7 +177,7 @@ void workset::createSolns() {
       this->addData(var+"[y] point",1,1);
       this->addData(var+"[z] point",1,1);
     }
-    else if (basis_types[bind] == "HFACE") {
+    else if (basis_types[bind].substr(0,5) == "HFACE") {
       vars_HFACE.push_back(i);
       varlist_HFACE.push_back(var);
       this->addData(var+" side",numElem,numsideip);
@@ -191,7 +191,7 @@ void workset::createSolns() {
     int numb = basis_pointers[bind]->getCardinality();
     pvals.push_back(View_AD2("seeded uvals",numElem, numb, maxDerivs));
     
-    if (basis_types[bind] == "HGRAD") {
+    if (basis_types[bind].substr(0,5) == "HGRAD") {
       paramvars_HGRAD.push_back(i);
       paramvarlist_HGRAD.push_back(var);
       this->addData(var,numElem,numip);
@@ -208,7 +208,7 @@ void workset::createSolns() {
       this->addData("grad("+var+")[y] point",1,1);
       this->addData("grad("+var+")[z] point",1,1);
     }
-    else if (basis_types[bind] == "HDIV") {
+    else if (basis_types[bind].substr(0,4) == "HDIV") {
       paramvars_HDIV.push_back(i);
       paramvarlist_HDIV.push_back(var);
       this->addData(var+"[x]",numElem,numip);
@@ -225,7 +225,7 @@ void workset::createSolns() {
       this->addData(var+"[y] point",1,1);
       this->addData(var+"[z] point",1,1);
     }
-    else if (basis_types[bind] == "HVOL") {
+    else if (basis_types[bind].substr(0,4) == "HVOL") {
       paramvars_HVOL.push_back(i);
       paramvarlist_HVOL.push_back(var);
       this->addData(var,numElem,numip);
@@ -233,7 +233,7 @@ void workset::createSolns() {
       this->addData(var+" side",numElem,numsideip);
       this->addData(var+" point",1,1);
     }
-    else if (basis_types[bind] == "HCURL") {
+    else if (basis_types[bind].substr(0,5) == "HCURL") {
       paramvars_HCURL.push_back(i);
       paramvarlist_HCURL.push_back(var);
       this->addData(var+"[x]",numElem,numip);
@@ -252,7 +252,7 @@ void workset::createSolns() {
       this->addData(var+"[y] point",1,1);
       this->addData(var+"[z] point",1,1);
     }
-    else if (basis_types[bind] == "HFACE") {
+    else if (basis_types[bind].substr(0,5) == "HFACE") {
       paramvars_HFACE.push_back(i);
       paramvarlist_HFACE.push_back(var);
       this->addData(var+" side",numElem,numsideip);
@@ -1587,6 +1587,30 @@ bool workset::isAux(const string & var, int & index) {
     }
   }
   return found;
+}
+
+//////////////////////////////////////////////////////////////
+// Get the AD residual
+//////////////////////////////////////////////////////////////
+
+View_AD2 workset::getResidual() {
+  return res;
+}
+
+//////////////////////////////////////////////////////////////
+// Get the AD residual
+//////////////////////////////////////////////////////////////
+
+View_Sc2 workset::getWeights() {
+  return wts;
+}
+
+//////////////////////////////////////////////////////////////
+// Get the AD residual
+//////////////////////////////////////////////////////////////
+
+View_Sc2 workset::getSideWeights() {
+  return wts_side;
 }
 
 //////////////////////////////////////////////////////////////

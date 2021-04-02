@@ -260,7 +260,8 @@ void Interpreter::split(vector<term> & terms, const size_t & index) {
   }
   else {
     size_t num_pm = 0; // +,-
-    size_t num_mdp = 0; // *,/,^,<,>,<=,>=
+    size_t num_mdp = 0; // *,/,<,>,<=,>=
+    size_t num_pow = 0; // ^
     
     string currterm = "";
     string currop = "";
@@ -277,11 +278,14 @@ void Interpreter::split(vector<term> & terms, const size_t & index) {
         if (s[i] == '+' || s[i] == '-') {
           num_pm += 1;
         }
-        if (s[i] == '*' || s[i] == '/' || s[i] == '^'
+        if (s[i] == '*' || s[i] == '/'
             || s[i] == '<' || s[i] == '>') {
           // || s[i] == '<=' // TMW: this might fail - don't use <= or >=
           // || s[i] == '>=') {
           num_mdp += 1;
+        }
+        if (s[i] == '^') {
+          num_pow += 1;
         }
       }
     }
@@ -417,24 +421,6 @@ void Interpreter::split(vector<term> & terms, const size_t & index) {
           currterm = "";
           currop = "divide";
         }
-        else if ( paren == 0 && s[i] == '^') {
-          bool found = false;
-          for (size_t k=0; k<terms.size(); k++) {
-            if (terms[k].expression == currterm) {
-              found = true;
-              terms[index].dep_list.push_back(k);
-              terms[index].dep_ops.push_back(currop);
-            }
-          }
-          if (!found) {
-            term nterm = term(currterm);
-            terms.push_back(nterm);
-            terms[index].dep_list.push_back(terms.size()-1);
-            terms[index].dep_ops.push_back(currop);
-          }
-          currterm = "";
-          currop = "power";
-        }
         else if ( paren == 0 && s[i] == '<') {
           bool found = false;
           for (size_t k=0; k<terms.size(); k++) {
@@ -476,6 +462,60 @@ void Interpreter::split(vector<term> & terms, const size_t & index) {
         }
         
         if (i == s.length()-1 && num_mdp > 0) {
+          bool found = false;
+          for (size_t k=0; k<terms.size(); k++) {
+            if (terms[k].expression == currterm) {
+              found = true;
+              terms[index].dep_list.push_back(k);
+              terms[index].dep_ops.push_back(currop);
+            }
+          }
+          if (!found) {
+            term nterm = term(currterm);
+            terms.push_back(nterm);
+            terms[index].dep_list.push_back(terms.size()-1);
+            terms[index].dep_ops.push_back(currop);
+          }
+        }
+        
+      }
+      //return num_mdp+1;
+    }
+    else if (num_pow > 0) {
+      string currterm = "";
+      string currop = "";
+      for (size_t i=0; i<s.length(); i++) {
+        if (s[i] == '('){
+          paren += 1;
+          currterm += s[i];
+        }
+        else if (s[i] == ')'){
+          paren += -1;
+          currterm += s[i];
+        }
+        else if ( paren == 0 && s[i] == '^') {
+          bool found = false;
+          for (size_t k=0; k<terms.size(); k++) {
+            if (terms[k].expression == currterm) {
+              found = true;
+              terms[index].dep_list.push_back(k);
+              terms[index].dep_ops.push_back(currop);
+            }
+          }
+          if (!found) {
+            term nterm = term(currterm);
+            terms.push_back(nterm);
+            terms[index].dep_list.push_back(terms.size()-1);
+            terms[index].dep_ops.push_back(currop);
+          }
+          currterm = "";
+          currop = "power";
+        }
+        else {
+          currterm += s[i];
+        }
+        
+        if (i == s.length()-1 && num_pow > 0) {
           bool found = false;
           for (size_t k=0; k<terms.size(); k++) {
             if (terms[k].expression == currterm) {

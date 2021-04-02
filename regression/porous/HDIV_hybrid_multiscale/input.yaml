@@ -42,7 +42,7 @@ ANONYMOUS:
   Subgrid input file: subgrid_input.yaml
   Analysis:
     analysis type: forward
-  Postprocess: 
+  Postprocess:
     compute errors: true
     True solutions:
       p face: sin(2*pi*x)*sin(2*pi*y)

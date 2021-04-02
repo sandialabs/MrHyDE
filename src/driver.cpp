@@ -9,26 +9,22 @@ Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
 Bart van Bloemen Waanders (bartv@sandia.gov)
 ***********************************************************************/
 
+#include "trilinos.hpp"
+#include "preferences.hpp"
+
 #include "userInterface.hpp"
 #include "meshInterface.hpp"
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
 #include "assemblyManager.hpp"
 #include "parameterManager.hpp"
-#include "sensorManager.hpp"
 #include "multiscaleManager.hpp"
-#include "linearAlgebraInterface.hpp"
 #include "solverManager.hpp"
 #include "postprocessManager.hpp"
-#include "analysisManager.hpp"
-#include "trilinos.hpp"
-#include "Panzer_DOFManager.hpp"
-
-#include "preferences.hpp"
-#include "subgridGenerator.hpp"
-#include "MrHyDE_help.hpp"
 #include "functionManager.hpp"
-#include "split_mpi_communicators.hpp"
+#include "analysisManager.hpp"
+
+#include "MrHyDE_help.hpp"
 
 int main(int argc,char * argv[]) {
   
@@ -86,13 +82,6 @@ int main(int argc,char * argv[]) {
     
     verbosity = settings->get<int>("verbosity",0);
     profile = settings->get<bool>("profile",false);
-    
-    ////////////////////////////////////////////////////////////////////////////////
-    // split comm for SOL or multiscale runs (deprecated)
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    Teuchos::RCP<MpiComm> subgridComm, unusedComm;
-    SplitComm(settings, *Comm, unusedComm, subgridComm);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Create the mesh
@@ -154,10 +143,8 @@ int main(int argc,char * argv[]) {
     // Set up the subgrid discretizations/models if using multiscale method
     ////////////////////////////////////////////////////////////////////////////////
     
-    std::vector<Teuchos::RCP<SubGridModel> > subgridModels = subgridGenerator(subgridComm, settings, mesh);
-    
-    Teuchos::RCP<MultiScale> multiscale_manager = Teuchos::rcp( new MultiScale(Comm, subgridComm, settings,
-                                                                               assembler->cells, subgridModels,
+    Teuchos::RCP<MultiScale> multiscale_manager = Teuchos::rcp( new MultiScale(Comm, mesh, settings,
+                                                                               assembler->cells,
                                                                                functionManagers) );
     
     ///////////////////////////////////////////////////////////////////////////////
@@ -180,11 +167,6 @@ int main(int argc,char * argv[]) {
     solve->multiscale_manager = multiscale_manager;
     solve->postproc = postproc;
     postproc->linalg = solve->linalg;
-        
-    Teuchos::RCP<SensorManager<SolverNode> > sensors = Teuchos::rcp( new SensorManager<SolverNode>(settings, mesh,
-                                                                                                   assembler) );
-    
-    postproc->sensors = sensors;
     
     ////////////////////////////////////////////////////////////////////////////////
     // Finalize the functions
@@ -195,11 +177,10 @@ int main(int argc,char * argv[]) {
                                       params->paramnames, params->discretized_param_names);
       
       functionManagers[b]->wkset = assembler->wkset[b];
-      
-      //functionManagers[b]->validateFunctions();
       functionManagers[b]->decomposeFunctions();
     }
     Kokkos::fence();
+    
     
     solve->finalizeMultiscale();
     

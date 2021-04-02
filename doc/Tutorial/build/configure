@@ -7,7 +7,7 @@ TRILINOS_HOME='/Users/tmwilde/Software/Trilinos'
 
 TRILINOS_INSTALL='/Users/tmwilde/Software/Trilinos/trilinos-gcc-minimal'
 
-TUTORIAL_HOME='/Users/tmwilde/Software/MrHyDE/doc/Tutorial/Exercises'
+EXERCISES_HOME='/Users/tmwilde/Software/MrHyDE/doc/Tutorial/Exercises'
 
 
 cmake \
@@ -17,4 +17,4 @@ cmake \
 -D CMAKE_CXX_FLAGS:STRING="-Wall" \
 -D CMAKE_CXX_EXTENSIONS=Off \
 ${EXTRA-ARGS} \
-${TUTORIAL_HOME}
+${EXERCISES_HOME}

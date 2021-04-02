@@ -19,6 +19,7 @@
 #include "cell.hpp"
 #include "subgridModel.hpp"
 #include "Amesos2.hpp"
+#include "meshInterface.hpp"
 
 namespace MrHyDE {
   /*
@@ -41,10 +42,9 @@ namespace MrHyDE {
     // ========================================================================================
     
     MultiScale(const Teuchos::RCP<MpiComm> & MacroComm_,
-               const Teuchos::RCP<MpiComm> & Comm_,
+               Teuchos::RCP<meshInterface> & mesh_,
                Teuchos::RCP<Teuchos::ParameterList> & settings_,
                std::vector<std::vector<Teuchos::RCP<cell> > > & cells_,
-               std::vector<Teuchos::RCP<SubGridModel> > subgridModels_,
                std::vector<Teuchos::RCP<FunctionManager> > macro_functionManagers_);
     
     ////////////////////////////////////////////////////////////////////////////////

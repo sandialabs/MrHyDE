@@ -22,7 +22,7 @@
 #include "functionManager.hpp"
 #include "assemblyManager.hpp"
 #include "parameterManager.hpp"
-#include "sensorManager.hpp"
+#include "multiscaleManager.hpp"
 #include "linearAlgebraInterface.hpp"
 
 namespace MrHyDE {
@@ -275,7 +275,6 @@ namespace MrHyDE {
     Teuchos::RCP<physics> phys;
     Teuchos::RCP<AssemblyManager<Node> > assembler;
     Teuchos::RCP<ParameterManager<Node> > params;
-    Teuchos::RCP<SensorManager<Node> > sensors;
     std::vector<Teuchos::RCP<FunctionManager> > functionManagers;
     Teuchos::RCP<MultiScale> multiscale_manager;
     Teuchos::RCP<linearAlgebra<Node> > linalg;
