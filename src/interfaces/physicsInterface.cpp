@@ -20,15 +20,16 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-physics::physics(Teuchos::RCP<Teuchos::ParameterList> & settings_, Teuchos::RCP<MpiComm> & Comm_,
-                 Teuchos::RCP<panzer_stk::STK_Interface> & mesh) :
+PhysicsInterface::PhysicsInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
+                                   Teuchos::RCP<MpiComm> & Comm_,
+                                   Teuchos::RCP<panzer_stk::STK_Interface> & mesh) :
 settings(settings_), Commptr(Comm_){
   
   debug_level = settings->get<int>("debug level",0);
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
-      cout << "**** Starting physics constructor ..." << endl;
+      cout << "**** Starting PhysicsInterface constructor ..." << endl;
     }
   }
   
@@ -94,7 +95,7 @@ settings(settings_), Commptr(Comm_){
 // Add the functions to the function managers
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionManagers_) {
+void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionManagers_) {
   
   functionManagers = functionManagers_;
   
@@ -282,11 +283,11 @@ void physics::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionM
 // Add the requested physics modules, variables, discretization types
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void physics::importPhysics(const bool & isaux) {
+void PhysicsInterface::importPhysics(const bool & isaux) {
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
-      cout << "**** Starting physics::importPhysics ..." << endl;
+      cout << "**** Starting PhysicsInterface::importPhysics ..." << endl;
     }
   }
   
@@ -501,7 +502,7 @@ void physics::importPhysics(const bool & isaux) {
   }
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
-      cout << "**** Finished physics::importPhysics ..." << endl;
+      cout << "**** Finished PhysicsInterface::importPhysics ..." << endl;
     }
   }
   
@@ -511,7 +512,7 @@ void physics::importPhysics(const bool & isaux) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-int physics::getvarOwner(const int & block, const string & var) {
+int PhysicsInterface::getvarOwner(const int & block, const string & var) {
   int owner = 0;
   for (size_t k=0; k<varlist[block].size(); k++) {
     if (varlist[block][k] == var) {
@@ -528,7 +529,7 @@ int physics::getvarOwner(const int & block, const string & var) {
 
 // TMW: this function is probably never used
 
-AD physics::getDirichletValue(const int & block, const ScalarT & x, const ScalarT & y,
+AD PhysicsInterface::getDirichletValue(const int & block, const ScalarT & x, const ScalarT & y,
                               const ScalarT & z, const ScalarT & t, const string & var,
                               const string & gside, const bool & useadjoint,
                               Teuchos::RCP<workset> & wkset) {
@@ -557,7 +558,7 @@ AD physics::getDirichletValue(const int & block, const ScalarT & x, const Scalar
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-ScalarT physics::getInitialValue(const int & block, const ScalarT & x, const ScalarT & y,
+ScalarT PhysicsInterface::getInitialValue(const int & block, const ScalarT & x, const ScalarT & y,
                                 const ScalarT & z, const string & var, const bool & useadjoint) {
   
   /*
@@ -577,7 +578,7 @@ ScalarT physics::getInitialValue(const int & block, const ScalarT & x, const Sca
 //
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-bool physics::checkFace(const size_t & block){
+bool PhysicsInterface::checkFace(const size_t & block){
   bool include_face = false;
   for (size_t i=0; i<modules[block].size(); i++) {
     bool cuseef = modules[block][i]->include_face;
@@ -592,7 +593,7 @@ bool physics::checkFace(const size_t & block){
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-View_Sc3 physics::getInitial(const View_Sc3 ip, const int & block,
+View_Sc3 PhysicsInterface::getInitial(const View_Sc3 ip, const int & block,
                              const bool & project, Teuchos::RCP<workset> & wkset) {
   
   
@@ -610,7 +611,9 @@ View_Sc3 physics::getInitial(const View_Sc3 ip, const int & block,
       auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"ip");
       auto cvals = subview( ivals, ALL(), n, ALL());
       //copy
-      parallel_for("physics fill initial values",RangePolicy<AssemblyExec>(0,cvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+      parallel_for("physics fill initial values",
+                   RangePolicy<AssemblyExec>(0,cvals.extent(0)),
+                   KOKKOS_LAMBDA (const int e ) {
         for (size_t i=0; i<cvals.extent(1); i++) {
           cvals(e,i) = ivals_AD(e,i).val();
         }
@@ -636,7 +639,9 @@ View_Sc3 physics::getInitial(const View_Sc3 ip, const int & block,
         // set the node in wkset
         auto node = subview( ip, e, i, ALL());
         
-        parallel_for("physics initial set point",RangePolicy<AssemblyExec>(0,node.extent(0)), KOKKOS_LAMBDA (const int s ) {
+        parallel_for("physics initial set point",
+                     RangePolicy<AssemblyExec>(0,node.extent(0)),
+                     KOKKOS_LAMBDA (const int s ) {
           x(0,0) = node(0);
           if (dim > 1) {
             y(0,0) = node(1);
@@ -670,7 +675,7 @@ View_Sc3 physics::getInitial(const View_Sc3 ip, const int & block,
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-View_Sc2 physics::getDirichlet(const View_Sc3 ip, const int & var,
+View_Sc2 PhysicsInterface::getDirichlet(const View_Sc3 ip, const int & var,
                                const int & block,
                                const std::string & sidename,
                                Teuchos::RCP<workset> & wkset) {
@@ -685,7 +690,9 @@ View_Sc2 physics::getDirichlet(const View_Sc3 ip, const int & var,
   auto dvals_AD = functionManagers[block]->evaluate("Dirichlet " + varlist[block][var] + " " + sidename,"side ip");
   
   // copy values
-  parallel_for("physics fill Dirichlet values",RangePolicy<AssemblyExec>(0,dvals.extent(0)), KOKKOS_LAMBDA (const int e ) {
+  parallel_for("physics fill Dirichlet values",
+               RangePolicy<AssemblyExec>(0,dvals.extent(0)),
+               KOKKOS_LAMBDA (const int e ) {
     for (size_t i=0; i<dvals.extent(1); i++) {
       dvals(e,i) = dvals_AD(e,i).val();
     }
@@ -696,7 +703,7 @@ View_Sc2 physics::getDirichlet(const View_Sc3 ip, const int & var,
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void physics::setVars() {
+void PhysicsInterface::setVars() {
   for (size_t block=0; block<modules.size(); ++block) {
     for (size_t i=0; i<modules[block].size(); ++i) {
       if (varlist[block].size() > 0){
@@ -706,7 +713,7 @@ void physics::setVars() {
   }
 }
 
-void physics::setAuxVars(size_t & block, vector<string> & vars) {
+void PhysicsInterface::setAuxVars(size_t & block, vector<string> & vars) {
   for (size_t i=0; i<modules[block].size(); i++) {
     //modules[block][i]->setAuxVars(vars);
   }
@@ -715,7 +722,7 @@ void physics::setAuxVars(size_t & block, vector<string> & vars) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void physics::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params,
+void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params,
                                const vector<string> & paramnames) {
   
   //needs to be deprecated
@@ -732,7 +739,7 @@ void physics::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params,
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-int physics::getUniqueIndex(const int & block, const std::string & var) {
+int PhysicsInterface::getUniqueIndex(const int & block, const std::string & var) {
   int index = 0;
   for (int j=0; j<numVars[block]; j++) {
     if (varlist[block][j] == var)
@@ -744,10 +751,10 @@ int physics::getUniqueIndex(const int & block, const std::string & var) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void physics::volumeResidual(const size_t block) {
+void PhysicsInterface::volumeResidual(const size_t block) {
   if (debug_level > 1) {
     if (Commptr->getRank() == 0) {
-      cout << "**** Starting physics volume residual ..." << endl;
+      cout << "**** Starting PhysicsInterface volume residual ..." << endl;
     }
   }
   for (size_t i=0; i<modules[block].size(); i++) {
@@ -755,7 +762,7 @@ void physics::volumeResidual(const size_t block) {
   }
   if (debug_level > 1) {
     if (Commptr->getRank() == 0) {
-      cout << "**** Finished physics volume residual" << endl;
+      cout << "**** Finished PhysicsInterface volume residual" << endl;
     }
   }
 }
@@ -763,7 +770,7 @@ void physics::volumeResidual(const size_t block) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void physics::boundaryResidual(const size_t block) {
+void PhysicsInterface::boundaryResidual(const size_t block) {
   for (size_t i=0; i<modules[block].size(); i++) {
     modules[block][i]->boundaryResidual();
   }
@@ -772,7 +779,7 @@ void physics::boundaryResidual(const size_t block) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void physics::computeFlux(const size_t block) {
+void PhysicsInterface::computeFlux(const size_t block) {
   for (size_t i=0; i<modules[block].size(); i++) {
     modules[block][i]->computeFlux();
   }
@@ -781,7 +788,7 @@ void physics::computeFlux(const size_t block) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void physics::setWorkset(vector<Teuchos::RCP<workset> > & wkset) {
+void PhysicsInterface::setWorkset(vector<Teuchos::RCP<workset> > & wkset) {
   for (size_t block = 0; block<wkset.size(); block++) {
     if (wkset[block]->isInitialized) {
       for (size_t i=0; i<modules[block].size(); i++) {
@@ -794,7 +801,7 @@ void physics::setWorkset(vector<Teuchos::RCP<workset> > & wkset) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void physics::faceResidual(const size_t block) {
+void PhysicsInterface::faceResidual(const size_t block) {
   for (size_t i=0; i<modules[block].size(); i++) {
     modules[block][i]->faceResidual();
   }

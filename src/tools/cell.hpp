@@ -44,7 +44,7 @@ namespace MrHyDE {
          const Kokkos::View<LO*,AssemblyDevice> localID_,
          LIDView LIDs_,
          Kokkos::View<int****,HostDevice> sideinfo_,
-         Teuchos::RCP<discretization> & disc_);
+         Teuchos::RCP<DiscretizationInterface> & disc_);
          
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -288,7 +288,7 @@ namespace MrHyDE {
     vector<size_t> subgrid_model_index; // which subgrid model is used for each time step
     size_t subgrid_usernum; // what is the index for this cell in the subgrid model (should be deprecated)
     
-    Teuchos::RCP<discretization> disc;
+    Teuchos::RCP<DiscretizationInterface> disc;
     
     // Data created here (Views should all be AssemblyDevice)
     size_t numElem;

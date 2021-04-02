@@ -32,8 +32,8 @@ template<class Node>
 ParameterManager<Node>::ParameterManager(const Teuchos::RCP<MpiComm> & Comm_,
                                    Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                    Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
-                                   Teuchos::RCP<physics> & phys_,
-                                   Teuchos::RCP<discretization> & disc_) :
+                                   Teuchos::RCP<PhysicsInterface> & phys_,
+                                   Teuchos::RCP<DiscretizationInterface> & disc_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), settings(settings_) {
   
   debug_level = settings->get<int>("debug level",0);

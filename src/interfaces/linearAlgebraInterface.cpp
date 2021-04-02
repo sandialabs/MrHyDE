@@ -16,9 +16,9 @@
 using namespace MrHyDE;
 
 // Explicit template instantiations
-template class MrHyDE::linearAlgebra<SolverNode>;
+template class MrHyDE::LinearAlgebraInterface<SolverNode>;
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
-  template class MrHyDE::linearAlgebra<SubgridSolverNode>;
+template class MrHyDE::LinearAlgebraInterface<SubgridSolverNode>;
 #endif
 
 // ========================================================================================
@@ -26,10 +26,10 @@ template class MrHyDE::linearAlgebra<SolverNode>;
 // ========================================================================================
 
 template<class Node>
-linearAlgebra<Node>::linearAlgebra(const Teuchos::RCP<MpiComm> & Comm_,
-                                   Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                                   Teuchos::RCP<discretization> & disc_,
-                                   Teuchos::RCP<ParameterManager<Node> > & params_) :
+LinearAlgebraInterface<Node>::LinearAlgebraInterface(const Teuchos::RCP<MpiComm> & Comm_,
+                                                     Teuchos::RCP<Teuchos::ParameterList> & settings_,
+                                                     Teuchos::RCP<DiscretizationInterface> & disc_,
+                                                     Teuchos::RCP<ParameterManager<Node> > & params_) :
 Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
   
   debug_level = settings->get<int>("debug level",0);
@@ -41,7 +41,7 @@ Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
   }
   
   verbosity = settings->get<int>("verbosity",0);
-    
+  
   linearTOL = settings->sublist("Solver").get<ScalarT>("linear TOL",1.0E-7);
   maxLinearIters = settings->sublist("Solver").get<int>("max linear iters",100);
   maxKrylovVectors = settings->sublist("Solver").get<int>("krylov vectors",100);
@@ -94,13 +94,13 @@ Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
 // ========================================================================================
 
 template<class Node>
-void linearAlgebra<Node>::setupLinearAlgebra() {
+void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
   
   Teuchos::TimeMonitor localtimer(*setupLAtimer);
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Starting solver::setupLinearAlgebra..." << endl;
+      cout << "**** Starting solver::setupLinearAlgebraInterface..." << endl;
     }
   }
   
@@ -195,7 +195,7 @@ void linearAlgebra<Node>::setupLinearAlgebra() {
     
     aux_overlapped_graph->fillComplete();
   }
-    
+  
   // --------------------------------------------------
   // discretized parameter LA objects
   // --------------------------------------------------
@@ -242,7 +242,7 @@ void linearAlgebra<Node>::setupLinearAlgebra() {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Finished solver::setupLinearAlgebra" << endl;
+      cout << "**** Finished solver::setupLinearAlgebraInterface" << endl;
     }
   }
   
@@ -253,7 +253,7 @@ void linearAlgebra<Node>::setupLinearAlgebra() {
 // ========================================================================================
 
 template<class Node>
-Teuchos::RCP<Teuchos::ParameterList> linearAlgebra<Node>::getBelosParameterList() {
+Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParameterList() {
   Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList());
   belosList->set("Maximum Iterations",    maxLinearIters); // Maximum number of iterations allowed
   belosList->set("Convergence Tolerance", linearTOL);    // Relative convergence tolerance requested
@@ -285,7 +285,7 @@ Teuchos::RCP<Teuchos::ParameterList> linearAlgebra<Node>::getBelosParameterList(
 // ========================================================================================
 
 template<class Node>
-void linearAlgebra<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+void LinearAlgebraInterface<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   Teuchos::TimeMonitor localtimer(*linearsolvertimer);
   
   if (useDirect) {
@@ -338,7 +338,7 @@ void linearAlgebra<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RC
 // ========================================================================================
 
 template<class Node>
-void linearAlgebra<Node>::linearSolverL2(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+void LinearAlgebraInterface<Node>::linearSolverL2(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   Teuchos::TimeMonitor localtimer(*linearsolvertimer);
   
   if (useDirectL2) {
@@ -379,7 +379,7 @@ void linearAlgebra<Node>::linearSolverL2(matrix_RCP & J, vector_RCP & r, vector_
 // ========================================================================================
 
 template<class Node>
-void linearAlgebra<Node>::linearSolverBoundaryL2(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+void LinearAlgebraInterface<Node>::linearSolverBoundaryL2(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   Teuchos::TimeMonitor localtimer(*linearsolvertimer);
   
   if (useDirectBL2) {
@@ -420,7 +420,7 @@ void linearAlgebra<Node>::linearSolverBoundaryL2(matrix_RCP & J, vector_RCP & r,
 // ========================================================================================
 
 template<class Node>
-void linearAlgebra<Node>::linearSolverAux(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+void LinearAlgebraInterface<Node>::linearSolverAux(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   Teuchos::TimeMonitor localtimer(*linearsolvertimer);
   
   if (useDirectAux) {
@@ -473,7 +473,7 @@ void linearAlgebra<Node>::linearSolverAux(matrix_RCP & J, vector_RCP & r, vector
 // ========================================================================================
 
 template<class Node>
-void linearAlgebra<Node>::linearSolverL2Aux(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+void LinearAlgebraInterface<Node>::linearSolverL2Aux(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   Teuchos::TimeMonitor localtimer(*linearsolvertimer);
   
   if (useDirectL2Aux) {
@@ -514,7 +514,7 @@ void linearAlgebra<Node>::linearSolverL2Aux(matrix_RCP & J, vector_RCP & r, vect
 // ========================================================================================
 
 template<class Node>
-void linearAlgebra<Node>::linearSolverBoundaryL2Aux(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+void LinearAlgebraInterface<Node>::linearSolverBoundaryL2Aux(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   Teuchos::TimeMonitor localtimer(*linearsolvertimer);
   
   if (useDirectBL2Aux) {
@@ -555,7 +555,7 @@ void linearAlgebra<Node>::linearSolverBoundaryL2Aux(matrix_RCP & J, vector_RCP &
 // ========================================================================================
 
 template<class Node>
-void linearAlgebra<Node>::linearSolverL2Param(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+void LinearAlgebraInterface<Node>::linearSolverL2Param(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   Teuchos::TimeMonitor localtimer(*linearsolvertimer);
   
   if (useDirectL2Param) {
@@ -596,7 +596,7 @@ void linearAlgebra<Node>::linearSolverL2Param(matrix_RCP & J, vector_RCP & r, ve
 // ========================================================================================
 
 template<class Node>
-void linearAlgebra<Node>::linearSolverBoundaryL2Param(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+void LinearAlgebraInterface<Node>::linearSolverBoundaryL2Param(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
   Teuchos::TimeMonitor localtimer(*linearsolvertimer);
   
   if (useDirectBL2Param) {
@@ -637,17 +637,17 @@ void linearAlgebra<Node>::linearSolverBoundaryL2Param(matrix_RCP & J, vector_RCP
 // ========================================================================================
 
 template<class Node>
-Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > linearAlgebra<Node>::buildPreconditioner(const matrix_RCP & J, const string & precSublist) {
+Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterface<Node>::buildPreconditioner(const matrix_RCP & J, const string & precSublist) {
   Teuchos::ParameterList mueluParams;
   // MrHyDE default settings
   mueluParams.set("verbosity","none");
   mueluParams.set("coarse: max size",500);
   mueluParams.set("multigrid algorithm", "sa");
-
+  
   // Aggregation
   mueluParams.set("aggregation: type","uncoupled");
   mueluParams.set("aggregation: drop scheme","classical");
-
+  
   //Smoothing
   mueluParams.set("smoother: type","CHEBYSHEV");
   
@@ -676,7 +676,7 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > linearAlgebra<Node>:
   mueluParams.setName("MueLu");
   
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > Mnew = MueLu::CreateTpetraPreconditioner((Teuchos::RCP<LA_Operator>)J, mueluParams);
-
+  
   return Mnew;
 }
 

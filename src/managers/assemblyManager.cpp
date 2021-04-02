@@ -26,9 +26,12 @@ template class MrHyDE::AssemblyManager<SolverNode>;
 // ========================================================================================
 
 template<class Node>
-AssemblyManager<Node>::AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                                 Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
-                                 Teuchos::RCP<physics> & phys_, Teuchos::RCP<ParameterManager<Node>> & params_) :
+AssemblyManager<Node>::AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_,
+                                       Teuchos::RCP<Teuchos::ParameterList> & settings_,
+                                       Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                                       Teuchos::RCP<DiscretizationInterface> & disc_,
+                                       Teuchos::RCP<PhysicsInterface> & phys_,
+                                       Teuchos::RCP<ParameterManager<Node>> & params_) :
 Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(params_) {
   
   // Get the required information from the settings

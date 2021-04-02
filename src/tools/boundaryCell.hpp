@@ -50,7 +50,7 @@ namespace MrHyDE {
                  const int & cellID_,
                  LIDView LIDs_,
                  Kokkos::View<int****,HostDevice> sideinfo_,
-                 Teuchos::RCP<discretization> & disc_);
+                 Teuchos::RCP<DiscretizationInterface> & disc_);
                  
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -317,7 +317,7 @@ namespace MrHyDE {
     // DOF information
     LIDView LIDs, paramLIDs, auxLIDs;
     
-    Teuchos::RCP<discretization> disc;
+    Teuchos::RCP<DiscretizationInterface> disc;
     
     // Creating LIDs on host device for host assembly
     LIDView_host LIDs_host, paramLIDs_host, auxLIDs_host;

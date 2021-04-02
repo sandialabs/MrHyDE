@@ -251,13 +251,13 @@ namespace MrHyDE {
     vector<string> stochclassic_param_names;
     
     vector<string> discparamnames;
-    Teuchos::RCP<physics> sub_physics;
+    Teuchos::RCP<PhysicsInterface> sub_physics;
     Teuchos::RCP<AssemblyManager<SubgridSolverNode> > sub_assembler;
     Teuchos::RCP<ParameterManager<SubgridSolverNode> > sub_params;
     Teuchos::RCP<SubGridFEM_Solver> sub_solver;
-    Teuchos::RCP<meshInterface> sub_mesh;
+    Teuchos::RCP<MeshInterface> sub_mesh;
     Teuchos::RCP<panzer_stk::STK_Interface> combined_mesh;
-    Teuchos::RCP<discretization> sub_disc;
+    Teuchos::RCP<DiscretizationInterface> sub_disc;
     Teuchos::RCP<PostprocessManager<SubgridSolverNode> > sub_postproc;
     vector<Teuchos::RCP<SG_MultiVector> > Psol;
     

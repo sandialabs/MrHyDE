@@ -25,8 +25,6 @@ data::data(const std::string & name_, const ScalarT & val) {
   is_spatialdep = false;
   is_timedep = false;
   is_stochastic = false;
-  //mydata = FC(1);
-  //mydata(0) = val;
   spaceDim = 0;
   numSensors = 0;
 }
@@ -43,24 +41,6 @@ data::data(const std::string & name_, const std::string & datafile) {
   is_timedep = false;
   is_stochastic = false;
   
-  /*
-   vector<ScalarT> datavec;
-   
-   FILE* DataFile = fopen(datafile.c_str(),"r");
-   float d;
-   while( !feof(DataFile) ) {
-   char line[100] = "";
-   fgets(line,100,DataFile);
-   if( strcmp(line,"") ) {
-   sscanf(line, "%f", &d);
-   datavec.push_back(d);
-   }
-   }
-   mydata = FC(datavec.size(),1);
-   for (size_t k=0; k<datavec.size(); k++) {
-   mydata(k) = datavec[k];
-   }
-   */
 }
 
 /////////////////////////////////////////////////////////////////////////////

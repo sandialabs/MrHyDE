@@ -34,7 +34,8 @@ namespace MrHyDE {
     
     CellMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settings,
                  const topo_RCP & cellTopo_,
-                 const Teuchos::RCP<physics> & physics_RCP_, const size_t & myBlock_,
+                 const Teuchos::RCP<PhysicsInterface> & physics_RCP_,
+                 const size_t & myBlock_,
                  const size_t & myLevel_, const int & numElem_,
                  const bool & build_face_terms_,
                  const bool & assemble_face_terms_,
@@ -47,7 +48,7 @@ namespace MrHyDE {
     bool assemble_face_terms, build_face_terms, storeBasisAtIP = true, requireBasisAtNodes = false;
     size_t myBlock, myLevel;
     int numElem=0; // safeguard against case where a proc does not own any elem on a block
-    Teuchos::RCP<physics> physics_RCP;
+    Teuchos::RCP<PhysicsInterface> physics_RCP;
     string response_type;
     vector<string> sidenames;
     bool storeAll, requiresTransient, requiresAdjoint;

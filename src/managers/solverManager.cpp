@@ -16,9 +16,9 @@
 using namespace MrHyDE;
 
 // Explicit template instantiations
-template class MrHyDE::solver<SolverNode>;
+template class MrHyDE::SolverManager<SolverNode>;
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
-  template class MrHyDE::solver<SubgridSolverNode>;
+template class MrHyDE::SolverManager<SubgridSolverNode>;
 #endif
 
 // ========================================================================================
@@ -26,20 +26,20 @@ template class MrHyDE::solver<SolverNode>;
 // ========================================================================================
 
 template<class Node>
-solver<Node>::solver(const Teuchos::RCP<MpiComm> & Comm_,
-                     Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                     Teuchos::RCP<meshInterface> & mesh_,
-                     Teuchos::RCP<discretization> & disc_,
-                     Teuchos::RCP<physics> & phys_,
-                     Teuchos::RCP<AssemblyManager<Node> > & assembler_,
-                     Teuchos::RCP<ParameterManager<Node> > & params_) :
+SolverManager<Node>::SolverManager(const Teuchos::RCP<MpiComm> & Comm_,
+                                   Teuchos::RCP<Teuchos::ParameterList> & settings_,
+                                   Teuchos::RCP<MeshInterface> & mesh_,
+                                   Teuchos::RCP<DiscretizationInterface> & disc_,
+                                   Teuchos::RCP<PhysicsInterface> & phys_,
+                                   Teuchos::RCP<AssemblyManager<Node> > & assembler_,
+                                   Teuchos::RCP<ParameterManager<Node> > & params_) :
 Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembler(assembler_), params(params_) {
   
   debug_level = settings->get<int>("debug level",0);
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Starting solver constructor ..." << endl;
+      cout << "**** Starting SolverManager constructor ..." << endl;
     }
   }
   
@@ -96,7 +96,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   // needed information from the physics interface
   numVars = phys->numVars; //
   vector<vector<string> > phys_varlist = phys->varlist;
-    
+  
   // needed information from the disc interface
   vector<vector<int> > cards = disc->cards;
   
@@ -128,7 +128,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   // Create linear algebra interface
   /////////////////////////////////////////////////////////////////////////////
   
-  linalg = Teuchos::rcp( new linearAlgebra<SolverNode>(Comm, settings, disc, params) );
+  linalg = Teuchos::rcp( new LinearAlgebraInterface<SolverNode>(Comm, settings, disc, params) );
   
   /////////////////////////////////////////////////////////////////////////////
   // Worksets
@@ -147,7 +147,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   }
   
   this->finalizeWorkset();
-    
+  
   phys->setWorkset(assembler->wkset);
   params->wkset = assembler->wkset;
   
@@ -215,7 +215,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Finished solver constructor" << endl;
+      cout << "**** Finished SolverManager constructor" << endl;
     }
   }
   
@@ -225,7 +225,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
 // ========================================================================================
 
 template<class Node>
-void solver<Node>::setButcherTableau(const string & tableau) {
+void SolverManager<Node>::setButcherTableau(const string & tableau) {
   Kokkos::View<ScalarT**,AssemblyDevice> dev_butcher_A;
   Kokkos::View<ScalarT*,AssemblyDevice> dev_butcher_b, dev_butcher_c;
   //auto butcher_A = Kokkos::create_mirror_view(dev_butcher_A);
@@ -429,7 +429,7 @@ void solver<Node>::setButcherTableau(const string & tableau) {
         butcher_A(i,j) = A_vals[i][j];
       }
       butcher_b(i) = b_vals[i];
-      butcher_c(i) = c_vals[i]; 
+      butcher_c(i) = c_vals[i];
     }
     
   }
@@ -466,7 +466,7 @@ void solver<Node>::setButcherTableau(const string & tableau) {
 // ========================================================================================
 
 template<class Node>
-void solver<Node>::setBackwardDifference(const int & order) { // using order as an input to allow for dynamic changes
+void SolverManager<Node>::setBackwardDifference(const int & order) { // using order as an input to allow for dynamic changes
   
   Kokkos::View<ScalarT*,AssemblyDevice> dev_BDF_wts;
   Kokkos::View<ScalarT*,HostDevice> BDF_wts;
@@ -544,11 +544,11 @@ void solver<Node>::setBackwardDifference(const int & order) { // using order as 
 /////////////////////////////////////////////////////////////////////////////
 
 template<class Node>
-void solver<Node>::finalizeWorkset() {
+void SolverManager<Node>::finalizeWorkset() {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Starting solver::finalizeWorkset ..." << endl;
+      cout << "**** Starting SolverManager::finalizeWorkset ..." << endl;
     }
   }
   
@@ -622,7 +622,7 @@ void solver<Node>::finalizeWorkset() {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Finished solver::finalizeWorkset" << endl;
+      cout << "**** Finished SolverManager::finalizeWorkset" << endl;
     }
   }
   
@@ -633,13 +633,13 @@ void solver<Node>::finalizeWorkset() {
 // ========================================================================================
 
 template<class Node>
-void solver<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+void SolverManager<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
   Teuchos::TimeMonitor localtimer(*fixeddofsetuptimer);
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Starting solver::setupFixedDOFs()" << endl;
+      cout << "**** Starting SolverManager::setupFixedDOFs()" << endl;
     }
   }
   
@@ -693,10 +693,10 @@ void solver<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & setting
       }
     }
   }
-    
+  
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Finished solver::setupFixedDOFs()" << endl;
+      cout << "**** Finished SolverManager::setupFixedDOFs()" << endl;
     }
   }
   
@@ -707,13 +707,13 @@ void solver<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & setting
 // ========================================================================================
 
 template<class Node>
-void solver<Node>::projectDirichlet() {
-
+void SolverManager<Node>::projectDirichlet() {
+  
   Teuchos::TimeMonitor localtimer(*dbcprojtimer);
   
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
-      cout << "**** Starting solver::projectDirichlet()" << endl;
+      cout << "**** Starting SolverManager::projectDirichlet()" << endl;
     }
   }
   if (usestrongDBCs) {
@@ -742,7 +742,7 @@ void solver<Node>::projectDirichlet() {
   }
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
-      cout << "**** Finished solver::projectDirichlet()" << endl;
+      cout << "**** Finished SolverManager::projectDirichlet()" << endl;
     }
   }
   
@@ -753,13 +753,13 @@ void solver<Node>::projectDirichlet() {
 // ========================================================================================
 
 template<class Node>
-void solver<Node>::forwardModel(DFAD & objective) {
+void SolverManager<Node>::forwardModel(DFAD & objective) {
   
   current_time = initial_time;
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Starting solver::forwardModel ..." << endl;
+      cout << "**** Starting SolverManager::forwardModel ..." << endl;
     }
   }
   
@@ -770,7 +770,7 @@ void solver<Node>::forwardModel(DFAD & objective) {
     this->projectDirichlet();
   }
   vector_RCP u = this->setInitial();
-   
+  
   //postproc->resetObjective();
   
   //if (solver_type == "transient") {
@@ -801,7 +801,7 @@ void solver<Node>::forwardModel(DFAD & objective) {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Finished solver::forwardModel" << endl;
+      cout << "**** Finished SolverManager::forwardModel" << endl;
     }
   }
 }
@@ -810,11 +810,11 @@ void solver<Node>::forwardModel(DFAD & objective) {
 // ========================================================================================
 
 template<class Node>
-void solver<Node>::steadySolver(DFAD & objective, vector_RCP & u) {
+void SolverManager<Node>::steadySolver(DFAD & objective, vector_RCP & u) {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Starting solver::steadySolver ..." << endl;
+      cout << "**** Starting SolverManager::steadySolver ..." << endl;
     }
   }
   
@@ -825,7 +825,7 @@ void solver<Node>::steadySolver(DFAD & objective, vector_RCP & u) {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Starting solver::steadySolver" << endl;
+      cout << "**** Starting SolverManager::steadySolver" << endl;
     }
   }
 }
@@ -834,11 +834,11 @@ void solver<Node>::steadySolver(DFAD & objective, vector_RCP & u) {
 // ========================================================================================
 
 template<class Node>
-void solver<Node>::adjointModel(vector<ScalarT> & gradient) {
+void SolverManager<Node>::adjointModel(vector<ScalarT> & gradient) {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Starting solver::adjointModel ..." << endl;
+      cout << "**** Starting SolverManager::adjointModel ..." << endl;
     }
   }
   
@@ -873,7 +873,7 @@ void solver<Node>::adjointModel(vector<ScalarT> & gradient) {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Finished solver::adjointModel" << endl;
+      cout << "**** Finished SolverManager::adjointModel" << endl;
     }
   }
   
@@ -885,14 +885,14 @@ void solver<Node>::adjointModel(vector<ScalarT> & gradient) {
 // ========================================================================================
 
 template<class Node>
-void solver<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> & gradient,
-                                   ScalarT & start_time, ScalarT & end_time) {
+void SolverManager<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> & gradient,
+                                          ScalarT & start_time, ScalarT & end_time) {
   
   Teuchos::TimeMonitor localtimer(*transientsolvertimer);
   
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
-      cout << "******** Starting solver::transientSolver ..." << endl;
+      cout << "******** Starting SolverManager::transientSolver ..." << endl;
       cout << "******** Start time = " << start_time << endl;
       cout << "******** End time = " << end_time << endl;
       cout << "******** Time step size = " << deltat << endl;
@@ -916,7 +916,7 @@ void solver<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vector<Scal
       postproc->record(u,current_time,obj);
     }
     Kokkos::fence();
- 
+    
     for (int s=0; s<numsteps; s++) {
       assembler->resetPrevSoln();
     }
@@ -1088,34 +1088,34 @@ void solver<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vector<Scal
         is_adjoint = true;
         //assembler->setAlternateSolution(u);
         /*
-        auto vec_kv = u_prev->getLocalView<HostDevice>();
-        
-        Kokkos::View<LO*,AssemblyDevice> numDOF;
-        Kokkos::View<ScalarT***,AssemblyDevice> data;
-        Kokkos::View<int**,AssemblyDevice> offsets;
-        LIDView LIDs;
-        
-        for (size_t b=0; b<assembler->cells.size(); b++) {
-          for (size_t c=0; c<assembler->cells[b].size(); c++) {
-            LIDs = assembler->cells[b][c]->LIDs;
-            numDOF = assembler->cells[b][c]->cellData->numDOF;
-            auto cellu = assembler->cells[b][c]->u;
-            assembler->cells[b][c]->u_alt = Kokkos::View<ScalarT***,AssemblyDevice>("alternative solution",cellu.extent(0),cellu.extent(1),cellu.extent(2));
-            data = assembler->cells[b][c]->u_alt;
-            offsets = assembler->wkset[b]->offsets;
-            
-            parallel_for("assembly gather",RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_LAMBDA (const int elem ) {
-              for (size_t var=0; var<offsets.extent(0); var++) {
-                for(size_t dof=0; dof<numDOF(var); dof++ ) {
-                  data(elem,var,dof) = vec_kv(LIDs(elem,offsets(var,dof)),0);
-                }
-              }
-            });
-            
-            assembler->cells[b][c]->usealtsol = false;
-          }
-        }
-          */
+         auto vec_kv = u_prev->getLocalView<HostDevice>();
+         
+         Kokkos::View<LO*,AssemblyDevice> numDOF;
+         Kokkos::View<ScalarT***,AssemblyDevice> data;
+         Kokkos::View<int**,AssemblyDevice> offsets;
+         LIDView LIDs;
+         
+         for (size_t b=0; b<assembler->cells.size(); b++) {
+         for (size_t c=0; c<assembler->cells[b].size(); c++) {
+         LIDs = assembler->cells[b][c]->LIDs;
+         numDOF = assembler->cells[b][c]->cellData->numDOF;
+         auto cellu = assembler->cells[b][c]->u;
+         assembler->cells[b][c]->u_alt = Kokkos::View<ScalarT***,AssemblyDevice>("alternative solution",cellu.extent(0),cellu.extent(1),cellu.extent(2));
+         data = assembler->cells[b][c]->u_alt;
+         offsets = assembler->wkset[b]->offsets;
+         
+         parallel_for("assembly gather",RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+         for (size_t var=0; var<offsets.extent(0); var++) {
+         for(size_t dof=0; dof<numDOF(var); dof++ ) {
+         data(elem,var,dof) = vec_kv(LIDs(elem,offsets(var,dof)),0);
+         }
+         }
+         });
+         
+         assembler->cells[b][c]->usealtsol = false;
+         }
+         }
+         */
         vector<double> stage_grad(gradient.size(),0.0);
         
         for (int stage = numstages-1; stage>=0; stage--) {
@@ -1140,10 +1140,10 @@ void solver<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vector<Scal
         //  gradient[k] += stage_grad[k] - (numstages-1)*gradient[k];
         //}
         /*for (size_t b=0; b<assembler->cells.size(); b++) {
-          for (size_t c=0; c<assembler->cells[b].size(); c++) {
-            assembler->cells[b][c]->usealtsol = false;
-          }
-        }*/
+         for (size_t c=0; c<assembler->cells[b].size(); c++) {
+         assembler->cells[b][c]->usealtsol = false;
+         }
+         }*/
       }
       //KokkosTools::print(phi);
       
@@ -1156,7 +1156,7 @@ void solver<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vector<Scal
   
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
-      cout << "******** Finished solver::transientSolver" << endl;
+      cout << "******** Finished SolverManager::transientSolver" << endl;
     }
   }
   
@@ -1166,13 +1166,13 @@ void solver<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vector<Scal
 // ========================================================================================
 
 template<class Node>
-int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
+int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
   
   Teuchos::TimeMonitor localtimer(*nonlinearsolvertimer);
   
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
-      cout << "******** Starting solver::nonlinearSolver ..." << endl;
+      cout << "******** Starting SolverManager::nonlinearSolver ..." << endl;
     }
   }
   
@@ -1240,25 +1240,25 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     //}
     
     /*
-    if (is_adjoint && postproc->response_type == "discrete") {
-      vector_RCP D_soln;
-      bool fnd = postproc->datagen_soln->extract(D_soln, 0, current_time+deltat);
-      if (fnd) {
-        // TMW: this is unecessarily complicated because we store the overlapped soln
-        vector_RCP diff = linalg->getNewVector();
-        vector_RCP u_no = linalg->getNewVector();
-        vector_RCP D_no = linalg->getNewVector();
-        u_no->doExport(*u, *(linalg->exporter), Tpetra::REPLACE);
-        D_no->doExport(*D_soln, *(linalg->exporter), Tpetra::REPLACE);
-        diff->update(1.0, *u_no, 0.0);
-        diff->update(-1.0, *D_no, 1.0);
-        res->update(-1.0*postproc->discrete_objective_scale_factor,*diff,1.0);
-      }
-      else {
-        std::cout << "Error: did not find a data-generating solution" << std::endl;
-      }
-    }
-    */
+     if (is_adjoint && postproc->response_type == "discrete") {
+     vector_RCP D_soln;
+     bool fnd = postproc->datagen_soln->extract(D_soln, 0, current_time+deltat);
+     if (fnd) {
+     // TMW: this is unecessarily complicated because we store the overlapped soln
+     vector_RCP diff = linalg->getNewVector();
+     vector_RCP u_no = linalg->getNewVector();
+     vector_RCP D_no = linalg->getNewVector();
+     u_no->doExport(*u, *(linalg->exporter), Tpetra::REPLACE);
+     D_no->doExport(*D_soln, *(linalg->exporter), Tpetra::REPLACE);
+     diff->update(1.0, *u_no, 0.0);
+     diff->update(-1.0, *D_no, 1.0);
+     res->update(-1.0*postproc->discrete_objective_scale_factor,*diff,1.0);
+     }
+     else {
+     std::cout << "Error: did not find a data-generating solution" << std::endl;
+     }
+     }
+     */
     
     if (debug_level>2) {
       KokkosTools::print(res,"residual from solver interface");
@@ -1304,7 +1304,7 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       
       linalg->linearSolver(J, res, du);
       linalg->importVectorToOverlapped(du_over, du);
-        
+      
       if (is_adjoint) {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
         phi->update(1.0, *du_over, 1.0);
@@ -1341,7 +1341,7 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
   }
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
-      cout << "******** Finished solver::nonlinearSolver" << endl;
+      cout << "******** Finished SolverManager::nonlinearSolver" << endl;
     }
   }
   return status;
@@ -1356,11 +1356,11 @@ int solver<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
 // ========================================================================================
 
 template<class Node>
-void solver<Node>::setDirichlet(vector_RCP & u) {
+void SolverManager<Node>::setDirichlet(vector_RCP & u) {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Starting solver::setDirichlet ..." << endl;
+      cout << "**** Starting SolverManager::setDirichlet ..." << endl;
     }
   }
   
@@ -1389,7 +1389,9 @@ void solver<Node>::setDirichlet(vector_RCP & u) {
             Kokkos::deep_copy(scalarval,scval_host);
             
             auto cdofs = dbcDOFs[b][v];
-            parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,cdofs.extent(0)), KOKKOS_LAMBDA (const int i ) {
+            parallel_for("solver initial scalar",
+                         RangePolicy<LA_exec>(0,cdofs.extent(0)),
+                         KOKKOS_LAMBDA (const int i ) {
               ScalarT val = scalarval(0);
               u_kv(cdofs(i),0) = val;
             });
@@ -1403,7 +1405,9 @@ void solver<Node>::setDirichlet(vector_RCP & u) {
         for (size_t v=0; v<dbcDOFs[b].size(); v++) {
           if (dbcDOFs[b][v].extent(0)>0) {
             auto cdofs = dbcDOFs[b][v];
-            parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,cdofs.extent(0)), KOKKOS_LAMBDA (const int i ) {
+            parallel_for("solver initial scalar",
+                         RangePolicy<LA_exec>(0,cdofs.extent(0)),
+                         KOKKOS_LAMBDA (const int i ) {
               u_kv(cdofs(i),0) = dbc_kv(cdofs(i),0);
             });
           }
@@ -1422,7 +1426,9 @@ void solver<Node>::setDirichlet(vector_RCP & u) {
         ptdofs_host(i) = row;
       }
       Kokkos::deep_copy(ptdofs,ptdofs_host);
-      parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,ptdofs.extent(0)), KOKKOS_LAMBDA (const int i ) {
+      parallel_for("solver initial scalar",
+                   RangePolicy<LA_exec>(0,ptdofs.extent(0)),
+                   KOKKOS_LAMBDA (const int i ) {
         LO row = ptdofs(i);
         u_kv(row,0) = 0.0; // fix to zero for now
       });
@@ -1431,7 +1437,7 @@ void solver<Node>::setDirichlet(vector_RCP & u) {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Finished solver::setDirichlet" << endl;
+      cout << "**** Finished SolverManager::setDirichlet" << endl;
     }
   }
 }
@@ -1440,7 +1446,7 @@ void solver<Node>::setDirichlet(vector_RCP & u) {
 // ========================================================================================
 
 template<class Node>
-Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitialParams() {
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > SolverManager<Node>::setInitialParams() {
   vector_RCP initial = linalg->getNewParamOverlappedVector();
   ScalarT value = 2.0;
   initial->putScalar(value);
@@ -1451,14 +1457,14 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitialP
 // ========================================================================================
 
 template<class Node>
-Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial() {
- 
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > SolverManager<Node>::setInitial() {
+  
   Teuchos::TimeMonitor localtimer(*initsettimer);
   typedef typename Node::execution_space LA_exec;
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Starting solver::setInitial ..." << endl;
+      cout << "**** Starting SolverManager::setInitial ..." << endl;
     }
   }
   
@@ -1498,7 +1504,9 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial(
           auto numDOF = assembler->cellData[block]->numDOF;
           for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
             auto LIDs = assembler->cells[block][cell]->LIDs;
-            parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+            parallel_for("solver initial scalar",
+                         RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                         KOKKOS_LAMBDA (const int e ) {
               for (size_type n=0; n<numDOF.extent(0); n++) {
                 for (int i=0; i<numDOF(n); i++ ) {
                   initial_kv(LIDs(e,offsets(n,i)),0) = idata(n);
@@ -1514,7 +1522,9 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial(
           auto numDOF = assembler->cellData[block]->numDOF_host;
           for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
             auto LIDs = assembler->cells[block][cell]->LIDs_host;
-            parallel_for("solver initial scalar",RangePolicy<LA_exec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+            parallel_for("solver initial scalar",
+                         RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                         KOKKOS_LAMBDA (const int e ) {
               for (size_type n=0; n<numDOF.extent(0); n++) {
                 for (int i=0; i<numDOF(n); i++ ) {
                   initial_kv(LIDs(e,host_offsets(n,i)),0) = idata(n);
@@ -1555,7 +1565,7 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial(
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Finished solver::setInitial ..." << endl;
+      cout << "**** Finished SolverManager::setInitial ..." << endl;
     }
   }
   
@@ -1566,7 +1576,7 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::setInitial(
 // ========================================================================================
 
 template<class Node>
-void solver<Node>::setBatchID(const int & bID){
+void SolverManager<Node>::setBatchID(const int & bID){
   batchID = bID;
   params->batchID = bID;
 }
@@ -1575,7 +1585,7 @@ void solver<Node>::setBatchID(const int & bID){
 // ========================================================================================
 
 template<class Node>
-Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::blankState(){
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > SolverManager<Node>::blankState(){
   vector_RCP F_soln = linalg->getNewOverlappedVector();
   return F_soln;
 }
@@ -1587,12 +1597,12 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > solver<Node>::blankState(
 ////////////////////////////////////////////////////////////////////////////////
 
 template<class Node>
-void solver<Node>::finalizeParams() {
-
+void SolverManager<Node>::finalizeParams() {
+  
   //for (size_t b=0; b<blocknames.size(); b++) {
   //  assembler->wkset[b]->paramusebasis = params->discretized_param_usebasis;
   //  assembler->wkset[b]->paramoffsets = params->paramoffsets[0];
- // }
+  // }
   
 }
 
@@ -1600,11 +1610,11 @@ void solver<Node>::finalizeParams() {
 ////////////////////////////////////////////////////////////////////////////////
 
 template<class Node>
-void solver<Node>::finalizeMultiscale() {
+void SolverManager<Node>::finalizeMultiscale() {
   if (multiscale_manager->subgridModels.size() > 0 ) {
     for (size_t k=0; k<multiscale_manager->subgridModels.size(); k++) {
       multiscale_manager->subgridModels[k]->paramvals_KVAD = params->paramvals_KVAD;
-    //  multiscale_manager->subgridModels[k]->wkset[0]->paramnames = paramnames;
+      //  multiscale_manager->subgridModels[k]->wkset[0]->paramnames = paramnames;
     }
     
     multiscale_manager->macro_wkset = assembler->wkset;
@@ -1631,6 +1641,6 @@ void solver<Node>::finalizeMultiscale() {
     
     
   }
-
+  
 }
 

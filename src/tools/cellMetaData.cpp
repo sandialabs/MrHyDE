@@ -19,7 +19,8 @@ using namespace MrHyDE;
 
 CellMetaData::CellMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settings,
                            const topo_RCP & cellTopo_,
-                           const Teuchos::RCP<physics> & physics_RCP_, const size_t & myBlock_,
+                           const Teuchos::RCP<PhysicsInterface> & physics_RCP_,
+                           const size_t & myBlock_,
                            const size_t & myLevel_, const int & numElem_,
                            const bool & build_face_terms_,
                            const bool & assemble_face_terms_,

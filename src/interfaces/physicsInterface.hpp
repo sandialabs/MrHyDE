@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef PHYSICS_H
-#define PHYSICS_H
+#ifndef PHYSICSINTERFACE_H
+#define PHYSICSINTERFACE_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
@@ -69,16 +69,16 @@ namespace MrHyDE {
   }
   */
   
-  class physics {
+  class PhysicsInterface {
   public:
     
     // ========================================================================================
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    physics() {} ;
+    PhysicsInterface() {} ;
     
-    physics(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<MpiComm> & Comm_,
+    PhysicsInterface(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<MpiComm> & Comm_,
             Teuchos::RCP<panzer_stk::STK_Interface> & mesh);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -202,11 +202,11 @@ namespace MrHyDE {
     
     vector<vector<string> > extrafields_list, extracellfields_list, response_list, target_list, weight_list;
     
-    Teuchos::RCP<Teuchos::Time> bctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::physics::setBCData()");
-    Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::physics::setDirichletData()");
-    Teuchos::RCP<Teuchos::Time> sideinfotimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::physics::getSideInfo()");
-    Teuchos::RCP<Teuchos::Time> responsetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::physics:computeResponse()");
-    Teuchos::RCP<Teuchos::Time> pointreponsetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::physics::computePointResponse()");
+    Teuchos::RCP<Teuchos::Time> bctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::setBCData()");
+    Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::setDirichletData()");
+    Teuchos::RCP<Teuchos::Time> sideinfotimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::getSideInfo()");
+    Teuchos::RCP<Teuchos::Time> responsetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface:computeResponse()");
+    Teuchos::RCP<Teuchos::Time> pointreponsetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::computePointResponse()");
     
   };
   

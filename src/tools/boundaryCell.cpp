@@ -30,7 +30,7 @@ BoundaryCell::BoundaryCell(const Teuchos::RCP<CellMetaData> & cellData_,
                            const int & cellID_,
                            LIDView LIDs_,
                            Kokkos::View<int****,HostDevice> sideinfo_,
-                           Teuchos::RCP<discretization> & disc_) :
+                           Teuchos::RCP<DiscretizationInterface> & disc_) :
 cellData(cellData_), localElemID(localID_), localSideID(sideID_),
 sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename(sidename_), LIDs(LIDs_), disc(disc_)   {
 

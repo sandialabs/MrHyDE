@@ -84,7 +84,7 @@ namespace MrHyDE {
       
       if (type == "sensors") {
         sensor_points_file = objsettings.get<string>("sensor points file","sensor_points.dat");
-        sensor_data_file = objsettings.get<string>("sensor data file","sensor_data.dat");
+        sensor_data_file = objsettings.get<string>("sensor data file","");
         save_data = objsettings.get<bool>("save sensor data",false);
         response = objsettings.get<string>("response","0.0");
         functionManager_->addFunction(name+" response",response,"point");
@@ -154,8 +154,9 @@ namespace MrHyDE {
     
     PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                        Teuchos::RCP<Teuchos::ParameterList> & settings,
-                       Teuchos::RCP<meshInterface> & mesh_,
-                       Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
+                       Teuchos::RCP<MeshInterface> & mesh_,
+                       Teuchos::RCP<DiscretizationInterface> & disc_,
+                       Teuchos::RCP<PhysicsInterface> & phys_,
                        std::vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
                        Teuchos::RCP<AssemblyManager<Node> > & assembler_);
     
@@ -165,10 +166,11 @@ namespace MrHyDE {
     
     PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                        Teuchos::RCP<Teuchos::ParameterList> & settings,
-                       Teuchos::RCP<meshInterface> & mesh_,
-                       Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
+                       Teuchos::RCP<MeshInterface> & mesh_,
+                       Teuchos::RCP<DiscretizationInterface> & disc_,
+                       Teuchos::RCP<PhysicsInterface> & phys_,
                        std::vector<Teuchos::RCP<FunctionManager> > & functionManagers,
-                       Teuchos::RCP<MultiScale> & multiscale_manager_,
+                       Teuchos::RCP<MultiscaleManager> & multiscale_manager_,
                        Teuchos::RCP<AssemblyManager<Node> > & assembler_,
                        Teuchos::RCP<ParameterManager<Node> > & params_);
     
@@ -270,14 +272,14 @@ namespace MrHyDE {
     // ========================================================================================
         
     Teuchos::RCP<MpiComm> Comm;
-    Teuchos::RCP<meshInterface>  mesh;
-    Teuchos::RCP<discretization> disc;
-    Teuchos::RCP<physics> phys;
+    Teuchos::RCP<MeshInterface>  mesh;
+    Teuchos::RCP<DiscretizationInterface> disc;
+    Teuchos::RCP<PhysicsInterface> phys;
     Teuchos::RCP<AssemblyManager<Node> > assembler;
     Teuchos::RCP<ParameterManager<Node> > params;
     std::vector<Teuchos::RCP<FunctionManager> > functionManagers;
-    Teuchos::RCP<MultiScale> multiscale_manager;
-    Teuchos::RCP<linearAlgebra<Node> > linalg;
+    Teuchos::RCP<MultiscaleManager> multiscale_manager;
+    Teuchos::RCP<LinearAlgebraInterface<Node> > linalg;
     
     vector<objective> objectives;
     vector<regularization> regularizations;

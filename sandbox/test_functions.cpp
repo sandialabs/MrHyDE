@@ -22,7 +22,7 @@ int main(int argc, char * argv[]) {
     // Set up a dummy workset just to test interplay between function manager and workset
     //----------------------------------------------------------------------
     
-    Teuchos::RCP<discretization> disc = Teuchos::rcp( new discretization() );
+    Teuchos::RCP<DiscretizationInterface> disc = Teuchos::rcp( new DiscretizationInterface() );
     
     topo_RCP cellTopo = Teuchos::rcp( new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() ) );
     topo_RCP sideTopo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() ));

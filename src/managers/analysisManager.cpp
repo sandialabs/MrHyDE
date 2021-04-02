@@ -30,11 +30,11 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-analysis::analysis(const Teuchos::RCP<MpiComm> & Comm_,
-                   Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                   Teuchos::RCP<solver<SolverNode> > & solver_,
-                   Teuchos::RCP<PostprocessManager<SolverNode> > & postproc_,
-                   Teuchos::RCP<ParameterManager<SolverNode> > & params_) :
+AnalysisManager::AnalysisManager(const Teuchos::RCP<MpiComm> & Comm_,
+                                 Teuchos::RCP<Teuchos::ParameterList> & settings_,
+                                 Teuchos::RCP<SolverManager<SolverNode> > & solver_,
+                                 Teuchos::RCP<PostprocessManager<SolverNode> > & postproc_,
+                                 Teuchos::RCP<ParameterManager<SolverNode> > & params_) :
 Comm(Comm_), settings(settings_), solve(solver_),
 postproc(postproc_), params(params_) {
   verbosity = settings->get<int>("verbosity",0);
@@ -47,11 +47,11 @@ postproc(postproc_), params(params_) {
 /* given the parameters, solve the forward  problem */
 // ========================================================================================
 
-void analysis::run() {
+void AnalysisManager::run() {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Starting analysis::run ..." << endl;
+      cout << "**** Starting AnalysisManager::run ..." << endl;
     }
   }
   
@@ -104,7 +104,7 @@ void analysis::run() {
     
     
     if(Comm->getRank() == 0)
-    cout << "Evaluating samples ..." << endl;
+      cout << "Evaluating samples ..." << endl;
     
     for (int j=0; j<numsamples; j++) {
       vector<ScalarT> currparams;
@@ -135,7 +135,7 @@ void analysis::run() {
       }
       
       if(Comm->getRank() == 0)
-      cout << "Finished evaluating sample number: " << j+1 << " out of " << numsamples << endl;
+        cout << "Finished evaluating sample number: " << j+1 << " out of " << numsamples << endl;
     }
     
     sdataOUT.close();
@@ -156,7 +156,7 @@ void analysis::run() {
     vector<ScalarT> param_vars = params->getStochasticParams("variance");
     vector<ScalarT> param_mins = params->getStochasticParams("min");
     vector<ScalarT> param_maxs = params->getStochasticParams("max");
-    uqmanager uq(*Comm, uqsettings, param_types, param_means, param_vars, param_mins, param_maxs);
+    UQManager uq(*Comm, uqsettings, param_types, param_means, param_vars, param_mins, param_maxs);
     
     // Generate the samples for the UQ
     int numstochparams = param_types.size();
@@ -199,52 +199,52 @@ void analysis::run() {
          postproc->writeSolution(F_soln, "sampling_data/outputMC_" + str + "_.exo");
          }*/
         /*
-        if (settings->sublist("Postprocess").get<bool>("compute response",false)) {
-          Kokkos::View<ScalarT***,HostDevice> currresponse = postproc->computeResponse(0);
-          for (size_t i=0; i<currresponse.extent(0); i++) {
-            for (size_t j=0; j<currresponse.extent(1); j++) {
-              for (size_t k=0; k<currresponse.extent(2); k++) {
-                ScalarT myval = currresponse(i,j,k);
-                ScalarT gval = 0.0;
-                Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&myval,&gval);
-                //Comm->SumAll(&myval, &gval, 1);
-                currresponse(i,j,k) = gval;
-              }
-            }
-          }
-          
-          response_values.push_back(currresponse);
-          if (settings->sublist("Postprocess").get<bool>("compute response forward gradient",false)) {
-            Kokkos::View<ScalarT****,HostDevice> currgrad("current gradient",numstochparams,currresponse.extent(0),
-                                                         currresponse.extent(1),currresponse.extent(2));
-            for (int i=0; i<numstochparams; i++) {
-              ScalarT oldval = currparams[i];
-              ScalarT pert = 1.0e-6;
-              currparams[i] += pert;
-              params->updateParams(currparams,2);
-              DFAD objfun2 = 0.0;
-              solve->forwardModel(objfun2);
-              Kokkos::View<ScalarT***,HostDevice> currresponse2 = postproc->computeResponse(0);
-              for (size_t i2=0; i2<currresponse2.extent(0); i2++) {
-                for (size_t j=0; j<currresponse2.extent(1); j++) {
-                  for (size_t k=0; k<currresponse2.extent(2); k++) {
-                    ScalarT myval = currresponse2(i2,j,k);
-                    ScalarT gval = 0.0;
-                    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&myval,&gval);
-                    //Comm->SumAll(&myval, &gval, 1);
-                    currgrad(i,i2,j,k) = (gval-currresponse(i2,j,k))/pert;
-                  }
-                }
-              }
-              //if (Comm->getRank() == 0) {
-              //  cout << "Estimated derivative wrt stoch. param: " << i << endl;
-              //  cout << "                                     : " << (currresponse2(0,0,0)-currresponse(0,0,0))/1.0e-6 << endl;
-              //}
-              currparams[i] = oldval;
-            }
-            response_grads.push_back(currgrad);
-          }
-        }*/
+         if (settings->sublist("Postprocess").get<bool>("compute response",false)) {
+         Kokkos::View<ScalarT***,HostDevice> currresponse = postproc->computeResponse(0);
+         for (size_t i=0; i<currresponse.extent(0); i++) {
+         for (size_t j=0; j<currresponse.extent(1); j++) {
+         for (size_t k=0; k<currresponse.extent(2); k++) {
+         ScalarT myval = currresponse(i,j,k);
+         ScalarT gval = 0.0;
+         Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&myval,&gval);
+         //Comm->SumAll(&myval, &gval, 1);
+         currresponse(i,j,k) = gval;
+         }
+         }
+         }
+         
+         response_values.push_back(currresponse);
+         if (settings->sublist("Postprocess").get<bool>("compute response forward gradient",false)) {
+         Kokkos::View<ScalarT****,HostDevice> currgrad("current gradient",numstochparams,currresponse.extent(0),
+         currresponse.extent(1),currresponse.extent(2));
+         for (int i=0; i<numstochparams; i++) {
+         ScalarT oldval = currparams[i];
+         ScalarT pert = 1.0e-6;
+         currparams[i] += pert;
+         params->updateParams(currparams,2);
+         DFAD objfun2 = 0.0;
+         solve->forwardModel(objfun2);
+         Kokkos::View<ScalarT***,HostDevice> currresponse2 = postproc->computeResponse(0);
+         for (size_t i2=0; i2<currresponse2.extent(0); i2++) {
+         for (size_t j=0; j<currresponse2.extent(1); j++) {
+         for (size_t k=0; k<currresponse2.extent(2); k++) {
+         ScalarT myval = currresponse2(i2,j,k);
+         ScalarT gval = 0.0;
+         Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&myval,&gval);
+         //Comm->SumAll(&myval, &gval, 1);
+         currgrad(i,i2,j,k) = (gval-currresponse(i2,j,k))/pert;
+         }
+         }
+         }
+         //if (Comm->getRank() == 0) {
+         //  cout << "Estimated derivative wrt stoch. param: " << i << endl;
+         //  cout << "                                     : " << (currresponse2(0,0,0)-currresponse(0,0,0))/1.0e-6 << endl;
+         //}
+         currparams[i] = oldval;
+         }
+         response_grads.push_back(currgrad);
+         }
+         }*/
         if (Comm->getRank() == 0 && j%output_freq == 0) {
           cout << "Finished evaluating sample number: " << j+1 << " out of " << numsamples << endl;
         }
@@ -318,9 +318,9 @@ void analysis::run() {
     sensIC = settings->sublist("Analysis").get("sensitivities IC", false);
     
     if (settings->sublist("Analysis").isSublist("ROL"))
-    ROLsettings = settings->sublist("Analysis").sublist("ROL");
+      ROLsettings = settings->sublist("Analysis").sublist("ROL");
     else
-    TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MILO could not find the ROL sublist in the imput file!  Abort!");
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MILO could not find the ROL sublist in the imput file!  Abort!");
     
     // New ROL input syntax
     bool use_linesearch = settings->sublist("Analysis").get("Use Line Search",false);
@@ -348,9 +348,9 @@ void analysis::run() {
     Teuchos::RCP< ROL::Step<RealT> > step;
     
     if(use_linesearch)
-    step = Teuchos::rcp( new ROL::LineSearchStep<RealT> (ROLsettings) );
+      step = Teuchos::rcp( new ROL::LineSearchStep<RealT> (ROLsettings) );
     else
-    step = Teuchos::rcp( new ROL::TrustRegionStep<RealT> (ROLsettings) );
+      step = Teuchos::rcp( new ROL::TrustRegionStep<RealT> (ROLsettings) );
     
     //ROL::StatusTest<RealT> status(gtol, stol, maxit);
     Teuchos::RCP<ROL::StatusTest<RealT> > status = Teuchos::rcp( new ROL::StatusTest<RealT> (gtol, stol, maxit) );
@@ -367,9 +367,9 @@ void analysis::run() {
     vector<ScalarT> classic_params;
     vector<ScalarT> disc_params;
     if (numClassicParams > 0)
-    classic_params = params->getParams(1);
+      classic_params = params->getParams(1);
     if (numDiscParams > 0)
-    disc_params = params->getDiscretizedParamsVector();
+      disc_params = params->getDiscretizedParamsVector();
     
     // Iteration vector.
     Teuchos::RCP<vector<RealT> > x_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
@@ -393,18 +393,18 @@ void analysis::run() {
     bool bound_vars = ROLsettings.sublist("General").get("Bound Optimization Variables",false);
     if(bound_vars){
       /*
-      bool use_scale = ROLsettings.get("Use Scaling For Epsilon-Active Sets",false);
-      RealT scale;
-      if(use_scale){
-        RealT tol = 1.e-12; //should probably be read in, though we're not using inexact gradients yet anyways...
-        Teuchos::RCP<vector<RealT> > g0_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
-        ROL::StdVector<RealT> g0p(g0_rcp);
-        (*obj).gradient(g0p,x,tol);
-        scale = 1.0e-2/g0p.norm();
-      }
-      else {
-        scale = 1.0;
-      }
+       bool use_scale = ROLsettings.get("Use Scaling For Epsilon-Active Sets",false);
+       RealT scale;
+       if(use_scale){
+       RealT tol = 1.e-12; //should probably be read in, though we're not using inexact gradients yet anyways...
+       Teuchos::RCP<vector<RealT> > g0_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
+       ROL::StdVector<RealT> g0p(g0_rcp);
+       (*obj).gradient(g0p,x,tol);
+       scale = 1.0e-2/g0p.norm();
+       }
+       else {
+       scale = 1.0;
+       }
        */
       // TMW: where is scale used?
       
@@ -485,7 +485,7 @@ void analysis::run() {
         srand(seed);
       }
       else
-      srand(time(NULL)); //initialize random seed
+        srand(time(NULL)); //initialize random seed
       
       Teuchos::RCP<vector<RealT> > d_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
       bool no_random_vec = ROLsettings.sublist("General").get("FD Check Use Ones Vector",false);
@@ -576,9 +576,9 @@ void analysis::run() {
     sensIC = settings->sublist("Analysis").get("sensitivities IC", false);
     
     if (settings->sublist("Analysis").isSublist("ROL"))
-    ROLsettings = settings->sublist("Analysis").sublist("ROL");
+      ROLsettings = settings->sublist("Analysis").sublist("ROL");
     else
-    TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MILO could not find the ROL sublist in the imput file!  Abort!");
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MILO could not find the ROL sublist in the imput file!  Abort!");
     
     // New ROL input syntax
     bool use_linesearch = settings->sublist("Analysis").get("Use Line Search",false);
@@ -602,9 +602,9 @@ void analysis::run() {
     Teuchos::RCP< ROL::Step<RealT> > step;
     
     if(use_linesearch)
-    step = Teuchos::rcp( new ROL::LineSearchStep<RealT> (ROLsettings) );
+      step = Teuchos::rcp( new ROL::LineSearchStep<RealT> (ROLsettings) );
     else
-    step = Teuchos::rcp( new ROL::TrustRegionStep<RealT> (ROLsettings) );
+      step = Teuchos::rcp( new ROL::TrustRegionStep<RealT> (ROLsettings) );
     
     //ROL::StatusTest<RealT> status(gtol, stol, maxit);
     Teuchos::RCP<ROL::StatusTest<RealT> > status = Teuchos::rcp( new ROL::StatusTest<RealT> (gtol, stol, maxit) );
@@ -621,9 +621,9 @@ void analysis::run() {
     vector<ScalarT> classic_params;
     vector<ScalarT> disc_params;
     if (numClassicParams > 0)
-    classic_params = params->getParams(1);
+      classic_params = params->getParams(1);
     if (numDiscParams > 0)
-    disc_params = params->getDiscretizedParamsVector();
+      disc_params = params->getDiscretizedParamsVector();
     
     // Iteration vector.
     Teuchos::RCP<vector<RealT> > x_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
@@ -646,18 +646,18 @@ void analysis::run() {
     bool bound_vars = ROLsettings.sublist("General").get("Bound Optimization Variables",false);
     if(bound_vars){
       /*
-      bool use_scale = ROLsettings.get("Use Scaling For Epsilon-Active Sets",false);
-      RealT scale;
-      if(use_scale){
-        RealT tol = 1.e-12; //should probably be read in, though we're not using inexact gradients yet anyways...
-        Teuchos::RCP<vector<RealT> > g0_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
-        ROL::StdVector<RealT> g0p(g0_rcp);
-        (*obj).gradient(g0p,x,tol);
-        scale = 1.0e-2/g0p.norm();
-      }
-      else {
-        scale = 1.0;
-      }
+       bool use_scale = ROLsettings.get("Use Scaling For Epsilon-Active Sets",false);
+       RealT scale;
+       if(use_scale){
+       RealT tol = 1.e-12; //should probably be read in, though we're not using inexact gradients yet anyways...
+       Teuchos::RCP<vector<RealT> > g0_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
+       ROL::StdVector<RealT> g0p(g0_rcp);
+       (*obj).gradient(g0p,x,tol);
+       scale = 1.0e-2/g0p.norm();
+       }
+       else {
+       scale = 1.0;
+       }
        */
       // TMW: where is scale used?
       
@@ -704,7 +704,7 @@ void analysis::run() {
         srand(seed);
       }
       else
-      srand(time(NULL)); //initialize random seed
+        srand(time(NULL)); //initialize random seed
       
       Teuchos::RCP<vector<RealT> > d_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
       bool no_random_vec = ROLsettings.sublist("General").get("FD Check Use Ones Vector",false);
@@ -730,9 +730,9 @@ void analysis::run() {
     // Run algorithm.
     vector<std::string> output;
     if(bound_vars)
-    output = algo.run(x, *obj, *con, (Comm->getRank() == 0 )); //only processor of rank 0 print outs
+      output = algo.run(x, *obj, *con, (Comm->getRank() == 0 )); //only processor of rank 0 print outs
     else
-    output = algo.run(x, *obj, (Comm->getRank() == 0 )); //only processor of rank 0 prints out
+      output = algo.run(x, *obj, (Comm->getRank() == 0 )); //only processor of rank 0 prints out
     
     ScalarT optTime = timer.stop();
     if (Comm->getRank() == 0 ) {
@@ -788,7 +788,7 @@ void analysis::run() {
 // ========================================================================================
 // ========================================================================================
 
-void analysis::updateCellData(const int & newrandseed) {
+void AnalysisManager::updateCellData(const int & newrandseed) {
   
   // Determine how many seeds there are
   size_t localnumSeeds = 0;

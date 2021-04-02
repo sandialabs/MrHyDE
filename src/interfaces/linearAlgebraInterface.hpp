@@ -42,7 +42,7 @@ namespace MrHyDE {
   }
   */
   template<class Node>
-  class linearAlgebra {
+  class LinearAlgebraInterface {
 
     typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
     typedef Tpetra::CrsGraph<LO,GO,Node>            LA_CrsGraph;
@@ -62,9 +62,9 @@ namespace MrHyDE {
     // Constructor
     // ========================================================================================
     
-    linearAlgebra(const Teuchos::RCP<MpiComm> & Comm_,
+    LinearAlgebraInterface(const Teuchos::RCP<MpiComm> & Comm_,
                   Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                  Teuchos::RCP<discretization> & disc_,
+                  Teuchos::RCP<DiscretizationInterface> & disc_,
                   Teuchos::RCP<ParameterManager<Node> > & params_);
     
     void setupLinearAlgebra();
@@ -288,7 +288,7 @@ namespace MrHyDE {
     
     Teuchos::RCP<MpiComm> Comm;
     Teuchos::RCP<Teuchos::ParameterList> settings;
-    Teuchos::RCP<discretization> disc;
+    Teuchos::RCP<DiscretizationInterface> disc;
     Teuchos::RCP<ParameterManager<Node> > params;
     
     int verbosity, debug_level;
@@ -312,13 +312,13 @@ namespace MrHyDE {
     Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > M, M_aux; // AMG preconditioner for Jacobians
     Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > M_dd, M_dd_aux; // domain decomposition preconditioner for Jacobians
     
-    Teuchos::RCP<Teuchos::Time> setupLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::linearAlgebra::setup");
-    Teuchos::RCP<Teuchos::Time> newvectortimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::linearAlgebra::getNew*Vector()");
-    Teuchos::RCP<Teuchos::Time> newmatrixtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::linearAlgebra::getNew*Matrix()");
-    Teuchos::RCP<Teuchos::Time> linearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::linearAlgebra::linearSolver*()");
-    Teuchos::RCP<Teuchos::Time> fillcompletetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::linearAlgebra::fillComplete*()");
-    Teuchos::RCP<Teuchos::Time> exporttimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::linearAlgebra::export*()");
-    Teuchos::RCP<Teuchos::Time> importtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::linearAlgebra::import*()");
+    Teuchos::RCP<Teuchos::Time> setupLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::setup");
+    Teuchos::RCP<Teuchos::Time> newvectortimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::getNew*Vector()");
+    Teuchos::RCP<Teuchos::Time> newmatrixtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::getNew*Matrix()");
+    Teuchos::RCP<Teuchos::Time> linearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::linearSolver*()");
+    Teuchos::RCP<Teuchos::Time> fillcompletetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::fillComplete*()");
+    Teuchos::RCP<Teuchos::Time> exporttimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::export*()");
+    Teuchos::RCP<Teuchos::Time> importtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::import*()");
     
     
   };

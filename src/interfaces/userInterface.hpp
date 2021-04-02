@@ -56,7 +56,7 @@ namespace MrHyDE {
   // Standard constructor
   //////////////////////////////////////////////////////////////////////////////////////////////
   
-  Teuchos::RCP<Teuchos::ParameterList> userInterface(const std::string & filename) {
+  Teuchos::RCP<Teuchos::ParameterList> UserInterface(const std::string & filename) {
     
     using Teuchos::RCP;
     using Teuchos::rcp;

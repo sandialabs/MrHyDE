@@ -22,9 +22,9 @@ using namespace MrHyDE;
 
 SubGridFEM_Solver::SubGridFEM_Solver(const Teuchos::RCP<MpiComm> & LocalComm,
                                      Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                                     Teuchos::RCP<meshInterface> & mesh,
-                                     Teuchos::RCP<discretization> & disc,
-                                     Teuchos::RCP<physics> & physics,
+                                     Teuchos::RCP<MeshInterface> & mesh,
+                                     Teuchos::RCP<DiscretizationInterface> & disc,
+                                     Teuchos::RCP<PhysicsInterface> & physics,
                                      Teuchos::RCP<AssemblyManager<SubgridSolverNode> > & assembler_,
                                      Teuchos::RCP<ParameterManager<SubgridSolverNode>> & params,
                                      ScalarT & macro_deltat_, size_t & numMacroDOF) :
@@ -50,33 +50,33 @@ settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
   
   store_aux_and_flux = settings->sublist("Postprocess").get<bool>("store aux and flux",false);
   
-  milo_solver = Teuchos::rcp( new solver<SubgridSolverNode>(LocalComm, settings, mesh, disc,
-                                                            physics, assembler, params) );
+  solver = Teuchos::rcp( new SolverManager<SubgridSolverNode>(LocalComm, settings, mesh, disc,
+                                                              physics, assembler, params) );
   
-  res = milo_solver->linalg->getNewVector();
-  J = milo_solver->linalg->getNewOverlappedMatrix();
+  res = solver->linalg->getNewVector();
+  J = solver->linalg->getNewOverlappedMatrix();
   
-  u = milo_solver->linalg->getNewOverlappedVector();
-  phi = milo_solver->linalg->getNewOverlappedVector();
+  u = solver->linalg->getNewOverlappedVector();
+  phi = solver->linalg->getNewOverlappedVector();
   
   if (LocalComm->getSize() > 1) {
-    res_over = milo_solver->linalg->getNewOverlappedVector();
-    sub_J_over = milo_solver->linalg->getNewOverlappedMatrix();
+    res_over = solver->linalg->getNewOverlappedVector();
+    sub_J_over = solver->linalg->getNewOverlappedMatrix();
   }
   else {
     res_over = res;
     sub_J_over = J;
   }
   
-  d_um = milo_solver->linalg->getNewVector(numMacroDOF); //Teuchos::rcp( new SG_MultiVector(milo_solver->LA_owned_map,numMacroDOF)); // reset residual
-  d_sub_res_overm = milo_solver->linalg->getNewOverlappedVector(numMacroDOF); //Teuchos::rcp(new SG_MultiVector(milo_solver->LA_overlapped_map,numMacroDOF));
-  d_sub_resm = milo_solver->linalg->getNewVector(numMacroDOF); //Teuchos::rcp(new SG_MultiVector(milo_solver->LA_owned_map,numMacroDOF));
-  d_sub_u_prevm = milo_solver->linalg->getNewVector(numMacroDOF);//Teuchos::rcp(new SG_MultiVector(milo_solver->LA_owned_map,numMacroDOF));
-  d_sub_u_overm = milo_solver->linalg->getNewOverlappedVector(numMacroDOF);//Teuchos::rcp(new SG_MultiVector(milo_solver->LA_overlapped_map,numMacroDOF));
+  d_um = solver->linalg->getNewVector(numMacroDOF); //Teuchos::rcp( new SG_MultiVector(solver->LA_owned_map,numMacroDOF)); // reset residual
+  d_sub_res_overm = solver->linalg->getNewOverlappedVector(numMacroDOF); //Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,numMacroDOF));
+  d_sub_resm = solver->linalg->getNewVector(numMacroDOF); //Teuchos::rcp(new SG_MultiVector(solver->LA_owned_map,numMacroDOF));
+  d_sub_u_prevm = solver->linalg->getNewVector(numMacroDOF);//Teuchos::rcp(new SG_MultiVector(solver->LA_owned_map,numMacroDOF));
+  d_sub_u_overm = solver->linalg->getNewOverlappedVector(numMacroDOF);//Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,numMacroDOF));
   
-  du_glob = milo_solver->linalg->getNewVector();//Teuchos::rcp(new SG_MultiVector(milo_solver->LA_owned_map,1));
+  du_glob = solver->linalg->getNewVector();//Teuchos::rcp(new SG_MultiVector(solver->LA_owned_map,1));
   if (LocalComm->getSize() > 1) {
-    du = milo_solver->linalg->getNewOverlappedVector();//Teuchos::rcp(new SG_MultiVector(milo_solver->LA_overlapped_map,1));
+    du = solver->linalg->getNewOverlappedVector();//Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,1));
   }
   else {
     du = du_glob;
@@ -105,7 +105,7 @@ settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
     belosList->set("Verbosity", Belos::Errors);
     belosList->set("Output Frequency",0);
     
-    int numEqns = milo_solver->numVars[0];
+    int numEqns = solver->numVars[0];
     belosList->set("number of equations",numEqns);
     
     belosList->set("Output Style",          Belos::Brief);
@@ -135,7 +135,7 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
   
   Teuchos::TimeMonitor totalsolvertimer(*sgfemSolverTimer);
   if (debug_level > 0) {
-    if (milo_solver->Comm->getRank() == 0) {
+    if (solver->Comm->getRank() == 0) {
       cout << "**** Starting SubgridFEM_Solver::solve ..." << endl;
     }
   }
@@ -191,7 +191,7 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
   
   Teuchos::RCP<SG_MultiVector> d_u = d_um;
   if (compute_sens) {
-    d_u = milo_solver->linalg->getNewVector(num_active_params);//Teuchos::rcp( new SG_MultiVector(milo_solver->LA_owned_map, num_active_params)); // reset residual
+    d_u = solver->linalg->getNewVector(num_active_params);//Teuchos::rcp( new SG_MultiVector(solver->LA_owned_map, num_active_params)); // reset residual
   }
   d_u->putScalar(0.0);
   
@@ -210,7 +210,7 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
       // First, we need to resolve the forward problem
       
       for (int tstep=0; tstep<time_steps; tstep++) {
-        Teuchos::RCP<SG_MultiVector> recu = milo_solver->linalg->getNewOverlappedVector();//Teuchos::rcp( new SG_MultiVector(milo_solver->LA_overlapped_map,1)); // reset residual
+        Teuchos::RCP<SG_MultiVector> recu = solver->linalg->getNewOverlappedVector();//Teuchos::rcp( new SG_MultiVector(solver->LA_overlapped_map,1)); // reset residual
         
         *recu = *u;
         sgtime += macro_deltat/(ScalarT)time_steps;
@@ -321,7 +321,7 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
   }
   
   if (debug_level > 0) {
-    if (milo_solver->Comm->getRank() == 0) {
+    if (solver->Comm->getRank() == 0) {
       cout << "**** Finished SubgridFEM_Solver::solve ..." << endl;
     }
   }
@@ -381,7 +381,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
   
   Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverTimer);
   if (debug_level > 0) {
-    if (milo_solver->Comm->getRank() == 0) {
+    if (solver->Comm->getRank() == 0) {
       cout << "**** Starting SubgridFEM_Solver::nonlinearSolver ..." << endl;
     }
   }
@@ -611,10 +611,10 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
     
     sub_J_over->fillComplete();
     
-    if (milo_solver->Comm->getSize() > 1) {
+    if (solver->Comm->getSize() > 1) {
       J->resumeFill();
       J->setAllToScalar(0.0);
-      J->doExport(*sub_J_over, *(milo_solver->linalg->exporter), Tpetra::ADD); // TMW: tmp fix
+      J->doExport(*sub_J_over, *(solver->linalg->exporter), Tpetra::ADD); // TMW: tmp fix
       J->fillComplete();
     }
     else {
@@ -623,9 +623,9 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
     //KokkosTools::print(J);
     
     
-    if (milo_solver->Comm->getSize() > 1) {
+    if (solver->Comm->getSize() > 1) {
       res->putScalar(0.0);
-      res->doExport(*res_over, *(milo_solver->linalg->exporter), Tpetra::ADD); // TMW: tmp fix
+      res->doExport(*res_over, *(solver->linalg->exporter), Tpetra::ADD); // TMW: tmp fix
     }
     else {
       res = res_over;
@@ -642,7 +642,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       res->normInf(resnorm);
       resnorm_scaled[0] = resnorm[0]/resnorm_initial[0];
     }
-    if(milo_solver->Comm->getRank() == 0 && verbosity>5) {
+    if(solver->Comm->getRank() == 0 && verbosity>5) {
       cout << endl << "*********************************************************" << endl;
       cout << "***** Subgrid Nonlinear Iteration: " << iter << endl;
       cout << "***** Scaled Norm of nonlinear residual: " << resnorm_scaled << endl;
@@ -666,7 +666,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
             //MueLu::ReuseTpetraPreconditioner(J,*belos_M);
           }
           else {
-            belos_M = milo_solver->linalg->buildPreconditioner(J,"Preconditioner Settings");
+            belos_M = solver->linalg->buildPreconditioner(J,"Preconditioner Settings");
             //belos_problem->setRightPrec(belos_M);
             belos_problem->setLeftPrec(belos_M);
             //have_preconditioner = true;
@@ -677,9 +677,9 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
         belos_solver->solve();
         
       }
-      if (milo_solver->Comm->getSize() > 1) {
+      if (solver->Comm->getSize() > 1) {
         du->putScalar(0.0);
-        du->doImport(*du_glob, *(milo_solver->linalg->importer), Tpetra::ADD); // TMW tmp fix
+        du->doImport(*du_glob, *(solver->linalg->importer), Tpetra::ADD); // TMW tmp fix
       }
       else {
         du = du_glob;
@@ -697,7 +697,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
   }
   //KokkosTools::print(sub_u);
   if (debug_level > 0) {
-    if (milo_solver->Comm->getRank() == 0) {
+    if (solver->Comm->getRank() == 0) {
       cout << "**** Finished SubgridFEM_Solver::nonlinearSolver ..." << endl;
     }
   }
@@ -745,7 +745,7 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
   
   Teuchos::TimeMonitor localtimer(*sgfemSolnSensTimer);
   if (debug_level > 0) {
-    if (milo_solver->Comm->getRank() == 0) {
+    if (solver->Comm->getRank() == 0) {
       cout << "**** Starting SubgridFEM_Solver::computeSolnSens ..." << endl;
     }
   }
@@ -773,10 +773,10 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
   
   if (compute_sens) {
     int numsubDerivs = d_sub_u->getNumVectors();
-    d_sub_res_over = milo_solver->linalg->getNewOverlappedVector(numsubDerivs);//Teuchos::rcp(new SG_MultiVector(milo_solver->LA_overlapped_map,numsubDerivs));
-    d_sub_res = milo_solver->linalg->getNewVector(numsubDerivs); //Teuchos::rcp(new SG_MultiVector(milo_solver->LA_owned_map,numsubDerivs));
-    d_sub_u_prev = milo_solver->linalg->getNewVector(numsubDerivs); //Teuchos::rcp(new SG_MultiVector(milo_solver->LA_owned_map,numsubDerivs));
-    d_sub_u_over = milo_solver->linalg->getNewOverlappedVector(numsubDerivs); //Teuchos::rcp(new SG_MultiVector(milo_solver->LA_overlapped_map,numsubDerivs));
+    d_sub_res_over = solver->linalg->getNewOverlappedVector(numsubDerivs);//Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,numsubDerivs));
+    d_sub_res = solver->linalg->getNewVector(numsubDerivs); //Teuchos::rcp(new SG_MultiVector(solver->LA_owned_map,numsubDerivs));
+    d_sub_u_prev = solver->linalg->getNewVector(numsubDerivs); //Teuchos::rcp(new SG_MultiVector(solver->LA_owned_map,numsubDerivs));
+    d_sub_u_over = solver->linalg->getNewOverlappedVector(numsubDerivs); //Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,numsubDerivs));
   }
   
   d_sub_res_over->putScalar(0.0);
@@ -941,8 +941,8 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
       }
     }
     
-    if (milo_solver->Comm->getSize() > 1) {
-      d_sub_res->doExport(*d_sub_res_over, *(milo_solver->linalg->exporter), Tpetra::ADD); // TMW tmp fix
+    if (solver->Comm->getSize() > 1) {
+      d_sub_res->doExport(*d_sub_res_over, *(solver->linalg->exporter), Tpetra::ADD); // TMW tmp fix
     }
     else {
       d_sub_res = d_sub_res_over;
@@ -959,8 +959,8 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
       auto d_sub_u_over_kv = d_sub_u_over->getLocalView<SG_device>();
       auto d_sub_res_kv = d_sub_res->getLocalView<SG_device>();
       for (int c=0; c<numsubDerivs; c++) {
-        Teuchos::RCP<SG_MultiVector> x = milo_solver->linalg->getNewOverlappedVector(); //Teuchos::rcp(new SG_MultiVector(milo_solver->LA_overlapped_map,1));
-        Teuchos::RCP<SG_MultiVector> b = milo_solver->linalg->getNewVector(); //Teuchos::rcp(new SG_MultiVector(milo_solver->LA_owned_map,1));
+        Teuchos::RCP<SG_MultiVector> x = solver->linalg->getNewOverlappedVector(); //Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,1));
+        Teuchos::RCP<SG_MultiVector> b = solver->linalg->getNewVector(); //Teuchos::rcp(new SG_MultiVector(solver->LA_owned_map,1));
         auto b_kv = Kokkos::subview(b->getLocalView<SG_device>(),Kokkos::ALL(),0);
         auto x_kv = Kokkos::subview(x->getLocalView<SG_device>(),Kokkos::ALL(),0);
         
@@ -985,9 +985,9 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
       belos_solver->solve();
     }
     
-    if (milo_solver->Comm->getSize() > 1) {
+    if (solver->Comm->getSize() > 1) {
       d_sub_u->putScalar(0.0);
-      d_sub_u->doImport(*d_sub_u_over, *(milo_solver->linalg->importer), Tpetra::ADD);
+      d_sub_u->doImport(*d_sub_u_over, *(solver->linalg->importer), Tpetra::ADD);
     }
     else {
       d_sub_u = d_sub_u_over;
@@ -996,7 +996,7 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
   }
   
   if (debug_level > 0) {
-    if (milo_solver->Comm->getRank() == 0) {
+    if (solver->Comm->getRank() == 0) {
       cout << "**** Finished SubgridFEM_Solver::computeSolnSens ..." << endl;
     }
   }
@@ -1101,7 +1101,7 @@ void SubGridFEM_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
   
   Teuchos::TimeMonitor localtimer(*sgfemFluxTimer);
   if (debug_level > 0) {
-    if (milo_solver->Comm->getRank() == 0) {
+    if (solver->Comm->getRank() == 0) {
       cout << "**** Starting SubgridFEM_Solver::updateFlux (intermediate function) ..." << endl;
     }
   }
@@ -1136,7 +1136,7 @@ void SubGridFEM_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
     }
   }
   if (debug_level > 0) {
-    if (milo_solver->Comm->getRank() == 0) {
+    if (solver->Comm->getRank() == 0) {
       cout << "**** Finished SubgridFEM_Solver::updateFlux (intermediate function) ..." << endl;
     }
   }
@@ -1157,7 +1157,7 @@ void SubGridFEM_Solver::updateFlux(ViewType u_kv,
                                    Teuchos::RCP<SubGridMacroData> & macroData) {
   
   if (debug_level > 0) {
-    if (milo_solver->Comm->getRank() == 0) {
+    if (solver->Comm->getRank() == 0) {
       cout << "**** Starting SubgridFEM_Solver::updateFlux ..." << endl;
     }
   }
@@ -1203,7 +1203,7 @@ void SubGridFEM_Solver::updateFlux(ViewType u_kv,
   }
   
   if (debug_level > 0) {
-    if (milo_solver->Comm->getRank() == 0) {
+    if (solver->Comm->getRank() == 0) {
       cout << "**** Finished SubgridFEM_Solver::updateFlux ..." << endl;
     }
   }
@@ -1298,8 +1298,8 @@ void SubGridFEM_Solver::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
 Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM_Solver::getProjectionMatrix() {
   
   // Compute the mass matrix on a reference element
-  matrix_RCP mass = milo_solver->linalg->getNewOverlappedMatrix();;
-  //Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(milo_solver->LA_overlapped_graph) );
+  matrix_RCP mass = solver->linalg->getNewOverlappedMatrix();;
+  //Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(solver->LA_overlapped_graph) );
   
   auto localMatrix = mass->getLocalMatrix();
   
@@ -1330,11 +1330,11 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM_So
   
   matrix_RCP glmass;
   //size_t maxEntries = 256;
-  if (milo_solver->Comm->getSize() > 1) {
-    glmass = milo_solver->linalg->getNewMatrix();
-    //Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(milo_solver->LA_owned_map,maxEntries) );
+  if (solver->Comm->getSize() > 1) {
+    glmass = solver->linalg->getNewMatrix();
+    //Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(solver->LA_owned_map,maxEntries) );
     glmass->setAllToScalar(0.0);
-    glmass->doExport(*mass, *(milo_solver->linalg->exporter), Tpetra::ADD); // TMW: tmp fix
+    glmass->doExport(*mass, *(solver->linalg->exporter), Tpetra::ADD); // TMW: tmp fix
     glmass->fillComplete();
   }
   else {
@@ -1370,9 +1370,9 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM_Solver::e
       //  }
       //}
       
-      Kokkos::DynRankView<int,PHX::Device> inRefCell = milo_solver->disc->checkInclusionPhysicalData(pts, cnodes, milo_solver->mesh->cellTopo[0], 1.0e-12);
-      //CellTools::mapToReferenceFrame(refpts, pts, cnodes, *(milo_solver->mesh->cellTopo[0]));
-      //CellTools::checkPointwiseInclusion(inRefCell, refpts, *(milo_solver->mesh->cellTopo[0]), 1.0e-12);
+      Kokkos::DynRankView<int,PHX::Device> inRefCell = solver->disc->checkInclusionPhysicalData(pts, cnodes, solver->mesh->cellTopo[0], 1.0e-12);
+      //CellTools::mapToReferenceFrame(refpts, pts, cnodes, *(solver->mesh->cellTopo[0]));
+      //CellTools::checkPointwiseInclusion(inRefCell, refpts, *(solver->mesh->cellTopo[0]), 1.0e-12);
       for (size_t i=0; i<numpts; i++) {
         if (inRefCell(0,i) == 1) {
           owners(i,0) = e;//cells[0][e]->localElemID[c];
@@ -1407,15 +1407,15 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM_Solver::e
     //    cnodes(0,k,j) = nodes(owners(i,1),k,j);
     //  }
     //}
-    DRV refpt_buffer = milo_solver->disc->mapPointsToReference(cpt,cnodes,milo_solver->mesh->cellTopo[0]);
-    //CellTools::mapToReferenceFrame(refpt_buffer, cpt, cnodes, *(milo_solver->mesh->cellTopo[0]));
+    DRV refpt_buffer = solver->disc->mapPointsToReference(cpt,cnodes,solver->mesh->cellTopo[0]);
+    //CellTools::mapToReferenceFrame(refpt_buffer, cpt, cnodes, *(solver->mesh->cellTopo[0]));
     DRV refpt("refpt",1,dimpts);
     Kokkos::deep_copy(refpt,Kokkos::subdynrankview(refpt_buffer,0,Kokkos::ALL(),Kokkos::ALL()));
     Kokkos::View<int**,AssemblyDevice> offsets = assembler->wkset[0]->offsets;
     vector<int> usebasis = assembler->wkset[0]->usebasis;
     DRV basisvals("basisvals",offsets.extent(0),numLIDs);
     for (size_t n=0; n<offsets.extent(0); n++) {
-      DRV bvals = milo_solver->disc->evaluateBasis(milo_solver->disc->basis_pointers[0][usebasis[n]], refpt);
+      DRV bvals = solver->disc->evaluateBasis(solver->disc->basis_pointers[0][usebasis[n]], refpt);
       auto tmpb0 = subview(basisvals,n,ALL());
       auto tmpb1 = subview(bvals,0,ALL(),0);
       auto off = subview(offsets,n,ALL());
@@ -1442,13 +1442,13 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM_Sol
                                                                   std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) {
   
   std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > my_basisinfo = this->evaluateBasis2(ip);
-  matrix_RCP map_over = milo_solver->linalg->getNewOverlappedMatrix();
-  //Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(milo_solver->LA_overlapped_graph));
+  matrix_RCP map_over = solver->linalg->getNewOverlappedMatrix();
+  //Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(solver->LA_overlapped_graph));
   
   matrix_RCP map;
-  if (milo_solver->Comm->getSize() > 1) {
-    map = milo_solver->linalg->getNewMatrix();
-    //Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(milo_solver->LA_overlapped_graph));
+  if (solver->Comm->getSize() > 1) {
+    map = solver->linalg->getNewMatrix();
+    //Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(solver->LA_overlapped_graph));
     map->setAllToScalar(0.0);
   }
   else {
@@ -1477,8 +1477,8 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM_Sol
   
   map_over->fillComplete();
   
-  if (milo_solver->Comm->getSize() > 1) {
-    map->doExport(*map_over, *(milo_solver->linalg->exporter), Tpetra::ADD);
+  if (solver->Comm->getSize() > 1) {
+    map->doExport(*map_over, *(solver->linalg->exporter), Tpetra::ADD);
     map->fillComplete();
   }
   return map;
@@ -1489,7 +1489,7 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM_Sol
 ////////////////////////////////////////////////////////////////////////////////
 
 Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM_Solver::getVector() {
-  vector_RCP vec = milo_solver->linalg->getNewOverlappedVector(); //Teuchos::rcp(new SG_MultiVector(milo_solver->LA_overlapped_map,1));
+  vector_RCP vec = solver->linalg->getNewOverlappedVector(); //Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,1));
   return vec;
 }
 
@@ -1498,16 +1498,16 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM_S
 ////////////////////////////////////////////////////////////////////////////////
 
 Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM_Solver::getEvaluationMatrix(const DRV & newip, Teuchos::RCP<SG_Map> & ip_map) {
-  matrix_RCP map_over = milo_solver->linalg->getNewOverlappedMatrix();
-  //Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(milo_solver->LA_overlapped_graph) );
+  matrix_RCP map_over = solver->linalg->getNewOverlappedMatrix();
+  //Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(solver->LA_overlapped_graph) );
   matrix_RCP map;
-  if (milo_solver->Comm->getSize() > 1) {
+  if (solver->Comm->getSize() > 1) {
     //size_t maxEntries = 256;
-    map = milo_solver->linalg->getNewMatrix();
-    //Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(milo_solver->LA_owned_map, maxEntries) );
+    map = solver->linalg->getNewMatrix();
+    //Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(solver->LA_owned_map, maxEntries) );
     
     map->setAllToScalar(0.0);
-    map->doExport(*map_over, *(milo_solver->linalg->exporter), Tpetra::ADD);
+    map->doExport(*map_over, *(solver->linalg->exporter), Tpetra::ADD);
     map->fillComplete();
   }
   else {
@@ -1525,7 +1525,7 @@ void SubGridFEM_Solver::updateParameters(vector<Teuchos::RCP<vector<AD> > > & pa
     assembler->wkset[b]->params = params;
     assembler->wkset[b]->paramnames = paramnames;
   }
-  milo_solver->phys->updateParameters(params, paramnames);
+  solver->phys->updateParameters(params, paramnames);
   
 }
 

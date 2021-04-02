@@ -19,7 +19,7 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-uqmanager::uqmanager(const MpiComm & Comm_, const Teuchos::ParameterList & uqsettings_,
+UQManager::UQManager(const MpiComm & Comm_, const Teuchos::ParameterList & uqsettings_,
                      const std::vector<string> & param_types_,
                      const std::vector<ScalarT> & param_means_, const std::vector<ScalarT> & param_variances_,
                      const std::vector<ScalarT> & param_mins_, const std::vector<ScalarT> & param_maxs_) :
@@ -45,7 +45,7 @@ param_variances(param_variances_), param_mins(param_mins_), param_maxs(param_max
 // ========================================================================================
 // ========================================================================================
 
-Kokkos::View<ScalarT**,HostDevice> uqmanager::generateSamples(const int & numsamples, int & seed) {
+Kokkos::View<ScalarT**,HostDevice> UQManager::generateSamples(const int & numsamples, int & seed) {
   if (seed == -1) {
     //srand(time(NULL));
     seed = rand();
@@ -75,7 +75,7 @@ Kokkos::View<ScalarT**,HostDevice> uqmanager::generateSamples(const int & numsam
 // ========================================================================================
 // ========================================================================================
 
-Kokkos::View<int*,HostDevice> uqmanager::generateIntegerSamples(const int & numsamples, int & seed) {
+Kokkos::View<int*,HostDevice> UQManager::generateIntegerSamples(const int & numsamples, int & seed) {
   if (seed == -1) {
     //srand(time(NULL));
     seed = rand();
@@ -94,7 +94,7 @@ Kokkos::View<int*,HostDevice> uqmanager::generateIntegerSamples(const int & nums
 // ========================================================================================
 // ========================================================================================
 
-void uqmanager::generateSamples(const int & numsamples, int & seed,
+void UQManager::generateSamples(const int & numsamples, int & seed,
                                 Kokkos::View<ScalarT**,HostDevice> samplepts,
                                 Kokkos::View<ScalarT*,HostDevice> samplewts) {
   Kokkos::resize(samplepts,numsamples, numstochparams);
@@ -129,7 +129,7 @@ void uqmanager::generateSamples(const int & numsamples, int & seed,
 // ========================================================================================
 // ========================================================================================
 
-void uqmanager::computeStatistics(const std::vector<ScalarT> & values) {
+void UQManager::computeStatistics(const std::vector<ScalarT> & values) {
   int numvals = values.size();
   if (uqsettings.get<bool>("compute mean",true)) {
     ScalarT meanval = 0.0;
@@ -177,7 +177,7 @@ void uqmanager::computeStatistics(const std::vector<ScalarT> & values) {
 // ========================================================================================
 // ========================================================================================
 
-void uqmanager::computeStatistics(const vector<Kokkos::View<ScalarT***,HostDevice> > & values) {
+void UQManager::computeStatistics(const vector<Kokkos::View<ScalarT***,HostDevice> > & values) {
   int numvals = values.size();
   // assumes that values[i] is a rank-3 FC
   int dim0 = values[0].extent(0);

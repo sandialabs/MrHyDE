@@ -22,7 +22,7 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-meshInterface::meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
+MeshInterface::MeshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                              const Teuchos::RCP<MpiComm> & Commptr_) :
 settings(settings_), Commptr(Commptr_) {
   
@@ -224,7 +224,7 @@ settings(settings_), Commptr(Commptr_) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-meshInterface::meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
+MeshInterface::MeshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                              const Teuchos::RCP<MpiComm> & Commptr_,
                              Teuchos::RCP<panzer_stk::STK_MeshFactory> & mesh_factory_,
                              Teuchos::RCP<panzer_stk::STK_Interface> & stk_mesh_) :
@@ -319,7 +319,7 @@ settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), stk_mesh(st
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
+void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
@@ -519,7 +519,7 @@ void meshInterface::finalize(Teuchos::RCP<physics> & phys) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
+DRV MeshInterface::perturbMesh(const int & b, DRV & blocknodes) {
   
   ////////////////////////////////////////////////////////////////////////////////
   // Perturb the mesh (if requested)
@@ -612,7 +612,7 @@ DRV meshInterface::perturbMesh(const int & b, DRV & blocknodes) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void meshInterface::setMeshData(vector<vector<Teuchos::RCP<cell> > > & cells) {
+void MeshInterface::setMeshData(vector<vector<Teuchos::RCP<cell> > > & cells) {
   if (have_mesh_data) {
     this->importMeshData(cells);
   }
@@ -625,7 +625,7 @@ void meshInterface::setMeshData(vector<vector<Teuchos::RCP<cell> > > & cells) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells) {
+void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells) {
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
@@ -787,7 +787,7 @@ void meshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells) {
+void MeshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells) {
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
@@ -1050,7 +1050,7 @@ void meshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-DRV meshInterface::getElemNodes(const int & block, const int & elemID) {
+DRV MeshInterface::getElemNodes(const int & block, const int & elemID) {
   vector<size_t> localIds;
   DRV blocknodes;
   
@@ -1071,7 +1071,7 @@ DRV meshInterface::getElemNodes(const int & block, const int & elemID) {
 // ========================================================================================
 
 template<class V>
-void meshInterface::remesh(const Teuchos::RCP<V> & u, vector<vector<Teuchos::RCP<cell> > > & cells) {
+void MeshInterface::remesh(const Teuchos::RCP<V> & u, vector<vector<Teuchos::RCP<cell> > > & cells) {
   
   /*
   auto u_kv = u->getLocalView<HostDevice>();
@@ -1135,7 +1135,7 @@ void meshInterface::remesh(const Teuchos::RCP<V> & u, vector<vector<Teuchos::RCP
 // Read in discretized data from an exodus mesh
 /////////////////////////////////////////////////////////////////////////////
 
-void meshInterface::readMeshData() {
+void MeshInterface::readMeshData() {
   //Teuchos::RCP<const Tpetra::Map<LO, GO, SolverNode> > & LA_overlapped_map,
                                  //vector<vector<Teuchos::RCP<cell> > > & cells) {
   
@@ -1306,7 +1306,7 @@ void meshInterface::readMeshData() {
 // After the setup phase, we might be able to get rid of a few things
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void meshInterface::purgeMemory() {
+void MeshInterface::purgeMemory() {
   
   mesh_factory.reset();
   nfield_vals.clear();

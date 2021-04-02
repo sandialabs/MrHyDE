@@ -21,17 +21,17 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-MultiScale::MultiScale(const Teuchos::RCP<MpiComm> & MacroComm_,
-                       Teuchos::RCP<meshInterface> & mesh_,
-                       Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                       vector<vector<Teuchos::RCP<cell> > > & cells_,
-                       vector<Teuchos::RCP<FunctionManager> > macro_functionManagers_ ) :
+MultiscaleManager::MultiscaleManager(const Teuchos::RCP<MpiComm> & MacroComm_,
+                                     Teuchos::RCP<MeshInterface> & mesh_,
+                                     Teuchos::RCP<Teuchos::ParameterList> & settings_,
+                                     vector<vector<Teuchos::RCP<cell> > > & cells_,
+                                     vector<Teuchos::RCP<FunctionManager> > macro_functionManagers_ ) :
 MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManagers(macro_functionManagers_) {
-
+  
   debug_level = settings->get<int>("debug level",0);
   if (debug_level > 0) {
     if (MacroComm->getRank() == 0) {
-      cout << "**** Starting multiscale manager constructor ..." << endl;
+      cout << "**** Starting MultiscaleManager manager constructor ..." << endl;
     }
   }
   
@@ -137,7 +137,7 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
       int macro_block = subgridModels[n]->macro_block;
       macro_functionManagers[macro_block]->addFunction("Subgrid " + ss.str() + " usage",subgridModels[n]->usage, "ip");
     }
-     
+    
   }
   else {
     subgrid_static = true;
@@ -145,7 +145,7 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
   
   if (debug_level > 0) {
     if (MacroComm->getRank() == 0) {
-      cout << "**** Finished multiscale manager constructor" << endl;
+      cout << "**** Finished MultiscaleManager manager constructor" << endl;
     }
   }
 }
@@ -154,14 +154,14 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
 // Set the information from the macro-scale that does not depend on the specific cell
 ////////////////////////////////////////////////////////////////////////////////
 
-void MultiScale::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
-                              vector<vector<string> > & macro_basis_types,
-                              vector<vector<string> > & macro_varlist,
-                              vector<vector<int> > macro_usebasis,
-                              vector<vector<vector<int> > > & macro_offsets,
-                              vector<Kokkos::View<int*,AssemblyDevice>> & macro_numDOF,
-                              vector<string> & macro_paramnames,
-                              vector<string> & macro_disc_paramnames) {
+void MultiscaleManager::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
+                                     vector<vector<string> > & macro_basis_types,
+                                     vector<vector<string> > & macro_varlist,
+                                     vector<vector<int> > macro_usebasis,
+                                     vector<vector<vector<int> > > & macro_offsets,
+                                     vector<Kokkos::View<int*,AssemblyDevice>> & macro_numDOF,
+                                     vector<string> & macro_paramnames,
+                                     vector<string> & macro_disc_paramnames) {
   
   for (size_t j=0; j<subgridModels.size(); j++) {
     int mblock = subgridModels[j]->macro_block;
@@ -183,13 +183,13 @@ void MultiScale::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
 // Initial assignment of subgrid models to cells
 ////////////////////////////////////////////////////////////////////////////////
 
-ScalarT MultiScale::initialize() {
+ScalarT MultiscaleManager::initialize() {
   
   Teuchos::TimeMonitor localtimer(*initializetimer);
   
   if (debug_level > 0) {
     if (MacroComm->getRank() == 0) {
-      cout << "**** Starting multiscale manager initialize" << endl;
+      cout << "**** Starting MultiscaleManager manager initialize" << endl;
     }
   }
   ScalarT my_cost = 0.0;
@@ -290,17 +290,17 @@ ScalarT MultiScale::initialize() {
       for (size_t b=0; b<cells.size(); b++) {
         for (size_t e=0; e<cells[b].size(); e++) {
           //for (int c=0; c<cells[b][e]->numElem; c++) {
-            if (cells[b][e]->subgrid_model_index[0] == s) {
-              size_t usernum = cells[b][e]->subgrid_usernum;
-              active[usernum] = true;
-              numactive += 1;
-            }
+          if (cells[b][e]->subgrid_model_index[0] == s) {
+            size_t usernum = cells[b][e]->subgrid_usernum;
+            active[usernum] = true;
+            numactive += 1;
           }
+        }
         //}
       }
       subgridModels[s]->active.push_back(active);
     }
-  
+    
     for (size_t i=0; i<subgridModels.size(); i++) {
       auto ip = subgridModels[i]->getIP();
       auto wts = subgridModels[i]->getIPWts();
@@ -333,7 +333,7 @@ ScalarT MultiScale::initialize() {
   
   if (debug_level > 0) {
     if (MacroComm->getRank() == 0) {
-      cout << "**** Finished multiscale manager initialize" << endl;
+      cout << "**** Finished MultiscaleManager manager initialize" << endl;
     }
   }
   
@@ -345,7 +345,7 @@ ScalarT MultiScale::initialize() {
 // Re-assignment of subgrid models to cells
 ////////////////////////////////////////////////////////////////////////////////
 
-ScalarT MultiScale::update() {
+ScalarT MultiscaleManager::update() {
   
   Teuchos::TimeMonitor localtimer(*updatetimer);
   
@@ -357,10 +357,10 @@ ScalarT MultiScale::update() {
         if (cells[b][e]->cellData->multiscale) {
           //int numElem = cells[b][e]->numElem;
           //for (int c=0;c<numElem; c++) {
-            int nummod = cells[b][e]->subgrid_model_index.size();
-            int oldmodel = cells[b][e]->subgrid_model_index[nummod-1];
-            cells[b][e]->subgrid_model_index.push_back(oldmodel);
-            my_cost += subgridModels[oldmodel]->cost_estimate;
+          int nummod = cells[b][e]->subgrid_model_index.size();
+          int oldmodel = cells[b][e]->subgrid_model_index[nummod-1];
+          cells[b][e]->subgrid_model_index.push_back(oldmodel);
+          my_cost += subgridModels[oldmodel]->cost_estimate;
           //}
         }
       }
@@ -403,29 +403,29 @@ ScalarT MultiScale::update() {
           
           
           //for (int c=0;c<numElem; c++) {
+          
+          int nummod = cells[b][e]->subgrid_model_index.size();
+          int oldmodel = cells[b][e]->subgrid_model_index[nummod-1];
+          if (sgwinner != oldmodel) {
             
-            int nummod = cells[b][e]->subgrid_model_index.size();
-            int oldmodel = cells[b][e]->subgrid_model_index[nummod-1];
-            if (sgwinner != oldmodel) {
-              
-              size_t usernum = cells[b][e]->subgrid_usernum;
-              // get the time/solution from old subgrid model at last time step
-              int lastindex = subgridModels[oldmodel]->soln->times[usernum].size()-1;
-              Teuchos::RCP<SGLA_MultiVector> lastsol = subgridModels[oldmodel]->soln->data[usernum][lastindex];
-              ScalarT lasttime = subgridModels[oldmodel]->soln->times[usernum][lastindex];
-              Teuchos::RCP<SGLA_MultiVector> projvec = subgridModels[sgwinner]->getVector();
-              subgrid_projection_maps[sgwinner][oldmodel]->apply(*lastsol, *projvec);
-              
-              Teuchos::RCP<SGLA_MultiVector> newvec = subgridModels[sgwinner]->getVector();
-              subgrid_projection_solvers[sgwinner]->setB(projvec);
-              subgrid_projection_solvers[sgwinner]->setX(newvec);
-              
-              subgrid_projection_solvers[sgwinner]->solve();
-              subgridModels[sgwinner]->soln->store(newvec, lasttime, usernum);
-              
-            }
-            my_cost += subgridModels[sgwinner]->cost_estimate * cells[b][e]->numElem;
-            cells[b][e]->subgrid_model_index.push_back(sgwinner);
+            size_t usernum = cells[b][e]->subgrid_usernum;
+            // get the time/solution from old subgrid model at last time step
+            int lastindex = subgridModels[oldmodel]->soln->times[usernum].size()-1;
+            Teuchos::RCP<SGLA_MultiVector> lastsol = subgridModels[oldmodel]->soln->data[usernum][lastindex];
+            ScalarT lasttime = subgridModels[oldmodel]->soln->times[usernum][lastindex];
+            Teuchos::RCP<SGLA_MultiVector> projvec = subgridModels[sgwinner]->getVector();
+            subgrid_projection_maps[sgwinner][oldmodel]->apply(*lastsol, *projvec);
+            
+            Teuchos::RCP<SGLA_MultiVector> newvec = subgridModels[sgwinner]->getVector();
+            subgrid_projection_solvers[sgwinner]->setB(projvec);
+            subgrid_projection_solvers[sgwinner]->setX(newvec);
+            
+            subgrid_projection_solvers[sgwinner]->solve();
+            subgridModels[sgwinner]->soln->store(newvec, lasttime, usernum);
+            
+          }
+          my_cost += subgridModels[sgwinner]->cost_estimate * cells[b][e]->numElem;
+          cells[b][e]->subgrid_model_index.push_back(sgwinner);
           //}
         }
       }
@@ -437,12 +437,12 @@ ScalarT MultiScale::update() {
       for (size_t b=0; b<cells.size(); b++) {
         for (size_t e=0; e<cells[b].size(); e++) {
           //for (int c=0; c<cells[b][e]->numElem; c++) {
-            size_t nindex = cells[b][e]->subgrid_model_index.size();
-            if (cells[b][e]->subgrid_model_index[nindex-1] == s) {
-              size_t usernum = cells[b][e]->subgrid_usernum;
-              active[usernum] = true;
-              numactive += 1;
-            }
+          size_t nindex = cells[b][e]->subgrid_model_index.size();
+          if (cells[b][e]->subgrid_model_index[nindex-1] == s) {
+            size_t usernum = cells[b][e]->subgrid_usernum;
+            active[usernum] = true;
+            numactive += 1;
+          }
           //}
         }
       }
@@ -457,7 +457,7 @@ ScalarT MultiScale::update() {
 // Reset the time step
 ////////////////////////////////////////////////////////////////////////////////
 
-void MultiScale::reset() {
+void MultiscaleManager::reset() {
   Teuchos::TimeMonitor localtimer(*resettimer);
   
   //for (size_t j=0; j<subgridModels.size(); j++) {
@@ -469,8 +469,8 @@ void MultiScale::reset() {
 // Update parameters
 ////////////////////////////////////////////////////////////////////////////////
 
-void MultiScale::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params,
-                                  const vector<string> & paramnames) {
+void MultiscaleManager::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params,
+                                         const vector<string> & paramnames) {
   for (size_t i=0; i<subgridModels.size(); i++) {
     //subgridModels[i]->paramvals_AD = params;
     subgridModels[i]->updateParameters(params, paramnames);
@@ -482,31 +482,31 @@ void MultiScale::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params,
 ////////////////////////////////////////////////////////////////////////////////
 
 
-Kokkos::View<ScalarT**,HostDevice> MultiScale::getMeanCellFields(const size_t & block, const int & timeindex,
-                                                                const ScalarT & time, const int & numfields) {
+Kokkos::View<ScalarT**,HostDevice> MultiscaleManager::getMeanCellFields(const size_t & block, const int & timeindex,
+                                                                        const ScalarT & time, const int & numfields) {
   
   Kokkos::View<ScalarT**,HostDevice> subgrid_cell_fields("subgrid cell fields",cells[block].size(),numfields);
   /*
-  if (subgridModels.size() > 0) {
-    for (size_t e=0; e<cells[block].size(); e++) {
-      int sgmodelnum = cells[block][e]->subgrid_model_index[timeindex];
-      FC cfields = subgridModels[sgmodelnum]->getCellFields(cells[block][e]->subgrid_usernum, time);
-      size_t nsgc = cfields.extent(0);
-      for (size_t k=0; k<cfields.extent(1); k++) {
-        ScalarT cval = 0.0;
-        for (size_t j=0; j<nsgc; j++) {
-          cval += cfields(j,k)/(ScalarT)nsgc;
-        }
-        subgrid_cell_fields(e,k) = cval;
-      }
-    }
-  }
-  */
+   if (subgridModels.size() > 0) {
+   for (size_t e=0; e<cells[block].size(); e++) {
+   int sgmodelnum = cells[block][e]->subgrid_model_index[timeindex];
+   FC cfields = subgridModels[sgmodelnum]->getCellFields(cells[block][e]->subgrid_usernum, time);
+   size_t nsgc = cfields.extent(0);
+   for (size_t k=0; k<cfields.extent(1); k++) {
+   ScalarT cval = 0.0;
+   for (size_t j=0; j<nsgc; j++) {
+   cval += cfields(j,k)/(ScalarT)nsgc;
+   }
+   subgrid_cell_fields(e,k) = cval;
+   }
+   }
+   }
+   */
   
   return subgrid_cell_fields;
 }
 
-void MultiScale::updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data) {
+void MultiscaleManager::updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data) {
   for (size_t i=0; i<subgridModels.size(); i++) {
     subgridModels[i]->updateMeshData(rotation_data);
   }

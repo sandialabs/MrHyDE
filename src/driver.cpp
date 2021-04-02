@@ -78,7 +78,7 @@ int main(int argc,char * argv[]) {
     // Import default and user-defined settings into a parameter list
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<Teuchos::ParameterList> settings = userInterface(input_file_name);
+    Teuchos::RCP<Teuchos::ParameterList> settings = UserInterface(input_file_name);
     
     verbosity = settings->get<int>("verbosity",0);
     profile = settings->get<bool>("profile",false);
@@ -87,13 +87,13 @@ int main(int argc,char * argv[]) {
     // Create the mesh
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<meshInterface> mesh = Teuchos::rcp(new meshInterface(settings, Comm) );
+    Teuchos::RCP<MeshInterface> mesh = Teuchos::rcp(new MeshInterface(settings, Comm) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // Set up the physics
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<physics> phys = Teuchos::rcp( new physics(settings, Comm, mesh->stk_mesh) );
+    Teuchos::RCP<PhysicsInterface> phys = Teuchos::rcp( new PhysicsInterface(settings, Comm, mesh->stk_mesh) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // Mesh only needs the variable names and types to finalize
@@ -105,9 +105,9 @@ int main(int argc,char * argv[]) {
     // Define the discretization(s)
     ////////////////////////////////////////////////////////////////////////////////
         
-    Teuchos::RCP<discretization> disc = Teuchos::rcp( new discretization(settings, Comm,
-                                                                         mesh->stk_mesh,
-                                                                         phys) );
+    Teuchos::RCP<DiscretizationInterface> disc = Teuchos::rcp( new DiscretizationInterface(settings, Comm,
+                                                                                           mesh->stk_mesh,
+                                                                                           phys) );
             
     ////////////////////////////////////////////////////////////////////////////////
     // Create the solver object
@@ -143,9 +143,9 @@ int main(int argc,char * argv[]) {
     // Set up the subgrid discretizations/models if using multiscale method
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<MultiScale> multiscale_manager = Teuchos::rcp( new MultiScale(Comm, mesh, settings,
-                                                                               assembler->cells,
-                                                                               functionManagers) );
+    Teuchos::RCP<MultiscaleManager> multiscale_manager = Teuchos::rcp( new MultiscaleManager(Comm, mesh, settings,
+                                                                                             assembler->cells,
+                                                                                             functionManagers) );
     
     ///////////////////////////////////////////////////////////////////////////////
     // Create the postprocessing object
@@ -160,8 +160,8 @@ int main(int argc,char * argv[]) {
     // Set up the solver and finalize some objects
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<solver<SolverNode> > solve = Teuchos::rcp( new solver<SolverNode>(Comm, settings, mesh,
-                                                                                   disc, phys, assembler, params) );
+    Teuchos::RCP<SolverManager<SolverNode> > solve = Teuchos::rcp( new SolverManager<SolverNode>(Comm, settings, mesh,
+                                                                                                 disc, phys, assembler, params) );
     
     
     solve->multiscale_manager = multiscale_manager;
@@ -199,8 +199,8 @@ int main(int argc,char * argv[]) {
     // Perform the requested analysis (fwd solve, adj solve, dakota run, etc.)
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<analysis> analys = Teuchos::rcp( new analysis(Comm, settings,
-                                                               solve, postproc, params) );
+    Teuchos::RCP<AnalysisManager> analys = Teuchos::rcp( new AnalysisManager(Comm, settings,
+                                                                             solve, postproc, params) );
         
     {
       Teuchos::TimeMonitor rtimer(*runTimer);

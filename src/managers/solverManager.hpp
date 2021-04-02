@@ -28,32 +28,32 @@
 
 namespace MrHyDE {
   /*
-  void static solverHelp(const string & details) {
-    cout << "********** Help and Documentation for the Solver Interface **********" << endl;
-  }
-  */
+   void static solverHelp(const string & details) {
+   cout << "********** Help and Documentation for the Solver Interface **********" << endl;
+   }
+   */
   template<class Node>
-  class solver {
-
+  class SolverManager {
+    
     typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
     typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> LA_MultiVector;
     typedef Teuchos::RCP<LA_MultiVector>            vector_RCP;
     typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
     typedef typename Node::device_type              LA_device;
-  
+    
   public:
     
     // ========================================================================================
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    solver(const Teuchos::RCP<MpiComm> & Comm_,
-           Teuchos::RCP<Teuchos::ParameterList> & settings_,
-           Teuchos::RCP<meshInterface> & mesh_,
-           Teuchos::RCP<discretization> & disc_,
-           Teuchos::RCP<physics> & phys_,
-           Teuchos::RCP<AssemblyManager<Node> > & assembler_,
-           Teuchos::RCP<ParameterManager<Node> > & params_);
+    SolverManager(const Teuchos::RCP<MpiComm> & Comm_,
+                  Teuchos::RCP<Teuchos::ParameterList> & settings_,
+                  Teuchos::RCP<MeshInterface> & mesh_,
+                  Teuchos::RCP<DiscretizationInterface> & disc_,
+                  Teuchos::RCP<PhysicsInterface> & phys_,
+                  Teuchos::RCP<AssemblyManager<Node> > & assembler_,
+                  Teuchos::RCP<ParameterManager<Node> > & params_);
     
     // ========================================================================================
     // ========================================================================================
@@ -145,14 +145,14 @@ namespace MrHyDE {
     
     Teuchos::RCP<MpiComm> Comm;
     Teuchos::RCP<Teuchos::ParameterList> settings;
-    Teuchos::RCP<meshInterface>  mesh;
-    Teuchos::RCP<discretization> disc;
-    Teuchos::RCP<physics> phys;
-    Teuchos::RCP<linearAlgebra<Node> > linalg;
+    Teuchos::RCP<MeshInterface>  mesh;
+    Teuchos::RCP<DiscretizationInterface> disc;
+    Teuchos::RCP<PhysicsInterface> phys;
+    Teuchos::RCP<LinearAlgebraInterface<Node> > linalg;
     Teuchos::RCP<AssemblyManager<Node> > assembler;
     Teuchos::RCP<ParameterManager<Node> > params;
     Teuchos::RCP<PostprocessManager<Node> > postproc;
-    Teuchos::RCP<MultiScale> multiscale_manager;
+    Teuchos::RCP<MultiscaleManager> multiscale_manager;
     
     int verbosity, batchID, spaceDim, numsteps, numstages, gNLiter, debug_level, maxNLiter, time_order;
     
@@ -168,7 +168,7 @@ namespace MrHyDE {
     bool compute_objective, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
     bool scalarDirichletData, transientDirichletData, scalarInitialData;
     bool have_initial_conditions;
-        
+    
     vector<vector<ScalarT> > scalarDirichletValues, scalarInitialValues; //[block][var]
     Teuchos::RCP<LA_MultiVector> fixedDOF_soln;
     vector<string> blocknames;
@@ -176,17 +176,17 @@ namespace MrHyDE {
     
     vector<vector<LO> > numBasis, useBasis;
     vector<LO> maxBasis, numVars;
-        
-    Teuchos::RCP<Teuchos::Time> transientsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::solver::transientSolver()");
-    Teuchos::RCP<Teuchos::Time> nonlinearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::solver::nonlinearSolver()");
     
-    Teuchos::RCP<Teuchos::Time> initsettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::solver::setInitial()");
-    Teuchos::RCP<Teuchos::Time> dbcsettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::solver::setDirichlet()");
-    Teuchos::RCP<Teuchos::Time> dbcprojtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::solver::projectDirichlet()");
-    Teuchos::RCP<Teuchos::Time> fixeddofsetuptimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::solver::setupFixedDOFs()");
-    Teuchos::RCP<Teuchos::Time> msprojtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::solver::projectDirichlet()");
-    Teuchos::RCP<Teuchos::Time> normLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::solver::nonlinearSolver() - norm LA");
-    Teuchos::RCP<Teuchos::Time> updateLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::solver::nonlinearSolver() - update LA");
+    Teuchos::RCP<Teuchos::Time> transientsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::transientSolver()");
+    Teuchos::RCP<Teuchos::Time> nonlinearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::nonlinearSolver()");
+    
+    Teuchos::RCP<Teuchos::Time> initsettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::setInitial()");
+    Teuchos::RCP<Teuchos::Time> dbcsettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::setDirichlet()");
+    Teuchos::RCP<Teuchos::Time> dbcprojtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::projectDirichlet()");
+    Teuchos::RCP<Teuchos::Time> fixeddofsetuptimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::setupFixedDOFs()");
+    Teuchos::RCP<Teuchos::Time> msprojtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::projectDirichlet()");
+    Teuchos::RCP<Teuchos::Time> normLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::nonlinearSolver() - norm LA");
+    Teuchos::RCP<Teuchos::Time> updateLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::nonlinearSolver() - update LA");
     
   };
   

@@ -23,29 +23,29 @@
 
 namespace MrHyDE {
   /*
-  void static multiscaleHelp(const std::string & details) {
-    cout << "********** Help and Documentation for the Multiscale Interface **********" << endl;
-  }
-  */
+   void static multiscaleHelp(const std::string & details) {
+   cout << "********** Help and Documentation for the Multiscale Interface **********" << endl;
+   }
+   */
   
-  class MultiScale {
+  class MultiscaleManager {
     
     typedef Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>   SGLA_CrsMatrix;
     typedef Tpetra::MultiVector<ScalarT,LO,GO,SubgridSolverNode> SGLA_MultiVector;
     typedef Teuchos::RCP<SGLA_MultiVector> vector_RCP;
     typedef Teuchos::RCP<SGLA_CrsMatrix>   matrix_RCP;
-  
+    
   public:
     
     // ========================================================================================
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    MultiScale(const Teuchos::RCP<MpiComm> & MacroComm_,
-               Teuchos::RCP<meshInterface> & mesh_,
-               Teuchos::RCP<Teuchos::ParameterList> & settings_,
-               std::vector<std::vector<Teuchos::RCP<cell> > > & cells_,
-               std::vector<Teuchos::RCP<FunctionManager> > macro_functionManagers_);
+    MultiscaleManager(const Teuchos::RCP<MpiComm> & MacroComm_,
+                      Teuchos::RCP<MeshInterface> & mesh_,
+                      Teuchos::RCP<Teuchos::ParameterList> & settings_,
+                      std::vector<std::vector<Teuchos::RCP<cell> > > & cells_,
+                      std::vector<Teuchos::RCP<FunctionManager> > macro_functionManagers_);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Set the information from the macro-scale that does not depend on the specific cell
@@ -97,7 +97,7 @@ namespace MrHyDE {
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
-     
+    
     bool subgrid_static;
     int debug_level;
     std::vector<Teuchos::RCP<SubGridModel> > subgridModels;
@@ -109,9 +109,9 @@ namespace MrHyDE {
     std::vector<Teuchos::RCP<Amesos2::Solver<SGLA_CrsMatrix,SGLA_MultiVector> > > subgrid_projection_solvers;
     std::vector<Teuchos::RCP<FunctionManager> > macro_functionManagers;
     
-    Teuchos::RCP<Teuchos::Time> resettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::multiscale::reset()");
-    Teuchos::RCP<Teuchos::Time> initializetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::multiscale::initialize()");
-    Teuchos::RCP<Teuchos::Time> updatetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::multiscale::update()");
+    Teuchos::RCP<Teuchos::Time> resettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager::reset()");
+    Teuchos::RCP<Teuchos::Time> initializetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager::initialize()");
+    Teuchos::RCP<Teuchos::Time> updatetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager::update()");
   };
 }
 

@@ -49,9 +49,9 @@ namespace MrHyDE {
     
     SubGridFEM_Solver(const Teuchos::RCP<MpiComm> & LocalComm_,
                       Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                      Teuchos::RCP<meshInterface> & mesh,
-                      Teuchos::RCP<discretization> & disc,
-                      Teuchos::RCP<physics> & physics,
+                      Teuchos::RCP<MeshInterface> & mesh,
+                      Teuchos::RCP<DiscretizationInterface> & disc,
+                      Teuchos::RCP<PhysicsInterface> & physics,
                       Teuchos::RCP<AssemblyManager<SubgridSolverNode> > & assembler,
                       Teuchos::RCP<ParameterManager<SubgridSolverNode> > & params,
                       ScalarT & macro_deltat_,
@@ -255,7 +255,7 @@ namespace MrHyDE {
     int sub_maxNLiter;
     bool have_sym_factor, useDirect;
     
-    Teuchos::RCP<solver<SubgridSolverNode> > milo_solver;
+    Teuchos::RCP<SolverManager<SubgridSolverNode> > solver;
     Teuchos::RCP<AssemblyManager<SubgridSolverNode> > assembler;
     
     int num_macro_time_steps;

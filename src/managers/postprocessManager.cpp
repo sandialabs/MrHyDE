@@ -29,8 +29,9 @@ template class MrHyDE::PostprocessManager<SolverNode>;
 template<class Node>
 PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                                              Teuchos::RCP<Teuchos::ParameterList> & settings,
-                                             Teuchos::RCP<meshInterface> & mesh_,
-                                             Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
+                                             Teuchos::RCP<MeshInterface> & mesh_,
+                                             Teuchos::RCP<DiscretizationInterface> & disc_,
+                                             Teuchos::RCP<PhysicsInterface> & phys_,
                                              vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
                                              Teuchos::RCP<AssemblyManager<Node> > & assembler_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_),
@@ -45,10 +46,11 @@ assembler(assembler_), functionManagers(functionManagers_) {
 template<class Node>
 PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
                                              Teuchos::RCP<Teuchos::ParameterList> & settings,
-                                             Teuchos::RCP<meshInterface> & mesh_,
-                                             Teuchos::RCP<discretization> & disc_, Teuchos::RCP<physics> & phys_,
+                                             Teuchos::RCP<MeshInterface> & mesh_,
+                                             Teuchos::RCP<DiscretizationInterface> & disc_,
+                                             Teuchos::RCP<PhysicsInterface> & phys_,
                                              vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
-                                             Teuchos::RCP<MultiScale> & multiscale_manager_,
+                                             Teuchos::RCP<MultiscaleManager> & multiscale_manager_,
                                              Teuchos::RCP<AssemblyManager<Node> > & assembler_,
                                              Teuchos::RCP<ParameterManager<Node> > & params_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_),
@@ -3378,7 +3380,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
 
 template<class Node>
 void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
-  
+    
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting PostprocessManager::importSensorsFromFiles() ..." << endl;
@@ -3391,43 +3393,64 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
   // Import the data from the files
   // ========================================
   
-  data sdata("Sensor Measurements", spaceDim,
-             objectives[objID].sensor_points_file,
-             objectives[objID].sensor_data_file, false);
+  data sdata;
+  bool have_data = false;
+  
+  if (objectives[objID].sensor_data_file == "") {
+    sdata = data("Sensor Measurements", spaceDim,
+                 objectives[objID].sensor_points_file);
+  }
+  else {
+    sdata = data("Sensor Measurements", spaceDim,
+                 objectives[objID].sensor_points_file,
+                 objectives[objID].sensor_data_file, false);
+    have_data = true;
+  }
   
   // ========================================
   // Save the locations in the appropriate view
   // ========================================
   
   Kokkos::View<ScalarT**,HostDevice> spts_host = sdata.getpoints();
-  std::vector<Kokkos::View<ScalarT**,HostDevice> >  sensor_data_host = sdata.getdata();
+  std::vector<Kokkos::View<ScalarT**,HostDevice> >  sensor_data_host;
+  if (have_data) {
+    sensor_data_host = sdata.getdata();
+  }
   
   // Check that the data matches the expected format
   if (spts_host.extent(1) != static_cast<size_type>(spaceDim)) {
     TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,
                                "Error: sensor points dimension does not match simulation dimension");
   }
-  if (spts_host.extent(0)+1 != sensor_data_host.size()) {
-    TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,
-                               "Error: number of sensors does not match data");
+  if (have_data) {
+    if (spts_host.extent(0)+1 != sensor_data_host.size()) {
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,
+                                 "Error: number of sensors does not match data");
+    }
   }
   
   // ========================================
   // Import the data from the files
   // ========================================
   
-  Kokkos::View<ScalarT*,HostDevice> stime_host("sensor times", sensor_data_host[0].extent(1));
+  Kokkos::View<ScalarT*,HostDevice> stime_host;
   
-  for (size_type d=0; d<sensor_data_host[0].extent(1); ++d) {
-    stime_host(d) = sensor_data_host[0](0,d);
-  }
+  Kokkos::View<ScalarT**,HostDevice> sdat_host;
   
-  Kokkos::View<ScalarT**,HostDevice> sdat_host("sensor data", sensor_data_host.size()-1,
-                                               sensor_data_host[0].extent(1));
+  if (have_data) {
+    stime_host = Kokkos::View<ScalarT*,HostDevice>("sensor times", sensor_data_host[0].extent(1));
   
-  for (size_type pt=1; pt<sensor_data_host.size(); ++pt) {
-    for (size_type d=0; d<sensor_data_host[pt].extent(1); ++d) {
-      sdat_host(pt-1,d) = sensor_data_host[pt](0,d);
+    for (size_type d=0; d<sensor_data_host[0].extent(1); ++d) {
+      stime_host(d) = sensor_data_host[0](0,d);
+    }
+    
+    sdat_host = Kokkos::View<ScalarT**,HostDevice>("sensor data", sensor_data_host.size()-1,
+                                                   sensor_data_host[0].extent(1));
+    
+    for (size_type pt=1; pt<sensor_data_host.size(); ++pt) {
+      for (size_type d=0; d<sensor_data_host[pt].extent(1); ++d) {
+        sdat_host(pt-1,d) = sensor_data_host[pt](0,d);
+      }
     }
   }
   
@@ -3531,16 +3554,34 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
     // ========================================
     
     Kokkos::View<ScalarT**,AssemblyDevice> spts("sensor point", numFound, spaceDim);
-    Kokkos::View<ScalarT*,AssemblyDevice> stime("sensor times", stime_host.extent(0));
-    Kokkos::View<ScalarT**,AssemblyDevice> sdat("sensor data", numFound, stime_host.extent(0));
+    Kokkos::View<ScalarT*,AssemblyDevice> stime;
+    Kokkos::View<ScalarT**,AssemblyDevice> sdat;
     Kokkos::View<int*[2],HostDevice> sowners("sensor owners", numFound);
-    
-    auto stime_tmp = create_mirror_view(stime);
-    deep_copy(stime_tmp,stime_host);
-    deep_copy(stime,stime_tmp);
-    
+        
     auto spts_tmp = create_mirror_view(spts);
-    auto sdat_tmp = create_mirror_view(sdat);
+    
+    if (have_data) {
+      stime = Kokkos::View<ScalarT*,AssemblyDevice>("sensor times", stime_host.extent(0));
+      auto stime_tmp = create_mirror_view(stime);
+      deep_copy(stime_tmp,stime_host);
+      deep_copy(stime,stime_tmp);
+      
+      sdat = Kokkos::View<ScalarT**,AssemblyDevice>("sensor data", numFound, stime_host.extent(0));
+      auto sdat_tmp = create_mirror_view(sdat);
+      size_t prog=0;
+      
+      for (size_type pt=0; pt<spts_host.extent(0); ++pt) {
+        if (spts_found(pt)) {
+          if (have_data) {
+            for (size_type j=0; j<sdat.extent(1); ++j) {
+              sdat_tmp(prog,j) = sdat_host(pt,j);
+            }
+          }
+          prog++;
+        }
+      }
+      deep_copy(sdat,sdat_tmp);
+    }
     
     size_t prog=0;
     
@@ -3549,19 +3590,13 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
         for (size_type j=0; j<sowners.extent(1); ++j) {
           sowners(prog,j) = spts_owners(pt,j);
         }
-        
         for (size_type j=0; j<spts.extent(1); ++j) {
           spts_tmp(prog,j) = spts_host(pt,j);
-        }
-        
-        for (size_type j=0; j<sdat.extent(1); ++j) {
-          sdat_tmp(prog,j) = sdat_host(pt,j);
         }
         prog++;
       }
     }
     deep_copy(spts,spts_tmp);
-    deep_copy(sdat,sdat_tmp);
     
     objectives[objID].sensor_points = spts;
     objectives[objID].sensor_times = stime;

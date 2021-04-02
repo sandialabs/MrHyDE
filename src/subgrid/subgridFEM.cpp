@@ -131,7 +131,7 @@ void SubGridFEM::setUpSubgridModels() {
   Kokkos::View<int****,HostDevice> sideinfo;
   
   vector<string> eBlocks;
-  Teuchos::RCP<discretization> tmp_disc = Teuchos::rcp(new discretization());
+  Teuchos::RCP<DiscretizationInterface> tmp_disc = Teuchos::rcp(new DiscretizationInterface());
   
   DRV refnodes = tmp_disc->getReferenceNodes(macro_cellTopo);
   
@@ -143,7 +143,7 @@ void SubGridFEM::setUpSubgridModels() {
     
     sgt.createSubMesh(numrefine);
     
-    Teuchos::RCP<discretization> tmp_disc = Teuchos::rcp( new discretization());
+    Teuchos::RCP<DiscretizationInterface> tmp_disc = Teuchos::rcp( new DiscretizationInterface());
     nodes = sgt.getListOfPhysicalNodes(macroData[0]->macronodes, macro_cellTopo, tmp_disc);
     
     int reps = macroData[0]->macronodes.extent(0);
@@ -170,7 +170,7 @@ void SubGridFEM::setUpSubgridModels() {
     
     meshFactory.completeMeshConstruction(*mesh,*(LocalComm->getRawMpiComm()));
     
-    sub_mesh = Teuchos::rcp(new meshInterface(settings, LocalComm) );
+    sub_mesh = Teuchos::rcp(new MeshInterface(settings, LocalComm) );
     sub_mesh->stk_mesh = mesh;
     if (debug_level > 1) {
       if (LocalComm->getRank() == 0) {
@@ -184,13 +184,13 @@ void SubGridFEM::setUpSubgridModels() {
   // Define the sub-grid physics
   /////////////////////////////////////////////////////////////////////////////////////
   
-  sub_physics = Teuchos::rcp( new physics(settings, LocalComm, sub_mesh->stk_mesh) );
+  sub_physics = Teuchos::rcp( new PhysicsInterface(settings, LocalComm, sub_mesh->stk_mesh) );
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the subgrid discretizations
   /////////////////////////////////////////////////////////////////////////////////////
   
-  sub_disc = Teuchos::rcp( new discretization(settings, LocalComm, sub_mesh->stk_mesh, sub_physics) );
+  sub_disc = Teuchos::rcp( new DiscretizationInterface(settings, LocalComm, sub_mesh->stk_mesh, sub_physics) );
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the function managers
@@ -394,8 +394,6 @@ void SubGridFEM::setUpSubgridModels() {
   /////////////////////////////////////////////////////////////////////////////////////
   
   {
-    Teuchos::TimeMonitor localtimer(*sgfemLinearAlgebraSetupTimer);
-    
     varlist = sub_physics->varlist[0];
     functionManagers[0]->setupLists(sub_physics->varlist[0], sub_physics->aux_varlist[0],
                                     macro_paramnames, macro_disc_paramnames);
@@ -646,21 +644,21 @@ void SubGridFEM::setUpSubgridModels() {
       int numDOF = cells[mindex][0]->LIDs.extent(1);
       for (size_t e=0; e<cells[mindex].size(); e++) {
         cells[mindex][e]->setWorkset(sub_assembler->wkset[0]);
-        cells[mindex][e]->setUseBasis(sub_solver->milo_solver->useBasis[0],
-                                      sub_solver->milo_solver->numsteps,
-                                      sub_solver->milo_solver->numstages);
+        cells[mindex][e]->setUseBasis(sub_solver->solver->useBasis[0],
+                                      sub_solver->solver->numsteps,
+                                      sub_solver->solver->numstages);
         cells[mindex][e]->setUpAdjointPrev(numDOF,
-                                           sub_solver->milo_solver->numsteps,
-                                           sub_solver->milo_solver->numstages);
-        cells[mindex][e]->setUpSubGradient(sub_solver->milo_solver->params->num_active_params);
+                                           sub_solver->solver->numsteps,
+                                           sub_solver->solver->numstages);
+        cells[mindex][e]->setUpSubGradient(sub_solver->solver->params->num_active_params);
       }
       if (boundaryCells.size() > mindex) { // should always be true here
         for (size_t e=0; e<boundaryCells[mindex].size(); e++) {
           if (boundaryCells[mindex][e]->numElem > 0) {
             boundaryCells[mindex][e]->setWorkset(sub_assembler->wkset[0]);
-            boundaryCells[mindex][e]->setUseBasis(sub_solver->milo_solver->useBasis[0],
-                                                  sub_solver->milo_solver->numsteps,
-                                                  sub_solver->milo_solver->numstages);
+            boundaryCells[mindex][e]->setUseBasis(sub_solver->solver->useBasis[0],
+                                                  sub_solver->solver->numsteps,
+                                                  sub_solver->solver->numstages);
           }
         }
       }
@@ -712,13 +710,13 @@ void SubGridFEM::setUpSubgridModels() {
     {
       Teuchos::TimeMonitor localtimer(*sgfemSubICTimer);
       
-      Teuchos::RCP<SG_MultiVector> init = sub_solver->milo_solver->linalg->getNewOverlappedVector();
-      //Teuchos::rcp(new SG_MultiVector(sub_solver->milo_solver->LA_overlapped_map,1));
+      Teuchos::RCP<SG_MultiVector> init = sub_solver->solver->linalg->getNewOverlappedVector();
+      //Teuchos::rcp(new SG_MultiVector(sub_solver->solver->LA_overlapped_map,1));
       this->setInitial(init, mindex, false);
       soln->store(init,initial_time,mindex);
       
-      Teuchos::RCP<SG_MultiVector> inita = sub_solver->milo_solver->linalg->getNewOverlappedVector();
-      //Teuchos::rcp(new SG_MultiVector(sub_solver->milo_solver->LA_overlapped_map,1));
+      Teuchos::RCP<SG_MultiVector> inita = sub_solver->solver->linalg->getNewOverlappedVector();
+      //Teuchos::rcp(new SG_MultiVector(sub_solver->solver->LA_overlapped_map,1));
       adjsoln->store(inita,final_time,mindex);
     }
     
@@ -1378,8 +1376,8 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
   }
   
   // Containers for current forward/adjoint solutions
-  //Teuchos::RCP<LA_MultiVector> curr_fwdsoln = Teuchos::rcp(new LA_MultiVector(sub_solver->milo_solver->LA_overlapped_map,1));
-  //Teuchos::RCP<LA_MultiVector> curr_adjsoln = Teuchos::rcp(new LA_MultiVector(sub_solver->milo_solver->LA_overlapped_map,1));
+  //Teuchos::RCP<LA_MultiVector> curr_fwdsoln = Teuchos::rcp(new LA_MultiVector(sub_solver->solver->LA_overlapped_map,1));
+  //Teuchos::RCP<LA_MultiVector> curr_adjsoln = Teuchos::rcp(new LA_MultiVector(sub_solver->solver->LA_overlapped_map,1));
   
   // Solve the local subgrid problem and fill in the coarse macrowkset->res;
   sub_solver->solve(coarse_u, coarse_phi,

@@ -38,15 +38,15 @@ namespace MrHyDE {
   }
   */
   
-  class meshInterface {
+  class MeshInterface {
     
   public:
     
-    meshInterface() {};
+    MeshInterface() {};
     
-    meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_, const Teuchos::RCP<MpiComm> & Commptr_);
+    MeshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_, const Teuchos::RCP<MpiComm> & Commptr_);
     
-    meshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
+    MeshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                   const Teuchos::RCP<MpiComm> & Commptr_,
                   Teuchos::RCP<panzer_stk::STK_MeshFactory> & mesh_factory_,
                   Teuchos::RCP<panzer_stk::STK_Interface> & mesh_);
@@ -54,7 +54,7 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    void finalize(Teuchos::RCP<physics> & phys);
+    void finalize(Teuchos::RCP<PhysicsInterface> & phys);
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////

@@ -25,12 +25,12 @@ namespace MrHyDE {
   //////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////
   /*
-  static void analysisHelp(const string & details) {
-    cout << "********** Help and Documentation for the Analysis Interface **********" << endl;
-  }
-  */
+   static void analysisHelp(const string & details) {
+   cout << "********** Help and Documentation for the Analysis Interface **********" << endl;
+   }
+   */
   
-  class analysis {
+  class AnalysisManager {
     
     typedef Tpetra::Map<LO, GO, SolverNode>               LA_Map;
     typedef Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> LA_MultiVector;
@@ -42,9 +42,11 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    analysis(const Teuchos::RCP<MpiComm> & Comm_, 
-             Teuchos::RCP<Teuchos::ParameterList> & settings_, Teuchos::RCP<solver<SolverNode> > & solver_,
-             Teuchos::RCP<PostprocessManager<SolverNode> > & postproc_, Teuchos::RCP<ParameterManager<SolverNode> > & params_);
+    AnalysisManager(const Teuchos::RCP<MpiComm> & Comm_,
+                    Teuchos::RCP<Teuchos::ParameterList> & settings_,
+                    Teuchos::RCP<SolverManager<SolverNode> > & solver_,
+                    Teuchos::RCP<PostprocessManager<SolverNode> > & postproc_,
+                    Teuchos::RCP<ParameterManager<SolverNode> > & params_);
     
     // ========================================================================================
     // ========================================================================================
@@ -59,9 +61,8 @@ namespace MrHyDE {
   protected:
     
     Teuchos::RCP<MpiComm> Comm;
-    //Teuchos::RCP<MpiComm> S_Comm;
     Teuchos::RCP<Teuchos::ParameterList> settings;
-    Teuchos::RCP<solver<SolverNode> > solve;
+    Teuchos::RCP<SolverManager<SolverNode> > solve;
     Teuchos::RCP<PostprocessManager<SolverNode> > postproc;
     Teuchos::RCP<ParameterManager<SolverNode> > params;
     

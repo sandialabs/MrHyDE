@@ -24,7 +24,7 @@ cell::cell(const Teuchos::RCP<CellMetaData> & cellData_,
            const Kokkos::View<LO*,AssemblyDevice> localID_,
            LIDView LIDs_,
            Kokkos::View<int****,HostDevice> sideinfo_,
-           Teuchos::RCP<discretization> & disc_) :
+           Teuchos::RCP<DiscretizationInterface> & disc_) :
 LIDs(LIDs_), cellData(cellData_), localElemID(localID_), sideinfo(sideinfo_), nodes(nodes_), disc(disc_)
 {
   numElem = nodes.extent(0);

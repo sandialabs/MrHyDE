@@ -53,9 +53,12 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_, Teuchos::RCP<Teuchos::ParameterList> & settings,
-                    Teuchos::RCP<panzer_stk::STK_Interface> & mesh_, Teuchos::RCP<discretization> & disc_,
-                    Teuchos::RCP<physics> & phys_, Teuchos::RCP<ParameterManager<Node> > & params_);
+    AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_,
+                    Teuchos::RCP<Teuchos::ParameterList> & settings,
+                    Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                    Teuchos::RCP<DiscretizationInterface> & disc_,
+                    Teuchos::RCP<PhysicsInterface> & phys_,
+                    Teuchos::RCP<ParameterManager<Node> > & params_);
     
     
     // ========================================================================================
@@ -188,8 +191,8 @@ namespace MrHyDE {
     std::vector<LO> numVars;
     
     Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
-    Teuchos::RCP<discretization> disc;
-    Teuchos::RCP<physics> phys;
+    Teuchos::RCP<DiscretizationInterface> disc;
+    Teuchos::RCP<PhysicsInterface> phys;
     
     size_t globalParamUnknowns;
     int verbosity, debug_level;

@@ -43,7 +43,7 @@ namespace ROL {
   private:
     
     Real noise_;                                 //standard deviation of normal additive noise to add to data (0 for now)
-    Teuchos::RCP<solver> solver_MILO;            // Solver object for MILO (solves FWD, ADJ, computes gradient, etc.)
+    Teuchos::RCP<SolverManager> solver_MILO;            // Solver object for MILO (solves FWD, ADJ, computes gradient, etc.)
     Teuchos::RCP<PostprocessManager> postproc_MILO;     // Solver object for MILO (solves FWD, ADJ, computes gradient, etc.)
     Teuchos::RCP<ParameterManager> params;
     
@@ -52,7 +52,7 @@ namespace ROL {
     /*!
      \brief A constructor generating data
      */
-    PObjective_MILO(Teuchos::RCP<solver> solver_MILO_,
+    PObjective_MILO(Teuchos::RCP<SolverManager> solver_MILO_,
                     Teuchos::RCP<PostprocessManager> postproc_MILO_,
                     Teuchos::RCP<ParameterManager> & params_) :
     solver_MILO(solver_MILO_), postproc_MILO(postproc_MILO_), params(params_) {
