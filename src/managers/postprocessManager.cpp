@@ -1688,7 +1688,22 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
   vector<ScalarT> dmGradient(numParams);
   
   typedef typename Node::device_type LA_device;
+  typedef typename Node::execution_space LA_exec;
   
+  // Can the LA_device execution_space access the AseemblyDevice data?
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible) {
+    data_avail = false;
+  }
+  // LIDs are on AssemblyDevice.  If the AssemblyDevice memory is accessible, then these are fine.
+  // Copy of LIDs is stored on HostDevice.
+  bool use_host_LIDs = false;
+  if (!data_avail) {
+    if (Kokkos::SpaceAccessibility<LA_exec, HostDevice::memory_space>::accessible) {
+      use_host_LIDs = true;
+    }
+  }
+    
   for (size_t r=0; r<objectives.size(); ++r) {
     if (objectives[r].type == "integrated control"){
       auto grad_over = linalg->getNewOverlappedVector();
@@ -1707,6 +1722,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
         View_Sc3 local_grad("local contrib to dobj/dstate",
                             assembler->cells[block][e]->numElem,
                             assembler->cells[block][e]->LIDs.extent(1),1);
+        
+        auto local_grad_ladev = create_mirror(LA_exec(),local_grad);
         
         for (int w=0; w<spaceDim+1; ++w) {
           
@@ -1896,7 +1913,24 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
           
         }
         
-        assembler->scatterRes(grad_view, local_grad, assembler->cells[block][e]->LIDs);
+        
+        if (data_avail) {
+          assembler->scatterRes(grad_view, local_grad, assembler->cells[block][e]->LIDs);
+        }
+        else {
+          Kokkos::deep_copy(local_grad_ladev,local_grad);
+          
+          if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
+            assembler->scatterRes(grad_view, local_grad_ladev, assembler->cells[block][e]->LIDs_host);
+          }
+          else { // LA_device = CUDA, AssemblyDevice = Host
+            // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
+            auto LIDs_dev = Kokkos::create_mirror(LA_exec(), assembler->cells[block][e]->LIDs);
+            Kokkos::deep_copy(LIDs_dev,assembler->cells[block][e]->LIDs);
+            assembler->scatterRes(grad_view, local_grad_ladev, LIDs_dev);
+          }
+          
+        }
         
       }
       
