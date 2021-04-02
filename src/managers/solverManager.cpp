@@ -128,7 +128,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   // Create linear algebra interface
   /////////////////////////////////////////////////////////////////////////////
   
-  linalg = Teuchos::rcp( new LinearAlgebraInterface<SolverNode>(Comm, settings, disc, params) );
+  linalg = Teuchos::rcp( new LinearAlgebraInterface<Node>(Comm, settings, disc, params) );
   
   /////////////////////////////////////////////////////////////////////////////
   // Worksets
@@ -1261,7 +1261,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
      */
     
     if (debug_level>2) {
-      KokkosTools::print(res,"residual from solver interface");
+      //KokkosTools::print(res,"residual from solver interface");
     }
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
     if (NLiter == 0) {
@@ -1299,7 +1299,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       linalg->fillComplete(J);
       
       if (debug_level>2) {
-        KokkosTools::print(J,"Jacobian from solver interface");
+        //KokkosTools::print(J,"Jacobian from solver interface");
       }
       
       linalg->linearSolver(J, res, du);
