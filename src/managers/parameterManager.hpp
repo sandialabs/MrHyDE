@@ -198,9 +198,11 @@ namespace MrHyDE {
     std::vector<std::vector<GO>> paramNodesOS;// values and bounds
     int num_inactive_params, num_active_params, num_stochastic_params, num_discrete_params, num_discretized_params;
     std::vector<ScalarT> initialParamValues, lowerParamBounds, upperParamBounds, discparamVariance;
-    std::vector<ScalarT> domainRegConstants, boundaryRegConstants;
-    std::vector<std::string> boundaryRegSides;
-    std::vector<int> domainRegTypes, domainRegIndices, boundaryRegTypes, boundaryRegIndices;
+    
+    //std::vector<ScalarT> domainRegConstants, boundaryRegConstants;
+    //std::vector<std::string> boundaryRegSides;
+    //std::vector<int> domainRegTypes, domainRegIndices, boundaryRegTypes, boundaryRegIndices;
+    
     int verbosity;
     string response_type, multigrid_type, smoother_type;
     bool discretized_stochastic, use_custom_initial_param_guess;

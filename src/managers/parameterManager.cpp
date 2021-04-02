@@ -179,6 +179,7 @@ void ParameterManager<Node>::setupParameters() {
         upperParamBounds.push_back(newparam.get<ScalarT>("upper_bound",1.0));
         discparam_distribution.push_back(newparam.get<string>("distribution","uniform"));
         discparamVariance.push_back(newparam.get<ScalarT>("variance",1.0));
+        /*
         if (newparam.get<bool>("isDomainParam",true)) {
           domainRegTypes.push_back(newparam.get<int>("reg_type",0));
           domainRegConstants.push_back(newparam.get<ScalarT>("reg_constant",0.0));
@@ -189,7 +190,7 @@ void ParameterManager<Node>::setupParameters() {
           boundaryRegConstants.push_back(newparam.get<ScalarT>("reg_constant",0.0));
           boundaryRegSides.push_back(newparam.get<string>("sides"," "));
           boundaryRegIndices.push_back(num_discretized_params - 1);
-        }
+        }*/
       }
       
       paramLowerBounds.push_back(lo);

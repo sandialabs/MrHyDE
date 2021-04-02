@@ -1674,14 +1674,10 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
       std::cout << "******** Starting PostprocessManager::computeObjectiveGradState ..." << std::endl;
     }
   }
-  // TMW: temp. fix
-  //size_t tindex = 0;
   
   DFAD totaldiff = 0.0;
   AD regDomain = 0.0;
   AD regBoundary = 0.0;
-  //int numDomainParams = params->domainRegIndices.size();
-  //int numBoundaryParams = params->boundaryRegIndices.size();
   
   params->sacadoizeParams(false);
   
