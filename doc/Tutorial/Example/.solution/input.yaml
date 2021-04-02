@@ -1,0 +1,38 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 40
+    NY: 40
+  Functions:
+    whatever: (8*pi^2+1.0)*sin(2*pi*x)*sin(2*pi*y)
+    c: '1.0'
+  Physics: 
+    modules: llamas
+    Dirichlet conditions:
+      llama:
+        all boundaries: '0.0'
+    Initial conditions:
+      llama: '0.0'
+  Discretization:
+    order:
+      llama: 1
+    quadrature: 2
+  Solver:
+    solver: steady-state
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    compute errors: true
+    write solution: true
+    True solutions:
+      llama: sin(2*pi*x)*sin(2*pi*y)
+...
