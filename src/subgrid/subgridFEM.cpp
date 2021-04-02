@@ -345,8 +345,8 @@ void SubGridFEM::setUpSubgridModels() {
   sub_assembler->boundaryCells = boundaryCells;
   
   Kokkos::View<string**,HostDevice> currbcs("boundary conditions",
-                                         sideinfo.extent(1),
-                                         macroData[0]->macrosideinfo.extent(2));
+                                            sideinfo.extent(1),
+                                            macroData[0]->macrosideinfo.extent(2));
   for (size_t i=0; i<sideinfo.extent(1); i++) { // number of variables
     for (size_t j=0; j<macroData[0]->macrosideinfo.extent(2); j++) { // number of sides per element
       currbcs(i,j) = 5;
