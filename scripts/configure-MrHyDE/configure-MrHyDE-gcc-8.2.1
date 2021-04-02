@@ -1,0 +1,22 @@
+EXTRA_ARGS=$@
+
+rm CMakeCache.txt
+rm -rf CMakeFiles
+
+TRILINOS_HOME='/projects/MrHyDE/Trilinos'
+
+TRILINOS_INSTALL='/projects/MrHyDE/Trilinos/install-gnu-8.2.1'
+
+CODE_HOME='/projects/MrHyDE/MrHyDE'
+
+CODE_INSTALL='/projects/MrHyDE/MrHyDE/install'
+
+cmake \
+-G Ninja \
+-D Trilinos_SRC_DIR=${TRILINOS_HOME} \
+-D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
+-D CMAKE_CXX_FLAGS:STRING="-w" \
+-D CMAKE_INSTALL_PREFIX:PATH=${CODE_INSTALL} \
+-D MrHyDE_MAX_DERIVS=64 \
+${EXTRA-ARGS} \
+${CODE_HOME}
