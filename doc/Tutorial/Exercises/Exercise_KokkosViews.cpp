@@ -50,7 +50,7 @@ int main(int argc, char * argv[]) {
     
     // Setting b equal to a just changes the pointer to the data
     b = a;
-    print(b,"New values");
+    print(b,"New values"); // It's even called "a" now
     
     a(0) = -1.0;
     print(b,"New values after changing a");

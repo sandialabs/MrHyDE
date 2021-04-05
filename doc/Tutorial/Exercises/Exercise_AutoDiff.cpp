@@ -37,6 +37,7 @@ int main(int argc, char * argv[]) {
     std::cout << "Analytical value of df/dx = " << true_dfdx << std::endl;
     std::cout << "Error in derivative = " << abs(f.fastAccessDx(0) - true_dfdx) << std::endl;
     
+    // We can also propagate derivatives through functions of f
     AD g = exp(f);
     std::cout << "g = " << g << std::endl;
     
