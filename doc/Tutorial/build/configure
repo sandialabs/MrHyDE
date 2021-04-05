@@ -3,11 +3,11 @@ EXTRA_ARGS=$@
 rm CMakeCache.txt
 rm -rf CMakeFiles/
 
-TRILINOS_HOME='/Users/tmwilde/Software/Trilinos'
+TRILINOS_HOME='/projects/MrHyDE/Trilinos'
 
-TRILINOS_INSTALL='/Users/tmwilde/Software/Trilinos/trilinos-gcc-minimal'
+TRILINOS_INSTALL='/projects/MrHyDE/Trilinos/install-gnu-8.2.1'
 
-EXERCISES_HOME='/Users/tmwilde/Software/MrHyDE/doc/Tutorial/Exercises'
+EXERCISES_HOME='/nscratch/USERNAME/Software/MrHyDE/doc/Tutorial/Exercises'
 
 
 cmake \
