@@ -60,12 +60,6 @@ ANONYMOUS: # Comments
     use weak Dirichlet: false # used by discretization interface
     Initial conditions:
       scalar data: false # more efficient, but use with care
-    True solutions: # sublist
-    Extra fields: # sublist
-    Extra cell fields: # sublist
-    Responses: # sublist
-    Targets: # sublist
-    Weights: # sublist
     Extra variables: # sublist
     use custom initial param guess: false # might be deprecated
   Aux Physics: # optional
@@ -148,20 +142,18 @@ ANONYMOUS: # Comments
     ROL: # sublist, see input-rol-defaults.yaml
     sensitivities IC: false # may be used in optimization
     write output: false # may be used in optimization
-    have sensor data: false
-    save sensor data: false
-    have sensor points: false
-    sensor prefix: sensor
     additive noise standard deviation: 0.0
   Postprocess:
-    compute response: false # typically to produce reference QoI
-    response type: pointwise # global, functional (to be changed)
+    compute responses: false # typically to produce reference QoI
     compute objective: false
-    scale factor for discrete objective: 1.0
     compute sensitivities: false
     compute aux sensitivities: false
     compute flux: false
     compute errors: true
+    True solutions: # sublist
+    Extra fields: # sublist
+    Extra cell fields: # sublist
+    Objective functions: # sublist
     create optimization movie: false
     write solution: false
     write aux solution: false
