@@ -438,6 +438,9 @@ View_AD2 FunctionManager::evaluate(const string & fname, const string & location
   int findex = -1;
   for (size_t i=0; i<functions.size(); i++) {
     if (fname == functions[i].function_name && functions[i].location == location) {
+      if (!functions[i].terms[0].beenDecomposed) {
+        this->decomposeFunctions();
+      }
       this->evaluate(i,0);
       findex = i;
     }
