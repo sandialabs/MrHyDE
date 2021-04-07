@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef ASSEMBLY_H
-#define ASSEMBLY_H
+#ifndef ASSEMBLYMANAGER_H
+#define ASSEMBLYMANAGER_H
 
 #include "trilinos.hpp"
 #include "Panzer_DOFManager.hpp"
@@ -210,18 +210,18 @@ namespace MrHyDE {
     vector<vector<Kokkos::View<LO*,LA_device> > > fixedDOF;
     Teuchos::RCP<ParameterManager<Node> > params;
       
-    Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::assembly::computeJacRes() - total assembly");
-    Teuchos::RCP<Teuchos::Time> gathertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::assembly::gather()");
-    Teuchos::RCP<Teuchos::Time> phystimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::assembly::computeJacRes() - physics evaluation");
-    Teuchos::RCP<Teuchos::Time> boundarytimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::assembly::computeJacRes() - boundary evaluation");
-    Teuchos::RCP<Teuchos::Time> scattertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::assembly::scatter()");
-    Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::assembly::dofConstraints()");
-    Teuchos::RCP<Teuchos::Time> completetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::assembly::computeJacRes() - fill complete");
-    Teuchos::RCP<Teuchos::Time> msprojtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::assembly::computeJacRes() - multiscale projection");
-    Teuchos::RCP<Teuchos::Time> setinittimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::assembly::setInitial()");
-    Teuchos::RCP<Teuchos::Time> setdbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::assembly::setDirichlet()");
-    Teuchos::RCP<Teuchos::Time> celltimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::assembly::createCells()");
-    Teuchos::RCP<Teuchos::Time> wksettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::assembly::createWorkset()");
+    Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - total assembly");
+    Teuchos::RCP<Teuchos::Time> gathertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::gather()");
+    Teuchos::RCP<Teuchos::Time> phystimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - physics evaluation");
+    Teuchos::RCP<Teuchos::Time> boundarytimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - boundary evaluation");
+    Teuchos::RCP<Teuchos::Time> scattertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::scatter()");
+    Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::dofConstraints()");
+    Teuchos::RCP<Teuchos::Time> completetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - fill complete");
+    Teuchos::RCP<Teuchos::Time> msprojtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - multiscale projection");
+    Teuchos::RCP<Teuchos::Time> setinittimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::setInitial()");
+    Teuchos::RCP<Teuchos::Time> setdbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::setDirichlet()");
+    Teuchos::RCP<Teuchos::Time> celltimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::createCells()");
+    Teuchos::RCP<Teuchos::Time> wksettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::createWorkset()");
     
   };
   
