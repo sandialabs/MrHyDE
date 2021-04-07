@@ -1859,6 +1859,9 @@ void workset::printMetaData() {
 
 template<class V1, class V2>
 void workset::copyData(V1 view1, V2 view2) {
+  
+  Teuchos::TimeMonitor functimer(*worksetcopyDataTimer);
+  
   // Copy data from view2 into view1
   // Both are rank-2 and second dimensions are the same
   // However, view2 may be shorter in first dimension
@@ -1866,7 +1869,7 @@ void workset::copyData(V1 view1, V2 view2) {
     deep_copy(view1,view2);
   }
   else {
-    deep_copy(view1,0.0);
+    //deep_copy(view1,0.0);
     parallel_for("wkset copy data",
                  RangePolicy<AssemblyExec>(0,view2.extent(0)),
                  KOKKOS_LAMBDA (const size_type elem ) {

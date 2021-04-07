@@ -369,6 +369,7 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> worksetgetDataTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::getData");
     Teuchos::RCP<Teuchos::Time> worksetgetDataScTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::getDataSc");
     Teuchos::RCP<Teuchos::Time> worksetgetBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::getBasis*");
+    Teuchos::RCP<Teuchos::Time> worksetcopyDataTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::copyData");
     
     Teuchos::RCP<Teuchos::Time> worksetDebugTimer0 = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::debug0");
     Teuchos::RCP<Teuchos::Time> worksetDebugTimer1 = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::debug1");
