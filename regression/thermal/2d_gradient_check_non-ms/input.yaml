@@ -34,13 +34,9 @@ ANONYMOUS:
   Solver: 
     solver: steady-state
   Postprocess: 
-    response type: global
-    compute errors: false
-    compute response: true
     compute objective: true
     compute sensitivities: true
     write solution: false
-    Write output: false
     Objective functions:
       obj0:
         type: integrated control

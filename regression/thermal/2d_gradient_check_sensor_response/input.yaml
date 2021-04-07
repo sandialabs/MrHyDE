@@ -25,11 +25,8 @@ ANONYMOUS:
     workset size: 10 
     solver: steady-state
   Postprocess: 
-    response type: pointwise
-    verification: compute errors
     write solution: false
     compute objective: true
-    compute responses: false
     Objective functions:
       obj0:
         type: sensors

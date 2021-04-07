@@ -42,8 +42,6 @@ ANONYMOUS:
     solver: steady-state
     #use direct solver: true
   Postprocess: 
-    response type: pointwise
-    compute responses: true
     compute objective: true
     write solution: false
     Objective functions:

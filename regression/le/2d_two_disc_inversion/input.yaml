@@ -32,11 +32,7 @@ ANONYMOUS:
   Solver:
     solver: steady-state
   Postprocess: 
-    response type: pointwise
-    compute responses: false
     compute objective: true
-    regularization_constant: 1.0
-    regularization_type: 1
     write solution: false
     Objective functions:
       obj_dx:
