@@ -3,8 +3,7 @@
 ANONYMOUS:
   Subgrid:
     static subgrids: true
-    number of models: 2
-    Model0:
+    SG-R0:
       iusage: '(x>=0.5)*(y<=0.5)'
       usage: '1.0'
       Mesh: 
@@ -25,7 +24,7 @@ ANONYMOUS:
       Postprocess:
         True solutions:
           e: sin(2*pi*x)*sin(2*pi*y)
-    Model1:
+    SG-R1:
       usage: '(x<0.5)*(y>0.5)'
       Mesh:
         element type: quad

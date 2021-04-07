@@ -35,24 +35,49 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
     }
   }
   
+  // Create subcommunicators for the subgrid models (this isn't really used much)
   Teuchos::RCP<MpiComm> unusedComm;
   SplitComm(settings, *MacroComm, unusedComm, Comm);
   
-  //subgridModels = subgridGenerator(Comm, settings, mesh_);
-  
   if (settings->isSublist("Subgrid")) {
+    
+    
+    vector<Teuchos::RCP<Teuchos::ParameterList> > subgrid_model_pls;
+    
+    bool single_model = false;
+    Teuchos::ParameterList::ConstIterator sub_itr = settings->sublist("Subgrid").begin();
+    while (sub_itr != settings->sublist("Subgrid").end()) {
+      if (sub_itr->first == "Mesh") {
+        single_model = true;
+      }
+      sub_itr++;
+    }
+    if (single_model) {
+      Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = rcp(new Teuchos::ParameterList("Subgrid"));
+      subgrid_pl->setParameters(settings->sublist("Subgrid"));
+      subgrid_model_pls.push_back(subgrid_pl);
+    }
+    else {
+      Teuchos::ParameterList::ConstIterator sub_itr = settings->sublist("Subgrid").begin();
+      while (sub_itr != settings->sublist("Subgrid").end()) {
+        if (settings->sublist("Subgrid").isSublist(sub_itr->first)) {
+          Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = rcp(new Teuchos::ParameterList(sub_itr->first));
+          subgrid_pl->setParameters(settings->sublist("Subgrid").sublist(sub_itr->first));
+          subgrid_model_pls.push_back(subgrid_pl);
+        }
+        sub_itr++;
+      }
+    }
     
     ////////////////////////////////////////////////////////////////////////////////
     // Define the subgrid models specified in the input file
     ////////////////////////////////////////////////////////////////////////////////
     
-    int nummodels = settings->sublist("Subgrid").get<int>("number of models",1);
     int  num_macro_time_steps = settings->sublist("Solver").get("number of steps",1);
     ScalarT finaltime = settings->sublist("Solver").get<ScalarT>("final time",1.0);
     ScalarT macro_deltat = finaltime/num_macro_time_steps;
-    if (nummodels == 1) {
-      Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = rcp(new Teuchos::ParameterList("Subgrid"));
-      subgrid_pl->setParameters(settings->sublist("Subgrid"));
+    if (single_model) {
+      Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = subgrid_model_pls[0];
       string subgrid_model_type = subgrid_pl->get<string>("subgrid model","FEM");
       string macro_block_name = subgrid_pl->get<string>("macro block","eblock-0_0_0");
       std::vector<string> macro_blocknames;
@@ -81,47 +106,42 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
       subgridModels[subgridModels.size()-1]->usage = "1.0";
     }
     else {
-      for (int j=0; j<nummodels; j++) {
-        std::stringstream ss;
-        ss << j;
-        if (settings->sublist("Subgrid").isSublist("Model" + ss.str())) {
-          Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = rcp(new Teuchos::ParameterList("Subgrid"));
-          subgrid_pl->setParameters(settings->sublist("Subgrid").sublist("Model" + ss.str()));
-          string subgrid_model_type = subgrid_pl->get<string>("subgrid model","FEM");
-          string macro_block_name = subgrid_pl->get<string>("macro block","eblock-0_0_0");
-          std::vector<string> macro_blocknames;
-          mesh_->stk_mesh->getElementBlockNames(macro_blocknames);
-          int macro_block = 0; // default to single block case
-          for (size_t m=0; m<macro_blocknames.size(); ++m) {
-            if (macro_blocknames[m] == macro_block_name) {
-              macro_block = m;
-            }
+      for (size_t j=0; j<subgrid_model_pls.size(); j++) {
+        Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = subgrid_model_pls[j];
+        string subgrid_model_type = subgrid_pl->get<string>("subgrid model","FEM");
+        string macro_block_name = subgrid_pl->get<string>("macro block","eblock-0_0_0");
+        std::vector<string> macro_blocknames;
+        mesh_->stk_mesh->getElementBlockNames(macro_blocknames);
+        int macro_block = 0; // default to single block case
+        for (size_t m=0; m<macro_blocknames.size(); ++m) {
+          if (macro_blocknames[m] == macro_block_name) {
+            macro_block = m;
           }
-          topo_RCP macro_topo = mesh_->stk_mesh->getCellTopology(macro_blocknames[macro_block]);
-          
-          if (subgrid_model_type == "FEM") {
-            subgridModels.push_back(Teuchos::rcp( new SubGridFEM(Comm, subgrid_pl, macro_topo,
-                                                                 num_macro_time_steps,
-                                                                 macro_deltat ) ) );
-          }
-          else if (subgrid_model_type == "Explicit FEM") {
-            // subgridModels.push_back(Teuchos::rcp( new SubGridExpFEM(Comm, subgrid_pl, macro_topo,
-            //                                                          num_macro_time_steps,
-            //                                                          macro_deltat ) ) );
-          }
-          else if (subgrid_model_type == "FEM2") {
-            //subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo, num_macro_time_steps, macro_deltat ) ) );
-          }
-          subgridModels[subgridModels.size()-1]->macro_block = macro_block;
-          string usage;
-          if (j==0) {// to enable default behavior
-            usage = subgrid_pl->get<string>("usage","1.0");
-          }
-          else {
-            usage = subgrid_pl->get<string>("usage","0.0");
-          }
-          subgridModels[subgridModels.size()-1]->usage = usage;
         }
+        topo_RCP macro_topo = mesh_->stk_mesh->getCellTopology(macro_blocknames[macro_block]);
+        
+        if (subgrid_model_type == "FEM") {
+          subgridModels.push_back(Teuchos::rcp( new SubGridFEM(Comm, subgrid_pl, macro_topo,
+                                                               num_macro_time_steps,
+                                                               macro_deltat ) ) );
+        }
+        else if (subgrid_model_type == "Explicit FEM") {
+          // subgridModels.push_back(Teuchos::rcp( new SubGridExpFEM(Comm, subgrid_pl, macro_topo,
+          //                                                          num_macro_time_steps,
+          //                                                          macro_deltat ) ) );
+        }
+        else if (subgrid_model_type == "FEM2") {
+          //subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo, num_macro_time_steps, macro_deltat ) ) );
+        }
+        subgridModels[subgridModels.size()-1]->macro_block = macro_block;
+        string usage;
+        if (j==0) {// to enable default behavior
+          usage = subgrid_pl->get<string>("usage","1.0");
+        }
+        else {
+          usage = subgrid_pl->get<string>("usage","0.0");
+        }
+        subgridModels[subgridModels.size()-1]->usage = usage;
       }
       
     }
@@ -135,7 +155,8 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
       std::stringstream ss;
       ss << n;
       int macro_block = subgridModels[n]->macro_block;
-      macro_functionManagers[macro_block]->addFunction("Subgrid " + ss.str() + " usage",subgridModels[n]->usage, "ip");
+      //macro_functionManagers[macro_block]->addFunction("Subgrid " + ss.str() + " usage",subgridModels[n]->usage, "ip");
+      macro_functionManagers[macro_block]->addFunction(subgridModels[n]->name + " usage",subgridModels[n]->usage, "ip");
     }
     
   }
@@ -216,9 +237,13 @@ ScalarT MultiscaleManager::initialize() {
           if (subgridModels[s]->macro_block == b) {
             std::stringstream ss;
             ss << s;
-            auto usagecheck = macro_functionManagers[b]->evaluate("Subgrid " + ss.str() + " usage","ip");
+            //auto usagecheck = macro_functionManagers[b]->evaluate("Subgrid " + ss.str() + " usage","ip");
+            auto usagecheck = macro_functionManagers[b]->evaluate(subgridModels[s]->name + " usage","ip");
+            
             Kokkos::View<ScalarT**,AssemblyDevice> usagecheck_tmp("temp usage check",usagecheck.extent(0),usagecheck.extent(1));
-            parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,usagecheck.extent(0)), KOKKOS_LAMBDA (const int i ) {
+            parallel_for("assembly copy LIDs",
+                         RangePolicy<AssemblyExec>(0,usagecheck.extent(0)),
+                         KOKKOS_LAMBDA (const int i ) {
               for (size_type j=0; j<usagecheck.extent(1); j++) {
                 usagecheck_tmp(i,j) = usagecheck(i,j).val();
               }
@@ -382,7 +407,8 @@ ScalarT MultiscaleManager::update() {
             if (subgridModels[s]->macro_block == b) {
               std::stringstream ss;
               ss << s;
-              auto usagecheck = macro_functionManagers[b]->evaluate("Subgrid " + ss.str() + " usage","ip");
+              //auto usagecheck = macro_functionManagers[b]->evaluate("Subgrid " + ss.str() + " usage","ip");
+              auto usagecheck = macro_functionManagers[b]->evaluate(subgridModels[s]->name + " usage","ip");
               for (size_t p=0; p<cells[b][e]->numElem; p++) {
                 for (size_t j=0; j<usagecheck.extent(1); j++) {
                   if (usagecheck(p,j).val() >= 1.0) {

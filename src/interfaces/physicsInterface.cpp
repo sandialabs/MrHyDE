@@ -194,69 +194,6 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & 
       }
     }
     
-    /*
-    vector<string> block_ef;
-    Teuchos::ParameterList efields = blockPhysSettings[b].sublist("Extra fields");
-    Teuchos::ParameterList::ConstIterator ef_itr = efields.begin();
-    while (ef_itr != efields.end()) {
-      string entry = efields.get<string>(ef_itr->first);
-      block_ef.push_back(ef_itr->first);
-      functionManagers[b]->addFunction(ef_itr->first,entry,"ip");
-      functionManagers[b]->addFunction(ef_itr->first,entry,"point");
-      ef_itr++;
-    }
-    extrafields_list.push_back(block_ef);
-    
-    vector<string> block_ecf;
-    Teuchos::ParameterList ecfields = blockPhysSettings[b].sublist("Extra cell fields");
-    Teuchos::ParameterList::ConstIterator ecf_itr = ecfields.begin();
-    while (ecf_itr != ecfields.end()) {
-      string entry = ecfields.get<string>(ecf_itr->first);
-      block_ecf.push_back(ecf_itr->first);
-      functionManagers[b]->addFunction(ecf_itr->first,entry,"ip");
-      ecf_itr++;
-    }
-    extracellfields_list.push_back(block_ecf);
-    */
-    
-    /*
-    vector<string> block_resp;
-    Teuchos::ParameterList rfields = blockPhysSettings[b].sublist("Responses");
-    Teuchos::ParameterList::ConstIterator r_itr = rfields.begin();
-    while (r_itr != rfields.end()) {
-      string entry = rfields.get<string>(r_itr->first);
-      block_resp.push_back(r_itr->first);
-      functionManagers[b]->addFunction(r_itr->first,entry,"point");
-      functionManagers[b]->addFunction(r_itr->first,entry,"ip");
-      r_itr++;
-    }
-    response_list.push_back(block_resp);
-    
-    vector<string> block_targ;
-    Teuchos::ParameterList tfields = blockPhysSettings[b].sublist("Targets");
-    Teuchos::ParameterList::ConstIterator t_itr = tfields.begin();
-    while (t_itr != tfields.end()) {
-      string entry = tfields.get<string>(t_itr->first);
-      block_targ.push_back(t_itr->first);
-      functionManagers[b]->addFunction(t_itr->first,entry,"point");
-      functionManagers[b]->addFunction(t_itr->first,entry,"ip");
-      t_itr++;
-    }
-    target_list.push_back(block_targ);
-    
-    vector<string> block_wts;
-    Teuchos::ParameterList wfields = blockPhysSettings[b].sublist("Weights");
-    Teuchos::ParameterList::ConstIterator w_itr = wfields.begin();
-    while (w_itr != wfields.end()) {
-      string entry = wfields.get<string>(w_itr->first);
-      block_wts.push_back(w_itr->first);
-      functionManagers[b]->addFunction(w_itr->first,entry,"point");
-      functionManagers[b]->addFunction(w_itr->first,entry,"ip");
-      w_itr++;
-    }
-    weight_list.push_back(block_wts);
-    */
-    
   }
   
   for (size_t b=0; b<blocknames.size(); b++) {

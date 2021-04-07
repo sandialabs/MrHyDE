@@ -128,7 +128,7 @@ namespace MrHyDE {
     
     vector<Teuchos::RCP<vector<AD> > > paramvals_AD;
     
-    string usage;
+    string usage, name;
     Kokkos::View<AD**,AssemblyDevice> paramvals_KVAD;
     
     vector<string> varlist;

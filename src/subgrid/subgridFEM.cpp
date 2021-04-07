@@ -26,6 +26,7 @@ SubGridFEM::SubGridFEM(const Teuchos::RCP<MpiComm> & LocalComm_,
 settings(settings_), macro_cellTopo(macro_cellTopo_),
 num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
   
+  name = settings->name();
   LocalComm = LocalComm_;
   verbosity = settings->get<int>("verbosity",0);
   debug_level = settings->get<int>("debug level",0);
@@ -869,8 +870,8 @@ void SubGridFEM::finalize(const int & globalSize, const int & globalPID) {
   }
   
   std::stringstream ss;
-  ss << globalSize << "." << globalPID;
-  combined_mesh_filename = "subgrid_data/subgrid_combined_output." + ss.str() + ".exo";
+  ss << "_" << name << ".exo." << globalSize << "." << globalPID;
+  combined_mesh_filename = "subgrid_data/subgrid_combined_output" + ss.str();
   
   this->setupCombinedExodus();
   
