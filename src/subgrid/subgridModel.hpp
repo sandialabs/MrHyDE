@@ -43,7 +43,8 @@ namespace MrHyDE {
                          Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & macroorientation) = 0;
     
     
-    virtual void finalize(const int & globalSize, const int & globalPID) = 0;
+    virtual void finalize(const int & globalSize, const int & globalPID,
+                          const bool & write_subgrid_soln) = 0;
     
     virtual void subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
                                Kokkos::View<ScalarT***,AssemblyDevice> gl_phi,

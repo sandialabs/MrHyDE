@@ -855,7 +855,8 @@ void SubGridFEM::setUpSubgridModels() {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM::finalize(const int & globalSize, const int & globalPID) {
+void SubGridFEM::finalize(const int & globalSize, const int & globalPID,
+                          const bool & write_subgrid_soln) {
   
   // globalRank and globalPID are associated with the global MPI communicator
   // only needed to define a unique output file
@@ -869,12 +870,13 @@ void SubGridFEM::finalize(const int & globalSize, const int & globalPID) {
     }
   }
   
-  std::stringstream ss;
-  ss << "_" << name << ".exo." << globalSize << "." << globalPID;
-  combined_mesh_filename = "subgrid_data/subgrid_combined_output" + ss.str();
-  
-  this->setupCombinedExodus();
-  
+  if (write_subgrid_soln) {
+    std::stringstream ss;
+    ss << "_" << name << ".exo." << globalSize << "." << globalPID;
+    combined_mesh_filename = "subgrid_data/subgrid_combined_output" + ss.str();
+    
+    this->setupCombinedExodus();
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

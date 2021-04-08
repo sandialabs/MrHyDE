@@ -297,8 +297,9 @@ ScalarT MultiscaleManager::initialize() {
     }
   }
   
+  bool write_subgrid_soln = settings->sublist("Postprocess").get<bool>("write subgrid solution",false);
   for (size_t s=0; s<subgridModels.size(); s++) {
-    subgridModels[s]->finalize(MacroComm->getSize(), MacroComm->getRank());
+    subgridModels[s]->finalize(MacroComm->getSize(), MacroComm->getRank(), write_subgrid_soln);
   }
   
   ////////////////////////////////////////////////////////////////////////////////
