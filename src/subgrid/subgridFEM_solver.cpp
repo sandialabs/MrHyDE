@@ -430,16 +430,6 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
     
     int numElem = assembler->cells[usernum][0]->numElem;
     int maxElem = assembler->cells[0][0]->numElem;
-    //int numDOF = assembler->cells[usernum][0]->LIDs.extent(1);
-    
-    
-    //Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J;
-    
-    //{
-    //  Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverAllocateTimer);
-    //  local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,1);
-    //  local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numDOF);
-    //}
     
     {
       Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverSetSolnTimer);
@@ -459,9 +449,6 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       }
     }
     
-    //auto local_res_ladev = Kokkos::create_mirror(SG_exec(), local_res);
-    //auto local_J_ladev = Kokkos::create_mirror(SG_exec(), local_J);
-    
     ////////////////////////////////////////////////
     // volume assembly
     ////////////////////////////////////////////////
@@ -475,21 +462,6 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       
       assembler->wkset[0]->localEID = e;
       assembler->cells[usernum][e]->updateData();
-      
-      //Kokkos::deep_copy(local_res, 0.0);
-      //Kokkos::deep_copy(local_J, 0.0);
-      
-      /*
-      {
-        Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverJacResTimer);
-        assembler->cells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
-                                                    true, false, num_active_params, false, false, false,
-                                                    local_res, local_J,
-                                                    assembler->assemble_volume_terms[0],
-                                                    assembler->assemble_face_terms[0]);
-        
-      }
-      */
       
       assembler->wkset[0]->resetResidual();
       
@@ -528,14 +500,6 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       //////////////////////////////////////////////////////////////////////////
       // Scatter into global matrix/vector
       ///////////////////////////////////////////////////////////////////////////
-
-      /*
-      bool b0=true, b1=false, b2=false;
-      assembler->scatter(localMatrix, res_view,
-                         assembler->cells[usernum][e]->LIDs,
-                         assembler->cells[usernum][e]->paramLIDs, 0,
-                         b0,b1,b2, isAdjoint);
-      */
       
       auto res = assembler->wkset[0]->res;
       auto LIDs = assembler->cells[usernum][e]->LIDs;
@@ -578,38 +542,6 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
         }
       });
       
-      /*
-      if (data_avail) {
-        assembler->scatterRes(res_view, local_res, assembler->cells[usernum][e]->LIDs);
-        assembler->scatterJac(localMatrix, local_J,
-                              assembler->cells[usernum][e]->LIDs,
-                              assembler->cells[usernum][e]->paramLIDs,
-                              false);
-      }
-      else {
-        Kokkos::deep_copy(local_J_ladev,local_J);
-        Kokkos::deep_copy(local_res_ladev,local_res);
-        
-        if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-          assembler->scatterRes(res_view, local_res_ladev, assembler->cells[usernum][e]->LIDs_host);
-          assembler->scatterJac(localMatrix, local_J_ladev,
-                                assembler->cells[usernum][e]->LIDs_host,
-                                assembler->cells[usernum][e]->paramLIDs_host,
-                                false);
-        }
-        else { // LA_device = CUDA, AssemblyDevice = Host
-          // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
-          auto LIDs_dev = Kokkos::create_mirror(SG_exec(), assembler->cells[usernum][e]->LIDs);
-          auto paramLIDs_dev = Kokkos::create_mirror(SG_exec(), assembler->cells[usernum][e]->paramLIDs);
-          Kokkos::deep_copy(LIDs_dev, assembler->cells[usernum][e]->LIDs);
-          Kokkos::deep_copy(paramLIDs_dev, assembler->cells[usernum][e]->paramLIDs);
-          
-          assembler->scatterRes(res_view, local_res_ladev, LIDs_dev);
-          assembler->scatterJac(localMatrix, local_J_ladev, LIDs_dev, paramLIDs_dev, false);
-        }
-        
-      }*/
-      
     }
     
     ////////////////////////////////////////////////
@@ -649,38 +581,11 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
         assembler->wkset[0]->resetResidual();
         
         assembler->phys->boundaryResidual(0);
-        
-        /*
-        {
-          Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverAllocateTimer);
-          local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",assembler->boundaryCells[usernum][e]->numElem,numDOF,1);
-          local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",assembler->boundaryCells[usernum][e]->numElem,numDOF,numDOF);
-        }
-        
-        {
-          Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverJacResTimer);
-          
-          assembler->boundaryCells[usernum][e]->computeJacRes(time, isTransient, isAdjoint,
-                                                              true, false, num_active_params,
-                                                              false, false, false,
-                                                              local_res, local_J);
-          
-        }
-        */
-        
+                
         //////////////////////////////////////////////////////////////////////////
         // Scatter into global matrix/vector
         ///////////////////////////////////////////////////////////////////////////
 
-        /*
-        bool b0=true, b1=false, b2=false;
-        
-        assembler->scatter(localMatrix, res_view,
-                           assembler->boundaryCells[usernum][e]->LIDs,
-                           assembler->boundaryCells[usernum][e]->paramLIDs, 0,
-                           b0,b1,b2, isAdjoint);
-        */
-        
         auto res = assembler->wkset[0]->res;
         auto LIDs = assembler->boundaryCells[usernum][e]->LIDs;
         auto offsets = assembler->wkset[0]->offsets;
@@ -721,46 +626,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
             }
           }
         });
-        
-        //////////////////////////////////////////////////////////////////////////
-        // Scatter into global matrix/vector
-        ///////////////////////////////////////////////////////////////////////////
-        /*
-        if (data_avail) {
-          assembler->scatterRes(res_view, local_res, assembler->boundaryCells[usernum][e]->LIDs);
-          assembler->scatterJac(localMatrix, local_J,
-                                assembler->boundaryCells[usernum][e]->LIDs,
-                                assembler->boundaryCells[usernum][e]->paramLIDs,
-                                false);
-        }
-        else {
-          
-          auto local_res_ladev = Kokkos::create_mirror(SG_exec(),local_res);
-          auto local_J_ladev = Kokkos::create_mirror(SG_exec(),local_J);
-          
-          Kokkos::deep_copy(local_J_ladev,local_J);
-          Kokkos::deep_copy(local_res_ladev,local_res);
-          
-          if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-            assembler->scatterRes(res_view, local_res_ladev, assembler->boundaryCells[usernum][e]->LIDs_host);
-            assembler->scatterJac(localMatrix, local_J_ladev,
-                                  assembler->boundaryCells[usernum][e]->LIDs_host,
-                                  assembler->boundaryCells[usernum][e]->paramLIDs_host,
-                                  false);
-          }
-          else { // LA_device = CUDA, AssemblyDevice = Host
-            // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
-            auto LIDs_dev = Kokkos::create_mirror(SG_exec(), assembler->boundaryCells[usernum][e]->LIDs);
-            auto paramLIDs_dev = Kokkos::create_mirror(SG_exec(), assembler->boundaryCells[usernum][e]->paramLIDs);
-            Kokkos::deep_copy(LIDs_dev, assembler->boundaryCells[usernum][e]->LIDs);
-            Kokkos::deep_copy(paramLIDs_dev, assembler->boundaryCells[usernum][e]->paramLIDs);
-            
-            assembler->scatterRes(res_view, local_res_ladev, LIDs_dev);
-            assembler->scatterJac(localMatrix, local_J_ladev, LIDs_dev, paramLIDs_dev, false);
-          }
-          
-        }*/
-                
+                        
       }
     }
         
@@ -951,10 +817,10 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
   
   if (compute_sens) {
     int numsubDerivs = d_sub_u->getNumVectors();
-    d_sub_res_over = solver->linalg->getNewOverlappedVector(numsubDerivs);//Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,numsubDerivs));
-    d_sub_res = solver->linalg->getNewVector(numsubDerivs); //Teuchos::rcp(new SG_MultiVector(solver->LA_owned_map,numsubDerivs));
-    d_sub_u_prev = solver->linalg->getNewVector(numsubDerivs); //Teuchos::rcp(new SG_MultiVector(solver->LA_owned_map,numsubDerivs));
-    d_sub_u_over = solver->linalg->getNewOverlappedVector(numsubDerivs); //Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,numsubDerivs));
+    d_sub_res_over = solver->linalg->getNewOverlappedVector(numsubDerivs);
+    d_sub_res = solver->linalg->getNewVector(numsubDerivs);
+    d_sub_u_prev = solver->linalg->getNewVector(numsubDerivs);
+    d_sub_u_over = solver->linalg->getNewOverlappedVector(numsubDerivs);
   }
   
   d_sub_res_over->putScalar(0.0);
@@ -965,29 +831,6 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
   //ScalarT scale = -1.0*lambda_scale;
   
   auto dres_view = d_sub_res_over->getLocalView<SG_device>();
-  
-  // Are these gathers even necessary???
-  /*
-  if (multiscale_method != "mortar") {
-    this->performGather(usernum, sub_u, 0, 0);
-    if (isAdjoint) {
-      this->performGather(usernum, sub_phi, 2, 0);
-    }
-    for (size_t e=0; e < assembler->cells[usernum].size(); e++) {
-      assembler->cells[usernum][e]->aux = lambda;
-    }
-  }
-  else {
-    //this->performBoundaryGather(usernum, sub_u, 0, 0);
-    //if (isAdjoint) {
-    //  this->performBoundaryGather(usernum, sub_phi, 2, 0);
-    //}
-    for (size_t e=0; e < assembler->boundaryCells[usernum].size(); e++) {
-      assembler->boundaryCells[usernum][e]->aux = lambda;
-    }
-  }
-  //this->performGather(usernum, sub_param, 4, 0);
-  */
   
   assembler->wkset[0]->setTime(time);
   assembler->wkset[0]->isTransient = isTransient;
@@ -1063,16 +906,14 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
   }
   else {
     
-    Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J;
-    
     if (multiscale_method != "mortar") {
       
       int numElem = assembler->cells[usernum][0]->numElem;
       int snumDOF = assembler->cells[usernum][0]->LIDs.extent(1);
       int anumDOF = assembler->cells[usernum][0]->auxLIDs.extent(1);
       
-      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,snumDOF,1);
-      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,snumDOF,anumDOF);
+      Kokkos::View<ScalarT***,AssemblyDevice> local_res("local residual",numElem,snumDOF,1);
+      Kokkos::View<ScalarT***,AssemblyDevice> local_J("local Jacobian",numElem,snumDOF,anumDOF);
       
       for (size_t elem=0; elem<assembler->cells[usernum].size(); elem++) {
                 
@@ -1097,24 +938,83 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
     }
     else {
       
-      int numElem = assembler->boundaryCells[usernum][0]->numElem;
-      int snumDOF = assembler->boundaryCells[usernum][0]->LIDs.extent(1);
-      int anumDOF = assembler->boundaryCells[usernum][0]->auxLIDs.extent(1);
+      //int numElem = assembler->boundaryCells[usernum][0]->numElem;
+      //int snumDOF = assembler->boundaryCells[usernum][0]->LIDs.extent(1);
+      //int anumDOF = assembler->boundaryCells[usernum][0]->auxLIDs.extent(1);
       
-      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,snumDOF,1);
-      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,snumDOF,anumDOF);
+      auto res_AD = assembler->wkset[0]->res;
+      auto offsets = assembler->wkset[0]->offsets;
+      auto numDOF = assembler->cellData[0]->numDOF;
+      auto numAuxDOF = assembler->cellData[0]->numAuxDOF;
+      auto aoffsets = assembler->boundaryCells[usernum][0]->auxoffsets;
       
       for (size_t elem=0; elem<assembler->boundaryCells[usernum].size(); elem++) {
         
-        Kokkos::deep_copy(local_res, 0.0);
-        Kokkos::deep_copy(local_J, 0.0);
+        //-----------------------------------------------
+        // Prep the workset
+        //-----------------------------------------------
         
-        assembler->boundaryCells[usernum][elem]->computeJacRes(time, isTransient, isAdjoint,
-                                                               true, false, num_active_params, false, true, false,
-                                                               local_res, local_J);
+        assembler->boundaryCells[usernum][elem]->updateWorksetBasis();
+          
+        assembler->wkset[0]->sidename = assembler->boundaryCells[usernum][elem]->sidename;
+        assembler->wkset[0]->currentside = assembler->boundaryCells[usernum][elem]->sidenum;
+          
+        int seedwhat = 4;
         
-        this->updateResSens(false, usernum, elem, dres_view, local_J,
-                            data_avail, use_host_LIDs, false);
+        if (isTransient) {
+          assembler->wkset[0]->computeSolnTransientSeeded(assembler->boundaryCells[usernum][elem]->u,
+                                                          assembler->boundaryCells[usernum][elem]->u_prev,
+                                                          assembler->boundaryCells[usernum][elem]->u_stage,
+                                                          seedwhat);
+        }
+        else { // steady-state
+          assembler->wkset[0]->computeSolnSteadySeeded(assembler->boundaryCells[usernum][elem]->u,
+                                                       seedwhat);
+        }
+        
+        assembler->wkset[0]->computeParamSteadySeeded(assembler->boundaryCells[usernum][elem]->param,
+                                                      seedwhat);
+          
+        assembler->boundaryCells[usernum][elem]->computeSoln(seedwhat);
+        assembler->wkset[0]->computeParamSideIP();
+        
+        //-----------------------------------------------
+        // Reset the residual
+        //-----------------------------------------------
+        
+        assembler->wkset[0]->resetResidual();
+          
+        //-----------------------------------------------
+        // Compute the residual
+        //-----------------------------------------------
+        
+        assembler->phys->boundaryResidual(0);
+          
+        
+        //-----------------------------------------------
+        // Scatter to vectors
+        //-----------------------------------------------
+        
+        auto LIDs = assembler->boundaryCells[usernum][elem]->LIDs;
+        
+        parallel_for("bcell update aux jac",
+                     TeamPolicy<AssemblyExec>(LIDs.extent(0), Kokkos::AUTO, 32),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
+            for (int j=0; j<numDOF(n); j++) {
+              LO row = offsets(n,j);
+              LO rowIndex = LIDs(elem,offsets(n,j));
+              for (unsigned int m=0; m<numAuxDOF.extent(0); m++) {
+                for (int k=0; k<numAuxDOF(m); k++) {
+                  LO col = aoffsets(m,k);
+                  double val = res_AD(elem,row).fastAccessDx(col);
+                  Kokkos::atomic_add(&(dres_view(rowIndex,col)),-1.0*val);
+                }
+              }
+            }
+          }
+        });
         
       }
     }
