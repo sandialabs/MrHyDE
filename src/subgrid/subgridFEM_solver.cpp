@@ -998,15 +998,14 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
         auto LIDs = assembler->boundaryCells[usernum][elem]->LIDs;
         
         parallel_for("bcell update aux jac",
-                     TeamPolicy<AssemblyExec>(LIDs.extent(0), Kokkos::AUTO, 32),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
-            for (int j=0; j<numDOF(n); j++) {
+                     RangePolicy<SG_exec>(0,LIDs.extent(0)),
+                     KOKKOS_LAMBDA (const int elem) {
+          for (size_type n=0; n<numDOF.extent(0); ++n) {
+            for (int j=0; j<numDOF(n); ++j) {
               LO row = offsets(n,j);
               LO rowIndex = LIDs(elem,offsets(n,j));
-              for (unsigned int m=0; m<numAuxDOF.extent(0); m++) {
-                for (int k=0; k<numAuxDOF(m); k++) {
+              for (size_type m=0; m<numAuxDOF.extent(0); ++m) {
+                for (int k=0; k<numAuxDOF(m); ++k) {
                   LO col = aoffsets(m,k);
                   double val = res_AD(elem,row).fastAccessDx(col);
                   Kokkos::atomic_add(&(dres_view(rowIndex,col)),-1.0*val);
