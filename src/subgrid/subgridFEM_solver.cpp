@@ -450,207 +450,222 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
     }
     
     ////////////////////////////////////////////////
-    // volume assembly
+    // Assembly
     ////////////////////////////////////////////////
     
-    for (size_t e=0; e<assembler->cells[usernum].size(); e++) {
-      if (isAdjoint) {
-        if (is_final_time) {
-          Kokkos::deep_copy(assembler->cells[usernum][e]->adj_prev, 0.0);
-        }
-      }
+    {
       
-      assembler->wkset[0]->localEID = e;
-      assembler->cells[usernum][e]->updateData();
-      
-      assembler->wkset[0]->resetResidual();
-      
-      if (isAdjoint) {
-        assembler->wkset[0]->resetAdjointRHS();
-      }
-      
-      //////////////////////////////////////////////////////////////
-      // Compute the AD-seeded solutions at integration points
-      //////////////////////////////////////////////////////////////
-      
-      int seedwhat = 1;
-      
-      if (isTransient) {
-        assembler->wkset[0]->computeSolnTransientSeeded(assembler->cells[usernum][e]->u,
-                                                        assembler->cells[usernum][e]->u_prev,
-                                                        assembler->cells[usernum][e]->u_stage,
-                                                        seedwhat);
-      }
-      else { // steady-state
-        assembler->wkset[0]->computeSolnSteadySeeded(assembler->cells[usernum][e]->u, seedwhat);
-      }
-      if (assembler->wkset[0]->numParams > 0) {
-        assembler->wkset[0]->computeParamSteadySeeded(assembler->cells[usernum][e]->param, seedwhat);
-      }
-      
-      //////////////////////////////////////////////////////////////
-      // Compute res and J=dF/du
-      //////////////////////////////////////////////////////////////
-      
-      // Volumetric contribution
-      assembler->cells[usernum][e]->computeSolnVolIP();
-      assembler->phys->volumeResidual(0);
-            
-      
-      //////////////////////////////////////////////////////////////////////////
-      // Scatter into global matrix/vector
-      ///////////////////////////////////////////////////////////////////////////
+      Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverAssemblyTimer);
+    
+      ////////////////////////////////////////////////
+      // volume assembly
+      ////////////////////////////////////////////////
       
       auto res = assembler->wkset[0]->res;
-      auto LIDs = assembler->cells[usernum][e]->LIDs;
       auto offsets = assembler->wkset[0]->offsets;
       auto numDOF = assembler->cellData[0]->numDOF;
-      
-      parallel_for("assembly insert Jac",
-                   RangePolicy<SG_exec>(0,LIDs.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type n=0; n<numDOF.extent(0); ++n) {
-          for (int j=0; j<numDOF(n); j++) {
-            int row = offsets(n,j);
-            LO rowIndex = LIDs(elem,row);
-            ScalarT val = -res(elem,row).val();
-            Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
+    
+      for (size_t e=0; e<assembler->cells[usernum].size(); e++) {
+        
+        if (isAdjoint) {
+          if (is_final_time) {
+            Kokkos::deep_copy(assembler->cells[usernum][e]->adj_prev, 0.0);
           }
         }
-      });
-      
-      parallel_for("assembly insert Jac",
-                   RangePolicy<SG_exec>(0,LIDs.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
-        const size_type numVals = LIDs.extent(1);
-        LO cols[maxDerivs];
-        ScalarT vals[maxDerivs];
-        for (size_type n=0; n<numDOF.extent(0); ++n) {
-          for (int j=0; j<numDOF(n); j++) {
-            int row = offsets(n,j);
-            LO rowIndex = LIDs(elem,row);
-            for (size_type m=0; m<numDOF.extent(0); m++) {
-              for (int k=0; k<numDOF(m); k++) {
-                int col = offsets(m,k);
-                vals[col] = res(elem,row).fastAccessDx(col);
-                cols[col] = LIDs(elem,col);
-              }
-            }
-            localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, true); // isSorted, useAtomics
-            
-          }
-        }
-      });
-      
-    }
-    
-    ////////////////////////////////////////////////
-    // boundary assembly
-    ////////////////////////////////////////////////
-    
-    for (size_t e=0; e<assembler->boundaryCells[usernum].size(); e++) {
-      
-      if (assembler->boundaryCells[usernum][e]->numElem > 0) {
+        
         assembler->wkset[0]->localEID = e;
+        assembler->cells[usernum][e]->updateData();
+        assembler->wkset[0]->resetResidual();
         
-        /////////////////////////////////////////////////////////////////////////////
-        // Compute the local residual and Jacobian on this cell
-        /////////////////////////////////////////////////////////////////////////////
+        if (isAdjoint) {
+          assembler->wkset[0]->resetAdjointRHS();
+        }
         
-        assembler->wkset[0]->sidename = assembler->boundaryCells[usernum][e]->sidename;
-        assembler->wkset[0]->currentside = assembler->boundaryCells[usernum][e]->sidenum;
+        //////////////////////////////////////////////////////////////
+        // Compute the AD-seeded solutions at integration points
+        //////////////////////////////////////////////////////////////
         
         int seedwhat = 1;
         
         if (isTransient) {
-          assembler->wkset[0]->computeSolnTransientSeeded(assembler->boundaryCells[usernum][e]->u,
-                                                          assembler->boundaryCells[usernum][e]->u_prev,
-                                                          assembler->boundaryCells[usernum][e]->u_stage,
+          assembler->wkset[0]->computeSolnTransientSeeded(assembler->cells[usernum][e]->u,
+                                                          assembler->cells[usernum][e]->u_prev,
+                                                          assembler->cells[usernum][e]->u_stage,
                                                           seedwhat);
         }
         else { // steady-state
-          assembler->wkset[0]->computeSolnSteadySeeded(assembler->boundaryCells[usernum][e]->u, seedwhat);
+          assembler->wkset[0]->computeSolnSteadySeeded(assembler->cells[usernum][e]->u, seedwhat);
         }
         if (assembler->wkset[0]->numParams > 0) {
-          assembler->wkset[0]->computeParamSteadySeeded(assembler->boundaryCells[usernum][e]->param, seedwhat);
+          assembler->wkset[0]->computeParamSteadySeeded(assembler->cells[usernum][e]->param, seedwhat);
         }
         
-        assembler->boundaryCells[usernum][e]->updateWorksetBasis();
-        assembler->boundaryCells[usernum][e]->computeSoln(seedwhat);
+        //////////////////////////////////////////////////////////////
+        // Compute res and J=dF/du
+        //////////////////////////////////////////////////////////////
         
-        assembler->wkset[0]->resetResidual();
+        // Volumetric contribution
+        assembler->cells[usernum][e]->computeSolnVolIP();
+        assembler->phys->volumeResidual(0);
         
-        assembler->phys->boundaryResidual(0);
-                
+        
         //////////////////////////////////////////////////////////////////////////
         // Scatter into global matrix/vector
         ///////////////////////////////////////////////////////////////////////////
-
-        auto res = assembler->wkset[0]->res;
-        auto LIDs = assembler->boundaryCells[usernum][e]->LIDs;
-        auto offsets = assembler->wkset[0]->offsets;
-        auto numDOF = assembler->cellData[0]->numDOF;
         
-        parallel_for("assembly insert Jac",
-                     RangePolicy<SG_exec>(0,LIDs.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
-          for (size_type n=0; n<numDOF.extent(0); ++n) {
-            for (int j=0; j<numDOF(n); j++) {
-              int row = offsets(n,j);
-              LO rowIndex = LIDs(elem,row);
-              ScalarT val = -res(elem,row).val();
-              Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
-            }
-          }
-        });
+        {
+          Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverScatterTimer);
         
-        parallel_for("assembly insert Jac",
-                     RangePolicy<SG_exec>(0,LIDs.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
-          const size_type numVals = LIDs.extent(1);
-          LO cols[maxDerivs];
-          ScalarT vals[maxDerivs];
-          for (size_type n=0; n<numDOF.extent(0); ++n) {
-            for (int j=0; j<numDOF(n); j++) {
-              int row = offsets(n,j);
-              LO rowIndex = LIDs(elem,row);
-              for (size_type m=0; m<numDOF.extent(0); m++) {
-                for (int k=0; k<numDOF(m); k++) {
-                  int col = offsets(m,k);
-                  vals[col] = res(elem,row).fastAccessDx(col);
-                  cols[col] = LIDs(elem,col);
-                }
+          auto LIDs = assembler->cells[usernum][e]->LIDs;
+          
+          parallel_for("assembly insert Jac",
+                       RangePolicy<SG_exec>(0,LIDs.extent(0)),
+                       KOKKOS_LAMBDA (const int elem ) {
+            for (size_type n=0; n<numDOF.extent(0); ++n) {
+              for (int j=0; j<numDOF(n); j++) {
+                int row = offsets(n,j);
+                LO rowIndex = LIDs(elem,row);
+                ScalarT val = -res(elem,row).val();
+                Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
               }
-              localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, true); // isSorted, useAtomics
-              
             }
-          }
-        });
-                        
-      }
-    }
-        
-    //////////////////////////////////////////////////////////////////////////
-    // Fix up any empty rows due to workset size
-    ///////////////////////////////////////////////////////////////////////////
-
-    if (maxElem > numElem) {
-      if (data_avail) {
-        auto LIDs = assembler->cells[0][0]->LIDs;
-        this->fixDiagonal(LIDs, localMatrix, numElem);
-      }
-      else {
-        if (use_host_LIDs) {
-          auto LIDs = assembler->cells[0][0]->LIDs_host;
-          this->fixDiagonal(LIDs, localMatrix, numElem);
-        }
-        else {
-          auto LIDs_dev = Kokkos::create_mirror(SG_exec(), assembler->cells[0][0]->LIDs);
-          Kokkos::deep_copy(LIDs_dev, assembler->cells[0][0]->LIDs);
-          this->fixDiagonal(LIDs_dev, localMatrix, numElem);
+          });
+          
+          parallel_for("assembly insert Jac",
+                       RangePolicy<SG_exec>(0,LIDs.extent(0)),
+                       KOKKOS_LAMBDA (const int elem ) {
+            const size_type numVals = LIDs.extent(1);
+            LO cols[maxDerivs];
+            ScalarT vals[maxDerivs];
+            for (size_type n=0; n<numDOF.extent(0); ++n) {
+              for (int j=0; j<numDOF(n); j++) {
+                int row = offsets(n,j);
+                LO rowIndex = LIDs(elem,row);
+                for (size_type m=0; m<numDOF.extent(0); m++) {
+                  for (int k=0; k<numDOF(m); k++) {
+                    int col = offsets(m,k);
+                    vals[col] = res(elem,row).fastAccessDx(col);
+                    cols[col] = LIDs(elem,col);
+                  }
+                }
+                localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, true); // isSorted, useAtomics
+                
+              }
+            }
+          });
+          
         }
       }
       
+      ////////////////////////////////////////////////
+      // boundary assembly
+      ////////////////////////////////////////////////
+      
+      for (size_t e=0; e<assembler->boundaryCells[usernum].size(); e++) {
+        
+        if (assembler->boundaryCells[usernum][e]->numElem > 0) {
+          assembler->wkset[0]->localEID = e;
+          
+          /////////////////////////////////////////////////////////////////////////////
+          // Compute the local residual and Jacobian on this cell
+          /////////////////////////////////////////////////////////////////////////////
+          
+          assembler->wkset[0]->sidename = assembler->boundaryCells[usernum][e]->sidename;
+          assembler->wkset[0]->currentside = assembler->boundaryCells[usernum][e]->sidenum;
+          
+          int seedwhat = 1;
+          
+          if (isTransient) {
+            assembler->wkset[0]->computeSolnTransientSeeded(assembler->boundaryCells[usernum][e]->u,
+                                                            assembler->boundaryCells[usernum][e]->u_prev,
+                                                            assembler->boundaryCells[usernum][e]->u_stage,
+                                                            seedwhat);
+          }
+          else { // steady-state
+            assembler->wkset[0]->computeSolnSteadySeeded(assembler->boundaryCells[usernum][e]->u, seedwhat);
+          }
+          if (assembler->wkset[0]->numParams > 0) {
+            assembler->wkset[0]->computeParamSteadySeeded(assembler->boundaryCells[usernum][e]->param, seedwhat);
+          }
+          
+          assembler->boundaryCells[usernum][e]->updateWorksetBasis();
+          assembler->boundaryCells[usernum][e]->computeSoln(seedwhat);
+          
+          assembler->wkset[0]->resetResidual();
+          
+          assembler->phys->boundaryResidual(0);
+          
+          //////////////////////////////////////////////////////////////////////////
+          // Scatter into global matrix/vector
+          ///////////////////////////////////////////////////////////////////////////
+          
+          {
+            Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverScatterTimer);
+            
+            auto LIDs = assembler->boundaryCells[usernum][e]->LIDs;
+            
+            parallel_for("assembly insert Jac",
+                         RangePolicy<SG_exec>(0,LIDs.extent(0)),
+                         KOKKOS_LAMBDA (const int elem ) {
+              for (size_type n=0; n<numDOF.extent(0); ++n) {
+                for (int j=0; j<numDOF(n); j++) {
+                  int row = offsets(n,j);
+                  LO rowIndex = LIDs(elem,row);
+                  ScalarT val = -res(elem,row).val();
+                  Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
+                }
+              }
+            });
+            
+            parallel_for("assembly insert Jac",
+                         RangePolicy<SG_exec>(0,LIDs.extent(0)),
+                         KOKKOS_LAMBDA (const int elem ) {
+              const size_type numVals = LIDs.extent(1);
+              LO cols[maxDerivs];
+              ScalarT vals[maxDerivs];
+              for (size_type n=0; n<numDOF.extent(0); ++n) {
+                for (int j=0; j<numDOF(n); j++) {
+                  int row = offsets(n,j);
+                  LO rowIndex = LIDs(elem,row);
+                  for (size_type m=0; m<numDOF.extent(0); m++) {
+                    for (int k=0; k<numDOF(m); k++) {
+                      int col = offsets(m,k);
+                      vals[col] = res(elem,row).fastAccessDx(col);
+                      cols[col] = LIDs(elem,col);
+                    }
+                  }
+                  localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, true); // isSorted, useAtomics
+                  
+                }
+              }
+            });
+            
+          }
+        }
+      }
+      
+      //////////////////////////////////////////////////////////////////////////
+      // Fix up any empty rows due to workset size
+      ///////////////////////////////////////////////////////////////////////////
+      
+      if (maxElem > numElem) {
+        if (data_avail) {
+          auto LIDs = assembler->cells[0][0]->LIDs;
+          this->fixDiagonal(LIDs, localMatrix, numElem);
+        }
+        else {
+          if (use_host_LIDs) {
+            auto LIDs = assembler->cells[0][0]->LIDs_host;
+            this->fixDiagonal(LIDs, localMatrix, numElem);
+          }
+          else {
+            auto LIDs_dev = Kokkos::create_mirror(SG_exec(), assembler->cells[0][0]->LIDs);
+            Kokkos::deep_copy(LIDs_dev, assembler->cells[0][0]->LIDs);
+            this->fixDiagonal(LIDs_dev, localMatrix, numElem);
+          }
+        }
+        
+      }
     }
     
     sub_J_over->fillComplete();
