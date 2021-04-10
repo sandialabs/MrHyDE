@@ -301,7 +301,7 @@ int main(int argc, char * argv[]) {
     // Make sure everything is defined properly and setup decompositions
     //----------------------------------------------------------------------
     
-    functionManager->validateFunctions();
+    //functionManager->validateFunctions();
     functionManager->decomposeFunctions();
     
     //----------------------------------------------------------------------

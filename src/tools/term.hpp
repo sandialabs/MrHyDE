@@ -87,6 +87,84 @@ namespace MrHyDE {
     
   };
   
+  // =================================================================
+  // New data structures that have a branch \in tree \in forest hierarchy
+  // =================================================================
+  
+  class Branch { // replaces term
+  public:
+    
+    Branch() {};
+    
+    ~Branch() {};
+    
+    Branch(const string & expression_) {
+      expression = expression_;
+      // default settings
+      isLeaf = false;
+      isDecomposed = false;
+      isFunc = false;
+      isScalar = false;
+      //isAD = true;
+      isConstant = false;
+      scalarIndex = 0;
+    }
+    
+    string expression;
+    bool isLeaf, isDecomposed, isFunc, isScalar, isAD, isConstant;
+    int funcIndex, scalarIndex;
+    
+    View_AD2 data;
+    View_Sc2 ddata;
+    Kokkos::View<double*,Kokkos::LayoutStride,AssemblyDevice> scalar_ddata;
+    Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> scalar_data;
+    
+    vector<int> dep_list;
+    vector<string> dep_ops;
+    
+  };
+  
+  class Tree { // replaces function_class
+  public:
+    
+    Tree() {};
+    
+    ~Tree() {};
+    
+    Tree(const string & name_, const string & expression_) {
+      name = name_;
+      expression = expression_;
+      branches.push_back(Branch(expression));
+    }
+    
+    std::vector<Branch> branches;
+    string name, expression;
+    
+  };
+  
+  class Forest {
+  public:
+    
+    Forest() {};
+    
+    ~Forest() {};
+    
+    Forest(const std::string & location_, const int & dim0_, const int & dim1_){
+      location = location_;
+      dim0 = dim0_;
+      dim1 = dim1_;
+    }
+    
+    void addTree(const string & name, const string & expression) {
+      trees.push_back(Tree(name,expression));
+    }
+    
+    std::string location;
+    int dim0, dim1;
+    std::vector<Tree> trees;
+    
+  };
+  
 }
 
 #endif

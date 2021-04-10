@@ -16,7 +16,6 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "workset.hpp"
 #include "term.hpp"
 
 namespace MrHyDE {

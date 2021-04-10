@@ -24,28 +24,28 @@ using namespace MrHyDE;
 // TMW: THIS HAS BEEN DEPRECATED
 vector<string> Interpreter::getVars(const string & s, const vector<string> & knownops) {
   vector<string> vars;
-  bool interm = false;
+  bool inbranch = false;
   string var;
   for (size_t i=0; i<s.length(); i++) {
     if (isalpha(s[i]) || s[i] == '_' || s[i] == '[' || s[i] == ']') {
-      if (!interm) {
+      if (!inbranch) {
         if (s[i] == 'e' || s[i] == 'E') {
           if (i>0 && i<s.length()-1) {
             if (isdigit(s[i-1])) {
               // ex.: 1.0e2 (not a variable)
             }
             else {
-              interm = true;
+              inbranch = true;
               var = s[i];
             }
           }
           else {
-            interm = true;
+            inbranch = true;
             var = s[i];
           }
         }
         else {
-          interm = true;
+          inbranch = true;
           var = s[i];
         }
       }
@@ -65,7 +65,7 @@ vector<string> Interpreter::getVars(const string & s, const vector<string> & kno
       }
     }
     else {
-      if (interm) {
+      if (inbranch) {
         bool isknown = false;
         for (size_t j=0; j<knownops.size(); j++) {
           if (var == knownops[j]) {
@@ -75,7 +75,7 @@ vector<string> Interpreter::getVars(const string & s, const vector<string> & kno
         if (!isknown) {
           vars.push_back(var);
         }
-        interm = false;
+        inbranch = false;
       }
     }
   }
@@ -83,101 +83,6 @@ vector<string> Interpreter::getVars(const string & s, const vector<string> & kno
   return vars;
   
 }
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-//////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// TMW: THIS HAS BEEN DEPRECATED
-int Interpreter::validateTerms(const vector<string> & terms,
-                               const vector<string> & known_vars,
-                               const vector<string> & variables,
-                               const vector<string> & parameters,
-                               const vector<string> & disc_parameters,
-                               const vector<string> & functions) {
-  
-  int failures = 0;
-  
-  for (size_t k=0; k<terms.size(); k++) {
-    bool found = false;
-    for (size_t j=0; j<known_vars.size(); j++) {
-      if (terms[k] == known_vars[j]) {
-        found = true;
-      }
-    }
-    if (!found) {
-      for (size_t j=0; j<variables.size(); j++) {
-        if (terms[k] == variables[j]) {
-          found = true;
-        }
-        else if (terms[k] == (variables[j]+"_x")) {
-          found = true;
-        }
-        else if (terms[k] == (variables[j]+"_y")) {
-          found = true;
-        }
-        else if (terms[k] == (variables[j]+"_z")) {
-          found = true;
-        }
-        else if (terms[k] == (variables[j]+"_t")) {
-          found = true;
-        }
-        else if (terms[k] == (variables[j]+"[x]")) {
-          found = true;
-        }
-        else if (terms[k] == (variables[j]+"[y]")) {
-          found = true;
-        }
-        else if (terms[k] == (variables[j]+"[z]")) {
-          found = true;
-        }
-      }
-    }
-    if (!found) {
-      for (size_t j=0; j<parameters.size(); j++) {
-        if (terms[k] == parameters[j]) {
-          found = true;
-        }
-      }
-    }
-    if (!found) {
-      for (size_t j=0; j<disc_parameters.size(); j++) {
-        if (terms[k] == disc_parameters[j]) {
-          found = true;
-        }
-      }
-    }
-    if (!found) {
-      for (size_t j=0; j<functions.size(); j++) {
-        if (terms[k] == functions[j]) {
-          found = true;
-        }
-      }
-    }
-    
-    if (!found) {
-      cout << "Error: the interpreter could not identify the following term: " << terms[k] << endl;
-      cout << "The options are: " << "t, " << "x, " << "y, " << "z" << endl;
-      for (size_t j=0; j<variables.size(); j++) {
-        cout << "                 " << variables[j] << ", " << variables[j]+"_x, " << variables[j]+"_y, " << variables[j]+"_z, " << variables[j]+"_t" << endl;
-      }
-      for (size_t j=0; j<parameters.size(); j++) {
-        cout << "                 " << parameters[j] << ", ";
-      }
-      cout << endl;
-      for (size_t j=0; j<functions.size(); j++) {
-        cout << "                 " << functions[j] << ", ";
-      }
-      cout << endl;
-      
-      failures += 1;
-    }
-  }
-  
-  return failures;
-  
-}
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -229,9 +134,9 @@ bool Interpreter::isScalar(const string & s) {
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Interpreter::split(vector<term> & terms, const size_t & index) {
+void Interpreter::split(vector<Branch> & branches, const size_t & index) {
   
-  string s = terms[index].expression;
+  string s = branches[index].expression;
   if (s[0] == '-') {
     s = "0.0" + s;
   }
@@ -239,22 +144,22 @@ void Interpreter::split(vector<term> & terms, const size_t & index) {
     //return 0;
   }
   else if (s.length() == 1) { // TMW: why is this case needed?
-    string currterm = "";
+    string currbranch = "";
     string currop = "";
-    currterm += s[0];
+    currbranch += s[0];
     bool found = false;
-    for (size_t k=0; k<terms.size(); k++) {
-      if (terms[k].expression == currterm) {
+    for (size_t k=0; k<branches.size(); k++) {
+      if (branches[k].expression == currbranch) {
         found = true;
-        terms[index].dep_list.push_back(k);
-        terms[index].dep_ops.push_back(currop);
+        branches[index].dep_list.push_back(k);
+        branches[index].dep_ops.push_back(currop);
       }
     }
     if (!found) {
-      term nterm = term(currterm);
-      terms.push_back(nterm);
-      terms[index].dep_list.push_back(terms.size()-1);
-      terms[index].dep_ops.push_back(currop);
+      Branch nbranch = Branch(currbranch);
+      branches.push_back(nbranch);
+      branches[index].dep_list.push_back(branches.size()-1);
+      branches[index].dep_ops.push_back(currop);
     }
     //return 1;
   }
@@ -263,7 +168,7 @@ void Interpreter::split(vector<term> & terms, const size_t & index) {
     size_t num_mdp = 0; // *,/,<,>,<=,>=
     size_t num_pow = 0; // ^
     
-    string currterm = "";
+    string currbranch = "";
     string currop = "";
     int paren = 0;
     
@@ -299,53 +204,53 @@ void Interpreter::split(vector<term> & terms, const size_t & index) {
         }
         else if (s[i] == '('){
           paren += 1;
-          currterm += s[i];
+          currbranch += s[i];
         }
         else if (s[i] == ')'){
           paren += -1;
-          currterm += s[i];
+          currbranch += s[i];
         }
-        else if (paren == 0 && s[i] == '+' && currterm.length() > 0){
+        else if (paren == 0 && s[i] == '+' && currbranch.length() > 0){
           bool found = false;
-          for (size_t k=0; k<terms.size(); k++) {
-            if (terms[k].expression == currterm) {
+          for (size_t k=0; k<branches.size(); k++) {
+            if (branches[k].expression == currbranch) {
               found = true;
-              terms[index].dep_list.push_back(k);
-              terms[index].dep_ops.push_back(currop);
+              branches[index].dep_list.push_back(k);
+              branches[index].dep_ops.push_back(currop);
             }
           }
           if (!found) {
-            term nterm = term(currterm);
-            terms.push_back(nterm);
-            terms[index].dep_list.push_back(terms.size()-1);
-            terms[index].dep_ops.push_back(currop);
+            Branch nbranch = Branch(currbranch);
+            branches.push_back(nbranch);
+            branches[index].dep_list.push_back(branches.size()-1);
+            branches[index].dep_ops.push_back(currop);
           }
-          currterm = "";
+          currbranch = "";
           currop = "plus";
         }
-        else if (paren == 0 && s[i] == '-' && currterm.length() > 0) {
+        else if (paren == 0 && s[i] == '-' && currbranch.length() > 0) {
           bool found = false;
-          for (size_t k=0; k<terms.size(); k++) {
-            if (terms[k].expression == currterm) {
+          for (size_t k=0; k<branches.size(); k++) {
+            if (branches[k].expression == currbranch) {
               found = true;
-              terms[index].dep_list.push_back(k);
-              terms[index].dep_ops.push_back(currop);
+              branches[index].dep_list.push_back(k);
+              branches[index].dep_ops.push_back(currop);
             }
           }
           if (!found) {
-            term nterm = term(currterm);
-            terms.push_back(nterm);
-            terms[index].dep_list.push_back(terms.size()-1);
-            terms[index].dep_ops.push_back(currop);
+            Branch nbranch = Branch(currbranch);
+            branches.push_back(nbranch);
+            branches[index].dep_list.push_back(branches.size()-1);
+            branches[index].dep_ops.push_back(currop);
           }
-          currterm = "";
+          currbranch = "";
           currop = "minus";
         }
         else {
-          currterm += s[i];
+          currbranch += s[i];
         }
         
-        if (i == s.length()-1 && currterm.length()>0) {
+        if (i == s.length()-1 && currbranch.length()>0) {
           if (paren>0) {
             // add error
           }
@@ -354,18 +259,18 @@ void Interpreter::split(vector<term> & terms, const size_t & index) {
           }
           else if (num_pm>0) {
             bool found = false;
-            for (size_t k=0; k<terms.size(); k++) {
-              if (terms[k].expression == currterm) {
+            for (size_t k=0; k<branches.size(); k++) {
+              if (branches[k].expression == currbranch) {
                 found = true;
-                terms[index].dep_list.push_back(k);
-                terms[index].dep_ops.push_back(currop);
+                branches[index].dep_list.push_back(k);
+                branches[index].dep_ops.push_back(currop);
               }
             }
             if (!found) {
-              term nterm = term(currterm);
-              terms.push_back(nterm);
-              terms[index].dep_list.push_back(terms.size()-1);
-              terms[index].dep_ops.push_back(currop);
+              Branch nbranch = Branch(currbranch);
+              branches.push_back(nbranch);
+              branches[index].dep_list.push_back(branches.size()-1);
+              branches[index].dep_ops.push_back(currop);
             }
           }
         }
@@ -374,107 +279,107 @@ void Interpreter::split(vector<term> & terms, const size_t & index) {
       //return num_pm+1;
     }
     else if (num_mdp > 0) {
-      string currterm = "";
+      string currbranch = "";
       string currop = "";
       for (size_t i=0; i<s.length(); i++) {
         if (s[i] == '('){
           paren += 1;
-          currterm += s[i];
+          currbranch += s[i];
         }
         else if (s[i] == ')'){
           paren += -1;
-          currterm += s[i];
+          currbranch += s[i];
         }
         else if (paren == 0 && s[i] == '*'){
           bool found = false;
-          for (size_t k=0; k<terms.size(); k++) {
-            if (terms[k].expression == currterm) {
+          for (size_t k=0; k<branches.size(); k++) {
+            if (branches[k].expression == currbranch) {
               found = true;
-              terms[index].dep_list.push_back(k);
-              terms[index].dep_ops.push_back(currop);
+              branches[index].dep_list.push_back(k);
+              branches[index].dep_ops.push_back(currop);
             }
           }
           if (!found) {
-            term nterm = term(currterm);
-            terms.push_back(nterm);
-            terms[index].dep_list.push_back(terms.size()-1);
-            terms[index].dep_ops.push_back(currop);
+            Branch nbranch = Branch(currbranch);
+            branches.push_back(nbranch);
+            branches[index].dep_list.push_back(branches.size()-1);
+            branches[index].dep_ops.push_back(currop);
           }
-          currterm = "";
+          currbranch = "";
           currop = "times";
         }
         else if (paren == 0 && s[i] == '/') {
           bool found = false;
-          for (size_t k=0; k<terms.size(); k++) {
-            if (terms[k].expression == currterm) {
+          for (size_t k=0; k<branches.size(); k++) {
+            if (branches[k].expression == currbranch) {
               found = true;
-              terms[index].dep_list.push_back(k);
-              terms[index].dep_ops.push_back(currop);
+              branches[index].dep_list.push_back(k);
+              branches[index].dep_ops.push_back(currop);
             }
           }
           if (!found) {
-            term nterm = term(currterm);
-            terms.push_back(nterm);
-            terms[index].dep_list.push_back(terms.size()-1);
-            terms[index].dep_ops.push_back(currop);
+            Branch nbranch = Branch(currbranch);
+            branches.push_back(nbranch);
+            branches[index].dep_list.push_back(branches.size()-1);
+            branches[index].dep_ops.push_back(currop);
           }
-          currterm = "";
+          currbranch = "";
           currop = "divide";
         }
         else if ( paren == 0 && s[i] == '<') {
           bool found = false;
-          for (size_t k=0; k<terms.size(); k++) {
-            if (terms[k].expression == currterm) {
+          for (size_t k=0; k<branches.size(); k++) {
+            if (branches[k].expression == currbranch) {
               found = true;
-              terms[index].dep_list.push_back(k);
-              terms[index].dep_ops.push_back(currop);
+              branches[index].dep_list.push_back(k);
+              branches[index].dep_ops.push_back(currop);
             }
           }
           if (!found) {
-            term nterm = term(currterm);
-            terms.push_back(nterm);
-            terms[index].dep_list.push_back(terms.size()-1);
-            terms[index].dep_ops.push_back(currop);
+            Branch nbranch = Branch(currbranch);
+            branches.push_back(nbranch);
+            branches[index].dep_list.push_back(branches.size()-1);
+            branches[index].dep_ops.push_back(currop);
           }
-          currterm = "";
+          currbranch = "";
           currop = "lt";
         }
         else if ( paren == 0 && s[i] == '>') {
           bool found = false;
-          for (size_t k=0; k<terms.size(); k++) {
-            if (terms[k].expression == currterm) {
+          for (size_t k=0; k<branches.size(); k++) {
+            if (branches[k].expression == currbranch) {
               found = true;
-              terms[index].dep_list.push_back(k);
-              terms[index].dep_ops.push_back(currop);
+              branches[index].dep_list.push_back(k);
+              branches[index].dep_ops.push_back(currop);
             }
           }
           if (!found) {
-            term nterm = term(currterm);
-            terms.push_back(nterm);
-            terms[index].dep_list.push_back(terms.size()-1);
-            terms[index].dep_ops.push_back(currop);
+            Branch nbranch = Branch(currbranch);
+            branches.push_back(nbranch);
+            branches[index].dep_list.push_back(branches.size()-1);
+            branches[index].dep_ops.push_back(currop);
           }
-          currterm = "";
+          currbranch = "";
           currop = "gt";
         }
         else {
-          currterm += s[i];
+          currbranch += s[i];
         }
         
         if (i == s.length()-1 && num_mdp > 0) {
           bool found = false;
-          for (size_t k=0; k<terms.size(); k++) {
-            if (terms[k].expression == currterm) {
+          for (size_t k=0; k<branches.size(); k++) {
+            if (branches[k].expression == currbranch) {
               found = true;
-              terms[index].dep_list.push_back(k);
-              terms[index].dep_ops.push_back(currop);
+              branches[index].dep_list.push_back(k);
+              branches[index].dep_ops.push_back(currop);
             }
           }
           if (!found) {
-            term nterm = term(currterm);
-            terms.push_back(nterm);
-            terms[index].dep_list.push_back(terms.size()-1);
-            terms[index].dep_ops.push_back(currop);
+            Branch nbranch = Branch(currbranch);
+            branches.push_back(nbranch);
+            branches[index].dep_list.push_back(branches.size()-1);
+            branches[index].dep_ops.push_back(currop);
           }
         }
         
@@ -482,53 +387,53 @@ void Interpreter::split(vector<term> & terms, const size_t & index) {
       //return num_mdp+1;
     }
     else if (num_pow > 0) {
-      string currterm = "";
+      string currbranch = "";
       string currop = "";
       for (size_t i=0; i<s.length(); i++) {
         if (s[i] == '('){
           paren += 1;
-          currterm += s[i];
+          currbranch += s[i];
         }
         else if (s[i] == ')'){
           paren += -1;
-          currterm += s[i];
+          currbranch += s[i];
         }
         else if ( paren == 0 && s[i] == '^') {
           bool found = false;
-          for (size_t k=0; k<terms.size(); k++) {
-            if (terms[k].expression == currterm) {
+          for (size_t k=0; k<branches.size(); k++) {
+            if (branches[k].expression == currbranch) {
               found = true;
-              terms[index].dep_list.push_back(k);
-              terms[index].dep_ops.push_back(currop);
+              branches[index].dep_list.push_back(k);
+              branches[index].dep_ops.push_back(currop);
             }
           }
           if (!found) {
-            term nterm = term(currterm);
-            terms.push_back(nterm);
-            terms[index].dep_list.push_back(terms.size()-1);
-            terms[index].dep_ops.push_back(currop);
+            Branch nbranch = Branch(currbranch);
+            branches.push_back(nbranch);
+            branches[index].dep_list.push_back(branches.size()-1);
+            branches[index].dep_ops.push_back(currop);
           }
-          currterm = "";
+          currbranch = "";
           currop = "power";
         }
         else {
-          currterm += s[i];
+          currbranch += s[i];
         }
         
         if (i == s.length()-1 && num_pow > 0) {
           bool found = false;
-          for (size_t k=0; k<terms.size(); k++) {
-            if (terms[k].expression == currterm) {
+          for (size_t k=0; k<branches.size(); k++) {
+            if (branches[k].expression == currbranch) {
               found = true;
-              terms[index].dep_list.push_back(k);
-              terms[index].dep_ops.push_back(currop);
+              branches[index].dep_list.push_back(k);
+              branches[index].dep_ops.push_back(currop);
             }
           }
           if (!found) {
-            term nterm = term(currterm);
-            terms.push_back(nterm);
-            terms[index].dep_list.push_back(terms.size()-1);
-            terms[index].dep_ops.push_back(currop);
+            Branch nbranch = Branch(currbranch);
+            branches.push_back(nbranch);
+            branches[index].dep_list.push_back(branches.size()-1);
+            branches[index].dep_ops.push_back(currop);
           }
         }
         
@@ -537,14 +442,14 @@ void Interpreter::split(vector<term> & terms, const size_t & index) {
     }
     else {
       if (s[0] == '(' && s[s.length()-1] == ')') {
-        string currterm;
+        string currbranch;
         for (size_t k=1; k<s.length()-1; k++) {
-          currterm += s[k];
+          currbranch += s[k];
         }
-        term nterm = term(currterm);
-        terms.push_back(nterm);
-        terms[index].dep_list.push_back(terms.size()-1);
-        terms[index].dep_ops.push_back(currop);
+        Branch nbranch = Branch(currbranch);
+        branches.push_back(nbranch);
+        branches[index].dep_list.push_back(branches.size()-1);
+        branches[index].dep_ops.push_back(currop);
       }
       else {
         bool foundparen = false;
@@ -556,19 +461,19 @@ void Interpreter::split(vector<term> & terms, const size_t & index) {
           }
         }
         if (foundparen && s[s.length()-1] == ')') {
-          string currterm;
+          string currbranch;
           for (size_t k=pindex+1; k<s.length()-1; k++) {
-            currterm += s[k];
+            currbranch += s[k];
           }
-          term nterm = term(currterm);
-          terms.push_back(nterm);
-          terms[index].dep_list.push_back(terms.size()-1);
-          //terms[index].dep_ops.push_back(currop);
+          Branch nbranch = Branch(currbranch);
+          branches.push_back(nbranch);
+          branches[index].dep_list.push_back(branches.size()-1);
+          //branches[index].dep_ops.push_back(currop);
           currop = "";
           for (size_t k=0; k<pindex; ++k) {
             currop += s[k];
           }
-          terms[index].dep_ops.push_back(currop);
+          branches[index].dep_ops.push_back(currop);
           currop = "";
         }
         
@@ -584,11 +489,11 @@ void Interpreter::split(vector<term> & terms, const size_t & index) {
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Interpreter::isOperator(vector<term> & terms, size_t & index, vector<string> & ops) {
-  // checks if the string in s can be written as a standard operator on a term
+bool Interpreter::isOperator(vector<Branch> & branches, size_t & index, vector<string> & ops) {
+  // checks if the string in s can be written as a standard operator on a branch
   // example: sin(whatever)
   
-  string s = terms[index].expression;
+  string s = branches[index].expression;
   string oper, argument;
   bool found = false;
   size_t k=0;
@@ -634,11 +539,11 @@ bool Interpreter::isOperator(vector<term> & terms, size_t & index, vector<string
   }
   
   if (found) {
-    term nterm = term(argument);
-    terms.push_back(nterm);
-    terms[index].dep_list.push_back(terms.size()-1);
-    terms[index].dep_ops.push_back(oper);
-    terms[index].beenDecomposed = true;
+    Branch nbranch = Branch(argument);
+    branches.push_back(nbranch);
+    branches[index].dep_list.push_back(branches.size()-1);
+    branches[index].dep_ops.push_back(oper);
+    branches[index].isDecomposed = true;
   }
   
   

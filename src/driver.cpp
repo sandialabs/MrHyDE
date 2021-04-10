@@ -178,6 +178,9 @@ int main(int argc,char * argv[]) {
       
       functionManagers[b]->wkset = assembler->wkset[b];
       functionManagers[b]->decomposeFunctions();
+      if (verbosity>=20) {
+        functionManagers[b]->printFunctions();
+      }
     }
     Kokkos::fence();
     

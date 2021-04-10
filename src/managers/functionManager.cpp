@@ -39,6 +39,9 @@ blockname(blockname_), numElem(numElem_), numip(numip_), numip_side(numip_side_)
   
   interpreter = Teuchos::rcp( new Interpreter());
   
+  forests.push_back(Forest("ip",numElem,numip));
+  forests.push_back(Forest("side ip",numElem,numip_side));
+  forests.push_back(Forest("point",1,1));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -49,6 +52,23 @@ int FunctionManager::addFunction(const string & fname, string & expression, cons
   bool found = false;
   int findex = 0;
   
+  for (size_t k=0; k<forests.size(); k++) {
+    if (forests[k].location == location) {
+      for (size_t j=0; j<forests[k].trees.size(); ++j) {
+        if (forests[k].trees[j].name == fname) {
+          found = true;
+          findex = j;
+        }
+      }
+      if (!found) {
+        forests[k].addTree(fname, expression);
+        findex = forests[k].trees.size()-1;
+      }
+    }
+  }
+  return findex;
+  
+  /*
   for (size_t k=0; k<functions.size(); k++) {
     if (functions[k].function_name == fname && functions[k].location == location) {
       found = true;
@@ -70,6 +90,7 @@ int FunctionManager::addFunction(const string & fname, string & expression, cons
     findex = functions.size()-1;
   }
   return findex;
+  */
   
 }
 
@@ -91,6 +112,7 @@ void FunctionManager::setupLists(const vector<string> & variables_,
 // Validate all of the functions
 //////////////////////////////////////////////////////////////////////////////////////
 
+/*
 // TMW: THIS HAS BEEN DEPRECATED
 void FunctionManager::validateFunctions(){
   vector<string> function_names;
@@ -105,6 +127,7 @@ void FunctionManager::validateFunctions(){
     }
   }
 }
+*/
 
 //////////////////////////////////////////////////////////////////////////////////////
 // Decompose the functions into terms and set the evaluation tree
@@ -115,310 +138,332 @@ void FunctionManager::decomposeFunctions() {
   
   Teuchos::TimeMonitor ttimer(*decomposeTimer);
   
-  for (size_t fiter=0; fiter<functions.size(); fiter++) {
-   
-    bool done = false; // will turn to "true" when the function is fully decomposed
-    int maxiter = 20; // maximum number of recursions
-    int iter = 0;
+  for (size_t fiter=0; fiter<forests.size(); fiter++) {
     
-    while (!done && iter < maxiter) {
- 
-      iter++;
-      size_t Nterms = functions[fiter].terms.size();
+    int maxiter = 20; // maximum number of recursions
+    
+    for (size_t titer=0; titer<forests[fiter].trees.size(); titer++) {
       
-      for (size_t k=0; k<Nterms; k++) {
-
-        // HAVE WE ALREADY LOOKED AT THIS TERM?
-        bool decompose = true;
-        if (functions[fiter].terms[k].isRoot || functions[fiter].terms[k].beenDecomposed) {
-          decompose = false;
-        }
+      bool done = false; // will turn to "true" when the tree is fully decomposed
+      int iter = 0;
+      
+      while (!done && iter < maxiter) {
         
-        // Is it an AD data stored in the workset?
-        if (decompose) {
-          vector<string> data_labels = wkset->data_labels;
-          string label = functions[fiter].terms[k].expression;
-          if (functions[fiter].location == "side ip") {
-            label += " side";
-          }
-          else if (functions[fiter].location == "point") {
-            label += " point";
-          }
-          bool found = 0;
-          size_t j=0;
-          while (!found && j<data_labels.size()) {
-            if (label == data_labels[j]) {
-              decompose = false;
-              functions[fiter].terms[k].isRoot = true;
-              functions[fiter].terms[k].beenDecomposed = true;
-              functions[fiter].terms[k].isAD = true;
-              functions[fiter].terms[k].data = wkset->data[j];
-              
-              found = true;
-            }
-            j++;
-          }
-        }
+        iter++;
+        size_t Nbranches = forests[fiter].trees[titer].branches.size();
         
-        // Is it a Scalar data stored in the workset?
-        if (decompose) {
-          vector<string> data_Sc_labels = wkset->data_Sc_labels;
-          string label = functions[fiter].terms[k].expression;
-          if (functions[fiter].location == "side ip") {
-            label += " side";
-          }
-          else if (functions[fiter].location == "point") {
-            label += " point";
-          }
-          bool found = 0;
-          size_t j=0;
-          while (!found && j<data_Sc_labels.size()) {
-            if (label == data_Sc_labels[j]) {
-              decompose = false;
-              functions[fiter].terms[k].isRoot = true;
-              functions[fiter].terms[k].beenDecomposed = true;
-              functions[fiter].terms[k].isAD = false;
-              functions[fiter].terms[k].ddata = wkset->data_Sc[j];
-              found = true;
-            }
-            j++;
-          }
-        }
-        
-        // check if it is a parameter
-        if (decompose) {
+        for (size_t k=0; k<Nbranches; k++) {
           
-          for (unsigned int j=0; j<parameters.size(); j++) {
-            
-            if (functions[fiter].terms[k].expression == parameters[j]) {
-              functions[fiter].terms[k].isRoot = true;
-              functions[fiter].terms[k].isAD = true;
-              functions[fiter].terms[k].beenDecomposed = true;
-              functions[fiter].terms[k].isScalar = true;
-              functions[fiter].terms[k].isConstant = false; // needs to be copied
-              functions[fiter].terms[k].scalarIndex = 0;
-              
-              decompose = false;
-              
-              functions[fiter].terms[k].scalar_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
-              
-              View_AD2 tdata("scalar data",functions[fiter].dim0,functions[fiter].dim1);
-              functions[fiter].terms[k].data = tdata;
-              
+          // HAVE WE ALREADY LOOKED AT THIS TERM?
+          bool decompose = true;
+          if (forests[fiter].trees[titer].branches[k].isLeaf || forests[fiter].trees[titer].branches[k].isDecomposed) {
+            decompose = false;
+          }
+        
+          // Is it an AD data stored in the workset?
+          if (decompose) {
+            vector<string> data_labels = wkset->data_labels;
+            string label = forests[fiter].trees[titer].branches[k].expression;
+            if (forests[fiter].location == "side ip") {
+              label += " side";
             }
-            else { // look for param(*) or param(**)
-              bool found = true;
-              int sindex = 0;
-              size_t nexp = functions[fiter].terms[k].expression.length();
-              if (nexp == parameters[j].length()+3) {
-                for (size_t n=0; n<parameters[j].length(); n++) {
-                  if (functions[fiter].terms[k].expression[n] != parameters[j][n]) {
-                    found = false;
+            else if (forests[fiter].location == "point") {
+              label += " point";
+            }
+            bool found = 0;
+            size_t j=0;
+            while (!found && j<data_labels.size()) {
+              if (label == data_labels[j]) {
+                decompose = false;
+                forests[fiter].trees[titer].branches[k].isLeaf = true;
+                forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                forests[fiter].trees[titer].branches[k].isAD = true;
+                forests[fiter].trees[titer].branches[k].data = wkset->data[j];
+                
+                found = true;
+              }
+              j++;
+            }
+          }
+        
+          // Is it a Scalar data stored in the workset?
+          if (decompose) {
+            vector<string> data_Sc_labels = wkset->data_Sc_labels;
+            string label = forests[fiter].trees[titer].branches[k].expression;
+            if (forests[fiter].location == "side ip") {
+              label += " side";
+            }
+            else if (forests[fiter].location == "point") {
+              label += " point";
+            }
+            bool found = 0;
+            size_t j=0;
+            while (!found && j<data_Sc_labels.size()) {
+              if (label == data_Sc_labels[j]) {
+                decompose = false;
+                forests[fiter].trees[titer].branches[k].isLeaf = true;
+                forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                forests[fiter].trees[titer].branches[k].isAD = false;
+                forests[fiter].trees[titer].branches[k].ddata = wkset->data_Sc[j];
+                found = true;
+              }
+              j++;
+            }
+          }
+        
+          // check if it is a parameter
+          if (decompose) {
+            
+            for (unsigned int j=0; j<parameters.size(); j++) {
+              
+              if (forests[fiter].trees[titer].branches[k].expression == parameters[j]) {
+                forests[fiter].trees[titer].branches[k].isLeaf = true;
+                forests[fiter].trees[titer].branches[k].isAD = true;
+                forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                forests[fiter].trees[titer].branches[k].isScalar = true;
+                forests[fiter].trees[titer].branches[k].isConstant = false; // needs to be copied
+                forests[fiter].trees[titer].branches[k].scalarIndex = 0;
+                
+                decompose = false;
+                
+                forests[fiter].trees[titer].branches[k].scalar_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
+                
+                View_AD2 tdata("scalar data",forests[fiter].dim0,forests[fiter].dim1);
+                forests[fiter].trees[titer].branches[k].data = tdata;
+                
+              }
+              else { // look for param(*) or param(**)
+                bool found = true;
+                int sindex = 0;
+                size_t nexp = forests[fiter].trees[titer].branches[k].expression.length();
+                if (nexp == parameters[j].length()+3) {
+                  for (size_t n=0; n<parameters[j].length(); n++) {
+                    if (forests[fiter].trees[titer].branches[k].expression[n] != parameters[j][n]) {
+                      found = false;
+                    }
                   }
-                }
-                if (found) {
-                  if (functions[fiter].terms[k].expression[nexp-3] == '(' && functions[fiter].terms[k].expression[nexp-1] == ')') {
-                    string check = "";
-                    check += functions[fiter].terms[k].expression[nexp-2];
-                    if (isdigit(check[0])) {
-                      sindex = std::stoi(check);
+                  if (found) {
+                    if (forests[fiter].trees[titer].branches[k].expression[nexp-3] == '(' && forests[fiter].trees[titer].branches[k].expression[nexp-1] == ')') {
+                      string check = "";
+                      check += forests[fiter].trees[titer].branches[k].expression[nexp-2];
+                      if (isdigit(check[0])) {
+                        sindex = std::stoi(check);
+                      }
+                      else {
+                        found = false;
+                      }
                     }
                     else {
                       found = false;
                     }
                   }
-                  else {
-                    found = false;
+                }
+                else if (nexp == parameters[j].length()+4) {
+                  for (size_t n=0; n<parameters[j].length(); n++) {
+                    if (forests[fiter].trees[titer].branches[k].expression[n] != parameters[j][n]) {
+                      found = false;
+                    }
                   }
+                  if (found) {
+                    if (forests[fiter].trees[titer].branches[k].expression[nexp-4] == '(' && forests[fiter].trees[titer].branches[k].expression[nexp-1] == ')') {
+                      string check = "";
+                      check += forests[fiter].trees[titer].branches[k].expression[nexp-3];
+                      check += forests[fiter].trees[titer].branches[k].expression[nexp-2];
+                      if (isdigit(check[0]) && isdigit(check[1])) {
+                        sindex = std::stoi(check);
+                      }
+                      else {
+                        found = false;
+                      }
+                    }
+                    else {
+                      found = false;
+                    }
+                  }
+                }
+                else {
+                  found = false;
+                }
+                
+                if (found) {
+                  forests[fiter].trees[titer].branches[k].isLeaf = true;
+                  forests[fiter].trees[titer].branches[k].isAD = true;
+                  forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                  forests[fiter].trees[titer].branches[k].isScalar = true;
+                  forests[fiter].trees[titer].branches[k].isConstant = false; // needs to be copied
+                  forests[fiter].trees[titer].branches[k].scalarIndex = sindex;
+                  
+                  decompose = false;
+                  
+                  forests[fiter].trees[titer].branches[k].scalar_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
+                  
+                  View_AD2 tdata("scalar data",forests[fiter].dim0,forests[fiter].dim1);
+                  forests[fiter].trees[titer].branches[k].data = tdata;
                 }
               }
-              else if (nexp == parameters[j].length()+4) {
-                for (size_t n=0; n<parameters[j].length(); n++) {
-                  if (functions[fiter].terms[k].expression[n] != parameters[j][n]) {
-                    found = false;
-                  }
-                }
-                if (found) {
-                  if (functions[fiter].terms[k].expression[nexp-4] == '(' && functions[fiter].terms[k].expression[nexp-1] == ')') {
-                    string check = "";
-                    check += functions[fiter].terms[k].expression[nexp-3];
-                    check += functions[fiter].terms[k].expression[nexp-2];
-                    if (isdigit(check[0]) && isdigit(check[1])) {
-                      sindex = std::stoi(check);
-                    }
-                    else {
-                      found = false;
-                    }
-                  }
-                  else {
-                    found = false;
-                  }
-                }
+            }
+          }
+          
+          // check if it is a function
+          if (decompose) {
+            for (unsigned int j=0; j<forests[fiter].trees.size(); j++) {
+              if (forests[fiter].trees[titer].branches[k].expression == forests[fiter].trees[j].name) {
+                forests[fiter].trees[titer].branches[k].isFunc = true;
+                forests[fiter].trees[titer].branches[k].isAD = true;//functions[j].terms[0].isAD;
+                forests[fiter].trees[titer].branches[k].funcIndex = j;
+                forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                forests[fiter].trees[titer].branches[k].data = forests[fiter].trees[j].branches[0].data;
+                forests[fiter].trees[titer].branches[k].ddata = forests[fiter].trees[j].branches[0].ddata;
+                decompose = false;
+              }
+            }
+          }
+        
+          // IS THE TERM A SIMPLE SCALAR: 2.03, 1.0E2, etc.
+          if (decompose) {
+            bool isnum = interpreter->isScalar(forests[fiter].trees[titer].branches[k].expression);
+            if (isnum) {
+              if (k==0) {
+                forests[fiter].trees[titer].branches[k].isLeaf = true;
+                forests[fiter].trees[titer].branches[k].isAD = true;
+                forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                forests[fiter].trees[titer].branches[k].isScalar = true;
+                forests[fiter].trees[titer].branches[k].isConstant = true; // means in does not need to be copied every time
+                forests[fiter].trees[titer].branches[k].scalar_ddata = Kokkos::View<double*,AssemblyDevice>("scalar double data",1);
+                ScalarT val = std::stod(forests[fiter].trees[titer].branches[k].expression);
+                Kokkos::deep_copy(forests[fiter].trees[titer].branches[k].scalar_ddata, val);
+                
+                // Copy the data just once
+                View_AD2 tdata("scalar data",forests[fiter].dim0,forests[fiter].dim1);
+                forests[fiter].trees[titer].branches[k].data = tdata;
+                Kokkos::deep_copy(forests[fiter].trees[titer].branches[k].data, val);
+                decompose = false;
               }
               else {
-                found = false;
-              }
-              
-              if (found) {
-                functions[fiter].terms[k].isRoot = true;
-                functions[fiter].terms[k].isAD = true;
-                functions[fiter].terms[k].beenDecomposed = true;
-                functions[fiter].terms[k].isScalar = true;
-                functions[fiter].terms[k].isConstant = false; // needs to be copied
-                functions[fiter].terms[k].scalarIndex = sindex;
+                forests[fiter].trees[titer].branches[k].isLeaf = true;
+                forests[fiter].trees[titer].branches[k].isAD = false;
+                forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                forests[fiter].trees[titer].branches[k].isScalar = true;
+                forests[fiter].trees[titer].branches[k].isConstant = true; // means in does not need to be copied every time
+                forests[fiter].trees[titer].branches[k].scalar_ddata = Kokkos::View<double*,AssemblyDevice>("scalar double data",1);
+                ScalarT val = std::stod(forests[fiter].trees[titer].branches[k].expression);
+                Kokkos::deep_copy(forests[fiter].trees[titer].branches[k].scalar_ddata, val);
                 
-                decompose = false;
-                
-                functions[fiter].terms[k].scalar_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
-                
-                View_AD2 tdata("scalar data",functions[fiter].dim0,functions[fiter].dim1);
-                functions[fiter].terms[k].data = tdata;
-              }
-            }
-          }
-        }
-        
-        // check if it is a function
-        if (decompose) {
-          for (unsigned int j=0; j<functions.size(); j++) {
-            if (functions[fiter].terms[k].expression == functions[j].function_name &&
-                functions[fiter].location == functions[j].location) {
-              functions[fiter].terms[k].isFunc = true;
-              functions[fiter].terms[k].isAD = true;//functions[j].terms[0].isAD;
-              functions[fiter].terms[k].funcIndex = j;
-              functions[fiter].terms[k].beenDecomposed = true;
-              functions[fiter].terms[k].data = functions[j].terms[0].data;
-              functions[fiter].terms[k].ddata = functions[j].terms[0].ddata;
-              decompose = false;
-            }
-          }
-        }
-        
-        // IS THE TERM A SIMPLE SCALAR: 2.03, 1.0E2, etc.
-        if (decompose) {
-          bool isnum = interpreter->isScalar(functions[fiter].terms[k].expression);
-          if (isnum) {
-            functions[fiter].terms[k].isRoot = true;
-            functions[fiter].terms[k].isAD = false;
-            functions[fiter].terms[k].beenDecomposed = true;
-            functions[fiter].terms[k].isScalar = true;
-            functions[fiter].terms[k].isConstant = true; // means in does not need to be copied every time
-            functions[fiter].terms[k].scalar_ddata = Kokkos::View<double*,AssemblyDevice>("scalar double data",1);
-            ScalarT val = std::stod(functions[fiter].terms[k].expression);
-            Kokkos::deep_copy(functions[fiter].terms[k].scalar_ddata, val);
-           
-            // Copy the data just once
-            View_Sc2 tdata("scalar data",functions[fiter].dim0,functions[fiter].dim1);
-            functions[fiter].terms[k].ddata = tdata;
-            Kokkos::deep_copy(functions[fiter].terms[k].ddata, val);
-            decompose = false;
-          }
-        }
-        
-        // IS THE TERM ONE OF THE KNOWN VARIABLES: x,y,z,t
-        if (decompose) {
-          for (size_t j=0; j<known_vars.size(); j++) {
-            if (functions[fiter].terms[k].expression == known_vars[j]) {
-              decompose = false;
-              //bool have_data = false;
-              functions[fiter].terms[k].isRoot = true;
-              functions[fiter].terms[k].beenDecomposed = true;
-              functions[fiter].terms[k].isAD = false;
-              
-              if (known_vars[j] == "t") {
-                functions[fiter].terms[k].scalar_ddata = wkset->time_KV;
-                functions[fiter].terms[k].isScalar = true;
-                functions[fiter].terms[k].isConstant = false;
-                functions[fiter].terms[k].ddata = View_Sc2("data",functions[fiter].dim0,functions[fiter].dim1);
-              }
-              else if (known_vars[j] == "pi") {
-                functions[fiter].terms[k].isRoot = true;
-                functions[fiter].terms[k].isAD = false;
-                functions[fiter].terms[k].beenDecomposed = true;
-                functions[fiter].terms[k].isScalar = true;
-                functions[fiter].terms[k].isConstant = true; // means in does not need to be copied every time
-                View_Sc2 tdata("scalar data", functions[fiter].dim0, functions[fiter].dim1);
-                functions[fiter].terms[k].ddata = tdata;
-                
-                Kokkos::deep_copy(functions[fiter].terms[k].ddata, PI);
+                // Copy the data just once
+                View_Sc2 tdata("scalar data",forests[fiter].dim0,forests[fiter].dim1);
+                forests[fiter].trees[titer].branches[k].ddata = tdata;
+                Kokkos::deep_copy(forests[fiter].trees[titer].branches[k].ddata, val);
                 decompose = false;
               }
             }
           }
-        } // end known_vars
         
-        // IS THIS TERM ONE OF THE KNOWN OPERATORS: sin(...), exp(...), etc.
-        if (decompose) {
-          bool isop = interpreter->isOperator(functions[fiter].terms, k, known_ops);
-          if (isop) {
-            decompose = false;
+          // IS THE TERM ONE OF THE KNOWN VARIABLES: x,y,z,t
+          if (decompose) {
+            for (size_t j=0; j<known_vars.size(); j++) {
+              if (forests[fiter].trees[titer].branches[k].expression == known_vars[j]) {
+                decompose = false;
+                //bool have_data = false;
+                forests[fiter].trees[titer].branches[k].isLeaf = true;
+                forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                forests[fiter].trees[titer].branches[k].isAD = false;
+                forests[fiter].trees[titer].branches[k].isConstant = false;
+                if (known_vars[j] == "t") {
+                  forests[fiter].trees[titer].branches[k].scalar_ddata = wkset->time_KV;
+                  forests[fiter].trees[titer].branches[k].isScalar = true;
+                  forests[fiter].trees[titer].branches[k].ddata = View_Sc2("data",forests[fiter].dim0,forests[fiter].dim1);
+                }
+                else if (known_vars[j] == "pi") {
+                  forests[fiter].trees[titer].branches[k].isLeaf = true;
+                  forests[fiter].trees[titer].branches[k].isAD = false;
+                  forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                  forests[fiter].trees[titer].branches[k].isScalar = true;
+                  forests[fiter].trees[titer].branches[k].isConstant = true; // means in does not need to be copied every time
+                  View_Sc2 tdata("scalar data", forests[fiter].dim0, forests[fiter].dim1);
+                  forests[fiter].trees[titer].branches[k].ddata = tdata;
+                  
+                  Kokkos::deep_copy(forests[fiter].trees[titer].branches[k].ddata, PI);
+                  decompose = false;
+                }
+              }
+            }
+          } // end known_vars
+        
+          // IS THIS TERM ONE OF THE KNOWN OPERATORS: sin(...), exp(...), etc.
+          if (decompose) {
+            bool isop = interpreter->isOperator(forests[fiter].trees[titer].branches, k, known_ops);
+            if (isop) {
+              decompose = false;
+            }
+          }
+          
+          if (decompose) {
+            interpreter->split(forests[fiter].trees[titer].branches,k);
+            forests[fiter].trees[titer].branches[k].isDecomposed = true;
           }
         }
+      
+        bool isdone = true;
+        for (size_t k=0; k<forests[fiter].trees[titer].branches.size(); k++) {
+          if (!forests[fiter].trees[titer].branches[k].isLeaf && !forests[fiter].trees[titer].branches[k].isDecomposed) {
+            isdone = false;
+          }
+        }
+        done = isdone;
         
-        if (decompose) {
-          interpreter->split(functions[fiter].terms,k);
-          functions[fiter].terms[k].beenDecomposed = true;
-        }
       }
       
-      bool isdone = true;
-      for (size_t k=0; k<functions[fiter].terms.size(); k++) {
-        if (!functions[fiter].terms[k].isRoot && !functions[fiter].terms[k].beenDecomposed) {
-          isdone = false;
-        }
+      if (!done && iter >= maxiter) {
+        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was not able to decompose " + forests[fiter].trees[titer].name);
       }
-      done = isdone;
-      
-    }
-    
-    if (!done && iter >= maxiter) {
-      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was not able to decompose " + functions[fiter].function_name);
-    }
-  }
+    } // trees
+  } // forests
   
-  // After all of the functions have been decomposed, we can determine if we need to use arrays of ScalarT or AD
-  // Only the roots should be designated as ScalarT or AD at this point
+  // After all of the forests/trees have been decomposed, we can determine if we need to use arrays of ScalarT or AD
+  // Only the leafs should be designated as ScalarT or AD at this point
   
-  for (size_t k=0; k<functions.size(); k++) {
-    for (size_t j=0; j<functions[k].terms.size(); j++) {
-      bool termcheck = this->isScalarTerm(k,j); // is this term a ScalarT
-      if (termcheck) {
-        functions[k].terms[j].isAD = false;
-        if (!functions[k].terms[j].isRoot) {
-          View_Sc2 tdata("data", functions[k].dim0, functions[k].dim1);
-          functions[k].terms[j].ddata = tdata;
+  for (size_t f=0; f<forests.size(); ++f) {
+    for (size_t k=0; k<forests[f].trees.size(); k++) {
+      for (size_t j=0; j<forests[f].trees[k].branches.size(); j++) {
+        bool termcheck = this->isScalarTerm(f,k,j); // is this term a ScalarT
+        if (termcheck) {
+          forests[f].trees[k].branches[j].isAD = false;
+          if (!forests[f].trees[k].branches[j].isLeaf) {
+            View_Sc2 tdata("data", forests[f].dim0, forests[f].dim1);
+            forests[f].trees[k].branches[j].ddata = tdata;
+          }
+          if (j==0) { // always need this allocated
+            View_AD2 tdata("data", forests[f].dim0, forests[f].dim1);
+            forests[f].trees[k].branches[j].data = tdata;
+          }
         }
-        if (j==0) { // always need this allocated
-          View_AD2 tdata("data", functions[k].dim0, functions[k].dim1);
-          functions[k].terms[j].data = tdata;
+        else if (!forests[f].trees[k].branches[j].isLeaf) {
+          forests[f].trees[k].branches[j].isAD = true;
+          View_AD2 tdata("data",forests[f].dim0,forests[f].dim1);
+          forests[f].trees[k].branches[j].data = tdata;
         }
-      }
-      else if (!functions[k].terms[j].isRoot) {
-        functions[k].terms[j].isAD = true;
-        View_AD2 tdata("data",functions[k].dim0,functions[k].dim1);
-        functions[k].terms[j].data = tdata;
       }
     }
   }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
-// Determine if a term is a ScalarT or needs to be an AD type
+// Determine if a branch is a ScalarT or needs to be an AD type
 //////////////////////////////////////////////////////////////////////////////////////
 
-bool FunctionManager::isScalarTerm(const int & findex, const int & tindex) {
+bool FunctionManager::isScalarTerm(const int & findex, const int & tindex, const int & bindex) {
   bool is_scalar = true;
-  if (functions[findex].terms[tindex].isRoot) {
-    if (functions[findex].terms[tindex].isAD) {
+  if (forests[findex].trees[tindex].branches[bindex].isLeaf) {
+    if (forests[findex].trees[tindex].branches[bindex].isAD) {
       is_scalar = false;
     }
   }
-  else if (functions[findex].terms[tindex].isFunc) {
+  else if (forests[findex].trees[tindex].branches[bindex].isFunc) {
     is_scalar = false;
   }
   else {
-    for (size_t k=0; k<functions[findex].terms[tindex].dep_list.size(); k++){
-      bool depcheck = isScalarTerm(findex, functions[findex].terms[tindex].dep_list[k]);
+    for (size_t k=0; k<forests[findex].trees[tindex].branches[bindex].dep_list.size(); k++){
+      bool depcheck = isScalarTerm(findex, tindex, forests[findex].trees[tindex].branches[bindex].dep_list[k]);
       if (!depcheck) {
         is_scalar = false;
       }
@@ -434,25 +479,37 @@ bool FunctionManager::isScalarTerm(const int & findex, const int & tindex) {
 View_AD2 FunctionManager::evaluate(const string & fname, const string & location) {
   Teuchos::TimeMonitor ttimer(*evaluateTimer);
   
-  
-  int findex = -1;
-  for (size_t i=0; i<functions.size(); i++) {
-    if (fname == functions[i].function_name && functions[i].location == location) {
-      if (!functions[i].terms[0].beenDecomposed) {
-        this->decomposeFunctions();
+  bool ffound = false, tfound = false;
+  size_t fiter=0, titer=0;
+  while(!ffound && fiter<forests.size()) {
+    if (forests[fiter].location == location) {
+      ffound = true;
+      tfound = false;
+      while (!tfound && titer<forests[fiter].trees.size()) {
+        if (fname == forests[fiter].trees[titer].name) {
+          tfound = true;
+          if (!forests[fiter].trees[titer].branches[0].isDecomposed) {
+            this->decomposeFunctions();
+          }
+          this->evaluate(fiter,titer,0);
+        }
+        else {
+          titer++;
+        }
       }
-      this->evaluate(i,0);
-      findex = i;
+    }
+    else {
+      fiter++;
     }
   }
- 
-  if (findex == -1) { // meaning that the requested function was not registered at this location
+  
+  if (!ffound || !tfound) { // meaning that the requested function was not registered at this location
     TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: function manager could not evaluate: " + fname + " at " + location);
   }
   
-  View_AD2 output = functions[findex].terms[0].data;
-  if (!functions[findex].terms[0].isAD) {
-    auto doutput = functions[findex].terms[0].ddata;
+  View_AD2 output = forests[fiter].trees[titer].branches[0].data;
+  if (!forests[fiter].trees[titer].branches[0].isAD) {
+    auto doutput = forests[fiter].trees[titer].branches[0].ddata;
     parallel_for("funcman copy double to AD",
                  TeamPolicy<AssemblyExec>(output.extent(0), Kokkos::AUTO, 32),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
@@ -470,19 +527,19 @@ View_AD2 FunctionManager::evaluate(const string & fname, const string & location
 // Evaluate a function
 //////////////////////////////////////////////////////////////////////////////////////
 
-void FunctionManager::evaluate( const size_t & findex, const size_t & tindex) {
+void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, const size_t & bindex) {
   
   //if (verbosity > 10) {
-  //  cout << "------- Evaluating: " << functions[findex].terms[tindex].expression << endl;
+  //  cout << "------- Evaluating: " << forests[findex].trees[tindex].branches[bindex].expression << endl;
   //}
   
-  //functions[findex].terms[tindex].print();
+  //forests[findex].trees[tindex].branches[bindex].print();
   
-  if (functions[findex].terms[tindex].isRoot) {
-    if (functions[findex].terms[tindex].isScalar && !functions[findex].terms[tindex].isConstant) {
-      if (functions[findex].terms[tindex].isAD) { // TMW change to deep_copy
-        auto data0 = functions[findex].terms[tindex].data;
-        auto data1 = functions[findex].terms[tindex].scalar_data;
+  if (forests[findex].trees[tindex].branches[bindex].isLeaf) {
+    if (forests[findex].trees[tindex].branches[bindex].isScalar && !forests[findex].trees[tindex].branches[bindex].isConstant) {
+      if (forests[findex].trees[tindex].branches[bindex].isAD) { // TMW change to deep_copy
+        auto data0 = forests[findex].trees[tindex].branches[bindex].data;
+        auto data1 = forests[findex].trees[tindex].branches[bindex].scalar_data;
         parallel_for("funcman copy scalar to View_AD2",
                      TeamPolicy<AssemblyExec>(data0.extent(0), Kokkos::AUTO, 32),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
@@ -493,8 +550,8 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex) {
         });
       }
       else { // TMW change to deep_copy
-        auto data0 = functions[findex].terms[tindex].ddata;
-        auto data1 = functions[findex].terms[tindex].scalar_ddata;
+        auto data0 = forests[findex].trees[tindex].branches[bindex].ddata;
+        auto data1 = forests[findex].trees[tindex].branches[bindex].scalar_ddata;
         parallel_for("funcman copy scalar to View_Sc2",
                      TeamPolicy<AssemblyExec>(data0.extent(0), Kokkos::AUTO, 32),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
@@ -506,16 +563,16 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex) {
       }
     }
   }
-  else if (functions[findex].terms[tindex].isFunc) {
-    int funcIndex = functions[findex].terms[tindex].funcIndex;
-    this->evaluate(funcIndex, 0);
-    if (functions[findex].terms[tindex].isAD) {
-      if (functions[funcIndex].terms[0].isAD) {
-        functions[findex].terms[tindex].data = functions[funcIndex].terms[0].data;
+  else if (forests[findex].trees[tindex].branches[bindex].isFunc) {
+    int funcIndex = forests[findex].trees[tindex].branches[bindex].funcIndex;
+    this->evaluate(findex,funcIndex, 0);
+    if (forests[findex].trees[tindex].branches[bindex].isAD) {
+      if (forests[findex].trees[funcIndex].branches[0].isAD) {
+        forests[findex].trees[tindex].branches[bindex].data = forests[findex].trees[funcIndex].branches[0].data;
       }
       else { // TMW try to change to deep copy
-        auto data0 = functions[findex].terms[tindex].data;
-        auto data1 = functions[funcIndex].terms[0].ddata;
+        auto data0 = forests[findex].trees[tindex].branches[bindex].data;
+        auto data1 = forests[findex].trees[funcIndex].branches[0].ddata;
         parallel_for("funcman copy View_Sc2 to View_AD2",
                      TeamPolicy<AssemblyExec>(data0.extent(0), Kokkos::AUTO, 32),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
@@ -527,34 +584,34 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex) {
       }
     }
     else {
-      functions[findex].terms[tindex].ddata = functions[funcIndex].terms[0].ddata;
+      forests[findex].trees[tindex].branches[bindex].ddata = forests[findex].trees[funcIndex].branches[0].ddata;
     }
   }
   else {
-    bool isAD = functions[findex].terms[tindex].isAD;
-    for (size_t k=0; k<functions[findex].terms[tindex].dep_list.size(); k++) {
+    bool isAD = forests[findex].trees[tindex].branches[bindex].isAD;
+    for (size_t k=0; k<forests[findex].trees[tindex].branches[bindex].dep_list.size(); k++) {
       
-      int dep = functions[findex].terms[tindex].dep_list[k];
-      this->evaluate(findex, dep);
+      int dep = forests[findex].trees[tindex].branches[bindex].dep_list[k];
+      this->evaluate(findex, tindex, dep);
       
-      bool termisAD = functions[findex].terms[dep].isAD;
+      bool termisAD = forests[findex].trees[tindex].branches[dep].isAD;
       if (isAD) {
         if (termisAD) {
-          this->evaluateOp(functions[findex].terms[tindex].data,
-                           functions[findex].terms[dep].data,
-                           functions[findex].terms[tindex].dep_ops[k]);
+          this->evaluateOp(forests[findex].trees[tindex].branches[bindex].data,
+                           forests[findex].trees[tindex].branches[dep].data,
+                           forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
           
         }
         else {
-          this->evaluateOp(functions[findex].terms[tindex].data,
-                           functions[findex].terms[dep].ddata,
-                           functions[findex].terms[tindex].dep_ops[k]);
+          this->evaluateOp(forests[findex].trees[tindex].branches[bindex].data,
+                           forests[findex].trees[tindex].branches[dep].ddata,
+                           forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
         }
       }
       else { // termisAD must also be false
-        this->evaluateOp(functions[findex].terms[tindex].ddata,
-                         functions[findex].terms[dep].ddata,
-                         functions[findex].terms[tindex].dep_ops[k]);
+        this->evaluateOp(forests[findex].trees[tindex].branches[bindex].ddata,
+                         forests[findex].trees[tindex].branches[dep].ddata,
+                         forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
       }
     }
   }
@@ -813,23 +870,28 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
 //////////////////////////////////////////////////////////////////////////////////////
 
 void FunctionManager::printFunctions() {
-  /*
-  for (size_t b=0; b<functions.size(); b++) {
-    cout << "Block Number: " << b << endl;
-    for (size_t n=0; n<functions[b].size(); n++) {
-      cout << "Function Name:" << functions[b][n].function_name << endl;
-      cout << "Location: " << functions[b][n].location << endl << endl;
-      cout << "Terms: " << endl;
-      for (size_t t=0; t<functions[b][n].terms.size(); t++) {
-        cout << "    " << functions[b][n].terms[t].expression << endl;
+  
+  cout << endl;
+  cout << "===========================================================" << endl;
+  cout << "Printing functions on block: " << blockname << endl;
+  cout << "-----------------------------------------------------------" << endl;
+  
+  for (size_t k=0; k<forests.size(); k++) {
+    
+    cout << "Forest Name:" << forests[k].location << endl;
+    cout << "Number of Trees: " << forests[k].trees.size() << endl;
+    for (size_t t=0; t<forests[k].trees.size(); t++) {
+      cout << "    Tree: " << forests[k].trees[t].name << endl;
+      cout << "    Number of branches: " << forests[k].trees[t].branches.size() << endl;
+      for (size_t b=0; b<forests[k].trees[t].branches.size(); b++) {
+        cout << "        " << forests[k].trees[t].branches[b].expression << endl;
       }
-      cout << endl;
-      cout << "First term information:" << endl;
-      functions[b][n].terms[0].print();
-      cout << endl << endl;
     }
+    
+    cout << "-----------------------------------------------------------" << endl;
+    
   }
-  */
+  
 }
 
 

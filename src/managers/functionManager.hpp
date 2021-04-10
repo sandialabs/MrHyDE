@@ -18,8 +18,11 @@
 #include "preferences.hpp"
 #include "function_class.hpp"
 #include "interpreter.hpp"
+#include "workset.hpp"
 
 namespace MrHyDE {
+  
+  
   
   class FunctionManager {
   public:
@@ -28,13 +31,6 @@ namespace MrHyDE {
     
     FunctionManager(const std::string & blockname, const int & numElem_,
                     const int & numip_, const int & numip_side_);
-    
-    //////////////////////////////////////////////////////////////////////////////////////
-    // Add a user defined function
-    //////////////////////////////////////////////////////////////////////////////////////
-    
-    //int addFunction(const std::string & fname, const std::string & expression,
-    //                const size_t & dim0, const size_t & dim1, const bool & onSide);
     
     //////////////////////////////////////////////////////////////////////////////////////
     // Add a user defined function
@@ -55,7 +51,7 @@ namespace MrHyDE {
     // Validate all of the functions
     //////////////////////////////////////////////////////////////////////////////////////
     
-    void validateFunctions();
+    //void validateFunctions();
     
     //////////////////////////////////////////////////////////////////////////////////////
     // Decompose the functions into terms and set the evaluation tree
@@ -68,7 +64,7 @@ namespace MrHyDE {
     // Determine if a term is a ScalarT or needs to be an AD type
     //////////////////////////////////////////////////////////////////////////////////////
     
-    bool isScalarTerm(const int & findex, const int & tindex);
+    bool isScalarTerm(const int & findex, const int & tindex, const int & bindex);
     
     //////////////////////////////////////////////////////////////////////////////////////
     // Evaluate a function (probably will be deprecated)
@@ -80,7 +76,7 @@ namespace MrHyDE {
     // Evaluate a function
     //////////////////////////////////////////////////////////////////////////////////////
     
-    void evaluate(const size_t & findex, const size_t & tindex);
+    void evaluate(const size_t & findex, const size_t & tindex, const size_t & bindex);
     
     //////////////////////////////////////////////////////////////////////////////////////
     // Evaluate an operator
@@ -103,7 +99,8 @@ namespace MrHyDE {
     int numElem, numip, numip_side;
     const int vectorSize = 32, teamSize = 1;
     
-    std::vector<function_class> functions;
+    std::vector<Forest> forests;
+    //std::vector<std::vector<function_class> > functions;
     
     std::vector<std::string> variables, aux_variables, parameters, disc_parameters;
     std::vector<std::string> known_vars, known_ops;
