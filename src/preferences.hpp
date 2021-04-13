@@ -52,11 +52,11 @@ typedef panzer::GlobalOrdinal GO;
 #endif
 
 // Size of vectors for hierarchical parallel policies
-//#ifdef MrHyDE_SET_VECTOR_SIZE
-//  #define VectorSize MrHyDE_SET_VECTOR_SIZE // allow us to set this at configure-time with the MrHyDE_VECTOR_SIZE flag
-//#else
-//  #define VectorSize 32 // probably fine for most architectures
-//#endif
+#ifdef MrHyDE_SET_VECTOR_SIZE
+  #define VectorSize MrHyDE_SET_VECTOR_SIZE // allow us to set this at configure-time with the MrHyDE_VECTOR_SIZE flag
+#else
+  #define VectorSize maxDerivs
+#endif
 
 
 #define PI 3.141592653589793238463
@@ -77,7 +77,7 @@ typedef Kokkos::Serial HostExec; // cannot be Cuda right now
 #endif
 
 // Kokkos contiguous layout for optimal use of hierarchical parallelism
-typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,32> ContLayout;
+typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,VectorSize> ContLayout;
 //typedef Kokkos::LayoutContiguous<Kokkos::LayoutStride,VectorSize> ContLayout;
 
 // Kokkos Memory Space typedefs

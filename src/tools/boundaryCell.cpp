@@ -230,7 +230,7 @@ void BoundaryCell::computeSoln(const int & seedwhat) {
       auto varaux = subview(aux,ALL(),var,ALL());
       if (seedwhat == 4) {
         parallel_for("bcell aux 4",
-                     TeamPolicy<AssemblyExec>(localID.extent(0), Kokkos::AUTO, 32),
+                     TeamPolicy<AssemblyExec>(localID.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type pt=team.team_rank(); pt<abasis.extent(2); pt+=team.team_size() ) {
@@ -243,7 +243,7 @@ void BoundaryCell::computeSoln(const int & seedwhat) {
       }
       else {
         parallel_for("bcell aux 5",
-                     TeamPolicy<AssemblyExec>(localID.extent(0), Kokkos::AUTO, 32),
+                     TeamPolicy<AssemblyExec>(localID.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type pt=team.team_rank(); pt<abasis.extent(2); pt+=team.team_size() ) {
@@ -357,7 +357,7 @@ void BoundaryCell::updateRes(const bool & compute_sens, View_Sc3 local_res) {
   if (compute_sens) {
     
     parallel_for("bcell update res sens",
-                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO, 32),
+                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
@@ -371,7 +371,7 @@ void BoundaryCell::updateRes(const bool & compute_sens, View_Sc3 local_res) {
   }
   else {
     parallel_for("bcell update res",
-                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO, 32),
+                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
@@ -394,7 +394,7 @@ void BoundaryCell::updateAdjointRes(const bool & compute_sens, View_Sc3 local_re
   
   if (compute_sens) {
     parallel_for("bcell update adjoint res sens",
-                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO, 32),
+                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
@@ -408,7 +408,7 @@ void BoundaryCell::updateAdjointRes(const bool & compute_sens, View_Sc3 local_re
   }
   else {
     parallel_for("bcell update adjoint res",
-                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO, 32),
+                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
@@ -433,7 +433,7 @@ void BoundaryCell::updateJac(const bool & useadjoint, View_Sc3 local_J) {
   
   if (useadjoint) {
     parallel_for("bcell update jac sens",
-                 TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, 32),
+                 TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
@@ -449,7 +449,7 @@ void BoundaryCell::updateJac(const bool & useadjoint, View_Sc3 local_J) {
   }
   else {
     parallel_for("bcell update jac",
-                 TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, 32),
+                 TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
@@ -478,7 +478,7 @@ void BoundaryCell::updateParamJac(View_Sc3 local_J) {
   auto numParamDOF = cellData->numParamDOF;
   
   parallel_for("bcell update param jac",
-               TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, 32),
+               TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, VectorSize),
                KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
     int elem = team.league_rank();
     for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
@@ -506,7 +506,7 @@ void BoundaryCell::updateAuxJac(View_Sc3 local_J) {
   auto numAuxDOF = cellData->numAuxDOF;
   
   parallel_for("bcell update aux jac",
-               TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, 32),
+               TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, VectorSize),
                KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
     int elem = team.league_rank();
     for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {

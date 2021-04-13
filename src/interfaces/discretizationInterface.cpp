@@ -922,7 +922,7 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & c
     // scale the normal vector (we need unit normal...)
     
     parallel_for("wkset transient sol seedwhat 1",
-                 TeamPolicy<AssemblyExec>(snormals.extent(0), Kokkos::AUTO, 32),
+                 TeamPolicy<AssemblyExec>(snormals.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type pt=team.team_rank(); pt<snormals.extent(1); pt+=team.team_size() ) {

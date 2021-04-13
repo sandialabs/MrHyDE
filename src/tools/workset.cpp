@@ -338,7 +338,7 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
       auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
       auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
       parallel_for("wkset transient sol seedwhat 1",
-                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, 32),
+                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         ScalarT beta_u, beta_t;
@@ -385,7 +385,7 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
       auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
     
       parallel_for("wkset transient sol seedwhat 1",
-                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, 32),
+                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         AD beta_u, beta_t;
@@ -441,7 +441,7 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
     
       
       parallel_for("wkset transient sol seedwhat 1",
-                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, 32),
+                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         AD beta_u, beta_t;
@@ -490,7 +490,7 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
       auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
     
       parallel_for("wkset transient sol seedwhat 1",
-                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, 32),
+                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         ScalarT beta_u, beta_t;
@@ -750,7 +750,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
       }
       
       parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         size_type dim = cbasis_grad.extent(3);
@@ -780,7 +780,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
         auto csol_t = this->getData(var+"_t");
         auto cu_dotvals = soldotvals[varind];
         parallel_for("wkset soln ip HGRAD transient",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
@@ -815,7 +815,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
       }
       
       parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
@@ -830,7 +830,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
         auto csol_t = this->getData(var+"_t");
         auto cu_dotvals = soldotvals[varind];
         parallel_for("wkset soln ip HGRAD transient",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
@@ -881,7 +881,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
       auto cuvals = solvals[varind];
       
       parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         size_type dim = cbasis.extent(3);
@@ -906,7 +906,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
       });
       if (!onside) {
         parallel_for("wkset soln ip HGRAD",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
@@ -929,7 +929,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
         }
         auto cu_dotvals = soldotvals[varind];
         parallel_for("wkset soln ip HGRAD transient",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           size_type dim = cbasis.extent(3);
@@ -994,7 +994,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
       auto cuvals = solvals[varind];
       
       parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         size_type dim = cbasis.extent(3);
@@ -1020,7 +1020,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
       
       if (!onside) { // no curl on boundary?
         parallel_for("wkset soln ip HGRAD",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           size_type dim = cbasis.extent(3);
@@ -1055,7 +1055,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
         }
         auto cu_dotvals = soldotvals[varind];
         parallel_for("wkset soln ip HGRAD transient",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           size_type dim = cbasis.extent(3);
@@ -1099,7 +1099,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
         cbasis = basis_side[basis_index[varind]];
         
         parallel_for("wkset soln ip HFACE",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
@@ -1182,7 +1182,7 @@ void workset::computeSolnSideIP(const int & side) { //, Kokkos::View<AD***,Assem
       auto cbasis_grad = basis_grad_side[usebasis[varind]];
       
       parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         size_type dim = cbasis_grad.extent(3);
@@ -1223,7 +1223,7 @@ void workset::computeSolnSideIP(const int & side) { //, Kokkos::View<AD***,Assem
       auto cbasis = basis_side[usebasis[varind]];
       
       parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
@@ -1251,7 +1251,7 @@ void workset::computeSolnSideIP(const int & side) { //, Kokkos::View<AD***,Assem
       auto cbasis = basis_side[usebasis[varind]];
       
       parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         size_type dim = cbasis.extent(3);
@@ -1292,7 +1292,7 @@ void workset::computeSolnSideIP(const int & side) { //, Kokkos::View<AD***,Assem
       auto cbasis = basis_side[usebasis[varind]];
       
       parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, 32),
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         size_type dim = cbasis.extent(3);

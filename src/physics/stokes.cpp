@@ -488,7 +488,7 @@ void stokes::boundaryResidual() {
   
   if (bcs(e_num,cside) == "Neumann") { // Neumann BCs
     parallel_for("Thermal bndry resid part 1",
-                 TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, 32),
+                 TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type pt=team.team_rank(); pt<wts.extent(1); pt+=team.team_size() ) {
@@ -496,7 +496,7 @@ void stokes::boundaryResidual() {
       }
     });
     parallel_for("Thermal bndry resid part 2",
-                 TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, 32),
+                 TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
@@ -522,7 +522,7 @@ void stokes::boundaryResidual() {
       bdata = wkset->getData("aux e side");
     }
     parallel_for("Thermal bndry resid wD",
-                 TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, 32),
+                 TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type pt=team.team_rank(); pt<wts.extent(1); pt+=team.team_size() ) {
@@ -537,7 +537,7 @@ void stokes::boundaryResidual() {
       }
     });
     parallel_for("Thermal bndry resid part 2",
-                 TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, 32),
+                 TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {

@@ -499,7 +499,7 @@ void cell::resetPrevSoln() {
   // shift previous step solns
   if (sol_prev.extent(3)>1) {
     parallel_for("cell reset prev soln 1",
-                 TeamPolicy<AssemblyExec>(sol_prev.extent(0), Kokkos::AUTO, 32),
+                 TeamPolicy<AssemblyExec>(sol_prev.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type i=team.team_rank(); i<sol_prev.extent(1); i+=team.team_size() ) {
@@ -514,7 +514,7 @@ void cell::resetPrevSoln() {
   
   // copy current u into first step
   parallel_for("cell reset prev soln 2",
-               TeamPolicy<AssemblyExec>(sol_prev.extent(0), Kokkos::AUTO, 32),
+               TeamPolicy<AssemblyExec>(sol_prev.extent(0), Kokkos::AUTO, VectorSize),
                KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
     int elem = team.league_rank();
     for (size_type i=team.team_rank(); i<sol_prev.extent(1); i+=team.team_size() ) {
@@ -536,7 +536,7 @@ void cell::resetStageSoln() {
   auto sol_stage = u_stage;
   
   parallel_for("cell reset stage 1",
-               TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, 32),
+               TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
                KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
     int elem = team.league_rank();
     for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
@@ -562,7 +562,7 @@ void cell::updateStageSoln() {
   // add u into the current stage soln (done after stage solution is computed)
   auto snum = wkset->current_stage_KV;
   parallel_for("wkset transient sol seedwhat 1",
-               TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, 32),
+               TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
                KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
     int elem = team.league_rank();
     int stage = snum(0);
