@@ -12,29 +12,29 @@ int main(int argc, char * argv[]) {
   Kokkos::initialize();
 
   
-  typedef Kokkos::TeamPolicy<AssemblyExec> Policy;
-  typedef Policy::member_type member_type;
+  typedef Kokkos::TeamPolicy<AssemblyExec> TeamPolicy;
+  typedef TeamPolicy::member_type member_type;
   
   {
-    int numElem = 1000;
+    int numElem = 10000;
     if (argc>1) {
       numElem = atof(argv[1]);
     }
     std::cout << "Number of elements: " << numElem << std::endl;
  
-    const int TeamSize = 1;
+#define TeamSize 1
     std::cout << "Team size: " << TeamSize << std::endl;
   
-    const int numDerivs = 32;
+#define numDerivs 4
     typedef Sacado::Fad::SFad<ScalarT,numDerivs> EvalT;
     
-    const int VectorSize = 32;
+#define VectorSize 32
     std::cout << "Vector size: " << VectorSize << std::endl;
     typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,VectorSize> CL;
 
-    int numip = 8;
-    int dimension = 3;
-    int numdof = 8;
+    int numip = 4;
+    int dimension = 2;
+    int numdof = 4;
     
     ////////////////////////////////////////////////
     // Set up timer and views
@@ -42,26 +42,24 @@ int main(int argc, char * argv[]) {
     
     Kokkos::Timer timer;
  
-    Kokkos::View<ScalarT****,CL,AssemblyDevice> basis("basis",numElem,numdof,numip,dimension);
-    Kokkos::View<ScalarT****,CL,AssemblyDevice> basis_grad("basis",numElem,numdof,numip,dimension);
+    Kokkos::View<ScalarT****,AssemblyDevice> basis("basis",numElem,numdof,numip,dimension);
+    Kokkos::View<ScalarT****,AssemblyDevice> basis_grad("basis",numElem,numdof,numip,dimension);
     
     Kokkos::deep_copy(basis,1.0);
     Kokkos::deep_copy(basis_grad,2.0);
     
-    Kokkos::View<EvalT***,CL,AssemblyDevice> gradT("sol grad",numElem,numip,dimension,numDerivs);
+    Kokkos::View<EvalT**,CL,AssemblyDevice> dT_dx("dTdx",numElem,numip,numDerivs);
+    Kokkos::View<EvalT**,CL,AssemblyDevice> dT_dy("dTdy",numElem,numip,numDerivs);
     Kokkos::View<EvalT**,CL,AssemblyDevice> diff("diff",numElem,numip,numDerivs);
     Kokkos::View<EvalT**,CL,AssemblyDevice> source("src",numElem,numip,numDerivs);
     Kokkos::View<ScalarT**,CL,AssemblyDevice> wts("wts",numElem,numip);
     
-    auto sv = Kokkos::subview(gradT,Kokkos::ALL(),0,Kokkos::ALL());
-    
     parallel_for("Thermal volume resid 2D",
                  RangePolicy<AssemblyExec>(0,basis.extent(0)),
                  KOKKOS_LAMBDA (const int elem ) {
-      for (size_type pt=0; pt<gradT.extent(1); ++pt) {
-        for (size_type dim=0; dim<gradT.extent(2); ++dim) {
-          gradT(elem,pt,dim) = EvalT(32,pt,100.0);
-        }
+      for (size_type pt=0; pt<dT_dx.extent(1); ++pt) {
+        dT_dx(elem,pt) = EvalT(numDerivs,pt,100.0);
+        dT_dy(elem,pt) = EvalT(numDerivs,pt,-100.0);
       }
     });
     Kokkos::deep_copy(diff,1.0);
@@ -77,7 +75,7 @@ int main(int argc, char * argv[]) {
 
      
     ////////////////////////////////////////////////
-    // Baseline (current implementation in MrHyDE)
+    // Range policy version
     ////////////////////////////////////////////////
 
     timer.reset();
@@ -85,12 +83,9 @@ int main(int argc, char * argv[]) {
                  RangePolicy<AssemblyExec>(0,basis.extent(0)),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        EvalT f = -1.0*source(elem,pt);
-        EvalT DFx = diff(elem,pt)*gradT(elem,pt,0);
-        EvalT DFy = diff(elem,pt)*gradT(elem,pt,1);
-        f *= wts(elem,pt);
-        DFx *= wts(elem,pt);
-        DFy *= wts(elem,pt);
+        EvalT f = -1.0*source(elem,pt)*wts(elem,pt);
+        EvalT DFx = diff(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
+        EvalT DFy = diff(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,dof) += f*basis(elem,dof,pt,0) + DFx*basis_grad(elem,dof,pt,0) + DFy*basis_grad(elem,dof,pt,1);
         }
@@ -98,7 +93,7 @@ int main(int argc, char * argv[]) {
     });
     Kokkos::fence();
     double sol_time1 = timer.seconds();
-    printf("Baseline time:   %e \n", sol_time1);
+    printf("Range policy time:   %e \n", sol_time1);
     
 
     ////////////////////////////////////////////////
@@ -107,17 +102,15 @@ int main(int argc, char * argv[]) {
       
     timer.reset();
     parallel_for("Thermal volume resid 2D",
-                 Policy(basis.extent(0), Kokkos::AUTO, VectorSize),
+                 TeamPolicy(basis.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (member_type team ) {
       int elem = team.league_rank();
-      int ti = team.team_rank();
-      int ts = team.team_size();
-      for (size_type dof=ti; dof<basis.extent(1); dof+=ts ) {
+      for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
         EvalT f=0.0, DFx = 0.0, DFy = 0.0;
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           f = -1.0*source(elem,pt)*wts(elem,pt);
-          DFx = diff(elem,pt)*gradT(elem,pt,0)*wts(elem,pt);
-          DFy = diff(elem,pt)*gradT(elem,pt,1)*wts(elem,pt);
+          DFx = diff(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
+          DFy = diff(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
           res2(elem,dof) += f*basis(elem,dof,pt,0) + DFx*basis_grad(elem,dof,pt,0) + DFy*basis_grad(elem,dof,pt,1);
         }
       }
@@ -135,25 +128,21 @@ int main(int argc, char * argv[]) {
     
     timer.reset();
     parallel_for("Thermal volume resid 2D",
-                 Policy(basis.extent(0), Kokkos::AUTO, VectorSize),
+                 TeamPolicy(basis.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (member_type team ) {
       int elem = team.league_rank();
-      int ti = team.team_rank();
-      int ts = team.team_size();
-      for (size_type pt=ti; pt<scratch.extent(1); pt+=ts ) {
+      for (size_type pt=team.team_rank(); pt<scratch.extent(1); pt+=team.team_size() ) {
         scratch(elem,pt,0) = -1.0*source(elem,pt)*wts(elem,pt);
-        scratch(elem,pt,1) = diff(elem,pt)*gradT(elem,pt,0)*wts(elem,pt);
-        scratch(elem,pt,2) = diff(elem,pt)*gradT(elem,pt,1)*wts(elem,pt);
+        scratch(elem,pt,1) = diff(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
+        scratch(elem,pt,2) = diff(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
       }
     });
 
     parallel_for("Thermal volume resid 2D",
-                 Policy(basis.extent(0), Kokkos::AUTO, VectorSize),
+                 TeamPolicy(basis.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (member_type team ) {
       int elem = team.league_rank();
-      int ti = team.team_rank();
-      int ts = team.team_size();
-      for (size_type dof=ti; dof<basis.extent(1); dof+=ts ) {
+      for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           res2(elem,dof) += scratch(elem,pt,0)*basis(elem,dof,pt,0) + scratch(elem,pt,1)*basis_grad(elem,dof,pt,0) + scratch(elem,pt,2)*basis_grad(elem,dof,pt,1);
         }
@@ -200,7 +189,7 @@ int main(int argc, char * argv[]) {
     ////////////////////////////////////////////////
     // Another key kernel
     ////////////////////////////////////////////////
-
+/*
     Kokkos::View<ScalarT****,CL,AssemblyDevice> cbasis("basis",numElem,numdof,numip,dimension);
     Kokkos::View<ScalarT****,CL,AssemblyDevice> cbasis_grad("basis",numElem,numdof,numip,dimension);
     
@@ -359,7 +348,7 @@ int main(int argc, char * argv[]) {
     }
     std::cout << "hier. value error: " << valerror << std::endl;
     std::cout << "hier. deriv error: " << deriverror << std::endl;
-    
+    */
   }
   
   Kokkos::finalize();
