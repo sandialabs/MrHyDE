@@ -178,7 +178,9 @@ void FunctionManager::decomposeFunctions() {
                 forests[fiter].trees[titer].branches[k].isLeaf = true;
                 forests[fiter].trees[titer].branches[k].isDecomposed = true;
                 forests[fiter].trees[titer].branches[k].isAD = true;
-                forests[fiter].trees[titer].branches[k].data = wkset->data[j];
+                forests[fiter].trees[titer].branches[k].isWorksetData = true;
+                forests[fiter].trees[titer].branches[k].workset_data_index = j;
+                //forests[fiter].trees[titer].branches[k].data = wkset->data[j];
                 
                 found = true;
               }
@@ -204,7 +206,10 @@ void FunctionManager::decomposeFunctions() {
                 forests[fiter].trees[titer].branches[k].isLeaf = true;
                 forests[fiter].trees[titer].branches[k].isDecomposed = true;
                 forests[fiter].trees[titer].branches[k].isAD = false;
-                forests[fiter].trees[titer].branches[k].ddata = wkset->data_Sc[j];
+                forests[fiter].trees[titer].branches[k].isWorksetData = true;
+                forests[fiter].trees[titer].branches[k].workset_data_index = j;
+                
+                //forests[fiter].trees[titer].branches[k].ddata = wkset->data_Sc[j];
                 found = true;
               }
               j++;
@@ -358,7 +363,7 @@ void FunctionManager::decomposeFunctions() {
             }
           }
         
-          // IS THE TERM ONE OF THE KNOWN VARIABLES: x,y,z,t
+          // IS THE TERM ONE OF THE KNOWN VARIABLES: t or pi
           if (decompose) {
             for (size_t j=0; j<known_vars.size(); j++) {
               if (forests[fiter].trees[titer].branches[k].expression == known_vars[j]) {
@@ -560,6 +565,15 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, co
             data0(elem,pt) = data1(0);
           }
         });
+      }
+    }
+    else if (forests[findex].trees[tindex].branches[bindex].isWorksetData) {
+      int wdindex = forests[findex].trees[tindex].branches[bindex].workset_data_index;
+      if (forests[findex].trees[tindex].branches[bindex].isAD) {
+        forests[findex].trees[tindex].branches[bindex].data = wkset->data[wdindex];
+      }
+      else {
+        forests[findex].trees[tindex].branches[bindex].ddata = wkset->data_Sc[wdindex];
       }
     }
   }

@@ -43,10 +43,6 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
   
   if (cellData->storeAll) {
     int numip = cellData->ref_side_ip[0].extent(0);
-    int dimension = cellData->dimension;
-    ip = View_Sc3("physical ip",numElem, numip, dimension);
-    normals = View_Sc3("physical normals",numElem, numip, dimension);
-    tangents = View_Sc3("physical tangents",numElem, numip, dimension);
     wts = View_Sc2("physical wts",numElem, numip);
     hsize = View_Sc1("physical meshsize",numElem);
     orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
@@ -180,10 +176,9 @@ void BoundaryCell::updateWorksetBasis() {
   }
   else {
     int numip = cellData->ref_side_ip[0].extent(0);
-    int dimension = cellData->dimension;
-    View_Sc3 tip("physical ip",numElem, numip, dimension);
-    View_Sc3 tnormals("physical normals",numElem, numip, dimension);
-    View_Sc3 ttangents("physical tangents",numElem, numip, dimension);
+    vector<View_Sc2> tip;
+    vector<View_Sc2> tnormals;
+    vector<View_Sc2> ttangents;
     View_Sc2 twts("physical wts",numElem, numip);
     View_Sc1 thsize("physical meshsize",numElem);
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
@@ -225,7 +220,6 @@ void BoundaryCell::computeSoln(const int & seedwhat) {
       string varname = wkset->aux_varlist[var];
       auto local_aux = wkset->getData("aux "+varname+" side");
       Kokkos::deep_copy(local_aux,0.0);
-      //auto local_aux = Kokkos::subview(wkset->local_aux_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
       auto localID = localElemID;
       auto varaux = subview(aux,ALL(),var,ALL());
       if (seedwhat == 4) {
@@ -306,7 +300,6 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
     this->computeSoln(seedwhat);
     wkset->computeParamSideIP();
     
-    //wkset->resetResidual(numElem);
     wkset->resetResidual();
     
     cellData->physics_RCP->boundaryResidual(cellData->myBlock);
@@ -530,7 +523,6 @@ View_Sc2 BoundaryCell::getDirichlet() {
   
   View_Sc2 dvals("initial values",numElem,LIDs.extent(1));
   this->updateWorksetBasis();
-  //wkset->update(ip,wts,jacobian,jacobianInv,jacobianDet,orientation);
   
   Kokkos::View<string**,HostDevice> bcs = wkset->var_bcs;
   auto offsets = wkset->offsets;
@@ -540,10 +532,7 @@ View_Sc2 BoundaryCell::getDirichlet() {
   
   for (size_t n=0; n<wkset->varlist.size(); n++) {
     if (bcs(n,sidenum) == "Dirichlet") { // is this a strong DBC for this variable
-      auto dip = cellData->physics_RCP->getDirichlet(ip,n,
-                                                     cellData->myBlock,
-                                                     sidename,
-                                                     wkset);
+      auto dip = cellData->physics_RCP->getDirichlet(n,cellData->myBlock, sidename);
       int bind = wkset->usebasis[n];
       std::string btype = cellData->basis_types[bind];
       auto cbasis = basis[bind];
@@ -561,13 +550,27 @@ View_Sc2 BoundaryCell::getDirichlet() {
         });
       }
       else if (btype == "HDIV"){
+        
+        View_Sc2 nx, ny, nz;
+        nx = cnormals[0];
+        if (cnormals.size()>1) {
+          ny = cnormals[1];
+        }
+        if (cnormals.size()>2) {
+          nz = cnormals[2];
+        }
+        
         parallel_for("bcell fill Dirichlet HDIV",
                      RangePolicy<AssemblyExec>(0,dvals.extent(0)),
                      KOKKOS_LAMBDA (const int e ) {
           for( size_type i=0; i<cbasis.extent(1); i++ ) {
             for( size_type j=0; j<cwts.extent(1); j++ ) {
-              for (size_type s=0; s<cbasis.extent(3); s++) {
-                dvals(e,off(i)) += dip(e,j)*cbasis(e,i,j,s)*cnormals(e,j,s)*cwts(e,j);
+              dvals(e,off(i)) += dip(e,j)*cbasis(e,i,j,0)*nx(e,j)*cwts(e,j);
+              if (cbasis.extent(3)>1) {
+                dvals(e,off(i)) += dip(e,j)*cbasis(e,i,j,1)*ny(e,j)*cwts(e,j);
+              }
+              if (cbasis.extent(3)>2) {
+                dvals(e,off(i)) += dip(e,j)*cbasis(e,i,j,2)*nz(e,j)*cwts(e,j);
               }
             }
           }
@@ -616,14 +619,26 @@ View_Sc3 BoundaryCell::getMass() {
       }
       else if (btype == "HDIV"){
         auto cnormals = normals;
+        View_Sc2 nx, ny, nz;
+        nx = cnormals[0];
+        if (cnormals.size()>1) {
+          ny = cnormals[1];
+        }
+        if (cnormals.size()>2) {
+          nz = cnormals[2];
+        }
         parallel_for("bcell compute mass HDIV",
                      RangePolicy<AssemblyExec>(0,mass.extent(0)),
                      KOKKOS_LAMBDA (const int e ) {
           for( size_type i=0; i<cbasis.extent(1); i++ ) {
             for( size_type j=0; j<cbasis.extent(1); j++ ) {
               for( size_type k=0; k<cbasis.extent(2); k++ ) {
-                for (size_type s=0; s<cbasis.extent(3); s++) {
-                  mass(e,off(i),off(j)) += cbasis(e,i,k,s)*cnormals(e,k,s)*cbasis(e,j,k,s)*cnormals(e,k,s)*cwts(e,k);
+                mass(e,off(i),off(j)) += cbasis(e,i,k,0)*nx(e,k)*cbasis(e,j,k,0)*nx(e,k)*cwts(e,k);
+                if (cbasis.extent(3)>1) {
+                  mass(e,off(i),off(j)) += cbasis(e,i,k,1)*ny(e,k)*cbasis(e,j,k,1)*ny(e,k)*cwts(e,k);
+                }
+                if (cbasis.extent(3)>1) {
+                  mass(e,off(i),off(j)) += cbasis(e,i,k,2)*nz(e,k)*cbasis(e,j,k,2)*nz(e,k)*cwts(e,k);
                 }
               }
             }

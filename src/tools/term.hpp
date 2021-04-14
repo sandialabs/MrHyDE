@@ -33,6 +33,7 @@ namespace MrHyDE {
       isScalar = false;
       //isAD = true;
       isConstant = false;
+      isWorksetData = false;
       scalarIndex = 0;
       
       expression = expr;
@@ -73,8 +74,8 @@ namespace MrHyDE {
     //////////////////////////////////////////////////////////////////////
     
     string expression;
-    bool isRoot, beenDecomposed, isFunc, isScalar, isAD, isConstant;
-    int funcIndex, scalarIndex;
+    bool isRoot, beenDecomposed, isFunc, isScalar, isAD, isConstant, isWorksetData;
+    int funcIndex, scalarIndex, workset_data_index;
     
     View_AD2 data;
     View_Sc2 ddata;
@@ -106,13 +107,14 @@ namespace MrHyDE {
       isFunc = false;
       isScalar = false;
       //isAD = true;
+      isWorksetData = false;
       isConstant = false;
       scalarIndex = 0;
     }
     
     string expression;
-    bool isLeaf, isDecomposed, isFunc, isScalar, isAD, isConstant;
-    int funcIndex, scalarIndex;
+    bool isLeaf, isDecomposed, isFunc, isScalar, isAD, isConstant, isWorksetData;
+    int funcIndex, scalarIndex, workset_data_index;
     
     View_AD2 data;
     View_Sc2 ddata;

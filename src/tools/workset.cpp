@@ -1457,6 +1457,35 @@ View_Sc2 workset::getDataSc(const string & label) {
 }
 
 //////////////////////////////////////////////////////////////
+// Extract a View_Sc2 (2-dimensional array with ScalarT entries)
+//////////////////////////////////////////////////////////////
+
+size_t workset::getDataScIndex(const string & label) {
+  
+  Teuchos::TimeMonitor basistimer(*worksetgetDataScIndexTimer);
+  
+  bool found = false;
+  size_t ind = 0;
+  while (!found && ind<data_Sc_labels.size()) {
+    if (label == data_Sc_labels[ind]) {
+      found = true;
+      data_Sc_usage[ind] += 1;
+    }
+    else {
+      ++ind;
+    }
+  }
+  
+  if (!found) {
+    std::cout << "Error: could not find scalar data named " << label << std::endl;
+  }
+  
+  return ind;
+  
+}
+
+
+//////////////////////////////////////////////////////////////
 // Another method to extract a View_AD2
 //////////////////////////////////////////////////////////////
 
@@ -1884,20 +1913,19 @@ void workset::copyData(V1 view1, V2 view2) {
 // Set the integration points
 //////////////////////////////////////////////////////////////
 
-void workset::setIP(View_Sc3 newip, const string & pfix) {
-  size_type dim = newip.extent(2);
-  auto x = this->getDataSc("x"+pfix);
-  auto newx = subview(newip,ALL(),ALL(),0);
-  this->copyData(x,newx);
+void workset::setIP(vector<View_Sc2> & newip, const string & pfix) {
+  size_t dim = newip.size();
+  
+  size_t xind = this->getDataScIndex("x"+pfix);
+  data_Sc[xind] = newip[0];
+  
   if (dim > 1) {
-    auto y = this->getDataSc("y"+pfix);
-    auto newy = subview(newip,ALL(),ALL(),1);
-    this->copyData(y,newy);
+    size_t yind = this->getDataScIndex("y"+pfix);
+    data_Sc[yind] = newip[1];
   }
   if (dim > 2) {
-    auto z = this->getDataSc("z"+pfix);
-    auto newz = subview(newip,ALL(),ALL(),2);
-    this->copyData(z,newz);
+    size_t zind = this->getDataScIndex("z"+pfix);
+    data_Sc[zind] = newip[2];
   }
 }
 
@@ -1905,20 +1933,19 @@ void workset::setIP(View_Sc3 newip, const string & pfix) {
 // Set the side/face normals
 //////////////////////////////////////////////////////////////
 
-void workset::setNormals(View_Sc3 newnormals) {
-  size_type dim = newnormals.extent(2);
-  auto nx = this->getDataSc("nx side");
-  auto newnx = subview(newnormals,ALL(),ALL(),0);
-  this->copyData(nx,newnx);
+void workset::setNormals(vector<View_Sc2> & newnormals) {
+  size_t dim = newnormals.size();
+  
+  size_t nxind = this->getDataScIndex("nx side");
+  data_Sc[nxind] = newnormals[0];
+  
   if (dim > 1) {
-    auto ny = this->getDataSc("ny side");
-    auto newny = subview(newnormals,ALL(),ALL(),1);
-    this->copyData(ny,newny);
+    size_t nyind = this->getDataScIndex("ny side");
+    data_Sc[nyind] = newnormals[1];
   }
   if (dim > 2) {
-    auto nz = this->getDataSc("nz side");
-    auto newnz = subview(newnormals,ALL(),ALL(),2);
-    this->copyData(nz,newnz);
+    size_t nzind = this->getDataScIndex("nz side");
+    data_Sc[nzind] = newnormals[2];
   }
 }
 
@@ -1926,20 +1953,19 @@ void workset::setNormals(View_Sc3 newnormals) {
 // Set the side/face normals
 //////////////////////////////////////////////////////////////
 
-void workset::setTangents(View_Sc3 newtangents) {
-  size_type dim = newtangents.extent(2);
-  auto tx = this->getDataSc("tx side");
-  auto newtx = subview(newtangents,ALL(),ALL(),0);
-  this->copyData(tx,newtx);
+void workset::setTangents(vector<View_Sc2> & newtangents) {
+  size_t dim = newtangents.size();
+  
+  size_t txind = this->getDataScIndex("tx side");
+  data_Sc[txind] = newtangents[0];
+  
   if (dim > 1) {
-    auto ty = this->getDataSc("ty side");
-    auto newty = subview(newtangents,ALL(),ALL(),1);
-    this->copyData(ty,newty);
+    size_t tyind = this->getDataScIndex("ty side");
+    data_Sc[tyind] = newtangents[1];
   }
   if (dim > 2) {
-    auto tz = this->getDataSc("tz side");
-    auto newtz = subview(newtangents,ALL(),ALL(),2);
-    this->copyData(tz,newtz);
+    size_t tzind = this->getDataScIndex("tz side");
+    data_Sc[tzind] = newtangents[2];
   }
 }
 

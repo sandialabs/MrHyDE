@@ -307,7 +307,7 @@ namespace MrHyDE {
     size_t numElem = 0; // default value ... used to check if proc. has elements on boundary
     int sidenum, cellID, wksetBID;
     DRV nodes;
-    View_Sc3 ip, normals, tangents;
+    vector<View_Sc2> ip, normals, tangents;
     View_Sc2 wts;
     View_Sc1 hsize;
     
@@ -324,10 +324,8 @@ namespace MrHyDE {
     
     View_Sc3 u, phi, aux, param;
     View_Sc4 u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
-    //Kokkos::View<AD***,AssemblyDevice> u_AD, param_AD;
     
     // basis information
-    //vector<DRV> basis, basis_grad, basis_div, basis_curl;
     vector<View_Sc4> basis, basis_grad, basis_curl;
     vector<View_Sc3> basis_div;
     

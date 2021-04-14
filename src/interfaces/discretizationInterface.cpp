@@ -626,7 +626,7 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<CellMetaData> & cell
 
 void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaData> & cellData,
                                                         DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
-                                                        View_Sc3 ip, View_Sc2 wts, View_Sc1 hsize,
+                                                        vector<View_Sc2> & ip, View_Sc2 wts, View_Sc1 hsize,
                                                         Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                                         vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
                                                         vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
@@ -648,7 +648,23 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
     Teuchos::TimeMonitor localtimer(*physVolDataIPTimer);
     DRV tmpip("tmp ip", numElem, numip, dimension);
     CellTools::mapToPhysicalFrame(tmpip, cellData->ref_ip, nodes, *(cellData->cellTopo));
-    Kokkos::deep_copy(ip,tmpip);
+    View_Sc2 x("cell x",tmpip.extent(0), tmpip.extent(1));
+    auto tmpip_x = subview(tmpip, ALL(), ALL(),0);
+    deep_copy(x,tmpip_x);
+    ip.push_back(x);
+    if (dimension > 1) {
+      View_Sc2 y("cell y",tmpip.extent(0), tmpip.extent(1));
+      auto tmpip_y = subview(tmpip, ALL(), ALL(),1);
+      deep_copy(y,tmpip_y);
+      ip.push_back(y);
+    }
+    if (dimension > 2) {
+      View_Sc2 z("cell z",tmpip.extent(0), tmpip.extent(1));
+      auto tmpip_z = subview(tmpip, ALL(), ALL(),2);
+      deep_copy(z,tmpip_z);
+      ip.push_back(z);
+    }
+    
   }
   
   DRV jacobian("jacobian", numElem, numip, dimension, dimension);
@@ -685,7 +701,7 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
       for (size_type i=0; i<wts.extent(1); i++) {
         vol += wts(elem,i);
       }
-      ScalarT dimscl = 1.0/(ScalarT)ip.extent(2);
+      ScalarT dimscl = 1.0/(ScalarT)jacobian.extent(2);
       hsize(elem) = pow(vol,dimscl);
     });
   }
@@ -806,6 +822,10 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
   }
 }
 
+// -------------------------------------------------
+// Get the element orientations
+// -------------------------------------------------
+
 void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<CellMetaData> & cellData,
                                                       Kokkos::View<LO*,AssemblyDevice> eIndex,
                                                       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
@@ -845,7 +865,8 @@ void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<CellMetaData>
 void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & cellData, const int & side,
                                                   DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
                                                   Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                                                  View_Sc3 face_ip, View_Sc2 face_wts, View_Sc3 face_normals, View_Sc1 face_hsize,
+                                                  vector<View_Sc2> & face_ip, View_Sc2 face_wts,
+                                                  vector<View_Sc2> & face_normals, View_Sc1 face_hsize,
                                                   vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
                                                   const bool & recompute_jac,
                                                   const bool & recompute_orient) {
@@ -871,7 +892,25 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & c
   {
     Teuchos::TimeMonitor localtimer(*physFaceDataIPTimer);
     CellTools::mapToPhysicalFrame(sip, ref_ip, nodes, *(cellData->cellTopo));
-    Kokkos::deep_copy(face_ip,sip);
+    
+    View_Sc2 x("cell face x",sip.extent(0), sip.extent(1));
+    auto sip_x = subview(sip, ALL(), ALL(),0);
+    deep_copy(x,sip_x);
+    face_ip.push_back(x);
+    
+    if (dimension > 1) {
+      View_Sc2 y("cell face y",sip.extent(0), sip.extent(1));
+      auto sip_y = subview(sip, ALL(), ALL(),1);
+      deep_copy(y,sip_y);
+      face_ip.push_back(y);
+    }
+    if (dimension > 2) {
+      View_Sc2 z("cell face z",sip.extent(0), sip.extent(1));
+      auto sip_z = subview(sip, ALL(), ALL(),2);
+      deep_copy(z,sip_z);
+      face_ip.push_back(z);
+    }
+    
   }
   
   {
@@ -936,8 +975,26 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & c
         }
       }
     });
+        
+    View_Sc2 nx("cell face nx",snormals.extent(0), snormals.extent(1));
+    auto s_nx = subview(snormals, ALL(), ALL(),0);
+    deep_copy(nx,s_nx);
+    face_normals.push_back(nx);
     
-    Kokkos::deep_copy(face_normals,snormals);
+    if (dimension > 1) {
+      View_Sc2 ny("cell face ny", snormals.extent(0), snormals.extent(1));
+      auto s_ny = subview(snormals, ALL(), ALL(),1);
+      deep_copy(ny,s_ny);
+      face_normals.push_back(ny);
+    }
+    if (dimension > 2) {
+      View_Sc2 nz("cell face nz",snormals.extent(0), snormals.extent(1));
+      auto s_nz = subview(snormals, ALL(), ALL(), 2);
+      deep_copy(nz,s_nz);
+      face_normals.push_back(nz);
+    }
+    
+    
     Kokkos::deep_copy(face_wts,swts);
   }
   
@@ -958,7 +1015,7 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & c
         for (size_type i=0; i<face_wts.extent(1); i++) {
           vol += face_wts(e,i);
         }
-        ScalarT dimscl = 1.0/((ScalarT)face_ip.extent(2)-1.0);
+        ScalarT dimscl = 1.0/((ScalarT)sip.extent(2)-1.0);
         face_hsize(e) = pow(vol,dimscl);
       });
     }
@@ -1052,7 +1109,8 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData>
                                                       DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
                                                       Kokkos::View<LO*,AssemblyDevice> localSideID,
                                                       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                                                      View_Sc3 ip, View_Sc2 wts, View_Sc3 normals, View_Sc3 tangents, View_Sc1 hsize,
+                                                      vector<View_Sc2> & ip, View_Sc2 wts,
+                                                      vector<View_Sc2> & normals, vector<View_Sc2> & tangents, View_Sc1 hsize,
                                                       vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
                                                       vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
                                                       const bool & recompute_jac,
@@ -1085,7 +1143,23 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData>
   {
     Teuchos::TimeMonitor localtimer(*physBndryDataIPTimer);
     CellTools::mapToPhysicalFrame(tmpip, ref_ip, nodes, *(cellData->cellTopo));
-    Kokkos::deep_copy(ip,tmpip);
+    View_Sc2 x("cell face x",tmpip.extent(0), tmpip.extent(1));
+    auto tip_x = subview(tmpip, ALL(), ALL(),0);
+    deep_copy(x,tip_x);
+    ip.push_back(x);
+    
+    if (dimension > 1) {
+      View_Sc2 y("cell face y",tmpip.extent(0), tmpip.extent(1));
+      auto tip_y = subview(tmpip, ALL(), ALL(),1);
+      deep_copy(y,tip_y);
+      ip.push_back(y);
+    }
+    if (dimension > 2) {
+      View_Sc2 z("cell face z",tmpip.extent(0), tmpip.extent(1));
+      auto tip_z = subview(tmpip, ALL(), ALL(),2);
+      deep_copy(z,tip_z);
+      ip.push_back(z);
+    }
   }
   
   {
@@ -1144,8 +1218,42 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData>
       
     }
     Kokkos::deep_copy(wts,tmpwts);
-    Kokkos::deep_copy(normals,tmpnormals);
-    Kokkos::deep_copy(tangents,tmptangents);
+    
+    View_Sc2 nx("cell face nx",tmpnormals.extent(0), tmpnormals.extent(1));
+    auto t_nx = subview(tmpnormals, ALL(), ALL(),0);
+    deep_copy(nx,t_nx);
+    normals.push_back(nx);
+    
+    if (dimension > 1) {
+      View_Sc2 ny("cell face ny",tmpnormals.extent(0), tmpnormals.extent(1));
+      auto t_ny = subview(tmpnormals, ALL(), ALL(),1);
+      deep_copy(ny,t_ny);
+      normals.push_back(ny);
+    }
+    if (dimension > 2) {
+      View_Sc2 nz("cell face z",tmpnormals.extent(0), tmpnormals.extent(1));
+      auto t_nz = subview(tmpnormals, ALL(), ALL(),2);
+      deep_copy(nz,t_nz);
+      normals.push_back(nz);
+    }
+    
+    View_Sc2 tx("cell face tx",tmptangents.extent(0), tmptangents.extent(1));
+    auto t_tx = subview(tmptangents, ALL(), ALL(),0);
+    deep_copy(tx,t_tx);
+    tangents.push_back(tx);
+    
+    if (dimension > 1) {
+      View_Sc2 ty("cell face ty",tmptangents.extent(0), tmptangents.extent(1));
+      auto t_ty = subview(tmptangents, ALL(), ALL(),1);
+      deep_copy(ty,t_ty);
+      tangents.push_back(ty);
+    }
+    if (dimension > 2) {
+      View_Sc2 tz("cell face tz",tmptangents.extent(0), tmptangents.extent(1));
+      auto t_tz = subview(tmptangents, ALL(), ALL(),2);
+      deep_copy(tz,t_tz);
+      tangents.push_back(tz);
+    }
   }
   
   // -------------------------------------------------
@@ -1163,7 +1271,7 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData>
       for (size_type i=0; i<wts.extent(1); i++) {
         vol += wts(e,i);
       }
-      ScalarT dimscl = 1.0/((ScalarT)ip.extent(2)-1.0);
+      ScalarT dimscl = 1.0/((ScalarT)tmpip.extent(2)-1.0);
       hsize(e) = pow(vol,dimscl);
     });
   }
@@ -1173,18 +1281,35 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData>
   // -------------------------------------------------
   
   {
+    View_Sc2 nx,ny,nz;
+    nx = normals[0];
+    if (dimension>1) {
+      ny = normals[1];
+    }
+    if (dimension>2) {
+      nz = normals[2];
+    }
+    
     parallel_for("bcell normal rescale",
-                 TeamPolicy<AssemblyExec>(normals.extent(0), Kokkos::AUTO),
+                 TeamPolicy<AssemblyExec>(nx.extent(0), Kokkos::AUTO),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      for (size_type pt=team.team_rank(); pt<normals.extent(1); pt+=team.team_size() ) {
-        ScalarT normalLength = 0.0;
-        for (size_type sd=0; sd<normals.extent(2); sd++) {
-          normalLength += normals(elem,pt,sd)*normals(elem,pt,sd);
+      int dim = tmpip.extent(2);
+      for (size_type pt=team.team_rank(); pt<nx.extent(1); pt+=team.team_size() ) {
+        ScalarT normalLength = nx(elem,pt)*nx(elem,pt);
+        if (dim>1) {
+          normalLength += ny(elem,pt)*ny(elem,pt);
+        }
+        if (dim>2) {
+          normalLength += nz(elem,pt)*nz(elem,pt);
         }
         normalLength = sqrt(normalLength);
-        for (size_type sd=0; sd<normals.extent(2); sd++) {
-          normals(elem,pt,sd) = normals(elem,pt,sd) / normalLength;
+        nx(elem,pt) *= 1.0/normalLength;
+        if (dim>1) {
+          ny(elem,pt) *= 1.0/normalLength;
+        }
+        if (dim>2) {
+          nz(elem,pt) *= 1.0/normalLength;
         }
       }
     });

@@ -739,10 +739,18 @@ void SubGridFEM::setUpSubgridModels() {
             
             size_t numElem = boundaryCells[mindex][e]->numElem;
             
-            auto sside_ip = boundaryCells[mindex][e]->ip;//wkset->ip_side_vec[BIDs[e]];
+            View_Sc2 sside_ip_x, sside_ip_y, sside_ip_z;
+            sside_ip_x = boundaryCells[mindex][e]->ip[0]; // just x-component
+            if (dimension>1) {
+              sside_ip_y = boundaryCells[mindex][e]->ip[1];
+            }
+            if (dimension>2) {
+              sside_ip_z = boundaryCells[mindex][e]->ip[2];
+            }
+            
             vector<DRV> currside_basis;
             for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-              DRV tmp_basis = DRV("basis values",numElem,macro_basis_pointers[i]->getCardinality(),sside_ip.extent(1));
+              DRV tmp_basis = DRV("basis values",numElem,macro_basis_pointers[i]->getCardinality(),sside_ip_x.extent(1));
               currside_basis.push_back(tmp_basis);
             }
             int mcount = 0;
@@ -754,11 +762,11 @@ void SubGridFEM::setUpSubgridModels() {
             }
             vector<DRV> refbasis;
             for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-              DRV tmp_basis = DRV("basis values",mcount,macro_basis_pointers[i]->getCardinality(),sside_ip.extent(1));
+              DRV tmp_basis = DRV("basis values",mcount,macro_basis_pointers[i]->getCardinality(),sside_ip_x.extent(1));
               refbasis.push_back(tmp_basis);
             }
-            DRV sref_side_ip("sref_side_ip", sside_ip.extent(1), sside_ip.extent(2));
-            DRV side_ip_e("side_ip_e",1, sside_ip.extent(1), sside_ip.extent(2));
+            DRV sref_side_ip("sref_side_ip", sside_ip_x.extent(1), dimension);
+            DRV side_ip_e("side_ip_e",1, sside_ip_x.extent(1), dimension);
             //DRV sref_side_ip_tmp("sref_side_ip_tmp",1, sside_ip.extent(1), sside_ip.extent(2));
             DRV cnodes("tmp nodes",1,macroData[mindex]->macronodes.extent(1),
                        macroData[mindex]->macronodes.extent(2));
@@ -767,9 +775,20 @@ void SubGridFEM::setUpSubgridModels() {
               DRV basisvals("basisvals", macro_basis_pointers[i]->getCardinality(), sref_side_ip.extent(0));
               DRV basisvals_Transformed("basisvals_Transformed", 1, macro_basis_pointers[i]->getCardinality(), sref_side_ip.extent(0));
               for (int c=0; c<mcount; c++) {
-                auto cip = Kokkos::subview(sside_ip,c,Kokkos::ALL(),Kokkos::ALL());
-                auto sip = Kokkos::subview(side_ip_e,0,Kokkos::ALL(),Kokkos::ALL());
+                auto cip = Kokkos::subview(sside_ip_x,c,Kokkos::ALL());
+                auto sip = Kokkos::subview(side_ip_e,0,Kokkos::ALL(),0);
                 Kokkos::deep_copy(sip,cip);
+                if (dimension>1) {
+                  auto cip = Kokkos::subview(sside_ip_y,c,Kokkos::ALL());
+                  auto sip = Kokkos::subview(side_ip_e,0,Kokkos::ALL(),1);
+                  Kokkos::deep_copy(sip,cip);
+                }
+                if (dimension>2) {
+                  auto cip = Kokkos::subview(sside_ip_z,c,Kokkos::ALL());
+                  auto sip = Kokkos::subview(side_ip_e,0,Kokkos::ALL(),2);
+                  Kokkos::deep_copy(sip,cip);
+                }
+                
                 auto mnodes = Kokkos::subview(macroData[mindex]->macronodes,0,Kokkos::ALL(),Kokkos::ALL());
                 auto cnodes0 = Kokkos::subview(cnodes,0,Kokkos::ALL(), Kokkos::ALL());
                 Kokkos::deep_copy(cnodes0,mnodes);
@@ -803,7 +822,7 @@ void SubGridFEM::setUpSubgridModels() {
             });
             
             for (size_t i=0; i<macro_basis_pointers.size(); i++) {
-              DRV tmp_basis("basis values",numElem,macro_basis_pointers[i]->getCardinality(),sside_ip.extent(1));
+              DRV tmp_basis("basis values",numElem,macro_basis_pointers[i]->getCardinality(),sside_ip_x.extent(1));
               auto rbasis = refbasis[i];
               parallel_for("subgrid macro basis",RangePolicy<PHX::Device::execution_space>(0,numIDs), KOKKOS_LAMBDA (const int m ) {
                 int mcount = mcount_kv(0);
@@ -2149,11 +2168,22 @@ DRV SubGridFEM::getIP() {
   int prog = 0;
   for (size_t e=0; e<cells[usernum].size(); e++) {
     size_t numElem = cells[usernum][e]->numElem;
-    auto ip = cells[usernum][e]->ip;
+    View_Sc2 x,y,z;
+    x = cells[usernum][e]->ip[0];
+    if (dimension>1) {
+      y = cells[usernum][e]->ip[1];
+    }
+    if (dimension>2) {
+      z = cells[usernum][e]->ip[2];
+    }
     for (size_t c=0; c<numElem; c++) {
-      for (size_type i=0; i<ip.extent(1); i++) {
-        for (size_type j=0; j<ip.extent(2); j++) {
-          refip(0,prog,j) = ip(c,i,j);
+      for (size_type i=0; i<x.extent(1); i++) {
+        refip(0,prog,0) = x(c,i);
+        if (dimension>1) {
+          refip(0,prog,1) = y(c,i);
+        }
+        if (dimension>2) {
+          refip(0,prog,2) = z(c,i);
         }
         prog++;
       }

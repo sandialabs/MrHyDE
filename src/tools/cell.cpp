@@ -39,8 +39,6 @@ LIDs(LIDs_), cellData(cellData_), localElemID(localID_), sideinfo(sideinfo_), no
   // Compute integration data and basis functions
   if (cellData->storeAll) {
     size_type numip = cellData->ref_ip.extent(0);
-    size_t dimension = cellData->dimension;
-    ip = View_Sc3("physical ip",numElem, numip, dimension);
     wts = View_Sc2("physical wts",numElem, numip);
     hsize = View_Sc1("physical meshsize",numElem);
     orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
@@ -49,12 +47,13 @@ LIDs(LIDs_), cellData(cellData_), localElemID(localID_), sideinfo(sideinfo_), no
                                     basis, basis_grad, basis_curl,
                                     basis_div, basis_nodes,true,true);
     
+    
+    
     if (cellData->build_face_terms) {
       for (size_type side=0; side<cellData->numSides; side++) {
         int numip = cellData->ref_side_ip[side].extent(0);
-        int dimension = cellData->dimension;
-        View_Sc3 face_ip("face ip", numElem, numip, dimension);
-        View_Sc3 face_normals("face normals", numElem, numip, dimension);
+        vector<View_Sc2> face_ip;
+        vector<View_Sc2> face_normals;
         View_Sc2 face_wts("face wts", numElem, numip);
         View_Sc1 face_hsize("face hsize", numElem);
         vector<View_Sc4> face_basis, face_basis_grad;
@@ -62,6 +61,7 @@ LIDs(LIDs_), cellData(cellData_), localElemID(localID_), sideinfo(sideinfo_), no
         disc->getPhysicalFaceData(cellData, side, nodes, localElemID, orientation,
                                   face_ip, face_wts, face_normals, face_hsize,
                                   face_basis, face_basis_grad,true,false);
+        
         
         ip_face.push_back(face_ip);
         wts_face.push_back(face_wts);
@@ -98,9 +98,6 @@ void cell::setParams(LIDView paramLIDs_) {
   paramLIDs = paramLIDs_;
   paramLIDs_host = LIDView_host("param LIDs on host", paramLIDs.extent(0), paramLIDs.extent(1));//create_mirror_view(paramLIDs);
   deep_copy(paramLIDs_host, paramLIDs);
-  
-  // This has now been set
-  //numParamDOF = cellData->numParamDOF;
   
 }
 
@@ -259,7 +256,7 @@ void cell::computeSolnVolIP() {
     wkset->basis_curl = basis_curl;
   }
   else {
-    View_Sc3 tip("physical ip",numElem, cellData->ref_ip.extent(0), cellData->dimension);
+    vector<View_Sc2> tip;
     View_Sc2 twts("physical wts",numElem, cellData->ref_ip.extent(0));
     View_Sc1 thsize("physical meshsize",numElem);
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
@@ -454,9 +451,8 @@ void cell::computeSolnFaceIP(const size_t & facenum) {
   }
   else {
     int numip = cellData->ref_side_ip[facenum].extent(0);
-    int dimension = cellData->dimension;
-    View_Sc3 tip("face ip", numElem, numip, dimension);
-    View_Sc3 tnormals("face normals", numElem, numip, dimension);
+    vector<View_Sc2> tip;
+    vector<View_Sc2> tnormals;
     View_Sc2 twts("face wts", numElem, numip);
     View_Sc1 thsize("face hsize", numElem);
     vector<View_Sc4> tbasis, tbasis_grad;
@@ -1117,8 +1113,25 @@ View_Sc2 cell::getInitial(const bool & project, const bool & isAdjoint) {
     }
   }
   else { // only works if using HGRAD linear basis
-    View_Sc3 vnodes("view of nodes",nodes.extent(0),nodes.extent(1),nodes.extent(2));
-    deep_copy(vnodes,nodes);
+    vector<View_Sc2> vnodes;
+    View_Sc2 vx,vy,vz;
+    vx = View_Sc2("view of nodes",nodes.extent(0),nodes.extent(1));
+    auto n_x = subview(nodes,ALL(),ALL(),0);
+    deep_copy(vx,n_x);
+    vnodes.push_back(vx);
+    if (nodes.extent(2) > 1) {
+      vy = View_Sc2("view of nodes",nodes.extent(0),nodes.extent(1));
+      auto n_y = subview(nodes,ALL(),ALL(),1);
+      deep_copy(vy,n_y);
+      vnodes.push_back(vy);
+    }
+    if (nodes.extent(2) > 2) {
+      vz = View_Sc2("view of nodes",nodes.extent(0),nodes.extent(1));
+      auto n_z = subview(nodes,ALL(),ALL(),2);
+      deep_copy(vz,n_z);
+      vnodes.push_back(vz);
+    }
+    
     auto initialnodes = cellData->physics_RCP->getInitial(vnodes,
                                                           cellData->myBlock,
                                                           project,

@@ -292,9 +292,9 @@ namespace MrHyDE {
     
     // Data created here (Views should all be AssemblyDevice)
     size_t numElem;
-    View_Sc3 ip; // numElem x numip x dimension
+    vector<View_Sc2> ip;
     View_Sc2 wts; // numElem x numip
-    vector<View_Sc3> ip_face, normals_face; // numElem x numip x dimension
+    vector<vector<View_Sc2> > ip_face, normals_face; // numElem x numip x dimension
     vector<View_Sc2 > wts_face; // numElem x numip
     vector<View_Sc1> hsize_face;
     

@@ -530,18 +530,17 @@ bool PhysicsInterface::checkFace(const size_t & block){
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-View_Sc3 PhysicsInterface::getInitial(const View_Sc3 ip, const int & block,
-                             const bool & project, Teuchos::RCP<workset> & wkset) {
+View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & block, const bool & project, Teuchos::RCP<workset> & wkset) {
   
   
-  size_t numElem = ip.extent(0);
   size_t numVars = varlist[block].size();
-  size_t numip = ip.extent(1);
   
-  View_Sc3 ivals("temp invals", numElem, numVars, numip);
-  
+  View_Sc3 ivals;
   
   if (project) {
+    
+    ivals = View_Sc3("tmp ivals",pts[0].extent(0), numVars, pts[0].extent(1));
+    
     // ip in wkset are set in cell::getInitial
     for (size_t n=0; n<varlist[block].size(); n++) {
   
@@ -560,31 +559,41 @@ View_Sc3 PhysicsInterface::getInitial(const View_Sc3 ip, const int & block,
   else {
     // TMW: will not work on device yet
     
-    size_type dim = ip.extent(2);
+    size_type dim = wkset->dimension;
+    size_type Nelem = pts[0].extent(0);
+    size_type Npts = pts[0].extent(1);
+    
+    View_Sc2 ptx("ptx",Nelem,Npts), pty("pty",Nelem,Npts), ptz("ptz",Nelem,Npts);
+    ptx = pts[0];
+    
     View_Sc2 x,y,z;
     x = wkset->getDataSc("x point");
     if (dim > 1) {
+      pty = pts[1];
       y = wkset->getDataSc("y point");
     }
     if (dim > 2) {
+      ptz = pts[2];
       z = wkset->getDataSc("z point");
     }
-    //auto point_KV = wkset->point;
-    auto host_ivals = Kokkos::create_mirror_view(ivals);
-    for (size_t e=0; e<numElem; e++) {
-      for (size_t i=0; i<numip; i++) {
+    
+    
+    ivals = View_Sc3("tmp ivals",Nelem,numVars,Npts);
+    View_Sc1 idim("dim",dim);
+    for (size_t e=0; e<ptx.extent(0); e++) {
+      for (size_t i=0; i<ptx.extent(1); i++) {
         // set the node in wkset
-        auto node = subview( ip, e, i, ALL());
+        // auto node = subview( ip, e, i, ALL());
         
         parallel_for("physics initial set point",
-                     RangePolicy<AssemblyExec>(0,node.extent(0)),
+                     RangePolicy<AssemblyExec>(0,1),
                      KOKKOS_LAMBDA (const int s ) {
-          x(0,0) = node(0);
-          if (dim > 1) {
-            y(0,0) = node(1);
+          x(0,0) = ptx(e,i); // TMW: this is incorrect
+          if (idim.extent(0) > 1) {
+            y(0,0) = pty(e,i);
           }
-          if (dim > 2) {
-            z(0,0) = node(2);
+          if (idim.extent(0) > 2) {
+            z(0,0) = ptz(e,i);
           }
           
         });
@@ -592,19 +601,14 @@ View_Sc3 PhysicsInterface::getInitial(const View_Sc3 ip, const int & block,
         for (size_t n=0; n<varlist[block].size(); n++) {
           // evaluate
           auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"point");
-          
+        
+          // Also incorrect
           ivals(e,n,i) = ivals_AD(0,0).val();
-          // copy
-          //auto iv = Kokkos::subview( ivals, e, n, i);
-          //parallel_for("physics initial set point",RangePolicy<AssemblyExec>(0,1), KOKKOS_LAMBDA (const int s ) {
-          //  iv(0) = ivals_AD(0,0).val();
-          //});
         }
       }
     }
   }
    
-  //KokkosTools::print(ivals);
   return ivals;
 }
 
@@ -612,19 +616,14 @@ View_Sc3 PhysicsInterface::getInitial(const View_Sc3 ip, const int & block,
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-View_Sc2 PhysicsInterface::getDirichlet(const View_Sc3 ip, const int & var,
-                               const int & block,
-                               const std::string & sidename,
-                               Teuchos::RCP<workset> & wkset) {
-  
-  
-  size_t numElem = ip.extent(0);
-  size_t numip = ip.extent(1);
-  
-  View_Sc2 dvals("temp dnvals", numElem, numip);
+View_Sc2 PhysicsInterface::getDirichlet(const int & var,
+                                        const int & block,
+                                        const std::string & sidename) {
   
   // evaluate
   auto dvals_AD = functionManagers[block]->evaluate("Dirichlet " + varlist[block][var] + " " + sidename,"side ip");
+  
+  View_Sc2 dvals("temp dnvals", dvals_AD.extent(0), dvals_AD.extent(1));
   
   // copy values
   parallel_for("physics fill Dirichlet values",

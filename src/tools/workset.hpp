@@ -163,6 +163,8 @@ namespace MrHyDE {
     
     View_Sc2 getDataSc(const string & label);
     
+    size_t getDataScIndex(const string & label);
+    
     void get(const string & label, View_AD2 & dataout);
     
     void get(const string & label, View_Sc2 & dataout);
@@ -231,11 +233,11 @@ namespace MrHyDE {
     
     void printMetaData();
     
-    void setIP(View_Sc3 newip, const string & pfix = "");
+    void setIP(vector<View_Sc2> & newip, const string & pfix = "");
     
-    void setNormals(View_Sc3 newnormals);
+    void setNormals(vector<View_Sc2> & newnormals);
     
-    void setTangents(View_Sc3 newtangents);
+    void setTangents(vector<View_Sc2> & newtangents);
     
     template<class V1, class V2>
     void copyData(V1 view1, V2 view2);
@@ -368,6 +370,7 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> worksetgetTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::get()");
     Teuchos::RCP<Teuchos::Time> worksetgetDataTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::getData");
     Teuchos::RCP<Teuchos::Time> worksetgetDataScTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::getDataSc");
+    Teuchos::RCP<Teuchos::Time> worksetgetDataScIndexTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::getDataScIndex");
     Teuchos::RCP<Teuchos::Time> worksetgetBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::getBasis*");
     Teuchos::RCP<Teuchos::Time> worksetcopyDataTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::copyData");
     

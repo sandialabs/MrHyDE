@@ -57,7 +57,7 @@ namespace MrHyDE {
     
     void getPhysicalVolumetricData(Teuchos::RCP<CellMetaData> & cellData,
                                    DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
-                                   View_Sc3 ip, View_Sc2 wts, View_Sc1 hsize,
+                                   vector<View_Sc2> & ip, View_Sc2 wts, View_Sc1 hsize,
                                    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                    vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
                                    vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
@@ -73,7 +73,7 @@ namespace MrHyDE {
     void getPhysicalFaceData(Teuchos::RCP<CellMetaData> & cellData, const int & side,
                              DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
                              Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                             View_Sc3 face_ip, View_Sc2 face_wts, View_Sc3 face_normals, View_Sc1 face_hsize,
+                             vector<View_Sc2> & face_ip, View_Sc2 face_wts, vector<View_Sc2> & face_normals, View_Sc1 face_hsize,
                              vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
                              const bool & recompute_jac = true,
                              const bool & recompute_orient = true);
@@ -82,7 +82,8 @@ namespace MrHyDE {
                                  DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
                                  Kokkos::View<LO*,AssemblyDevice> localSideID,
                                  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                                 View_Sc3 ip, View_Sc2 wts, View_Sc3 normals, View_Sc3 tangents, View_Sc1 hsize,
+                                 vector<View_Sc2> & ip, View_Sc2 wts, vector<View_Sc2> & normals,
+                                 vector<View_Sc2> & tangents, View_Sc1 hsize,
                                  vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
                                  vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
                                  const bool & recompute_jac = true,
