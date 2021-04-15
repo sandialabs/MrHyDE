@@ -121,7 +121,7 @@ namespace MrHyDE {
     Kokkos::View<double*,Kokkos::LayoutStride,AssemblyDevice> scalar_ddata;
     Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> scalar_data;
     
-    vector<int> dep_list;
+    vector<int> dep_list, dep_ops_int;
     vector<string> dep_ops;
     
   };

@@ -85,6 +85,9 @@ namespace MrHyDE {
     template<class T1, class T2>
     void evaluateOp(T1 data, T2 tdata, const std::string & op);
     
+    template<class T1, class T2>
+    void evaluateOp(T1 data, T2 tdata, const int & op);
+    
     //////////////////////////////////////////////////////////////////////////////////////
     // Print out the function information (mostly for debugging)
     //////////////////////////////////////////////////////////////////////////////////////
@@ -105,8 +108,10 @@ namespace MrHyDE {
     std::vector<std::string> known_vars, known_ops;
     Teuchos::RCP<workset> wkset;
     Teuchos::RCP<Interpreter> interpreter;
-    Teuchos::RCP<Teuchos::Time> decomposeTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::function::decompose");
-    Teuchos::RCP<Teuchos::Time> evaluateTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::function::evaluate");
+    Teuchos::RCP<Teuchos::Time> decomposeTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::FunctionManager::decompose");
+    Teuchos::RCP<Teuchos::Time> evaluateExtTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::FunctionManager::evaluate - external call");
+    Teuchos::RCP<Teuchos::Time> evaluateIntTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::FunctionManager::evaluate - internal call");
+    Teuchos::RCP<Teuchos::Time> evaluateOpTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::FunctionManager::evaluateOp");
     
   };
   
