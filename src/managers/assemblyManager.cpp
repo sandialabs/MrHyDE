@@ -49,6 +49,9 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   // TMW: the following flag should only be used if there are extra variables, but no corresponding equation/constraint
   fix_zero_rows = settings->sublist("Solver").get<bool>("fix zero rows",false);
   
+  // Really, this lumps the Jacobian and should only be used in explicit time integration
+  lump_mass = settings->sublist("Solver").get<bool>("lump mass",false);
+  
   use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("use measurements as DBCs", false);
   
   assembly_partitioning = settings->sublist("Solver").get<string>("assembly partitioning","sequential"); // "neighbor-avoiding"
@@ -1638,6 +1641,7 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
   // Could be changed to the AssemblyDevice, but would require a mirror view of this data and filling such a view is nontrivial
   /////////////////////////////////////
   
+  // Make sure the functor can access the necessary data
   auto fixedDOF = isFixedDOF;
   auto res = wkset[block]->res;
   if (isAdjoint) {
@@ -1645,7 +1649,86 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
   }
   auto offsets = wkset[block]->offsets;
   auto numDOF = cellData[block]->numDOF;
+  bool lump_mass_ = lump_mass, use_atomics_ = use_atomics, compute_sens_ = compute_sens,
+  isAdjoint_ = isAdjoint, compute_jacobian_ = compute_jacobian;
   
+  
+  parallel_for("assembly insert Jac",
+               RangePolicy<LA_exec>(0,LIDs.extent(0)),
+               KOKKOS_LAMBDA (const int elem ) {
+    
+    int row = 0;
+    LO rowIndex = 0;
+    
+    // Residual scatter
+    for (size_type n=0; n<numDOF.extent(0); ++n) {
+      for (int j=0; j<numDOF(n); j++) {
+        row = offsets(n,j);
+        rowIndex = LIDs(elem,row);
+        if (!fixedDOF(rowIndex)) {
+          if (compute_sens_) {
+            if (use_atomics_) {
+              for (size_type r=0; r<res_view.extent(1); ++r) {
+                ScalarT val = -res(elem,row).fastAccessDx(r);
+                Kokkos::atomic_add(&(res_view(rowIndex,r)), val);
+              }
+            }
+            else {
+              for (size_type r=0; r<res_view.extent(1); ++r) {
+                ScalarT val = -res(elem,row).fastAccessDx(r);
+                res_view(rowIndex,r) += val;
+              }
+            }
+          }
+          else {
+            ScalarT val = -res(elem,row).val();
+            if (use_atomics_) {
+              Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
+            }
+            else {
+              res_view(rowIndex,0) += val;
+            }
+          }
+        }
+      }
+    }
+    
+    // Jacobian scatter
+    if (compute_jacobian_) {
+      const size_type numVals = LIDs.extent(1);
+      int col = 0;
+      LO cols[maxDerivs];
+      ScalarT vals[maxDerivs];
+      for (size_type n=0; n<numDOF.extent(0); ++n) {
+        for (int j=0; j<numDOF(n); j++) {
+          row = offsets(n,j);
+          rowIndex = LIDs(elem,row);
+          if (!fixedDOF(rowIndex)) {
+            for (size_type m=0; m<numDOF.extent(0); m++) {
+              for (int k=0; k<numDOF(m); k++) {
+                col = offsets(m,k);
+                if (isAdjoint_) {
+                  vals[col] = res(elem,row).fastAccessDx(row);
+                }
+                else {
+                  vals[col] = res(elem,row).fastAccessDx(col);
+                }
+                if (lump_mass_) {
+                  cols[col] = rowIndex;
+                }
+                else {
+                  cols[col] = LIDs(elem,col);
+                }
+              }
+            }
+            J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics_); // isSorted, useAtomics
+          }
+        }
+      }
+    }
+  });
+  
+  /*
   if (use_atomics) { // If LA_device = Kokkos::Serial or if Worksets are colored
     if (compute_sens) {
       parallel_for("assembly insert Jac",
@@ -1722,20 +1805,7 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
   if (compute_jacobian) {
     
     if (compute_disc_sens) {
-      /*
-      parallel_for("assembly insert Jac sens",
-                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_t row=0; row<LIDs.extent(1); row++ ) {
-          LO rowIndex = LIDs(elem,row);
-          for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
-            LO colIndex = paramLIDs(elem,col);
-            ScalarT val = local_J(elem,row,col);
-            J_kcrs.sumIntoValues(colIndex, &rowIndex, 1, &val, true, use_atomics); // isSorted, useAtomics
-          }
-        }
-      });
-      */
+      
     }
     else {
       if (isAdjoint) {
@@ -1779,7 +1849,12 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
                   for (int k=0; k<numDOF(m); k++) {
                     int col = offsets(m,k);
                     vals[col] = res(elem,row).fastAccessDx(col);
-                    cols[col] = LIDs(elem,col);
+                    if (lump) {
+                      cols[col] = rowIndex;
+                    }
+                    else {
+                      cols[col] = LIDs(elem,col);
+                    }
                   }
                 }
                 J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics); // isSorted, useAtomics
@@ -1789,7 +1864,7 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
         });
       }
     }
-  }
+  }*/
 }
 
 
@@ -1806,3 +1881,4 @@ void AssemblyManager<Node>::purgeMemory() {
     mesh.reset();
   }
 }
+

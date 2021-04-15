@@ -202,7 +202,8 @@ namespace MrHyDE {
     std::vector<std::vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
     std::vector<Teuchos::RCP<workset> > wkset;
     
-    bool usestrongDBCs, use_meas_as_dbcs, multiscale, isTransient, fix_zero_rows;
+    bool usestrongDBCs, use_meas_as_dbcs, multiscale, isTransient, fix_zero_rows, lump_mass;
+    
     std::string assembly_partitioning;
     std::vector<bool> assemble_volume_terms, assemble_boundary_terms, assemble_face_terms; // use basis functions in assembly
     std::vector<bool> build_volume_terms, build_boundary_terms, build_face_terms; // set up basis function
