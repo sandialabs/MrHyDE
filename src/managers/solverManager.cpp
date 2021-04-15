@@ -1235,30 +1235,6 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       }
       postproc->computeObjectiveGradState(u,current_time+cdt,deltat,res);
     }
-    //else {
-    //  linalg->exportVectorFromOverlapped(res, res_over);
-    //}
-    
-    /*
-     if (is_adjoint && postproc->response_type == "discrete") {
-     vector_RCP D_soln;
-     bool fnd = postproc->datagen_soln->extract(D_soln, 0, current_time+deltat);
-     if (fnd) {
-     // TMW: this is unecessarily complicated because we store the overlapped soln
-     vector_RCP diff = linalg->getNewVector();
-     vector_RCP u_no = linalg->getNewVector();
-     vector_RCP D_no = linalg->getNewVector();
-     u_no->doExport(*u, *(linalg->exporter), Tpetra::REPLACE);
-     D_no->doExport(*D_soln, *(linalg->exporter), Tpetra::REPLACE);
-     diff->update(1.0, *u_no, 0.0);
-     diff->update(-1.0, *D_no, 1.0);
-     res->update(-1.0*postproc->discrete_objective_scale_factor,*diff,1.0);
-     }
-     else {
-     std::cout << "Error: did not find a data-generating solution" << std::endl;
-     }
-     }
-     */
     
     if (debug_level>2) {
       //KokkosTools::print(res,"residual from solver interface");
