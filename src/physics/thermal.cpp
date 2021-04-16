@@ -94,7 +94,53 @@ void thermal::volumeResidual() {
   
   auto off = subview( wkset->offsets, e_num, ALL());
   auto scratch = wkset->scratch;
+  bool have_nsvel_ = have_nsvel;
   
+  
+  auto dTdx = dedx_vol;
+  auto dTdy = dedy_vol;
+  auto dTdz = dedz_vol;
+  auto Ux = ux_vol;
+  auto Uy = uy_vol;
+  auto Uz = uz_vol;
+  
+  parallel_for("Thermal volume resid 3D part 1",
+               TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
+               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+    int elem = team.league_rank();
+    for (size_type pt=team.team_rank(); pt<source.extent(1); pt+=team.team_size() ) {
+      scratch(elem,pt,0) = (rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt))*wts(elem,pt);
+      scratch(elem,pt,1) = diff(elem,pt)*dTdx(elem,pt)*wts(elem,pt);
+      if (spaceDim > 1) {
+        scratch(elem,pt,2) = diff(elem,pt)*dTdy(elem,pt)*wts(elem,pt);
+        if (spaceDim > 2) {
+          scratch(elem,pt,3) = diff(elem,pt)*dTdz(elem,pt)*wts(elem,pt);
+        }
+      }
+      if (have_nsvel_) {
+        if (spaceDim == 1) {
+          scratch(elem,pt,0) += Ux(elem,pt)*dTdx(elem,pt)*wts(elem,pt);
+        }
+        else if (spaceDim == 2) {
+          scratch(elem,pt,0) += (Ux(elem,pt)*dTdx(elem,pt) + Uy(elem,pt)*dTdy(elem,pt))*wts(elem,pt);
+        }
+        else {
+          scratch(elem,pt,0) += (Ux(elem,pt)*dTdx(elem,pt) + Uy(elem,pt)*dTdy(elem,pt) + Uz(elem,pt)*dTdz(elem,pt))*wts(elem,pt);
+        }
+      }
+    }
+    
+    for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
+      for (size_type pt=0; pt<basis.extent(2); ++pt ) {
+        res(elem,off(dof)) += scratch(elem,pt,0)*basis(elem,dof,pt,0);
+        for (int dim=0; dim<spaceDim; ++dim) {
+          res(elem,off(dof)) += scratch(elem,pt,dim+1)*basis_grad(elem,dof,pt,dim);
+        }
+      }
+    }
+  });
+  
+  /*
   if (spaceDim == 1) {
     auto dTdx = dedx_vol;
     parallel_for("Thermal volume resid 1D part 1",
@@ -138,12 +184,13 @@ void thermal::volumeResidual() {
     });
   }
   Kokkos::fence();
-  
+  */
   
   // Contributes:
   // (f(u),v)
   // f(u) = U * grad(e) (U from Navier Stokes)
   
+  /*
   if (have_nsvel) {
     if (spaceDim == 1) {
       auto Ux = ux_vol;
@@ -203,7 +250,7 @@ void thermal::volumeResidual() {
       }
     }
   });
-  
+  */
   Kokkos::fence();
   
 }
