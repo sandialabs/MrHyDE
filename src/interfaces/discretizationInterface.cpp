@@ -701,7 +701,7 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
       for (size_type i=0; i<wts.extent(1); i++) {
         vol += wts(elem,i);
       }
-      ScalarT dimscl = 1.0/(ScalarT)jacobian.extent(2);
+      ScalarT dimscl = 1.0/(ScalarT)dimension;
       hsize(elem) = pow(vol,dimscl);
     });
   }
