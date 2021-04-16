@@ -579,20 +579,18 @@ View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & block,
     
     
     ivals = View_Sc3("tmp ivals",Nelem,numVars,Npts);
-    View_Sc1 idim("dim",dim);
     for (size_t e=0; e<ptx.extent(0); e++) {
       for (size_t i=0; i<ptx.extent(1); i++) {
         // set the node in wkset
-        // auto node = subview( ip, e, i, ALL());
-        
+        int dim_ = spaceDim;
         parallel_for("physics initial set point",
                      RangePolicy<AssemblyExec>(0,1),
                      KOKKOS_LAMBDA (const int s ) {
-          x(0,0) = ptx(e,i); // TMW: this is incorrect
-          if (idim.extent(0) > 1) {
+          x(0,0) = ptx(e,i); // TMW: this might be ok
+          if (dim_ > 1) {
             y(0,0) = pty(e,i);
           }
-          if (idim.extent(0) > 2) {
+          if (dim_ > 2) {
             z(0,0) = ptz(e,i);
           }
           
@@ -602,8 +600,13 @@ View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & block,
           // evaluate
           auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"point");
         
-          // Also incorrect
-          ivals(e,n,i) = ivals_AD(0,0).val();
+          // Also might be ok (terribly inefficient though)
+          parallel_for("physics initial set point",
+                       RangePolicy<AssemblyExec>(0,1),
+                       KOKKOS_LAMBDA (const int s ) {
+            ivals(e,n,i) = ivals_AD(0,0).val();
+          });
+          
         }
       }
     }

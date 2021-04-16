@@ -1015,7 +1015,7 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & c
         for (size_type i=0; i<face_wts.extent(1); i++) {
           vol += face_wts(e,i);
         }
-        ScalarT dimscl = 1.0/((ScalarT)sip.extent(2)-1.0);
+        ScalarT dimscl = 1.0/((ScalarT)dimension-1.0);
         face_hsize(e) = pow(vol,dimscl);
       });
     }
@@ -1271,7 +1271,7 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData>
       for (size_type i=0; i<wts.extent(1); i++) {
         vol += wts(e,i);
       }
-      ScalarT dimscl = 1.0/((ScalarT)tmpip.extent(2)-1.0);
+      ScalarT dimscl = 1.0/((ScalarT)dimension-1.0);
       hsize(e) = pow(vol,dimscl);
     });
   }

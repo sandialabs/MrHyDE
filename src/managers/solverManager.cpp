@@ -1359,17 +1359,11 @@ void SolverManager<Node>::setDirichlet(vector_RCP & u) {
         for (size_t v=0; v<dbcDOFs[b].size(); v++) {
           if (dbcDOFs[b][v].extent(0)>0) {
             ScalarT value = scalarDirichletValues[b][v];
-            Kokkos::View<ScalarT[1],LA_device> scalarval("scalar value");
-            auto scval_host = Kokkos::create_mirror_view(scalarval);
-            scval_host(0) = value;
-            Kokkos::deep_copy(scalarval,scval_host);
-            
             auto cdofs = dbcDOFs[b][v];
             parallel_for("solver initial scalar",
                          RangePolicy<LA_exec>(0,cdofs.extent(0)),
                          KOKKOS_LAMBDA (const int i ) {
-              ScalarT val = scalarval(0);
-              u_kv(cdofs(i),0) = val;
+              u_kv(cdofs(i),0) = value;
             });
           }
         }

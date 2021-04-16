@@ -776,7 +776,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
         }
       });
       
-      if (include_transient) { // transient terms only need at volumetric ip
+      if (include_transient) { // transient terms only needed at volumetric ip
         auto csol_t = this->getData(var+"_t");
         auto cu_dotvals = soldotvals[varind];
         parallel_for("wkset soln ip HGRAD transient",

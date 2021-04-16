@@ -577,6 +577,7 @@ void AssemblyManager<Node>::setInitial(vector_RCP & rhs, matrix_RCP & mass, cons
                                        const bool & lumpmass, const ScalarT & scale) {
   
   // TMW: ToDo - should add a lumped mass option
+  // TMW: Why did I want to do this?
   
   Teuchos::TimeMonitor localtimer(*setinittimer);
   
@@ -1480,8 +1481,9 @@ void AssemblyManager<Node>::performBoundaryGather(ViewType vec_dev, const int & 
   }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
+//==============================================================
+// Scatter just the Jacobian
+//==============================================================
 
 template<class Node>
 template<class MatType, class LocalViewType, class LIDViewType>
@@ -1499,80 +1501,47 @@ void AssemblyManager<Node>::scatterJac(MatType J_kcrs, LocalViewType local_J,
   /////////////////////////////////////
   
   auto fixedDOF = isFixedDOF;
+  bool use_atomics_ = use_atomics;
   
   if (compute_disc_sens) {
-    if (use_atomics) { // If LA_device = Kokkos::Serial or if Worksets are colored
-      parallel_for("assembly insert Jac sens",
-                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_t row=0; row<LIDs.extent(1); row++ ) {
-          LO rowIndex = LIDs(elem,row);
-          for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
-            LO colIndex = paramLIDs(elem,col);
-            ScalarT val = local_J(elem,row,col);
-            J_kcrs.sumIntoValues(colIndex, &rowIndex, 1, &val, true, true); // isSorted, useAtomics
-          }
+    parallel_for("assembly insert Jac sens",
+                 RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                 KOKKOS_LAMBDA (const int elem ) {
+      for (size_t row=0; row<LIDs.extent(1); row++ ) {
+        LO rowIndex = LIDs(elem,row);
+        for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
+          LO colIndex = paramLIDs(elem,col);
+          ScalarT val = local_J(elem,row,col);
+          J_kcrs.sumIntoValues(colIndex, &rowIndex, 1, &val, true, use_atomics_); // isSorted, useAtomics
         }
-      });
-    }
-    else {
-      parallel_for("assembly insert Jac sens",
-                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_t row=0; row<LIDs.extent(1); row++ ) {
-          LO rowIndex = LIDs(elem,row);
-          for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
-            LO colIndex = paramLIDs(elem,col);
-            ScalarT val = local_J(elem,row,col);
-            J_kcrs.sumIntoValues(colIndex, &rowIndex, 1, &val, true, false); // isSorted, useAtomics
-          }
-        }
-      });
-    }
-    
+      }
+    });
   }
   else {
-    if (use_atomics) { // If LA_device = Kokkos::Serial or if Worksets are colored
-      parallel_for("assembly insert Jac",
-                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
-        const size_type numVals = LIDs.extent(1);
-        LO cols[maxDerivs];
-        ScalarT vals[maxDerivs];
-        for (size_type row=0; row<LIDs.extent(1); row++ ) {
-          LO rowIndex = LIDs(elem,row);
-          if (!fixedDOF(rowIndex)) {
-            for (size_type col=0; col<LIDs.extent(1); col++ ) {
-              vals[col] = local_J(elem,row,col);
-              cols[col] = LIDs(elem,col);
-            }
-            J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, true, true); // isSorted, useAtomics
+    parallel_for("assembly insert Jac",
+                 RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                 KOKKOS_LAMBDA (const int elem ) {
+      const size_type numVals = LIDs.extent(1);
+      LO cols[maxDerivs];
+      ScalarT vals[maxDerivs];
+      for (size_type row=0; row<LIDs.extent(1); row++ ) {
+        LO rowIndex = LIDs(elem,row);
+        if (!fixedDOF(rowIndex)) {
+          for (size_type col=0; col<LIDs.extent(1); col++ ) {
+            vals[col] = local_J(elem,row,col);
+            cols[col] = LIDs(elem,col);
           }
+          J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics_); // isSorted, useAtomics
         }
-      });
-    }
-    else {
-      parallel_for("assembly insert Jac",
-                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
-        const size_type numVals = LIDs.extent(1);
-        LO cols[maxDerivs];
-        ScalarT vals[maxDerivs];
-        for (size_type row=0; row<LIDs.extent(1); row++ ) {
-          LO rowIndex = LIDs(elem,row);
-          if (!fixedDOF(rowIndex)) {
-            for (size_type col=0; col<LIDs.extent(1); col++ ) {
-              vals[col] = local_J(elem,row,col);
-              cols[col] = LIDs(elem,col);
-            }
-            J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, true, false); // isSorted, useAtomics
-          }
-        }
-      });
-    }
+      }
+    });
   }
   
 }
+
+//==============================================================
+// Scatter just the Residual
+//==============================================================
 
 template<class Node>
 template<class VecViewType, class LocalViewType, class LIDViewType>
@@ -1588,39 +1557,31 @@ void AssemblyManager<Node>::scatterRes(VecViewType res_view, LocalViewType local
   /////////////////////////////////////
   
   auto fixedDOF = isFixedDOF;
+  bool use_atomics_ = use_atomics;
   
-  if (use_atomics) { // If LA_device = Kokkos::Serial or if Worksets are colored
-    parallel_for("assembly scatter res",
-                 RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                 KOKKOS_LAMBDA (const int elem ) {
-      for( size_type row=0; row<LIDs.extent(1); row++ ) {
-        LO rowIndex = LIDs(elem,row);
-        if (!fixedDOF(rowIndex)) {
-          for (size_type g=0; g<local_res.extent(2); g++) {
-            ScalarT val = local_res(elem,row,g);
+  parallel_for("assembly scatter res",
+               RangePolicy<LA_exec>(0,LIDs.extent(0)),
+               KOKKOS_LAMBDA (const int elem ) {
+    for( size_type row=0; row<LIDs.extent(1); row++ ) {
+      LO rowIndex = LIDs(elem,row);
+      if (!fixedDOF(rowIndex)) {
+        for (size_type g=0; g<local_res.extent(2); g++) {
+          ScalarT val = local_res(elem,row,g);
+          if (use_atomics_) {
             Kokkos::atomic_add(&(res_view(rowIndex,g)), val);
           }
-        }
-      }
-    });
-  }
-  else {
-    parallel_for("assembly scatter res",
-                 RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                 KOKKOS_LAMBDA (const int elem ) {
-      for( size_type row=0; row<LIDs.extent(1); row++ ) {
-        LO rowIndex = LIDs(elem,row);
-        if (!fixedDOF(rowIndex)) {
-          for (size_type g=0; g<local_res.extent(2); g++) {
-            ScalarT val = local_res(elem,row,g);
+          else {
             res_view(rowIndex,g) += val;
           }
         }
       }
-    });
-  }
+    }
+  });
 }
 
+//==============================================================
+// Scatter both and use wkset->res
+//==============================================================
 
 template<class Node>
 template<class MatType, class VecViewType, class LIDViewType>
@@ -1727,144 +1688,6 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
       }
     }
   });
-  
-  /*
-  if (use_atomics) { // If LA_device = Kokkos::Serial or if Worksets are colored
-    if (compute_sens) {
-      parallel_for("assembly insert Jac",
-                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type n=0; n<numDOF.extent(0); ++n) {
-          for (int j=0; j<numDOF(n); j++) {
-            int row = offsets(n,j);
-            LO rowIndex = LIDs(elem,row);
-            if (!fixedDOF(rowIndex)) {
-              for (size_type r=0; r<res_view.extent(1); ++r) {
-                ScalarT val = -res(elem,row).fastAccessDx(r);
-                Kokkos::atomic_add(&(res_view(rowIndex,r)), val);
-              }
-            }
-          }
-        }
-      });
-    }
-    else {
-      parallel_for("assembly insert Jac",
-                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type n=0; n<numDOF.extent(0); ++n) {
-          for (int j=0; j<numDOF(n); j++) {
-            int row = offsets(n,j);
-            LO rowIndex = LIDs(elem,row);
-            if (!fixedDOF(rowIndex)) {
-              ScalarT val = -res(elem,row).val();
-              Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
-            }
-          }
-        }
-      });
-    }
-  }
-  else {
-    if (compute_sens) {
-      parallel_for("assembly insert Jac",
-                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type n=0; n<numDOF.extent(0); ++n) {
-          for (int j=0; j<numDOF(n); j++) {
-            int row = offsets(n,j);
-            LO rowIndex = LIDs(elem,row);
-            if (!fixedDOF(rowIndex)) {
-              for (size_type r=0; r<res_view.extent(1); ++r) {
-                ScalarT val = -res(elem,row).fastAccessDx(r);
-                res_view(rowIndex,r) += val;
-              }
-            }
-          }
-        }
-      });
-    }
-    else {
-      parallel_for("assembly insert Jac",
-                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type n=0; n<numDOF.extent(0); ++n) {
-          for (int j=0; j<numDOF(n); j++) {
-            int row = offsets(n,j);
-            LO rowIndex = LIDs(elem,row);
-            if (!fixedDOF(rowIndex)) {
-              ScalarT val = -res(elem,row).val();
-              res_view(rowIndex,0) += val;
-            }
-          }
-        }
-      });
-    }
-  }
-  
-  if (compute_jacobian) {
-    
-    if (compute_disc_sens) {
-      
-    }
-    else {
-      if (isAdjoint) {
-        parallel_for("assembly insert Jac",
-                     RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
-          const size_type numVals = LIDs.extent(1);
-          LO cols[maxDerivs];
-          ScalarT vals[maxDerivs];
-          for (size_type n=0; n<numDOF.extent(0); ++n) {
-            for (int j=0; j<numDOF(n); j++) {
-              int row = offsets(n,j);
-              LO rowIndex = LIDs(elem,row);
-              if (!fixedDOF(rowIndex)) {
-                for (size_type m=0; m<numDOF.extent(0); m++) {
-                  for (int k=0; k<numDOF(m); k++) {
-                    int col = offsets(m,k);
-                    vals[col] = res(elem,col).fastAccessDx(row);
-                    cols[col] = LIDs(elem,col);
-                  }
-                }
-                J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics); // isSorted, useAtomics
-              }
-            }
-          }
-        });
-      }
-      else {
-        parallel_for("assembly insert Jac",
-                     RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
-          const size_type numVals = LIDs.extent(1);
-          LO cols[maxDerivs];
-          ScalarT vals[maxDerivs];
-          for (size_type n=0; n<numDOF.extent(0); ++n) {
-            for (int j=0; j<numDOF(n); j++) {
-              int row = offsets(n,j);
-              LO rowIndex = LIDs(elem,row);
-              if (!fixedDOF(rowIndex)) {
-                for (size_type m=0; m<numDOF.extent(0); m++) {
-                  for (int k=0; k<numDOF(m); k++) {
-                    int col = offsets(m,k);
-                    vals[col] = res(elem,row).fastAccessDx(col);
-                    if (lump) {
-                      cols[col] = rowIndex;
-                    }
-                    else {
-                      cols[col] = LIDs(elem,col);
-                    }
-                  }
-                }
-                J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics); // isSorted, useAtomics
-              }
-            }
-          }
-        });
-      }
-    }
-  }*/
 }
 
 

@@ -1233,7 +1233,7 @@ void cell::updateData() {
   }
   else if (cellData->have_cell_rotation) {
     wkset->have_rotation = true;
-    Kokkos::View<ScalarT***,AssemblyDevice> rot = wkset->rotation;
+    auto rot = wkset->rotation;
     parallel_for("cell update data",
                  RangePolicy<AssemblyExec>(0,cell_data.extent(0)),
                  KOKKOS_LAMBDA (const size_type e ) {
