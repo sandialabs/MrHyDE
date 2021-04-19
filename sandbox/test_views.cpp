@@ -71,9 +71,12 @@ int main(int argc, char * argv[]) {
     
     Kokkos::View<ScalarT***,CL,AssemblyDevice> rJdiff("error",numElem,numdof,numDerivs+1);
    
-    Kokkos::View<EvalT***,CL,AssemblyDevice> scratch("scratch vals",numElem,numip,3,numDerivs);
+    int scratch_concurrency = std::min(AssemblyExec::concurrency(),numElem);
+    
+    Kokkos::View<EvalT***,CL,AssemblyDevice> scratch("scratch vals",scratch_concurrency,numip,3,numDerivs);
 
-     
+    std::cout << "scratch_concurrency = " << scratch_concurrency << endl;
+         
     ////////////////////////////////////////////////
     // Range policy version
     ////////////////////////////////////////////////
@@ -131,20 +134,16 @@ int main(int argc, char * argv[]) {
                  TeamPolicy(basis.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (member_type team ) {
       int elem = team.league_rank();
+      int myscratch = elem % scratch.extent(0);
+      
       for (size_type pt=team.team_rank(); pt<scratch.extent(1); pt+=team.team_size() ) {
-        scratch(elem,pt,0) = -1.0*source(elem,pt)*wts(elem,pt);
-        scratch(elem,pt,1) = diff(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
-        scratch(elem,pt,2) = diff(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
+        scratch(myscratch,pt,0) = -1.0*source(elem,pt)*wts(elem,pt);
+        scratch(myscratch,pt,1) = diff(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
+        scratch(myscratch,pt,2) = diff(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
       }
-    });
-
-    parallel_for("Thermal volume resid 2D",
-                 TeamPolicy(basis.extent(0), Kokkos::AUTO, VectorSize),
-                 KOKKOS_LAMBDA (member_type team ) {
-      int elem = team.league_rank();
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          res2(elem,dof) += scratch(elem,pt,0)*basis(elem,dof,pt,0) + scratch(elem,pt,1)*basis_grad(elem,dof,pt,0) + scratch(elem,pt,2)*basis_grad(elem,dof,pt,1);
+          res2(elem,dof) += scratch(myscratch,pt,0)*basis(elem,dof,pt,0) + scratch(myscratch,pt,1)*basis_grad(elem,dof,pt,0) + scratch(myscratch,pt,2)*basis_grad(elem,dof,pt,1);
         }
       }
     });
