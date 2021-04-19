@@ -69,9 +69,6 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   this->addDataSc("x point",1,1);
   this->addDataSc("y point",1,1);
   this->addDataSc("z point",1,1);
-    
-  res = View_AD2("residual",numElem, maxDerivs, maxDerivs);
-  adjrhs = View_AD2("adjoint RHS",numElem, maxDerivs, maxDerivs);
   
   // these can point to different arrays
   wts = View_Sc2("ip wts",numElem,numip);
@@ -97,7 +94,8 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   
   // TMW: temporary setting
   int maxscratch = dimension+1;
-  scratch = View_AD3("workset scratch",numElem, numip, maxscratch);
+  int scratch_concurrency = std::min(AssemblyExec::concurrency(),numElem);
+  scratch = View_AD3("workset scratch",scratch_concurrency, numip, maxscratch);
   
 }
 
@@ -106,6 +104,20 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
 ////////////////////////////////////////////////////////////////////////////////////
 
 void workset::createSolns() {
+
+  // Need to first allocate the residual view
+  // This is the largest view in the code (due to the AD) so we are careful with the size
+  
+  
+  maxRes = std::max(offsets.extent(0)*offsets.extent(1),numParams);
+  if (paramusebasis.size() > 0) {
+    maxRes = std::max(maxRes,paramoffsets.extent(0)*paramoffsets.extent(1));
+  }
+  if (auxusebasis.size() > 0) {
+    maxRes = std::max(maxRes,aux_offsets.extent(0)*aux_offsets.extent(1));
+  }
+  
+  res = View_AD2("residual",numElem, maxRes, maxDerivs);
 
   for (size_t i=0; i<usebasis.size(); i++) {
     int bind = usebasis[i];
@@ -266,45 +278,25 @@ void workset::createSolns() {
 
 void workset::resetResidual() {
   Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-  Kokkos::deep_copy(res,0.0);
-  /*
+  //Kokkos::deep_copy(res,0.0);
+  
+  size_t maxRes_ = maxRes;
+  
   parallel_for("wkset reset res",
                TeamPolicy<AssemblyExec>(res.extent(0), Kokkos::AUTO),
                KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
     int elem = team.league_rank();
-    for (size_type dof=team.team_rank(); dof<res.extent(1); dof+=team.team_size() ) {
-      res(elem,dof) = 0.0;
+    for (size_type dof=team.team_rank(); dof<maxRes_; dof+=team.team_size() ) {
+      res(elem,dof).val() = 0.0;
+      for (size_type d=0; d<maxRes_; ++d) {
+        res(elem,dof).fastAccessDx(d) = 0.0;
+      }
+      //for (size_type var=0; var<off.extent(0); ++var) {
+      //  res(elem,off(var,dof)) = 0.0;
+      //}
     }
   });
-   */
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-// Reset solution to zero
-////////////////////////////////////////////////////////////////////////////////////
-
-void workset::resetResidual(const int & numE) {
-  Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-  Kokkos::deep_copy(res,0.0);
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-// Reset solution to zero
-// TMW: I believe this can be deprecated
-////////////////////////////////////////////////////////////////////////////////////
-
-void workset::resetFlux() {
-  Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-  Kokkos::deep_copy(flux,0.0);
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-// Reset solution to zero
-////////////////////////////////////////////////////////////////////////////////////
-
-void workset::resetAdjointRHS() {
-  Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-  Kokkos::deep_copy(adjrhs,0.0);
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -533,8 +525,6 @@ void workset::computeSolnSteadySeeded(View_Sc3 u,
                                       const int & seedwhat) {
   
   Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
-
-  // Needed so the device can access data-members (may be a better way)
   
   for (size_type var=0; var<u.extent(1); var++ ) {
   
@@ -1323,11 +1313,20 @@ void workset::computeSolnSideIP(const int & side) { //, Kokkos::View<AD***,Assem
 // Add Aux
 //////////////////////////////////////////////////////////////
 
-void workset::addAux(const vector<string> & auxvars) {
+void workset::addAux(const vector<string> & auxvars, Kokkos::View<int**,AssemblyDevice> aoffs) {
+  aux_offsets = aoffs;
   aux_varlist = auxvars;
   numAux = aux_varlist.size();
   flux = View_AD3("flux",numElem,numAux,numsideip, maxDerivs);
   
+  if (numAux > 0) {
+    size_t maxAux = aux_offsets.extent(0)*aux_offsets.extent(1);
+    if (maxAux > maxRes) {
+      maxRes = maxAux;
+      res = View_AD2("residual",numElem, maxRes, maxDerivs);
+    }
+  }
+
   for (size_t i=0; i<aux_varlist.size(); ++i) {
     string var = aux_varlist[i];
     this->addData("aux "+var,numElem,numip);

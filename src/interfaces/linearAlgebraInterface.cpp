@@ -104,8 +104,10 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     }
   }
   
-  maxEntries = 256;
   int spaceDim = disc->spaceDim;
+  
+  /*
+  maxEntries = 256;
   
   if (spaceDim == 1) {
     maxEntries = 2*maxDerivs;
@@ -117,6 +119,31 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     maxEntries = 8*maxDerivs;
   }
   //maxEntries = 512;
+  */
+  
+  // Determine the max dofs per element
+  int maxoff = 0;
+  auto offs = disc->offsets;
+  for (size_t b=0; b<offs.size(); ++b) {
+    int coffsz = 0;
+    for (size_t v=0; v<offs[b].size(); ++v) {
+      coffsz += offs[b][v].size();
+    }
+    maxoff = std::max(maxoff,coffsz);
+  }
+  maxEntries = maxoff;
+  
+  // multiply by fudge factor to account for connectivity between elements (total hack)
+  if (spaceDim == 1) {
+    maxEntries *= 4;
+  }
+  else if (spaceDim == 2) {
+    maxEntries *= 8;
+  }
+  else if (spaceDim == 3) {
+    maxEntries *= 16;
+  }
+  
   
   std::vector<string> blocknames = disc->blocknames;
   

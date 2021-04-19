@@ -771,11 +771,6 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
   }
   vector_RCP u = this->setInitial();
   
-  //postproc->resetObjective();
-  
-  //if (solver_type == "transient") {
-  //  soln->store(u, current_time, 0); // copies the data
-  //}
   
   if (solver_type == "steady-state") {
     this->steadySolver(objective, u);
@@ -787,12 +782,7 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
   else {
     // print out an error message
   }
-  
-  //objective = postproc->objectiveval;
-  //cout << objective << endl;
-  
-  //postproc->resetObjective();
-  
+    
   if (postproc->write_optimization_solution) {
     postproc->writeOptimizationSolution(numEvaluations);
   }
@@ -1456,54 +1446,55 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > SolverManager<Node>::setI
   if (have_initial_conditions) {
     if (scalarInitialData) {
       
-      
       auto initial_kv = initial->template getLocalView<LA_device>();
       
-      for (size_t block=0; block<assembler->cells.size(); block++) {
-        
-        Kokkos::View<ScalarT*,LA_device> idata("scalar initial data",scalarInitialValues[block].size());
-        auto idata_host = Kokkos::create_mirror_view(idata);
-        for (size_t i=0; i<scalarInitialValues[block].size(); i++) {
-          idata_host(i) = scalarInitialValues[block][i];
-        }
-        Kokkos::deep_copy(idata,idata_host);
-        
-        
-        if (samedevice) {
-          auto offsets = assembler->wkset[block]->offsets;
-          auto numDOF = assembler->cellData[block]->numDOF;
-          for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
-            auto LIDs = assembler->cells[block][cell]->LIDs;
-            parallel_for("solver initial scalar",
-                         RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                         KOKKOS_LAMBDA (const int e ) {
-              for (size_type n=0; n<numDOF.extent(0); n++) {
-                for (int i=0; i<numDOF(n); i++ ) {
-                  initial_kv(LIDs(e,offsets(n,i)),0) = idata(n);
-                }
-              }
-            });
+      for (size_t block=0; block<assembler->cellData.size(); block++) {
+      
+        if (assembler->cellData[block]->numElem > 0) {
+          
+          Kokkos::View<ScalarT*,LA_device> idata("scalar initial data",scalarInitialValues[block].size());
+          auto idata_host = Kokkos::create_mirror_view(idata);
+          for (size_t i=0; i<scalarInitialValues[block].size(); i++) {
+            idata_host(i) = scalarInitialValues[block][i];
           }
-        }
-        else if (usehost) {
-          auto offsets = assembler->wkset[block]->offsets;
-          auto host_offsets = Kokkos::create_mirror_view(offsets);
-          Kokkos::deep_copy(host_offsets,offsets);
-          auto numDOF = assembler->cellData[block]->numDOF_host;
-          for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
-            auto LIDs = assembler->cells[block][cell]->LIDs_host;
-            parallel_for("solver initial scalar",
-                         RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                         KOKKOS_LAMBDA (const int e ) {
-              for (size_type n=0; n<numDOF.extent(0); n++) {
-                for (int i=0; i<numDOF(n); i++ ) {
-                  initial_kv(LIDs(e,host_offsets(n,i)),0) = idata(n);
+          Kokkos::deep_copy(idata,idata_host);
+          
+          if (samedevice) {
+            auto offsets = assembler->wkset[block]->offsets;
+            auto numDOF = assembler->cellData[block]->numDOF;
+            for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
+              auto LIDs = assembler->cells[block][cell]->LIDs;
+              parallel_for("solver initial scalar",
+                           RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                           KOKKOS_LAMBDA (const int e ) {
+                for (size_type n=0; n<numDOF.extent(0); n++) {
+                  for (int i=0; i<numDOF(n); i++ ) {
+                    //initial_kv(LIDs(e,offsets(n,i)),0) = idata(n);
+                  }
                 }
-              }
-            });
+              });
+            }
           }
+          else if (usehost) {
+            auto offsets = assembler->wkset[block]->offsets;
+            auto host_offsets = Kokkos::create_mirror_view(offsets);
+            Kokkos::deep_copy(host_offsets,offsets);
+            auto numDOF = assembler->cellData[block]->numDOF_host;
+            for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
+              auto LIDs = assembler->cells[block][cell]->LIDs_host;
+              parallel_for("solver initial scalar",
+                           RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                           KOKKOS_LAMBDA (const int e ) {
+                for (size_type n=0; n<numDOF.extent(0); n++) {
+                  for (int i=0; i<numDOF(n); i++ ) {
+                    initial_kv(LIDs(e,host_offsets(n,i)),0) = idata(n);
+                  }
+                }
+              });
+            }
+          }
+          
         }
-        
       }
       
     }

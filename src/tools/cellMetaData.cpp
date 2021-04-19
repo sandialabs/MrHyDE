@@ -74,3 +74,44 @@ cellTopo(cellTopo_) {
   have_cell_rotation = false;
   have_extra_data = false;
 }
+
+
+//===================================================
+// Clear out the saved data if we are done with it
+//===================================================
+
+void CellMetaData::clearPhysicalData() {
+  jacobian = DRV("empty view");
+  jacobianDet = DRV("empty view");
+  jacobianInv = DRV("empty view");
+  physip = DRV("empty view");
+  physwts = DRV("empty view");
+  
+  side_physwts = DRV("empty view");
+  side_physip = DRV("empty view");
+  side_physnormals = DRV("empty view");
+  side_phystangents = DRV("empty view");
+  side_jacobian = DRV("empty view");
+  side_jacobianDet = DRV("empty view");
+  side_jacobianInv = DRV("empty view");
+  
+  
+  phys_basis1.clear();
+  phys_basisgrad1.clear();
+  phys_basisdiv1.clear();
+  phys_basiscurl1.clear();
+  phys_basis2.clear();
+  phys_basisgrad2.clear();
+  phys_basisdiv2.clear();
+  phys_basiscurl2.clear();
+  
+  side_phys_basis1.clear();
+  side_phys_basisgrad1.clear();
+  side_phys_basisdiv1.clear();
+  side_phys_basiscurl1.clear();
+  side_phys_basis2.clear();
+  side_phys_basisgrad2.clear();
+  side_phys_basisdiv2.clear();
+  side_phys_basiscurl2.clear();
+  
+}

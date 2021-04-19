@@ -408,7 +408,7 @@ void SubGridFEM::setUpSubgridModels() {
   
   wkset = sub_assembler->wkset;
   
-  wkset[0]->addAux(macro_varlist);
+  wkset[0]->addAux(macro_varlist, macro_offsets);
   Kokkos::View<int*,HostDevice> macro_numDOF_host("aux DOF on host",macro_numDOF.extent(0));
   auto macro_numDOF_m = Kokkos::create_mirror_view(macro_numDOF);
   Kokkos::deep_copy(macro_numDOF_m, macro_numDOF);

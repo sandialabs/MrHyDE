@@ -327,10 +327,7 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
     Teuchos::TimeMonitor localtimer(*residualFillTimer);
     
     // Update the local residual (forward mode)
-    if (isAdjoint) {
-      this->updateAdjointRes(compute_sens, local_res);
-    }
-    else {
+    if (!isAdjoint) {
       this->updateRes(compute_sens, local_res);
     }
     
@@ -375,44 +372,6 @@ void BoundaryCell::updateRes(const bool & compute_sens, View_Sc3 local_res) {
     });
   }
 }
-
-///////////////////////////////////////////////////////////////////////////////////////
-// Use the AD res to update the scalarT res
-///////////////////////////////////////////////////////////////////////////////////////
-
-void BoundaryCell::updateAdjointRes(const bool & compute_sens, View_Sc3 local_res) {
-  View_AD2 adjres_AD = wkset->adjrhs;
-  auto offsets = wkset->offsets;
-  auto numDOF = cellData->numDOF;
-  
-  if (compute_sens) {
-    parallel_for("bcell update adjoint res sens",
-                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO, VectorSize),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
-        for (int j=0; j<numDOF(n); j++) {
-          for (int r=0; r<maxDerivs; r++) {
-            local_res(elem,offsets(n,j),r) -= adjres_AD(elem,offsets(n,j)).fastAccessDx(r);
-          }
-        }
-      }
-    });
-  }
-  else {
-    parallel_for("bcell update adjoint res",
-                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO, VectorSize),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
-        for (int j=0; j<numDOF(n); j++) {
-          local_res(elem,offsets(n,j),0) -= adjres_AD(elem,offsets(n,j)).val();
-        }
-      }
-    });
-  }
-}
-
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Use the AD res to update the scalarT J

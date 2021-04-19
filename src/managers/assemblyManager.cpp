@@ -228,7 +228,7 @@ void AssemblyManager<Node>::createCells() {
   mesh->getMyElements(all_meshElems);
   
   Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> LIDs = disc->DOF->getLIDs();
-  
+    
   for (size_t b=0; b<blocknames.size(); b++) {
     Teuchos::RCP<CellMetaData> blockCellData;
     vector<Teuchos::RCP<cell> > blockcells;
@@ -246,10 +246,10 @@ void AssemblyManager<Node>::createCells() {
       
       vector<size_t> localIds;
       
-      Kokkos::DynRankView<ScalarT,AssemblyDevice> blocknodes("nodes on block",numTotalElem,numNodesPerElem,spaceDim);
-      auto host_blocknodes = Kokkos::create_mirror_view(blocknodes);
-      panzer_stk::workset_utils::getIdsAndVertices(*mesh, blocknames[b], localIds, host_blocknodes); // fill on host
-      Kokkos::deep_copy(blocknodes, host_blocknodes);
+      Kokkos::DynRankView<ScalarT,HostDevice> blocknodes;//("nodes on block",numTotalElem,numNodesPerElem,spaceDim);
+      panzer_stk::workset_utils::getIdsAndVertices(*mesh, blocknames[b], localIds, blocknodes); // fill on host
+      //auto host_blocknodes = Kokkos::create_mirror_view(blocknodes);
+      //Kokkos::deep_copy(blocknodes, host_blocknodes);
       
       vector<size_t> myElem = disc->myElements[b];
       Kokkos::View<LO*,AssemblyDevice> eIDs("local element IDs on device",myElem.size());
@@ -304,8 +304,11 @@ void AssemblyManager<Node>::createCells() {
           auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
           Kokkos::View<LO*,HostDevice> host_eIndex2("element indices on host",currElem);
           
+          auto currnodes_host = create_mirror_view(currnodes);
           auto nodes_sub = Kokkos::subview(blocknodes,std::make_pair(prog, prog+currElem), Kokkos::ALL(), Kokkos::ALL());
-          Kokkos::deep_copy(currnodes,nodes_sub);
+          
+          deep_copy(currnodes_host,nodes_sub);
+          deep_copy(currnodes,currnodes_host);
           
           for (size_t e=0; e<host_eIndex.extent(0); e++) {
             host_eIndex(e) = prog+static_cast<LO>(e);//disc->myElements[b][prog+e]; // TMW: why here?;prog+e;
@@ -935,10 +938,6 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
       
       wkset[b]->resetResidual();
       
-      if (useadjoint) {
-        wkset[b]->resetAdjointRHS();
-      }
-      
       //////////////////////////////////////////////////////////////
       // Compute the AD-seeded solutions at integration points
       //////////////////////////////////////////////////////////////
@@ -1038,10 +1037,7 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
       }
       
       // Update the local residual
-      if (useadjoint) {
-        cells[b][e]->updateAdjointRes(compute_sens, local_res);
-      }
-      else {
+      if (!useadjoint) {
         cells[b][e]->updateRes(compute_sens, local_res);
       }
       
@@ -1186,7 +1182,7 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
           
           // Update the local residual (forward mode)
           if (useadjoint) {
-            boundaryCells[b][e]->updateAdjointRes(compute_sens, local_res);
+            //boundaryCells[b][e]->updateAdjointRes(compute_sens, local_res);
           }
           else {
             boundaryCells[b][e]->updateRes(compute_sens, local_res);
@@ -1606,7 +1602,7 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
   auto fixedDOF = isFixedDOF;
   auto res = wkset[block]->res;
   if (isAdjoint) {
-    res = wkset[block]->adjrhs;
+    //res = wkset[block]->adjrhs;
   }
   auto offsets = wkset[block]->offsets;
   auto numDOF = cellData[block]->numDOF;
@@ -1703,5 +1699,15 @@ void AssemblyManager<Node>::purgeMemory() {
   if (!write_solution && !write_aux_solution && !create_optim_movie) {
     mesh.reset();
   }
+  
+  
+  bool storeAll = settings->sublist("Solver").get<bool>("store all cell data",true);
+  if (storeAll) {
+    for (size_t block=0; block<cellData.size(); ++block) {
+      cellData[block]->clearPhysicalData();
+    }
+    
+  }
+  
 }
 

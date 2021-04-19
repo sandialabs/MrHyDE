@@ -592,10 +592,6 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   
   wkset->resetResidual();
   
-  if (isAdjoint) {
-    wkset->resetAdjointRHS();
-  }
-  
   //////////////////////////////////////////////////////////////
   // Compute the AD-seeded solutions at integration points
   //////////////////////////////////////////////////////////////
@@ -621,7 +617,6 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
       wkset->computeSolnSteadySeeded(u, seedwhat);
     }
   }
-  fence();
   
   //////////////////////////////////////////////////////////////
   // Compute res and J=dF/du
@@ -645,7 +640,6 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
       cellData->physics_RCP->volumeResidual(cellData->myBlock);
     }
   }
-  fence();
   
   // Edge/face contribution
   if (assemble_face_terms) {
@@ -684,26 +678,18 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   
   // Update the local residual
   {
-    Teuchos::TimeMonitor localtimer(*residualFillTimer);
-    if (isAdjoint) {
-      this->updateAdjointRes(compute_sens, local_res);
-    }
-    else {
-      this->updateRes(compute_sens, local_res);
-    }
-  }
-  
-  {
     if (isAdjoint) {
       Teuchos::TimeMonitor localtimer(*adjointResidualTimer);
       this->updateAdjointRes(compute_jacobian, isTransient,
                              compute_aux_sens, store_adjPrev,
                              local_J, local_res);
-      
-      
+    }
+    else {
+      Teuchos::TimeMonitor localtimer(*residualFillTimer);
+      this->updateRes(compute_sens, local_res);
     }
   }
-  
+    
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -743,44 +729,6 @@ void cell::updateRes(const bool & compute_sens, View_Sc3 local_res) {
     });
   }
 }
-
-///////////////////////////////////////////////////////////////////////////////////////
-// Use the AD res to update the scalarT res
-///////////////////////////////////////////////////////////////////////////////////////
-
-void cell::updateAdjointRes(const bool & compute_sens, Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
-  auto adjres_AD = wkset->adjrhs;
-  auto offsets = wkset->offsets;
-  auto numDOF = cellData->numDOF;
-  
-  if (compute_sens) {
-    parallel_for("cell adj res sens",
-                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
-        for (int j=0; j<numDOF(n); j++) {
-          for (int r=0; r<maxDerivs; r++) {
-            local_res(elem,offsets(n,j),r) -= adjres_AD(elem,offsets(n,j)).fastAccessDx(r);
-          }
-        }
-      }
-    });
-  }
-  else {
-    parallel_for("cell adj res",
-                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
-        for (int j=0; j<numDOF(n); j++) {
-          local_res(elem,offsets(n,j),0) -= adjres_AD(elem,offsets(n,j)).val();
-        }
-      }
-    });
-  }
-}
-
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Use the AD res to update the scalarT res

@@ -477,10 +477,6 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
         assembler->cells[usernum][e]->updateData();
         assembler->wkset[0]->resetResidual();
         
-        if (isAdjoint) {
-          assembler->wkset[0]->resetAdjointRHS();
-        }
-        
         //////////////////////////////////////////////////////////////
         // Compute the AD-seeded solutions at integration points
         //////////////////////////////////////////////////////////////
