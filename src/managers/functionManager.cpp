@@ -545,7 +545,7 @@ bool FunctionManager::isScalarTerm(const int & findex, const int & tindex, const
 //////////////////////////////////////////////////////////////////////////////////////
 
 View_AD2 FunctionManager::evaluate(const string & fname, const string & location) {
-  Teuchos::TimeMonitor ttimer(*evaluateExtTimer);
+  //Teuchos::TimeMonitor ttimer(*evaluateExtTimer);
   
   bool ffound = false, tfound = false;
   size_t fiter=0, titer=0;
@@ -597,7 +597,7 @@ View_AD2 FunctionManager::evaluate(const string & fname, const string & location
 
 void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, const size_t & bindex) {
   
-  Teuchos::TimeMonitor ttimer(*evaluateIntTimer);
+  //Teuchos::TimeMonitor ttimer(*evaluateIntTimer);
   
   //if (verbosity > 10) {
   //  cout << "------- Evaluating: " << forests[findex].trees[tindex].branches[bindex].expression << endl;
@@ -703,7 +703,7 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, co
 template<class T1, class T2>
 void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
   
-  Teuchos::TimeMonitor ttimer(*evaluateOpTimer);
+  //Teuchos::TimeMonitor ttimer(*evaluateOpTimer);
   
   size_t dim0 = std::min(data.extent(0),tdata.extent(0));
   using namespace std;

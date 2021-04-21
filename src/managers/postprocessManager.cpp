@@ -91,6 +91,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   
   soln = Teuchos::rcp(new SolutionStorage<Node>(settings));
   string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
+  save_solution = false;
   if (analysis_type == "forward+adjoint" || analysis_type == "ROL" || analysis_type == "ROL_SIMOPT") {
     save_solution = true; // default is false
     if (settings->sublist("Analysis").sublist("ROL").sublist("General").get<bool>("Generate data",false)) {

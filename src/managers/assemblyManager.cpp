@@ -905,8 +905,6 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
       local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian on device",numElem,numDOF,numDOF);
     }
   }
-  auto local_res_ladev = create_mirror(LA_exec(),local_res);
-  auto local_J_ladev = create_mirror(LA_exec(),local_J);
   
   /////////////////////////////////////////////////////////////////////////////
   // Volume contribution
@@ -990,6 +988,7 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
       }
       Kokkos::fence();
       
+      
       ///////////////////////////////////////////////////////////////////////////
       // Edge/face contribution
       ///////////////////////////////////////////////////////////////////////////
@@ -1058,6 +1057,9 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
         }
       }
       else {
+        auto local_res_ladev = create_mirror(LA_exec(),local_res);
+        auto local_J_ladev = create_mirror(LA_exec(),local_J);
+        
         Kokkos::deep_copy(local_J_ladev,local_J);
         Kokkos::deep_copy(local_res_ladev,local_res);
         
@@ -1181,10 +1183,7 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
           }
           
           // Update the local residual (forward mode)
-          if (useadjoint) {
-            //boundaryCells[b][e]->updateAdjointRes(compute_sens, local_res);
-          }
-          else {
+          if (!useadjoint) {
             boundaryCells[b][e]->updateRes(compute_sens, local_res);
           }
          

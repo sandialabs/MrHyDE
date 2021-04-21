@@ -141,10 +141,9 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     maxEntries *= 8;
   }
   else if (spaceDim == 3) {
-    maxEntries *= 16;
+    maxEntries *= 8;
   }
-  
-  
+    
   std::vector<string> blocknames = disc->blocknames;
   
   // --------------------------------------------------
@@ -183,6 +182,12 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     }
     
     overlapped_graph->fillComplete();
+    
+    matrix = Teuchos::rcp(new LA_CrsMatrix(owned_map, maxEntries));
+    overlapped_matrix = Teuchos::rcp(new LA_CrsMatrix(overlapped_graph));
+    
+    this->fillComplete(matrix);
+    this->fillComplete(overlapped_matrix);
   }
   
   // --------------------------------------------------
@@ -357,6 +362,7 @@ void LinearAlgebraInterface<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, 
     Teuchos::RCP<Belos::SolverManager<ScalarT,LA_MultiVector,LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
     
     solver->solve();
+    
   }
 }
 

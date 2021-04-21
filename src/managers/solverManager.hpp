@@ -177,6 +177,9 @@ namespace MrHyDE {
     vector<vector<LO> > numBasis, useBasis;
     vector<LO> maxBasis, numVars;
     
+    //vector_RCP res, res_over, du, du_over;
+    //matrix_RCP J, J_over;
+    
     Teuchos::RCP<Teuchos::Time> transientsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::transientSolver()");
     Teuchos::RCP<Teuchos::Time> nonlinearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::nonlinearSolver()");
     

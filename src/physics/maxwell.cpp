@@ -48,6 +48,7 @@ void maxwell::defineFunctions(Teuchos::ParameterList & fs,
 
 void maxwell::volumeResidual() {
   
+  
   int E_basis = wkset->usebasis[Enum];
   int B_basis = wkset->usebasis[Bnum];
   
@@ -64,7 +65,8 @@ void maxwell::volumeResidual() {
     sigma = functionManager->evaluate("sigma","ip");
   }
   
-  Teuchos::TimeMonitor resideval(*volumeResidualFill);
+  //Teuchos::TimeMonitor resideval(*volumeResidualFill);
+  
   
   {
     // (dB/dt + curl E,V) = 0
@@ -134,6 +136,7 @@ void maxwell::volumeResidual() {
       }
     });
   }
+  
 }
 
 // ========================================================================================

@@ -273,18 +273,16 @@ void cell::computeSolnVolIP() {
     wkset->basis_div = tbasis_div;
     wkset->basis_curl = tbasis_curl;
   }
-  fence();
-
-  wkset->computeSolnVolIP();
-  fence();
   
+  wkset->computeSolnVolIP();
+  /*
   if (cellData->compute_sol_avg) {
     this->computeSolAvg();
   }
-  fence();
-
+  */
+  
   wkset->computeParamVolIP();
-  fence();
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

@@ -150,14 +150,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   
   phys->setWorkset(assembler->wkset);
   params->wkset = assembler->wkset;
-  
-  //phys->setVars();
-  
-  //if (settings->sublist("Mesh").get<bool>("have element data", false) ||
-  //    settings->sublist("Mesh").get<bool>("have nodal data", false)) {
-  //  mesh->readMeshData();
-  //}
-  
+    
   /////////////////////////////////////////////////////////////////////////////
   
   this->setBatchID(Comm->getRank());
@@ -916,6 +909,10 @@ void SolverManager<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vect
     int numCuts = 0;
     int maxCuts = 5; // TMW: make this a user-defined input
     double timetol = end_time*1.0e-6; // just need to get close enough to final time
+    
+    vector_RCP u_prev = linalg->getNewOverlappedVector();
+    vector_RCP u_stage = linalg->getNewOverlappedVector();
+    
     while (current_time < (end_time-timetol) && numCuts<=maxCuts) {
       
       if (BDForder > 1 && stepProg == startupSteps) {
@@ -953,13 +950,11 @@ void SolverManager<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vect
         cout << "*******************************************************" << endl << endl << endl;
       }
       
-      vector_RCP u_prev = linalg->getNewOverlappedVector();
       u_prev->update(1.0,*u,0.0);
       
       int status = 1;
       for (int stage = 0; stage<numstages; stage++) {
         // Need a stage solution
-        vector_RCP u_stage = linalg->getNewOverlappedVector();
         // Set the initial guess for stage solution
         u_stage->update(1.0,*u,0.0);
         
@@ -978,15 +973,7 @@ void SolverManager<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vect
         // Make sure last step solution is gathered
         // Last set of values is from a stage solution, which is potentially different
         assembler->performGather(u,0,0);
-        
-        //if (compute_objective) { // fill in the objective function
-        //  DFAD cobj = postproc->computeObjective(u, current_time, soln->times[0].size()-1);
-        //  obj += cobj;
-        //}
         postproc->record(u,current_time,obj);
-        //if (save_solution) {
-        //  soln->store(u, current_time, 0);
-        //}
         stepProg += 1;
       }
       else { // something went wrong, cut time step and try again
@@ -1190,6 +1177,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     
     gNLiter = NLiter;
     
+    
     vector_RCP res = linalg->getNewVector();
     matrix_RCP J = linalg->getNewMatrix();
     vector_RCP res_over = linalg->getNewOverlappedVector();
@@ -1197,15 +1185,15 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     vector_RCP du_over = linalg->getNewOverlappedVector();
     vector_RCP du = linalg->getNewVector();
     
+    
     // *********************** COMPUTE THE JACOBIAN AND THE RESIDUAL **************************
     
     bool build_jacobian = true;
     res_over->putScalar(0.0);
-    J_over->setAllToScalar(0.0);
     
     linalg->fillComplete(J_over);
-    
     J_over->resumeFill();
+    J_over->setAllToScalar(0.0);
     
     store_adjPrev = false;
     if ( is_adjoint && (NLiter == 1)) {
@@ -1215,6 +1203,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     assembler->assembleJacRes(u, phi, build_jacobian, false, false,
                               res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                               params->num_active_params, params->Psol[0], is_final_time, deltat);
+    
     
     linalg->exportVectorFromOverlapped(res, res_over);
     
@@ -1248,6 +1237,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       NLerr_scaled[0] = NLerr[0]/NLerr_first[0];
     }
     
+    
     if(Comm->getRank() == 0 && verbosity > 1) {
       cout << endl << "*********************************************************" << endl;
       cout << "***** Iteration: " << NLiter << endl;
@@ -1261,13 +1251,15 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     if (NLerr_scaled[0] > NLtol) {
       
       linalg->fillComplete(J_over);
+      J->resumeFill();
       linalg->exportMatrixFromOverlapped(J, J_over);
       linalg->fillComplete(J);
       
       if (debug_level>2) {
         //KokkosTools::print(J,"Jacobian from solver interface");
       }
-      
+      du->putScalar(0.0);
+      du_over->putScalar(0.0);
       linalg->linearSolver(J, res, du);
       linalg->importVectorToOverlapped(du_over, du);
       

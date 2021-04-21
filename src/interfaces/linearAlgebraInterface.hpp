@@ -117,12 +117,14 @@ namespace MrHyDE {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
       matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(param_owned_map, maxEntries));
       return newmat;
+      //return matrix;
     }
     
     matrix_RCP getNewParamOverlappedMatrix() {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
       matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(param_overlapped_graph));
       return newmat;
+      //return overlapped_matrix;
     }
     
     // ========================================================================================
@@ -299,6 +301,8 @@ namespace MrHyDE {
     Teuchos::RCP<LA_CrsGraph> overlapped_graph, param_overlapped_graph, aux_overlapped_graph; // owned graphs are never used
     Teuchos::RCP<LA_Export> exporter, param_exporter, aux_exporter;
     Teuchos::RCP<LA_Import> importer, param_importer, aux_importer;
+    
+    matrix_RCP matrix, overlapped_matrix;
     
     // Linear solvers and preconditioners
     int maxLinearIters, maxKrylovVectors;

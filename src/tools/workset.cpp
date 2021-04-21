@@ -1406,7 +1406,7 @@ void workset::addDataSc(const string & label, const int & dim0, const int & dim1
 
 View_AD2 workset::getData(const string & label) {
   
-  Teuchos::TimeMonitor basistimer(*worksetgetDataTimer);
+  //Teuchos::TimeMonitor basistimer(*worksetgetDataTimer);
   
   bool found = false;
   size_t ind = 0;
@@ -1433,7 +1433,7 @@ View_AD2 workset::getData(const string & label) {
 
 View_Sc2 workset::getDataSc(const string & label) {
   
-  Teuchos::TimeMonitor basistimer(*worksetgetDataScTimer);
+  //Teuchos::TimeMonitor basistimer(*worksetgetDataScTimer);
   
   bool found = false;
   size_t ind = 0;
@@ -1461,7 +1461,7 @@ View_Sc2 workset::getDataSc(const string & label) {
 
 size_t workset::getDataScIndex(const string & label) {
   
-  Teuchos::TimeMonitor basistimer(*worksetgetDataScIndexTimer);
+  //Teuchos::TimeMonitor basistimer(*worksetgetDataScIndexTimer);
   
   bool found = false;
   size_t ind = 0;
@@ -1490,7 +1490,7 @@ size_t workset::getDataScIndex(const string & label) {
 
 void workset::get(const string & label, View_AD2 & dataout) {
   
-  Teuchos::TimeMonitor basistimer(*worksetgetTimer);
+  //Teuchos::TimeMonitor basistimer(*worksetgetTimer);
   
   bool found = false;
   size_t ind = 0;
@@ -1517,7 +1517,7 @@ void workset::get(const string & label, View_AD2 & dataout) {
 
 void workset::get(const string & label, View_Sc2 & dataout) {
   
-  Teuchos::TimeMonitor basistimer(*worksetgetTimer);
+  //Teuchos::TimeMonitor basistimer(*worksetgetTimer);
   
   bool found = false;
   size_t ind = 0;
@@ -1647,7 +1647,7 @@ View_Sc2 workset::getSideWeights() {
 
 View_Sc4 workset::getBasis(const string & var) {
 
-  Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
+  //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
   View_Sc4 dataout;
   int basisindex;
@@ -1673,7 +1673,7 @@ View_Sc4 workset::getBasis(const int & index) {
 
 View_Sc4 workset::getBasisGrad(const string & var) {
 
-  Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
+  //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
   View_Sc4 dataout;
   int basisindex;
@@ -1699,7 +1699,7 @@ View_Sc4 workset::getBasisGrad(const int & index) {
 
 View_Sc3 workset::getBasisDiv(const string & var) {
 
-  Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
+  //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
   View_Sc3 dataout;
   int basisindex;
@@ -1725,7 +1725,7 @@ View_Sc3 workset::getBasisDiv(const int & index) {
 
 View_Sc4 workset::getBasisCurl(const string & var) {
 
-  Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
+  //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
   View_Sc4 dataout;
   int basisindex;
@@ -1751,7 +1751,7 @@ View_Sc4 workset::getBasisCurl(const int & index) {
 
 View_Sc4 workset::getBasisSide(const string & var) {
 
-  Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
+  //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
   View_Sc4 dataout;
   int basisindex;
@@ -1777,7 +1777,7 @@ View_Sc4 workset::getBasisSide(const int & index) {
 
 View_Sc4 workset::getBasisGradSide(const string & var) {
 
-  Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
+  //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
   View_Sc4 dataout;
   int basisindex;
@@ -1803,7 +1803,7 @@ View_Sc4 workset::getBasisGradSide(const int & index) {
 
 View_Sc4 workset::getBasisCurlSide(const string & var) {
 
-  Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
+  //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
   View_Sc4 dataout;
   int basisindex;
@@ -1888,7 +1888,7 @@ void workset::printMetaData() {
 template<class V1, class V2>
 void workset::copyData(V1 view1, V2 view2) {
   
-  Teuchos::TimeMonitor functimer(*worksetcopyDataTimer);
+  //Teuchos::TimeMonitor functimer(*worksetcopyDataTimer);
   
   // Copy data from view2 into view1
   // Both are rank-2 and second dimensions are the same
