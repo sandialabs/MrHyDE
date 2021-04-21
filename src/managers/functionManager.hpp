@@ -16,7 +16,7 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "function_class.hpp"
+#include "dag.hpp"
 #include "interpreter.hpp"
 #include "workset.hpp"
 

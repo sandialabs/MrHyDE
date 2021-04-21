@@ -16,7 +16,7 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "term.hpp"
+#include "dag.hpp"
 
 #include <stdio.h>
 #include <ctype.h>

@@ -1183,7 +1183,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     vector_RCP res_over = linalg->getNewOverlappedVector();
     matrix_RCP J_over = linalg->getNewOverlappedMatrix();
     vector_RCP du_over = linalg->getNewOverlappedVector();
-    vector_RCP du = linalg->getNewVector();
+    vector_RCP du = linalseg->getNewVector();
     
     
     // *********************** COMPUTE THE JACOBIAN AND THE RESIDUAL **************************

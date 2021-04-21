@@ -109,27 +109,6 @@ void FunctionManager::setupLists(const vector<string> & variables_,
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
-// Validate all of the functions
-//////////////////////////////////////////////////////////////////////////////////////
-
-/*
-// TMW: THIS HAS BEEN DEPRECATED
-void FunctionManager::validateFunctions(){
-  vector<string> function_names;
-  for (size_t k=0; k<functions.size(); k++) {
-    function_names.push_back(functions[k].function_name);
-  }
-  for (size_t k=0; k<functions.size(); k++) {
-    vector<string> vars = interpreter->getVars(functions[k].expression, known_ops);
-    int numfails = interpreter->validateTerms(vars,known_vars,variables,parameters,disc_parameters,function_names);
-    if (numfails > 0) {
-      TEUCHOS_TEST_FOR_EXCEPTION(false,std::runtime_error,"Error: MrHyDE could not identify one or more terms in: " + functions[k].function_name);
-    }
-  }
-}
-*/
-
-//////////////////////////////////////////////////////////////////////////////////////
 // Decompose the functions into terms and set the evaluation tree
 // Also sets up the Kokkos::Views (subviews) to the data for all of the terms
 //////////////////////////////////////////////////////////////////////////////////////
