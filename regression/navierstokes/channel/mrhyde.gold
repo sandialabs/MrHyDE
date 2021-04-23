@@ -2,6 +2,6 @@
 *********************************************************
 ***** Computing errors ******
 
-***** L2 norm of the error for ux = 0.0019797  (time = 0)
-***** L2 norm of the error for pr = 0.0148147  (time = 0)
-***** L2 norm of the error for uy = 0.000169958  (time = 0)
+***** L2 norm of the error for ux = 0.00198075  (time = 0)
+***** L2 norm of the error for pr = 0.0148536  (time = 0)
+***** L2 norm of the error for uy = 0.000169464  (time = 0)
