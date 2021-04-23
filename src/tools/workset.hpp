@@ -141,6 +141,10 @@ namespace MrHyDE {
     
     View_Sc2 getSideWeights();
     
+    void checkDataAllocation(const size_t & ind);
+    
+    void checkDataScAllocation(const size_t & ind);
+    
     View_AD2 getData(const string & label);
     
     View_Sc2 getDataSc(const string & label);
@@ -289,6 +293,7 @@ namespace MrHyDE {
     topo_RCP celltopo;
     size_t numsides, numip, numsideip, numVars, numParams, numAux, maxRes;
     int dimension, numElem, current_stage;
+    size_type maxElem;
     Kokkos::View<int*,AssemblyDevice> current_stage_KV; // for access on device
     
     vector<string> basis_types;

@@ -41,6 +41,7 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
     numsides = celltopo->getFaceCount();
   }
   
+  maxElem = numElem;
   deltat = 1.0;
   deltat_KV = Kokkos::View<ScalarT*,AssemblyDevice>("deltat",1);
   Kokkos::deep_copy(deltat_KV,deltat);
@@ -1389,13 +1390,13 @@ void workset::setStage(const int & newstage) {
 //////////////////////////////////////////////////////////////
 
 void workset::addData(const string & label, const int & dim0, const int & dim1) {
-  data.push_back(View_AD2(label,dim0,dim1));
+  data.push_back(View_AD2(label,0,dim1));
   data_labels.push_back(label);
   data_usage.push_back(0);
 }
 
 void workset::addDataSc(const string & label, const int & dim0, const int & dim1) {
-  data_Sc.push_back(View_Sc2(label,dim0,dim1));
+  data_Sc.push_back(View_Sc2(label,0,dim1));
   data_Sc_labels.push_back(label);
   data_Sc_usage.push_back(0);
 }
@@ -1423,8 +1424,21 @@ View_AD2 workset::getData(const string & label) {
     std::cout << "Error: could not find data named " << label << std::endl;
     this->printMetaData();
   }
+  this->checkDataAllocation(ind);
   return data[ind];
   
+}
+
+void workset::checkDataAllocation(const size_t & ind) {
+  if (data[ind].extent(0) < maxElem) {
+    Kokkos::resize(data[ind],maxElem,data[ind].extent(1));
+  }
+}
+
+void workset::checkDataScAllocation(const size_t & ind) {
+  if (data_Sc[ind].extent(0) < maxElem) {
+    Kokkos::resize(data_Sc[ind],maxElem,data_Sc[ind].extent(1));
+  }
 }
 
 //////////////////////////////////////////////////////////////
@@ -1451,6 +1465,7 @@ View_Sc2 workset::getDataSc(const string & label) {
     std::cout << "Error: could not find scalar data named " << label << std::endl;
   }
   
+  this->checkDataScAllocation(ind);
   return data_Sc[ind];
   
 }
@@ -1479,6 +1494,8 @@ size_t workset::getDataScIndex(const string & label) {
     std::cout << "Error: could not find scalar data named " << label << std::endl;
   }
   
+  this->checkDataScAllocation(ind);
+  
   return ind;
   
 }
@@ -1498,6 +1515,7 @@ void workset::get(const string & label, View_AD2 & dataout) {
     if (label == data_labels[ind]) {
       found = true;
       data_usage[ind] += 1;
+      this->checkDataAllocation(ind);
       dataout = data[ind];
     }
     else {
@@ -1525,6 +1543,7 @@ void workset::get(const string & label, View_Sc2 & dataout) {
     if (label == data_Sc_labels[ind]) {
       found = true;
       data_Sc_usage[ind] += 1;
+      this->checkDataScAllocation(ind);
       dataout = data_Sc[ind];
     }
     else {
@@ -1949,7 +1968,7 @@ void workset::setNormals(vector<View_Sc2> & newnormals) {
 }
 
 //////////////////////////////////////////////////////////////
-// Set the side/face normals
+// Set the side/face tangents
 //////////////////////////////////////////////////////////////
 
 void workset::setTangents(vector<View_Sc2> & newtangents) {
@@ -1967,6 +1986,17 @@ void workset::setTangents(vector<View_Sc2> & newtangents) {
     data_Sc[tzind] = newtangents[2];
   }
 }
+
+
+/////////////////////////////////////////////////////////////
+// Set the integration points
+//////////////////////////////////////////////////////////////
+
+//void workset::seth(View_Sc2 newh, const string & pfix) {
+//  size_t hind = this->getDataScIndex("h"+pfix);
+//  data_Sc[hind] = newh;
+//  h = newh;
+//}
 
 //////////////////////////////////////////////////////////////
 // Set the solutions

@@ -306,7 +306,14 @@ int main(int argc, char * argv[]) {
     
     //functionManager->validateFunctions();
     functionManager->decomposeFunctions();
+    functionManager->printFunctions();
     
+    for (size_t f=0; f<functionManager->forests[0].trees.size(); ++f) {
+      functionManager->forests[0].trees[f].branches[0].print();
+      if (functionManager->forests[0].trees[f].branches[0].isConstant) {
+        cout << functionManager->forests[0].trees[f].branches[0].data_Sc << endl;
+      }
+    }
     //----------------------------------------------------------------------
     // Evaluate the functions and check against ref solutions
     //----------------------------------------------------------------------

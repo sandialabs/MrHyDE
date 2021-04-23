@@ -55,6 +55,6 @@ ANONYMOUS:
   Functions:
     tcoeff: 8*pi*pi*sin(2*pi*t)+2*pi*cos(2*pi*t)
     thermal source: tcoeff*sin(2*pi*x)*sin(2*pi*y)
-    thermal diffusion: thermal_diff(0)
+    thermal diffusion: thermal_diff
     targ: '0.0'
 ...

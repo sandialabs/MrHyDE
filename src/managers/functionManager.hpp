@@ -48,12 +48,6 @@ namespace MrHyDE {
                     const std::vector<std::string> & disc_parameters_);
     
     //////////////////////////////////////////////////////////////////////////////////////
-    // Validate all of the functions
-    //////////////////////////////////////////////////////////////////////////////////////
-    
-    //void validateFunctions();
-    
-    //////////////////////////////////////////////////////////////////////////////////////
     // Decompose the functions into terms and set the evaluation tree
     // Also sets up the Kokkos::Views (subviews) to the data for all of the terms
     //////////////////////////////////////////////////////////////////////////////////////
@@ -65,6 +59,9 @@ namespace MrHyDE {
     //////////////////////////////////////////////////////////////////////////////////////
     
     bool isScalarTerm(const int & findex, const int & tindex, const int & bindex);
+    
+    void checkDepDataType(const int & findex, const int & tindex, const int & bindex,
+                          bool & isCont, bool & isVector, bool & isAD);
     
     //////////////////////////////////////////////////////////////////////////////////////
     // Evaluate a function (probably will be deprecated)
@@ -83,10 +80,16 @@ namespace MrHyDE {
     //////////////////////////////////////////////////////////////////////////////////////
     
     template<class T1, class T2>
-    void evaluateOp(T1 data, T2 tdata, const std::string & op);
+    void evaluateOpVToV(T1 data, T2 tdata, const std::string & op);
     
     template<class T1, class T2>
-    void evaluateOp(T1 data, T2 tdata, const int & op);
+    void evaluateOpParamToV(T1 data, T2 tdata, const int & pIndex_, const std::string & op);
+    
+    template<class T1, class T2>
+    void evaluateOpSToV(T1 data, T2 & tdata, const std::string & op);
+    
+    template<class T1, class T2>
+    void evaluateOpSToS(T1 & data, T2 & tdata, const std::string & op);
     
     //////////////////////////////////////////////////////////////////////////////////////
     // Print out the function information (mostly for debugging)

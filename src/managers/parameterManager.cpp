@@ -706,7 +706,9 @@ void ParameterManager<Node>::sacadoizeParams(const bool & seed_active) {
       }
       *(paramvals_AD[i]) = currparams;
     }
-    parallel_for("parameter manager sacadoize - seed active",RangePolicy<AssemblyExec>(0,pvals.extent(0)), KOKKOS_LAMBDA (const size_type i ) {
+    parallel_for("parameter manager sacadoize - seed active",
+                 RangePolicy<AssemblyExec>(0,pvals.extent(0)),
+                 KOKKOS_LAMBDA (const size_type i ) {
       if (ptypes(i) == 1) { // active params
         for (size_t j=0; j<plengths(i); j++) {
           paramvals_KVAD(i,j) = AD(maxDerivs, pseed(i,j), pvals(i,j));
@@ -728,7 +730,9 @@ void ParameterManager<Node>::sacadoizeParams(const bool & seed_active) {
       }
       *(paramvals_AD[i]) = currparams;
     }
-    parallel_for("parameter manager sacadoize - no seeding",RangePolicy<AssemblyExec>(0,pvals.extent(0)), KOKKOS_LAMBDA (const size_type i ) {
+    parallel_for("parameter manager sacadoize - no seeding",
+                 RangePolicy<AssemblyExec>(0,pvals.extent(0)),
+                 KOKKOS_LAMBDA (const size_type i ) {
       for (size_t j=0; j<plengths(i); j++) {
         paramvals_KVAD(i,j) = AD(pvals(i,j));
       }

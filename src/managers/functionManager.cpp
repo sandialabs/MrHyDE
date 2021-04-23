@@ -69,28 +69,28 @@ int FunctionManager::addFunction(const string & fname, string & expression, cons
   return findex;
   
   /*
-  for (size_t k=0; k<functions.size(); k++) {
-    if (functions[k].function_name == fname && functions[k].location == location) {
-      found = true;
-      findex = k;
-    }
-  }
-  if (!found) {
-    int dim1 = 0;
-    if (location == "ip") {
-      dim1 = numip;
-    }
-    else if (location == "side ip") {
-      dim1 = numip_side;
-    }
-    else if (location == "point") {
-      dim1 = 1;
-    }
-    functions.push_back(function_class(fname, expression, numElem, dim1, location));
-    findex = functions.size()-1;
-  }
-  return findex;
-  */
+   for (size_t k=0; k<functions.size(); k++) {
+   if (functions[k].function_name == fname && functions[k].location == location) {
+   found = true;
+   findex = k;
+   }
+   }
+   if (!found) {
+   int dim1 = 0;
+   if (location == "ip") {
+   dim1 = numip;
+   }
+   else if (location == "side ip") {
+   dim1 = numip_side;
+   }
+   else if (location == "point") {
+   dim1 = 1;
+   }
+   functions.push_back(function_class(fname, expression, numElem, dim1, location));
+   findex = functions.size()-1;
+   }
+   return findex;
+   */
   
 }
 
@@ -138,98 +138,99 @@ void FunctionManager::decomposeFunctions() {
           if (forests[fiter].trees[titer].branches[k].isLeaf || forests[fiter].trees[titer].branches[k].isDecomposed) {
             decompose = false;
           }
-        
+          
+          string expr = forests[fiter].trees[titer].branches[k].expression;
+          
           // Is it an AD data stored in the workset?
           if (decompose) {
             vector<string> data_labels = wkset->data_labels;
-            string label = forests[fiter].trees[titer].branches[k].expression;
+            
+            string mod_expr = expr;
             if (forests[fiter].location == "side ip") {
-              label += " side";
+              mod_expr += " side";
             }
             else if (forests[fiter].location == "point") {
-              label += " point";
+              mod_expr += " point";
             }
             bool found = 0;
             size_t j=0;
             while (!found && j<data_labels.size()) {
-              if (label == data_labels[j]) {
+              if (mod_expr == data_labels[j]) {
                 decompose = false;
                 forests[fiter].trees[titer].branches[k].isLeaf = true;
                 forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                forests[fiter].trees[titer].branches[k].isView = true;
                 forests[fiter].trees[titer].branches[k].isAD = true;
                 forests[fiter].trees[titer].branches[k].isWorksetData = true;
-                forests[fiter].trees[titer].branches[k].workset_data_index = j;
-                //forests[fiter].trees[titer].branches[k].data = wkset->data[j];
                 
+                forests[fiter].trees[titer].branches[k].workset_data_index = j;
+                wkset->checkDataAllocation(j);
                 found = true;
               }
               j++;
             }
           }
-        
+          
           // Is it a Scalar data stored in the workset?
           if (decompose) {
             vector<string> data_Sc_labels = wkset->data_Sc_labels;
-            string label = forests[fiter].trees[titer].branches[k].expression;
+            string mod_expr = expr;
             if (forests[fiter].location == "side ip") {
-              label += " side";
+              mod_expr += " side";
             }
             else if (forests[fiter].location == "point") {
-              label += " point";
+              mod_expr += " point";
             }
             bool found = 0;
             size_t j=0;
             while (!found && j<data_Sc_labels.size()) {
-              if (label == data_Sc_labels[j]) {
+              if (mod_expr == data_Sc_labels[j]) {
                 decompose = false;
                 forests[fiter].trees[titer].branches[k].isLeaf = true;
                 forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                forests[fiter].trees[titer].branches[k].isAD = false;
+                forests[fiter].trees[titer].branches[k].isView = true;
                 forests[fiter].trees[titer].branches[k].isWorksetData = true;
-                forests[fiter].trees[titer].branches[k].workset_data_index = j;
                 
-                //forests[fiter].trees[titer].branches[k].ddata = wkset->data_Sc[j];
+                forests[fiter].trees[titer].branches[k].workset_data_index = j;
+                wkset->checkDataScAllocation(j);
                 found = true;
               }
               j++;
             }
           }
-        
+          
           // check if it is a parameter
           if (decompose) {
             
             for (unsigned int j=0; j<parameters.size(); j++) {
               
-              if (forests[fiter].trees[titer].branches[k].expression == parameters[j]) {
+              if (expr == parameters[j]) {
                 forests[fiter].trees[titer].branches[k].isLeaf = true;
+                forests[fiter].trees[titer].branches[k].isView = true;
                 forests[fiter].trees[titer].branches[k].isAD = true;
                 forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                forests[fiter].trees[titer].branches[k].isScalar = true;
-                forests[fiter].trees[titer].branches[k].isConstant = false; // needs to be copied
-                forests[fiter].trees[titer].branches[k].scalarIndex = 0;
+                forests[fiter].trees[titer].branches[k].isParameter = true;
+                forests[fiter].trees[titer].branches[k].paramIndex = 0;
                 
                 decompose = false;
                 
-                forests[fiter].trees[titer].branches[k].scalar_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
-                
-                View_AD2 tdata("scalar data",forests[fiter].dim0,forests[fiter].dim1);
-                forests[fiter].trees[titer].branches[k].data = tdata;
+                forests[fiter].trees[titer].branches[k].param_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
                 
               }
               else { // look for param(*) or param(**)
                 bool found = true;
                 int sindex = 0;
-                size_t nexp = forests[fiter].trees[titer].branches[k].expression.length();
+                size_t nexp = expr.length();
                 if (nexp == parameters[j].length()+3) {
                   for (size_t n=0; n<parameters[j].length(); n++) {
-                    if (forests[fiter].trees[titer].branches[k].expression[n] != parameters[j][n]) {
+                    if (expr[n] != parameters[j][n]) {
                       found = false;
                     }
                   }
                   if (found) {
-                    if (forests[fiter].trees[titer].branches[k].expression[nexp-3] == '(' && forests[fiter].trees[titer].branches[k].expression[nexp-1] == ')') {
+                    if (expr[nexp-3] == '(' && expr[nexp-1] == ')') {
                       string check = "";
-                      check += forests[fiter].trees[titer].branches[k].expression[nexp-2];
+                      check += expr[nexp-2];
                       if (isdigit(check[0])) {
                         sindex = std::stoi(check);
                       }
@@ -244,15 +245,15 @@ void FunctionManager::decomposeFunctions() {
                 }
                 else if (nexp == parameters[j].length()+4) {
                   for (size_t n=0; n<parameters[j].length(); n++) {
-                    if (forests[fiter].trees[titer].branches[k].expression[n] != parameters[j][n]) {
+                    if (expr[n] != parameters[j][n]) {
                       found = false;
                     }
                   }
                   if (found) {
-                    if (forests[fiter].trees[titer].branches[k].expression[nexp-4] == '(' && forests[fiter].trees[titer].branches[k].expression[nexp-1] == ')') {
+                    if (expr[nexp-4] == '(' && expr[nexp-1] == ')') {
                       string check = "";
-                      check += forests[fiter].trees[titer].branches[k].expression[nexp-3];
-                      check += forests[fiter].trees[titer].branches[k].expression[nexp-2];
+                      check += expr[nexp-3];
+                      check += expr[nexp-2];
                       if (isdigit(check[0]) && isdigit(check[1])) {
                         sindex = std::stoi(check);
                       }
@@ -271,18 +272,16 @@ void FunctionManager::decomposeFunctions() {
                 
                 if (found) {
                   forests[fiter].trees[titer].branches[k].isLeaf = true;
+                  forests[fiter].trees[titer].branches[k].isView = true;
                   forests[fiter].trees[titer].branches[k].isAD = true;
                   forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                  forests[fiter].trees[titer].branches[k].isScalar = true;
-                  forests[fiter].trees[titer].branches[k].isConstant = false; // needs to be copied
-                  forests[fiter].trees[titer].branches[k].scalarIndex = sindex;
+                  forests[fiter].trees[titer].branches[k].isParameter = true;
+                  
+                  forests[fiter].trees[titer].branches[k].paramIndex = sindex;
                   
                   decompose = false;
                   
-                  forests[fiter].trees[titer].branches[k].scalar_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
-                  
-                  View_AD2 tdata("scalar data",forests[fiter].dim0,forests[fiter].dim1);
-                  forests[fiter].trees[titer].branches[k].data = tdata;
+                  forests[fiter].trees[titer].branches[k].param_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
                 }
               }
             }
@@ -291,88 +290,51 @@ void FunctionManager::decomposeFunctions() {
           // check if it is a function
           if (decompose) {
             for (unsigned int j=0; j<forests[fiter].trees.size(); j++) {
-              if (forests[fiter].trees[titer].branches[k].expression == forests[fiter].trees[j].name) {
-                forests[fiter].trees[titer].branches[k].isFunc = true;
-                forests[fiter].trees[titer].branches[k].isAD = true;//functions[j].terms[0].isAD;
-                forests[fiter].trees[titer].branches[k].funcIndex = j;
+              if (expr == forests[fiter].trees[j].name) {
                 forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                forests[fiter].trees[titer].branches[k].data = forests[fiter].trees[j].branches[0].data;
-                forests[fiter].trees[titer].branches[k].ddata = forests[fiter].trees[j].branches[0].ddata;
+                forests[fiter].trees[titer].branches[k].isFunc = true;
+                
+                forests[fiter].trees[titer].branches[k].funcIndex = j;
                 decompose = false;
               }
             }
           }
-        
+          
           // IS THE TERM A SIMPLE SCALAR: 2.03, 1.0E2, etc.
           if (decompose) {
-            bool isnum = interpreter->isScalar(forests[fiter].trees[titer].branches[k].expression);
+            bool isnum = interpreter->isScalar(expr);
             if (isnum) {
-              if (k==0) {
-                forests[fiter].trees[titer].branches[k].isLeaf = true;
-                forests[fiter].trees[titer].branches[k].isAD = true;
-                forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                forests[fiter].trees[titer].branches[k].isScalar = true;
-                forests[fiter].trees[titer].branches[k].isConstant = true; // means in does not need to be copied every time
-                forests[fiter].trees[titer].branches[k].scalar_ddata = Kokkos::View<double*,AssemblyDevice>("scalar double data",1);
-                ScalarT val = std::stod(forests[fiter].trees[titer].branches[k].expression);
-                Kokkos::deep_copy(forests[fiter].trees[titer].branches[k].scalar_ddata, val);
-                
-                // Copy the data just once
-                View_AD2 tdata("scalar data",forests[fiter].dim0,forests[fiter].dim1);
-                forests[fiter].trees[titer].branches[k].data = tdata;
-                Kokkos::deep_copy(forests[fiter].trees[titer].branches[k].data, val);
-                decompose = false;
-              }
-              else {
-                forests[fiter].trees[titer].branches[k].isLeaf = true;
-                forests[fiter].trees[titer].branches[k].isAD = false;
-                forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                forests[fiter].trees[titer].branches[k].isScalar = true;
-                forests[fiter].trees[titer].branches[k].isConstant = true; // means in does not need to be copied every time
-                forests[fiter].trees[titer].branches[k].scalar_ddata = Kokkos::View<double*,AssemblyDevice>("scalar double data",1);
-                ScalarT val = std::stod(forests[fiter].trees[titer].branches[k].expression);
-                Kokkos::deep_copy(forests[fiter].trees[titer].branches[k].scalar_ddata, val);
-                
-                // Copy the data just once
-                View_Sc2 tdata("scalar data",forests[fiter].dim0,forests[fiter].dim1);
-                forests[fiter].trees[titer].branches[k].ddata = tdata;
-                Kokkos::deep_copy(forests[fiter].trees[titer].branches[k].ddata, val);
-                decompose = false;
-              }
+              forests[fiter].trees[titer].branches[k].isLeaf = true;
+              forests[fiter].trees[titer].branches[k].isDecomposed = true;
+              forests[fiter].trees[titer].branches[k].isConstant = true;
+              
+              ScalarT val = std::stod(expr);
+              forests[fiter].trees[titer].branches[k].data_Sc = val;
+              
+              decompose = false;
             }
           }
-        
+          
           // IS THE TERM ONE OF THE KNOWN VARIABLES: t or pi
           if (decompose) {
             for (size_t j=0; j<known_vars.size(); j++) {
-              if (forests[fiter].trees[titer].branches[k].expression == known_vars[j]) {
+              if (expr == known_vars[j]) {
                 decompose = false;
-                //bool have_data = false;
                 forests[fiter].trees[titer].branches[k].isLeaf = true;
                 forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                forests[fiter].trees[titer].branches[k].isAD = false;
-                forests[fiter].trees[titer].branches[k].isConstant = false;
+                
                 if (known_vars[j] == "t") {
-                  forests[fiter].trees[titer].branches[k].scalar_ddata = wkset->time_KV;
-                  forests[fiter].trees[titer].branches[k].isScalar = true;
-                  forests[fiter].trees[titer].branches[k].ddata = View_Sc2("data",forests[fiter].dim0,forests[fiter].dim1);
+                  forests[fiter].trees[titer].branches[k].isTime = true;
+                  forests[fiter].trees[titer].branches[k].data_Sc = wkset->time;
                 }
                 else if (known_vars[j] == "pi") {
-                  forests[fiter].trees[titer].branches[k].isLeaf = true;
-                  forests[fiter].trees[titer].branches[k].isAD = false;
-                  forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                  forests[fiter].trees[titer].branches[k].isScalar = true;
                   forests[fiter].trees[titer].branches[k].isConstant = true; // means in does not need to be copied every time
-                  View_Sc2 tdata("scalar data", forests[fiter].dim0, forests[fiter].dim1);
-                  forests[fiter].trees[titer].branches[k].ddata = tdata;
-                  
-                  Kokkos::deep_copy(forests[fiter].trees[titer].branches[k].ddata, PI);
-                  decompose = false;
+                  forests[fiter].trees[titer].branches[k].data_Sc = PI;
                 }
               }
             }
           } // end known_vars
-        
+          
           // IS THIS TERM ONE OF THE KNOWN OPERATORS: sin(...), exp(...), etc.
           if (decompose) {
             bool isop = interpreter->isOperator(forests[fiter].trees[titer].branches, k, known_ops);
@@ -386,7 +348,7 @@ void FunctionManager::decomposeFunctions() {
             forests[fiter].trees[titer].branches[k].isDecomposed = true;
           }
         }
-      
+        
         bool isdone = true;
         for (size_t k=0; k<forests[fiter].trees[titer].branches.size(); k++) {
           if (!forests[fiter].trees[titer].branches[k].isLeaf && !forests[fiter].trees[titer].branches[k].isDecomposed) {
@@ -409,86 +371,38 @@ void FunctionManager::decomposeFunctions() {
   for (size_t f=0; f<forests.size(); ++f) {
     for (size_t k=0; k<forests[f].trees.size(); k++) {
       for (size_t j=0; j<forests[f].trees[k].branches.size(); j++) {
-        bool termcheck = this->isScalarTerm(f,k,j); // is this term a ScalarT
-        if (termcheck) {
-          forests[f].trees[k].branches[j].isAD = false;
-          if (!forests[f].trees[k].branches[j].isLeaf) {
-            View_Sc2 tdata("data", forests[f].dim0, forests[f].dim1);
-            forests[f].trees[k].branches[j].ddata = tdata;
-          }
-          if (j==0) { // always need this allocated
-            View_AD2 tdata("data", forests[f].dim0, forests[f].dim1);
-            forests[f].trees[k].branches[j].data = tdata;
-          }
-        }
-        else if (!forests[f].trees[k].branches[j].isLeaf) {
-          forests[f].trees[k].branches[j].isAD = true;
-          View_AD2 tdata("data",forests[f].dim0,forests[f].dim1);
-          forests[f].trees[k].branches[j].data = tdata;
-        }
-        vector<int> dep_ops_int(forests[f].trees[k].branches[j].dep_ops.size());
-        for (size_t op=0; op<forests[f].trees[k].branches[j].dep_ops.size(); ++op) {
-          string cop = forests[f].trees[k].branches[j].dep_ops[op];
-          if (cop == "") {
-            dep_ops_int[op] = 0;
-          }
-          else if (cop == "plus") {
-            dep_ops_int[op] = 1;
-          }
-          else if (cop == "minus") {
-            dep_ops_int[op] = 2;
-          }
-          else if (cop == "times") {
-            dep_ops_int[op] = 3;
-          }
-          else if (cop == "divide") {
-            dep_ops_int[op] = 4;
-          }
-          else if (cop == "power") {
-            dep_ops_int[op] = 5;
-          }
-          else if (cop == "sin") {
-            dep_ops_int[op] = 6;
-          }
-          else if (cop == "cos") {
-            dep_ops_int[op] = 7;
-          }
-          else if (cop == "tan") {
-            dep_ops_int[op] = 8;
-          }
-          else if (cop == "exp") {
-            dep_ops_int[op] = 9;
-          }
-          else if (cop == "log") {
-            dep_ops_int[op] = 10;
-          }
-          else if (cop == "abs") {
-            dep_ops_int[op] = 11;
-          }
-          else if (cop == "max") {
-            dep_ops_int[op] = 12;
-          }
-          else if (cop == "min") {
-            dep_ops_int[op] = 13;
-          }
-          else if (cop == "mean") {
-            dep_ops_int[op] = 14;
-          }
-          else if (cop == "lt") {
-            dep_ops_int[op] = 15;
-          }
-          else if (cop == "lte") {
-            dep_ops_int[op] = 16;
-          }
-          else if (cop == "gt") {
-            dep_ops_int[op] = 17;
-          }
-          else if (cop == "gte") {
-            dep_ops_int[op] = 18;
-          }
-        }
         
-        forests[f].trees[k].branches[j].dep_ops_int = dep_ops_int;
+        // Rewrite this section
+        
+        bool isConst = true, isView = false, isAD = false;
+        
+        this->checkDepDataType(f,k,j, isConst, isView, isAD); // is this term a ScalarT
+        
+        forests[f].trees[k].branches[j].isConstant = isConst;
+        forests[f].trees[k].branches[j].isView = isView;
+        forests[f].trees[k].branches[j].isAD = isAD;
+        
+        if (isView) {
+          if (isAD) {
+            forests[f].trees[k].branches[j].viewdata = View_AD2("data", forests[f].dim0, forests[f].dim1);
+          }
+          else {
+            forests[f].trees[k].branches[j].viewdata_Sc = View_Sc2("data", forests[f].dim0, forests[f].dim1);
+          }
+        }
+      }
+    }
+  }
+  
+  // Now evaluate all of the constant branches (meaning all deps are const, !vector, !AD)
+  for (size_t f=0; f<forests.size(); ++f) {
+    for (size_t k=0; k<forests[f].trees.size(); k++) {
+      for (size_t j=0; j<forests[f].trees[k].branches.size(); j++) {
+        if (forests[f].trees[k].branches[j].isConstant) {
+          if (!forests[f].trees[k].branches[j].isLeaf) { // leafs are already filled
+            this->evaluate(f,k,j);
+          }
+        }
       }
     }
   }
@@ -519,6 +433,34 @@ bool FunctionManager::isScalarTerm(const int & findex, const int & tindex, const
   return is_scalar;
 }
 
+
+void FunctionManager::checkDepDataType(const int & findex, const int & tindex, const int & bindex,
+                                       bool & isConst, bool & isView, bool & isAD) {
+  
+  
+  if (forests[findex].trees[tindex].branches[bindex].isLeaf) {
+    if (!forests[findex].trees[tindex].branches[bindex].isConstant) {
+      isConst = false;
+    }
+    if (forests[findex].trees[tindex].branches[bindex].isView) {
+      isView = true;
+    }
+    if (forests[findex].trees[tindex].branches[bindex].isAD) {
+      isAD = true;
+    }
+  }
+  else if (forests[findex].trees[tindex].branches[bindex].isFunc) {
+    this->checkDepDataType(findex, forests[findex].trees[tindex].branches[bindex].funcIndex, 0,
+                           isConst, isView, isAD);
+  }
+  else {
+    for (size_t k=0; k<forests[findex].trees[tindex].branches[bindex].dep_list.size(); k++){
+      this->checkDepDataType(findex, tindex, forests[findex].trees[tindex].branches[bindex].dep_list[k],
+                             isConst, isView, isAD);
+    }
+  }
+}
+
 //////////////////////////////////////////////////////////////////////////////////////
 // Evaluate a function (probably will be deprecated)
 //////////////////////////////////////////////////////////////////////////////////////
@@ -538,7 +480,9 @@ View_AD2 FunctionManager::evaluate(const string & fname, const string & location
           if (!forests[fiter].trees[titer].branches[0].isDecomposed) {
             this->decomposeFunctions();
           }
-          this->evaluate(fiter,titer,0);
+          if (!forests[fiter].trees[titer].branches[0].isConstant) {
+            this->evaluate(fiter,titer,0);
+          }
         }
         else {
           titer++;
@@ -554,17 +498,67 @@ View_AD2 FunctionManager::evaluate(const string & fname, const string & location
     TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: function manager could not evaluate: " + fname + " at " + location);
   }
   
-  View_AD2 output = forests[fiter].trees[titer].branches[0].data;
-  if (!forests[fiter].trees[titer].branches[0].isAD) {
-    auto doutput = forests[fiter].trees[titer].branches[0].ddata;
-    parallel_for("funcman copy double to AD",
-                 TeamPolicy<AssemblyExec>(output.extent(0), Kokkos::AUTO, VectorSize),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      for (size_type pt=team.team_rank(); pt<output.extent(1); pt+=team.team_size() ) {
-        output(elem,pt) = doutput(elem,pt);
+  View_AD2 output = forests[fiter].trees[titer].branches[0].viewdata;
+  if (output.extent(0) == 0) {
+    output = View_AD2("data",forests[fiter].dim0,forests[fiter].dim1);
+    forests[fiter].trees[titer].branches[0].viewdata = output;
+    if (forests[fiter].trees[titer].branches[0].isConstant) {
+      deep_copy(output,forests[fiter].trees[titer].branches[0].data_Sc);
+    }
+  }
+  
+  if (forests[fiter].trees[titer].branches[0].isAD) {
+    if (forests[fiter].trees[titer].branches[0].isView) {
+      if (forests[fiter].trees[titer].branches[0].isParameter) {
+        int pind = forests[fiter].trees[titer].branches[0].paramIndex;
+        auto pdata = forests[fiter].trees[titer].branches[0].param_data;
+        //output = View_AD2("data",forests[fiter].dim0,forests[fiter].dim1);
+        parallel_for("funcman copy double to AD",
+                     TeamPolicy<AssemblyExec>(output.extent(0), Kokkos::AUTO, VectorSize),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pt=team.team_rank(); pt<output.extent(1); pt+=team.team_size() ) {
+            output(elem,pt) = pdata(pind);
+          }
+        });
       }
-    });
+      //else {
+      //  output = forests[fiter].trees[titer].branches[0].viewdata;
+      //}
+    }
+    else {
+      AD val = forests[fiter].trees[titer].branches[0].data;
+      // Can this be a deep_copy?
+      //output = View_AD2("data",forests[fiter].dim0,forests[fiter].dim1);
+      parallel_for("funcman copy double to AD",
+                   TeamPolicy<AssemblyExec>(output.extent(0), Kokkos::AUTO, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type pt=team.team_rank(); pt<output.extent(1); pt+=team.team_size() ) {
+          output(elem,pt) = val;
+        }
+      });
+    }
+  }
+  else {
+    //output = View_AD2("output data",forests[fiter].dim0, forests[fiter].dim1);
+    if (forests[fiter].trees[titer].branches[0].isView) {
+      auto doutput = forests[fiter].trees[titer].branches[0].viewdata_Sc;
+      parallel_for("funcman copy double to AD",
+                   TeamPolicy<AssemblyExec>(output.extent(0), Kokkos::AUTO, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type pt=team.team_rank(); pt<output.extent(1); pt+=team.team_size() ) {
+          output(elem,pt) = doutput(elem,pt);
+        }
+      });
+    }
+    else {
+      if (!forests[fiter].trees[titer].branches[0].isConstant) {
+        ScalarT data = forests[fiter].trees[titer].branches[0].data_Sc;
+        deep_copy(output,data);
+      }
+    }
   }
   return output;
   
@@ -578,101 +572,148 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, co
   
   //Teuchos::TimeMonitor ttimer(*evaluateIntTimer);
   
-  //if (verbosity > 10) {
-  //  cout << "------- Evaluating: " << forests[findex].trees[tindex].branches[bindex].expression << endl;
-  //}
-  
-  //forests[findex].trees[tindex].branches[bindex].print();
-  
-  if (forests[findex].trees[tindex].branches[bindex].isLeaf) {
-    if (forests[findex].trees[tindex].branches[bindex].isScalar && !forests[findex].trees[tindex].branches[bindex].isConstant) {
-      if (forests[findex].trees[tindex].branches[bindex].isAD) { // TMW change to deep_copy
-        auto data0 = forests[findex].trees[tindex].branches[bindex].data;
-        auto data1 = forests[findex].trees[tindex].branches[bindex].scalar_data;
-        parallel_for("funcman copy scalar to View_AD2",
-                     TeamPolicy<AssemblyExec>(data0.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<data0.extent(1); pt+=team.team_size() ) {
-            data0(elem,pt) = data1(0);
-          }
-        });
+  //if (!forests[findex].trees[tindex].branches[bindex].isConstant) {
+    if (forests[findex].trees[tindex].branches[bindex].isLeaf) {
+      if (forests[findex].trees[tindex].branches[bindex].isWorksetData) {
+        int wdindex = forests[findex].trees[tindex].branches[bindex].workset_data_index;
+        if (forests[findex].trees[tindex].branches[bindex].isAD) {
+          forests[findex].trees[tindex].branches[bindex].viewdata = wkset->data[wdindex];
+        }
+        else {
+          forests[findex].trees[tindex].branches[bindex].viewdata_Sc = wkset->data_Sc[wdindex];
+        }
       }
-      else { // TMW change to deep_copy
-        auto data0 = forests[findex].trees[tindex].branches[bindex].ddata;
-        auto data1 = forests[findex].trees[tindex].branches[bindex].scalar_ddata;
-        parallel_for("funcman copy scalar to View_Sc2",
-                     TeamPolicy<AssemblyExec>(data0.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<data0.extent(1); pt+=team.team_size() ) {
-            data0(elem,pt) = data1(0);
-          }
-        });
+      else if (forests[findex].trees[tindex].branches[bindex].isParameter) {
+        // Should be set correctly already
+      }
+      else if (forests[findex].trees[tindex].branches[bindex].isTime) {
+        forests[findex].trees[tindex].branches[bindex].data_Sc = wkset->time_KV(0);
       }
     }
-    else if (forests[findex].trees[tindex].branches[bindex].isWorksetData) {
-      int wdindex = forests[findex].trees[tindex].branches[bindex].workset_data_index;
+    else if (forests[findex].trees[tindex].branches[bindex].isFunc) {
+      int funcIndex = forests[findex].trees[tindex].branches[bindex].funcIndex;
+      this->evaluate(findex,funcIndex, 0);
+      
       if (forests[findex].trees[tindex].branches[bindex].isAD) {
-        forests[findex].trees[tindex].branches[bindex].data = wkset->data[wdindex];
+        if (forests[findex].trees[tindex].branches[bindex].isView) { // use viewdata
+          forests[findex].trees[tindex].branches[bindex].viewdata = forests[findex].trees[funcIndex].branches[0].viewdata;
+        }
+        else { // use data
+          forests[findex].trees[tindex].branches[bindex].data = forests[findex].trees[funcIndex].branches[0].data;
+        }
       }
       else {
-        forests[findex].trees[tindex].branches[bindex].ddata = wkset->data_Sc[wdindex];
-      }
-    }
-  }
-  else if (forests[findex].trees[tindex].branches[bindex].isFunc) {
-    int funcIndex = forests[findex].trees[tindex].branches[bindex].funcIndex;
-    this->evaluate(findex,funcIndex, 0);
-    if (forests[findex].trees[tindex].branches[bindex].isAD) {
-      if (forests[findex].trees[funcIndex].branches[0].isAD) {
-        forests[findex].trees[tindex].branches[bindex].data = forests[findex].trees[funcIndex].branches[0].data;
-      }
-      else { // TMW try to change to deep copy
-        auto data0 = forests[findex].trees[tindex].branches[bindex].data;
-        auto data1 = forests[findex].trees[funcIndex].branches[0].ddata;
-        parallel_for("funcman copy View_Sc2 to View_AD2",
-                     TeamPolicy<AssemblyExec>(data0.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<data0.extent(1); pt+=team.team_size() ) {
-            data0(elem,pt) = data1(elem,pt);
-          }
-        });
+        if (forests[findex].trees[tindex].branches[bindex].isView) { // use viewdata_Sc
+          forests[findex].trees[tindex].branches[bindex].viewdata_Sc = forests[findex].trees[funcIndex].branches[0].viewdata_Sc;
+        }
+        else { // use data_Sc
+          forests[findex].trees[tindex].branches[bindex].data_Sc = forests[findex].trees[funcIndex].branches[0].data_Sc;
+        }
       }
     }
     else {
-      forests[findex].trees[tindex].branches[bindex].ddata = forests[findex].trees[funcIndex].branches[0].ddata;
-    }
-  }
-  else {
-    bool isAD = forests[findex].trees[tindex].branches[bindex].isAD;
-    for (size_t k=0; k<forests[findex].trees[tindex].branches[bindex].dep_list.size(); k++) {
-      
-      int dep = forests[findex].trees[tindex].branches[bindex].dep_list[k];
-      this->evaluate(findex, tindex, dep);
-      
-      bool termisAD = forests[findex].trees[tindex].branches[dep].isAD;
-      if (isAD) {
-        if (termisAD) {
-          this->evaluateOp(forests[findex].trees[tindex].branches[bindex].data,
-                           forests[findex].trees[tindex].branches[dep].data,
-                           forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
-          
+      bool isAD = forests[findex].trees[tindex].branches[bindex].isAD;
+      bool isView = forests[findex].trees[tindex].branches[bindex].isView;
+      for (size_t k=0; k<forests[findex].trees[tindex].branches[bindex].dep_list.size(); k++) {
+        
+        int dep = forests[findex].trees[tindex].branches[bindex].dep_list[k];
+        this->evaluate(findex, tindex, dep);
+        
+        bool termisAD = forests[findex].trees[tindex].branches[dep].isAD;
+        bool termisView = forests[findex].trees[tindex].branches[dep].isView;
+        bool termisParameter = forests[findex].trees[tindex].branches[dep].isParameter;
+        if (isView) {
+          if (termisView) {
+            if (isAD) {
+              if (termisAD) {
+                if (termisParameter) {
+                  this->evaluateOpParamToV(forests[findex].trees[tindex].branches[bindex].viewdata,
+                                           forests[findex].trees[tindex].branches[dep].param_data,
+                                           forests[findex].trees[tindex].branches[dep].paramIndex,
+                                           forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+                }
+                else {
+                  this->evaluateOpVToV(forests[findex].trees[tindex].branches[bindex].viewdata,
+                                       forests[findex].trees[tindex].branches[dep].viewdata,
+                                       forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+                }
+                
+              }
+              else {
+                this->evaluateOpVToV(forests[findex].trees[tindex].branches[bindex].viewdata,
+                                     forests[findex].trees[tindex].branches[dep].viewdata_Sc,
+                                     forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+              }
+            }
+            else {
+              if (termisAD) {
+                // output error
+              }
+              else {
+                this->evaluateOpVToV(forests[findex].trees[tindex].branches[bindex].viewdata_Sc,
+                                     forests[findex].trees[tindex].branches[dep].viewdata_Sc,
+                                     forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+              }
+            }
+          }
+          else { // Scalar data
+            if (isAD) {
+              if (termisAD) {
+                this->evaluateOpSToV(forests[findex].trees[tindex].branches[bindex].viewdata,
+                                     forests[findex].trees[tindex].branches[dep].data,
+                                     forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+              }
+              else {
+                this->evaluateOpSToV(forests[findex].trees[tindex].branches[bindex].viewdata,
+                                     forests[findex].trees[tindex].branches[dep].data_Sc,
+                                     forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+              }
+            }
+            else {
+              if (termisAD) {
+                //error
+              }
+              else {
+                this->evaluateOpSToV(forests[findex].trees[tindex].branches[bindex].viewdata_Sc,
+                                     forests[findex].trees[tindex].branches[dep].data_Sc,
+                                     forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+              }
+            }
+            
+          }
         }
         else {
-          this->evaluateOp(forests[findex].trees[tindex].branches[bindex].data,
-                           forests[findex].trees[tindex].branches[dep].ddata,
-                           forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+          if (termisView) {
+            //error
+          }
+          else {
+            if (isAD) {
+              if (termisAD) {
+                this->evaluateOpSToS(forests[findex].trees[tindex].branches[bindex].data,
+                                     forests[findex].trees[tindex].branches[dep].data,
+                                     forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+              }
+              else {
+                this->evaluateOpSToS(forests[findex].trees[tindex].branches[bindex].data,
+                                     forests[findex].trees[tindex].branches[dep].data_Sc,
+                                     forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+              }
+            }
+            else {
+              if (termisAD) {
+                //error
+              }
+              else {
+                this->evaluateOpSToS(forests[findex].trees[tindex].branches[bindex].data_Sc,
+                                     forests[findex].trees[tindex].branches[dep].data_Sc,
+                                     forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+              }
+            }
+          }
         }
       }
-      else { // termisAD must also be false
-        this->evaluateOp(forests[findex].trees[tindex].branches[bindex].ddata,
-                         forests[findex].trees[tindex].branches[dep].ddata,
-                         forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
-      }
     }
-  }
+ // }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -680,13 +721,13 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, co
 //////////////////////////////////////////////////////////////////////////////////////
 
 template<class T1, class T2>
-void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
+void FunctionManager::evaluateOpVToV(T1 data, T2 tdata, const string & op) {
   
   //Teuchos::TimeMonitor ttimer(*evaluateOpTimer);
   
   size_t dim0 = std::min(data.extent(0),tdata.extent(0));
   using namespace std;
-
+  
   if (op == "") {
     parallel_for("funcman evaluate equals",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
@@ -882,18 +923,18 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   /*else if (op == "lte") { // TMW: commenting this for now
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        if (data(e,n) <= tdata(e,n)) {
-          data(e,n) = 1.0;
-        }
-        else {
-          data(e,n) = 0.0;
-        }
-      }
-    });
-  }*/
+   parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+   size_t dim1 = min(data.extent(1),tdata.extent(1));
+   for (unsigned int n=0; n<dim1; n++) {
+   if (data(e,n) <= tdata(e,n)) {
+   data(e,n) = 1.0;
+   }
+   else {
+   data(e,n) = 0.0;
+   }
+   }
+   });
+   }*/
   else if (op == "gt") {
     parallel_for("funcman evaluate gt",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
@@ -911,18 +952,18 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
     });
   }
   /*else if (op == "gte") { // TMW: commenting this for now
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        if (data(e,n) >= tdata(e,n)) {
-          data(e,n) = 1.0;
-        }
-        else {
-          data(e,n) = 0.0;
-        }
-      }
-    });
-  }*/
+   parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+   size_t dim1 = min(data.extent(1),tdata.extent(1));
+   for (unsigned int n=0; n<dim1; n++) {
+   if (data(e,n) >= tdata(e,n)) {
+   data(e,n) = 1.0;
+   }
+   else {
+   data(e,n) = 0.0;
+   }
+   }
+   });
+   }*/
   
 }
 
@@ -931,201 +972,189 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const string & op) {
 //////////////////////////////////////////////////////////////////////////////////////
 
 template<class T1, class T2>
-void FunctionManager::evaluateOp(T1 data, T2 tdata, const int & op) {
+void FunctionManager::evaluateOpParamToV(T1 data, T2 tdata, const int & pIndex_, const string & op) {
   
-  Teuchos::TimeMonitor ttimer(*evaluateOpTimer);
+  //Teuchos::TimeMonitor ttimer(*evaluateOpTimer);
   
-  size_t dim0 = std::min(data.extent(0),tdata.extent(0));
+  size_t dim0 = data.extent(0);
   using namespace std;
-
-  // TMW: Note that these are already ordered from the most common to the least
-  //      So this is actually more efficient than a switch/case
-  if (op == 0) {
+  
+  int pIndex = pIndex_;
+  
+  if (op == "") {
     parallel_for("funcman evaluate equals",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
-        data(elem,pt) = tdata(elem,pt);
+        data(elem,pt) = tdata(pIndex);
       }
     });
   }
-  else if (op == 1) {
+  else if (op == "plus") {
     parallel_for("funcman evaluate plus",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
-        data(elem,pt) += tdata(elem,pt);
+        data(elem,pt) += tdata(pIndex);
       }
     });
   }
-  else if (op == 2) {
+  else if (op == "minus") {
     parallel_for("funcman evaluate minus",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
-        data(elem,pt) += -tdata(elem,pt);
+        data(elem,pt) += -tdata(pIndex);
       }
     });
   }
-  else if (op == 3) {
+  else if (op == "times") {
     parallel_for("funcman evaluate times",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
-        data(elem,pt) *= tdata(elem,pt);
+        data(elem,pt) *= tdata(pIndex);
       }
     });
   }
-  else if (op == 4) {
+  else if (op == "divide") {
     parallel_for("funcman evaluate divide",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
-        data(elem,pt) /= tdata(elem,pt);
+        data(elem,pt) /= tdata(pIndex);
       }
     });
   }
-  else if (op == 5) {
+  else if (op == "power") {
     parallel_for("funcman evaluate power",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
-        data(elem,pt) = pow(data(elem,pt),tdata(elem,pt));
+        data(elem,pt) = pow(data(elem,pt),tdata(pIndex));
       }
     });
   }
-  else if (op == 6) {
+  else if (op == "sin") {
     parallel_for("funcman evaluate sin",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
-        data(elem,pt) = sin(tdata(elem,pt));
+        data(elem,pt) = sin(tdata(pIndex));
       }
     });
   }
-  else if (op == 7) {
+  else if (op == "cos") {
     parallel_for("funcman evaluate cos",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
-        data(elem,pt) = cos(tdata(elem,pt));
+        data(elem,pt) = cos(tdata(pIndex));
       }
     });
   }
-  else if (op == 8) {
+  else if (op == "tan") {
     parallel_for("funcman evaluate tan",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
-        data(elem,pt) = tan(tdata(elem,pt));
+        data(elem,pt) = tan(tdata(pIndex));
       }
     });
   }
-  else if (op == 9) {
+  else if (op == "exp") {
     parallel_for("funcman evaluate exp",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
-        data(elem,pt) = exp(tdata(elem,pt));
+        data(elem,pt) = exp(tdata(pIndex));
       }
     });
   }
-  else if (op == 10) {
+  else if (op == "log") {
     parallel_for("funcman evaluate log",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
-        data(elem,pt) = log(tdata(elem,pt));
+        data(elem,pt) = log(tdata(pIndex));
       }
     });
   }
-  else if (op == 11) {
+  else if (op == "abs") {
     parallel_for("funcman evaluate abs",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
-        if (tdata(elem,pt) < 0.0) {
-          data(elem,pt) = -tdata(elem,pt);
+        if (tdata(pIndex) < 0.0) {
+          data(elem,pt) = -tdata(pIndex);
         }
         else {
-          data(elem,pt) = tdata(elem,pt);
+          data(elem,pt) = tdata(pIndex);
         }
       }
     });
   }
-  else if (op == 12) { // maximum over rows ... usually corr. to max over element/face at ip
-    parallel_for("funcman evaluate max",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
-      data(e,0) = tdata(e,0);
-      for (unsigned int n=0; n<dim1; n++) {
-        if (tdata(e,n) > tdata(e,0)) {
-          data(e,0) = tdata(e,n);
-        }
-      }
+  else if (op == "max") { // maximum over rows ... usually corr. to max over element/face at ip
+    parallel_for("funcman evaluate max",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = data.extent(1);
+      data(e,0) = tdata(pIndex);
       for (unsigned int n=0; n<dim1; n++) { // copy max value at all ip
         data(e,n) = data(e,0);
       }
     });
   }
-  else if (op == 13) { // minimum over rows ... usually corr. to min over element/face at ip
+  else if (op == "min") { // minimum over rows ... usually corr. to min over element/face at ip
     parallel_for("funcman evaluate min",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
-      data(e,0) = tdata(e,0);
-      for (unsigned int n=0; n<dim1; n++) {
-        if (tdata(e,n) < tdata(e,0)) {
-          data(e,0) = tdata(e,n);
-        }
-      }
+      size_t dim1 = data.extent(1);
+      data(e,0) = tdata(pIndex);
       for (unsigned int n=0; n<dim1; n++) { // copy min value at all ip
         data(e,n) = data(e,0);
       }
     });
   }
-  else if (op == 14) { // mean over rows ... usually corr. to mean over element/face
+  else if (op == "mean") { // mean over rows ... usually corr. to mean over element/face
     parallel_for("funcman evaluate mean",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
-      double scale = (double)dim1;
-      data(e,0) = tdata(e,0)/scale;
-      for (unsigned int n=0; n<dim1; n++) {
-        data(e,0) += tdata(e,n)/scale;
-      }
+      size_t dim1 = data.extent(1);
+      data(e,0) = tdata(pIndex);
       for (unsigned int n=0; n<dim1; n++) { // copy max value at all ip
         data(e,n) = data(e,0);
       }
     });
   }
-  else if (op == 15) {
+  else if (op == "lt") {
     parallel_for("funcman evaluate lt",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
-        if (data(elem,pt) < tdata(elem,pt)) {
+        if (data(elem,pt) < tdata(pIndex)) {
           data(elem,pt) = 1.0;
         }
         else {
@@ -1134,27 +1163,27 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const int & op) {
       }
     });
   }
-  /*else if (op == 16) { // TMW: commenting this for now
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        if (data(e,n) <= tdata(e,n)) {
-          data(e,n) = 1.0;
-        }
-        else {
-          data(e,n) = 0.0;
-        }
-      }
-    });
-  }*/
-  else if (op == 17) {
+  /*else if (op == "lte") { // TMW: commenting this for now
+   parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+   size_t dim1 = min(data.extent(1),tdata.extent(1));
+   for (unsigned int n=0; n<dim1; n++) {
+   if (data(e,n) <= tdata(e,n)) {
+   data(e,n) = 1.0;
+   }
+   else {
+   data(e,n) = 0.0;
+   }
+   }
+   });
+   }*/
+  else if (op == "gt") {
     parallel_for("funcman evaluate gt",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
-        if (data(elem,pt) > tdata(elem,pt)) {
+        if (data(elem,pt) > tdata(pIndex)) {
           data(elem,pt) = 1.0;
         }
         else {
@@ -1163,21 +1192,368 @@ void FunctionManager::evaluateOp(T1 data, T2 tdata, const int & op) {
       }
     });
   }
-  /*else if (op == 18) { // TMW: commenting this for now
-    parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-      size_t dim1 = min(data.extent(1),tdata.extent(1));
-      for (unsigned int n=0; n<dim1; n++) {
-        if (data(e,n) >= tdata(e,n)) {
-          data(e,n) = 1.0;
+  /*else if (op == "gte") { // TMW: commenting this for now
+   parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+   size_t dim1 = min(data.extent(1),tdata.extent(1));
+   for (unsigned int n=0; n<dim1; n++) {
+   if (data(e,n) >= tdata(e,n)) {
+   data(e,n) = 1.0;
+   }
+   else {
+   data(e,n) = 0.0;
+   }
+   }
+   });
+   }*/
+  
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+// Evaluate an operator
+//////////////////////////////////////////////////////////////////////////////////////
+
+template<class T1, class T2>
+void FunctionManager::evaluateOpSToV(T1 data, T2 & tdata_, const string & op) {
+  
+  //Teuchos::TimeMonitor ttimer(*evaluateOpTimer);
+  
+  T2 tdata = tdata_; // Probably don't need to do this if pass by value
+  size_t dim0 = data.extent(0);
+  using namespace std;
+  
+  if (op == "") {
+    parallel_for("funcman evaluate equals",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = tdata;
+      }
+    });
+  }
+  else if (op == "plus") {
+    parallel_for("funcman evaluate plus",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) += tdata;
+      }
+    });
+  }
+  else if (op == "minus") {
+    parallel_for("funcman evaluate minus",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) += -tdata;
+      }
+    });
+  }
+  else if (op == "times") {
+    parallel_for("funcman evaluate times",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) *= tdata;
+      }
+    });
+  }
+  else if (op == "divide") {
+    parallel_for("funcman evaluate divide",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) /= tdata;
+      }
+    });
+  }
+  else if (op == "power") {
+    parallel_for("funcman evaluate power",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = pow(data(elem,pt),tdata);
+      }
+    });
+  }
+  else if (op == "sin") {
+    parallel_for("funcman evaluate sin",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = sin(tdata);
+      }
+    });
+  }
+  else if (op == "cos") {
+    parallel_for("funcman evaluate cos",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = cos(tdata);
+      }
+    });
+  }
+  else if (op == "tan") {
+    parallel_for("funcman evaluate tan",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = tan(tdata);
+      }
+    });
+  }
+  else if (op == "exp") {
+    parallel_for("funcman evaluate exp",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = exp(tdata);
+      }
+    });
+  }
+  else if (op == "log") {
+    parallel_for("funcman evaluate log",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = log(tdata);
+      }
+    });
+  }
+  else if (op == "abs") {
+    parallel_for("funcman evaluate abs",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        if (tdata < 0.0) {
+          data(elem,pt) = -tdata;
         }
         else {
-          data(e,n) = 0.0;
+          data(elem,pt) = tdata;
         }
       }
     });
-  }*/
-
+  }
+  else if (op == "max") { // maximum over rows ... usually corr. to max over element/face at ip
+    parallel_for("funcman evaluate max",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = data.extent(1);
+      data(e,0) = tdata;
+      for (unsigned int n=0; n<dim1; n++) { // copy max value at all ip
+        data(e,n) = data(e,0);
+      }
+    });
+  }
+  else if (op == "min") { // minimum over rows ... usually corr. to min over element/face at ip
+    parallel_for("funcman evaluate min",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = data.extent(1);
+      data(e,0) = tdata;
+      for (unsigned int n=0; n<dim1; n++) { // copy min value at all ip
+        data(e,n) = data(e,0);
+      }
+    });
+  }
+  else if (op == "mean") { // mean over rows ... usually corr. to mean over element/face
+    parallel_for("funcman evaluate mean",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = data.extent(1);
+      data(e,0) = tdata;
+      for (unsigned int n=0; n<dim1; n++) { // copy max value at all ip
+        data(e,n) = data(e,0);
+      }
+    });
+  }
+  else if (op == "lt") {
+    parallel_for("funcman evaluate lt",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        if (data(elem,pt) < tdata) {
+          data(elem,pt) = 1.0;
+        }
+        else {
+          data(elem,pt) = 0.0;
+        }
+      }
+    });
+  }
+  /*else if (op == "lte") { // TMW: commenting this for now
+   parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+   size_t dim1 = min(data.extent(1),tdata.extent(1));
+   for (unsigned int n=0; n<dim1; n++) {
+   if (data(e,n) <= tdata(e,n)) {
+   data(e,n) = 1.0;
+   }
+   else {
+   data(e,n) = 0.0;
+   }
+   }
+   });
+   }*/
+  else if (op == "gt") {
+    parallel_for("funcman evaluate gt",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        if (data(elem,pt) > tdata) {
+          data(elem,pt) = 1.0;
+        }
+        else {
+          data(elem,pt) = 0.0;
+        }
+      }
+    });
+  }
+  /*else if (op == "gte") { // TMW: commenting this for now
+   parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+   size_t dim1 = min(data.extent(1),tdata.extent(1));
+   for (unsigned int n=0; n<dim1; n++) {
+   if (data(e,n) >= tdata(e,n)) {
+   data(e,n) = 1.0;
+   }
+   else {
+   data(e,n) = 0.0;
+   }
+   }
+   });
+   }*/
+  
 }
+
+//////////////////////////////////////////////////////////////////////////////////////
+// Evaluate an operator
+//////////////////////////////////////////////////////////////////////////////////////
+
+template<class T1, class T2>
+void FunctionManager::evaluateOpSToS(T1 & data, T2 & tdata, const string & op) {
+  
+  //Teuchos::TimeMonitor ttimer(*evaluateOpTimer);
+  
+  using namespace std;
+  
+  if (op == "") {
+    data = tdata;
+  }
+  else if (op == "plus") {
+    data += tdata;
+  }
+  else if (op == "minus") {
+    data += -tdata;
+  }
+  else if (op == "times") {
+    data *= tdata;
+  }
+  else if (op == "divide") {
+    data /= tdata;
+  }
+  else if (op == "power") {
+    data = pow(data,tdata);
+  }
+  else if (op == "sin") {
+    data = sin(tdata);
+  }
+  else if (op == "cos") {
+    data = cos(tdata);
+  }
+  else if (op == "tan") {
+    data = tan(tdata);
+  }
+  else if (op == "exp") {
+    data = exp(tdata);
+  }
+  else if (op == "log") {
+    data = log(tdata);
+  }
+  else if (op == "abs") {
+    if (tdata < 0.0) {
+      data = -tdata;
+    }
+    else {
+      data = tdata;
+    }
+  }
+  else if (op == "max") { // maximum over rows ... usually corr. to max over element/face at ip
+    data = tdata;
+  }
+  else if (op == "min") { // minimum over rows ... usually corr. to min over element/face at ip
+    data = tdata;
+  }
+  else if (op == "mean") { // mean over rows ... usually corr. to mean over element/face
+    data = tdata;
+  }
+  else if (op == "lt") {
+    if (data < tdata) {
+      data = 1.0;
+    }
+    else {
+      data = 0.0;
+    }
+  }
+  /*else if (op == "lte") { // TMW: commenting this for now
+   parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+   size_t dim1 = min(data.extent(1),tdata.extent(1));
+   for (unsigned int n=0; n<dim1; n++) {
+   if (data(e,n) <= tdata(e,n)) {
+   data(e,n) = 1.0;
+   }
+   else {
+   data(e,n) = 0.0;
+   }
+   }
+   });
+   }*/
+  else if (op == "gt") {
+    if (data > tdata) {
+      data = 1.0;
+    }
+    else {
+      data = 0.0;
+    }
+  }
+  /*else if (op == "gte") { // TMW: commenting this for now
+   parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+   size_t dim1 = min(data.extent(1),tdata.extent(1));
+   for (unsigned int n=0; n<dim1; n++) {
+   if (data(e,n) >= tdata(e,n)) {
+   data(e,n) = 1.0;
+   }
+   else {
+   data(e,n) = 0.0;
+   }
+   }
+   });
+   }*/
+  
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////
 // Print out the function information (mostly for debugging)
