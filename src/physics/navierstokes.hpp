@@ -71,6 +71,17 @@ namespace MrHyDE {
     // return the value of the stabilization parameter 
     // ========================================================================================
     
+    /* @brief Returns the value of the stabilization parameter (SUPG/PSPG)
+     *
+     * @param[in] localdiff  Kinematic viscosity
+     * @param[in] xvl  x-component of the velocity
+     * @param[in] yvl  y-component of the velocity
+     * @param[in] zvl  z-component of the velocity
+     * @param[in] h  Element diameter
+     * @return SUPG/PSPG stabilization parameter (type AD)
+     *
+     */
+
     AD computeTau(const AD & localdiff, const AD & xvl, const AD & yvl, const AD & zvl, const ScalarT & h) const;
     
   private:
@@ -78,7 +89,7 @@ namespace MrHyDE {
     int ux_num, uy_num, uz_num, pr_num, e_num;
     
     bool useSUPG, usePSPG;
-    
+
     vector<ScalarT> pik;
     bool pin_pr, have_energy;
     ScalarT pin_tol, pin_scale, T_ambient, beta;

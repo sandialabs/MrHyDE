@@ -1,0 +1,6 @@
+When I went to do a convergence study, solutions started diverging for 4x and 8x refinement.
+If we use the solver settings from the NS channel example, things are better behaved.
+
+e.g. --> use direct solver: true
+
+I'm leaving the original solver settings for now regardless.
