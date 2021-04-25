@@ -66,48 +66,59 @@ typedef Teuchos::MpiComm<int> MpiComm;
 typedef Sacado::Fad::DFad<ScalarT> DFAD; // used only when absolutely necessary
 typedef Sacado::Fad::SFad<ScalarT,maxDerivs> AD;
 
-// Kokkos Execution Space typedefs
-// Format: Kokkos::*
-// Options: Serial, OpenMP, Threads, Cuda
-typedef Kokkos::Serial HostExec; // cannot be Cuda right now
+// Host Execution Space
+#if defined(MrHyDE_HOSTEXEC_OPENMP)
+  typedef Kokkos::OpenMP HostExec;
+#else
+  typedef Kokkos::Serial HostExec;
+#endif
+
+// Host Memory Space
+typedef Kokkos::HostSpace HostMem;
+
+// Assembly Execution Space
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
   typedef Kokkos::Cuda AssemblyExec;
+#elseif defined(MrHyDE_ASSEMBLYSPACE_OPENMP)
+  typedef Kokkos::OpenMP AssemblyExec;
 #else
   typedef Kokkos::Serial AssemblyExec;
 #endif
 
-// Kokkos contiguous layout for optimal use of hierarchical parallelism
-typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,VectorSize> ContLayout;
-//typedef Kokkos::LayoutContiguous<Kokkos::LayoutStride,VectorSize> ContLayout;
-
-// Kokkos Memory Space typedefs
-// Format: Kokkos::*
-// Options: HostSpace, CudaSpace, CudaUVMSpace
-typedef Kokkos::HostSpace HostMem; // cannot be CudaSpace right now
+// Assembly Memory Space (No UVM option)
 #if defined(MrHyDE_ASSEMBLYMEM_CUDA)
   typedef Kokkos::CudaSpace AssemblyMem;
-#elif defined(MrHyDE_ASSEMBLYMEM_CUDAUVM) // to be deprecated
-  typedef Kokkos::CudaUVMSpace AssemblyMem;
 #else
   typedef Kokkos::HostSpace AssemblyMem;
 #endif
 
-// Kokkos Node typedefs
-// Format: Kokkos::Compat::Kokkos*WrapperNode
-// Options: Serial, OpenMP, Threads, Cuda
-typedef Kokkos::Compat::KokkosSerialWrapperNode HostNode;
+// Host Node
+#if defined(MrHyDE_SOLVERSPACE_OPENMP)
+  typedef Kokkos::Compat::KokkosOpenMPWrapperNode HostNode;
+#else
+  typedef Kokkos::Compat::KokkosSerialWrapperNode HostNode;
+#endif
+
+// Assembly Node
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
   typedef Kokkos::Compat::KokkosCudaWrapperNode AssemblyNode;
+#elseif defined(MrHyDE_ASSEMBLYSPACE_OPENMP)
+  typedef Kokkos::Compat::KokkosOpenMPWrapperNode AssemblyNode;
 #else
   typedef Kokkos::Compat::KokkosSerialWrapperNode AssemblyNode;
 #endif
+
+// Solver Node
 #if defined(MrHyDE_SOLVERSPACE_CUDA)
   typedef Kokkos::Compat::KokkosCudaWrapperNode SolverNode;
+#elseif defined(MrHyDE_SOLVERSPACE_OPENMP)
+  typedef Kokkos::Compat::KokkosOpenMPWrapperNode SolverNode;
 #else
   typedef Kokkos::Compat::KokkosSerialWrapperNode SolverNode;
 #endif
+
+// Subgrid Solver Node (defaults to assembly node)
 typedef AssemblyNode SubgridSolverNode;
-//typedef typename SolverNode::device_type SolverDevice;
 
 // Typedef Kokkos devices based on Exec, Mem
 typedef Kokkos::Device<HostExec,HostMem> HostDevice;
@@ -120,6 +131,8 @@ typedef Kokkos::View<LO**,HostDevice> LIDView_host;
 typedef Kokkos::View<ScalarT*>::size_type size_type;
 
 // Use ContLayout for faster hierarchical parallelism
+typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,VectorSize> ContLayout;
+
 typedef Kokkos::View<AD*,ContLayout,AssemblyDevice> View_AD1;
 typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2; // replaces FDATA
 typedef Kokkos::View<AD***,ContLayout,AssemblyDevice> View_AD3;
