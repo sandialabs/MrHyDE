@@ -86,7 +86,7 @@ typedef Kokkos::HostSpace HostMem;
 #endif
 
 // Assembly Memory Space (No UVM option)
-#if defined(MrHyDE_ASSEMBLYMEM_CUDA)
+#if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
   typedef Kokkos::CudaSpace AssemblyMem;
 #else
   typedef Kokkos::HostSpace AssemblyMem;
