@@ -620,7 +620,7 @@ void AssemblyManager<Node>::setInitial(vector_RCP & rhs, matrix_RCP & mass, cons
           for( size_type col=0; col<LIDs.extent(1); col++ ) {
             ScalarT vals = scale*host_mass(e,row,col);
             LO cols = LIDs(e,col);
-            localMatrix.sumIntoValues(rowIndex, &cols, 1, &vals, true, false); // isSorted, useAtomics
+            localMatrix.sumIntoValues(rowIndex, &cols, 1, &vals, true, true); // isSorted, useAtomics
             // the LIDs are actually not sorted, but this appears to run a little faster
           }
           

@@ -79,7 +79,7 @@ typedef Kokkos::HostSpace HostMem;
 // Assembly Execution Space
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
   typedef Kokkos::Cuda AssemblyExec;
-#elseif defined(MrHyDE_ASSEMBLYSPACE_OPENMP)
+#elif defined(MrHyDE_ASSEMBLYSPACE_OPENMP)
   typedef Kokkos::OpenMP AssemblyExec;
 #else
   typedef Kokkos::Serial AssemblyExec;
@@ -102,7 +102,7 @@ typedef Kokkos::HostSpace HostMem;
 // Assembly Node
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
   typedef Kokkos::Compat::KokkosCudaWrapperNode AssemblyNode;
-#elseif defined(MrHyDE_ASSEMBLYSPACE_OPENMP)
+#elif defined(MrHyDE_ASSEMBLYSPACE_OPENMP)
   typedef Kokkos::Compat::KokkosOpenMPWrapperNode AssemblyNode;
 #else
   typedef Kokkos::Compat::KokkosSerialWrapperNode AssemblyNode;
@@ -111,7 +111,7 @@ typedef Kokkos::HostSpace HostMem;
 // Solver Node
 #if defined(MrHyDE_SOLVERSPACE_CUDA)
   typedef Kokkos::Compat::KokkosCudaWrapperNode SolverNode;
-#elseif defined(MrHyDE_SOLVERSPACE_OPENMP)
+#elif defined(MrHyDE_SOLVERSPACE_OPENMP)
   typedef Kokkos::Compat::KokkosOpenMPWrapperNode SolverNode;
 #else
   typedef Kokkos::Compat::KokkosSerialWrapperNode SolverNode;
