@@ -61,7 +61,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
     #define use_atomics true
   #else
-    #define use_atomics false
+    #define use_atomics true //false
   #endif
   string solver_type = settings->sublist("Solver").get<string>("solver","none"); // or "transient"
   isTransient = false;
