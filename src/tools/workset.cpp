@@ -92,15 +92,7 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
       u_dotvals.push_back(View_AD2("seeded uvals",numElem, maxb, maxDerivs));
     }
   }
-  
-  // TMW: temporary setting
-  int maxscratch = dimension+1;
-  int scratch_concurrency = numElem;
-  if (AssemblyExec::concurrency() == 1) {
-    scratch_concurrency = 1;
-  }
-  scratch = View_AD3("workset scratch",scratch_concurrency, numip, maxscratch);
-  
+    
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

@@ -445,116 +445,6 @@ void stokes::volumeResidual() {
 
 void stokes::boundaryResidual() {
   
-  /*
-  auto bcs = wkset->var_bcs;
-  
-  int cside = wkset->currentside;
-  string bctype = bcs(e_num,cside);
-
-  auto basis = wkset->basis_side[e_basis_num];
-  auto basis_grad = wkset->basis_grad_side[e_basis_num];
-  
-  View_AD2 nsource, diff_side, robin_alpha;
-  {
-    Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
-    
-    if (bctype == "weak Dirichlet" ) {
-      nsource = functionManager->evaluate("Dirichlet e " + wkset->sidename,"side ip");
-    }
-    else if (bctype == "Neumann") {
-      nsource = functionManager->evaluate("Neumann e " + wkset->sidename,"side ip");
-    }
-    diff_side = functionManager->evaluate("thermal diffusion","side ip");
-    robin_alpha = functionManager->evaluate("robin alpha","side ip");
-    
-  }
-  
-  ScalarT sf = formparam;
-  if (wkset->isAdjoint) {
-    sf = 1.0;
-    adjrhs = wkset->adjrhs;
-  }
-  
-  Teuchos::TimeMonitor localtime(*boundaryResidualFill);
-  
-  auto wts = wkset->wts_side;
-  auto h = wkset->h;
-  auto res = wkset->res;
-  auto off = subview( wkset->offsets, e_num, ALL());
-  auto scratch = wkset->scratch;
-  
-  // Contributes
-  // <g(u),v> + <p(u),grad(v)\cdot n>
-  
-  if (bcs(e_num,cside) == "Neumann") { // Neumann BCs
-    parallel_for("Thermal bndry resid part 1",
-                 TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      for (size_type pt=team.team_rank(); pt<wts.extent(1); pt+=team.team_size() ) {
-        scratch(elem,pt,0) = -nsource(elem,pt)*wts(elem,pt);
-      }
-    });
-    parallel_for("Thermal bndry resid part 2",
-                 TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
-        for (size_type pt=0; pt<basis.extent(2); ++pt ) {
-          res(elem,off(dof)) += scratch(elem,pt,0)*basis(elem,dof,pt,0);
-        }
-      }
-    });
-  }
-  else if (bcs(e_num,cside) == "weak Dirichlet" || bcs(e_num,cside) == "interface") {
-    auto T = e_side;
-    auto dTdx = dedx_side;
-    auto dTdy = dedy_side;
-    auto dTdz = dedz_side;
-    auto nx = wkset->getDataSc("nx side");
-    auto ny = wkset->getDataSc("ny side");
-    auto nz = wkset->getDataSc("nz side");
-    View_AD2 bdata;
-    if (bcs(e_num,cside) == "weak Dirichlet") {
-      bdata = nsource;
-    }
-    else if (bcs(e_num,cside) == "interface") {
-      bdata = wkset->getData("aux e side");
-    }
-    parallel_for("Thermal bndry resid wD",
-                 TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      for (size_type pt=team.team_rank(); pt<wts.extent(1); pt+=team.team_size() ) {
-        scratch(elem,pt,0) = 10.0/h(elem)*diff_side(elem,pt)*(T(elem,pt)-bdata(elem,pt));
-        scratch(elem,pt,0) += -diff_side(elem,pt)*dTdx(elem,pt)*nx(elem,pt);
-        scratch(elem,pt,0) += -diff_side(elem,pt)*dTdy(elem,pt)*ny(elem,pt);
-        scratch(elem,pt,0) += -diff_side(elem,pt)*dTdz(elem,pt)*nz(elem,pt);
-        
-        scratch(elem,pt,1) = -sf*diff_side(elem,pt)*(T(elem,pt) - bdata(elem,pt));
-        scratch(elem,pt,0) *= wts(elem,pt);
-        scratch(elem,pt,1) *= wts(elem,pt);
-      }
-    });
-    parallel_for("Thermal bndry resid part 2",
-                 TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
-        for (size_type pt=0; pt<basis.extent(2); ++pt ) {
-          ScalarT gradv_dot_n = basis_grad(elem,dof,pt,0)*nx(elem,pt);
-          if (basis_grad.extent(3) > 1) {
-            gradv_dot_n += basis_grad(elem,dof,pt,1)*ny(elem,pt);
-          }
-          if (basis_grad.extent(3) > 2) {
-            gradv_dot_n += basis_grad(elem,dof,pt,2)*nz(elem,pt);
-          }
-          res(elem,off(dof)) += scratch(elem,pt,0)*basis(elem,dof,pt,0) + scratch(elem,pt,1)*gradv_dot_n;
-        }
-      }
-    });
-  }
-  */
 }
 
 // ========================================================================================
@@ -573,7 +463,6 @@ void stokes::setWorkset(Teuchos::RCP<workset> & wkset_) {
   wkset = wkset_;
   vector<string> varlist = wkset->varlist;
 
-  //    e_num = -1;
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "ux")
       ux_num = i;
@@ -583,9 +472,6 @@ void stokes::setWorkset(Teuchos::RCP<workset> & wkset_) {
       uy_num = i;
     if (varlist[i] == "uz")
       uz_num = i;
-    //      if (varlist[i] == "e")
-    //        e_num = i;
   }
-  //    if (e_num >= 0)
-  //      have_energy = true;
+  
 }

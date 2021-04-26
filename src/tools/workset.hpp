@@ -327,7 +327,7 @@ namespace MrHyDE {
     vector<View_Sc4> basis, basis_grad, basis_curl, basis_side, basis_grad_side, basis_curl_side;
     vector<View_Sc3> basis_div;
         
-    View_AD3 scratch, flux;
+    View_AD3 flux;
     View_AD2 res, adjrhs;
     
     int sidetype;

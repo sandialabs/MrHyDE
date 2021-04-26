@@ -196,6 +196,7 @@ int main(int argc, char * argv[]) {
         scratch(myscratch,pt,1) = diff(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
         scratch(myscratch,pt,2) = diff(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
       }
+      
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           res2(elem,dof) += scratch(myscratch,pt,0)*basis(elem,dof,pt,0) + scratch(myscratch,pt,1)*basis_grad(elem,dof,pt,0) + scratch(myscratch,pt,2)*basis_grad(elem,dof,pt,1);

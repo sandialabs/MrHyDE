@@ -77,7 +77,6 @@ void thermal::volumeResidual() {
     cp = functionManager->evaluate("specific heat","ip");
     rho = functionManager->evaluate("density","ip");
   }
-  Kokkos::fence();
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
  
@@ -93,7 +92,6 @@ void thermal::volumeResidual() {
   auto dTdt = dedt_vol;
   
   auto off = subview( wkset->offsets, e_num, ALL());
-  auto scratch = wkset->scratch;
   bool have_nsvel_ = have_nsvel;
   
   auto dTdx = dedx_vol;
@@ -107,40 +105,30 @@ void thermal::volumeResidual() {
                TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
                KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
     int elem = team.league_rank();
-    int myscratch = elem % scratch.extent(0);
-    for (size_type pt=team.team_rank(); pt<source.extent(1); pt+=team.team_size() ) {
-      scratch(myscratch,pt,0) = (rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt))*wts(elem,pt);
-      scratch(myscratch,pt,1) = diff(elem,pt)*dTdx(elem,pt)*wts(elem,pt);
-      if (spaceDim > 1) {
-        scratch(myscratch,pt,2) = diff(elem,pt)*dTdy(elem,pt)*wts(elem,pt);
-        if (spaceDim > 2) {
-          scratch(myscratch,pt,3) = diff(elem,pt)*dTdz(elem,pt)*wts(elem,pt);
-        }
-      }
-      if (have_nsvel_) {
-        if (spaceDim == 1) {
-          scratch(myscratch,pt,0) += Ux(elem,pt)*dTdx(elem,pt)*wts(elem,pt);
-        }
-        else if (spaceDim == 2) {
-          scratch(myscratch,pt,0) += (Ux(elem,pt)*dTdx(elem,pt) + Uy(elem,pt)*dTdy(elem,pt))*wts(elem,pt);
-        }
-        else {
-          scratch(myscratch,pt,0) += (Ux(elem,pt)*dTdx(elem,pt) + Uy(elem,pt)*dTdy(elem,pt) + Uz(elem,pt)*dTdz(elem,pt))*wts(elem,pt);
-        }
-      }
-    }
-    
     for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
       for (size_type pt=0; pt<basis.extent(2); ++pt ) {
-        res(elem,off(dof)) += scratch(myscratch,pt,0)*basis(elem,dof,pt,0);
-        for (int dim=0; dim<spaceDim; ++dim) {
-          res(elem,off(dof)) += scratch(myscratch,pt,dim+1)*basis_grad(elem,dof,pt,dim);
+        res(elem,off(dof)) += (rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt))*wts(elem,pt)*basis(elem,dof,pt,0);
+        res(elem,off(dof)) += diff(elem,pt)*dTdx(elem,pt)*wts(elem,pt)*basis_grad(elem,dof,pt,0);
+        if (spaceDim > 1) {
+          res(elem,off(dof)) += diff(elem,pt)*dTdy(elem,pt)*wts(elem,pt)*basis_grad(elem,dof,pt,1);
+        }
+        if (spaceDim > 2) {
+          res(elem,off(dof)) += diff(elem,pt)*dTdz(elem,pt)*wts(elem,pt)*basis_grad(elem,dof,pt,2);
+        }
+        if (have_nsvel_) {
+          if (spaceDim == 1) {
+            res(elem,off(dof)) += Ux(elem,pt)*dTdx(elem,pt)*wts(elem,pt)*basis(elem,dof,pt,0);
+          }
+          else if (spaceDim == 2) {
+            res(elem,off(dof)) += (Ux(elem,pt)*dTdx(elem,pt) + Uy(elem,pt)*dTdy(elem,pt))*wts(elem,pt)*basis(elem,dof,pt,0);
+          }
+          else {
+            res(elem,off(dof)) += (Ux(elem,pt)*dTdx(elem,pt) + Uy(elem,pt)*dTdy(elem,pt) + Uz(elem,pt)*dTdz(elem,pt))*wts(elem,pt)*basis(elem,dof,pt,0);
+          }
         }
       }
     }
   });
-  
-  Kokkos::fence();
   
 }
 
@@ -185,7 +173,6 @@ void thermal::boundaryResidual() {
   auto h = wkset->h;
   auto res = wkset->res;
   auto off = subview( wkset->offsets, e_num, ALL());
-  auto scratch = wkset->scratch;
   int dim = wkset->dimension;
   
   // Contributes
@@ -196,13 +183,9 @@ void thermal::boundaryResidual() {
                  TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      int myscratch = elem % scratch.extent(0);
-      for (size_type pt=team.team_rank(); pt<wts.extent(1); pt+=team.team_size() ) {
-        scratch(myscratch,pt,0) = -nsource(elem,pt)*wts(elem,pt);
-      }
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
         for (size_type pt=0; pt<basis.extent(2); ++pt ) {
-          res(elem,off(dof)) += scratch(myscratch,pt,0)*basis(elem,dof,pt,0);
+          res(elem,off(dof)) += -nsource(elem,pt)*wts(elem,pt)*basis(elem,dof,pt,0);
         }
       }
     });
@@ -226,6 +209,7 @@ void thermal::boundaryResidual() {
                  TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
+      /*
       int myscratch = elem % scratch.extent(0);
       for (size_type pt=team.team_rank(); pt<wts.extent(1); pt+=team.team_size() ) {
         scratch(myscratch,pt,0) = 10.0/h(elem)*diff_side(elem,pt)*(T(elem,pt)-bdata(elem,pt));
@@ -240,6 +224,35 @@ void thermal::boundaryResidual() {
         scratch(myscratch,pt,0) *= wts(elem,pt);
         scratch(myscratch,pt,1) *= wts(elem,pt);
       }
+       */
+      if (dim == 1) {
+        for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
+          for (size_type pt=0; pt<basis.extent(2); ++pt ) {
+            res(elem,off(dof)) += 10.0/h(elem)*diff_side(elem,pt)*(T(elem,pt)-bdata(elem,pt))*wts(elem,pt)*basis(elem,dof,pt,0);
+            res(elem,off(dof)) += -diff_side(elem,pt)*dTdx(elem,pt)*nx(elem,pt)*wts(elem,pt)*basis(elem,dof,pt,0);
+            res(elem,off(dof)) += -sf*diff_side(elem,pt)*(T(elem,pt) - bdata(elem,pt))*wts(elem,pt)*basis_grad(elem,dof,pt,0)*nx(elem,pt);
+          }
+        }
+      }
+      else if (dim == 2) {
+        for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
+          for (size_type pt=0; pt<basis.extent(2); ++pt ) {
+            res(elem,off(dof)) += 10.0/h(elem)*diff_side(elem,pt)*(T(elem,pt)-bdata(elem,pt))*wts(elem,pt)*basis(elem,dof,pt,0);
+            res(elem,off(dof)) += -diff_side(elem,pt)*(dTdx(elem,pt)*nx(elem,pt)+dTdy(elem,pt)*ny(elem,pt))*wts(elem,pt)*basis(elem,dof,pt,0);
+            res(elem,off(dof)) += -sf*diff_side(elem,pt)*(T(elem,pt) - bdata(elem,pt))*wts(elem,pt)*(basis_grad(elem,dof,pt,0)*nx(elem,pt) + basis_grad(elem,dof,pt,1)*ny(elem,pt));
+          }
+        }
+      }
+      else {
+        for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
+          for (size_type pt=0; pt<basis.extent(2); ++pt ) {
+            res(elem,off(dof)) += 10.0/h(elem)*diff_side(elem,pt)*(T(elem,pt)-bdata(elem,pt))*wts(elem,pt)*basis(elem,dof,pt,0);
+            res(elem,off(dof)) += -diff_side(elem,pt)*(dTdx(elem,pt)*nx(elem,pt)+dTdy(elem,pt)*ny(elem,pt)+dTdz(elem,pt)*nz(elem,pt))*wts(elem,pt)*basis(elem,dof,pt,0);
+            res(elem,off(dof)) += -sf*diff_side(elem,pt)*(T(elem,pt) - bdata(elem,pt))*wts(elem,pt)*(basis_grad(elem,dof,pt,0)*nx(elem,pt) + basis_grad(elem,dof,pt,1)*ny(elem,pt) + + basis_grad(elem,dof,pt,2)*nz(elem,pt));
+          }
+        }
+      }
+      /*
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
         for (size_type pt=0; pt<basis.extent(2); ++pt ) {
           ScalarT gradv_dot_n = basis_grad(elem,dof,pt,0)*nx(elem,pt);
@@ -251,7 +264,7 @@ void thermal::boundaryResidual() {
           }
           res(elem,off(dof)) += scratch(myscratch,pt,0)*basis(elem,dof,pt,0) + scratch(myscratch,pt,1)*gradv_dot_n;
         }
-      }
+      }*/
     });
     //if (wkset->isAdjoint) {
     //  adjrhs(e,resindex) += sf*diff_side(e,k)*gradv_dot_n*lambda - weakDiriScale*lambda*basis(e,i,k);
