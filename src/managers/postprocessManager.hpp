@@ -325,12 +325,6 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> writeSolutionSolIPTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::postprocess::writeSolution - solution to ip");
   };
   
-  // Explicit template instantiations
-  //template class PostprocessManager<SolverNode>;
-  //#if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
-  //  template class PostprocessManager<SubgridSolverNode>;
-  //#endif
-
 }
 
 #endif

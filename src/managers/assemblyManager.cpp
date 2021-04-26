@@ -17,7 +17,7 @@
 using namespace MrHyDE;
 
 template class MrHyDE::AssemblyManager<SolverNode>;
-#if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
+#if MrHyDE_REQ_SUBGRID_ETI
   template class MrHyDE::AssemblyManager<SubgridSolverNode>;
 #endif
 
@@ -1600,9 +1600,6 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
   // Make sure the functor can access the necessary data
   auto fixedDOF = isFixedDOF;
   auto res = wkset[block]->res;
-  if (isAdjoint) {
-    //res = wkset[block]->adjrhs;
-  }
   auto offsets = wkset[block]->offsets;
   auto numDOF = cellData[block]->numDOF;
   bool lump_mass_ = lump_mass, use_atomics_ = use_atomics, compute_sens_ = compute_sens,
