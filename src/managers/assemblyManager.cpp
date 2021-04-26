@@ -56,13 +56,6 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   
   assembly_partitioning = settings->sublist("Solver").get<string>("assembly partitioning","sequential"); // "neighbor-avoiding"
   
-  // TMW: Do we really want the user to have control over this?  Probably not ... redefining if on Cuda
-  //use_atomics = settings->sublist("Solver").get<bool>("use atomics",false); // not needed if assembly partitioning is done correctly
-  #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
-    #define use_atomics true
-  #else
-    #define use_atomics true //false
-  #endif
   string solver_type = settings->sublist("Solver").get<string>("solver","none"); // or "transient"
   isTransient = false;
   if (solver_type == "transient") {
@@ -1496,7 +1489,10 @@ void AssemblyManager<Node>::scatterJac(MatType J_kcrs, LocalViewType local_J,
   /////////////////////////////////////
   
   auto fixedDOF = isFixedDOF;
-  bool use_atomics_ = use_atomics;
+  bool use_atomics_ = false;
+  if (LA_exec::concurrency() > 1) {
+    use_atomics_ = true;
+  }
   
   if (compute_disc_sens) {
     parallel_for("assembly insert Jac sens",
@@ -1552,7 +1548,10 @@ void AssemblyManager<Node>::scatterRes(VecViewType res_view, LocalViewType local
   /////////////////////////////////////
   
   auto fixedDOF = isFixedDOF;
-  bool use_atomics_ = use_atomics;
+  bool use_atomics_ = false;
+  if (LA_exec::concurrency() > 1) {
+    use_atomics_ = true;
+  }
   
   parallel_for("assembly scatter res",
                RangePolicy<LA_exec>(0,LIDs.extent(0)),
@@ -1602,9 +1601,13 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
   auto res = wkset[block]->res;
   auto offsets = wkset[block]->offsets;
   auto numDOF = cellData[block]->numDOF;
-  bool lump_mass_ = lump_mass, use_atomics_ = use_atomics, compute_sens_ = compute_sens,
+  bool lump_mass_ = lump_mass, compute_sens_ = compute_sens,
   isAdjoint_ = isAdjoint, compute_jacobian_ = compute_jacobian;
   
+  bool use_atomics_ = false;
+  if (LA_exec::concurrency() > 1) {
+    use_atomics_ = true;
+  }
   
   parallel_for("assembly insert Jac",
                RangePolicy<LA_exec>(0,LIDs.extent(0)),
