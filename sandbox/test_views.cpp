@@ -25,12 +25,12 @@ int main(int argc, char * argv[]) {
 #define TeamSize 1
     std::cout << "Team size: " << TeamSize << std::endl;
   
-#define numDerivs 4
+#define numDerivs 32
     typedef Sacado::Fad::SFad<ScalarT,numDerivs> EvalT;
     
-#define VectorSize 32
-    std::cout << "Vector size: " << VectorSize << std::endl;
-    typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,VectorSize> CL;
+#define VSize 32
+    std::cout << "Vector size: " << VSize << std::endl;
+    typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,VSize> CL;
 
     int numip = 4;
     int dimension = 2;
@@ -52,7 +52,7 @@ int main(int argc, char * argv[]) {
     Kokkos::View<EvalT**,CL,AssemblyDevice> dT_dy("dTdy",numElem,numip,numDerivs);
     Kokkos::View<EvalT**,CL,AssemblyDevice> diff("diff",numElem,numip,numDerivs);
     Kokkos::View<EvalT**,CL,AssemblyDevice> source("src",numElem,numip,numDerivs);
-    Kokkos::View<ScalarT**,CL,AssemblyDevice> wts("wts",numElem,numip);
+    Kokkos::View<ScalarT**,AssemblyDevice> wts("wts",numElem,numip);
     
     parallel_for("Thermal volume resid 2D",
                  RangePolicy<AssemblyExec>(0,basis.extent(0)),
@@ -69,7 +69,7 @@ int main(int argc, char * argv[]) {
     Kokkos::View<EvalT**,CL,AssemblyDevice> res("res",numElem,numdof,numDerivs);
     Kokkos::View<EvalT**,CL,AssemblyDevice> res2("res2",numElem,numdof,numDerivs);
     
-    Kokkos::View<ScalarT***,CL,AssemblyDevice> rJdiff("error",numElem,numdof,numDerivs+1);
+    Kokkos::View<ScalarT***,AssemblyDevice> rJdiff("error",numElem,numdof,numDerivs+1);
    
     int scratch_concurrency = std::min(AssemblyExec::concurrency(),numElem);
     
@@ -105,7 +105,7 @@ int main(int argc, char * argv[]) {
       
     timer.reset();
     parallel_for("Thermal volume resid 2D",
-                 TeamPolicy(basis.extent(0), Kokkos::AUTO, VectorSize),
+                 TeamPolicy(basis.extent(0), Kokkos::AUTO, VSize),
                  KOKKOS_LAMBDA (member_type team ) {
       int elem = team.league_rank();
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
@@ -125,13 +125,68 @@ int main(int argc, char * argv[]) {
     
     Kokkos::deep_copy(res2,0.0); 
 
+    
+    ////////////////////////////////////////////////
+    // Hierarchical version 1: team over (elem,dof)
+    ////////////////////////////////////////////////
+
+    timer.reset();
+    parallel_for("Thermal volume resid 2D",
+                 TeamPolicy(basis.extent(0), Kokkos::AUTO, VSize),
+                 KOKKOS_LAMBDA (member_type team ) {
+      int elem = team.league_rank();
+      for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
+        EvalT f(0.0), DFx(0.0), DFy(0.0);
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          f = -1.0*source(elem,pt)*wts(elem,pt);
+          DFx = diff(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
+          DFy = diff(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
+          res2(elem,dof) += f*basis(elem,dof,pt,0) + DFx*basis_grad(elem,dof,pt,0) + DFy*basis_grad(elem,dof,pt,1);
+        }
+      }
+    });
+    
+    Kokkos::fence();
+    double sol_time3a = timer.seconds();
+    printf("MD3 ratio:   %e \n", sol_time3a/sol_time1);
+    
+    Kokkos::deep_copy(res2,0.0);
+
+    ////////////////////////////////////////////////
+    // Hierarchical version 1: team over (elem,dof)
+    ////////////////////////////////////////////////
+
+    typedef typename Kokkos::ThreadLocalScalarType<decltype(res2)>::type local_scalar_type;
+
+    timer.reset();
+    parallel_for("Thermal volume resid 2D",
+                 TeamPolicy(basis.extent(0), Kokkos::AUTO, VSize),
+                 KOKKOS_LAMBDA (member_type team ) {
+      int elem = team.league_rank();
+      for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
+        local_scalar_type f(0.0), DFx(0.0), DFy(0.0);
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          f = -1.0*source(elem,pt)*wts(elem,pt);
+          DFx = diff(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
+          DFy = diff(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
+          res2(elem,dof) += f*basis(elem,dof,pt,0) + DFx*basis_grad(elem,dof,pt,0) + DFy*basis_grad(elem,dof,pt,1);
+        }
+      }
+    });
+    
+    Kokkos::fence();
+    double sol_time3b = timer.seconds();
+    printf("MD4 ratio:   %e \n", sol_time3b/sol_time1);
+    
+    Kokkos::deep_copy(res2,0.0);
+
     ////////////////////////////////////////////////
     // Hierarchical version 2: team over (elem,pt) to fill scratch, then team over (elem,dof)
     ////////////////////////////////////////////////
     
     timer.reset();
     parallel_for("Thermal volume resid 2D",
-                 TeamPolicy(basis.extent(0), Kokkos::AUTO, VectorSize),
+                 TeamPolicy(basis.extent(0), Kokkos::AUTO, VSize),
                  KOKKOS_LAMBDA (member_type team ) {
       int elem = team.league_rank();
       int myscratch = elem % scratch.extent(0);
@@ -279,7 +334,7 @@ int main(int argc, char * argv[]) {
     
     timer.reset();
     parallel_for("wkset soln ip HGRAD",
-                 Policy(basis.extent(0), Kokkos::AUTO, VectorSize),
+                 Policy(basis.extent(0), Kokkos::AUTO, VSize),
                  KOKKOS_LAMBDA (member_type team ) {
       int elem = team.league_rank();
       int ti = team.team_rank();
