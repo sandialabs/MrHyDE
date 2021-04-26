@@ -95,7 +95,10 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   
   // TMW: temporary setting
   int maxscratch = dimension+1;
-  int scratch_concurrency = std::min(AssemblyExec::concurrency(),numElem);
+  int scratch_concurrency = numElem;
+  if (AssemblyExec::concurrency() == 1) {
+    scratch_concurrency = 1;
+  }
   scratch = View_AD3("workset scratch",scratch_concurrency, numip, maxscratch);
   
 }
