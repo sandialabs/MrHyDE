@@ -121,9 +121,9 @@ typedef Kokkos::HostSpace HostMem;
 typedef AssemblyNode SubgridSolverNode;
 
 // Need to determine if the SolverNode == SubgridSolverNode for explicit template instantiation
-#if defined(MrHyDE_SOLVERSPACE_CUDA) && !defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+#if defined(MrHyDE_ASSEMBLYSPACE_CUDA) && !defined(MrHyDE_SOLVERSPACE_CUDA)
   #define MrHyDE_REQ_SUBGRID_ETI true
-#elif defined(MrHyDE_SOLVERSPACE_OPENMP) && !defined(MrHyDE_ASSEMBLYSPACE_OPENMP)
+#elif defined(MrHyDE_ASSEMBLYSPACE_OPENMP) && !defined(MrHyDE_SOLVERSPACE_OPENMP)
   #define MrHyDE_REQ_SUBGRID_ETI true
 #else
   #define MrHyDE_REQ_SUBGRID_ETI false
