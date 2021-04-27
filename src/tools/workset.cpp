@@ -93,6 +93,13 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
     }
   }
     
+  
+#if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+  maxTeamSize = 256 / VectorSize;
+#else
+  maxTeamSize = 1;
+#endif
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

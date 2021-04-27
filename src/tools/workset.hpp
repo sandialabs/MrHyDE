@@ -291,7 +291,7 @@ namespace MrHyDE {
     bool isAdjoint, onlyTransient, isTransient;
     bool isInitialized, usebcs;
     topo_RCP celltopo;
-    size_t numsides, numip, numsideip, numVars, numParams, numAux, maxRes;
+    size_t numsides, numip, numsideip, numVars, numParams, numAux, maxRes, maxTeamSize;
     int dimension, numElem, current_stage;
     size_type maxElem;
     Kokkos::View<int*,AssemblyDevice> current_stage_KV; // for access on device

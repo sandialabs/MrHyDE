@@ -101,8 +101,10 @@ void thermal::volumeResidual() {
   auto Uy = uy_vol;
   auto Uz = uz_vol;
   
+  size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));
+  
   parallel_for("Thermal volume resid 3D part 1",
-               TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
+               TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VectorSize),
                KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
     int elem = team.league_rank();
     for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
