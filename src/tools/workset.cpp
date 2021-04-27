@@ -742,8 +742,10 @@ void workset::computeSoln(const int & type, const bool & onside) {
         cbasis_grad = basis_grad_side[basis_index[varind]];
       }
       
+      size_t teamSize = std::min(maxTeamSize,cbasis.extent(2));
+      
       parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         size_type dim = cbasis_grad.extent(3);
@@ -773,7 +775,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
         auto csol_t = this->getData(var+"_t");
         auto cu_dotvals = soldotvals[varind];
         parallel_for("wkset soln ip HGRAD transient",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
