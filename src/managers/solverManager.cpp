@@ -43,8 +43,6 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
     }
   }
   
-  
-  
   numEvaluations = 0;
   
   // Get the required information from the settings
@@ -1216,7 +1214,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     }
     
     if (debug_level>2) {
-      //KokkosTools::print(res,"residual from solver interface");
+      KokkosTools::print(res,"residual from solver interface");
     }
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
     if (NLiter == 0) {
@@ -1224,6 +1222,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
         Teuchos::TimeMonitor localtimer(*normLAtimer);
         res->normInf(NLerr_first);
       }
+      NLerr[0] = NLerr_first[0];
       if (NLerr_first[0] > 1.0e-14)
         NLerr_scaled[0] = 1.0;
       else
@@ -1256,7 +1255,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       linalg->fillComplete(J);
       
       if (debug_level>2) {
-        //KokkosTools::print(J,"Jacobian from solver interface");
+        KokkosTools::print(J,"Jacobian from solver interface");
       }
       du->putScalar(0.0);
       du_over->putScalar(0.0);

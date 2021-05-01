@@ -441,7 +441,7 @@ void DiscretizationInterface::getQuadrature(const topo_RCP & cellTopo, const int
                                             DRV & ip, DRV & wts) {
   
   Intrepid2::DefaultCubatureFactory cubFactory;
-  Teuchos::RCP<Intrepid2::Cubature<PHX::Device::execution_space> > basisCub  = cubFactory.create<PHX::Device::execution_space, ScalarT, ScalarT>(*cellTopo, order); // TMW: the mesh sublist is not the correct place
+  Teuchos::RCP<Intrepid2::Cubature<PHX::Device::execution_space> > basisCub  = cubFactory.create<PHX::Device::execution_space, ScalarT, ScalarT>(*cellTopo, order); 
   int cubDim  = basisCub->getDimension();
   int numCubPoints = basisCub->getNumPoints();
   ip = DRV("ip", numCubPoints, cubDim);

@@ -119,7 +119,8 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<AssemblyManager<SolverNode> > assembler = Teuchos::rcp( new AssemblyManager<SolverNode>(Comm, settings, mesh->stk_mesh,
                                                                                                          disc, phys, params));
     
-    mesh->setMeshData(assembler->cells);
+    mesh->setMeshData(assembler->cells,
+                      assembler->boundaryCells);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Create the function managers

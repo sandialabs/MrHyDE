@@ -246,12 +246,6 @@ void linearelasticity::boundaryResidual() {
   
   int cside = wkset->currentside;
   
-  //TMW : will be an error using formparam \neq 1.0 with adjoints
-  //ScalarT sf = formparam;
-  //if (wkset->isAdjoint) {
-  //  sf = 1.0;
-  //}
-  
   string dx_sidetype = bcs(dx_num,cside);
   string dy_sidetype = "Dirichlet";
   string dz_sidetype = "Dirichlet";
@@ -262,20 +256,29 @@ void linearelasticity::boundaryResidual() {
     dz_sidetype = bcs(dz_num,cside);
   }
   
-  View_AD2 lambda_side, mu_side, sourceN_dx, sourceN_dy, sourceN_dz;
+  View_AD2 lambda_side, mu_side, source_dx, source_dy, source_dz;
   
   if (dx_sidetype != "Dirichlet" || dy_sidetype != "Dirichlet" || dz_sidetype != "Dirichlet") {
     
     {
       Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
       if (dx_sidetype == "Neumann") {
-        sourceN_dx = functionManager->evaluate("Neumann dx " + wkset->sidename,"side ip");
+        source_dx = functionManager->evaluate("Neumann dx " + wkset->sidename,"side ip");
+      }
+      else if (dx_sidetype == "weak Dirichlet") {
+        source_dx = functionManager->evaluate("Dirichlet dx " + wkset->sidename,"side ip");
       }
       if (dy_sidetype == "Neumann") {
-        sourceN_dy = functionManager->evaluate("Neumann dy " + wkset->sidename,"side ip");
+        source_dy = functionManager->evaluate("Neumann dy " + wkset->sidename,"side ip");
+      }
+      else if (dy_sidetype == "weak Dirichlet") {
+        source_dy = functionManager->evaluate("Dirichlet dy " + wkset->sidename,"side ip");
       }
       if (dz_sidetype == "Neumann") {
-        sourceN_dz = functionManager->evaluate("Neumann dz " + wkset->sidename,"side ip");
+        source_dz = functionManager->evaluate("Neumann dz " + wkset->sidename,"side ip");
+      }
+      else if (dz_sidetype == "weak Dirichlet") {
+        source_dz = functionManager->evaluate("Dirichlet dz " + wkset->sidename,"side ip");
       }
       
       lambda_side = functionManager->evaluate("lambda","side ip");
@@ -305,7 +308,7 @@ void linearelasticity::boundaryResidual() {
                      KOKKOS_LAMBDA (const int e ) {
           for (size_type k=0; k<basis.extent(2); k++ ) {
             for (size_type i=0; i<basis.extent(1); i++ ) {
-              res(e,off(i)) += (-sourceN_dx(e,k)*basis(e,i,k,0))*wts(e,k);
+              res(e,off(i)) += (-source_dx(e,k)*basis(e,i,k,0))*wts(e,k);
             }
           }
         });
@@ -317,7 +320,7 @@ void linearelasticity::boundaryResidual() {
                      KOKKOS_LAMBDA (const int e ) {
           for (size_type k=0; k<basis.extent(2); k++ ) {
             AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-            AD deltadx = dx(e,k); // should be - dval(e,k), but this is set to 0.0
+            AD deltadx = dx(e,k) - source_dx(e,k);
             AD bx = (lambda_side(e,k) + 2.0*mu_side(e,k))*deltadx*nx(e,k);
             for (size_type i=0; i<basis.extent(1); i++ ) {
               res(e,off(i)) += ((-stress(e,k,0,0)*nx(e,k))*basis(e,i,k,0) + penalty*deltadx*basis(e,i,k,0) - modelparams(0)*bx*basis_grad(e,i,k,0))*wts(e,k);
@@ -359,7 +362,7 @@ void linearelasticity::boundaryResidual() {
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
-                res(e,off(i)) += (-sourceN_dx(e,k)*basis(e,i,k,0))*wts(e,k);
+                res(e,off(i)) += (-source_dx(e,k)*basis(e,i,k,0))*wts(e,k);
               }
             }
           });
@@ -372,8 +375,8 @@ void linearelasticity::boundaryResidual() {
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-              AD deltadx = dx(e,k); // should be - dval(e,k), but this is set to 0.0
-              AD deltady = dy(e,k); // ditto
+              AD deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
+              AD deltady = dy(e,k) - source_dy(e,k); // ditto
               AD bx = (lambda_side(e,k) + 2.0*mu_side(e,k))*deltadx*nx(e,k) + lambda_side(e,k)*deltady*ny(e,k);
               AD by = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
               
@@ -417,7 +420,7 @@ void linearelasticity::boundaryResidual() {
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
-                res(e,off(i)) += (-sourceN_dy(e,k)*basis(e,i,k,0))*wts(e,k);
+                res(e,off(i)) += (-source_dy(e,k)*basis(e,i,k,0))*wts(e,k);
               }
             }
           });
@@ -430,8 +433,8 @@ void linearelasticity::boundaryResidual() {
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-              AD deltadx = dx(e,k); // should be - dval(e,k), but this is set to 0.0
-              AD deltady = dy(e,k); // ditto
+              AD deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
+              AD deltady = dy(e,k) - source_dy(e,k); // ditto
               AD bx = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
               AD by = lambda_side(e,k)*deltadx*nx(e,k) + (lambda_side(e,k)+2.0*mu_side(e,k))*deltady*ny(e,k);
               for (size_type i=0; i<basis.extent(1); i++ ) {
@@ -480,7 +483,7 @@ void linearelasticity::boundaryResidual() {
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
-                res(e,off(i)) += (-sourceN_dx(e,k)*basis(e,i,k,0))*wts(e,k);
+                res(e,off(i)) += (-source_dx(e,k)*basis(e,i,k,0))*wts(e,k);
               }
             }
           });
@@ -494,9 +497,9 @@ void linearelasticity::boundaryResidual() {
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-              AD deltadx = dx(e,k); // should be - dval(e,k), but this is set to 0.0
-              AD deltady = dy(e,k); // ditto
-              AD deltadz = dz(e,k); // ditto
+              AD deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
+              AD deltady = dy(e,k) - source_dy(e,k); // ditto
+              AD deltadz = dz(e,k) - source_dz(e,k); // ditto
               AD bx = (lambda_side(e,k) + 2.0*mu_side(e,k))*deltadx*nx(e,k) + lambda_side(e,k)*deltady*ny(e,k) + lambda_side(e,k)*deltadz*nz(e,k);
               AD by = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
               AD bz = mu_side(e,k)*deltadz*nx(e,k) + mu_side(e,k)*deltadx*nz(e,k);
@@ -544,7 +547,7 @@ void linearelasticity::boundaryResidual() {
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
-                res(e,off(i)) += (-sourceN_dy(e,k)*basis(e,i,k,0))*wts(e,k);
+                res(e,off(i)) += (-source_dy(e,k)*basis(e,i,k,0))*wts(e,k);
               }
             }
           });
@@ -558,9 +561,9 @@ void linearelasticity::boundaryResidual() {
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-              AD deltadx = dx(e,k); // should be - dval(e,k), but this is set to 0.0
-              AD deltady = dy(e,k); // ditto
-              AD deltadz = dz(e,k); // ditto
+              AD deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
+              AD deltady = dy(e,k) - source_dy(e,k); // ditto
+              AD deltadz = dz(e,k) - source_dz(e,k); // ditto
               AD bx = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
               AD by = lambda_side(e,k)*deltadx*nx(e,k) + (lambda_side(e,k)+2.0*mu_side(e,k))*deltady*ny(e,k) + lambda_side(e,k)*deltadz*nz(e,k);
               AD bz = mu_side(e,k)*deltadz*ny(e,k) + mu_side(e,k)*deltady*nz(e,k);
@@ -607,7 +610,7 @@ void linearelasticity::boundaryResidual() {
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
-                res(e,off(i)) += (-sourceN_dz(e,k)*basis(e,i,k,0))*wts(e,k);
+                res(e,off(i)) += (-source_dz(e,k)*basis(e,i,k,0))*wts(e,k);
               }
             }
           });
@@ -621,9 +624,9 @@ void linearelasticity::boundaryResidual() {
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-              AD deltadx = dx(e,k); // should be - dval(e,k), but this is set to 0.0
-              AD deltady = dy(e,k); // ditto
-              AD deltadz = dz(e,k); // ditto
+              AD deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
+              AD deltady = dy(e,k) - source_dy(e,k); // ditto
+              AD deltadz = dz(e,k) - source_dz(e,k); // ditto
               AD bx = mu_side(e,k)*deltadz*nx(e,k) + mu_side(e,k)*deltadx*nz(e,k);
               AD by = mu_side(e,k)*deltadz*ny(e,k) + mu_side(e,k)*deltady*nz(e,k);
               AD bz = lambda_side(e,k)*deltadx*nx(e,k) + lambda_side(e,k)*deltady*ny(e,k) + (lambda_side(e,k)+2.0*mu_side(e,k))*deltadz*nz(e,k);
@@ -677,6 +680,17 @@ void linearelasticity::computeFlux() {
   //  sf = modelparams(0);
   //}
   
+  int cside = wkset->currentside;
+  string dx_sidetype = wkset->var_bcs(dx_num,cside);
+  string dy_sidetype = "Dirichlet";
+  string dz_sidetype = "Dirichlet";
+  if (spaceDim > 1) {
+    dy_sidetype = wkset->var_bcs(dy_num,cside);
+  }
+  if (spaceDim > 2) {
+    dz_sidetype = wkset->var_bcs(dz_num,cside);
+  }
+  
   int spaceDim = wkset->dimension;
   View_AD2 lambda_side, mu_side;
   {
@@ -699,14 +713,23 @@ void linearelasticity::computeFlux() {
     if (spaceDim == 1) {
       auto nx = wkset->getDataSc("nx side");
       auto dx = wkset->getData("dx side");
-      auto lambdax = wkset->getData("aux dx side");
+      View_AD2 source_dx;
+      if (dx_sidetype == "Neumann") {
+        source_dx = functionManager->evaluate("Neumann dx " + wkset->sidename,"side ip");
+      }
+      else if (dx_sidetype == "interface") {
+        source_dx = wkset->getData("aux dx side");
+      }
+      else if (dx_sidetype == "weak Dirichlet" || dx_sidetype == "Dirichlet") {
+        source_dx = functionManager->evaluate("Dirichlet dx " + wkset->sidename,"side ip");
+      }
       auto flux_x = subview(wkset->flux, ALL(), dx_num, ALL());
       parallel_for("LE flux 1D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int e ) {
         for (size_type k=0; k<flux_x.extent(1); k++) {
           AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
-          flux_x(e,k) = 1.0*stress_side(e,k,0,0)*nx(e,k) + penalty*(lambdax(e,k)-dx(e,k));
+          flux_x(e,k) = 1.0*stress_side(e,k,0,0)*nx(e,k) + penalty*(source_dx(e,k)-dx(e,k));
         }
       });
     }
@@ -715,8 +738,27 @@ void linearelasticity::computeFlux() {
       auto ny = wkset->getDataSc("ny side");
       auto dx = wkset->getData("dx side");
       auto dy = wkset->getData("dy side");
-      auto lambdax = wkset->getData("aux dx side");
-      auto lambday = wkset->getData("aux dy side");
+      View_AD2 source_dx, source_dy;
+      if (dx_sidetype == "Neumann") {
+        source_dx = functionManager->evaluate("Neumann dx " + wkset->sidename,"side ip");
+      }
+      else if (dx_sidetype == "interface") {
+        source_dx = wkset->getData("aux dx side");
+      }
+      else if (dx_sidetype == "weak Dirichlet" || dx_sidetype == "Dirichlet") {
+        source_dx = functionManager->evaluate("Dirichlet dx " + wkset->sidename,"side ip");
+      }
+      
+      if (dy_sidetype == "Neumann") {
+        source_dy = functionManager->evaluate("Neumann dy " + wkset->sidename,"side ip");
+      }
+      else if (dy_sidetype == "interface") {
+        source_dy = wkset->getData("aux dy side");
+      }
+      else if (dy_sidetype == "weak Dirichlet" || dy_sidetype == "Dirichlet") {
+        source_dy = functionManager->evaluate("Dirichlet dy " + wkset->sidename,"side ip");
+      }
+      
       auto flux_x = subview( wkset->flux, ALL(), dx_num, ALL());
       auto flux_y = subview( wkset->flux, ALL(), dy_num, ALL());
       parallel_for("LE flux 2D",
@@ -724,8 +766,8 @@ void linearelasticity::computeFlux() {
                    KOKKOS_LAMBDA (const int e ) {
         for (size_type k=0; k<flux_x.extent(1); k++) {
           AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
-          flux_x(e,k) = 1.0*(stress_side(e,k,0,0)*nx(e,k) + stress_side(e,k,0,1)*ny(e,k)) + penalty*(lambdax(e,k)-dx(e,k));
-          flux_y(e,k) = 1.0*(stress_side(e,k,1,0)*nx(e,k) + stress_side(e,k,1,1)*ny(e,k)) + penalty*(lambday(e,k)-dy(e,k));
+          flux_x(e,k) = 1.0*(stress_side(e,k,0,0)*nx(e,k) + stress_side(e,k,0,1)*ny(e,k)) + penalty*(source_dx(e,k)-dx(e,k));
+          flux_y(e,k) = 1.0*(stress_side(e,k,1,0)*nx(e,k) + stress_side(e,k,1,1)*ny(e,k)) + penalty*(source_dy(e,k)-dy(e,k));
         }
       });
     }
@@ -736,9 +778,29 @@ void linearelasticity::computeFlux() {
       auto dx = wkset->getData("dx side");
       auto dy = wkset->getData("dy side");
       auto dz = wkset->getData("dz side");
-      auto lambdax = wkset->getData("aux dx side");
-      auto lambday = wkset->getData("aux dy side");
-      auto lambdaz = wkset->getData("aux dz side");
+      
+      View_AD2 source_dx, source_dy, source_dz;
+      if (dx_sidetype == "interface") {
+        source_dx = wkset->getData("aux dx side");
+      }
+      else if (dx_sidetype == "weak Dirichlet" || dx_sidetype == "Dirichlet") {
+        source_dx = functionManager->evaluate("Dirichlet dx " + wkset->sidename,"side ip");
+      }
+      
+      if (dy_sidetype == "interface") {
+        source_dy = wkset->getData("aux dy side");
+      }
+      else if (dy_sidetype == "weak Dirichlet" || dy_sidetype == "Dirichlet") {
+        source_dy = functionManager->evaluate("Dirichlet dy " + wkset->sidename,"side ip");
+      }
+      
+      if (dz_sidetype == "interface") {
+        source_dz = wkset->getData("aux dz side");
+      }
+      else if (dz_sidetype == "weak Dirichlet" || dz_sidetype == "Dirichlet") {
+        source_dz = functionManager->evaluate("Dirichlet dz " + wkset->sidename,"side ip");
+      }
+      
       auto flux_x = subview( wkset->flux, ALL(), dx_num, ALL());
       auto flux_y = subview( wkset->flux, ALL(), dy_num, ALL());
       auto flux_z = subview( wkset->flux, ALL(), dz_num, ALL());
@@ -747,9 +809,9 @@ void linearelasticity::computeFlux() {
                    KOKKOS_LAMBDA (const int e ) {
         for (size_type k=0; k<flux_x.extent(1); k++) {
           AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
-          flux_x(e,k) = 1.0*(stress_side(e,k,0,0)*nx(e,k) + stress_side(e,k,0,1)*ny(e,k) + stress_side(e,k,0,2)*nz(e,k)) + penalty*(lambdax(e,k)-dx(e,k));
-          flux_y(e,k) = 1.0*(stress_side(e,k,1,0)*nx(e,k) + stress_side(e,k,1,1)*ny(e,k) + stress_side(e,k,1,2)*nz(e,k)) + penalty*(lambday(e,k)-dy(e,k));
-          flux_z(e,k) = 1.0*(stress_side(e,k,2,0)*nx(e,k) + stress_side(e,k,2,1)*ny(e,k) + stress_side(e,k,2,2)*nz(e,k)) + penalty*(lambdaz(e,k)-dz(e,k));
+          flux_x(e,k) = 1.0*(stress_side(e,k,0,0)*nx(e,k) + stress_side(e,k,0,1)*ny(e,k) + stress_side(e,k,0,2)*nz(e,k)) + penalty*(source_dx(e,k)-dx(e,k));
+          flux_y(e,k) = 1.0*(stress_side(e,k,1,0)*nx(e,k) + stress_side(e,k,1,1)*ny(e,k) + stress_side(e,k,1,2)*nz(e,k)) + penalty*(source_dy(e,k)-dy(e,k));
+          flux_z(e,k) = 1.0*(stress_side(e,k,2,0)*nx(e,k) + stress_side(e,k,2,1)*ny(e,k) + stress_side(e,k,2,2)*nz(e,k)) + penalty*(source_dz(e,k)-dz(e,k));
         }
       });
     }

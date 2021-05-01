@@ -33,6 +33,7 @@ ANONYMOUS:
   Analysis input file: input_rol2.yaml
   Solver: 
     solver: steady-state
+    workset size: 400
   Postprocess: 
     compute objective: true
     compute sensitivities: true

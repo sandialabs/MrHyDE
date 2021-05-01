@@ -89,6 +89,8 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   discrete_objective_scale_factor = settings->sublist("Postprocess").get("scale factor for discrete objective",1.0);
   cellfield_reduction = settings->sublist("Postprocess").get<string>("extra cell field reduction","mean");
   
+  compute_flux_response = settings->sublist("Postprocess").get("compute flux response",false);
+ 
   soln = Teuchos::rcp(new SolutionStorage<Node>(settings));
   string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
   save_solution = false;
@@ -242,6 +244,10 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     // Add objective functions
     Teuchos::ParameterList obj_funs = blockPpSettings.sublist("Objective functions");
     this->addObjectiveFunctions(obj_funs, b);
+    
+    // Add flux responses (special case of responses)
+    Teuchos::ParameterList flux_resp = blockPpSettings.sublist("Flux responses");
+    this->addFluxResponses(flux_resp, b);
            
   } // end block loop
     
@@ -370,6 +376,22 @@ void PostprocessManager<Node>::addObjectiveFunctions(Teuchos::ParameterList & ob
 // ========================================================================================
 
 template<class Node>
+void PostprocessManager<Node>::addFluxResponses(Teuchos::ParameterList & flux_resp,
+                                                const size_t & block) {
+  Teuchos::ParameterList::ConstIterator fluxr_itr = flux_resp.begin();
+  while (fluxr_itr != flux_resp.end()) {
+    Teuchos::ParameterList frsettings = flux_resp.sublist(fluxr_itr->first);
+    fluxResponse newflux(frsettings,fluxr_itr->first,block,functionManagers[block]);
+    fluxes.push_back(newflux);
+    fluxr_itr++;
+  }
+  
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
 void PostprocessManager<Node>::record(vector_RCP & current_soln, const ScalarT & current_time,
                                       DFAD & objectiveval) {
   if (compute_error) {
@@ -383,6 +405,9 @@ void PostprocessManager<Node>::record(vector_RCP & current_soln, const ScalarT &
   }
   if (save_solution) {
     soln->store(current_soln, current_time, 0);
+  }
+  if (compute_flux_response) {
+    this->computeFluxResponse(current_time);
   }
 }
 
@@ -441,50 +466,42 @@ void PostprocessManager<Node>::report() {
         respOUT.close();
       }
     }
-    
-    /*
-    //int numresponses = phys->getNumResponses(b);
-    int numSensors = 1;
-    if (response_type == "pointwise" ) {
-      numSensors = sensors->numSensors;
-    }
-    
-    
-    if (response_type == "pointwise" && save_sensor_data) {
-      
-      srand(time(0)); //use current time as seed for random generator for noise
-      
-      ScalarT err = 0.0;
-      
-      
-      for (int k=0; k<numSensors; k++) {
-        std::stringstream ss;
-        ss << k;
-        string str = ss.str();
-        string sname2 = sname + "." + str + ".dat";
-        std::ofstream respOUT(sname2.c_str());
-        respOUT.precision(16);
-        for (size_t tt=0; tt<response_times.size(); tt++) { // skip the initial condition
-          if (Comm->getRank() == 0){
-            respOUT << response_times[tt] << "  ";
-          }
-          for (size_type n=0; n<responses[tt].extent(1); n++) {
-            ScalarT tmp1 = responses[tt](k,n);
-            ScalarT tmp2 = 0.0;
-            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&tmp1,&tmp2);
-            err = this->makeSomeNoise(stddev);
-            if (Comm->getRank() == 0) {
-              respOUT << tmp2+err << "  ";
-            }
-          }
-          if (Comm->getRank() == 0){
-            respOUT << endl;
-          }
-        }
-        respOUT.close();
+  }
+  
+  if (compute_flux_response) {
+    if(Comm->getRank() == 0 ) {
+      if (verbosity > 0) {
+        cout << endl << "*********************************************************" << endl;
+        cout << "***** Computing Flux Responses ******" << endl;
+        cout << "*********************************************************" << endl;
       }
     }
-    */
+    
+    vector<ScalarT> gvals;
+    
+    for (size_t f=0; f<fluxes.size(); ++f) {
+      for (size_t tt=0; tt<fluxes[f].vals.extent(0); ++tt) {
+        ScalarT lval = fluxes[f].vals(tt);
+        ScalarT gval = 0.0;
+        Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lval,&gval);
+        gvals.push_back(gval);
+      }
+      Kokkos::deep_copy(fluxes[f].vals,0.0);
+    }
+    if (Comm->getRank() == 0) {
+      string respfile = "flux_response.out";
+      std::ofstream respOUT;
+      respOUT.open(respfile, std::ios_base::app);
+      respOUT.precision(16);
+      for (size_t g=0; g<gvals.size(); ++g) {
+        cout << gvals[g] << endl;
+        
+        respOUT << " " << gvals[g] << "  ";
+      }
+      respOUT << endl;
+      respOUT.close();
+    }
+    
   }
   
   ////////////////////////////////////////////////////////////////////////////
@@ -639,6 +656,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
       // Need to use time step solution instead of stage solution
       bool isTransient = assembler->wkset[altblock]->isTransient;
       assembler->wkset[altblock]->isTransient = false;
+      assembler->cellData[altblock]->requiresTransient = false;
       
       // Determine what needs to be updated in the workset
       bool have_vol_errs = false, have_face_errs = false;
@@ -654,8 +672,9 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
       }
       for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
         if (have_vol_errs) {
-          assembler->wkset[altblock]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
-          assembler->cells[block][cell]->computeSolnVolIP();
+          //assembler->wkset[altblock]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
+          //assembler->cells[block][cell]->computeSolnVolIP();
+          assembler->cells[block][cell]->updateWorkset(seedwhat,true);
         }
         auto wts = assembler->cells[block][cell]->wkset->wts;
         
@@ -846,7 +865,8 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
         if (have_face_errs) {
           for (size_t face=0; face<assembler->cells[block][cell]->cellData->numSides; face++) {
             assembler->wkset[altblock]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
-            assembler->cells[block][cell]->computeSolnFaceIP(face);
+            //assembler->cells[block][cell]->computeSolnFaceIP(face);
+            assembler->cells[block][cell]->updateWorksetFace(face);
             //assembler->cells[block][cell]->computeSolnFaceIP(face, seedwhat);
             for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
               int var = error_list[altblock][etype].first;
@@ -878,6 +898,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
         }
       }
       assembler->wkset[altblock]->isTransient = isTransient;
+      assembler->cellData[altblock]->requiresTransient = isTransient;
     }
     currerror.push_back(blockerrors);
   } // end block loop
@@ -991,6 +1012,60 @@ void PostprocessManager<Node>::computeResponse(const ScalarT & currenttime) {
 // ========================================================================================
 
 template<class Node>
+void PostprocessManager<Node>::computeFluxResponse(const ScalarT & currenttime) {
+  
+  vector<string> sideSets;
+  mesh->stk_mesh->getSidesetNames(sideSets);
+  
+  for (size_t block=0; block<assembler->cellData.size(); ++block) {
+    for (size_t cell=0; cell<assembler->boundaryCells[block].size(); ++cell) {
+      // setup workset for this bcell
+      
+      assembler->boundaryCells[block][cell]->updateWorkset(0,true);
+      
+      // compute the flux
+      assembler->wkset[block]->flux = View_AD3("flux",assembler->wkset[block]->maxElem,
+                                               assembler->wkset[block]->numVars,
+                                               assembler->wkset[block]->numsideip);
+      
+      assembler->cellData[block]->physics_RCP->computeFlux(block);
+      auto cflux = assembler->wkset[block]->flux; // View_AD3
+      
+      for (size_t f=0; f<fluxes.size(); ++f) {
+        
+        if (fluxes[f].block == block) {
+          string sidename = assembler->boundaryCells[block][cell]->sidename;
+          size_t found = fluxes[f].sidesets.find(sidename);
+          
+          if (found!=std::string::npos) {
+            
+            auto wts = functionManagers[block]->evaluate("flux weight "+fluxes[f].name,"side ip");
+            auto iwts = assembler->wkset[block]->wts_side;
+            
+            for (size_type v=0; v<fluxes[f].vals.extent(0); ++v) {
+              ScalarT value = 0.0;
+              auto vflux = subview(cflux,ALL(),v,ALL());
+              parallel_reduce(RangePolicy<AssemblyExec>(0,iwts.extent(0)),
+                              KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+                for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                  ScalarT up = vflux(elem,pt).val()*wts(elem,pt).val()*iwts(elem,pt);
+                  update += up;
+                }
+              }, value);
+              fluxes[f].vals(v) += value;
+            }
+          }
+        }
+      }
+    }
+  }
+  
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
 void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
                                                 const ScalarT & current_time,
                                                 DFAD & objectiveval) {
@@ -1024,9 +1099,9 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
         
         auto wts = assembler->cells[block][e]->wts;
         
-        assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 0);
-        assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 0);
-        assembler->cells[block][e]->computeSolnVolIP();
+        //assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 0);
+        //assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 0);
+        assembler->cells[block][e]->updateWorkset(0,true);
         
         auto obj_dev = functionManagers[block]->evaluate(objectives[r].name,"ip");
         
@@ -1077,9 +1152,11 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
           
           auto wts = assembler->cells[block][e]->wts;
           
-          assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 0);
-          assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 3);
-          assembler->cells[block][e]->computeSolnVolIP();
+          //assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 0);
+          //assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 3);
+          //assembler->cells[block][e]->computeSolnVolIP();
+          
+          assembler->cells[block][e]->updateWorkset(3,true);
           
           auto obj_dev = functionManagers[block]->evaluate(objectives[r].name,"ip");
           
@@ -1161,9 +1238,11 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
         
         auto wts = assembler->cells[block][e]->wts;
         
-        assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 0);
-        assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 0);
-        assembler->cells[block][e]->computeSolnVolIP();
+        //assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 0);
+        //assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 0);
+        //assembler->cells[block][e]->computeSolnVolIP();
+        
+        assembler->cells[block][e]->updateWorkset(0,true);
         
         auto obj_dev = functionManagers[block]->evaluate(objectives[r].name+" response","ip");
         
@@ -1216,9 +1295,11 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
           
           auto wts = assembler->cells[block][e]->wts;
           
-          assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 0);
-          assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 3);
-          assembler->cells[block][e]->computeSolnVolIP();
+          //assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 0);
+          //assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 3);
+          //assembler->cells[block][e]->computeSolnVolIP();
+          
+          assembler->cells[block][e]->updateWorkset(3,true);
           
           auto obj_dev = functionManagers[block]->evaluate(objectives[r].name,"ip");
           
@@ -1505,9 +1586,10 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
             
             auto wts = assembler->cells[block][e]->wts;
             
-            assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 0);
-            assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 3);
-            assembler->cells[block][e]->computeSolnVolIP();
+            //assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 0);
+            //assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 3);
+            //assembler->cells[block][e]->computeSolnVolIP();
+            assembler->cells[block][e]->updateWorkset(3,true);
             
             auto obj_dev = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"ip");
             
@@ -1567,9 +1649,10 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
               
               auto wts = assembler->boundaryCells[block][e]->wts;
               
-              assembler->wkset[block]->computeSolnSteadySeeded(assembler->boundaryCells[block][e]->u, 0);
-              assembler->wkset[block]->computeParamSteadySeeded(assembler->boundaryCells[block][e]->param, 3);
-              assembler->boundaryCells[block][e]->computeSoln(3);
+              //assembler->wkset[block]->computeSolnSteadySeeded(assembler->boundaryCells[block][e]->u, 0);
+              //assembler->wkset[block]->computeParamSteadySeeded(assembler->boundaryCells[block][e]->param, 3);
+              //assembler->boundaryCells[block][e]->computeSoln(3,true);
+              assembler->boundaryCells[block][e]->updateWorkset(3,true);
               
               auto obj_dev = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"side ip");
               
@@ -1730,9 +1813,10 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
           
           // Seed the state and compute the solution at the ip
           if (w==0) {
-            assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 1);
-            assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 1);
-            assembler->cells[block][e]->computeSolnVolIP();
+            //assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 1);
+            //assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 1);
+            //assembler->cells[block][e]->computeSolnVolIP();
+            assembler->cells[block][e]->updateWorkset(1,true);
           }
           else {
             View_AD3 u_dof("u_dof",numElem,numDOF.extent(0),
@@ -1963,9 +2047,10 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
           
           // Seed the state and compute the solution at the ip
           if (w==0) {
-            assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 1);
-            assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 1);
-            assembler->cells[block][e]->computeSolnVolIP();
+            //assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 1);
+            //assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 1);
+            //assembler->cells[block][e]->computeSolnVolIP();
+            assembler->cells[block][e]->updateWorkset(1,true);
           }
           else {
             View_AD3 u_dof("u_dof",numElem,numDOF.extent(0),
@@ -2699,7 +2784,8 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             for (size_t face=0; face<assembler->cellData[b]->numSides; face++) {
               int seedwhat = 0;
               assembler->wkset[b]->computeSolnSteadySeeded(assembler->cells[b][c]->u, seedwhat);
-              assembler->cells[b][c]->computeSolnFaceIP(face);
+              //assembler->cells[b][c]->computeSolnFaceIP(face);
+              assembler->cells[b][c]->updateWorksetFace(face);
               auto wts = assembler->wkset[b]->wts_side;
               auto sol = assembler->wkset[b]->getData(varlist[b][n]+" side");
               parallel_for("postproc plot HFACE",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
@@ -2935,13 +3021,8 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
       for (size_t k=0; k<assembler->cells[b].size(); k++) {
         auto eID = assembler->cells[b][k]->localElemID;
         
-        assembler->cells[b][k]->updateData();
-        assembler->cells[b][k]->updateWorksetBasis();
+        assembler->cells[b][k]->updateWorkset(0,true);
         assembler->wkset[b]->setTime(currenttime);
-        assembler->wkset[b]->computeSolnSteadySeeded(assembler->cells[b][k]->u, 0);
-        assembler->wkset[b]->computeParamSteadySeeded(assembler->cells[b][k]->param, 0);
-        assembler->wkset[b]->computeSolnVolIP();
-        assembler->wkset[b]->computeParamVolIP();
         
         auto cfields = this->getExtraCellFields(b, assembler->cells[b][k]->wts);
         

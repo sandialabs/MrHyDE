@@ -214,38 +214,19 @@ void cell::setAuxUseBasis(vector<int> & ausebasis_) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Update the workset
-///////////////////////////////////////////////////////////////////////////////////////
-
-void cell::updateWorksetIP() {
-  
-  wkset->numElem = numElem;
-  wkset->wts = wts;
-  wkset->h = hsize;
-  wkset->setIP(ip);
-  
-}
-
-
-void cell::updateWorksetBasis() {
-  this->updateWorksetIP();
-  wkset->numElem = numElem;
-  wkset->basis = basis;
-  wkset->basis_grad = basis_grad;
-  wkset->basis_div = basis_div;
-  wkset->basis_curl = basis_curl;
-  
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
 // Map the AD degrees of freedom to integration points
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::computeSolnVolIP() {
+void cell::updateWorkset(const int & seedwhat, const bool & override_transient) {
   
   Teuchos::TimeMonitor localtimer(*computeSolnVolTimer);
   
+  // Reset the residual and data in the workset
+  wkset->resetResidual();
   wkset->numElem = numElem;
+  this->updateData();
+  
+  // Update the integration info and basis in workset
   if (cellData->storeAll) {
     wkset->wts = wts;
     wkset->h = hsize;
@@ -274,14 +255,37 @@ void cell::computeSolnVolIP() {
     wkset->basis_curl = tbasis_curl;
   }
   
+  // Map the gathered solution to seeded version in workset
+  if (cellData->requiresTransient && !override_transient) {
+    wkset->computeSolnTransientSeeded(u, u_prev, u_stage, seedwhat);
+  }
+  else { // steady-state
+    wkset->computeSolnSteadySeeded(u, seedwhat);
+  }
+  if (wkset->numParams > 0) {
+    wkset->computeParamSteadySeeded(param, seedwhat);
+  }
+  /* // TMW: not implemented yet
+  if (wkset->numAux > 0) {
+    if (cellData->requiresTransient) {
+      wkset->computeAuxTransientSeeded(aux, aux_prev, aux_stage, seedwhat);
+    }
+    else { // steady-state
+      wkset->computeAuxSteadySeeded(aux, seedwhat);
+    }
+  }
+  */
+  
+  // Map the AD solutions to the aolutions at the volumetric ip
   wkset->computeSolnVolIP();
+  wkset->computeParamVolIP();
+  //wkset->computeAuxVolIP();
+    
   /*
   if (cellData->compute_sol_avg) {
     this->computeSolAvg();
   }
   */
-  
-  wkset->computeParamVolIP();
   
 }
 
@@ -417,28 +421,18 @@ void cell::computeSolAvg() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Update the workset
-///////////////////////////////////////////////////////////////////////////////////////
-
-void cell::updateWorksetFaceBasis(const size_t & facenum) {
-  
-  wkset->numElem = numElem;
-  wkset->wts_side = wts_face[facenum];
-  wkset->h = hsize_face[facenum];
-  wkset->setIP(ip_face[facenum]," side");
-  wkset->setNormals(normals_face[facenum]);
-  wkset->basis_side = basis_face[facenum];
-  wkset->basis_grad_side = basis_grad_face[facenum];
-  
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
 // Map the AD degrees of freedom to integration points
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::computeSolnFaceIP(const size_t & facenum) {
+void cell::updateWorksetFace(const size_t & facenum) {
+  
+  // IMPORANT NOTE: This function assumes that face contributions are computing IMMEDIATELY after the
+  // volumetric contributions, which implies that the seeded solution in the workset is already
+  // correct for this cell.  There is currently no use case where this assumption is false.
   
   Teuchos::TimeMonitor localtimer(*computeSolnFaceTimer);
+  
+  // Update the face integration points and basis in workset
   if (cellData->storeAll) {
     wkset->wts_side = wts_face[facenum];
     wkset->h = hsize;
@@ -465,9 +459,11 @@ void cell::computeSolnFaceIP(const size_t & facenum) {
     wkset->basis_side = tbasis;
     wkset->basis_grad_side = tbasis_grad;
   }
+  
+  // Map the seeded solution in workset to solution at face ip
   wkset->computeSolnSideIP();
   wkset->computeParamSideIP();
-  fence();
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -477,7 +473,7 @@ void cell::computeSolnFaceIP(const size_t & facenum) {
 void cell::computeAuxSolnFaceIP(const size_t & facenum) {
 
   Teuchos::TimeMonitor localtimer(*computeSolnFaceTimer);
-  this->updateWorksetFaceBasis(facenum);
+  this->updateWorksetFace(facenum);
 
 }
 
@@ -588,7 +584,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   
   bool fixJacDiag = false;
   
-  wkset->resetResidual();
+  //wkset->resetResidual();
   
   //////////////////////////////////////////////////////////////
   // Compute the AD-seeded solutions at integration points
@@ -606,15 +602,6 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
       seedwhat = 1;
     }
   }
-   
-  if (!(cellData->multiscale)) {
-    if (isTransient) {
-      wkset->computeSolnTransientSeeded(u, u_prev, u_stage, seedwhat);
-    }
-    else { // steady-state
-      wkset->computeSolnSteadySeeded(u, seedwhat);
-    }
-  }
   
   //////////////////////////////////////////////////////////////
   // Compute res and J=dF/du
@@ -624,6 +611,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
   if (assemble_volume_terms) {
     Teuchos::TimeMonitor localtimer(*volumeResidualTimer);
     if (cellData->multiscale) {
+      this->updateWorkset(seedwhat);
       int sgindex = subgrid_model_index[subgrid_model_index.size()-1];
       subgridModels[sgindex]->subgridSolver(u, phi, wkset->time, isTransient, isAdjoint,
                                             compute_jacobian, compute_sens, num_active_params,
@@ -633,8 +621,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
       fixJacDiag = true;
     }
     else {
-      wkset->computeParamSteadySeeded(param, seedwhat);
-      this->computeSolnVolIP();
+      this->updateWorkset(seedwhat);
       cellData->physics_RCP->volumeResidual(cellData->myBlock);
     }
   }
@@ -647,7 +634,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
     }
     else {
       for (size_t s=0; s<cellData->numSides; s++) {
-        this->computeSolnFaceIP(s);
+        this->updateWorksetFace(s);
         cellData->physics_RCP->faceResidual(cellData->myBlock);
       }
     }
@@ -811,12 +798,7 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
         // Sum new contributions into vectors
         int seedwhat = 2; // 2 for J wrt previous step solutions
         for (size_type step=0; step<u_prev.extent(3); step++) {
-          wkset->computeSolnTransientSeeded(u, u_prev, u_stage, seedwhat, step);
-          wkset->computeParamSteadySeeded(param, seedwhat);
-          this->computeSolnVolIP();
-       
-          wkset->resetResidual();
-          
+          this->updateWorkset(seedwhat);
           cellData->physics_RCP->volumeResidual(cellData->myBlock);
           Kokkos::View<ScalarT***,AssemblyDevice> Jdot("temporary fix for transient adjoint",
                                                        local_J.extent(0), local_J.extent(1), local_J.extent(2));
@@ -1031,7 +1013,7 @@ void cell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
 View_Sc2 cell::getInitial(const bool & project, const bool & isAdjoint) {
   
   View_Sc2 initialvals("initial values",numElem,LIDs.extent(1));
-  this->updateWorksetBasis();
+  this->updateWorkset(0);
   
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;

@@ -104,8 +104,10 @@ namespace MrHyDE {
     // Update the workset
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateWorksetBasis();
+    void updateWorkset(const int & seedwhat, const bool & override_transient=false);
     
+    void updateWorksetBasis();
+      
     ///////////////////////////////////////////////////////////////////////////////////////
     // Map the coarse grid solution to the fine grid integration points
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -289,7 +291,11 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-
+    void updateData();
+    
+    ///////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////
+      
     // Public data 
     Teuchos::RCP<CellMetaData> cellData;
     Teuchos::RCP<workset> wkset;
@@ -332,6 +338,10 @@ namespace MrHyDE {
     vector<DRV> auxside_basis, auxside_basisGrad;
     vector<size_t> auxMIDs;
     Kokkos::View<size_t*,AssemblyDevice> auxMIDs_dev;
+    
+    vector<size_t> cell_data_seed, cell_data_seedindex;
+    Kokkos::View<ScalarT**,AssemblyDevice> cell_data;
+    vector<ScalarT> cell_data_distance;
     
     // Boundary cells do not have sensors
     

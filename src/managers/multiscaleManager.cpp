@@ -226,10 +226,7 @@ ScalarT MultiscaleManager::initialize() {
     if (uses_subgrid) {
       for (size_t e=0; e<cells[b].size(); e++) {
         
-        cells[b][e]->updateWorksetBasis();
-        macro_wkset[b]->computeSolnSteadySeeded(cells[b][e]->u, 0);
-        macro_wkset[b]->computeParamSteadySeeded(cells[b][e]->param, 0);
-        cells[b][e]->computeSolnVolIP();
+        cells[b][e]->updateWorkset(0);
         
         vector<int> sgvotes(subgridModels.size(),0);
         
@@ -397,10 +394,7 @@ ScalarT MultiscaleManager::update() {
       for (size_t e=0; e<cells[b].size(); e++) {
         if (cells[b][e]->cellData->multiscale) {
           
-          cells[b][e]->updateWorksetBasis();
-          macro_wkset[b]->computeSolnSteadySeeded(cells[b][e]->u, 0);
-          macro_wkset[b]->computeParamSteadySeeded(cells[b][e]->param, 0);
-          cells[b][e]->computeSolnVolIP();
+          cells[b][e]->updateWorkset(0);
           
           vector<int> sgvotes(subgridModels.size(),0);
           

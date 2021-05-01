@@ -239,10 +239,8 @@ void AssemblyManager<Node>::createCells() {
       
       vector<size_t> localIds;
       
-      Kokkos::DynRankView<ScalarT,HostDevice> blocknodes;//("nodes on block",numTotalElem,numNodesPerElem,spaceDim);
+      Kokkos::DynRankView<ScalarT,HostDevice> blocknodes;
       panzer_stk::workset_utils::getIdsAndVertices(*mesh, blocknames[b], localIds, blocknodes); // fill on host
-      //auto host_blocknodes = Kokkos::create_mirror_view(blocknodes);
-      //Kokkos::deep_copy(blocknodes, host_blocknodes);
       
       vector<size_t> myElem = disc->myElements[b];
       Kokkos::View<LO*,AssemblyDevice> eIDs("local element IDs on device",myElem.size());
@@ -763,14 +761,14 @@ void AssemblyManager<Node>::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
 
 template<class Node>
 void AssemblyManager<Node>::assembleJacRes(vector_RCP & u, vector_RCP & phi,
-                                     const bool & compute_jacobian, const bool & compute_sens,
-                                     const bool & compute_disc_sens,
-                                     vector_RCP & res, matrix_RCP & J, const bool & isTransient,
-                                     const ScalarT & current_time,
-                                     const bool & useadjoint, const bool & store_adjPrev,
-                                     const int & num_active_params,
-                                     vector_RCP & Psol, const bool & is_final_time,
-                                     const ScalarT & deltat) {
+                                           const bool & compute_jacobian, const bool & compute_sens,
+                                           const bool & compute_disc_sens,
+                                           vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                                           const ScalarT & current_time,
+                                           const bool & useadjoint, const bool & store_adjPrev,
+                                           const int & num_active_params,
+                                           vector_RCP & Psol, const bool & is_final_time,
+                                           const ScalarT & deltat) {
   
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -814,13 +812,13 @@ void AssemblyManager<Node>::assembleJacRes(vector_RCP & u, vector_RCP & phi,
 
 template<class Node>
 void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const bool & compute_sens,
-                                     const bool & compute_disc_sens,
-                                     vector_RCP & res, matrix_RCP & J, const bool & isTransient,
-                                     const ScalarT & current_time,
-                                     const bool & useadjoint, const bool & store_adjPrev,
-                                     const int & num_active_params,
-                                     const bool & is_final_time,
-                                     const int & b, const ScalarT & deltat) {
+                                           const bool & compute_disc_sens,
+                                           vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                                           const ScalarT & current_time,
+                                           const bool & useadjoint, const bool & store_adjPrev,
+                                           const int & num_active_params,
+                                           const bool & is_final_time,
+                                           const int & b, const ScalarT & deltat) {
   
   Teuchos::TimeMonitor localassemblytimer(*assemblytimer);
   
@@ -853,6 +851,17 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
     reduce_memory = false;
   }
   
+  // Set the seeding flag for AD objects
+  int seedwhat = 0;
+  if (compute_jacobian) {
+    if (compute_disc_sens) {
+      seedwhat = 3;
+    }
+    else {
+      seedwhat = 1;
+    }
+  }
+  
   //////////////////////////////////////////////////////////////////////////////////////
   // Set up the worksets and allocate the local residual and Jacobians
   //////////////////////////////////////////////////////////////////////////////////////
@@ -871,12 +880,12 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
   wkset[b]->isTransient = isTransient;
   wkset[b]->isAdjoint = useadjoint;
   
-  int numElem = cells[b][0]->numElem;
+  int numElem = cellData[b]->numElem;
   int numDOF = cells[b][0]->LIDs.extent(1);
   
   int numParamDOF = 0;
   if (compute_disc_sens) {
-    numParamDOF = cells[b][0]->paramLIDs.extent(1); // is this on host
+    numParamDOF = cells[b][0]->paramLIDs.extent(1);
   }
   
   // This data needs to be available on Host and Device
@@ -908,7 +917,6 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
   for (size_t e=0; e<cells[b].size(); e++) {
 
     wkset[b]->localEID = e;
-    cells[b][e]->updateData();
     
     if (isTransient && useadjoint && !cells[b][0]->cellData->multiscale) {
       if (is_final_time) {
@@ -916,8 +924,6 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
       }
     }
  
-    Kokkos::fence();
-
     /////////////////////////////////////////////////////////////////////////////
     // Compute the local residual and Jacobian on this cell
     /////////////////////////////////////////////////////////////////////////////
@@ -927,42 +933,10 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
     {
       Teuchos::TimeMonitor localtimer(*phystimer);
       
-      wkset[b]->resetResidual();
-      
-      //////////////////////////////////////////////////////////////
-      // Compute the AD-seeded solutions at integration points
-      //////////////////////////////////////////////////////////////
-      
-      int seedwhat = 0;
-      if (compute_jacobian) {
-        if (compute_disc_sens) {
-          seedwhat = 3;
-        }
-        else {
-          seedwhat = 1;
-        }
-      }
-      
-      if (!(cellData[b]->multiscale)) {
-        if (isTransient) {
-          wkset[b]->computeSolnTransientSeeded(cells[b][e]->u,
-                                               cells[b][e]->u_prev,
-                                               cells[b][e]->u_stage,
-                                               seedwhat);
-        }
-        else { // steady-state
-          wkset[b]->computeSolnSteadySeeded(cells[b][e]->u, seedwhat);
-        }
-        if (wkset[b]->numParams > 0) {
-          wkset[b]->computeParamSteadySeeded(cells[b][e]->param, seedwhat);
-        }
-      }
-      Kokkos::fence();
-      
       //////////////////////////////////////////////////////////////
       // Compute res and J=dF/du
       //////////////////////////////////////////////////////////////
-      
+            
       // Volumetric contribution
       if (assemble_volume_terms[b]) {
         if (cellData[b]->multiscale) {
@@ -975,12 +949,10 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
           fixJacDiag = true;
         }
         else {
-          cells[b][e]->computeSolnVolIP();
+          cells[b][e]->updateWorkset(seedwhat);
           phys->volumeResidual(b);
         }
       }
-      Kokkos::fence();
-      
       
       ///////////////////////////////////////////////////////////////////////////
       // Edge/face contribution
@@ -992,7 +964,7 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
         }
         else {
           for (size_t s=0; s<cellData[b]->numSides; s++) {
-            cells[b][e]->computeSolnFaceIP(s);
+            cells[b][e]->updateWorksetFace(s);
             phys->faceResidual(b);
           }
         }
@@ -1108,7 +1080,6 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
     for (size_t e=0; e < boundaryCells[b].size(); e++) {
       
       if (boundaryCells[b][e]->numElem > 0) {
-        wkset[b]->localEID = e;
         
         /////////////////////////////////////////////////////////////////////////////
         // Compute the local residual and Jacobian on this cell
@@ -1116,37 +1087,9 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
         
         {
           Teuchos::TimeMonitor localtimer(*phystimer);
-          wkset[b]->sidename = boundaryCells[b][e]->sidename;
-          wkset[b]->currentside = boundaryCells[b][e]->sidenum;
-          
-          int seedwhat = 0;
-          if (compute_jacobian) {
-            if (compute_disc_sens) {
-              seedwhat = 3;
-            }
-            else {
-              seedwhat = 1;
-            }
-          }
-          
-          if (isTransient) {
-            wkset[b]->computeSolnTransientSeeded(boundaryCells[b][e]->u,
-                                                 boundaryCells[b][e]->u_prev,
-                                                 boundaryCells[b][e]->u_stage,
-                                                 seedwhat);
-          }
-          else { // steady-state
-            wkset[b]->computeSolnSteadySeeded(boundaryCells[b][e]->u, seedwhat);
-          }
-          if (wkset[b]->numParams > 0) {
-            wkset[b]->computeParamSteadySeeded(boundaryCells[b][e]->param, seedwhat);
-          }
-        
-          boundaryCells[b][e]->updateWorksetBasis();
-          boundaryCells[b][e]->computeSoln(seedwhat);
-          
           wkset[b]->resetResidual();
           
+          boundaryCells[b][e]->updateWorkset(seedwhat);
           phys->boundaryResidual(b);
           
         }

@@ -68,15 +68,15 @@ settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
     sub_J_over = J;
   }
   
-  d_um = solver->linalg->getNewVector(numMacroDOF); //Teuchos::rcp( new SG_MultiVector(solver->LA_owned_map,numMacroDOF)); // reset residual
-  d_sub_res_overm = solver->linalg->getNewOverlappedVector(numMacroDOF); //Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,numMacroDOF));
-  d_sub_resm = solver->linalg->getNewVector(numMacroDOF); //Teuchos::rcp(new SG_MultiVector(solver->LA_owned_map,numMacroDOF));
-  d_sub_u_prevm = solver->linalg->getNewVector(numMacroDOF);//Teuchos::rcp(new SG_MultiVector(solver->LA_owned_map,numMacroDOF));
-  d_sub_u_overm = solver->linalg->getNewOverlappedVector(numMacroDOF);//Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,numMacroDOF));
+  d_um = solver->linalg->getNewVector(numMacroDOF);
+  d_sub_res_overm = solver->linalg->getNewOverlappedVector(numMacroDOF);
+  d_sub_resm = solver->linalg->getNewVector(numMacroDOF);
+  d_sub_u_prevm = solver->linalg->getNewVector(numMacroDOF);
+  d_sub_u_overm = solver->linalg->getNewOverlappedVector(numMacroDOF);
   
-  du_glob = solver->linalg->getNewVector();//Teuchos::rcp(new SG_MultiVector(solver->LA_owned_map,1));
+  du_glob = solver->linalg->getNewVector();
   if (LocalComm->getSize() > 1) {
-    du = solver->linalg->getNewOverlappedVector();//Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,1));
+    du = solver->linalg->getNewOverlappedVector();
   }
   else {
     du = du_glob;
@@ -473,38 +473,20 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
           }
         }
         
-        assembler->wkset[0]->localEID = e;
-        assembler->cells[usernum][e]->updateData();
-        assembler->wkset[0]->resetResidual();
-        
         //////////////////////////////////////////////////////////////
         // Compute the AD-seeded solutions at integration points
         //////////////////////////////////////////////////////////////
         
         int seedwhat = 1;
         
-        if (isTransient) {
-          assembler->wkset[0]->computeSolnTransientSeeded(assembler->cells[usernum][e]->u,
-                                                          assembler->cells[usernum][e]->u_prev,
-                                                          assembler->cells[usernum][e]->u_stage,
-                                                          seedwhat);
-        }
-        else { // steady-state
-          assembler->wkset[0]->computeSolnSteadySeeded(assembler->cells[usernum][e]->u, seedwhat);
-        }
-        if (assembler->wkset[0]->numParams > 0) {
-          assembler->wkset[0]->computeParamSteadySeeded(assembler->cells[usernum][e]->param, seedwhat);
-        }
-        
         //////////////////////////////////////////////////////////////
         // Compute res and J=dF/du
         //////////////////////////////////////////////////////////////
         
         // Volumetric contribution
-        assembler->cells[usernum][e]->computeSolnVolIP();
+        assembler->cells[usernum][e]->updateWorkset(seedwhat);
         assembler->phys->volumeResidual(0);
-        
-        
+                
         //////////////////////////////////////////////////////////////////////////
         // Scatter into global matrix/vector
         ///////////////////////////////////////////////////////////////////////////
@@ -560,35 +542,9 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       for (size_t e=0; e<assembler->boundaryCells[usernum].size(); e++) {
         
         if (assembler->boundaryCells[usernum][e]->numElem > 0) {
-          assembler->wkset[0]->localEID = e;
-          
-          /////////////////////////////////////////////////////////////////////////////
-          // Compute the local residual and Jacobian on this cell
-          /////////////////////////////////////////////////////////////////////////////
-          
-          assembler->wkset[0]->sidename = assembler->boundaryCells[usernum][e]->sidename;
-          assembler->wkset[0]->currentside = assembler->boundaryCells[usernum][e]->sidenum;
           
           int seedwhat = 1;
-          
-          if (isTransient) {
-            assembler->wkset[0]->computeSolnTransientSeeded(assembler->boundaryCells[usernum][e]->u,
-                                                            assembler->boundaryCells[usernum][e]->u_prev,
-                                                            assembler->boundaryCells[usernum][e]->u_stage,
-                                                            seedwhat);
-          }
-          else { // steady-state
-            assembler->wkset[0]->computeSolnSteadySeeded(assembler->boundaryCells[usernum][e]->u, seedwhat);
-          }
-          if (assembler->wkset[0]->numParams > 0) {
-            assembler->wkset[0]->computeParamSteadySeeded(assembler->boundaryCells[usernum][e]->param, seedwhat);
-          }
-          
-          assembler->boundaryCells[usernum][e]->updateWorksetBasis();
-          assembler->boundaryCells[usernum][e]->computeSoln(seedwhat);
-          
-          assembler->wkset[0]->resetResidual();
-          
+          assembler->boundaryCells[usernum][e]->updateWorkset(seedwhat);
           assembler->phys->boundaryResidual(0);
           
           //////////////////////////////////////////////////////////////////////////
@@ -965,35 +921,8 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
         // Prep the workset
         //-----------------------------------------------
         
-        assembler->boundaryCells[usernum][elem]->updateWorksetBasis();
-          
-        assembler->wkset[0]->sidename = assembler->boundaryCells[usernum][elem]->sidename;
-        assembler->wkset[0]->currentside = assembler->boundaryCells[usernum][elem]->sidenum;
-          
         int seedwhat = 4;
-        
-        if (isTransient) {
-          assembler->wkset[0]->computeSolnTransientSeeded(assembler->boundaryCells[usernum][elem]->u,
-                                                          assembler->boundaryCells[usernum][elem]->u_prev,
-                                                          assembler->boundaryCells[usernum][elem]->u_stage,
-                                                          seedwhat);
-        }
-        else { // steady-state
-          assembler->wkset[0]->computeSolnSteadySeeded(assembler->boundaryCells[usernum][elem]->u,
-                                                       seedwhat);
-        }
-        
-        assembler->wkset[0]->computeParamSteadySeeded(assembler->boundaryCells[usernum][elem]->param,
-                                                      seedwhat);
-          
-        assembler->boundaryCells[usernum][elem]->computeSoln(seedwhat);
-        assembler->wkset[0]->computeParamSideIP();
-        
-        //-----------------------------------------------
-        // Reset the residual
-        //-----------------------------------------------
-        
-        assembler->wkset[0]->resetResidual();
+        assembler->boundaryCells[usernum][elem]->updateWorkset(seedwhat);
           
         //-----------------------------------------------
         // Compute the residual
@@ -1249,6 +1178,8 @@ void SubGridFEM_Solver::updateFlux(ViewType u_kv,
       cout << "**** Starting SubgridFEM_Solver::updateFlux ..." << endl;
     }
   }
+  
+  macrowkset.resetResidual();
   
   for (size_t e=0; e<assembler->boundaryCells[usernum].size(); e++) {
     
