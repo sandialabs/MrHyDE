@@ -344,7 +344,7 @@ namespace MrHyDE {
     std::string sname;
     ScalarT stddev;
     
-    std::vector<std::string> blocknames, error_types, subgrid_error_types;
+    std::vector<std::string> blocknames, sideSets, error_types, subgrid_error_types;
     std::vector<std::vector<Kokkos::View<ScalarT*,HostDevice> > > errors; // [time][block](error_list)
     std::vector<Kokkos::View<ScalarT**,HostDevice> > responses; // [time](sensors,response)
     std::vector<std::vector<std::vector<Kokkos::View<ScalarT*,HostDevice> > > > subgrid_errors; // extra std::vector for multiple subgrid models [time][block][sgmodel](error_list)

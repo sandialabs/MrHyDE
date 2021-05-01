@@ -147,6 +147,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   }
   
   mesh->stk_mesh->getElementBlockNames(blocknames);
+  mesh->stk_mesh->getSidesetNames(sideSets);
   
   numNodesPerElem = settings->sublist("Mesh").get<int>("numNodesPerElem",4); // actually set by mesh interface
   spaceDim = mesh->stk_mesh->getDimension();
@@ -1013,9 +1014,6 @@ void PostprocessManager<Node>::computeResponse(const ScalarT & currenttime) {
 
 template<class Node>
 void PostprocessManager<Node>::computeFluxResponse(const ScalarT & currenttime) {
-  
-  vector<string> sideSets;
-  mesh->stk_mesh->getSidesetNames(sideSets);
   
   for (size_t block=0; block<assembler->cellData.size(); ++block) {
     for (size_t cell=0; cell<assembler->boundaryCells[block].size(); ++cell) {
