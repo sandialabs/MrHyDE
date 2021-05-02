@@ -174,6 +174,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   }
   
   scalarInitialData = settings->sublist("Physics").sublist("Initial conditions").get<bool>("scalar data", false);
+  have_static_Dirichlet_data = false;
   
   if (have_initial_conditions && scalarInitialData) {
     for (size_t b=0; b<blocknames.size(); b++) {
@@ -642,11 +643,11 @@ void SolverManager<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & 
     fixedDOF_soln = linalg->getNewOverlappedVector();
     
     scalarDirichletData = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("scalar data", false);
-    transientDirichletData = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("transient data", false);
+    staticDirichletData = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("static data", true);
     
-    if (scalarDirichletData && transientDirichletData) {
+    if (scalarDirichletData && !staticDirichletData) {
       if (Comm->getRank() == 0) {
-        cout << "Warning: Both scalar data and transient data were set to true.  This should not happen." << endl;
+        cout << "Warning: The Dirichlet data was set to scalar and non-static.  This should not happen." << endl;
       }
     }
     
@@ -757,8 +758,14 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
   is_adjoint = false;
   params->sacadoizeParams(false);
   
-  if (!scalarDirichletData && !transientDirichletData) {
-    this->projectDirichlet();
+  if (!scalarDirichletData) {
+    if (!staticDirichletData) {
+      this->projectDirichlet();
+    }
+    else if (!have_static_Dirichlet_data) {
+      this->projectDirichlet();
+      have_static_Dirichlet_data = true;
+    }
   }
   vector_RCP u = this->setInitial();
   
@@ -1329,9 +1336,19 @@ void SolverManager<Node>::setDirichlet(vector_RCP & u) {
     auto u_kv = u->template getLocalView<LA_device>();
     //auto meas_kv = meas->getLocalView<HostDevice>();
     
-    if (!scalarDirichletData && transientDirichletData) {
-      this->projectDirichlet();
+    if (!scalarDirichletData) {
+      if (!staticDirichletData) {
+        this->projectDirichlet();
+      }
+      else if (!have_static_Dirichlet_data) {
+        this->projectDirichlet();
+        have_static_Dirichlet_data = true;
+      }
     }
+    
+    //if (!scalarDirichletData && transientDirichletData) {
+    //  this->projectDirichlet();
+    //}
     
     vector<vector<Kokkos::View<LO*,LA_device> > > dbcDOFs = assembler->fixedDOF;
     if (scalarDirichletData) {

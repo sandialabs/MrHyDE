@@ -166,8 +166,8 @@ namespace MrHyDE {
     bool line_search, useL2proj, discretized_stochastic;
     bool isInitial, isTransient, is_adjoint, is_final_time, usestrongDBCs;
     bool compute_objective, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
-    bool scalarDirichletData, transientDirichletData, scalarInitialData;
-    bool have_initial_conditions;
+    bool scalarDirichletData, staticDirichletData, scalarInitialData;
+    bool have_initial_conditions, have_static_Dirichlet_data;
     
     vector<vector<ScalarT> > scalarDirichletValues, scalarInitialValues; //[block][var]
     Teuchos::RCP<LA_MultiVector> fixedDOF_soln;

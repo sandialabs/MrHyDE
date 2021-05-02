@@ -429,14 +429,20 @@ void LinearAlgebraInterface<Node>::linearSolverBoundaryL2(matrix_RCP & J, vector
       if (useDomDecompBL2) {
         Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
         ifpackList.set("schwarz: subdomain solver","garbage");
-        Teuchos::RCP<Ifpack2::Preconditioner<ScalarT,LO,GO,Node>> M_BL2 = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
-        M_BL2->setParameters(ifpackList);
-        M_BL2->initialize();
-        M_BL2->compute();
-        Problem->setLeftPrec(M_BL2);
+        Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > M_dd_BL2 = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
+        M_dd_BL2->setParameters(ifpackList);
+        M_dd_BL2->initialize();
+        M_dd_BL2->compute();
+        Problem->setLeftPrec(M_dd_BL2);
       }
       else { // default - AMG preconditioner
-        Teuchos::RCP<MueLu::TpetraOperator<ScalarT,LO,GO,Node> > M_BL2 = this->buildPreconditioner(J,"Boundary L2 Projection Preconditioner Settings");
+        if (!have_preconditioner_BL2) {
+          M_BL2 = this->buildPreconditioner(J,"Boundary L2 Projection Preconditioner Settings");
+          have_preconditioner_BL2 = true;
+        }
+        else {
+          MueLu::ReuseTpetraPreconditioner(J,*M_BL2);
+        }
         Problem->setLeftPrec(M_BL2);
       }
     }
