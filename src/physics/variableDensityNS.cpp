@@ -298,8 +298,8 @@ void VDNS::volumeResidual() {
       
       // Ux equation
       // (v_1,rho du_1/dt) + (v_1,rho [u_1 du_1/dx_1 + u_2 du_1/dx_2]) - (dv_1/dx_1,p)  
-      //  + (dv_1/dx_1, \mu [2 * du_1/dx_1 - 2/3 (du_1/dx_1 + du_2/dx_2)]) 
-      //  + (dv_1/dx_2, \mu [du_1/dx_2 + du_2/dx_1]) - (v_1,source) 
+      // + (dv_1/dx_1, \mu [2 * du_1/dx_1 - 2/3 (du_1/dx_1 + du_2/dx_2)]) 
+      // + (dv_1/dx_2, \mu [du_1/dx_2 + du_2/dx_1]) - (v_1,source) 
       parallel_for("VDNS ux volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -328,7 +328,7 @@ void VDNS::volumeResidual() {
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem));
-            AD strongres = dens(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
+            AD strongres = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
             AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
             AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -341,7 +341,7 @@ void VDNS::volumeResidual() {
     
     {
       // Uy equation
-      // (v_2, rho du_2/dt) + (v_2, rho [u_1 dv_2/dx_1 + u_2 dv_2/dx_2]) - (dv_2/dx_2,p)
+      // (v_2, rho du_2/dt) + (v_2, rho [u_1 du_2/dx_1 + u_2 du_2/dx_2]) - (dv_2/dx_2,p)
       // + (dv_2/dx_1, \mu [du_1/dx_2 + du_2/dx_1]) 
       // + (dv_2/dx_2, \mu [2 * du_2/dx_2 - 2/3 (du_1/dx_1 + du_2/dx_2)]) - (v_2,source)
       int uy_basis = wkset->usebasis[uy_num];
@@ -381,14 +381,14 @@ void VDNS::volumeResidual() {
       if (useSUPG) {
         auto h = wkset->h;
         auto dpr_dy = wkset->getData("grad(pr)[y]");
-        parallel_for("VDNS uy volume resid",
+        parallel_for("VDNS uy volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem));
-            AD stabres = dens(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
-            AD Sx = tau*stabres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
-            AD Sy = tau*stabres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
+            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem));
+            AD strongres = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
+            AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
+            AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
             }
@@ -445,7 +445,7 @@ void VDNS::volumeResidual() {
             // TODO CHECK THIS, UNITS ETC.
             AD strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
             AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
-            AD Sx = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
+            AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
             }
@@ -460,7 +460,6 @@ void VDNS::volumeResidual() {
       // pressure equation
       /////////////////////////////
       // (q,du_1/dx_1 + du_2/dx_2) - (q,1/T(dT/dt + u_1 dT/dx_1 + u_2 dT/dx_2) - 1/p0 dp0/dt)
-      
       int pr_basis = wkset->usebasis[pr_num];
       auto basis = wkset->basis[pr_basis];
       auto basis_grad = wkset->basis_grad[pr_basis];
@@ -480,7 +479,7 @@ void VDNS::volumeResidual() {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt))*wts(elem,pt);
           // TODO :: p0 part DONT SCREW UP WTS
-          AD thermDiv = 1./T(elem,pt)*(dt_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
+          AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
           thermDiv *= wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0);
@@ -491,7 +490,6 @@ void VDNS::volumeResidual() {
       // TODO BWR -- viscous contribution 
       // PSPG contribution
       // (dq/dx_1, \tau_mom R_mom,1) + (dq/dx_2, \tau_mom R_mom,2)
-      // HERE HERE HERE TODO TODO TODO TODO
       if (usePSPG) {
         
         auto h = wkset->h;
@@ -504,16 +502,18 @@ void VDNS::volumeResidual() {
         auto dux_dy = wkset->getData("grad(ux)[y]");
         auto duy_dx = wkset->getData("grad(uy)[x]");
         auto dt = wkset->deltat;
-        
-        parallel_for("VDNS pr volume resid",
+
+        parallel_for("VDNS pr volume resid PSPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem));
-            AD Sx = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
-            Sx *= tau*wts(elem,pt)/dens(elem,pt);
-            AD Sy = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
-            Sy *= tau*wts(elem,pt)/dens(elem,pt);
+            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem));
+            // Strong residual x momentum
+            AD Sx = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
+            Sx *= tau*wts(elem,pt);
+            // Strong residual y momentum
+            AD Sy = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
+            Sy *= tau*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
             }
@@ -523,360 +523,348 @@ void VDNS::volumeResidual() {
     }
   }
   else if (spaceDim == 3) {
-   // {
-   //   int ux_basis = wkset->usebasis[ux_num];
-   //   auto basis = wkset->basis[ux_basis];
-   //   auto basis_grad = wkset->basis_grad[ux_basis];
-   //   auto ux = wkset->getData("ux");
-   //   auto uy = wkset->getData("uy");
-   //   auto uz = wkset->getData("uz");
-   //   auto dux_dt = wkset->getData("ux_t");
-   //   auto dux_dx = wkset->getData("grad(ux)[x]");
-   //   auto dux_dy = wkset->getData("grad(ux)[y]");
-   //   auto dux_dz = wkset->getData("grad(ux)[z]");
-   //   auto pr = wkset->getData("pr");
-   //   auto off = subview(wkset->offsets,ux_num,ALL());
-   //   
-   //   // Ux equation
-   //   parallel_for("NS ux volume resid",
-   //                RangePolicy<AssemblyExec>(0,wkset->numElem),
-   //                KOKKOS_LAMBDA (const int elem ) {
-   //     for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-   //       AD Fx = visc(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
-   //       Fx *= wts(elem,pt);
-   //       AD Fy = visc(elem,pt)*dux_dy(elem,pt);
-   //       Fy *= wts(elem,pt);
-   //       AD Fz = visc(elem,pt)*dux_dz(elem,pt);
-   //       Fz *= wts(elem,pt);
-   //       AD F = dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt) - source_ux(elem,pt);
-   //       F *= dens(elem,pt)*wts(elem,pt);
-   //       for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-   //         res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
-   //       }
-   //     }
-   //   });
-   //   
-   //   // Energy contribution
-   //   if (have_energy) {
-   //     auto params = model_params;
-   //     auto E = wkset->getData("e");
-   //     parallel_for("NS ux volume resid",
-   //                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-   //                  KOKKOS_LAMBDA (const int elem ) {
-   //       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-   //         AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt)*wts(elem,pt);
-   //         for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-   //           res(elem,off(dof)) += F*basis(elem,dof,pt,0);
-   //         }
-   //       }
-   //     });
-   //   }
-   //   
-   //   // SUPG contribution
-   //   
-   //   if (useSUPG) {
-   //     auto h = wkset->h;
-   //     auto dpr_dx = wkset->getData("grad(pr)[x]");
-   //     parallel_for("NS ux volume resid",
-   //                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-   //                  KOKKOS_LAMBDA (const int elem ) {
-   //       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-   //         AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem));
-   //         AD stabres = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
-   //         AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
-   //         AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
-   //         AD Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);
-   //         for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-   //           res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
-   //         }
-   //       }
-   //     });
-   //     
-   //     if (have_energy) {
-   //       auto params = model_params;
-   //       auto E = wkset->getData("e");
-   //       parallel_for("NS ux volume resid",
-   //                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-   //                    KOKKOS_LAMBDA (const int elem ) {
-   //         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-   //           AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem));
-   //           AD stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_ux(elem,pt);
-   //           AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
-   //           AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
-   //           AD Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);
-   //           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-   //             res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
-   //           }
-   //         }
-   //       });
-   //     }
-   //   }
-   // }
-   // 
-   // {
-   //   // Uy equation
-   //   int uy_basis = wkset->usebasis[uy_num];
-   //   auto basis = wkset->basis[uy_basis];
-   //   auto basis_grad = wkset->basis_grad[uy_basis];
-   //   auto ux = wkset->getData("ux");
-   //   auto uy = wkset->getData("uy");
-   //   auto uz = wkset->getData("uz");
-   //   auto duy_dt = wkset->getData("uy_t");
-   //   auto duy_dx = wkset->getData("grad(uy)[x]");
-   //   auto duy_dy = wkset->getData("grad(uy)[y]");
-   //   auto duy_dz = wkset->getData("grad(uy)[z]");
-   //   auto pr = wkset->getData("pr");
-   //   auto off = subview(wkset->offsets,uy_num,ALL());
-   //   
-   //   parallel_for("NS uy volume resid",
-   //                RangePolicy<AssemblyExec>(0,wkset->numElem),
-   //                KOKKOS_LAMBDA (const int elem ) {
-   //     for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-   //       AD Fx = visc(elem,pt)*duy_dy(elem,pt);
-   //       Fx *= wts(elem,pt);
-   //       AD Fy = visc(elem,pt)*duy_dy(elem,pt) - pr(elem,pt);
-   //       Fy *= wts(elem,pt);
-   //       AD Fz = visc(elem,pt)*duy_dz(elem,pt);
-   //       Fz *= wts(elem,pt);
-   //       AD F = duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt) - source_uy(elem,pt);
-   //       F *= dens(elem,pt)*wts(elem,pt);
-   //       for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-   //         res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
-   //       }
-   //     }
-   //   });
-   //   
-   //   // Energy contribution
-   //   if (have_energy) {
-   //     auto params = model_params;
-   //     auto E = wkset->getData("e");
-   //     parallel_for("NS uy volume resid",
-   //                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-   //                  KOKKOS_LAMBDA (const int elem ) {
-   //       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-   //         AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uy(elem,pt)*wts(elem,pt);
-   //         for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-   //           res(elem,off(dof)) += F*basis(elem,dof,pt,0);
-   //         }
-   //       }
-   //     });
-   //   }
-   //   
-   //   // SUPG contribution
-   //   
-   //   if (useSUPG) {
-   //     auto h = wkset->h;
-   //     auto dpr_dy = wkset->getData("grad(pr)[y]");
-   //     parallel_for("NS uy volume resid",
-   //                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-   //                  KOKKOS_LAMBDA (const int elem ) {
-   //       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-   //         AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem));
-   //         AD stabres = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
-   //         AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
-   //         AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
-   //         AD Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);
-   //         for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-   //           res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
-   //         }
-   //       }
-   //     });
-   //     
-   //     if (have_energy) {
-   //       auto params = model_params;
-   //       auto E = wkset->getData("e");
-   //       parallel_for("NS uy volume resid",
-   //                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-   //                    KOKKOS_LAMBDA (const int elem ) {
-   //         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-   //           AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem));
-   //           AD stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_uy(elem,pt);
-   //           AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
-   //           AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
-   //           AD Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);
-   //           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-   //             res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
-   //           }
-   //         }
-   //       });
-   //     }
-   //   }
-   // }
-   // 
-   // {
-   //   // Uz equation
-   //   int uz_basis = wkset->usebasis[uz_num];
-   //   auto basis = wkset->basis[uz_basis];
-   //   auto basis_grad = wkset->basis_grad[uz_basis];
-   //   auto ux = wkset->getData("ux");
-   //   auto uy = wkset->getData("uy");
-   //   auto uz = wkset->getData("uz");
-   //   auto duz_dt = wkset->getData("uz_t");
-   //   auto duz_dx = wkset->getData("grad(uz)[x]");
-   //   auto duz_dy = wkset->getData("grad(uz)[y]");
-   //   auto duz_dz = wkset->getData("grad(uz)[z]");
-   //   auto pr = wkset->getData("pr");
-   //   auto off = subview(wkset->offsets,uy_num,ALL());
-   //   
-   //   parallel_for("NS uy volume resid",
-   //                RangePolicy<AssemblyExec>(0,wkset->numElem),
-   //                KOKKOS_LAMBDA (const int elem ) {
-   //     for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-   //       AD Fx = visc(elem,pt)*duz_dx(elem,pt);
-   //       Fx *= wts(elem,pt);
-   //       AD Fy = visc(elem,pt)*duz_dy(elem,pt);
-   //       Fy *= wts(elem,pt);
-   //       AD Fz = visc(elem,pt)*duz_dz(elem,pt) - pr(elem,pt);
-   //       Fz *= wts(elem,pt);
-   //       AD F = duz_dt(elem,pt) + ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt) - source_uz(elem,pt);
-   //       F *= dens(elem,pt)*wts(elem,pt);
-   //       for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-   //         res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
-   //       }
-   //     }
-   //   });
-   //   
-   //   // Energy contribution
-   //   if (have_energy) {
-   //     auto params = model_params;
-   //     auto E = wkset->getData("e");
-   //     parallel_for("NS uy volume resid",
-   //                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-   //                  KOKKOS_LAMBDA (const int elem ) {
-   //       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-   //         AD F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uz(elem,pt)*wts(elem,pt);
-   //         for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-   //           res(elem,off(dof)) += F*basis(elem,dof,pt,0);
-   //         }
-   //       }
-   //     });
-   //   }
-   //   
-   //   // SUPG contribution
-   //   
-   //   if (useSUPG) {
-   //     auto h = wkset->h;
-   //     auto dpr_dz = wkset->getData("grad(pr)[z]");
-   //     parallel_for("NS uz volume resid",
-   //                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-   //                  KOKKOS_LAMBDA (const int elem ) {
-   //       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-   //         AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem));
-   //         AD stabres = dens(elem,pt)*duz_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) + dpr_dz(elem,pt) - dens(elem,pt)*source_uz(elem,pt);
-   //         AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
-   //         AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
-   //         AD Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);
-   //         for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-   //           res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
-   //         }
-   //       }
-   //     });
-   //     
-   //     if (have_energy) {
-   //       auto params = model_params;
-   //       auto E = wkset->getData("e");
-   //       parallel_for("NS uz volume resid",
-   //                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-   //                    KOKKOS_LAMBDA (const int elem ) {
-   //         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-   //           AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem));
-   //           AD stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_uz(elem,pt);
-   //           AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
-   //           AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
-   //           AD Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);
-   //           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-   //             res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
-   //           }
-   //         }
-   //       });
-   //     }
-   //   }
-   // }
-   // 
-   // {
-   //   /////////////////////////////
-   //   // pressure equation
-   //   /////////////////////////////
-   //   
-   //   int pr_basis = wkset->usebasis[pr_num];
-   //   auto basis = wkset->basis[pr_basis];
-   //   auto basis_grad = wkset->basis_grad[pr_basis];
-   //   auto dux_dx = wkset->getData("grad(ux)[x]");
-   //   auto duy_dy = wkset->getData("grad(uy)[y]");
-   //   auto duz_dz = wkset->getData("grad(uz)[z]");
-   //   auto off = subview(wkset->offsets,pr_num,ALL());
-   //   
-   //   parallel_for("NS pr volume resid",
-   //                RangePolicy<AssemblyExec>(0,wkset->numElem),
-   //                KOKKOS_LAMBDA (const int elem ) {
-   //     for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-   //       AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))*wts(elem,pt);
-   //       for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-   //         res(elem,off(dof)) += divu*basis(elem,dof,pt,0);
-   //       }
-   //     }
-   //   });
-   //   
-   //   if (usePSPG) {
-   //     
-   //     auto h = wkset->h;
-   //     auto dpr_dx = wkset->getData("grad(pr)[x]");
-   //     auto dpr_dy = wkset->getData("grad(pr)[y]");
-   //     auto dpr_dz = wkset->getData("grad(pr)[z]");
-   //     auto ux = wkset->getData("ux");
-   //     auto uy = wkset->getData("uy");
-   //     auto uz = wkset->getData("uz");
-   //     auto dux_dt = wkset->getData("ux_t");
-   //     auto duy_dt = wkset->getData("uy_t");
-   //     auto duz_dt = wkset->getData("uz_t");
-   //     auto dux_dy = wkset->getData("grad(ux)[y]");
-   //     auto dux_dz = wkset->getData("grad(ux)[z]");
-   //     auto duy_dx = wkset->getData("grad(uy)[x]");
-   //     auto duy_dz = wkset->getData("grad(uy)[z]");
-   //     auto duz_dx = wkset->getData("grad(uz)[x]");
-   //     auto duz_dy = wkset->getData("grad(uz)[y]");
-   //     auto dt = wkset->deltat;
-   //     
-   //     parallel_for("NS pr volume resid",
-   //                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-   //                  KOKKOS_LAMBDA (const int elem ) {
-   //       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-   //         AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem));
-   //         AD Sx = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
-   //         Sx *= tau*wts(elem,pt)/dens(elem,pt);
-   //         AD Sy = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
-   //         Sy *= tau*wts(elem,pt)/dens(elem,pt);
-   //         AD Sz = dens(elem,pt)*duz_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) + dpr_dz(elem,pt) - dens(elem,pt)*source_uz(elem,pt);
-   //         Sz *= tau*wts(elem,pt)/dens(elem,pt);
-   //         for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-   //           res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
-   //         }
-   //       }
-   //     });
-   //     if (have_energy) {
-   //       // BWR TODO check and change, see above
-   //       auto params = model_params;
-   //       auto E = wkset->getData("e");
-   //       parallel_for("NS pr volume resid",
-   //                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-   //                    KOKKOS_LAMBDA (const int elem ) {
-   //         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-   //           AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem));
-   //           AD Sx = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt);
-   //           Sx *= tau*wts(elem,pt);
-   //           AD Sy = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uy(elem,pt);
-   //           Sy *= tau*wts(elem,pt);
-   //           AD Sz = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uz(elem,pt);
-   //           Sz *= tau*wts(elem,pt);
-   //           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-   //             res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
-   //           }
-   //         }
-   //       });
-   //       //stabres += dens(e,k)*(eval-T_ambient)*source_ux(e,k);
-   //     }
-   //   }
-   // }
+    {
+      // Ux equation
+      // (v_1,rho du_1/dt) + (v_1, rho [u_1 du_1/dx_1 + u_2 du_1/dx_2 + u_3 du_1/dx_3]) - (dv_1/dx_1,p)
+      // + (dv_1/dx_1, \mu [2 * du_1/dx_1 - 2/3 (du_1/dx_1 + du_2/dx_2 + du_3/dx_3)])
+      // + (dv_1/dx_2, \mu [du_1/dx_2 + du_2/dx_1]) + (dv_1/dx_3, \mu [du_1/dx_3 + du_3/dx_1])
+      // - (v_1,source)
+      int ux_basis = wkset->usebasis[ux_num];
+      auto basis = wkset->basis[ux_basis];
+      auto basis_grad = wkset->basis_grad[ux_basis];
+      auto ux = wkset->getData("ux");
+      auto uy = wkset->getData("uy");
+      auto uz = wkset->getData("uz");
+      auto dux_dt = wkset->getData("ux_t");
+      auto dux_dx = wkset->getData("grad(ux)[x]");
+      auto dux_dy = wkset->getData("grad(ux)[y]");
+      auto dux_dz = wkset->getData("grad(ux)[z]");
+      auto duy_dx = wkset->getData("grad(uy)[x]");
+      auto duy_dy = wkset->getData("grad(uy)[y]");
+      auto duy_dz = wkset->getData("grad(uy)[z]");
+      auto duz_dx = wkset->getData("grad(uz)[x]");
+      auto duz_dy = wkset->getData("grad(uz)[y]");
+      auto duz_dz = wkset->getData("grad(uz)[z]");
+      auto pr = wkset->getData("pr");
+      auto off = subview(wkset->offsets,ux_num,ALL());
+      
+      parallel_for("VDNS ux volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          AD Fx = mu(elem,pt)*(2.*dux_dx(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))) - pr(elem,pt);
+          Fx *= wts(elem,pt);
+          AD Fy = mu(elem,pt)*(dux_dy(elem,pt) + duy_dx(elem,pt));
+          Fy *= wts(elem,pt);
+          AD Fz = mu(elem,pt)*(dux_dz(elem,pt) + duz_dx(elem,pt));
+          Fz *= wts(elem,pt);
+          AD F = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) - source_ux(elem,pt);
+          F *= wts(elem,pt);
+          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
+          }
+        }
+      });
+
+      // SUPG contribution
+      // TODO viscous contribution for higher order elements?
+      // (rho [u_1 dv_1/dx_1 + u_2 dv_1/dx_2 + u_3 dv_1/dx_3], \tau_mom R_mom,1)
+      
+      if (useSUPG) {
+        auto h = wkset->h;
+        auto dpr_dx = wkset->getData("grad(pr)[x]");
+        parallel_for("VDNS ux volume resid SUPG",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem));
+            AD strongres = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
+            AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
+            AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
+            AD Sz = tau*strongres*rho(elem,pt)*uz(elem,pt)*wts(elem,pt);
+            for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
+            }
+          }
+        });
+      }
+    }
+
+    {
+      // Uy equation
+      // (v_2, rho du_2/dt) + (v_2, rho [u_1 du_2/dx_1 + u_2 du_2/dx_2 + u_3 du_2/dx_3]) - (dv_2/dx_2,p)
+      // + (dv_2/dx_1, \mu [du_1/dx_2 + du_2/dx_1]) 
+      // + (dv_2/dx_2, \mu [2 * du_2/dx_2 - 2/3 (du_1/dx_1 + du_2/dx_2 + du_3/dx_3)]) 
+      // + (dv_2/dx_3, \mu [du_2/dx_3 + du_3/dx_2]) - (v_2,source)
+      int uy_basis = wkset->usebasis[uy_num];
+      auto basis = wkset->basis[uy_basis];
+      auto basis_grad = wkset->basis_grad[uy_basis];
+      auto ux = wkset->getData("ux");
+      auto uy = wkset->getData("uy");
+      auto uz = wkset->getData("uz");
+      auto duy_dt = wkset->getData("uy_t");
+      auto dux_dx = wkset->getData("grad(ux)[x]");
+      auto dux_dy = wkset->getData("grad(ux)[y]");
+      auto dux_dz = wkset->getData("grad(ux)[z]");
+      auto duy_dx = wkset->getData("grad(uy)[x]");
+      auto duy_dy = wkset->getData("grad(uy)[y]");
+      auto duy_dz = wkset->getData("grad(uy)[z]");
+      auto duz_dx = wkset->getData("grad(uz)[x]");
+      auto duz_dy = wkset->getData("grad(uz)[y]");
+      auto duz_dz = wkset->getData("grad(uz)[z]");
+      auto pr = wkset->getData("pr");
+      auto off = subview(wkset->offsets,uy_num,ALL());
+      
+      parallel_for("VDNS uy volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          AD Fx = mu(elem,pt)*(dux_dy(elem,pt) + duy_dx(elem,pt));
+          Fx *= wts(elem,pt);
+          AD Fy = mu(elem,pt)*(2.*duy_dy(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))) - pr(elem,pt);
+          Fy *= wts(elem,pt);
+          AD Fz = mu(elem,pt)*(duy_dz(elem,pt) + duz_dy(elem,pt));
+          AD F = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) - source_uy(elem,pt);
+          F *= wts(elem,pt);
+          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
+          }
+        }
+      });
+      
+      // SUPG contribution
+      // TODO viscous contribution for higher order elements?
+      // (rho [u_1 dv_2/dx_1 + u_2 dv_2/dx_2 + u_3 dv_2/dx_3], \tau_mom R_mom,2)
+      // TODO CHECK UNITS HERE
+      
+      if (useSUPG) {
+        auto h = wkset->h;
+        auto dpr_dy = wkset->getData("grad(pr)[y]");
+        parallel_for("VDNS uy volume resid SUPG",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem));
+            AD strongres = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
+            AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
+            AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
+            AD Sz = tau*strongres*rho(elem,pt)*uz(elem,pt)*wts(elem,pt);
+            for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
+            }
+          }
+        });
+      }
+    }
+
+    {
+      // Uz equation
+      // (v_3,rho du_3/dt) + (v_3, rho [u_1 du_3/dx_1 + u_2 du_3/dx_2 + u_3 du_3/dx_3]) - (dv_3/dx_3,p)
+      // + (dv_3/dx_1, \mu [du_3/dx_1 + du_1/dx_3]) + (dv_3/dx_2, \mu [du_3/dx_2 + du_2/dx_3])
+      // + (dv_3/dx_3, \mu [2 * du_3/dx_3 - 2/3 (du_1/dx_1 + du_2/dx_2 + du_3/dx_3])) 
+      // - (v_3,source)
+      int uz_basis = wkset->usebasis[uz_num];
+      auto basis = wkset->basis[uz_basis];
+      auto basis_grad = wkset->basis_grad[uz_basis];
+      auto ux = wkset->getData("ux");
+      auto uy = wkset->getData("uy");
+      auto uz = wkset->getData("uz");
+      auto duz_dt = wkset->getData("uz_t");
+      auto dux_dx = wkset->getData("grad(ux)[x]");
+      auto dux_dy = wkset->getData("grad(ux)[y]");
+      auto dux_dz = wkset->getData("grad(ux)[z]");
+      auto duy_dx = wkset->getData("grad(uy)[x]");
+      auto duy_dy = wkset->getData("grad(uy)[y]");
+      auto duy_dz = wkset->getData("grad(uy)[z]");
+      auto duz_dx = wkset->getData("grad(uz)[x]");
+      auto duz_dy = wkset->getData("grad(uz)[y]");
+      auto duz_dz = wkset->getData("grad(uz)[z]");
+      auto pr = wkset->getData("pr");
+      auto off = subview(wkset->offsets,uy_num,ALL());
+      
+      parallel_for("VDNS uz volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          AD Fx = mu(elem,pt)*(duz_dx(elem,pt) + dux_dz(elem,pt));
+          Fx *= wts(elem,pt);
+          AD Fy = mu(elem,pt)*(duz_dy(elem,pt) + duy_dz(elem,pt));
+          Fy *= wts(elem,pt);
+          AD Fz = mu(elem,pt)*(2.*duz_dz(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))) - pr(elem,pt);
+          Fz *= wts(elem,pt);
+          AD F = rho(elem,pt)*(duz_dt(elem,pt) + ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) - source_uz(elem,pt);
+          F *= wts(elem,pt);
+          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
+          }
+        }
+      });
+
+      // SUPG contribution
+      // TODO viscous contribution for higher order elements?
+      // (rho [u_1 dv_3/dx_1 + u_2 dv_3/dx_2 + u_3 dv_3/dx_3], \tau_mom R_mom,3)
+      // TODO CHECK UNITS HERE
+      
+      if (useSUPG) {
+        auto h = wkset->h;
+        auto dpr_dz = wkset->getData("grad(pr)[z]");
+        parallel_for("VDNS uz volume resid SUPG",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem));
+            AD strongres = rho(elem,pt)*(duz_dt(elem,pt) + ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) + dpr_dz(elem,pt) - source_uz(elem,pt);
+            AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
+            AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
+            AD Sz = tau*strongres*rho(elem,pt)*uz(elem,pt)*wts(elem,pt);
+            for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
+            }
+          }
+        });
+      }
+    }
+
+    {
+      /////////////////////////////
+      // energy equation
+      /////////////////////////////
+      // TODO dp0 part, etc
+      // (w,rho dT/dt) + (w,rho [u_1 dT/dx_1 + u_2 dT/dx_2 + u_3 dT/dx_3]) + (dw/dx_1,lambda/cp dT/dx_1)
+      // + (dw/dx_2,lambda/cp dT/dx_2) + (dw/dx_3,lambda/cp dT/dx_3) - (w,1/cp[dp0/dt + Q])
+      int T_basis = wkset->usebasis[T_num];
+      auto basis = wkset->basis[T_basis];
+      auto basis_grad = wkset->basis_grad[T_basis];
+      auto T = wkset->getData("T");
+      auto dT_dt = wkset->getData("T_t");
+      auto dT_dx = wkset->getData("grad(T)[x]"); 
+      auto dT_dy = wkset->getData("grad(T)[y]"); 
+      auto dT_dz = wkset->getData("grad(T)[z]"); 
+      auto ux = wkset->getData("ux");
+      auto uy = wkset->getData("uy");
+      auto uz = wkset->getData("uz");
+      auto off = subview(wkset->offsets,T_num,ALL());
+ 
+      parallel_for("VDNS T volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          AD F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt))*wts(elem,pt);
+          // TODO SOURCE AND DPDT TERM
+          AD Fx = lambda(elem,pt)/cp(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
+          AD Fy = lambda(elem,pt)/cp(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
+          AD Fz = lambda(elem,pt)/cp(elem,pt)*dT_dz(elem,pt)*wts(elem,pt);
+          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += F*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2);
+          }
+        }
+      });
+
+      // SUPG contribution
+      // TODO viscous contribution for higher order elements?
+      // TODO SOURCE AND DPDT TERM
+      // (rho [u_1 dw/dx_1 + u_2 dw/dx_2 + u_3 dw/dx_3], \tau_T R_T)
+      // 1/\tau_T^2 = (c1 cp/lambda*h)^2 + (c2 |\rho u|/h)^2 + (c3 \rho/dt)^2
+      if (useSUPG) {
+        auto h = wkset->h;
+
+        parallel_for("VDNS T volume resid SUPG",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem));
+            // TODO CHECK THIS, UNITS ETC.
+            AD strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt));
+            AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
+            AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
+            AD Sz = tau*strongres*rho(elem,pt)*uz(elem,pt)*wts(elem,pt);
+            for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
+            }
+          }
+        });
+      }
+    }
+
+    {
+      /////////////////////////////
+      // pressure equation
+      /////////////////////////////
+      // (q,du_1/dx_1 + du_2/dx_2 + du_3/dx_3) - (q,1/T(dT/dt + u_1 dT/dx_1 + u_2 dT/dx_2 + u_3 dT/dx_3) - 1/p0 dp0/dt)
+      int pr_basis = wkset->usebasis[pr_num];
+      auto basis = wkset->basis[pr_basis];
+      auto basis_grad = wkset->basis_grad[pr_basis];
+      auto ux = wkset->getData("ux");
+      auto uy = wkset->getData("uy");
+      auto uz = wkset->getData("uz");
+      auto dux_dx = wkset->getData("grad(ux)[x]");
+      auto duy_dy = wkset->getData("grad(uy)[y]");
+      auto duz_dz = wkset->getData("grad(uz)[z]");
+      auto T = wkset->getData("T");
+      auto dT_dt = wkset->getData("T_t");
+      auto dT_dx = wkset->getData("grad(T)[x]");
+      auto dT_dy = wkset->getData("grad(T)[y]");
+      auto dT_dz = wkset->getData("grad(T)[z]");
+      auto off = subview(wkset->offsets,pr_num,ALL());
+      
+      parallel_for("VDNS pr volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))*wts(elem,pt);
+          // TODO :: p0 part DONT SCREW UP WTS
+          AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt));
+          thermDiv *= wts(elem,pt);
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0);
+          }
+        }
+      });
+      
+      // TODO BWR -- viscous contribution 
+      // PSPG contribution
+      // (dq/dx_1, \tau_mom R_mom,1) + (dq/dx_2, \tau_mom R_mom,2) + (dq/dx_3, \tau_mom R_mom,3)
+      if (usePSPG) {
+        
+        auto h = wkset->h;
+        auto dpr_dx = wkset->getData("grad(pr)[x]");
+        auto dpr_dy = wkset->getData("grad(pr)[y]");
+        auto dpr_dz = wkset->getData("grad(pr)[z]");
+        auto ux = wkset->getData("ux");
+        auto uy = wkset->getData("uy");
+        auto uz = wkset->getData("uz");
+        auto dux_dt = wkset->getData("ux_t");
+        auto duy_dt = wkset->getData("uy_t");
+        auto duz_dt = wkset->getData("uz_t");
+        auto dux_dy = wkset->getData("grad(ux)[y]");
+        auto dux_dz = wkset->getData("grad(ux)[z]");
+        auto duy_dx = wkset->getData("grad(uy)[x]");
+        auto duy_dz = wkset->getData("grad(uy)[z]");
+        auto duz_dx = wkset->getData("grad(uz)[x]");
+        auto duz_dy = wkset->getData("grad(uz)[y]");
+        auto dt = wkset->deltat;
+        
+        parallel_for("NS pr volume resid PSPG",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem));
+            // Strong residual x momentum
+            AD Sx = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
+            Sx *= tau*wts(elem,pt);
+            // Strong residual y momentum
+            AD Sy = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
+            Sy *= tau*wts(elem,pt);
+            // Strong residual z momentum
+            AD Sz = rho(elem,pt)*(duz_dt(elem,pt) + ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) + dpr_dz(elem,pt) - source_uz(elem,pt);
+            Sz *= tau*wts(elem,pt);
+            for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
+            }
+          }
+        });
+      }
+    }
   }
 }
 
