@@ -32,6 +32,7 @@
 #include "burgers.hpp"
 #include "kuramotoSivashinsky.hpp"
 #include "llamas.hpp"
+#include "variableDensityNS.hpp"
 
 using namespace MrHyDE;
 
@@ -134,6 +135,12 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
     if (modname == "llamas"){
       modules.push_back(Teuchos::rcp(new llamas(settings, isaux) ) );
     }
+
+    // Variable-density Navier-Stokes 
+    if (modname == "VDNS"){
+      modules.push_back(Teuchos::rcp(new VDNS(settings, isaux) ) );
+    }
+
   }
   
   return modules;

@@ -16,9 +16,9 @@
  * @brief Variable-density Navier-Stokes physics module
  *
  * Solves the variable-density Navier-Stokes equations for conservation
- * of mass, momentum, and a scalar transport equation (\f$z_{mix}\f$).
+ * of mass, momentum, and a scalar transport equation (\f$T\f$).
  * Transport and thermodynamic properties are assumed to be functions
- * of \f$z_{mix}\f$.
+ * of temperature.
  * We employ the low-Mach formulation where the thermodynamic pressure
  * and the density are decoupled.
  */
