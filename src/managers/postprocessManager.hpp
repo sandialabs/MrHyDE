@@ -27,9 +27,6 @@
 
 namespace MrHyDE {
   
-  // ========================================================================================
-  // Class for storing an objective function settings
-  // ========================================================================================
   
   // ========================================================================================
   // Class for storing a regularization function settings
@@ -64,6 +61,10 @@ namespace MrHyDE {
     ScalarT weight;
     size_t block;
   };
+  
+  // ========================================================================================
+  // Class for storing an objective function settings
+  // ========================================================================================
   
   class objective {
   public:
@@ -139,6 +140,36 @@ namespace MrHyDE {
     //vector<vector<Kokkos::View<ScalarT****,AssemblyDevice> > > sensor_basis_curl;  // [Ns][basis](elem,dof,pt,dim)
   };
   
+  // ========================================================================================
+  // Class for storing a flux response (not for optimization)
+  // ========================================================================================
+  
+  class fluxResponse {
+  public:
+    
+    fluxResponse(Teuchos::ParameterList & frsettings, const string & name_,
+                 const size_t & block_, Teuchos::RCP<FunctionManager> & functionManager_) {
+      name = name_;
+      block = block_;
+      
+      sidesets = frsettings.get<string>("side sets","all");
+      weight = frsettings.get<string>("weight","1.0");
+      int numfluxes = frsettings.get<int>("number",1);
+      
+      vals = Kokkos::View<ScalarT*,HostDevice>("flux data",numfluxes);
+      
+      functionManager_->addFunction("flux weight "+name,weight,"side ip");
+      
+    }
+    
+    string name, sidesets, weight;
+    size_t block;
+    Kokkos::View<ScalarT*,HostDevice> vals;
+  };
+  
+  
+  // ========================================================================================
+  // ========================================================================================
   
   template<class Node>
   class PostprocessManager {
@@ -210,6 +241,11 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    void computeFluxResponse(const ScalarT & current_time);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
     void computeObjective(vector_RCP & current_soln, const ScalarT & current_time,
                           DFAD & objectiveval);
 
@@ -242,6 +278,11 @@ namespace MrHyDE {
     // ========================================================================================
     
     void addObjectiveFunctions(Teuchos::ParameterList & obj_funs, const size_t & block);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void addFluxResponses(Teuchos::ParameterList & flux_resp, const size_t & block);
     
     // ========================================================================================
     // ========================================================================================
@@ -285,8 +326,9 @@ namespace MrHyDE {
     vector<regularization> regularizations;
     Teuchos::RCP<SolutionStorage<Node> > soln, adj_soln, datagen_soln;
     bool save_solution=false;
+    vector<fluxResponse> fluxes;
     
-    bool compute_objective;
+    bool compute_objective, compute_flux_response;
     ScalarT discrete_objective_scale_factor;
     vector<vector<string> > extrafields_list, extracellfields_list;
     
@@ -302,7 +344,7 @@ namespace MrHyDE {
     std::string sname;
     ScalarT stddev;
     
-    std::vector<std::string> blocknames, error_types, subgrid_error_types;
+    std::vector<std::string> blocknames, sideSets, error_types, subgrid_error_types;
     std::vector<std::vector<Kokkos::View<ScalarT*,HostDevice> > > errors; // [time][block](error_list)
     std::vector<Kokkos::View<ScalarT**,HostDevice> > responses; // [time](sensors,response)
     std::vector<std::vector<std::vector<Kokkos::View<ScalarT*,HostDevice> > > > subgrid_errors; // extra std::vector for multiple subgrid models [time][block][sgmodel](error_list)

@@ -165,7 +165,7 @@ void AnalysisManager::run() {
     int seed = uqsettings.get<int>("seed",1234);
     Kokkos::View<ScalarT**,HostDevice> samplepts = uq.generateSamples(maxsamples, seed);
     Kokkos::View<int*,HostDevice> sampleints = uq.generateIntegerSamples(maxsamples, seed);
-    bool regenerate_meshdata = uqsettings.get<bool>("regenerate mesh data",false);
+    bool regenerate_meshdata = true;//uqsettings.get<bool>("regenerate mesh data",false);
     // Evaluate MILO or a surrogate at these samples
     vector<Kokkos::View<ScalarT***,HostDevice> > response_values;
     vector<Kokkos::View<ScalarT****,HostDevice> > response_grads;
@@ -179,17 +179,21 @@ void AnalysisManager::run() {
     else {
       cout << "Running Monte Carlo sampling ..." << endl;
       for (int j=0; j<numsamples; j++) {
-        vector<ScalarT> currparams;
-        for (int i=0; i<numstochparams; i++) {
-          currparams.push_back(samplepts(j,i));
+        if (numstochparams > 0) {
+          vector<ScalarT> currparams;
+          for (int i=0; i<numstochparams; i++) {
+            currparams.push_back(samplepts(j,i));
+          }
+          DFAD objfun = 0.0;
+          params->updateParams(currparams,2);
+          
         }
-        DFAD objfun = 0.0;
-        params->updateParams(currparams,2);
         if (regenerate_meshdata) {
           this->updateCellData(sampleints(j));
           //solve->mesh->updateMeshData(sampleints(j),solve->assembler->cells, solve->multiscale_manager);
         }
         solve->forwardModel(objfun);
+        postproc->report();
         //vector_RCP A_soln = solve->adjointModel(F_soln, gradient);
         //avgsoln->update(1.0/(ScalarT)numsamples, *F_soln, 1.0);
         /*if (settings->sublist("Postprocess").get("write solution",true)) {
@@ -860,6 +864,16 @@ void AnalysisManager::updateCellData(const int & newrandseed) {
       }
     }
   }
-  
+  for (size_t b=0; b<solve->assembler->boundaryCells.size(); b++) {
+    for (size_t e=0; e<solve->assembler->boundaryCells[b].size(); e++) {
+      int numElem = solve->assembler->boundaryCells[b][e]->numElem;
+      for (int c=0; c<numElem; c++) {
+        int cnode = solve->assembler->boundaryCells[b][e]->cell_data_seed[c];
+        for (int i=0; i<9; i++) {
+          solve->assembler->boundaryCells[b][e]->cell_data(c,i) = rotation_data(cnode,i);
+        }
+      }
+    }
+  }
   solve->multiscale_manager->updateMeshData(rotation_data);
 }

@@ -162,9 +162,42 @@ void BoundaryCell::setAuxUseBasis(vector<int> & ausebasis_) {
 // Update the workset
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::updateWorksetBasis() {
+void BoundaryCell::updateWorkset(const int & seedwhat, const bool & override_transient) {
   
+  // Reset the residual and data in the workset
+  wkset->resetResidual();
+  wkset->sidename = sidename;
+  wkset->currentside = sidenum;
   wkset->numElem = numElem;
+  this->updateData();
+  
+  // Update the integration info and basis in workset
+  this->updateWorksetBasis();
+  
+  // Map the gathered solution to seeded version in workset
+  if (cellData->requiresTransient && !override_transient) {
+    wkset->computeSolnTransientSeeded(u, u_prev, u_stage, seedwhat);
+  }
+  else { // steady-state
+    wkset->computeSolnSteadySeeded(u, seedwhat);
+  }
+  if (wkset->numParams > 0) {
+    wkset->computeParamSteadySeeded(param, seedwhat);
+  }
+
+  // Map the AD solutions to the aolutions at the boundary ip
+  this->computeSoln(seedwhat);
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Update the workset basis and ip
+///////////////////////////////////////////////////////////////////////////////////////
+
+void BoundaryCell::updateWorksetBasis() {
+
+  wkset->numElem = numElem;
+  
   if (cellData->storeAll) {
     wkset->wts_side = wts;
     wkset->h = hsize;
@@ -271,10 +304,6 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
   {
     Teuchos::TimeMonitor localtimer(*boundaryResidualTimer);
     
-    this->updateWorksetBasis();
-    
-    wkset->sidename = sidename;
-    wkset->currentside = sidenum;
     
     int seedwhat = 0;
     if (compute_jacobian) {
@@ -288,20 +317,7 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
         seedwhat = 1;
       }
     }
-    
-    if (isTransient) {
-      wkset->computeSolnTransientSeeded(u, u_prev, u_stage, seedwhat);
-    }
-    else { // steady-state
-      wkset->computeSolnSteadySeeded(u, seedwhat);
-    }
-    wkset->computeParamSteadySeeded(param, seedwhat);
-    
-    this->computeSoln(seedwhat);
-    wkset->computeParamSideIP();
-    
-    wkset->resetResidual();
-    
+    this->updateWorkset(seedwhat);
     cellData->physics_RCP->boundaryResidual(cellData->myBlock);
     
   }
@@ -481,7 +497,7 @@ void BoundaryCell::updateAuxJac(View_Sc3 local_J) {
 View_Sc2 BoundaryCell::getDirichlet() {
   
   View_Sc2 dvals("initial values",numElem,LIDs.extent(1));
-  this->updateWorksetBasis();
+  this->updateWorkset(0);
   
   Kokkos::View<string**,HostDevice> bcs = wkset->var_bcs;
   auto offsets = wkset->offsets;
@@ -494,7 +510,7 @@ View_Sc2 BoundaryCell::getDirichlet() {
       auto dip = cellData->physics_RCP->getDirichlet(n,cellData->myBlock, sidename);
       int bind = wkset->usebasis[n];
       std::string btype = cellData->basis_types[bind];
-      auto cbasis = basis[bind];
+      auto cbasis = basis[bind]; // may fault in memory-saving mode
       
       auto off = Kokkos::subview(offsets,n,Kokkos::ALL());
       if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE"){
@@ -612,3 +628,49 @@ View_Sc3 BoundaryCell::getMass() {
   return mass;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////
+// Pass the cell data to the wkset
+///////////////////////////////////////////////////////////////////////////////////////
+
+void BoundaryCell::updateData() {
+  
+  // hard coded for what I need it for right now
+  if (cellData->have_cell_phi) {
+    wkset->have_rotation_phi = true;
+    wkset->rotation_phi = cell_data;
+  }
+  else if (cellData->have_cell_rotation) {
+    wkset->have_rotation = true;
+    auto rot = wkset->rotation;
+    parallel_for("cell update data",
+                 RangePolicy<AssemblyExec>(0,cell_data.extent(0)),
+                 KOKKOS_LAMBDA (const size_type e ) {
+      rot(e,0,0) = cell_data(e,0);
+      rot(e,0,1) = cell_data(e,1);
+      rot(e,0,2) = cell_data(e,2);
+      rot(e,1,0) = cell_data(e,3);
+      rot(e,1,1) = cell_data(e,4);
+      rot(e,1,2) = cell_data(e,5);
+      rot(e,2,0) = cell_data(e,6);
+      rot(e,2,1) = cell_data(e,7);
+      rot(e,2,2) = cell_data(e,8);
+    });
+    /*
+     for (int e=0; e<numElem; e++) {
+     rotmat(e,0,0) = cell_data(e,0);
+     rotmat(e,0,1) = cell_data(e,1);
+     rotmat(e,0,2) = cell_data(e,2);
+     rotmat(e,1,0) = cell_data(e,3);
+     rotmat(e,1,1) = cell_data(e,4);
+     rotmat(e,1,2) = cell_data(e,5);
+     rotmat(e,2,0) = cell_data(e,6);
+     rotmat(e,2,1) = cell_data(e,7);
+     rotmat(e,2,2) = cell_data(e,8);
+     }*/
+    //wkset->rotation = rotmat;
+  }
+  else if (cellData->have_extra_data) {
+    wkset->extra_data = cell_data;
+  }
+  
+}

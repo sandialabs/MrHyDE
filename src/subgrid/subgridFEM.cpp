@@ -2038,13 +2038,8 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
     for (size_t usernum=0; usernum<cells.size(); usernum++) {
       for (size_t e=0; e<cells[usernum].size(); e++) {
     
-        cells[usernum][e]->updateData();
-        cells[usernum][e]->updateWorksetBasis();
+        cells[usernum][e]->updateWorkset(0,true);
         wkset[0]->time = time;
-        wkset[0]->computeSolnSteadySeeded(cells[usernum][e]->u, 0);
-        wkset[0]->computeParamSteadySeeded(cells[usernum][e]->param, 0);
-        wkset[0]->computeSolnVolIP();
-        wkset[0]->computeParamVolIP();
                
         auto cfields = sub_postproc->getExtraCellFields(0, cells[usernum][e]->wts);
       

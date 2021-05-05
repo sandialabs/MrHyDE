@@ -104,27 +104,27 @@ namespace MrHyDE {
     // Update the workset
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateWorksetIP();
+    //void updateWorksetIP();
     
-    void updateWorksetBasis();
+    void updateWorkset(const int & seedwhat, const bool & override_transient=false);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Map the solution to the volumetric integration points
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void computeSolnVolIP();
+    //void computeSolnVolIP();
     
     //////////////////////////////////////////////////////////////////////////////////////
     // Update the workset
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateWorksetFaceBasis(const size_t & facenum);
+    void updateWorksetFace(const size_t & facenum);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Map the solution to the face integration points
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void computeSolnFaceIP(const size_t & facenum);
+    //void computeSolnFaceIP(const size_t & facenum);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Map the solution to the face integration points
@@ -286,9 +286,9 @@ namespace MrHyDE {
     // Data created here (Views should all be AssemblyDevice)
     size_t numElem;
     vector<View_Sc2> ip;
-    View_Sc2 wts; // numElem x numip
-    vector<vector<View_Sc2> > ip_face, normals_face; // numElem x numip x dimension
-    vector<View_Sc2 > wts_face; // numElem x numip
+    View_Sc2 wts; 
+    vector<vector<View_Sc2> > ip_face, normals_face;
+    vector<View_Sc2 > wts_face;
     vector<View_Sc1> hsize_face;
     
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;

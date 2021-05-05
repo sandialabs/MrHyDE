@@ -43,8 +43,6 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
     }
   }
   
-  
-  
   numEvaluations = 0;
   
   // Get the required information from the settings
@@ -176,6 +174,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   }
   
   scalarInitialData = settings->sublist("Physics").sublist("Initial conditions").get<bool>("scalar data", false);
+  have_static_Dirichlet_data = false;
   
   if (have_initial_conditions && scalarInitialData) {
     for (size_t b=0; b<blocknames.size(); b++) {
@@ -644,11 +643,11 @@ void SolverManager<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & 
     fixedDOF_soln = linalg->getNewOverlappedVector();
     
     scalarDirichletData = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("scalar data", false);
-    transientDirichletData = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("transient data", false);
+    staticDirichletData = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("static data", true);
     
-    if (scalarDirichletData && transientDirichletData) {
+    if (scalarDirichletData && !staticDirichletData) {
       if (Comm->getRank() == 0) {
-        cout << "Warning: Both scalar data and transient data were set to true.  This should not happen." << endl;
+        cout << "Warning: The Dirichlet data was set to scalar and non-static.  This should not happen." << endl;
       }
     }
     
@@ -759,8 +758,14 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
   is_adjoint = false;
   params->sacadoizeParams(false);
   
-  if (!scalarDirichletData && !transientDirichletData) {
-    this->projectDirichlet();
+  if (!scalarDirichletData) {
+    if (!staticDirichletData) {
+      this->projectDirichlet();
+    }
+    else if (!have_static_Dirichlet_data) {
+      this->projectDirichlet();
+      have_static_Dirichlet_data = true;
+    }
   }
   vector_RCP u = this->setInitial();
   
@@ -1216,7 +1221,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     }
     
     if (debug_level>2) {
-      //KokkosTools::print(res,"residual from solver interface");
+      KokkosTools::print(res,"residual from solver interface");
     }
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
     if (NLiter == 0) {
@@ -1224,6 +1229,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
         Teuchos::TimeMonitor localtimer(*normLAtimer);
         res->normInf(NLerr_first);
       }
+      NLerr[0] = NLerr_first[0];
       if (NLerr_first[0] > 1.0e-14)
         NLerr_scaled[0] = 1.0;
       else
@@ -1256,7 +1262,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       linalg->fillComplete(J);
       
       if (debug_level>2) {
-        //KokkosTools::print(J,"Jacobian from solver interface");
+        KokkosTools::print(J,"Jacobian from solver interface");
       }
       du->putScalar(0.0);
       du_over->putScalar(0.0);
@@ -1330,9 +1336,19 @@ void SolverManager<Node>::setDirichlet(vector_RCP & u) {
     auto u_kv = u->template getLocalView<LA_device>();
     //auto meas_kv = meas->getLocalView<HostDevice>();
     
-    if (!scalarDirichletData && transientDirichletData) {
-      this->projectDirichlet();
+    if (!scalarDirichletData) {
+      if (!staticDirichletData) {
+        this->projectDirichlet();
+      }
+      else if (!have_static_Dirichlet_data) {
+        this->projectDirichlet();
+        have_static_Dirichlet_data = true;
+      }
     }
+    
+    //if (!scalarDirichletData && transientDirichletData) {
+    //  this->projectDirichlet();
+    //}
     
     vector<vector<Kokkos::View<LO*,LA_device> > > dbcDOFs = assembler->fixedDOF;
     if (scalarDirichletData) {

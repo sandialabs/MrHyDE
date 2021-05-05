@@ -307,13 +307,14 @@ namespace MrHyDE {
     // Linear solvers and preconditioners
     int maxLinearIters, maxKrylovVectors;
     bool have_preconditioner=false, have_aux_preconditioner=false, reuse_preconditioner, reuse_aux_preconditioner, have_symbolic_factor=false, have_aux_symbolic_factor=false;
+    bool have_preconditioner_L2=false, have_preconditioner_BL2=false;
     bool useDirect, useDirectL2, useDirectBL2, useDirectAux, useDirectL2Aux, useDirectBL2Aux, useDirectL2Param, useDirectBL2Param;
     bool useDomDecomp, useDomDecompL2, useDomDecompBL2, useDomDecompAux, useDomDecompL2Aux, useDomDecompBL2Aux, useDomDecompL2Param, useDomDecompBL2Param;
     bool usePrec, usePrecL2, usePrecBL2, usePrecAux, usePrecL2Aux, usePrecBL2Aux, usePrecL2Param, usePrecBL2Param;
     string belos_residual_scaling;
     ScalarT linearTOL;
     Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver, Am2Solver_aux;
-    Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > M, M_aux; // AMG preconditioner for Jacobians
+    Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > M, M_aux, M_BL2; // AMG preconditioner for Jacobians
     Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > M_dd, M_dd_aux; // domain decomposition preconditioner for Jacobians
     
     Teuchos::RCP<Teuchos::Time> setupLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::setup");
