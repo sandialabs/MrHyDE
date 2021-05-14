@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Machine name: vaporwave
+# Machine type: linux workstation with GPU (Intel Xeon W2223 and Nvidia Quadro P2200)
+# Build type: serial+cuda
+
+# Use ATDM environment settings (first script option isn't confirmed to work completely)
+# source ~/Programming/cpp/Trilinos/Trilinos-source-MrHyDE/cmake/std/atdm/load-env.sh Pascal61-cuda-opt
+# source ~/Programming/cpp/Trilinos/Trilinos-source-MrHyDE/cmake/std/atdm/load-env.sh cuda-opt
+
+# Modules used:
+#  1) sems-env                     4) sems-ninja_fortran/1.10.0    7) sems-openmpi/1.10.1         10) sems-zlib/1.2.8/base
+#  2) sems-git/2.10.1              5) sems-gcc/7.2.0               8) sems-hdf5/1.10.6/parallel   11) sems-boost/1.59.0/base
+#  3) sems-cmake/3.19.1            6) sems-cuda/9.2                9) sems-netcdf/4.7.3/parallel  12) sems-superlu/4.3/base
+
+EXTRA_ARGS=$@
+  
+rm CMakeCache.txt
+rm -rf CMakeFiles/
+
+TRILINOS_SOURCE_PREFIX="/ascldap/users/gbharpe/Programming/cpp/Trilinos"
+MrHyDE_SOURCE_PREFIX="/ascldap/users/gbharpe/Programming/cpp/MrHyDE"
+
+TRILINOS_SOURCE="${TRILINOS_SOURCE_PREFIX}/Trilinos-source-MrHyDE"
+TRILINOS_INSTALL="${TRILINOS_SOURCE_PREFIX}/Trilinos-build-MrHyDE-cuda/lib/cmake/Trilinos"
+
+MrHyDE_SOURCE="${MrHyDE_SOURCE_PREFIX}/MrHyDE-source"
+MrHyDE_BUILD="${MrHyDE_SOURCE_PREFIX}/MrHyDE-build-cuda"
+
+cmake \
+  -G Ninja \
+  -D CMAKE_CXX_FLAGS:STRING="-lcusolver" \
+  -D Trilinos_SRC_DIR:PATH=${TRILINOS_SOURCE} \
+  -D Trilinos_INSTALL_DIR:PATH=${TRILINOS_INSTALL} \
+  -D CMAKE_INSTALL_PREFIX:PATH=${MrHyDE_BUILD} \
+  -D MrHyDE_ASSEMBLY_GPU:BOOL=ON \
+  -D MrHyDE_ENABLE_SANDBOX:BOOL=ON \
+  ${EXTRA-ARGS} \
+  ${MrHyDE_SOURCE}
