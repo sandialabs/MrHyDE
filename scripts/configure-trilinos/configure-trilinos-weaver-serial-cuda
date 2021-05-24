@@ -46,6 +46,7 @@ cmake \
 -D Trilinos_ENABLE_STKTopology:BOOL=ON \
 -D Trilinos_ENABLE_STKTransfer:BOOL=OFF \
 -D Trilinos_ENABLE_SEACAS:BOOL=ON \
+-D Trilinos_ENABLE_Compadre:BOOL=ON \
 -D TPL_ENABLE_SuperLUDist=OFF \
 -D Anasazi_ENABLE_COMPLEX=OFF \
 -D TPL_ENABLE_Matio=OFF \
