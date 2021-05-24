@@ -79,6 +79,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   compute_response = settings->sublist("Postprocess").get<bool>("compute responses",false);
   compute_error = settings->sublist("Postprocess").get<bool>("compute errors",false);
   write_solution = settings->sublist("Postprocess").get("write solution",false);
+  write_frequency = settings->sublist("Postprocess").get("write frequency",1);
   write_aux_solution = settings->sublist("Postprocess").get("write aux solution",false);
   write_subgrid_solution = settings->sublist("Postprocess").get("write subgrid solution",false);
   write_HFACE_variables = settings->sublist("Postprocess").get("write HFACE variables",false);
@@ -394,14 +395,14 @@ void PostprocessManager<Node>::addFluxResponses(Teuchos::ParameterList & flux_re
 
 template<class Node>
 void PostprocessManager<Node>::record(vector_RCP & current_soln, const ScalarT & current_time,
-                                      DFAD & objectiveval) {
+                                      const bool & write_this_step, DFAD & objectiveval) {
   if (compute_error) {
     this->computeError(current_time);
   }
   if (compute_response || compute_objective) {
     this->computeObjective(current_soln, current_time, objectiveval);
   }
-  if (write_solution) {
+  if (write_solution && write_this_step) {
     this->writeSolution(current_time);
   }
   if (save_solution) {

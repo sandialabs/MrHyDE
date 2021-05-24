@@ -1,0 +1,70 @@
+#!/bin/bash
+
+# Machine name: vaporwave
+# Machine type: linux workstation with GPU
+
+# Modules used:
+# source ~/Programming/cpp/Trilinos/Trilinos-source-MrHyDE/cmake/std/atdm/load-env.sh Pascal61-cuda-opt
+#  1) sems-env                     4) sems-ninja_fortran/1.10.0    7) sems-openmpi/1.10.1         10) sems-zlib/1.2.8/base
+#  2) sems-git/2.10.1              5) sems-gcc/7.2.0               8) sems-hdf5/1.10.6/parallel   11) sems-boost/1.59.0/base
+#  3) sems-cmake/3.19.1            6) sems-cuda/9.2                9) sems-netcdf/4.7.3/parallel  12) sems-superlu/4.3/base
+
+rm CMakeCache.txt
+rm -rf CMakeFiles
+EXTRA_ARGS=$@
+
+TRILINOS_SOURCE_PREFIX="/ascldap/users/gbharpe/Programming/cpp/Trilinos"
+
+TRILINOS_SOURCE="${TRILINOS_SOURCE_PREFIX}/Trilinos-source-MrHyDE"
+BUILD_DIR="${TRILINOS_SOURCE_PREFIX}/Trilinos-build-MrHyDE-cuda"
+
+BOOST_INCLUDE_DIR="${SEMS_BOOST_INCLUDE_PATH}"
+BOOST_LIB_DIR="${SEMS_BOOST_LIBRARY_PATH}"
+
+NETCDF_INCLUDE_DIR="${SEMS_NETCDF_INCLUDE_PATH}"
+NETCDF_LIB_DIR="${SEMS_NETCDF_LIBRARY_PATH}"
+
+cmake \
+  -G Ninja \
+  -D CMAKE_INSTALL_PREFIX:PATH=${BUILD_DIR} \
+  -D Trilinos_CONFIGURE_OPTIONS_FILE:STRING=cmake/std/atdm/ATDMDevEnv.cmake \
+  -D Trilinos_ENABLE_TESTS:BOOL=OFF \
+  -D Trilinos_ENABLE_Fortran:BOOL=ON \
+  -D TPL_ENABLE_CUDA:BOOL=ON \
+  -D Kokkos_ENABLE_CUDA:BOOL=ON \
+  -D Kokkos_ENABLE_SERIAL:BOOL=ON \
+  -D Trilinos_ENABLE_ALL_PACKAGES:BOOL=OFF \
+  -D Trilinos_ENABLE_ALL_OPTIONAL_PACKAGES:BOOL=OFF \
+  -D Trilinos_ENABLE_Amesos2:BOOL=ON \
+  -D Trilinos_ENABLE_Belos:BOOL=ON \
+  -D Trilinos_ENABLE_Compadre:BOOL=ON \
+  -D Trilinos_ENABLE_Intrepid2:BOOL=ON \
+  -D Trilinos_ENABLE_MueLu:BOOL=ON \
+  -D Trilinos_ENABLE_Panzer:BOOL=ON \
+  -D Trilinos_ENABLE_ROL:BOOL=ON \
+  -D Trilinos_ENABLE_Shards:BOOL=ON \
+  -D Trilinos_ENABLE_SEACAS:BOOL=ON \
+    -D SEACASExodus_ENABLE_MPI:BOOL=OFF \
+  -D Trilinos_ENABLE_STKIO:BOOL=ON \
+    -D Trilinos_ENABLE_STKMesh:BOOL=ON \
+    -D Trilinos_ENABLE_STKSearch:BOOL=ON \
+    -D Trilinos_ENABLE_STKTopology:BOOL=ON \
+    -D Trilinos_ENABLE_STKTransfer:BOOL=OFF \
+    -D Trilinos_ENABLE_STKUtil:BOOL=ON \
+    -D STK_ENABLE_ThreadPool:BOOL=ON \
+    -D STK_ENABLE_TESTS:BOOL=OFF \
+  -D Tpetra_ENABLE_CUDA:BOOL=ON \
+    -D Tpetra_INST_CUDA:BOOL=ON \
+    -D Tpetra_ASSUME_CUDA_AWARE_MPI:BOOL=ON \
+    -D Tpetra_ENABLE_DEPRECATED_CODE:BOOL=ON \
+  -D TPL_ENABLE_SuperLUDist:BOOL=OFF \
+  -D Anasazi_ENABLE_COMPLEX:BOOL=OFF \
+  -D Panzer_ENABLE_TESTS:BOOL=OFF \
+  -D EpetraExt_ENABLE_HDF5:BOOL=OFF \
+  -D Panzer_ENABLE_EXAMPLES:BOOL=OFF \
+  -D Panzer_ENABLE_EXPLICIT_INSTANTIATION:BOOL=ON \
+  -D TPL_ENABLE_Matio:BOOL=OFF \
+  -D TPL_ENABLE_Boost:BOOL=ON \
+  -D TPL_ENABLE_BoostLib:BOOL=ON \
+  -D TPL_ENABLE_Netcdf:BOOL=ON \
+  ${TRILINOS_SOURCE}

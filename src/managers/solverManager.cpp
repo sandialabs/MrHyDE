@@ -809,7 +809,7 @@ void SolverManager<Node>::steadySolver(DFAD & objective, vector_RCP & u) {
   vector_RCP zero_soln = linalg->getNewOverlappedVector();
   
   this->nonlinearSolver(u, zero_soln);
-  postproc->record(u,current_time,objective);
+  postproc->record(u,current_time,true,objective);
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -901,7 +901,7 @@ void SolverManager<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vect
     
     {
       assembler->performGather(u,0,0);
-      postproc->record(u,current_time,obj);
+      postproc->record(u,current_time,true,obj);
     }
     Kokkos::fence();
     
@@ -914,6 +914,7 @@ void SolverManager<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vect
     int numCuts = 0;
     int maxCuts = 5; // TMW: make this a user-defined input
     double timetol = end_time*1.0e-6; // just need to get close enough to final time
+    bool write_this_step = false;
     
     vector_RCP u_prev = linalg->getNewOverlappedVector();
     vector_RCP u_stage = linalg->getNewOverlappedVector();
@@ -974,12 +975,15 @@ void SolverManager<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vect
       
       if (status == 0) { // NL solver converged
         current_time += deltat;
+        stepProg += 1;
         
         // Make sure last step solution is gathered
         // Last set of values is from a stage solution, which is potentially different
         assembler->performGather(u,0,0);
-        postproc->record(u,current_time,obj);
-        stepProg += 1;
+        // TODO :: BWR make this more flexible (may want to save based on simulation time as well)
+        if (stepProg % postproc->write_frequency == 0) write_this_step = true;
+        postproc->record(u,current_time,write_this_step,obj);
+        write_this_step = false;
       }
       else { // something went wrong, cut time step and try again
         deltat *= 0.5;
@@ -997,6 +1001,10 @@ void SolverManager<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vect
         }
         
       }
+    }
+    // If the final step doesn't fall when a write is requested, catch that here  
+    if (stepProg % postproc->write_frequency != 0 && postproc->write_solution) {
+      postproc->writeSolution(current_time);
     }
   }
   else { // adjoint solve - fixed time stepping based on forward solve
