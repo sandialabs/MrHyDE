@@ -22,6 +22,20 @@ TRILINOS_DIR='/ascldap/users/tmwilde/Trilinos'
 
 INSTALL_DIR='/ascldap/users/tmwilde/Trilinos/install-weaver2'
 
+
+# Graham is making his life easier by writing more complicated code:
+# export ATDM_CONFIG_REGISTER_CUSTOM_CONFIG_DIR=/ascldap/users/gbharpe/Programming/cpp/Trilinos/Trilinos-source/cmake/std/atdm/contributed/weaver
+# source /ascldap/users/gbharpe/Programming/cpp/Trilinos/Trilinos-source/cmake/std/atdm/load-env.sh weaver-cuda-10.1-opt
+if [ $# -eq 1 ]; then
+  if [ "$1" == "Graham" ]; then
+    echo "Automagically setting variables for Graham..."
+    TRILINOS_DIR="/ascldap/users/gbharpe/Programming/cpp/Trilinos/Trilinos-source"
+    INSTALL_DIR="/ascldap/users/gbharpe/Programming/cpp/Trilinos/Trilinos-build-cuda"
+    echo "Trilinos directory is $TRILINOS_DIR"
+    echo "Install directory is $INSTALL_DIR"
+  fi
+fi
+
 cmake \
 -GNinja \
 -D CMAKE_INSTALL_PREFIX:PATH=${INSTALL_DIR} \
