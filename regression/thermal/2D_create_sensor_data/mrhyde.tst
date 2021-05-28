@@ -48,6 +48,7 @@ status += its.call('mpiexec -n 1 ../../mrhyde >& mrhyde.log')
 hostname = os.getenv('HOSTNAME') 
 if hostname.find('weaver') != -1: 
   its.call('sed -i \'1,11d;\' mrhyde.log') 
+  its.call('sed -i \'/weaver/d\' myhyde.log')
 
 
 err = 0.0
