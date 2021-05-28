@@ -48,7 +48,7 @@ if its.opts.preprocess:
 hostname = os.getenv('HOSTNAME') 
 if hostname.find('weaver') != -1: 
   its.call('sed -i \'1,11d;\' mrhyde.log') 
-  its.call('sed -i \'/weaver/d\' myhyde.log')
+  its.call('sed -i \'/weaver/d\' mrhyde.log')
 
 its.call('export LC_ALL=C')
 

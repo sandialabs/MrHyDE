@@ -48,7 +48,7 @@ status += its.call('rm final_params.dat param_stash.dat ROL_out.txt')
 hostname = os.getenv('HOSTNAME') 
 if hostname.find('weaver') != -1: 
   its.call('sed -i \'1,11d;\' mrhyde.log') 
-  its.call('sed -i \'/weaver/d\' myhyde.log')
+  its.call('sed -i \'/weaver/d\' mrhyde.log')
 
 
 status += its.call('diff -y %s.log %s.gold' % (root, root))
