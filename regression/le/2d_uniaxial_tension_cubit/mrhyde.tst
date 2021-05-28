@@ -45,6 +45,10 @@ if its.opts.preprocess:
   if its.opts.verbose != 'none': print('---> Preprocessing %s' % (root))
   status += its.call('echo "  No preprocessing, yet."')
 
+hostname = os.getenv('HOSTNAME') 
+if hostname.find('weaver') != -1: 
+  its.call('sed -i \'1,11d;\' mrhyde.log') 
+
 its.call('export LC_ALL=C')
 
 status += its.call('mpiexec -n 1 ../../mrhyde >& mrhyde.log')

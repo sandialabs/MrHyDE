@@ -45,6 +45,10 @@ if its.opts.preprocess:
 
 status += its.call('export LC_ALL=C')
 status += its.call('mpiexec -n 1 ../../mrhyde >& mrhyde.log')
+hostname = os.getenv('HOSTNAME') 
+if hostname.find('weaver') != -1: 
+  its.call('sed -i \'1,11d;\' mrhyde.log') 
+
 
 # ------------------------------
 flog = '%s.log' % (root)

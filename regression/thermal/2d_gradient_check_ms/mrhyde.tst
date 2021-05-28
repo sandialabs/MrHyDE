@@ -45,6 +45,10 @@ if its.opts.preprocess:
 
 status += its.call('mpiexec -n 4 ../../mrhyde >& mrhyde.log')
 status += its.call('rm final_params.dat mrhyde_test_support.pyc param_stash.dat ROL_out.txt')
+hostname = os.getenv('HOSTNAME') 
+if hostname.find('weaver') != -1: 
+  its.call('sed -i \'1,11d;\' mrhyde.log') 
+
 
 status += its.call('diff -y %s.log %s.gold' % (root, root))
 
