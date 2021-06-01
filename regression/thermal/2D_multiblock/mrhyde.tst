@@ -45,10 +45,11 @@ if its.opts.preprocess:
 
 status += its.call('mpiexec -n 1 ../../mrhyde input.yaml >& mrhyde.log')
 
-hostname = os.getenv('HOSTNAME') 
-if hostname.find('weaver') != -1: 
-  its.call('sed -i \'1,11d;\' mrhyde.log') 
-  its.call('sed -i \'/weaver/d\' mrhyde.log')
+hostname = os.getenv('HOSTNAME')
+if hostname != None:
+  if hostname.find('weaver') != -1:
+    its.call('sed -i \'1,11d;\' mrhyde.log')
+    its.call('sed -i \'/weaver/d\' mrhyde.log')
 
 status += its.call('diff -q %s.log %s.gold' % (root, root))
 
