@@ -78,11 +78,15 @@ namespace MrHyDE {
      * @param[in] yvl  y-component of the velocity
      * @param[in] zvl  z-component of the velocity
      * @param[in] h  Element diameter
+     * @param[in] spaceDim  Number of spatial dimensions
+     * @param[in] dt  Timestep
+     * @param[in] isTransient  Bool indicating if the simulation is transient
+
      * @return SUPG/PSPG stabilization parameter (type AD)
      *
      */
 
-    AD computeTau(const AD & localdiff, const AD & xvl, const AD & yvl, const AD & zvl, const ScalarT & h) const;
+    KOKKOS_FUNCTION AD computeTau(const AD & localdiff, const AD & xvl, const AD & yvl, const AD & zvl, const ScalarT & h, const int & spaceDim, const ScalarT & dt, const bool & isTransient) const;
     
   private:
     
