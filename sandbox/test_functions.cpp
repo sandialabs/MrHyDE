@@ -300,6 +300,42 @@ int main(int argc, char * argv[]) {
       ref_funcs.push_back(test);
     }
     
+    {
+      string name = "min";
+      string test = "min(a,b)";
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          ref(elem,pt) = min(a(elem,pt),b(elem,pt));
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+    }
+
+    {
+      string name = "leq";
+      string test = "a <= b";
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          ref(elem,pt) = a(elem,pt) <= b(elem,pt);
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+    }
+
     //----------------------------------------------------------------------
     // Make sure everything is defined properly and setup decompositions
     //----------------------------------------------------------------------
