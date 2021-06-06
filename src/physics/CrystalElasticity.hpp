@@ -14,7 +14,7 @@
 #ifndef CrystalElasticity_H
 #define CrystalElasticity_H
 
-#include "Trilinos.hpp"
+#include "trilinos.hpp"
 #include "preferences.hpp"
 #include "workset.hpp"
 
