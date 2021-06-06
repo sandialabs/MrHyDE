@@ -23,7 +23,7 @@ FunctionManager::FunctionManager() {
   numip_side = 1;
   
   known_vars = {"x","y","z","t","nx","ny","nz","pi","h"};
-  known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean"};
+  known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean","sqrt"};
   
   interpreter = Teuchos::rcp( new Interpreter());
   
@@ -35,7 +35,7 @@ FunctionManager::FunctionManager(const string & blockname_, const int & numElem_
 blockname(blockname_), numElem(numElem_), numip(numip_), numip_side(numip_side_) {
   
   known_vars = {"x","y","z","t","nx","ny","nz","pi","h"};
-  known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean"};
+  known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean","sqrt"};
   
   interpreter = Teuchos::rcp( new Interpreter());
   
@@ -964,7 +964,22 @@ void FunctionManager::evaluateOpVToV(T1 data, T2 tdata, const string & op) {
    }
    });
    }*/
-  
+  else if (op == "sqrt") {
+    parallel_for("funcman evaluate sqrt",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        if (tdata(elem,pt) <= 0.0) {
+          data(elem,pt) = 0.0;
+        }
+        else {
+          data(elem,pt) = sqrt(tdata(elem,pt));
+        }
+      }
+    });
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////

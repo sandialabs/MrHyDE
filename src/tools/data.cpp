@@ -203,7 +203,7 @@ void data::importPoints(const std::string & ptsfile, const int & spaceDim) {
   }
   numSensors = xvec.size();
   
-  sensorlocations = Kokkos::View<ScalarT**,HostDevice>("sensor locartions",numSensors,spaceDim);
+  sensorlocations = Kokkos::View<ScalarT**,HostDevice>("sensor locations",numSensors,spaceDim);
   for (int i=0; i<numSensors; i++) {
     if (spaceDim >0)
       sensorlocations(i,0) = xvec[i];
@@ -212,6 +212,7 @@ void data::importPoints(const std::string & ptsfile, const int & spaceDim) {
     if (spaceDim >2)
       sensorlocations(i,2) = zvec[i];
   }
+  
   
 }
 
@@ -451,6 +452,28 @@ void data::findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords
   
   Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(sensorlocations, coords, distance);
   cnode = neighborlists.getNeighborLists();
+  
+  bool bruteforce = false;
+  
+  if (bruteforce) {
+    for (size_type pt=0; pt<coords.extent(0); ++pt) {
+      ScalarT currdist = 1.0e20;
+      int cpt = -1;
+      for (size_type s=0; s<sensorlocations.extent(0); ++s) {
+        ScalarT tdist = 0.0;
+        for (size_type dim=0; dim<sensorlocations.extent(1); ++dim) {
+          tdist += std::pow((sensorlocations(s,dim) - coords(pt,dim)),2.0);
+        }
+        if (tdist < currdist) {
+          cpt = (int)s;
+          currdist = tdist;
+          //std::cout << "Error: found a closer point " << currdist << "  " << tdist << std::endl;
+        }
+      }
+      cnode(pt) = cpt;
+      distance(pt) = std::sqrt(currdist);
+    }
+  }
 }
 #endif
 

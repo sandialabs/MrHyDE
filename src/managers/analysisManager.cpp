@@ -165,8 +165,9 @@ void AnalysisManager::run() {
     int seed = uqsettings.get<int>("seed",1234);
     Kokkos::View<ScalarT**,HostDevice> samplepts = uq.generateSamples(maxsamples, seed);
     Kokkos::View<int*,HostDevice> sampleints = uq.generateIntegerSamples(maxsamples, seed);
-    bool regenerate_meshdata = true;//uqsettings.get<bool>("regenerate mesh data",false);
-    // Evaluate MILO or a surrogate at these samples
+    bool regenerate_rotations = uqsettings.get<bool>("regenerate grain rotations",false);
+    bool regenerate_grains = uqsettings.get<bool>("regenerate grains",false);
+    // Evaluate model or a surrogate at these samples
     vector<Kokkos::View<ScalarT***,HostDevice> > response_values;
     vector<Kokkos::View<ScalarT****,HostDevice> > response_grads;
     //Teuchos::RCP<const LA_Map> emap = solve->LA_overlapped_map;
@@ -188,8 +189,14 @@ void AnalysisManager::run() {
           params->updateParams(currparams,2);
           
         }
-        if (regenerate_meshdata) {
-          this->updateCellData(sampleints(j));
+        if (regenerate_grains) {
+          auto seeds = solve->mesh->generateNewMicrostructure(sampleints(j));
+          solve->mesh->importNewMicrostructure(sampleints(j), seeds,
+                                               solve->assembler->cells,
+                                               solve->assembler->boundaryCells);
+        }
+        else if (regenerate_rotations) {
+          this->updateRotationData(sampleints(j));
           //solve->mesh->updateMeshData(sampleints(j),solve->assembler->cells, solve->multiscale_manager);
         }
         solve->forwardModel(objfun);
@@ -792,7 +799,7 @@ void AnalysisManager::run() {
 // ========================================================================================
 // ========================================================================================
 
-void AnalysisManager::updateCellData(const int & newrandseed) {
+void AnalysisManager::updateRotationData(const int & newrandseed) {
   
   // Determine how many seeds there are
   size_t localnumSeeds = 0;

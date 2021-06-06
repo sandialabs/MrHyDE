@@ -50,10 +50,8 @@ settings(settings_), Commptr(Commptr_) {
   compute_mesh_data = settings->sublist("Mesh").get<bool>("compute mesh data",false);
   have_rotations = false;
   have_rotation_phi = false;
-  have_multiple_data_files = false;
   mesh_data_file_tag = "none";
   mesh_data_pts_tag = "mesh_data_pts";
-  number_mesh_data_files = 1;
   
   mesh_data_tag = settings->sublist("Mesh").get<string>("data file","none");
   if (mesh_data_tag != "none") {
@@ -62,8 +60,6 @@ settings(settings_), Commptr(Commptr_) {
     have_mesh_data = true;
     have_rotation_phi = settings->sublist("Mesh").get<bool>("have mesh data phi",false);
     have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",false);
-    have_multiple_data_files = settings->sublist("Mesh").get<bool>("have multiple mesh data files",false);
-    number_mesh_data_files = settings->sublist("Mesh").get<int>("number mesh data files",1);
     
   }
   
@@ -253,10 +249,8 @@ settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), stk_mesh(st
   compute_mesh_data = settings->sublist("Mesh").get<bool>("compute mesh data",false);
   have_rotations = false;
   have_rotation_phi = false;
-  have_multiple_data_files = false;
   mesh_data_file_tag = "none";
   mesh_data_pts_tag = "mesh_data_pts";
-  number_mesh_data_files = 1;
   
   mesh_data_tag = settings->sublist("Mesh").get<string>("data file","none");
   if (mesh_data_tag != "none") {
@@ -265,8 +259,6 @@ settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), stk_mesh(st
     have_mesh_data = true;
     have_rotation_phi = settings->sublist("Mesh").get<bool>("have mesh data phi",false);
     have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",true);
-    have_multiple_data_files = settings->sublist("Mesh").get<bool>("have multiple mesh data files",false);
-    number_mesh_data_files = settings->sublist("Mesh").get<int>("number mesh data files",1);
     
   }
   
@@ -414,6 +406,14 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
       }
       ecf_itr++;
     }
+    
+    for (size_t j=0; j<phys->modules[i].size(); ++j) {
+      std::vector<string> derivedlist = phys->modules[i][j]->getDerivedNames();
+      for (size_t k=0; k<derivedlist.size(); ++k) {
+        stk_mesh->addCellField(derivedlist[k], block_names[i]);
+      }
+    }
+    
     /*
     std::vector<string> extrafields = phys->getExtraFieldNames(i);
     for (size_t j=0; j<extrafields.size(); j++) {
@@ -614,21 +614,55 @@ DRV MeshInterface::perturbMesh(const int & b, DRV & blocknodes) {
 
 void MeshInterface::setMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
                                 vector<vector<Teuchos::RCP<BoundaryCell>>> & bcells) {
+  
+  if (debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting mesh interface setMeshData" << endl;
+    }
+  }
+  
   if (have_mesh_data) {
-    this->importMeshData(cells);
-    this->importMeshData(bcells);
+    this->importMeshData(cells, bcells);
   }
   else if (compute_mesh_data) {
-    this->computeMeshData(cells);
-    this->computeMeshData(bcells);
+    int randSeed = settings->sublist("Mesh").get<int>("random seed", 1234);
+    auto seeds = this->generateNewMicrostructure(randSeed);
+    this->importNewMicrostructure(randSeed, seeds, cells, bcells);
+    //this->computeMeshData(cells, bcells);
   }
+  
+  if (debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished mesh interface setMeshData" << endl;
+    }
+  }
+  
 }
 
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+View_Sc2 MeshInterface::getElementCenters(DRV nodes, topo_RCP & reftopo) {
+  
+  typedef Intrepid2::CellTools<PHX::Device::execution_space> CellTools;
+
+  DRV refCenter("cell center", 1, spaceDim);
+  CellTools::getReferenceCellCenter(refCenter, *reftopo);
+  DRV tmp_centers("tmp physical cell centers", nodes.extent(0), 1, spaceDim);
+  CellTools::mapToPhysicalFrame(tmp_centers, refCenter, nodes, *reftopo);
+  View_Sc2 centers("physics cell centers", nodes.extent(0), spaceDim);
+  auto tmp_centers_sv = subview(tmp_centers, ALL(), 0, ALL());
+  deep_copy(centers, tmp_centers_sv);
+  
+  return centers;
+  
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells) {
+void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
+                                   vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells) {
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
@@ -657,167 +691,6 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells)
       cells[b][e]->cell_data_seedindex = vector<size_t>(numElem);
     }
   }
-  
-  for (int p=0; p<number_mesh_data_files; p++) {
-        
-    Teuchos::RCP<data> mesh_data;
-    
-    string mesh_data_pts_file;
-    string mesh_data_file;
-    
-    if (have_multiple_data_files) {
-      std::stringstream ss;
-      ss << p+1;
-      mesh_data_pts_file = mesh_data_pts_tag + "." + ss.str() + ".dat";
-      mesh_data_file = mesh_data_tag + "." + ss.str() + ".dat";
-    }
-    else {
-      mesh_data_pts_file = mesh_data_pts_tag + ".dat";
-      mesh_data_file = mesh_data_tag + ".dat";
-    }
-    
-    bool have_grid_data = settings->sublist("Mesh").get<bool>("data on grid",false);
-    if (have_grid_data) {
-      int Nx = settings->sublist("Mesh").get<int>("data grid Nx",0);
-      int Ny = settings->sublist("Mesh").get<int>("data grid Ny",0);
-      int Nz = settings->sublist("Mesh").get<int>("data grid Nz",0);
-      mesh_data = Teuchos::rcp(new data("mesh data", spaceDim, mesh_data_pts_file,
-                                        mesh_data_file, false, Nx, Ny, Nz));
-      
-      for (size_t b=0; b<cells.size(); b++) {
-        for (size_t e=0; e<cells[b].size(); e++) {
-          DRV nodes = cells[b][e]->nodes;
-          int numElem = cells[b][e]->numElem;
-          
-          for (int c=0; c<numElem; c++) {
-            Kokkos::View<ScalarT[1][3],HostDevice> center("center");
-            for (size_type i=0; i<nodes.extent(1); i++) {
-              for (int j=0; j<spaceDim; j++) {
-                center(0,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
-              }
-            }
-            ScalarT distance = 0.0;
-
-            // Compadre interface doesn't work with GPUs yet
-#if !defined(MrHyDE_DISABLE_COMPADRE)
-            int cnode = mesh_data->findClosestGridNode(center(0,0), center(0,1), center(0,2), distance);
-#else
-            int cnode = 0; // should probably warn the user too, but Cmpadre should be fixed soon
-#endif
-            bool iscloser = true;
-            if (p>0){
-              if (cells[b][e]->cell_data_distance[c] < distance) {
-                iscloser = false;
-              }
-            }
-            if (iscloser) {
-              Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
-              for (size_type i=0; i<cdata.extent(1); i++) {
-                cells[b][e]->cell_data(c,i) = cdata(0,i);
-              }
-              cells[b][e]->cellData->have_extra_data = true;
-              if (have_rotations)
-                cells[b][e]->cellData->have_cell_rotation = true;
-              if (have_rotation_phi)
-                cells[b][e]->cellData->have_cell_phi = true;
-              
-              cells[b][e]->cell_data_seed[c] = cnode;
-              cells[b][e]->cell_data_seedindex[c] = cnode % 50;
-              cells[b][e]->cell_data_distance[c] = distance;
-            }
-          }
-        }
-      }
-    }
-    else {
-      mesh_data = Teuchos::rcp(new data("mesh data", spaceDim, mesh_data_pts_file,
-                                        mesh_data_file, false));
-      
-      for (size_t b=0; b<cells.size(); b++) {
-        for (size_t e=0; e<cells[b].size(); e++) {
-          DRV nodes = cells[b][e]->nodes;
-          int numElem = cells[b][e]->numElem;
-          
-          Kokkos::View<ScalarT**, AssemblyDevice> center("center",numElem,spaceDim);
-          for (int c=0; c<numElem; c++) {
-            for (size_t i=0; i<nodes.extent(1); i++) {
-              for (int j=0; j<spaceDim; j++) {
-                center(c,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
-              }
-            }
-          }
-          
-          Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
-          Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
-          
-          // Compadre interface doesn't work with GPUs yet
-#if !defined(MrHyDE_DISABLE_COMPADRE)
-          mesh_data->findClosestNode(center,cnode,distance);
-#endif
-          
-          bool iscloser = true;
-          for (int c=0; c<numElem; c++) {
-            if (p>0){
-              if (cells[b][e]->cell_data_distance[c] < distance(c)) {
-                iscloser = false;
-              }
-            }
-            if (iscloser) {
-              Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode(c));
-              for (size_t i=0; i<cdata.extent(1); i++) {
-                cells[b][e]->cell_data(c,i) = cdata(0,i);
-              }
-              cells[b][e]->cellData->have_extra_data = true;
-              if (have_rotations)
-                cells[b][e]->cellData->have_cell_rotation = true;
-              if (have_rotation_phi)
-                cells[b][e]->cellData->have_cell_phi = true;
-            
-              cells[b][e]->cell_data_seed[c] = cnode(c);
-              cells[b][e]->cell_data_seedindex[c] = cnode(c) % 50;
-              cells[b][e]->cell_data_distance[c] = distance(c);
-            }
-          }
-        }
-      }
-    }
-    
-  }
-  
-  meshimporttimer.stop();
-  if (verbosity>5 && Commptr->getRank() == 0) {
-    cout << "mesh data import time: " << meshimporttimer.totalElapsedTime(false) << endl;
-  }
-  
-  if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Finished mesh::meshDataImport" << endl;
-    }
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells) {
-  
-  if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Starting mesh::importMeshData ..." << endl;
-    }
-  }
-  
-  Teuchos::Time meshimporttimer("mesh import", false);
-  meshimporttimer.start();
-  
-  int numdata = 1;
-  if (have_rotations) {
-    numdata = 9;
-  }
-  else if (have_rotation_phi) {
-    numdata = 3;
-  }
-  
   for (size_t b=0; b<bcells.size(); b++) {
     for (size_t e=0; e<bcells[b].size(); e++) {
       int numElem = bcells[b][e]->numElem;
@@ -829,131 +702,147 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<BoundaryCell> > > 
     }
   }
   
-  for (int p=0; p<number_mesh_data_files; p++) {
+  Teuchos::RCP<data> mesh_data;
+  
+  string mesh_data_pts_file = mesh_data_pts_tag + ".dat";
+  string mesh_data_file = mesh_data_tag + ".dat";
+  
+  bool have_grid_data = settings->sublist("Mesh").get<bool>("data on grid",false);
+  if (have_grid_data) {
+    int Nx = settings->sublist("Mesh").get<int>("data grid Nx",0);
+    int Ny = settings->sublist("Mesh").get<int>("data grid Ny",0);
+    int Nz = settings->sublist("Mesh").get<int>("data grid Nz",0);
+    mesh_data = Teuchos::rcp(new data("mesh data", spaceDim, mesh_data_pts_file,
+                                      mesh_data_file, false, Nx, Ny, Nz));
+    
+    for (size_t b=0; b<cells.size(); b++) {
+      for (size_t e=0; e<cells[b].size(); e++) {
+        DRV nodes = cells[b][e]->nodes;
+        int numElem = cells[b][e]->numElem;
         
-    Teuchos::RCP<data> mesh_data;
-    
-    string mesh_data_pts_file;
-    string mesh_data_file;
-    
-    if (have_multiple_data_files) {
-      std::stringstream ss;
-      ss << p+1;
-      mesh_data_pts_file = mesh_data_pts_tag + "." + ss.str() + ".dat";
-      mesh_data_file = mesh_data_tag + "." + ss.str() + ".dat";
-    }
-    else {
-      mesh_data_pts_file = mesh_data_pts_tag + ".dat";
-      mesh_data_file = mesh_data_tag + ".dat";
-    }
-    
-    bool have_grid_data = settings->sublist("Mesh").get<bool>("data on grid",false);
-    if (have_grid_data) {
-      int Nx = settings->sublist("Mesh").get<int>("data grid Nx",0);
-      int Ny = settings->sublist("Mesh").get<int>("data grid Ny",0);
-      int Nz = settings->sublist("Mesh").get<int>("data grid Nz",0);
-      mesh_data = Teuchos::rcp(new data("mesh data", spaceDim, mesh_data_pts_file,
-                                        mesh_data_file, false, Nx, Ny, Nz));
-      
-      for (size_t b=0; b<bcells.size(); b++) {
-        for (size_t e=0; e<bcells[b].size(); e++) {
-          DRV nodes = bcells[b][e]->nodes;
-          int numElem = bcells[b][e]->numElem;
+        auto centers = this->getElementCenters(nodes, cells[b][e]->cellData->cellTopo);
+        auto centers_host = create_mirror_view(centers);
+        deep_copy(centers_host,centers);
+        
+        for (int c=0; c<numElem; c++) {
+          ScalarT distance = 0.0;
           
-          for (int c=0; c<numElem; c++) {
-            Kokkos::View<ScalarT[1][3],HostDevice> center("center");
-            for (size_type i=0; i<nodes.extent(1); i++) {
-              for (int j=0; j<spaceDim; j++) {
-                center(0,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
-              }
-            }
-            ScalarT distance = 0.0;
-
-            // Compadre interface doesn't work with GPUs yet
-#if !defined(MrHyDE_DISABLE_COMPADRE)
-            int cnode = mesh_data->findClosestGridNode(center(0,0), center(0,1), center(0,2), distance);
-#else
-            int cnode = 0; // should probably warn the user too, but Cmpadre should be fixed soon
-#endif
-            bool iscloser = true;
-            if (p>0){
-              if (bcells[b][e]->cell_data_distance[c] < distance) {
-                iscloser = false;
-              }
-            }
-            if (iscloser) {
-              Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
-              for (size_type i=0; i<cdata.extent(1); i++) {
-                bcells[b][e]->cell_data(c,i) = cdata(0,i);
-              }
-              bcells[b][e]->cellData->have_extra_data = true;
-              if (have_rotations)
-                bcells[b][e]->cellData->have_cell_rotation = true;
-              if (have_rotation_phi)
-                bcells[b][e]->cellData->have_cell_phi = true;
-              
-              bcells[b][e]->cell_data_seed[c] = cnode;
-              bcells[b][e]->cell_data_seedindex[c] = cnode % 50;
-              bcells[b][e]->cell_data_distance[c] = distance;
-            }
+          // Doesn't use the Compadre interface
+          int cnode = mesh_data->findClosestGridNode(centers_host(c,0), centers_host(c,1),
+                                                     centers_host(c,2), distance);
+          
+          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
+          for (size_type i=0; i<cdata.extent(1); i++) {
+            cells[b][e]->cell_data(c,i) = cdata(0,i);
           }
-        }
-      }
-    }
-    else {
-      mesh_data = Teuchos::rcp(new data("mesh data", spaceDim, mesh_data_pts_file,
-                                        mesh_data_file, false));
-      
-      for (size_t b=0; b<bcells.size(); b++) {
-        for (size_t e=0; e<bcells[b].size(); e++) {
-          DRV nodes = bcells[b][e]->nodes;
-          int numElem = bcells[b][e]->numElem;
+          cells[b][e]->cellData->have_extra_data = true;
+          cells[b][e]->cellData->have_cell_rotation = have_rotations;
+          cells[b][e]->cellData->have_cell_phi = have_rotation_phi;
           
-          Kokkos::View<ScalarT**, AssemblyDevice> center("center",numElem,spaceDim);
-          for (int c=0; c<numElem; c++) {
-            for (size_t i=0; i<nodes.extent(1); i++) {
-              for (int j=0; j<spaceDim; j++) {
-                center(c,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
-              }
-            }
-          }
-          
-          Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
-          Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
-          
-          // Compadre interface doesn't work with GPUs yet
-#if !defined(MrHyDE_DISABLE_COMPADRE)
-          mesh_data->findClosestNode(center,cnode,distance);
-#endif
-          
-          bool iscloser = true;
-          for (int c=0; c<numElem; c++) {
-            if (p>0){
-              if (bcells[b][e]->cell_data_distance[c] < distance(c)) {
-                iscloser = false;
-              }
-            }
-            if (iscloser) {
-              Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode(c));
-              for (size_t i=0; i<cdata.extent(1); i++) {
-                bcells[b][e]->cell_data(c,i) = cdata(0,i);
-              }
-              bcells[b][e]->cellData->have_extra_data = true;
-              if (have_rotations)
-                bcells[b][e]->cellData->have_cell_rotation = true;
-              if (have_rotation_phi)
-                bcells[b][e]->cellData->have_cell_phi = true;
-            
-              bcells[b][e]->cell_data_seed[c] = cnode(c);
-              bcells[b][e]->cell_data_seedindex[c] = cnode(c) % 50;
-              bcells[b][e]->cell_data_distance[c] = distance(c);
-            }
-          }
+          cells[b][e]->cell_data_seed[c] = cnode;
+          cells[b][e]->cell_data_seedindex[c] = cnode % 100;
+          cells[b][e]->cell_data_distance[c] = distance;
         }
       }
     }
     
+    for (size_t b=0; b<bcells.size(); b++) {
+      for (size_t e=0; e<bcells[b].size(); e++) {
+        DRV nodes = bcells[b][e]->nodes;
+        int numElem = bcells[b][e]->numElem;
+        
+        auto centers = this->getElementCenters(nodes, bcells[b][e]->cellData->cellTopo);
+        auto centers_host = create_mirror_view(centers);
+        deep_copy(centers_host,centers);
+        
+        for (int c=0; c<numElem; c++) {
+          ScalarT distance = 0.0;
+          
+          int cnode = mesh_data->findClosestGridNode(centers_host(c,0), centers_host(c,1),
+                                                     centers_host(c,2), distance);
+          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
+          for (size_type i=0; i<cdata.extent(1); i++) {
+            bcells[b][e]->cell_data(c,i) = cdata(0,i);
+          }
+          bcells[b][e]->cellData->have_extra_data = true;
+          bcells[b][e]->cellData->have_cell_rotation = have_rotations;
+          bcells[b][e]->cellData->have_cell_phi = have_rotation_phi;
+          
+          bcells[b][e]->cell_data_seed[c] = cnode;
+          bcells[b][e]->cell_data_seedindex[c] = cnode % 100;
+          bcells[b][e]->cell_data_distance[c] = distance;
+        }
+      }
+    }
   }
+  else {
+    mesh_data = Teuchos::rcp(new data("mesh data", spaceDim, mesh_data_pts_file,
+                                      mesh_data_file, false));
+    
+    for (size_t b=0; b<cells.size(); b++) {
+      for (size_t e=0; e<cells[b].size(); e++) {
+        DRV nodes = cells[b][e]->nodes;
+        int numElem = cells[b][e]->numElem;
+        
+        auto centers = this->getElementCenters(nodes, cells[b][e]->cellData->cellTopo);
+        
+        Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
+        Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
+        
+        // Compadre interface doesn't work with GPUs yet
+#if !defined(MrHyDE_DISABLE_COMPADRE)
+        mesh_data->findClosestNode(centers,cnode,distance);
+#endif
+        
+        for (int c=0; c<numElem; c++) {
+          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode(c));
+          for (size_t i=0; i<cdata.extent(1); i++) {
+            cells[b][e]->cell_data(c,i) = cdata(0,i);
+          }
+          cells[b][e]->cellData->have_extra_data = true;
+          cells[b][e]->cellData->have_cell_rotation = have_rotations;
+          cells[b][e]->cellData->have_cell_phi = have_rotation_phi;
+          
+          cells[b][e]->cell_data_seed[c] = cnode(c);
+          cells[b][e]->cell_data_seedindex[c] = cnode(c) % 100;
+          cells[b][e]->cell_data_distance[c] = distance(c);
+        }
+        
+      }
+    }
+    
+    for (size_t b=0; b<bcells.size(); b++) {
+      for (size_t e=0; e<bcells[b].size(); e++) {
+        DRV nodes = bcells[b][e]->nodes;
+        int numElem = bcells[b][e]->numElem;
+        
+        auto centers = this->getElementCenters(nodes, bcells[b][e]->cellData->cellTopo);
+        
+        Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
+        Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
+        
+        // Compadre interface doesn't work with GPUs yet
+#if !defined(MrHyDE_DISABLE_COMPADRE)
+        mesh_data->findClosestNode(centers,cnode,distance);
+#endif
+        
+        for (int c=0; c<numElem; c++) {
+          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode(c));
+          for (size_t i=0; i<cdata.extent(1); i++) {
+            bcells[b][e]->cell_data(c,i) = cdata(0,i);
+          }
+          bcells[b][e]->cellData->have_extra_data = true;
+          bcells[b][e]->cellData->have_cell_rotation = have_rotations;
+          bcells[b][e]->cellData->have_cell_phi = have_rotation_phi;
+          
+          bcells[b][e]->cell_data_seed[c] = cnode(c);
+          bcells[b][e]->cell_data_seedindex[c] = cnode(c) % 50;
+          bcells[b][e]->cell_data_distance[c] = distance(c);
+        }
+      }
+    }
+  }
+  
   
   meshimporttimer.stop();
   if (verbosity>5 && Commptr->getRank() == 0) {
@@ -967,11 +856,10 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<BoundaryCell> > > 
   }
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void MeshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells) {
+View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
@@ -984,8 +872,7 @@ void MeshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
   have_rotations = true;
   have_rotation_phi = false;
   
-  Kokkos::View<ScalarT**,HostDevice> seeds;
-  int randSeed = settings->sublist("Mesh").get<int>("random seed",1234);
+  View_Sc2 seeds;
   randomSeeds.push_back(randSeed);
   std::default_random_engine generator(randSeed);
   numSeeds = 0;
@@ -1030,7 +917,9 @@ void MeshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
     
     std::uniform_real_distribution<ScalarT> pdistribution(-maxpert,maxpert);
     numSeeds = numxSeeds*numySeeds*numzSeeds;
-    seeds = Kokkos::View<ScalarT**,HostDevice>("seeds",numSeeds,3);
+    seeds = View_Sc2("seeds",numSeeds,3);
+    auto seeds_host = create_mirror_view(seeds);
+    
     int prog = 0;
     for (int i=0; i<numxSeeds; i++) {
       for (int j=0; j<numySeeds; j++) {
@@ -1038,17 +927,20 @@ void MeshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
           ScalarT xp = pdistribution(generator);
           ScalarT yp = pdistribution(generator);
           ScalarT zp = pdistribution(generator);
-          seeds(prog,0) = xseeds(i) + xp*dx;
-          seeds(prog,1) = yseeds(j) + yp*dy;
-          seeds(prog,2) = zseeds(k) + zp*dz;
+          seeds_host(prog,0) = xseeds(i) + xp*dx;
+          seeds_host(prog,1) = yseeds(j) + yp*dy;
+          seeds_host(prog,2) = zseeds(k) + zp*dz;
           prog += 1;
         }
       }
     }
+    deep_copy(seeds,seeds_host);
+    
   }
   else {
-    numSeeds = settings->sublist("Mesh").get<int>("number of seeds",1000);
-    seeds = Kokkos::View<ScalarT**,HostDevice>("seeds",numSeeds,3);
+    numSeeds = settings->sublist("Mesh").get<int>("number of seeds",10);
+    seeds = View_Sc2("seeds",numSeeds,3);
+    auto seeds_host = create_mirror_view(seeds);
     
     ScalarT xwt = settings->sublist("Mesh").get<ScalarT>("x weight",1.0);
     ScalarT ywt = settings->sublist("Mesh").get<ScalarT>("y weight",1.0);
@@ -1087,33 +979,59 @@ void MeshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
       }
       int bestpt = 0;
       if (prog > 0) { // for prog = 0, just take the first one
-        ScalarT mindist = 1.0e6;
+        ScalarT maxdist = 0.0;
         for (int k=0; k<batch_size; k++) {
-          ScalarT cmindist = 1.0e6;
+          ScalarT cmaxdist = 0.0;
           for (int j=0; j<prog; j++) {
             ScalarT dx = cseeds(k,0)-seeds(j,0);
             ScalarT dy = cseeds(k,1)-seeds(j,1);
             ScalarT dz = cseeds(k,2)-seeds(j,2);
-            ScalarT cval = sqrt(xwt*dx*dx + ywt*dy*dy + zwt*dz*dz);
-            if (cval < cmindist) {
-              cmindist = cval;
+            ScalarT cval = xwt*dx*dx + ywt*dy*dy + zwt*dz*dz;
+            if (cval > cmaxdist) {
+              cmaxdist = cval;
             }
           }
-          if (cmindist<mindist) {
-            mindist = cmindist;
+          if (cmaxdist>maxdist) {
+            maxdist = cmaxdist;
             bestpt = k;
           }
         }
       }
       for (int j=0; j<3; j++) {
-        seeds(prog,j) = cseeds(bestpt,j);
+        seeds_host(prog,j) = cseeds(bestpt,j);
       }
       prog += 1;
     }
+    deep_copy(seeds, seeds_host);
+    
   }
   //KokkosTools::print(seeds);
   
-  std::uniform_int_distribution<int> idistribution(0,50);
+  meshimporttimer.stop();
+  if (verbosity>5 && Commptr->getRank() == 0) {
+    cout << "microstructure regeneration time: " << meshimporttimer.totalElapsedTime(false) << endl;
+  }
+  
+  
+  return seeds;
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
+                                            vector<vector<Teuchos::RCP<cell> > > & cells,
+                                            vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells) {
+  
+  Teuchos::Time meshimporttimer("mesh import", false);
+  meshimporttimer.start();
+  
+  std::default_random_engine generator(randSeed);
+  
+  int numSeeds = seeds.extent(0);
+  std::uniform_int_distribution<int> idistribution(0,100);
   Kokkos::View<int*,HostDevice> seedIndex("seed index",numSeeds);
   for (int i=0; i<numSeeds; i++) {
     int ci = idistribution(generator);
@@ -1182,249 +1100,35 @@ void MeshInterface::computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells
     for (size_t e=0; e<cells[b].size(); e++) {
       DRV nodes = cells[b][e]->nodes;
       int numElem = cells[b][e]->numElem;
+      auto centers = this->getElementCenters(nodes, cells[b][e]->cellData->cellTopo);
+      
+      Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
+      Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
+      
+      Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
+      cnode = neighborlists.getNeighborLists();
+      
       for (int c=0; c<numElem; c++) {
-        Kokkos::View<ScalarT[1][3],HostDevice> center("center");
-        for (size_t i=0; i<nodes.extent(1); i++) {
-          for (int j=0; j<spaceDim; j++) {
-            center(0,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
-          }
-        }
-        ScalarT distance = 1.0e6;
-        int cnode = 0;
-        for (int k=0; k<numSeeds; k++) {
-          ScalarT dx = center(0,0)-seeds(k,0);
-          ScalarT dy = center(0,1)-seeds(k,1);
-          ScalarT dz = center(0,2)-seeds(k,2);
-          ScalarT cdist = sqrt(dx*dx + dy*dy + dz*dz);
-          if (cdist<distance) {
-            cnode = k;
-            distance = cdist;
-          }
-        }
         
         for (int i=0; i<9; i++) {
-          cells[b][e]->cell_data(c,i) = rotation_data(cnode,i);
+          cells[b][e]->cell_data(c,i) = rotation_data(cnode(c),i);
         }
         
         cells[b][e]->cellData->have_cell_rotation = true;
         cells[b][e]->cellData->have_cell_phi = false;
         
-        cells[b][e]->cell_data_seed[c] = cnode;
-        cells[b][e]->cell_data_seedindex[c] = seedIndex(cnode);
-        cells[b][e]->cell_data_distance[c] = distance;
+        cells[b][e]->cell_data_seed[c] = cnode(c) % 100;
+        cells[b][e]->cell_data_seedindex[c] = seedIndex(cnode(c));
+        cells[b][e]->cell_data_distance[c] = distance(c);
         
       }
     }
     
   }
   
-  meshimporttimer.stop();
-  if (verbosity>5 && Commptr->getRank() == 0) {
-    cout << "mesh data compute time: " << meshimporttimer.totalElapsedTime(false) << endl;
-  }
-  
-  if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Finished mesh:computeMeshData" << endl;
-    }
-  }
-  
-}
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-void MeshInterface::computeMeshData(vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells) {
-  
-  if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Starting mesh::computeMeshData ..." << endl;
-    }
-  }
-  Teuchos::Time meshimporttimer("mesh import", false);
-  meshimporttimer.start();
-  
-  have_rotations = true;
-  have_rotation_phi = false;
-  
-  Kokkos::View<ScalarT**,HostDevice> seeds;
-  int randSeed = settings->sublist("Mesh").get<int>("random seed",1234);
-  randomSeeds.push_back(randSeed);
-  std::default_random_engine generator(randSeed);
-  numSeeds = 0;
-  
   ////////////////////////////////////////////////////////////////////////////////
-  // Generate the micro-structure using seeds and nearest neighbors
+  // Initialize boundary cell data
   ////////////////////////////////////////////////////////////////////////////////
-  
-  bool fast_and_crude = settings->sublist("Mesh").get<bool>("fast and crude microstructure",false);
-  
-  if (fast_and_crude) {
-    int numxSeeds = settings->sublist("Mesh").get<int>("number of xseeds",10);
-    int numySeeds = settings->sublist("Mesh").get<int>("number of yseeds",10);
-    int numzSeeds = settings->sublist("Mesh").get<int>("number of zseeds",10);
-    
-    ScalarT xmin = settings->sublist("Mesh").get<ScalarT>("x min",0.0);
-    ScalarT ymin = settings->sublist("Mesh").get<ScalarT>("y min",0.0);
-    ScalarT zmin = settings->sublist("Mesh").get<ScalarT>("z min",0.0);
-    ScalarT xmax = settings->sublist("Mesh").get<ScalarT>("x max",1.0);
-    ScalarT ymax = settings->sublist("Mesh").get<ScalarT>("y max",1.0);
-    ScalarT zmax = settings->sublist("Mesh").get<ScalarT>("z max",1.0);
-    
-    ScalarT dx = (xmax-xmin)/(ScalarT)(numxSeeds+1);
-    ScalarT dy = (ymax-ymin)/(ScalarT)(numySeeds+1);
-    ScalarT dz = (zmax-zmin)/(ScalarT)(numzSeeds+1);
-    
-    ScalarT maxpert = 0.25;
-    
-    Kokkos::View<ScalarT*,HostDevice> xseeds("xseeds",numxSeeds);
-    Kokkos::View<ScalarT*,HostDevice> yseeds("yseeds",numySeeds);
-    Kokkos::View<ScalarT*,HostDevice> zseeds("zseeds",numzSeeds);
-    
-    for (int k=0; k<numxSeeds; k++) {
-      xseeds(k) = xmin + (k+1)*dx;
-    }
-    for (int k=0; k<numySeeds; k++) {
-      yseeds(k) = ymin + (k+1)*dy;
-    }
-    for (int k=0; k<numzSeeds; k++) {
-      zseeds(k) = zmin + (k+1)*dz;
-    }
-    
-    std::uniform_real_distribution<ScalarT> pdistribution(-maxpert,maxpert);
-    numSeeds = numxSeeds*numySeeds*numzSeeds;
-    seeds = Kokkos::View<ScalarT**,HostDevice>("seeds",numSeeds,3);
-    int prog = 0;
-    for (int i=0; i<numxSeeds; i++) {
-      for (int j=0; j<numySeeds; j++) {
-        for (int k=0; k<numzSeeds; k++) {
-          ScalarT xp = pdistribution(generator);
-          ScalarT yp = pdistribution(generator);
-          ScalarT zp = pdistribution(generator);
-          seeds(prog,0) = xseeds(i) + xp*dx;
-          seeds(prog,1) = yseeds(j) + yp*dy;
-          seeds(prog,2) = zseeds(k) + zp*dz;
-          prog += 1;
-        }
-      }
-    }
-  }
-  else {
-    numSeeds = settings->sublist("Mesh").get<int>("number of seeds",1000);
-    seeds = Kokkos::View<ScalarT**,HostDevice>("seeds",numSeeds,3);
-    
-    ScalarT xwt = settings->sublist("Mesh").get<ScalarT>("x weight",1.0);
-    ScalarT ywt = settings->sublist("Mesh").get<ScalarT>("y weight",1.0);
-    ScalarT zwt = settings->sublist("Mesh").get<ScalarT>("z weight",1.0);
-    ScalarT nwt = sqrt(xwt*xwt+ywt*ywt+zwt*zwt);
-    xwt *= 3.0/nwt;
-    ywt *= 3.0/nwt;
-    zwt *= 3.0/nwt;
-    
-    ScalarT xmin = settings->sublist("Mesh").get<ScalarT>("x min",0.0);
-    ScalarT ymin = settings->sublist("Mesh").get<ScalarT>("y min",0.0);
-    ScalarT zmin = settings->sublist("Mesh").get<ScalarT>("z min",0.0);
-    ScalarT xmax = settings->sublist("Mesh").get<ScalarT>("x max",1.0);
-    ScalarT ymax = settings->sublist("Mesh").get<ScalarT>("y max",1.0);
-    ScalarT zmax = settings->sublist("Mesh").get<ScalarT>("z max",1.0);
-    
-    std::uniform_real_distribution<ScalarT> xdistribution(xmin,xmax);
-    std::uniform_real_distribution<ScalarT> ydistribution(ymin,ymax);
-    std::uniform_real_distribution<ScalarT> zdistribution(zmin,zmax);
-    
-    
-    // we use a relatively crude algorithm to obtain well-spaced points
-    int batch_size = 10;
-    int prog = 0;
-    Kokkos::View<ScalarT**,HostDevice> cseeds("cand seeds",batch_size,3);
-    
-    while (prog<numSeeds) {
-      // fill in the candidate seeds
-      for (int k=0; k<batch_size; k++) {
-        ScalarT x = xdistribution(generator);
-        cseeds(k,0) = x;
-        ScalarT y = ydistribution(generator);
-        cseeds(k,1) = y;
-        ScalarT z = zdistribution(generator);
-        cseeds(k,2) = z;
-      }
-      int bestpt = 0;
-      if (prog > 0) { // for prog = 0, just take the first one
-        ScalarT mindist = 1.0e6;
-        for (int k=0; k<batch_size; k++) {
-          ScalarT cmindist = 1.0e6;
-          for (int j=0; j<prog; j++) {
-            ScalarT dx = cseeds(k,0)-seeds(j,0);
-            ScalarT dy = cseeds(k,1)-seeds(j,1);
-            ScalarT dz = cseeds(k,2)-seeds(j,2);
-            ScalarT cval = sqrt(xwt*dx*dx + ywt*dy*dy + zwt*dz*dz);
-            if (cval < cmindist) {
-              cmindist = cval;
-            }
-          }
-          if (cmindist<mindist) {
-            mindist = cmindist;
-            bestpt = k;
-          }
-        }
-      }
-      for (int j=0; j<3; j++) {
-        seeds(prog,j) = cseeds(bestpt,j);
-      }
-      prog += 1;
-    }
-  }
-  //KokkosTools::print(seeds);
-  
-  std::uniform_int_distribution<int> idistribution(0,50);
-  Kokkos::View<int*,HostDevice> seedIndex("seed index",numSeeds);
-  for (int i=0; i<numSeeds; i++) {
-    int ci = idistribution(generator);
-    seedIndex(i) = ci;
-  }
-  
-  //KokkosTools::print(seedIndex);
-  
-  ////////////////////////////////////////////////////////////////////////////////
-  // Set seed data
-  ////////////////////////////////////////////////////////////////////////////////
-  
-  int numdata = 9;
-  
-  std::normal_distribution<ScalarT> ndistribution(0.0,1.0);
-  Kokkos::View<ScalarT**,HostDevice> rotation_data("cell_data",numSeeds,numdata);
-  for (int k=0; k<numSeeds; k++) {
-    ScalarT x = ndistribution(generator);
-    ScalarT y = ndistribution(generator);
-    ScalarT z = ndistribution(generator);
-    ScalarT w = ndistribution(generator);
-    
-    ScalarT r = sqrt(x*x + y*y + z*z + w*w);
-    x *= 1.0/r;
-    y *= 1.0/r;
-    z *= 1.0/r;
-    w *= 1.0/r;
-    
-    rotation_data(k,0) = w*w + x*x - y*y - z*z;
-    rotation_data(k,1) = 2.0*(x*y - w*z);
-    rotation_data(k,2) = 2.0*(x*z + w*y);
-    
-    rotation_data(k,3) = 2.0*(x*y + w*z);
-    rotation_data(k,4) = w*w - x*x + y*y - z*z;
-    rotation_data(k,5) = 2.0*(y*z - w*x);
-    
-    rotation_data(k,6) = 2.0*(x*z - w*y);
-    rotation_data(k,7) = 2.0*(y*z + w*x);
-    rotation_data(k,8) = w*w - x*x - y*y + z*z;
-    
-  }
-  
-  //KokkosTools::print(rotation_data);
-  
-  ////////////////////////////////////////////////////////////////////////////////
-  // Initialize cell data
-  ////////////////////////////////////////////////////////////////////////////////
-  
   
   for (size_t b=0; b<bcells.size(); b++) {
     for (size_t e=0; e<bcells[b].size(); e++) {
@@ -1445,36 +1149,26 @@ void MeshInterface::computeMeshData(vector<vector<Teuchos::RCP<BoundaryCell> > >
     for (size_t e=0; e<bcells[b].size(); e++) {
       DRV nodes = bcells[b][e]->nodes;
       int numElem = bcells[b][e]->numElem;
+      auto centers = this->getElementCenters(nodes, bcells[b][e]->cellData->cellTopo);
+      
+      Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
+      Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
+      
+      Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
+      cnode = neighborlists.getNeighborLists();
+      
       for (int c=0; c<numElem; c++) {
-        Kokkos::View<ScalarT[1][3],HostDevice> center("center");
-        for (size_t i=0; i<nodes.extent(1); i++) {
-          for (int j=0; j<spaceDim; j++) {
-            center(0,j) += nodes(c,i,j)/(ScalarT)nodes.extent(1);
-          }
-        }
-        ScalarT distance = 1.0e6;
-        int cnode = 0;
-        for (int k=0; k<numSeeds; k++) {
-          ScalarT dx = center(0,0)-seeds(k,0);
-          ScalarT dy = center(0,1)-seeds(k,1);
-          ScalarT dz = center(0,2)-seeds(k,2);
-          ScalarT cdist = sqrt(dx*dx + dy*dy + dz*dz);
-          if (cdist<distance) {
-            cnode = k;
-            distance = cdist;
-          }
-        }
         
         for (int i=0; i<9; i++) {
-          bcells[b][e]->cell_data(c,i) = rotation_data(cnode,i);
+          bcells[b][e]->cell_data(c,i) = rotation_data(cnode(c),i);
         }
         
         bcells[b][e]->cellData->have_cell_rotation = true;
         bcells[b][e]->cellData->have_cell_phi = false;
         
-        bcells[b][e]->cell_data_seed[c] = cnode;
-        bcells[b][e]->cell_data_seedindex[c] = seedIndex(cnode);
-        bcells[b][e]->cell_data_distance[c] = distance;
+        bcells[b][e]->cell_data_seed[c] = cnode(c) % 100;
+        bcells[b][e]->cell_data_seedindex[c] = seedIndex(cnode(c));
+        bcells[b][e]->cell_data_distance[c] = distance(c);
         
       }
     }
@@ -1483,7 +1177,7 @@ void MeshInterface::computeMeshData(vector<vector<Teuchos::RCP<BoundaryCell> > >
   
   meshimporttimer.stop();
   if (verbosity>5 && Commptr->getRank() == 0) {
-    cout << "mesh data compute time: " << meshimporttimer.totalElapsedTime(false) << endl;
+    cout << "microstructure import time: " << meshimporttimer.totalElapsedTime(false) << endl;
   }
   
   if (debug_level > 0) {

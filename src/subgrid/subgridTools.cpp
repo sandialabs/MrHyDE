@@ -197,7 +197,8 @@ void SubGridTools::createSubMesh(const int & numrefine) {
         local_elem_Ids.push_back(ref_mesh->elementLocalId(side_output[i]));
         size_t localid = local_elem_Ids[i];
         subsidemap[localid](local_side_Ids[i], 0) = 1;
-        subsidemap[localid](local_side_Ids[i], 1) = side;
+        subsidemap[localid](local_side_Ids[i], 1) = local_side_Ids[i];//side;
+        //subsidemap[localid](side, 1) = local_side_Ids[i];
       }
     }
     

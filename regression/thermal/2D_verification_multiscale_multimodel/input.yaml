@@ -24,6 +24,7 @@ ANONYMOUS:
     quadrature: 2
   Solver:
     solver: steady-state
+    #workset size: 40
   Analysis: 
     analysis type: forward
   Postprocess: 

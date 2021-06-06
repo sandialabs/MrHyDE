@@ -32,6 +32,7 @@ ANONYMOUS:
     quadrature: 2
   Solver:
     solver: steady-state
+    workset size: 1
   Postprocess: 
     compute errors: true
     True solutions:

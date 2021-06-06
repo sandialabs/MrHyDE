@@ -49,7 +49,7 @@ linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settin
   }
   
   useCE = settings->sublist("Physics").get<bool>("use crystal elasticity",false);
-  int numElem = settings->sublist("Solver").get<int>("workset size",1);
+  int numElem = settings->sublist("Solver").get<int>("workset size",100);
   if (useCE) {
     crystalelast = Teuchos::rcp(new CrystalElastic(settings, numElem));
   }
@@ -883,10 +883,10 @@ void linearelasticity::computeStress(View_AD2 lambda, View_AD2 mu, const bool & 
   if (useCE) {
     vector<int> indices = {dx_num, dy_num, dz_num, e_num};
     if (onside) {
-      stress_side = crystalelast->computeStress(wkset, indices, onside);
+      crystalelast->computeStress(wkset, indices, onside, stress_side);
     }
     else {
-      stress_vol = crystalelast->computeStress(wkset, indices, onside);
+      crystalelast->computeStress(wkset, indices, onside, stress_vol);
     }
   }
   else {
@@ -1244,3 +1244,77 @@ void linearelasticity::updateParameters(const vector<Teuchos::RCP<vector<AD> > >
   }
 }
 
+
+// ========================================================================================
+// ========================================================================================
+
+std::vector<string> linearelasticity::getDerivedNames() {
+  std::vector<string> derived;
+  derived.push_back("VM stress");
+  derived.push_back("MAG stress");
+  return derived;
+}
+
+// ========================================================================================
+// ========================================================================================
+
+std::vector<View_AD2> linearelasticity::getDerivedValues() {
+  std::vector<View_AD2> derived;
+  
+  auto lambda = functionManager->evaluate("lambda","ip");
+  auto mu = functionManager->evaluate("mu","ip");
+  this->computeStress(lambda, mu, false);
+  auto stress = stress_vol;
+
+  View_AD2 vmstress("von mises stress",stress.extent(0),stress.extent(1)); // numElem x numip
+  View_AD2 magstress("magnitude of stress",stress.extent(0),stress.extent(1)); // numElem x numip
+  
+  int dimension = wkset->dimension;
+  using namespace std;
+  
+  if (dimension == 1) {
+    parallel_for("LE derived fill",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
+      for (size_type pt=0; pt<vmstress.extent(1); ++pt) {
+        AD sxx = stress(elem,pt,0,0);
+        vmstress(elem,pt) = sqrt(sxx*sxx);
+        magstress(elem,pt) = sqrt(sxx*sxx);
+      }
+    });
+  }
+  else if (dimension == 2) {
+    parallel_for("LE derived fill",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
+      for (size_type pt=0; pt<vmstress.extent(1); ++pt) {
+        AD sxx = stress(elem,pt,0,0);
+        AD syy = stress(elem,pt,1,1);
+        AD sxy = stress(elem,pt,0,1);
+        vmstress(elem,pt) = sqrt(sxx*sxx - sxx*syy + syy*syy + 3.0*sxy*sxy);
+        magstress(elem,pt) = sqrt(sxx*sxx + syy*syy);
+      }
+    });
+  }
+  else if (dimension == 3) {
+    parallel_for("LE derived fill",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
+      for (size_type pt=0; pt<vmstress.extent(1); ++pt) {
+        AD sxx = stress(elem,pt,0,0);
+        AD syy = stress(elem,pt,1,1);
+        AD szz = stress(elem,pt,2,2);
+        AD sxy = stress(elem,pt,0,1);
+        AD syz = stress(elem,pt,1,2);
+        AD szx = stress(elem,pt,2,0);
+        vmstress(elem,pt) = sqrt(0.5*((sxx-syy)*(sxx-syy) + (syy-szz)*(syy-szz) + (szz-sxx)*(szz-sxx)) + 3.0*(sxy*sxy+syz*syz+szx*szx) );
+        magstress(elem,pt) = sqrt(sxx*sxx + syy*syy + szz*szz);
+      }
+    });
+  }
+  
+  derived.push_back(vmstress);
+  derived.push_back(magstress);
+  
+  return derived;
+}

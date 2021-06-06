@@ -56,7 +56,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void updateCellData(const int & newrandseed);
+    void updateRotationData(const int & newrandseed);
     
   protected:
     

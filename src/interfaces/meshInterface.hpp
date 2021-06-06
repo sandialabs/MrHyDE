@@ -70,20 +70,24 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    void importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells);
+    void importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
+                        vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells);
     
-    void importMeshData(vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells);
-    
-    ////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    void computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells);
-    
-    void computeMeshData(vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells);
+    //void importMeshData(vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells);
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
+    //void computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
+    //                     vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells);
+    
+    //void computeMeshData(vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells);
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    View_Sc2 getElementCenters(DRV nodes, topo_RCP & reftopo);
+      
     DRV getElemNodes(const int & block, const int & elemID);
     
     ////////////////////////////////////////////////////////////////////////////////
@@ -96,6 +100,12 @@ namespace MrHyDE {
     
     void purgeMemory();
     
+    View_Sc2 generateNewMicrostructure(int & randSeed);
+
+    void importNewMicrostructure(int & randSeed, View_Sc2 seeds,
+                                 vector<vector<Teuchos::RCP<cell> > > & cells,
+                                 vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells);
+
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
@@ -105,9 +115,9 @@ namespace MrHyDE {
     Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory;
     Teuchos::RCP<panzer_stk::STK_Interface> stk_mesh, stk_optimization_mesh;
     
-    bool have_mesh_data, compute_mesh_data, have_rotations, have_rotation_phi, have_multiple_data_files;
+    bool have_mesh_data, compute_mesh_data, have_rotations, have_rotation_phi;
     string shape, mesh_data_file_tag, mesh_data_pts_tag, mesh_data_tag;
-    int spaceDim, verbosity, number_mesh_data_files, debug_level;
+    int spaceDim, verbosity, debug_level;
     int numNodesPerElem, sideDim, numSides, numFaces, numSeeds;
     vector<int> randomSeeds;
     vector<topo_RCP> cellTopo, sideTopo;

@@ -150,6 +150,7 @@ typedef Kokkos::View<ScalarT*,AssemblyDevice> View_Sc1;
 typedef Kokkos::View<ScalarT**,AssemblyDevice> View_Sc2; // replaces FDATAd
 typedef Kokkos::View<ScalarT***,AssemblyDevice> View_Sc3;
 typedef Kokkos::View<ScalarT****,AssemblyDevice> View_Sc4;
+typedef Kokkos::View<ScalarT*****,AssemblyDevice> View_Sc5;
 
 // Intrepid and shards typedefs
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;

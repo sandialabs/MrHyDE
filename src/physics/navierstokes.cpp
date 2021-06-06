@@ -858,9 +858,158 @@ void navierstokes::volumeResidual() {
 
 void navierstokes::boundaryResidual() {
   
-  // NOTES:
-  // 1. basis and basis_grad already include the integration weights
+  int spaceDim = wkset->dimension;
+  auto bcs = wkset->var_bcs;
   
+  int cside = wkset->currentside;
+  
+  string ux_sidetype = bcs(ux_num,cside);
+  string uy_sidetype = "Dirichlet";
+  string uz_sidetype = "Dirichlet";
+  if (spaceDim > 1) {
+    uy_sidetype = bcs(uy_num,cside);
+  }
+  if (spaceDim > 2) {
+    uz_sidetype = bcs(uz_num,cside);
+  }
+  
+  View_AD2 source_ux, source_uy, source_uz;
+  
+  if (ux_sidetype != "Dirichlet" || uy_sidetype != "Dirichlet" || uz_sidetype != "Dirichlet") {
+    
+    {
+      //Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
+      if (ux_sidetype == "Neumann") {
+        source_ux = functionManager->evaluate("Neumann ux " + wkset->sidename,"side ip");
+      }
+      if (uy_sidetype == "Neumann") {
+        source_uy = functionManager->evaluate("Neumann uy " + wkset->sidename,"side ip");
+      }
+      if (uz_sidetype == "Neumann") {
+        source_uz = functionManager->evaluate("Neumann uz " + wkset->sidename,"side ip");
+      }
+    }
+    
+    // Since normals get recomputed often, this needs to be reset
+    auto wts = wkset->wts_side;
+    auto h = wkset->h;
+    auto res = wkset->res;
+    
+    //Teuchos::TimeMonitor localtime(*boundaryResidualFill);
+    
+    if (spaceDim == 1) {
+      int ux_basis = wkset->usebasis[ux_num];
+      auto basis = wkset->basis_side[ux_basis];
+      auto off = Kokkos::subview( wkset->offsets, ux_num, Kokkos::ALL());
+      if (ux_sidetype == "Neumann") { // Neumann
+        parallel_for("NS ux bndry resid 1D N",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int e ) {
+          for (size_type k=0; k<basis.extent(2); k++ ) {
+            for (size_type i=0; i<basis.extent(1); i++ ) {
+              res(e,off(i)) += (-source_ux(e,k)*basis(e,i,k,0))*wts(e,k);
+            }
+          }
+        });
+      }
+    }
+    else if (spaceDim == 2) {
+      
+      // ux equation boundary residual
+      {
+        int ux_basis = wkset->usebasis[ux_num];
+        auto basis = wkset->basis_side[ux_basis];
+        auto off = Kokkos::subview( wkset->offsets, ux_num, Kokkos::ALL());
+        
+        if (ux_sidetype == "Neumann") { // traction (Neumann)
+          parallel_for("NS ux bndry resid 2D N",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       KOKKOS_LAMBDA (const int e ) {
+            for (size_type k=0; k<basis.extent(2); k++ ) {
+              for (size_type i=0; i<basis.extent(1); i++ ) {
+                res(e,off(i)) += (-source_ux(e,k)*basis(e,i,k,0))*wts(e,k);
+              }
+            }
+          });
+        }
+      }
+      
+      // uy equation boundary residual
+      {
+        int uy_basis = wkset->usebasis[uy_num];
+        auto basis = wkset->basis_side[uy_basis];
+        auto off = Kokkos::subview( wkset->offsets, uy_num, Kokkos::ALL());
+        if (uy_sidetype == "Neumann") { // traction (Neumann)
+          parallel_for("NS uy bndry resid 2D N",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       KOKKOS_LAMBDA (const int e ) {
+            for (size_type k=0; k<basis.extent(2); k++ ) {
+              for (size_type i=0; i<basis.extent(1); i++ ) {
+                res(e,off(i)) += (-source_uy(e,k)*basis(e,i,k,0))*wts(e,k);
+              }
+            }
+          });
+        }
+      }
+    }
+    
+    else if (spaceDim == 3) {
+      
+      // ux equation boundary residual
+      {
+        int ux_basis = wkset->usebasis[ux_num];
+        auto basis = wkset->basis_side[ux_basis];
+        auto off = Kokkos::subview( wkset->offsets, ux_num, Kokkos::ALL());
+        if (ux_sidetype == "Neumann") { // traction (Neumann)
+          parallel_for("NS ux bndry resid 3D N",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       KOKKOS_LAMBDA (const int e ) {
+            for (size_type k=0; k<basis.extent(2); k++ ) {
+              for (size_type i=0; i<basis.extent(1); i++ ) {
+                res(e,off(i)) += (-source_ux(e,k)*basis(e,i,k,0))*wts(e,k);
+              }
+            }
+          });
+        }
+      }
+      
+      // uy equation boundary residual
+      {
+        int uy_basis = wkset->usebasis[uy_num];
+        auto basis = wkset->basis_side[uy_basis];
+        auto off = Kokkos::subview( wkset->offsets, uy_num, Kokkos::ALL());
+        if (uy_sidetype == "Neumann") { // traction (Neumann)
+          parallel_for("NS uy bndry resid 3D N",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       KOKKOS_LAMBDA (const int e ) {
+            for (size_type k=0; k<basis.extent(2); k++ ) {
+              for (size_type i=0; i<basis.extent(1); i++ ) {
+                res(e,off(i)) += (-source_uy(e,k)*basis(e,i,k,0))*wts(e,k);
+              }
+            }
+          });
+        }
+      }
+      
+      // uz equation boundary residual
+      {
+        int uz_basis = wkset->usebasis[uz_num];
+        auto basis = wkset->basis_side[uz_basis];
+        auto off = Kokkos::subview( wkset->offsets, uz_num, Kokkos::ALL());
+        if (uz_sidetype == "Neumann") { // traction (Neumann)
+          parallel_for("NS uz bndry resid 3D N",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       KOKKOS_LAMBDA (const int e ) {
+            for (size_type k=0; k<basis.extent(2); k++ ) {
+              for (size_type i=0; i<basis.extent(1); i++ ) {
+                res(e,off(i)) += (-source_uz(e,k)*basis(e,i,k,0))*wts(e,k);
+              }
+            }
+          });
+        }
+      }
+    }
+  }
 }
 
 // ========================================================================================

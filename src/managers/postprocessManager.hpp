@@ -292,6 +292,11 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    View_Sc2 getDerivedQuantities(const int & block, View_Sc2 wts);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
     //void resetGradient();
     
     // ========================================================================================
@@ -330,7 +335,7 @@ namespace MrHyDE {
     
     bool compute_objective, compute_flux_response;
     ScalarT discrete_objective_scale_factor;
-    vector<vector<string> > extrafields_list, extracellfields_list;
+    vector<vector<string> > extrafields_list, extracellfields_list, derivedquantities_list;
     
     bool compute_response, compute_error, compute_subgrid_error, compute_aux_error;
     bool write_solution, write_aux_solution, write_subgrid_solution, write_HFACE_variables, write_optimization_solution;

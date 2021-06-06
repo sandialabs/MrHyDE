@@ -242,6 +242,15 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     }
     extracellfields_list.push_back(block_ecf);
     
+    // Add derived quantities from physics modules
+    vector<string> block_dq;
+    for (size_t m=0; m<phys->modules[b].size(); ++ m) {
+      vector<string> dqnames = phys->modules[b][m]->getDerivedNames();
+      for (size_t k=0; k<dqnames.size(); ++k) {
+        block_dq.push_back(dqnames[k]);
+      }
+    }
+    derivedquantities_list.push_back(block_dq);
     
     // Add objective functions
     Teuchos::ParameterList obj_funs = blockPpSettings.sublist("Objective functions");
@@ -1585,53 +1594,35 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
             
             auto wts = assembler->cells[block][e]->wts;
             
-            //assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 0);
-            //assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 3);
-            //assembler->cells[block][e]->computeSolnVolIP();
             assembler->cells[block][e]->updateWorkset(3,true);
             
-            auto obj_dev = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"ip");
+            auto regvals = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"ip");
             
-            Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
             parallel_for("cell objective",
-                         RangePolicy<AssemblyExec>(0,obj_dev.extent(0)),
+                         RangePolicy<AssemblyExec>(0,wts.extent(0)),
                          KOKKOS_LAMBDA (const size_type elem ) {
-              AD tmpval = 0.0;
-              for (size_type pt=0; pt<obj_dev.extent(1); pt++) {
-                tmpval += obj_dev(elem,pt)*wts(elem,pt);
-              }
-              Kokkos::atomic_add(&(objsum(0)),tmpval);
-            });
-            
-            View_Sc1 objsum_dev("obj func sum as scalar on device",numParams+1);
-            
-            parallel_for("cell objective",
-                         RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
-                         KOKKOS_LAMBDA (const size_type p ) {
-              size_t numder = static_cast<size_t>(objsum(0).size());
-              if (p==0) {
-                objsum_dev(p) = objsum(0).val();
-              }
-              else if (p <= numder) {
-                objsum_dev(p) = objsum(0).fastAccessDx(p-1);
+              for (size_type pt=0; pt<regvals.extent(1); ++pt) {
+                regvals(elem,pt) *= wts(elem,pt);
               }
             });
+            auto regvals_host = create_mirror_view(regvals);
+            deep_copy(regvals_host,regvals);
             
-            auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
-            Kokkos::deep_copy(objsum_host,objsum_dev);
-            
-            totaldiff[r] += regwt*objsum_host(0);
             auto poffs = params->paramoffsets;
-            for (size_t c=0; c<assembler->cells[block][e]->numElem; c++) {
+            for (size_t elem=0; elem<assembler->cells[block][e]->numElem; ++elem) {
+                            
               vector<GO> paramGIDs;
-              params->paramDOF->getElementGIDs(assembler->cells[block][e]->localElemID(c),
+              params->paramDOF->getElementGIDs(assembler->cells[block][e]->localElemID(elem),
                                                paramGIDs, blocknames[block]);
               
-              for (size_t pp=0; pp<poffs.size(); ++pp) {
-                for (size_t row=0; row<poffs[pp].size(); row++) {
-                  GO rowIndex = paramGIDs[poffs[pp][row]];
-                  int poffset = 1+poffs[pp][row];
-                  gradients[r][rowIndex+params->num_active_params] += regwt*objsum_host(poffset);
+              for (size_type pt=0; pt<regvals_host.extent(1); ++pt) {
+                totaldiff[r] += regwt*regvals_host(elem,pt).val();
+                for (size_t pp=0; pp<poffs.size(); ++pp) {
+                  for (size_t row=0; row<poffs[pp].size(); row++) {
+                    GO rowIndex = paramGIDs[poffs[pp][row]] + params->num_active_params;
+                    int poffset = poffs[pp][row];
+                    gradients[r][rowIndex] += regwt*regvals_host(elem,pt).fastAccessDx(poffset);
+                  }
                 }
               }
             }
@@ -1648,11 +1639,40 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
               
               auto wts = assembler->boundaryCells[block][e]->wts;
               
-              //assembler->wkset[block]->computeSolnSteadySeeded(assembler->boundaryCells[block][e]->u, 0);
-              //assembler->wkset[block]->computeParamSteadySeeded(assembler->boundaryCells[block][e]->param, 3);
-              //assembler->boundaryCells[block][e]->computeSoln(3,true);
               assembler->boundaryCells[block][e]->updateWorkset(3,true);
               
+              auto regvals = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"side ip");
+              
+              parallel_for("cell objective",
+                           RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                           KOKKOS_LAMBDA (const size_type elem ) {
+                for (size_type pt=0; pt<regvals.extent(1); ++pt) {
+                  regvals(elem,pt) *= wts(elem,pt);
+                }
+              });
+              auto regvals_host = create_mirror_view(regvals);
+              deep_copy(regvals_host,regvals);
+              
+              auto poffs = params->paramoffsets;
+              for (size_t elem=0; elem<assembler->boundaryCells[block][e]->numElem; ++elem) {
+                              
+                vector<GO> paramGIDs;
+                params->paramDOF->getElementGIDs(assembler->boundaryCells[block][e]->localElemID(elem),
+                                                 paramGIDs, blocknames[block]);
+                
+                for (size_type pt=0; pt<regvals_host.extent(1); ++pt) {
+                  totaldiff[r] += regwt*regvals_host(elem,pt).val();
+                  for (size_t pp=0; pp<poffs.size(); ++pp) {
+                    for (size_t row=0; row<poffs[pp].size(); row++) {
+                      GO rowIndex = paramGIDs[poffs[pp][row]] + params->num_active_params;
+                      int poffset = poffs[pp][row];
+                      gradients[r][rowIndex] += regwt*regvals_host(elem,pt).fastAccessDx(poffset);
+                    }
+                  }
+                }
+              }
+              
+              /*
               auto obj_dev = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"side ip");
               
               Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
@@ -1697,7 +1717,7 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
                     gradients[r][rowIndex+params->num_active_params] += regwt*objsum_host(poffset);
                   }
                 }
-              }
+              }*/
             }
           }
           
@@ -3041,6 +3061,36 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
       }
       
       ////////////////////////////////////////////////////////////////
+      // Derived quantities from physics modules
+      ////////////////////////////////////////////////////////////////
+      
+      Kokkos::View<ScalarT**,AssemblyDevice> dq_dev("cell data",myElements.size(),
+                                                    derivedquantities_list[b].size());
+      auto dq = Kokkos::create_mirror_view(dq_dev);
+      for (size_t k=0; k<assembler->cells[b].size(); k++) {
+        auto eID = assembler->cells[b][k]->localElemID;
+        
+        assembler->cells[b][k]->updateWorkset(0,true);
+        assembler->wkset[b]->setTime(currenttime);
+        
+        auto cfields = this->getDerivedQuantities(b, assembler->cells[b][k]->wts);
+        
+        parallel_for("postproc plot param HVOL",
+                     RangePolicy<AssemblyExec>(0,eID.extent(0)),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type r=0; r<cfields.extent(1); ++r) {
+            dq_dev(eID(elem),r) = cfields(elem,r);
+          }
+        });
+      }
+      Kokkos::deep_copy(dq, dq_dev);
+      
+      for (size_t j=0; j<derivedquantities_list[b].size(); j++) {
+        auto cdq = subview(dq,ALL(),j);
+        mesh->stk_mesh->setCellFieldData(derivedquantities_list[b][j], blockID, myElements, cdq);
+      }
+      
+      ////////////////////////////////////////////////////////////////
       // Mesh data
       ////////////////////////////////////////////////////////////////
       // TMW This is slightly inefficient, but leaving until cell_data_seed is stored differently
@@ -3161,6 +3211,68 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc
     }
   }
   
+  return fields;
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+View_Sc2 PostprocessManager<Node>::getDerivedQuantities(const int & block, View_Sc2 wts) {
+  
+  int numElem = wts.extent(0);
+  View_Sc2 fields("cell field data",numElem, derivedquantities_list[block].size());
+  
+  int prog = 0;
+  
+  for (size_t m=0; m<phys->modules[block].size(); ++m) {
+    vector<View_AD2> dqvals = phys->modules[block][m]->getDerivedValues();
+    for (size_t k=0; k<dqvals.size(); k++) {
+      auto cfield = subview(fields, ALL(), prog);
+      auto cdq = dqvals[k];
+      
+      if (cellfield_reduction == "mean") { // default
+        parallel_for("physics get extra cell fields",
+                     RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                     KOKKOS_LAMBDA (const int e ) {
+          ScalarT cellmeas = 0.0;
+          for (size_t pt=0; pt<wts.extent(1); pt++) {
+            cellmeas += wts(e,pt);
+          }
+          for (size_t j=0; j<wts.extent(1); j++) {
+            ScalarT val = cdq(e,j).val();
+            cfield(e) += val*wts(e,j)/cellmeas;
+          }
+        });
+      }
+      else if (cellfield_reduction == "max") {
+        parallel_for("physics get extra cell fields",
+                     RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                     KOKKOS_LAMBDA (const int e ) {
+          for (size_t j=0; j<wts.extent(1); j++) {
+            ScalarT val = cdq(e,j).val();
+            if (val>cfield(e)) {
+              cfield(e) = val;
+            }
+          }
+        });
+      }
+      else if (cellfield_reduction == "min") {
+        parallel_for("physics get extra cell fields",
+                     RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                     KOKKOS_LAMBDA (const int e ) {
+          for (size_t j=0; j<wts.extent(1); j++) {
+            ScalarT val = cdq(e,j).val();
+            if (val<cfield(e)) {
+              cfield(e) = val;
+            }
+          }
+        });
+      }
+      
+      prog++;
+    }
+  }
   return fields;
 }
 
@@ -3615,22 +3727,22 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
     for (size_type pt=0; pt<spts_host.extent(0); ++pt) {
       if (!spts_found(pt)) {
         for (size_type p=0; p<nodebox.extent(0); ++p) {
-          bool procede = true;
+          bool proceed = true;
           if (spts_host(pt,0)<nodebox(p,0,0) || spts_host(pt,0)>nodebox(p,0,1)) {
-            procede = false;
+            proceed = false;
           }
-          if (procede && spaceDim > 1) {
+          if (proceed && spaceDim > 1) {
             if (spts_host(pt,1)<nodebox(p,1,0) || spts_host(pt,1)>nodebox(p,1,1)) {
-              procede = false;
+              proceed = false;
             }
           }
-          if (procede && spaceDim > 2) {
+          if (proceed && spaceDim > 2) {
             if (spts_host(pt,2)<nodebox(p,2,0) || spts_host(pt,2)>nodebox(p,2,1)) {
-              procede = false;
+              proceed = false;
             }
           }
           
-          if (procede) {
+          if (proceed) {
             // Need to use DRV, which are on AssemblyDevice
             // We have less control here
             DRV phys_pt("phys_pt",1,1,spaceDim);
