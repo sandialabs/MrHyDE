@@ -102,6 +102,9 @@ namespace MrHyDE {
      * @param[in] zvl  z-component of the velocity
      * @param[in] rho  Density
      * @param[in] h  Element diameter
+     * @param[in] spaceDim  Number of spatial dimensions
+     * @param[in] dt  Timestep
+     * @param[in] isTransient  Bool indicating if the simulation is transient
      * @return SUPG/PSPG stabilization parameter (type AD)
      *
      * @details The diffusivity weighted by the density is somewhat generic
@@ -109,9 +112,10 @@ namespace MrHyDE {
      *
      */
 
-    AD computeTau(const AD & rhoDiffl, const AD & xvl, const AD & yvl, const AD & zvl, const AD & rho, const ScalarT & h) const;
+    KOKKOS_FUNCTION AD computeTau(const AD & rhoDiffl, const AD & xvl, const AD & yvl, const AD & zvl, const AD & rho, const ScalarT & h, const int & spaceDim, const ScalarT & dt, const bool & isTransient) const;
 
     // TODO MOVE TO YAML 
+    // TODO clean up
     /* @brief Return the density as a function of \f$T\f$.
      *
      * @param[in] T  Temperature
@@ -161,7 +165,7 @@ namespace MrHyDE {
     
     int ux_num, uy_num, uz_num, pr_num, T_num;
 
-    bool useSUPG, usePSPG;
+    bool useSUPG, usePSPG, useGRADDIV;
     
     Kokkos::View<ScalarT*,AssemblyDevice> model_params;
     

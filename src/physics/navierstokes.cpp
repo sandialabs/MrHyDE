@@ -14,6 +14,8 @@
 #include "navierstokes.hpp"
 using namespace MrHyDE;
 
+// TODO BWR -- rho is both on the convective part but we have nu and rho*source showing up too
+// this is inconsistent and needs fixing! 
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -82,6 +84,8 @@ void navierstokes::defineFunctions(Teuchos::ParameterList & fs,
 void navierstokes::volumeResidual() {
   
   int spaceDim = wkset->dimension;
+  ScalarT dt = wkset->deltat;
+  bool isTransient = wkset->isTransient;
   View_AD2 dens, visc, source_ux, source_pr, source_uy, source_uz;
   
   {
@@ -155,7 +159,7 @@ void navierstokes::volumeResidual() {
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt));
-            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),0.0,0.0,h(elem));
+            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),0.0,0.0,h(elem),spaceDim,dt,isTransient);
             AD stabres = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
             AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -172,7 +176,7 @@ void navierstokes::volumeResidual() {
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt));
-              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),0.0,0.0,h(elem));
+              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),0.0,0.0,h(elem),spaceDim,dt,isTransient);
               AD stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_ux(elem,pt);
               AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
               for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -214,7 +218,6 @@ void navierstokes::volumeResidual() {
         auto dpr_dx = wkset->getData("grad(pr)[x]");
         auto ux = wkset->getData("ux");
         auto dux_dt = wkset->getData("ux_t");
-        auto dt = wkset->deltat;
         
         parallel_for("NS pr volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -222,7 +225,7 @@ void navierstokes::volumeResidual() {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt));
             // BWR -- OK, I'm assuming that the viscosity defined here mean kinematic viscosity... which is not how I was interpretting it
-            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),0.0,0.0,h(elem));
+            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),0.0,0.0,h(elem),spaceDim,dt,isTransient);
             AD stabres = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
             AD Sx = tau*stabres*wts(elem,pt)/dens(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -239,7 +242,7 @@ void navierstokes::volumeResidual() {
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt));
-              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),0.0,0.0,h(elem));
+              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),0.0,0.0,h(elem),spaceDim,dt,isTransient);
               AD stabres = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt);
               AD Sx = tau*stabres*wts(elem,pt);
               for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -303,12 +306,12 @@ void navierstokes::volumeResidual() {
       if (useSUPG) {
         auto h = wkset->h;
         auto dpr_dx = wkset->getData("grad(pr)[x]");
-        auto dpr_dy = wkset->getData("grad(pr)[y]");
+        auto dpr_dy = wkset->getData("grad(pr)[y]"); // TODO unnecesary?
         parallel_for("NS ux volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem));
+            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
             AD stabres = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
             AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
             AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
@@ -325,7 +328,7 @@ void navierstokes::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem));
+              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
               AD stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_ux(elem,pt);
               AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
               AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
@@ -392,7 +395,7 @@ void navierstokes::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem));
+            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
             AD stabres = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
             AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
             AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
@@ -409,7 +412,7 @@ void navierstokes::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem));
+              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
               AD stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_uy(elem,pt);
               AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
               AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
@@ -456,13 +459,12 @@ void navierstokes::volumeResidual() {
         auto duy_dt = wkset->getData("uy_t");
         auto dux_dy = wkset->getData("grad(ux)[y]");
         auto duy_dx = wkset->getData("grad(uy)[x]");
-        auto dt = wkset->deltat;
         
         parallel_for("NS pr volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem));
+            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
             AD Sx = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
             Sx *= tau*wts(elem,pt)/dens(elem,pt);
             AD Sy = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
@@ -480,7 +482,7 @@ void navierstokes::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem));
+              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
               AD Sx = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt);
               Sx *= tau*wts(elem,pt);
               AD Sy = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uy(elem,pt);
@@ -554,7 +556,7 @@ void navierstokes::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem));
+            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
             AD stabres = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
             AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
             AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
@@ -572,7 +574,7 @@ void navierstokes::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem));
+              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
               AD stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_ux(elem,pt);
               AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
               AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
@@ -644,7 +646,7 @@ void navierstokes::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem));
+            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
             AD stabres = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
             AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
             AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
@@ -662,7 +664,7 @@ void navierstokes::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem));
+              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
               AD stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_uy(elem,pt);
               AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
               AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
@@ -734,7 +736,7 @@ void navierstokes::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem));
+            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
             AD stabres = dens(elem,pt)*duz_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) + dpr_dz(elem,pt) - dens(elem,pt)*source_uz(elem,pt);
             AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
             AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
@@ -752,7 +754,7 @@ void navierstokes::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem));
+              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
               AD stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_uz(elem,pt);
               AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
               AD Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
@@ -808,13 +810,12 @@ void navierstokes::volumeResidual() {
         auto duy_dz = wkset->getData("grad(uy)[z]");
         auto duz_dx = wkset->getData("grad(uz)[x]");
         auto duz_dy = wkset->getData("grad(uz)[y]");
-        auto dt = wkset->deltat;
         
         parallel_for("NS pr volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem));
+            AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
             AD Sx = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
             Sx *= tau*wts(elem,pt)/dens(elem,pt);
             AD Sy = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
@@ -834,7 +835,7 @@ void navierstokes::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem));
+              AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
               AD Sx = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt);
               Sx *= tau*wts(elem,pt);
               AD Sy = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uy(elem,pt);
@@ -1052,13 +1053,11 @@ void navierstokes::setWorkset(Teuchos::RCP<workset> & wkset_) {
 // return the value of the stabilization parameter
 // ========================================================================================
 
-AD navierstokes::computeTau(const AD & localdiff, const AD & xvl, const AD & yvl, const AD & zvl, const ScalarT & h) const {
+KOKKOS_FUNCTION AD navierstokes::computeTau(const AD & localdiff, const AD & xvl, const AD & yvl, const AD & zvl, const ScalarT & h, const int & spaceDim, const ScalarT & dt, const bool & isTransient) const {
   
-  int spaceDim = wkset->dimension;
   ScalarT C1 = 4.0;
   ScalarT C2 = 2.0;
-  ScalarT C3 = wkset->isTransient ? 2.0 : 0.0; // only if transient -- TODO not sure BWR
-  auto dt = wkset->deltat;
+  ScalarT C3 = isTransient ? 2.0 : 0.0; // only if transient -- TODO not sure BWR
   
   AD nvel = 0.0;
   if (spaceDim == 1)
