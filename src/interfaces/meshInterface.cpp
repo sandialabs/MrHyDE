@@ -981,18 +981,18 @@ View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
       if (prog > 0) { // for prog = 0, just take the first one
         ScalarT maxdist = 0.0;
         for (int k=0; k<batch_size; k++) {
-          ScalarT cmaxdist = 0.0;
+          ScalarT cmindist = 1.0e200;
           for (int j=0; j<prog; j++) {
             ScalarT dx = cseeds(k,0)-seeds(j,0);
             ScalarT dy = cseeds(k,1)-seeds(j,1);
             ScalarT dz = cseeds(k,2)-seeds(j,2);
             ScalarT cval = xwt*dx*dx + ywt*dy*dy + zwt*dz*dz;
-            if (cval > cmaxdist) {
-              cmaxdist = cval;
+            if (cval < cmindist) {
+              cmindist = cval;
             }
           }
-          if (cmaxdist>maxdist) {
-            maxdist = cmaxdist;
+          if (cmindist > maxdist) {
+            maxdist = cmindist;
             bestpt = k;
           }
         }

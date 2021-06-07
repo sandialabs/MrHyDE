@@ -178,7 +178,9 @@ void AnalysisManager::run() {
       
     }
     else {
-      cout << "Running Monte Carlo sampling ..." << endl;
+      if (Comm->getRank() == 0) {
+        cout << "Running Monte Carlo sampling ..." << endl;
+      }
       for (int j=0; j<numsamples; j++) {
         if (numstochparams > 0) {
           vector<ScalarT> currparams;
