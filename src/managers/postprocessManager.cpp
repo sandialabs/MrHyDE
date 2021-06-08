@@ -1605,8 +1605,21 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
                 regvals(elem,pt) *= wts(elem,pt);
               }
             });
-            auto regvals_host = create_mirror_view(regvals);
-            deep_copy(regvals_host,regvals);
+            
+            View_Sc3 regvals_sc("scalar version of AD view",regvals.extent(0),regvals.extent(1),maxDerivs+1);
+            parallel_for("cell objective",
+                         RangePolicy<AssemblyExec>(0,regvals.extent(0)),
+                         KOKKOS_LAMBDA (const size_type elem ) {
+              for (size_type pt=0; pt<regvals.extent(1); ++pt) {
+                regvals_sc(elem,pt,0) = regvals(elem,pt).val();
+                for (size_type d=0; d<regvals_sc.extent(2)-1; ++d) {
+                  regvals_sc(elem,pt,d+1) = regvals(elem,pt).fastAccessDx(d);
+                }
+              }
+            });
+            
+            auto regvals_sc_host = create_mirror_view(regvals_sc);
+            deep_copy(regvals_sc_host,regvals_sc);
             
             auto poffs = params->paramoffsets;
             for (size_t elem=0; elem<assembler->cells[block][e]->numElem; ++elem) {
@@ -1615,13 +1628,13 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
               params->paramDOF->getElementGIDs(assembler->cells[block][e]->localElemID(elem),
                                                paramGIDs, blocknames[block]);
               
-              for (size_type pt=0; pt<regvals_host.extent(1); ++pt) {
-                totaldiff[r] += regwt*regvals_host(elem,pt).val();
+              for (size_type pt=0; pt<regvals_sc_host.extent(1); ++pt) {
+                totaldiff[r] += regwt*regvals_sc_host(elem,pt,0);
                 for (size_t pp=0; pp<poffs.size(); ++pp) {
                   for (size_t row=0; row<poffs[pp].size(); row++) {
                     GO rowIndex = paramGIDs[poffs[pp][row]] + params->num_active_params;
                     int poffset = poffs[pp][row];
-                    gradients[r][rowIndex] += regwt*regvals_host(elem,pt).fastAccessDx(poffset);
+                    gradients[r][rowIndex] += regwt*regvals_sc_host(elem,pt,poffset+1);
                   }
                 }
               }
@@ -1650,8 +1663,21 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
                   regvals(elem,pt) *= wts(elem,pt);
                 }
               });
-              auto regvals_host = create_mirror_view(regvals);
-              deep_copy(regvals_host,regvals);
+              
+              View_Sc3 regvals_sc("scalar version of AD view",regvals.extent(0),regvals.extent(1),maxDerivs+1);
+              parallel_for("cell objective",
+                           RangePolicy<AssemblyExec>(0,regvals.extent(0)),
+                           KOKKOS_LAMBDA (const size_type elem ) {
+                for (size_type pt=0; pt<regvals.extent(1); ++pt) {
+                  regvals_sc(elem,pt,0) = regvals(elem,pt).val();
+                  for (size_type d=0; d<regvals_sc.extent(2)-1; ++d) {
+                    regvals_sc(elem,pt,d+1) = regvals(elem,pt).fastAccessDx(d);
+                  }
+                }
+              });
+              
+              auto regvals_sc_host = create_mirror_view(regvals_sc);
+              deep_copy(regvals_sc_host,regvals_sc);
               
               auto poffs = params->paramoffsets;
               for (size_t elem=0; elem<assembler->boundaryCells[block][e]->numElem; ++elem) {
@@ -1660,13 +1686,13 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
                 params->paramDOF->getElementGIDs(assembler->boundaryCells[block][e]->localElemID(elem),
                                                  paramGIDs, blocknames[block]);
                 
-                for (size_type pt=0; pt<regvals_host.extent(1); ++pt) {
-                  totaldiff[r] += regwt*regvals_host(elem,pt).val();
+                for (size_type pt=0; pt<regvals_sc_host.extent(1); ++pt) {
+                  totaldiff[r] += regwt*regvals_sc_host(elem,pt,0);
                   for (size_t pp=0; pp<poffs.size(); ++pp) {
                     for (size_t row=0; row<poffs[pp].size(); row++) {
                       GO rowIndex = paramGIDs[poffs[pp][row]] + params->num_active_params;
                       int poffset = poffs[pp][row];
-                      gradients[r][rowIndex] += regwt*regvals_host(elem,pt).fastAccessDx(poffset);
+                      gradients[r][rowIndex] += regwt*regvals_sc_host(elem,pt,poffset+1);
                     }
                   }
                 }

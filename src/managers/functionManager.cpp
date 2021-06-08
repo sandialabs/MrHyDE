@@ -117,290 +117,293 @@ void FunctionManager::decomposeFunctions() {
   
   Teuchos::TimeMonitor ttimer(*decomposeTimer);
   
-  for (size_t fiter=0; fiter<forests.size(); fiter++) {
+  if (wkset->isInitialized) {
     
-    int maxiter = 20; // maximum number of recursions
-    
-    for (size_t titer=0; titer<forests[fiter].trees.size(); titer++) {
+    for (size_t fiter=0; fiter<forests.size(); fiter++) {
       
-      bool done = false; // will turn to "true" when the tree is fully decomposed
-      int iter = 0;
+      int maxiter = 20; // maximum number of recursions
       
-      while (!done && iter < maxiter) {
+      for (size_t titer=0; titer<forests[fiter].trees.size(); titer++) {
         
-        iter++;
-        size_t Nbranches = forests[fiter].trees[titer].branches.size();
+        bool done = false; // will turn to "true" when the tree is fully decomposed
+        int iter = 0;
         
-        for (size_t k=0; k<Nbranches; k++) {
+        while (!done && iter < maxiter) {
           
-          // HAVE WE ALREADY LOOKED AT THIS TERM?
-          bool decompose = true;
-          if (forests[fiter].trees[titer].branches[k].isLeaf || forests[fiter].trees[titer].branches[k].isDecomposed) {
-            decompose = false;
-          }
+          iter++;
+          size_t Nbranches = forests[fiter].trees[titer].branches.size();
           
-          string expr = forests[fiter].trees[titer].branches[k].expression;
-          
-          // Is it an AD data stored in the workset?
-          if (decompose) {
-            vector<string> data_labels = wkset->data_labels;
+          for (size_t k=0; k<Nbranches; k++) {
             
-            string mod_expr = expr;
-            if (forests[fiter].location == "side ip") {
-              mod_expr += " side";
+            // HAVE WE ALREADY LOOKED AT THIS TERM?
+            bool decompose = true;
+            if (forests[fiter].trees[titer].branches[k].isLeaf || forests[fiter].trees[titer].branches[k].isDecomposed) {
+              decompose = false;
             }
-            else if (forests[fiter].location == "point") {
-              mod_expr += " point";
-            }
-            bool found = 0;
-            size_t j=0;
-            while (!found && j<data_labels.size()) {
-              if (mod_expr == data_labels[j]) {
-                decompose = false;
-                forests[fiter].trees[titer].branches[k].isLeaf = true;
-                forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                forests[fiter].trees[titer].branches[k].isView = true;
-                forests[fiter].trees[titer].branches[k].isAD = true;
-                forests[fiter].trees[titer].branches[k].isWorksetData = true;
-                
-                forests[fiter].trees[titer].branches[k].workset_data_index = j;
-                wkset->checkDataAllocation(j);
-                found = true;
-              }
-              j++;
-            }
-          }
-          
-          // Is it a Scalar data stored in the workset?
-          if (decompose) {
-            vector<string> data_Sc_labels = wkset->data_Sc_labels;
-            string mod_expr = expr;
-            if (forests[fiter].location == "side ip") {
-              mod_expr += " side";
-            }
-            else if (forests[fiter].location == "point") {
-              mod_expr += " point";
-            }
-            bool found = 0;
-            size_t j=0;
-            while (!found && j<data_Sc_labels.size()) {
-              if (mod_expr == data_Sc_labels[j]) {
-                decompose = false;
-                forests[fiter].trees[titer].branches[k].isLeaf = true;
-                forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                forests[fiter].trees[titer].branches[k].isView = true;
-                forests[fiter].trees[titer].branches[k].isWorksetData = true;
-                
-                forests[fiter].trees[titer].branches[k].workset_data_index = j;
-                wkset->checkDataScAllocation(j);
-                found = true;
-              }
-              j++;
-            }
-          }
-          
-          // check if it is a parameter
-          if (decompose) {
             
-            for (unsigned int j=0; j<parameters.size(); j++) {
+            string expr = forests[fiter].trees[titer].branches[k].expression;
+            
+            // Is it an AD data stored in the workset?
+            if (decompose) {
+              vector<string> data_labels = wkset->data_labels;
               
-              if (expr == parameters[j]) {
-                forests[fiter].trees[titer].branches[k].isLeaf = true;
-                forests[fiter].trees[titer].branches[k].isView = true;
-                forests[fiter].trees[titer].branches[k].isAD = true;
-                forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                forests[fiter].trees[titer].branches[k].isParameter = true;
-                forests[fiter].trees[titer].branches[k].paramIndex = 0;
-                
-                decompose = false;
-                
-                forests[fiter].trees[titer].branches[k].param_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
-                
+              string mod_expr = expr;
+              if (forests[fiter].location == "side ip") {
+                mod_expr += " side";
               }
-              else { // look for param(*) or param(**)
-                bool found = true;
-                int sindex = 0;
-                size_t nexp = expr.length();
-                if (nexp == parameters[j].length()+3) {
-                  for (size_t n=0; n<parameters[j].length(); n++) {
-                    if (expr[n] != parameters[j][n]) {
-                      found = false;
-                    }
-                  }
-                  if (found) {
-                    if (expr[nexp-3] == '(' && expr[nexp-1] == ')') {
-                      string check = "";
-                      check += expr[nexp-2];
-                      if (isdigit(check[0])) {
-                        sindex = std::stoi(check);
-                      }
-                      else {
-                        found = false;
-                      }
-                    }
-                    else {
-                      found = false;
-                    }
-                  }
+              else if (forests[fiter].location == "point") {
+                mod_expr += " point";
+              }
+              bool found = 0;
+              size_t j=0;
+              while (!found && j<data_labels.size()) {
+                if (mod_expr == data_labels[j]) {
+                  decompose = false;
+                  forests[fiter].trees[titer].branches[k].isLeaf = true;
+                  forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                  forests[fiter].trees[titer].branches[k].isView = true;
+                  forests[fiter].trees[titer].branches[k].isAD = true;
+                  forests[fiter].trees[titer].branches[k].isWorksetData = true;
+                  
+                  forests[fiter].trees[titer].branches[k].workset_data_index = j;
+                  wkset->checkDataAllocation(j);
+                  found = true;
                 }
-                else if (nexp == parameters[j].length()+4) {
-                  for (size_t n=0; n<parameters[j].length(); n++) {
-                    if (expr[n] != parameters[j][n]) {
-                      found = false;
-                    }
-                  }
-                  if (found) {
-                    if (expr[nexp-4] == '(' && expr[nexp-1] == ')') {
-                      string check = "";
-                      check += expr[nexp-3];
-                      check += expr[nexp-2];
-                      if (isdigit(check[0]) && isdigit(check[1])) {
-                        sindex = std::stoi(check);
-                      }
-                      else {
-                        found = false;
-                      }
-                    }
-                    else {
-                      found = false;
-                    }
-                  }
+                j++;
+              }
+            }
+            
+            // Is it a Scalar data stored in the workset?
+            if (decompose) {
+              vector<string> data_Sc_labels = wkset->data_Sc_labels;
+              string mod_expr = expr;
+              if (forests[fiter].location == "side ip") {
+                mod_expr += " side";
+              }
+              else if (forests[fiter].location == "point") {
+                mod_expr += " point";
+              }
+              bool found = 0;
+              size_t j=0;
+              while (!found && j<data_Sc_labels.size()) {
+                if (mod_expr == data_Sc_labels[j]) {
+                  decompose = false;
+                  forests[fiter].trees[titer].branches[k].isLeaf = true;
+                  forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                  forests[fiter].trees[titer].branches[k].isView = true;
+                  forests[fiter].trees[titer].branches[k].isWorksetData = true;
+                  
+                  forests[fiter].trees[titer].branches[k].workset_data_index = j;
+                  wkset->checkDataScAllocation(j);
+                  found = true;
                 }
-                else {
-                  found = false;
-                }
+                j++;
+              }
+            }
+            
+            // check if it is a parameter
+            if (decompose) {
+              
+              for (unsigned int j=0; j<parameters.size(); j++) {
                 
-                if (found) {
+                if (expr == parameters[j]) {
                   forests[fiter].trees[titer].branches[k].isLeaf = true;
                   forests[fiter].trees[titer].branches[k].isView = true;
                   forests[fiter].trees[titer].branches[k].isAD = true;
                   forests[fiter].trees[titer].branches[k].isDecomposed = true;
                   forests[fiter].trees[titer].branches[k].isParameter = true;
-                  
-                  forests[fiter].trees[titer].branches[k].paramIndex = sindex;
+                  forests[fiter].trees[titer].branches[k].paramIndex = 0;
                   
                   decompose = false;
                   
                   forests[fiter].trees[titer].branches[k].param_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
+                  
+                }
+                else { // look for param(*) or param(**)
+                  bool found = true;
+                  int sindex = 0;
+                  size_t nexp = expr.length();
+                  if (nexp == parameters[j].length()+3) {
+                    for (size_t n=0; n<parameters[j].length(); n++) {
+                      if (expr[n] != parameters[j][n]) {
+                        found = false;
+                      }
+                    }
+                    if (found) {
+                      if (expr[nexp-3] == '(' && expr[nexp-1] == ')') {
+                        string check = "";
+                        check += expr[nexp-2];
+                        if (isdigit(check[0])) {
+                          sindex = std::stoi(check);
+                        }
+                        else {
+                          found = false;
+                        }
+                      }
+                      else {
+                        found = false;
+                      }
+                    }
+                  }
+                  else if (nexp == parameters[j].length()+4) {
+                    for (size_t n=0; n<parameters[j].length(); n++) {
+                      if (expr[n] != parameters[j][n]) {
+                        found = false;
+                      }
+                    }
+                    if (found) {
+                      if (expr[nexp-4] == '(' && expr[nexp-1] == ')') {
+                        string check = "";
+                        check += expr[nexp-3];
+                        check += expr[nexp-2];
+                        if (isdigit(check[0]) && isdigit(check[1])) {
+                          sindex = std::stoi(check);
+                        }
+                        else {
+                          found = false;
+                        }
+                      }
+                      else {
+                        found = false;
+                      }
+                    }
+                  }
+                  else {
+                    found = false;
+                  }
+                  
+                  if (found) {
+                    forests[fiter].trees[titer].branches[k].isLeaf = true;
+                    forests[fiter].trees[titer].branches[k].isView = true;
+                    forests[fiter].trees[titer].branches[k].isAD = true;
+                    forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                    forests[fiter].trees[titer].branches[k].isParameter = true;
+                    
+                    forests[fiter].trees[titer].branches[k].paramIndex = sindex;
+                    
+                    decompose = false;
+                    
+                    forests[fiter].trees[titer].branches[k].param_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
+                  }
                 }
               }
             }
-          }
-          
-          // check if it is a function
-          if (decompose) {
-            for (unsigned int j=0; j<forests[fiter].trees.size(); j++) {
-              if (expr == forests[fiter].trees[j].name) {
-                forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                forests[fiter].trees[titer].branches[k].isFunc = true;
-                
-                forests[fiter].trees[titer].branches[k].funcIndex = j;
-                decompose = false;
+            
+            // check if it is a function
+            if (decompose) {
+              for (unsigned int j=0; j<forests[fiter].trees.size(); j++) {
+                if (expr == forests[fiter].trees[j].name) {
+                  forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                  forests[fiter].trees[titer].branches[k].isFunc = true;
+                  
+                  forests[fiter].trees[titer].branches[k].funcIndex = j;
+                  decompose = false;
+                }
               }
             }
-          }
-          
-          // IS THE TERM A SIMPLE SCALAR: 2.03, 1.0E2, etc.
-          if (decompose) {
-            bool isnum = interpreter->isScalar(expr);
-            if (isnum) {
-              forests[fiter].trees[titer].branches[k].isLeaf = true;
-              forests[fiter].trees[titer].branches[k].isDecomposed = true;
-              forests[fiter].trees[titer].branches[k].isConstant = true;
-              
-              ScalarT val = std::stod(expr);
-              forests[fiter].trees[titer].branches[k].data_Sc = val;
-              
-              decompose = false;
-            }
-          }
-          
-          // IS THE TERM ONE OF THE KNOWN VARIABLES: t or pi
-          if (decompose) {
-            for (size_t j=0; j<known_vars.size(); j++) {
-              if (expr == known_vars[j]) {
-                decompose = false;
+            
+            // IS THE TERM A SIMPLE SCALAR: 2.03, 1.0E2, etc.
+            if (decompose) {
+              bool isnum = interpreter->isScalar(expr);
+              if (isnum) {
                 forests[fiter].trees[titer].branches[k].isLeaf = true;
                 forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                forests[fiter].trees[titer].branches[k].isConstant = true;
                 
-                if (known_vars[j] == "t") {
-                  forests[fiter].trees[titer].branches[k].isTime = true;
-                  forests[fiter].trees[titer].branches[k].data_Sc = wkset->time;
-                }
-                else if (known_vars[j] == "pi") {
-                  forests[fiter].trees[titer].branches[k].isConstant = true; // means in does not need to be copied every time
-                  forests[fiter].trees[titer].branches[k].data_Sc = PI;
-                }
+                ScalarT val = std::stod(expr);
+                forests[fiter].trees[titer].branches[k].data_Sc = val;
+                
+                decompose = false;
               }
             }
-          } // end known_vars
-          
-          // IS THIS TERM ONE OF THE KNOWN OPERATORS: sin(...), exp(...), etc.
-          if (decompose) {
-            bool isop = interpreter->isOperator(forests[fiter].trees[titer].branches, k, known_ops);
-            if (isop) {
-              decompose = false;
+            
+            // IS THE TERM ONE OF THE KNOWN VARIABLES: t or pi
+            if (decompose) {
+              for (size_t j=0; j<known_vars.size(); j++) {
+                if (expr == known_vars[j]) {
+                  decompose = false;
+                  forests[fiter].trees[titer].branches[k].isLeaf = true;
+                  forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                  
+                  if (known_vars[j] == "t") {
+                    forests[fiter].trees[titer].branches[k].isTime = true;
+                    forests[fiter].trees[titer].branches[k].data_Sc = wkset->time;
+                  }
+                  else if (known_vars[j] == "pi") {
+                    forests[fiter].trees[titer].branches[k].isConstant = true; // means in does not need to be copied every time
+                    forests[fiter].trees[titer].branches[k].data_Sc = PI;
+                  }
+                }
+              }
+            } // end known_vars
+            
+            // IS THIS TERM ONE OF THE KNOWN OPERATORS: sin(...), exp(...), etc.
+            if (decompose) {
+              bool isop = interpreter->isOperator(forests[fiter].trees[titer].branches, k, known_ops);
+              if (isop) {
+                decompose = false;
+              }
+            }
+            
+            if (decompose) {
+              interpreter->split(forests[fiter].trees[titer].branches,k);
+              forests[fiter].trees[titer].branches[k].isDecomposed = true;
             }
           }
           
-          if (decompose) {
-            interpreter->split(forests[fiter].trees[titer].branches,k);
-            forests[fiter].trees[titer].branches[k].isDecomposed = true;
+          bool isdone = true;
+          for (size_t k=0; k<forests[fiter].trees[titer].branches.size(); k++) {
+            if (!forests[fiter].trees[titer].branches[k].isLeaf && !forests[fiter].trees[titer].branches[k].isDecomposed) {
+              isdone = false;
+            }
           }
+          done = isdone;
+          
         }
         
-        bool isdone = true;
-        for (size_t k=0; k<forests[fiter].trees[titer].branches.size(); k++) {
-          if (!forests[fiter].trees[titer].branches[k].isLeaf && !forests[fiter].trees[titer].branches[k].isDecomposed) {
-            isdone = false;
-          }
+        if (!done && iter >= maxiter) {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was not able to decompose " + forests[fiter].trees[titer].name);
         }
-        done = isdone;
-        
-      }
-      
-      if (!done && iter >= maxiter) {
-        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was not able to decompose " + forests[fiter].trees[titer].name);
-      }
-    } // trees
-  } // forests
-  
-  // After all of the forests/trees have been decomposed, we can determine if we need to use arrays of ScalarT or AD
-  // Only the leafs should be designated as ScalarT or AD at this point
-  
-  for (size_t f=0; f<forests.size(); ++f) {
-    for (size_t k=0; k<forests[f].trees.size(); k++) {
-      for (size_t j=0; j<forests[f].trees[k].branches.size(); j++) {
-        
-        // Rewrite this section
-        
-        bool isConst = true, isView = false, isAD = false;
-        
-        this->checkDepDataType(f,k,j, isConst, isView, isAD); // is this term a ScalarT
-        
-        forests[f].trees[k].branches[j].isConstant = isConst;
-        forests[f].trees[k].branches[j].isView = isView;
-        forests[f].trees[k].branches[j].isAD = isAD;
-        
-        if (isView) {
-          if (isAD) {
-            forests[f].trees[k].branches[j].viewdata = View_AD2("data", forests[f].dim0, forests[f].dim1);
-          }
-          else {
-            forests[f].trees[k].branches[j].viewdata_Sc = View_Sc2("data", forests[f].dim0, forests[f].dim1);
+      } // trees
+    } // forests
+    
+    // After all of the forests/trees have been decomposed, we can determine if we need to use arrays of ScalarT or AD
+    // Only the leafs should be designated as ScalarT or AD at this point
+    
+    for (size_t f=0; f<forests.size(); ++f) {
+      for (size_t k=0; k<forests[f].trees.size(); k++) {
+        for (size_t j=0; j<forests[f].trees[k].branches.size(); j++) {
+          
+          // Rewrite this section
+          
+          bool isConst = true, isView = false, isAD = false;
+          
+          this->checkDepDataType(f,k,j, isConst, isView, isAD); // is this term a ScalarT
+          
+          forests[f].trees[k].branches[j].isConstant = isConst;
+          forests[f].trees[k].branches[j].isView = isView;
+          forests[f].trees[k].branches[j].isAD = isAD;
+          
+          if (isView) {
+            if (isAD) {
+              forests[f].trees[k].branches[j].viewdata = View_AD2("data", forests[f].dim0, forests[f].dim1);
+            }
+            else {
+              forests[f].trees[k].branches[j].viewdata_Sc = View_Sc2("data", forests[f].dim0, forests[f].dim1);
+            }
           }
         }
       }
     }
-  }
-  
-  // Now evaluate all of the constant branches (meaning all deps are const, !vector, !AD)
-  for (size_t f=0; f<forests.size(); ++f) {
-    for (size_t k=0; k<forests[f].trees.size(); k++) {
-      for (size_t j=0; j<forests[f].trees[k].branches.size(); j++) {
-        if (forests[f].trees[k].branches[j].isConstant) {
-          if (!forests[f].trees[k].branches[j].isLeaf) { // leafs are already filled
-            this->evaluate(f,k,j);
+    
+    // Now evaluate all of the constant branches (meaning all deps are const, !vector, !AD)
+    for (size_t f=0; f<forests.size(); ++f) {
+      for (size_t k=0; k<forests[f].trees.size(); k++) {
+        for (size_t j=0; j<forests[f].trees[k].branches.size(); j++) {
+          if (forests[f].trees[k].branches[j].isConstant) {
+            if (!forests[f].trees[k].branches[j].isLeaf) { // leafs are already filled
+              this->evaluate(f,k,j);
+            }
           }
         }
       }
