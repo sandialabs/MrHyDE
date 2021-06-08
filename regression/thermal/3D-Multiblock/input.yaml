@@ -34,9 +34,11 @@ ANONYMOUS:
     material_0:
       thermal diffusion: '1.0'
       thermal source: '12*pi*pi*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)'
+      garbage: 'x+e^2'
     material_1:
       thermal diffusion: '1.0'
       thermal source: '12*pi*pi*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)'
+      garbage: 'x+e^2'
   Parameters:
   Solver: 
     solver: steady-state
