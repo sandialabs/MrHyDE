@@ -174,7 +174,7 @@ void VDNS::volumeResidual() {
       // GRADDIV contribution
       // TODO p0 contribution
       // (dv_1/dx_1, \tau_mass R_mass) 
-      // \tau_mass = ???
+      // \tau_mass is like h^2/\tau_mom
       if (useGRADDIV) {
         auto h = wkset->h;
         auto T = wkset->getData("T");
@@ -185,7 +185,8 @@ void VDNS::volumeResidual() {
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),0.0,0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
-            // TODO FIX TAU???
+            // TODO FIX TAU??? the constant at least is wrong
+            tau = h(elem)*h(elem)/tau;
             AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt))*wts(elem,pt);
             AD strongres = dux_dx(elem,pt) - thermDiv;
             AD S = tau*strongres*wts(elem,pt);
@@ -358,6 +359,34 @@ void VDNS::volumeResidual() {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
             }
           }
+
+        });
+      }
+
+      // GRADDIV contribution
+      // TODO p0 contribution
+      // (dv_1/dx_1, \tau_mass R_mass) 
+      // \tau_mass is like h^2/\tau_mom
+      if (useGRADDIV) {
+        auto h = wkset->h;
+        auto T = wkset->getData("T");
+        auto dT_dt = wkset->getData("T_t");
+        auto dT_dx = wkset->getData("grad(T)[x]");
+        auto dT_dy = wkset->getData("grad(T)[y]");
+        parallel_for("VDNS ux volume resid GRADDIV",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            // TODO FIX TAU??? the constant at least is wrong
+            tau = h(elem)*h(elem)/tau;
+            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt))*wts(elem,pt);
+            AD strongres = (dux_dx(elem,pt) + duy_dx(elem,pt)) - thermDiv;
+            AD S = tau*strongres*wts(elem,pt);
+            for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += S*basis_grad(elem,dof,pt,0); 
+            }
+          }
         });
       }
     }
@@ -416,6 +445,33 @@ void VDNS::volumeResidual() {
             AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
+            }
+          }
+        });
+      }
+
+      // GRADDIV contribution
+      // TODO p0 contribution
+      // (dv_2/dx_2, \tau_mass R_mass) 
+      // \tau_mass is like h^2/\tau_mom
+      if (useGRADDIV) {
+        auto h = wkset->h;
+        auto T = wkset->getData("T");
+        auto dT_dt = wkset->getData("T_t");
+        auto dT_dx = wkset->getData("grad(T)[x]");
+        auto dT_dy = wkset->getData("grad(T)[y]");
+        parallel_for("VDNS ux volume resid GRADDIV",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            // TODO FIX TAU??? the constant at least is wrong
+            tau = h(elem)*h(elem)/tau;
+            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt))*wts(elem,pt);
+            AD strongres = (dux_dx(elem,pt) + duy_dx(elem,pt)) - thermDiv;
+            AD S = tau*strongres*wts(elem,pt);
+            for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += S*basis_grad(elem,dof,pt,1); 
             }
           }
         });
@@ -949,7 +1005,7 @@ void VDNS::boundaryResidual() {
       // Ux equation
       // -(v_1,-p n_1 + \mu [4/3*du_1/dx_1 n_1])
       int ux_basis = wkset->usebasis[ux_num];
-      auto basis = wkset->basis[ux_basis];
+      auto basis = wkset->basis_side[ux_basis];
       auto off = subview(wkset->offsets,ux_num,ALL());
       
       if (ux_sidetype == "Neumann") {
@@ -970,7 +1026,7 @@ void VDNS::boundaryResidual() {
       // Energy equation
       // -(w,lambda/cp dT/dx_1 n_1)
       int T_basis = wkset->usebasis[T_num];
-      auto basis = wkset->basis[T_basis];
+      auto basis = wkset->basis_side[T_basis];
       auto off = subview(wkset->offsets,T_num,ALL());
       
       if (T_sidetype == "Neumann") {
@@ -993,7 +1049,7 @@ void VDNS::boundaryResidual() {
       // -(v_1,-p n_1 + \mu [2 * du_1/dx_1 n_1 + du_1/dx_2 n_2 + du_2/dx_1 n_2 
       //                                     - 2/3 (du_1/dx_1 + du_2/dx_2) n_1])
       int ux_basis = wkset->usebasis[ux_num];
-      auto basis = wkset->basis[ux_basis];
+      auto basis = wkset->basis_side[ux_basis];
       auto off = subview(wkset->offsets,ux_num,ALL());
       
       if (ux_sidetype == "Neumann") {
@@ -1015,7 +1071,7 @@ void VDNS::boundaryResidual() {
       // -(v_2,-p n_2 + \mu [2 * du_2/dx_2 n_2 + du_1/dx_2 n_1 + du_2/dx_1 n_1 
       //                                     - 2/3 (du_1/dx_1 + du_2/dx_2) n_2])
       int uy_basis = wkset->usebasis[uy_num];
-      auto basis = wkset->basis[uy_basis];
+      auto basis = wkset->basis_side[uy_basis];
       auto off = subview(wkset->offsets,uy_num,ALL());
       
       if (uy_sidetype == "Neumann") {
@@ -1036,7 +1092,7 @@ void VDNS::boundaryResidual() {
       // Energy equation
       // -(w,lambda/cp [dT/dx_1 n_1 + dT/dx_2 n_2])
       int T_basis = wkset->usebasis[T_num];
-      auto basis = wkset->basis[T_basis];
+      auto basis = wkset->basis_side[T_basis];
       auto off = subview(wkset->offsets,T_num,ALL());
       
       if (T_sidetype == "Neumann") {
@@ -1059,7 +1115,7 @@ void VDNS::boundaryResidual() {
       // -(v_1,-p n_1 + \mu [2 * du_1/dx_1 n_1 + du_1/dx_2 n_2 + du_2/dx_1 n_2 
       //    + du_1/dx_3 n_3 + du_3/dx_1 n_3 - 2/3 (du_1/dx_1 + du_2/dx_2 + du_3/dx_3) n_1])
       int ux_basis = wkset->usebasis[ux_num];
-      auto basis = wkset->basis[ux_basis];
+      auto basis = wkset->basis_side[ux_basis];
       auto off = subview(wkset->offsets,ux_num,ALL());
       
       if (ux_sidetype == "Neumann") {
@@ -1082,7 +1138,7 @@ void VDNS::boundaryResidual() {
       //    + du_2/dx_3 n_3 + du_3/dx_2 n_3 - 2/3 (du_1/dx_1 + du_2/dx_2 + du_3/dx_3) n_2])
 
       int uy_basis = wkset->usebasis[uy_num];
-      auto basis = wkset->basis[uy_basis];
+      auto basis = wkset->basis_side[uy_basis];
       auto off = subview(wkset->offsets,uy_num,ALL());
       
       if (uy_sidetype == "Neumann") {
@@ -1105,7 +1161,7 @@ void VDNS::boundaryResidual() {
       //    + du_2/dx_3 n_2 + du_3/dx_2 n_2 - 2/3 (du_1/dx_1 + du_2/dx_2 + du_3/dx_3) n_3])
 
       int uz_basis = wkset->usebasis[uz_num];
-      auto basis = wkset->basis[uz_basis];
+      auto basis = wkset->basis_side[uz_basis];
       auto off = subview(wkset->offsets,uz_num,ALL());
       
       if (uz_sidetype == "Neumann") {
@@ -1126,7 +1182,7 @@ void VDNS::boundaryResidual() {
       // Energy equation
       // -(w,lambda/cp [dT/dx_1 n_1 + dT/dx_2 n_2 + dT/dx_3 n_3])
       int T_basis = wkset->usebasis[T_num];
-      auto basis = wkset->basis[T_basis];
+      auto basis = wkset->basis_side[T_basis];
       auto off = subview(wkset->offsets,T_num,ALL());
       
       if (T_sidetype == "Neumann") {
@@ -1187,6 +1243,9 @@ KOKKOS_FUNCTION AD VDNS::computeTau(const AD & rhoDiffl, const AD & xvl, const A
   // TODO BWR if this is generalizable, maybe I should have a function for both NS classes
   // certainly if it's identical
   // CAN BE but only if the equations collapse
+  //
+  // TODO also -- this does not take into account the Jacobian of the mapping 
+  // to the reference element
   
   ScalarT C1 = 4.0;
   ScalarT C2 = 2.0;
