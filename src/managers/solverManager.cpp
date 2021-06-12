@@ -768,8 +768,7 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
     }
   }
   vector_RCP u = this->setInitial();
-  
-  
+    
   if (solver_type == "steady-state") {
     this->steadySolver(objective, u);
   }
@@ -1229,7 +1228,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     }
     
     if (debug_level>2) {
-      //KokkosTools::print(res,"residual from solver interface");
+      KokkosTools::print(res,"residual from solver interface");
     }
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
     if (NLiter == 0) {
@@ -1270,7 +1269,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       linalg->fillComplete(J);
       
       if (debug_level>2) {
-        //KokkosTools::print(J,"Jacobian from solver interface");
+        KokkosTools::print(J,"Jacobian from solver interface");
       }
       du->putScalar(0.0);
       du_over->putScalar(0.0);
@@ -1528,6 +1527,7 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > SolverManager<Node>::setI
         
         linalg->exportMatrixFromOverlapped(glmass, mass);
         linalg->exportVectorFromOverlapped(glrhs, rhs);
+        
         linalg->fillComplete(glmass);
         linalg->linearSolverL2(glmass, glrhs, glinitial);
         linalg->importVectorToOverlapped(initial, glinitial);

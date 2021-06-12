@@ -264,7 +264,7 @@ void SubGridFEM::setUpSubgridModels() {
   
   // Does need to be PHX::Device
   Kokkos::View<const LO**,Kokkos::LayoutRight, PHX::Device> LIDs = sub_disc->DOF->getLIDs();
-  
+    
   for (size_t s=0; s<unique_sides.size(); s++) {
     
     string sidename = unique_names[s];
@@ -350,9 +350,10 @@ void SubGridFEM::setUpSubgridModels() {
                                             macroData[0]->macrosideinfo.extent(2));
   for (size_t i=0; i<sideinfo.extent(1); i++) { // number of variables
     for (size_t j=0; j<macroData[0]->macrosideinfo.extent(2); j++) { // number of sides per element
-      currbcs(i,j) = 5;
+      currbcs(i,j) = "interface";
     }
   }
+  
   for (size_t c=0; c<sideinfo.extent(0); c++) {
     for (size_t i=0; i<sideinfo.extent(1); i++) { // number of variables
       for (size_t j=0; j<sideinfo.extent(2); j++) { // number of sides per element
@@ -532,9 +533,9 @@ void SubGridFEM::setUpSubgridModels() {
       sgt.getUniqueSides(subsideinfo, unique_sides, unique_local_sides, unique_names,
                          macrosidenames, boundary_groups);
       
-      
       vector<Teuchos::RCP<BoundaryCell> > newbcells;
       for (size_t s=0; s<unique_sides.size(); s++) {
+        
         vector<size_t> group = boundary_groups[s];
         Kokkos::View<size_t*,AssemblyDevice> group_KV("group members on device",group.size());
         auto group_KV_host = Kokkos::create_mirror_view(group_KV);
@@ -592,7 +593,7 @@ void SubGridFEM::setUpSubgridModels() {
           });
           
         }
-        
+                
         newbcells.push_back(Teuchos::rcp(new BoundaryCell(sub_assembler->cellData[0], currnodes,
                                                           localID, sideID, sidenum, unique_names[s],
                                                           newbcells.size(), LIDs, subsideinfo, sub_disc)));//, orientation)));
@@ -615,7 +616,7 @@ void SubGridFEM::setUpSubgridModels() {
                                              macroData[mindex]->macrosideinfo.extent(2));
       for (size_t i=0; i<subsideinfo.extent(1); i++) { // number of variables
         for (size_t j=0; j<macroData[mindex]->macrosideinfo.extent(2); j++) { // number of sides per element
-          currbcs(i,j) = 5;
+          currbcs(i,j) = "interface";
         }
       }
       for (size_type c=0; c<subsideinfo.extent(0); c++) {
@@ -2078,37 +2079,5 @@ void SubGridFEM::updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_da
 void SubGridFEM::updateLocalData(const int & usernum) {
   
   wkset[0]->var_bcs = macroData[usernum]->bcs;
-  
-  /*
-  for (size_t e=0; e<cells[0].size(); e++) {
-    cells[0][e]->nodes = localData[usernum]->nodes;
-    cells[0][e]->ip = localData[usernum]->ip;
-    cells[0][e]->wts = localData[usernum]->wts;
-    cells[0][e]->hsize = localData[usernum]->hsize;
-    cells[0][e]->basis = localData[usernum]->basis;
-    cells[0][e]->basis_grad = localData[usernum]->basis_grad;
-    cells[0][e]->basis_div = localData[usernum]->basis_div;
-    cells[0][e]->basis_curl = localData[usernum]->basis_curl;
-    cells[0][e]->sideinfo = localData[usernum]->sideinfo;
-    cells[0][e]->cell_data = localData[usernum]->cell_data;
-  }
-  
-  for (size_t e=0; e<boundaryCells[0].size(); e++) {
-    boundaryCells[0][e]->nodes = localData[usernum]->boundaryNodes[e];
-    boundaryCells[0][e]->sidename = localData[usernum]->boundaryNames[e];
-    boundaryCells[0][e]->ip = localData[usernum]->boundaryIP[e];
-    boundaryCells[0][e]->wts = localData[usernum]->boundaryWts[e];
-    boundaryCells[0][e]->normals = localData[usernum]->boundaryNormals[e];
-    boundaryCells[0][e]->hsize = localData[usernum]->boundaryHsize[e];
-    boundaryCells[0][e]->basis = localData[usernum]->boundaryBasis[e];
-    boundaryCells[0][e]->basis_grad = localData[usernum]->boundaryBasisGrad[e];
-    
-    boundaryCells[0][e]->addAuxDiscretization(macro_basis_pointers,
-                                              localData[usernum]->aux_side_basis[e],
-                                              localData[usernum]->aux_side_basis_grad[e]);
-    
-    boundaryCells[0][e]->auxLIDs = localData[usernum]->boundaryMacroLIDs[e];
-    boundaryCells[0][e]->auxMIDs = localData[usernum]->boundaryMIDs[e];
-  }
-  */
+
 }

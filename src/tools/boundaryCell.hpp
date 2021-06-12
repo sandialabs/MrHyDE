@@ -184,6 +184,12 @@ namespace MrHyDE {
                      const bool & compute_sens) {
       
       wkset->setTime(time);
+      wkset->sidename = sidename;
+      wkset->currentside = sidenum;
+      wkset->numElem = numElem;
+      //wkset->h = hsize;
+      //this->updateWorksetBasis();
+      
       vector<View_AD2> uvals = wkset->uvals;
       //auto param_AD = wkset->pvals;
       auto ulocal = u;

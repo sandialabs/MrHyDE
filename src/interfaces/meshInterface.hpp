@@ -127,6 +127,7 @@ namespace MrHyDE {
     
     vector<string> block_names, nfield_names, efield_names;
     int numResponses;
+    std::default_random_engine generator;
     
     Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > meas;
     vector<vector<ScalarT> > nfield_vals, efield_vals;

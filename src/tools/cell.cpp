@@ -937,18 +937,21 @@ void cell::fixDiagJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J,
       for (int dof=0; dof<numDOF(var); dof++) {
         int diag = offsets(var,dof);
         if (abs(local_J(elem,diag,diag)) < JTOL) {
-          local_res(elem,diag,0) = -u(elem,var,dof);
+          cout << "Activated" << endl;
+          
+          local_res(elem,diag,0) = 0.0;//-u(elem,var,dof);
           for (int j=0; j<numDOF(var); j++) {
             ScalarT scale = 1.0/((ScalarT)numDOF(var)-1.0);
             local_J(elem,diag,offsets(var,j)) = -scale;
-            if (j!=dof)
-              local_res(elem,diag,0) += scale*u(elem,var,j);
+            //if (j!=dof)
+            //  local_res(elem,diag,0) += scale*u(elem,var,j);
           }
           local_J(elem,diag,diag) = 1.0;
         }
       }
     }
   });
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

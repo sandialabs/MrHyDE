@@ -41,6 +41,9 @@ CompadreTools_constructNeighborLists(const Kokkos::View<ScalarT**, AssemblyDevic
                                      const Kokkos::View<ScalarT**, AssemblyDevice> &cell_coords,
                                      Kokkos::View<ScalarT*, AssemblyDevice> &epsilon) {
 
+  //Kokkos::Timer timer;
+  //timer.reset();
+  
   // LO number_sensor_coords = sensor_coords.extent(0);
   LO number_cell_coords = cell_coords.extent(0);
   LO dimension = sensor_coords.extent(1);
@@ -59,7 +62,15 @@ CompadreTools_constructNeighborLists(const Kokkos::View<ScalarT**, AssemblyDevic
   Kokkos::resize(epsilon,number_cell_coords);
   Kokkos::View<double*>::HostMirror epsilon_h = Kokkos::create_mirror_view(epsilon);
   
+  //double time1 = timer.seconds();
+  //printf("Step 1 time:   %e \n", time1);
+  //timer.reset();
+  
   auto point_cloud_search(Compadre::CreatePointCloudSearch(sensor_coords, dimension));
+  
+  //double time2 = timer.seconds();
+  //printf("Step 2 time:   %e \n", time2);
+  //timer.reset();
   
   size_t storage_size = point_cloud_search.generateCRNeighborListsFromKNNSearch(true /*dry run*/, cell_coords, neighbor_lists, number_of_neighbors_list, epsilon_h, min_neighbors, epsilon_mult);
 
@@ -74,6 +85,10 @@ CompadreTools_constructNeighborLists(const Kokkos::View<ScalarT**, AssemblyDevic
   Compadre::NeighborLists<Kokkos::View<int*> > neighbor_lists_object = Compadre::NeighborLists<Kokkos::View<int*> >(neighbor_lists, number_of_neighbors_list);
   // referred to as nla sometimes, has methods in Compadre_NeighborLists.hpp
     
+  //double time3 = timer.seconds();
+  //printf("Step 3 time:   %e \n", time3);
+  //timer.reset();
+  
   return neighbor_lists_object;
 }
 

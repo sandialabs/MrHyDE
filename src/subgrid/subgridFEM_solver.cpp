@@ -843,6 +843,7 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
       
       for (size_t elem=0; elem<assembler->boundaryCells[usernum].size(); elem++) {
         
+        assembler->boundaryCells[usernum][elem]->updateData();
         Kokkos::deep_copy(local_res, 0.0);
         
         assembler->boundaryCells[usernum][elem]->computeJacRes(time, isTransient, isAdjoint,
@@ -1180,12 +1181,13 @@ void SubGridFEM_Solver::updateFlux(ViewType u_kv,
   }
   
   macrowkset.resetResidual();
-  
+    
   for (size_t e=0; e<assembler->boundaryCells[usernum].size(); e++) {
     
     if (assembler->boundaryCells[usernum][e]->sidename == "interior") {
       {
         Teuchos::TimeMonitor localwktimer(*sgfemFluxWksetTimer);
+        assembler->boundaryCells[usernum][e]->updateData();
         assembler->boundaryCells[usernum][e]->updateWorksetBasis();
       }
       
@@ -1197,6 +1199,7 @@ void SubGridFEM_Solver::updateFlux(ViewType u_kv,
         assembler->boundaryCells[usernum][e]->computeFlux(u_kv, du_kv, dp_kv, lambda, time,
                                                           0, h, compute_sens);
       }
+      
       {
         Teuchos::TimeMonitor localtimer(*sgfemAssembleFluxTimer);
         

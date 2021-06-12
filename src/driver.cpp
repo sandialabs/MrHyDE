@@ -190,12 +190,12 @@ int main(int argc,char * argv[]) {
       
       functionManagers[b]->wkset = assembler->wkset[b];
       functionManagers[b]->decomposeFunctions();
+      
       if (verbosity>=20) {
         functionManagers[b]->printFunctions();
       }
     }
     Kokkos::fence();
-    
     
     solve->finalizeMultiscale();
         
@@ -205,7 +205,7 @@ int main(int argc,char * argv[]) {
     
     Teuchos::RCP<AnalysisManager> analys = Teuchos::rcp( new AnalysisManager(Comm, settings,
                                                                              solve, postproc, params) );
-        
+    
     {
       Teuchos::TimeMonitor rtimer(*runTimer);
       analys->run();

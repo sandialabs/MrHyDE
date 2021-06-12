@@ -961,46 +961,58 @@ View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
     std::uniform_real_distribution<ScalarT> ydistribution(ymin,ymax);
     std::uniform_real_distribution<ScalarT> zdistribution(zmin,zmax);
     
-    
-    // we use a relatively crude algorithm to obtain well-spaced points
-    int batch_size = 10;
-    int prog = 0;
-    Kokkos::View<ScalarT**,HostDevice> cseeds("cand seeds",batch_size,3);
-    
-    while (prog<numSeeds) {
-      // fill in the candidate seeds
-      for (int k=0; k<batch_size; k++) {
-        ScalarT x = xdistribution(generator);
-        cseeds(k,0) = x;
-        ScalarT y = ydistribution(generator);
-        cseeds(k,1) = y;
-        ScalarT z = zdistribution(generator);
-        cseeds(k,2) = z;
-      }
-      int bestpt = 0;
-      if (prog > 0) { // for prog = 0, just take the first one
-        ScalarT maxdist = 0.0;
+    bool wellspaced = settings->sublist("Mesh").get<bool>("well spaced seeds",true);
+    if (wellspaced) {
+      // we use a relatively crude algorithm to obtain well-spaced points
+      int batch_size = 10;
+      int prog = 0;
+      Kokkos::View<ScalarT**,HostDevice> cseeds("cand seeds",batch_size,3);
+      
+      while (prog<numSeeds) {
+        // fill in the candidate seeds
         for (int k=0; k<batch_size; k++) {
-          ScalarT cmindist = 1.0e200;
-          for (int j=0; j<prog; j++) {
-            ScalarT dx = cseeds(k,0)-seeds(j,0);
-            ScalarT dy = cseeds(k,1)-seeds(j,1);
-            ScalarT dz = cseeds(k,2)-seeds(j,2);
-            ScalarT cval = xwt*dx*dx + ywt*dy*dy + zwt*dz*dz;
-            if (cval < cmindist) {
-              cmindist = cval;
+          ScalarT x = xdistribution(generator);
+          cseeds(k,0) = x;
+          ScalarT y = ydistribution(generator);
+          cseeds(k,1) = y;
+          ScalarT z = zdistribution(generator);
+          cseeds(k,2) = z;
+        }
+        int bestpt = 0;
+        if (prog > 0) { // for prog = 0, just take the first one
+          ScalarT maxdist = 0.0;
+          for (int k=0; k<batch_size; k++) {
+            ScalarT cmindist = 1.0e200;
+            for (int j=0; j<prog; j++) {
+              ScalarT dx = cseeds(k,0)-seeds(j,0);
+              ScalarT dy = cseeds(k,1)-seeds(j,1);
+              ScalarT dz = cseeds(k,2)-seeds(j,2);
+              ScalarT cval = xwt*dx*dx + ywt*dy*dy + zwt*dz*dz;
+              if (cval < cmindist) {
+                cmindist = cval;
+              }
+            }
+            if (cmindist > maxdist) {
+              maxdist = cmindist;
+              bestpt = k;
             }
           }
-          if (cmindist > maxdist) {
-            maxdist = cmindist;
-            bestpt = k;
-          }
         }
+        for (int j=0; j<3; j++) {
+          seeds_host(prog,j) = cseeds(bestpt,j);
+        }
+        prog += 1;
       }
-      for (int j=0; j<3; j++) {
-        seeds_host(prog,j) = cseeds(bestpt,j);
+    }
+    else {
+      for (int k=0; k<numSeeds; k++) {
+        ScalarT x = xdistribution(generator);
+        seeds_host(k,0) = x;
+        ScalarT y = ydistribution(generator);
+        seeds_host(k,1) = y;
+        ScalarT z = zdistribution(generator);
+        seeds_host(k,2) = z;
       }
-      prog += 1;
     }
     deep_copy(seeds, seeds_host);
     
@@ -1080,10 +1092,11 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
   // Initialize cell data
   ////////////////////////////////////////////////////////////////////////////////
   
-  
+  int totalElem = 0;
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
       int numElem = cells[b][e]->numElem;
+      totalElem += numElem;
       Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
       cells[b][e]->cell_data = cell_data;
       cells[b][e]->cell_data_distance = vector<ScalarT>(numElem);
@@ -1093,33 +1106,78 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
   }
   
   ////////////////////////////////////////////////////////////////////////////////
+  // Create a list of all cell nodes
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  DRV totalNodes("nodes from all cells",totalElem,
+                 cells[0][0]->nodes.extent(1),
+                 cells[0][0]->nodes.extent(2));
+  int prog = 0;
+  for (size_t b=0; b<cells.size(); b++) {
+    for (size_t e=0; e<cells[b].size(); e++) {
+      auto nodes = cells[b][e]->nodes;
+      parallel_for("mesh data cell nodes",
+                   RangePolicy<AssemblyExec>(0,nodes.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<nodes.extent(1); ++pt) {
+          for (size_type dim=0; dim<nodes.extent(2); ++dim) {
+            totalNodes(prog+elem,pt,dim) = nodes(elem,pt,dim);
+          }
+        }
+      });
+      prog += cells[b][e]->numElem;
+    }
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Create a list of all cell centers
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  auto centers = this->getElementCenters(totalNodes, cells[0][0]->cellData->cellTopo);
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Find the closest seeds
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",totalElem);
+  Kokkos::View<int*, AssemblyDevice> cnode("cnode",totalElem);
+  
+  Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
+  cnode = neighborlists.getNeighborLists();
+  
+  
+  ////////////////////////////////////////////////////////////////////////////////
   // Set cell data
   ////////////////////////////////////////////////////////////////////////////////
   
+  prog = 0;
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
-      DRV nodes = cells[b][e]->nodes;
+      //DRV nodes = cells[b][e]->nodes;
       int numElem = cells[b][e]->numElem;
-      auto centers = this->getElementCenters(nodes, cells[b][e]->cellData->cellTopo);
+      //auto centers = this->getElementCenters(nodes, cells[b][e]->cellData->cellTopo);
       
-      Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
-      Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
+      //Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
+      //Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
       
-      Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
-      cnode = neighborlists.getNeighborLists();
+      //Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
+      //cnode = neighborlists.getNeighborLists();
       
       for (int c=0; c<numElem; c++) {
         
+        int cpt = cnode(prog);
+        prog++;
+        
         for (int i=0; i<9; i++) {
-          cells[b][e]->cell_data(c,i) = rotation_data(cnode(c),i);
+          cells[b][e]->cell_data(c,i) = rotation_data(cpt,i);//rotation_data(cnode(c),i);
         }
         
         cells[b][e]->cellData->have_cell_rotation = true;
         cells[b][e]->cellData->have_cell_phi = false;
         
-        cells[b][e]->cell_data_seed[c] = cnode(c) % 100;
-        cells[b][e]->cell_data_seedindex[c] = seedIndex(cnode(c));
-        cells[b][e]->cell_data_distance[c] = distance(c);
+        cells[b][e]->cell_data_seed[c] = cpt % 100;//cnode(c) % 100;
+        cells[b][e]->cell_data_seedindex[c] = seedIndex(cpt); //seedIndex(cnode(c));
+        cells[b][e]->cell_data_distance[c] = distance(cpt);//distance(c);
         
       }
     }
@@ -1130,9 +1188,11 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
   // Initialize boundary cell data
   ////////////////////////////////////////////////////////////////////////////////
   
+  totalElem = 0;
   for (size_t b=0; b<bcells.size(); b++) {
     for (size_t e=0; e<bcells[b].size(); e++) {
       int numElem = bcells[b][e]->numElem;
+      totalElem += numElem;
       Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
       bcells[b][e]->cell_data = cell_data;
       bcells[b][e]->cell_data_distance = vector<ScalarT>(numElem);
@@ -1142,33 +1202,77 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
   }
   
   ////////////////////////////////////////////////////////////////////////////////
+  // Create a list of all cell nodes
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  totalNodes = DRV("nodes from all cells",totalElem,
+                   cells[0][0]->nodes.extent(1),
+                   cells[0][0]->nodes.extent(2));
+  prog = 0;
+  for (size_t b=0; b<bcells.size(); b++) {
+    for (size_t e=0; e<bcells[b].size(); e++) {
+      auto nodes = bcells[b][e]->nodes;
+      parallel_for("mesh data cell nodes",
+                   RangePolicy<AssemblyExec>(0,nodes.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<nodes.extent(1); ++pt) {
+          for (size_type dim=0; dim<nodes.extent(2); ++dim) {
+            totalNodes(prog+elem,pt,dim) = nodes(elem,pt,dim);
+          }
+        }
+      });
+      prog += bcells[b][e]->numElem;
+    }
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Create a list of all cell centers
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  centers = this->getElementCenters(totalNodes, cells[0][0]->cellData->cellTopo);
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Find the closest seeds
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  distance = Kokkos::View<ScalarT*, AssemblyDevice>("distance",totalElem);
+  cnode = Kokkos::View<int*, AssemblyDevice>("cnode",totalElem);
+  
+  neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
+  cnode = neighborlists.getNeighborLists();
+  
+  ////////////////////////////////////////////////////////////////////////////////
   // Set cell data
   ////////////////////////////////////////////////////////////////////////////////
   
+  prog = 0;
   for (size_t b=0; b<bcells.size(); b++) {
     for (size_t e=0; e<bcells[b].size(); e++) {
       DRV nodes = bcells[b][e]->nodes;
       int numElem = bcells[b][e]->numElem;
-      auto centers = this->getElementCenters(nodes, bcells[b][e]->cellData->cellTopo);
+      //auto centers = this->getElementCenters(nodes, bcells[b][e]->cellData->cellTopo);
       
-      Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
-      Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
+      //Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
+      //Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
       
-      Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
-      cnode = neighborlists.getNeighborLists();
+      //Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
+      //cnode = neighborlists.getNeighborLists();
       
       for (int c=0; c<numElem; c++) {
         
+        int cpt = cnode(prog);
+        prog++;
+        
         for (int i=0; i<9; i++) {
-          bcells[b][e]->cell_data(c,i) = rotation_data(cnode(c),i);
+          bcells[b][e]->cell_data(c,i) = rotation_data(cpt,i); //rotation_data(cnode(c),i);
         }
         
         bcells[b][e]->cellData->have_cell_rotation = true;
         bcells[b][e]->cellData->have_cell_phi = false;
         
-        bcells[b][e]->cell_data_seed[c] = cnode(c) % 100;
-        bcells[b][e]->cell_data_seedindex[c] = seedIndex(cnode(c));
-        bcells[b][e]->cell_data_distance[c] = distance(c);
+        bcells[b][e]->cell_data_seed[c] = cpt % 100; //cnode(c) % 100;
+        bcells[b][e]->cell_data_seedindex[c] = seedIndex(cpt);//seedIndex(cnode(c));
+        bcells[b][e]->cell_data_distance[c] = distance(cpt);//distance(c);
         
       }
     }

@@ -674,16 +674,11 @@ void linearelasticity::boundaryResidual() {
 void linearelasticity::computeFlux() {
   
   
-  // TMW this will break adjoint computations if sf \neq 1.0
-  //ScalarT sf = 1.0;
-  //if (wkset->isAdjoint) {
-  //  sf = modelparams(0);
-  //}
-  
   int cside = wkset->currentside;
   string dx_sidetype = wkset->var_bcs(dx_num,cside);
   string dy_sidetype = "Dirichlet";
   string dz_sidetype = "Dirichlet";
+  int spaceDim = wkset->dimension;
   if (spaceDim > 1) {
     dy_sidetype = wkset->var_bcs(dy_num,cside);
   }
@@ -691,11 +686,9 @@ void linearelasticity::computeFlux() {
     dz_sidetype = wkset->var_bcs(dz_num,cside);
   }
   
-  int spaceDim = wkset->dimension;
   View_AD2 lambda_side, mu_side;
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
-    
     lambda_side = functionManager->evaluate("lambda","side ip");
     mu_side = functionManager->evaluate("mu","side ip");
   }
@@ -780,11 +773,16 @@ void linearelasticity::computeFlux() {
       auto dz = wkset->getData("dz side");
       
       View_AD2 source_dx, source_dy, source_dz;
+      bool compute_dx = true, compute_dy = true, compute_dz = true;
+      
       if (dx_sidetype == "interface") {
         source_dx = wkset->getData("aux dx side");
       }
       else if (dx_sidetype == "weak Dirichlet" || dx_sidetype == "Dirichlet") {
         source_dx = functionManager->evaluate("Dirichlet dx " + wkset->sidename,"side ip");
+      }
+      else {
+        compute_dx = false;
       }
       
       if (dy_sidetype == "interface") {
@@ -793,6 +791,9 @@ void linearelasticity::computeFlux() {
       else if (dy_sidetype == "weak Dirichlet" || dy_sidetype == "Dirichlet") {
         source_dy = functionManager->evaluate("Dirichlet dy " + wkset->sidename,"side ip");
       }
+      else {
+        compute_dy = false;
+      }
       
       if (dz_sidetype == "interface") {
         source_dz = wkset->getData("aux dz side");
@@ -800,20 +801,45 @@ void linearelasticity::computeFlux() {
       else if (dz_sidetype == "weak Dirichlet" || dz_sidetype == "Dirichlet") {
         source_dz = functionManager->evaluate("Dirichlet dz " + wkset->sidename,"side ip");
       }
+      else {
+        compute_dz = false;
+      }
       
-      auto flux_x = subview( wkset->flux, ALL(), dx_num, ALL());
-      auto flux_y = subview( wkset->flux, ALL(), dy_num, ALL());
-      auto flux_z = subview( wkset->flux, ALL(), dz_num, ALL());
-      parallel_for("LE flux 3D",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int e ) {
-        for (size_type k=0; k<flux_x.extent(1); k++) {
-          AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
-          flux_x(e,k) = 1.0*(stress_side(e,k,0,0)*nx(e,k) + stress_side(e,k,0,1)*ny(e,k) + stress_side(e,k,0,2)*nz(e,k)) + penalty*(source_dx(e,k)-dx(e,k));
-          flux_y(e,k) = 1.0*(stress_side(e,k,1,0)*nx(e,k) + stress_side(e,k,1,1)*ny(e,k) + stress_side(e,k,1,2)*nz(e,k)) + penalty*(source_dy(e,k)-dy(e,k));
-          flux_z(e,k) = 1.0*(stress_side(e,k,2,0)*nx(e,k) + stress_side(e,k,2,1)*ny(e,k) + stress_side(e,k,2,2)*nz(e,k)) + penalty*(source_dz(e,k)-dz(e,k));
-        }
-      });
+      if (compute_dx) {
+        auto flux_x = subview( wkset->flux, ALL(), dx_num, ALL());
+        parallel_for("LE flux 3D",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int e ) {
+          for (size_type k=0; k<flux_x.extent(1); k++) {
+            AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
+            flux_x(e,k) = 1.0*(stress_side(e,k,0,0)*nx(e,k) + stress_side(e,k,0,1)*ny(e,k) + stress_side(e,k,0,2)*nz(e,k)) + penalty*(source_dx(e,k)-dx(e,k));
+          }
+        });
+      }
+      
+      if (compute_dy) {
+        auto flux_y = subview( wkset->flux, ALL(), dy_num, ALL());
+        parallel_for("LE flux 3D",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int e ) {
+          for (size_type k=0; k<flux_y.extent(1); k++) {
+            AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
+            flux_y(e,k) = 1.0*(stress_side(e,k,1,0)*nx(e,k) + stress_side(e,k,1,1)*ny(e,k) + stress_side(e,k,1,2)*nz(e,k)) + penalty*(source_dy(e,k)-dy(e,k));
+          }
+        });
+      }
+      
+      if (compute_dz) {
+        auto flux_z = subview( wkset->flux, ALL(), dz_num, ALL());
+        parallel_for("LE flux 3D",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int e ) {
+          for (size_type k=0; k<flux_z.extent(1); k++) {
+            AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
+            flux_z(e,k) = 1.0*(stress_side(e,k,2,0)*nx(e,k) + stress_side(e,k,2,1)*ny(e,k) + stress_side(e,k,2,2)*nz(e,k)) + penalty*(source_dz(e,k)-dz(e,k));
+          }
+        });
+      }
     }
   }
 }

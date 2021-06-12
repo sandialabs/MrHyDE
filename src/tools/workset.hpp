@@ -329,7 +329,7 @@ namespace MrHyDE {
         
     View_AD3 flux;
     View_AD2 res, adjrhs;
-    
+        
     int sidetype;
     Kokkos::View<int****,AssemblyDevice> sideinfo;
     string sidename, var;
