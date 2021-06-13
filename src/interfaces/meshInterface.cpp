@@ -863,7 +863,7 @@ View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
-      cout << "**** Starting mesh::computeMeshData ..." << endl;
+      cout << "**** Starting mesh::generateNewMicrostructure ..." << endl;
     }
   }
   Teuchos::Time meshimporttimer("mesh import", false);
@@ -1024,6 +1024,11 @@ View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
     cout << "microstructure regeneration time: " << meshimporttimer.totalElapsedTime(false) << endl;
   }
   
+  if (debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished mesh::generateNewMicrostructure ..." << endl;
+    }
+  }
   
   return seeds;
 }
@@ -1037,6 +1042,11 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
                                             vector<vector<Teuchos::RCP<cell> > > & cells,
                                             vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells) {
   
+  if (debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting mesh::importNewMicrostructure ..." << endl;
+    }
+  }
   Teuchos::Time meshimporttimer("mesh import", false);
   meshimporttimer.start();
   
@@ -1282,7 +1292,7 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
-      cout << "**** Finished mesh:computeMeshData" << endl;
+      cout << "**** Finished mesh::importNewMicrostructure" << endl;
     }
   }
   
