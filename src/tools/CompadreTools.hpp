@@ -27,19 +27,55 @@
 #include <iostream>
 #include <iterator>
 
+// Compadre relies on being able to access memory on the host,
+// however, it also uses Kokkos::parallel_for internally, 
+// which means the most performant option for GPU may be UVM.
+#if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+  typedef Kokkos::Device<Kokkos::Serial, Kokkos::CudaUVMSpace> CompadreDevice;
+#else
+  typedef Kokkos::Device<AssemblyExec, AssemblyMem> CompadreDevice;
+#endif
+
+// GH Notes:
+// If AssemblyDevice is Host, there's no need for mirrors of copies.
+// If AssemblyDevice is OMP, there's no need for mirrors or copies.
+// If AssemblyDevice is Cuda, then we need a host accessible version of that memory,
+//   which we then use to create a UVM view
+
+
 
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-// Compadre interface doesn't work with GPUs yet
-#if !defined(MrHyDE_DISABLE_COMPADRE)
 // returns a Compadre::NeighborLists object which lists which sensor is
 // closest to each cell.
-KOKKOS_INLINE_FUNCTION
-Compadre::NeighborLists<Kokkos::View<int*> > 
-CompadreTools_constructNeighborLists(const Kokkos::View<ScalarT**, AssemblyDevice> &sensor_coords,
-                                     const Kokkos::View<ScalarT**, AssemblyDevice> &cell_coords,
-                                     Kokkos::View<ScalarT*, AssemblyDevice> &epsilon) {
+template<typename sensors_view_type>
+inline
+Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > 
+CompadreTools_constructNeighborLists(const sensors_view_type &sensor_coords_in,
+                                     const Kokkos::View<ScalarT**, AssemblyDevice> &cell_coords_assembly,
+                                     Kokkos::View<ScalarT*, AssemblyDevice> &epsilon_assembly) {
+
+  Kokkos::View<ScalarT**, CompadreDevice> sensor_coords("sensor coords Compadre device", sensor_coords_in.extent(0), sensor_coords_in.extent(1));
+  Kokkos::View<ScalarT**, CompadreDevice> cell_coords("cell coords", cell_coords_assembly.extent(0), cell_coords_assembly.extent(1));
+
+  // GH: Probably don't need this since Kokkos is smart
+#if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
+  // We need host accessible versions of the input views
+  auto cell_coords_mirror = Kokkos::create_mirror_view(cell_coords_assembly);
+  Kokkos::deep_copy(cell_coords_mirror, cell_coords_assembly);
+
+  for(unsigned int i=0; i<sensor_coords.extent(0); ++i)
+    for(unsigned int d=0; d<sensor_coords.extent(1); ++d)
+      sensor_coords(i,d) = sensor_coords_in(i,d);
+
+  for(unsigned int i=0; i<cell_coords.extent(0); ++i)
+    for(unsigned int d=0; d<cell_coords.extent(1); ++d)
+      cell_coords(i,d) = cell_coords_mirror(i,d);
+#else 
+  sensor_coords = sensor_coords_in;
+  cell_coords = cell_coords_assembly;
+#endif
 
   //Kokkos::Timer timer;
   //timer.reset();
@@ -51,16 +87,13 @@ CompadreTools_constructNeighborLists(const Kokkos::View<ScalarT**, AssemblyDevic
   int min_neighbors = 1; // must find at least 1 neighbor
   double epsilon_mult = 1.000000001; // if you want to search for many neighbors within a multiplied radius of the closest neighbor, increase this
 
-  Kokkos::View<int*, AssemblyDevice> neighbor_lists_device("neighbor lists", 0); // first column is # of neighbors
-  Kokkos::View<int*>::HostMirror neighbor_lists = Kokkos::create_mirror_view(neighbor_lists_device);
+  Kokkos::View<int*, CompadreDevice> neighbor_lists("neighbor lists", 0); // first column is # of neighbors
   
   // this will count the number of neighbors for each sensor
-  Kokkos::View<int*, AssemblyDevice> number_of_neighbors_list_device("number of neighbor lists", number_cell_coords); // first column is # of neighbors
-  Kokkos::View<int*>::HostMirror number_of_neighbors_list = Kokkos::create_mirror_view(number_of_neighbors_list_device);
+  Kokkos::View<int*, CompadreDevice> number_of_neighbors_list("number of neighbor lists", number_cell_coords); // first column is # of neighbors
   
   // each target site has a window size
-  Kokkos::resize(epsilon,number_cell_coords);
-  Kokkos::View<double*>::HostMirror epsilon_h = Kokkos::create_mirror_view(epsilon);
+  Kokkos::View<double*, CompadreDevice> epsilon("epsilon Compadre device", number_cell_coords);
   
   //double time1 = timer.seconds();
   //printf("Step 1 time:   %e \n", time1);
@@ -72,17 +105,16 @@ CompadreTools_constructNeighborLists(const Kokkos::View<ScalarT**, AssemblyDevic
   //printf("Step 2 time:   %e \n", time2);
   //timer.reset();
   
-  size_t storage_size = point_cloud_search.generateCRNeighborListsFromKNNSearch(true /*dry run*/, cell_coords, neighbor_lists, number_of_neighbors_list, epsilon_h, min_neighbors, epsilon_mult);
+  size_t storage_size = point_cloud_search.generateCRNeighborListsFromKNNSearch(true /*dry run*/, cell_coords, neighbor_lists, number_of_neighbors_list, epsilon, min_neighbors, epsilon_mult);
 
-  Kokkos::resize(neighbor_lists_device, storage_size);
-  
-  TEUCHOS_ASSERT(neighbor_lists_device.extent(0)==cell_coords.extent(0)); // if this assert fails, some points have multiple neighbors of equal distance, which requires some updates in implementation
+  Kokkos::resize(neighbor_lists, storage_size);
 
-  neighbor_lists = Kokkos::create_mirror_view(neighbor_lists_device);
+  // GH: fixing this next 
+  TEUCHOS_ASSERT(neighbor_lists.extent(0)==cell_coords.extent(0)); // if this assert fails, some points have multiple neighbors of equal distance, which requires some updates in implementation
+
+  point_cloud_search.generateCRNeighborListsFromKNNSearch(false /*not dry run*/, cell_coords, neighbor_lists, number_of_neighbors_list, epsilon, min_neighbors, epsilon_mult);
   
-  point_cloud_search.generateCRNeighborListsFromKNNSearch(false /*not dry run*/, cell_coords, neighbor_lists, number_of_neighbors_list, epsilon_h, min_neighbors, epsilon_mult);
-  
-  Compadre::NeighborLists<Kokkos::View<int*> > neighbor_lists_object = Compadre::NeighborLists<Kokkos::View<int*> >(neighbor_lists, number_of_neighbors_list);
+  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighbor_lists_object = Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> >(neighbor_lists, number_of_neighbors_list);
   // referred to as nla sometimes, has methods in Compadre_NeighborLists.hpp
     
   //double time3 = timer.seconds();
@@ -92,7 +124,6 @@ CompadreTools_constructNeighborLists(const Kokkos::View<ScalarT**, AssemblyDevic
   return neighbor_lists_object;
 }
 
-#endif
 
 
 

@@ -787,27 +787,30 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
         auto centers = this->getElementCenters(nodes, cells[b][e]->cellData->cellTopo);
         
         Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
-        Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
+        Kokkos::View<int*, CompadreDevice> cnode("cnode",numElem);
         
-        // Compadre interface doesn't work with GPUs yet
-#if !defined(MrHyDE_DISABLE_COMPADRE)
         mesh_data->findClosestNode(centers,cnode,distance);
-#endif
-        
+       
+        auto distance_mirror = Kokkos::create_mirror_view(distance);
+
         for (int c=0; c<numElem; c++) {
           Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode(c));
+          // This is illegal on GPU
+#if !defined(MrHyDE_DISABLE_COMPADRE)
           for (size_t i=0; i<cdata.extent(1); i++) {
             cells[b][e]->cell_data(c,i) = cdata(0,i);
           }
+#endif
+
           cells[b][e]->cellData->have_extra_data = true;
           cells[b][e]->cellData->have_cell_rotation = have_rotations;
           cells[b][e]->cellData->have_cell_phi = have_rotation_phi;
           
           cells[b][e]->cell_data_seed[c] = cnode(c);
           cells[b][e]->cell_data_seedindex[c] = cnode(c) % 100;
-          cells[b][e]->cell_data_distance[c] = distance(c);
+          cells[b][e]->cell_data_distance[c] = distance_mirror(c);
+
         }
-        
       }
     }
     
@@ -819,25 +822,27 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
         auto centers = this->getElementCenters(nodes, bcells[b][e]->cellData->cellTopo);
         
         Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
-        Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
+        Kokkos::View<int*, CompadreDevice> cnode("cnode",numElem);
         
-        // Compadre interface doesn't work with GPUs yet
-#if !defined(MrHyDE_DISABLE_COMPADRE)
         mesh_data->findClosestNode(centers,cnode,distance);
-#endif
+
+        auto distance_mirror = Kokkos::create_mirror_view(distance);
         
         for (int c=0; c<numElem; c++) {
           Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode(c));
+          // This is illegal on GPU
+#if !defined(MrHyDE_DISABLE_COMPADRE)
           for (size_t i=0; i<cdata.extent(1); i++) {
             bcells[b][e]->cell_data(c,i) = cdata(0,i);
           }
+#endif
           bcells[b][e]->cellData->have_extra_data = true;
           bcells[b][e]->cellData->have_cell_rotation = have_rotations;
           bcells[b][e]->cellData->have_cell_phi = have_rotation_phi;
           
           bcells[b][e]->cell_data_seed[c] = cnode(c);
           bcells[b][e]->cell_data_seedindex[c] = cnode(c) % 50;
-          bcells[b][e]->cell_data_distance[c] = distance(c);
+          bcells[b][e]->cell_data_distance[c] = distance_mirror(c);
         }
       }
     }
@@ -1150,10 +1155,10 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
   ////////////////////////////////////////////////////////////////////////////////
   
   Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",totalElem);
-  Kokkos::View<int*, AssemblyDevice> cnode("cnode",totalElem);
+  Kokkos::View<int*, CompadreDevice> cnode("cnode",totalElem);
   
 #if !defined(MrHyDE_DISABLE_COMPADRE)
-  Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
+  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
   cnode = neighborlists.getNeighborLists();
 #endif
   
@@ -1170,10 +1175,9 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
       
       //Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
       //Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
-      
       //Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
       //cnode = neighborlists.getNeighborLists();
-      
+
       for (int c=0; c<numElem; c++) {
         
         int cpt = cnode(prog);
@@ -1249,7 +1253,7 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
     ////////////////////////////////////////////////////////////////////////////////
     
     distance = Kokkos::View<ScalarT*, AssemblyDevice>("distance",totalElem);
-    cnode = Kokkos::View<int*, AssemblyDevice>("cnode",totalElem);
+    cnode = Kokkos::View<int*, CompadreDevice>("cnode",totalElem);
 #if !defined(MrHyDE_DISABLE_COMPADRE)
     neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
     cnode = neighborlists.getNeighborLists();

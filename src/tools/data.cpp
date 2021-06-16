@@ -429,15 +429,13 @@ ScalarT data::getvalue(const ScalarT & x, const ScalarT & y, const ScalarT & z,
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-// Compadre interface doesn't work with GPUs yet
-#if !defined(MrHyDE_DISABLE_COMPADRE)
 void data::findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords,
-                           Kokkos::View<int*, AssemblyDevice> &cnode) const {
+                           Kokkos::View<int*, CompadreDevice> &cnode) const {
   
   Teuchos::TimeMonitor timer(*dataClosestTimer);
   Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",sensorlocations.extent(0));
-  
-  Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(sensorlocations, coords, distance);
+ 
+  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighborlists = CompadreTools_constructNeighborLists(sensorlocations, coords, distance);
   cnode = neighborlists.getNeighborLists();
 }
 
@@ -445,12 +443,12 @@ void data::findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords
 /////////////////////////////////////////////////////////////////////////////
 
 void data::findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords,
-                           Kokkos::View<int*, AssemblyDevice> &cnode,
+                           Kokkos::View<int*, CompadreDevice> &cnode,
                            Kokkos::View<ScalarT*, AssemblyDevice> &distance) const {
 
   Teuchos::TimeMonitor timer(*dataClosestTimer);
   
-  Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(sensorlocations, coords, distance);
+  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighborlists = CompadreTools_constructNeighborLists(sensorlocations, coords, distance);
   cnode = neighborlists.getNeighborLists();
   
   bool bruteforce = false;
@@ -475,7 +473,6 @@ void data::findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords
     }
   }
 }
-#endif
 
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
