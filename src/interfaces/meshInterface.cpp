@@ -1152,9 +1152,10 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
   Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",totalElem);
   Kokkos::View<int*, AssemblyDevice> cnode("cnode",totalElem);
   
+#if !defined(MrHyDE_DISABLE_COMPADRE)
   Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
   cnode = neighborlists.getNeighborLists();
-  
+#endif
   
   ////////////////////////////////////////////////////////////////////////////////
   // Set cell data
@@ -1249,9 +1250,10 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
     
     distance = Kokkos::View<ScalarT*, AssemblyDevice>("distance",totalElem);
     cnode = Kokkos::View<int*, AssemblyDevice>("cnode",totalElem);
-    
+#if !defined(MrHyDE_DISABLE_COMPADRE)
     neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
     cnode = neighborlists.getNeighborLists();
+#endif
     
     ////////////////////////////////////////////////////////////////////////////////
     // Set cell data
