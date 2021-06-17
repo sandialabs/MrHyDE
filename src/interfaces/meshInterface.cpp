@@ -795,12 +795,12 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
 
         for (int c=0; c<numElem; c++) {
           Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode(c));
-          // This is illegal on GPU
-#if !defined(MrHyDE_DISABLE_COMPADRE)
+
+          auto cell_data_mirror = Kokkos::create_mirror_view(cells[b][e]->cell_data);
           for (size_t i=0; i<cdata.extent(1); i++) {
-            cells[b][e]->cell_data(c,i) = cdata(0,i);
+            cell_data_mirror(c,i) = cdata(0,i);
           }
-#endif
+          Kokkos::deep_copy(cells[b][e]->cell_data, cell_data_mirror);
 
           cells[b][e]->cellData->have_extra_data = true;
           cells[b][e]->cellData->have_cell_rotation = have_rotations;
@@ -830,12 +830,13 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
         
         for (int c=0; c<numElem; c++) {
           Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode(c));
-          // This is illegal on GPU
-#if !defined(MrHyDE_DISABLE_COMPADRE)
+
+          auto cell_data_mirror = Kokkos::create_mirror_view(bcells[b][e]->cell_data);
           for (size_t i=0; i<cdata.extent(1); i++) {
-            bcells[b][e]->cell_data(c,i) = cdata(0,i);
+            cell_data_mirror(c,i) = cdata(0,i);
           }
-#endif
+          Kokkos::deep_copy(bcells[b][e]->cell_data, cell_data_mirror);
+
           bcells[b][e]->cellData->have_extra_data = true;
           bcells[b][e]->cellData->have_cell_rotation = have_rotations;
           bcells[b][e]->cellData->have_cell_phi = have_rotation_phi;
