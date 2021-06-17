@@ -31,7 +31,7 @@
 // however, it also uses Kokkos::parallel_for internally, 
 // which means the most performant option for GPU may be UVM.
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
-  typedef Kokkos::Device<Kokkos::Serial, Kokkos::CudaUVMSpace> CompadreDevice;
+  typedef Kokkos::Device<Kokkos::Cuda, Kokkos::CudaUVMSpace> CompadreDevice;
 #else
   typedef Kokkos::Device<AssemblyExec, AssemblyMem> CompadreDevice;
 #endif
