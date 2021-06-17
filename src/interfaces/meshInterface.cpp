@@ -790,17 +790,16 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
         Kokkos::View<int*, CompadreDevice> cnode("cnode",numElem);
         
         mesh_data->findClosestNode(centers,cnode,distance);
-       
+        
         auto distance_mirror = Kokkos::create_mirror_view(distance);
+        auto cell_data_mirror = Kokkos::create_mirror_view(cells[b][e]->cell_data);
 
         for (int c=0; c<numElem; c++) {
           Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode(c));
 
-          auto cell_data_mirror = Kokkos::create_mirror_view(cells[b][e]->cell_data);
           for (size_t i=0; i<cdata.extent(1); i++) {
             cell_data_mirror(c,i) = cdata(0,i);
           }
-          Kokkos::deep_copy(cells[b][e]->cell_data, cell_data_mirror);
 
           cells[b][e]->cellData->have_extra_data = true;
           cells[b][e]->cellData->have_cell_rotation = have_rotations;
@@ -811,6 +810,7 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
           cells[b][e]->cell_data_distance[c] = distance_mirror(c);
 
         }
+        Kokkos::deep_copy(cells[b][e]->cell_data, cell_data_mirror);
       }
     }
     
@@ -827,15 +827,14 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
         mesh_data->findClosestNode(centers,cnode,distance);
 
         auto distance_mirror = Kokkos::create_mirror_view(distance);
+        auto cell_data_mirror = Kokkos::create_mirror_view(bcells[b][e]->cell_data);
         
         for (int c=0; c<numElem; c++) {
           Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode(c));
 
-          auto cell_data_mirror = Kokkos::create_mirror_view(bcells[b][e]->cell_data);
           for (size_t i=0; i<cdata.extent(1); i++) {
             cell_data_mirror(c,i) = cdata(0,i);
           }
-          Kokkos::deep_copy(bcells[b][e]->cell_data, cell_data_mirror);
 
           bcells[b][e]->cellData->have_extra_data = true;
           bcells[b][e]->cellData->have_cell_rotation = have_rotations;
@@ -845,6 +844,7 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
           bcells[b][e]->cell_data_seedindex[c] = cnode(c) % 50;
           bcells[b][e]->cell_data_distance[c] = distance_mirror(c);
         }
+        Kokkos::deep_copy(bcells[b][e]->cell_data, cell_data_mirror);
       }
     }
   }
