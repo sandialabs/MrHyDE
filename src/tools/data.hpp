@@ -21,45 +21,45 @@
 
 namespace MrHyDE {
   
-  class data {
+  class Data {
   public:
     
-    data() {} ;
+    Data() {} ;
     
     /////////////////////////////////////////////////////////////////////////////
     //  Various constructors depending on the characteristics of the data (spatial,
     //  transient, stochastic, etc.)
     /////////////////////////////////////////////////////////////////////////////
     
-    data(const std::string & name_, const ScalarT & val);
+    Data(const std::string & name_, const ScalarT & val);
     
     /////////////////////////////////////////////////////////////////////////////
     
-    data(const std::string & name_, const std::string & datafile);
+    Data(const std::string & name_, const std::string & datafile);
     
     /////////////////////////////////////////////////////////////////////////////
     
-    data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile);
+    Data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile);
     
     /////////////////////////////////////////////////////////////////////////////
     
-    data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
+    Data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
          const std::string & sensorprefix);
     
     /////////////////////////////////////////////////////////////////////////////
     
-    data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
+    Data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
          const std::string & sensorprefix, const bool & separate_files);
     
     
     
-    data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
+    Data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
          const std::string & sensorprefix, const bool & separate_files,
          const int & Nx, const int & Ny, const int & Nz);
     
     /////////////////////////////////////////////////////////////////////////////
     
-    data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
+    Data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
          const int & Nsens, const std::string & sensorprefix);
     
     /////////////////////////////////////////////////////////////////////////////
@@ -76,57 +76,58 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     
-    void importSensorOneFile(const std::string & sensorfile);
+    void importDataOneFile(const std::string & datafile);
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     
-    void importSensor(const std::string & sensorfile);
+    void importData(const std::string & datafile);
     
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     
-    ScalarT getvalue(const ScalarT & x, const ScalarT & y, const ScalarT & z,
+    ScalarT getValue(const ScalarT & x, const ScalarT & y, const ScalarT & z,
                      const ScalarT & time, const string & label) const;
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
 
-    void findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords, 
-                         Kokkos::View<int*, CompadreDevice> &cnode) const;
+    void findClosestPoint(const Kokkos::View<ScalarT**, AssemblyDevice> &testpts,
+                          Kokkos::View<int*, CompadreDevice> &closestpts) const;
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     
-    void findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords, 
-                         Kokkos::View<int*, CompadreDevice> &cnode, 
-                         Kokkos::View<ScalarT*, AssemblyDevice> &distance) const;
+    void findClosestPoint(const Kokkos::View<ScalarT**, AssemblyDevice> &testpts,
+                          Kokkos::View<int*, CompadreDevice> &closestpts,
+                          Kokkos::View<ScalarT*, AssemblyDevice> &distance) const;
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     
-    int findClosestGridNode(const ScalarT & x, const ScalarT & y, const ScalarT & z, ScalarT & distance) const;
+    int findClosestGridPoint(const ScalarT & x, const ScalarT & y,
+                             const ScalarT & z, ScalarT & distance) const;
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     
-    std::string getname();
+    std::string getName();
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     
-    std::vector<Kokkos::View<ScalarT**,HostDevice> > getdata();
+    std::vector<Kokkos::View<ScalarT**,HostDevice> > getData();
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<ScalarT**,HostDevice> getdata(const int & sensnum);
+    Kokkos::View<ScalarT**,HostDevice> getData(const int & sensnum);
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     
-    Kokkos::View<ScalarT**,HostDevice> getpoints();
+    Kokkos::View<ScalarT**,HostDevice> getPoints();
     
   protected:
     
@@ -134,13 +135,13 @@ namespace MrHyDE {
     bool is_timedep;
     bool is_stochastic;
     
-    int spaceDim, numSensors;
+    int spaceDim;
     std::string name;
     
-    Kokkos::View<ScalarT**,HostDevice> sensorlocations;
-    std::vector<Kokkos::View<ScalarT**,HostDevice> > sensordata;
-    std::vector<std::vector<string> > sensorlabels;
-    Kokkos::View<ScalarT*,HostDevice> sensorGrid_x, sensorGrid_y, sensorGrid_z;
+    Kokkos::View<ScalarT**,HostDevice> points;
+    std::vector<Kokkos::View<ScalarT**,HostDevice> > data;
+    std::vector<std::vector<string> > labels;
+    Kokkos::View<ScalarT*,HostDevice> grid_x, grid_y, grid_z;
     
     // Profile timers
     Teuchos::RCP<Teuchos::Time> dataImportTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::data - import data");

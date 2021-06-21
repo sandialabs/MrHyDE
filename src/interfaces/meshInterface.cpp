@@ -702,7 +702,7 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
     }
   }
   
-  Teuchos::RCP<data> mesh_data;
+  Teuchos::RCP<Data> mesh_data;
   
   string mesh_data_pts_file = mesh_data_pts_tag + ".dat";
   string mesh_data_file = mesh_data_tag + ".dat";
@@ -712,7 +712,7 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
     int Nx = settings->sublist("Mesh").get<int>("data grid Nx",0);
     int Ny = settings->sublist("Mesh").get<int>("data grid Ny",0);
     int Nz = settings->sublist("Mesh").get<int>("data grid Nz",0);
-    mesh_data = Teuchos::rcp(new data("mesh data", spaceDim, mesh_data_pts_file,
+    mesh_data = Teuchos::rcp(new Data("mesh data", spaceDim, mesh_data_pts_file,
                                       mesh_data_file, false, Nx, Ny, Nz));
     
     for (size_t b=0; b<cells.size(); b++) {
@@ -728,10 +728,10 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
           ScalarT distance = 0.0;
           
           // Doesn't use the Compadre interface
-          int cnode = mesh_data->findClosestGridNode(centers_host(c,0), centers_host(c,1),
-                                                     centers_host(c,2), distance);
+          int cnode = mesh_data->findClosestGridPoint(centers_host(c,0), centers_host(c,1),
+                                                      centers_host(c,2), distance);
           
-          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
+          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getData(cnode);
           for (size_type i=0; i<cdata.extent(1); i++) {
             cells[b][e]->cell_data(c,i) = cdata(0,i);
           }
@@ -758,9 +758,9 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
         for (int c=0; c<numElem; c++) {
           ScalarT distance = 0.0;
           
-          int cnode = mesh_data->findClosestGridNode(centers_host(c,0), centers_host(c,1),
-                                                     centers_host(c,2), distance);
-          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode);
+          int cnode = mesh_data->findClosestGridPoint(centers_host(c,0), centers_host(c,1),
+                                                      centers_host(c,2), distance);
+          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getData(cnode);
           for (size_type i=0; i<cdata.extent(1); i++) {
             bcells[b][e]->cell_data(c,i) = cdata(0,i);
           }
@@ -776,7 +776,7 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
     }
   }
   else {
-    mesh_data = Teuchos::rcp(new data("mesh data", spaceDim, mesh_data_pts_file,
+    mesh_data = Teuchos::rcp(new Data("mesh data", spaceDim, mesh_data_pts_file,
                                       mesh_data_file, false));
     
     for (size_t b=0; b<cells.size(); b++) {
@@ -789,13 +789,13 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
         Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
         Kokkos::View<int*, CompadreDevice> cnode("cnode",numElem);
         
-        mesh_data->findClosestNode(centers,cnode,distance);
+        mesh_data->findClosestPoint(centers,cnode,distance);
         
         auto distance_mirror = Kokkos::create_mirror_view(distance);
         auto cell_data_mirror = Kokkos::create_mirror_view(cells[b][e]->cell_data);
 
         for (int c=0; c<numElem; c++) {
-          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode(c));
+          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getData(cnode(c));
 
           for (size_t i=0; i<cdata.extent(1); i++) {
             cell_data_mirror(c,i) = cdata(0,i);
@@ -824,13 +824,13 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
         Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
         Kokkos::View<int*, CompadreDevice> cnode("cnode",numElem);
         
-        mesh_data->findClosestNode(centers,cnode,distance);
+        mesh_data->findClosestPoint(centers,cnode,distance);
 
         auto distance_mirror = Kokkos::create_mirror_view(distance);
         auto cell_data_mirror = Kokkos::create_mirror_view(bcells[b][e]->cell_data);
         
         for (int c=0; c<numElem; c++) {
-          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getdata(cnode(c));
+          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getData(cnode(c));
 
           for (size_t i=0; i<cdata.extent(1); i++) {
             cell_data_mirror(c,i) = cdata(0,i);

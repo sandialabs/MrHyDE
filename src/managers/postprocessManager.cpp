@@ -3658,15 +3658,15 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
   // Import the data from the files
   // ========================================
   
-  data sdata;
+  Data sdata;
   bool have_data = false;
   
   if (objectives[objID].sensor_data_file == "") {
-    sdata = data("Sensor Measurements", spaceDim,
+    sdata = Data("Sensor Measurements", spaceDim,
                  objectives[objID].sensor_points_file);
   }
   else {
-    sdata = data("Sensor Measurements", spaceDim,
+    sdata = Data("Sensor Measurements", spaceDim,
                  objectives[objID].sensor_points_file,
                  objectives[objID].sensor_data_file, false);
     have_data = true;
@@ -3676,10 +3676,10 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
   // Save the locations in the appropriate view
   // ========================================
   
-  Kokkos::View<ScalarT**,HostDevice> spts_host = sdata.getpoints();
+  Kokkos::View<ScalarT**,HostDevice> spts_host = sdata.getPoints();
   std::vector<Kokkos::View<ScalarT**,HostDevice> >  sensor_data_host;
   if (have_data) {
-    sensor_data_host = sdata.getdata();
+    sensor_data_host = sdata.getData();
   }
   
   // Check that the data matches the expected format

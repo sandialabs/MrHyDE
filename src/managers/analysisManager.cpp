@@ -89,8 +89,8 @@ void AnalysisManager::run() {
     
     // Read in the samples
     int ptsdim = sampsettings.get<int>("dimension",2);
-    data sdata("Sample Points", ptsdim, sampsettings.get("source","samples.dat"));
-    Kokkos::View<ScalarT**,HostDevice> samples = sdata.getpoints();
+    Data sdata("Sample Points", ptsdim, sampsettings.get("source","samples.dat"));
+    Kokkos::View<ScalarT**,HostDevice> samples = sdata.getPoints();
     int numsamples = samples.extent(0);
     
     // Evaluate MILO or a surrogate at these samples

@@ -91,8 +91,8 @@ int main(int argc, char * argv[]) {
     }
   }
 
-  Teuchos::RCP<MrHyDE::data> mesh_data;
-  mesh_data = Teuchos::rcp(new MrHyDE::data("mesh data", spaceDim, mesh_data_pts_file));
+  Teuchos::RCP<MrHyDE::Data> mesh_data;
+  mesh_data = Teuchos::rcp(new MrHyDE::Data("mesh data", spaceDim, mesh_data_pts_file));
 
   if(myRank == 0)
     std::cout << "Starting the mesh_data->findClosestNode approach..." << std::endl;
@@ -136,9 +136,9 @@ int main(int argc, char * argv[]) {
   Kokkos::View<int*> cnode_compadre("cnode_compadre",numElem);
   Teuchos::Time compadreTimer("compadre approach",true);
   {
-    Kokkos::View<double**, AssemblyDevice> sensor_coords = mesh_data->getpoints();
+    Kokkos::View<double**, AssemblyDevice> sensor_coords = mesh_data->getPoints();
     Kokkos::View<double*, AssemblyDevice> distance("distance",numElem);
-    Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(sensor_coords, centers, distance);
+    auto neighborlists = CompadreTools_constructNeighborLists(sensor_coords, centers, distance);
     cnode_compadre = neighborlists.getNeighborLists();
   }
   ScalarT compadreTime = compadreTimer.stop();

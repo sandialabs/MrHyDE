@@ -27,10 +27,8 @@ settings(settings_), Commptr(Comm_){
   
   debug_level = settings->get<int>("debug level",0);
   
-  if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Starting PhysicsInterface constructor ..." << endl;
-    }
+  if (debug_level > 0 && Commptr->getRank() == 0) {
+    cout << "**** Starting PhysicsInterface constructor ..." << endl;
   }
   
   mesh->getElementBlockNames(blocknames);
@@ -83,10 +81,8 @@ settings(settings_), Commptr(Comm_){
     }
   }
 
-  if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Finished physics constructor" << endl;
-    }
+  if (debug_level > 0 && Commptr->getRank() == 0) {
+    cout << "**** Finished physics constructor" << endl;
   }
 }
 

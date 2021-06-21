@@ -20,19 +20,18 @@ using namespace MrHyDE;
 //  transient, stochastic, etc.)
 /////////////////////////////////////////////////////////////////////////////
 
-data::data(const std::string & name_, const ScalarT & val) {
+Data::Data(const std::string & name_, const ScalarT & val) {
   name = name_;
   is_spatialdep = false;
   is_timedep = false;
   is_stochastic = false;
   spaceDim = 0;
-  numSensors = 0;
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
 
-data::data(const std::string & name_, const std::string & datafile) {
+Data::Data(const std::string & name_, const std::string & datafile) {
   
   name = name_;
   spaceDim = 0;
@@ -45,7 +44,7 @@ data::data(const std::string & name_, const std::string & datafile) {
 
 /////////////////////////////////////////////////////////////////////////////
 
-data::data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile) {
+Data::Data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile) {
   
   name = name_;
   spaceDim = spaceDim_;
@@ -59,8 +58,8 @@ data::data(const std::string & name_, const int & spaceDim_, const std::string &
 
 /////////////////////////////////////////////////////////////////////////////
 
-data::data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
-           const std::string & sensorprefix) {
+Data::Data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
+           const std::string & dataprefix) {
   
   name = name_;
   spaceDim = spaceDim_;
@@ -71,20 +70,20 @@ data::data(const std::string & name_, const int & spaceDim_, const std::string &
   
   this->importPoints(ptsfile, spaceDim);
   
-  for (int i=0; i<numSensors; i++) {
+  for (size_type i=0; i<points.extent(0); i++) {
     std::stringstream ss;
     ss << i;
     std::string str = ss.str();
-    std::string sensorname = sensorprefix + "." + str + ".dat";
-    this->importSensor(sensorname);
+    std::string filename = dataprefix + "." + str + ".dat";
+    this->importData(filename);
   }
   
 }
 
 /////////////////////////////////////////////////////////////////////////////
 
-data::data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
-           const std::string & sensorprefix, const bool & separate_files) {
+Data::Data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
+           const std::string & dataprefix, const bool & separate_files) {
   
   name = name_;
   spaceDim = spaceDim_;
@@ -95,24 +94,24 @@ data::data(const std::string & name_, const int & spaceDim_, const std::string &
   
   this->importPoints(ptsfile, spaceDim);
   if (separate_files) {
-    for (int i=0; i<numSensors; i++) {
+    for (size_type i=0; i<points.extent(0); i++) {
       std::stringstream ss;
       ss << i;
       std::string str = ss.str();
-      std::string sensorname = sensorprefix + "." + str + ".dat";
-      this->importSensor(sensorname);
+      std::string filename = dataprefix + "." + str + ".dat";
+      this->importData(filename);
     }
   }
   else {
-    this->importSensorOneFile(sensorprefix);
+    this->importDataOneFile(dataprefix);
   }
   
 }
 
 
 
-data::data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
-           const std::string & sensorprefix, const bool & separate_files,
+Data::Data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
+           const std::string & dataprefix, const bool & separate_files,
            const int & Nx, const int & Ny, const int & Nz) {
   
   name = name_;
@@ -124,16 +123,16 @@ data::data(const std::string & name_, const int & spaceDim_, const std::string &
   
   this->importGridPoints(ptsfile, spaceDim, Nx, Ny, Nz);
   if (separate_files) {
-    for (int i=0; i<numSensors; i++) {
+    for (size_type i=0; i<points.extent(0); i++) {
       std::stringstream ss;
       ss << i;
       std::string str = ss.str();
-      std::string sensorname = sensorprefix + "." + str + ".dat";
-      this->importSensor(sensorname);
+      std::string dataname = dataprefix + "." + str + ".dat";
+      this->importData(dataname);
     }
   }
   else {
-    this->importSensorOneFile(sensorprefix);
+    this->importDataOneFile(dataprefix);
   }
   
   
@@ -141,8 +140,8 @@ data::data(const std::string & name_, const int & spaceDim_, const std::string &
 
 /////////////////////////////////////////////////////////////////////////////
 
-data::data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
-           const int & Nsens, const std::string & sensorprefix) {
+Data::Data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
+           const int & Nsens, const std::string & dataprefix) {
   
   name = name_;
   spaceDim = spaceDim_;
@@ -152,14 +151,13 @@ data::data(const std::string & name_, const int & spaceDim_, const std::string &
   is_stochastic = false;
   
   this->importPoints(ptsfile, spaceDim);
-  numSensors = Nsens;
   
-  for (int i=0; i<numSensors; i++) {
+  for (size_type i=0; i<points.extent(0); i++) {
     std::stringstream ss;
     ss << i;
     std::string str = ss.str();
-    std::string sensorname = sensorprefix + "." + str + ".dat";
-    this->importSensor(sensorname);
+    std::string dataname = dataprefix + "." + str + ".dat";
+    this->importData(dataname);
   }
   
 }
@@ -167,7 +165,7 @@ data::data(const std::string & name_, const int & spaceDim_, const std::string &
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-void data::importPoints(const std::string & ptsfile, const int & spaceDim) {
+void Data::importPoints(const std::string & ptsfile, const int & spaceDim) {
   
   Teuchos::TimeMonitor timer(*pointImportTimer);
   
@@ -201,16 +199,16 @@ void data::importPoints(const std::string & ptsfile, const int & spaceDim) {
       }
     }
   }
-  numSensors = xvec.size();
+  size_t numSensors = xvec.size();
   
-  sensorlocations = Kokkos::View<ScalarT**,HostDevice>("sensor locations",numSensors,spaceDim);
-  for (int i=0; i<numSensors; i++) {
+  points = Kokkos::View<ScalarT**,HostDevice>("data points",numSensors,spaceDim);
+  for (size_t i=0; i<numSensors; i++) {
     if (spaceDim >0)
-      sensorlocations(i,0) = xvec[i];
+      points(i,0) = xvec[i];
     if (spaceDim >1)
-      sensorlocations(i,1) = yvec[i];
+      points(i,1) = yvec[i];
     if (spaceDim >2)
-      sensorlocations(i,2) = zvec[i];
+      points(i,2) = zvec[i];
   }
   
   
@@ -219,7 +217,7 @@ void data::importPoints(const std::string & ptsfile, const int & spaceDim) {
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-void data::importGridPoints(const std::string & ptsfile, const int & spaceDim,
+void Data::importGridPoints(const std::string & ptsfile, const int & spaceDim,
                             const int & Nx, const int & Ny, const int & Nz) {
   
   Teuchos::TimeMonitor timer(*pointImportTimer);
@@ -254,39 +252,38 @@ void data::importGridPoints(const std::string & ptsfile, const int & spaceDim,
       }
     }
   }
-  numSensors = xvec.size();
   
   if (spaceDim == 1) {
-    sensorGrid_x = Kokkos::View<ScalarT*,HostDevice>("sensor grid x pts",Nx);
+    grid_x = Kokkos::View<ScalarT*,HostDevice>("sensor grid x pts",Nx);
     for (int k=0; k<Nx; k++) {
-      sensorGrid_x(k) = xvec[k];
+      grid_x(k) = xvec[k];
     }
   }
   else if (spaceDim == 2) {
-    sensorGrid_x = Kokkos::View<ScalarT*,HostDevice>("sensor grid x pts",Nx);
+    grid_x = Kokkos::View<ScalarT*,HostDevice>("sensor grid x pts",Nx);
     for (int k=0; k<Nx; k++) {
-      sensorGrid_x(k) = xvec[k];
+      grid_x(k) = xvec[k];
     }
     
-    sensorGrid_y = Kokkos::View<ScalarT*,HostDevice>("sensor grid y pts",Ny);
+    grid_y = Kokkos::View<ScalarT*,HostDevice>("sensor grid y pts",Ny);
     for (int k=0; k<Ny; k++) {
-      sensorGrid_y(k) = yvec[(k)*Nx];
+      grid_y(k) = yvec[(k)*Nx];
     }
   }
   else if (spaceDim == 3) {
-    sensorGrid_x = Kokkos::View<ScalarT*,HostDevice>("sensor grid x pts",Nx);
+    grid_x = Kokkos::View<ScalarT*,HostDevice>("sensor grid x pts",Nx);
     for (int k=0; k<Nx; k++) {
-      sensorGrid_x(k) = xvec[k];
+      grid_x(k) = xvec[k];
     }
     
-    sensorGrid_y = Kokkos::View<ScalarT*,HostDevice>("sensor grid y pts",Ny);
+    grid_y = Kokkos::View<ScalarT*,HostDevice>("sensor grid y pts",Ny);
     for (int k=0; k<Ny; k++) {
-      sensorGrid_y(k) = yvec[(k)*Nx];
+      grid_y(k) = yvec[(k)*Nx];
     }
     
-    sensorGrid_z = Kokkos::View<ScalarT*,HostDevice>("sensor grid z pts",Nz);
+    grid_z = Kokkos::View<ScalarT*,HostDevice>("sensor grid z pts",Nz);
     for (int k=0; k<Nz; k++) {
-      sensorGrid_z(k) = zvec[(k)*Nx*Ny];
+      grid_z(k) = zvec[(k)*Nx*Ny];
     }
   }
   
@@ -295,18 +292,18 @@ void data::importGridPoints(const std::string & ptsfile, const int & spaceDim,
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-void data::importSensorOneFile(const std::string & sensorfile) {
+void Data::importDataOneFile(const std::string & datafile) {
   
   Teuchos::TimeMonitor timer(*dataImportTimer);
   
-  std::ifstream fnmast(sensorfile.c_str());
+  std::ifstream fnmast(datafile.c_str());
   if (!fnmast.good()) {
-    TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: could not find the sensor data file: " + sensorfile);
+    TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: could not find the data file: " + datafile);
   }
   
   
   std::vector<std::vector<ScalarT> > values;
-  std::ifstream fin(sensorfile.c_str());
+  std::ifstream fin(datafile.c_str());
   
   for (std::string line; std::getline(fin, line); )
   {
@@ -327,7 +324,7 @@ void data::importSensorOneFile(const std::string & sensorfile) {
     for (size_t j=0; j<values[i].size(); j++) {
       newdata(0,j) = values[i][j];
     }
-    sensordata.push_back(newdata);
+    data.push_back(newdata);
   }
   
 }
@@ -335,17 +332,17 @@ void data::importSensorOneFile(const std::string & sensorfile) {
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-void data::importSensor(const std::string & sensorfile) {
+void Data::importData(const std::string & datafile) {
   
   Teuchos::TimeMonitor timer(*dataImportTimer);
   
-  std::ifstream fnmast(sensorfile.c_str());
+  std::ifstream fnmast(datafile.c_str());
   if (!fnmast.good()) {
-    TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: could not find the sensor data file: " + sensorfile);
+    TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: could not find the data file: " + datafile);
   }
   
   std::vector<std::vector<ScalarT> > values;
-  std::ifstream fin(sensorfile.c_str());
+  std::ifstream fin(datafile.c_str());
   
   for (std::string line; std::getline(fin, line); )
   {
@@ -368,99 +365,62 @@ void data::importSensor(const std::string & sensorfile) {
     }
   }
   
-  sensordata.push_back(newdata);
+  data.push_back(newdata);
 }
 
 
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-/*
-ScalarT data::getvalue(const ScalarT & x, const ScalarT & y, const ScalarT & z,
-                       const ScalarT & time, const std::string & label) const {
+void Data::findClosestPoint(const Kokkos::View<ScalarT**, AssemblyDevice> &tstpts,
+                            Kokkos::View<int*, CompadreDevice> &closestpts) const {
   
-  Teuchos::TimeMonitor timer(*dataValueTimer);
+  Teuchos::TimeMonitor timer(*dataClosestTimer);
+  Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",points.extent(0));
+ 
+  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighborlists = CompadreTools_constructNeighborLists(points, tstpts, distance);
+  auto closestpts_tmp = neighborlists.getNeighborLists();
   
-  // find the closest point
-  ScalarT val = 0.0;
-  if (is_spatialdep) {
-    int cnode = this->findClosestNode(x, y, z); // GH: this needs to be updated if uncommented
-    //cout << "cnode = " << cnode << endl;
-    
-    Kokkos::View<ScalarT**,HostDevice> sdata = sensordata[cnode];
-    
-    //cout << "sdata = " << sdata << endl;
-    //std::vector<string> slabels = sensorlabels[cnode];
-    int index = 0;
-    //for (size_t j=0; j<slabels.size(); j++) {
-    //   if (slabels[j] == label)
-    //      index = j;
-    //}
-    int timeindex = 0;
-    //for (size_t j=0; j<slabels.size(); j++) {
-    //   if (slabels[j] == "t")
-    //      timeindex = j;
-    //}
-    if (is_timedep) {
-      size_t tn = 0;
-      bool found = false;
-      while (!found && tn<sdata.extent(0)) {
-        if (time>=sdata(tn,timeindex) && time<=sdata(tn+1,timeindex))
-          found = true;
-        else
-          tn += 1;
-      }
-      if (!found)
-        val = sdata(sdata.extent(0)-1,index);
-      else {
-        ScalarT alpha = (sdata(tn+1,timeindex)-time)/(sdata(tn+1,timeindex)-sdata(tn,timeindex));
-        val = alpha*sdata(tn,index) + (1.0-alpha)*sdata(tn+1,index);
-      }
-      
-    }
-    else
-      val = sdata(0,index);
+  // Safeguard against multiple neighbors ... just take the first (closest)
+  int prog = 0;
+  for (size_type pt=0; pt<closestpts.extent(0); ++pt) {
+    int np = neighborlists.getNumberOfNeighborsHost((int)pt);
+    closestpts(pt) = closestpts_tmp(prog);
+    prog += np;
+  }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+void Data::findClosestPoint(const Kokkos::View<ScalarT**, AssemblyDevice> &tstpts,
+                            Kokkos::View<int*, CompadreDevice> &closestpts,
+                            Kokkos::View<ScalarT*, AssemblyDevice> &distance) const {
+
+  Teuchos::TimeMonitor timer(*dataClosestTimer);
+  
+  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighborlists = CompadreTools_constructNeighborLists(points, tstpts, distance);
+  auto closestpts_tmp = neighborlists.getNeighborLists();
+  
+  // Safeguard against multiple neighbors ... just take the first (closest)
+  int prog = 0;
+  for (size_type pt=0; pt<closestpts.extent(0); ++pt) {
+    int np = neighborlists.getNumberOfNeighborsHost((int)pt);
+    closestpts(pt) = closestpts_tmp(prog);
+    prog += np;
   }
   
-  return val;
-}
-*/
-
-/////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////
-
-void data::findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords,
-                           Kokkos::View<int*, CompadreDevice> &cnode) const {
-  
-  Teuchos::TimeMonitor timer(*dataClosestTimer);
-  Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",sensorlocations.extent(0));
- 
-  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighborlists = CompadreTools_constructNeighborLists(sensorlocations, coords, distance);
-  cnode = neighborlists.getNeighborLists();
-}
-
-/////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////
-
-void data::findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords,
-                           Kokkos::View<int*, CompadreDevice> &cnode,
-                           Kokkos::View<ScalarT*, AssemblyDevice> &distance) const {
-
-  Teuchos::TimeMonitor timer(*dataClosestTimer);
-  
-  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighborlists = CompadreTools_constructNeighborLists(sensorlocations, coords, distance);
-  cnode = neighborlists.getNeighborLists();
-  
+  // Turning off the brute force methos, but leaving in the code for testing
   bool bruteforce = false;
   
   if (bruteforce) {
-    for (size_type pt=0; pt<coords.extent(0); ++pt) {
+    for (size_type pt=0; pt<tstpts.extent(0); ++pt) {
       ScalarT currdist = 1.0e20;
       int cpt = -1;
-      for (size_type s=0; s<sensorlocations.extent(0); ++s) {
+      for (size_type s=0; s<points.extent(0); ++s) {
         ScalarT tdist = 0.0;
-        for (size_type dim=0; dim<sensorlocations.extent(1); ++dim) {
-          tdist += std::pow((sensorlocations(s,dim) - coords(pt,dim)),2.0);
+        for (size_type dim=0; dim<points.extent(1); ++dim) {
+          tdist += std::pow((points(s,dim) - tstpts(pt,dim)),2.0);
         }
         if (tdist < currdist) {
           cpt = (int)s;
@@ -468,7 +428,7 @@ void data::findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords
           //std::cout << "Error: found a closer point " << currdist << "  " << tdist << std::endl;
         }
       }
-      cnode(pt) = cpt;
+      closestpts(pt) = cpt;
       distance(pt) = std::sqrt(currdist);
     }
   }
@@ -477,7 +437,8 @@ void data::findClosestNode(const Kokkos::View<ScalarT**, AssemblyDevice> &coords
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-int data::findClosestGridNode(const ScalarT & x, const ScalarT & y, const ScalarT & z, ScalarT & distance) const {
+int Data::findClosestGridPoint(const ScalarT & x, const ScalarT & y,
+                               const ScalarT & z, ScalarT & distance) const {
   
   Teuchos::TimeMonitor timer(*dataClosestTimer);
   
@@ -486,8 +447,8 @@ int data::findClosestGridNode(const ScalarT & x, const ScalarT & y, const Scalar
   if (spaceDim == 1) {
     ScalarT dist = (ScalarT)RAND_MAX;
     int node_x = 0;
-    for(size_type i=0; i<sensorGrid_x.extent(0); i++ ) {
-      ScalarT xhat = sensorGrid_x(i);
+    for(size_type i=0; i<grid_x.extent(0); i++ ) {
+      ScalarT xhat = grid_x(i);
       ScalarT d = (x-xhat)*(x-xhat);
       if( d<dist ) {
         node_x = i;
@@ -501,23 +462,23 @@ int data::findClosestGridNode(const ScalarT & x, const ScalarT & y, const Scalar
     ScalarT dist_x = (ScalarT)RAND_MAX;
     ScalarT dist_y = (ScalarT)RAND_MAX;
     int node_x=0, node_y=0;
-    for(size_type i=0; i<sensorGrid_x.extent(0); i++ ) {
-      ScalarT xhat = sensorGrid_x(i);
+    for(size_type i=0; i<grid_x.extent(0); i++ ) {
+      ScalarT xhat = grid_x(i);
       ScalarT d = (x-xhat)*(x-xhat);
       if( d<dist_x ) {
         node_x = i;
         dist_x = d;
       }
     }
-    for(size_type i=0; i<sensorGrid_y.extent(0); i++ ) {
-      ScalarT yhat = sensorGrid_y(i);
+    for(size_type i=0; i<grid_y.extent(0); i++ ) {
+      ScalarT yhat = grid_y(i);
       ScalarT d = (y-yhat)*(y-yhat);
       if( d<dist_y ) {
         node_y = i;
         dist_y = d;
       }
     }
-    node = node_y*sensorGrid_x.extent(0) + node_x;
+    node = node_y*grid_x.extent(0) + node_x;
     distance = sqrt(dist_x + dist_y);
   }
   if (spaceDim == 3) {
@@ -525,31 +486,31 @@ int data::findClosestGridNode(const ScalarT & x, const ScalarT & y, const Scalar
     ScalarT dist_y = (ScalarT)RAND_MAX;
     ScalarT dist_z = (ScalarT)RAND_MAX;
     int node_x=0, node_y=0, node_z=0;
-    for(size_type i=0; i<sensorGrid_x.extent(0); i++ ) {
-      ScalarT xhat = sensorGrid_x(i);
+    for(size_type i=0; i<grid_x.extent(0); i++ ) {
+      ScalarT xhat = grid_x(i);
       ScalarT d = (x-xhat)*(x-xhat);
       if( d<dist_x ) {
         node_x = i;
         dist_x = d;
       }
     }
-    for(size_type i=0; i<sensorGrid_y.extent(0); i++ ) {
-      ScalarT yhat = sensorGrid_y(i);
+    for(size_type i=0; i<grid_y.extent(0); i++ ) {
+      ScalarT yhat = grid_y(i);
       ScalarT d = (y-yhat)*(y-yhat);
       if( d<dist_y ) {
         node_y = i;
         dist_y = d;
       }
     }
-    for(size_type i=0; i<sensorGrid_z.extent(0); i++ ) {
-      ScalarT zhat = sensorGrid_z(i);
+    for(size_type i=0; i<grid_z.extent(0); i++ ) {
+      ScalarT zhat = grid_z(i);
       ScalarT d = (z-zhat)*(z-zhat);
       if( d<dist_z ) {
         node_z = i;
         dist_z = d;
       }
     }
-    node = node_z*sensorGrid_x.extent(0)*sensorGrid_y.extent(0) + node_y*sensorGrid_x.extent(0) + node_x;
+    node = node_z*grid_x.extent(0)*grid_y.extent(0) + node_y*grid_x.extent(0) + node_x;
     distance = sqrt(dist_x + dist_y + dist_z);
     
   }
@@ -561,20 +522,20 @@ int data::findClosestGridNode(const ScalarT & x, const ScalarT & y, const Scalar
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-std::vector<Kokkos::View<ScalarT**,HostDevice> > data::getdata() {
-  return sensordata;
+std::vector<Kokkos::View<ScalarT**,HostDevice> > Data::getData() {
+  return data;
 }
 
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT**,HostDevice> data::getdata(const int & sensnum) {
-  return sensordata[sensnum];
+Kokkos::View<ScalarT**,HostDevice> Data::getData(const int & sensnum) {
+  return data[sensnum];
 }
 
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT**,HostDevice> data::getpoints() {
-  return sensorlocations;
+Kokkos::View<ScalarT**,HostDevice> Data::getPoints() {
+  return points;
 }
