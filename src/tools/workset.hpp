@@ -206,6 +206,19 @@ namespace MrHyDE {
     void addData(const string & label, const int & dim0, const int & dim1);
     
     void addDataSc(const string & label, const int & dim0, const int & dim1);
+
+    /**
+     * @brief Add storage for integrated quantities to the workset.
+     * Should only be called during physics initialization.
+     *
+     * In the case of multiple physics defined on a block, the index returned may be greater than
+     * zero so the individual modules will know which portion of the storage they own.
+     *
+     * @param[in] nRequest  The number of IQs required by the physics module (residual calculation).
+     * @return The index where the first requested IQ will be placed (integer type).
+     */
+
+    int addIntegratedQuantities(const int & nRequested);
     
     //////////////////////////////////////////////////////////////
     // Functions to set the data
@@ -329,6 +342,10 @@ namespace MrHyDE {
         
     View_AD3 flux;
     View_AD2 res, adjrhs;
+
+    // Storage for integrated quantities TODO where to initialize? OK to do in the postprocess setup?
+    
+    View_Sc1 integrated_quantities;
         
     int sidetype;
     Kokkos::View<int****,AssemblyDevice> sideinfo;

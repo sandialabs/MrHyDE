@@ -39,7 +39,9 @@ thermal::thermal(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & i
   // Extra data
   formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
   have_nsvel = false;
-  
+  // Solely for testing purposes
+  test_IQs = settings->sublist("Physics").get<bool>("test integrated quantities",false);
+
 }
 
 // ========================================================================================
@@ -396,5 +398,38 @@ void thermal::setWorkset(Teuchos::RCP<workset> & wkset_) {
       wkset->get("uz",uz_vol);
     }
   }
+
+  // testing purposes only
+  if (test_IQs) IQ_start = wkset->addIntegratedQuantities(3);
+
 }
 
+// ========================================================================================
+// return the integrands for the integrated quantities (testing only for now)
+// ========================================================================================
+
+std::vector< std::vector<string> > thermal::setupIntegratedQuantities(const int & spaceDim) {
+
+  std::vector< std::vector<string> > integrandsNamesAndTypes;
+
+  // if not requested, be sure to return an empty vector
+  if ( !(test_IQs) ) return integrandsNamesAndTypes;
+
+  std::vector<string> IQ = {"e","thermal vol total e","volume"};
+  integrandsNamesAndTypes.push_back(IQ);
+
+  IQ = {"e","thermal bnd total e","boundary"};
+  integrandsNamesAndTypes.push_back(IQ);
+
+  // TODO -- BWR assumes the diffusion coefficient is 1.
+  // I was getting all zeroes if I used "diff"
+  string integrand = "(nx*grad(e)[x])";
+  if (spaceDim == 2) integrand = "(nx*grad(e)[x] + ny*grad(e)[y])";
+  if (spaceDim == 3) integrand = "(nx*grad(e)[x] + ny*grad(e)[y] + nz*grad(e)[z])";
+
+  IQ = {integrand,"thermal bnd heat flux","boundary"};
+  integrandsNamesAndTypes.push_back(IQ);
+
+  return integrandsNamesAndTypes;
+
+}

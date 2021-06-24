@@ -164,7 +164,6 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<SolverManager<SolverNode> > solve = Teuchos::rcp( new SolverManager<SolverNode>(Comm, settings, mesh,
                                                                                                  disc, phys, assembler, params) );
     
-    
     solve->multiscale_manager = multiscale_manager;
     solve->postproc = postproc;
     postproc->linalg = solve->linalg;

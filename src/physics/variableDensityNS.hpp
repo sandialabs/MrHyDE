@@ -89,6 +89,16 @@ namespace MrHyDE {
     //void setVars(std::vector<string> & varlist_);
     
     void setWorkset(Teuchos::RCP<workset> & wkset_);
+
+    /**
+     * @brief Returns the integrands and their types (boundary/volume) for integrated quantities required
+     * by the VDNS module. These are needed for closed systems where the background thermodynamic
+     * pressure changes over time.
+     *
+     * @return integrandsNamesAndTypes  Integrands, names, and type (boundary/volume) (matrix of strings).
+     */
+    
+    std::vector< std::vector<string> > setupIntegratedQuantities(const int & spaceDim);
     
     // ========================================================================================
     // return the value of the stabilization parameter 
@@ -163,9 +173,9 @@ namespace MrHyDE {
     
   private:
     
-    int ux_num, uy_num, uz_num, pr_num, T_num;
+    int ux_num, uy_num, uz_num, pr_num, T_num, IQ_start;
 
-    bool useSUPG, usePSPG, useGRADDIV;
+    bool useSUPG, usePSPG, useGRADDIV, openSystem, inoutflow;
     
     Kokkos::View<ScalarT*,AssemblyDevice> model_params;
     

@@ -1405,6 +1405,22 @@ void workset::addDataSc(const string & label, const int & dim0, const int & dim1
   data_Sc_usage.push_back(0);
 }
 
+int workset::addIntegratedQuantities(const int & nRequested) {
+
+  int startingIndex = this->integrated_quantities.extent(0);
+
+  // this should only be called when setting up the physics module
+  // in the case of multiple physics defined on the same block requesting IQs,
+  // integrated_quantities will get re-initialized until it's big
+  // enough for all of them (we anticipate nTotal to be small here).
+
+  this->integrated_quantities = 
+    View_Sc1("integrated quantities",startingIndex+nRequested);
+
+  return startingIndex;
+
+}
+
 //////////////////////////////////////////////////////////////
 // Extract a VIEW_AD2 (2-dimensional array with AD entries)
 //////////////////////////////////////////////////////////////
@@ -1649,7 +1665,7 @@ View_AD2 workset::getResidual() {
 }
 
 //////////////////////////////////////////////////////////////
-// Get the AD residual
+// Get the integration weights (interior)
 //////////////////////////////////////////////////////////////
 
 View_Sc2 workset::getWeights() {
@@ -1657,7 +1673,7 @@ View_Sc2 workset::getWeights() {
 }
 
 //////////////////////////////////////////////////////////////
-// Get the AD residual
+// Get the integration weights (boundary)
 //////////////////////////////////////////////////////////////
 
 View_Sc2 workset::getSideWeights() {

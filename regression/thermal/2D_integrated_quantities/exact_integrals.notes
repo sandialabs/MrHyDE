@@ -1,0 +1,23 @@
+The [0,1] x [0,1] domain is partitioned into 4 equal sized blocks.
+
+Hence, the "volume" in each block is .5^2 = .25.
+The boundary length is 2 in each block.
+
+By periodicity, the total e in each block is the same and is
+1/pi^2 * (cos(pi*x_2) - cos(pi*x_1))*(cos(pi*y_2) - cos(pi*y_1))
+which is, e.g., 1/pi^2*(cos(pi/2) - cos(0))^2 = 1/pi^2
+
+Similary, the boundary e in each block is e.g.
+\int_0^{.5} sin(pi*x) dx + \int_0^{.5} sin(pi*y) dy = 2/pi
+
+grad(e) = \pi [cos(pi*x)*sin(pi*y),sin(pi*x)*cos(pi*y)]
+
+\int grad(e) \dot n ds = - \pi \int_0^{.5} 1 * sin(pi*y) dy + \pi \int_0^{.5} 0 * sin(pi*y) dy
+                         - \pi \int_0^{.5} sin(pi*x) * 1 dx + \pi \int_0^{.5} sin(pi*x) * 0 dx = -2
+for example (lower left block).
+A similar result holds for other blocks
+
+left just makes sure only the boundary integral gets computed on the side named "left"
+This means that two of the blocks should report -1 for this integral and two should report 0
+
+
