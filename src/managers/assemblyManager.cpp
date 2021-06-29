@@ -537,6 +537,42 @@ void AssemblyManager<Node>::createCells() {
     
   }
   
+  // ==============================================
+  // Inform the user how much memory is utilized by cells/bcells
+  // ==============================================
+  
+  if (verbosity > 5) {
+    
+    // Volumetric ip/basis
+    size_t cellstorage = 0;
+    for (size_t b=0; b<cells.size(); ++b) {
+      for (size_t c=0; c<cells[b].size(); ++c) {
+        cellstorage += cells[b][c]->getVolumetricStorage();
+      }
+    }
+    double totalstorage = static_cast<double>(cellstorage)/1.0e6;
+    cout << " - Processor " << Comm->getRank() << " is using " << totalstorage << " MB to store cell volumetric data" << endl;
+    
+    // Face ip/basis
+    size_t facestorage = 0;
+    for (size_t b=0; b<cells.size(); ++b) {
+      for (size_t c=0; c<cells[b].size(); ++c) {
+        facestorage += cells[b][c]->getFaceStorage();
+      }
+    }
+    totalstorage = static_cast<double>(facestorage)/1.0e6;
+    cout << " - Processor " << Comm->getRank() << " is using " << totalstorage << " MB to store cell face data" << endl;
+    
+    // Boundary ip/basis
+    size_t boundarystorage = 0;
+    for (size_t b=0; b<boundaryCells.size(); ++b) {
+      for (size_t c=0; c<boundaryCells[b].size(); ++c) {
+        boundarystorage += boundaryCells[b][c]->getStorage();
+      }
+    }
+    totalstorage = static_cast<double>(boundarystorage)/1.0e6;
+    cout << " - Processor " << Comm->getRank() << " is using " << totalstorage << " MB to store boundary cell data" << endl;
+  }
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished AssemblyManager::createCells" << endl;
@@ -1702,7 +1738,7 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
                 }
               }
             }
-            J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics_); // isSorted, useAtomics
+            J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_); // isSorted, useAtomics
           }
         }
       }
@@ -1724,13 +1760,8 @@ void AssemblyManager<Node>::purgeMemory() {
     mesh.reset();
   }
   
-  
-  bool storeAll = settings->sublist("Solver").get<bool>("store all cell data",true);
-  if (storeAll) {
-    for (size_t block=0; block<cellData.size(); ++block) {
-      cellData[block]->clearPhysicalData();
-    }
-    
+  for (size_t block=0; block<cellData.size(); ++block) {
+    cellData[block]->clearPhysicalData();
   }
   
 }
