@@ -385,11 +385,14 @@ void FunctionManager::decomposeFunctions() {
           forests[f].trees[k].branches[j].isAD = isAD;
           
           if (isView) {
+            string expr = forests[f].trees[k].branches[j].expression;
             if (isAD) {
-              forests[f].trees[k].branches[j].viewdata = View_AD2("data", forests[f].dim0, forests[f].dim1);
+              forests[f].trees[k].branches[j].viewdata = View_AD2("data for " + expr,
+                                                                  forests[f].dim0, forests[f].dim1);
             }
             else {
-              forests[f].trees[k].branches[j].viewdata_Sc = View_Sc2("data", forests[f].dim0, forests[f].dim1);
+              forests[f].trees[k].branches[j].viewdata_Sc = View_Sc2("data for " + expr,
+                                                                     forests[f].dim0, forests[f].dim1);
             }
           }
         }
@@ -501,65 +504,82 @@ View_AD2 FunctionManager::evaluate(const string & fname, const string & location
     TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: function manager could not evaluate: " + fname + " at " + location);
   }
   
-  View_AD2 output = forests[fiter].trees[titer].branches[0].viewdata;
-  if (output.extent(0) == 0) {
-    output = View_AD2("data",forests[fiter].dim0,forests[fiter].dim1);
-    forests[fiter].trees[titer].branches[0].viewdata = output;
-    if (forests[fiter].trees[titer].branches[0].isConstant) {
-      deep_copy(output,forests[fiter].trees[titer].branches[0].data_Sc);
+  
+  //View_AD2 output = forests[fiter].trees[titer].branches[0].viewdata;
+  View_AD2 output;
+  bool alreadyfilled = false;
+  if (forests[fiter].trees[titer].branches[0].isAD) {
+    if (forests[fiter].trees[titer].branches[0].isView) {
+      if (!forests[fiter].trees[titer].branches[0].isParameter) {
+        output = forests[fiter].trees[titer].branches[0].viewdata;
+        alreadyfilled = true;
+      }
     }
   }
   
-  if (forests[fiter].trees[titer].branches[0].isAD) {
-    if (forests[fiter].trees[titer].branches[0].isView) {
-      if (forests[fiter].trees[titer].branches[0].isParameter) {
-        int pind = forests[fiter].trees[titer].branches[0].paramIndex;
-        auto pdata = forests[fiter].trees[titer].branches[0].param_data;
+  if (!alreadyfilled) {
+    output = forests[fiter].trees[titer].branches[0].viewdata;
+    //output = View_AD2("data",forests[fiter].dim0,forests[fiter].dim1);
+    if (output.extent(0) == 0) {
+      output = View_AD2("data for "+forests[fiter].trees[titer].branches[0].expression,
+                        forests[fiter].dim0,forests[fiter].dim1);
+      forests[fiter].trees[titer].branches[0].viewdata = output;
+      if (forests[fiter].trees[titer].branches[0].isConstant) {
+        deep_copy(output,forests[fiter].trees[titer].branches[0].data_Sc);
+      }
+    }
+    
+    if (forests[fiter].trees[titer].branches[0].isAD) {
+      if (forests[fiter].trees[titer].branches[0].isView) {
+        if (forests[fiter].trees[titer].branches[0].isParameter) {
+          int pind = forests[fiter].trees[titer].branches[0].paramIndex;
+          auto pdata = forests[fiter].trees[titer].branches[0].param_data;
+          //output = View_AD2("data",forests[fiter].dim0,forests[fiter].dim1);
+          parallel_for("funcman copy double to AD",
+                       TeamPolicy<AssemblyExec>(output.extent(0), Kokkos::AUTO, VectorSize),
+                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            for (size_type pt=team.team_rank(); pt<output.extent(1); pt+=team.team_size() ) {
+              output(elem,pt) = pdata(pind);
+            }
+          });
+        }
+        //else {
+        //  output = forests[fiter].trees[titer].branches[0].viewdata;
+        //}
+      }
+      else {
+        AD val = forests[fiter].trees[titer].branches[0].data;
+        // Can this be a deep_copy?
         //output = View_AD2("data",forests[fiter].dim0,forests[fiter].dim1);
         parallel_for("funcman copy double to AD",
                      TeamPolicy<AssemblyExec>(output.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type pt=team.team_rank(); pt<output.extent(1); pt+=team.team_size() ) {
-            output(elem,pt) = pdata(pind);
+            output(elem,pt) = val;
           }
         });
       }
-      //else {
-      //  output = forests[fiter].trees[titer].branches[0].viewdata;
-      //}
     }
     else {
-      AD val = forests[fiter].trees[titer].branches[0].data;
-      // Can this be a deep_copy?
-      //output = View_AD2("data",forests[fiter].dim0,forests[fiter].dim1);
-      parallel_for("funcman copy double to AD",
-                   TeamPolicy<AssemblyExec>(output.extent(0), Kokkos::AUTO, VectorSize),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        for (size_type pt=team.team_rank(); pt<output.extent(1); pt+=team.team_size() ) {
-          output(elem,pt) = val;
+      //output = View_AD2("output data",forests[fiter].dim0, forests[fiter].dim1);
+      if (forests[fiter].trees[titer].branches[0].isView) {
+        auto doutput = forests[fiter].trees[titer].branches[0].viewdata_Sc;
+        parallel_for("funcman copy double to AD",
+                     TeamPolicy<AssemblyExec>(output.extent(0), Kokkos::AUTO, VectorSize),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pt=team.team_rank(); pt<output.extent(1); pt+=team.team_size() ) {
+            output(elem,pt) = doutput(elem,pt);
+          }
+        });
+      }
+      else {
+        if (!forests[fiter].trees[titer].branches[0].isConstant) {
+          ScalarT data = forests[fiter].trees[titer].branches[0].data_Sc;
+          deep_copy(output,data);
         }
-      });
-    }
-  }
-  else {
-    //output = View_AD2("output data",forests[fiter].dim0, forests[fiter].dim1);
-    if (forests[fiter].trees[titer].branches[0].isView) {
-      auto doutput = forests[fiter].trees[titer].branches[0].viewdata_Sc;
-      parallel_for("funcman copy double to AD",
-                   TeamPolicy<AssemblyExec>(output.extent(0), Kokkos::AUTO, VectorSize),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        for (size_type pt=team.team_rank(); pt<output.extent(1); pt+=team.team_size() ) {
-          output(elem,pt) = doutput(elem,pt);
-        }
-      });
-    }
-    else {
-      if (!forests[fiter].trees[titer].branches[0].isConstant) {
-        ScalarT data = forests[fiter].trees[titer].branches[0].data_Sc;
-        deep_copy(output,data);
       }
     }
   }
