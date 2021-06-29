@@ -146,8 +146,6 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     maxEntries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
                                                                           static_cast<int>(maxEntries)));
     
-    cout << "maxEntries = " << maxEntries << endl;
-    
     overlapped_graph = Teuchos::rcp(new LA_CrsGraph(overlapped_map,
                                                     maxEntries,
                                                     Tpetra::StaticProfile));
