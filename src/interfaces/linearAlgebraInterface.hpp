@@ -296,7 +296,7 @@ namespace MrHyDE {
     int verbosity, debug_level;
     
     // Maps, graphs, importers and exporters
-    int maxEntries;
+    size_t maxEntries;
     Teuchos::RCP<const LA_Map> owned_map, overlapped_map, param_owned_map, param_overlapped_map, aux_owned_map, aux_overlapped_map;
     Teuchos::RCP<LA_CrsGraph> overlapped_graph, param_overlapped_graph, aux_overlapped_graph; // owned graphs are never used
     Teuchos::RCP<LA_Export> exporter, param_exporter, aux_exporter;

@@ -104,46 +104,6 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     }
   }
   
-  int spaceDim = disc->spaceDim;
-  
-  /*
-  maxEntries = 256;
-  
-  if (spaceDim == 1) {
-    maxEntries = 2*maxDerivs;
-  }
-  else if (spaceDim == 2) {
-    maxEntries = 4*maxDerivs;
-  }
-  else if (spaceDim == 3) {
-    maxEntries = 8*maxDerivs;
-  }
-  //maxEntries = 512;
-  */
-  
-  // Determine the max dofs per element
-  int maxoff = 0;
-  auto offs = disc->offsets;
-  for (size_t b=0; b<offs.size(); ++b) {
-    int coffsz = 0;
-    for (size_t v=0; v<offs[b].size(); ++v) {
-      coffsz += offs[b][v].size();
-    }
-    maxoff = std::max(maxoff,coffsz);
-  }
-  maxEntries = maxoff;
-  
-  // multiply by fudge factor to account for connectivity between elements (total hack)
-  if (spaceDim == 1) {
-    maxEntries *= 4;
-  }
-  else if (spaceDim == 2) {
-    maxEntries *= 8;
-  }
-  else if (spaceDim == 3) {
-    maxEntries *= 8;
-  }
-    
   std::vector<string> blocknames = disc->blocknames;
   
   // --------------------------------------------------
@@ -163,7 +123,34 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     
     owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, owned, 0, Comm));
     overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, ownedAndShared, 0, Comm));
-    overlapped_graph = Teuchos::rcp( new LA_CrsGraph(overlapped_map,maxEntries));
+    
+    vector<size_t> maxEntriesPerRow(overlapped_map->getNodeNumElements(), 0);
+    for (size_t b=0; b<blocknames.size(); b++) {
+      vector<size_t> EIDs = disc->myElements[b];
+      for (size_t e=0; e<EIDs.size(); e++) {
+        vector<GO> gids;
+        size_t elemID = EIDs[e];
+        disc->DOF->getElementGIDs(elemID, gids, blocknames[b]);
+        for (size_t i=0; i<gids.size(); i++) {
+          LO ind1 = overlapped_map->getLocalElement(gids[i]);
+          maxEntriesPerRow[ind1] += gids.size();
+        }
+      }
+    }
+    
+    maxEntries = 0;
+    for (size_t m=0; m<maxEntriesPerRow.size(); ++m) {
+      maxEntries = std::max(maxEntries, maxEntriesPerRow[m]);
+    }
+    
+    maxEntries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
+                                                                          static_cast<int>(maxEntries)));
+    
+    cout << "maxEntries = " << maxEntries << endl;
+    
+    overlapped_graph = Teuchos::rcp(new LA_CrsGraph(overlapped_map,
+                                                    maxEntries,
+                                                    Tpetra::StaticProfile));
     
     exporter = Teuchos::rcp(new LA_Export(overlapped_map, owned_map));
     importer = Teuchos::rcp(new LA_Import(owned_map, overlapped_map));
@@ -183,7 +170,8 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     
     overlapped_graph->fillComplete();
     
-    matrix = Teuchos::rcp(new LA_CrsMatrix(owned_map, maxEntries));
+    matrix = Teuchos::rcp(new LA_CrsMatrix(owned_map, maxEntries, Tpetra::StaticProfile));
+    
     overlapped_matrix = Teuchos::rcp(new LA_CrsMatrix(overlapped_graph));
     
     this->fillComplete(matrix);
@@ -288,6 +276,7 @@ template<class Node>
 Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParameterList() {
   Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList());
   belosList->set("Maximum Iterations",    maxLinearIters); // Maximum number of iterations allowed
+  //belosList->set("Num Blocks",    maxLinearIters);
   belosList->set("Convergence Tolerance", linearTOL);    // Relative convergence tolerance requested
   if (verbosity > 9) {
     belosList->set("Verbosity", Belos::Errors + Belos::Warnings + Belos::StatusTestDetails);
