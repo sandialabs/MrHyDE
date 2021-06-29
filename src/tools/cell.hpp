@@ -260,6 +260,10 @@ namespace MrHyDE {
     
     Kokkos::View<ScalarT***,AssemblyDevice> getSolutionAtNodes(const int & var);
     
+    size_t getVolumetricStorage();
+    
+    size_t getFaceStorage();
+    
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
@@ -287,8 +291,8 @@ namespace MrHyDE {
     size_t numElem;
     vector<View_Sc2> ip;
     View_Sc2 wts; 
-    vector<vector<View_Sc2> > ip_face, normals_face;
-    vector<View_Sc2 > wts_face;
+    vector<vector<View_Sc2>> ip_face, normals_face;
+    vector<View_Sc2> wts_face;
     vector<View_Sc1> hsize_face;
     
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;

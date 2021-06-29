@@ -674,3 +674,36 @@ void BoundaryCell::updateData() {
   }
   
 }
+
+
+size_t BoundaryCell::getStorage() {
+  size_t mystorage = 0;
+  if (cellData->storeAll) {
+    size_t scalarcost = 8; // 8 bytes per double
+    
+    for (size_t k=0; k<ip.size(); ++k) {
+      mystorage += scalarcost*ip[k].size();
+    }
+    for (size_t k=0; k<normals.size(); ++k) {
+      mystorage += scalarcost*normals[k].size();
+    }
+    for (size_t k=0; k<tangents.size(); ++k) {
+      mystorage += scalarcost*tangents[k].size();
+    }
+    
+    mystorage += scalarcost*wts.size();
+    for (size_t k=0; k<basis.size(); ++k) {
+      mystorage += scalarcost*basis[k].size();
+    }
+    for (size_t k=0; k<basis_grad.size(); ++k) {
+      mystorage += scalarcost*basis_grad[k].size();
+    }
+    for (size_t k=0; k<basis_curl.size(); ++k) {
+      mystorage += scalarcost*basis_curl[k].size();
+    }
+    for (size_t k=0; k<basis_div.size(); ++k) {
+      mystorage += scalarcost*basis_div[k].size();
+    }
+  }
+  return mystorage;
+}

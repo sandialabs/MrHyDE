@@ -1234,3 +1234,69 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getSolutionAtNodes(const int & var
   return nodesol;
   
 }
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Get the storage required for the integration/basis info
+///////////////////////////////////////////////////////////////////////////////////////
+
+size_t cell::getVolumetricStorage() {
+  size_t mystorage = 0;
+  if (cellData->storeAll) {
+    size_t scalarcost = 8; // 8 bytes per double
+    for (size_t k=0; k<ip.size(); ++k) {
+      mystorage += scalarcost*ip[k].size();
+    }
+    mystorage += scalarcost*wts.size();
+    for (size_t k=0; k<basis.size(); ++k) {
+      mystorage += scalarcost*basis[k].size();
+    }
+    for (size_t k=0; k<basis_grad.size(); ++k) {
+      mystorage += scalarcost*basis_grad[k].size();
+    }
+    for (size_t k=0; k<basis_curl.size(); ++k) {
+      mystorage += scalarcost*basis_curl[k].size();
+    }
+    for (size_t k=0; k<basis_div.size(); ++k) {
+      mystorage += scalarcost*basis_div[k].size();
+    }
+    for (size_t k=0; k<basis_nodes.size(); ++k) {
+      mystorage += scalarcost*basis_nodes[k].size();
+    }
+  }
+  return mystorage;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Get the storage required for the face integration/basis info
+///////////////////////////////////////////////////////////////////////////////////////
+
+size_t cell::getFaceStorage() {
+  size_t mystorage = 0;
+  if (cellData->storeAll) {
+    size_t scalarcost = 8; // 8 bytes per double
+    for (size_t f=0; f<ip_face.size(); ++f) {
+      for (size_t k=0; k<ip_face[f].size(); ++k) {
+        mystorage += scalarcost*ip_face[f][k].size();
+      }
+    }
+    for (size_t f=0; f<normals_face.size(); ++f) {
+      for (size_t k=0; k<normals_face[f].size(); ++k) {
+        mystorage += scalarcost*normals_face[f][k].size();
+      }
+    }
+    for (size_t f=0; f<wts_face.size(); ++f) {
+      mystorage += scalarcost*wts_face[f].size();
+    }
+    for (size_t f=0; f<basis_face.size(); ++f) {
+      for (size_t k=0; k<basis_face[f].size(); ++k) {
+        mystorage += scalarcost*basis_face[f][k].size();
+      }
+    }
+    for (size_t f=0; f<basis_grad_face.size(); ++f) {
+      for (size_t k=0; k<basis_grad_face.size(); ++k) {
+        mystorage += scalarcost*basis_grad_face[f][k].size();
+      }
+    }
+  }
+  return mystorage;
+}
