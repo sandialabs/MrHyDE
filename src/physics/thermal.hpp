@@ -66,18 +66,29 @@ namespace MrHyDE {
     
     void setWorkset(Teuchos::RCP<workset> & wkset_);
     
+    /**
+     * @brief Returns the integrands and their types (boundary/volume) for integrated quantities required
+     * by the thermal module. Currently, this is only used for testing purposes. 
+     *
+     * @return integrandsNamesAndTypes  Integrands, names, and type (boundary/volume) (matrix of strings).
+     */
+    
+    std::vector< std::vector<string> > setupIntegratedQuantities(const int & spaceDim);
+
+
   private:
     
     int e_num = -1, ux_num = -1, uy_num = -1, uz_num = -1;
     int e_basis_num = -1;
     int auxe_num = -1;
+    int IQ_start;
     
     View_AD2 e_vol, dedt_vol, dedx_vol, dedy_vol, dedz_vol;
     View_AD2 e_side, dedx_side, dedy_side, dedz_side;
     View_AD2 e_face, dedx_face, dedy_face, dedz_face;
     View_AD2 ux_vol, uy_vol, uz_vol;
     
-    bool have_nsvel;
+    bool have_nsvel,test_IQs;
     ScalarT formparam;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::thermal::volumeResidual() - function evaluation");

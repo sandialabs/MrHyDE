@@ -132,7 +132,27 @@ namespace MrHyDE {
     
     // ========================================================================================
     // ========================================================================================
+
+    /**
+     * @brief Returns the integrand and its type (boundary/volume) for integrated quantities required
+     * by the physics module. 
+     *
+     * In general, the user may also request integrated quantities in the input
+     * file. The number of spatial dimensions is required explicitly here because the workset is 
+     * not finalized before the postprocessing manager is set up.
+     *
+     * @param[in] spaceDim  The number of spatial dimensions.
+     * @return integrandsNamesAndTypes  Integrands, names, and type (boundary/volume) (matrix of strings).
+     */
     
+    virtual std::vector< std::vector<string> > setupIntegratedQuantities(const int & spaceDim) {
+      std::vector< std::vector<string> > integrandsNamesAndTypes;
+      return integrandsNamesAndTypes;
+    };
+    
+    // ========================================================================================
+    // ========================================================================================
+
     string label;
     
     Teuchos::RCP<workset> wkset;

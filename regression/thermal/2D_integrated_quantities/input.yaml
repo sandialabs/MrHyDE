@@ -1,0 +1,63 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh: 
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 10
+    NY: 10
+    Xblocks: 2
+    Yblocks: 2
+  Physics: 
+    modules: thermal
+    assemble boundary terms: false
+    test integrated quantities: true
+    Dirichlet conditions:
+      scalar data: true
+      e:
+        top: 0.0
+        bottom: 0.0
+        left: 0.0
+        right: 0.0
+    Initial conditions:
+      scalar data: true
+      e: 0.0
+  Discretization:
+    order:
+      e: 2
+    quadrature: 2
+  Solver: 
+    solver: steady-state
+    use strong DBCs: true
+  Analysis: 
+    analysis_type: forward
+  Postprocess: 
+    compute integrated quantities: true
+    compute errors: true
+    True solutions:
+      e: sin(pi*x)*sin(pi*y)
+    Integrated quantities:
+      vol:
+        integrand: '1.'
+      total e:
+        integrand: 'e'
+        location: 'volume'
+      bnd:
+        integrand: '1.'
+        location: 'boundary'
+      left:
+        integrand: 'nx*grad(e)[x] + ny*grad(e)[y]'
+        location: 'boundary'
+        boundary names: 'left'
+      bnd e:
+        integrand: 'e'
+        location: 'boundary'
+  Functions:
+    thermal source: 2*(pi*pi)*sin(pi*x)*sin(pi*y)
+...

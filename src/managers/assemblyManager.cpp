@@ -1169,7 +1169,7 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
       }
     }
     
-  } // element loop
+  } // cell loop
   
   //////////////////////////////////////////////////////////////////////////////////////
   // Boundary terms

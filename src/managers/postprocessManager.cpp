@@ -91,6 +91,8 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   cellfield_reduction = settings->sublist("Postprocess").get<string>("extra cell field reduction","mean");
   
   compute_flux_response = settings->sublist("Postprocess").get("compute flux response",false);
+
+  compute_integrated_quantities = settings->sublist("Postprocess").get("compute integrated quantities",false);
  
   soln = Teuchos::rcp(new SolutionStorage<Node>(settings));
   string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
@@ -259,9 +261,41 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     // Add flux responses (special case of responses)
     Teuchos::ParameterList flux_resp = blockPpSettings.sublist("Flux responses");
     this->addFluxResponses(flux_resp, b);
-           
+
+    // Add integrated quantities required by physics module
+    // This needs to happen before we read in integrated quantities from the input file
+    // to ensure proper ordering of the QoI 
+    vector<integratedQuantity> block_IQs;
+    for (size_t m=0; m<phys->modules[b].size(); ++m) {
+      vector< vector<string> > integrandsNamesAndTypes = 
+        phys->modules[b][m]->setupIntegratedQuantities(spaceDim);
+      vector<integratedQuantity> phys_IQs = 
+        this->addIntegratedQuantities(integrandsNamesAndTypes, b);
+      // add the IQs from this physics to the "running total" 
+      block_IQs.insert(end(block_IQs),begin(phys_IQs),end(phys_IQs));
+    }
+
+    // if the physics module requested IQs, make sure the compute flag is set to true
+    // workset storage occurs in the physics module (setWorkset)
+    if (block_IQs.size() > 0) { 
+      // BWR -- there is an edge case where the user will say false in the input file
+      // but ALSO have IQs defined. This could potentially end up grabbing some of those anyway...
+      compute_integrated_quantities = true; 
+    }
+
+    // Add integrated quantities from input file
+    Teuchos::ParameterList iqs = blockPpSettings.sublist("Integrated quantities");
+    vector<integratedQuantity> user_IQs = this->addIntegratedQuantities(iqs, b);
+
+    // add the IQs from the input file to the "running total"
+    block_IQs.insert(end(block_IQs),begin(user_IQs),end(user_IQs));
+
+    // finalize IQ bookkeeping, IQs are stored block by block
+    // only want to do this if we actually are computing something
+    if (block_IQs.size() > 0) integratedQuantities.push_back(block_IQs);
+
   } // end block loop
-    
+
   // Add sensor data to objectives
   this->addSensors();
   
@@ -403,6 +437,48 @@ void PostprocessManager<Node>::addFluxResponses(Teuchos::ParameterList & flux_re
 // ========================================================================================
 
 template<class Node>
+vector<integratedQuantity> PostprocessManager<Node>::addIntegratedQuantities(Teuchos::ParameterList & iqs,
+                                                                             const size_t & block) {
+  vector<integratedQuantity> IQs;
+  Teuchos::ParameterList::ConstIterator iqs_itr = iqs.begin();
+  while (iqs_itr != iqs.end()) {
+    Teuchos::ParameterList iqsettings = iqs.sublist(iqs_itr->first);
+    integratedQuantity newIQ(iqsettings,iqs_itr->first,block,functionManagers[block]);
+    IQs.push_back(newIQ);
+    iqs_itr++;
+  }
+  
+  return IQs;
+
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+vector<integratedQuantity> 
+PostprocessManager<Node>::addIntegratedQuantities(vector< vector<string> > & integrandsNamesAndTypes, 
+                                                  const size_t & block) {
+
+  vector<integratedQuantity> IQs; 
+
+  // first index is QoI, second index is 0 for integrand, 1 for name, 2 for type
+  for (size_t iIQ=0; iIQ<integrandsNamesAndTypes.size(); ++iIQ) {
+    integratedQuantity newIQ(integrandsNamesAndTypes[iIQ][0],
+                             integrandsNamesAndTypes[iIQ][1],
+                             integrandsNamesAndTypes[iIQ][2],
+                             block,functionManagers[block]);
+    IQs.push_back(newIQ);
+  }
+  
+  return IQs;
+
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
 void PostprocessManager<Node>::record(vector_RCP & current_soln, const ScalarT & current_time,
                                       const bool & write_this_step, DFAD & objectiveval) {
   if (compute_error) {
@@ -419,6 +495,9 @@ void PostprocessManager<Node>::record(vector_RCP & current_soln, const ScalarT &
   }
   if (compute_flux_response) {
     this->computeFluxResponse(current_time);
+  }
+  if (compute_integrated_quantities) {
+    this->computeIntegratedQuantities(current_time);
   }
 }
 
@@ -514,7 +593,60 @@ void PostprocessManager<Node>::report() {
     }
     
   }
-  
+
+  if (compute_integrated_quantities) {
+    if(Comm->getRank() == 0 ) {
+      if (verbosity > 0) {
+        cout << endl << "*********************************************************" << endl;
+        cout << "****** Computing Integrated Quantities ******" << endl;
+        cout << "*********************************************************" << endl;
+      }
+    }
+    
+    for (size_t iLocal=0; iLocal<integratedQuantities.size(); iLocal++) {
+
+      // iLocal indexes over the number of blocks where IQs are defined and
+      // does not necessarily match the global block ID
+
+      size_t globalBlock = integratedQuantities[iLocal][0].block; // all IQs with same first index share a block
+
+      vector<ScalarT> allsums;
+      
+      // the first n IQs are needed by the workset for residual calculations
+      size_t nIQsForResidual = assembler->wkset[globalBlock]->integrated_quantities.extent(0);
+
+      auto hostsums = Kokkos::View<ScalarT*,HostDevice>("host IQs",nIQsForResidual);
+    
+      for (size_t iIQ=0; iIQ<integratedQuantities[iLocal].size(); ++iIQ) {
+        // TODO :: does not handle vector quantities!
+        ScalarT lval = integratedQuantities[iLocal][iIQ].val();
+        ScalarT gval = 0.0;
+        Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lval,&gval);
+        if (iIQ<nIQsForResidual) {
+          hostsums(iIQ) = gval;
+        }
+        allsums.push_back(gval);
+        Kokkos::deep_copy(integratedQuantities[iLocal][iIQ].val,0.0);
+      }
+
+      // need to put in the right place now (accessible to the residual)!
+
+      // TODO CHECK THIS WITH TIM... am I dev/loc correctly?
+      Kokkos::deep_copy(assembler->wkset[globalBlock]->integrated_quantities,hostsums);
+      
+      if (Comm->getRank() == 0) { 
+        cout << endl << "*********************************************************" << endl;
+        cout << "****** Integrated Quantities on block : " << blocknames[globalBlock] <<  " ******" << endl;
+        cout << "*********************************************************" << endl;
+        for (size_t k=0; k<allsums.size(); ++k) { 
+          std::cout << integratedQuantities[iLocal][k].name << " : " << allsums[k] << std::endl; 
+        }
+      }
+    
+    } // end loop over blocks with IQs requested
+    // TODO output something?
+  } // end if compute_integrated_quantities
+
   ////////////////////////////////////////////////////////////////////////////
   // Report the errors for verification tests
   ////////////////////////////////////////////////////////////////////////////
@@ -899,7 +1031,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
                   
                   for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                     ScalarT diff = sol(elem,pt).val() - tsol(elem,pt).val();
-                    update += 0.5/facemeasure*diff*diff*wts(elem,pt);
+                    update += 0.5/facemeasure*diff*diff*wts(elem,pt);  // TODO - BWR what is this? why .5?
                   }
                 }, error);
                 blockerrors(etype) += error;
@@ -1068,6 +1200,106 @@ void PostprocessManager<Node>::computeFluxResponse(const ScalarT & currenttime) 
     }
   }
   
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & currenttime) {
+
+  if (debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      std::cout << "******** Starting PostprocessManager::computeIntegratedQuantities ..." << std::endl;
+    }
+  }
+
+  // TODO :: BWR -- currently, I am proceeding like quantities are requested over 
+  // a subvolume (or subboundary, etc.) which is defined by the block
+  // Hence, if a user wanted an integral over the ENTIRE volume, they would need to 
+  // sum up the individual contributions (in a multiblock case)
+  
+  for (size_t iLocal=0; iLocal<integratedQuantities.size(); iLocal++) {
+
+    // iLocal indexes over the number of blocks where IQs are defined and
+    // does not necessarily match the global block ID
+
+    size_t globalBlock = integratedQuantities[iLocal][0].block; // all IQs with same first index share a block
+
+    for (size_t iIQ=0; iIQ<integratedQuantities[iLocal].size(); ++iIQ) {
+
+      ScalarT integral = 0.;
+      ScalarT localContribution;
+
+      if (integratedQuantities[iLocal][iIQ].location == "volume") {
+
+        for (size_t cell=0; cell<assembler->cells[globalBlock].size(); ++cell) {
+
+          localContribution = 0.; // zero out this cell's contribution JIC here but needed below
+
+          // setup the workset for this cell
+          assembler->cells[globalBlock][cell]->updateWorkset(0,true);
+          // get integration weights
+          auto wts = assembler->wkset[globalBlock]->wts;
+          // evaluate the integrand at integration points
+          auto integrand = functionManagers[globalBlock]->evaluate(
+                integratedQuantities[iLocal][iIQ].name+" integrand","ip");
+
+          // expand this for integral integrands, etc.?
+          
+          parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                          KOKKOS_LAMBDA (const int elem, ScalarT & update) {
+                            for (size_t pt=0; pt<wts.extent(1); pt++) {
+                              ScalarT Idx = wts(elem,pt)*integrand(elem,pt).val();
+                              update += Idx;
+                            }
+                          },localContribution); //// TODO :: may be illegal
+
+          // add this cell's contribution to running total
+
+          integral += localContribution;
+
+        } // end loop over cells
+
+      } else if (integratedQuantities[iLocal][iIQ].location == "boundary") {
+
+        for (size_t cell=0; cell<assembler->boundaryCells[globalBlock].size(); ++cell) {
+
+          localContribution = 0.; // zero out this cell's contribution
+
+          // check if we are on one of the requested sides
+          string sidename = assembler->boundaryCells[globalBlock][cell]->sidename;
+          size_t found = integratedQuantities[iLocal][iIQ].boundarynames.find(sidename);
+
+          if ( (found!=std::string::npos) || 
+               (integratedQuantities[iLocal][iIQ].boundarynames == "all") ) {
+
+            // setup the workset for this cell
+            assembler->boundaryCells[globalBlock][cell]->updateWorkset(0,true); 
+            // get integration weights
+            auto wts = assembler->wkset[globalBlock]->wts_side;
+            // evaluate the integrand at integration points
+            auto integrand = functionManagers[globalBlock]->evaluate(
+                  integratedQuantities[iLocal][iIQ].name+" integrand","side ip");
+
+            parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                            KOKKOS_LAMBDA (const int elem, ScalarT & update) {
+                              for (size_t pt=0; pt<wts.extent(1); pt++) {
+                                ScalarT Idx = wts(elem,pt)*integrand(elem,pt).val();
+                                update += Idx;
+                              }
+                            },localContribution); //// TODO :: may be illegal, problematic ABOVE TOO
+
+          } // end if requested side
+          // add in this cell's contribution to running total
+          integral += localContribution;
+        } // end loop over boundary cells
+      } // end if volume or boundary
+      // finalize the integral
+      integratedQuantities[iLocal][iIQ].val(0) = integral;
+    } // end loop over integrated quantities
+  } // end loop over blocks (with IQs requested)
+
 }
 
 // ========================================================================================
@@ -3549,7 +3781,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
     for (size_type pt=0; pt<spts_host.extent(0); ++pt) {
       for (size_type j=0; j<sowners.extent(1); ++j) {
         sowners(prog,j) = spts_owners(pt,j);
-      }
+    }
       
       for (size_type j=0; j<spts.extent(1); ++j) {
         spts_tmp(prog,j) = spts_host(pt,j);

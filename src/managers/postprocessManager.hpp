@@ -169,6 +169,94 @@ namespace MrHyDE {
   
   
   // ========================================================================================
+  // Class for storing an integrated quantity
+  // ========================================================================================
+
+  /** integratedQuantity class
+   * 
+   * Holds the information necessary to compute an integrated quantity along with
+   * its value. This is not for optimization.
+   *
+   */
+  
+  // TODO -- BWR could potentially make this a parent class and have the others inherit.
+  class integratedQuantity {
+  public:
+    /**
+     * @brief Construct storage and information for an integrated quantity requested
+     * in the input file
+     *
+     * @param[in]  iqsettings  Parameter list with the settings from the input file
+     * @param[in]  name_  Name for the quantity
+     * @param[in]  block_  Mesh block on which to compute
+     * @param[in]  functionManager_  The function manager used to store the integrand 
+     *
+     */
+    
+    integratedQuantity(Teuchos::ParameterList & iqsettings, const string & name_,
+                 const size_t & block_, Teuchos::RCP<FunctionManager> & functionManager_) {
+      name = name_;
+      block = block_;
+      
+      // We assume a volume integral by default
+      location = iqsettings.get<string>("location","volume"); 
+      // Only used in case of boundary integral
+      boundarynames = iqsettings.get<string>("boundary names","all");
+      
+      val = Kokkos::View<ScalarT*,HostDevice>("integrated quantity data",1);
+     
+      integrand = iqsettings.get<string>("integrand","0.0");
+      
+      // Integrand is kept at the appropriate integration points
+      if (location == "volume") {
+        functionManager_->addFunction(name+" integrand",integrand,"ip"); 
+      } else if (location == "boundary") {
+        functionManager_->addFunction(name+" integrand",integrand,"side ip");
+      }
+
+    }
+    
+    /**
+     * @brief Construct storage and information for an integrated quantity requested
+     * from the physics module
+     *
+     * @param[in]  integrand  The integrand to be added to the function manager
+     * @param[in]  name_  Name for the quantity
+     * @param[in]  integralType  The type of integral (boundary or volume)
+     * @param[in]  block_  Mesh block on which to compute
+     * @param[in]  functionManager_  The function manager used to store the integrand 
+     *
+     */
+    
+    integratedQuantity(const string & integrand_, const string & name_, const string & integralType, 
+                 const size_t & block_, Teuchos::RCP<FunctionManager> & functionManager_) {
+      integrand = integrand_;
+      name = name_;
+      block = block_;
+      location = integralType; // for consistency with above
+
+      // Only used in case of boundary integral
+      boundarynames = "all"; // TODO this could be expanded in the future (again for consistency)
+      
+      val = Kokkos::View<ScalarT*,HostDevice>("integrated quantity data",1);
+     
+      // Integrand is kept at the appropriate integration points
+      if (location == "volume") {
+        functionManager_->addFunction(name+" integrand",integrand,"ip"); 
+      } else if (location == "boundary") {
+        functionManager_->addFunction(name+" integrand",integrand,"side ip");
+      } else {
+        // TODO add error message
+      }
+
+    }
+
+    string name, boundarynames, integrand, location;
+    size_t block;
+    Kokkos::View<ScalarT*,HostDevice> val;
+  };
+
+  // ========================================================================================
   // ========================================================================================
   
   template<class Node>
@@ -246,6 +334,17 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    /**
+     * @brief Updates the value of integrated quantities requested in the input file
+     *
+     * @param[in]  current_time  Current simulation time
+     */
+    
+    void computeIntegratedQuantities(const ScalarT & current_time);
+
+    // ========================================================================================
+    // ========================================================================================
+    
     void computeObjective(vector_RCP & current_soln, const ScalarT & current_time,
                           DFAD & objectiveval);
 
@@ -287,6 +386,36 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    /**
+     * @brief Parses the integrated quantities parameter list and constructs the requested
+     * IQs.
+     *
+     * @param[in]  iqs  Integrated quantities parameter list
+     * @param[in]  block  Mesh block
+     *
+     * @return A vector of integrated quantities defined on the block
+     */
+
+    vector<integratedQuantity> addIntegratedQuantities(Teuchos::ParameterList & iqs, const size_t & block);
+    
+    // ========================================================================================
+    // ========================================================================================
+
+    /**
+     * @brief Add integrated quantities to the postprocessing manager which are required
+     * by the physics module defined on a block.
+     *
+     * @param[in]  integrandsNamesAndTypes  Integrated quantity information from the physics module
+     * @param[in]  block  Mesh block
+     *
+     * @return A vector of integrated quantities defined on the block
+     */
+
+    vector<integratedQuantity> addIntegratedQuantities(vector< vector<string> > & integrandsNamesAndTypes, const size_t & block);
+    
+    // ========================================================================================
+    // ========================================================================================
+
     View_Sc2 getExtraCellFields(const int & block, View_Sc2 wts);
     
     // ========================================================================================
@@ -332,8 +461,9 @@ namespace MrHyDE {
     Teuchos::RCP<SolutionStorage<Node> > soln, adj_soln, datagen_soln;
     bool save_solution=false;
     vector<fluxResponse> fluxes;
+    vector< vector<integratedQuantity> > integratedQuantities; /// A vector of integrated quantities for each block
     
-    bool compute_objective, compute_flux_response;
+    bool compute_objective, compute_flux_response, compute_integrated_quantities;
     ScalarT discrete_objective_scale_factor;
     vector<vector<string> > extrafields_list, extracellfields_list, derivedquantities_list;
     

@@ -14,7 +14,7 @@
 #include "variableDensityNS.hpp"
 using namespace MrHyDE;
 
-// TODO :: no grad-div stab yet
+// TODO :: grad-div stab in progress
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -53,6 +53,11 @@ VDNS::VDNS(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
   useSUPG = settings->sublist("Physics").get<bool>("useSUPG",false);
   usePSPG = settings->sublist("Physics").get<bool>("usePSPG",false);
   useGRADDIV = settings->sublist("Physics").get<bool>("useGRADDIV",false);
+  // If false, the background thermodynamic pressure changes over time
+  openSystem = settings->sublist("Physics").get<bool>("open system",true);
+  // If true, the constraint on the background pressure is different (for a closed domain)
+  // see below
+  inoutflow = settings->sublist("Physics").get<bool>("in/outflow",true);
   
 }
 
@@ -69,16 +74,21 @@ void VDNS::defineFunctions(Teuchos::ParameterList & fs,
   functionManager->addFunction("source uy",fs.get<string>("source uy","0.0"),"ip");
   functionManager->addFunction("source uz",fs.get<string>("source uz","0.0"),"ip");
   functionManager->addFunction("source T", fs.get<string>("source T", "0.0"),"ip");
-  functionManager->addFunction("rho",fs.get<string>("rho","1.0"),"ip");
+  // Default is the ideal gas law as thermal divergence expression is based on this
+  functionManager->addFunction("rho",fs.get<string>("rho","p0/(RGas*T)"),"ip");
+  // We default to properties of air at 293 K
   // Dynamic viscosity  units are M/L-T
-  functionManager->addFunction("mu",fs.get<string>("mu","1.0"),"ip");
+  functionManager->addFunction("mu",fs.get<string>("mu","0.01178"),"ip");
   // Thermal conductivity  units are M-L/T^3-K (K must be Kelvin)  //TODO CHECK
-  functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),"ip"); 
+  functionManager->addFunction("lambda",fs.get<string>("lambda","cp*mu/PrNum"),"ip"); 
   // Thermodynamic pressure  units are M/L-T^2
-  // TODO :: this probably will need to change in the future if p0 is not constant ?
-  functionManager->addFunction("p0",fs.get<string>("p0","1.0"),"ip");
+  functionManager->addFunction("p0",fs.get<string>("p0","100000.0"),"ip");
   // Specific heat at constant pressure  units are L^2/T^2-K (K must be Kelvin) // TODO CHECK
-  functionManager->addFunction("cp",fs.get<string>("cp","1.0"),"ip");
+  functionManager->addFunction("cp",fs.get<string>("cp","1004.5"),"ip");
+  // Specific gas constant  units are J/kg-K
+  functionManager->addFunction("RGas",fs.get<string>("RGas","287.0"),"ip");
+  // Prandtl number
+  functionManager->addFunction("PrNum",fs.get<string>("PrNum","1.0"),"ip");
 
 }
 
@@ -216,6 +226,7 @@ void VDNS::volumeResidual() {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt))*wts(elem,pt);
           // TODO SOURCE AND DPDT TERM
+          F -= source_T(elem,pt)/cp(elem,pt)*wts(elem,pt);
           AD Fx = lambda(elem,pt)/cp(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += F*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0);
@@ -235,9 +246,10 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),0.0,0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            AD tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),0.0,0.0,
+                rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO CHECK THIS, UNITS ETC.
-            AD strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt));
+            AD strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt)) - source_T(elem,pt)/cp(elem,pt);
             AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0);
@@ -501,6 +513,7 @@ void VDNS::volumeResidual() {
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt))*wts(elem,pt);
+          F -= source_T(elem,pt)/cp(elem,pt)*wts(elem,pt);
           // TODO SOURCE AND DPDT TERM
           AD Fx = lambda(elem,pt)/cp(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
           AD Fy = lambda(elem,pt)/cp(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
@@ -522,9 +535,11 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            AD tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),uy(elem,pt),0.0,
+                rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO CHECK THIS, UNITS ETC.
-            AD strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
+            AD strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) 
+                + uy(elem,pt)*dT_dy(elem,pt)) - source_T(elem,pt)/cp(elem,pt);
             AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
             AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -831,6 +846,7 @@ void VDNS::volumeResidual() {
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt))*wts(elem,pt);
+          F -= source_T(elem,pt)/cp(elem,pt)*wts(elem,pt);
           // TODO SOURCE AND DPDT TERM
           AD Fx = lambda(elem,pt)/cp(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
           AD Fy = lambda(elem,pt)/cp(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
@@ -853,9 +869,11 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            AD tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),
+                rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO CHECK THIS, UNITS ETC.
-            AD strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt));
+            AD strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) 
+                + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt)) - source_T(elem,pt)/cp(elem,pt);
             AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
             AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
             AD Sz = tau*strongres*rho(elem,pt)*uz(elem,pt)*wts(elem,pt);
@@ -1210,6 +1228,58 @@ void VDNS::computeFlux() {
 }
 
 // ========================================================================================
+// return the integrands for the integrated quantities 
+// ========================================================================================
+
+std::vector< std::vector<string> > VDNS::setupIntegratedQuantities(const int & spaceDim) {
+
+  std::vector< std::vector<string> > integrandsNamesAndTypes;
+
+  if ( !(openSystem) ) {
+
+    if ( inoutflow ) {
+      // for in/outflow we need
+      // 1 -- volume of the domain
+      std::vector<string> IQdata = {"1.","VDNS vol total volume","volume"};
+      integrandsNamesAndTypes.push_back(IQdata);
+      // 2 -- total heating
+      IQdata = {"source T","VDNS vol Q total","volume"};
+      integrandsNamesAndTypes.push_back(IQdata);
+      // 3 -- heat flux on the boundary
+      // 4 -- "velocity" flux on the boundary
+      string hf,vf;
+      if (spaceDim == 1) {
+        hf = "lambda*(nx*grad(T)[x])";
+        vf = "nx*ux";
+      } else if (spaceDim == 2) {
+        hf = "lambda*(nx*grad(T)[x] + ny*grad(T)[y])";
+        vf = "nx*ux + ny*uy";
+      } else if (spaceDim == 3) {
+        hf = "lambda*(nx*grad(T)[x] + ny*grad(T)[y] + nz*grad(T)[z])";
+        vf = "nx*ux + ny*uy + nz*uz";
+      }
+      IQdata = {hf,"VDNS bnd heat flux","boundary"};
+      integrandsNamesAndTypes.push_back(IQdata);
+      IQdata = {vf,"VDNS bnd vel flux","boundary"};
+      integrandsNamesAndTypes.push_back(IQdata);
+
+    } else {
+      // if no inflow or outflow
+      // 1 -- total mass
+      std::vector<string> IQdata = {"rho","VDNS vol total mass","volume"};
+      integrandsNamesAndTypes.push_back(IQdata);
+      // 2 -- 1/T
+      IQdata = {"1./T","VDNS vol inverse temp","volume"};
+      integrandsNamesAndTypes.push_back(IQdata);
+    }
+
+  } // end if closed system
+
+  return integrandsNamesAndTypes;
+
+}
+
+// ========================================================================================
 // ========================================================================================
 // ========================================================================================
 // ========================================================================================
@@ -1231,6 +1301,17 @@ void VDNS::setWorkset(Teuchos::RCP<workset> & wkset_) {
     if (varlist[i] == "uz")
       uz_num = i;
   }
+
+  // we need to keep track of volume/boundary integrals in the closed domain case
+  if ( !(openSystem) ) {
+    int nIQs = 2;
+    if ( inoutflow ) {
+      nIQs = 4;
+    }
+    // add storage for them in the workset
+    IQ_start = wkset->addIntegratedQuantities(nIQs);
+  }
+
 }
 
 
