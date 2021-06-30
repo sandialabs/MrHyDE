@@ -14,8 +14,11 @@ int main(int argc, char * argv[]) {
 
   using MrHyDE::Vista;
   
+  typedef Kokkos::TeamPolicy<AssemblyExec> TeamPolicy;
+  typedef TeamPolicy::member_type member_type;
+
   {
-    int numElem = 100000;
+    int numElem = 1000;
     if (argc>1) {
       numElem = atof(argv[1]);
     }
@@ -37,18 +40,10 @@ int main(int argc, char * argv[]) {
     View_AD2 vadview("view of vads",numElem, numip);
     deep_copy(vadview,vad);
     
-    Vista v1 = Vista(val);
+    auto v1 = Vista(val);
     Vista v2 = Vista(vad);
     Vista v3 = Vista(valview);
     Vista v4 = Vista(vadview);
-    
-    size_type i0 = 1;
-    size_type i1 = 4;
-    cout << v1(i0,i1) << endl;
-    cout << v2(i0,i1) << endl;
-    cout << v3(i0,i1) << endl;
-    cout << v4(i0,i1) << endl;
-    
     
     View_AD2 tstview("view of vads",numElem, numip);
     
@@ -61,7 +56,19 @@ int main(int argc, char * argv[]) {
       }
     });
     
-    cout << timer.seconds() << endl;
+    cout << "Vista Scalar Range time: " << timer.seconds() << endl;
+    
+    timer.reset();
+    parallel_for("Thermal volume resid 2D",
+                 TeamPolicy(tstview.extent(0), 1, 32),
+                 KOKKOS_LAMBDA (member_type team ) {
+      int elem = team.league_rank();
+      for (size_type pt=team.team_rank(); pt<tstview.extent(1); pt+=team.team_size() ) {
+        tstview(elem,pt) = 2.0*v1(elem,pt);
+      }
+    });
+    
+    cout << "Vista Scalar Team time: " << timer.seconds() << endl;
     
     
     timer.reset();
@@ -73,7 +80,19 @@ int main(int argc, char * argv[]) {
       }
     });
     
-    cout << timer.seconds() << endl;
+    cout << "Vista AD Range time: " << timer.seconds() << endl;
+    
+    timer.reset();
+    parallel_for("Thermal volume resid 2D",
+                 TeamPolicy(tstview.extent(0), 1, 32),
+                 KOKKOS_LAMBDA (member_type team ) {
+      int elem = team.league_rank();
+      for (size_type pt=team.team_rank(); pt<tstview.extent(1); pt+=team.team_size() ) {
+        tstview(elem,pt) = 2.0*v2(elem,pt);
+      }
+    });
+    
+    cout << "Vista AD Team time: " << timer.seconds() << endl;
     
     
     timer.reset();
@@ -85,18 +104,19 @@ int main(int argc, char * argv[]) {
       }
     });
     
-    cout << timer.seconds() << endl;
+    cout << "Vista View Scalar Range time: " << timer.seconds() << endl;
     
     timer.reset();
     parallel_for("Thermal volume resid 2D",
-                 RangePolicy<AssemblyExec>(0,tstview.extent(0)),
-                 KOKKOS_LAMBDA (const size_type elem ) {
-      for (size_type pt=0; pt<tstview.extent(1); ++pt) {
-        tstview(elem,pt) = 2.0*valview(elem,pt);
+                 TeamPolicy(tstview.extent(0), 1, 32),
+                 KOKKOS_LAMBDA (member_type team ) {
+      int elem = team.league_rank();
+      for (size_type pt=team.team_rank(); pt<tstview.extent(1); pt+=team.team_size() ) {
+        tstview(elem,pt) = 2.0*v3(elem,pt);
       }
     });
     
-    cout << timer.seconds() << endl;
+    cout << "Vista View Scalar Team time: " << timer.seconds() << endl;
     
     timer.reset();
     parallel_for("Thermal volume resid 2D",
@@ -107,7 +127,42 @@ int main(int argc, char * argv[]) {
       }
     });
     
-    cout << timer.seconds() << endl;
+    cout << "Vista View AD Range time: " << timer.seconds() << endl;
+    
+    timer.reset();
+    parallel_for("Thermal volume resid 2D",
+                 TeamPolicy(tstview.extent(0), 1, 32),
+                 KOKKOS_LAMBDA (member_type team ) {
+      int elem = team.league_rank();
+      for (size_type pt=team.team_rank(); pt<tstview.extent(1); pt+=team.team_size() ) {
+        tstview(elem,pt) = 2.0*v4(elem,pt);
+      }
+    });
+    
+    cout << "Vista View AD Team time: " << timer.seconds() << endl;
+    
+    timer.reset();
+    parallel_for("Thermal volume resid 2D",
+                 RangePolicy<AssemblyExec>(0,tstview.extent(0)),
+                 KOKKOS_LAMBDA (const size_type elem ) {
+      for (size_type pt=0; pt<tstview.extent(1); ++pt) {
+        tstview(elem,pt) = 2.0*valview(elem,pt);
+      }
+    });
+    
+    cout << "Reference View Scalar Range time: " << timer.seconds() << endl;
+    
+    timer.reset();
+    parallel_for("Thermal volume resid 2D",
+                 TeamPolicy(tstview.extent(0), 1, 32),
+                 KOKKOS_LAMBDA (member_type team ) {
+      int elem = team.league_rank();
+      for (size_type pt=team.team_rank(); pt<tstview.extent(1); pt+=team.team_size() ) {
+        tstview(elem,pt) = 2.0*valview(elem,pt);
+      }
+    });
+    
+    cout << "Reference View Scalar Team time: " << timer.seconds() << endl;
     
     timer.reset();
     parallel_for("Thermal volume resid 2D",
@@ -118,7 +173,19 @@ int main(int argc, char * argv[]) {
       }
     });
     
-    cout << timer.seconds() << endl;
+    cout << "Reference View AD Range time: " << timer.seconds() << endl;
+    
+    timer.reset();
+    parallel_for("Thermal volume resid 2D",
+                 TeamPolicy(tstview.extent(0), 1, 32),
+                 KOKKOS_LAMBDA (member_type team ) {
+      int elem = team.league_rank();
+      for (size_type pt=team.team_rank(); pt<tstview.extent(1); pt+=team.team_size() ) {
+        tstview(elem,pt) = 2.0*vadview(elem,pt);
+      }
+    });
+    cout << "Reference View AD Team time: " << timer.seconds() << endl;
+    
   }
   
   Kokkos::finalize();
