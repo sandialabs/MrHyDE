@@ -36,9 +36,11 @@ namespace MrHyDE {
     AD data;
     
     AD outval = 0.0;
-    
+
+    KOKKOS_INLINE_FUNCTION    
     Vista() {};
     
+    KOKKOS_INLINE_FUNCTION
     ~Vista() {};
     
     Vista(View_AD2 vdata) : isView(true) {
@@ -53,7 +55,7 @@ namespace MrHyDE {
     
     Vista(View_Sc2 vdata) {
       viewdata_Sc = vdata;
-      viewdata = View_AD2("empty view",0,0);
+      viewdata = View_AD2("empty view",1,1);
       data = 0.0;
       data_Sc = 0.0;
       
@@ -62,43 +64,53 @@ namespace MrHyDE {
     }
     
     Vista(AD & data_) {
-      viewdata = View_AD2("empty view",0,0);
+      viewdata = View_AD2("empty view",1,1);
       viewdata_Sc = View_Sc2("empty view",0,0);
       data = data_;
       data_Sc = 0.0;
-      
+     
+      deep_copy(viewdata,data); 
       isView = false;
       isAD = true;
     }
     
     Vista(ScalarT & data_) {
-      viewdata = View_AD2("empty view",0,0);
+      viewdata = View_AD2("empty view",1,1);
       viewdata_Sc = View_Sc2("empty view",0,0);
       data = 0.0;
       data_Sc = data_;
-      
+     
+      deep_copy(viewdata,data_Sc); 
       isView = false;
       isAD = false;
     }
     
-    KOKKOS_FORCEINLINE_FUNCTION
-    AD operator()(const size_type & i0, const size_type & i1) const {
+    //KOKKOS_FORCEINLINE_FUNCTION
+    KOKKOS_INLINE_FUNCTION
+    //AD& operator()(const size_type & i0, const size_type & i1) const {
+    View_AD2::reference_type operator()(const size_type & i0, const size_type & i1) const {
       if (isView) {
         if (isAD) {
           return viewdata(i0,i1);
         }
         else {
-          AD newval = viewdata_Sc(i0,i1);
-          return newval;
+          viewdata(0,0).val() = viewdata_Sc(i0,i1);
+          return viewdata(0,0);
+          //AD newval = viewdata_Sc(i0,i1);
+          //return newval;
         }
       }
       else {
         if (isAD) {
-          return data;
+          //viewdata(0,0) = data;
+          return viewdata(0,0);
+          //return data;
         }
         else {
-          AD newval = data_Sc;
-          return newval;
+          //viewdata(0,0) = data_Sc;
+          return viewdata(0,0);
+          //AD newval = data_Sc;
+          //return newval;
         }
       }
     }
