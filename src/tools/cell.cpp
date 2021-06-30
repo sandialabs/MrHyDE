@@ -1293,7 +1293,7 @@ size_t cell::getFaceStorage() {
       }
     }
     for (size_t f=0; f<basis_grad_face.size(); ++f) {
-      for (size_t k=0; k<basis_grad_face.size(); ++k) {
+      for (size_t k=0; k<basis_grad_face[f].size(); ++k) {
         mystorage += scalarcost*basis_grad_face[f][k].size();
       }
     }
