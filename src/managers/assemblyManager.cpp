@@ -1101,6 +1101,8 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
     }
     else { // fill local_res and local_J and then scatter
     
+      Teuchos::TimeMonitor localtimer(*scattertimer);
+      
       Kokkos::deep_copy(local_res,0.0);
       Kokkos::deep_copy(local_J,0.0);
       
@@ -1119,16 +1121,14 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
       }
       
       // Update the local residual
-      if (!useadjoint) {
-        cells[b][e]->updateRes(compute_sens, local_res);
-      }
       
       if (useadjoint) {
         cells[b][e]->updateAdjointRes(compute_jacobian, isTransient,
                                       false, store_adjPrev,
                                       local_J, local_res);
-        
-        
+      }
+      else {
+        cells[b][e]->updateRes(compute_sens, local_res);
       }
       
       // Now scatter from local_res and local_J
@@ -1223,6 +1223,8 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
         }
         else { // fill local_res and local_J and then scatter
         
+          Teuchos::TimeMonitor localtimer(*scattertimer);
+          
           Kokkos::deep_copy(local_res,0.0);
           Kokkos::deep_copy(local_J,0.0);
         
@@ -1540,7 +1542,7 @@ void AssemblyManager<Node>::scatterJac(MatType J_kcrs, LocalViewType local_J,
                                        LIDViewType LIDs, LIDViewType paramLIDs,
                                        const bool & compute_disc_sens) {
 
-  Teuchos::TimeMonitor localtimer(*scattertimer);
+  //Teuchos::TimeMonitor localtimer(*scattertimer);
   
   typedef typename Node::execution_space LA_exec;
   
@@ -1599,7 +1601,7 @@ template<class Node>
 template<class VecViewType, class LocalViewType, class LIDViewType>
 void AssemblyManager<Node>::scatterRes(VecViewType res_view, LocalViewType local_res, LIDViewType LIDs) {
 
-  Teuchos::TimeMonitor localtimer(*scattertimer);
+  //Teuchos::TimeMonitor localtimer(*scattertimer);
   
   typedef typename Node::execution_space LA_exec;
   
