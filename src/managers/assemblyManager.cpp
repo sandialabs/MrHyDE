@@ -1566,7 +1566,7 @@ void AssemblyManager<Node>::scatterJac(MatType J_kcrs, LocalViewType local_J,
         for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
           LO colIndex = paramLIDs(elem,col);
           ScalarT val = local_J(elem,row,col);
-          J_kcrs.sumIntoValues(colIndex, &rowIndex, 1, &val, true, use_atomics_); // isSorted, useAtomics
+          J_kcrs.sumIntoValues(colIndex, &rowIndex, 1, &val, false, use_atomics_); // isSorted, useAtomics
         }
       }
     });
@@ -1585,7 +1585,7 @@ void AssemblyManager<Node>::scatterJac(MatType J_kcrs, LocalViewType local_J,
             vals[col] = local_J(elem,row,col);
             cols[col] = LIDs(elem,col);
           }
-          J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, true, use_atomics_); // isSorted, useAtomics
+          J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_); // isSorted, useAtomics
         }
       }
     });
