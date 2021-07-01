@@ -47,7 +47,7 @@ namespace MrHyDE {
     
     Vista(View_Sc2 vdata) {
       viewdata_Sc = vdata;
-      viewdata = View_AD2("2D view",1,1);
+      viewdata = View_AD2("2D view",vdata.extent(0),vdata.extent(1));
       isView = true;
       isAD = false;
     }
@@ -89,8 +89,8 @@ namespace MrHyDE {
           return viewdata(i0,i1);
         }
         else {
-          viewdata(0,0).val() = viewdata_Sc(i0,i1);
-          return viewdata(0,0);
+          viewdata(i0,i1).val() = viewdata_Sc(i0,i1);
+          return viewdata(i0,i1);
         }
       }
       else {
