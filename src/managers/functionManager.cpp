@@ -634,9 +634,9 @@ Vista FunctionManager::evaluate(const string & fname, const string & location,
     //Teuchos::TimeMonitor ttimer(*evaluateCopyTimer);
     
     if (!forests[fiter].trees[titer].branches[0].isConstant) {
-      if (!forests[fiter].trees[titer].branches[0].isView || forests[fiter].trees[titer].branches[0].isParameter) {
+      //if (!forests[fiter].trees[titer].branches[0].isView || forests[fiter].trees[titer].branches[0].isParameter) {
         forests[fiter].trees[titer].updateVista();
-      }
+      //}
     }
   }
   

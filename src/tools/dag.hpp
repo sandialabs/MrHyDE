@@ -122,18 +122,28 @@ namespace MrHyDE {
     
     void updateVista() {
       if (branches[0].isAD) {
-        if (branches[0].isParameter) {
-          int pind = branches[0].paramIndex;
-          auto pdata = branches[0].param_data;
-          AD pval = pdata(pind); // Yes, I know this won't work on a GPU
-          vista.update(pval);
+        if (branches[0].isView) {
+          if (branches[0].isParameter) {
+            int pind = branches[0].paramIndex;
+            auto pdata = branches[0].param_data;
+            AD pval = pdata(pind); // Yes, I know this won't work on a GPU
+            vista.update(pval);
+          }
+          else {
+            vista.update(branches[0].viewdata);
+          }
         }
         else {
           vista.update(branches[0].data);
         }
       }
       else {
-        vista.update(branches[0].data_Sc);
+        if (branches[0].isView) {
+          vista.update(branches[0].viewdata_Sc);
+        }
+        else {
+          vista.update(branches[0].data_Sc);
+        }
       }
     }
     
