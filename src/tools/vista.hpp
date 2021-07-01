@@ -94,12 +94,7 @@ namespace MrHyDE {
         }
       }
       else {
-        if (isAD) {
-          return viewdata(0,0);
-        }
-        else {
-          return viewdata(0,0);
-        }
+        return viewdata(0,0);
       }
     }
     
