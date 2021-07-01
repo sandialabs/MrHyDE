@@ -16,6 +16,7 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
+#include "vista.hpp"
 
 namespace MrHyDE {
   
@@ -98,8 +99,47 @@ namespace MrHyDE {
       branches.push_back(Branch(expression));
     }
     
+    void setupVista() {
+      if (branches.size() > 0) {
+        if (branches[0].isView) {
+          if (branches[0].isAD) {
+            vista = Vista(branches[0].viewdata);
+          }
+          else {
+            vista = Vista(branches[0].viewdata_Sc);
+          }
+        }
+        else {
+          if (branches[0].isAD) {
+            vista = Vista(branches[0].data);
+          }
+          else {
+            vista = Vista(branches[0].data_Sc);
+          }
+        }
+      }
+    }
+    
+    void updateVista() {
+      if (branches[0].isAD) {
+        if (branches[0].isParameter) {
+          int pind = branches[0].paramIndex;
+          auto pdata = branches[0].param_data;
+          AD pval = pdata(pind); // Yes, I know this won't work on a GPU
+          vista.update(pval);
+        }
+        else {
+          vista.update(branches[0].data);
+        }
+      }
+      else {
+        vista.update(branches[0].data_Sc);
+      }
+    }
+    
     std::vector<Branch> branches;
     string name, expression;
+    Vista vista;
     
   };
   

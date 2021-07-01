@@ -68,10 +68,27 @@ void thermal::defineFunctions(Teuchos::ParameterList & fs,
 
 void thermal::volumeResidual() {
   
+ 
   int spaceDim = wkset->dimension;
   auto basis = wkset->basis[e_basis_num];
   auto basis_grad = wkset->basis_grad[e_basis_num];
+  
+  /*
+  Vista source, diff, cp, rho;
+  
+  {
+    Teuchos::TimeMonitor funceval(*volumeResidualFunc);
+    source = functionManager->evaluate("thermal source","ip",true);
+    diff = functionManager->evaluate("thermal diffusion","ip",true);
+    cp = functionManager->evaluate("specific heat","ip",true);
+    rho = functionManager->evaluate("density","ip",true);
+  
+  }
+  */
+  
+  
   View_AD2 source, diff, cp, rho;
+  
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("thermal source","ip");
@@ -80,13 +97,14 @@ void thermal::volumeResidual() {
     rho = functionManager->evaluate("density","ip");
   }
   
-  Teuchos::TimeMonitor resideval(*volumeResidualFill);
- 
+  
   // Contributes:
   // (f(u),v) + (DF(u),nabla v)
   // f(u) = rho*cp*de/dt - source
   // DF(u) = diff*grad(e)
   
+  Teuchos::TimeMonitor resideval(*volumeResidualFill);
+ 
   auto wts = wkset->wts;
   auto res = wkset->res;
     

@@ -143,6 +143,8 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       maxEntries = std::max(maxEntries, maxEntriesPerRow[m]);
     }
     
+    //cout << "maxEntries = " << maxEntries << endl;
+    
     maxEntries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
                                                                           static_cast<int>(maxEntries)));
     
@@ -274,7 +276,7 @@ template<class Node>
 Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParameterList() {
   Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList());
   belosList->set("Maximum Iterations",    maxLinearIters); // Maximum number of iterations allowed
-  //belosList->set("Num Blocks",    maxLinearIters);
+  //belosList->set("Num Blocks",    1); //maxLinearIters);
   belosList->set("Convergence Tolerance", linearTOL);    // Relative convergence tolerance requested
   if (verbosity > 9) {
     belosList->set("Verbosity", Belos::Errors + Belos::Warnings + Belos::StatusTestDetails);

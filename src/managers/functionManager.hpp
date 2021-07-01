@@ -19,6 +19,7 @@
 #include "dag.hpp"
 #include "interpreter.hpp"
 #include "workset.hpp"
+#include "vista.hpp"
 
 namespace MrHyDE {
   
@@ -69,6 +70,9 @@ namespace MrHyDE {
     
     View_AD2 evaluate(const std::string & fname, const std::string & location);
     
+    Vista evaluate(const std::string & fname, const std::string & location,
+                   const bool & nothing);
+    
     //////////////////////////////////////////////////////////////////////////////////////
     // Evaluate a function
     //////////////////////////////////////////////////////////////////////////////////////
@@ -115,7 +119,7 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> evaluateExtTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::FunctionManager::evaluate - external call");
     Teuchos::RCP<Teuchos::Time> evaluateIntTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::FunctionManager::evaluate - internal call");
     Teuchos::RCP<Teuchos::Time> evaluateOpTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::FunctionManager::evaluateOp");
-    
+    Teuchos::RCP<Teuchos::Time> evaluateCopyTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::FunctionManager::evaluate - copy data");
   };
   
 }

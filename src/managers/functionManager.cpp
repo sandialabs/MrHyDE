@@ -409,6 +409,7 @@ void FunctionManager::decomposeFunctions() {
             }
           }
         }
+        forests[f].trees[k].setupVista();
       }
     }
   }
@@ -518,6 +519,8 @@ View_AD2 FunctionManager::evaluate(const string & fname, const string & location
   }
   
   if (!alreadyfilled) {
+    //Teuchos::TimeMonitor ttimer(*evaluateCopyTimer);
+    
     output = forests[fiter].trees[titer].branches[0].viewdata;
     //output = View_AD2("data",forests[fiter].dim0,forests[fiter].dim1);
     if (output.extent(0) == 0) {
@@ -584,6 +587,58 @@ View_AD2 FunctionManager::evaluate(const string & fname, const string & location
     }
   }
   return output;
+  
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+// Evaluate a function
+//////////////////////////////////////////////////////////////////////////////////////
+
+Vista FunctionManager::evaluate(const string & fname, const string & location,
+                                const bool & nothing) {
+
+  //Teuchos::TimeMonitor ttimer(*evaluateExtTimer);
+  
+  bool ffound = false, tfound = false;
+  size_t fiter=0, titer=0;
+  while(!ffound && fiter<forests.size()) {
+    if (forests[fiter].location == location) {
+      ffound = true;
+      tfound = false;
+      while (!tfound && titer<forests[fiter].trees.size()) {
+        if (fname == forests[fiter].trees[titer].name) {
+          tfound = true;
+          if (!forests[fiter].trees[titer].branches[0].isDecomposed) {
+            this->decomposeFunctions();
+          }
+          if (!forests[fiter].trees[titer].branches[0].isConstant) {
+            this->evaluate(fiter,titer,0);
+          }
+        }
+        else {
+          titer++;
+        }
+      }
+    }
+    else {
+      fiter++;
+    }
+  }
+  
+  if (!ffound || !tfound) { // meaning that the requested function was not registered at this location
+    TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: function manager could not evaluate: " + fname + " at " + location);
+  }
+  
+  
+  {
+    //Teuchos::TimeMonitor ttimer(*evaluateCopyTimer);
+    
+    if (!forests[fiter].trees[titer].branches[0].isConstant && !forests[fiter].trees[titer].branches[0].isView) {
+      forests[fiter].trees[titer].updateVista();
+    }
+  }
+  
+  return forests[fiter].trees[titer].vista;
   
 }
 

@@ -15,6 +15,7 @@
 #define THERMAL_H
 
 #include "physicsBase.hpp"
+#include "vista.hpp"
 
 namespace MrHyDE {
   
