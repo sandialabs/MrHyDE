@@ -98,6 +98,18 @@ namespace MrHyDE {
       }
     }
     
+    /*
+    KOKKOS_INLINE_FUNCTION
+    size_type extent(const size_type & dim) const {
+      if (isView) {
+        return viewdata.extent(dim);
+      }
+      else {
+        return 1;
+      }
+    }
+    */
+    
     void print() {
       std::cout << "Printing Vista -------" <<std::endl;
       std::cout << "  Is View: " << isView << std::endl;

@@ -472,6 +472,7 @@ void FunctionManager::checkDepDataType(const int & findex, const int & tindex, c
 // Evaluate a function (probably will be deprecated)
 //////////////////////////////////////////////////////////////////////////////////////
 
+/*
 View_AD2 FunctionManager::evaluate(const string & fname, const string & location) {
   //Teuchos::TimeMonitor ttimer(*evaluateExtTimer);
   
@@ -589,13 +590,13 @@ View_AD2 FunctionManager::evaluate(const string & fname, const string & location
   return output;
   
 }
+*/
 
 //////////////////////////////////////////////////////////////////////////////////////
 // Evaluate a function
 //////////////////////////////////////////////////////////////////////////////////////
 
-Vista FunctionManager::evaluate(const string & fname, const string & location,
-                                const bool & nothing) {
+Vista FunctionManager::evaluate(const string & fname, const string & location) {
 
   //Teuchos::TimeMonitor ttimer(*evaluateExtTimer);
   

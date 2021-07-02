@@ -73,21 +73,8 @@ void thermal::volumeResidual() {
   auto basis = wkset->basis[e_basis_num];
   auto basis_grad = wkset->basis_grad[e_basis_num];
   
-  /*
+  
   Vista source, diff, cp, rho;
-  
-  {
-    Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    source = functionManager->evaluate("thermal source","ip",true);
-    diff = functionManager->evaluate("thermal diffusion","ip",true);
-    cp = functionManager->evaluate("specific heat","ip",true);
-    rho = functionManager->evaluate("density","ip",true);
-  
-  }
-  */
-  
-  
-  View_AD2 source, diff, cp, rho;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -95,9 +82,9 @@ void thermal::volumeResidual() {
     diff = functionManager->evaluate("thermal diffusion","ip");
     cp = functionManager->evaluate("specific heat","ip");
     rho = functionManager->evaluate("density","ip");
+  
   }
-  
-  
+    
   // Contributes:
   // (f(u),v) + (DF(u),nabla v)
   // f(u) = rho*cp*de/dt - source
@@ -168,7 +155,7 @@ void thermal::boundaryResidual() {
   auto basis = wkset->basis_side[e_basis_num];
   auto basis_grad = wkset->basis_grad_side[e_basis_num];
   
-  View_AD2 nsource, diff_side, robin_alpha;
+  Vista nsource, diff_side, robin_alpha;
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
@@ -220,7 +207,7 @@ void thermal::boundaryResidual() {
     auto nx = wkset->getDataSc("nx side");
     auto ny = wkset->getDataSc("ny side");
     auto nz = wkset->getDataSc("nz side");
-    View_AD2 bdata;
+    Vista bdata;
     if (bcs(e_num,cside) == "weak Dirichlet") {
       bdata = nsource;
     }
@@ -307,7 +294,7 @@ void thermal::computeFlux() {
     sf = formparam;
   }
   
-  View_AD2 diff_side;
+  Vista diff_side;
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
     diff_side = functionManager->evaluate("thermal diffusion","side ip");

@@ -84,7 +84,7 @@ namespace MrHyDE {
     // return the stress
     // ========================================================================================
     
-    void computeStress(View_AD2 lambda, View_AD2 mu, const bool & onside);
+    void computeStress(Vista lambda, Vista mu, const bool & onside);
         
     // ========================================================================================
     // TMW: needs to be deprecated

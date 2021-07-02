@@ -622,7 +622,8 @@ View_Sc2 PhysicsInterface::getDirichlet(const int & var,
   // evaluate
   auto dvals_AD = functionManagers[block]->evaluate("Dirichlet " + varlist[block][var] + " " + sidename,"side ip");
   
-  View_Sc2 dvals("temp dnvals", dvals_AD.extent(0), dvals_AD.extent(1));
+  //View_Sc2 dvals("temp dnvals", dvals_AD.extent(0), dvals_AD.extent(1));
+  View_Sc2 dvals("temp dnvals", functionManagers[block]->numElem, functionManagers[block]->numip_side);
   
   // copy values
   parallel_for("physics fill Dirichlet values",

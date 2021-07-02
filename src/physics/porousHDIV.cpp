@@ -81,17 +81,20 @@ void porousHDIV::volumeResidual() {
   auto wts = wkset->wts;
   auto res = wkset->res;
   
-  View_AD2 source, bsource, Kinv_xx, Kinv_yy, Kinv_zz;
+  Vista source, bsource, Kinv_xx, Kinv_yy, Kinv_zz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("source","ip");
     
     if (usePermData) {
-      Kinv_xx = View_AD2("K inverse xx",wts.extent(0),wts.extent(1));
-      Kinv_yy = View_AD2("K inverse yy",wts.extent(0),wts.extent(1));
-      Kinv_zz = View_AD2("K inverse zz",wts.extent(0),wts.extent(1));
-      this->updatePerm(Kinv_xx, Kinv_yy, Kinv_zz);
+      View_AD2 view_Kinv_xx("K inverse xx",wts.extent(0),wts.extent(1));
+      View_AD2 view_Kinv_yy("K inverse yy",wts.extent(0),wts.extent(1));
+      View_AD2 view_Kinv_zz("K inverse zz",wts.extent(0),wts.extent(1));
+      this->updatePerm(view_Kinv_xx, view_Kinv_yy, view_Kinv_zz);
+      Kinv_xx = Vista(view_Kinv_xx);
+      Kinv_yy = Vista(view_Kinv_yy);
+      Kinv_zz = Vista(view_Kinv_zz);
     }
     else {
       Kinv_xx = functionManager->evaluate("Kinv_xx","ip");
@@ -101,15 +104,17 @@ void porousHDIV::volumeResidual() {
     
     if (useWells) {
       auto h = wkset->h;
+      View_AD2 source_kv("KV for source",wts.extent(0),wts.extent(1));
       parallel_for("porous HDIV update well source",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         ScalarT C = std::log(0.25*std::exp(-0.5772)*h(elem)/2.0);
-        for (size_type pt=0; pt<source.extent(1); pt++) {
+        for (size_type pt=0; pt<source_kv.extent(1); pt++) {
           ScalarT Kval = 1.0/Kinv_xx(elem,pt).val();
-          source(elem,pt) *= 2.0*PI/C*Kval;
+          source_kv(elem,pt) *= 2.0*PI/C*Kval;
         }
       });
+      source = Vista(source_kv);
     }
   }
   
@@ -251,7 +256,7 @@ void porousHDIV::boundaryResidual() {
     uz = wkset->getData("u[z] side");
   }
   
-  View_AD2 bsource;
+  Vista bsource;
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     

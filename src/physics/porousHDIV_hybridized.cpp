@@ -79,17 +79,20 @@ void porousHDIV_HYBRID::volumeResidual() {
   auto wts = wkset->wts;
   auto res = wkset->res;
   
-  View_AD2 source, bsource, Kinv_xx, Kinv_yy, Kinv_zz;
+  Vista source, bsource, Kinv_xx, Kinv_yy, Kinv_zz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("source","ip");
     if (usePermData) {
       auto wts = wkset->wts;
-      Kinv_xx = View_AD2("K inverse xx",wts.extent(0),wts.extent(1));
-      Kinv_yy = View_AD2("K inverse yy",wts.extent(0),wts.extent(1));
-      Kinv_zz = View_AD2("K inverse zz",wts.extent(0),wts.extent(1));
-      this->updatePerm(Kinv_xx, Kinv_yy, Kinv_zz);
+      View_AD2 view_Kinv_xx("K inverse xx",wts.extent(0),wts.extent(1));
+      View_AD2 view_Kinv_yy("K inverse yy",wts.extent(0),wts.extent(1));
+      View_AD2 view_Kinv_zz("K inverse zz",wts.extent(0),wts.extent(1));
+      this->updatePerm(view_Kinv_xx, view_Kinv_yy, view_Kinv_zz);
+      Kinv_xx = Vista(view_Kinv_xx);
+      Kinv_yy = Vista(view_Kinv_yy);
+      Kinv_zz = Vista(view_Kinv_zz);
     }
     else {
       Kinv_xx = functionManager->evaluate("Kinv_xx","ip");
@@ -215,7 +218,7 @@ void porousHDIV_HYBRID::boundaryResidual() {
     uz = wkset->getData("u[z] side");
   }
   
-  View_AD2 bsource;
+  Vista bsource;
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     

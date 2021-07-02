@@ -86,7 +86,7 @@ void navierstokes::volumeResidual() {
   int spaceDim = wkset->dimension;
   ScalarT dt = wkset->deltat;
   bool isTransient = wkset->isTransient;
-  View_AD2 dens, visc, source_ux, source_pr, source_uy, source_uz;
+  Vista dens, visc, source_ux, source_pr, source_uy, source_uz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -874,7 +874,7 @@ void navierstokes::boundaryResidual() {
     uz_sidetype = bcs(uz_num,cside);
   }
   
-  View_AD2 source_ux, source_uy, source_uz;
+  Vista source_ux, source_uy, source_uz;
   
   if (ux_sidetype != "Dirichlet" || uy_sidetype != "Dirichlet" || uz_sidetype != "Dirichlet") {
     

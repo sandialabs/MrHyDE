@@ -100,7 +100,7 @@ void linearelasticity::defineFunctions(Teuchos::ParameterList & fs,
 void linearelasticity::volumeResidual() {
   
   int spaceDim = wkset->dimension;
-  View_AD2 lambda, mu, source_dx, source_dy, source_dz;
+  Vista lambda, mu, source_dx, source_dy, source_dz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -256,7 +256,7 @@ void linearelasticity::boundaryResidual() {
     dz_sidetype = bcs(dz_num,cside);
   }
   
-  View_AD2 lambda_side, mu_side, source_dx, source_dy, source_dz;
+  Vista lambda_side, mu_side, source_dx, source_dy, source_dz;
   
   if (dx_sidetype != "Dirichlet" || dy_sidetype != "Dirichlet" || dz_sidetype != "Dirichlet") {
     
@@ -686,7 +686,7 @@ void linearelasticity::computeFlux() {
     dz_sidetype = wkset->var_bcs(dz_num,cside);
   }
   
-  View_AD2 lambda_side, mu_side;
+  Vista lambda_side, mu_side;
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
     lambda_side = functionManager->evaluate("lambda","side ip");
@@ -706,7 +706,7 @@ void linearelasticity::computeFlux() {
     if (spaceDim == 1) {
       auto nx = wkset->getDataSc("nx side");
       auto dx = wkset->getData("dx side");
-      View_AD2 source_dx;
+      Vista source_dx;
       if (dx_sidetype == "Neumann") {
         source_dx = functionManager->evaluate("Neumann dx " + wkset->sidename,"side ip");
       }
@@ -731,7 +731,7 @@ void linearelasticity::computeFlux() {
       auto ny = wkset->getDataSc("ny side");
       auto dx = wkset->getData("dx side");
       auto dy = wkset->getData("dy side");
-      View_AD2 source_dx, source_dy;
+      Vista source_dx, source_dy;
       if (dx_sidetype == "Neumann") {
         source_dx = functionManager->evaluate("Neumann dx " + wkset->sidename,"side ip");
       }
@@ -772,7 +772,7 @@ void linearelasticity::computeFlux() {
       auto dy = wkset->getData("dy side");
       auto dz = wkset->getData("dz side");
       
-      View_AD2 source_dx, source_dy, source_dz;
+      Vista source_dx, source_dy, source_dz;
       bool compute_dx = true, compute_dy = true, compute_dz = true;
       
       if (dx_sidetype == "interface") {
@@ -899,7 +899,7 @@ void linearelasticity::setWorkset(Teuchos::RCP<workset> & wkset_) {
 // return the stress
 // ========================================================================================
 
-void linearelasticity::computeStress(View_AD2 lambda, View_AD2 mu, const bool & onside) {
+void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside) {
   
   Teuchos::TimeMonitor localtime(*fillStress);
            

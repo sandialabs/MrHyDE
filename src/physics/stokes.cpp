@@ -72,7 +72,7 @@ void stokes::defineFunctions(Teuchos::ParameterList & fs,
 void stokes::volumeResidual() {
   
   int spaceDim = wkset->dimension;
-  View_AD2 visc, source_ux, source_pr, source_uy, source_uz;
+  Vista visc, source_ux, source_pr, source_uy, source_uz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);

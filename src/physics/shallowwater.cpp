@@ -70,7 +70,7 @@ void shallowwater::defineFunctions(Teuchos::ParameterList & fs,
 
 void shallowwater::volumeResidual() {
   
-  View_AD2 bath, bath_x, bath_y, visc, cor, bfric, source_Hu, source_Hv;
+  Vista bath, bath_x, bath_y, visc, cor, bfric, source_Hu, source_Hv;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -166,7 +166,7 @@ void shallowwater::boundaryResidual() {
   /*
   string sidename = wkset->sidename;
   
-  View_AD2 nsource, nsource_Hu, nsource_Hv, bath_side;
+  Vista nsource, nsource_Hu, nsource_Hv, bath_side;
   
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);

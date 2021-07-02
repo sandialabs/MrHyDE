@@ -68,10 +68,9 @@ namespace MrHyDE {
     // Evaluate a function (probably will be deprecated)
     //////////////////////////////////////////////////////////////////////////////////////
     
-    View_AD2 evaluate(const std::string & fname, const std::string & location);
+    //View_AD2 evaluate(const std::string & fname, const std::string & location);
     
-    Vista evaluate(const std::string & fname, const std::string & location,
-                   const bool & nothing);
+    Vista evaluate(const std::string & fname, const std::string & location);
     
     //////////////////////////////////////////////////////////////////////////////////////
     // Evaluate a function

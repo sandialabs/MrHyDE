@@ -78,7 +78,7 @@ void cdr::volumeResidual() {
   auto basis_grad = wkset->basis_grad[c_basis_num];
   auto wts = wkset->wts;
   
-  View_AD2 source, diff, cp, rho, reax, xvel, yvel, zvel, tau;
+  Vista source, diff, cp, rho, reax, xvel, yvel, zvel, tau;
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("source","ip");

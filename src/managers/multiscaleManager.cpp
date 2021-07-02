@@ -237,11 +237,14 @@ ScalarT MultiscaleManager::initialize() {
             //auto usagecheck = macro_functionManagers[b]->evaluate("Subgrid " + ss.str() + " usage","ip");
             auto usagecheck = macro_functionManagers[b]->evaluate(subgridModels[s]->name + " usage","ip");
             
-            Kokkos::View<ScalarT**,AssemblyDevice> usagecheck_tmp("temp usage check",usagecheck.extent(0),usagecheck.extent(1));
+            Kokkos::View<ScalarT**,AssemblyDevice> usagecheck_tmp("temp usage check",
+                                                                  macro_functionManagers[b]->numElem,
+                                                                  macro_functionManagers[b]->numip);
+                                                                  
             parallel_for("assembly copy LIDs",
-                         RangePolicy<AssemblyExec>(0,usagecheck.extent(0)),
+                         RangePolicy<AssemblyExec>(0,usagecheck_tmp.extent(0)),
                          KOKKOS_LAMBDA (const int i ) {
-              for (size_type j=0; j<usagecheck.extent(1); j++) {
+              for (size_type j=0; j<usagecheck_tmp.extent(1); j++) {
                 usagecheck_tmp(i,j) = usagecheck(i,j).val();
               }
             });
@@ -404,9 +407,24 @@ ScalarT MultiscaleManager::update() {
               ss << s;
               //auto usagecheck = macro_functionManagers[b]->evaluate("Subgrid " + ss.str() + " usage","ip");
               auto usagecheck = macro_functionManagers[b]->evaluate(subgridModels[s]->name + " usage","ip");
+              Kokkos::View<ScalarT**,AssemblyDevice> usagecheck_tmp("temp usage check",
+                                                                    macro_functionManagers[b]->numElem,
+                                                                    macro_functionManagers[b]->numip);
+                                                                    
+              parallel_for("assembly copy LIDs",
+                           RangePolicy<AssemblyExec>(0,usagecheck_tmp.extent(0)),
+                           KOKKOS_LAMBDA (const int i ) {
+                for (size_type j=0; j<usagecheck_tmp.extent(1); j++) {
+                  usagecheck_tmp(i,j) = usagecheck(i,j).val();
+                }
+              });
+              
+              auto host_usagecheck = Kokkos::create_mirror_view(usagecheck_tmp);
+              Kokkos::deep_copy(host_usagecheck, usagecheck_tmp);
+              
               for (size_t p=0; p<cells[b][e]->numElem; p++) {
-                for (size_t j=0; j<usagecheck.extent(1); j++) {
-                  if (usagecheck(p,j).val() >= 1.0) {
+                for (size_t j=0; j<host_usagecheck.extent(1); j++) {
+                  if (host_usagecheck(p,j) >= 1.0) {
                     sgvotes[s] += 1;
                   }
                 }

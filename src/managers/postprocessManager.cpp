@@ -1187,7 +1187,7 @@ void PostprocessManager<Node>::computeFluxResponse(const ScalarT & currenttime) 
               auto vflux = subview(cflux,ALL(),v,ALL());
               parallel_reduce(RangePolicy<AssemblyExec>(0,iwts.extent(0)),
                               KOKKOS_LAMBDA (const int elem, ScalarT& update) {
-                for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+                for( size_t pt=0; pt<iwts.extent(1); pt++ ) {
                   ScalarT up = vflux(elem,pt).val()*wts(elem,pt).val()*iwts(elem,pt);
                   update += up;
                 }
@@ -1347,10 +1347,10 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
         
         Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
         parallel_for("cell objective",
-                     RangePolicy<AssemblyExec>(0,obj_dev.extent(0)),
+                     RangePolicy<AssemblyExec>(0,wts.extent(0)),
                      KOKKOS_LAMBDA (const size_type elem ) {
           AD tmpval = 0.0;
-          for (size_type pt=0; pt<obj_dev.extent(1); pt++) {
+          for (size_type pt=0; pt<wts.extent(1); pt++) {
             tmpval += obj_dev(elem,pt)*wts(elem,pt);
           }
           Kokkos::atomic_add(&(objsum(0)),tmpval);
@@ -1402,10 +1402,10 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
           
           Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
           parallel_for("cell objective",
-                       RangePolicy<AssemblyExec>(0,obj_dev.extent(0)),
+                       RangePolicy<AssemblyExec>(0,wts.extent(0)),
                        KOKKOS_LAMBDA (const size_type elem ) {
             AD tmpval = 0.0;
-            for (size_type pt=0; pt<obj_dev.extent(1); pt++) {
+            for (size_type pt=0; pt<wts.extent(1); pt++) {
               tmpval += obj_dev(elem,pt)*wts(elem,pt);
             }
             Kokkos::atomic_add(&(objsum(0)),tmpval);
@@ -1488,10 +1488,10 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
         
         Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
         parallel_for("cell objective",
-                     RangePolicy<AssemblyExec>(0,obj_dev.extent(0)),
+                     RangePolicy<AssemblyExec>(0,wts.extent(0)),
                      KOKKOS_LAMBDA (const size_type elem ) {
           AD tmpval = 0.0;
-          for (size_type pt=0; pt<obj_dev.extent(1); pt++) {
+          for (size_type pt=0; pt<wts.extent(1); pt++) {
             tmpval += obj_dev(elem,pt)*wts(elem,pt);
           }
           Kokkos::atomic_add(&(objsum(0)),tmpval);
@@ -1545,10 +1545,10 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
           
           Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
           parallel_for("cell objective",
-                       RangePolicy<AssemblyExec>(0,obj_dev.extent(0)),
+                       RangePolicy<AssemblyExec>(0,wts.extent(0)),
                        KOKKOS_LAMBDA (const size_type elem ) {
             AD tmpval = 0.0;
-            for (size_type pt=0; pt<obj_dev.extent(1); pt++) {
+            for (size_type pt=0; pt<wts.extent(1); pt++) {
               tmpval += obj_dev(elem,pt)*wts(elem,pt);
             }
             Kokkos::atomic_add(&(objsum(0)),tmpval);
@@ -1833,16 +1833,16 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
             parallel_for("cell objective",
                          RangePolicy<AssemblyExec>(0,wts.extent(0)),
                          KOKKOS_LAMBDA (const size_type elem ) {
-              for (size_type pt=0; pt<regvals.extent(1); ++pt) {
+              for (size_type pt=0; pt<wts.extent(1); ++pt) {
                 regvals(elem,pt) *= wts(elem,pt);
               }
             });
             
-            View_Sc3 regvals_sc("scalar version of AD view",regvals.extent(0),regvals.extent(1),maxDerivs+1);
+            View_Sc3 regvals_sc("scalar version of AD view",wts.extent(0),wts.extent(1),maxDerivs+1);
             parallel_for("cell objective",
-                         RangePolicy<AssemblyExec>(0,regvals.extent(0)),
+                         RangePolicy<AssemblyExec>(0,wts.extent(0)),
                          KOKKOS_LAMBDA (const size_type elem ) {
-              for (size_type pt=0; pt<regvals.extent(1); ++pt) {
+              for (size_type pt=0; pt<wts.extent(1); ++pt) {
                 regvals_sc(elem,pt,0) = regvals(elem,pt).val();
                 for (size_type d=0; d<regvals_sc.extent(2)-1; ++d) {
                   regvals_sc(elem,pt,d+1) = regvals(elem,pt).fastAccessDx(d);
@@ -1891,16 +1891,16 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
               parallel_for("cell objective",
                            RangePolicy<AssemblyExec>(0,wts.extent(0)),
                            KOKKOS_LAMBDA (const size_type elem ) {
-                for (size_type pt=0; pt<regvals.extent(1); ++pt) {
+                for (size_type pt=0; pt<wts.extent(1); ++pt) {
                   regvals(elem,pt) *= wts(elem,pt);
                 }
               });
               
-              View_Sc3 regvals_sc("scalar version of AD view",regvals.extent(0),regvals.extent(1),maxDerivs+1);
+              View_Sc3 regvals_sc("scalar version of AD view",wts.extent(0),wts.extent(1),maxDerivs+1);
               parallel_for("cell objective",
-                           RangePolicy<AssemblyExec>(0,regvals.extent(0)),
+                           RangePolicy<AssemblyExec>(0,wts.extent(0)),
                            KOKKOS_LAMBDA (const size_type elem ) {
-                for (size_type pt=0; pt<regvals.extent(1); ++pt) {
+                for (size_type pt=0; pt<wts.extent(1); ++pt) {
                   regvals_sc(elem,pt,0) = regvals(elem,pt).val();
                   for (size_type d=0; d<regvals_sc.extent(2)-1; ++d) {
                     regvals_sc(elem,pt,d+1) = regvals(elem,pt).fastAccessDx(d);
@@ -2203,9 +2203,9 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
           auto wts = assembler->cells[block][e]->wts;
           
           parallel_for("cell objective",
-                       RangePolicy<AssemblyExec>(0,obj_dev.extent(0)),
+                       RangePolicy<AssemblyExec>(0,wts.extent(0)),
                        KOKKOS_LAMBDA (const size_type elem ) {
-            for (size_type pt=0; pt<obj_dev.extent(1); pt++) {
+            for (size_type pt=0; pt<wts.extent(1); pt++) {
               obj_dev(elem,pt) *= objectives[r].weight*wts(elem,pt);
             }
           });
@@ -2437,9 +2437,9 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
           auto wts = assembler->cells[block][e]->wts;
           
           parallel_for("cell objective",
-                       RangePolicy<AssemblyExec>(0,obj_dev.extent(0)),
+                       RangePolicy<AssemblyExec>(0,wts.extent(0)),
                        KOKKOS_LAMBDA (const size_type elem ) {
-            for (size_type pt=0; pt<obj_dev.extent(1); pt++) {
+            for (size_type pt=0; pt<wts.extent(1); pt++) {
               //obj_dev(elem,pt) *= objectives[r].weight*wts(elem,pt);
               obj_dev(elem,pt) *= wts(elem,pt);
             }
@@ -2447,9 +2447,9 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
           
           Kokkos::View<ScalarT[1],AssemblyDevice> ir("integral of response");
           parallel_for("cell objective",
-                       RangePolicy<AssemblyExec>(0,obj_dev.extent(0)),
+                       RangePolicy<AssemblyExec>(0,wts.extent(0)),
                        KOKKOS_LAMBDA (const size_type elem ) {
-            for (size_type pt=0; pt<obj_dev.extent(1); pt++) {
+            for (size_type pt=0; pt<wts.extent(1); pt++) {
               //obj_dev(elem,pt) *= objectives[r].weight*wts(elem,pt);
               ir(0) += obj_dev(elem,pt).val();
             }

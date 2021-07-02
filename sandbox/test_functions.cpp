@@ -358,8 +358,8 @@ int main(int argc, char * argv[]) {
       auto vals = functionManager->evaluate(ref_names[tst],"ip");
       double err = 0.0, normref = 0.0, normtst = 0.0;
       auto refsol = ref_vals[tst];
-      for (size_type elem=0; elem<vals.extent(0); ++elem) {
-        for (size_type pt=0; pt<vals.extent(1); ++pt) {
+      for (size_type elem=0; elem<refsol.extent(0); ++elem) {
+        for (size_type pt=0; pt<refsol.extent(1); ++pt) {
           normref += abs(refsol(elem,pt).val());
           normtst += abs(vals(elem,pt).val());
           err += abs(refsol(elem,pt).val() - vals(elem,pt).val());

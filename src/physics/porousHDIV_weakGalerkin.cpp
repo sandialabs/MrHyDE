@@ -100,7 +100,7 @@ void porousHDIV_WG::volumeResidual() {
   int u_basis = wkset->usebasis[unum];
   int t_basis = wkset->usebasis[tnum];
   
-  View_AD2 source, perm;
+  Vista source, perm;
 
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -108,8 +108,9 @@ void porousHDIV_WG::volumeResidual() {
     //perm = functionManager->evaluate("perm","ip");
     if (usePermData) {
       auto wts = wkset->wts;
-      perm = View_AD2("permeability",wts.extent(0),wts.extent(1));
-      this->updatePerm(perm);
+      View_AD2 viewperm("permeability",wts.extent(0),wts.extent(1));
+      this->updatePerm(viewperm);
+      perm = Vista(viewperm);
     }
     else {
       perm = functionManager->evaluate("perm","ip");
@@ -340,7 +341,7 @@ void porousHDIV_WG::boundaryResidual() {
   
   auto basis = wkset->basis_side[u_basis];
   
-  View_AD2 bsource;
+  Vista bsource;
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     

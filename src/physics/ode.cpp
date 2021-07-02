@@ -12,6 +12,8 @@
  ************************************************************************/
 
 #include "ode.hpp"
+#include "vista.hpp"
+
 using namespace MrHyDE;
 
 // ========================================================================================
@@ -43,13 +45,13 @@ void ODE::defineFunctions(Teuchos::ParameterList & fs,
 
 void ODE::volumeResidual() {
   
-  View_AD2 source;
+  Vista source;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("ODE source","ip");
   }
-  
+    
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
     
   auto basis = wkset->getBasis("q");

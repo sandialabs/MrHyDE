@@ -100,8 +100,8 @@ void VDNS::volumeResidual() {
   int spaceDim = wkset->dimension;
   ScalarT dt = wkset->deltat;
   bool isTransient = wkset->isTransient;
-  View_AD2 source_ux, source_pr, source_uy, source_uz, source_T;
-  View_AD2 rho, mu, p0, lambda, cp;
+  Vista source_ux, source_pr, source_uy, source_uz, source_T;
+  Vista rho, mu, p0, lambda, cp;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -973,7 +973,7 @@ void VDNS::boundaryResidual() {
 
   int cside = wkset->currentside;
 
-  View_AD2 neusource_ux, neusource_T, neusource_uy, neusource_uz;
+  Vista neusource_ux, neusource_T, neusource_uy, neusource_uz;
 
   string ux_sidetype = bcs(ux_num,cside);
   string T_sidetype = bcs(T_num,cside);

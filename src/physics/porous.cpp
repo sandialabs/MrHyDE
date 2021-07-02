@@ -57,7 +57,7 @@ void porous::volumeResidual() {
   auto wts = wkset->wts;
   auto res = wkset->res;
   
-  View_AD2 perm, porosity, viscosity, densref, pref, comp, gravity, source;
+  Vista perm, porosity, viscosity, densref, pref, comp, gravity, source;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -150,7 +150,7 @@ void porous::boundaryResidual() {
   auto basis = wkset->basis_side[basis_num];
   auto basis_grad = wkset->basis_grad_side[basis_num];
   
-  View_AD2 perm, porosity, viscosity, densref, pref, comp, gravity, source;
+  Vista perm, porosity, viscosity, densref, pref, comp, gravity, source;
   
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
@@ -298,7 +298,7 @@ void porous::computeFlux() {
     sf = formparam;
   }
   
-  View_AD2 perm, porosity, viscosity, densref, pref, comp, gravity, source;
+  Vista perm, porosity, viscosity, densref, pref, comp, gravity, source;
   
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
