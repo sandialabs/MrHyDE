@@ -751,21 +751,21 @@ void workset::computeSoln(const int & type, const bool & onside) {
         int elem = team.league_rank();
         size_type dim = cbasis_grad.extent(3);
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-          csol(elem,pt) = 0.0;
-          csol_x(elem,pt) = 0.0;
-          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+          csol(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
+          csol_x(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,0);
+          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
             csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
             csol_x(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,0);
           }
           if (dim>1) {
-            csol_y(elem,pt) = 0.0;
-            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csol_y(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,1);
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
               csol_y(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,1);
             }
           }
           if (dim>2) {
-            csol_z(elem,pt) = 0.0;
-            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csol_z(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,2);
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
               csol_z(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,2);
             }
           }
