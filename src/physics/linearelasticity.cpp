@@ -186,11 +186,14 @@ void linearelasticity::volumeResidual() {
       auto basis_grad = wkset->basis_grad[dx_basis];
       auto off = Kokkos::subview( wkset->offsets, dx_num, Kokkos::ALL());
       
+      size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));
+      
       parallel_for("LE ux volume resid 3D",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+                   TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
+          for (size_type pt=0; pt<basis.extent(2); ++pt ) {
             res(elem,off(dof)) += (stress(elem,pt,0,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,0,1)*basis_grad(elem,dof,pt,1) + stress(elem,pt,0,2)*basis_grad(elem,dof,pt,2) - source_dx(elem,pt)*basis(elem,dof,pt,0))*wts(elem,pt);
           }
         }
@@ -204,11 +207,14 @@ void linearelasticity::volumeResidual() {
       auto basis_grad = wkset->basis_grad[dy_basis];
       auto off = Kokkos::subview( wkset->offsets, dy_num, Kokkos::ALL());
       
+      size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));
+      
       parallel_for("LE uy volume resid 3D",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+                   TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
+          for (size_type pt=0; pt<basis.extent(2); ++pt ) {
             res(elem,off(dof)) += (stress(elem,pt,1,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,1,1)*basis_grad(elem,dof,pt,1) + stress(elem,pt,1,2)*basis_grad(elem,dof,pt,2) - source_dy(elem,pt)*basis(elem,dof,pt,0))*wts(elem,pt);
           }
         }
@@ -222,11 +228,14 @@ void linearelasticity::volumeResidual() {
       auto basis_grad = wkset->basis_grad[dz_basis];
       auto off = Kokkos::subview( wkset->offsets, dz_num, Kokkos::ALL());
       
+      size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));
+      
       parallel_for("LE uz volume resid 3D",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+                   TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
+          for (size_type pt=0; pt<basis.extent(2); ++pt ) {
             res(elem,off(dof)) += (stress(elem,pt,2,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,2,1)*basis_grad(elem,dof,pt,1) + stress(elem,pt,2,2)*basis_grad(elem,dof,pt,2) - source_dz(elem,pt)*basis(elem,dof,pt,0))*wts(elem,pt);
           }
         }
