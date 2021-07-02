@@ -902,7 +902,7 @@ void SolverManager<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vect
       assembler->performGather(u,0,0);
       postproc->record(u,current_time,true,obj);
     }
-    Kokkos::fence();
+    //Kokkos::fence();
     
     for (int s=0; s<numsteps; s++) {
       assembler->resetPrevSoln();

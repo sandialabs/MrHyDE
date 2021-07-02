@@ -914,7 +914,7 @@ void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDe
       }
     });
   }
-  AssemblyExec::execution_space().fence();
+  //AssemblyExec::execution_space().fence();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

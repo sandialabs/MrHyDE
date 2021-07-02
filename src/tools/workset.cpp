@@ -516,8 +516,8 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
       });
     }
   }
-  Kokkos::fence();
-   
+  //Kokkos::fence();
+  //AssemblyExec::execution_space().fence();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -553,7 +553,8 @@ void workset::computeSolnSteadySeeded(View_Sc3 u,
       });
     }
   }
-  Kokkos::fence();
+  //Kokkos::fence();
+  //AssemblyExec::execution_space().fence();
 }
 
 
@@ -590,7 +591,7 @@ void workset::computeAuxSolnSteadySeeded(View_Sc3 aux,
     });
   }
    */
-  Kokkos::fence();
+  //Kokkos::fence();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -627,7 +628,7 @@ void workset::computeParamSteadySeeded(View_Sc3 param,
         });
       }
     }
-    Kokkos::fence();
+    //Kokkos::fence();
   }
   
 }
