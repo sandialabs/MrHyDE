@@ -12,6 +12,7 @@
  ************************************************************************/
 
 #include "uqManager.hpp"
+#include "data.hpp"
 
 using namespace MrHyDE;
 
@@ -29,6 +30,13 @@ param_variances(param_variances_), param_mins(param_mins_), param_maxs(param_max
   numstochparams = param_types.size();
   surrogate = uqsettings.get<std::string>("surrogate model","regression");
   evalprog = 0;
+  
+  use_user_defined = uqsettings.get<bool>("use user defined",false);
+  if (use_user_defined) {
+    Data sdata("Sample Points", numstochparams, uqsettings.get("source","samples.dat"));
+    samples = sdata.getPoints();
+  }
+  
   if (surrogate == "regression") {
     
   }
@@ -46,29 +54,33 @@ param_variances(param_variances_), param_mins(param_mins_), param_maxs(param_max
 // ========================================================================================
 
 Kokkos::View<ScalarT**,HostDevice> UQManager::generateSamples(const int & numsamples, int & seed) {
-  if (seed == -1) {
-    //srand(time(NULL));
-    seed = rand();
+  
+  if (!use_user_defined) {
+    if (seed == -1) {
+      //srand(time(NULL));
+      seed = rand();
+    }
+    
+    samples = Kokkos::View<ScalarT**,HostDevice>("samples",numsamples, numstochparams);
+    std::default_random_engine generator(seed);
+    for (int j=0; j<numstochparams; j++) {
+      if (param_types[j] == "uniform") {
+        std::uniform_real_distribution<ScalarT> distribution(param_mins[j],param_maxs[j]);
+        for (int k=0; k<numsamples; k++) {
+          ScalarT number = distribution(generator);
+          samples(k,j) = number;
+        }
+      }
+      else if (param_types[j] == "Gaussian") {
+        std::normal_distribution<ScalarT> distribution(param_means[j],param_variances[j]);
+        for (int k=0; k<numsamples; k++) {
+          ScalarT number = distribution(generator);
+          samples(k,j) = number;
+        }
+      }
+    }
   }
   
-  Kokkos::View<ScalarT**,HostDevice> samples("samples",numsamples, numstochparams);
-  std::default_random_engine generator(seed);
-  for (int j=0; j<numstochparams; j++) {
-    if (param_types[j] == "uniform") {
-      std::uniform_real_distribution<ScalarT> distribution(param_mins[j],param_maxs[j]);
-      for (int k=0; k<numsamples; k++) {
-        ScalarT number = distribution(generator);
-        samples(k,j) = number;
-      }
-    }
-    else if (param_types[j] == "Gaussian") {
-      std::normal_distribution<ScalarT> distribution(param_means[j],param_variances[j]);
-      for (int k=0; k<numsamples; k++) {
-        ScalarT number = distribution(generator);
-        samples(k,j) = number;
-      }
-    }
-  }
   return samples;
 }
 
@@ -81,14 +93,14 @@ Kokkos::View<int*,HostDevice> UQManager::generateIntegerSamples(const int & nums
     seed = rand();
   }
   
-  Kokkos::View<int*,HostDevice> samples("samples",numsamples);
+  Kokkos::View<int*,HostDevice> isamples("samples",numsamples);
   std::default_random_engine generator(seed);
   std::uniform_int_distribution<int> distribution(1,1000000);
   for (int k=0; k<numsamples; k++) {
     ScalarT number = distribution(generator);
-    samples(k) = number;
+    isamples(k) = number;
   }
-  return samples;
+  return isamples;
 }
 
 // ========================================================================================

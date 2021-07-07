@@ -145,9 +145,6 @@ void AnalysisManager::run() {
   else if (analysis_type == "UQ") {
     
     // UQ is forward propagation of uncertainty computed using sampling
-    // We may sample either MILO (Monte Carlo), or
-    // We may sample a surrogate model ... we first need to build this surrogate model (perhaps adaptively)
-    // Note: PCE models provide analytical estimates of the mean and variance, but we will make no use of this
     
     // Build the uq manager
     Teuchos::ParameterList uqsettings = settings->sublist("Analysis").sublist("UQ");
@@ -164,14 +161,14 @@ void AnalysisManager::run() {
     int maxsamples = uqsettings.get<int>("max samples",numsamples); // needed for generating subsets of samples
     int seed = uqsettings.get<int>("seed",1234);
     Kokkos::View<ScalarT**,HostDevice> samplepts = uq.generateSamples(maxsamples, seed);
+    // Adjust the number of samples (if necessary)
+    numsamples = std::min(numsamples, static_cast<int>(samplepts.extent(0)));
     Kokkos::View<int*,HostDevice> sampleints = uq.generateIntegerSamples(maxsamples, seed);
     bool regenerate_rotations = uqsettings.get<bool>("regenerate grain rotations",false);
     bool regenerate_grains = uqsettings.get<bool>("regenerate grains",false);
     // Evaluate model or a surrogate at these samples
     vector<Kokkos::View<ScalarT***,HostDevice> > response_values;
     vector<Kokkos::View<ScalarT****,HostDevice> > response_grads;
-    //Teuchos::RCP<const LA_Map> emap = solve->LA_overlapped_map;
-    //vector_RCP avgsoln = Teuchos::rcp(new LA_MultiVector(emap, 2));
     vector_RCP avgsoln = solve->linalg->getNewOverlappedVector(2);
     int output_freq = uqsettings.get<int>("output frequency",1);
     if (uqsettings.get<bool>("use surrogate",false)) {
@@ -199,65 +196,9 @@ void AnalysisManager::run() {
         }
         else if (regenerate_rotations) {
           this->updateRotationData(sampleints(j));
-          //solve->mesh->updateMeshData(sampleints(j),solve->assembler->cells, solve->multiscale_manager);
         }
         solve->forwardModel(objfun);
         postproc->report();
-        //vector_RCP A_soln = solve->adjointModel(F_soln, gradient);
-        //avgsoln->update(1.0/(ScalarT)numsamples, *F_soln, 1.0);
-        /*if (settings->sublist("Postprocess").get("write solution",true)) {
-         stringstream ss;
-         ss << j;
-         string str = ss.str();
-         postproc->writeSolution(F_soln, "sampling_data/outputMC_" + str + "_.exo");
-         }*/
-        /*
-         if (settings->sublist("Postprocess").get<bool>("compute response",false)) {
-         Kokkos::View<ScalarT***,HostDevice> currresponse = postproc->computeResponse(0);
-         for (size_t i=0; i<currresponse.extent(0); i++) {
-         for (size_t j=0; j<currresponse.extent(1); j++) {
-         for (size_t k=0; k<currresponse.extent(2); k++) {
-         ScalarT myval = currresponse(i,j,k);
-         ScalarT gval = 0.0;
-         Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&myval,&gval);
-         //Comm->SumAll(&myval, &gval, 1);
-         currresponse(i,j,k) = gval;
-         }
-         }
-         }
-         
-         response_values.push_back(currresponse);
-         if (settings->sublist("Postprocess").get<bool>("compute response forward gradient",false)) {
-         Kokkos::View<ScalarT****,HostDevice> currgrad("current gradient",numstochparams,currresponse.extent(0),
-         currresponse.extent(1),currresponse.extent(2));
-         for (int i=0; i<numstochparams; i++) {
-         ScalarT oldval = currparams[i];
-         ScalarT pert = 1.0e-6;
-         currparams[i] += pert;
-         params->updateParams(currparams,2);
-         DFAD objfun2 = 0.0;
-         solve->forwardModel(objfun2);
-         Kokkos::View<ScalarT***,HostDevice> currresponse2 = postproc->computeResponse(0);
-         for (size_t i2=0; i2<currresponse2.extent(0); i2++) {
-         for (size_t j=0; j<currresponse2.extent(1); j++) {
-         for (size_t k=0; k<currresponse2.extent(2); k++) {
-         ScalarT myval = currresponse2(i2,j,k);
-         ScalarT gval = 0.0;
-         Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&myval,&gval);
-         //Comm->SumAll(&myval, &gval, 1);
-         currgrad(i,i2,j,k) = (gval-currresponse(i2,j,k))/pert;
-         }
-         }
-         }
-         //if (Comm->getRank() == 0) {
-         //  cout << "Estimated derivative wrt stoch. param: " << i << endl;
-         //  cout << "                                     : " << (currresponse2(0,0,0)-currresponse(0,0,0))/1.0e-6 << endl;
-         //}
-         currparams[i] = oldval;
-         }
-         response_grads.push_back(currgrad);
-         }
-         }*/
         if (Comm->getRank() == 0 && j%output_freq == 0) {
           cout << "Finished evaluating sample number: " << j+1 << " out of " << numsamples << endl;
         }

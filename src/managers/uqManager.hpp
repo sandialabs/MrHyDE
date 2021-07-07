@@ -75,9 +75,12 @@ namespace MrHyDE {
     std::string surrogate;
     std::vector<std::vector<ScalarT> > points;
     int evalprog, numstochparams;
+    bool use_user_defined;
     Teuchos::ParameterList uqsettings;
     std::vector<string> param_types;
     std::vector<ScalarT> param_means, param_variances, param_mins, param_maxs;
+    
+    Kokkos::View<ScalarT**,HostDevice> samples;
   };
 }
 #endif
