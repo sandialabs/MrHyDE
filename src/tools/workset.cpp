@@ -1364,6 +1364,26 @@ vector<AD> workset::getParam(const string & name, bool & found) {
 }
 
 //////////////////////////////////////////////////////////////
+// Get a subview associated with a vector of parameters
+//////////////////////////////////////////////////////////////
+
+Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> workset::getParameter(const string & name, bool & found) {
+  found = false;
+  size_t iter=0;
+  Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> pvals;
+  while (!found && iter<paramnames.size()) {
+    if (paramnames[iter] == name) {
+      found  = true;
+      pvals = subview(params_AD,iter,ALL());
+    }
+    else {
+      iter++;
+    }
+  }
+  return pvals;
+}
+
+//////////////////////////////////////////////////////////////
 // Set the time
 //////////////////////////////////////////////////////////////
 
