@@ -72,4 +72,16 @@ ANONYMOUS:
     mu: '1.0'
     cp: '1.0'
     lambda: '1.0'
+  Parameters:
+    ## these are not strictly needed for the "incompressible" case
+    ## but for now the physics module requires they be defined
+    ## dp0dt MUST be set to zero though.
+    p0:
+      type: scalar
+      value: 1.0
+      usage: inactive
+    dp0dt:
+      type: scalar
+      value: 0.0
+      usage: inactive
 ...

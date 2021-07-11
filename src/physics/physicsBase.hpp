@@ -149,6 +149,19 @@ namespace MrHyDE {
       std::vector< std::vector<string> > integrandsNamesAndTypes;
       return integrandsNamesAndTypes;
     };
+
+    /**
+     * @brief Updates any values needed by the residual which depend on integrated quantities
+     * required by the physics module.
+     *
+     * This must be called after the postprocessing routine.
+     */
+
+    virtual void updateIntegratedQuantitiesDependents() {
+      if(verbosity > 10) {
+        std::cout << "Warning: physicsBase::updateIntegratedQuantitiesDependents() called!" << std::endl;
+      }
+    };
     
     // ========================================================================================
     // ========================================================================================

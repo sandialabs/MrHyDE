@@ -99,6 +99,13 @@ namespace MrHyDE {
      */
     
     std::vector< std::vector<string> > setupIntegratedQuantities(const int & spaceDim);
+
+    /**
+     * @brief Updates the background thermodynamic pressure and estimates \f$\frac{dp_0}{dt}\f$
+     * which is required in the energy equation.
+     */
+    
+    void updateIntegratedQuantitiesDependents();
     
     // ========================================================================================
     // return the value of the stabilization parameter 
@@ -119,58 +126,10 @@ namespace MrHyDE {
      *
      * @details The diffusivity weighted by the density is somewhat generic
      * so this is appropriate for different conservation equations.
-     *
      */
 
     KOKKOS_FUNCTION AD computeTau(const AD & rhoDiffl, const AD & xvl, const AD & yvl, const AD & zvl, const AD & rho, const ScalarT & h, const int & spaceDim, const ScalarT & dt, const bool & isTransient) const;
 
-    // TODO MOVE TO YAML 
-    // TODO clean up
-    /* @brief Return the density as a function of \f$T\f$.
-     *
-     * @param[in] T  Temperature
-     * @param[in] p0  Thermodynamic pressure
-     * @param[in] RGas  Specific gas constant
-     * @return density (type AD)
-     *
-     */
-
-    //AD fRho(const AD & T, const AD & p0, const AD & RGas);
-
-    ///* @brief Return the partial derivative of the EOS with respect to temperature.
-    // *
-    // * @param[in] T  Temperature
-    // * @param[in] p0  Thermodynamic pressure
-    // * @param[in] RGas  Specific gas constant
-    // * @return \f$\partial \rho / \partial T\f$ (type AD)
-    // *
-    // */
-
-    //AD dfRhodT(const AD & T, const AD & p0, const AD & RGas);
-
-    ///* @brief Return the dynamic viscosity as a function of \f$T\f$ using Sutherland's Law.
-    // *
-    // * @param[in] T  Temperature
-    // * @param[in] TRef  Reference temperature 
-    // * @param[in] S  Sutherland temperature
-    // * @param[in] muRef  Reference dynamic viscosity
-    // * @return dynamic viscosity (type AD)
-    // *
-    // */
-
-    //AD fMu(const AD & T, const & ScalarT TRef, const & ScalarT S, const & ScalarT muRef);
-
-    ///* @brief Return the thermal conductivity as a function of \f$T\f$.
-    // *
-    // * @param[in] mu  Dynamic viscosity
-    // * @param[in] cp  Specific heat at constant pressure
-    // * @param[in] PrNum  Prandtl number
-    // * @return thermal conductivity (type AD)
-    // *
-    // */
-
-    //AD fLambda(const AD & mu, const AD & cp, const ScalarT & PrNum);
-    
   private:
     
     int ux_num, uy_num, uz_num, pr_num, T_num, IQ_start;
@@ -185,7 +144,6 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> boundaryResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::VDNS::boundaryResidual() - evaluation of residual");
     Teuchos::RCP<Teuchos::Time> fluxFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::VDNS::computeFlux() - function evaluation");
     Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::VDNS::computeFlux() - evaluation of flux");
-    Teuchos::RCP<Teuchos::Time> updateProps = Teuchos::TimeMonitor::getNewCounter("MrHyDE::VDNS::updateThermAndTransProps() - function evals");
   };
   
 }

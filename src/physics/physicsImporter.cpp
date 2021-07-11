@@ -33,6 +33,7 @@
 #include "kuramotoSivashinsky.hpp"
 #include "llamas.hpp"
 #include "variableDensityNS.hpp"
+//#include "cns.hpp"
 
 using namespace MrHyDE;
 
@@ -140,6 +141,11 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
     if (modname == "VDNS"){
       modules.push_back(Teuchos::rcp(new VDNS(settings, isaux) ) );
     }
+    
+    // Compressible Navier-Stokes
+    //if (modname == "CNS" || modname == "cns"){
+    //  modules.push_back(Teuchos::rcp(new cns(settings, isaux) ) );
+    //}
 
   }
   

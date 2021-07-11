@@ -629,10 +629,19 @@ void PostprocessManager<Node>::report() {
         Kokkos::deep_copy(integratedQuantities[iLocal][iIQ].val,0.0);
       }
 
-      // need to put in the right place now (accessible to the residual)!
+      // need to put in the right place now (accessible to the residual) and 
+      // update any parameters which depend on the IQs
+      // TODO :: BWR this ultimately is an "explicit" idea but doing things implicitly
+      // would be super costly in general.
 
       // TODO CHECK THIS WITH TIM... am I dev/loc correctly?
-      Kokkos::deep_copy(assembler->wkset[globalBlock]->integrated_quantities,hostsums);
+      if (nIQsForResidual > 0) {
+        Kokkos::deep_copy(assembler->wkset[globalBlock]->integrated_quantities,hostsums);
+        for (size_t m=0; m<phys->modules[globalBlock].size(); ++m) {
+          // BWR -- called for all physics defined on the block regards of if they need IQs
+          phys->modules[globalBlock][m]->updateIntegratedQuantitiesDependents();
+        }
+      }
       
       if (Comm->getRank() == 0) { 
         cout << endl << "*********************************************************" << endl;
@@ -708,7 +717,6 @@ void PostprocessManager<Node>::report() {
           size_t nerrs = sg_error_list.size();
           size_t gnerrs = 0;
           Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&nerrs,&gnerrs);
-          
           
           for (size_t etype=0; etype<gnerrs; etype++) {
             for (size_t time=0; time<error_times.size(); time++) {

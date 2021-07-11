@@ -57,7 +57,7 @@ VDNS::VDNS(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
   openSystem = settings->sublist("Physics").get<bool>("open system",true);
   // If true, the constraint on the background pressure is different (for a closed domain)
   // see below
-  inoutflow = settings->sublist("Physics").get<bool>("in/outflow",true);
+  inoutflow = settings->sublist("Physics").get<bool>("in/outflow",false);
   
 }
 
@@ -79,12 +79,16 @@ void VDNS::defineFunctions(Teuchos::ParameterList & fs,
   // We default to properties of air at 293 K
   // Dynamic viscosity  units are M/L-T
   functionManager->addFunction("mu",fs.get<string>("mu","0.01178"),"ip");
-  // Thermal conductivity  units are M-L/T^3-K (K must be Kelvin)  //TODO CHECK
+  // Thermal conductivity  units are M-L/T^3-K (K must be Kelvin)
   functionManager->addFunction("lambda",fs.get<string>("lambda","cp*mu/PrNum"),"ip"); 
   // Thermodynamic pressure  units are M/L-T^2
-  functionManager->addFunction("p0",fs.get<string>("p0","100000.0"),"ip");
-  // Specific heat at constant pressure  units are L^2/T^2-K (K must be Kelvin) // TODO CHECK
+  //functionManager->addFunction("p0",fs.get<string>("p0","100000.0"),"ip");
+  // TODO currently this and dp0dt MUST be specified as inactive parameters in the input file
+  // BWR -- I'm not sure at this point it's worth going through the trouble to make that automatic
+  // Specific heat at constant pressure  units are L^2/T^2-K (K must be Kelvin)
   functionManager->addFunction("cp",fs.get<string>("cp","1004.5"),"ip");
+  // Ratio of specific heats
+  functionManager->addFunction("gamma",fs.get<string>("gamma","1.4"),"ip");
   // Specific gas constant  units are J/kg-K
   functionManager->addFunction("RGas",fs.get<string>("RGas","287.0"),"ip");
   // Prandtl number
@@ -101,7 +105,9 @@ void VDNS::volumeResidual() {
   ScalarT dt = wkset->deltat;
   bool isTransient = wkset->isTransient;
   Vista source_ux, source_pr, source_uy, source_uz, source_T;
-  Vista rho, mu, p0, lambda, cp;
+  Vista rho, mu, lambda, cp;
+  bool found_p0 = false;
+  bool found_dp0dt = false;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -118,9 +124,21 @@ void VDNS::volumeResidual() {
     // Update thermodynamic and transport properties
     rho = functionManager->evaluate("rho","ip");
     mu = functionManager->evaluate("mu","ip");
-    p0 = functionManager->evaluate("p0","ip");  // TODO what to do if nonconstant?
     lambda = functionManager->evaluate("lambda","ip");
     cp = functionManager->evaluate("cp","ip"); 
+
+  }
+
+  auto p0 = wkset->getParameter("p0",found_p0);
+  auto dp0dt = wkset->getParameter("dp0dt",found_dp0dt);
+
+  if ( ! ( found_p0 && found_dp0dt ) ) {
+
+    cout << "!!!!!!!!!! WARNING !!!!!!!!!!" << endl;
+    cout << "User must list p0 and dp0dt as inactive parameters " 
+         << "in input file for VDNS!" << endl;
+    cout << "Your job will most likely crash soon..." << endl;
+
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
@@ -145,11 +163,8 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        // TODO here and everywhere, WE NEED TO swing rho over to other side and use MU
-        // ALSO --> should thermal divergence be abstracted? i.e. it will depend on EOS
           AD Fx = 4./3.*mu(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
           Fx *= wts(elem,pt);
-          // TODO changing how source shows up, different from NS module
           AD F = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt)) - source_ux(elem,pt);
           F *= wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -182,7 +197,6 @@ void VDNS::volumeResidual() {
       }
 
       // GRADDIV contribution
-      // TODO p0 contribution
       // (dv_1/dx_1, \tau_mass R_mass) 
       // \tau_mass is like h^2/\tau_mom
       if (useGRADDIV) {
@@ -198,6 +212,7 @@ void VDNS::volumeResidual() {
             // TODO FIX TAU??? the constant at least is wrong
             tau = h(elem)*h(elem)/tau;
             AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt))*wts(elem,pt);
+            thermDiv -= 1./p0(0)*dp0dt(0)*wts(elem,pt);
             AD strongres = dux_dx(elem,pt) - thermDiv;
             AD S = tau*strongres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -225,8 +240,7 @@ void VDNS::volumeResidual() {
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt))*wts(elem,pt);
-          // TODO SOURCE AND DPDT TERM
-          F -= source_T(elem,pt)/cp(elem,pt)*wts(elem,pt);
+          F -= (dp0dt(0) + source_T(elem,pt))/cp(elem,pt)*wts(elem,pt);
           AD Fx = lambda(elem,pt)/cp(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += F*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0);
@@ -236,7 +250,6 @@ void VDNS::volumeResidual() {
 
       // SUPG contribution
       // TODO viscous contribution for higher order elements?
-      // TODO SOURCE AND DPDT TERM
       // (rho u_1 dw/dx_1, \tau_T R_T)
       // 1/\tau_T^2 = (c1 cp/lambda*h)^2 + (c2 |\rho u|/h)^2 + (c3 \rho/dt)^2
       if (useSUPG) {
@@ -249,7 +262,8 @@ void VDNS::volumeResidual() {
             AD tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),0.0,0.0,
                 rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO CHECK THIS, UNITS ETC.
-            AD strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt)) - source_T(elem,pt)/cp(elem,pt);
+            AD strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt)) 
+              - (dp0dt(0) + source_T(elem,pt))/cp(elem,pt);
             AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0);
@@ -280,8 +294,8 @@ void VDNS::volumeResidual() {
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD divu = dux_dx(elem,pt)*wts(elem,pt);
-          // TODO :: p0 part DONT SCREW UP WTS
           AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt))*wts(elem,pt);
+          thermDiv -= 1./p0(0)*dp0dt(0)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0);
           }
@@ -376,7 +390,6 @@ void VDNS::volumeResidual() {
       }
 
       // GRADDIV contribution
-      // TODO p0 contribution
       // (dv_1/dx_1, \tau_mass R_mass) 
       // \tau_mass is like h^2/\tau_mom
       if (useGRADDIV) {
@@ -393,6 +406,7 @@ void VDNS::volumeResidual() {
             // TODO FIX TAU??? the constant at least is wrong
             tau = h(elem)*h(elem)/tau;
             AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt))*wts(elem,pt);
+            thermDiv -= 1./p0(0)*dp0dt(0)*wts(elem,pt);
             AD strongres = (dux_dx(elem,pt) + duy_dx(elem,pt)) - thermDiv;
             AD S = tau*strongres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -463,7 +477,6 @@ void VDNS::volumeResidual() {
       }
 
       // GRADDIV contribution
-      // TODO p0 contribution
       // (dv_2/dx_2, \tau_mass R_mass) 
       // \tau_mass is like h^2/\tau_mom
       if (useGRADDIV) {
@@ -480,6 +493,7 @@ void VDNS::volumeResidual() {
             // TODO FIX TAU??? the constant at least is wrong
             tau = h(elem)*h(elem)/tau;
             AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt))*wts(elem,pt);
+            thermDiv -= 1./p0(0)*dp0dt(0)*wts(elem,pt);
             AD strongres = (dux_dx(elem,pt) + duy_dx(elem,pt)) - thermDiv;
             AD S = tau*strongres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -494,7 +508,6 @@ void VDNS::volumeResidual() {
       /////////////////////////////
       // energy equation
       /////////////////////////////
-      // TODO dp0 part, etc
       // (w,rho dT/dt) + (w,rho [u_1 dT/dx_1 + u_2 dT/dx_2]) + (dw/dx_1,lambda/cp dT/dx_1)
       // + (dw/dx_2,lambda/cp dT/dx_2) - (w,1/cp[dp0/dt + Q])
       int T_basis = wkset->usebasis[T_num];
@@ -513,8 +526,7 @@ void VDNS::volumeResidual() {
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt))*wts(elem,pt);
-          F -= source_T(elem,pt)/cp(elem,pt)*wts(elem,pt);
-          // TODO SOURCE AND DPDT TERM
+          F -= (dp0dt(0) + source_T(elem,pt))/cp(elem,pt)*wts(elem,pt);
           AD Fx = lambda(elem,pt)/cp(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
           AD Fy = lambda(elem,pt)/cp(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -525,7 +537,6 @@ void VDNS::volumeResidual() {
 
       // SUPG contribution
       // TODO viscous contribution for higher order elements?
-      // TODO SOURCE AND DPDT TERM
       // (rho [u_1 dw/dx_1 + u_2 dw/dx_2], \tau_T R_T)
       // 1/\tau_T^2 = (c1 cp/lambda*h)^2 + (c2 |\rho u|/h)^2 + (c3 \rho/dt)^2
       if (useSUPG) {
@@ -539,7 +550,7 @@ void VDNS::volumeResidual() {
                 rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO CHECK THIS, UNITS ETC.
             AD strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) 
-                + uy(elem,pt)*dT_dy(elem,pt)) - source_T(elem,pt)/cp(elem,pt);
+                + uy(elem,pt)*dT_dy(elem,pt)) - (dp0dt(0) + source_T(elem,pt))/cp(elem,pt);
             AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
             AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -574,11 +585,10 @@ void VDNS::volumeResidual() {
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt))*wts(elem,pt);
-          // TODO :: p0 part DONT SCREW UP WTS
-          // TODO forcing this to zero for now...
           AD ovT = 1./T(elem,pt);
           //if (T(elem,pt) <= 1e-12) std::cout << "OH NO" << std::endl; //ovT = 1e-12;
           AD thermDiv = ovT*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
+          thermDiv -= 1./p0(0)*dp0dt(0);
           thermDiv *= wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0);
@@ -825,7 +835,6 @@ void VDNS::volumeResidual() {
       /////////////////////////////
       // energy equation
       /////////////////////////////
-      // TODO dp0 part, etc
       // (w,rho dT/dt) + (w,rho [u_1 dT/dx_1 + u_2 dT/dx_2 + u_3 dT/dx_3]) + (dw/dx_1,lambda/cp dT/dx_1)
       // + (dw/dx_2,lambda/cp dT/dx_2) + (dw/dx_3,lambda/cp dT/dx_3) - (w,1/cp[dp0/dt + Q])
       int T_basis = wkset->usebasis[T_num];
@@ -846,8 +855,7 @@ void VDNS::volumeResidual() {
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt))*wts(elem,pt);
-          F -= source_T(elem,pt)/cp(elem,pt)*wts(elem,pt);
-          // TODO SOURCE AND DPDT TERM
+          F -= (dp0dt(0) + source_T(elem,pt))/cp(elem,pt)*wts(elem,pt);
           AD Fx = lambda(elem,pt)/cp(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
           AD Fy = lambda(elem,pt)/cp(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
           AD Fz = lambda(elem,pt)/cp(elem,pt)*dT_dz(elem,pt)*wts(elem,pt);
@@ -859,7 +867,6 @@ void VDNS::volumeResidual() {
 
       // SUPG contribution
       // TODO viscous contribution for higher order elements?
-      // TODO SOURCE AND DPDT TERM
       // (rho [u_1 dw/dx_1 + u_2 dw/dx_2 + u_3 dw/dx_3], \tau_T R_T)
       // 1/\tau_T^2 = (c1 cp/lambda*h)^2 + (c2 |\rho u|/h)^2 + (c3 \rho/dt)^2
       if (useSUPG) {
@@ -873,7 +880,7 @@ void VDNS::volumeResidual() {
                 rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO CHECK THIS, UNITS ETC.
             AD strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) 
-                + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt)) - source_T(elem,pt)/cp(elem,pt);
+                + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt)) - (dp0dt(0) + source_T(elem,pt))/cp(elem,pt);
             AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
             AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
             AD Sz = tau*strongres*rho(elem,pt)*uz(elem,pt)*wts(elem,pt);
@@ -911,8 +918,8 @@ void VDNS::volumeResidual() {
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))*wts(elem,pt);
-          // TODO :: p0 part DONT SCREW UP WTS
           AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt));
+          thermDiv -= 1./p0(0)*dp0dt(0);
           thermDiv *= wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0);
@@ -1242,31 +1249,31 @@ std::vector< std::vector<string> > VDNS::setupIntegratedQuantities(const int & s
       // 1 -- volume of the domain
       std::vector<string> IQdata = {"1.","VDNS vol total volume","volume"};
       integrandsNamesAndTypes.push_back(IQdata);
-      // 2 -- total heating
-      IQdata = {"source T","VDNS vol Q total","volume"};
+      // 2 -- total heating (scaled by gamma - 1)
+      IQdata = {"source T*(gamma-1.)","VDNS vol Q total","volume"};
       integrandsNamesAndTypes.push_back(IQdata);
-      // 3 -- heat flux on the boundary
-      // 4 -- "velocity" flux on the boundary
+      // 3 -- heat flux on the boundary (scaled by gamma - 1)
+      // 4 -- "velocity" flux on the boundary (scaled by gamma)
       string hf,vf;
       if (spaceDim == 1) {
-        hf = "lambda*(nx*grad(T)[x])";
-        vf = "nx*ux";
+        hf = "(gamma-1.)*lambda*(nx*grad(T)[x])";
+        vf = "gamma*nx*ux";
       } else if (spaceDim == 2) {
-        hf = "lambda*(nx*grad(T)[x] + ny*grad(T)[y])";
-        vf = "nx*ux + ny*uy";
+        hf = "(gamma-1.)*lambda*(nx*grad(T)[x] + ny*grad(T)[y])";
+        vf = "gamma*(nx*ux + ny*uy)";
       } else if (spaceDim == 3) {
-        hf = "lambda*(nx*grad(T)[x] + ny*grad(T)[y] + nz*grad(T)[z])";
-        vf = "nx*ux + ny*uy + nz*uz";
+        hf = "(gamma-1.)*lambda*(nx*grad(T)[x] + ny*grad(T)[y] + nz*grad(T)[z])";
+        vf = "gamma*(nx*ux + ny*uy + nz*uz)";
       }
-      IQdata = {hf,"VDNS bnd heat flux","boundary"};
+      IQdata = {hf,"VDNS bnd heat flux (scaled by gamma - 1)","boundary"};
       integrandsNamesAndTypes.push_back(IQdata);
-      IQdata = {vf,"VDNS bnd vel flux","boundary"};
+      IQdata = {vf,"VDNS bnd vel flux (scaled by gamma)","boundary"};
       integrandsNamesAndTypes.push_back(IQdata);
 
     } else {
       // if no inflow or outflow
-      // 1 -- total mass
-      std::vector<string> IQdata = {"rho","VDNS vol total mass","volume"};
+      // 1 -- total mass times RGas
+      std::vector<string> IQdata = {"rho*RGas","VDNS vol total mass times R","volume"};
       integrandsNamesAndTypes.push_back(IQdata);
       // 2 -- 1/T
       IQdata = {"1./T","VDNS vol inverse temp","volume"};
@@ -1314,6 +1321,54 @@ void VDNS::setWorkset(Teuchos::RCP<workset> & wkset_) {
 
 }
 
+// ========================================================================================
+// Update p_0 and dp_0/dt after the IQs are calculated 
+// ========================================================================================
+
+void VDNS::updateIntegratedQuantitiesDependents() {
+
+  if ( openSystem ) return; // shouldn't happen... but JIC no op.
+
+  // since param and IQ data is stored on the assembly device 
+  // we trick the compiler by doing a parallel for... I don't like this too much
+
+  auto deltat = wkset->deltat_KV; // TODO CHECK ME
+
+  bool found = false; // TODO should have already caught errors so skipping for now
+  auto p0 = wkset->getParameter("p0",found);
+  auto dp0dt = wkset->getParameter("dp0dt",found);
+
+  auto IQs = wkset->integrated_quantities;
+
+  if ( inoutflow ) {
+    // The IQs are volume, total heating*(gamma - 1), (gamma - 1)*heat flux, gamma*velocity flux 
+    parallel_for("VDNS update p0 dp0dt",
+                RangePolicy<AssemblyExec>(0,1),
+                KOKKOS_LAMBDA (const int s) {
+
+      // dp0/dt + 1/vol*p0*vf = 1/vol*hf + 1/vol*heat
+      // see equation 10 in gravemeier
+
+      dp0dt(0) = 1./IQs(IQ_start)*(IQs(IQ_start+3) + IQs(IQ_start+1) - p0(0)*IQs(IQ_start+2));
+      p0(0) = p0(0) + deltat(0)*dp0dt(0);
+
+    });
+  } else {
+    // The two IQs are RGas * m_total and \int 1/T 
+    parallel_for("VDNS update p0 dp0dt",
+                RangePolicy<AssemblyExec>(0,1),
+                KOKKOS_LAMBDA (const int s) {
+    
+      // p0 = R \int \rho dvol / \int 1/T dvol
+
+      ScalarT pnew = IQs(IQ_start)/IQs(IQ_start+1);  // eqn 8 in Gravemeier
+
+      dp0dt(0) = (pnew - p0(0))/deltat(0);
+      p0(0) = pnew;
+
+    });
+  }
+}
 
 // ========================================================================================
 // return the value of the stabilization parameter
