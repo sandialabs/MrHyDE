@@ -1,0 +1,144 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 10
+  debug level: 0
+  profile: false
+  Mesh:
+    dimension: 2
+    source: Exodus
+    mesh file: heated_channel.exo
+    ## GRID :: [-2.5H,2.5H] x [-.5H,.5H] in units of channel height
+    ## There is a heating element from -2H to -1.5H on the bottom surface
+    ## TODO figure out how to move coordinates in cubit (didn't mean to do the above)
+  Physics:
+    modules: VDNS
+    #assemble boundary terms: false
+    #build face terms: false
+    Dirichlet conditions:
+      scalar data: false
+      transient data: true
+      static data: false
+      ux:
+        inflow: '.6*(y+.5)*(1.-y-.5)'  ## parabolic profile, at centerline u is .15 (note the shift)
+        top: '0.0'
+        insulated_bottom: '0.0'
+        heated_bottom: '0.0'
+      uy:
+        inflow: '0.0'
+        top: '0.0'
+        insulated_bottom: '0.0'
+        heated_bottom: '0.0'
+        #outflow: '0.0'
+      T:
+        inflow: 'TRef'
+        #heated_bottom: 'TRef'
+        heated_bottom: 'TRef + t*(T_H-TRef)/15.*(15.>t) + (T_H-TRef)*(t>15.)' ## heat over the span of 15 seconds
+        #heated_bottom: 'min(TRef + (T_H-TRef)/15.*t,T_H)' ## heat over the span of 15 seconds
+    Neumann conditions:
+      transient data: true
+      static data: false
+      ux:
+        outflow: '-rho*g*(1.-y-.5)' ## TODO again shifted
+      uy:
+        outflow: '0.0'
+      ## Adiabatic on T (except for inflow and heated spot)
+    Initial conditions:
+      scalar data: false
+      ux: '.6*(y+.5)*(1.-y-.5)'  ## TODO note the shift
+      uy: '0.0'
+      pr: '1.0'
+      T:  'TRef'
+    usePSPG: true
+    useSUPG: true
+    useDIVGRAD: false #true
+  Discretization:
+    order:
+      ux: 1
+      uy: 1
+      pr: 1
+      T: 1
+    quadrature: 2
+  Solver:
+    solver: transient
+    workset size: 100
+    nonlinear TOL: 1.0e-06
+    linear TOL: 1.0e-6
+    max nonlinear iters: 10
+    max linear iters: 100
+    final time: 100.
+    delta t: .5
+    use direct solver: false
+    use domain decomposition: false
+    use strong DBCs: true
+    Preconditioner Settings:
+      verbosity: none
+      number of equations: 4
+      multigrid algorithm: unsmoothed
+      'sa: use filtered matrix': true
+      'sa: damping factor': 0.0
+      'coarse: max size': 2000
+      'transpose: use implicit': false
+      'aggregation: type': uncoupled
+      'aggregation: drop scheme': classical
+      'aggregation: drop tol': 0.0
+      'smoother: pre or post': both
+      'smoother: type': SCHWARZ
+      'smoother: params':
+        'schwarz: overlap level': 1
+        'schwarz: combine mode': Zero
+        'schwarz: use reordering': false
+        'schwarz: reordering list':
+          order_method: rcm
+        subdomain solver name: RILUK
+        subdomain solver parameters:
+          'fact: iluk level-of-fill': 1
+          'fact: ilut level-of-fill': 1.75
+          'fact: absolute threshold': 0.0
+          'fact: relative threshold': 1.0
+          'fact: relax value': 0.0
+        #'chebyshev: degree': 2
+        #'chebyshev: ratio eigenvalue': 7.0
+        #'chebyshev: min eigenvalue': 1.0
+        #'chebyshev: zero starting solution': true
+        # 'relaxation: type': Gauss-Seidel #MT Gauss-Seidel
+      'repartition: enable': false
+      'reuse: type': none
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    write solution: true
+    write frequency: 10
+    Extra cell fields:
+      lambdTdy: 'lambda*grad(T)[y]'
+      density: rho
+      dynvisc: mu
+  Functions:
+    ## TODO doing stuff for boussinesq
+    source ux: '0.0'
+    source uy: '-rho*g' ## TODO GRAVITY ??
+    ##source uy: '-rho*g*(T-TRef)/TRef' ## TODO GRAVITY ??
+    TRef: '293.' ## K
+    T_H: '439.5' ## K
+    muRef: '.01178' ## kg/m-s
+    #p0: '100000.0' ## Pa
+    cp: '1004.5' ## J/kg-K
+    S: '110.4' ## K
+    RGas: '287.0'  ## J/kg-K
+    PrNum: '1.0' ## 
+    g: '9.81' ## m/s^2
+    #rho: 'p0/(RGas*TRef)'
+    rho: 'p0/(RGas*T)'
+    mu: '(T/TRef)^(3./2.)*(TRef + S)/(T + S)*muRef'
+    lambda: 'cp*mu/PrNum'
+    ## TODO keep these in common file or something like that
+  Parameters:
+    p0:
+      type: scalar
+      value: 100000.0 ## Pa
+      usage: inactive
+    dp0dt:
+      type: scalar
+      value: 0.0
+      usage: inactive
+...
