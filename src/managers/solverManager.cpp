@@ -983,6 +983,8 @@ void SolverManager<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vect
         if (stepProg % postproc->write_frequency == 0) write_this_step = true;
         postproc->record(u,current_time,write_this_step,obj);
         write_this_step = false;
+        // TODO :: HACKED FOR NOW... this means we will record twice at end of sim too...
+        postproc->report(); // right now this is how the IQs get finalized...
       }
       else { // something went wrong, cut time step and try again
         deltat *= 0.5;
