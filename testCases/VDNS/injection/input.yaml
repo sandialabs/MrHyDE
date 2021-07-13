@@ -68,7 +68,7 @@ ANONYMOUS:
     linear TOL: 1.0e-6
     max nonlinear iters: 10
     max linear iters: 100
-    final time: 9.
+    final time: .2
     delta t: .05
     use direct solver: false
     use domain decomposition: false
@@ -110,7 +110,7 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     write solution: true
-    write frequency: 10
+    write frequency: 1 #10
     Extra cell fields:
       lambdTdy: 'lambda*grad(T)[y]'
       density: rho
