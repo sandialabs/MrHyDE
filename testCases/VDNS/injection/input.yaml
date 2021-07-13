@@ -14,6 +14,7 @@ ANONYMOUS:
     modules: VDNS
     #assemble boundary terms: false
     #build face terms: false
+    pr_point_DBCs: origin
     Dirichlet conditions:
       scalar data: false
       transient data: true
@@ -33,8 +34,6 @@ ANONYMOUS:
         bottom_hole: '258.3*(.01 - x*x)*(t/3.*(3.>t) + (t>3.))' ## m/s
       T:
         bottom_hole: 'TRef + t*(T_H-TRef)/3.*(3.>t) + (T_H-TRef)*(t>3.)' ## K
-      pr:
-        top: '1.0'
     Neumann conditions:
       ## Adiabatic on T everywhere else
       T:
@@ -46,7 +45,7 @@ ANONYMOUS:
       scalar data: false
       ux: '0.0'
       uy: '0.0'
-      pr: '1.0'
+      pr: '0.0'
       T:  'TRef'
     usePSPG: true
     useSUPG: true
@@ -68,8 +67,8 @@ ANONYMOUS:
     linear TOL: 1.0e-6
     max nonlinear iters: 10
     max linear iters: 100
-    final time: .2
-    delta t: .05
+    final time: 1.
+    delta t: .1
     use direct solver: false
     use domain decomposition: false
     use strong DBCs: true

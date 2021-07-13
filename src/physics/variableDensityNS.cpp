@@ -730,6 +730,7 @@ void VDNS::volumeResidual() {
           AD Fy = mu(elem,pt)*(2.*duy_dy(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))) - pr(elem,pt);
           Fy *= wts(elem,pt);
           AD Fz = mu(elem,pt)*(duy_dz(elem,pt) + duz_dy(elem,pt));
+          Fz *= wts(elem,pt);
           AD F = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) - source_uy(elem,pt);
           F *= wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -786,7 +787,7 @@ void VDNS::volumeResidual() {
       auto duz_dy = wkset->getData("grad(uz)[y]");
       auto duz_dz = wkset->getData("grad(uz)[z]");
       auto pr = wkset->getData("pr");
-      auto off = subview(wkset->offsets,uy_num,ALL());
+      auto off = subview(wkset->offsets,uz_num,ALL());
       
       parallel_for("VDNS uz volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),

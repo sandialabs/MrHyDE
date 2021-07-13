@@ -1,55 +1,57 @@
 %YAML 1.1
 ---
-## This example is taken from 4.1.1 in Gravemeier and Wall
+## This example is taken from 4.1.4 in Gravemeier and Wall
 ANONYMOUS:
   verbosity: 10
   debug level: 0
   profile: false
   Mesh:
-    dimension: 2
+    dimension: 3
     #source: Exodus
     #mesh file: cavity.exo
-    ## GRID :: [0,H] x [0,H] in units of cavity side length
-    element type: quad
+    ## GRID :: [0,L] x [0,H] x [0,L]  L = 5m H = 1 m
+    element type: hex
     xmin: 0.0
-    xmax: 1.0
+    xmax: 5.0
     ymin: 0.0
     ymax: 1.0
-    NX: 80
-    NY: 80
+    zmin: 0.0
+    zmax: 5.0
+    NX: 50
+    NY: 14
+    NZ: 50
   Physics:
     modules: VDNS
-    #assemble boundary terms: false
-    #build face terms: false
+    assemble boundary terms: false
+    build face terms: false
     pr_point_DBCs: origin
     Dirichlet conditions:
       scalar data: false
       transient data: true
       static data: false
       ux:
-        left: '0.0'
-        right: '0.0'
-        top: '0.0'
-        bottom: '0.0'
+        all boundaries: 0.0
       uy:
+        all boundaries: 0.0
+      uz:
+        all boundaries: 0.0
+      T:
+        top: 'T_C'
+        bottom: 'T_C + 20. + t*(T_H-T_C-20.)/10.*(10.>t) + (T_H-T_C-20.)*(t>10.)' ## heat over the span of 10 seconds
+    Neumann conditions:
+      ## Adiabatic on T for sides
+      T:
         left: '0.0'
         right: '0.0'
-        top: '0.0'
-        bottom: '0.0'
-      T:
-        left: 'TRef + t*(T_H-TRef)/10.*(10.>t) + (T_H-TRef)*(t>10.)' ## heat over the span of 10 seconds
-        right: 'TRef + t*(T_C-TRef)/10.*(10.>t) + (T_C-TRef)*(t>10.)' ## cool over the span of 10 seconds
-    Neumann conditions:
-      ## Adiabatic on T for top and bottom
-      T:
-        top: '0.0'
-        bottom: '0.0'
+        front: '0.0'
+        back: '0.0'
     Initial conditions:
       scalar data: false
       ux: '0.0'
       uy: '0.0'
+      uz: '0.0'
       pr: '0.0'
-      T:  'TRef'
+      T:  'T_C + 20.*(1.0 - y)'
     usePSPG: true
     useSUPG: true
     useDIVGRAD: false #true
@@ -59,6 +61,7 @@ ANONYMOUS:
     order:
       ux: 1
       uy: 1
+      uz: 1
       pr: 1
       T: 1
     quadrature: 2
@@ -70,14 +73,14 @@ ANONYMOUS:
     linear TOL: 1.0e-6
     max nonlinear iters: 10
     max linear iters: 100
-    final time: 25.
-    delta t: .25
+    final time: 75.
+    delta t: .1
     use direct solver: false
     use domain decomposition: false
     use strong DBCs: true
     Preconditioner Settings:
       verbosity: none
-      number of equations: 4
+      number of equations: 5
       multigrid algorithm: unsmoothed
       'sa: use filtered matrix': true
       'sa: damping factor': 0.0
@@ -121,10 +124,11 @@ ANONYMOUS:
   Functions:
     source ux: '0.0'
     source uy: '-rho*g' ## TODO GRAVITY ??
-    TRef: '300.' ## K
-    T_H: '480.' ## K
-    T_C: '120.' ## K
-    muRef: '.003358' ## kg/m-s
+    source uz: '0.0'
+    TRef: '310.' ## K
+    T_H: '325.' ## K
+    T_C: '300.' ## K
+    muRef: '.0094' ## kg/m-s
     cp: '1004.5' ## J/kg-K
     S: '110.4' ## K
     RGas: '287.0'  ## J/kg-K
