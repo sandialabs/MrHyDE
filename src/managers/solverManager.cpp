@@ -1276,13 +1276,14 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       linalg->linearSolver(J, res, du);
       linalg->importVectorToOverlapped(du_over, du);
       
+      ScalarT alpha = 1.0;
       if (is_adjoint) {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
-        phi->update(1.0, *du_over, 1.0);
+        phi->update(alpha, *du_over, 1.0);
       }
       else {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
-        u->update(1.0, *du_over, 1.0);
+        u->update(alpha, *du_over, 1.0);
       }
     }
     NLiter++; // increment number of iterations

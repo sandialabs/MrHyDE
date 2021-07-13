@@ -23,7 +23,6 @@
 #include <BelosConfigDefs.hpp>
 #include <BelosLinearProblem.hpp>
 #include <BelosTpetraAdapter.hpp>
-#include <BelosBlockGmresSolMgr.hpp>
 
 // MueLu
 #include <MueLu.hpp>
@@ -41,6 +40,49 @@ namespace MrHyDE {
     cout << "********** Help and Documentation for the Solver Interface **********" << endl;
   }
   */
+  
+  // ========================================================================================
+  // Constructor for linear solver options class
+  // Also may store preconditioners or direct solvers for reuse
+  // ========================================================================================
+  
+  template<class Node>
+  class SolverOptions {
+    
+    typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
+    typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> LA_MultiVector;
+    
+  public:
+    
+    SolverOptions(Teuchos::ParameterList & settings) {
+      amesosType = settings.get<string>("Amesos solver","KLU2");
+      belosType = settings.get<string>("Belos solver","Block GMRES");
+      belosSublist = settings.get<string>("Belos settings","Belos Settings");
+      mueluSublist = settings.get<string>("MueLu settings","Preconditioner Settings");
+      
+      useDirect = settings.get<bool>("use direct solver",false);
+      useDomainDecomp = settings.get<bool>("use domain decomposition",false);
+      usePreconditioner = settings.get<bool>("use preconditioner",true);
+      reusePreconditioner = settings.get<bool>("reuse preconditioner",true);
+      rightPreconditioner = settings.get<bool>("right preconditioner",false);
+      
+      havePreconditioner = false;
+      haveSymbFactor = false;
+    }
+    
+    string amesosType, belosType;
+    string belosSublist, mueluSublist;
+    bool useDirect, useDomainDecomp, usePreconditioner, rightPreconditioner, reusePreconditioner, havePreconditioner, haveSymbFactor;
+    Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > AmesosSolver;
+    Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > M; // AMG preconditioner for Jacobians
+    Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > M_dd; // domain decomposition preconditioner for Jacobians
+    
+  };
+  
+  // ========================================================================================
+  // Main Interface
+  // ========================================================================================
+  
   template<class Node>
   class LinearAlgebraInterface {
 
@@ -222,18 +264,27 @@ namespace MrHyDE {
     // ========================================================================================
     // There are 3 types of matrices used in MrHyDE: Jacobian, L2 projection and boundary L2
     // There are 3 types of variables: standard, discretized parameters, aux
-    // This gives 9 possible options for linear systems, but Jacobians of params are not used.
+    // This gives 9 possible options for linear systems.
     // These can be very different and require different solver strategies.
-    // Not all 9 are implemented
     // ========================================================================================
     
-    Teuchos::RCP<Teuchos::ParameterList> getBelosParameterList();
+    Teuchos::RCP<Teuchos::ParameterList> getBelosParameterList(const string & belosSublist);
     
     // ========================================================================================
-    // Linear solver on Tpetra stack for Jacobians
+    // Linear solver on Tpetra stack for Jacobians of states
     // ========================================================================================
+    
+    void linearSolver(Teuchos::RCP<SolverOptions<Node> > & opt,
+                      matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
+    
     
     void linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
+    
+    // ========================================================================================
+    // Linear solver on Tpetra stack for Jacobians of discretized parameters
+    // ========================================================================================
+    
+    void linearSolverParam(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
     
     // ========================================================================================
     // Linear solver on Tpetra stack for Jacobians of aux vars
@@ -304,18 +355,12 @@ namespace MrHyDE {
     
     matrix_RCP matrix, overlapped_matrix;
     
-    // Linear solvers and preconditioners
+    // Linear solvers and preconditioner settings
     int maxLinearIters, maxKrylovVectors;
-    bool have_preconditioner=false, have_aux_preconditioner=false, reuse_preconditioner, reuse_aux_preconditioner, have_symbolic_factor=false, have_aux_symbolic_factor=false;
-    bool have_preconditioner_L2=false, have_preconditioner_BL2=false;
-    bool useDirect, useDirectL2, useDirectBL2, useDirectAux, useDirectL2Aux, useDirectBL2Aux, useDirectL2Param, useDirectBL2Param;
-    bool useDomDecomp, useDomDecompL2, useDomDecompBL2, useDomDecompAux, useDomDecompL2Aux, useDomDecompBL2Aux, useDomDecompL2Param, useDomDecompBL2Param;
-    bool usePrec, usePrecL2, usePrecBL2, usePrecAux, usePrecL2Aux, usePrecBL2Aux, usePrecL2Param, usePrecBL2Param;
     string belos_residual_scaling;
     ScalarT linearTOL;
-    Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > Am2Solver, Am2Solver_aux;
-    Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > M, M_aux, M_BL2; // AMG preconditioner for Jacobians
-    Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > M_dd, M_dd_aux; // domain decomposition preconditioner for Jacobians
+    
+    Teuchos::RCP<SolverOptions<Node> > options, options_L2, options_BndryL2, options_aux, options_aux_L2, options_aux_BndryL2, options_param, options_param_L2, options_param_BndryL2;
     
     Teuchos::RCP<Teuchos::Time> setupLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::setup");
     Teuchos::RCP<Teuchos::Time> newvectortimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::getNew*Vector()");

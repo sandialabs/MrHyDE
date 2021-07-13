@@ -21,6 +21,7 @@
 #include "solverManager.hpp" // includes belos, muelu, amesos2
 #include "parameterManager.hpp"
 #include "subgridMacroData.hpp"
+#include <BelosBlockGmresSolMgr.hpp>
 
 namespace MrHyDE {
   
