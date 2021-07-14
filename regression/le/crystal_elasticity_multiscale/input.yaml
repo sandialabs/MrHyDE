@@ -47,6 +47,7 @@ ANONYMOUS:
     solver: steady-state
     use strong DBCs: true
     workset size: 1
+    allow backtracking: false
   Postprocess: 
     compute errors: true
     response type: pointwise

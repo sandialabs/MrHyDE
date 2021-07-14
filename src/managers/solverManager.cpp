@@ -65,7 +65,11 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   solver_type = settings->sublist("Solver").get<string>("solver","none"); // or "transient"
   time_order = settings->sublist("Solver").get<int>("time order",1);
   NLtol = settings->sublist("Solver").get<ScalarT>("nonlinear TOL",1.0E-6);
+  NLabstol = settings->sublist("Solver").get<ScalarT>("absolute nonlinear TOL",std::min(NLtol,1.0E-6));
   maxNLiter = settings->sublist("Solver").get<int>("max nonlinear iters",10);
+  useRelativeTOL = settings->sublist("Solver").get<bool>("use relative TOL",true);
+  useAbsoluteTOL = settings->sublist("Solver").get<bool>("use absolute TOL",false);
+  allowBacktracking = settings->sublist("Solver").get<bool>("allow backtracking",true);
   
   ButcherTab = settings->sublist("Solver").get<string>("transient Butcher tableau","BWE");
   BDForder = settings->sublist("Solver").get<int>("transient BDF order",1);
@@ -1169,12 +1173,12 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
   
   int status = 0;
   int NLiter = 0;
-  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> NLerr_first(1);
-  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> NLerr_scaled(1);
-  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> NLerr(1);
-  NLerr_first[0] = 10*NLtol;
-  NLerr_scaled[0] = NLerr_first[0];
-  NLerr[0] = NLerr_first[0];
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> resnorm_first(1);
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> resnorm_scaled(1);
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> resnorm(1);
+  resnorm_first[0] = 10*NLtol;
+  resnorm_scaled[0] = resnorm_first[0];
+  resnorm[0] = resnorm_first[0];
   
   if (usestrongDBCs) {
     this->setDirichlet(u);
@@ -1185,27 +1189,31 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     maxiter = 2;
   }
   
-  while (NLerr_scaled[0]>NLtol && NLiter<maxiter) { // while not converged and not reached max iterations
+  bool proceed = true;
+  ScalarT alpha = 1.0;
+  
+  vector_RCP res = linalg->getNewVector();
+  vector_RCP res_over = linalg->getNewOverlappedVector();
+  vector_RCP du_over = linalg->getNewOverlappedVector();
+  vector_RCP du = linalg->getNewVector();
+  
+  while (proceed) {
+  //while (resnorm_scaled[0]>NLtol && resnorm[0]>NLabstol && NLiter<maxiter) { // while not converged and not reached max iterations
     
     multiscale_manager->reset();
     
     gNLiter = NLiter;
-    
-    
-    vector_RCP res = linalg->getNewVector();
-    matrix_RCP J = linalg->getNewMatrix();
-    vector_RCP res_over = linalg->getNewOverlappedVector();
+  
     matrix_RCP J_over = linalg->getNewOverlappedMatrix();
-    vector_RCP du_over = linalg->getNewOverlappedVector();
-    vector_RCP du = linalg->getNewVector();
-    
-    
+    matrix_RCP J = linalg->getNewMatrix();
+      
+    linalg->fillComplete(J_over);
+
     // *********************** COMPUTE THE JACOBIAN AND THE RESIDUAL **************************
     
     bool build_jacobian = true;
     res_over->putScalar(0.0);
     
-    linalg->fillComplete(J_over);
     J_over->resumeFill();
     J_over->setAllToScalar(0.0);
     
@@ -1233,37 +1241,58 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       //KokkosTools::print(res,"residual from solver interface");
     }
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
+    
+    {
+      Teuchos::TimeMonitor localtimer(*normLAtimer);
+      res->normInf(resnorm);
+    }
+    
+    bool solve = true;
     if (NLiter == 0) {
-      {
-        Teuchos::TimeMonitor localtimer(*normLAtimer);
-        res->normInf(NLerr_first);
-      }
-      NLerr[0] = NLerr_first[0];
-      if (NLerr_first[0] > 1.0e-14)
-        NLerr_scaled[0] = 1.0;
-      else
-        NLerr_scaled[0] = 0.0;
+      resnorm_first[0] = resnorm[0];
+      resnorm_scaled[0] = 1.0;
     }
     else {
-      {
-        Teuchos::TimeMonitor localtimer(*normLAtimer);
-        res->normInf(NLerr);
-      }
-      NLerr_scaled[0] = NLerr[0]/NLerr_first[0];
+      resnorm_scaled[0] = resnorm[0]/resnorm_first[0];
     }
     
-    
-    if(Comm->getRank() == 0 && verbosity > 1) {
+    if (Comm->getRank() == 0 && verbosity > 1) {
       cout << endl << "*********************************************************" << endl;
       cout << "***** Iteration: " << NLiter << endl;
-      cout << "***** Norm of nonlinear residual: " << NLerr[0] << endl;
-      cout << "***** Scaled Norm of nonlinear residual: " << NLerr_scaled[0] << endl;
+      cout << "***** Norm of nonlinear residual: " << resnorm[0] << endl;
+      cout << "***** Scaled Norm of nonlinear residual: " << resnorm_scaled[0] << endl;
       cout << "*********************************************************" << endl;
     }
     
+    if (allowBacktracking && resnorm_scaled[0] > 1.1) {
+      solve = false;
+      alpha *= 0.5;
+      if (is_adjoint) {
+        Teuchos::TimeMonitor localtimer(*updateLAtimer);
+        phi->update(-1.0*alpha, *du_over, 1.0);
+      }
+      else {
+        Teuchos::TimeMonitor localtimer(*updateLAtimer);
+        u->update(-1.0*alpha, *du_over, 1.0);
+      }
+      if (Comm->getRank() == 0 && verbosity > 1) {
+        cout << "***** Backtracking: new learning rate = " << alpha << endl;
+      }
+      
+    }
+    else {
+      if (useRelativeTOL && resnorm_scaled[0]<NLtol) {
+        solve = false;
+      }
+      else if (useAbsoluteTOL && resnorm[0]<NLabstol) {
+        solve = false;
+      }
+    }
+    
+    
     // *********************** SOLVE THE LINEAR SYSTEM **************************
     
-    if (NLerr_scaled[0] > NLtol) {
+    if (solve) {
       
       linalg->fillComplete(J_over);
       J->resumeFill();
@@ -1278,16 +1307,31 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
       linalg->linearSolver(J, res, du);
       linalg->importVectorToOverlapped(du_over, du);
       
+      alpha = 1.0;
       if (is_adjoint) {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
-        phi->update(1.0, *du_over, 1.0);
+        phi->update(alpha, *du_over, 1.0);
       }
       else {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
-        u->update(1.0, *du_over, 1.0);
+        u->update(alpha, *du_over, 1.0);
       }
     }
     NLiter++; // increment number of iterations
+    
+    if (NLiter >= maxiter) {
+      proceed = false;
+    }
+    else if (useRelativeTOL) {
+      if (resnorm_scaled[0]<NLtol) {
+        proceed = false;
+      }
+    }
+    else if (useAbsoluteTOL) {
+      if (resnorm[0]<NLabstol) {
+        proceed = false;
+      }
+    }
   } // while loop
   if (debug_level>1) {
     Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> normu(1);
@@ -1307,7 +1351,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
         status = 1;
         cout << endl << endl << "********************" << endl;
         cout << endl << "SOLVER FAILED TO CONVERGE CONVERGED in " << NLiter
-        << " iterations with residual norm " << NLerr[0] << endl;
+        << " iterations with residual norm " << resnorm[0] << endl;
         cout << "********************" << endl;
       }
     }

@@ -1,0 +1,54 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  profile: false
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 40
+    NY: 40
+  Functions:
+    thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
+  Physics: 
+    modules: thermal
+    assemble boundary terms: false
+    build face terms: true
+    Dirichlet conditions:
+      scalar data: true
+      e:
+        all boundaries: 0.0
+    Initial conditions:
+      scalar data: true
+      e: 0.0
+  Discretization:
+    order:
+      e: 1
+    quadrature: 2
+  Solver:
+    solver: steady-state
+    workset size: 100
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 2
+    use strong DBCs: true
+    Belos solver: Block Gmres
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    compute errors: true
+    write solution: false
+    True solutions:
+      e: sin(2*pi*x)*sin(2*pi*y)
+      e face: sin(2*pi*x)*sin(2*pi*y)
+      'grad(e)[x]': 2*pi*cos(2*pi*x)*sin(2*pi*y)
+      'grad(e)[y]': 2*pi*sin(2*pi*x)*cos(2*pi*y)
+    Extra cell fields:
+      es: e*e
+  
+    
+...

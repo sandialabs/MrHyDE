@@ -12,13 +12,26 @@
  ************************************************************************/
 
 #include "linearAlgebraInterface.hpp"
+#include <BelosBlockGmresSolMgr.hpp>
+#include <BelosBlockCGSolMgr.hpp>
+#include <BelosBiCGStabSolMgr.hpp>
+#include <BelosGCRODRSolMgr.hpp>
+#include <BelosPCPGSolMgr.hpp>
+#include <BelosPseudoBlockCGSolMgr.hpp>
+#include <BelosPseudoBlockGmresSolMgr.hpp>
+#include <BelosPseudoBlockStochasticCGSolMgr.hpp>
+#include <BelosPseudoBlockTFQMRSolMgr.hpp>
+#include <BelosRCGSolMgr.hpp>
+#include <BelosTFQMRSolMgr.hpp>
 
 using namespace MrHyDE;
 
 // Explicit template instantiations
 template class MrHyDE::LinearAlgebraInterface<SolverNode>;
+template class MrHyDE::SolverOptions<SolverNode>;
 #if MrHyDE_REQ_SUBGRID_ETI
 template class MrHyDE::LinearAlgebraInterface<SubgridSolverNode>;
+template class MrHyDE::SolverOptions<SubgridSolverNode>;
 #endif
 
 // ========================================================================================
@@ -42,41 +55,120 @@ Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
   
   verbosity = settings->get<int>("verbosity",0);
   
+  // Generic Belos Settings - can be overridden by defining Belos sublists
   linearTOL = settings->sublist("Solver").get<ScalarT>("linear TOL",1.0E-7);
   maxLinearIters = settings->sublist("Solver").get<int>("max linear iters",100);
   maxKrylovVectors = settings->sublist("Solver").get<int>("krylov vectors",100);
   belos_residual_scaling = settings->sublist("Solver").get<string>("Belos implicit residual scaling","None");
   // Also: "Norm of Preconditioned Initial Residual" or "Norm of Initial Residual"
   
-  useDirect = settings->sublist("Solver").get<bool>("use direct solver",false);
-  useDirectBL2 = settings->sublist("Solver").get<bool>("use direct solver",false);
-  useDirectL2 = settings->sublist("Solver").get<bool>("use direct solver",false);
-  useDirectAux = settings->sublist("Solver").get<bool>("use direct solver for aux",false);
-  useDirectBL2Aux = settings->sublist("Solver").get<bool>("use direct solver for aux",false);
-  useDirectL2Aux = settings->sublist("Solver").get<bool>("use direct solver for aux",false);
-  useDirectBL2Param = settings->sublist("Solver").get<bool>("use direct solver for param",false);
-  useDirectL2Param = settings->sublist("Solver").get<bool>("use direct solver for param",false);
+  // Create the solver options for the state Jacobians
+  {
+    Teuchos::ParameterList solvesettings;
+    if (settings->sublist("Solver").isSublist("State linear solver")) { // for detailed control
+      solvesettings = settings->sublist("Solver").sublist("State linear solver");
+    }
+    else { // use generic options
+      solvesettings = settings->sublist("Solver");
+    }
+    options = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
+  }
   
-  useDomDecomp = settings->sublist("Solver").get<bool>("use domain decomposition",false);
-  useDomDecompL2 = settings->sublist("Solver").get<bool>("use domain decomposition for L2 projections",false);
-  useDomDecompBL2 = settings->sublist("Solver").get<bool>("use domain decomposition for DBCs",false);
-  useDomDecompAux = settings->sublist("Solver").get<bool>("use domain decomposition for aux",false);
-  useDomDecompL2Aux = settings->sublist("Solver").get<bool>("use domain decomposition for aux L2 projections",false);
-  useDomDecompBL2Aux = settings->sublist("Solver").get<bool>("use domain decomposition for aux DBCs",false);
-  useDomDecompL2Param = settings->sublist("Solver").get<bool>("use domain decomposition for param L2 projections",false);
-  useDomDecompBL2Param = settings->sublist("Solver").get<bool>("use domain decomposition for param DBCs",false);
+  // Create the solver options for the state L2-projections
+  {
+    Teuchos::ParameterList solvesettings;
+    if (settings->sublist("Solver").isSublist("State L2 linear solver")) { // for detailed control
+      solvesettings = settings->sublist("Solver").sublist("State L2 linear solver");
+    }
+    else { // use generic options
+      solvesettings = settings->sublist("Solver");
+    }
+    options_L2 = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
+  }
   
-  usePrec = settings->sublist("Solver").get<bool>("use preconditioner",true);
-  usePrecBL2 = settings->sublist("Solver").get<bool>("use preconditioner for DBCs",true);
-  usePrecL2 = settings->sublist("Solver").get<bool>("use preconditioner for L2 projections",true);
-  usePrecAux = settings->sublist("Solver").get<bool>("use preconditioner for aux",true);
-  usePrecBL2Aux = settings->sublist("Solver").get<bool>("use preconditioner for aux DBCs",true);
-  usePrecL2Aux = settings->sublist("Solver").get<bool>("use preconditioner for aux L2 projections",true);
-  usePrecBL2Param = settings->sublist("Solver").get<bool>("use preconditioner for param DBCs",true);
-  usePrecL2Param = settings->sublist("Solver").get<bool>("use preconditioner for param L2 projections",true);
+  // Create the solver options for the state boundary L2-projections
+  {
+    Teuchos::ParameterList solvesettings;
+    if (settings->sublist("Solver").isSublist("State boundary L2 linear solver")) { // for detailed control
+      solvesettings = settings->sublist("Solver").sublist("State boundary L2 linear solver");
+    }
+    else { // use generic options
+      solvesettings = settings->sublist("Solver");
+    }
+    options_BndryL2 = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
+  }
   
-  reuse_preconditioner = settings->sublist("Solver").get<bool>("reuse preconditioner",false);
-  reuse_aux_preconditioner = settings->sublist("Solver").get<bool>("reuse aux preconditioner",false);
+  // Create the solver options for the discretized parameter Jacobians
+  {
+    Teuchos::ParameterList solvesettings;
+    if (settings->sublist("Solver").isSublist("Parameter linear solver")) { // for detailed control
+      solvesettings = settings->sublist("Solver").sublist("Parameter linear solver");
+    }
+    else { // use generic options
+      solvesettings = settings->sublist("Solver");
+    }
+    options_param = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
+  }
+  
+  // Create the solver options for the discretized parameter L2-projections
+  {
+    Teuchos::ParameterList solvesettings;
+    if (settings->sublist("Solver").isSublist("Parameter L2 linear solver")) { // for detailed control
+      solvesettings = settings->sublist("Solver").sublist("Parameter L2 linear solver");
+    }
+    else { // use generic options
+      solvesettings = settings->sublist("Solver");
+    }
+    options_param_L2 = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
+  }
+  
+  // Create the solver options for the discretized parameter boundary L2-projections
+  {
+    Teuchos::ParameterList solvesettings;
+    if (settings->sublist("Solver").isSublist("Parameter boundary L2 linear solver")) { // for detailed control
+      solvesettings = settings->sublist("Solver").sublist("Parameter boundary L2 linear solver");
+    }
+    else { // use generic options
+      solvesettings = settings->sublist("Solver");
+    }
+    options_param_BndryL2 = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
+  }
+  
+  // Create the solver options for the aux Jacobians
+  {
+    Teuchos::ParameterList solvesettings;
+    if (settings->sublist("Solver").isSublist("Aux linear solver")) { // for detailed control
+      solvesettings = settings->sublist("Solver").sublist("Aux linear solver");
+    }
+    else { // use generic options
+      solvesettings = settings->sublist("Solver");
+    }
+    options_aux = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
+  }
+  
+  // Create the solver options for the aux L2-projections
+  {
+    Teuchos::ParameterList solvesettings;
+    if (settings->sublist("Solver").isSublist("Aux L2 linear solver")) { // for detailed control
+      solvesettings = settings->sublist("Solver").sublist("Aux L2 linear solver");
+    }
+    else { // use generic options
+      solvesettings = settings->sublist("Solver");
+    }
+    options_aux_L2 = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
+  }
+  
+  // Create the solver options for the aux boundary L2-projections
+  {
+    Teuchos::ParameterList solvesettings;
+    if (settings->sublist("Solver").isSublist("Aux boundary L2 linear solver")) { // for detailed control
+      solvesettings = settings->sublist("Solver").sublist("Aux boundary L2 linear solver");
+    }
+    else { // use generic options
+      solvesettings = settings->sublist("Solver");
+    }
+    options_aux_BndryL2 = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
+  }
   
   this->setupLinearAlgebra();
   
@@ -273,7 +365,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
 // ========================================================================================
 
 template<class Node>
-Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParameterList() {
+Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParameterList(const string & belosSublist) {
   Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList());
   belosList->set("Maximum Iterations",    maxLinearIters); // Maximum number of iterations allowed
   //belosList->set("Num Blocks",    1); //maxLinearIters);
@@ -298,6 +390,12 @@ Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParam
   
   belosList->set("Output Style", Belos::Brief);
   belosList->set("Implicit Residual Scaling", belos_residual_scaling);
+  
+  if (settings->sublist("Solver").isSublist(belosSublist)) {
+    Teuchos::ParameterList inputParams = settings->sublist("Solver").sublist(belosSublist);
+    belosList->setParameters(inputParams);
+  }
+  
   return belosList;
 }
 
@@ -306,53 +404,114 @@ Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParam
 // ========================================================================================
 
 template<class Node>
-void LinearAlgebraInterface<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<SolverOptions<Node> > & opt,
+                                                matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+
   Teuchos::TimeMonitor localtimer(*linearsolvertimer);
   
-  if (useDirect) {
-    if (!have_symbolic_factor) {
-      Am2Solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>("KLU2", J, r, soln);
-      Am2Solver->symbolicFactorization();
-      have_symbolic_factor = true;
+  if (opt->useDirect) {
+    if (!opt->haveSymbFactor) {
+      opt->AmesosSolver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>(opt->amesosType, J, r, soln);
+      opt->AmesosSolver->symbolicFactorization();
+      opt->haveSymbFactor = true;
     }
-    Am2Solver->setA(J, Amesos2::SYMBFACT);
-    Am2Solver->setX(soln);
-    Am2Solver->setB(r);
-    Am2Solver->numericFactorization().solve();
+    opt->AmesosSolver->setA(J, Amesos2::SYMBFACT);
+    opt->AmesosSolver->setX(soln);
+    opt->AmesosSolver->setB(r);
+    opt->AmesosSolver->numericFactorization().solve();
   }
   else {
     Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
-    if (usePrec) {
-      if (useDomDecomp) {
-        if (!reuse_preconditioner || !have_preconditioner) {
+    if (opt->usePreconditioner) {
+      if (opt->useDomainDecomp) {
+        if (!opt->reusePreconditioner || !opt->havePreconditioner) {
           Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
           ifpackList.set("schwarz: subdomain solver","garbage");
-          M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
-          M_dd->setParameters(ifpackList);
-          M_dd->initialize();
-          M_dd->compute();
-          have_preconditioner = true;
+          opt->M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
+          opt->M_dd->setParameters(ifpackList);
+          opt->M_dd->initialize();
+          opt->M_dd->compute();
+          opt->havePreconditioner = true;
         }
-        Problem->setLeftPrec(M_dd);
-      }
-      else { // default - AMG preconditioner
-        if (!have_preconditioner) {
-          M = this->buildPreconditioner(J,"Preconditioner Settings");
-          have_preconditioner = true;
+        
+        if (opt->rightPreconditioner) {
+          Problem->setRightPrec(opt->M_dd);
         }
         else {
-          MueLu::ReuseTpetraPreconditioner(J,*M);
+          Problem->setLeftPrec(opt->M_dd);
         }
-        Problem->setLeftPrec(M);
+      }
+      else { // default - AMG preconditioner
+        if (!opt->reusePreconditioner || !opt->havePreconditioner) {
+          opt->M = this->buildPreconditioner(J,opt->mueluSublist);
+          opt->havePreconditioner = true;
+        }
+        else {
+          MueLu::ReuseTpetraPreconditioner(J,*(opt->M));
+        }
+        if (opt->rightPreconditioner) {
+          Problem->setRightPrec(opt->M);
+        }
+        else {
+          Problem->setLeftPrec(opt->M);
+        }
       }
     }
     Problem->setProblem();
-    Teuchos::RCP<Teuchos::ParameterList> belosList = this->getBelosParameterList();
-    Teuchos::RCP<Belos::SolverManager<ScalarT,LA_MultiVector,LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
+    
+    Teuchos::RCP<Teuchos::ParameterList> belosList = this->getBelosParameterList(opt->belosSublist);
+    Teuchos::RCP<Belos::SolverManager<ScalarT,LA_MultiVector,LA_Operator> > solver;
+    if (opt->belosType == "Block GMRES" || opt->belosType == "Block Gmres") {
+      solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
+    }
+    else if (opt->belosType == "Block CG") {
+      solver = Teuchos::rcp(new Belos::BlockCGSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
+    }
+    else if (opt->belosType == "BiCGStab") {
+      // Requires right preconditioning
+      solver = Teuchos::rcp(new Belos::BiCGStabSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
+    }
+    else if (opt->belosType == "GCRODR") {
+      solver = Teuchos::rcp(new Belos::GCRODRSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
+    }
+    else if (opt->belosType == "PCPG") {
+      solver = Teuchos::rcp(new Belos::PCPGSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
+    }
+    else if (opt->belosType == "Pseudo Block CG") {
+      solver = Teuchos::rcp(new Belos::PseudoBlockCGSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
+    }
+    else if (opt->belosType == "Pseudo Block Gmres" || opt->belosType == "Pseudo Block GMRES") {
+      solver = Teuchos::rcp(new Belos::PseudoBlockGmresSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
+    }
+    else if (opt->belosType == "Pseudo Block Stochastic CG") {
+      solver = Teuchos::rcp(new Belos::PseudoBlockStochasticCGSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
+    }
+    else if (opt->belosType == "Pseudo Block TFQMR") {
+      solver = Teuchos::rcp(new Belos::PseudoBlockTFQMRSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
+    }
+    else if (opt->belosType == "RCG") {
+      solver = Teuchos::rcp(new Belos::RCGSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
+    }
+    else if (opt->belosType == "TFQMR") {
+      solver = Teuchos::rcp(new Belos::TFQMRSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
+    }
+    else {
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: unrecognized Belos solver: " + opt->belosType);
+    }
+    // Minres and LSQR fail a simple test
     
     solver->solve();
     
   }
+  
+}
+// ========================================================================================
+// Linear Solver for Tpetra stack
+// ========================================================================================
+
+template<class Node>
+void LinearAlgebraInterface<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+  this->linearSolver(options,J,r,soln);
 }
 
 // ========================================================================================
@@ -361,39 +520,7 @@ void LinearAlgebraInterface<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, 
 
 template<class Node>
 void LinearAlgebraInterface<Node>::linearSolverL2(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
-  Teuchos::TimeMonitor localtimer(*linearsolvertimer);
-  
-  if (useDirectL2) {
-    Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > L2Solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>("KLU2", J, r, soln);
-    L2Solver->symbolicFactorization();
-    L2Solver->setA(J, Amesos2::SYMBFACT);
-    L2Solver->setX(soln);
-    L2Solver->setB(r);
-    L2Solver->numericFactorization().solve();
-  }
-  else {
-    Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
-    if (usePrecL2) {
-      if (useDomDecompL2) {
-        Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
-        ifpackList.set("schwarz: subdomain solver","garbage");
-        Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > M_L2 = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
-        M_L2->setParameters(ifpackList);
-        M_L2->initialize();
-        M_L2->compute();
-        Problem->setLeftPrec(M_L2);
-      }
-      else { // default - AMG preconditioner
-        Teuchos::RCP<MueLu::TpetraOperator<ScalarT,LO,GO,Node> > M_L2 = this->buildPreconditioner(J,"L2 Projection Preconditioner Settings");
-        Problem->setLeftPrec(M_L2);
-      }
-    }
-    Problem->setProblem();
-    Teuchos::RCP<Teuchos::ParameterList> belosList = this->getBelosParameterList();
-    Teuchos::RCP<Belos::SolverManager<ScalarT,LA_MultiVector,LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
-    
-    solver->solve();
-  }
+  this->linearSolver(options_L2,J,r,soln);
 }
 
 // ========================================================================================
@@ -402,45 +529,7 @@ void LinearAlgebraInterface<Node>::linearSolverL2(matrix_RCP & J, vector_RCP & r
 
 template<class Node>
 void LinearAlgebraInterface<Node>::linearSolverBoundaryL2(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
-  Teuchos::TimeMonitor localtimer(*linearsolvertimer);
-  
-  if (useDirectBL2) {
-    Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > L2Solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>("KLU2", J, r, soln);
-    L2Solver->symbolicFactorization();
-    L2Solver->setA(J, Amesos2::SYMBFACT);
-    L2Solver->setX(soln);
-    L2Solver->setB(r);
-    L2Solver->numericFactorization().solve();
-  }
-  else {
-    Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
-    if (usePrecBL2) {
-      if (useDomDecompBL2) {
-        Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
-        ifpackList.set("schwarz: subdomain solver","garbage");
-        Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > M_dd_BL2 = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
-        M_dd_BL2->setParameters(ifpackList);
-        M_dd_BL2->initialize();
-        M_dd_BL2->compute();
-        Problem->setLeftPrec(M_dd_BL2);
-      }
-      else { // default - AMG preconditioner
-        if (!have_preconditioner_BL2) {
-          M_BL2 = this->buildPreconditioner(J,"Boundary L2 Projection Preconditioner Settings");
-          have_preconditioner_BL2 = true;
-        }
-        else {
-          MueLu::ReuseTpetraPreconditioner(J,*M_BL2);
-        }
-        Problem->setLeftPrec(M_BL2);
-      }
-    }
-    Problem->setProblem();
-    Teuchos::RCP<Teuchos::ParameterList> belosList = this->getBelosParameterList();
-    Teuchos::RCP<Belos::SolverManager<ScalarT,LA_MultiVector,LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
-    
-    solver->solve();
-  }
+  this->linearSolver(options_BndryL2,J,r,soln);
 }
 
 // ========================================================================================
@@ -449,51 +538,7 @@ void LinearAlgebraInterface<Node>::linearSolverBoundaryL2(matrix_RCP & J, vector
 
 template<class Node>
 void LinearAlgebraInterface<Node>::linearSolverAux(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
-  Teuchos::TimeMonitor localtimer(*linearsolvertimer);
-  
-  if (useDirectAux) {
-    if (!have_aux_symbolic_factor) {
-      Am2Solver_aux = Amesos2::create<LA_CrsMatrix,LA_MultiVector>("KLU2", J, r, soln);
-      Am2Solver_aux->symbolicFactorization();
-      have_aux_symbolic_factor = true;
-    }
-    Am2Solver_aux->setA(J, Amesos2::SYMBFACT);
-    Am2Solver_aux->setX(soln);
-    Am2Solver_aux->setB(r);
-    Am2Solver_aux->numericFactorization().solve();
-  }
-  else {
-    Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
-    if (usePrecAux) {
-      if (useDomDecompAux) {
-        if (!reuse_aux_preconditioner || !have_aux_preconditioner) {
-          Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
-          ifpackList.set("schwarz: subdomain solver","garbage");
-          M_dd_aux = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
-          M_dd_aux->setParameters(ifpackList);
-          M_dd_aux->initialize();
-          M_dd_aux->compute();
-          have_aux_preconditioner = true;
-        }
-        Problem->setLeftPrec(M_dd_aux);
-      }
-      else { // default - AMG preconditioner
-        if (!have_aux_preconditioner) {
-          M_aux = this->buildPreconditioner(J,"Aux Preconditioner Settings");
-          have_aux_preconditioner = true;
-        }
-        else {
-          MueLu::ReuseTpetraPreconditioner(J,*M_aux);
-        }
-        Problem->setLeftPrec(M_aux);
-      }
-    }
-    Problem->setProblem();
-    Teuchos::RCP<Teuchos::ParameterList> belosList = this->getBelosParameterList();
-    Teuchos::RCP<Belos::SolverManager<ScalarT,LA_MultiVector,LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
-    
-    solver->solve();
-  }
+  this->linearSolver(options_aux,J,r,soln);
 }
 
 // ========================================================================================
@@ -502,39 +547,7 @@ void LinearAlgebraInterface<Node>::linearSolverAux(matrix_RCP & J, vector_RCP & 
 
 template<class Node>
 void LinearAlgebraInterface<Node>::linearSolverL2Aux(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
-  Teuchos::TimeMonitor localtimer(*linearsolvertimer);
-  
-  if (useDirectL2Aux) {
-    Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > L2Solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>("KLU2", J, r, soln);
-    L2Solver->symbolicFactorization();
-    L2Solver->setA(J, Amesos2::SYMBFACT);
-    L2Solver->setX(soln);
-    L2Solver->setB(r);
-    L2Solver->numericFactorization().solve();
-  }
-  else {
-    Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
-    if (usePrecL2Aux) {
-      if (useDomDecompL2Aux) {
-        Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
-        ifpackList.set("schwarz: subdomain solver","garbage");
-        Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > M_L2 = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
-        M_L2->setParameters(ifpackList);
-        M_L2->initialize();
-        M_L2->compute();
-        Problem->setLeftPrec(M_L2);
-      }
-      else { // default - AMG preconditioner
-        Teuchos::RCP<MueLu::TpetraOperator<ScalarT,LO,GO,Node> > M_L2 = this->buildPreconditioner(J,"Aux L2 Projection Preconditioner Settings");
-        Problem->setLeftPrec(M_L2);
-      }
-    }
-    Problem->setProblem();
-    Teuchos::RCP<Teuchos::ParameterList> belosList = this->getBelosParameterList();
-    Teuchos::RCP<Belos::SolverManager<ScalarT,LA_MultiVector,LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
-    
-    solver->solve();
-  }
+  this->linearSolver(options_aux_L2,J,r,soln);
 }
 
 // ========================================================================================
@@ -543,39 +556,7 @@ void LinearAlgebraInterface<Node>::linearSolverL2Aux(matrix_RCP & J, vector_RCP 
 
 template<class Node>
 void LinearAlgebraInterface<Node>::linearSolverBoundaryL2Aux(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
-  Teuchos::TimeMonitor localtimer(*linearsolvertimer);
-  
-  if (useDirectBL2Aux) {
-    Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > L2Solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>("KLU2", J, r, soln);
-    L2Solver->symbolicFactorization();
-    L2Solver->setA(J, Amesos2::SYMBFACT);
-    L2Solver->setX(soln);
-    L2Solver->setB(r);
-    L2Solver->numericFactorization().solve();
-  }
-  else {
-    Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
-    if (usePrecBL2Aux) {
-      if (useDomDecompBL2Aux) {
-        Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
-        ifpackList.set("schwarz: subdomain solver","garbage");
-        Teuchos::RCP<Ifpack2::Preconditioner<ScalarT,LO,GO,Node>> M_BL2 = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
-        M_BL2->setParameters(ifpackList);
-        M_BL2->initialize();
-        M_BL2->compute();
-        Problem->setLeftPrec(M_BL2);
-      }
-      else { // default - AMG preconditioner
-        Teuchos::RCP<MueLu::TpetraOperator<ScalarT,LO,GO,Node> > M_BL2 = this->buildPreconditioner(J,"Aux Boundary L2 Projection Preconditioner Settings");
-        Problem->setLeftPrec(M_BL2);
-      }
-    }
-    Problem->setProblem();
-    Teuchos::RCP<Teuchos::ParameterList> belosList = this->getBelosParameterList();
-    Teuchos::RCP<Belos::SolverManager<ScalarT,LA_MultiVector,LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
-    
-    solver->solve();
-  }
+  this->linearSolver(options_aux_BndryL2,J,r,soln);
 }
 
 // ========================================================================================
@@ -583,40 +564,13 @@ void LinearAlgebraInterface<Node>::linearSolverBoundaryL2Aux(matrix_RCP & J, vec
 // ========================================================================================
 
 template<class Node>
+void LinearAlgebraInterface<Node>::linearSolverParam(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+  this->linearSolver(options_param,J,r,soln);
+}
+
+template<class Node>
 void LinearAlgebraInterface<Node>::linearSolverL2Param(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
-  Teuchos::TimeMonitor localtimer(*linearsolvertimer);
-  
-  if (useDirectL2Param) {
-    Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > L2Solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>("KLU2", J, r, soln);
-    L2Solver->symbolicFactorization();
-    L2Solver->setA(J, Amesos2::SYMBFACT);
-    L2Solver->setX(soln);
-    L2Solver->setB(r);
-    L2Solver->numericFactorization().solve();
-  }
-  else {
-    Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
-    if (usePrecL2Param) {
-      if (useDomDecompL2Param) {
-        Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
-        ifpackList.set("schwarz: subdomain solver","garbage");
-        Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > M_L2 = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
-        M_L2->setParameters(ifpackList);
-        M_L2->initialize();
-        M_L2->compute();
-        Problem->setLeftPrec(M_L2);
-      }
-      else { // default - AMG preconditioner
-        Teuchos::RCP<MueLu::TpetraOperator<ScalarT,LO,GO,Node> > M_L2 = this->buildPreconditioner(J,"Param L2 Projection Preconditioner Settings");
-        Problem->setLeftPrec(M_L2);
-      }
-    }
-    Problem->setProblem();
-    Teuchos::RCP<Teuchos::ParameterList> belosList = this->getBelosParameterList();
-    Teuchos::RCP<Belos::SolverManager<ScalarT,LA_MultiVector,LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
-    
-    solver->solve();
-  }
+  this->linearSolver(options_param_L2,J,r,soln);
 }
 
 // ========================================================================================
@@ -625,39 +579,7 @@ void LinearAlgebraInterface<Node>::linearSolverL2Param(matrix_RCP & J, vector_RC
 
 template<class Node>
 void LinearAlgebraInterface<Node>::linearSolverBoundaryL2Param(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
-  Teuchos::TimeMonitor localtimer(*linearsolvertimer);
-  
-  if (useDirectBL2Param) {
-    Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > L2Solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>("KLU2", J, r, soln);
-    L2Solver->symbolicFactorization();
-    L2Solver->setA(J, Amesos2::SYMBFACT);
-    L2Solver->setX(soln);
-    L2Solver->setB(r);
-    L2Solver->numericFactorization().solve();
-  }
-  else {
-    Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
-    if (usePrecBL2Param) {
-      if (useDomDecompBL2Param) {
-        Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
-        ifpackList.set("schwarz: subdomain solver","garbage");
-        Teuchos::RCP<Ifpack2::Preconditioner<ScalarT,LO,GO,Node>> M_BL2 = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
-        M_BL2->setParameters(ifpackList);
-        M_BL2->initialize();
-        M_BL2->compute();
-        Problem->setLeftPrec(M_BL2);
-      }
-      else { // default - AMG preconditioner
-        Teuchos::RCP<MueLu::TpetraOperator<ScalarT,LO,GO,Node> > M_BL2 = this->buildPreconditioner(J,"Param Boundary L2 Projection Preconditioner Settings");
-        Problem->setLeftPrec(M_BL2);
-      }
-    }
-    Problem->setProblem();
-    Teuchos::RCP<Teuchos::ParameterList> belosList = this->getBelosParameterList();
-    Teuchos::RCP<Belos::SolverManager<ScalarT,LA_MultiVector,LA_Operator> > solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
-    
-    solver->solve();
-  }
+  this->linearSolver(options_param_BndryL2,J,r,soln);
 }
 
 // ========================================================================================
@@ -687,7 +609,7 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterfa
   
   // if the user provides a "Preconditioner Settings" sublist, use it for MueLu
   // otherwise, set things with the simple approach
-  if(settings->sublist("Solver").isSublist("Preconditioner Settings")) {
+  if(settings->sublist("Solver").isSublist(precSublist)) {
     Teuchos::ParameterList inputPrecParams = settings->sublist("Solver").sublist(precSublist);
     mueluParams.setParameters(inputPrecParams);
   }
