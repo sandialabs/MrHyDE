@@ -70,11 +70,14 @@ ANONYMOUS:
     linear TOL: 1.0e-6
     max nonlinear iters: 10
     max linear iters: 100
-    final time: 25.
+    final time: 50.
     delta t: .25
     use direct solver: false
     use domain decomposition: false
     use strong DBCs: true
+    use relative TOL: false
+    use absolute TOL: true
+    absolute nonlinear TOL: 1.0e-10
     Preconditioner Settings:
       verbosity: none
       number of equations: 4
