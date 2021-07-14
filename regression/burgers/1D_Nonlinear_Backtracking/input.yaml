@@ -1,0 +1,50 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh:
+    dimension: 1
+    element type: interval
+    xmin: 0.0
+    xmax: 1.0
+    NX: 100
+    blocknames: eblock-0
+  Physics: 
+    modules: Burgers
+    assemble boundary terms: false
+    Dirichlet conditions:
+      scalar data: true
+      u:
+        left: 0.0
+        right: 0.0
+    Initial conditions:
+      u: 'exp(bubble)'
+  Discretization:
+    order:
+      u: 1
+    quadrature: 2
+  Functions:
+    Burgers source: '0.0'
+    xvel: '100.0'
+    yvel: '0.0'
+    diffusion: '1.0e-3'
+    bubble: '-100.0*(x-0.2)*(x-0.2)'
+  Solver:
+    solver: transient
+    transient Butcher tableau: BWE
+    workset size: 100
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 10
+    final time: 4.0e-3
+    delta t: 1.0e-3
+    use strong DBCs: true
+    use direct solver: true
+    allow backtracking: true
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    compute errors: true
+    True solutions:
+      u: '0.0'
+...

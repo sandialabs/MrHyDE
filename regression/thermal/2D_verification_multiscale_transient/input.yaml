@@ -26,6 +26,7 @@ ANONYMOUS:
     solver: transient
     final time: 1.0
     number of steps: 5
+    allow backtracking: false
   Analysis: 
     analysis type: forward
   Postprocess: 

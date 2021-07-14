@@ -37,6 +37,7 @@ ANONYMOUS:
     use domain decomposition: true
     preconditioner reuse type: full
     use direct solver: false
+    allow backtracking: false
   Analysis: 
     analysis type: forward
   Postprocess: 

@@ -159,7 +159,7 @@ namespace MrHyDE {
     int BDForder, startupBDForder, startupSteps, numEvaluations;
     string ButcherTab, startupButcherTab;
     
-    ScalarT NLtol, final_time, lintol, current_time, initial_time, deltat;
+    ScalarT NLtol, NLabstol,final_time, lintol, current_time, initial_time, deltat;
     
     string solver_type, initial_type;
     
@@ -168,7 +168,7 @@ namespace MrHyDE {
     bool compute_objective, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
     bool scalarDirichletData, staticDirichletData, scalarInitialData;
     bool have_initial_conditions, have_static_Dirichlet_data;
-    
+    bool useRelativeTOL, useAbsoluteTOL, allowBacktracking;
     vector<vector<ScalarT> > scalarDirichletValues, scalarInitialValues; //[block][var]
     Teuchos::RCP<LA_MultiVector> fixedDOF_soln;
     vector<string> blocknames;
