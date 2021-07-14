@@ -68,7 +68,7 @@ ANONYMOUS:
   Solver:
     #solver: steady-state
     solver: transient
-    workset size: 100
+    workset size: 1000
     nonlinear TOL: 1.0e-06
     linear TOL: 1.0e-6
     max nonlinear iters: 10
