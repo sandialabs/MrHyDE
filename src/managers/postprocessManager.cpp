@@ -598,7 +598,7 @@ void PostprocessManager<Node>::report() {
     if(Comm->getRank() == 0 ) {
       if (verbosity > 0) {
         cout << endl << "*********************************************************" << endl;
-        cout << "****** Computing Integrated Quantities ******" << endl;
+        cout << "****** Storing Integrated Quantities ******" << endl;
         cout << "*********************************************************" << endl;
       }
     }
@@ -610,50 +610,19 @@ void PostprocessManager<Node>::report() {
 
       size_t globalBlock = integratedQuantities[iLocal][0].block; // all IQs with same first index share a block
 
-      vector<ScalarT> allsums;
-      
-      // the first n IQs are needed by the workset for residual calculations
-      size_t nIQsForResidual = assembler->wkset[globalBlock]->integrated_quantities.extent(0);
-
-      auto hostsums = Kokkos::View<ScalarT*,HostDevice>("host IQs",nIQsForResidual);
-    
-      for (size_t iIQ=0; iIQ<integratedQuantities[iLocal].size(); ++iIQ) {
-        // TODO :: does not handle vector quantities!
-        ScalarT lval = integratedQuantities[iLocal][iIQ].val();
-        ScalarT gval = 0.0;
-        Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lval,&gval);
-        if (iIQ<nIQsForResidual) {
-          hostsums(iIQ) = gval;
-        }
-        allsums.push_back(gval);
-        Kokkos::deep_copy(integratedQuantities[iLocal][iIQ].val,0.0);
-      }
-
-      // need to put in the right place now (accessible to the residual) and 
-      // update any parameters which depend on the IQs
-      // TODO :: BWR this ultimately is an "explicit" idea but doing things implicitly
-      // would be super costly in general.
-
-      // TODO CHECK THIS WITH TIM... am I dev/loc correctly?
-      if (nIQsForResidual > 0) {
-        Kokkos::deep_copy(assembler->wkset[globalBlock]->integrated_quantities,hostsums);
-        for (size_t m=0; m<phys->modules[globalBlock].size(); ++m) {
-          // BWR -- called for all physics defined on the block regards of if they need IQs
-          phys->modules[globalBlock][m]->updateIntegratedQuantitiesDependents();
-        }
-      }
-      
       if (Comm->getRank() == 0) { 
         cout << endl << "*********************************************************" << endl;
         cout << "****** Integrated Quantities on block : " << blocknames[globalBlock] <<  " ******" << endl;
         cout << "*********************************************************" << endl;
-        for (size_t k=0; k<allsums.size(); ++k) { 
-          std::cout << integratedQuantities[iLocal][k].name << " : " << allsums[k] << std::endl; 
+        for (size_t k=0; k<integratedQuantities[iLocal].size(); ++k) { 
+          std::cout << integratedQuantities[iLocal][k].name  << " : " 
+                    << integratedQuantities[iLocal][k].val() << std::endl; 
         }
       }
     
     } // end loop over blocks with IQs requested
-    // TODO output something?
+    // TODO output something? Make the first print statement true!
+    // BWR -- this only happens at end of sim.
   } // end if compute_integrated_quantities
 
   ////////////////////////////////////////////////////////////////////////////
@@ -1234,6 +1203,14 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
 
     size_t globalBlock = integratedQuantities[iLocal][0].block; // all IQs with same first index share a block
 
+    vector<ScalarT> allsums; // For the final results after summing over MPI processes
+
+    // the first n IQs are needed by the workset for residual calculations
+    size_t nIQsForResidual = assembler->wkset[globalBlock]->integrated_quantities.extent(0);
+
+    // MPI sums happen on the host and later we pass to the device (where residual is formed)
+    auto hostsums = Kokkos::View<ScalarT*,HostDevice>("host IQs",nIQsForResidual);
+
     for (size_t iIQ=0; iIQ<integratedQuantities[iLocal].size(); ++iIQ) {
 
       ScalarT integral = 0.;
@@ -1305,7 +1282,31 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
       } // end if volume or boundary
       // finalize the integral
       integratedQuantities[iLocal][iIQ].val(0) = integral;
+      // reduce
+      ScalarT gval = 0.0;
+      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&integral,&gval);
+      if (iIQ<nIQsForResidual) {
+        hostsums(iIQ) = gval;
+      }
+      allsums.push_back(gval);
+      // save global result back in IQ storage
+      integratedQuantities[iLocal][iIQ].val(0) = allsums[iIQ];
     } // end loop over integrated quantities
+
+    // need to put in the right place now (accessible to the residual) and 
+    // update any parameters which depend on the IQs
+    // TODO :: BWR this ultimately is an "explicit" idea but doing things implicitly
+    // would be super costly in general.
+
+    // TODO CHECK THIS WITH TIM... am I dev/loc correctly?
+    if (nIQsForResidual > 0) {
+      Kokkos::deep_copy(assembler->wkset[globalBlock]->integrated_quantities,hostsums);
+      for (size_t m=0; m<phys->modules[globalBlock].size(); ++m) {
+        // BWR -- called for all physics defined on the block regards of if they need IQs
+        phys->modules[globalBlock][m]->updateIntegratedQuantitiesDependents();
+      }
+    } // end if physics module needs IQs
+
   } // end loop over blocks (with IQs requested)
 
 }
