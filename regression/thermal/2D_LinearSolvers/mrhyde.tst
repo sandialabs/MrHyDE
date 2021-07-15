@@ -43,12 +43,18 @@ if its.opts.preprocess:
   if its.opts.verbose != 'none': print('---> Preprocessing %s' % (root))
   status += its.call('echo "  No preprocessing, yet."')
   
-
-#status += its.call('mpiexec -n 4 ../../mrhyde inputBlockGmres.yaml &> mrhyde.log')
-status += its.call('./runALL.sh')
+status += its.call('mpiexec -n 1 ../../mrhyde inputBlockGmres.yaml >& mrhyde.log')
+status += its.call('mpiexec -n 1 ../../mrhyde inputBlockCG.yaml >> mrhyde.log')
+status += its.call('mpiexec -n 1 ../../mrhyde inputBiCGStab.yaml >> mrhyde.log')
+status += its.call('mpiexec -n 1 ../../mrhyde inputGCRODR.yaml >> mrhyde.log')
+status += its.call('mpiexec -n 1 ../../mrhyde inputPCPG.yaml >> mrhyde.log')
+status += its.call('mpiexec -n 1 ../../mrhyde inputPseudoBlockCG.yaml >> mrhyde.log')
+status += its.call('mpiexec -n 1 ../../mrhyde inputPseudoBlockGmres.yaml >> mrhyde.log')
+status += its.call('mpiexec -n 1 ../../mrhyde inputPseudoBlockStochasticCG.yaml >> mrhyde.log')
+status += its.call('mpiexec -n 1 ../../mrhyde inputPseudoBlockTFQMR.yaml >> mrhyde.log')
+status += its.call('mpiexec -n 1 ../../mrhyde inputRCG.yaml >> mrhyde.log')
+status += its.call('mpiexec -n 1 ../../mrhyde inputTFQMR.yaml >> mrhyde.log')
 status += its.call('diff -y %s.log %s.gold' % (root, root))
-#status += its.call('mpiexec -n 4 ../../mrhyde inputBlockCG.yaml &> mrhyde.log')
-#status += its.call('diff -y %s.log %s.gold' % (root, root))
 
 # This test probably won't work on weaver anyways
 #hostname = os.getenv('HOSTNAME')
