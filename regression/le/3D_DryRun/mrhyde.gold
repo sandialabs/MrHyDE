@@ -1,0 +1,15 @@
+p=0 | CubeHexMesh: Building sub cells
+STK Meta data:
+   Element blocks = "eblock-0_0_0" 
+   Sidesets = "back" "bottom" "front" "left" "right" "top" 
+   Nodesets = "origin" 
+   Fields = "coordinates" "edges" "faces" "PROC_ID" "LOAD_BAL" "dx" "dy" "dz" "dispx" "dispy" "dispz" "VM stress" "MAG stress" "subgrid model" "cell number" 
+DOFManager Field Information: 
+   Element Block = eblock-0_0_0
+      "dx" is field ID 0
+      "dy" is field ID 1
+      "dz" is field ID 2
+ - Processor 0 is using 2.304 MB to store cell volumetric data
+ - Processor 0 is using 0 MB to store cell face data
+ - Processor 0 is using 0.8064 MB to store boundary cell data
+ **** MrHyDE has completed the dry run with verbosity: 8

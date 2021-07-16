@@ -71,6 +71,9 @@ void AnalysisManager::run() {
     solve->adjointModel(gradient);
     
   }
+  else if (analysis_type == "dry run") {
+    cout << " **** MrHyDE has completed the dry run with verbosity: " << verbosity << endl;
+  }
   else if (analysis_type == "dakota") {
     // placeholder for embedded dakota analysis
   }

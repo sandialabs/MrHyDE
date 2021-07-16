@@ -3396,7 +3396,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
         parallel_for("postproc plot param HVOL",
                      RangePolicy<AssemblyExec>(0,eID.extent(0)),
                      KOKKOS_LAMBDA (const int elem ) {
-          cellnum_dev(eID(elem)) = elem; // TMW: is this what we want?
+          cellnum_dev(eID(elem)) = k; // TMW: is this what we want?
         });
       }
       Kokkos::deep_copy(cellnum, cellnum_dev);

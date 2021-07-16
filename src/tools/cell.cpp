@@ -281,11 +281,9 @@ void cell::updateWorkset(const int & seedwhat, const bool & override_transient) 
   wkset->computeParamVolIP();
   //wkset->computeAuxVolIP();
     
-  /*
   if (cellData->compute_sol_avg) {
     this->computeSolAvg();
   }
-  */
   
 }
 
