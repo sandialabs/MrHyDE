@@ -211,8 +211,8 @@ void VDNS::volumeResidual() {
             AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),0.0,0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO FIX TAU??? the constant at least is wrong
             tau = h(elem)*h(elem)/tau;
-            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt))*wts(elem,pt);
-            thermDiv -= 1./p0(0)*dp0dt(0)*wts(elem,pt);
+            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt));
+            thermDiv -= 1./p0(0)*dp0dt(0);
             AD strongres = dux_dx(elem,pt) - thermDiv;
             AD S = tau*strongres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -405,8 +405,8 @@ void VDNS::volumeResidual() {
             AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO FIX TAU??? the constant at least is wrong
             tau = h(elem)*h(elem)/tau;
-            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt))*wts(elem,pt);
-            thermDiv -= 1./p0(0)*dp0dt(0)*wts(elem,pt);
+            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
+            thermDiv -= 1./p0(0)*dp0dt(0);
             AD strongres = (dux_dx(elem,pt) + duy_dx(elem,pt)) - thermDiv;
             AD S = tau*strongres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -485,15 +485,15 @@ void VDNS::volumeResidual() {
         auto dT_dt = wkset->getData("T_t");
         auto dT_dx = wkset->getData("grad(T)[x]");
         auto dT_dy = wkset->getData("grad(T)[y]");
-        parallel_for("VDNS ux volume resid GRADDIV",
+        parallel_for("VDNS uy volume resid GRADDIV",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO FIX TAU??? the constant at least is wrong
             tau = h(elem)*h(elem)/tau;
-            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt))*wts(elem,pt);
-            thermDiv -= 1./p0(0)*dp0dt(0)*wts(elem,pt);
+            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
+            thermDiv -= 1./p0(0)*dp0dt(0);
             AD strongres = (dux_dx(elem,pt) + duy_dx(elem,pt)) - thermDiv;
             AD S = tau*strongres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
