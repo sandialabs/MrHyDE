@@ -688,9 +688,6 @@ template<class Node>
 void AssemblyManager<Node>::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
                                        const bool & lumpmass, const ScalarT & scale) {
   
-  // TMW: ToDo - should add a lumped mass option
-  // TMW: Why did I want to do this?
-  
   Teuchos::TimeMonitor localtimer(*setinittimer);
   
   if (debug_level > 0) {
@@ -699,43 +696,73 @@ void AssemblyManager<Node>::setInitial(vector_RCP & rhs, matrix_RCP & mass, cons
     }
   }
   
+  typedef typename Node::execution_space LA_exec;
+  bool use_atomics_ = false;
+  if (LA_exec::concurrency() > 1) {
+    use_atomics_ = true;
+  }
+  
   auto localMatrix = mass->getLocalMatrix();
+  auto rhs_view = rhs->template getLocalView<LA_device>();
+  bool lump_mass_ = lump_mass;
   
   for (size_t b=0; b<cells.size(); b++) {
+    
+    auto offsets = wkset[b]->offsets;
+    auto numDOF = cellData[b]->numDOF;
+    
     for (size_t e=0; e<cells[b].size(); e++) {
       
-      LIDView_host LIDs = cells[b][e]->LIDs_host;
+      auto LIDs = cells[b][e]->LIDs;
       
       Kokkos::View<ScalarT**,AssemblyDevice> localrhs = cells[b][e]->getInitial(true, useadjoint);
       Kokkos::View<ScalarT***,AssemblyDevice> localmass = cells[b][e]->getMass();
-      auto host_rhs = Kokkos::create_mirror_view(localrhs);
-      auto host_mass = Kokkos::create_mirror_view(localmass);
-      Kokkos::deep_copy(host_rhs,localrhs);
-      Kokkos::deep_copy(host_mass,localmass);
       
-      // Would prefer to rewrite this
-      //parallel_for("assembly copy LIDs",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
-      for (size_type e=0; e<LIDs.extent(0); e++) {
-        //const int numVals = static_cast<int>(LIDs.extent(1));
-        //const int numVals = LIDs.extent(1);
-        //int numVals = LIDs.extent(1);
-        //LO cols[numVals];
-        //ScalarT vals[numVals];
+      parallel_for("assembly insert Jac",
+                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
         
-        for( size_type row=0; row<LIDs.extent(1); row++ ) {
-          LO rowIndex = LIDs(e,row);
-          ScalarT val = host_rhs(e,row);
-          rhs->sumIntoLocalValue(rowIndex, 0, val);
-          for( size_type col=0; col<LIDs.extent(1); col++ ) {
-            ScalarT vals = scale*host_mass(e,row,col);
-            LO cols = LIDs(e,col);
-            localMatrix.sumIntoValues(rowIndex, &cols, 1, &vals, true, true); // isSorted, useAtomics
-            // the LIDs are actually not sorted, but this appears to run a little faster
+        int row = 0;
+        LO rowIndex = 0;
+        
+        for (size_type n=0; n<numDOF.extent(0); ++n) {
+          for (int j=0; j<numDOF(n); j++) {
+            row = offsets(n,j);
+            rowIndex = LIDs(elem,row);
+            ScalarT val = localrhs(elem,row);
+            if (use_atomics_) {
+              Kokkos::atomic_add(&(rhs_view(rowIndex,0)), val);
+            }
+            else {
+              rhs_view(rowIndex,0) += val;
+            }
           }
-          
         }
-      }
-      //});
+        
+        const size_type numVals = LIDs.extent(1);
+        int col = 0;
+        LO cols[maxDerivs];
+        ScalarT vals[maxDerivs];
+        for (size_type n=0; n<numDOF.extent(0); ++n) {
+          for (int j=0; j<numDOF(n); j++) {
+            row = offsets(n,j);
+            rowIndex = LIDs(elem,row);
+            for (size_type m=0; m<numDOF.extent(0); m++) {
+              for (int k=0; k<numDOF(m); k++) {
+                col = offsets(m,k);
+                vals[col] = localmass(elem,row,col);
+                if (lump_mass_) {
+                  cols[col] = rowIndex;
+                }
+                else {
+                  cols[col] = LIDs(elem,col);
+                }
+              }
+            }
+            localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_);
+          }
+        }
+      });
     }
   }
   
@@ -942,7 +969,12 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
   
   // Kokkos::CRSMatrix and Kokkos::View for J and res
   // Scatter needs to be on LA_device
-  auto J_kcrs = J->getLocalMatrix();
+  typedef typename Tpetra::CrsMatrix<ScalarT, LO, GO, Node >::local_matrix_type local_matrix;
+  local_matrix J_kcrs;
+  if (compute_jacobian) {
+    J_kcrs = J->getLocalMatrix();
+  }
+  
   auto res_view = res->template getLocalView<LA_device>();
   
   typedef typename Node::execution_space LA_exec;
