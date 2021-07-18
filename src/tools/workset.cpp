@@ -1154,8 +1154,7 @@ void workset::computeParamSideIP() {
 // Gets used only in the boundaryCell flux calculation
 // Will not work properly for multi-stage or multi-step
 
-void workset::computeSolnSideIP(const int & side) { //, Kokkos::View<AD***,AssemblyDevice> u_AD_old,
-                                //Kokkos::View<AD***,AssemblyDevice> param_AD) {
+void workset::computeSolnSideIP(const int & side) { 
   
   {
     Teuchos::TimeMonitor basistimer(*worksetComputeSolnSideTimer);
