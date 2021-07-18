@@ -446,12 +446,21 @@ void maxwells_fp::volumeResidual() {
           - (vr*Jzi + vi*Jzr); //imaginary
         }
         if(calcE){
+#ifndef MrHyDE_NO_AD
           avgErx += (-omega.val()*Axi.val()-dphirdx.val())/numCubPoints;
           avgEry += (-omega.val()*Ayi.val()-dphirdy.val())/numCubPoints;
           avgErz += (-omega.val()*Azi.val()-dphirdz.val())/numCubPoints;
           avgEix += (omega.val()*Axr.val()-dphiidx.val())/numCubPoints;
           avgEiy += (omega.val()*Ayr.val()-dphiidy.val())/numCubPoints;
           avgEiz += (omega.val()*Azr.val()-dphiidz.val())/numCubPoints;
+#else
+          avgErx += (-omega*Axi-dphirdx)/numCubPoints;
+          avgEry += (-omega*Ayi-dphirdy)/numCubPoints;
+          avgErz += (-omega*Azi-dphirdz)/numCubPoints;
+          avgEix += (omega*Axr-dphiidx)/numCubPoints;
+          avgEiy += (omega*Ayr-dphiidy)/numCubPoints;
+          avgEiz += (omega*Azr-dphiidz)/numCubPoints;
+#endif
         }
       }
     }

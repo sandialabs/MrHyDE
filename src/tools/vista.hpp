@@ -39,11 +39,13 @@ namespace MrHyDE {
     KOKKOS_INLINE_FUNCTION
     ~Vista() {};
     
+#ifndef MrHyDE_NO_AD
     Vista(View_AD2 vdata) {
       viewdata = vdata;
       isAD = true;
       isView = true;
     }
+#endif
     
     Vista(View_Sc2 vdata) {
       viewdata_Sc = vdata;
@@ -51,13 +53,15 @@ namespace MrHyDE {
       isView = true;
       isAD = false;
     }
-    
+
+#ifndef MrHyDE_NO_AD
     Vista(AD & data_) {
       viewdata = View_AD2("2D view",1,1);
       deep_copy(viewdata,data_);
       isView = false;
       isAD = true;
     }
+#endif
     
     Vista(ScalarT & data_) {
       viewdata = View_AD2("2D view",1,1);
@@ -65,18 +69,22 @@ namespace MrHyDE {
       isView = false;
       isAD = false;
     }
-    
+
+#ifndef MrHyDE_NO_AD
     void update(View_AD2 vdata) {
       viewdata = vdata;
     }
+#endif
     
     void update(View_Sc2 vdata) {
       viewdata_Sc = vdata;
     }
     
+#ifndef MrHyDE_NO_AD
     void update(AD & data_) {
       deep_copy(viewdata,data_);
     }
+#endif
     
     void update(ScalarT & data_) {
       deep_copy(viewdata,data_);
@@ -89,8 +97,12 @@ namespace MrHyDE {
           return viewdata(i0,i1);
         }
         else {
+#ifndef MrHyDE_NO_AD
           viewdata(i0,i1).val() = viewdata_Sc(i0,i1);
           return viewdata(i0,i1);
+#else
+          return viewdata_Sc(i0,i1);
+#endif
         }
       }
       else {

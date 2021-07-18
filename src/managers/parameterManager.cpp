@@ -694,7 +694,11 @@ void ParameterManager<Node>::sacadoizeParams(const bool & seed_active) {
       vector<AD> currparams;
       if (paramtypes[i] == 1) { // active parameters
         for (size_t j=0; j<paramvals[i].size(); j++) {
+#ifndef MrHyDE_NO_AD
           currparams.push_back(AD(maxDerivs,pprog,paramvals[i][j]));
+#else
+          currparams.push_back(paramvals[i][j]);
+#endif
           pprog++;
         }
       }
@@ -711,7 +715,11 @@ void ParameterManager<Node>::sacadoizeParams(const bool & seed_active) {
                  KOKKOS_LAMBDA (const size_type i ) {
       if (ptypes(i) == 1) { // active params
         for (size_t j=0; j<plengths(i); j++) {
+#ifndef MrHyDE_NO_AD
           paramvals_KVAD(i,j) = AD(maxDerivs, pseed(i,j), pvals(i,j));
+#else
+          paramvals_KVAD(i,j) = pvals(i,j);
+#endif
         }
       }
       else {

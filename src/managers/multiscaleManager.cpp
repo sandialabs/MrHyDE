@@ -245,7 +245,11 @@ ScalarT MultiscaleManager::initialize() {
                          RangePolicy<AssemblyExec>(0,usagecheck_tmp.extent(0)),
                          KOKKOS_LAMBDA (const int i ) {
               for (size_type j=0; j<usagecheck_tmp.extent(1); j++) {
+#ifndef MrHyDE_NO_AD
                 usagecheck_tmp(i,j) = usagecheck(i,j).val();
+#else
+                usagecheck_tmp(i,j) = usagecheck(i,j);
+#endif
               }
             });
             
@@ -415,7 +419,11 @@ ScalarT MultiscaleManager::update() {
                            RangePolicy<AssemblyExec>(0,usagecheck_tmp.extent(0)),
                            KOKKOS_LAMBDA (const int i ) {
                 for (size_type j=0; j<usagecheck_tmp.extent(1); j++) {
+#ifndef MrHyDE_NO_AD
                   usagecheck_tmp(i,j) = usagecheck(i,j).val();
+#else
+                  usagecheck_tmp(i,j) = usagecheck(i,j);
+#endif
                 }
               });
               

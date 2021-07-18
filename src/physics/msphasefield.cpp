@@ -270,7 +270,12 @@ void msphasefield::volumeResidual() {
             Lden +=           phi[i] * phi[i] * phi[j] * phi[j];
           }
         }
-        if(Lden.val() < 1E-8) {
+#ifndef MrHyDE_NO_AD
+        ScalarT mcheck = Lden.val();
+#else
+        ScalarT mcheck = Lden;
+#endif
+        if(mcheck < 1E-8) {
           mobility = 0.01;
         } else {
           mobility = Lnum/Lden;

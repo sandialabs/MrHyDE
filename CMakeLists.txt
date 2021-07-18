@@ -115,6 +115,12 @@ ELSE()
   MESSAGE("-- No max derivs specified. Defaulting to 64.")
 ENDIF()
 
+IF(MrHyDE_DISABLE_AD)
+  MESSAGE("-- Turning OFF automatic differentiation (AD) based on input flag")
+  MESSAGE("-- CAUTION: THIS SHOULD ONLY BE USED WITH THE FULLY EXPLICIT MODE")
+  ADD_DEFINITIONS(-DMrHyDE_NO_AD)
+ENDIF()
+
 IF(MrHyDE_VECTOR_SIZE)
   MESSAGE("-- Setting vector size to ${MrHyDE_VECTOR_SIZE} based on input flag")
   add_definitions(-DMrHyDE_SET_VECTOR_SIZE=${MrHyDE_VECTOR_SIZE})

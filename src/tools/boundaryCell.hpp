@@ -218,10 +218,14 @@ namespace MrHyDE {
                          RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
                          KOKKOS_LAMBDA (const int elem ) {
               for( size_t dof=0; dof<u_AD.extent(1); dof++ ) {
+#ifndef MrHyDE_NO_AD
                 u_AD(elem,dof) = AD(maxDerivs, 0, u_kv(LIDs(elem,offsets(dof)),0));
                 for( size_t p=0; p<du_kv.extent(1); p++ ) {
                   u_AD(elem,dof).fastAccessDx(p) = du_kv(LIDs(elem,offsets(dof)),p);
                 }
+#else
+                u_AD(elem,dof) = u_kv(LIDs(elem,offsets(dof)),0);
+#endif
               }
             });
           }
@@ -252,7 +256,11 @@ namespace MrHyDE {
                        RangePolicy<AssemblyExec>(0,localID.extent(0)),
                        KOKKOS_LAMBDA (const size_type elem ) {
             for (size_type dof=0; dof<abasis.extent(1); ++dof) {
+#ifndef MrHyDE_NO_AD
               AD auxval = AD(maxDerivs,off(dof), varaux(localID(elem),dof));
+#else
+              AD auxval = varaux(localID(elem),dof);
+#endif
               for (size_type pt=0; pt<abasis.extent(2); ++pt) {
                 local_aux(elem,pt) += auxval*abasis(elem,dof,pt);
               }

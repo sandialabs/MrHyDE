@@ -357,7 +357,11 @@ void SubGridFEM_Solver::storeFluxData(View_Sc3 lambda, View_AD2 flux) {
   for (size_t e=0; e<flux.extent(0); e++) {
     //for (size_t i=0; i<flux.extent(1); i++) {
     //for (size_t j=0; j<flux.extent(2); j++) {
+#ifndef MrHyDE_NO_AD
     ofs << flux(e,0).val() << "  ";
+#else
+    ofs << flux(e,0) << "  ";
+#endif
     //}
     //}
     ofs << endl;
@@ -503,12 +507,16 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
               for (int j=0; j<numDOF(n); j++) {
                 int row = offsets(n,j);
                 LO rowIndex = LIDs(elem,row);
+#ifndef MrHyDE_NO_AD
                 ScalarT val = -res(elem,row).val();
+#else
+                ScalarT val = -res(elem,row);
+#endif
                 Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
               }
             }
           });
-          
+#ifndef MrHyDE_NO_AD
           parallel_for("assembly insert Jac",
                        RangePolicy<SG_exec>(0,LIDs.extent(0)),
                        KOKKOS_LAMBDA (const int elem ) {
@@ -531,7 +539,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
               }
             }
           });
-          
+#endif
         }
       }
       
@@ -563,12 +571,17 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
                 for (int j=0; j<numDOF(n); j++) {
                   int row = offsets(n,j);
                   LO rowIndex = LIDs(elem,row);
+#ifndef MrHyDE_NO_AD
                   ScalarT val = -res(elem,row).val();
+#else
+                  ScalarT val = -res(elem,row);
+#endif
                   Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
                 }
               }
             });
-            
+
+#ifndef MrHyDE_NO_AD
             parallel_for("assembly insert Jac",
                          RangePolicy<SG_exec>(0,LIDs.extent(0)),
                          KOKKOS_LAMBDA (const int elem ) {
@@ -591,7 +604,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
                 }
               }
             });
-            
+#endif
           }
         }
       }
@@ -938,6 +951,7 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
         
         auto LIDs = assembler->boundaryCells[usernum][elem]->LIDs;
         
+#ifndef MrHyDE_NO_AD
         parallel_for("bcell update aux jac",
                      RangePolicy<SG_exec>(0,LIDs.extent(0)),
                      KOKKOS_LAMBDA (const int elem) {
@@ -955,7 +969,7 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
             }
           }
         });
-        
+#endif
       }
     }
     

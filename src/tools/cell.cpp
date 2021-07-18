@@ -322,7 +322,11 @@ void cell::computeSolAvg() {
                  KOKKOS_LAMBDA (const size_type elem ) {
       ScalarT solavg = 0.0;
       for (size_type pt=0; pt<sol.extent(2); pt++) {
+#ifndef MrHyDE_NO_AD
         solavg += sol(elem,pt).val()*cwts(elem,pt);
+#else
+        solavg += sol(elem,pt)*cwts(elem,pt);
+#endif
       }
       savg(elem) = solavg/avgwts(elem);
     });
@@ -339,7 +343,11 @@ void cell::computeSolAvg() {
                  KOKKOS_LAMBDA (const size_type elem ) {
       ScalarT solavg = 0.0;
       for (size_type pt=0; pt<sol.extent(2); pt++) {
+#ifndef MrHyDE_NO_AD
         solavg += sol(elem,pt).val()*cwts(elem,pt);
+#else
+        solavg += sol(elem,pt)*cwts(elem,pt);
+#endif
       }
       savg(elem) = solavg/avgwts(elem);
     });
@@ -366,7 +374,11 @@ void cell::computeSolAvg() {
                    KOKKOS_LAMBDA (const size_type elem ) {
         ScalarT solavg = 0.0;
         for (size_type pt=0; pt<sol.extent(2); pt++) {
+#ifndef MrHyDE_NO_AD
           solavg += sol(elem,pt).val()*cwts(elem,pt);
+#else
+          solavg += sol(elem,pt)*cwts(elem,pt);
+#endif
         }
         savg(elem) = solavg/avgwts(elem);
       });
@@ -385,7 +397,11 @@ void cell::computeSolAvg() {
                    KOKKOS_LAMBDA (const size_type elem ) {
         ScalarT solavg = 0.0;
         for (size_type pt=0; pt<sol.extent(2); pt++) {
+#ifndef MrHyDE_NO_AD
           solavg += sol(elem,pt).val()*cwts(elem,pt);
+#else
+          solavg += sol(elem,pt)*cwts(elem,pt);
+#endif
         }
         savg(elem) = solavg/avgwts(elem);
       });
@@ -686,6 +702,7 @@ void cell::updateRes(const bool & compute_sens, View_Sc3 local_res) {
   auto numDOF = cellData->numDOF;
   
   if (compute_sens) {
+#ifndef MrHyDE_NO_AD
     parallel_for("cell res sens",
                  TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
@@ -698,6 +715,7 @@ void cell::updateRes(const bool & compute_sens, View_Sc3 local_res) {
         }
       }
     });
+#endif
   }
   else {
     parallel_for("cell res",
@@ -706,7 +724,11 @@ void cell::updateRes(const bool & compute_sens, View_Sc3 local_res) {
       int elem = team.league_rank();
       for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
         for (int j=0; j<numDOF(n); j++) {
+#ifndef MrHyDE_NO_AD
           local_res(elem,offsets(n,j),0) -= res_AD(elem,offsets(n,j)).val();
+#else
+          local_res(elem,offsets(n,j),0) -= res_AD(elem,offsets(n,j));
+#endif
         }
       }
     });
@@ -876,6 +898,7 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
 
 void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   
+#ifndef MrHyDE_NO_AD
   auto res_AD = wkset->res;
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
@@ -913,6 +936,7 @@ void cell::updateJac(const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDe
     });
   }
   //AssemblyExec::execution_space().fence();
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -955,6 +979,7 @@ void cell::fixDiagJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J,
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void cell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
+#ifndef MrHyDE_NO_AD
   auto paramoffsets = wkset->paramoffsets;
   auto numParamDOF = cellData->numParamDOF;
   auto res_AD = wkset->res;
@@ -975,6 +1000,7 @@ void cell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
       }
     }
   });
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -983,6 +1009,7 @@ void cell::updateParamJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
 
 void cell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
   
+#ifndef MrHyDE_NO_AD
   auto res_AD = wkset->res;
   auto offsets = wkset->offsets;
   auto aoffsets = auxoffsets;
@@ -1003,6 +1030,7 @@ void cell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
       }
     }
   });
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

@@ -360,9 +360,15 @@ int main(int argc, char * argv[]) {
       auto refsol = ref_vals[tst];
       for (size_type elem=0; elem<refsol.extent(0); ++elem) {
         for (size_type pt=0; pt<refsol.extent(1); ++pt) {
+#ifndef MrHyDE_NO_AD
           normref += abs(refsol(elem,pt).val());
           normtst += abs(vals(elem,pt).val());
           err += abs(refsol(elem,pt).val() - vals(elem,pt).val());
+#else
+          normref += abs(refsol(elem,pt));
+          normtst += abs(vals(elem,pt));
+          err += abs(refsol(elem,pt) - vals(elem,pt));
+#endif
         }
       }
       cout << endl;

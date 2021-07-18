@@ -262,7 +262,11 @@ void BoundaryCell::computeSoln(const int & seedwhat) {
           int elem = team.league_rank();
           for (size_type pt=team.team_rank(); pt<abasis.extent(2); pt+=team.team_size() ) {
             for (size_type dof=0; dof<abasis.extent(1); ++dof) {
+#ifndef MrHyDE_NO_AD
               AD auxval = AD(maxDerivs,off(dof), varaux(localID(elem),dof));
+#else
+              AD auxval = varaux(localID(elem),dof);
+#endif
               local_aux(elem,pt) += auxval*abasis(elem,dof,pt);
             }
           }
@@ -369,7 +373,9 @@ void BoundaryCell::updateRes(const bool & compute_sens, View_Sc3 local_res) {
       for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
         for (int j=0; j<numDOF(n); j++) {
           for (unsigned int r=0; r<local_res.extent(2); r++) {
+#ifndef MrHyDE_NO_AD
             local_res(elem,offsets(n,j),r) -= res_AD(elem,offsets(n,j)).fastAccessDx(r);
+#endif
           }
         }
       }
@@ -382,7 +388,11 @@ void BoundaryCell::updateRes(const bool & compute_sens, View_Sc3 local_res) {
       int elem = team.league_rank();
       for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
         for (int j=0; j<numDOF(n); j++) {
+#ifndef MrHyDE_NO_AD
           local_res(elem,offsets(n,j),0) -= res_AD(elem,offsets(n,j)).val();
+#else
+          local_res(elem,offsets(n,j),0) -= res_AD(elem,offsets(n,j));
+#endif
         }
       }
     });
@@ -395,6 +405,7 @@ void BoundaryCell::updateRes(const bool & compute_sens, View_Sc3 local_res) {
 
 void BoundaryCell::updateJac(const bool & useadjoint, View_Sc3 local_J) {
   
+#ifndef MrHyDE_NO_AD
   auto res_AD = wkset->res;
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
@@ -431,6 +442,7 @@ void BoundaryCell::updateJac(const bool & useadjoint, View_Sc3 local_J) {
       }
     });
   }
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -439,6 +451,7 @@ void BoundaryCell::updateJac(const bool & useadjoint, View_Sc3 local_J) {
 
 void BoundaryCell::updateParamJac(View_Sc3 local_J) {
   
+#ifndef MrHyDE_NO_AD
   auto res_AD = wkset->res;
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
@@ -459,6 +472,7 @@ void BoundaryCell::updateParamJac(View_Sc3 local_J) {
       }
     }
   });
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -466,7 +480,7 @@ void BoundaryCell::updateParamJac(View_Sc3 local_J) {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void BoundaryCell::updateAuxJac(View_Sc3 local_J) {
-  
+#ifndef MrHyDE_NO_AD
   auto res_AD = wkset->res;
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
@@ -487,6 +501,7 @@ void BoundaryCell::updateAuxJac(View_Sc3 local_J) {
       }
     }
   });
+#endif
 }
 
 

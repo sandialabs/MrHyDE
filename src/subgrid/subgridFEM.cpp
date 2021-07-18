@@ -1085,7 +1085,11 @@ void SubGridFEM::storeFluxData(Kokkos::View<ScalarT***,AssemblyDevice> lambda, K
   for (size_t e=0; e<flux.extent(0); e++) {
     //for (size_t i=0; i<flux.extent(1); i++) {
     //for (size_t j=0; j<flux.extent(2); j++) {
+#ifndef MrHyDE_NO_AD
     ofs << flux(e,0).val() << "  ";
+#else
+    ofs << flux(e,0) << "  ";
+#endif
     //}
     //}
     ofs << endl;

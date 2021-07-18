@@ -841,7 +841,11 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+#ifndef MrHyDE_NO_AD
                 ScalarT diff = sol(elem,pt).val() - tsol(elem,pt).val();
+#else
+                ScalarT diff = sol(elem,pt) - tsol(elem,pt);
+#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -856,7 +860,11 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+#ifndef MrHyDE_NO_AD
                 ScalarT diff = sol_x(elem,pt).val() - tsol(elem,pt).val();
+#else
+                ScalarT diff = sol_x(elem,pt) - tsol(elem,pt);
+#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -872,7 +880,11 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+#ifndef MrHyDE_NO_AD
                   ScalarT diff = sol_y(elem,pt).val() - tsol(elem,pt).val();
+#else
+                  ScalarT diff = sol_y(elem,pt) - tsol(elem,pt);
+#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -889,7 +901,11 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+#ifndef MrHyDE_NO_AD
                   ScalarT diff = sol_z(elem,pt).val() - tsol(elem,pt).val();
+#else
+                  ScalarT diff = sol_z(elem,pt) - tsol(elem,pt);
+#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -906,7 +922,11 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+#ifndef MrHyDE_NO_AD
                 ScalarT diff = sol_div(elem,pt).val() - tsol(elem,pt).val();
+#else
+                ScalarT diff = sol_div(elem,pt) - tsol(elem,pt);
+#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -922,7 +942,11 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+#ifndef MrHyDE_NO_AD
                 ScalarT diff = sol_curl_x(elem,pt).val() - tsol(elem,pt).val();
+#else
+                ScalarT diff = sol_curl_x(elem,pt) - tsol(elem,pt);
+#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -938,7 +962,11 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+#ifndef MrHyDE_NO_AD
                   ScalarT diff = sol_curl_y(elem,pt).val() - tsol(elem,pt).val();
+#else
+                  ScalarT diff = sol_curl_y(elem,pt) - tsol(elem,pt);
+#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -955,7 +983,11 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+#ifndef MrHyDE_NO_AD
                   ScalarT diff = sol_curl_z(elem,pt).val() - tsol(elem,pt).val();
+#else
+                  ScalarT diff = sol_curl_z(elem,pt) - tsol(elem,pt);
+#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -972,7 +1004,11 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+#ifndef MrHyDE_NO_AD
                 ScalarT diff = sol_x(elem,pt).val() - tsol(elem,pt).val();
+#else
+                ScalarT diff = sol_x(elem,pt) - tsol(elem,pt);
+#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -988,7 +1024,11 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+#ifndef MrHyDE_NO_AD
                   ScalarT diff = sol_y(elem,pt).val() - tsol(elem,pt).val();
+#else
+                  ScalarT diff = sol_y(elem,pt) - tsol(elem,pt);
+#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1005,7 +1045,11 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+#ifndef MrHyDE_NO_AD
                   ScalarT diff = sol_z(elem,pt).val() - tsol(elem,pt).val();
+#else
+                  ScalarT diff = sol_z(elem,pt) - tsol(elem,pt);
+#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1038,7 +1082,11 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
                   }
                   
                   for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+#ifndef MrHyDE_NO_AD
                     ScalarT diff = sol(elem,pt).val() - tsol(elem,pt).val();
+#else
+                    ScalarT diff = sol(elem,pt) - tsol(elem,pt);
+#endif
                     update += 0.5/facemeasure*diff*diff*wts(elem,pt);  // TODO - BWR what is this? why .5?
                   }
                 }, error);
@@ -1196,7 +1244,11 @@ void PostprocessManager<Node>::computeFluxResponse(const ScalarT & currenttime) 
               parallel_reduce(RangePolicy<AssemblyExec>(0,iwts.extent(0)),
                               KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<iwts.extent(1); pt++ ) {
+#ifndef MrHyDE_NO_AD
                   ScalarT up = vflux(elem,pt).val()*wts(elem,pt).val()*iwts(elem,pt);
+#else
+                  ScalarT up = vflux(elem,pt)*wts(elem,pt)*iwts(elem,pt);
+#endif
                   update += up;
                 }
               }, value);
@@ -1258,7 +1310,11 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
           parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)),
                           KOKKOS_LAMBDA (const int elem, ScalarT & update) {
                             for (size_t pt=0; pt<wts.extent(1); pt++) {
+#ifndef MrHyDE_NO_AD
                               ScalarT Idx = wts(elem,pt)*integrand(elem,pt).val();
+#else
+                              ScalarT Idx = wts(elem,pt)*integrand(elem,pt);
+#endif
                               update += Idx;
                             }
                           },localContribution); //// TODO :: may be illegal
@@ -1293,7 +1349,11 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)),
                             KOKKOS_LAMBDA (const int elem, ScalarT & update) {
                               for (size_t pt=0; pt<wts.extent(1); pt++) {
+#ifndef MrHyDE_NO_AD
                                 ScalarT Idx = wts(elem,pt)*integrand(elem,pt).val();
+#else
+                                ScalarT Idx = wts(elem,pt)*integrand(elem,pt);
+#endif
                                 update += Idx;
                               }
                             },localContribution); //// TODO :: may be illegal, problematic ABOVE TOO
@@ -1369,12 +1429,22 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
         parallel_for("cell objective",
                      RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
                      KOKKOS_LAMBDA (const size_type p ) {
+#ifndef MrHyDE_NO_AD
           size_t numder = static_cast<size_t>(objsum(0).size());
+#else
+          size_t numder = 0;
+#endif
           if (p==0) {
+#ifndef MrHyDE_NO_AD
             objsum_dev(p) = objsum(0).val();
+#else
+            objsum_dev(p) = objsum(0);
+#endif
           }
           else if (p <= numder) {
+#ifndef MrHyDE_NO_AD
             objsum_dev(p) = objsum(0).fastAccessDx(p-1);
+#endif
           }
         });
         
@@ -1424,12 +1494,22 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
           parallel_for("cell objective",
                        RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
                        KOKKOS_LAMBDA (const size_type p ) {
+#ifndef MrHyDE_NO_AD
             size_t numder = static_cast<size_t>(objsum(0).size());
+#else
+            size_t numder = 0;
+#endif
             if (p==0) {
+#ifndef MrHyDE_NO_AD
               objsum_dev(p) = objsum(0).val();
+#else
+              objsum_dev(p) = objsum(0);
+#endif
             }
             else if (p <= numder) {
+#ifndef MrHyDE_NO_AD
               objsum_dev(p) = objsum(0).fastAccessDx(p-1);
+#endif
             }
           });
           
@@ -1510,6 +1590,7 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
         parallel_for("cell objective",
                      RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
                      KOKKOS_LAMBDA (const size_type p ) {
+#ifndef MrHyDE_NO_AD
           size_t numder = static_cast<size_t>(objsum(0).size());
           if (p==0) {
             objsum_dev(p) = objsum(0).val();
@@ -1517,6 +1598,11 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
           else if (p <= numder) {
             objsum_dev(p) = objsum(0).fastAccessDx(p-1);
           }
+#else
+          if (p==0) {
+            objsum_dev(p) = objsum(0);
+          }
+#endif
         });
         
         auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
@@ -1567,6 +1653,7 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
           parallel_for("cell objective",
                        RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
                        KOKKOS_LAMBDA (const size_type p ) {
+#ifndef MrHyDE_NO_AD
             size_t numder = static_cast<size_t>(objsum(0).size());
             if (p==0) {
               objsum_dev(p) = objsum(0).val();
@@ -1574,6 +1661,11 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
             else if (p <= numder) {
               objsum_dev(p) = objsum(0).fastAccessDx(p-1);
             }
+#else
+            if (p==0) {
+              objsum_dev(p) = objsum(0);
+            }
+#endif
           });
           
           auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
@@ -1731,7 +1823,11 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
           auto rdata = functionManagers[block]->evaluate(objectives[r].name+" response","point");
           
           if (compute_response) {
+#ifndef MrHyDE_NO_AD
             sensordat(pt) = rdata(0,0).val();
+#else
+            sensordat(pt) = rdata(0,0);
+#endif
           }
           
           if (compute_objective) {
@@ -1739,13 +1835,18 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
             // Update the value of the objective
             AD diff = rdata(0,0) - objectives[r].sensor_data(pt,tindex);
             AD sdiff = objectives[r].weight*diff*diff;
+#ifndef MrHyDE_NO_AD
             totaldiff[r] += sdiff.val();
-            
+#else
+            totaldiff[r] += sdiff;
+#endif
             
             // Update the gradient w.r.t scalar active parameters
+#ifndef MrHyDE_NO_AD
             for (int p=0; p<params->num_active_params; p++) {
               gradients[r][p] += sdiff.fastAccessDx(p);
             }
+#endif
             
             // Discretized parameters
             if (params->globalParamUnknowns > 0) {
@@ -1762,11 +1863,16 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
                            KOKKOS_LAMBDA (const size_type n ) {
                 for (size_type n=0; n<numParamDOF.extent(0); n++) {
                   for( int i=0; i<numParamDOF(n); i++ ) {
+#ifndef MrHyDE_NO_AD
                     p_dof(n,i) = AD(maxDerivs,poff(n,i),cp(n,i));
+#else
+                    p_dof(n,i) = cp(n,i);
+#endif
                   }
                 }
               });
               
+#ifndef MrHyDE_NO_AD
               View_AD2 p_ip("p_ip",numParamDOF.extent(0),assembler->cellData[block]->dimension);
               View_AD2 pgrad_ip("pgrad_ip",numParamDOF.extent(0),assembler->cellData[block]->dimension);
               
@@ -1808,7 +1914,7 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
                   gradients[r][rowIndex] += sdiff.fastAccessDx(poffset);
                 }
               }
-              
+#endif
             }
             
           }
@@ -1846,15 +1952,20 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
               }
             });
             
+            
             View_Sc3 regvals_sc("scalar version of AD view",wts.extent(0),wts.extent(1),maxDerivs+1);
             parallel_for("cell objective",
                          RangePolicy<AssemblyExec>(0,wts.extent(0)),
                          KOKKOS_LAMBDA (const size_type elem ) {
               for (size_type pt=0; pt<wts.extent(1); ++pt) {
+#ifndef MrHyDE_NO_AD
                 regvals_sc(elem,pt,0) = regvals(elem,pt).val();
                 for (size_type d=0; d<regvals_sc.extent(2)-1; ++d) {
                   regvals_sc(elem,pt,d+1) = regvals(elem,pt).fastAccessDx(d);
                 }
+#else
+                regvals_sc(elem,pt,0) = regvals(elem,pt);
+#endif
               }
             });
             
@@ -1909,11 +2020,16 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
                            RangePolicy<AssemblyExec>(0,wts.extent(0)),
                            KOKKOS_LAMBDA (const size_type elem ) {
                 for (size_type pt=0; pt<wts.extent(1); ++pt) {
+#ifndef MrHyDE_NO_AD
                   regvals_sc(elem,pt,0) = regvals(elem,pt).val();
                   for (size_type d=0; d<regvals_sc.extent(2)-1; ++d) {
                     regvals_sc(elem,pt,d+1) = regvals(elem,pt).fastAccessDx(d);
                   }
+#else
+                  regvals_sc(elem,pt,0) = regvals(elem,pt);
+#endif
                 }
+                
               });
               
               auto regvals_sc_host = create_mirror_view(regvals_sc);
@@ -2044,9 +2160,10 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
     }
   }
   
+#ifndef MrHyDE_NO_AD
   DFAD totaldiff = 0.0;
-  AD regDomain = 0.0;
-  AD regBoundary = 0.0;
+  //AD regDomain = 0.0;
+  //AD regBoundary = 0.0;
   
   params->sacadoizeParams(false);
   
@@ -2280,7 +2397,6 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
             }
             
           }
-          
         }
         
         if (data_avail) {
@@ -2529,7 +2645,6 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
             }
             
           }
-          
         }
         
         if (data_avail) {
@@ -2731,16 +2846,17 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
                   u_tmp(var,s) = u_tmp(var,s).val();
                 }
               });
+              
               assembler->wkset[block]->setSolutionPoint(u_tmp);
               assembler->wkset[block]->setSolutionGradPoint(ugrad_tmp);
               
             }
-            
+
             auto rdata = functionManagers[block]->evaluate(objectives[r].name+" response","point");
             AD diff = rdata(0,0) - objectives[r].sensor_data(pt,tindex);
             AD totaldiff = objectives[r].weight*diff*diff;
             
-            
+
             for (size_type n=0; n<numDOF.extent(0); n++) {
               int bnum = assembler->wkset[block]->usebasis[n];
               
@@ -2799,7 +2915,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
     }
   }
   
-  
+#endif
   
 }
 
@@ -3076,7 +3192,11 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
               parallel_for("postproc plot HFACE",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                   face_measure_dev(eID(elem)) += wts(elem,pt);
+#ifndef MrHyDE_NO_AD
                   soln_faceavg_dev(eID(elem)) += sol(elem,pt).val()*wts(elem,pt);
+#else
+                  soln_faceavg_dev(eID(elem)) += sol(elem,pt)*wts(elem,pt);
+#endif
                 }
               });
             }
@@ -3183,7 +3303,11 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
                 parallel_for("postproc plot HFACE",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
                   for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                     face_measure_dev(eID(elem)) += wts(elem,pt);
+#ifndef MrHyDE_NO_AD
                     soln_faceavg_dev(eID(elem)) += sol(elem,pt).val()*wts(elem,pt);
+#else
+                    soln_faceavg_dev(eID(elem)) += sol(elem,pt)*wts(elem,pt);
+#endif
                   }
                 });
               }
@@ -3446,7 +3570,11 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc
           cellmeas += wts(e,pt);
         }
         for (size_t j=0; j<wts.extent(1); j++) {
+#ifndef MrHyDE_NO_AD
           ScalarT val = ecf(e,j).val();
+#else
+          ScalarT val = ecf(e,j);
+#endif
           cfield(e) += val*wts(e,j)/cellmeas;
         }
       });
@@ -3456,7 +3584,11 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc
                    RangePolicy<AssemblyExec>(0,wts.extent(0)),
                    KOKKOS_LAMBDA (const int e ) {
         for (size_t j=0; j<wts.extent(1); j++) {
+#ifndef MrHyDE_NO_AD
           ScalarT val = ecf(e,j).val();
+#else
+          ScalarT val = ecf(e,j);
+#endif
           if (val>cfield(e)) {
             cfield(e) = val;
           }
@@ -3468,7 +3600,11 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc
                    RangePolicy<AssemblyExec>(0,wts.extent(0)),
                    KOKKOS_LAMBDA (const int e ) {
         for (size_t j=0; j<wts.extent(1); j++) {
+#ifndef MrHyDE_NO_AD
           ScalarT val = ecf(e,j).val();
+#else
+          ScalarT val = ecf(e,j);
+#endif
           if (val<cfield(e)) {
             cfield(e) = val;
           }
@@ -3506,7 +3642,11 @@ View_Sc2 PostprocessManager<Node>::getDerivedQuantities(const int & block, View_
             cellmeas += wts(e,pt);
           }
           for (size_t j=0; j<wts.extent(1); j++) {
+#ifndef MrHyDE_NO_AD
             ScalarT val = cdq(e,j).val();
+#else
+            ScalarT val = cdq(e,j);
+#endif
             cfield(e) += val*wts(e,j)/cellmeas;
           }
         });
@@ -3516,7 +3656,11 @@ View_Sc2 PostprocessManager<Node>::getDerivedQuantities(const int & block, View_
                      RangePolicy<AssemblyExec>(0,wts.extent(0)),
                      KOKKOS_LAMBDA (const int e ) {
           for (size_t j=0; j<wts.extent(1); j++) {
+#ifndef MrHyDE_NO_AD
             ScalarT val = cdq(e,j).val();
+#else
+            ScalarT val = cdq(e,j);
+#endif
             if (val>cfield(e)) {
               cfield(e) = val;
             }
@@ -3528,7 +3672,11 @@ View_Sc2 PostprocessManager<Node>::getDerivedQuantities(const int & block, View_
                      RangePolicy<AssemblyExec>(0,wts.extent(0)),
                      KOKKOS_LAMBDA (const int e ) {
           for (size_t j=0; j<wts.extent(1); j++) {
+#ifndef MrHyDE_NO_AD
             ScalarT val = cdq(e,j).val();
+#else
+            ScalarT val = cdq(e,j);
+#endif
             if (val<cfield(e)) {
               cfield(e) = val;
             }

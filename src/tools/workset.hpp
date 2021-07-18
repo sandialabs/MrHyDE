@@ -156,8 +156,10 @@ namespace MrHyDE {
     View_Sc2 getDataSc(const string & label);
     
     size_t getDataScIndex(const string & label);
-    
+
+#ifndef MrHyDE_NO_AD
     void get(const string & label, View_AD2 & dataout);
+#endif
     
     void get(const string & label, View_Sc2 & dataout);
     
@@ -230,7 +232,9 @@ namespace MrHyDE {
     // Functions to set the data
     //////////////////////////////////////////////////////////////
     
+#ifndef MrHyDE_NO_AD
     void setData(const string & label, View_AD2 newdata);
+#endif
     
     void setDataSc(const string & label, View_Sc2 newdata);
     

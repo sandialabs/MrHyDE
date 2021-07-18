@@ -130,13 +130,21 @@ void CrystalElastic::updateParams(Teuchos::RCP<workset> & wkset) {
   bool foundlam = false;
   vector<AD> lvals = wkset->getParam("lambda", foundlam);
   if (foundlam) {
+#ifndef MrHyDE_NO_AD
     lambda = lvals[0].val();
+#else
+    lambda = lvals[0];
+#endif
   }
   
   bool foundmu = false;
   vector<AD> muvals = wkset->getParam("mu", foundmu);
   if (foundmu) {
+#ifndef MrHyDE_NO_AD
     mu = muvals[0].val();
+#else
+    mu = muvals[0];
+#endif
   }
   
   if (!foundlam || !foundmu) {
@@ -144,14 +152,22 @@ void CrystalElastic::updateParams(Teuchos::RCP<workset> & wkset) {
     bool foundym = false;
     vector<AD> ymvals = wkset->getParam("youngs_mod", foundym);
     if (foundym) {
+#ifndef MrHyDE_NO_AD
       E = ymvals[0].val();
+#else
+      E = ymvals[0];
+#endif
     }
     
     ScalarT nu = 0.0;
     bool foundpr = false;
     vector<AD> prvals = wkset->getParam("poisson_ratio", foundpr);
     if (foundpr) {
+#ifndef MrHyDE_NO_AD
       nu = prvals[0].val();
+#else
+      nu = prvals[0];
+#endif
     }
     
     if (foundym && foundpr) {

@@ -87,9 +87,9 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   
   // These are stored as vector<View_AD2> instead of View_AD3 to avoid subviews
   for (size_t k=0; k<numVars; ++k) {
-    uvals.push_back(View_AD2("seeded uvals",numElem, maxb, maxDerivs));
+    uvals.push_back(View_AD2("seeded uvals",numElem, maxb));
     if (isTransient) {
-      u_dotvals.push_back(View_AD2("seeded uvals",numElem, maxb, maxDerivs));
+      u_dotvals.push_back(View_AD2("seeded uvals",numElem, maxb));
     }
   }
     
@@ -120,15 +120,15 @@ void workset::createSolns() {
     maxRes = std::max(maxRes,aux_offsets.extent(0)*aux_offsets.extent(1));
   }
   
-  res = View_AD2("residual",numElem, maxRes, maxDerivs);
+  res = View_AD2("residual",numElem, maxRes);
 
   for (size_t i=0; i<usebasis.size(); i++) {
     int bind = usebasis[i];
     string var = varlist[i];
     int numb = basis_pointers[bind]->getCardinality();
-    uvals.push_back(View_AD2("seeded uvals",numElem, numb, maxDerivs));
+    uvals.push_back(View_AD2("seeded uvals",numElem, numb));
     if (isTransient) {
-      u_dotvals.push_back(View_AD2("seeded uvals",numElem, numb, maxDerivs));
+      u_dotvals.push_back(View_AD2("seeded uvals",numElem, numb));
     }
     
     if (basis_types[bind].substr(0,5) == "HGRAD") {
@@ -204,7 +204,7 @@ void workset::createSolns() {
     int bind = paramusebasis[i];
     string var = param_varlist[i];
     int numb = basis_pointers[bind]->getCardinality();
-    pvals.push_back(View_AD2("seeded uvals",numElem, numb, maxDerivs));
+    pvals.push_back(View_AD2("seeded uvals",numElem, numb));
     
     if (basis_types[bind].substr(0,5) == "HGRAD") {
       paramvars_HGRAD.push_back(i);
@@ -285,6 +285,7 @@ void workset::resetResidual() {
   
   size_t maxRes_ = maxRes;
   
+#ifndef MrHyDE_NO_AD
   parallel_for("wkset reset res",
                TeamPolicy<AssemblyExec>(res.extent(0), Kokkos::AUTO),
                KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
@@ -294,12 +295,18 @@ void workset::resetResidual() {
       for (size_type d=0; d<maxRes_; ++d) {
         res(elem,dof).fastAccessDx(d) = 0.0;
       }
-      //for (size_type var=0; var<off.extent(0); ++var) {
-      //  res(elem,off(var,dof)) = 0.0;
-      //}
     }
   });
-  
+#else
+  parallel_for("wkset reset res",
+               TeamPolicy<AssemblyExec>(res.extent(0), Kokkos::AUTO),
+               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+    int elem = team.league_rank();
+    for (size_type dof=team.team_rank(); dof<maxRes_; dof+=team.team_size() ) {
+      res(elem,dof) = 0.0;
+    }
+  });
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -345,8 +352,11 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
         for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
       
           // Seed the stage solution
+#ifndef MrHyDE_NO_AD
           AD stageval = AD(maxDerivs,off(dof),cu(elem,dof));
-          
+#else
+          AD stageval = cu(elem,dof);
+#endif
           // Compute the evaluating solution
           beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
           for (int s=0; s<stage; s++) {
@@ -397,7 +407,11 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
           // Compute the evaluating solution
           AD u_prev_val = cu_prev(elem,dof,0);
           if (sindex(0) == 0) {
+#ifndef MrHyDE_NO_AD
             u_prev_val = AD(maxDerivs,off(dof),cu_prev(elem,dof,0));
+#else
+            u_prev_val = cu_prev(elem,dof,0);
+#endif
           }
           
           beta_u = (1.0-alpha_u)*u_prev_val;
@@ -411,7 +425,11 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
           for (size_type s=1; s<BDF.extent(0); s++) {
             AD u_prev_val = cu_prev(elem,dof,s-1);
             if (sindex(0) == (s-1)) {
+#ifndef MrHyDE_NO_AD
               u_prev_val = AD(maxDerivs,off(dof),cu_prev(elem,dof,s-1));
+#else
+              u_prev_val = cu_prev(elem,dof,s-1);
+#endif
             }
             beta_t += BDF(s)*u_prev_val;
           }
@@ -457,7 +475,11 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
           for (int s=0; s<stage; s++) {
             AD u_stage_val = cu_stage(elem,dof,s);
             if (sindex(0) == s) {
+#ifndef MrHyDE_NO_AD
               u_stage_val = AD(maxDerivs,off(dof),cu_stage(elem,dof,s));
+#else
+              u_stage_val = cu_stage(elem,dof,s);
+#endif
             }
             beta_u += b_A(stage,s)/b_b(s) * (u_stage_val - u_prev_val);
           }
@@ -539,7 +561,11 @@ void workset::computeSolnSteadySeeded(View_Sc3 u,
                    RangePolicy<AssemblyExec>(0,u.extent(0)),
                    KOKKOS_LAMBDA (const size_type elem ) {
         for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
+#ifndef MrHyDE_NO_AD
           u_AD(elem,dof) = AD(maxDerivs,off(dof),cu(elem,dof));
+#else
+          u_AD(elem,dof) = cu(elem,dof);
+#endif
         }
       });
     }
@@ -614,7 +640,11 @@ void workset::computeParamSteadySeeded(View_Sc3 param,
                      RangePolicy<AssemblyExec>(0,param.extent(0)),
                      KOKKOS_LAMBDA (const size_type elem ) {
           for (size_type dof=0; dof<p_AD.extent(1); dof++ ) {
+#ifndef MrHyDE_NO_AD
             p_AD(elem,dof) = AD(maxDerivs,off(dof),cp(elem,dof));
+#else
+            p_AD(elem,dof) = cp(elem,dof);
+#endif
           }
         });
       }
@@ -1322,13 +1352,13 @@ void workset::addAux(const vector<string> & auxvars, Kokkos::View<int**,Assembly
   aux_offsets = aoffs;
   aux_varlist = auxvars;
   numAux = aux_varlist.size();
-  flux = View_AD3("flux",numElem,numAux,numsideip, maxDerivs);
+  flux = View_AD3("flux",numElem,numAux,numsideip);
   
   if (numAux > 0) {
     size_t maxAux = aux_offsets.extent(0)*aux_offsets.extent(1);
     if (maxAux > maxRes) {
       maxRes = maxAux;
-      res = View_AD2("residual",numElem, maxRes, maxDerivs);
+      res = View_AD2("residual",numElem, maxRes);
     }
   }
 
@@ -1545,6 +1575,7 @@ size_t workset::getDataScIndex(const string & label) {
 // Another method to extract a View_AD2
 //////////////////////////////////////////////////////////////
 
+#ifndef MrHyDE_NO_AD
 void workset::get(const string & label, View_AD2 & dataout) {
   
   //Teuchos::TimeMonitor basistimer(*worksetgetTimer);
@@ -1568,6 +1599,7 @@ void workset::get(const string & label, View_AD2 & dataout) {
     this->printMetaData();
   }
 }
+#endif
 
 //////////////////////////////////////////////////////////////
 // Another method to extract a View_Sc2

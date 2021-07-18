@@ -483,7 +483,7 @@ AD PhysicsInterface::getDirichletValue(const int & block, const ScalarT & x, con
   
   // evaluate the response
   auto ddata = functionManagers[block]->evaluate("Dirichlet " + var + " " + gside,"point");
-  AD val = 0.0;
+  
   return ddata(0,0);
   
 }
@@ -547,7 +547,11 @@ View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & block,
                    RangePolicy<AssemblyExec>(0,cvals.extent(0)),
                    KOKKOS_LAMBDA (const int e ) {
         for (size_t i=0; i<cvals.extent(1); i++) {
+#ifndef MrHyDE_NO_AD
           cvals(e,i) = ivals_AD(e,i).val();
+#else
+          cvals(e,i) = ivals_AD(e,i);
+#endif
         }
       });
     }
@@ -600,7 +604,11 @@ View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & block,
           parallel_for("physics initial set point",
                        RangePolicy<AssemblyExec>(0,1),
                        KOKKOS_LAMBDA (const int s ) {
+#ifndef MrHyDE_NO_AD
             ivals(e,n,i) = ivals_AD(0,0).val();
+#else
+            ivals(e,n,i) = ivals_AD(0,0);
+#endif
           });
           
         }
@@ -630,7 +638,11 @@ View_Sc2 PhysicsInterface::getDirichlet(const int & var,
                RangePolicy<AssemblyExec>(0,dvals.extent(0)),
                KOKKOS_LAMBDA (const int e ) {
     for (size_t i=0; i<dvals.extent(1); i++) {
+#ifndef MrHyDE_NO_AD
       dvals(e,i) = dvals_AD(e,i).val();
+#else
+      dvals(e,i) = dvals_AD(e,i);
+#endif
     }
   });
   return dvals;

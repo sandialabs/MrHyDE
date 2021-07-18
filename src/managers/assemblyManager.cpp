@@ -252,8 +252,13 @@ void AssemblyManager<Node>::createCells() {
       
       // LO is int, but just in case that changes ...
       LO elemPerCell = static_cast<LO>(settings->sublist("Solver").get<int>("workset size",100));
-      elemPerCell = std::min(elemPerCell,numTotalElem);
-            
+      if (elemPerCell == -1) {
+        elemPerCell = numTotalElem;
+      }
+      else {
+        elemPerCell = std::min(elemPerCell,numTotalElem);
+      }
+      
       vector<string> sideSets;
       mesh->getSidesetNames(sideSets);
       
@@ -1718,6 +1723,7 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
         rowIndex = LIDs(elem,row);
         if (!fixedDOF(rowIndex)) {
           if (compute_sens_) {
+#ifndef MrHyDE_NO_AD
             if (use_atomics_) {
               for (size_type r=0; r<res_view.extent(1); ++r) {
                 ScalarT val = -res(elem,row).fastAccessDx(r);
@@ -1730,9 +1736,14 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
                 res_view(rowIndex,r) += val;
               }
             }
+#endif
           }
           else {
+#ifndef MrHyDE_NO_AD
             ScalarT val = -res(elem,row).val();
+#else
+            ScalarT val = -res(elem,row);
+#endif
             if (use_atomics_) {
               Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
             }
@@ -1744,6 +1755,7 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
       }
     }
     
+#ifndef MrHyDE_NO_AD
     // Jacobian scatter
     if (compute_jacobian_) {
       const size_type numVals = LIDs.extent(1);
@@ -1777,6 +1789,7 @@ void AssemblyManager<Node>::scatter(MatType J_kcrs, VecViewType res_view,
         }
       }
     }
+#endif
   });
 }
 
