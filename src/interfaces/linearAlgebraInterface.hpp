@@ -51,6 +51,7 @@ namespace MrHyDE {
     
     typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
     typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> LA_MultiVector;
+    typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
     
   public:
     
@@ -65,17 +66,21 @@ namespace MrHyDE {
       usePreconditioner = settings.get<bool>("use preconditioner",true);
       reusePreconditioner = settings.get<bool>("reuse preconditioner",true);
       rightPreconditioner = settings.get<bool>("right preconditioner",false);
+      reuseJacobian = settings.get<bool>("reuse Jacobian",false);
       
       havePreconditioner = false;
       haveSymbFactor = false;
+      haveJacobian = false;
     }
     
     string amesosType, belosType;
     string belosSublist, mueluSublist;
-    bool useDirect, useDomainDecomp, usePreconditioner, rightPreconditioner, reusePreconditioner, havePreconditioner, haveSymbFactor;
+    bool useDirect, useDomainDecomp, usePreconditioner, rightPreconditioner, reusePreconditioner, reuseJacobian;
+    bool haveJacobian, havePreconditioner, haveSymbFactor;
     Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > AmesosSolver;
     Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > M; // AMG preconditioner for Jacobians
     Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > M_dd; // domain decomposition preconditioner for Jacobians
+    matrix_RCP J; // Jacobian
     
   };
   
@@ -129,8 +134,34 @@ namespace MrHyDE {
     
     matrix_RCP getNewMatrix() {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
-      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map, maxEntries));
+      matrix_RCP newmat;
+      if (options->reuseJacobian) {
+        if (options->haveJacobian) {
+          newmat = options->J;
+        }
+        else {
+          newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map, maxEntries));
+          options->J = newmat;
+          options->haveJacobian = true;
+        }
+      }
+      else {
+        newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map, maxEntries));
+      }
+      
       return newmat;
+    }
+    
+    bool getJacobianReuse() {
+      bool reuse = false;
+      if (options->reuseJacobian && options->haveJacobian) {
+        reuse = true;
+      }
+      return reuse;
+    }
+    
+    void resetJacobian() {
+      options->haveJacobian = false;
     }
     
     matrix_RCP getNewOverlappedMatrix() {
