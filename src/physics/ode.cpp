@@ -58,12 +58,15 @@ void ODE::volumeResidual() {
   auto res = wkset->getResidual();
   auto off = wkset->getOffsets("q");
   auto dqdt = wkset->getData("q_t");
+  auto wts = wkset->wts;
   
   // Simply solves q_dot = f(q,t)
   parallel_for("ODE volume resid",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
                KOKKOS_LAMBDA (const int e ) {
-    res(e,off(0)) += dqdt(e,0) - source(e,0);
+    for (size_type pt=0; pt<wts.extent(1); ++pt) {
+      res(e,off(0)) += (dqdt(e,pt) - source(e,pt))*wts(e,pt);
+    }
   });
   
 }
