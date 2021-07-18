@@ -73,11 +73,32 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   
   ButcherTab = settings->sublist("Solver").get<string>("transient Butcher tableau","BWE");
   BDForder = settings->sublist("Solver").get<int>("transient BDF order",1);
-  
+  if (BDForder>1) {
+    if (ButcherTab == "custom") {
+      cout << "Warning: running a higher order BDF method with anything other than BWE/DIRK-1,1 is risky." << endl;
+      cout << "The code will run, but the results may be nonsense" << endl;
+    }
+    else {
+      if (ButcherTab != "BWE" && ButcherTab != "DIRK-1,1") {
+        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: need to use BWE or DIRK-1,1 with higher order BDF");
+      }
+    }
+  }
   // Additional parameters for higher-order BDF methods that require some startup procedure
   startupButcherTab = settings->sublist("Solver").get<string>("transient startup Butcher tableau",ButcherTab);
   startupBDForder = settings->sublist("Solver").get<int>("transient startup BDF order",BDForder);
   startupSteps = settings->sublist("Solver").get<int>("transient startup steps",BDForder);
+  if (startupBDForder>1) {
+    if (startupButcherTab == "custom") {
+      cout << "Warning: running a higher order BDF method with anything other than BWE/DIRK-1,1 is risky." << endl;
+      cout << "The code will run, but the results may be nonsense" << endl;
+    }
+    else {
+      if (startupButcherTab != "BWE" && startupButcherTab != "DIRK-1,1") {
+        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: need to use BWE or DIRK-1,1 with higher order BDF");
+      }
+    }
+  }
   
   line_search = false;//settings->sublist("Solver").get<bool>("Use Line Search","false");
   store_adjPrev = false;
@@ -88,7 +109,16 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   if (!isTransient) {
     deltat = 1.0;
   }
-  
+  fully_explicit = settings->sublist("Solver").get<bool>("fully explicit",false);
+  if (fully_explicit) {
+    if (!settings->sublist("Solver").get<bool>("lump mass",false)) {
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: the fully explicit mode currently requires mass lumping");
+    }
+    else {
+      cout << "WARNING: the fully explicit method is requested.  This is an experimental capability and may not work with all time integration methods" << endl;
+    }
+  }
+  haveExplicitMass = false;
   
   initial_type = settings->sublist("Solver").get<string>("initial type","L2-projection");
   
@@ -131,6 +161,11 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   /////////////////////////////////////////////////////////////////////////////
   
   linalg = Teuchos::rcp( new LinearAlgebraInterface<Node>(Comm, settings, disc, params) );
+  
+  res = linalg->getNewVector();
+  res_over = linalg->getNewOverlappedVector();
+  du_over = linalg->getNewOverlappedVector();
+  du = linalg->getNewVector();
   
   /////////////////////////////////////////////////////////////////////////////
   // Worksets
@@ -224,9 +259,6 @@ template<class Node>
 void SolverManager<Node>::setButcherTableau(const string & tableau) {
   Kokkos::View<ScalarT**,AssemblyDevice> dev_butcher_A;
   Kokkos::View<ScalarT*,AssemblyDevice> dev_butcher_b, dev_butcher_c;
-  //auto butcher_A = Kokkos::create_mirror_view(dev_butcher_A);
-  //auto butcher_b = Kokkos::create_mirror_view(dev_butcher_b);
-  //auto butcher_c = Kokkos::create_mirror_view(dev_butcher_c);
   
   Kokkos::View<ScalarT**,HostDevice> butcher_A;
   Kokkos::View<ScalarT*,HostDevice> butcher_b, butcher_c;
@@ -960,7 +992,7 @@ void SolverManager<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vect
       }
       
       u_prev->update(1.0,*u,0.0);
-      
+      auto BDF_wts = assembler->wkset[0]->BDF_wts;
       int status = 1;
       for (int stage = 0; stage<numstages; stage++) {
         // Need a stage solution
@@ -969,7 +1001,12 @@ void SolverManager<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vect
         
         assembler->updateStageNumber(stage); // could probably just += 1 in wksets
         
-        status = this->nonlinearSolver(u_stage, zero_vec);
+        if (fully_explicit) {
+          status = this->explicitSolver(u_stage, zero_vec, stage);
+        }
+        else {
+          status = this->nonlinearSolver(u_stage, zero_vec);
+        }
         
         u->update(1.0, *u_stage, 1.0);
         u->update(-1.0, *u_prev, 1.0);
@@ -1190,30 +1227,28 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
   bool proceed = true;
   ScalarT alpha = 1.0;
   
-  vector_RCP res = linalg->getNewVector();
-  vector_RCP res_over = linalg->getNewOverlappedVector();
-  vector_RCP du_over = linalg->getNewOverlappedVector();
-  vector_RCP du = linalg->getNewVector();
-  
   while (proceed) {
-  //while (resnorm_scaled[0]>NLtol && resnorm[0]>NLabstol && NLiter<maxiter) { // while not converged and not reached max iterations
     
     multiscale_manager->reset();
     
     gNLiter = NLiter;
   
-    matrix_RCP J_over = linalg->getNewOverlappedMatrix();
+    bool build_jacobian = !linalg->getJacobianReuse();//true;
     matrix_RCP J = linalg->getNewMatrix();
-      
-    linalg->fillComplete(J_over);
-
+    
+    matrix_RCP J_over = linalg->getNewOverlappedMatrix();
+    if (build_jacobian) {
+      linalg->fillComplete(J_over);
+    }
+    
     // *********************** COMPUTE THE JACOBIAN AND THE RESIDUAL **************************
     
-    bool build_jacobian = true;
     res_over->putScalar(0.0);
     
-    J_over->resumeFill();
-    J_over->setAllToScalar(0.0);
+    if (build_jacobian) {
+      J_over->resumeFill();
+      J_over->setAllToScalar(0.0);
+    }
     
     store_adjPrev = false;
     if ( is_adjoint && (NLiter == 1)) {
@@ -1292,13 +1327,15 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     
     if (solve) {
       
-      linalg->fillComplete(J_over);
-      J->resumeFill();
-      linalg->exportMatrixFromOverlapped(J, J_over);
-      linalg->fillComplete(J);
+      if (build_jacobian) {
+        linalg->fillComplete(J_over);
+        J->resumeFill();
+        linalg->exportMatrixFromOverlapped(J, J_over);
+        linalg->fillComplete(J);
+      }
       
       if (debug_level>2) {
-        //KokkosTools::print(J,"Jacobian from solver interface");
+        KokkosTools::print(J,"Jacobian from solver interface");
       }
       du->putScalar(0.0);
       du_over->putScalar(0.0);
@@ -1319,6 +1356,8 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     
     if (NLiter >= maxiter) {
       proceed = false;
+      // Need to perform another gather for cases where the number of iterations is tight
+      assembler->performGather(u,0,0);
     }
     else if (useRelativeTOL) {
       if (resnorm_scaled[0]<NLtol) {
@@ -1365,6 +1404,98 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
 // ========================================================================================
 // ========================================================================================
 
+template<class Node>
+int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const int & stage) {
+  
+  
+  Teuchos::TimeMonitor localtimer(*nonlinearsolvertimer);
+  
+  if (debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "******** Starting SolverManager::explicitSolver ..." << endl;
+    }
+  }
+  
+  int status = 0;
+  
+  if (usestrongDBCs) {
+    this->setDirichlet(u);
+  }
+  
+  bool build_jacobian = false;
+   
+  if (!haveExplicitMass) {
+    invdiagMass = linalg->getNewVector();
+    vector_RCP rhs = linalg->getNewOverlappedVector();
+    matrix_RCP mass = linalg->getNewOverlappedMatrix();
+    vector_RCP glrhs = linalg->getNewVector();
+    matrix_RCP glmass = linalg->getNewMatrix();
+    assembler->setInitial(rhs, mass, false, true);
+    rhs->putScalar(1.0);
+    linalg->exportMatrixFromOverlapped(glmass, mass);
+    linalg->exportVectorFromOverlapped(glrhs, rhs);
+    
+    linalg->fillComplete(glmass);
+    linalg->linearSolverL2(glmass, glrhs, invdiagMass);
+    linalg->resetJacobian();
+    haveExplicitMass = true;
+  }
+  
+  // *********************** COMPUTE THE RESIDUAL **************************
+    
+  res_over->putScalar(0.0);
+  matrix_RCP J_over;// = linalg->getNewOverlappedMatrix();
+  
+  assembler->assembleJacRes(u, phi, build_jacobian, false, false,
+                            res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
+                            params->num_active_params, params->Psol[0], is_final_time, deltat);
+  
+  
+  linalg->exportVectorFromOverlapped(res, res_over);
+  
+  // *********************** SOLVE THE LINEAR SYSTEM **************************
+  
+  // Given m = diag(M^-1)
+  // Given timewt = b(stage)*deltat
+  // Compute du = timewt*m*res
+  // Compute u += du
+  
+  ScalarT wt = deltat*assembler->wkset[0]->butcher_b(stage);
+  //cout << stage << "  " << deltat << "  " << assembler->wkset[0]->butcher_b(stage) << endl;
+  //cout << wt << endl;
+  
+  //du->putScalar(0.0);
+  du_over->putScalar(0.0);
+  //res->scale(wt);
+  //du->elementWiseMultiply(wt,*res,*invdiagMass,0.0);
+  
+  typedef typename Node::execution_space LA_exec;
+  
+  auto du_view = du->template getLocalView<LA_device>();
+  auto res_view = res->template getLocalView<LA_device>();
+  auto idm_view = invdiagMass->template getLocalView<LA_device>();
+  
+  parallel_for("explicit solver apply invdiag",
+               RangePolicy<LA_exec>(0,du_view.extent(0)),
+               KOKKOS_LAMBDA (const int k ) {
+    du_view(k,0) = wt*idm_view(k,0)*res_view(k,0);
+  });
+  
+  //linalg->linearSolver(J, res, du);
+  linalg->importVectorToOverlapped(du_over, du);
+  
+  u->update(1.0, *du_over, 1.0);
+      
+  assembler->performGather(u,0,0);
+  
+  if (debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "******** Finished SolverManager::explicitSolver" << endl;
+    }
+  }
+  
+  return status;
+}
 
 
 // ========================================================================================
@@ -1575,6 +1706,7 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > SolverManager<Node>::setI
         linalg->fillComplete(glmass);
         linalg->linearSolverL2(glmass, glrhs, glinitial);
         linalg->importVectorToOverlapped(initial, glinitial);
+        linalg->resetJacobian();
       }
       else if (initial_type == "interpolation") {
         
