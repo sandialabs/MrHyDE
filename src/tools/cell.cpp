@@ -1171,6 +1171,72 @@ View_Sc3 cell::getMass() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
+// Get a weighted mass matrix
+///////////////////////////////////////////////////////////////////////////////////////
+
+View_Sc3 cell::getWeightedMass(vector<ScalarT> & masswts) {
+  
+  View_Sc3 mass("local mass",numElem, LIDs.extent(1), LIDs.extent(1));
+  
+  auto offsets = wkset->offsets;
+  auto numDOF = cellData->numDOF;
+  auto cwts = wts;
+  for (size_type n=0; n<numDOF.extent(0); n++) {
+    View_Sc4 cbasis;
+    if (cellData->storeAll) {
+      cbasis = basis[wkset->usebasis[n]];
+    }
+    else { // goes through this more than once, but really shouldn't be used much anyways
+      vector<View_Sc2> tip;
+      View_Sc2 twts("physical wts",numElem, cellData->ref_ip.extent(0));
+      View_Sc1 thsize("physical meshsize",numElem);
+      vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
+      vector<View_Sc3> tbasis_div;
+      disc->getPhysicalVolumetricData(cellData, nodes, localElemID,
+                                      tip, twts, thsize, orientation,
+                                      tbasis, tbasis_grad, tbasis_curl,
+                                      tbasis_div, tbasis_nodes,true,false);
+      cbasis = tbasis[wkset->usebasis[n]];
+    }
+      
+    string btype = wkset->basis_types[wkset->usebasis[n]];
+    auto off = subview(offsets,n,ALL());
+    ScalarT mwt = masswts[n];
+    
+    if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
+      parallel_for("cell get mass",
+                   RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                   KOKKOS_LAMBDA (const size_type e ) {
+        for(size_type i=0; i<cbasis.extent(1); i++ ) {
+          for(size_type j=0; j<cbasis.extent(1); j++ ) {
+            for(size_type k=0; k<cbasis.extent(2); k++ ) {
+              mass(e,off(i),off(j)) += cbasis(e,i,k,0)*cbasis(e,j,k,0)*cwts(e,k)*mwt;
+            }
+          }
+        }
+      });
+    }
+    else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
+      parallel_for("cell get mass",
+                   RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                   KOKKOS_LAMBDA (const size_type e ) {
+        for (size_type i=0; i<cbasis.extent(1); i++ ) {
+          for (size_type j=0; j<cbasis.extent(1); j++ ) {
+            for (size_type k=0; k<cbasis.extent(2); k++ ) {
+              for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
+                mass(e,off(i),off(j)) += cbasis(e,i,k,dim)*cbasis(e,j,k,dim)*cwts(e,k)*mwt;
+              }
+            }
+          }
+        }
+      });
+    }
+  }
+  return mass;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////
 // Subgrid Plotting
 ///////////////////////////////////////////////////////////////////////////////////////
 

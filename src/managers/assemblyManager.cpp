@@ -785,6 +785,84 @@ void AssemblyManager<Node>::setInitial(vector_RCP & rhs, matrix_RCP & mass, cons
 // ========================================================================================
 
 template<class Node>
+void AssemblyManager<Node>::getWeightedMass(matrix_RCP & mass, const bool & lumpmass) {
+  
+  Teuchos::TimeMonitor localtimer(*setinittimer);
+  
+  if (debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting AssemblyManager::setInitial ..." << endl;
+    }
+  }
+  
+  typedef typename Node::execution_space LA_exec;
+  bool use_atomics_ = false;
+  if (LA_exec::concurrency() > 1) {
+    use_atomics_ = true;
+  }
+  
+  auto localMatrix = mass->getLocalMatrix();
+  bool lump_mass_ = lump_mass;
+  
+  for (size_t b=0; b<cells.size(); b++) {
+    
+    auto offsets = wkset[b]->offsets;
+    auto numDOF = cellData[b]->numDOF;
+    
+    for (size_t e=0; e<cells[b].size(); e++) {
+      
+      auto LIDs = cells[b][e]->LIDs;
+      
+      Kokkos::View<ScalarT***,AssemblyDevice> localmass = cells[b][e]->getWeightedMass(phys->masswts[b]);
+      
+      parallel_for("assembly insert Jac",
+                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
+        
+        int row = 0;
+        LO rowIndex = 0;
+        
+        const size_type numVals = LIDs.extent(1);
+        int col = 0;
+        LO cols[maxDerivs];
+        ScalarT vals[maxDerivs];
+        for (size_type n=0; n<numDOF.extent(0); ++n) {
+          for (int j=0; j<numDOF(n); j++) {
+            row = offsets(n,j);
+            rowIndex = LIDs(elem,row);
+            for (size_type m=0; m<numDOF.extent(0); m++) {
+              for (int k=0; k<numDOF(m); k++) {
+                col = offsets(m,k);
+                vals[col] = localmass(elem,row,col);
+                if (lump_mass_) {
+                  cols[col] = rowIndex;
+                }
+                else {
+                  cols[col] = LIDs(elem,col);
+                }
+              }
+            }
+            localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_);
+          }
+        }
+      });
+    }
+  }
+  
+  mass->fillComplete();
+  
+  if (debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished AssemblyManager::setInitial ..." << endl;
+    }
+  }
+  
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
 void AssemblyManager<Node>::setInitial(vector_RCP & initial, const bool & useadjoint) {
 
   for (size_t b=0; b<cells.size(); b++) {

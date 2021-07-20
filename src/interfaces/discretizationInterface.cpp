@@ -1838,11 +1838,12 @@ void DiscretizationInterface::buildDOFManagers() {
     }
     
     DOF->buildGlobalUnknowns();
-    
+#ifndef MrHyDE_NO_AD
     for (size_t b=0; b<blocknames.size(); b++) {
       int numGIDs = DOF->getElementBlockGIDCount(blocknames[b]);
       TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element on block: " + blocknames[b]);
     }
+#endif
     if (verbosity>1) {
       if (Commptr->getRank() == 0) {
         DOF->printFieldInformation(std::cout);
@@ -1874,10 +1875,12 @@ void DiscretizationInterface::buildDOFManagers() {
     
     auxDOF->buildGlobalUnknowns();
     
+#ifndef MrHyDE_NO_AD
     for (size_t b=0; b<blocknames.size(); b++) {
       int numGIDs = auxDOF->getElementBlockGIDCount(blocknames[b]);
       TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of aux degrees of freedom per element on block: " + blocknames[b]);
     }
+#endif
     if (verbosity>1) {
       if (Commptr->getRank() == 0) {
         auxDOF->printFieldInformation(std::cout);

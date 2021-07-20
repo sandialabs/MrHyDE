@@ -98,6 +98,7 @@ namespace MrHyDE {
     
     void setInitial(vector_RCP & initial, const bool & useadjoint);
     
+    void getWeightedMass(matrix_RCP & mass, const bool & lumpmass);
     // ========================================================================================
     // ========================================================================================
     

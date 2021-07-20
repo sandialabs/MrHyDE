@@ -65,7 +65,7 @@ void maxwell::volumeResidual() {
     sigma = functionManager->evaluate("sigma","ip");
   }
   
-  //Teuchos::TimeMonitor resideval(*volumeResidualFill);
+  Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
   
   {

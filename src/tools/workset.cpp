@@ -930,6 +930,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
           }
         }
       });
+      
       if (!onside) {
         parallel_for("wkset soln ip HGRAD",
                      TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
@@ -979,6 +980,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
           }
         });
       }
+      
     }
     
     /////////////////////////////////////////////////////////////////////
@@ -1046,30 +1048,31 @@ void workset::computeSoln(const int & type, const bool & onside) {
       
       if (!onside) { // no curl on boundary?
         parallel_for("wkset soln ip HGRAD",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
+                     TeamPolicy<AssemblyExec>(cbasis_curl.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
-          size_type dim = cbasis.extent(3);
-          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+          size_type dim = cbasis_curl.extent(3);
+          for (size_type pt=team.team_rank(); pt<cbasis_curl.extent(2); pt+=team.team_size() ) {
             csol_curlx(elem,pt) = 0.0;
-            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            for (size_type dof=0; dof<cbasis_curl.extent(1); dof++ ) {
               csol_curlx(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,0);
             }
             if (dim>1) {
               csol_curly(elem,pt) = 0.0;
-              for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              for (size_type dof=0; dof<cbasis_curl.extent(1); dof++ ) {
                 csol_curly(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,1);
               }
             }
             if (dim>2) {
               csol_curlz(elem,pt) = 0.0;
-              for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              for (size_type dof=0; dof<cbasis_curl.extent(1); dof++ ) {
                 csol_curlz(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,2);
               }
             }
           }
         });
       }
+      
       if (include_transient) {
         View_AD2 csol_tx, csol_ty, csol_tz;
         csol_tx = this->getData(var+"_t[x]");
@@ -1106,6 +1109,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
         });
         
       }
+      
     }
     
     /////////////////////////////////////////////////////////////////////
@@ -1477,7 +1481,7 @@ int workset::addIntegratedQuantities(const int & nRequested) {
 
 View_AD2 workset::getData(const string & label) {
   
-  //Teuchos::TimeMonitor basistimer(*worksetgetDataTimer);
+  Teuchos::TimeMonitor basistimer(*worksetgetDataTimer);
   
   bool found = false;
   size_t ind = 0;
@@ -1517,7 +1521,7 @@ void workset::checkDataScAllocation(const size_t & ind) {
 
 View_Sc2 workset::getDataSc(const string & label) {
   
-  //Teuchos::TimeMonitor basistimer(*worksetgetDataScTimer);
+  Teuchos::TimeMonitor basistimer(*worksetgetDataScTimer);
   
   bool found = false;
   size_t ind = 0;

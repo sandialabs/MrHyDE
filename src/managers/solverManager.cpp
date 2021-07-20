@@ -1430,7 +1430,8 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
     matrix_RCP mass = linalg->getNewOverlappedMatrix();
     vector_RCP glrhs = linalg->getNewVector();
     matrix_RCP glmass = linalg->getNewMatrix();
-    assembler->setInitial(rhs, mass, false, true);
+    //assembler->setInitial(rhs, mass, false, true);
+    assembler->getWeightedMass(mass,true);
     rhs->putScalar(1.0);
     linalg->exportMatrixFromOverlapped(glmass, mass);
     linalg->exportVectorFromOverlapped(glrhs, rhs);
@@ -1439,6 +1440,7 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
     linalg->linearSolverL2(glmass, glrhs, invdiagMass);
     linalg->resetJacobian();
     haveExplicitMass = true;
+    
   }
   
   // *********************** COMPUTE THE RESIDUAL **************************

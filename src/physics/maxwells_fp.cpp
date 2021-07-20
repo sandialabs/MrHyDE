@@ -517,8 +517,8 @@ void maxwells_fp::boundaryResidual() {
   AD rhosr = 0.0, rhosi = 0.0; //electric charge (i*omega*rho_s = surface divergence of J_s
   
   AD omega = 0.0; //frequency
-  AD invmur = 0.0, invmui = 0.0, //inverse permeability
-  epsr = 0.0, epsi = 0.0; //permittivity
+  AD invmur = 0.0, invmui = 0.0; //inverse permeability
+  AD epsr = 0.0, epsi = 0.0; //permittivity
   
   //states and their gradients
   AD Axr = 0.0, dAxrdx = 0.0, dAxrdy = 0.0, dAxrdz = 0.0;

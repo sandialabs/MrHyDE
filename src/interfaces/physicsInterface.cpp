@@ -190,6 +190,18 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & 
       }
     }
     
+    // Add mass scalings
+    Teuchos::ParameterList wts_list = blockPhysSettings[b].sublist("Mass weights");
+    vector<ScalarT> cmwts;
+    for (size_t j=0; j<varlist[b].size(); j++) {
+      ScalarT wval = 1.0;
+      if (wts_list.isType<ScalarT>(varlist[b][j])) {
+        wval = wts_list.get<ScalarT>(varlist[b][j]);
+      }
+      cmwts.push_back(wval);
+    }
+    masswts.push_back(cmwts);
+    
   }
   
   for (size_t b=0; b<blocknames.size(); b++) {

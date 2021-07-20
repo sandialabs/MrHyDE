@@ -198,9 +198,9 @@ void ParameterManager<Node>::setupParameters() {
       
       pl_itr++;
     }
-    
+#ifndef MrHyDE_NO_AD
     TEUCHOS_TEST_FOR_EXCEPTION(num_active_params > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of parameters.");
-    
+#endif
     size_t maxcomp = 0;
     for (size_t k=0; k<paramvals.size(); k++) {
       if (paramvals[k].size() > maxcomp) {
@@ -274,12 +274,12 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     }
     
     paramDOF->buildGlobalUnknowns();
-    
+#ifndef MrHyDE_NO_AD
     for (size_t b=0; b<blocknames.size(); b++) {
       int numGIDs = paramDOF->getElementBlockGIDCount(blocknames[b]);
       TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of discretized parameter degrees of freedom per element on block: " + blocknames[b]);
     }
-    
+#endif
     paramDOF->getOwnedIndices(paramOwned);
     numParamUnknowns = (int)paramOwned.size();
     paramDOF->getOwnedAndGhostedIndices(paramOwnedAndShared);
