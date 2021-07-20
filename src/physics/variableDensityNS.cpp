@@ -224,7 +224,7 @@ void VDNS::volumeResidual() {
     }
 
     {
-      // Energy equation // TODO this is different need offset, etc.
+      // Energy equation
       // (w,rho dT/dt) + (w,rho u_1 dT/dx_1) + (dw/dx_1,lambda/cp dT/dx_1) - (w, 1/cp[dp0/dt + Q])
       int T_basis = wkset->usebasis[T_num];
       auto basis = wkset->basis[T_basis];
@@ -293,11 +293,11 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD divu = dux_dx(elem,pt)*wts(elem,pt);
-          AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt))*wts(elem,pt);
-          thermDiv -= 1./p0(0)*dp0dt(0)*wts(elem,pt);
+          AD divu = dux_dx(elem,pt);
+          AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt));
+          thermDiv -= 1./p0(0)*dp0dt(0);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0);
+            res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0)*wts(elem,pt);
           }
         }
       });
@@ -584,14 +584,11 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt))*wts(elem,pt);
-          AD ovT = 1./T(elem,pt);
-          //if (T(elem,pt) <= 1e-12) std::cout << "OH NO" << std::endl; //ovT = 1e-12;
-          AD thermDiv = ovT*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
+          AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt));
+          AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
           thermDiv -= 1./p0(0)*dp0dt(0);
-          thermDiv *= wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0);
+            res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0)*wts(elem,pt);
           }
         }
       });
@@ -918,12 +915,11 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))*wts(elem,pt);
+          AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt));
           AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt));
           thermDiv -= 1./p0(0)*dp0dt(0);
-          thermDiv *= wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0);
+            res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0)*wts(elem,pt);
           }
         }
       });
