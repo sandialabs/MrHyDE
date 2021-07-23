@@ -172,7 +172,9 @@ namespace MrHyDE {
     bool have_initial_conditions, have_static_Dirichlet_data;
     bool useRelativeTOL, useAbsoluteTOL, allowBacktracking, haveExplicitMass;
     vector<vector<ScalarT> > scalarDirichletValues, scalarInitialValues; //[block][var]
-    Teuchos::RCP<LA_MultiVector> fixedDOF_soln, invdiagMass;
+    Teuchos::RCP<LA_MultiVector> fixedDOF_soln, invdiagMass, diagMass;
+    matrix_RCP explicitMass;
+    
     vector<string> blocknames;
     vector<vector<string> > varlist;
     

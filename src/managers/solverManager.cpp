@@ -110,14 +110,11 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
     deltat = 1.0;
   }
   fully_explicit = settings->sublist("Solver").get<bool>("fully explicit",false);
+  
   if (fully_explicit) {
-    if (!settings->sublist("Solver").get<bool>("lump mass",false)) {
-      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: the fully explicit mode currently requires mass lumping");
-    }
-    else {
-      cout << "WARNING: the fully explicit method is requested.  This is an experimental capability and may not work with all time integration methods" << endl;
-    }
+    cout << "WARNING: the fully explicit method is requested.  This is an experimental capability and may not work with all time integration methods" << endl;
   }
+  
   haveExplicitMass = false;
   
   initial_type = settings->sublist("Solver").get<string>("initial type","L2-projection");
@@ -293,11 +290,11 @@ void SolverManager<Node>::setButcherTableau(const string & tableau) {
     butcher_A(1,0) = 1.0;
     butcher_A(2,0) = 0.25;
     butcher_A(2,1) = 0.25;
-    butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",4);
+    butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",3);
     butcher_b(0) = 1.0/6.0;
     butcher_b(1) = 1.0/6.0;
     butcher_b(2) = 2.0/3.0;
-    butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",4);
+    butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",3);
     butcher_c(1) = 1.0;
     butcher_c(2) = 1.0/2.0;
   }
@@ -1382,9 +1379,9 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     //KokkosTools::print(u);
   }
   
-  if(Comm->getRank() == 0) {
+  if (Comm->getRank() == 0) {
     if (!is_adjoint) {
-      if( (NLiter>maxNLiter) && verbosity > 1) {
+      if ( (NLiter>maxNLiter) && verbosity > 1) {
         status = 1;
         cout << endl << endl << "********************" << endl;
         cout << endl << "SOLVER FAILED TO CONVERGE CONVERGED in " << NLiter
@@ -1425,20 +1422,30 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
   bool build_jacobian = false;
    
   if (!haveExplicitMass) {
-    invdiagMass = linalg->getNewVector();
-    vector_RCP rhs = linalg->getNewOverlappedVector();
-    matrix_RCP mass = linalg->getNewOverlappedMatrix();
-    vector_RCP glrhs = linalg->getNewVector();
-    matrix_RCP glmass = linalg->getNewMatrix();
-    //assembler->setInitial(rhs, mass, false, true);
-    assembler->getWeightedMass(mass,true);
-    rhs->putScalar(1.0);
-    linalg->exportMatrixFromOverlapped(glmass, mass);
-    linalg->exportVectorFromOverlapped(glrhs, rhs);
+    matrix_RCP mass;
+    if (!assembler->lump_mass) {
+      mass = linalg->getNewOverlappedMatrix();
+    }
+    diagMass = linalg->getNewVector();
     
-    linalg->fillComplete(glmass);
-    linalg->linearSolverL2(glmass, glrhs, invdiagMass);
-    linalg->resetJacobian();
+    assembler->getWeightedMass(mass,diagMass);
+    
+    if (!assembler->lump_mass) {
+      matrix_RCP glmass = linalg->getNewMatrix();
+      linalg->exportMatrixFromOverlapped(glmass, mass);
+      linalg->fillComplete(glmass);
+      explicitMass = glmass;
+    }
+    else {
+      //vector_RCP glrhs = linalg->getNewVector();
+      //glrhs->putScalar(1.0);
+      //linalg->exportVectorFromOverlapped(glrhs, rhs);
+      
+      //linalg->linearSolverL2(glmass, glrhs, invdiagMass);
+      
+    }
+    linalg->resetJacobian(); // doesn't actually erase the mass matrix ... just sets a recompute flag
+    
     haveExplicitMass = true;
     
   }
@@ -1446,7 +1453,7 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
   // *********************** COMPUTE THE RESIDUAL **************************
     
   res_over->putScalar(0.0);
-  matrix_RCP J_over;// = linalg->getNewOverlappedMatrix();
+  matrix_RCP J_over;
   
   assembler->assembleJacRes(u, phi, build_jacobian, false, false,
                             res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
@@ -1463,31 +1470,43 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
   // Compute u += du
   
   ScalarT wt = deltat*assembler->wkset[0]->butcher_b(stage);
-  //cout << stage << "  " << deltat << "  " << assembler->wkset[0]->butcher_b(stage) << endl;
-  //cout << wt << endl;
   
-  //du->putScalar(0.0);
   du_over->putScalar(0.0);
-  //res->scale(wt);
-  //du->elementWiseMultiply(wt,*res,*invdiagMass,0.0);
   
-  typedef typename Node::execution_space LA_exec;
-  
-  auto du_view = du->template getLocalView<LA_device>();
-  auto res_view = res->template getLocalView<LA_device>();
-  auto idm_view = invdiagMass->template getLocalView<LA_device>();
-  
-  parallel_for("explicit solver apply invdiag",
-               RangePolicy<LA_exec>(0,du_view.extent(0)),
-               KOKKOS_LAMBDA (const int k ) {
-    du_view(k,0) = wt*idm_view(k,0)*res_view(k,0);
-  });
-  
+  if (!assembler->lump_mass) {
+    res->scale(wt);
+    linalg->linearSolverL2(explicitMass, res, du);
+  }
+  else {
+    typedef typename Node::execution_space LA_exec;
+    
+    auto du_view = du->template getLocalView<LA_device>();
+    auto res_view = res->template getLocalView<LA_device>();
+    auto dm_view = diagMass->template getLocalView<LA_device>();
+    
+    parallel_for("explicit solver apply invdiag",
+                 RangePolicy<LA_exec>(0,du_view.extent(0)),
+                 KOKKOS_LAMBDA (const int k ) {
+      du_view(k,0) = wt*res_view(k,0)/dm_view(k,0);
+    });
+  }
   //linalg->linearSolver(J, res, du);
   linalg->importVectorToOverlapped(du_over, du);
   
   u->update(1.0, *du_over, 1.0);
-      
+  
+  /*
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> unorm(1);
+  if (verbosity > 1) {
+    u->norm2(unorm);
+  }
+  if (Comm->getRank() == 0 && verbosity > 1) {
+    cout << endl << "*********************************************************" << endl;
+    cout << "***** Explicit integrator: L2 norm of solution: " << unorm[0] << endl;
+    cout << "*********************************************************" << endl;
+  }
+  */
+  
   assembler->performGather(u,0,0);
   
   if (debug_level > 1) {
@@ -1661,7 +1680,7 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > SolverManager<Node>::setI
                            KOKKOS_LAMBDA (const int e ) {
                 for (size_type n=0; n<numDOF.extent(0); n++) {
                   for (int i=0; i<numDOF(n); i++ ) {
-                    //initial_kv(LIDs(e,offsets(n,i)),0) = idata(n);
+                    initial_kv(LIDs(e,offsets(n,i)),0) = idata(n);
                   }
                 }
               });

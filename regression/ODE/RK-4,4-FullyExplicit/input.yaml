@@ -18,7 +18,9 @@ ANONYMOUS:
     modules: ODE
     assemble boundary terms: false
     Initial conditions:
-      q: '1.0'
+      scalar data: true
+      q:
+        init: 1.0
   Discretization:
     order:
       q: 1

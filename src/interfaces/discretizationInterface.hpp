@@ -195,7 +195,7 @@ namespace MrHyDE {
     vector<Kokkos::View<int****,HostDevice> > side_info;
     vector<Kokkos::View<string**,HostDevice> > var_bcs, aux_var_bcs;
     vector<vector<vector<int> > > offsets, aux_offsets;
-    bool haveDirichlet = false, haveAuxDirichlet = false;
+    bool haveDirichlet = false, haveAuxDirichlet = false, minimize_memory;
     
     Teuchos::RCP<Teuchos::Time> setbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::setBCData()");
     Teuchos::RCP<Teuchos::Time> setdbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::setDirichletData()");

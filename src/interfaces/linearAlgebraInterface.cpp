@@ -216,58 +216,59 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, owned, 0, Comm));
     overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, ownedAndShared, 0, Comm));
     
-    vector<size_t> maxEntriesPerRow(overlapped_map->getNodeNumElements(), 0);
-    for (size_t b=0; b<blocknames.size(); b++) {
-      vector<size_t> EIDs = disc->myElements[b];
-      for (size_t e=0; e<EIDs.size(); e++) {
-        vector<GO> gids;
-        size_t elemID = EIDs[e];
-        disc->DOF->getElementGIDs(elemID, gids, blocknames[b]);
-        for (size_t i=0; i<gids.size(); i++) {
-          LO ind1 = overlapped_map->getLocalElement(gids[i]);
-          maxEntriesPerRow[ind1] += gids.size();
-        }
-      }
-    }
-    
-    maxEntries = 0;
-    for (size_t m=0; m<maxEntriesPerRow.size(); ++m) {
-      maxEntries = std::max(maxEntries, maxEntriesPerRow[m]);
-    }
-    
-    //cout << "maxEntries = " << maxEntries << endl;
-    
-    maxEntries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
-                                                                          static_cast<int>(maxEntries)));
-    
-    overlapped_graph = Teuchos::rcp(new LA_CrsGraph(overlapped_map,
-                                                    maxEntries,
-                                                    Tpetra::StaticProfile));
-    
     exporter = Teuchos::rcp(new LA_Export(overlapped_map, owned_map));
     importer = Teuchos::rcp(new LA_Import(owned_map, overlapped_map));
     
-    for (size_t b=0; b<blocknames.size(); b++) {
-      vector<size_t> EIDs = disc->myElements[b];
-      for (size_t e=0; e<EIDs.size(); e++) {
-        vector<GO> gids;
-        size_t elemID = EIDs[e];
-        disc->DOF->getElementGIDs(elemID, gids, blocknames[b]);
-        for (size_t i=0; i<gids.size(); i++) {
-          GO ind1 = gids[i];
-          overlapped_graph->insertGlobalIndices(ind1,gids);
+    if (!settings->sublist("Solver").get<bool>("fully explicit",false)) {
+    
+      vector<size_t> maxEntriesPerRow(overlapped_map->getNodeNumElements(), 0);
+      for (size_t b=0; b<blocknames.size(); b++) {
+        vector<size_t> EIDs = disc->myElements[b];
+        for (size_t e=0; e<EIDs.size(); e++) {
+          vector<GO> gids;
+          size_t elemID = EIDs[e];
+          disc->DOF->getElementGIDs(elemID, gids, blocknames[b]);
+          for (size_t i=0; i<gids.size(); i++) {
+            LO ind1 = overlapped_map->getLocalElement(gids[i]);
+            maxEntriesPerRow[ind1] += gids.size();
+          }
         }
       }
+      
+      maxEntries = 0;
+      for (size_t m=0; m<maxEntriesPerRow.size(); ++m) {
+        maxEntries = std::max(maxEntries, maxEntriesPerRow[m]);
+      }
+      
+      maxEntries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
+                                                                            static_cast<int>(maxEntries)));
+      
+      overlapped_graph = Teuchos::rcp(new LA_CrsGraph(overlapped_map,
+                                                      maxEntries,
+                                                      Tpetra::StaticProfile));
+    
+      for (size_t b=0; b<blocknames.size(); b++) {
+        vector<size_t> EIDs = disc->myElements[b];
+        for (size_t e=0; e<EIDs.size(); e++) {
+          vector<GO> gids;
+          size_t elemID = EIDs[e];
+          disc->DOF->getElementGIDs(elemID, gids, blocknames[b]);
+          for (size_t i=0; i<gids.size(); i++) {
+            GO ind1 = gids[i];
+            overlapped_graph->insertGlobalIndices(ind1,gids);
+          }
+        }
+      }
+      
+      overlapped_graph->fillComplete();
+      
+      matrix = Teuchos::rcp(new LA_CrsMatrix(owned_map, maxEntries, Tpetra::StaticProfile));
+      
+      overlapped_matrix = Teuchos::rcp(new LA_CrsMatrix(overlapped_graph));
+      
+      this->fillComplete(matrix);
+      this->fillComplete(overlapped_matrix);
     }
-    
-    overlapped_graph->fillComplete();
-    
-    matrix = Teuchos::rcp(new LA_CrsMatrix(owned_map, maxEntries, Tpetra::StaticProfile));
-    
-    overlapped_matrix = Teuchos::rcp(new LA_CrsMatrix(overlapped_graph));
-    
-    this->fillComplete(matrix);
-    this->fillComplete(overlapped_matrix);
   }
   
   // --------------------------------------------------
@@ -426,8 +427,13 @@ void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<SolverOptions<Node>
       if (opt->useDomainDecomp) {
         if (!opt->reusePreconditioner || !opt->havePreconditioner) {
           Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
-          ifpackList.set("schwarz: subdomain solver","garbage");
-          opt->M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
+          //ifpackList.set("schwarz: subdomain solver","garbage");
+          //opt->M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
+          
+          ifpackList.set("relaxation: type","Jacobi");
+          ifpackList.set("relaxation: sweeps",1);
+          opt->M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("RELAXATION", J);
+          
           opt->M_dd->setParameters(ifpackList);
           opt->M_dd->initialize();
           opt->M_dd->compute();
