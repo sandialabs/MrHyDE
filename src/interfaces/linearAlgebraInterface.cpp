@@ -595,37 +595,46 @@ void LinearAlgebraInterface<Node>::linearSolverBoundaryL2Param(matrix_RCP & J, v
 template<class Node>
 Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterface<Node>::buildPreconditioner(const matrix_RCP & J, const string & precSublist) {
   Teuchos::ParameterList mueluParams;
-  // MrHyDE default settings
-  mueluParams.set("verbosity","none");
-  mueluParams.set("coarse: max size",500);
-  mueluParams.set("multigrid algorithm", "sa");
+
+  string xmlFileName = settings->sublist("Solver").get<string>("Preconditioner xml","");
+
+  // If there's no xml file, then we'll set the defaults and allow for shortlist additions in the input file
+  if(xmlFileName == "") {
+    // MrHyDE default settings
+    mueluParams.set("verbosity","none");
+    mueluParams.set("coarse: max size",500);
+    mueluParams.set("multigrid algorithm", "sa");
   
-  // Aggregation
-  mueluParams.set("aggregation: type","uncoupled");
-  mueluParams.set("aggregation: drop scheme","classical");
+    // Aggregation
+    mueluParams.set("aggregation: type","uncoupled");
+    mueluParams.set("aggregation: drop scheme","classical");
   
-  //Smoothing
-  mueluParams.set("smoother: type","CHEBYSHEV");
+    //Smoothing
+    mueluParams.set("smoother: type","CHEBYSHEV");
   
-  // Repartitioning
-  mueluParams.set("repartition: enable",false);
+    // Repartitioning
+    mueluParams.set("repartition: enable",false);
   
-  // Reuse
-  mueluParams.set("reuse: type","none");
+    // Reuse
+    mueluParams.set("reuse: type","none");
   
-  // if the user provides a "Preconditioner Settings" sublist, use it for MueLu
-  // otherwise, set things with the simple approach
-  if(settings->sublist("Solver").isSublist(precSublist)) {
-    Teuchos::ParameterList inputPrecParams = settings->sublist("Solver").sublist(precSublist);
-    mueluParams.setParameters(inputPrecParams);
+    // if the user provides a "Preconditioner Settings" sublist, use it for MueLu
+    // otherwise, set things with the simple approach
+    if(settings->sublist("Solver").isSublist(precSublist)) {
+      Teuchos::ParameterList inputPrecParams = settings->sublist("Solver").sublist(precSublist);
+      mueluParams.setParameters(inputPrecParams);
+    }
+    else { // safe to define defaults for chebyshev smoother
+      mueluParams.sublist("smoother: params").set("chebyshev: degree",2);
+      mueluParams.sublist("smoother: params").set("chebyshev: ratio eigenvalue",7.0);
+      mueluParams.sublist("smoother: params").set("chebyshev: min eigenvalue",1.0);
+      mueluParams.sublist("smoother: params").set("chebyshev: zero starting solution",true);
+    }
+  } 
+  else { // If the "Preconditioner xml" option is specified, don't set any defaults and only use the xml
+    Teuchos::updateParametersFromXmlFile(xmlFileName, Teuchos::Ptr<Teuchos::ParameterList>(&mueluParams));
   }
-  else { // safe to define defaults for chebyshev smoother
-    mueluParams.sublist("smoother: params").set("chebyshev: degree",2);
-    mueluParams.sublist("smoother: params").set("chebyshev: ratio eigenvalue",7.0);
-    mueluParams.sublist("smoother: params").set("chebyshev: min eigenvalue",1.0);
-    mueluParams.sublist("smoother: params").set("chebyshev: zero starting solution",true);
-  }
-  
+
   if (verbosity >= 20){
     mueluParams.set("verbosity","high");
   }
