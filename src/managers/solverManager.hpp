@@ -164,6 +164,7 @@ namespace MrHyDE {
     ScalarT NLtol, NLabstol,final_time, lintol, current_time, initial_time, deltat;
     
     string solver_type, initial_type;
+    vector<string> solve_order;
     
     bool line_search, useL2proj, discretized_stochastic, fully_explicit;
     bool isInitial, isTransient, is_adjoint, is_final_time, usestrongDBCs;

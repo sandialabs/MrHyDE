@@ -219,7 +219,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     exporter = Teuchos::rcp(new LA_Export(overlapped_map, owned_map));
     importer = Teuchos::rcp(new LA_Import(owned_map, overlapped_map));
     
-    if (!settings->sublist("Solver").get<bool>("fully explicit",false)) {
+    if (!settings->sublist("Solver").get<bool>("minimize memory",false)) {
     
       vector<size_t> maxEntriesPerRow(overlapped_map->getNodeNumElements(), 0);
       for (size_t b=0; b<blocknames.size(); b++) {
@@ -424,16 +424,29 @@ void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<SolverOptions<Node>
   else {
     Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
     if (opt->usePreconditioner) {
-      if (opt->useDomainDecomp) {
+      if (opt->precType == "domain decomposition") {
         if (!opt->reusePreconditioner || !opt->havePreconditioner) {
           Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
-          //ifpackList.set("schwarz: subdomain solver","garbage");
-          //opt->M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
-          
-          ifpackList.set("relaxation: type","Jacobi");
-          ifpackList.set("relaxation: sweeps",1);
+          ifpackList.set("schwarz: subdomain solver","garbage");
+          opt->M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
+          opt->M_dd->setParameters(ifpackList);
+          opt->M_dd->initialize();
+          opt->M_dd->compute();
+          opt->havePreconditioner = true;
+        }
+        if (opt->rightPreconditioner) {
+          Problem->setRightPrec(opt->M_dd);
+        }
+        else {
+          Problem->setLeftPrec(opt->M_dd);
+        }
+      }
+      else if (opt->precType == "Ifpack2") {
+        if (!opt->reusePreconditioner || !opt->havePreconditioner) {
+          Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist(opt->precSublist);
+          //ifpackList.set("relaxation: type","Jacobi");
+          //ifpackList.set("relaxation: sweeps",1);
           opt->M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("RELAXATION", J);
-          
           opt->M_dd->setParameters(ifpackList);
           opt->M_dd->initialize();
           opt->M_dd->compute();
@@ -449,7 +462,7 @@ void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<SolverOptions<Node>
       }
       else { // default - AMG preconditioner
         if (!opt->reusePreconditioner || !opt->havePreconditioner) {
-          opt->M = this->buildPreconditioner(J,opt->mueluSublist);
+          opt->M = this->buildPreconditioner(J,opt->precSublist);
           opt->havePreconditioner = true;
         }
         else {
@@ -615,7 +628,7 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterfa
   
   // if the user provides a "Preconditioner Settings" sublist, use it for MueLu
   // otherwise, set things with the simple approach
-  if(settings->sublist("Solver").isSublist(precSublist)) {
+  if (settings->sublist("Solver").isSublist(precSublist)) {
     Teuchos::ParameterList inputPrecParams = settings->sublist("Solver").sublist(precSublist);
     mueluParams.setParameters(inputPrecParams);
   }

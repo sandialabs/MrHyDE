@@ -63,6 +63,26 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("use measurements as DBCs", false);
   
   solver_type = settings->sublist("Solver").get<string>("solver","none"); // or "transient"
+  
+  string solve_order_string = settings->sublist("Solver").get<string>("solve order","state"); // comma separated list
+  // Script to break delimited list into pieces
+  {
+    string delimiter = ", ";
+    size_t pos = 0;
+    if (solve_order_string.find(delimiter) == string::npos) {
+      solve_order.push_back(solve_order_string);
+    }
+    else {
+      string token;
+      while ((pos = solve_order_string.find(delimiter)) != string::npos) {
+        token = solve_order_string.substr(0, pos);
+        solve_order.push_back(token);
+        solve_order_string.erase(0, pos + delimiter.length());
+      }
+      solve_order.push_back(solve_order_string);
+    }
+  }
+  
   time_order = settings->sublist("Solver").get<int>("time order",1);
   NLtol = settings->sublist("Solver").get<ScalarT>("nonlinear TOL",1.0E-6);
   NLabstol = settings->sublist("Solver").get<ScalarT>("absolute nonlinear TOL",std::min(NLtol,1.0E-6));
@@ -84,6 +104,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
       }
     }
   }
+  
   // Additional parameters for higher-order BDF methods that require some startup procedure
   startupButcherTab = settings->sublist("Solver").get<string>("transient startup Butcher tableau",ButcherTab);
   startupBDForder = settings->sublist("Solver").get<int>("transient startup BDF order",BDForder);
@@ -362,6 +383,16 @@ void SolverManager<Node>::setButcherTableau(const string & tableau) {
     butcher_c(0) = p;
     butcher_c(1) = (1.0+p)/2.0;
     butcher_c(2) = 1.0;
+  }
+  else if (tableau == "leap-frog") { // Leap-frog for Maxwells
+    butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",2,2);
+    butcher_A(1,0) = 1.0;
+    butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",2);
+    butcher_b(0) = 1.0;
+    butcher_b(1) = 1.0;
+    butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",2);
+    butcher_c(0) = 0.0;
+    butcher_c(1) = 0.0;
   }
   else if (tableau == "custom") {
     
@@ -1436,14 +1467,6 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
       linalg->fillComplete(glmass);
       explicitMass = glmass;
     }
-    else {
-      //vector_RCP glrhs = linalg->getNewVector();
-      //glrhs->putScalar(1.0);
-      //linalg->exportVectorFromOverlapped(glrhs, rhs);
-      
-      //linalg->linearSolverL2(glmass, glrhs, invdiagMass);
-      
-    }
     linalg->resetJacobian(); // doesn't actually erase the mass matrix ... just sets a recompute flag
     
     haveExplicitMass = true;
@@ -1490,12 +1513,11 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
       du_view(k,0) = wt*res_view(k,0)/dm_view(k,0);
     });
   }
-  //linalg->linearSolver(J, res, du);
   linalg->importVectorToOverlapped(du_over, du);
   
   u->update(1.0, *du_over, 1.0);
   
-  /*
+  
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> unorm(1);
   if (verbosity > 1) {
     u->norm2(unorm);
@@ -1505,7 +1527,7 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
     cout << "***** Explicit integrator: L2 norm of solution: " << unorm[0] << endl;
     cout << "*********************************************************" << endl;
   }
-  */
+  
   
   assembler->performGather(u,0,0);
   

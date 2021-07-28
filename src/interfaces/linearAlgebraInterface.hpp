@@ -59,10 +59,10 @@ namespace MrHyDE {
       amesosType = settings.get<string>("Amesos solver","KLU2");
       belosType = settings.get<string>("Belos solver","Block GMRES");
       belosSublist = settings.get<string>("Belos settings","Belos Settings");
-      mueluSublist = settings.get<string>("MueLu settings","Preconditioner Settings");
+      precSublist = settings.get<string>("Preconditioner settings","Preconditioner Settings");
       
       useDirect = settings.get<bool>("use direct solver",false);
-      useDomainDecomp = settings.get<bool>("use domain decomposition",false);
+      precType = settings.get<string>("preconditioner type","AMG");
       usePreconditioner = settings.get<bool>("use preconditioner",true);
       reusePreconditioner = settings.get<bool>("reuse preconditioner",true);
       rightPreconditioner = settings.get<bool>("right preconditioner",false);
@@ -73,9 +73,9 @@ namespace MrHyDE {
       haveJacobian = false;
     }
     
-    string amesosType, belosType;
-    string belosSublist, mueluSublist;
-    bool useDirect, useDomainDecomp, usePreconditioner, rightPreconditioner, reusePreconditioner, reuseJacobian;
+    string amesosType, belosType, precType;
+    string belosSublist, precSublist;
+    bool useDirect, usePreconditioner, rightPreconditioner, reusePreconditioner, reuseJacobian;
     bool haveJacobian, havePreconditioner, haveSymbFactor;
     Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > AmesosSolver;
     Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > M; // AMG preconditioner for Jacobians

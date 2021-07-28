@@ -34,7 +34,7 @@ ANONYMOUS:
     Initial type: none
     use preconditioner: true
     reuse preconditioner: true
-    use domain decomposition: true
+    preconditioner type: domain decomposition
     preconditioner reuse type: full
     use direct solver: false
     allow backtracking: false

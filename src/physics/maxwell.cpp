@@ -24,6 +24,8 @@ maxwell::maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & i
   myvars.push_back("B");
   mybasistypes.push_back("HCURL");
   mybasistypes.push_back("HDIV");
+  
+  useLeapFrog = settings->sublist("Physics").get<bool>("use leap frog",false);
 }
 
 // ========================================================================================
@@ -67,10 +69,21 @@ void maxwell::volumeResidual() {
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
+  int stage = wkset->current_stage_KV(0);
+  ScalarT Ewt = 1.0, Bwt = 1.0;
+  
+  if (useLeapFrog) {
+    if (stage == 0) {
+      Ewt = 0.0;
+    }
+    else if (stage == 1) {
+      Bwt = 0.0;
+    }
+  }
   
   {
     // (dB/dt + curl E,V) = 0
-    
+    //if (stage == 0) {
     auto basis = wkset->basis[B_basis];
     auto dBx_dt = wkset->getData("B_t[x]");
     auto dBy_dt = wkset->getData("B_t[y]");
@@ -87,9 +100,9 @@ void maxwell::volumeResidual() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD f0 = (dBx_dt(elem,pt) + curlE_x(elem,pt))*wts(elem,pt);
-        AD f1 = (dBy_dt(elem,pt) + curlE_y(elem,pt))*wts(elem,pt);
-        AD f2 = (dBz_dt(elem,pt) + curlE_z(elem,pt))*wts(elem,pt);
+        AD f0 = (dBx_dt(elem,pt) + Bwt*curlE_x(elem,pt))*wts(elem,pt);
+        AD f1 = (dBy_dt(elem,pt) + Bwt*curlE_y(elem,pt))*wts(elem,pt);
+        AD f2 = (dBz_dt(elem,pt) + Bwt*curlE_z(elem,pt))*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
           res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
@@ -97,12 +110,14 @@ void maxwell::volumeResidual() {
         }
       }
     });
+    //}
   }
   
   {
     // (eps*dE/dt,V) - (1/mu B, curl V) + (sigma E,V) = -(current,V)
     // Rewritten as: (eps*dEdt + sigma E + current, V) - (1/mu B, curl V) = 0
     
+    //if (stage == 1) {
     auto basis = wkset->basis[E_basis];
     auto basis_curl = wkset->basis_curl[E_basis];
     auto dEx_dt = wkset->getData("E_t[x]");
@@ -122,12 +137,12 @@ void maxwell::volumeResidual() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD f0 = (epsilon(elem,pt)*dEx_dt(elem,pt) + sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt))*wts(elem,pt);
-        AD f1 = (epsilon(elem,pt)*dEy_dt(elem,pt) + sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt))*wts(elem,pt);
-        AD f2 = (epsilon(elem,pt)*dEz_dt(elem,pt) + sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt))*wts(elem,pt);
-        AD c0 = - 1.0/mu(elem,pt)*Bx(elem,pt)*wts(elem,pt);
-        AD c1 = - 1.0/mu(elem,pt)*By(elem,pt)*wts(elem,pt);
-        AD c2 = - 1.0/mu(elem,pt)*Bz(elem,pt)*wts(elem,pt);
+        AD f0 = (epsilon(elem,pt)*dEx_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
+        AD f1 = (epsilon(elem,pt)*dEy_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
+        AD f2 = (epsilon(elem,pt)*dEz_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
+        AD c0 = - Ewt/mu(elem,pt)*Bx(elem,pt)*wts(elem,pt);
+        AD c1 = - Ewt/mu(elem,pt)*By(elem,pt)*wts(elem,pt);
+        AD c2 = - Ewt/mu(elem,pt)*Bz(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0);
           res(elem,off(dof)) += f1*basis(elem,dof,pt,1) + c1*basis_curl(elem,dof,pt,1);
@@ -135,6 +150,7 @@ void maxwell::volumeResidual() {
         }
       }
     });
+    //}
   }
   
 }

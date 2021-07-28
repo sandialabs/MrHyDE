@@ -775,27 +775,31 @@ void workset::computeSoln(const int & type, const bool & onside) {
       
       size_t teamSize = std::min(maxTeamSize,cbasis.extent(2));
       
+      size_type numDOF = cbasis_grad.extent(1);
+      size_type numIP = cbasis_grad.extent(2);
+      size_type dim = cbasis_grad.extent(3);
+      
       parallel_for("wkset soln ip HGRAD",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        size_type dim = cbasis_grad.extent(3);
-        for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+        
+        for (size_type pt=team.team_rank(); pt<numIP; pt+=team.team_size() ) {
           csol(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
           csol_x(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,0);
-          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+          for (size_type dof=1; dof<numDOF; dof++ ) {
             csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
             csol_x(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,0);
           }
           if (dim>1) {
             csol_y(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,1);
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+            for (size_type dof=1; dof<numDOF; dof++ ) {
               csol_y(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,1);
             }
           }
           if (dim>2) {
             csol_z(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,2);
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+            for (size_type dof=1; dof<numDOF; dof++ ) {
               csol_z(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,2);
             }
           }
@@ -810,8 +814,8 @@ void workset::computeSoln(const int & type, const bool & onside) {
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csol_t(elem,pt) = 0.0;
-            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csol_t(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
               csol_t(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
             }
           }
@@ -845,8 +849,8 @@ void workset::computeSoln(const int & type, const bool & onside) {
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-          csol(elem,pt) = 0.0;
-          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+          csol(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
+          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
             csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
           }
         }
@@ -860,8 +864,8 @@ void workset::computeSoln(const int & type, const bool & onside) {
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csol_t(elem,pt) = 0.0;
-            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csol_t(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
               csol_t(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
             }
           }
@@ -912,19 +916,19 @@ void workset::computeSoln(const int & type, const bool & onside) {
         int elem = team.league_rank();
         size_type dim = cbasis.extent(3);
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-          csolx(elem,pt) = 0.0;
-          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+          csolx(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
+          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
             csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
           }
           if (dim>1) {
-            csoly(elem,pt) = 0.0;
-            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csoly(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,1);
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
               csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
             }
           }
           if (dim>2) {
-            csolz(elem,pt) = 0.0;
-            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csolz(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,2);
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
               csolz(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,2);
             }
           }
@@ -937,8 +941,8 @@ void workset::computeSoln(const int & type, const bool & onside) {
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csol_div(elem,pt) = 0.0;
-            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csol_div(elem,pt) = cuvals(elem,0)*cbasis_div(elem,0,pt);
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
               csol_div(elem,pt) += cuvals(elem,dof)*cbasis_div(elem,dof,pt);
             }
           }
@@ -961,19 +965,19 @@ void workset::computeSoln(const int & type, const bool & onside) {
           int elem = team.league_rank();
           size_type dim = cbasis.extent(3);
           for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csol_tx(elem,pt) = 0.0;
-            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csol_tx(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
               csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
             }
             if (dim>1) {
-              csol_ty(elem,pt) = 0.0;
-              for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csol_ty(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,1);
+              for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
                 csol_ty(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,1);
               }
             }
             if (dim>2) {
-              csol_tz(elem,pt) = 0.0;
-              for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csol_tz(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,2);
+              for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
                 csol_tz(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,2);
               }
             }
@@ -988,6 +992,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
     /////////////////////////////////////////////////////////////////////
     
     for (size_t i=0; i<list_HCURL.size(); i++) {
+      
       string var = list_HCURL[i];
       int varind = index_HCURL[i];
       
@@ -1027,19 +1032,19 @@ void workset::computeSoln(const int & type, const bool & onside) {
         int elem = team.league_rank();
         size_type dim = cbasis.extent(3);
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-          csolx(elem,pt) = 0.0;
-          for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+          csolx(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
+          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
             csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
           }
           if (dim>1) {
-            csoly(elem,pt) = 0.0;
-            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csoly(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,1);
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
               csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
             }
           }
           if (dim>2) {
-            csolz(elem,pt) = 0.0;
-            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csolz(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,2);
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
               csolz(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,2);
             }
           }
@@ -1053,19 +1058,19 @@ void workset::computeSoln(const int & type, const bool & onside) {
           int elem = team.league_rank();
           size_type dim = cbasis_curl.extent(3);
           for (size_type pt=team.team_rank(); pt<cbasis_curl.extent(2); pt+=team.team_size() ) {
-            csol_curlx(elem,pt) = 0.0;
-            for (size_type dof=0; dof<cbasis_curl.extent(1); dof++ ) {
+            csol_curlx(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,0);
+            for (size_type dof=1; dof<cbasis_curl.extent(1); dof++ ) {
               csol_curlx(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,0);
             }
             if (dim>1) {
-              csol_curly(elem,pt) = 0.0;
-              for (size_type dof=0; dof<cbasis_curl.extent(1); dof++ ) {
+              csol_curly(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,1);
+              for (size_type dof=1; dof<cbasis_curl.extent(1); dof++ ) {
                 csol_curly(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,1);
               }
             }
             if (dim>2) {
-              csol_curlz(elem,pt) = 0.0;
-              for (size_type dof=0; dof<cbasis_curl.extent(1); dof++ ) {
+              csol_curlz(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,2);
+              for (size_type dof=1; dof<cbasis_curl.extent(1); dof++ ) {
                 csol_curlz(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,2);
               }
             }
@@ -1089,19 +1094,19 @@ void workset::computeSoln(const int & type, const bool & onside) {
           int elem = team.league_rank();
           size_type dim = cbasis.extent(3);
           for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csol_tx(elem,pt) = 0.0;
-            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csol_tx(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
               csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
             }
             if (dim>1) {
-              csol_ty(elem,pt) = 0.0;
-              for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csol_ty(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,1);
+              for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
                 csol_ty(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,1);
               }
             }
             if (dim>2) {
-              csol_tz(elem,pt) = 0.0;
-              for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+              csol_tz(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,2);
+              for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
                 csol_tz(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,2);
               }
             }
@@ -1133,8 +1138,8 @@ void workset::computeSoln(const int & type, const bool & onside) {
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csol(elem,pt) = 0.0;
-            for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
+            csol(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
               csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
             }
           }
