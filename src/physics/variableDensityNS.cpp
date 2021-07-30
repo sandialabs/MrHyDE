@@ -1332,7 +1332,7 @@ void VDNS::updateIntegratedQuantitiesDependents() {
   // since param and IQ data is stored on the assembly device 
   // we trick the compiler by doing a parallel for... I don't like this too much
 
-  auto deltat = wkset->deltat_KV; // TODO CHECK ME
+  auto deltat = wkset->deltat; // TODO CHECK ME
 
   bool found = false; // TODO should have already caught errors so skipping for now
   auto p0 = wkset->getParameter("p0",found);
@@ -1350,7 +1350,7 @@ void VDNS::updateIntegratedQuantitiesDependents() {
       // see equation 10 in gravemeier
 
       dp0dt(0) = 1./IQs(IQ_start)*(IQs(IQ_start+3) + IQs(IQ_start+1) - p0(0)*IQs(IQ_start+2));
-      p0(0) = p0(0) + deltat(0)*dp0dt(0);
+      p0(0) = p0(0) + deltat*dp0dt(0);
 
     });
   } else {
@@ -1363,7 +1363,7 @@ void VDNS::updateIntegratedQuantitiesDependents() {
 
       ScalarT pnew = IQs(IQ_start)/IQs(IQ_start+1);  // eqn 8 in Gravemeier
 
-      dp0dt(0) = (pnew - p0(0))/deltat(0);
+      dp0dt(0) = (pnew - p0(0))/deltat;
       p0(0) = pnew;
 
     });

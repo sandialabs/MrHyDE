@@ -69,7 +69,7 @@ void maxwell::volumeResidual() {
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
-  int stage = wkset->current_stage_KV(0);
+  int stage = wkset->current_stage;
   ScalarT Ewt = 1.0, Bwt = 1.0;
   
   if (useLeapFrog) {

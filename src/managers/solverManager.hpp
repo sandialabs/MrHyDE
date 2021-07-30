@@ -183,7 +183,8 @@ namespace MrHyDE {
     vector<LO> maxBasis, numVars;
     
     vector_RCP res, res_over, du, du_over;
-    //matrix_RCP J, J_over;
+    Kokkos::View<ScalarT**,HostDevice> butcher_A;
+    Kokkos::View<ScalarT*,HostDevice> butcher_b, butcher_c;
     
     Teuchos::RCP<Teuchos::Time> transientsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::transientSolver()");
     Teuchos::RCP<Teuchos::Time> nonlinearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::nonlinearSolver()");

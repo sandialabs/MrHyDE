@@ -201,7 +201,7 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
   //assembler->wkset[0]->resetFlux();
   
   if (isTransient) {
-    ScalarT sgtime = 0.0;
+    ScalarT sgtime = time - macro_deltat;
     Teuchos::RCP<SG_MultiVector> prev_u = u;
     vector<Teuchos::RCP<SG_MultiVector> > curr_fsol;
     vector<ScalarT> subsolvetimes;
@@ -812,7 +812,7 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
   
   auto dres_view = d_sub_res_over->getLocalView<SG_device>();
   
-  assembler->wkset[0]->setTime(time);
+  //assembler->wkset[0]->setTime(time);
   assembler->wkset[0]->isTransient = isTransient;
   assembler->wkset[0]->isAdjoint = isAdjoint;
   

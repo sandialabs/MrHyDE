@@ -317,7 +317,6 @@ namespace MrHyDE {
     size_t numsides, numip, numsideip, numVars, numParams, numAux, maxRes, maxTeamSize;
     int dimension, numElem, current_stage;
     size_type maxElem;
-    Kokkos::View<int*,AssemblyDevice> current_stage_KV; // for access on device
     
     vector<string> basis_types;
     vector<int> numbasis;
@@ -328,8 +327,6 @@ namespace MrHyDE {
     vector<string> paramnames;
     
     ScalarT time, alpha, deltat;
-    Kokkos::View<ScalarT*,AssemblyDevice> time_KV;
-    Kokkos::View<ScalarT*,AssemblyDevice> deltat_KV;
     
     size_t block, localEID, globalEID;
     

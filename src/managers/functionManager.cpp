@@ -668,7 +668,7 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, co
         // Should be set correctly already
       }
       else if (forests[findex].trees[tindex].branches[bindex].isTime) {
-        forests[findex].trees[tindex].branches[bindex].data_Sc = wkset->time_KV(0);
+        forests[findex].trees[tindex].branches[bindex].data_Sc = wkset->time;//_KV(0);
       }
     }
     else if (forests[findex].trees[tindex].branches[bindex].isFunc) {

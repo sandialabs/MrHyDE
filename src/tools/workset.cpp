@@ -42,13 +42,16 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   }
   
   maxElem = numElem;
+  time = 0.0;
   deltat = 1.0;
-  deltat_KV = Kokkos::View<ScalarT*,AssemblyDevice>("deltat",1);
-  Kokkos::deep_copy(deltat_KV,deltat);
+  current_stage = 0;
   
-  current_stage_KV = Kokkos::View<int*,AssemblyDevice>("stage number on device",1);
-  Kokkos::deep_copy(current_stage_KV,0);
-  time_KV = Kokkos::View<ScalarT*,AssemblyDevice>("time",1); // defaults to 0.0
+  //deltat_KV = Kokkos::View<ScalarT*,AssemblyDevice>("deltat",1);
+  //Kokkos::deep_copy(deltat_KV,deltat);
+  
+  //current_stage_KV = Kokkos::View<int*,AssemblyDevice>("stage number on device",1);
+  //Kokkos::deep_copy(current_stage_KV,0);
+  //time_KV = Kokkos::View<ScalarT*,AssemblyDevice>("time",1); // defaults to 0.0
   
   // Add scalar views to store ips
   this->addDataSc("x",numElem,numip);
@@ -323,11 +326,10 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
   
   
   // These need to be set locally to be available to AssemblyDevice
-  auto dt = deltat_KV;
-  auto curr_stage = current_stage_KV;
+  ScalarT dt = deltat;
+  int stage = current_stage;
   auto b_A = butcher_A;
   auto b_b = butcher_b;
-  auto b_c = butcher_c;
   auto BDF = BDF_wts;
 
   // Seed the current stage solution
@@ -344,10 +346,8 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         ScalarT beta_u, beta_t;
-        int stage = curr_stage(0);
-        ScalarT deltat = dt(0);
         ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-        ScalarT timewt = 1.0/deltat/b_b(stage);
+        ScalarT timewt = 1.0/dt/b_b(stage);
         ScalarT alpha_t = BDF(0)*timewt;
         for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
       
@@ -377,10 +377,6 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
     }
   }
   else if (seedwhat == 2) { // Seed one of the previous step solutions
-    Kokkos::View<size_t[1],AssemblyDevice> sindex("seed index on device");
-    auto host_sindex = Kokkos::create_mirror_view(sindex);
-    host_sindex(0) = index;
-    Kokkos::deep_copy(sindex,host_sindex);
     for (size_type var=0; var<u.extent(1); var++ ) {
       auto u_AD = uvals[var];
       auto u_dot_AD = u_dotvals[var];
@@ -394,10 +390,8 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         AD beta_u, beta_t;
-        int stage = curr_stage(0);
-        ScalarT deltat = dt(0);
         ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-        ScalarT timewt = 1.0/deltat/b_b(stage);
+        ScalarT timewt = 1.0/dt/b_b(stage);
         ScalarT alpha_t = BDF(0)*timewt;
         for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
           
@@ -406,7 +400,7 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
           
           // Compute the evaluating solution
           AD u_prev_val = cu_prev(elem,dof,0);
-          if (sindex(0) == 0) {
+          if (index == 0) {
 #ifndef MrHyDE_NO_AD
             u_prev_val = AD(maxDerivs,off(dof),cu_prev(elem,dof,0));
 #else
@@ -424,7 +418,7 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
           beta_t = 0.0;
           for (size_type s=1; s<BDF.extent(0); s++) {
             AD u_prev_val = cu_prev(elem,dof,s-1);
-            if (sindex(0) == (s-1)) {
+            if (index == (s-1)) {
 #ifndef MrHyDE_NO_AD
               u_prev_val = AD(maxDerivs,off(dof),cu_prev(elem,dof,s-1));
 #else
@@ -440,10 +434,6 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
     }
   }
   else if (seedwhat == 3) { // Seed one of the previous stage solutions
-    Kokkos::View<int[1],AssemblyDevice> sindex("seed index on device");
-    auto host_sindex = Kokkos::create_mirror_view(sindex);
-    host_sindex(0) = index;
-    Kokkos::deep_copy(sindex,host_sindex);
     for (size_type var=0; var<u.extent(1); var++ ) {
       auto u_AD = uvals[var];
       auto u_dot_AD = u_dotvals[var];
@@ -451,17 +441,13 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
       auto cu = subview(u,ALL(),var,ALL());
       auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
       auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
-    
-      
       parallel_for("wkset transient sol seedwhat 1",
                    TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         AD beta_u, beta_t;
-        int stage = curr_stage(0);
-        ScalarT deltat = dt(0);
         ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-        ScalarT timewt = 1.0/deltat/b_b(stage);
+        ScalarT timewt = 1.0/dt/b_b(stage);
         ScalarT alpha_t = BDF(0)*timewt;
         for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
           
@@ -474,7 +460,7 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
           beta_u = (1.0-alpha_u)*u_prev_val;
           for (int s=0; s<stage; s++) {
             AD u_stage_val = cu_stage(elem,dof,s);
-            if (sindex(0) == s) {
+            if (index == s) {
 #ifndef MrHyDE_NO_AD
               u_stage_val = AD(maxDerivs,off(dof),cu_stage(elem,dof,s));
 #else
@@ -511,10 +497,8 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         ScalarT beta_u, beta_t;
-        int stage = curr_stage(0);
-        ScalarT deltat = dt(0);
         ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-        ScalarT timewt = 1.0/deltat/b_b(stage);
+        ScalarT timewt = 1.0/dt/b_b(stage);
         ScalarT alpha_t = BDF(0)*timewt;
         for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
           // Get the stage solution
@@ -1427,7 +1411,6 @@ Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> workset::getParameter(cons
 
 void workset::setTime(const ScalarT & newtime) {
   time = newtime;
-  Kokkos::deep_copy(time_KV,time);
 }
 
 //////////////////////////////////////////////////////////////
@@ -1436,7 +1419,6 @@ void workset::setTime(const ScalarT & newtime) {
 
 void workset::setDeltat(const ScalarT & newdt) {
   deltat = newdt;
-  Kokkos::deep_copy(deltat_KV,deltat);
 }
 
 //////////////////////////////////////////////////////////////
@@ -1445,7 +1427,6 @@ void workset::setDeltat(const ScalarT & newdt) {
 
 void workset::setStage(const int & newstage) {
   current_stage = newstage;
-  Kokkos::deep_copy(current_stage_KV, newstage);
 }
 
 //////////////////////////////////////////////////////////////

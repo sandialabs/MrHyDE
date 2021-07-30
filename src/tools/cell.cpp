@@ -564,12 +564,12 @@ void cell::updateStageSoln() {
   auto sol_stage = u_stage;
   
   // add u into the current stage soln (done after stage solution is computed)
-  auto snum = wkset->current_stage_KV;
+  auto stage = wkset->current_stage;
   parallel_for("wkset transient sol seedwhat 1",
                TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
                KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
     int elem = team.league_rank();
-    int stage = snum(0);
+    //int stage = snum(0);
     for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
       for (size_type j=0; j<sol_stage.extent(2); j++) {
         sol_stage(elem,i,j,stage) = sol(elem,i,j);

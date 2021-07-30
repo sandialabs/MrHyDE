@@ -275,11 +275,6 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
 
 template<class Node>
 void SolverManager<Node>::setButcherTableau(const string & tableau) {
-  Kokkos::View<ScalarT**,AssemblyDevice> dev_butcher_A;
-  Kokkos::View<ScalarT*,AssemblyDevice> dev_butcher_b, dev_butcher_c;
-  
-  Kokkos::View<ScalarT**,HostDevice> butcher_A;
-  Kokkos::View<ScalarT*,HostDevice> butcher_b, butcher_c;
   
   //only filling in the non-zero entries
   if (tableau == "BWE" || tableau == "DIRK-1,1") {
@@ -492,9 +487,9 @@ void SolverManager<Node>::setButcherTableau(const string & tableau) {
   else {
     TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: unrecognized Butcher tableau:" + tableau);
   }
-  dev_butcher_A = Kokkos::View<ScalarT**,AssemblyDevice>("butcher_A on device",butcher_A.extent(0),butcher_A.extent(1));
-  dev_butcher_b = Kokkos::View<ScalarT*,AssemblyDevice>("butcher_b on device",butcher_b.extent(0));
-  dev_butcher_c = Kokkos::View<ScalarT*,AssemblyDevice>("butcher_c on device",butcher_c.extent(0));
+  Kokkos::View<ScalarT**,AssemblyDevice> dev_butcher_A("butcher_A on device",butcher_A.extent(0),butcher_A.extent(1));
+  Kokkos::View<ScalarT*,AssemblyDevice> dev_butcher_b("butcher_b on device",butcher_b.extent(0));
+  Kokkos::View<ScalarT*,AssemblyDevice> dev_butcher_c("butcher_c on device",butcher_c.extent(0));
   
   auto tmp_butcher_A = Kokkos::create_mirror_view(dev_butcher_A);
   auto tmp_butcher_b = Kokkos::create_mirror_view(dev_butcher_b);
@@ -1492,7 +1487,7 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
   // Compute du = timewt*m*res
   // Compute u += du
   
-  ScalarT wt = deltat*assembler->wkset[0]->butcher_b(stage);
+  ScalarT wt = deltat*butcher_b(stage);
   
   du_over->putScalar(0.0);
   
