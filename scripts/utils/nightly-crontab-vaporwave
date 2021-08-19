@@ -1,21 +1,20 @@
 #!/bin/bash
 
+# Check input to decide which mode to run the script in
+if [ $# -eq 0 ]; then
+  echo "No arguments provided to the script. Defaulting to pulling and building on top of the previous night's results."
+  SCRIPT_MODE=0
+else
+  if [[ $1 == "clean" ]]; then
+    echo "Argument \"clean\" provided to the script. Cleaning all source and build directories and rebuilding from scratch."
+    SCRIPT_MODE=1
+  else
+    echo "Unrecognized argument $1 provided to the script. Ignoring and running the default of pulling and building on top of the previous night's results."
+  fi
+fi
+
+# Set up shortcuts for directories - the first three are really the only ones necessary to modify
 HOME_DIR="/ascldap/users/gbharpe"
-source ${HOME_DIR}/.bash_profile # call bash_profile (which calls bashrc) to set up the environment properly
-
-# load the correct modules
-# gcc 6.1 may be causing issues, so we'll try gcc 9.2
-# gcc 9.2 causes issues with TPLs. back to gcc 6.1...
-echo "Nightly MrHyDE tester running..."
-echo "Loading modules..."
-module load sems-devpack-gcc/6.1.0
-module load sems-ninja_fortran/1.8.2
-module load sems-cmake/3.17.1
-module load sems-numpy/1.9.1/base
-#module unload sems-gcc/6.1.0 
-#module load sems-gcc/9.2.0 
-
-# setup directories and variables
 SCRIPTS_FOLDER="/ascldap/users/gbharpe/Programming/cpp/scripts/vaporwave"
 NIGHTLY_FOLDER="/ascldap/users/MrHyDE/nightly"
 TRILINOS_SOURCE_PREFIX="${NIGHTLY_FOLDER}/Trilinos"
@@ -25,13 +24,30 @@ TRILINOS_BUILD="${TRILINOS_SOURCE_PREFIX}/Trilinos-build"
 MrHyDE_SOURCE="${MrHyDE_SOURCE_PREFIX}/MrHyDE-source"
 MrHyDE_BUILD="${MrHyDE_SOURCE_PREFIX}/MrHyDE-build"
 
-# destroy last night's results
-cd ${NIGHTLY_FOLDER}
-rm -rf ${TRILINOS_SOURCE_PREFIX}
-rm -rf ${MrHyDE_SOURCE_PREFIX}
+# Call bash_profile (which calls bashrc) to set up the environment properly since cron runs in an empty environment
+source ${HOME_DIR}/.bash_profile 
 
-mkdir Trilinos
-mkdir MrHyDE
+# load the correct modules
+# gcc 6.1 may be causing issues, so we'll try gcc 9.2
+# gcc 9.2 causes issues with TPLs. back to gcc 6.1 for now...
+echo "Nightly MrHyDE tester running..."
+echo "Loading modules..."
+module load sems-devpack-gcc/6.1.0
+module load sems-ninja_fortran/1.8.2
+module load sems-cmake/3.17.1
+module load sems-numpy/1.9.1/base
+#module unload sems-gcc/6.1.0 
+#module load sems-gcc/9.2.0 
+
+cd ${NIGHTLY_FOLDER}
+
+# destroy last night's results if in clean mode
+if [ ${SCRIPT_MODE} -eq 1 ]; then
+  rm -rf ${TRILINOS_SOURCE_PREFIX}
+  rm -rf ${MrHyDE_SOURCE_PREFIX}
+  mkdir Trilinos
+  mkdir MrHyDE
+fi
 
 # create some status variables
 STATUS_LOG=""
@@ -43,22 +59,44 @@ STATUS_MrHyDE_BUILD=0
 # start with Trilinos
 echo "Starting Trilinos..."
 cd ${TRILINOS_SOURCE_PREFIX}
-git clone https://github.com/Trilinos/trilinos.git Trilinos-source
+if [ ${SCRIPT_MODE} -eq 1]; then
+  git clone https://github.com/Trilinos/trilinos.git Trilinos-source
+fi
 
-if [ $? -eq 0 ]; then # check the exit status of the most recently executed command
+# check the exit status of the most recently executed command
+# if in clean mode, this checks for a successful clone
+# if not in clean mode, this checks if the directory change was successful, which it should always be
+if [ $? -eq 0 ]; then 
   cd ${TRILINOS_SOURCE}
-  git checkout develop
+
+  # if in clean mode, switch to develop immediately. otherwise fetch and pull origin
+  if [ ${SCRIPT_MODE} -eq 1]; then
+    git checkout develop
+  else
+    git checkout develop
+    git fetch origin
+    git pull origin develop
+  fi
+
+  # magic to grab the latest commit SHA
   TRILINOS_COMMIT=$(git show | grep commit | tr " " "\n" | tail -1)
 
+  
   cd ${TRILINOS_SOURCE_PREFIX}
   cp ${SCRIPTS_FOLDER}/configure-nightly-trilinos-MrHyDE ${TRILINOS_SOURCE_PREFIX}
-  mkdir Trilinos-build
 
+  # if in clean mode, this folder needs to be created
+  if [ ${SCRIPT_MODE} -eq 1 ]; then
+    mkdir Trilinos-build
+  fi
+
+  # build and install Trilinos
   cd ${TRILINOS_BUILD}
   source ${TRILINOS_SOURCE_PREFIX}/configure-nightly-trilinos-MrHyDE
-  ninja install
+  ninja -j20 install
 
-  if [ $? -eq 0 ]; then # check the exit status of the most recently executed command
+  # check the exit status of the build command
+  if [ $? -eq 0 ]; then 
     echo "Trilinos build success!"
   else
     STATUS_TRILINOS_BUILD=$?
@@ -75,21 +113,40 @@ fi
 # now build MrHyDE
 echo "Starting MrHyDE..."
 cd ${MrHyDE_SOURCE_PREFIX}
-git clone https://github.com/TimWildey/MrHyDE.git MrHyDE-source
+if [ ${SCRIPT_MODE} -eq 1 ]; then
+  git clone https://github.com/TimWildey/MrHyDE.git MrHyDE-source
+fi
 
-if [ $? -eq 0 ]; then # check the exit status of the most recently executed command
+# check the exit status of the most recently executed command
+# if in clean mode, this checks for a successful clone
+# if not in clean mode, this checks if the directory change was successful, which it should always be
+if [ $? -eq 0 ]; then
+
+  # if not in clean mode, fetch and pull origin
+  if [ ${SCRIPT_MODE} -eq 0]; then
+    git checkout master
+    git fetch origin
+    git pull origin master
+  fi
+
   cd ${MrHyDE_SOURCE}
   MrHyDE_COMMIT=$(git show | grep commit | tr " " "\n" | tail -1)
 
   cd ${MrHyDE_SOURCE_PREFIX}
   cp ${SCRIPTS_FOLDER}/configure-nightly-MrHyDE ${MrHyDE_SOURCE_PREFIX}
-  mkdir MrHyDE-build
 
+  # if in clean mode, this folder needs to be created
+  if [ ${SCRIPT_MODE} -eq 1 ]; then
+    mkdir MrHyDE-build
+  fi
+
+  # build MrHyDE
   cd MrHyDE-build
   source ${MrHyDE_SOURCE_PREFIX}/configure-nightly-MrHyDE
-  ninja
+  ninja -j20
 
-  if [ $? -eq 0 ]; then # check the exit status of the most recently executed command
+  # check the exit status of the build command
+  if [ $? -eq 0 ]; then
     echo "MrHyDE build success!"
   else
     STATUS_MrHyDE_BUILD=$?
@@ -106,7 +163,7 @@ fi
 # now run the testsuite and count the failures
 echo "Running the testsuite..."
 cd ${MrHyDE_SOURCE}/regression
-ln -s ${MrHyDE_BUILD}/src/mrhyde ${MrHyDE_SOURCE}/regression/mrhyde
+ln -sf ${MrHyDE_BUILD}/src/mrhyde ${MrHyDE_SOURCE}/regression/mrhyde
 ./runtests.py -s > ${MrHyDE_SOURCE_PREFIX}/MrHyDE-nightly-vaporwave.txt
 
 
