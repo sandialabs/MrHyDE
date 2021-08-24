@@ -20,10 +20,29 @@ maxwell::maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & i
   
   label = "maxwell";
   
+  spaceDim = 0;
+  spaceDim = settings->sublist("Mesh").get<int>("dim",0);
+  if (spaceDim == 0) {
+    spaceDim = settings->sublist("Mesh").get<int>("dimension",0);
+  }
+  if (spaceDim == 0) {
+    //
+  }
+  
   myvars.push_back("E");
   myvars.push_back("B");
+  
   mybasistypes.push_back("HCURL");
-  mybasistypes.push_back("HDIV");
+  if (spaceDim == 2) {
+    mybasistypes.push_back("HVOL");
+    myvars.push_back("E2");
+    myvars.push_back("B2");
+    mybasistypes.push_back("HGRAD");
+    mybasistypes.push_back("HDIV");
+  }
+  else if (spaceDim == 3) {
+    mybasistypes.push_back("HDIV");
+  }
   
   useLeapFrog = settings->sublist("Physics").get<bool>("use leap frog",false);
 }
@@ -61,7 +80,9 @@ void maxwell::volumeResidual() {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     current_x = functionManager->evaluate("current x","ip");
     current_y = functionManager->evaluate("current y","ip");
-    current_z = functionManager->evaluate("current z","ip");
+    if (spaceDim > 2) {
+      current_z = functionManager->evaluate("current z","ip");
+    }
     mu = functionManager->evaluate("mu","ip");
     epsilon = functionManager->evaluate("epsilon","ip");
     sigma = functionManager->evaluate("sigma","ip");
@@ -82,77 +103,181 @@ void maxwell::volumeResidual() {
   }
   
   {
-    // (dB/dt + curl E,V) = 0
-    //if (stage == 0) {
-    auto basis = wkset->basis[B_basis];
-    auto dBx_dt = wkset->getData("B_t[x]");
-    auto dBy_dt = wkset->getData("B_t[y]");
-    auto dBz_dt = wkset->getData("B_t[z]");
-    auto curlE_x = wkset->getData("curl(E)[x]");
-    auto curlE_y = wkset->getData("curl(E)[y]");
-    auto curlE_z = wkset->getData("curl(E)[z]");
-    
-    auto off = subview(wkset->offsets, Bnum, ALL());
-    auto wts = wkset->wts;
-    auto res = wkset->res;
-    
-    parallel_for("Maxwells B volume resid",
-                 RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
-      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD f0 = (dBx_dt(elem,pt) + Bwt*curlE_x(elem,pt))*wts(elem,pt);
-        AD f1 = (dBy_dt(elem,pt) + Bwt*curlE_y(elem,pt))*wts(elem,pt);
-        AD f2 = (dBz_dt(elem,pt) + Bwt*curlE_z(elem,pt))*wts(elem,pt);
-        for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-          res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
-          res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
-        }
+    if (spaceDim == 2) {
+      // (dB/dt + curl E,V) = 0
+      //if (stage == 0) {
+      {
+        auto basis = wkset->basis[B_basis];
+        auto dB_dt = wkset->getData("B_t");
+        auto curlE = wkset->getData("curl(E)[x]");
+        
+        auto off = subview(wkset->offsets, Bnum, ALL());
+        auto wts = wkset->wts;
+        auto res = wkset->res;
+        
+        parallel_for("Maxwells B volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD f0 = (dB_dt(elem,pt) + Bwt*curlE(elem,pt))*wts(elem,pt);
+            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
+            }
+          }
+        });
       }
-    });
-    //}
+      {
+        int B2_basis = wkset->usebasis[B2num];
+        auto basis = wkset->basis[B2_basis];
+        auto dB2x_dt = wkset->getData("B2_t[x]");
+        auto dB2y_dt = wkset->getData("B2_t[y]");
+        auto gradE2_x = wkset->getData("grad(E2)[x]");
+        auto gradE2_y = wkset->getData("grad(E2)[y]");
+        
+        auto off = subview(wkset->offsets, B2num, ALL());
+        auto wts = wkset->wts;
+        auto res = wkset->res;
+        
+        parallel_for("Maxwells B2 volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD f0 = (dB2x_dt(elem,pt) + Bwt*gradE2_y(elem,pt))*wts(elem,pt);
+            AD f1 = (dB2y_dt(elem,pt) - Bwt*gradE2_x(elem,pt))*wts(elem,pt);
+            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + f1*basis(elem,dof,pt,1);
+            }
+          }
+        });
+      }
+    }
+    else if (spaceDim == 3) {
+      
+      // (dB/dt + curl E,V) = 0
+      //if (stage == 0) {
+      auto basis = wkset->basis[B_basis];
+      auto dBx_dt = wkset->getData("B_t[x]");
+      auto dBy_dt = wkset->getData("B_t[y]");
+      auto dBz_dt = wkset->getData("B_t[z]");
+      auto curlE_x = wkset->getData("curl(E)[x]");
+      auto curlE_y = wkset->getData("curl(E)[y]");
+      auto curlE_z = wkset->getData("curl(E)[z]");
+      
+      auto off = subview(wkset->offsets, Bnum, ALL());
+      auto wts = wkset->wts;
+      auto res = wkset->res;
+      
+      parallel_for("Maxwells B volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          AD f0 = (dBx_dt(elem,pt) + Bwt*curlE_x(elem,pt))*wts(elem,pt);
+          AD f1 = (dBy_dt(elem,pt) + Bwt*curlE_y(elem,pt))*wts(elem,pt);
+          AD f2 = (dBz_dt(elem,pt) + Bwt*curlE_z(elem,pt))*wts(elem,pt);
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
+            res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
+            res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
+          }
+        }
+      });
+    }
   }
   
   {
     // (eps*dE/dt,V) - (1/mu B, curl V) + (sigma E,V) = -(current,V)
     // Rewritten as: (eps*dEdt + sigma E + current, V) - (1/mu B, curl V) = 0
     
-    //if (stage == 1) {
-    auto basis = wkset->basis[E_basis];
-    auto basis_curl = wkset->basis_curl[E_basis];
-    auto dEx_dt = wkset->getData("E_t[x]");
-    auto dEy_dt = wkset->getData("E_t[y]");
-    auto dEz_dt = wkset->getData("E_t[z]");
-    auto Bx = wkset->getData("B[x]");
-    auto By = wkset->getData("B[y]");
-    auto Bz = wkset->getData("B[z]");
-    auto Ex = wkset->getData("E[x]");
-    auto Ey = wkset->getData("E[y]");
-    auto Ez = wkset->getData("E[z]");
-    auto off = subview(wkset->offsets, Enum, ALL());
-    auto wts = wkset->wts;
-    auto res = wkset->res;
-    
-    parallel_for("Maxwells E volume resid",
-                 RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
-      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD f0 = (epsilon(elem,pt)*dEx_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
-        AD f1 = (epsilon(elem,pt)*dEy_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
-        AD f2 = (epsilon(elem,pt)*dEz_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
-        AD c0 = - Ewt/mu(elem,pt)*Bx(elem,pt)*wts(elem,pt);
-        AD c1 = - Ewt/mu(elem,pt)*By(elem,pt)*wts(elem,pt);
-        AD c2 = - Ewt/mu(elem,pt)*Bz(elem,pt)*wts(elem,pt);
-        for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0);
-          res(elem,off(dof)) += f1*basis(elem,dof,pt,1) + c1*basis_curl(elem,dof,pt,1);
-          res(elem,off(dof)) += f2*basis(elem,dof,pt,2) + c2*basis_curl(elem,dof,pt,2);
-        }
+    if (spaceDim == 2) {
+      {
+        auto basis = wkset->basis[E_basis];
+        auto basis_curl = wkset->basis_curl[E_basis];
+        
+        auto dEx_dt = wkset->getData("E_t[x]");
+        auto dEy_dt = wkset->getData("E_t[y]");
+        auto B = wkset->getData("B");
+        auto Ex = wkset->getData("E[x]");
+        auto Ey = wkset->getData("E[y]");
+        auto off = subview(wkset->offsets, Enum, ALL());
+        auto wts = wkset->wts;
+        auto res = wkset->res;
+        
+        parallel_for("Maxwells E volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD f0 = (epsilon(elem,pt)*dEx_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
+            AD f1 = (epsilon(elem,pt)*dEy_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
+            AD c0 = - Ewt/mu(elem,pt)*B(elem,pt)*wts(elem,pt);
+            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0) + f1*basis(elem,dof,pt,1);
+            }
+          }
+        });
       }
-    });
-    //}
+      
+      {
+        int E2_basis = wkset->usebasis[E2num];
+        auto basis = wkset->basis[E2_basis];
+        auto basis_grad = wkset->basis_grad[E2_basis];
+        auto dE2_dt = wkset->getData("E2_t");
+        auto E2 = wkset->getData("E2");
+        auto B2x = wkset->getData("B2[x]");
+        auto B2y = wkset->getData("B2[y]");
+        auto off = subview(wkset->offsets, E2num, ALL());
+        auto wts = wkset->wts;
+        auto res = wkset->res;
+        
+        parallel_for("Maxwells E volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD f0 = (epsilon(elem,pt)*dE2_dt(elem,pt) + Ewt*(sigma(elem,pt)*E2(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
+            AD c0 = Ewt/mu(elem,pt)*B2y(elem,pt)*wts(elem,pt);
+            AD c1 = -Ewt/mu(elem,pt)*B2x(elem,pt)*wts(elem,pt);
+            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_grad(elem,dof,pt,0) + c1*basis_grad(elem,dof,pt,1);
+            }
+          }
+        });
+      }
+    }
+    else if (spaceDim == 3) {
+      
+      auto basis = wkset->basis[E_basis];
+      auto basis_curl = wkset->basis_curl[E_basis];
+      auto dEx_dt = wkset->getData("E_t[x]");
+      auto dEy_dt = wkset->getData("E_t[y]");
+      auto dEz_dt = wkset->getData("E_t[z]");
+      auto Bx = wkset->getData("B[x]");
+      auto By = wkset->getData("B[y]");
+      auto Bz = wkset->getData("B[z]");
+      auto Ex = wkset->getData("E[x]");
+      auto Ey = wkset->getData("E[y]");
+      auto Ez = wkset->getData("E[z]");
+      auto off = subview(wkset->offsets, Enum, ALL());
+      auto wts = wkset->wts;
+      auto res = wkset->res;
+      
+      parallel_for("Maxwells E volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          AD f0 = (epsilon(elem,pt)*dEx_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
+          AD f1 = (epsilon(elem,pt)*dEy_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
+          AD f2 = (epsilon(elem,pt)*dEz_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
+          AD c0 = - Ewt/mu(elem,pt)*Bx(elem,pt)*wts(elem,pt);
+          AD c1 = - Ewt/mu(elem,pt)*By(elem,pt)*wts(elem,pt);
+          AD c2 = - Ewt/mu(elem,pt)*Bz(elem,pt)*wts(elem,pt);
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0);
+            res(elem,off(dof)) += f1*basis(elem,dof,pt,1) + c1*basis_curl(elem,dof,pt,1);
+            res(elem,off(dof)) += f2*basis(elem,dof,pt,2) + c2*basis_curl(elem,dof,pt,2);
+          }
+        }
+      });
+    }
   }
-  
 }
 
 // ========================================================================================
@@ -169,5 +294,9 @@ void maxwell::setWorkset(Teuchos::RCP<workset> & wkset_) {
       Enum = i;
     if (varlist[i] == "B")
       Bnum = i;
+    if (varlist[i] == "E2")
+      E2num = i;
+    if (varlist[i] == "B2")
+      B2num = i;
   }
 }

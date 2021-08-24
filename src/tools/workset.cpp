@@ -320,7 +320,7 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
                                          View_Sc4 u_prev,
                                          View_Sc4 u_stage,
                                          const int & seedwhat,
-                                         const int & index) {
+                                         const size_type & index) {
   
   Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
   
@@ -1046,13 +1046,13 @@ void workset::computeSoln(const int & type, const bool & onside) {
             for (size_type dof=1; dof<cbasis_curl.extent(1); dof++ ) {
               csol_curlx(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,0);
             }
-            if (dim>1) {
+            if (dim>2) {
               csol_curly(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,1);
               for (size_type dof=1; dof<cbasis_curl.extent(1); dof++ ) {
                 csol_curly(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,1);
               }
-            }
-            if (dim>2) {
+            //}
+            //if (dim>2) {
               csol_curlz(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,2);
               for (size_type dof=1; dof<cbasis_curl.extent(1); dof++ ) {
                 csol_curlz(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,2);

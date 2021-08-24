@@ -27,6 +27,8 @@
 #include "preferences.hpp"
 #include "Teuchos_FancyOStream.hpp"
 
+#include "vista.hpp"
+
 namespace MrHyDE {
   
   class KokkosTools {
@@ -163,16 +165,57 @@ namespace MrHyDE {
       std::cout << "  i  " << "  j  " << "  value  " << std::endl;
       std::cout << "-------------------------------" << std::endl;
       
-      //auto V_host = Kokkos::create_mirror_view(V);
-      //Kokkos::deep_copy(V_host,V);
+      auto V_host = Kokkos::create_mirror_view(V);
+      Kokkos::deep_copy(V_host,V);
       
-      //for (size_type i=0; i<V_host.extent(0); i++) {
-      //  for (size_type j=0; j<V_host.extent(1); j++) {
+      for (size_type i=0; i<V_host.extent(0); i++) {
+        for (size_type j=0; j<V_host.extent(1); j++) {
       //    //printf("   %i      %i      %f\n", i, j, V(i,j));
-      //    std::cout << "  " << i << "  " << "  " << j << "  " <<
-      //    "  " << "  " << V(i,j) << "  " << std::endl;
-      //  }
-      //}
+          std::cout << "  " << i << "  " << "  " << j << "  " <<
+          "  " << "  " << V(i,j) << "  " << std::endl;
+        }
+      }
+      std::cout << "-------------------------------" << std::endl;
+      
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    static void print(Vista V, const string & message="") {
+      std::cout << std::endl;
+      std::cout << message << std::endl;
+      if (V.isView) {
+        if (V.isAD) {
+          std::cout << "Printing data for View: " << V.viewdata.label() << std::endl;
+        }
+        else {
+          std::cout << "Printing data for View: " << V.viewdata_Sc.label() << std::endl;
+        }
+      }
+      
+      
+      std::cout << "  i  " << "  j  " << "  value  " << std::endl;
+      std::cout << "-------------------------------" << std::endl;
+            
+      size_type ext0 = 1, ext1 = 1;
+      if (V.isView) {
+        if (V.isAD) {
+          ext0 = V.viewdata.extent(0);
+          ext1 = V.viewdata.extent(1);
+        }
+        else {
+          ext0 = V.viewdata_Sc.extent(0);
+          ext1 = V.viewdata_Sc.extent(1);
+        }
+      }
+      for (size_type i=0; i<ext0; i++) {
+        for (size_type j=0; j<ext1; j++) {
+      //    //printf("   %i      %i      %f\n", i, j, V(i,j));
+          std::cout << "  " << i << "  " << "  " << j << "  " <<
+          "  " << "  " << V(i,j) << "  " << std::endl;
+        }
+      }
       std::cout << "-------------------------------" << std::endl;
       
     }

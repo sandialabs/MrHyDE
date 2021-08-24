@@ -1282,7 +1282,6 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
                               res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                               params->num_active_params, params->Psol[0], is_final_time, deltat);
     
-    
     linalg->exportVectorFromOverlapped(res, res_over);
     
     if (is_adjoint) {
@@ -1294,7 +1293,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
     }
     
     if (debug_level>2) {
-      //KokkosTools::print(res,"residual from solver interface");
+      KokkosTools::print(res,"residual from solver interface");
     }
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
     

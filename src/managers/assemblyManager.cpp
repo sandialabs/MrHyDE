@@ -268,7 +268,7 @@ void AssemblyManager<Node>::createCells() {
                                                      assemble_face_terms[b],
                                                      sideSets,
                                                      params->num_discretized_params));
-                                                     
+                      
       disc->setReferenceData(blockCellData);
       
       blockCellData->requireBasisAtNodes = settings->sublist("Postprocess").get<bool>("plot solution at nodes",false);
@@ -1490,9 +1490,9 @@ void AssemblyManager<Node>::assembleJacRes(const bool & compute_jacobian, const 
 
 template<class Node>
 void AssemblyManager<Node>::dofConstraints(matrix_RCP & J, vector_RCP & res,
-                                     const ScalarT & current_time,
-                                     const bool & compute_jacobian,
-                                     const bool & compute_disc_sens) {
+                                           const ScalarT & current_time,
+                                           const bool & compute_jacobian,
+                                           const bool & compute_disc_sens) {
   
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {

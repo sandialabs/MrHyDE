@@ -13,6 +13,7 @@
 
 #include "discretizationInterface.hpp"
 
+// HGRAD basis functions
 #include "Intrepid2_HGRAD_QUAD_C1_FEM.hpp"
 #include "Intrepid2_HGRAD_QUAD_C2_FEM.hpp"
 #include "Intrepid2_HGRAD_QUAD_Cn_FEM.hpp"
@@ -29,7 +30,7 @@
 #include "Intrepid2_HGRAD_LINE_Cn_FEM.hpp"
 #include "Intrepid2_HVOL_C0_FEM.hpp"
 
-// HDIV functionality
+// HDIV basis functions
 #include "Intrepid2_HDIV_QUAD_I1_FEM.hpp"
 #include "Intrepid2_HDIV_QUAD_In_FEM.hpp"
 #include "Intrepid2_HDIV_HEX_I1_FEM.hpp"
@@ -39,10 +40,10 @@
 #include "Intrepid2_HDIV_TET_I1_FEM.hpp"
 #include "Intrepid2_HDIV_TET_In_FEM.hpp"
 
-// HDIV AC functionality
+// HDIV Arbogast-Correa basis functions
 #include "Intrepid2_HDIV_AC_QUAD_I1_FEM.hpp"
 
-// HCURL functionality
+// HCURL basis functions
 #include "Intrepid2_HCURL_QUAD_I1_FEM.hpp"
 #include "Intrepid2_HCURL_QUAD_In_FEM.hpp"
 #include "Intrepid2_HCURL_HEX_I1_FEM.hpp"
@@ -52,7 +53,7 @@
 #include "Intrepid2_HCURL_TET_I1_FEM.hpp"
 #include "Intrepid2_HCURL_TET_In_FEM.hpp"
 
-// HFACE (experimental) functionality
+// HFACE (experimental) basis functions
 #include "Intrepid2_HFACE_QUAD_In_FEM.hpp"
 #include "Intrepid2_HFACE_TRI_In_FEM.hpp"
 #include "Intrepid2_HFACE_HEX_In_FEM.hpp"
@@ -591,7 +592,12 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<CellMetaData> & cell
       basisnodes = DRV("basisvals",numb, refnodes.extent(0), dimension);
       basis_pointers[block][i]->getValues(basisnodes, refnodes, Intrepid2::OPERATOR_VALUE);
       
-      basiscurl = DRV("basiscurl",numb, cellData->numip, dimension);
+      if (dimension == 2) {
+        basiscurl = DRV("basiscurl",numb, cellData->numip);
+      }
+      else if (dimension == 3) {
+        basiscurl = DRV("basiscurl",numb, cellData->numip, dimension);
+      }
       basis_pointers[block][i]->getValues(basiscurl, cellData->ref_ip, Intrepid2::OPERATOR_CURL);
       
     }
@@ -640,8 +646,14 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<CellMetaData> & cell
         basisvals1 = DRV("basisvals", cellData->numElem, numb, cellData->numip, dimension);
         basisvals2 = DRV("basisvals", cellData->numElem, numb, cellData->numip, dimension);
         
-        basiscurl1 = DRV("basisvals", cellData->numElem, numb, cellData->numip, dimension);
-        basiscurl2 = DRV("basisvals", cellData->numElem, numb, cellData->numip, dimension);
+        if (dimension == 2) {
+          basiscurl1 = DRV("basisvals", cellData->numElem, numb, cellData->numip);
+          basiscurl2 = DRV("basisvals", cellData->numElem, numb, cellData->numip);
+        }
+        else if (dimension == 3) {
+          basiscurl1 = DRV("basisvals", cellData->numElem, numb, cellData->numip, dimension);
+          basiscurl2 = DRV("basisvals", cellData->numElem, numb, cellData->numip, dimension);
+        }
         
       }
       
@@ -726,8 +738,14 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<CellMetaData> & cell
       else if (basis_types[block][i].substr(0,5) == "HCURL"){
         basis1 = DRV("basisvals", cellData->numElem, numb, cellData->numsideip, dimension);
         basis2 = DRV("basisvals", cellData->numElem, numb, cellData->numsideip, dimension);
-        basiscurl1 = DRV("basisvals", cellData->numElem, numb, cellData->numsideip, dimension);
-        basiscurl2 = DRV("basisvals", cellData->numElem, numb, cellData->numsideip, dimension);
+        if (dimension == 2) {
+          basiscurl1 = DRV("basisvals", cellData->numElem, numb, cellData->numsideip);
+          basiscurl2 = DRV("basisvals", cellData->numElem, numb, cellData->numsideip);
+        }
+        else if (dimension == 3) {
+          basiscurl1 = DRV("basisvals", cellData->numElem, numb, cellData->numsideip, dimension);
+          basiscurl2 = DRV("basisvals", cellData->numElem, numb, cellData->numsideip, dimension);
+        }
       }
       cellData->side_phys_basis1.push_back(basis1);
       cellData->side_phys_basisgrad1.push_back(basisgrad1);
@@ -950,6 +968,7 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
                                               cellData->basis_pointers[i].get());
         basis_div_vals = View_Sc3("basis div values", numElem, numb, numip); // needs to be rank-3
         Kokkos::deep_copy(basis_div_vals,bdiv2);
+        
       }
       else if (cellData->basis_types[i].substr(0,5) == "HCURL"){
         
@@ -994,8 +1013,13 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
         OrientTools::modifyBasisByOrientation(bcurl2, bcurl1, orientation,
                                               cellData->basis_pointers[i].get());
         basis_curl_vals = View_Sc4("basis curl values", numElem, numb, numip, dimension);
-        Kokkos::deep_copy(basis_curl_vals, bcurl2);
-        
+        if (spaceDim == 2) {
+          auto sub_bcv = subview(basis_curl_vals,ALL(),ALL(),ALL(),0);
+          deep_copy(sub_bcv,bcurl2);
+        }
+        else {
+          Kokkos::deep_copy(basis_curl_vals, bcurl2);
+        }
       }
       basis.push_back(basis_vals);
       basis_grad.push_back(basis_grad_vals);

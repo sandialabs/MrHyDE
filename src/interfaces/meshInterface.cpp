@@ -339,12 +339,16 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
         stk_mesh->addCellField(varlist[j], block_names[i]);
       }
       else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL") { // HDIV or HCURL
-        stk_mesh->addSolutionField(varlist[j]+"x", block_names[i]);
-        stk_mesh->addSolutionField(varlist[j]+"y", block_names[i]);
-        stk_mesh->addSolutionField(varlist[j]+"z", block_names[i]);
+        //stk_mesh->addSolutionField(varlist[j]+"x", block_names[i]);
+        //stk_mesh->addSolutionField(varlist[j]+"y", block_names[i]);
+        //stk_mesh->addSolutionField(varlist[j]+"z", block_names[i]);
         stk_mesh->addCellField(varlist[j]+"x", block_names[i]);
-        stk_mesh->addCellField(varlist[j]+"y", block_names[i]);
-        stk_mesh->addCellField(varlist[j]+"z", block_names[i]);
+        if (spaceDim > 1) {
+          stk_mesh->addCellField(varlist[j]+"y", block_names[i]);
+        }
+        if (spaceDim > 2) {
+          stk_mesh->addCellField(varlist[j]+"z", block_names[i]);
+        }
       }
     }
     
@@ -362,12 +366,16 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
           stk_mesh->addCellField(varlist[j], block_names[i]);
         }
         else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL") { // HDIV or HCURL
-          stk_mesh->addSolutionField(varlist[j]+"x", block_names[i]);
-          stk_mesh->addSolutionField(varlist[j]+"y", block_names[i]);
-          stk_mesh->addSolutionField(varlist[j]+"z", block_names[i]);
+          //stk_mesh->addSolutionField(varlist[j]+"x", block_names[i]);
+          //stk_mesh->addSolutionField(varlist[j]+"y", block_names[i]);
+          //stk_mesh->addSolutionField(varlist[j]+"z", block_names[i]);
           stk_mesh->addCellField(varlist[j]+"x", block_names[i]);
-          stk_mesh->addCellField(varlist[j]+"y", block_names[i]);
-          stk_mesh->addCellField(varlist[j]+"z", block_names[i]);
+          if (spaceDim > 1) {
+            stk_mesh->addCellField(varlist[j]+"y", block_names[i]);
+          }
+          if (spaceDim > 2) {
+            stk_mesh->addCellField(varlist[j]+"z", block_names[i]);
+          }
         }
       }
     }
@@ -453,9 +461,13 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
             stk_mesh->addCellField(pl_itr->first, block_names[i]);
           }
           else if (newparam.get<string>("type") == "HDIV" || newparam.get<string>("type") == "HCURL") {
-            stk_mesh->addCellField(pl_itr->first+"_x", block_names[i]);
-            stk_mesh->addCellField(pl_itr->first+"_y", block_names[i]);
-            stk_mesh->addCellField(pl_itr->first+"_z", block_names[i]);
+            stk_mesh->addCellField(pl_itr->first+"x", block_names[i]);
+            if (spaceDim > 1) {
+              stk_mesh->addCellField(pl_itr->first+"y", block_names[i]);
+            }
+            if (spaceDim > 2) {
+              stk_mesh->addCellField(pl_itr->first+"z", block_names[i]);
+            }
           }
         }
         pl_itr++;
@@ -488,9 +500,13 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
               stk_optimization_mesh->addCellField(pl_itr->first, block_names[i]);
             }
             else if (newparam.get<string>("type") == "HDIV" || newparam.get<string>("type") == "HCURL") {
-              stk_optimization_mesh->addCellField(pl_itr->first+"_x", block_names[i]);
-              stk_optimization_mesh->addCellField(pl_itr->first+"_y", block_names[i]);
-              stk_optimization_mesh->addCellField(pl_itr->first+"_z", block_names[i]);
+              stk_optimization_mesh->addCellField(pl_itr->first+"x", block_names[i]);
+              if (spaceDim > 1) {
+                stk_optimization_mesh->addCellField(pl_itr->first+"y", block_names[i]);
+              }
+              if (spaceDim > 2) {
+                stk_optimization_mesh->addCellField(pl_itr->first+"z", block_names[i]);
+              }
             }
           }
           pl_itr++;

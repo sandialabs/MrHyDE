@@ -199,12 +199,13 @@ namespace Intrepid2 {
                const PointViewType  inputPoints,
                const EOperator operatorType = OPERATOR_VALUE ) const {
 #ifdef HAVE_INTREPID2_DEBUG
+      // TMW: Question to GBH - do we need separate functionality here?
       // Verify arguments
-      Intrepid2::getValues_HDIV_AC_Args(outputValues,
-                                     inputPoints,
-                                     operatorType,
-                                     this->getBaseCellTopology(),
-                                     this->getCardinality() );
+      //Intrepid2::getValues_HDIV_AC_Args(outputValues,
+      //                               inputPoints,
+      //                               operatorType,
+      //                               this->getBaseCellTopology(),
+      //                               this->getCardinality() );
 #endif
       Impl::Basis_HDIV_AC_QUAD_I1_FEM::
         getValues<ExecSpaceType>( outputValues,
