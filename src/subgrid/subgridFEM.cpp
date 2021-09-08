@@ -1110,75 +1110,66 @@ void SubGridFEM::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
   // TMW: uncomment if you need a nonzero initial condition
   //      right now, it slows everything down ... especially if using an L2-projection
   
-  /*
-   bool useL2proj = true;//settings->sublist("Solver").get<bool>("Project initial",true);
+  
+  bool useL2proj = true;//settings->sublist("Solver").get<bool>("Project initial",true);
+
+  auto glinitial = linalg->getNewVector();
    
-   if (useL2proj) {
+  if (useL2proj) {
    
-   // Compute the L2 projection of the initial data into the discrete space
-   Teuchos::RCP<LA_MultiVector> rhs = Teuchos::rcp(new LA_MultiVector(*overlapped_map,1)); // reset residual
-   Teuchos::RCP<LA_CrsMatrix>  mass = Teuchos::rcp(new LA_CrsMatrix(Copy, *overlapped_map, -1)); // reset Jacobian
-   Teuchos::RCP<LA_MultiVector> glrhs = Teuchos::rcp(new LA_MultiVector(*owned_map,1)); // reset residual
-   Teuchos::RCP<LA_CrsMatrix>  glmass = Teuchos::rcp(new LA_CrsMatrix(Copy, *owned_map, -1)); // reset Jacobian
+    // Compute the L2 projection of the initial data into the discrete space
+    auto rhs = sub_solver->solver->linalg->getNewOverlappedVector();
+    auto mass = sub_solver->solver->linalg->getNewOverlappedMatrix();
+    auto glrhs = sub_solver->solver->linalg->getNewVector();
+    auto glmass = sub_solver->solver->linalg->getNewMatrix();
+
+    for (size_t e=0; e<cells[usernum].size(); e++) {
+      int numElem = cells[usernum][e]->numElem;
+      vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
+      Kokkos::View<ScalarT**,AssemblyDevice> localrhs = cells[usernum][e]->getInitial(true, useadjoint);
+      Kokkos::View<ScalarT***,AssemblyDevice> localmass = cells[usernum][e]->getMass();
+      
+      // assemble into global matrix
+      for (int c=0; c<numElem; c++) {
+        for( size_t row=0; row<GIDs[c].size(); row++ ) {
+          int rowIndex = GIDs[c][row];
+          ScalarT val = localrhs(c,row);
+          rhs->SumIntoGlobalValue(rowIndex,0, val);
+          for( size_t col=0; col<GIDs[c].size(); col++ ) {
+          int colIndex = GIDs[c][col];
+          ScalarT val = localmass(c,row,col);
+          mass->InsertGlobalValues(rowIndex, 1, &val, &colIndex);
+          }
+        }
+      }
+    }
    
+    sub_solver->solver->linalg->exportMatrixFromOverlapped(glmass, mass);
+    sub_solver->solver->linalg->exportVectorFromOverlapped(glrhs, rhs);
+    
+    sub_solver->solver->linalg->fillComplete(glmass);
+    sub_solver->solver->linalg->linearSolverL2(glmass, glrhs, glinitial);
+    sub_solver->solver->linalg->importVectorToOverlapped(initial, glinitial);
+    sub_solver->solver->linalg->resetJacobian();
    
-   //for (size_t b=0; b<cells.size(); b++) {
-   for (size_t e=0; e<cells[usernum].size(); e++) {
-   int numElem = cells[usernum][e]->numElem;
-   vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
-   Kokkos::View<ScalarT**,AssemblyDevice> localrhs = cells[usernum][e]->getInitial(true, useadjoint);
-   Kokkos::View<ScalarT***,AssemblyDevice> localmass = cells[usernum][e]->getMass();
-   
-   // assemble into global matrix
-   for (int c=0; c<numElem; c++) {
-   for( size_t row=0; row<GIDs[c].size(); row++ ) {
-   int rowIndex = GIDs[c][row];
-   ScalarT val = localrhs(c,row);
-   rhs->SumIntoGlobalValue(rowIndex,0, val);
-   for( size_t col=0; col<GIDs[c].size(); col++ ) {
-   int colIndex = GIDs[c][col];
-   ScalarT val = localmass(c,row,col);
-   mass->InsertGlobalValues(rowIndex, 1, &val, &colIndex);
    }
-   }
-   }
-   }
+   //else {
+   //
+   //for (size_t e=0; e<cells[usernum].size(); e++) {
+   //int numElem = cells[usernum][e]->numElem;
+   //vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
+   //Kokkos::View<ScalarT**,AssemblyDevice> localinit = cells[usernum][e]->getInitial(false, useadjoint);
+   //for (int c=0; c<numElem; c++) {
+   //for( size_t row=0; row<GIDs[c].size(); row++ ) {
+   //int rowIndex = GIDs[c][row];
+   //ScalarT val = localinit(c,row);
+   //initial->SumIntoGlobalValue(rowIndex,0, val);
    //}
-   
-   
-   mass->FillComplete();
-   glmass->PutScalar(0.0);
-   glmass->Export(*mass, *exporter, Add);
-   
-   glrhs->PutScalar(0.0);
-   glrhs->Export(*rhs, *exporter, Add);
-   
-   glmass->FillComplete();
-   
-   Teuchos::RCP<LA_MultiVector> glinitial = Teuchos::rcp(new LA_MultiVector(*overlapped_map,1)); // reset residual
-   
-   this->linearSolver(glmass, glrhs, glinitial);
-   
-   initial->Import(*glinitial, *importer, Add);
-   
-   }
-   else {
-   
-   for (size_t e=0; e<cells[usernum].size(); e++) {
-   int numElem = cells[usernum][e]->numElem;
-   vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
-   Kokkos::View<ScalarT**,AssemblyDevice> localinit = cells[usernum][e]->getInitial(false, useadjoint);
-   for (int c=0; c<numElem; c++) {
-   for( size_t row=0; row<GIDs[c].size(); row++ ) {
-   int rowIndex = GIDs[c][row];
-   ScalarT val = localinit(c,row);
-   initial->SumIntoGlobalValue(rowIndex,0, val);
-   }
-   }
-   }
-   
-   }
-  */
+   //}
+   //}
+   //
+   //}
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
