@@ -1735,6 +1735,7 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > SolverManager<Node>::setI
         matrix_RCP mass = linalg->getNewOverlappedMatrix();
         vector_RCP glrhs = linalg->getNewVector();
         matrix_RCP glmass = linalg->getNewMatrix();
+        
         assembler->setInitial(rhs, mass, is_adjoint);
         
         linalg->exportMatrixFromOverlapped(glmass, mass);

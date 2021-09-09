@@ -45,7 +45,7 @@ ANONYMOUS:
     Model2:
       usage: '(x-t)>0.75'
       Mesh: 
-        elemnent type: quad
+        element type: quad
         refinements: 2
         dimension: 2
       Physics: 

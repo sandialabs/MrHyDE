@@ -701,76 +701,10 @@ void AssemblyManager<Node>::setInitial(vector_RCP & rhs, matrix_RCP & mass, cons
     }
   }
   
-  typedef typename Node::execution_space LA_exec;
-  bool use_atomics_ = false;
-  if (LA_exec::concurrency() > 1) {
-    use_atomics_ = true;
+  for (size_t block=0; block<cells.size(); block++) {
+    this->setInitial(rhs,mass,useadjoint,lumpmass,scale,block,block);
   }
-  
-  auto localMatrix = mass->getLocalMatrix();
-  auto rhs_view = rhs->template getLocalView<LA_device>();
-  bool lump_mass_ = lump_mass;
-  
-  for (size_t b=0; b<cells.size(); b++) {
     
-    auto offsets = wkset[b]->offsets;
-    auto numDOF = cellData[b]->numDOF;
-    
-    for (size_t e=0; e<cells[b].size(); e++) {
-      
-      auto LIDs = cells[b][e]->LIDs;
-      
-      Kokkos::View<ScalarT**,AssemblyDevice> localrhs = cells[b][e]->getInitial(true, useadjoint);
-      Kokkos::View<ScalarT***,AssemblyDevice> localmass = cells[b][e]->getMass();
-      
-      parallel_for("assembly insert Jac",
-                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
-        
-        int row = 0;
-        LO rowIndex = 0;
-        
-        for (size_type n=0; n<numDOF.extent(0); ++n) {
-          for (int j=0; j<numDOF(n); j++) {
-            row = offsets(n,j);
-            rowIndex = LIDs(elem,row);
-            ScalarT val = localrhs(elem,row);
-            if (use_atomics_) {
-              Kokkos::atomic_add(&(rhs_view(rowIndex,0)), val);
-            }
-            else {
-              rhs_view(rowIndex,0) += val;
-            }
-          }
-        }
-        
-        const size_type numVals = LIDs.extent(1);
-        int col = 0;
-        LO cols[maxDerivs];
-        ScalarT vals[maxDerivs];
-        for (size_type n=0; n<numDOF.extent(0); ++n) {
-          for (int j=0; j<numDOF(n); j++) {
-            row = offsets(n,j);
-            rowIndex = LIDs(elem,row);
-            for (size_type m=0; m<numDOF.extent(0); m++) {
-              for (int k=0; k<numDOF(m); k++) {
-                col = offsets(m,k);
-                vals[col] = localmass(elem,row,col);
-                if (lump_mass_) {
-                  cols[col] = rowIndex;
-                }
-                else {
-                  cols[col] = LIDs(elem,col);
-                }
-              }
-            }
-            localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_);
-          }
-        }
-      });
-    }
-  }
-  
   mass->fillComplete();
   
   if (debug_level > 0) {
@@ -779,6 +713,105 @@ void AssemblyManager<Node>::setInitial(vector_RCP & rhs, matrix_RCP & mass, cons
     }
   }
   
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void AssemblyManager<Node>::setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
+                                       const bool & lumpmass, const ScalarT & scale,
+                                       const size_t & block, const size_t & cellblock) {
+
+  typedef typename Node::execution_space LA_exec;
+  bool use_atomics_ = false;
+  if (LA_exec::concurrency() > 1) {
+    use_atomics_ = true;
+  }
+  
+  bool fix_zero_rows = true;
+  
+  auto localMatrix = mass->getLocalMatrix();
+  auto rhs_view = rhs->template getLocalView<LA_device>();
+  bool lump_mass_ = lump_mass;
+  
+  auto offsets = wkset[block]->offsets;
+  auto numDOF = cellData[block]->numDOF;
+  
+  for (size_t e=0; e<cells[cellblock].size(); e++) {
+    
+    auto LIDs = cells[cellblock][e]->LIDs;
+    
+    auto localrhs = cells[cellblock][e]->getInitial(true, useadjoint);
+    auto localmass = cells[cellblock][e]->getMass();
+    
+    parallel_for("assembly insert Jac",
+                 RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                 KOKKOS_LAMBDA (const int elem ) {
+      
+      int row = 0;
+      LO rowIndex = 0;
+      
+      for (size_type n=0; n<numDOF.extent(0); ++n) {
+        for (int j=0; j<numDOF(n); j++) {
+          row = offsets(n,j);
+          rowIndex = LIDs(elem,row);
+          ScalarT val = localrhs(elem,row);
+          if (use_atomics_) {
+            Kokkos::atomic_add(&(rhs_view(rowIndex,0)), val);
+          }
+          else {
+            rhs_view(rowIndex,0) += val;
+          }
+        }
+      }
+      
+      const size_type numVals = LIDs.extent(1);
+      int col = 0;
+      LO cols[maxDerivs];
+      ScalarT vals[maxDerivs];
+      for (size_type n=0; n<numDOF.extent(0); ++n) {
+        for (int j=0; j<numDOF(n); j++) {
+          row = offsets(n,j);
+          rowIndex = LIDs(elem,row);
+          for (size_type m=0; m<numDOF.extent(0); m++) {
+            for (int k=0; k<numDOF(m); k++) {
+              col = offsets(m,k);
+              vals[col] = localmass(elem,row,col);
+              if (lump_mass_) {
+                cols[col] = rowIndex;
+              }
+              else {
+                cols[col] = LIDs(elem,col);
+              }
+            }
+          }
+          localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_);
+        }
+      }
+    });
+  }
+  
+  if (fix_zero_rows) {
+    size_t numrows = mass->getNodeNumRows();
+    
+    parallel_for("assembly insert Jac",
+                 RangePolicy<LA_exec>(0,numrows),
+                 KOKKOS_LAMBDA (const size_t row ) {
+      auto rowdata = localMatrix.row(row);
+      ScalarT abssum = 0.0;
+      for (int col=0; col<rowdata.length; ++col ) {
+        abssum += abs(rowdata.value(col));
+      }
+      ScalarT val[1];
+      LO cols[1];
+      if (abssum<1.0e-14) { // needs to be generalized!
+        val[0] = 1.0;
+        cols[0] = row;
+        localMatrix.replaceValues(row,cols,1,val,false,false);
+      }
+    });
+  }
 }
 
 // ========================================================================================

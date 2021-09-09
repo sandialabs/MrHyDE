@@ -84,21 +84,24 @@ namespace MrHyDE {
     
     void updateJacDBC(matrix_RCP & J, const std::vector<LO> & dofs, const bool & compute_disc_sens);
     
+    
+    void setDirichlet(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
+                      const ScalarT & time, const bool & lumpmass=false);
+    
     // ========================================================================================
     // ========================================================================================
     
     void setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
                     const bool & lumpmass=false, const ScalarT & scale = 1.0);
     
-    // ========================================================================================
-    // ========================================================================================
-    
-    void setDirichlet(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
-                      const ScalarT & time, const bool & lumpmass=false);
+    void setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
+                    const bool & lumpmass, const ScalarT & scale,
+                    const size_t & block, const size_t & cellblock);
     
     void setInitial(vector_RCP & initial, const bool & useadjoint);
     
     void getWeightedMass(matrix_RCP & mass, vector_RCP & massdiag);
+    
     // ========================================================================================
     // ========================================================================================
     

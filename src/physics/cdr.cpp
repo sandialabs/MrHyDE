@@ -69,9 +69,6 @@ void cdr::defineFunctions(Teuchos::ParameterList & fs,
 
 void cdr::volumeResidual() {
   
-  // NOTES:
-  // 1. basis and basis_grad already include the integration weights
-  
   int spaceDim = wkset->dimension;
   int c_basis_num = wkset->usebasis[cnum];
   auto basis = wkset->basis[c_basis_num];

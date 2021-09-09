@@ -707,22 +707,7 @@ void SubGridFEM::setUpSubgridModels() {
       boundaryCells[mindex][e]->auxLIDs_host = cLIDs_host2;
     }
     
-    //////////////////////////////////////////////////////////////
-    // Set the initial conditions
-    //////////////////////////////////////////////////////////////
     
-    {
-      Teuchos::TimeMonitor localtimer(*sgfemSubICTimer);
-      
-      Teuchos::RCP<SG_MultiVector> init = sub_solver->solver->linalg->getNewOverlappedVector();
-      //Teuchos::rcp(new SG_MultiVector(sub_solver->solver->LA_overlapped_map,1));
-      this->setInitial(init, mindex, false);
-      soln->store(init,initial_time,mindex);
-      
-      Teuchos::RCP<SG_MultiVector> inita = sub_solver->solver->linalg->getNewOverlappedVector();
-      //Teuchos::rcp(new SG_MultiVector(sub_solver->solver->LA_overlapped_map,1));
-      adjsoln->store(inita,final_time,mindex);
-    }
     
     ////////////////////////////////////////////////////////////////////////////////
     // The current macro-element will store the values of its own basis functions
@@ -866,6 +851,23 @@ void SubGridFEM::setUpSubgridModels() {
   sub_assembler->cells = cells;
   sub_assembler->boundaryCells = boundaryCells;
   sub_physics->setWorkset(wkset);
+  
+  //////////////////////////////////////////////////////////////
+  // Set the initial conditions
+  //////////////////////////////////////////////////////////////
+  
+  {
+    Teuchos::TimeMonitor localtimer(*sgfemSubICTimer);
+    for (size_t mindex = 0; mindex<macroData.size(); mindex++) {
+      
+      Teuchos::RCP<SG_MultiVector> init = sub_solver->solver->linalg->getNewOverlappedVector();
+      this->setInitial(init, mindex, false);
+      soln->store(init,initial_time,mindex);
+      
+      Teuchos::RCP<SG_MultiVector> inita = sub_solver->solver->linalg->getNewOverlappedVector();
+      adjsoln->store(inita,final_time,mindex);
+    }
+  }
   
   if (debug_level > 0) {
     if (LocalComm->getRank() == 0) {
@@ -1113,7 +1115,7 @@ void SubGridFEM::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
   
   bool useL2proj = true;//settings->sublist("Solver").get<bool>("Project initial",true);
 
-  auto glinitial = linalg->getNewVector();
+  auto glinitial = sub_solver->solver->linalg->getNewVector();
    
   if (useL2proj) {
    
@@ -1123,27 +1125,8 @@ void SubGridFEM::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
     auto glrhs = sub_solver->solver->linalg->getNewVector();
     auto glmass = sub_solver->solver->linalg->getNewMatrix();
 
-    for (size_t e=0; e<cells[usernum].size(); e++) {
-      int numElem = cells[usernum][e]->numElem;
-      vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
-      Kokkos::View<ScalarT**,AssemblyDevice> localrhs = cells[usernum][e]->getInitial(true, useadjoint);
-      Kokkos::View<ScalarT***,AssemblyDevice> localmass = cells[usernum][e]->getMass();
-      
-      // assemble into global matrix
-      for (int c=0; c<numElem; c++) {
-        for( size_t row=0; row<GIDs[c].size(); row++ ) {
-          int rowIndex = GIDs[c][row];
-          ScalarT val = localrhs(c,row);
-          rhs->SumIntoGlobalValue(rowIndex,0, val);
-          for( size_t col=0; col<GIDs[c].size(); col++ ) {
-          int colIndex = GIDs[c][col];
-          ScalarT val = localmass(c,row,col);
-          mass->InsertGlobalValues(rowIndex, 1, &val, &colIndex);
-          }
-        }
-      }
-    }
-   
+    sub_assembler->setInitial(rhs, mass, false, false, 1.0, 0, (size_t)usernum);
+    
     sub_solver->solver->linalg->exportMatrixFromOverlapped(glmass, mass);
     sub_solver->solver->linalg->exportVectorFromOverlapped(glrhs, rhs);
     
@@ -1154,20 +1137,7 @@ void SubGridFEM::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
    
    }
    //else {
-   //
-   //for (size_t e=0; e<cells[usernum].size(); e++) {
-   //int numElem = cells[usernum][e]->numElem;
-   //vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
-   //Kokkos::View<ScalarT**,AssemblyDevice> localinit = cells[usernum][e]->getInitial(false, useadjoint);
-   //for (int c=0; c<numElem; c++) {
-   //for( size_t row=0; row<GIDs[c].size(); row++ ) {
-   //int rowIndex = GIDs[c][row];
-   //ScalarT val = localinit(c,row);
-   //initial->SumIntoGlobalValue(rowIndex,0, val);
-   //}
-   //}
-   //}
-   //
+   // not re-implemented yet
    //}
   
 }

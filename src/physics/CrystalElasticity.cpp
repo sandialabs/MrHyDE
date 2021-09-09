@@ -69,7 +69,6 @@ CrystalElastic::CrystalElastic( Teuchos::RCP<Teuchos::ParameterList> & settings 
 
 void CrystalElastic::computeLatticeTensor() {
   
-  // To properly capture in lambda
   auto C_host = create_mirror_view(C);
   
   // fill tensor
