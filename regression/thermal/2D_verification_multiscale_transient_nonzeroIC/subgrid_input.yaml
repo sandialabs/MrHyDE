@@ -1,0 +1,23 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Subgrid:
+    usage: '1.0'
+    Mesh: 
+      shape: quad
+      refinements: 0
+      dim: 2
+    Physics: 
+      modules: thermal
+      Initial conditions:
+        e: 'sin(2.0*pi*x)*sin(2.0*pi*y)'
+    Discretization:
+      order:
+        e: 1
+      quadrature: 2
+    Solver:
+      solver: transient
+    Postprocess:
+      True solutions:
+        e: sin(2.0*pi*x)*sin(2.0*pi*y)*exp(-8.0*pi*pi*t)
+...

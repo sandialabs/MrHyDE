@@ -1,0 +1,2 @@
+This test checks basic functionality for setting a nonzero IC when a subgrid model is used.
+In this case, the steady-state solution should not depend on the IC.
