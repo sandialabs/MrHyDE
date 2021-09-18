@@ -1,0 +1,51 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 10
+    NY: 10
+  Physics: 
+    eblock-0_0: 
+      modules: porous weak Galerkin
+      assemble face terms: true
+      Dirichlet conditions:
+        pbndry:
+          left: '0.0'
+          right: '0.0'
+          top: '0.0'
+          bottom: '0.0'
+  Functions:
+    source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
+  Solver:
+    solver: steady-state
+    initial type: none
+    use direct solver: true
+    use preconditioner: false
+  Discretization:
+    eblock-0_0:
+      order:
+        pint: 0
+        pbndry: 0
+        u: 1
+        t: 1
+      quadrature: 2
+  Analysis:
+    analysis type: forward
+  Postprocess: 
+    compute errors: true
+    True solutions:
+      pint: sin(2*pi*x)*sin(2*pi*y)
+      pbndry face: sin(2*pi*x)*sin(2*pi*y)
+      'u[x]': 2*pi*cos(2*pi*x)*sin(2*pi*y)
+      'u[y]': 2*pi*sin(2*pi*x)*cos(2*pi*y)
+      't[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
+      't[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
+...

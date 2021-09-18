@@ -17,6 +17,8 @@ ANONYMOUS:
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
+    Initial conditions:
+      e: 'sin(2.0*pi*x)*sin(2.0*pi*y)'
   Subgrid input file: subgrid_input.yaml
   Discretization:
     order:

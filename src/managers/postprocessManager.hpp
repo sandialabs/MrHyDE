@@ -488,7 +488,7 @@ namespace MrHyDE {
     int numsteps;
     std::vector<std::vector<std::string> > varlist, aux_varlist; // TMW: remove these at some point
     
-    std::string response_type, error_type;
+    std::string response_type, error_type, append;
     std::vector<ScalarT> plot_times, response_times, error_times; // probably always the same
     
     int verbosity, debug_level;

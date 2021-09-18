@@ -18,6 +18,7 @@ ANONYMOUS:
     Solver:
       solver: transient
     Postprocess:
+      compute errors: true
       True solutions:
         e: sin(2.0*pi*x)*sin(2.0*pi*y)*exp(-8.0*pi*pi*t)
 ...

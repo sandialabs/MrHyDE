@@ -323,158 +323,158 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
   // Add fields to the mesh
   ////////////////////////////////////////////////////////////////////////////////
     
-  for(std::size_t i=0;i<block_names.size();i++) {
-    
-    std::vector<string> varlist = phys->varlist[i];
-    std::vector<string> vartypes = phys->types[i];
-    
-    for (size_t j=0; j<varlist.size(); j++) {
-      if (vartypes[j] == "HGRAD") {
-        stk_mesh->addSolutionField(varlist[j], block_names[i]);
+  std::vector<std::string> appends;
+  if (settings->sublist("Analysis").get<std::string>("analysis type","forward") == "UQ") {
+    if (settings->sublist("Postprocess").get("write solution",false)) {
+      int numsamples = settings->sublist("Analysis").sublist("UQ").get<int>("samples",100);
+      for (int j=0; j<numsamples; ++j) {
+        std::stringstream ss;
+        ss << j;
+        appends.push_back(ss.str());
       }
-      else if (vartypes[j] == "HVOL") { // PW constant
-        stk_mesh->addCellField(varlist[j], block_names[i]);
-      }
-      else if (vartypes[j] == "HFACE") { // hybridized variable
-        stk_mesh->addCellField(varlist[j], block_names[i]);
-      }
-      else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL") { // HDIV or HCURL
-        //stk_mesh->addSolutionField(varlist[j]+"x", block_names[i]);
-        //stk_mesh->addSolutionField(varlist[j]+"y", block_names[i]);
-        //stk_mesh->addSolutionField(varlist[j]+"z", block_names[i]);
-        stk_mesh->addCellField(varlist[j]+"x", block_names[i]);
-        if (spaceDim > 1) {
-          stk_mesh->addCellField(varlist[j]+"y", block_names[i]);
-        }
-        if (spaceDim > 2) {
-          stk_mesh->addCellField(varlist[j]+"z", block_names[i]);
-        }
-      }
-    }
-    
-    if (phys->have_aux) {
-      std::vector<string> varlist = phys->aux_varlist[i];
-      std::vector<string> vartypes = phys->aux_types[i];
-      for (size_t j=0; j<varlist.size(); j++) {
-        if (vartypes[j] == "HGRAD") {
-          stk_mesh->addSolutionField(varlist[j], block_names[i]);
-        }
-        else if (vartypes[j] == "HVOL") { // PW constant
-          stk_mesh->addCellField(varlist[j], block_names[i]);
-        }
-        else if (vartypes[j] == "HFACE") { // hybridized variable
-          stk_mesh->addCellField(varlist[j], block_names[i]);
-        }
-        else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL") { // HDIV or HCURL
-          //stk_mesh->addSolutionField(varlist[j]+"x", block_names[i]);
-          //stk_mesh->addSolutionField(varlist[j]+"y", block_names[i]);
-          //stk_mesh->addSolutionField(varlist[j]+"z", block_names[i]);
-          stk_mesh->addCellField(varlist[j]+"x", block_names[i]);
-          if (spaceDim > 1) {
-            stk_mesh->addCellField(varlist[j]+"y", block_names[i]);
-          }
-          if (spaceDim > 2) {
-            stk_mesh->addCellField(varlist[j]+"z", block_names[i]);
-          }
-        }
-      }
-    }
-    
-    stk_mesh->addSolutionField("dispx", block_names[i]);
-    stk_mesh->addSolutionField("dispy", block_names[i]);
-    stk_mesh->addSolutionField("dispz", block_names[i]);
-    
-    
-    Teuchos::ParameterList efields;
-    if (settings->sublist("Postprocess").isSublist(block_names[i])) {
-      efields = settings->sublist("Postprocess").sublist(block_names[i]).sublist("Extra fields");
     }
     else {
-      efields = settings->sublist("Postprocess").sublist("Extra fields");
-    }
-    Teuchos::ParameterList::ConstIterator ef_itr = efields.begin();
-    while (ef_itr != efields.end()) {
-      stk_mesh->addSolutionField(ef_itr->first, block_names[i]);
-      ef_itr++;
-    }
-    
-    Teuchos::ParameterList ecfields;
-    if (settings->sublist("Postprocess").isSublist(block_names[i])) {
-      ecfields = settings->sublist("Postprocess").sublist(block_names[i]).sublist("Extra cell fields");
-    }
-    else {
-      ecfields = settings->sublist("Postprocess").sublist("Extra cell fields");
-    }
-    Teuchos::ParameterList::ConstIterator ecf_itr = ecfields.begin();
-    while (ecf_itr != ecfields.end()) {
-      stk_mesh->addCellField(ecf_itr->first, block_names[i]);
-      if (settings->isSublist("Subgrid")) {
-        string sgfn = "subgrid_mean_" + ecf_itr->first;
-        stk_mesh->addCellField(sgfn, block_names[i]);
-      }
-      ecf_itr++;
-    }
-    
-    for (size_t j=0; j<phys->modules[i].size(); ++j) {
-      std::vector<string> derivedlist = phys->modules[i][j]->getDerivedNames();
-      for (size_t k=0; k<derivedlist.size(); ++k) {
-        stk_mesh->addCellField(derivedlist[k], block_names[i]);
-      }
-    }
-    
-    /*
-    std::vector<string> extrafields = phys->getExtraFieldNames(i);
-    for (size_t j=0; j<extrafields.size(); j++) {
-      stk_mesh->addSolutionField(extrafields[j], block_names[i]);
-    }
-    
-    std::vector<string> extracellfields = phys->getExtraCellFieldNames(i);
-    for (size_t j=0; j<extracellfields.size(); j++) {
-      stk_mesh->addCellField(extracellfields[j], block_names[i]);
-    }
-    if (settings->isSublist("Subgrid")) {
-      for (size_t j=0; j<extracellfields.size(); j++) {
-        string sgfn = "subgrid_mean_" + extracellfields[j];
-        stk_mesh->addCellField(sgfn, block_names[i]);
-      }
-    }
-    */
-    if (have_mesh_data || compute_mesh_data) {
-      stk_mesh->addCellField("mesh_data_seed", block_names[i]);
-      stk_mesh->addCellField("mesh_data", block_names[i]);
-    }
-    
-    stk_mesh->addCellField("subgrid model", block_names[i]);
-    
-    stk_mesh->addCellField("cell number", block_names[i]);
-    
-    if (settings->isSublist("Parameters")) {
-      Teuchos::ParameterList parameters = settings->sublist("Parameters");
-      Teuchos::ParameterList::ConstIterator pl_itr = parameters.begin();
-      while (pl_itr != parameters.end()) {
-        Teuchos::ParameterList newparam = parameters.sublist(pl_itr->first);
-        if (newparam.get<string>("usage") == "discretized") {
-          if (newparam.get<string>("type") == "HGRAD") {
-            stk_mesh->addSolutionField(pl_itr->first, block_names[i]);
-          }
-          else if (newparam.get<string>("type") == "HVOL") {
-            stk_mesh->addCellField(pl_itr->first, block_names[i]);
-          }
-          else if (newparam.get<string>("type") == "HDIV" || newparam.get<string>("type") == "HCURL") {
-            stk_mesh->addCellField(pl_itr->first+"x", block_names[i]);
-            if (spaceDim > 1) {
-              stk_mesh->addCellField(pl_itr->first+"y", block_names[i]);
-            }
-            if (spaceDim > 2) {
-              stk_mesh->addCellField(pl_itr->first+"z", block_names[i]);
-            }
-          }
-        }
-        pl_itr++;
-      }
+      appends = {""};
     }
   }
+  else {
+    appends = {""};
+  }
   
+  for (size_t app=0; app<appends.size(); ++app) {
+    
+    std::string append = appends[app];
+    
+    for(std::size_t i=0;i<block_names.size();i++) {
+      
+      std::vector<string> varlist = phys->varlist[i];
+      std::vector<string> vartypes = phys->types[i];
+      
+      for (size_t j=0; j<varlist.size(); j++) {
+        if (vartypes[j] == "HGRAD") {
+          stk_mesh->addSolutionField(varlist[j]+append, block_names[i]);
+        }
+        else if (vartypes[j] == "HVOL") { // PW constant
+          stk_mesh->addCellField(varlist[j]+append, block_names[i]);
+        }
+        else if (vartypes[j] == "HFACE") { // hybridized variable
+          stk_mesh->addCellField(varlist[j]+append, block_names[i]);
+        }
+        else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL") { // HDIV or HCURL
+          stk_mesh->addCellField(varlist[j]+append+"x", block_names[i]);
+          if (spaceDim > 1) {
+            stk_mesh->addCellField(varlist[j]+append+"y", block_names[i]);
+          }
+          if (spaceDim > 2) {
+            stk_mesh->addCellField(varlist[j]+append+"z", block_names[i]);
+          }
+        }
+      }
+      
+      if (phys->have_aux) {
+        std::vector<string> varlist = phys->aux_varlist[i];
+        std::vector<string> vartypes = phys->aux_types[i];
+        for (size_t j=0; j<varlist.size(); j++) {
+          if (vartypes[j] == "HGRAD") {
+            stk_mesh->addSolutionField(varlist[j]+append, block_names[i]);
+          }
+          else if (vartypes[j] == "HVOL") { // PW constant
+            stk_mesh->addCellField(varlist[j]+append, block_names[i]);
+          }
+          else if (vartypes[j] == "HFACE") { // hybridized variable
+            stk_mesh->addCellField(varlist[j]+append, block_names[i]);
+          }
+          else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL") { // HDIV or HCURL
+            stk_mesh->addCellField(varlist[j]+append+"x", block_names[i]);
+            if (spaceDim > 1) {
+              stk_mesh->addCellField(varlist[j]+append+"y", block_names[i]);
+            }
+            if (spaceDim > 2) {
+              stk_mesh->addCellField(varlist[j]+append+"z", block_names[i]);
+            }
+          }
+        }
+      }
+      
+      stk_mesh->addSolutionField("disp"+append+"x", block_names[i]);
+      stk_mesh->addSolutionField("disp"+append+"y", block_names[i]);
+      stk_mesh->addSolutionField("disp"+append+"z", block_names[i]);
+      
+      
+      Teuchos::ParameterList efields;
+      if (settings->sublist("Postprocess").isSublist(block_names[i])) {
+        efields = settings->sublist("Postprocess").sublist(block_names[i]).sublist("Extra fields");
+      }
+      else {
+        efields = settings->sublist("Postprocess").sublist("Extra fields");
+      }
+      Teuchos::ParameterList::ConstIterator ef_itr = efields.begin();
+      while (ef_itr != efields.end()) {
+        stk_mesh->addSolutionField(ef_itr->first+append, block_names[i]);
+        ef_itr++;
+      }
+      
+      Teuchos::ParameterList ecfields;
+      if (settings->sublist("Postprocess").isSublist(block_names[i])) {
+        ecfields = settings->sublist("Postprocess").sublist(block_names[i]).sublist("Extra cell fields");
+      }
+      else {
+        ecfields = settings->sublist("Postprocess").sublist("Extra cell fields");
+      }
+      Teuchos::ParameterList::ConstIterator ecf_itr = ecfields.begin();
+      while (ecf_itr != ecfields.end()) {
+        stk_mesh->addCellField(ecf_itr->first+append, block_names[i]);
+        if (settings->isSublist("Subgrid")) {
+          string sgfn = "subgrid_mean_" + ecf_itr->first;
+          stk_mesh->addCellField(sgfn+append, block_names[i]);
+        }
+        ecf_itr++;
+      }
+      
+      for (size_t j=0; j<phys->modules[i].size(); ++j) {
+        std::vector<string> derivedlist = phys->modules[i][j]->getDerivedNames();
+        for (size_t k=0; k<derivedlist.size(); ++k) {
+          stk_mesh->addCellField(derivedlist[k]+append, block_names[i]);
+        }
+      }
+      
+      if (have_mesh_data || compute_mesh_data) {
+        stk_mesh->addCellField("mesh_data_seed", block_names[i]);
+        stk_mesh->addCellField("mesh_data", block_names[i]);
+      }
+      
+      stk_mesh->addCellField("subgrid model", block_names[i]);
+      
+      stk_mesh->addCellField("cell number", block_names[i]);
+      
+      if (settings->isSublist("Parameters")) {
+        Teuchos::ParameterList parameters = settings->sublist("Parameters");
+        Teuchos::ParameterList::ConstIterator pl_itr = parameters.begin();
+        while (pl_itr != parameters.end()) {
+          Teuchos::ParameterList newparam = parameters.sublist(pl_itr->first);
+          if (newparam.get<string>("usage") == "discretized") {
+            if (newparam.get<string>("type") == "HGRAD") {
+              stk_mesh->addSolutionField(pl_itr->first+append, block_names[i]);
+            }
+            else if (newparam.get<string>("type") == "HVOL") {
+              stk_mesh->addCellField(pl_itr->first+append, block_names[i]);
+            }
+            else if (newparam.get<string>("type") == "HDIV" || newparam.get<string>("type") == "HCURL") {
+              stk_mesh->addCellField(pl_itr->first+append+"x", block_names[i]);
+              if (spaceDim > 1) {
+                stk_mesh->addCellField(pl_itr->first+append+"y", block_names[i]);
+              }
+              if (spaceDim > 2) {
+                stk_mesh->addCellField(pl_itr->first+append+"z", block_names[i]);
+              }
+            }
+          }
+          pl_itr++;
+        }
+      }
+    }
+    
+  }
   mesh_factory->completeMeshConstruction(*stk_mesh,*(Commptr->getRawMpiComm()));
   
   if (verbosity>1) {

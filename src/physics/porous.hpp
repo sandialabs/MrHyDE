@@ -71,6 +71,7 @@ namespace MrHyDE {
     
     void updatePerm(View_AD2 perm);
     
+    
   private:
     
     int pnum;

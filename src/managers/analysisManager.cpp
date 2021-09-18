@@ -200,8 +200,14 @@ void AnalysisManager::run() {
         else if (regenerate_rotations) {
           this->updateRotationData(sampleints(j));
         }
+        
+        std::stringstream ss;
+        ss << j;
+        postproc->append = ss.str();
+        
         solve->forwardModel(objfun);
         postproc->report();
+        
         if (Comm->getRank() == 0 && j%output_freq == 0) {
           cout << "Finished evaluating sample number: " << j+1 << " out of " << numsamples << endl;
         }

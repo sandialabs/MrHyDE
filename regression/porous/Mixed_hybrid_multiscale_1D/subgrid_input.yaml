@@ -1,0 +1,33 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Subgrid:
+    debug level: 0
+    subgrid model: FEM
+    Mesh:
+      mesh type: panzer
+      element type: interval
+      refinements: 4
+      dimension: 1
+      blocknames: eblock
+    Physics:
+      modules: porous mixed
+      use permeability data: false
+    Solver:
+      solver: steady-state
+      use direct solver: true
+    Functions:
+      source: 4*(pi*pi)*sin(2*pi*x)
+    Discretization:
+      order:
+        p: 0
+        u: 1
+      quadrature: 2
+    Postprocess:
+      store aux and flux: false
+      write solution: false
+      plot solution at nodes: false
+      True solutions:
+        p: sin(2*pi*x)
+        'u': -2*pi*cos(2*pi*x)
+...

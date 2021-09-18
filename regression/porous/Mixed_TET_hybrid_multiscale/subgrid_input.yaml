@@ -1,0 +1,33 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Subgrid:
+    subgrid model: FEM
+    Mesh:
+      element type: tet
+      macro element type: tet
+      refinements: 0
+      dimension: 3
+      blocknames: eblock
+    Physics:
+      modules: porous mixed
+    Solver:
+      solver: steady-state
+      use direct solver: true
+    Functions:
+      source: 12*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+    Discretization:
+      order:
+        p: 0
+        u: 1
+      quadrature: 2
+    Postprocess:
+      store aux and flux: false
+      write solution: false
+      plot solution at nodes: false
+      True solutions:
+        p: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+        'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+        'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)*sin(2*pi*z)
+        'u[z]': -2*pi*sin(2*pi*x)*sin(2*pi*y)*cos(2*pi*z)
+...

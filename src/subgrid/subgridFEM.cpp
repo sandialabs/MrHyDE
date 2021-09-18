@@ -863,7 +863,7 @@ void SubGridFEM::setUpSubgridModels() {
       Teuchos::RCP<SG_MultiVector> init = sub_solver->solver->linalg->getNewOverlappedVector();
       this->setInitial(init, mindex, false);
       soln->store(init,initial_time,mindex);
-      
+      sub_solver->performGather(mindex, init, 0, 0);
       Teuchos::RCP<SG_MultiVector> inita = sub_solver->solver->linalg->getNewOverlappedVector();
       adjsoln->store(inita,final_time,mindex);
     }

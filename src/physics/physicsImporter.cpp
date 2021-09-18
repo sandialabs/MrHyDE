@@ -15,9 +15,9 @@
 
 // Enabled physics modules:
 #include "porous.hpp"
-#include "porousHDIV.hpp"
-#include "porousHDIV_hybridized.hpp"
-#include "porousHDIV_weakGalerkin.hpp"
+#include "porousMixed.hpp"
+#include "porousMixedHybridized.hpp"
+#include "porousWeakGalerkin.hpp"
 #include "cdr.hpp"
 #include "thermal.hpp"
 #include "msphasefield.hpp"
@@ -53,18 +53,18 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
     }
     
     // Porous media with HDIV basis
-    if (modname == "porousHDIV") {
-      modules.push_back(Teuchos::rcp(new porousHDIV(settings, isaux) ) );
+    if (modname == "porous mixed") {
+      modules.push_back(Teuchos::rcp(new porousMixed(settings, isaux) ) );
     }
     
     // Hybridized porous media with HDIV basis
-    if (modname == "porousHDIV_hybrid") {
-      modules.push_back(Teuchos::rcp(new porousHDIV_HYBRID(settings, isaux) ) );
+    if (modname == "porous mixed hybridized") {
+      modules.push_back(Teuchos::rcp(new porousMixedHybrid(settings, isaux) ) );
     }
     
     // weak Galerkin porous media with HDIV basis
-    if (modname == "porousHDIV_weakGalerkin") {
-      modules.push_back(Teuchos::rcp(new porousHDIV_WG(settings, isaux) ) );
+    if (modname == "porous weak Galerkin") {
+      modules.push_back(Teuchos::rcp(new porousWeakGalerkin(settings, isaux) ) );
     }
         
     // Convection diffusion

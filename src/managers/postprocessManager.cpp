@@ -104,6 +104,8 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     }
   }
   
+  append = "";
+  
   if (verbosity > 0 && Comm->getRank() == 0) {
     if (write_solution && !write_HFACE_variables) {
       bool have_HFACE_vars = false;
@@ -823,8 +825,6 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
       }
       for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
         if (have_vol_errs) {
-          //assembler->wkset[altblock]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
-          //assembler->cells[block][cell]->computeSolnVolIP();
           assembler->cells[block][cell]->updateWorkset(seedwhat,true);
         }
         auto wts = assembler->cells[block][cell]->wkset->wts;
@@ -838,6 +838,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             string expression = varname;
             auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
             auto sol = assembler->wkset[altblock]->getData(expression);
+            
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
@@ -3121,16 +3122,16 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
           Kokkos::deep_copy(soln_computed, soln_dev);
           
           if (var == "dx") {
-            mesh->stk_mesh->setSolutionFieldData("dispx", blockID, myElements, soln_computed);
+            mesh->stk_mesh->setSolutionFieldData("disp"+append+"x", blockID, myElements, soln_computed);
           }
           if (var == "dy") {
-            mesh->stk_mesh->setSolutionFieldData("dispy", blockID, myElements, soln_computed);
+            mesh->stk_mesh->setSolutionFieldData("disp"+append+"y", blockID, myElements, soln_computed);
           }
           if (var == "dz" || var == "H") {
-            mesh->stk_mesh->setSolutionFieldData("dispz", blockID, myElements, soln_computed);
+            mesh->stk_mesh->setSolutionFieldData("disp"+append+"z", blockID, myElements, soln_computed);
           }
           
-          mesh->stk_mesh->setSolutionFieldData(var, blockID, myElements, soln_computed);
+          mesh->stk_mesh->setSolutionFieldData(var+append, blockID, myElements, soln_computed);
         }
         else if (vartypes[n] == "HVOL") {
           Kokkos::View<ScalarT*,AssemblyDevice> soln_dev("solution",myElements.size());
@@ -3146,7 +3147,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             });
           }
           Kokkos::deep_copy(soln_computed,soln_dev);
-          mesh->stk_mesh->setCellFieldData(var, blockID, myElements, soln_computed);
+          mesh->stk_mesh->setCellFieldData(var+append, blockID, myElements, soln_computed);
         }
         else if (vartypes[n] == "HDIV" || vartypes[n] == "HCURL") { // need to project each component onto PW-linear basis and PW constant basis
           Kokkos::View<ScalarT*,AssemblyDevice> soln_x_dev("solution",myElements.size());
@@ -3174,12 +3175,12 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
           Kokkos::deep_copy(soln_x, soln_x_dev);
           Kokkos::deep_copy(soln_y, soln_y_dev);
           Kokkos::deep_copy(soln_z, soln_z_dev);
-          mesh->stk_mesh->setCellFieldData(var+"x", blockID, myElements, soln_x);
+          mesh->stk_mesh->setCellFieldData(var+append+"x", blockID, myElements, soln_x);
           if (spaceDim > 1) {
-            mesh->stk_mesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
+            mesh->stk_mesh->setCellFieldData(var+append+"y", blockID, myElements, soln_y);
           }
           if (spaceDim > 2) {
-            mesh->stk_mesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
+            mesh->stk_mesh->setCellFieldData(var+append+"z", blockID, myElements, soln_z);
           }
           
         }
@@ -3215,7 +3216,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             soln_faceavg_dev(elem) *= 1.0/face_measure_dev(elem);
           });
           Kokkos::deep_copy(soln_faceavg, soln_faceavg_dev);
-          mesh->stk_mesh->setCellFieldData(varlist[b][n], blockID, myElements, soln_faceavg);
+          mesh->stk_mesh->setCellFieldData(varlist[b][n]+append, blockID, myElements, soln_faceavg);
         }
       }
       
@@ -3243,16 +3244,16 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             Kokkos::deep_copy(soln_computed, soln_dev);
             
             if (var == "dx") {
-              mesh->stk_mesh->setSolutionFieldData("dispx", blockID, myElements, soln_computed);
+              mesh->stk_mesh->setSolutionFieldData("disp"+append+"x", blockID, myElements, soln_computed);
             }
             if (var == "dy") {
-              mesh->stk_mesh->setSolutionFieldData("dispy", blockID, myElements, soln_computed);
+              mesh->stk_mesh->setSolutionFieldData("disp"+append+"y", blockID, myElements, soln_computed);
             }
             if (var == "dz" || var == "H") {
-              mesh->stk_mesh->setSolutionFieldData("dispz", blockID, myElements, soln_computed);
+              mesh->stk_mesh->setSolutionFieldData("disp"+append+"z", blockID, myElements, soln_computed);
             }
             
-            mesh->stk_mesh->setSolutionFieldData(var, blockID, myElements, soln_computed);
+            mesh->stk_mesh->setSolutionFieldData(var+append, blockID, myElements, soln_computed);
           }
           else if (vartypes[n] == "HVOL") {
             Kokkos::View<ScalarT*,AssemblyDevice> soln_dev("solution",myElements.size());
@@ -3265,7 +3266,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
               });
             }
             Kokkos::deep_copy(soln_computed,soln_dev);
-            mesh->stk_mesh->setCellFieldData(var, blockID, myElements, soln_computed);
+            mesh->stk_mesh->setCellFieldData(var+append, blockID, myElements, soln_computed);
           }
           else if (vartypes[n] == "HDIV" || vartypes[n] == "HCURL") { // need to project each component onto PW-linear basis and PW constant basis
             Kokkos::View<ScalarT*,AssemblyDevice> soln_x_dev("solution",myElements.size());
@@ -3290,9 +3291,9 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             Kokkos::deep_copy(soln_x, soln_x_dev);
             Kokkos::deep_copy(soln_y, soln_y_dev);
             Kokkos::deep_copy(soln_z, soln_z_dev);
-            mesh->stk_mesh->setCellFieldData(var+"x", blockID, myElements, soln_x);
-            mesh->stk_mesh->setCellFieldData(var+"y", blockID, myElements, soln_y);
-            mesh->stk_mesh->setCellFieldData(var+"z", blockID, myElements, soln_z);
+            mesh->stk_mesh->setCellFieldData(var+append+"x", blockID, myElements, soln_x);
+            mesh->stk_mesh->setCellFieldData(var+append+"y", blockID, myElements, soln_y);
+            mesh->stk_mesh->setCellFieldData(var+append+"z", blockID, myElements, soln_z);
             
           }
           else if (vartypes[n] == "HFACE" && write_HFACE_variables) {
@@ -3326,7 +3327,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
               soln_faceavg_dev(elem) *= 1.0/face_measure_dev(elem);
             });
             Kokkos::deep_copy(soln_faceavg, soln_faceavg_dev);
-            mesh->stk_mesh->setCellFieldData(var, blockID, myElements, soln_faceavg);
+            mesh->stk_mesh->setCellFieldData(var+append, blockID, myElements, soln_faceavg);
           }
         }
       }
@@ -3356,7 +3357,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
               });
             }
             Kokkos::deep_copy(soln_computed, soln_dev);
-            mesh->stk_mesh->setSolutionFieldData(dpnames[n], blockID, myElements, soln_computed);
+            mesh->stk_mesh->setSolutionFieldData(dpnames[n]+append, blockID, myElements, soln_computed);
           }
           else if (discParamTypes[bnum] == "HVOL") {
             Kokkos::View<ScalarT*,AssemblyDevice> soln_dev("solution",myElements.size());
@@ -3370,7 +3371,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
               });
             }
             Kokkos::deep_copy(soln_computed, soln_dev);
-            mesh->stk_mesh->setCellFieldData(dpnames[n], blockID, myElements, soln_computed);
+            mesh->stk_mesh->setCellFieldData(dpnames[n]+append, blockID, myElements, soln_computed);
           }
           else if (discParamTypes[bnum] == "HDIV" || discParamTypes[n] == "HCURL") {
             // TMW: this is not actually implemented yet ... not hard to do though
@@ -3458,7 +3459,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
         
         for (size_t j=0; j<extracellfields_list[b].size(); j++) {
           auto ccd = subview(ecd,ALL(),j);
-          mesh->stk_mesh->setCellFieldData(extracellfields_list[b][j], blockID, myElements, ccd);
+          mesh->stk_mesh->setCellFieldData(extracellfields_list[b][j]+append, blockID, myElements, ccd);
         }
       }
       
@@ -3490,7 +3491,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
         
         for (size_t j=0; j<derivedquantities_list[b].size(); j++) {
           auto cdq = subview(dq,ALL(),j);
-          mesh->stk_mesh->setCellFieldData(derivedquantities_list[b][j], blockID, myElements, cdq);
+          mesh->stk_mesh->setCellFieldData(derivedquantities_list[b][j]+append, blockID, myElements, cdq);
         }
       }
       

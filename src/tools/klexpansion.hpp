@@ -14,7 +14,8 @@
 #ifndef KLEXP_H
 #define KLEXP_H
 
-//using namespace std;
+#include "trilinos.hpp"
+#include "preferences.hpp"
 
 namespace MrHyDE {
   
@@ -25,10 +26,13 @@ namespace MrHyDE {
     //  Various constructors depending on the characteristics of the data (spatial,
     //  transient, stochastic, etc.)
     /////////////////////////////////////////////////////////////////////////////
+    klexpansion() {};
     
-    klexpansion(const size_t & N_, const ScalarT & L_, const ScalarT & sigma_, const ScalarT & eta_) :
+    klexpansion(const size_t & N_, const ScalarT & L_,
+                const ScalarT & sigma_, const ScalarT & eta_) :
     N(N_), L(L_), sigma(sigma_), eta(eta_) {
       
+      omega = View_Sc1("storage of KL omega",N);
       this->computeRoots();
       
     }
@@ -44,71 +48,97 @@ namespace MrHyDE {
       int maxiter = 1000;
       int iter = 0;
       ScalarT om = ig;
-      ScalarT f, df;
-      while (omega.size() < N && iter < maxiter) {
+      ScalarT f, df, fprev;
+      fprev = this->chareqn(om);
+      std::vector<ScalarT> tmp_omega;
+      while (tmp_omega.size() < N && iter < maxiter) {
         iter++;
         ig += step;
         om = ig;
         f = this->chareqn(om);
-        while (std::abs(f) > nltol) {
-          df = this->dchareqn(om);
-          om += -f/df;
-          f = this->chareqn(om);
-          std::cout << "omega = " << om << "  f = " << f << std::endl;
-        }
-        if (omega.size() > 0) {
-          if (std::abs(om-omega[omega.size()-1]) > ctol) {
-            omega.push_back(om);
+        if (f*fprev < 0) {
+          fprev = f;
+          int nliter = 0;
+          int maxnliter = 10;
+          while (std::abs(f) > nltol && nliter < maxnliter) {
+            nliter++;
+            df = this->dchareqn(om);
+            om += -f/df;
+            f = this->chareqn(om);
+            //std::cout << "omega = " << om << "  f = " << f << std::endl;
+          }
+          if (tmp_omega.size() > 0) {
+            bool prefnd = false;
+            for (size_t j=0; j<tmp_omega.size(); ++j) {
+              if (std::abs(om-tmp_omega[j]) < ctol) {
+                prefnd = true;
+              }
+            }
+            if (!prefnd) {
+              tmp_omega.push_back(om);
+            }
+          }
+          else {
+            tmp_omega.push_back(om);
           }
         }
-        else {
-          omega.push_back(om);
-        }
       }
+      auto host_omega = create_mirror_view(omega);
+      for (size_t k=0; k<tmp_omega.size(); ++k) {
+        host_omega(k) = tmp_omega[k];
+      }
+      deep_copy(omega,host_omega);
+      
     }
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     
+    KOKKOS_INLINE_FUNCTION
     ScalarT chareqn(const ScalarT & om) {
-      ScalarT f = (eta*eta*om*om - 1.0)*std::sin(om*L) - 2.0*eta*om*std::cos(om*L);
+      using namespace std;
+      ScalarT f = (eta*eta*om*om - 1.0)*sin(om*L) - 2.0*eta*om*cos(om*L);
       return f;
     }
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     
+    KOKKOS_INLINE_FUNCTION
     ScalarT dchareqn(const ScalarT & om) {
-      ScalarT df = 2.0*om*eta*eta*std::sin(om*L)+(eta*eta*om*om - 1.0)*L*std::cos(om*L) - 2.0*eta*std::cos(om*L) + 2.0*eta*om*L*std::sin(om*L);
+      using namespace std;
+      ScalarT df = 2.0*om*eta*eta*sin(om*L)+(eta*eta*om*om - 1.0)*L*cos(om*L) - 2.0*eta*cos(om*L) + 2.0*eta*om*L*sin(om*L);
       return df;
     }
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     
+    KOKKOS_INLINE_FUNCTION
     ScalarT getEval(const int & i) const {
-      ScalarT lam = (2.0*eta*sigma*sigma) / (eta*eta*omega[i]*omega[i]+1.0);
+      using namespace std;
+      ScalarT lam = (2.0*eta*sigma*sigma) / (eta*eta*omega(i)*omega(i)+1.0);
       return lam;
     }
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     
+    KOKKOS_INLINE_FUNCTION
     ScalarT getEvec(const int & i, const ScalarT & x) const {
-      ScalarT f = 1.0/(std::sqrt((eta*eta*omega[i]*omega[i]+1.0)*L/2.0 + eta))*(eta*omega[i]*std::cos(omega[i]*x) + std::sin(omega[i]*x));
+      using namespace std;
+      ScalarT f = 1.0/(sqrt((eta*eta*omega(i)*omega(i)+1.0)*L/2.0 + eta))*(eta*omega[i]*cos(omega(i)*x) + sin(omega(i)*x));
       return f;
     }
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     
-  protected:
-    
     size_t N;
     ScalarT L, sigma, eta;
     
-    std::vector<ScalarT> omega;
-    
+    //std::vector<ScalarT> omega;
+    View_Sc1 omega;
   };
   
 }

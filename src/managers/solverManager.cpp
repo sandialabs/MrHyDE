@@ -1401,7 +1401,7 @@ int SolverManager<Node>::nonlinearSolver(vector_RCP & u, vector_RCP & phi) {
   }
   
   if (debug_level>2) {
-    //KokkosTools::print(u);
+    KokkosTools::print(u);
   }
   
   if (Comm->getRank() == 0) {
