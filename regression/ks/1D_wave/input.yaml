@@ -1,0 +1,42 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh:
+    dimension: 1
+    element type: interval
+    xmin: 0.0
+    xmax: 1.0
+    NX: 10
+    blocknames: eblock-0
+  Physics: 
+    modules: Kuramoto-Sivashinsky
+    Periodic BCs:
+      Count: 1
+      Periodic Condition 1: 'x-all 1e-8: left;right'
+    Initial conditions:
+      u: 'sin(2*pi*x)'
+  Discretization:
+    order:
+      u: 1
+      w: 1
+    quadrature: 2
+  Solver:
+    solver: transient
+    transient Butcher tableau: BWE
+    workset size: 100
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 10
+    final time: 2.0e-2
+    delta t: 1.0e-3
+    use strong DBCs: true
+    use direct solver: true
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    compute errors: true
+    True solutions:
+      u: '0.0'
+      w: '0.0'
+...

@@ -18,6 +18,15 @@
 
 namespace MrHyDE {
   
+  // This class solves the Kuramoto-Sivashinsky equation in multiple dimensions:
+  //   u_t + \Delta u + \Delta^{2} u + {\frac {1}{2}}|\nabla u|^{2} = 0.
+  // It reformulates the problem as:
+  //   u_t + w + \Delta w + {\frac {1}{2}|\nabla u|^{2}} = 0,
+  //   \Delta u - w = 0.
+  // Then solves the mixed system assuming periodic boundary conditions on u and 
+  // no boundary conditions on w.
+
+
   class KuramotoSivashinsky : public physicsbase {
   public:
     
@@ -40,6 +49,15 @@ namespace MrHyDE {
     // ========================================================================================
     
     void volumeResidual();
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void setWorkset(Teuchos::RCP<workset> & wkset_);
+
+  private:
+
+    int u_num, w_num;
     
   };
   
