@@ -607,7 +607,7 @@ View_Sc3 BoundaryCell::getMass() {
           }
         });
       }
-      else if (btype == "HDIV"){
+      else if (btype == "HDIV") {
         auto cnormals = normals;
         View_Sc2 nx, ny, nz;
         nx = cnormals[0];
@@ -627,7 +627,7 @@ View_Sc3 BoundaryCell::getMass() {
                 if (cbasis.extent(3)>1) {
                   mass(e,off(i),off(j)) += cbasis(e,i,k,1)*ny(e,k)*cbasis(e,j,k,1)*ny(e,k)*cwts(e,k);
                 }
-                if (cbasis.extent(3)>1) {
+                if (cbasis.extent(3)>2) {
                   mass(e,off(i),off(j)) += cbasis(e,i,k,2)*nz(e,k)*cbasis(e,j,k,2)*nz(e,k)*cwts(e,k);
                 }
               }

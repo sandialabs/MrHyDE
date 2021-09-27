@@ -98,6 +98,7 @@ namespace MrHyDE {
     ScalarT biot_alpha;
     string auxvar;
     klexpansion permKLx, permKLy, permKLz;
+    Kokkos::View<size_t**,AssemblyDevice> KLindices;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::porousMixed::volumeResidual() - function evaluation");
     Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::porousMixed::volumeResidual() - evaluation of residual");

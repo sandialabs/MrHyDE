@@ -59,19 +59,121 @@ porousMixed::porousMixed(Teuchos::RCP<Teuchos::ParameterList> & settings, const 
                             KLlist.sublist("x-direction").get<double>("L"),
                             KLlist.sublist("x-direction").get<double>("sigma"),
                             KLlist.sublist("x-direction").get<double>("eta"));
+      int numindices = permKLx.N;
       if (spaceDim > 1) {
-        permKLx = klexpansion(KLlist.sublist("y-direction").get<int>("N"),
+        permKLy = klexpansion(KLlist.sublist("y-direction").get<int>("N"),
                               KLlist.sublist("y-direction").get<double>("L"),
                               KLlist.sublist("y-direction").get<double>("sigma"),
                               KLlist.sublist("y-direction").get<double>("eta"));
+        numindices *= permKLy.N;
       }
       if (spaceDim > 2) {
-        permKLx = klexpansion(KLlist.sublist("z-direction").get<int>("N"),
+        permKLz = klexpansion(KLlist.sublist("z-direction").get<int>("N"),
                               KLlist.sublist("z-direction").get<double>("L"),
                               KLlist.sublist("z-direction").get<double>("sigma"),
                               KLlist.sublist("z-direction").get<double>("eta"));
+        numindices *= permKLz.N;
       }
 
+      // Need to define these indices so the coeffs are ordered properly
+      KLindices = Kokkos::View<size_t**,AssemblyDevice>("KL indices",numindices,spaceDim);
+      int prog = 0;
+      if (spaceDim == 1) {
+        for (size_t i=0; i<permKLx.N; ++i) {
+          KLindices(prog,0) = i;
+          prog++;
+        }
+      }
+      else if (spaceDim == 2) {
+        size_t Nmax = std::max(permKLx.N,permKLy.N);
+        for (size_t k=0; k<Nmax; ++k) {
+          if (permKLx.N > k) {
+            for (size_t j=0; j<std::min(k,permKLy.N); ++j) {
+              KLindices(prog,0) = k;
+              KLindices(prog,1) = j;
+              prog++;
+            }
+          }
+          if (permKLy.N > k) {
+            for (size_t j=0; j<std::min(k,permKLx.N); ++j) {
+              KLindices(prog,0) = j;
+              KLindices(prog,1) = k;
+              prog++;
+            }
+          }
+          if (permKLx.N > k && permKLy.N > k) {
+            KLindices(prog,0) = k;
+            KLindices(prog,1) = k;
+            prog++;
+          }
+        }
+      }
+      else if (spaceDim == 3) {
+        size_t Nmax = std::max(permKLx.N,permKLy.N);
+        Nmax = std::max(Nmax,permKLz.N);
+        for (size_t k=0; k<Nmax; ++k) {
+          if (permKLx.N > k) {
+            for (size_t j=0; j<std::min(k,permKLy.N); ++j) {
+              for (size_t l=0; l<std::min(k,permKLz.N); ++l) {
+                KLindices(prog,0) = k;
+                KLindices(prog,1) = j;
+                KLindices(prog,2) = l;
+                prog++;
+              }
+            }
+          }
+          if (permKLy.N > k) {
+            for (size_t j=0; j<std::min(k,permKLx.N); ++j) {
+              for (size_t l=0; l<std::min(k,permKLz.N); ++l) {
+                KLindices(prog,0) = j;
+                KLindices(prog,1) = k;
+                KLindices(prog,2) = l;
+                prog++;
+              }
+            }
+          }
+          if (permKLz.N > k) {
+            for (size_t j=0; j<std::min(k,permKLx.N); ++j) {
+              for (size_t l=0; l<std::min(k,permKLy.N); ++l) {
+                KLindices(prog,0) = j;
+                KLindices(prog,1) = l;
+                KLindices(prog,2) = k;
+                prog++;
+              }
+            }
+          }
+          if (permKLx.N > k && permKLy.N > k) {
+            for (size_t l=0; l<std::min(k,permKLz.N); ++l) {
+              KLindices(prog,0) = k;
+              KLindices(prog,1) = k;
+              KLindices(prog,2) = l;
+              prog++;
+            }
+          }
+          if (permKLx.N > k && permKLz.N > k) {
+            for (size_t l=0; l<std::min(k,permKLy.N); ++l) {
+              KLindices(prog,0) = k;
+              KLindices(prog,1) = l;
+              KLindices(prog,2) = k;
+              prog++;
+            }
+          }
+          if (permKLy.N > k && permKLz.N > k) {
+            for (size_t l=0; l<std::min(k,permKLx.N); ++l) {
+              KLindices(prog,0) = l;
+              KLindices(prog,1) = k;
+              KLindices(prog,2) = k;
+              prog++;
+            }
+          }
+          if (permKLx.N > k && permKLy.N > k && permKLz.N > k) {
+            KLindices(prog,0) = k;
+            KLindices(prog,1) = k;
+            KLindices(prog,2) = k;
+            prog++;
+          }
+        }
+      }
     }
     else {
       // throw an error
@@ -148,12 +250,12 @@ void porousMixed::volumeResidual() {
         
         if (spaceDim > 1) {
           for (size_type pt=0; pt<KL_Kyy.extent(1); ++pt) {
-            new_Kyy(elem,pt) *= Kinv_yy(elem,pt)/exp(KL_Kyy(elem,pt));
+            new_Kyy(elem,pt) = Kinv_yy(elem,pt)/exp(KL_Kyy(elem,pt));
           }
         }
         if (spaceDim > 2) {
           for (size_type pt=0; pt<KL_Kzz.extent(1); ++pt) {
-            new_Kzz(elem,pt) *= Kinv_zz(elem,pt)/exp(KL_Kzz(elem,pt));
+            new_Kzz(elem,pt) = Kinv_zz(elem,pt)/exp(KL_Kzz(elem,pt));
           }
         }
         
@@ -514,27 +616,75 @@ void porousMixed::updatePerm(View_AD2 Kinv_xx, View_AD2 Kinv_yy, View_AD2 Kinv_z
 void porousMixed::updateKLPerm(View_AD2 KL_Kxx,
                                View_AD2 KL_Kyy, View_AD2 KL_Kzz) {
   
-  //int spaceDim = wkset->dimension;
-  int N = permKLx.N;
+  int spaceDim = wkset->dimension;
   
   bool foundUQ = false;
   auto KLUQcoeffs = wkset->getParameter("KLUQcoeffs",foundUQ);
-  int prog = 0;
+  size_type prog = 0;
   auto xpts = wkset->getDataSc("x");
+  auto indices = KLindices;
   
   if (foundUQ) {
-    parallel_for("porous KL update perm",
-                 RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
-      
-      for (size_type k=0; k<KLUQcoeffs.extent(0); ++k) {
-        ScalarT eval = permKLx.getEval(k);
-        for (size_type pt=0; pt<xpts.extent(1); ++pt) {
-          ScalarT evec = permKLx.getEvec(k,xpts(elem,pt));
-          KL_Kxx(elem,pt) += KLUQcoeffs(k)*sqrt(eval)*evec;
+    size_type maxind = std::min(KLUQcoeffs.extent(0),indices.extent(0));
+    if (spaceDim == 1) {
+      parallel_for("porous KL update perm",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        
+        for (size_type k=0; k<maxind; ++k) {
+          ScalarT eval = permKLx.getEval(k);
+          for (size_type pt=0; pt<xpts.extent(1); ++pt) {
+            ScalarT evec = permKLx.getEvec(k,xpts(elem,pt));
+            KL_Kxx(elem,pt) += KLUQcoeffs(k)*sqrt(eval)*evec;
+          }
         }
-      }
-    });
+      });
+    }
+    else if (spaceDim == 2) {
+      auto ypts = wkset->getDataSc("y");
+      parallel_for("porous KL update perm",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        
+        for (size_type k=0; k<maxind; ++k) {
+          int xind = indices(k,0);
+          int yind = indices(k,1);
+          ScalarT evalx = permKLx.getEval(xind);
+          ScalarT evaly = permKLy.getEval(yind);
+          for (size_type pt=0; pt<xpts.extent(1); ++pt) {
+            ScalarT evecx = permKLx.getEvec(xind,xpts(elem,pt));
+            ScalarT evecy = permKLy.getEvec(yind,ypts(elem,pt));
+            KL_Kxx(elem,pt) += KLUQcoeffs(k)*sqrt(evalx*evaly)*evecx*evecy;
+            KL_Kyy(elem,pt) += KLUQcoeffs(k)*sqrt(evalx*evaly)*evecx*evecy;
+          }
+        }
+      });
+    }
+    else if (spaceDim == 3) {
+      auto ypts = wkset->getDataSc("y");
+      auto zpts = wkset->getDataSc("z");
+      parallel_for("porous KL update perm",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        
+        for (size_type k=0; k<maxind; ++k) {
+          int xind = indices(k,0);
+          int yind = indices(k,1);
+          int zind = indices(k,2);
+          ScalarT evalx = permKLx.getEval(xind);
+          ScalarT evaly = permKLy.getEval(yind);
+          ScalarT evalz = permKLy.getEval(zind);
+          for (size_type pt=0; pt<xpts.extent(1); ++pt) {
+            ScalarT evecx = permKLx.getEvec(xind,xpts(elem,pt));
+            ScalarT evecy = permKLy.getEvec(yind,ypts(elem,pt));
+            ScalarT evecz = permKLz.getEvec(zind,zpts(elem,pt));
+            KL_Kxx(elem,pt) += KLUQcoeffs(k)*sqrt(evalx*evaly*evalz)*evecx*evecy*evecz;
+            KL_Kyy(elem,pt) += KLUQcoeffs(k)*sqrt(evalx*evaly*evalz)*evecx*evecy*evecz;
+            KL_Kxx(elem,pt) += KLUQcoeffs(k)*sqrt(evalx*evaly*evalz)*evecx*evecy*evecz;
+          }
+        }
+      });
+    }
     
     prog += KLUQcoeffs.extent(0);
   }
@@ -543,18 +693,68 @@ void porousMixed::updateKLPerm(View_AD2 KL_Kxx,
   auto KLStochcoeffs = wkset->getParameter("KLStochcoeffs",foundStoch);
   
   if (foundStoch) {
-    parallel_for("porous KL update perm",
-                 RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
-      
-      for (int k=prog; k<N; ++k) {
-        ScalarT eval = permKLx.getEval(k);
-        for (size_type pt=0; pt<xpts.extent(1); ++pt) {
-          ScalarT evec = permKLx.getEvec(k,xpts(elem,pt));
-          KL_Kxx(elem,pt) += KLStochcoeffs(k-prog)*sqrt(eval)*evec;
+    
+    size_type maxind = std::min(indices.extent(0), prog+KLStochcoeffs.extent(0));
+    if (spaceDim == 1) {
+      parallel_for("porous KL update perm",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        
+        for (size_type k=prog; k<maxind; ++k) {
+          ScalarT eval = permKLx.getEval(k);
+          for (size_type pt=0; pt<xpts.extent(1); ++pt) {
+            ScalarT evec = permKLx.getEvec(k,xpts(elem,pt));
+            KL_Kxx(elem,pt) += KLStochcoeffs(k-prog)*sqrt(eval)*evec;
+          }
         }
-      }
-    });
+      });
+    }
+    else if (spaceDim == 2) {
+      auto ypts = wkset->getDataSc("y");
+      
+      parallel_for("porous KL update perm",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        
+        for (size_type k=prog; k<maxind; ++k) {
+          int xind = indices(k,0);
+          int yind = indices(k,1);
+          ScalarT evalx = permKLx.getEval(xind);
+          ScalarT evaly = permKLy.getEval(yind);
+          for (size_type pt=0; pt<xpts.extent(1); ++pt) {
+            ScalarT evecx = permKLx.getEvec(xind,xpts(elem,pt));
+            ScalarT evecy = permKLy.getEvec(yind,ypts(elem,pt));
+            KL_Kxx(elem,pt) += KLStochcoeffs(k-prog)*sqrt(evalx*evaly)*evecx*evecy;
+            KL_Kyy(elem,pt) += KLStochcoeffs(k-prog)*sqrt(evalx*evaly)*evecx*evecy;
+          }
+        }
+      });
+    }
+    else if (spaceDim == 3) {
+      auto ypts = wkset->getDataSc("y");
+      auto zpts = wkset->getDataSc("z");
+      parallel_for("porous KL update perm",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        
+        for (size_type k=prog; k<maxind; ++k) {
+          int xind = indices(k,0);
+          int yind = indices(k,1);
+          int zind = indices(k,2);
+          ScalarT evalx = permKLx.getEval(xind);
+          ScalarT evaly = permKLy.getEval(yind);
+          ScalarT evalz = permKLz.getEval(zind);
+          for (size_type pt=0; pt<xpts.extent(1); ++pt) {
+            ScalarT evecx = permKLx.getEvec(xind,xpts(elem,pt));
+            ScalarT evecy = permKLy.getEvec(yind,ypts(elem,pt));
+            ScalarT evecz = permKLz.getEvec(zind,zpts(elem,pt));
+            KL_Kxx(elem,pt) += KLStochcoeffs(k-prog)*sqrt(evalx*evaly*evalz)*evecx*evecy*evecz;
+            KL_Kyy(elem,pt) += KLStochcoeffs(k-prog)*sqrt(evalx*evaly*evalz)*evecx*evecy*evecz;
+            KL_Kzz(elem,pt) += KLStochcoeffs(k-prog)*sqrt(evalx*evaly*evalz)*evecx*evecy*evecz;
+          }
+        }
+      });
+    }
   }
 }
 
@@ -610,7 +810,7 @@ std::vector<View_AD2> porousMixed::getDerivedValues() {
       View_AD2 new_Kyy("new K yy",wts.extent(0),wts.extent(1));
       View_AD2 new_Kzz("new K zz",wts.extent(0),wts.extent(1));
       
-      parallel_for("porous HDIV update well source",
+      parallel_for("porous gdv perm",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<KL_Kxx.extent(1); ++pt) {
@@ -618,12 +818,12 @@ std::vector<View_AD2> porousMixed::getDerivedValues() {
         }
         if (spaceDim > 1) {
           for (size_type pt=0; pt<KL_Kyy.extent(1); ++pt) {
-            new_Kyy(elem,pt) *= Kinv_yy(elem,pt)/exp(KL_Kyy(elem,pt));
+            new_Kyy(elem,pt) = Kinv_yy(elem,pt)/exp(KL_Kyy(elem,pt));
           }
         }
         if (spaceDim > 2) {
           for (size_type pt=0; pt<KL_Kzz.extent(1); ++pt) {
-            new_Kzz(elem,pt) *= Kinv_zz(elem,pt)/exp(KL_Kzz(elem,pt));
+            new_Kzz(elem,pt) = Kinv_zz(elem,pt)/exp(KL_Kzz(elem,pt));
           }
         }
         
@@ -640,7 +840,7 @@ std::vector<View_AD2> porousMixed::getDerivedValues() {
   K_yy = View_AD2("K yy",wts.extent(0),wts.extent(1));
   K_zz = View_AD2("K zz",wts.extent(0),wts.extent(1));
     
-  parallel_for("porous HDIV update well source",
+  parallel_for("porous gdv perm 2",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
                KOKKOS_LAMBDA (const int elem ) {
     for (size_type pt=0; pt<K_xx.extent(1); ++pt) {

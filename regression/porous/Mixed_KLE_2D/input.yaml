@@ -1,0 +1,74 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh:
+    dimension: 2
+    shape: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 8
+    NY: 8
+  Physics:
+    modules: porous mixed
+    Dirichlet conditions:
+      p:
+        left: '1.0'
+        right: '0.0'
+      u:
+        top: '0.0'
+        bottom: '0.0'
+    use KL expansion: true
+    KL parameters:
+      x-direction:
+        N: 4
+        eta: 0.1
+        L: 1.0
+        sigma: 0.1
+      y-direction:
+        N: 4
+        eta: 0.1
+        L: 1.0
+        sigma: 0.1
+  Functions:
+    source: '0.0'
+    Kinv_xx: '1.0e-2'
+    Kinv_yy: '1.0e-2'
+  Parameters:
+    nKLUQcoeffs:
+      type: vector
+      source: coeffs.dat
+      usage: inactive
+    KLStochcoeffs:
+      type: vector
+      source: scoeffs.dat
+      usage: stochastic
+      distribution: Gaussian
+      mean: 0.0
+      variance: 1.0
+  Solver: 
+    solver: steady-state
+    workset size: -1
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 2
+    finaltime: 1.0
+    number of steps: 10
+    initial type: none
+    use direct solver: true
+  Discretization:
+    eblock-0_0:
+      order:
+        p: 0
+        u: 1
+      quadrature: 2
+  Analysis:
+    analysis type: UQ
+    UQ:
+      samples: 2
+      seed: 123
+  Postprocess: 
+    write solution: false
+...

@@ -999,7 +999,6 @@ void AssemblyManager<Node>::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
   for (size_t b=0; b<boundaryCells.size(); b++) {
     wkset[b]->setTime(time);
     for (size_t e=0; e<boundaryCells[b].size(); e++) {
-      
       int numElem = boundaryCells[b][e]->numElem;
       auto LIDs = boundaryCells[b][e]->LIDs_host;
       auto localrhs = boundaryCells[b][e]->getDirichlet();
@@ -1009,7 +1008,6 @@ void AssemblyManager<Node>::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
       Kokkos::deep_copy(host_rhs,localrhs);
       Kokkos::deep_copy(host_mass,localmass);
       
-      //const int numVals = static_cast<int>(LIDs.extent(1));
       size_t numVals = LIDs.extent(1);
       // assemble into global matrix
       for (int c=0; c<numElem; c++) {
