@@ -54,13 +54,13 @@ param_variances(param_variances_), param_mins(param_mins_), param_maxs(param_max
 // ========================================================================================
 
 Kokkos::View<ScalarT**,HostDevice> UQManager::generateSamples(const int & numsamples, int & seed) {
-  
+
   if (!use_user_defined) {
     if (seed == -1) {
-      //srand(time(NULL));
+      srand(time(NULL));
       seed = rand();
     }
-    
+
     samples = Kokkos::View<ScalarT**,HostDevice>("samples",numsamples, numstochparams);
     std::default_random_engine generator(seed);
     for (int j=0; j<numstochparams; j++) {
@@ -89,7 +89,7 @@ Kokkos::View<ScalarT**,HostDevice> UQManager::generateSamples(const int & numsam
 
 Kokkos::View<int*,HostDevice> UQManager::generateIntegerSamples(const int & numsamples, int & seed) {
   if (seed == -1) {
-    //srand(time(NULL));
+    srand(time(NULL));
     seed = rand();
   }
   
@@ -111,9 +111,9 @@ void UQManager::generateSamples(const int & numsamples, int & seed,
                                 Kokkos::View<ScalarT*,HostDevice> samplewts) {
   Kokkos::resize(samplepts,numsamples, numstochparams);
   Kokkos::resize(samplewts, numsamples);
-  
+
   if (seed == -1) {
-    //srand(time(NULL));
+    srand(time(NULL));
     seed = rand();
   }
   
