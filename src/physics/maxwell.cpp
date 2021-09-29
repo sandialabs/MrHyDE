@@ -15,7 +15,7 @@
 using namespace MrHyDE;
 
 maxwell::maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-  : physicsbase(settings, isaux_)
+: physicsbase(settings, isaux_)
 {
   
   label = "maxwell";
@@ -35,10 +35,10 @@ maxwell::maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & i
   mybasistypes.push_back("HCURL");
   if (spaceDim == 2) {
     mybasistypes.push_back("HVOL");
-    myvars.push_back("E2");
-    myvars.push_back("B2");
-    mybasistypes.push_back("HGRAD");
-    mybasistypes.push_back("HDIV");
+    //myvars.push_back("E2");
+    //myvars.push_back("B2");
+    //mybasistypes.push_back("HGRAD");
+    //mybasistypes.push_back("HDIV");
   }
   else if (spaceDim == 3) {
     mybasistypes.push_back("HDIV");
@@ -59,6 +59,7 @@ void maxwell::defineFunctions(Teuchos::ParameterList & fs,
   functionManager->addFunction("current y",fs.get<string>("current y","0.0"),"ip");
   functionManager->addFunction("current z",fs.get<string>("current z","0.0"),"ip");
   functionManager->addFunction("mu",fs.get<string>("permeability","1.0"),"ip");
+  functionManager->addFunction("refractive index",fs.get<string>("refractive index","1.0"),"ip");
   functionManager->addFunction("epsilon",fs.get<string>("permittivity","1.0"),"ip");
   functionManager->addFunction("sigma",fs.get<string>("conductivity","0.0"),"ip");
   
@@ -73,7 +74,7 @@ void maxwell::volumeResidual() {
   int E_basis = wkset->usebasis[Enum];
   int B_basis = wkset->usebasis[Bnum];
   
-  Vista mu, epsilon, sigma;
+  Vista mu, epsilon, sigma, rindex;
   Vista current_x, current_y, current_z;
   
   {
@@ -85,6 +86,7 @@ void maxwell::volumeResidual() {
     }
     mu = functionManager->evaluate("mu","ip");
     epsilon = functionManager->evaluate("epsilon","ip");
+    rindex = functionManager->evaluate("refractive index","ip");
     sigma = functionManager->evaluate("sigma","ip");
   }
   
@@ -126,30 +128,31 @@ void maxwell::volumeResidual() {
           }
         });
       }
-      {
-        int B2_basis = wkset->usebasis[B2num];
-        auto basis = wkset->basis[B2_basis];
-        auto dB2x_dt = wkset->getData("B2_t[x]");
-        auto dB2y_dt = wkset->getData("B2_t[y]");
-        auto gradE2_x = wkset->getData("grad(E2)[x]");
-        auto gradE2_y = wkset->getData("grad(E2)[y]");
-        
-        auto off = subview(wkset->offsets, B2num, ALL());
-        auto wts = wkset->wts;
-        auto res = wkset->res;
-        
-        parallel_for("Maxwells B2 volume resid",
-                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int elem ) {
-          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD f0 = (dB2x_dt(elem,pt) + Bwt*gradE2_y(elem,pt))*wts(elem,pt);
-            AD f1 = (dB2y_dt(elem,pt) - Bwt*gradE2_x(elem,pt))*wts(elem,pt);
-            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-              res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + f1*basis(elem,dof,pt,1);
-            }
-          }
-        });
-      }
+      /*
+       {
+       int B2_basis = wkset->usebasis[B2num];
+       auto basis = wkset->basis[B2_basis];
+       auto dB2x_dt = wkset->getData("B2_t[x]");
+       auto dB2y_dt = wkset->getData("B2_t[y]");
+       auto gradE2_x = wkset->getData("grad(E2)[x]");
+       auto gradE2_y = wkset->getData("grad(E2)[y]");
+       
+       auto off = subview(wkset->offsets, B2num, ALL());
+       auto wts = wkset->wts;
+       auto res = wkset->res;
+       
+       parallel_for("Maxwells B2 volume resid",
+       RangePolicy<AssemblyExec>(0,wkset->numElem),
+       KOKKOS_LAMBDA (const int elem ) {
+       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+       AD f0 = (dB2x_dt(elem,pt) + Bwt*gradE2_y(elem,pt))*wts(elem,pt);
+       AD f1 = (dB2y_dt(elem,pt) - Bwt*gradE2_x(elem,pt))*wts(elem,pt);
+       for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+       res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + f1*basis(elem,dof,pt,1);
+       }
+       }
+       });
+       }*/
     }
     else if (spaceDim == 3) {
       
@@ -206,8 +209,8 @@ void maxwell::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD f0 = (epsilon(elem,pt)*dEx_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
-            AD f1 = (epsilon(elem,pt)*dEy_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
+            AD f0 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEx_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
+            AD f1 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEy_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
             AD c0 = - Ewt/mu(elem,pt)*B(elem,pt)*wts(elem,pt);
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0) + f1*basis(elem,dof,pt,1);
@@ -216,31 +219,33 @@ void maxwell::volumeResidual() {
         });
       }
       
-      {
-        int E2_basis = wkset->usebasis[E2num];
-        auto basis = wkset->basis[E2_basis];
-        auto basis_grad = wkset->basis_grad[E2_basis];
-        auto dE2_dt = wkset->getData("E2_t");
-        auto E2 = wkset->getData("E2");
-        auto B2x = wkset->getData("B2[x]");
-        auto B2y = wkset->getData("B2[y]");
-        auto off = subview(wkset->offsets, E2num, ALL());
-        auto wts = wkset->wts;
-        auto res = wkset->res;
-        
-        parallel_for("Maxwells E volume resid",
-                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int elem ) {
-          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD f0 = (epsilon(elem,pt)*dE2_dt(elem,pt) + Ewt*(sigma(elem,pt)*E2(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
-            AD c0 = Ewt/mu(elem,pt)*B2y(elem,pt)*wts(elem,pt);
-            AD c1 = -Ewt/mu(elem,pt)*B2x(elem,pt)*wts(elem,pt);
-            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-              res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_grad(elem,dof,pt,0) + c1*basis_grad(elem,dof,pt,1);
-            }
-          }
-        });
-      }
+      /*
+       {
+       int E2_basis = wkset->usebasis[E2num];
+       auto basis = wkset->basis[E2_basis];
+       auto basis_grad = wkset->basis_grad[E2_basis];
+       auto dE2_dt = wkset->getData("E2_t");
+       auto E2 = wkset->getData("E2");
+       auto B2x = wkset->getData("B2[x]");
+       auto B2y = wkset->getData("B2[y]");
+       auto off = subview(wkset->offsets, E2num, ALL());
+       auto wts = wkset->wts;
+       auto res = wkset->res;
+       
+       parallel_for("Maxwells E volume resid",
+       RangePolicy<AssemblyExec>(0,wkset->numElem),
+       KOKKOS_LAMBDA (const int elem ) {
+       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+       AD f0 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dE2_dt(elem,pt) + Ewt*(sigma(elem,pt)*E2(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
+       AD c0 = Ewt/mu(elem,pt)*B2y(elem,pt)*wts(elem,pt);
+       AD c1 = -Ewt/mu(elem,pt)*B2x(elem,pt)*wts(elem,pt);
+       for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+       res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_grad(elem,dof,pt,0) + c1*basis_grad(elem,dof,pt,1);
+       }
+       }
+       });
+       }
+       */
     }
     else if (spaceDim == 3) {
       
@@ -263,9 +268,9 @@ void maxwell::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD f0 = (epsilon(elem,pt)*dEx_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
-          AD f1 = (epsilon(elem,pt)*dEy_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
-          AD f2 = (epsilon(elem,pt)*dEz_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
+          AD f0 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEx_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
+          AD f1 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEy_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
+          AD f2 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEz_dt(elem,pt) + Ewt*(sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
           AD c0 = - Ewt/mu(elem,pt)*Bx(elem,pt)*wts(elem,pt);
           AD c1 = - Ewt/mu(elem,pt)*By(elem,pt)*wts(elem,pt);
           AD c2 = - Ewt/mu(elem,pt)*Bz(elem,pt)*wts(elem,pt);
@@ -283,10 +288,62 @@ void maxwell::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void maxwell::setWorkset(Teuchos::RCP<workset> & wkset_) {
+void maxwell::boundaryResidual() {
+  
+  /*
+  int spaceDim = wkset->dimension;
+  auto bcs = wkset->var_bcs;
+  
+  int cside = wkset->currentside;
+  //string bctype = bcs(pnum,cside);
+  
+  
+  {
+    //Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
+    
+        
+  }
+  
+  
+  auto wts = wkset->wts_side;
+  auto res = wkset->res;
+  
+  //Teuchos::TimeMonitor localtime(*boundaryResidualFill);
+  
+  View_Sc2 nx, ny, nz;
+  View_AD2 dpdx, dpdy, dpdz;
+  nx = wkset->getDataSc("nx side");
+  if (spaceDim > 1) {
+    ny = wkset->getDataSc("ny side");
+  }
+  if (spaceDim > 2) {
+    nz = wkset->getDataSc("nz side");
+  }
+  
+  
+  if (bcs(pnum,cside) == "Neumann") { //Neumann
+    parallel_for("porous HGRAD bndry resid Neumann",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
+  
+    });
+  }
+  else if (bcs(pnum,cside) == "weak Dirichlet") { // weak Dirichlet
+    
+  }
+  else if (bcs(pnum,cside) == "interface") { // multiscale weak Dirichlet
+    
+  }
+   */
+}
 
+// ========================================================================================
+// ========================================================================================
+
+void maxwell::setWorkset(Teuchos::RCP<workset> & wkset_) {
+  
   wkset = wkset_;
- 
+  
   vector<string> varlist = wkset->varlist;
   
   for (size_t i=0; i<varlist.size(); i++) {
@@ -294,9 +351,9 @@ void maxwell::setWorkset(Teuchos::RCP<workset> & wkset_) {
       Enum = i;
     if (varlist[i] == "B")
       Bnum = i;
-    if (varlist[i] == "E2")
-      E2num = i;
-    if (varlist[i] == "B2")
-      B2num = i;
+    //if (varlist[i] == "E2")
+    //  E2num = i;
+    //if (varlist[i] == "B2")
+    //  B2num = i;
   }
 }
