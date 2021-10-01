@@ -35,6 +35,9 @@ SolverManager<Node>::SolverManager(const Teuchos::RCP<MpiComm> & Comm_,
                                    Teuchos::RCP<ParameterManager<Node> > & params_) :
 Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembler(assembler_), params(params_) {
   
+  RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager - constructor");
+  Teuchos::TimeMonitor constructortimer(*constructortime);
+  
   debug_level = settings->get<int>("debug level",0);
   
   if (debug_level > 0) {

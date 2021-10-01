@@ -194,7 +194,6 @@ int main(int argc,char * argv[]) {
         functionManagers[b]->printFunctions();
       }
     }
-    Kokkos::fence();
     
     solve->finalizeMultiscale();
         

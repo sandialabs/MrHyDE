@@ -37,6 +37,10 @@ AnalysisManager::AnalysisManager(const Teuchos::RCP<MpiComm> & Comm_,
                                  Teuchos::RCP<ParameterManager<SolverNode> > & params_) :
 Comm(Comm_), settings(settings_), solve(solver_),
 postproc(postproc_), params(params_) {
+  
+  RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AnalysisManager - constructor");
+  Teuchos::TimeMonitor constructortimer(*constructortime);
+  
   verbosity = settings->get<int>("verbosity",0);
   debug_level = settings->get<int>("debug level",0);
   // No debug output on this constructor

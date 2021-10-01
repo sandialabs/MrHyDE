@@ -28,6 +28,9 @@ MultiscaleManager::MultiscaleManager(const Teuchos::RCP<MpiComm> & MacroComm_,
                                      vector<Teuchos::RCP<FunctionManager> > macro_functionManagers_ ) :
 MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManagers(macro_functionManagers_) {
   
+  RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager - constructor");
+  Teuchos::TimeMonitor constructortimer(*constructortime);
+  
   debug_level = settings->get<int>("debug level",0);
   if (debug_level > 0) {
     if (MacroComm->getRank() == 0) {

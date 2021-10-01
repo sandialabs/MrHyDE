@@ -25,6 +25,9 @@ PhysicsInterface::PhysicsInterface(Teuchos::RCP<Teuchos::ParameterList> & settin
                                    Teuchos::RCP<panzer_stk::STK_Interface> & mesh) :
 settings(settings_), Commptr(Comm_){
   
+  RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface - constructor");
+  Teuchos::TimeMonitor constructortimer(*constructortime);
+  
   debug_level = settings->get<int>("debug level",0);
   
   if (debug_level > 0 && Commptr->getRank() == 0) {

@@ -34,6 +34,9 @@ AssemblyManager<Node>::AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_,
                                        Teuchos::RCP<ParameterManager<Node>> & params_) :
 Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(params_) {
   
+  RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager - constructor");
+  Teuchos::TimeMonitor constructortimer(*constructortime);
+    
   // Get the required information from the settings
   debug_level = settings->get<int>("debug level",0);
   

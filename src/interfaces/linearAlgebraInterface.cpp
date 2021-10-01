@@ -45,6 +45,9 @@ LinearAlgebraInterface<Node>::LinearAlgebraInterface(const Teuchos::RCP<MpiComm>
                                                      Teuchos::RCP<ParameterManager<Node> > & params_) :
 Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
   
+  RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface - constructor");
+  Teuchos::TimeMonitor constructortimer(*constructortime);
+  
   debug_level = settings->get<int>("debug level",0);
   
   if (debug_level > 0) {

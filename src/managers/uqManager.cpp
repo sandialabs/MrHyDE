@@ -27,6 +27,9 @@ UQManager::UQManager(const MpiComm & Comm_, const Teuchos::ParameterList & uqset
 Comm(Comm_), uqsettings(uqsettings_), param_types(param_types_), param_means(param_means_),
 param_variances(param_variances_), param_mins(param_mins_), param_maxs(param_maxs_) {
   
+  RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::UQManager - constructor");
+  Teuchos::TimeMonitor constructortimer(*constructortime);
+  
   numstochparams = param_types.size();
   surrogate = uqsettings.get<std::string>("surrogate model","regression");
   evalprog = 0;

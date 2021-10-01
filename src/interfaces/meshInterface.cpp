@@ -29,6 +29,9 @@ settings(settings_), Commptr(Commptr_) {
   using Teuchos::RCP;
   using Teuchos::rcp;
   
+  RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::meshInterface - constructor");
+  Teuchos::TimeMonitor constructortimer(*constructortime);
+  
   debug_level = settings->get<int>("debug level",0);
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {

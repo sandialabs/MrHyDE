@@ -36,6 +36,9 @@ ParameterManager<Node>::ParameterManager(const Teuchos::RCP<MpiComm> & Comm_,
                                    Teuchos::RCP<DiscretizationInterface> & disc_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), settings(settings_) {
   
+  RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::ParameterManager - constructor");
+  Teuchos::TimeMonitor constructortimer(*constructortime);
+  
   debug_level = settings->get<int>("debug level",0);
   
   if (debug_level > 0) {

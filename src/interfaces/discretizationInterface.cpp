@@ -89,6 +89,9 @@ DiscretizationInterface::DiscretizationInterface(Teuchos::RCP<Teuchos::Parameter
                                                  Teuchos::RCP<PhysicsInterface> & phys_) :
 settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
   
+  RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface - constructor");
+  Teuchos::TimeMonitor constructortimer(*constructortime);
+  
   debug_level = settings->get<int>("debug level",0);
   verbosity = settings->get<int>("verbosity",0);
   minimize_memory = settings->sublist("Solver").get<bool>("minimize memory",false);

@@ -61,6 +61,9 @@ namespace MrHyDE {
     using Teuchos::RCP;
     using Teuchos::rcp;
     
+    RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::UserInterface - constructor");
+    Teuchos::TimeMonitor constructortimer(*constructortime);
+    
     RCP<Teuchos::ParameterList> settings = rcp(new Teuchos::ParameterList("MrHyDE"));
     
     // MrHyDE uses a set of input files ... one for each interface: mesh, physics, solver, analysis, postprocessing, parameters

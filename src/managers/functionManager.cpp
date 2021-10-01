@@ -34,6 +34,9 @@ FunctionManager::FunctionManager(const string & blockname_, const int & numElem_
                                  const int & numip_, const int & numip_side_) :
 blockname(blockname_), numElem(numElem_), numip(numip_), numip_side(numip_side_) {
   
+  RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::FunctionManager - constructor");
+  Teuchos::TimeMonitor constructortimer(*constructortime);
+  
   known_vars = {"x","y","z","t","nx","ny","nz","pi","h"};
   known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean","sqrt"};
   
