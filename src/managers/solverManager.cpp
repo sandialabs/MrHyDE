@@ -1452,8 +1452,9 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
       mass = linalg->getNewOverlappedMatrix();
     }
     diagMass = linalg->getNewVector();
-    
-    assembler->getWeightedMass(mass,diagMass);
+    vector_RCP diagMass_over = linalg->getNewOverlappedVector();
+    assembler->getWeightedMass(mass,diagMass_over);
+    linalg->exportVectorFromOverlapped(diagMass, diagMass_over);
     
     if (!assembler->lump_mass) {
       matrix_RCP glmass = linalg->getNewMatrix();

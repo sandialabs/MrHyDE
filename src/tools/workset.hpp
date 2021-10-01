@@ -53,7 +53,7 @@ namespace MrHyDE {
                                     View_Sc4 u_prev,
                                     View_Sc4 u_stage,
                                     const int & seedwhat,
-                                    const size_type & index=0);
+                                    const int & index=0);
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Compute the seeded solutions for steady-state problems

@@ -875,38 +875,16 @@ void AssemblyManager<Node>::getWeightedMass(matrix_RCP & mass,
                   val += localmass(elem,row,col);
                 }
               }
+              
               if (use_atomics_) {
                 Kokkos::atomic_add(&(diag_view(rowIndex,0)), val);
               }
               else {
                 diag_view(rowIndex,0) += val;
               }
+              
             }
           }
-          
-          /*
-          int row = 0;
-          LO rowIndex = 0;
-          
-          const size_type numVals = 1;
-          int col = 0;
-          LO cols[1];
-          ScalarT vals[1];
-          for (size_type n=0; n<numDOF.extent(0); ++n) {
-            for (int j=0; j<numDOF(n); j++) {
-              row = offsets(n,j);
-              rowIndex = LIDs(elem,row);
-              cols[0] = rowIndex;
-              vals[0] = 0.0;
-              for (size_type m=0; m<numDOF.extent(0); m++) {
-                for (int k=0; k<numDOF(m); k++) {
-                  col = offsets(m,k);
-                  vals[0] += localmass(elem,row,col);
-                }
-              }
-              localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_);
-            }
-          }*/
         });
       }
       else {
@@ -937,6 +915,7 @@ void AssemblyManager<Node>::getWeightedMass(matrix_RCP & mass,
           }
         });
       }
+       
     }
   }
   

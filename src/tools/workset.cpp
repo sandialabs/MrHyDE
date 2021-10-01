@@ -320,7 +320,7 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
                                          View_Sc4 u_prev,
                                          View_Sc4 u_stage,
                                          const int & seedwhat,
-                                         const size_type & index) {
+                                         const int & index) {
   
   Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
   
