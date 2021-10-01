@@ -1177,14 +1177,15 @@ View_Sc3 cell::getMass() {
 View_Sc3 cell::getWeightedMass(vector<ScalarT> & masswts) {
   
   View_Sc3 mass("local mass",numElem, LIDs.extent(1), LIDs.extent(1));
+  View_Sc2 cwts;
   
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
-  auto cwts = wts;
   for (size_type n=0; n<numDOF.extent(0); n++) {
     View_Sc4 cbasis;
     if (cellData->storeAll) {
       cbasis = basis[wkset->usebasis[n]];
+      cwts = wts;
     }
     else { // goes through this more than once, but really shouldn't be used much anyways
       vector<View_Sc2> tip;
@@ -1197,6 +1198,7 @@ View_Sc3 cell::getWeightedMass(vector<ScalarT> & masswts) {
                                       tbasis, tbasis_grad, tbasis_curl,
                                       tbasis_div, tbasis_nodes,true,false);
       cbasis = tbasis[wkset->usebasis[n]];
+      cwts = twts;
     }
       
     string btype = wkset->basis_types[wkset->usebasis[n]];
