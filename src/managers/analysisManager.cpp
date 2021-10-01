@@ -105,7 +105,6 @@ void AnalysisManager::run() {
     std::ofstream sdataOUT(sname2.c_str());
     sdataOUT.precision(16);
     
-    
     if(Comm->getRank() == 0)
       cout << "Evaluating samples ..." << endl;
     
