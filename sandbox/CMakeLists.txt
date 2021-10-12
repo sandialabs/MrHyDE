@@ -22,6 +22,10 @@ ADD_EXECUTABLE(test_views
 test_views.cpp)
 TARGET_LINK_LIBRARIES(test_views ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
+ADD_EXECUTABLE(test_explicit_views
+test_explicit_views.cpp)
+TARGET_LINK_LIBRARIES(test_explicit_views ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+
 ADD_EXECUTABLE(test_vistas
 test_vistas.cpp)
 TARGET_LINK_LIBRARIES(test_vistas ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
