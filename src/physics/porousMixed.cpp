@@ -76,6 +76,8 @@ porousMixed::porousMixed(Teuchos::RCP<Teuchos::ParameterList> & settings, const 
       }
 
       // Need to define these indices so the coeffs are ordered properly
+      // BWR -- attempting a simple total order sorting
+      // it is not particularly efficient but should work CHECK ME
       KLindices = Kokkos::View<size_t**,AssemblyDevice>("KL indices",numindices,spaceDim);
       int prog = 0;
       if (spaceDim == 1) {
@@ -85,95 +87,134 @@ porousMixed::porousMixed(Teuchos::RCP<Teuchos::ParameterList> & settings, const 
         }
       }
       else if (spaceDim == 2) {
-        size_t Nmax = std::max(permKLx.N,permKLy.N);
-        for (size_t k=0; k<Nmax; ++k) {
-          if (permKLx.N > k) {
-            for (size_t j=0; j<std::min(k,permKLy.N); ++j) {
-              KLindices(prog,0) = k;
-              KLindices(prog,1) = j;
-              prog++;
+        size_t alpha_max = permKLx.N + permKLy.N - 1; // max total order
+        // loop over alpha (total basis order)
+        for (size_t alpha=0; alpha<alpha_max; ++alpha) {
+          // loop over y-direction basis
+          for (size_t j=0; j<permKLy.N; ++j) {
+            // loop over x-direction basis
+            for (size_t i=0; i<permKLx.N; ++i) {
+              if ( i + j == alpha ) {
+                KLindices(prog,0) = i;
+                KLindices(prog,1) = j;
+                prog++;
+              }
             }
-          }
-          if (permKLy.N > k) {
-            for (size_t j=0; j<std::min(k,permKLx.N); ++j) {
-              KLindices(prog,0) = j;
-              KLindices(prog,1) = k;
-              prog++;
-            }
-          }
-          if (permKLx.N > k && permKLy.N > k) {
-            KLindices(prog,0) = k;
-            KLindices(prog,1) = k;
-            prog++;
           }
         }
       }
       else if (spaceDim == 3) {
-        size_t Nmax = std::max(permKLx.N,permKLy.N);
-        Nmax = std::max(Nmax,permKLz.N);
-        for (size_t k=0; k<Nmax; ++k) {
-          if (permKLx.N > k) {
-            for (size_t j=0; j<std::min(k,permKLy.N); ++j) {
-              for (size_t l=0; l<std::min(k,permKLz.N); ++l) {
-                KLindices(prog,0) = k;
-                KLindices(prog,1) = j;
-                KLindices(prog,2) = l;
-                prog++;
+        size_t alpha_max = permKLx.N + permKLy.N + permKLz.N - 2; // max total order
+        // loop over alpha (total basis order)
+        for (size_t alpha=0; alpha<alpha_max; ++alpha) {
+          // loop over z-direction basis
+          for (size_t k=0; k<permKLz.N; ++k) {
+            // loop over y-direction basis
+            for (size_t j=0; j<permKLy.N; ++j) {
+              // loop over x-direction basis
+              for (size_t i=0; i<permKLx.N; ++i) {
+                if ( i + j + k == alpha ) {
+                  KLindices(prog,0) = i;
+                  KLindices(prog,1) = j;
+                  KLindices(prog,2) = k;
+                  prog++;
+                }
               }
             }
-          }
-          if (permKLy.N > k) {
-            for (size_t j=0; j<std::min(k,permKLx.N); ++j) {
-              for (size_t l=0; l<std::min(k,permKLz.N); ++l) {
-                KLindices(prog,0) = j;
-                KLindices(prog,1) = k;
-                KLindices(prog,2) = l;
-                prog++;
-              }
-            }
-          }
-          if (permKLz.N > k) {
-            for (size_t j=0; j<std::min(k,permKLx.N); ++j) {
-              for (size_t l=0; l<std::min(k,permKLy.N); ++l) {
-                KLindices(prog,0) = j;
-                KLindices(prog,1) = l;
-                KLindices(prog,2) = k;
-                prog++;
-              }
-            }
-          }
-          if (permKLx.N > k && permKLy.N > k) {
-            for (size_t l=0; l<std::min(k,permKLz.N); ++l) {
-              KLindices(prog,0) = k;
-              KLindices(prog,1) = k;
-              KLindices(prog,2) = l;
-              prog++;
-            }
-          }
-          if (permKLx.N > k && permKLz.N > k) {
-            for (size_t l=0; l<std::min(k,permKLy.N); ++l) {
-              KLindices(prog,0) = k;
-              KLindices(prog,1) = l;
-              KLindices(prog,2) = k;
-              prog++;
-            }
-          }
-          if (permKLy.N > k && permKLz.N > k) {
-            for (size_t l=0; l<std::min(k,permKLx.N); ++l) {
-              KLindices(prog,0) = l;
-              KLindices(prog,1) = k;
-              KLindices(prog,2) = k;
-              prog++;
-            }
-          }
-          if (permKLx.N > k && permKLy.N > k && permKLz.N > k) {
-            KLindices(prog,0) = k;
-            KLindices(prog,1) = k;
-            KLindices(prog,2) = k;
-            prog++;
           }
         }
       }
+      // TODO I don't think this works correctly!
+      //else if (spaceDim == 2) {
+      //  size_t Nmax = std::max(permKLx.N,permKLy.N);
+      //  for (size_t k=0; k<Nmax; ++k) {
+      //    if (permKLx.N > k) {
+      //      for (size_t j=0; j<std::min(k,permKLy.N); ++j) {
+      //        KLindices(prog,0) = k;
+      //        KLindices(prog,1) = j;
+      //        prog++;
+      //      }
+      //    }
+      //    if (permKLy.N > k) {
+      //      for (size_t j=0; j<std::min(k,permKLx.N); ++j) {
+      //        KLindices(prog,0) = j;
+      //        KLindices(prog,1) = k;
+      //        prog++;
+      //      }
+      //    }
+      //    if (permKLx.N > k && permKLy.N > k) {
+      //      KLindices(prog,0) = k;
+      //      KLindices(prog,1) = k;
+      //      prog++;
+      //    }
+      //  }
+      //}
+      //else if (spaceDim == 3) {
+      //  size_t Nmax = std::max(permKLx.N,permKLy.N);
+      //  Nmax = std::max(Nmax,permKLz.N);
+      //  for (size_t k=0; k<Nmax; ++k) {
+      //    if (permKLx.N > k) {
+      //      for (size_t j=0; j<std::min(k,permKLy.N); ++j) {
+      //        for (size_t l=0; l<std::min(k,permKLz.N); ++l) {
+      //          KLindices(prog,0) = k;
+      //          KLindices(prog,1) = j;
+      //          KLindices(prog,2) = l;
+      //          prog++;
+      //        }
+      //      }
+      //    }
+      //    if (permKLy.N > k) {
+      //      for (size_t j=0; j<std::min(k,permKLx.N); ++j) {
+      //        for (size_t l=0; l<std::min(k,permKLz.N); ++l) {
+      //          KLindices(prog,0) = j;
+      //          KLindices(prog,1) = k;
+      //          KLindices(prog,2) = l;
+      //          prog++;
+      //        }
+      //      }
+      //    }
+      //    if (permKLz.N > k) {
+      //      for (size_t j=0; j<std::min(k,permKLx.N); ++j) {
+      //        for (size_t l=0; l<std::min(k,permKLy.N); ++l) {
+      //          KLindices(prog,0) = j;
+      //          KLindices(prog,1) = l;
+      //          KLindices(prog,2) = k;
+      //          prog++;
+      //        }
+      //      }
+      //    }
+      //    if (permKLx.N > k && permKLy.N > k) {
+      //      for (size_t l=0; l<std::min(k,permKLz.N); ++l) {
+      //        KLindices(prog,0) = k;
+      //        KLindices(prog,1) = k;
+      //        KLindices(prog,2) = l;
+      //        prog++;
+      //      }
+      //    }
+      //    if (permKLx.N > k && permKLz.N > k) {
+      //      for (size_t l=0; l<std::min(k,permKLy.N); ++l) {
+      //        KLindices(prog,0) = k;
+      //        KLindices(prog,1) = l;
+      //        KLindices(prog,2) = k;
+      //        prog++;
+      //      }
+      //    }
+      //    if (permKLy.N > k && permKLz.N > k) {
+      //      for (size_t l=0; l<std::min(k,permKLx.N); ++l) {
+      //        KLindices(prog,0) = l;
+      //        KLindices(prog,1) = k;
+      //        KLindices(prog,2) = k;
+      //        prog++;
+      //      }
+      //    }
+      //    if (permKLx.N > k && permKLy.N > k && permKLz.N > k) {
+      //      KLindices(prog,0) = k;
+      //      KLindices(prog,1) = k;
+      //      KLindices(prog,2) = k;
+      //      prog++;
+      //    }
+      //  }
+      //}
     }
     else {
       // throw an error

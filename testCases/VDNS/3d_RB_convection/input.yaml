@@ -1,0 +1,151 @@
+%YAML 1.1
+---
+## This example is taken from 4.1.4 in Gravemeier and Wall
+ANONYMOUS:
+  verbosity: 10
+  debug level: 0
+  profile: false
+  Mesh:
+    dimension: 3
+    #source: Exodus
+    #mesh file: cavity.exo
+    ## GRID :: [0,L] x [0,H] x [0,L]  L = 5m H = 1 m
+    element type: hex
+    xmin: 0.0
+    xmax: 5.0
+    ymin: 0.0
+    ymax: 1.0
+    zmin: 0.0
+    zmax: 5.0
+    NX: 50
+    NY: 14
+    NZ: 50
+  Physics:
+    modules: VDNS
+    assemble boundary terms: false
+    build face terms: false
+    pr_point_DBCs: origin
+    Dirichlet conditions:
+      scalar data: false
+      transient data: true
+      static data: false
+      ux:
+        all boundaries: 0.0
+      uy:
+        all boundaries: 0.0
+      uz:
+        all boundaries: 0.0
+      T:
+        top: 'T_C'
+        bottom: 'T_C + 20. + t*(T_H-T_C-20.)/10.*(10.>t) + (T_H-T_C-20.)*(t>10.)' ## heat over the span of 10 seconds
+    Neumann conditions:
+      ## Adiabatic on T for sides
+      T:
+        left: '0.0'
+        right: '0.0'
+        front: '0.0'
+        back: '0.0'
+    Initial conditions:
+      scalar data: false
+      ux: '0.0'
+      uy: '0.0'
+      uz: '0.0'
+      pr: '0.0'
+      T:  'T_C + 20.*(1.0 - y)'
+    usePSPG: true
+    useSUPG: true
+    useDIVGRAD: false #true
+    open system: false
+
+  Discretization:
+    order:
+      ux: 1
+      uy: 1
+      uz: 1
+      pr: 1
+      T: 1
+    quadrature: 2
+  Solver:
+    #solver: steady-state
+    solver: transient
+    workset size: 1000
+    nonlinear TOL: 1.0e-06
+    linear TOL: 1.0e-6
+    max nonlinear iters: 10
+    max linear iters: 100
+    final time: 75.
+    delta t: .1
+    use direct solver: false
+    use domain decomposition: false
+    use strong DBCs: true
+    Preconditioner Settings:
+      verbosity: none
+      number of equations: 5
+      multigrid algorithm: unsmoothed
+      'sa: use filtered matrix': true
+      'sa: damping factor': 0.0
+      'coarse: max size': 2000
+      'transpose: use implicit': false
+      'aggregation: type': uncoupled
+      'aggregation: drop scheme': classical
+      'aggregation: drop tol': 0.0
+      'smoother: pre or post': both
+      'smoother: type': SCHWARZ
+      'smoother: params':
+        'schwarz: overlap level': 1
+        'schwarz: combine mode': Zero
+        'schwarz: use reordering': false
+        'schwarz: reordering list':
+          order_method: rcm
+        subdomain solver name: RILUK
+        subdomain solver parameters:
+          'fact: iluk level-of-fill': 1
+          'fact: ilut level-of-fill': 1.75
+          'fact: absolute threshold': 0.0
+          'fact: relative threshold': 1.0
+          'fact: relax value': 0.0
+        #'chebyshev: degree': 2
+        #'chebyshev: ratio eigenvalue': 7.0
+        #'chebyshev: min eigenvalue': 1.0
+        #'chebyshev: zero starting solution': true
+        # 'relaxation: type': Gauss-Seidel #MT Gauss-Seidel
+      'repartition: enable': false
+      'reuse: type': none
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    write solution: true
+    write frequency: 10
+    Extra cell fields:
+      lambdTdy: 'lambda*grad(T)[y]'
+      density: rho
+      dynvisc: mu
+      p0: p0
+  Functions:
+    source ux: '0.0'
+    source uy: '-rho*g' ## TODO GRAVITY ??
+    source uz: '0.0'
+    TRef: '310.' ## K
+    T_H: '325.' ## K
+    T_C: '300.' ## K
+    muRef: '.0094' ## kg/m-s
+    cp: '1004.5' ## J/kg-K
+    S: '110.4' ## K
+    RGas: '287.0'  ## J/kg-K
+    PrNum: '.71' ## 
+    g: '9.81' ## m/s^2
+    #rho: 'p0/(RGas*TRef)'
+    rho: 'p0/(RGas*T)'
+    mu: '(T/TRef)^(3./2.)*(TRef + S)/(T + S)*muRef'
+    lambda: 'cp*mu/PrNum'
+    ## TODO keep these in common file or something like that
+  Parameters:
+    p0:
+      type: scalar
+      value: 100000.0 ## Pa
+      usage: inactive
+    dp0dt:
+      type: scalar
+      value: 0.0 ## Pa/s
+      usage: inactive
+...

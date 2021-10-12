@@ -211,8 +211,8 @@ void VDNS::volumeResidual() {
             AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),0.0,0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO FIX TAU??? the constant at least is wrong
             tau = h(elem)*h(elem)/tau;
-            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt))*wts(elem,pt);
-            thermDiv -= 1./p0(0)*dp0dt(0)*wts(elem,pt);
+            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt));
+            thermDiv -= 1./p0(0)*dp0dt(0);
             AD strongres = dux_dx(elem,pt) - thermDiv;
             AD S = tau*strongres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -224,7 +224,7 @@ void VDNS::volumeResidual() {
     }
 
     {
-      // Energy equation // TODO this is different need offset, etc.
+      // Energy equation
       // (w,rho dT/dt) + (w,rho u_1 dT/dx_1) + (dw/dx_1,lambda/cp dT/dx_1) - (w, 1/cp[dp0/dt + Q])
       int T_basis = wkset->usebasis[T_num];
       auto basis = wkset->basis[T_basis];
@@ -293,11 +293,11 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD divu = dux_dx(elem,pt)*wts(elem,pt);
-          AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt))*wts(elem,pt);
-          thermDiv -= 1./p0(0)*dp0dt(0)*wts(elem,pt);
+          AD divu = dux_dx(elem,pt);
+          AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt));
+          thermDiv -= 1./p0(0)*dp0dt(0);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0);
+            res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0)*wts(elem,pt);
           }
         }
       });
@@ -405,8 +405,8 @@ void VDNS::volumeResidual() {
             AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO FIX TAU??? the constant at least is wrong
             tau = h(elem)*h(elem)/tau;
-            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt))*wts(elem,pt);
-            thermDiv -= 1./p0(0)*dp0dt(0)*wts(elem,pt);
+            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
+            thermDiv -= 1./p0(0)*dp0dt(0);
             AD strongres = (dux_dx(elem,pt) + duy_dx(elem,pt)) - thermDiv;
             AD S = tau*strongres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -485,15 +485,15 @@ void VDNS::volumeResidual() {
         auto dT_dt = wkset->getData("T_t");
         auto dT_dx = wkset->getData("grad(T)[x]");
         auto dT_dy = wkset->getData("grad(T)[y]");
-        parallel_for("VDNS ux volume resid GRADDIV",
+        parallel_for("VDNS uy volume resid GRADDIV",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO FIX TAU??? the constant at least is wrong
             tau = h(elem)*h(elem)/tau;
-            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt))*wts(elem,pt);
-            thermDiv -= 1./p0(0)*dp0dt(0)*wts(elem,pt);
+            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
+            thermDiv -= 1./p0(0)*dp0dt(0);
             AD strongres = (dux_dx(elem,pt) + duy_dx(elem,pt)) - thermDiv;
             AD S = tau*strongres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -584,14 +584,11 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt))*wts(elem,pt);
-          AD ovT = 1./T(elem,pt);
-          //if (T(elem,pt) <= 1e-12) std::cout << "OH NO" << std::endl; //ovT = 1e-12;
-          AD thermDiv = ovT*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
+          AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt));
+          AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
           thermDiv -= 1./p0(0)*dp0dt(0);
-          thermDiv *= wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0);
+            res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0)*wts(elem,pt);
           }
         }
       });
@@ -730,6 +727,7 @@ void VDNS::volumeResidual() {
           AD Fy = mu(elem,pt)*(2.*duy_dy(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))) - pr(elem,pt);
           Fy *= wts(elem,pt);
           AD Fz = mu(elem,pt)*(duy_dz(elem,pt) + duz_dy(elem,pt));
+          Fz *= wts(elem,pt);
           AD F = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) - source_uy(elem,pt);
           F *= wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -786,7 +784,7 @@ void VDNS::volumeResidual() {
       auto duz_dy = wkset->getData("grad(uz)[y]");
       auto duz_dz = wkset->getData("grad(uz)[z]");
       auto pr = wkset->getData("pr");
-      auto off = subview(wkset->offsets,uy_num,ALL());
+      auto off = subview(wkset->offsets,uz_num,ALL());
       
       parallel_for("VDNS uz volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -917,12 +915,11 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))*wts(elem,pt);
+          AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt));
           AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt));
           thermDiv -= 1./p0(0)*dp0dt(0);
-          thermDiv *= wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0);
+            res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0)*wts(elem,pt);
           }
         }
       });
