@@ -1513,17 +1513,18 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
   }
   linalg->importVectorToOverlapped(du_over, du);
   
+  //KokkosTools::print(du_over);
+  
   u->update(1.0, *du_over, 1.0);
   
-  
-  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> unorm(1);
-  if (verbosity > 1) {
+  if (verbosity > 11) {
+    Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> unorm(1);
     u->norm2(unorm);
-  }
-  if (Comm->getRank() == 0 && verbosity > 1) {
-    cout << endl << "*********************************************************" << endl;
-    cout << "***** Explicit integrator: L2 norm of solution: " << unorm[0] << endl;
-    cout << "*********************************************************" << endl;
+    if (Comm->getRank() == 0) {
+      cout << endl << "*********************************************************" << endl;
+      cout << "***** Explicit integrator: L2 norm of solution: " << unorm[0] << endl;
+      cout << "*********************************************************" << endl;
+    }
   }
   
   

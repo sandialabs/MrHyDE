@@ -26,7 +26,7 @@ int main(int argc, char * argv[]) {
     std::cout << "Team size: " << TeamSize << std::endl;
   
     typedef double EvalT;
-    
+    //typedef Sacado::Fad::SFad<ScalarT,32> EvalT;
 #define VSize 1
     std::cout << "Vector size: " << VSize << std::endl;
     
@@ -34,6 +34,8 @@ int main(int argc, char * argv[]) {
     int dimension = 3;
     int numdof = 12;
     
+    typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,VSize> CL;
+
     ////////////////////////////////////////////////
     // Set up timer and views
     ////////////////////////////////////////////////
@@ -51,13 +53,13 @@ int main(int argc, char * argv[]) {
       Kokkos::deep_copy(cbasis,1.0);
       Kokkos::deep_copy(cbasis_grad,2.0);
       
-      Kokkos::View<EvalT**,AssemblyDevice> cuvals("sol",numElem,numdof);
+      Kokkos::View<EvalT**,CL,AssemblyDevice> cuvals("sol",numElem,numdof);
       Kokkos::deep_copy(cuvals,100.0);
       
-      Kokkos::View<EvalT**,AssemblyDevice> csol("diff",numElem,numip);
-      Kokkos::View<EvalT**,AssemblyDevice> csol_x("src",numElem,numip);
-      Kokkos::View<EvalT**,AssemblyDevice> csol_y("src",numElem,numip);
-      Kokkos::View<EvalT**,AssemblyDevice> csol_z("src",numElem,numip);
+      Kokkos::View<EvalT**,CL,AssemblyDevice> csol("diff",numElem,numip);
+      Kokkos::View<EvalT**,CL,AssemblyDevice> csol_x("src",numElem,numip);
+      Kokkos::View<EvalT**,CL,AssemblyDevice> csol_y("src",numElem,numip);
+      Kokkos::View<EvalT**,CL,AssemblyDevice> csol_z("src",numElem,numip);
       
       ////////////////////////////////////////////////
       // Hierarchical modified
@@ -97,13 +99,13 @@ int main(int argc, char * argv[]) {
       Kokkos::deep_copy(cbasis,1.0);
       Kokkos::deep_copy(cbasis_grad,2.0);
       
-      Kokkos::View<EvalT**,AssemblyDevice> cuvals("sol",numElem,numdof);
+      Kokkos::View<EvalT**,CL,AssemblyDevice> cuvals("sol",numElem,numdof);
       Kokkos::deep_copy(cuvals,100.0);
       
-      Kokkos::View<EvalT**,AssemblyDevice> csol("diff",numElem,numip);
-      Kokkos::View<EvalT**,AssemblyDevice> csol_x("src",numElem,numip);
-      Kokkos::View<EvalT**,AssemblyDevice> csol_y("src",numElem,numip);
-      Kokkos::View<EvalT**,AssemblyDevice> csol_z("src",numElem,numip);
+      Kokkos::View<EvalT**,CL,AssemblyDevice> csol("diff",numElem,numip);
+      Kokkos::View<EvalT**,CL,AssemblyDevice> csol_x("src",numElem,numip);
+      Kokkos::View<EvalT**,CL,AssemblyDevice> csol_y("src",numElem,numip);
+      Kokkos::View<EvalT**,CL,AssemblyDevice> csol_z("src",numElem,numip);
       
       ////////////////////////////////////////////////
       // Hierarchical modified
@@ -143,13 +145,13 @@ int main(int argc, char * argv[]) {
       Kokkos::deep_copy(cbasis,1.0);
       Kokkos::deep_copy(cbasis_grad,2.0);
       
-      Kokkos::View<EvalT**,AssemblyDevice> cuvals("sol",numElem,numdof);
+      Kokkos::View<EvalT**,CL,AssemblyDevice> cuvals("sol",numElem,numdof);
       Kokkos::deep_copy(cuvals,100.0);
       
-      Kokkos::View<EvalT**,AssemblyDevice> csol("diff",numElem,numip);
-      Kokkos::View<EvalT**,AssemblyDevice> csol_x("src",numElem,numip);
-      Kokkos::View<EvalT**,AssemblyDevice> csol_y("src",numElem,numip);
-      Kokkos::View<EvalT**,AssemblyDevice> csol_z("src",numElem,numip);
+      Kokkos::View<EvalT**,CL,AssemblyDevice> csol("diff",numElem,numip);
+      Kokkos::View<EvalT**,CL,AssemblyDevice> csol_x("src",numElem,numip);
+      Kokkos::View<EvalT**,CL,AssemblyDevice> csol_y("src",numElem,numip);
+      Kokkos::View<EvalT**,CL,AssemblyDevice> csol_z("src",numElem,numip);
       
       ////////////////////////////////////////////////
       // Hierarchical modified

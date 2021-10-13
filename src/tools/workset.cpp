@@ -761,34 +761,68 @@ void workset::computeSoln(const int & type, const bool & onside) {
       
       size_type numDOF = cbasis_grad.extent(1);
       size_type numIP = cbasis_grad.extent(2);
-      size_type dim = cbasis_grad.extent(3);
       
-      parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        
-        for (size_type pt=team.team_rank(); pt<numIP; pt+=team.team_size() ) {
-          csol(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
-          csol_x(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,0);
-          for (size_type dof=1; dof<numDOF; dof++ ) {
-            csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-            csol_x(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,0);
+      if (dimension == 1) {
+        parallel_for("wkset soln ip HGRAD",
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          
+          for (size_type pt=team.team_rank(); pt<numIP; pt+=team.team_size() ) {
+            csol(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
+            csol_x(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,0);
           }
-          if (dim>1) {
+          for (size_type dof=1; dof<numDOF; dof++ ) {
+            for (size_type pt=team.team_rank(); pt<numIP; pt+=team.team_size() ) {
+              csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+              csol_x(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,0);
+            }
+          }
+        });
+      }
+      else if (dimension == 2) {
+        parallel_for("wkset soln ip HGRAD",
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          
+          for (size_type pt=team.team_rank(); pt<numIP; pt+=team.team_size() ) {
+            csol(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
+            csol_x(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,0);
             csol_y(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,1);
-            for (size_type dof=1; dof<numDOF; dof++ ) {
+          }
+          for (size_type dof=1; dof<numDOF; dof++ ) {
+            for (size_type pt=team.team_rank(); pt<numIP; pt+=team.team_size() ) {
+              csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+              csol_x(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,0);
               csol_y(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,1);
             }
           }
-          if (dim>2) {
+        });
+      }
+      else if (dimension == 3) {
+        parallel_for("wkset soln ip HGRAD",
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          
+          for (size_type pt=team.team_rank(); pt<numIP; pt+=team.team_size() ) {
+            csol(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
+            csol_x(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,0);
+            csol_y(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,1);
             csol_z(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,2);
-            for (size_type dof=1; dof<numDOF; dof++ ) {
+          }
+          for (size_type dof=1; dof<numDOF; dof++ ) {
+            for (size_type pt=team.team_rank(); pt<numIP; pt+=team.team_size() ) {
+              csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+              csol_x(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,0);
+              csol_y(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,1);
               csol_z(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,2);
             }
           }
-        }
-      });
+        });
+        
+      }
       
       if (include_transient) { // transient terms only needed at volumetric ip
         auto csol_t = this->getData(var+"_t");
@@ -799,7 +833,9 @@ void workset::computeSoln(const int & type, const bool & onside) {
           int elem = team.league_rank();
           for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
             csol_t(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+          }
+          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
               csol_t(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
             }
           }
@@ -834,7 +870,9 @@ void workset::computeSoln(const int & type, const bool & onside) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           csol(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
-          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+        }
+        for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
             csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
           }
         }
@@ -849,7 +887,9 @@ void workset::computeSoln(const int & type, const bool & onside) {
           int elem = team.league_rank();
           for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
             csol_t(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+          }
+          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
               csol_t(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
             }
           }
@@ -894,30 +934,60 @@ void workset::computeSoln(const int & type, const bool & onside) {
       
       auto cuvals = solvals[varind];
       
-      parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        size_type dim = cbasis.extent(3);
-        for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-          csolx(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
-          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-            csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+      if (dimension == 1) {
+        parallel_for("wkset soln ip HGRAD",
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+            csolx(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
           }
-          if (dim>1) {
+          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+              csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+            }
+          }
+        });
+        
+      }
+      else if (dimension == 2) {
+        parallel_for("wkset soln ip HGRAD",
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+            csolx(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
             csoly(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,1);
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+          }
+          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+              csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
               csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
             }
           }
-          if (dim>2) {
+        });
+        
+      }
+      else if (dimension == 3) {
+        parallel_for("wkset soln ip HGRAD",
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+            csolx(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
+            csoly(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,1);
             csolz(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,2);
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+          }
+          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+              csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+              csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
               csolz(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,2);
             }
           }
-        }
-      });
+        });
+        
+      }
       
       if (!onside) {
         parallel_for("wkset soln ip HGRAD",
@@ -926,7 +996,9 @@ void workset::computeSoln(const int & type, const bool & onside) {
           int elem = team.league_rank();
           for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
             csol_div(elem,pt) = cuvals(elem,0)*cbasis_div(elem,0,pt);
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+          }
+          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
               csol_div(elem,pt) += cuvals(elem,dof)*cbasis_div(elem,dof,pt);
             }
           }
@@ -943,30 +1015,62 @@ void workset::computeSoln(const int & type, const bool & onside) {
           csol_tz = this->getData(var+"_t[z]");
         }
         auto cu_dotvals = soldotvals[varind];
-        parallel_for("wkset soln ip HGRAD transient",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          size_type dim = cbasis.extent(3);
-          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csol_tx(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-              csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
+        
+        if (dimension == 1) {
+          parallel_for("wkset soln ip HGRAD transient",
+                       TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
+                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+              csol_tx(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
             }
-            if (dim>1) {
+            
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+              for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+                csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
+              }
+            }
+          });
+        }
+        else if (dimension == 2) {
+          parallel_for("wkset soln ip HGRAD transient",
+                       TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
+                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+              csol_tx(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
               csol_ty(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,1);
-              for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+            }
+            
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+              for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+                csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
                 csol_ty(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,1);
               }
             }
-            if (dim>2) {
+          });
+        }
+        else if (dimension == 3) {
+          parallel_for("wkset soln ip HGRAD transient",
+                       TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
+                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+              csol_tx(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
+              csol_ty(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,1);
               csol_tz(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,2);
-              for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+            }
+            
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+              for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+                csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
+                csol_ty(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,1);
                 csol_tz(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,2);
               }
             }
-          }
-        });
+          });
+        }
+        
       }
       
     }
@@ -1002,7 +1106,7 @@ void workset::computeSoln(const int & type, const bool & onside) {
         if (dimension > 1) {
           csoly = this->getData(var+"[y] side");
         }
-        if (dimension > 1) {
+        if (dimension > 2) {
           csolz = this->getData(var+"[z] side");
         }
         cbasis = basis_side[basis_index[varind]];
@@ -1010,56 +1114,115 @@ void workset::computeSoln(const int & type, const bool & onside) {
       
       auto cuvals = solvals[varind];
       
-      parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        size_type dim = cbasis.extent(3);
-        for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-          csolx(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
-          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-            csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-          }
-          if (dim>1) {
-            csoly(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,1);
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-              csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
-            }
-          }
-          if (dim>2) {
-            csolz(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,2);
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-              csolz(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,2);
-            }
-          }
-        }
-      });
-      
-      if (!onside) { // no curl on boundary?
+      if (dimension == 1) {
         parallel_for("wkset soln ip HGRAD",
-                     TeamPolicy<AssemblyExec>(cbasis_curl.extent(0), Kokkos::AUTO, VectorSize),
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
-          size_type dim = cbasis_curl.extent(3);
-          for (size_type pt=team.team_rank(); pt<cbasis_curl.extent(2); pt+=team.team_size() ) {
-            csol_curlx(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,0);
-            for (size_type dof=1; dof<cbasis_curl.extent(1); dof++ ) {
-              csol_curlx(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,0);
-            }
-            if (dim>2) {
-              csol_curly(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,1);
-              for (size_type dof=1; dof<cbasis_curl.extent(1); dof++ ) {
-                csol_curly(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,1);
-              }
-            //}
-            //if (dim>2) {
-              csol_curlz(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,2);
-              for (size_type dof=1; dof<cbasis_curl.extent(1); dof++ ) {
-                csol_curlz(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,2);
-              }
+          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+            csolx(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
+          }
+          
+          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+              csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
             }
           }
         });
+      }
+      else if (dimension == 2) {
+        parallel_for("wkset soln ip HGRAD",
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+            csolx(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
+            csoly(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,1);
+          }
+          
+          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+              csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+              csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
+            }
+          }
+        });
+      }
+      else if (dimension == 3) {
+        parallel_for("wkset soln ip HGRAD",
+                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+            csolx(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
+            csoly(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,1);
+            csolz(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,2);
+          }
+          
+          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+              csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+              csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
+              csolz(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,2);
+            }
+          }
+        });
+        
+      }
+      
+      if (!onside) { // no curl on boundary?
+        if (dimension == 1) {
+          parallel_for("wkset soln ip HGRAD",
+                       TeamPolicy<AssemblyExec>(cbasis_curl.extent(0), Kokkos::AUTO, VectorSize),
+                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            for (size_type pt=team.team_rank(); pt<cbasis_curl.extent(2); pt+=team.team_size() ) {
+              csol_curlx(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,0);
+            }
+            for (size_type dof=1; dof<cbasis_curl.extent(1); dof++ ) {
+              for (size_type pt=team.team_rank(); pt<cbasis_curl.extent(2); pt+=team.team_size() ) {
+                csol_curlx(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,0);
+              }
+            }
+          });
+        }
+        else if (dimension == 2) {
+          parallel_for("wkset soln ip HGRAD",
+                       TeamPolicy<AssemblyExec>(cbasis_curl.extent(0), Kokkos::AUTO, VectorSize),
+                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            for (size_type pt=team.team_rank(); pt<cbasis_curl.extent(2); pt+=team.team_size() ) {
+              csol_curlx(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,0);
+              csol_curly(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,1);
+            }
+            for (size_type dof=1; dof<cbasis_curl.extent(1); dof++ ) {
+              for (size_type pt=team.team_rank(); pt<cbasis_curl.extent(2); pt+=team.team_size() ) {
+                csol_curlx(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,0);
+                csol_curly(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,1);
+              }
+            }
+          });
+        }
+        else if (dimension == 3) {
+          parallel_for("wkset soln ip HGRAD",
+                       TeamPolicy<AssemblyExec>(cbasis_curl.extent(0), Kokkos::AUTO, VectorSize),
+                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            for (size_type pt=team.team_rank(); pt<cbasis_curl.extent(2); pt+=team.team_size() ) {
+              csol_curlx(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,0);
+              csol_curly(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,1);
+              csol_curlz(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,2);
+            }
+            for (size_type dof=1; dof<cbasis_curl.extent(1); dof++ ) {
+              for (size_type pt=team.team_rank(); pt<cbasis_curl.extent(2); pt+=team.team_size() ) {
+                csol_curlx(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,0);
+                csol_curly(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,1);
+                csol_curlz(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,2);
+              }
+            }
+          });
+        }
+        
       }
       
       if (include_transient) {
@@ -1072,31 +1235,58 @@ void workset::computeSoln(const int & type, const bool & onside) {
           csol_tz = this->getData(var+"_t[z]");
         }
         auto cu_dotvals = soldotvals[varind];
-        parallel_for("wkset soln ip HGRAD transient",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          size_type dim = cbasis.extent(3);
-          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csol_tx(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-              csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
+        
+        if (dimension == 1) {
+          parallel_for("wkset soln ip HGRAD transient",
+                       TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
+                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+              csol_tx(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
             }
-            if (dim>1) {
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+              for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+                csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
+              }
+            }
+          });
+        }
+        else if (dimension == 2) {
+          parallel_for("wkset soln ip HGRAD transient",
+                       TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
+                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+              csol_tx(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
               csol_ty(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,1);
-              for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+            }
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+              for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+                csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
                 csol_ty(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,1);
               }
             }
-            if (dim>2) {
+          });
+        }
+        else if (dimension == 3) {
+          parallel_for("wkset soln ip HGRAD transient",
+                       TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
+                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+              csol_tx(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
+              csol_ty(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,1);
               csol_tz(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,2);
-              for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+            }
+            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+              for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+                csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
+                csol_ty(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,1);
                 csol_tz(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,2);
               }
             }
-          }
-        });
-        
+          });
+        }
       }
       
     }
