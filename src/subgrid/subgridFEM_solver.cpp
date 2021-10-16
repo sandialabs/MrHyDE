@@ -1194,8 +1194,9 @@ void SubGridFEM_Solver::updateFlux(ViewType u_kv,
     }
   }
   
-  macrowkset.resetResidual();
-    
+  //macrowkset.resetResidual();
+  macrowkset.reset();
+  
   for (size_t e=0; e<assembler->boundaryCells[usernum].size(); e++) {
     
     if (assembler->boundaryCells[usernum][e]->sidename == "interior") {

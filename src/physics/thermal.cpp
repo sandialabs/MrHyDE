@@ -94,20 +94,23 @@ void thermal::volumeResidual() {
  
   auto wts = wkset->wts;
   auto res = wkset->res;
-    
-  auto T = e_vol;
-  auto dTdt = dedt_vol;
+  
+  auto T = wkset->getData("e"); //e_vol;
+  auto dTdt = wkset->getData("e_t"); //dedt_vol;
   
   auto off = subview( wkset->offsets, e_num, ALL());
   bool have_nsvel_ = have_nsvel;
   
-  auto dTdx = dedx_vol;
-  auto dTdy = dedy_vol;
-  auto dTdz = dedz_vol;
-  auto Ux = ux_vol;
-  auto Uy = uy_vol;
-  auto Uz = uz_vol;
+  auto dTdx = wkset->getData("grad(e)[x]"); //dedx_vol;
+  auto dTdy = wkset->getData("grad(e)[y]"); //dedy_vol;
+  auto dTdz = wkset->getData("grad(e)[z]"); //dedz_vol;
   
+  View_AD2 Ux, Uy, Uz;
+  if (have_nsvel) {
+    Ux = wkset->getData("ux");
+    Uy = wkset->getData("uy");
+    Uz = wkset->getData("uz");
+  }
   size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));
   
   parallel_for("Thermal volume resid 3D part 1",
@@ -200,10 +203,10 @@ void thermal::boundaryResidual() {
     });
   }
   else if (bcs(e_num,cside) == "weak Dirichlet" || bcs(e_num,cside) == "interface") {
-    auto T = e_side;
-    auto dTdx = dedx_side;
-    auto dTdy = dedy_side;
-    auto dTdz = dedz_side;
+    auto T = wkset->getData("e side"); //e_side;
+    auto dTdx = wkset->getData("grad(e)[x] side"); //dedx_side;
+    auto dTdy = wkset->getData("grad(e)[y] side"); //dedy_side;
+    auto dTdz = wkset->getData("grad(e)[z] side"); //dedz_side;
     auto nx = wkset->getDataSc("nx side");
     auto ny = wkset->getDataSc("ny side");
     auto nz = wkset->getDataSc("nz side");
@@ -303,15 +306,15 @@ void thermal::computeFlux() {
   View_Sc2 nx, ny, nz;
   View_AD2 T, dTdx, dTdy, dTdz;
   wkset->get("nx side",nx);
-  T = e_side;
-  dTdx = dedx_side;
+  T = wkset->getData("e side");
+  dTdx = wkset->getData("grad(e)[x] side"); //dedx_side;
   if (spaceDim > 1) {
     wkset->get("ny side",ny);
-    dTdy = dedy_side;
+    dTdy = wkset->getData("grad(e)[y] side"); //dedy_side;
   }
   if (spaceDim > 2) {
     wkset->get("nz side",nz);
-    dTdz = dedz_side;
+    dTdz = wkset->getData("grad(e)[z] side"); //dedz_side;
   }
   
   auto h = wkset->h;
@@ -322,6 +325,7 @@ void thermal::computeFlux() {
     
     auto fluxT = subview(wkset->flux, ALL(), e_num, ALL());
     auto lambda = wkset->getData("aux e side");
+    
     {
       Teuchos::TimeMonitor localtime(*fluxFill);
       
@@ -384,6 +388,7 @@ void thermal::setWorkset(Teuchos::RCP<workset> & wkset_) {
   
   // Set these views so we don't need to search repeatedly
   
+  /*
   if (mybasistypes[0] == "HGRAD") {
     wkset->get("e",e_vol);
     wkset->get("e side",e_side);
@@ -403,6 +408,7 @@ void thermal::setWorkset(Teuchos::RCP<workset> & wkset_) {
       wkset->get("uz",uz_vol);
     }
   }
+   */
 
   // testing purposes only
   if (test_IQs) IQ_start = wkset->addIntegratedQuantities(3);

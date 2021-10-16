@@ -964,9 +964,9 @@ void AssemblyManager<Node>::setInitial(vector_RCP & initial, const bool & useadj
 
 template<class Node>
 void AssemblyManager<Node>::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
-                                   const bool & useadjoint,
-                                   const ScalarT & time,
-                                   const bool & lumpmass) {
+                                         const bool & useadjoint,
+                                         const ScalarT & time,
+                                         const bool & lumpmass) {
   
   Teuchos::TimeMonitor localtimer(*setdbctimer);
   

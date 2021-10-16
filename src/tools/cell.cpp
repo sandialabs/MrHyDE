@@ -222,7 +222,9 @@ void cell::updateWorkset(const int & seedwhat, const bool & override_transient) 
   Teuchos::TimeMonitor localtimer(*computeSolnVolTimer);
   
   // Reset the residual and data in the workset
-  wkset->resetResidual();
+  //wkset->resetResidual();
+  wkset->reset();
+  
   wkset->numElem = numElem;
   this->updateData();
   
@@ -277,10 +279,12 @@ void cell::updateWorkset(const int & seedwhat, const bool & override_transient) 
   */
   
   // Map the AD solutions to the aolutions at the volumetric ip
-  wkset->computeSolnVolIP();
-  wkset->computeParamVolIP();
-  //wkset->computeAuxVolIP();
-    
+  if (!wkset->onDemand) {
+    wkset->computeSolnVolIP();
+    wkset->computeParamVolIP();
+    //wkset->computeAuxVolIP();
+  }
+  
   if (cellData->compute_sol_avg) {
     this->computeSolAvg();
   }
@@ -474,10 +478,13 @@ void cell::updateWorksetFace(const size_t & facenum) {
     wkset->basis_grad_side = tbasis_grad;
   }
   
-  // Map the seeded solution in workset to solution at face ip
-  wkset->computeSolnSideIP();
-  wkset->computeParamSideIP();
+  wkset->resetSolutionFields();
   
+  // Map the seeded solution in workset to solution at face ip
+  if (!wkset->onDemand) {
+    wkset->computeSolnSideIP();
+    wkset->computeParamSideIP();
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

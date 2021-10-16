@@ -148,31 +148,59 @@ void FunctionManager::decomposeFunctions() {
             
             // Is it an AD data stored in the workset?
             if (decompose) {
-              vector<string> data_labels = wkset->data_labels;
-              
-              string mod_expr = expr;
-              if (forests[fiter].location == "side ip") {
-                mod_expr += " side";
-              }
-              else if (forests[fiter].location == "point") {
-                mod_expr += " point";
-              }
-              bool found = 0;
-              size_t j=0;
-              while (!found && j<data_labels.size()) {
-                if (mod_expr == data_labels[j]) {
-                  decompose = false;
-                  forests[fiter].trees[titer].branches[k].isLeaf = true;
-                  forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                  forests[fiter].trees[titer].branches[k].isView = true;
-                  forests[fiter].trees[titer].branches[k].isAD = true;
-                  forests[fiter].trees[titer].branches[k].isWorksetData = true;
-                  
-                  forests[fiter].trees[titer].branches[k].workset_data_index = j;
-                  wkset->checkDataAllocation(j);
-                  found = true;
+              if (wkset->onDemand) {
+                string mod_expr = expr;
+                if (forests[fiter].location == "side ip") {
+                  mod_expr += " side";
                 }
-                j++;
+                else if (forests[fiter].location == "point") {
+                  mod_expr += " point";
+                }
+                bool found = 0;
+                size_t j=0;
+                while (!found && j<wkset->fields.size()) {
+                  if (mod_expr == wkset->fields[j].expression) {
+                    decompose = false;
+                    forests[fiter].trees[titer].branches[k].isLeaf = true;
+                    forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                    forests[fiter].trees[titer].branches[k].isView = true;
+                    forests[fiter].trees[titer].branches[k].isAD = true;
+                    forests[fiter].trees[titer].branches[k].isWorksetData = true;
+                    
+                    forests[fiter].trees[titer].branches[k].workset_data_index = j;
+                    wkset->checkDataAllocation(j);
+                    found = true;
+                  }
+                  j++;
+                }
+              }
+              else {
+                vector<string> data_labels = wkset->data_labels;
+                
+                string mod_expr = expr;
+                if (forests[fiter].location == "side ip") {
+                  mod_expr += " side";
+                }
+                else if (forests[fiter].location == "point") {
+                  mod_expr += " point";
+                }
+                bool found = 0;
+                size_t j=0;
+                while (!found && j<data_labels.size()) {
+                  if (mod_expr == data_labels[j]) {
+                    decompose = false;
+                    forests[fiter].trees[titer].branches[k].isLeaf = true;
+                    forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                    forests[fiter].trees[titer].branches[k].isView = true;
+                    forests[fiter].trees[titer].branches[k].isAD = true;
+                    forests[fiter].trees[titer].branches[k].isWorksetData = true;
+                    
+                    forests[fiter].trees[titer].branches[k].workset_data_index = j;
+                    wkset->checkDataAllocation(j);
+                    found = true;
+                  }
+                  j++;
+                }
               }
             }
             
@@ -660,11 +688,24 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, co
     if (forests[findex].trees[tindex].branches[bindex].isLeaf) {
       if (forests[findex].trees[tindex].branches[bindex].isWorksetData) {
         int wdindex = forests[findex].trees[tindex].branches[bindex].workset_data_index;
-        if (forests[findex].trees[tindex].branches[bindex].isAD) {
-          forests[findex].trees[tindex].branches[bindex].viewdata = wkset->data[wdindex];
+        if (wkset->onDemand) {
+          if (forests[findex].trees[tindex].branches[bindex].isAD) {
+            if (!wkset->fields[wdindex].isUpdated) {
+              wkset->evaluateSolutionField(wdindex);
+            }
+            forests[findex].trees[tindex].branches[bindex].viewdata = wkset->fields[wdindex].data;
+          }
+          else {
+            forests[findex].trees[tindex].branches[bindex].viewdata_Sc = wkset->data_Sc[wdindex];
+          }
         }
         else {
-          forests[findex].trees[tindex].branches[bindex].viewdata_Sc = wkset->data_Sc[wdindex];
+          if (forests[findex].trees[tindex].branches[bindex].isAD) {
+            forests[findex].trees[tindex].branches[bindex].viewdata = wkset->data[wdindex];
+          }
+          else {
+            forests[findex].trees[tindex].branches[bindex].viewdata_Sc = wkset->data_Sc[wdindex];
+          }
         }
       }
       else if (forests[findex].trees[tindex].branches[bindex].isParameter) {

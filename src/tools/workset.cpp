@@ -41,17 +41,13 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
     numsides = celltopo->getFaceCount();
   }
   
+  // Hard coding for testing
+  onDemand = true;
+  
   maxElem = numElem;
   time = 0.0;
   deltat = 1.0;
   current_stage = 0;
-  
-  //deltat_KV = Kokkos::View<ScalarT*,AssemblyDevice>("deltat",1);
-  //Kokkos::deep_copy(deltat_KV,deltat);
-  
-  //current_stage_KV = Kokkos::View<int*,AssemblyDevice>("stage number on device",1);
-  //Kokkos::deep_copy(current_stage_KV,0);
-  //time_KV = Kokkos::View<ScalarT*,AssemblyDevice>("time",1); // defaults to 0.0
   
   // Add scalar views to store ips
   this->addDataSc("x",numElem,numip);
@@ -137,68 +133,134 @@ void workset::createSolns() {
     if (basis_types[bind].substr(0,5) == "HGRAD") {
       vars_HGRAD.push_back(i);
       varlist_HGRAD.push_back(var);
-      this->addData(var,numElem,numip);
-      this->addData("grad("+var+")[x]",numElem,numip);
-      this->addData("grad("+var+")[y]",numElem,numip);
-      this->addData("grad("+var+")[z]",numElem,numip);
-      this->addData(var+"_t",numElem,numip);
-      this->addData(var+" side",numElem,numsideip);
-      this->addData("grad("+var+")[x] side",numElem,numsideip);
-      this->addData("grad("+var+")[y] side",numElem,numsideip);
-      this->addData("grad("+var+")[z] side",numElem,numsideip);
-      this->addData(var+" point",1,1);
-      this->addData("grad("+var+")[x] point",1,1);
-      this->addData("grad("+var+")[y] point",1,1);
-      this->addData("grad("+var+")[z] point",1,1);
+      if (onDemand) {
+        fields.push_back(SolutionField(var,"solution",i,"HGRAD",bind,"",0,0,numip,false,false));
+        fields.push_back(SolutionField("grad("+var+")[x]","solution",i,"HGRAD",bind,"grad",0,0,numip,false,false));
+        fields.push_back(SolutionField("grad("+var+")[y]","solution",i,"HGRAD",bind,"grad",1,0,numip,false,false));
+        fields.push_back(SolutionField("grad("+var+")[z]","solution",i,"HGRAD",bind,"grad",2,0,numip,false,false));
+        fields.push_back(SolutionField(var+"_t","solution",i,"HGRAD",bind,"time",0,0,numip,false,false));
+        fields.push_back(SolutionField(var+" side","solution",i,"HGRAD",bind,"",0,0,numsideip,true,false));
+        fields.push_back(SolutionField("grad("+var+")[x] side","solution",i,"HGRAD",bind,"grad",0,0,numsideip,true,false));
+        fields.push_back(SolutionField("grad("+var+")[y] side","solution",i,"HGRAD",bind,"grad",1,0,numsideip,true,false));
+        fields.push_back(SolutionField("grad("+var+")[z] side","solution",i,"HGRAD",bind,"grad",2,0,numsideip,true,false));
+        fields.push_back(SolutionField(var+" point","solution",i,"HGRAD",bind,"grad",0,0,1,false,true));
+        fields.push_back(SolutionField("grad("+var+")[x] point","solution",i,"HGRAD",bind,"grad",0,0,1,false,true));
+        fields.push_back(SolutionField("grad("+var+")[y] point","solution",i,"HGRAD",bind,"grad",1,0,1,false,true));
+        fields.push_back(SolutionField("grad("+var+")[z] point","solution",i,"HGRAD",bind,"grad",2,0,1,false,true));
+      }
+      else {
+        this->addData(var,numElem,numip);
+        this->addData("grad("+var+")[x]",numElem,numip);
+        this->addData("grad("+var+")[y]",numElem,numip);
+        this->addData("grad("+var+")[z]",numElem,numip);
+        this->addData(var+"_t",numElem,numip);
+        this->addData(var+" side",numElem,numsideip);
+        this->addData("grad("+var+")[x] side",numElem,numsideip);
+        this->addData("grad("+var+")[y] side",numElem,numsideip);
+        this->addData("grad("+var+")[z] side",numElem,numsideip);
+        this->addData(var+" point",1,1);
+        this->addData("grad("+var+")[x] point",1,1);
+        this->addData("grad("+var+")[y] point",1,1);
+        this->addData("grad("+var+")[z] point",1,1);
+      }
     }
     else if (basis_types[bind].substr(0,4) == "HDIV" ) {
       vars_HDIV.push_back(i);
       varlist_HDIV.push_back(var);
-      this->addData(var+"[x]",numElem,numip);
-      this->addData(var+"[y]",numElem,numip);
-      this->addData(var+"[z]",numElem,numip);
-      this->addData("div("+var+")",numElem,numip);
-      this->addData(var+"_t[x]",numElem,numip);
-      this->addData(var+"_t[y]",numElem,numip);
-      this->addData(var+"_t[z]",numElem,numip);
-      this->addData(var+"[x] side",numElem,numsideip);
-      this->addData(var+"[y] side",numElem,numsideip);
-      this->addData(var+"[z] side",numElem,numsideip);
-      this->addData(var+"[x] point",1,1);
-      this->addData(var+"[y] point",1,1);
-      this->addData(var+"[z] point",1,1);
+      if (onDemand) {
+        fields.push_back(SolutionField(var+"[x]","solution",i,"HDIV",bind,"",0,0,numip,false,false));
+        fields.push_back(SolutionField(var+"[y]","solution",i,"HDIV",bind,"",1,0,numip,false,false));
+        fields.push_back(SolutionField(var+"[z]","solution",i,"HDIV",bind,"",2,0,numip,false,false));
+        fields.push_back(SolutionField("div("+var+")","solution",i,"HDIV",bind,"div",0,0,numip,false,false));
+        fields.push_back(SolutionField(var+"_t[x]","solution",i,"HDIV",bind,"time",0,0,numip,false,false));
+        fields.push_back(SolutionField(var+"_t[y]","solution",i,"HDIV",bind,"time",1,0,numip,false,false));
+        fields.push_back(SolutionField(var+"_t[z]","solution",i,"HDIV",bind,"time",2,0,numip,false,false));
+        fields.push_back(SolutionField(var+"[x] side","solution",i,"HDIV",bind,"",0,0,numsideip,true,false));
+        fields.push_back(SolutionField(var+"[y] side","solution",i,"HDIV",bind,"",1,0,numsideip,true,false));
+        fields.push_back(SolutionField(var+"[z] side","solution",i,"HDIV",bind,"",2,0,numsideip,true,false));
+        fields.push_back(SolutionField(var+"[x] point","solution",i,"HDIV",bind,"",0,0,1,false,true));
+        fields.push_back(SolutionField(var+"[y] point","solution",i,"HDIV",bind,"",1,0,1,false,true));
+        fields.push_back(SolutionField(var+"[z] point","solution",i,"HDIV",bind,"",2,0,1,false,true));
+      }
+      else {
+        this->addData(var+"[x]",numElem,numip);
+        this->addData(var+"[y]",numElem,numip);
+        this->addData(var+"[z]",numElem,numip);
+        this->addData("div("+var+")",numElem,numip);
+        this->addData(var+"_t[x]",numElem,numip);
+        this->addData(var+"_t[y]",numElem,numip);
+        this->addData(var+"_t[z]",numElem,numip);
+        this->addData(var+"[x] side",numElem,numsideip);
+        this->addData(var+"[y] side",numElem,numsideip);
+        this->addData(var+"[z] side",numElem,numsideip);
+        this->addData(var+"[x] point",1,1);
+        this->addData(var+"[y] point",1,1);
+        this->addData(var+"[z] point",1,1);
+      }
     }
     else if (basis_types[bind].substr(0,4) == "HVOL") {
       vars_HVOL.push_back(i);
       varlist_HVOL.push_back(var);
-      this->addData(var,numElem,numip);
-      this->addData(var+"_t",numElem,numip);
-      this->addData(var+" side",numElem,numsideip);
-      this->addData(var+" point",1,1);
+      if (onDemand) {
+        fields.push_back(SolutionField(var,"solution",i,"HVOL",bind,"",0,0,numip,false,false));
+        fields.push_back(SolutionField(var+"_t","solution",i,"HVOL",bind,"time",0,0,numip,false,false));
+        fields.push_back(SolutionField(var+" side","solution",i,"HVOL",bind,"",0,0,numsideip,false,false));
+        fields.push_back(SolutionField(var+" point","solution",i,"HVOL",bind,"",0,0,1,false,true));
+      }
+      else {
+        this->addData(var,numElem,numip);
+        this->addData(var+"_t",numElem,numip);
+        this->addData(var+" side",numElem,numsideip);
+        this->addData(var+" point",1,1);
+      }
     }
     else if (basis_types[bind].substr(0,5) == "HCURL") {
       vars_HCURL.push_back(i);
       varlist_HCURL.push_back(var);
-      this->addData(var+"[x]",numElem,numip);
-      this->addData(var+"[y]",numElem,numip);
-      this->addData(var+"[z]",numElem,numip);
-      this->addData("curl("+var+")[x]",numElem,numip);
-      this->addData("curl("+var+")[y]",numElem,numip);
-      this->addData("curl("+var+")[z]",numElem,numip);
-      this->addData(var+"_t[x]",numElem,numip);
-      this->addData(var+"_t[y]",numElem,numip);
-      this->addData(var+"_t[z]",numElem,numip);
-      this->addData(var+"[x] side",numElem,numsideip);
-      this->addData(var+"[y] side",numElem,numsideip);
-      this->addData(var+"[z] side",numElem,numsideip);
-      this->addData(var+"[x] point",1,1);
-      this->addData(var+"[y] point",1,1);
-      this->addData(var+"[z] point",1,1);
+      if (onDemand) {
+        fields.push_back(SolutionField(var+"[x]","solution",i,"HCURL",bind,"",0,0,numip,false,false));
+        fields.push_back(SolutionField(var+"[y]","solution",i,"HCURL",bind,"",1,0,numip,false,false));
+        fields.push_back(SolutionField(var+"[z]","solution",i,"HCURL",bind,"",2,0,numip,false,false));
+        fields.push_back(SolutionField("curl("+var+")[x]","solution",i,"HCURL",bind,"curl",0,0,numip,false,false));
+        fields.push_back(SolutionField("curl("+var+")[y]","solution",i,"HCURL",bind,"curl",1,0,numip,false,false));
+        fields.push_back(SolutionField("curl("+var+")[z]","solution",i,"HCURL",bind,"curl",2,0,numip,false,false));
+        fields.push_back(SolutionField(var+"_t[x]","solution",i,"HCURL",bind,"time",0,0,numip,false,false));
+        fields.push_back(SolutionField(var+"_t[y]","solution",i,"HCURL",bind,"time",1,0,numip,false,false));
+        fields.push_back(SolutionField(var+"_t[z]","solution",i,"HCURL",bind,"time",2,0,numip,false,false));
+        fields.push_back(SolutionField(var+"[x] side","solution",i,"HCURL",bind,"",0,0,numsideip,true,false));
+        fields.push_back(SolutionField(var+"[y] side","solution",i,"HCURL",bind,"",1,0,numsideip,true,false));
+        fields.push_back(SolutionField(var+"[z] side","solution",i,"HCURL",bind,"",2,0,numsideip,true,false));
+        fields.push_back(SolutionField(var+"[x] point","solution",i,"HCURL",bind,"",0,0,1,false,true));
+        fields.push_back(SolutionField(var+"[x] point","solution",i,"HCURL",bind,"",0,0,1,false,true));
+        fields.push_back(SolutionField(var+"[x] point","solution",i,"HCURL",bind,"",0,0,1,false,true));
+      }
+      else {
+        this->addData(var+"[x]",numElem,numip);
+        this->addData(var+"[y]",numElem,numip);
+        this->addData(var+"[z]",numElem,numip);
+        this->addData("curl("+var+")[x]",numElem,numip);
+        this->addData("curl("+var+")[y]",numElem,numip);
+        this->addData("curl("+var+")[z]",numElem,numip);
+        this->addData(var+"_t[x]",numElem,numip);
+        this->addData(var+"_t[y]",numElem,numip);
+        this->addData(var+"_t[z]",numElem,numip);
+        this->addData(var+"[x] side",numElem,numsideip);
+        this->addData(var+"[y] side",numElem,numsideip);
+        this->addData(var+"[z] side",numElem,numsideip);
+        this->addData(var+"[x] point",1,1);
+        this->addData(var+"[y] point",1,1);
+        this->addData(var+"[z] point",1,1);
+      }
     }
     else if (basis_types[bind].substr(0,5) == "HFACE") {
       vars_HFACE.push_back(i);
       varlist_HFACE.push_back(var);
-      this->addData(var+" side",numElem,numsideip);
+      if (onDemand) {
+        fields.push_back(SolutionField(var+" side","solution",i,"HFACE",bind,"",0,0,numsideip,true,false));
+      }
+      else {
+        this->addData(var+" side",numElem,numsideip);
+      }
     }
   }
   
@@ -212,74 +274,160 @@ void workset::createSolns() {
     if (basis_types[bind].substr(0,5) == "HGRAD") {
       paramvars_HGRAD.push_back(i);
       paramvarlist_HGRAD.push_back(var);
-      this->addData(var,numElem,numip);
-      this->addData("grad("+var+")[x]",numElem,numip);
-      this->addData("grad("+var+")[y]",numElem,numip);
-      this->addData("grad("+var+")[z]",numElem,numip);
-      this->addData(var+"_t",numElem,numip);
-      this->addData(var+" side",numElem,numsideip);
-      this->addData("grad("+var+")[x] side",numElem,numsideip);
-      this->addData("grad("+var+")[y] side",numElem,numsideip);
-      this->addData("grad("+var+")[z] side",numElem,numsideip);
-      this->addData(var+" point",1,1);
-      this->addData("grad("+var+")[x] point",1,1);
-      this->addData("grad("+var+")[y] point",1,1);
-      this->addData("grad("+var+")[z] point",1,1);
+      if (onDemand) {
+        fields.push_back(SolutionField(var,"param",i,"HGRAD",bind,"",0,0,numip,false,false));
+        fields.push_back(SolutionField("grad("+var+")[x]","param",i,"HGRAD",bind,"grad",0,0,numip,false,false));
+        fields.push_back(SolutionField("grad("+var+")[y]","param",i,"HGRAD",bind,"grad",1,0,numip,false,false));
+        fields.push_back(SolutionField("grad("+var+")[z]","param",i,"HGRAD",bind,"grad",2,0,numip,false,false));
+        fields.push_back(SolutionField(var+"_t","param",i,"HGRAD",bind,"time",0,0,numip,false,false));
+        fields.push_back(SolutionField(var+" side","param",i,"HGRAD",bind,"",0,0,numsideip,true,false));
+        fields.push_back(SolutionField("grad("+var+")[x] side","param",i,"HGRAD",bind,"grad",0,0,numsideip,true,false));
+        fields.push_back(SolutionField("grad("+var+")[y] side","param",i,"HGRAD",bind,"grad",1,0,numsideip,true,false));
+        fields.push_back(SolutionField("grad("+var+")[z] side","param",i,"HGRAD",bind,"grad",2,0,numsideip,true,false));
+        fields.push_back(SolutionField(var+" point","param",i,"HGRAD",bind,"",0,0,1,false,true));
+        fields.push_back(SolutionField("grad("+var+")[x] point","param",i,"HGRAD",bind,"grad",0,0,1,false,true));
+        fields.push_back(SolutionField("grad("+var+")[y] point","param",i,"HGRAD",bind,"grad",1,0,1,false,true));
+        fields.push_back(SolutionField("grad("+var+")[z] point","param",i,"HGRAD",bind,"grad",2,0,1,false,true));
+      }
+      else {
+        this->addData(var,numElem,numip);
+        this->addData("grad("+var+")[x]",numElem,numip);
+        this->addData("grad("+var+")[y]",numElem,numip);
+        this->addData("grad("+var+")[z]",numElem,numip);
+        this->addData(var+"_t",numElem,numip);
+        this->addData(var+" side",numElem,numsideip);
+        this->addData("grad("+var+")[x] side",numElem,numsideip);
+        this->addData("grad("+var+")[y] side",numElem,numsideip);
+        this->addData("grad("+var+")[z] side",numElem,numsideip);
+        this->addData(var+" point",1,1);
+        this->addData("grad("+var+")[x] point",1,1);
+        this->addData("grad("+var+")[y] point",1,1);
+        this->addData("grad("+var+")[z] point",1,1);
+      }
     }
     else if (basis_types[bind].substr(0,4) == "HDIV") {
       paramvars_HDIV.push_back(i);
       paramvarlist_HDIV.push_back(var);
-      this->addData(var+"[x]",numElem,numip);
-      this->addData(var+"[y]",numElem,numip);
-      this->addData(var+"[z]",numElem,numip);
-      this->addData("div("+var+")",numElem,numip);
-      this->addData(var+"_t[x]",numElem,numip);
-      this->addData(var+"_t[y]",numElem,numip);
-      this->addData(var+"_t[z]",numElem,numip);
-      this->addData(var+"[x] side",numElem,numsideip);
-      this->addData(var+"[y] side",numElem,numsideip);
-      this->addData(var+"[z] side",numElem,numsideip);
-      this->addData(var+"[x] point",1,1);
-      this->addData(var+"[y] point",1,1);
-      this->addData(var+"[z] point",1,1);
+      if (onDemand) {
+        fields.push_back(SolutionField(var+"[x]","param",i,"HDIV",bind,"",0,0,numip,false,false));
+        fields.push_back(SolutionField(var+"[y]","param",i,"HDIV",bind,"",1,0,numip,false,false));
+        fields.push_back(SolutionField(var+"[z]","param",i,"HDIV",bind,"",2,0,numip,false,false));
+        fields.push_back(SolutionField("div("+var+")","param",i,"HDIV",bind,"div",0,0,numip,false,false));
+        fields.push_back(SolutionField(var+"_t[x]","param",i,"HDIV",bind,"time",0,0,numip,false,false));
+        fields.push_back(SolutionField(var+"_t[y]","param",i,"HDIV",bind,"time",1,0,numip,false,false));
+        fields.push_back(SolutionField(var+"_t[z]","param",i,"HDIV",bind,"time",2,0,numip,false,false));
+        fields.push_back(SolutionField(var+"[x] side","param",i,"HDIV",bind,"",0,0,numsideip,true,false));
+        fields.push_back(SolutionField(var+"[y] side","param",i,"HDIV",bind,"",1,0,numsideip,true,false));
+        fields.push_back(SolutionField(var+"[z] side","param",i,"HDIV",bind,"",2,0,numsideip,true,false));
+        fields.push_back(SolutionField(var+"[x] point","param",i,"HDIV",bind,"",0,0,1,false,true));
+        fields.push_back(SolutionField(var+"[y] point","param",i,"HDIV",bind,"",1,0,1,false,true));
+        fields.push_back(SolutionField(var+"[z] point","param",i,"HDIV",bind,"",2,0,1,false,true));
+      }
+      else {
+        this->addData(var+"[x]",numElem,numip);
+        this->addData(var+"[y]",numElem,numip);
+        this->addData(var+"[z]",numElem,numip);
+        this->addData("div("+var+")",numElem,numip);
+        this->addData(var+"_t[x]",numElem,numip);
+        this->addData(var+"_t[y]",numElem,numip);
+        this->addData(var+"_t[z]",numElem,numip);
+        this->addData(var+"[x] side",numElem,numsideip);
+        this->addData(var+"[y] side",numElem,numsideip);
+        this->addData(var+"[z] side",numElem,numsideip);
+        this->addData(var+"[x] point",1,1);
+        this->addData(var+"[y] point",1,1);
+        this->addData(var+"[z] point",1,1);
+      }
     }
     else if (basis_types[bind].substr(0,4) == "HVOL") {
       paramvars_HVOL.push_back(i);
       paramvarlist_HVOL.push_back(var);
-      this->addData(var,numElem,numip);
-      this->addData(var+"_t",numElem,numip);
-      this->addData(var+" side",numElem,numsideip);
-      this->addData(var+" point",1,1);
+      if (onDemand) {
+        fields.push_back(SolutionField(var,"param",i,"HVOL",bind,"",0,0,numip,false,false));
+        fields.push_back(SolutionField(var+"_t","param",i,"HVOL",bind,"time",0,0,numip,false,false));
+        fields.push_back(SolutionField(var+" side","param",i,"HVOL",bind,"",0,0,numsideip,true,false));
+        fields.push_back(SolutionField(var+" point","param",i,"HVOL",bind,"",0,0,1,false,true));
+      }
+      else {
+        this->addData(var,numElem,numip);
+        this->addData(var+"_t",numElem,numip);
+        this->addData(var+" side",numElem,numsideip);
+        this->addData(var+" point",1,1);
+      }
+      
     }
     else if (basis_types[bind].substr(0,5) == "HCURL") {
       paramvars_HCURL.push_back(i);
       paramvarlist_HCURL.push_back(var);
-      this->addData(var+"[x]",numElem,numip);
-      this->addData(var+"[y]",numElem,numip);
-      this->addData(var+"[z]",numElem,numip);
-      this->addData("curl("+var+")[x]",numElem,numip);
-      this->addData("curl("+var+")[y]",numElem,numip);
-      this->addData("curl("+var+")[z]",numElem,numip);
-      this->addData(var+"_t[x]",numElem,numip);
-      this->addData(var+"_t[y]",numElem,numip);
-      this->addData(var+"_t[z]",numElem,numip);
-      this->addData(var+"[x] side",numElem,numsideip);
-      this->addData(var+"[y] side",numElem,numsideip);
-      this->addData(var+"[z] side",numElem,numsideip);
-      this->addData(var+"[x] point",1,1);
-      this->addData(var+"[y] point",1,1);
-      this->addData(var+"[z] point",1,1);
+      if (onDemand) {
+        fields.push_back(SolutionField(var+"[x]","param",i,"HCURL",bind,"",0,0,numip,false,false));
+        fields.push_back(SolutionField(var+"[y]","param",i,"HCURL",bind,"",1,0,numip,false,false));
+        fields.push_back(SolutionField(var+"[z]","param",i,"HCURL",bind,"",2,0,numip,false,false));
+        fields.push_back(SolutionField("curl("+var+")[x]","param",i,"HCURL",bind,"curl",0,0,numip,false,false));
+        fields.push_back(SolutionField("curl("+var+")[y]","param",i,"HCURL",bind,"curl",1,0,numip,false,false));
+        fields.push_back(SolutionField("curl("+var+")[z]","param",i,"HCURL",bind,"curl",2,0,numip,false,false));
+        fields.push_back(SolutionField(var+"_t[x]","param",i,"HCURL",bind,"time",0,0,numip,false,false));
+        fields.push_back(SolutionField(var+"_t[y]","param",i,"HCURL",bind,"time",1,0,numip,false,false));
+        fields.push_back(SolutionField(var+"_t[z]","param",i,"HCURL",bind,"time",2,0,numip,false,false));
+        fields.push_back(SolutionField(var+"[x] side","param",i,"HCURL",bind,"",0,0,numsideip,true,false));
+        fields.push_back(SolutionField(var+"[y] side","param",i,"HCURL",bind,"",1,0,numsideip,true,false));
+        fields.push_back(SolutionField(var+"[z] side","param",i,"HCURL",bind,"",2,0,numsideip,true,false));
+        fields.push_back(SolutionField(var+"[x] point","param",i,"HCURL",bind,"",0,0,1,false,true));
+        fields.push_back(SolutionField(var+"[y] point","param",i,"HCURL",bind,"",1,0,1,false,true));
+        fields.push_back(SolutionField(var+"[z] point","param",i,"HCURL",bind,"",2,0,1,false,true));
+      }
+      else {
+        this->addData(var+"[x]",numElem,numip);
+        this->addData(var+"[y]",numElem,numip);
+        this->addData(var+"[z]",numElem,numip);
+        this->addData("curl("+var+")[x]",numElem,numip);
+        this->addData("curl("+var+")[y]",numElem,numip);
+        this->addData("curl("+var+")[z]",numElem,numip);
+        this->addData(var+"_t[x]",numElem,numip);
+        this->addData(var+"_t[y]",numElem,numip);
+        this->addData(var+"_t[z]",numElem,numip);
+        this->addData(var+"[x] side",numElem,numsideip);
+        this->addData(var+"[y] side",numElem,numsideip);
+        this->addData(var+"[z] side",numElem,numsideip);
+        this->addData(var+"[x] point",1,1);
+        this->addData(var+"[y] point",1,1);
+        this->addData(var+"[z] point",1,1);
+      }
     }
     else if (basis_types[bind].substr(0,5) == "HFACE") {
       paramvars_HFACE.push_back(i);
       paramvarlist_HFACE.push_back(var);
-      this->addData(var+" side",numElem,numsideip);
+      if (onDemand) {
+        fields.push_back(SolutionField(var+" side","param",i,"HFACE",bind,"",0,0,numsideip,true,false));
+      }
+      else {
+        this->addData(var+" side",numElem,numsideip);
+      }
     }
   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
-// Reset solution to zero
+// Reset
+////////////////////////////////////////////////////////////////////////////////////
+
+void workset::reset() {
+  this->resetResidual();
+  this->resetSolutionFields();
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+// Reset solution fields
+////////////////////////////////////////////////////////////////////////////////////
+
+void workset::resetSolutionFields() {
+  for (size_t f=0; f<fields.size(); ++f) {
+    fields[f].isUpdated = false;
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+// Reset residuals
 ////////////////////////////////////////////////////////////////////////////////////
 
 void workset::resetResidual() {
@@ -658,6 +806,135 @@ void workset::computeSolnVolIP() {
 ////////////////////////////////////////////////////////////////////////////////////
 // Compute the seeded solutions at specified ip
 ////////////////////////////////////////////////////////////////////////////////////
+
+void workset::evaluateSolutionField(const int & fieldnum) {
+  
+  auto fielddata = fields[fieldnum].data;
+  
+  bool proceed = true;
+  if (fields[fieldnum].derivative_type == "time" ) {
+    if (!isTransient) {
+      proceed = false;
+    }
+    else if (fields[fieldnum].isOnSide) {
+      proceed = false;
+    }
+    else if (fields[fieldnum].variable_type == "param") {
+      proceed = false;
+    }
+  }
+  if (fields[fieldnum].variable_type == "aux") {
+    proceed = false;
+  }
+  if (fields[fieldnum].isPoint) {
+    proceed = false;
+  }
+  
+  if (proceed) {
+    //-----------------------------------------------------
+    // Get the appropriate view of seeded solution values
+    //-----------------------------------------------------
+    
+    View_AD2 solvals;
+    if (fields[fieldnum].variable_type == "solution") { // solution
+      if (fields[fieldnum].derivative_type == "time" ) {
+        solvals = u_dotvals[fields[fieldnum].variable_index];
+      }
+      else {
+        solvals = uvals[fields[fieldnum].variable_index];
+      }
+    }
+    if (fields[fieldnum].variable_type == "param") { // discr. params
+      solvals = pvals[fields[fieldnum].variable_index];
+    }
+    if (fields[fieldnum].variable_type == "aux") { // aux
+      if (fields[fieldnum].derivative_type == "time" ) {
+        solvals = aux_dotvals[fields[fieldnum].variable_index];
+      }
+      else {
+        solvals = auxvals[fields[fieldnum].variable_index];
+      }
+    }
+    
+    //-----------------------------------------------------
+    // Get the appropriate basis values and evaluate the fields
+    //-----------------------------------------------------
+    
+    int component = fields[fieldnum].component;
+    int basis_index = fields[fieldnum].basis_index;
+    
+    if (fields[fieldnum].derivative_type == "div") {
+      auto sbasis = basis_div[basis_index];
+      size_t teamSize = std::min(maxTeamSize,sbasis.extent(2));
+      
+      parallel_for("wkset soln ip HGRAD",
+                   TeamPolicy<AssemblyExec>(sbasis.extent(0), teamSize, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
+          fielddata(elem,pt) = solvals(elem,0)*sbasis(elem,0,pt);
+        }
+        for (size_type dof=1; dof<sbasis.extent(1); dof++ ) {
+          for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
+            fielddata(elem,pt) += solvals(elem,dof)*sbasis(elem,dof,pt);
+          }
+        }
+      });
+      
+    }
+    else {
+      View_Sc4 cbasis;
+      if (fields[fieldnum].derivative_type == "grad") {
+        if (fields[fieldnum].isOnSide) {
+          cbasis = basis_grad_side[basis_index];
+        }
+        else {
+          cbasis = basis_grad[basis_index];
+        }
+      }
+      else if (fields[fieldnum].derivative_type == "curl") {
+        if (fields[fieldnum].isOnSide) {
+          // not implemented
+        }
+        else {
+          cbasis = basis_curl[basis_index];
+        }
+      }
+      else {
+        if (fields[fieldnum].isOnSide) {
+          cbasis = basis_side[basis_index];
+        }
+        else {
+          cbasis = basis[basis_index];
+        }
+      }
+      
+      auto sbasis = subview(cbasis, ALL(), ALL(), ALL(), component);
+      size_t teamSize = std::min(maxTeamSize,sbasis.extent(2));
+      
+      parallel_for("wkset soln ip HGRAD",
+                   TeamPolicy<AssemblyExec>(sbasis.extent(0), teamSize, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
+          fielddata(elem,pt) = solvals(elem,0)*sbasis(elem,0,pt);
+        }
+        for (size_type dof=1; dof<sbasis.extent(1); dof++ ) {
+          for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
+            fielddata(elem,pt) += solvals(elem,dof)*sbasis(elem,dof,pt);
+          }
+        }
+      });
+      
+    }
+    
+    fields[fieldnum].isUpdated = true;
+  }
+  
+}
+
+
+
 
 void workset::computeSoln(const int & type, const bool & onside) {
     
@@ -1072,7 +1349,6 @@ void workset::computeSoln(const int & type, const bool & onside) {
         }
         
       }
-      
     }
     
     /////////////////////////////////////////////////////////////////////
@@ -1382,10 +1658,10 @@ void workset::computeSolnSideIP(const int & side) {
       
       auto cuvals = uvals[varind];
       
-      auto csol = this->getData(var+" side");
-      auto csol_x = this->getData("grad("+var+")[x] side");
-      auto csol_y = this->getData("grad("+var+")[y] side");
-      auto csol_z = this->getData("grad("+var+")[z] side");
+      auto csol = this->findData(var+" side");
+      auto csol_x = this->findData("grad("+var+")[x] side");
+      auto csol_y = this->findData("grad("+var+")[y] side");
+      auto csol_z = this->findData("grad("+var+")[z] side");
       auto cbasis = basis_side[usebasis[varind]];
       auto cbasis_grad = basis_grad_side[usebasis[varind]];
       
@@ -1427,7 +1703,7 @@ void workset::computeSolnSideIP(const int & side) {
       
       auto cuvals = uvals[varind];
       
-      auto csol = this->getData(var+" side");
+      auto csol = this->findData(var+" side");
       auto cbasis = basis_side[usebasis[varind]];
       
       parallel_for("wkset soln ip HGRAD",
@@ -1453,9 +1729,9 @@ void workset::computeSolnSideIP(const int & side) {
       
       auto cuvals = uvals[varind];
       
-      auto csolx = this->getData(var+"[x] side");
-      auto csoly = this->getData(var+"[y] side");
-      auto csolz = this->getData(var+"[z] side");
+      auto csolx = this->findData(var+"[x] side");
+      auto csoly = this->findData(var+"[y] side");
+      auto csolz = this->findData(var+"[z] side");
       auto cbasis = basis_side[usebasis[varind]];
       
       parallel_for("wkset soln ip HGRAD",
@@ -1494,9 +1770,9 @@ void workset::computeSolnSideIP(const int & side) {
       
       auto cuvals = uvals[varind];
       
-      auto csolx = this->getData(var+"[x] side");
-      auto csoly = this->getData(var+"[y] side");
-      auto csolz = this->getData(var+"[z] side");
+      auto csolx = this->findData(var+"[x] side");
+      auto csoly = this->findData(var+"[y] side");
+      auto csolz = this->findData(var+"[z] side");
       auto cbasis = basis_side[usebasis[varind]];
       
       parallel_for("wkset soln ip HGRAD",
@@ -1547,8 +1823,14 @@ void workset::addAux(const vector<string> & auxvars, Kokkos::View<int**,Assembly
 
   for (size_t i=0; i<aux_varlist.size(); ++i) {
     string var = aux_varlist[i];
-    this->addData("aux "+var,numElem,numip);
-    this->addData("aux "+var+" side",numElem,numsideip);
+    if (onDemand) {
+      fields.push_back(SolutionField("aux "+var,"aux",i,"HGRAD",0,"",0,0,numip,false,false));
+      fields.push_back(SolutionField("aux "+var+" side","aux",i,"HGRAD",0,"",0,0,numsideip,true,false));
+    }
+    else {
+      this->addData("aux "+var,numElem,numip);
+      this->addData("aux "+var+" side",numElem,numsideip);
+    }
   }
 }
 
@@ -1655,33 +1937,118 @@ int workset::addIntegratedQuantities(const int & nRequested) {
 // Extract a VIEW_AD2 (2-dimensional array with AD entries)
 //////////////////////////////////////////////////////////////
 
+View_AD2 workset::findData(const string & label) {
+  
+  Teuchos::TimeMonitor basistimer(*worksetgetDataTimer);
+  
+  View_AD2 outdata;
+  if (onDemand) {
+    bool found = false;
+    size_t ind = 0;
+    while (!found && ind<fields.size()) {
+      if (label == fields[ind].expression) {
+        found = true;
+        //data_usage[ind] += 1;
+      }
+      else {
+        ++ind;
+      }
+    }
+    if (!found) {
+      std::cout << "Error: could not find a field named " << label << std::endl;
+    }
+    else {
+      this->checkDataAllocation(ind);
+    }
+    outdata = fields[ind].data;
+  }
+  else {
+    bool found = false;
+    size_t ind = 0;
+    while (!found && ind<data_labels.size()) {
+      if (label == data_labels[ind]) {
+        found = true;
+        data_usage[ind] += 1;
+      }
+      else {
+        ++ind;
+      }
+    }
+    if (!found) {
+      std::cout << "Error: could not find data named " << label << std::endl;
+      this->printMetaData();
+    }
+    
+    this->checkDataAllocation(ind);
+    outdata = data[ind];
+  }
+  return outdata;
+  
+}
+
 View_AD2 workset::getData(const string & label) {
   
   Teuchos::TimeMonitor basistimer(*worksetgetDataTimer);
   
-  bool found = false;
-  size_t ind = 0;
-  while (!found && ind<data_labels.size()) {
-    if (label == data_labels[ind]) {
-      found = true;
-      data_usage[ind] += 1;
+  
+  View_AD2 outdata;
+  if (onDemand) {
+    bool found = false;
+    size_t ind = 0;
+    while (!found && ind<fields.size()) {
+      if (label == fields[ind].expression) {
+        found = true;
+        //data_usage[ind] += 1;
+      }
+      else {
+        ++ind;
+      }
+    }
+    if (!found) {
+      std::cout << "Error: could not find a field named " << label << std::endl;
     }
     else {
-      ++ind;
+      this->checkDataAllocation(ind);
+      if (!fields[ind].isUpdated) {
+        this->evaluateSolutionField(ind);
+      }
     }
+    outdata = fields[ind].data;
   }
-  if (!found) {
-    std::cout << "Error: could not find data named " << label << std::endl;
-    this->printMetaData();
+  else {
+    bool found = false;
+    size_t ind = 0;
+    while (!found && ind<data_labels.size()) {
+      if (label == data_labels[ind]) {
+        found = true;
+        data_usage[ind] += 1;
+      }
+      else {
+        ++ind;
+      }
+    }
+    if (!found) {
+      std::cout << "Error: could not find data named " << label << std::endl;
+      this->printMetaData();
+    }
+    
+    this->checkDataAllocation(ind);
+    outdata = data[ind];
   }
-  this->checkDataAllocation(ind);
-  return data[ind];
+  return outdata;
   
 }
 
 void workset::checkDataAllocation(const size_t & ind) {
-  if (data[ind].extent(0) < maxElem) {
-    Kokkos::resize(data[ind],maxElem,data[ind].extent(1));
+  if (onDemand) {
+    if (fields[ind].data.extent(0) < maxElem) {
+      Kokkos::resize(fields[ind].data,maxElem,fields[ind].data.extent(1));
+    }
+  }
+  else {
+    if (data[ind].extent(0) < maxElem) {
+      Kokkos::resize(data[ind],maxElem,data[ind].extent(1));
+    }
   }
 }
 
@@ -2261,21 +2628,21 @@ void workset::setSolution(View_AD4 newsol, const string & pfix) {
   for (size_t i=0; i<varlist_HGRAD.size(); i++) {
     string var = varlist_HGRAD[i];
     int varind = vars_HGRAD[i];
-    auto csol = this->getData(var+pfix);
+    auto csol = this->findData(var+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
   }
   for (size_t i=0; i<varlist_HVOL.size(); i++) {
     string var = varlist_HVOL[i];
     int varind = vars_HVOL[i];
-    auto csol = this->getData(var+pfix);
+    auto csol = this->findData(var+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
   }
   for (size_t i=0; i<varlist_HFACE.size(); i++) {
     string var = varlist_HFACE[i];
     int varind = vars_HFACE[i];
-    auto csol = this->getData(var+pfix);
+    auto csol = this->findData(var+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
   }
@@ -2283,16 +2650,16 @@ void workset::setSolution(View_AD4 newsol, const string & pfix) {
     string var = varlist_HDIV[i];
     int varind = vars_HDIV[i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getData(var+"[x]"+pfix);
+    auto csol = this->findData(var+"[x]"+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
     if (dim>1) {
-      auto csol = this->getData(var+"[y]"+pfix);
+      auto csol = this->findData(var+"[y]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
       this->copyData(csol,cnsol);
     }
     if (dim>2) {
-      auto csol = this->getData(var+"[z]"+pfix);
+      auto csol = this->findData(var+"[z]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
       this->copyData(csol,cnsol);
     }
@@ -2301,16 +2668,16 @@ void workset::setSolution(View_AD4 newsol, const string & pfix) {
     string var = varlist_HCURL[i];
     int varind = vars_HCURL[i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getData(var+"[x]"+pfix);
+    auto csol = this->findData(var+"[x]"+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
     if (dim>1) {
-      auto csol = this->getData(var+"[y]"+pfix);
+      auto csol = this->findData(var+"[y]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
       this->copyData(csol,cnsol);
     }
     if (dim>2) {
-      auto csol = this->getData(var+"[z]"+pfix);
+      auto csol = this->findData(var+"[z]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
       this->copyData(csol,cnsol);
     }
@@ -2327,16 +2694,16 @@ void workset::setSolutionGrad(View_AD4 newsol, const string & pfix) {
     string var = varlist_HGRAD[i];
     int varind = vars_HGRAD[i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getData("grad("+var+")[x]"+pfix);
+    auto csol = this->findData("grad("+var+")[x]"+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
     if (dim>1) {
-      auto csol = this->getData("grad("+var+")[y]"+pfix);
+      auto csol = this->findData("grad("+var+")[y]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
       this->copyData(csol,cnsol);
     }
     if (dim>2) {
-      auto csol = this->getData("grad("+var+")[z]"+pfix);
+      auto csol = this->findData("grad("+var+")[z]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
       this->copyData(csol,cnsol);
     }
@@ -2351,7 +2718,7 @@ void workset::setSolutionDiv(View_AD3 newsol, const string & pfix) {
   for (size_t i=0; i<varlist_HDIV.size(); i++) {
     string var = varlist_HDIV[i];
     int varind = vars_HDIV[i];
-    auto csol = this->getData("div("+var+")");
+    auto csol = this->findData("div("+var+")");
     auto cnsol = subview(newsol,ALL(),varind,ALL());
     this->copyData(csol,cnsol);
   }
@@ -2366,16 +2733,16 @@ void workset::setSolutionCurl(View_AD4 newsol, const string & pfix) {
     string var = varlist_HCURL[i];
     int varind = vars_HCURL[i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getData("curl("+var+")[x]"+pfix);
+    auto csol = this->findData("curl("+var+")[x]"+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
     if (dim>1) {
-      auto csol = this->getData("curl("+var+")[y]"+pfix);
+      auto csol = this->findData("curl("+var+")[y]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
       this->copyData(csol,cnsol);
     }
     if (dim>2) {
-      auto csol = this->getData("curl("+var+")[z]"+pfix);
+      auto csol = this->findData("curl("+var+")[z]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
       this->copyData(csol,cnsol);
     }
@@ -2391,7 +2758,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
   for (size_t i=0; i<varlist_HGRAD.size(); i++) {
     string var = varlist_HGRAD[i];
     int varind = vars_HGRAD[i];
-    auto csol = this->getData(var+" point");
+    auto csol = this->findData(var+" point");
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -2402,7 +2769,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
   for (size_t i=0; i<varlist_HVOL.size(); i++) {
     string var = varlist_HVOL[i];
     int varind = vars_HVOL[i];
-    auto csol = this->getData(var+" point");
+    auto csol = this->findData(var+" point");
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -2414,7 +2781,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
     string var = varlist_HDIV[i];
     int varind = vars_HDIV[i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getData(var+"[x] point");
+    auto csol = this->findData(var+"[x] point");
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -2422,7 +2789,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getData(var+"[y] point");
+      auto csol = this->findData(var+"[y] point");
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2430,7 +2797,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getData(var+"[z] point");
+      auto csol = this->findData(var+"[z] point");
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2442,7 +2809,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
     string var = varlist_HCURL[i];
     int varind = vars_HCURL[i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getData(var+"[x] point");
+    auto csol = this->findData(var+"[x] point");
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -2450,7 +2817,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getData(var+"[y] point");
+      auto csol = this->findData(var+"[y] point");
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2458,7 +2825,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getData(var+"[z] point");
+      auto csol = this->findData(var+"[z] point");
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2479,7 +2846,7 @@ void workset::setSolutionGradPoint(View_AD2 newsol) {
     string var = varlist_HGRAD[i];
     int varind = vars_HGRAD[i];
     size_type dim = newsol.extent(1);
-    auto csol = this->getData("grad("+var+")[x]"+" point");
+    auto csol = this->findData("grad("+var+")[x]"+" point");
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -2487,7 +2854,7 @@ void workset::setSolutionGradPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getData("grad("+var+")[y]"+" point");
+      auto csol = this->findData("grad("+var+")[y]"+" point");
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2495,7 +2862,7 @@ void workset::setSolutionGradPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getData("grad("+var+")[z]"+" point");
+      auto csol = this->findData("grad("+var+")[z]"+" point");
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2517,21 +2884,21 @@ void workset::setParam(View_AD4 newsol, const string & pfix) {
   for (size_t i=0; i<paramvarlist_HGRAD.size(); i++) {
     string var = paramvarlist_HGRAD[i];
     int varind = paramvars_HGRAD[i];
-    auto csol = this->getData(var+pfix);
+    auto csol = this->findData(var+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
   }
   for (size_t i=0; i<paramvarlist_HVOL.size(); i++) {
     string var = paramvarlist_HVOL[i];
     int varind = paramvars_HVOL[i];
-    auto csol = this->getData(var+pfix);
+    auto csol = this->findData(var+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
   }
   for (size_t i=0; i<paramvarlist_HFACE.size(); i++) {
     string var = paramvarlist_HFACE[i];
     int varind = paramvars_HFACE[i];
-    auto csol = this->getData(var+pfix);
+    auto csol = this->findData(var+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
   }
@@ -2539,16 +2906,16 @@ void workset::setParam(View_AD4 newsol, const string & pfix) {
     string var = paramvarlist_HDIV[i];
     int varind = paramvars_HDIV[i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getData(var+"[x]"+pfix);
+    auto csol = this->findData(var+"[x]"+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
     if (dim>1) {
-      auto csol = this->getData(var+"[y]"+pfix);
+      auto csol = this->findData(var+"[y]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
       this->copyData(csol,cnsol);
     }
     if (dim>2) {
-      auto csol = this->getData(var+"[z]"+pfix);
+      auto csol = this->findData(var+"[z]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
       this->copyData(csol,cnsol);
     }
@@ -2557,16 +2924,16 @@ void workset::setParam(View_AD4 newsol, const string & pfix) {
     string var = paramvarlist_HCURL[i];
     int varind = paramvars_HCURL[i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getData(var+"[x]"+pfix);
+    auto csol = this->findData(var+"[x]"+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
     if (dim>1) {
-      auto csol = this->getData(var+"[y]"+pfix);
+      auto csol = this->findData(var+"[y]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
       this->copyData(csol,cnsol);
     }
     if (dim>2) {
-      auto csol = this->getData(var+"[z]"+pfix);
+      auto csol = this->findData(var+"[z]"+pfix);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
       this->copyData(csol,cnsol);
     }
@@ -2583,7 +2950,7 @@ void workset::setParamPoint(View_AD2 newsol) {
   for (size_t i=0; i<paramvarlist_HGRAD.size(); i++) {
     string var = paramvarlist_HGRAD[i];
     int varind = paramvars_HGRAD[i];
-    auto csol = this->getData(var+" point");
+    auto csol = this->findData(var+" point");
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -2594,7 +2961,7 @@ void workset::setParamPoint(View_AD2 newsol) {
   for (size_t i=0; i<paramvarlist_HVOL.size(); i++) {
     string var = paramvarlist_HVOL[i];
     int varind = paramvars_HVOL[i];
-    auto csol = this->getData(var+" point");
+    auto csol = this->findData(var+" point");
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -2606,7 +2973,7 @@ void workset::setParamPoint(View_AD2 newsol) {
     string var = paramvarlist_HDIV[i];
     int varind = paramvars_HDIV[i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getData(var+"[x] point");
+    auto csol = this->findData(var+"[x] point");
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -2614,7 +2981,7 @@ void workset::setParamPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getData(var+"[y] point");
+      auto csol = this->findData(var+"[y] point");
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2622,7 +2989,7 @@ void workset::setParamPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getData(var+"[z] point");
+      auto csol = this->findData(var+"[z] point");
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2634,7 +3001,7 @@ void workset::setParamPoint(View_AD2 newsol) {
     string var = paramvarlist_HCURL[i];
     int varind = paramvars_HCURL[i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getData(var+"[x] point");
+    auto csol = this->findData(var+"[x] point");
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -2642,7 +3009,7 @@ void workset::setParamPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getData(var+"[y] point");
+      auto csol = this->findData(var+"[y] point");
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2650,7 +3017,7 @@ void workset::setParamPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getData(var+"[z] point");
+      auto csol = this->findData(var+"[z] point");
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2671,7 +3038,7 @@ void workset::setParamGradPoint(View_AD2 newsol) {
     string var = paramvarlist_HGRAD[i];
     int varind = paramvars_HGRAD[i];
     size_type dim = newsol.extent(1);
-    auto csol = this->getData("grad("+var+")[x]"+" point");
+    auto csol = this->findData("grad("+var+")[x]"+" point");
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -2679,7 +3046,7 @@ void workset::setParamGradPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getData("grad("+var+")[y]"+" point");
+      auto csol = this->findData("grad("+var+")[y]"+" point");
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2687,7 +3054,7 @@ void workset::setParamGradPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getData("grad("+var+")[z]"+" point");
+      auto csol = this->findData("grad("+var+")[z]"+" point");
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {

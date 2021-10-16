@@ -19,6 +19,49 @@
 
 namespace MrHyDE {
   
+  // =================================================================
+  // =================================================================
+  
+  class SolutionField {
+  public:
+    
+    SolutionField() {};
+    
+    ~SolutionField() {};
+    
+    SolutionField(const string & expression_,
+                  const string & vartype_,
+                  const int & varindex_,
+                  const string & basistype_,
+                  const int & basis_index_,
+                  const string & derivtype_,
+                  const int & component_,
+                  const int & dim0, // typically zero for first touch allocations
+                  const int & dim1,
+                  const bool & onSide_,
+                  const bool & isPoint_) {
+      
+      expression = expression_;
+      variable_type = vartype_; // solution, aux, param
+      variable_index = varindex_;
+      basis_type = basistype_; // HGRAD, HVOL, HDIV, HCURL, HFACE
+      basis_index = basis_index_;
+      derivative_type = derivtype_; // grad, curl, div, time
+      component = component_; // x, y, z
+      data = View_AD2("solution field for " + expression, dim0, dim1);
+      isOnSide = onSide_;
+      isPoint = isPoint_;
+      isUpdated = false;
+      
+    }
+    
+    string expression, variable_type, basis_type, derivative_type;
+    int variable_index, basis_index, component;
+    bool isUpdated, isOnSide, isPoint;
+    View_AD2 data;
+    
+  };
+  
   class workset {
   public:
     
@@ -43,7 +86,11 @@ namespace MrHyDE {
     // Reset solution to zero
     ////////////////////////////////////////////////////////////////////////////////////
     
+    void reset();
+    
     void resetResidual();
+    
+    void resetSolutionFields();
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Compute the seeded solutions for general transient problems
@@ -70,6 +117,8 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////////
     
     void computeSoln(const int & type, const bool & onside);
+    
+    void evaluateSolutionField(const int & fieldnum);
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Compute the solutions at the volumetric ip
@@ -151,12 +200,14 @@ namespace MrHyDE {
     
     void checkDataScAllocation(const size_t & ind);
     
+    View_AD2 findData(const string & label);
+    
     View_AD2 getData(const string & label);
     
     View_Sc2 getDataSc(const string & label);
     
     size_t getDataScIndex(const string & label);
-
+    
 #ifndef MrHyDE_NO_AD
     void get(const string & label, View_AD2 & dataout);
 #endif
@@ -312,7 +363,7 @@ namespace MrHyDE {
     vector<string> auxvarlist_HGRAD, auxvarlist_HVOL, auxvarlist_HDIV, auxvarlist_HCURL, auxvarlist_HFACE;
     
     bool isAdjoint, onlyTransient, isTransient;
-    bool isInitialized, usebcs;
+    bool isInitialized, usebcs, onDemand;
     topo_RCP celltopo;
     size_t numsides, numip, numsideip, numVars, numParams, numAux, maxRes, maxTeamSize;
     int dimension, numElem, current_stage;
@@ -331,6 +382,8 @@ namespace MrHyDE {
     size_t block, localEID, globalEID;
     
     // Views that use ContLayout for hierarchical parallelism
+    vector<SolutionField> fields;
+    
     vector<View_AD2> data;
     vector<string> data_labels;
     vector<int> data_usage;

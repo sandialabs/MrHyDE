@@ -165,7 +165,8 @@ void BoundaryCell::setAuxUseBasis(vector<int> & ausebasis_) {
 void BoundaryCell::updateWorkset(const int & seedwhat, const bool & override_transient) {
   
   // Reset the residual and data in the workset
-  wkset->resetResidual();
+  //wkset->resetResidual();
+  wkset->reset();
   wkset->sidename = sidename;
   wkset->currentside = sidenum;
   wkset->numElem = numElem;
@@ -239,9 +240,10 @@ void BoundaryCell::computeSoln(const int & seedwhat) {
   
   Teuchos::TimeMonitor localtimer(*computeSolnSideTimer);
   
-  wkset->computeSolnSideIP();
-  wkset->computeParamSideIP();
-  
+  if (!wkset->onDemand) {
+    wkset->computeSolnSideIP();
+    wkset->computeParamSideIP();
+  }
   
   if (wkset->numAux > 0) {
     
@@ -251,7 +253,7 @@ void BoundaryCell::computeSoln(const int & seedwhat) {
       auto abasis = auxside_basis[auxusebasis[var]];
       auto off = subview(auxoffsets,var,ALL());
       string varname = wkset->aux_varlist[var];
-      auto local_aux = wkset->getData("aux "+varname+" side");
+      auto local_aux = wkset->findData("aux "+varname+" side");
       Kokkos::deep_copy(local_aux,0.0);
       auto localID = localElemID;
       auto varaux = subview(aux,ALL(),var,ALL());
@@ -523,6 +525,7 @@ View_Sc2 BoundaryCell::getDirichlet() {
   for (size_t n=0; n<wkset->varlist.size(); n++) {
     if (bcs(n,sidenum) == "Dirichlet") { // is this a strong DBC for this variable
       auto dip = cellData->physics_RCP->getDirichlet(n,cellData->myBlock, sidename);
+      
       int bind = wkset->usebasis[n];
       std::string btype = cellData->basis_types[bind];
       auto cbasis = basis[bind]; // may fault in memory-saving mode

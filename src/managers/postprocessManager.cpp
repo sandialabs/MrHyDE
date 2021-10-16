@@ -1038,6 +1038,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             assembler->wkset[altblock]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
             //assembler->cells[block][cell]->computeSolnFaceIP(face);
             assembler->cells[block][cell]->updateWorksetFace(face);
+            assembler->wkset[altblock]->resetSolutionFields();
             //assembler->cells[block][cell]->computeSolnFaceIP(face, seedwhat);
             for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
               int var = error_list[altblock][etype].first;
@@ -1824,6 +1825,7 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
             }
             
             assembler->wkset[block]->setParamPoint(p_ip);
+            
             assembler->wkset[block]->setParamGradPoint(pgrad_ip);
           }
           

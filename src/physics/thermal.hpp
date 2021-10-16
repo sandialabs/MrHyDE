@@ -84,10 +84,10 @@ namespace MrHyDE {
     int auxe_num = -1;
     int IQ_start;
     
-    View_AD2 e_vol, dedt_vol, dedx_vol, dedy_vol, dedz_vol;
-    View_AD2 e_side, dedx_side, dedy_side, dedz_side;
-    View_AD2 e_face, dedx_face, dedy_face, dedz_face;
-    View_AD2 ux_vol, uy_vol, uz_vol;
+    //View_AD2 e_vol, dedt_vol, dedx_vol, dedy_vol, dedz_vol;
+    //View_AD2 e_side, dedx_side, dedy_side, dedz_side;
+    //View_AD2 e_face, dedx_face, dedy_face, dedz_face;
+    //View_AD2 ux_vol, uy_vol, uz_vol;
     
     bool have_nsvel,test_IQs;
     ScalarT formparam;
