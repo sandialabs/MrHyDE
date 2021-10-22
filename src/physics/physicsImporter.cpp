@@ -33,6 +33,7 @@
 #include "kuramotoSivashinsky.hpp"
 #include "llamas.hpp"
 #include "variableDensityNS.hpp"
+#include "mirage.hpp"
 //#include "cns.hpp"
 
 using namespace MrHyDE;
@@ -147,6 +148,11 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
     //  modules.push_back(Teuchos::rcp(new cns(settings, isaux) ) );
     //}
 
+    // Physics for Mirage
+    if (modname == "Mirage" || modname == "mirage"){
+      modules.push_back(Teuchos::rcp(new mirage(settings, isaux) ) );
+    }
+    
   }
   
   return modules;
