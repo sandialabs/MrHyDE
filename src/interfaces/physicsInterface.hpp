@@ -120,6 +120,24 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
+    /* @brief Evaluate the initial condition along the face integration point for L2 projection
+     *
+     * @param[in] pts  Face integration points
+     * @param[in] block  Cell block
+     * @param[in] project  Flag for L2 projection
+     * @param[in] wkset  Workset
+     * 
+     * @returns View_Sc3 of the initial condition
+     *
+     * @warning BWR -- under development. Not sure what the nonprojection option is about.
+     */
+    
+    View_Sc3 getInitialFace(vector<View_Sc2> & pts, const int & block,
+                            const bool & project, Teuchos::RCP<workset> & wkset);
+    
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
     View_Sc2 getDirichlet(const int & var, const int & block, const std::string & sidename);
     
     /////////////////////////////////////////////////////////////////////////////////////////////

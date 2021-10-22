@@ -879,7 +879,7 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
       
       View_Sc4 basis_vals, basis_grad_vals, basis_curl_vals, basis_node_vals;
       View_Sc3 basis_div_vals;
-      
+
       if (cellData->basis_types[i].substr(0,5) == "HGRAD"){
         DRV bvals1, bvals2;
         if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {

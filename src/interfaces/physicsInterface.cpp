@@ -127,6 +127,11 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & 
       }
       functionManagers[b]->addFunction("initial "+varlist[b][j],expression,"ip");
       functionManagers[b]->addFunction("initial "+varlist[b][j],expression,"point");
+      if (types[b][j] == "HFACE") {
+        // we have found an HFACE variable and need to have side ip evaluations
+        // TODO check aux, etc?
+        functionManagers[b]->addFunction("initial "+varlist[b][j],expression,"side ip");
+      }
     }
     
     // Dirichlet conditions
@@ -629,6 +634,103 @@ View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & block,
         }
       }
     }
+  }
+   
+  return ivals;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+View_Sc3 PhysicsInterface::getInitialFace(vector<View_Sc2> & pts, const int & block, const bool & project, Teuchos::RCP<workset> & wkset) {
+  
+  size_t numVars = varlist[block].size();
+  
+  View_Sc3 ivals;
+  
+  if (project) {
+    
+    ivals = View_Sc3("tmp ivals",pts[0].extent(0), numVars, pts[0].extent(1));
+    
+    // ip in wkset are set in cell::getInitial
+    for (size_t n=0; n<varlist[block].size(); n++) {
+
+      auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"side ip");
+      auto cvals = subview( ivals, ALL(), n, ALL());
+      //copy
+      parallel_for("physics fill initial values",
+                   RangePolicy<AssemblyExec>(0,cvals.extent(0)),
+                   KOKKOS_LAMBDA (const int e ) {
+        for (size_t i=0; i<cvals.extent(1); i++) {
+#ifndef MrHyDE_NO_AD
+          cvals(e,i) = ivals_AD(e,i).val();
+#else
+          cvals(e,i) = ivals_AD(e,i);
+#endif
+        }
+      });
+    }
+  }
+  else {
+    // TMW: will not work on device yet
+    
+    // TODO no idea here!
+    //size_type dim = wkset->dimension;
+    //size_type Nelem = pts[0].extent(0);
+    //size_type Npts = pts[0].extent(1);
+    //
+    //View_Sc2 ptx("ptx",Nelem,Npts), pty("pty",Nelem,Npts), ptz("ptz",Nelem,Npts);
+    //ptx = pts[0];
+    //
+    //View_Sc2 x,y,z;
+    //x = wkset->getDataSc("x point");
+    //if (dim > 1) {
+    //  pty = pts[1];
+    //  y = wkset->getDataSc("y point");
+    //}
+    //if (dim > 2) {
+    //  ptz = pts[2];
+    //  z = wkset->getDataSc("z point");
+    //}
+    //
+    //
+    //ivals = View_Sc3("tmp ivals",Nelem,numVars,Npts);
+    //for (size_t e=0; e<ptx.extent(0); e++) {
+    //  for (size_t i=0; i<ptx.extent(1); i++) {
+    //    // set the node in wkset
+    //    int dim_ = spaceDim;
+    //    parallel_for("physics initial set point",
+    //                 RangePolicy<AssemblyExec>(0,1),
+    //                 KOKKOS_LAMBDA (const int s ) {
+    //      x(0,0) = ptx(e,i); // TMW: this might be ok
+    //      if (dim_ > 1) {
+    //        y(0,0) = pty(e,i);
+    //      }
+    //      if (dim_ > 2) {
+    //        z(0,0) = ptz(e,i);
+    //      }
+    //      
+    //    });
+    //    
+    //    for (size_t n=0; n<varlist[block].size(); n++) {
+    //      // evaluate
+    //      auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"point");
+    //    
+    //      // Also might be ok (terribly inefficient though)
+    //      parallel_for("physics initial set point",
+    //                   RangePolicy<AssemblyExec>(0,1),
+    //                   KOKKOS_LAMBDA (const int s ) {
+#ifndef MrHyDE_NO_AD
+    //        ivals(e,n,i) = ivals_AD(0,0).val();
+#else
+    //        ivals(e,n,i) = ivals_AD(0,0);
+#endif
+    //      });
+    //      
+    //    }
+    //  }
+    //}
   }
    
   return ivals;

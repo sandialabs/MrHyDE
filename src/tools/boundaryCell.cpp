@@ -527,7 +527,7 @@ View_Sc2 BoundaryCell::getDirichlet() {
   for (size_t n=0; n<wkset->varlist.size(); n++) {
     if (bcs(n,sidenum) == "Dirichlet") { // is this a strong DBC for this variable
       auto dip = cellData->physics_RCP->getDirichlet(n,cellData->myBlock, sidename);
-      
+
       int bind = wkset->usebasis[n];
       std::string btype = cellData->basis_types[bind];
       auto cbasis = basis[bind]; // may fault in memory-saving mode

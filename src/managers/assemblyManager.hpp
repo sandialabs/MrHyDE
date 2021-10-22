@@ -99,7 +99,24 @@ namespace MrHyDE {
                     const size_t & block, const size_t & cellblock);
     
     void setInitial(vector_RCP & initial, const bool & useadjoint);
+
+    // TODO BWR -- finish when appropriate
+    /* @brief Create the mass matrix and RHS for an L2 projection of the initial
+     * condition over the faces.
+     *
+     * @param[inout] rhs  RHS vector
+     * @param[inout] mass Mass matrix
+     * @param[in] lumpmass Bool indicating if a lumped mass matrix approximation is requested
+     *
+     * @details The current use case is for projection the coarse-scale initial condition on the 
+     * mesh skeleton (HFACE).
+     *
+     * @warning BWR -- Under development, I am trying to take things from setDirichlet and setInitial.
+     * I think some combination of the two should work, but need to better understand.
+     */
     
+    void setInitialFace(vector_RCP & rhs, matrix_RCP & mass,const bool & lumpmass=false);
+
     void getWeightedMass(matrix_RCP & mass, vector_RCP & massdiag);
     
     // ========================================================================================

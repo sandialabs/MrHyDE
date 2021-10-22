@@ -14,6 +14,9 @@ ANONYMOUS:
     NY: 10
   Physics: 
     modules: thermal
+    assemble face terms: true
+    Active variables:
+      e: HFACE
     Dirichlet conditions:
       e:
         all boundaries: '0.0'
@@ -29,10 +32,14 @@ ANONYMOUS:
     final time: 1.e-3
     number of steps: 5
     allow backtracking: false
+    initial type: L2-projection-HFACE
+    State boundary L2 linear solver:
+      use preconditioner: false
   Analysis: 
     analysis type: forward
   Postprocess: 
     compute errors: true
     True solutions:
       e: sin(2.0*pi*x)*sin(2.0*pi*y)*exp(-8.0*pi*pi*t)
+      e face: sin(2.0*pi*x)*sin(2.0*pi*y)*exp(-8.0*pi*pi*t)
 ...

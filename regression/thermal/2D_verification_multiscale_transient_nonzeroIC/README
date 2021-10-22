@@ -1,1 +1,2 @@
 This test checks a transient, IC-dependent heat equation when a subgrid model is used.
+Additionally, checks the L2 projection of an initial condition at the coarse-scale using HFACE vars.

@@ -1176,6 +1176,50 @@ View_Sc2 cell::getInitial(const bool & project, const bool & isAdjoint) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
+// Get the initial condition on the faces
+///////////////////////////////////////////////////////////////////////////////////////
+
+View_Sc2 cell::getInitialFace(const bool & project) {
+  
+  View_Sc2 initialvals("initial values",numElem,LIDs.extent(1)); // TODO is this too big?
+  this->updateWorkset(0); // TODO not sure if this is necessary
+
+  auto offsets = wkset->offsets;
+  auto numDOF = cellData->numDOF;
+
+  // loop over faces of the reference element
+  for (size_t face=0; face<cellData->numSides; face++) {
+
+    // get basis functions, weights, etc. for that face
+    this->updateWorksetFace(face);
+    auto cwts = wkset->wts_side; // face weights get put into wts_side after update
+    // get data from IC
+    auto initialip = cellData->physics_RCP->getInitialFace(ip_face[face],
+                                                           cellData->myBlock,
+                                                           project,
+                                                           wkset);
+    for (size_type n=0; n<numDOF.extent(0); n++) {
+      auto cbasis = wkset->basis_side[wkset->usebasis[n]]; // face basis gets put here after update
+      auto off = subview(offsets, n, ALL());
+      auto initvar = subview(initialip, ALL(), n, ALL());
+      // loop over mesh elements
+      parallel_for("cell init project",
+                   TeamPolicy<AssemblyExec>(initvar.extent(0), Kokkos::AUTO),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type dof=team.team_rank(); dof<cbasis.extent(1); dof+=team.team_size() ) {
+          for(size_type pt=0; pt<cwts.extent(1); pt++ ) {
+            initialvals(elem,off(dof)) += initvar(elem,pt)*cbasis(elem,dof,pt,0)*cwts(elem,pt);
+          }
+        }
+      });
+    }
+  }
+  
+  return initialvals;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
 // Get the mass matrix
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -1305,6 +1349,50 @@ View_Sc3 cell::getWeightedMass(vector<ScalarT> & masswts) {
   return mass;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////
+// Get the mass matrix
+///////////////////////////////////////////////////////////////////////////////////////
+
+View_Sc3 cell::getMassFace() {
+  
+  View_Sc3 mass("local mass",numElem, LIDs.extent(1), LIDs.extent(1));
+  
+  auto offsets = wkset->offsets;
+  auto numDOF = cellData->numDOF;
+
+  // loop over faces of the reference element
+  for (size_t face=0; face<cellData->numSides; face++) {
+
+    this->updateWorksetFace(face);
+    auto cwts = wkset->wts_side; // face weights get put into wts_side after update
+    for (size_type n=0; n<numDOF.extent(0); n++) {
+      
+      auto cbasis = wkset->basis_side[wkset->usebasis[n]]; // face basis put here after update
+      string btype = wkset->basis_types[wkset->usebasis[n]]; // TODO does this work in general?
+      auto off = subview(offsets,n,ALL());
+
+      if (btype.substr(0,5) == "HFACE") {
+        // loop over mesh elements
+        parallel_for("cell get mass",
+                     RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                     KOKKOS_LAMBDA (const size_type e ) {
+          for(size_type i=0; i<cbasis.extent(1); i++ ) {
+            for(size_type j=0; j<cbasis.extent(1); j++ ) {
+              for(size_type k=0; k<cbasis.extent(2); k++ ) {
+                mass(e,off(i),off(j)) += cbasis(e,i,k,0)*cbasis(e,j,k,0)*cwts(e,k);
+              }
+            }
+          }
+        });
+      }
+      else { 
+        // TODO ERROR 
+        cout << "cell::getMassFace() called with non-HFACE basis type!" << endl;
+      }
+    }
+  }
+  return mass;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Subgrid Plotting
