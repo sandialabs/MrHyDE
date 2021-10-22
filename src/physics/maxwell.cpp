@@ -406,5 +406,3 @@ void maxwell::setWorkset(Teuchos::RCP<workset> & wkset_) {
   }
 }
 
-
-void maxwell::computePlanewave()
