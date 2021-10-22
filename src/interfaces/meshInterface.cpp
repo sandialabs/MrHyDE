@@ -399,9 +399,9 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
         }
       }
       
-      stk_mesh->addSolutionField("disp"+append+"x", block_names[i]);
-      stk_mesh->addSolutionField("disp"+append+"y", block_names[i]);
-      stk_mesh->addSolutionField("disp"+append+"z", block_names[i]);
+      //stk_mesh->addSolutionField("disp"+append+"x", block_names[i]);
+      //stk_mesh->addSolutionField("disp"+append+"y", block_names[i]);
+      //stk_mesh->addSolutionField("disp"+append+"z", block_names[i]);
       
       
       Teuchos::ParameterList efields;
@@ -446,9 +446,13 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
         stk_mesh->addCellField("mesh_data", block_names[i]);
       }
       
-      stk_mesh->addCellField("subgrid model", block_names[i]);
+      if (settings->isSublist("Subgrid")) {
+        stk_mesh->addCellField("subgrid model", block_names[i]);
+      }
       
-      stk_mesh->addCellField("cell number", block_names[i]);
+      if (settings->sublist("Postprocess").get("write cell number",false)) {
+        stk_mesh->addCellField("cell number", block_names[i]);
+      }
       
       if (settings->isSublist("Parameters")) {
         Teuchos::ParameterList parameters = settings->sublist("Parameters");

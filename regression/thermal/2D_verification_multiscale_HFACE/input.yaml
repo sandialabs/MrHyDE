@@ -27,9 +27,12 @@ ANONYMOUS:
       e: 1
     quadrature: 2
   Subgrid input file: subgrid_input.yaml
-  Solver: 
+  Solver:
+    workset size: 400
     solver: steady-state
     initial type: none
+    State boundary L2 linear solver:
+      use preconditioner: false
   Analysis: 
     analysis type: forward
   Postprocess: 

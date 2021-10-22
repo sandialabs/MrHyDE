@@ -30,7 +30,8 @@ BoundaryCell::BoundaryCell(const Teuchos::RCP<CellMetaData> & cellData_,
                            const int & cellID_,
                            LIDView LIDs_,
                            Kokkos::View<int****,HostDevice> sideinfo_,
-                           Teuchos::RCP<DiscretizationInterface> & disc_) :
+                           Teuchos::RCP<DiscretizationInterface> & disc_,
+                           const bool & storeAll_) :
 cellData(cellData_), localElemID(localID_), localSideID(sideID_),
 sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename(sidename_), LIDs(LIDs_), disc(disc_)   {
 
@@ -40,8 +41,9 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
   Kokkos::deep_copy(LIDs_tmp,LIDs);  
   LIDs_host = LIDView_host("LIDs on host",LIDs.extent(0), LIDs.extent(1));
   Kokkos::deep_copy(LIDs_host,LIDs_tmp);
+  storeAll = storeAll_;
   
-  if (cellData->storeAll) {
+  if (storeAll) {
     int numip = cellData->ref_side_ip[0].extent(0);
     wts = View_Sc2("physical wts",numElem, numip);
     hsize = View_Sc1("physical meshsize",numElem);
@@ -199,7 +201,7 @@ void BoundaryCell::updateWorksetBasis() {
 
   wkset->numElem = numElem;
   
-  if (cellData->storeAll) {
+  if (storeAll) {
     wkset->wts_side = wts;
     wkset->h = hsize;
     wkset->setIP(ip," side");
@@ -696,7 +698,7 @@ void BoundaryCell::updateData() {
 
 size_t BoundaryCell::getStorage() {
   size_t mystorage = 0;
-  if (cellData->storeAll) {
+  if (storeAll) {
     size_t scalarcost = 8; // 8 bytes per double
     
     for (size_t k=0; k<ip.size(); ++k) {

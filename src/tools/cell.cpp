@@ -24,7 +24,8 @@ cell::cell(const Teuchos::RCP<CellMetaData> & cellData_,
            const Kokkos::View<LO*,AssemblyDevice> localID_,
            LIDView LIDs_,
            Kokkos::View<int****,HostDevice> sideinfo_,
-           Teuchos::RCP<DiscretizationInterface> & disc_) :
+           Teuchos::RCP<DiscretizationInterface> & disc_,
+           const bool & storeAll_) :
 LIDs(LIDs_), cellData(cellData_), localElemID(localID_), sideinfo(sideinfo_), nodes(nodes_), disc(disc_)
 {
   numElem = nodes.extent(0);
@@ -36,8 +37,10 @@ LIDs(LIDs_), cellData(cellData_), localElemID(localID_), sideinfo(sideinfo_), no
   LIDs_host = LIDView_host("LIDs on host",LIDs.extent(0), LIDs.extent(1));
   deep_copy(LIDs_host,LIDs_tmp);
   
+  storeAll = storeAll_;
+  
   // Compute integration data and basis functions
-  if (cellData->storeAll) {
+  if (storeAll) {
     size_type numip = cellData->ref_ip.extent(0);
     wts = View_Sc2("physical wts",numElem, numip);
     hsize = View_Sc1("physical meshsize",numElem);
@@ -229,7 +232,7 @@ void cell::updateWorkset(const int & seedwhat, const bool & override_transient) 
   this->updateData();
   
   // Update the integration info and basis in workset
-  if (cellData->storeAll) {
+  if (storeAll) {
     wkset->wts = wts;
     wkset->h = hsize;
     wkset->setIP(ip);
@@ -285,9 +288,9 @@ void cell::updateWorkset(const int & seedwhat, const bool & override_transient) 
     //wkset->computeAuxVolIP();
   }
   
-  if (cellData->compute_sol_avg) {
-    this->computeSolAvg();
-  }
+  //if (cellData->compute_sol_avg && wkset->current_stage == 0) {
+  //  this->computeSolAvg();
+  //}
   
 }
 
@@ -297,7 +300,6 @@ void cell::updateWorkset(const int & seedwhat, const bool & override_transient) 
 void cell::computeSolAvg() {
   
   // THIS FUNCTION ASSUMES THAT THE WORKSET BASIS HAS BEEN UPDATED
-  // AND THE SOLUTION HAS BEEN COMPUTED AT THE VOLUMETRIC IP
   
   Teuchos::TimeMonitor localtimer(*computeSolAvgTimer);
 
@@ -438,6 +440,65 @@ void cell::computeSolAvg() {
    */
 }
 
+void cell::computeSolutionAverage(const string & var, View_Sc2 sol) {
+  
+  // THIS FUNCTION ASSUMES THAT THE WORKSET BASIS HAS BEEN UPDATED
+  
+  Teuchos::TimeMonitor localtimer(*computeSolAvgTimer);
+  
+  // Figure out which basis we need
+  int index;
+  wkset->isVar(var,index);
+  
+  View_Sc4 cbasis;
+  View_Sc2 cwts;
+  if (storeAll) {
+    cwts = wts;
+    cbasis = basis[wkset->usebasis[index]];
+  }
+  else {
+    vector<View_Sc2> tip;
+    cwts = View_Sc2("physical wts",numElem, cellData->ref_ip.extent(0));
+    View_Sc1 thsize("physical meshsize",numElem);
+    vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
+    vector<View_Sc3> tbasis_div;
+    disc->getPhysicalVolumetricData(cellData, nodes, localElemID,
+                                    tip, cwts, thsize, orientation,
+                                    tbasis, tbasis_grad, tbasis_curl,
+                                    tbasis_div, tbasis_nodes,true,false);
+    cbasis = tbasis[wkset->usebasis[index]];
+  }
+  
+  // Compute the average weight, i.e., the size of each elem
+  // May consider storing this
+  View_Sc1 avgwts("elem size",cwts.extent(0));
+  parallel_for("cell sol avg",
+               RangePolicy<AssemblyExec>(0,cwts.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    ScalarT avgwt = 0.0;
+    for (size_type pt=0; pt<cwts.extent(1); pt++) {
+      avgwt += cwts(elem,pt);
+    }
+    avgwts(elem) = avgwt;
+  });
+  
+  auto csol = subview(u,ALL(),index,ALL());
+  parallel_for("wkset soln ip HGRAD",
+               RangePolicy<AssemblyExec>(0,cwts.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    for (size_type dim=0; dim<cbasis.extent(3); ++dim) {
+      ScalarT avgval = 0.0;
+      for (size_type dof=0; dof<cbasis.extent(1); ++dof ) {
+        for (size_type pt=0; pt<cbasis.extent(2); ++pt) {
+          avgval += csol(elem,dof)*cbasis(elem,dof,pt,dim)*cwts(elem,pt);
+        }
+      }
+      sol(elem,dim) = avgval/avgwts(elem);
+    }
+  });
+  
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////
 // Map the AD degrees of freedom to integration points
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -451,7 +512,7 @@ void cell::updateWorksetFace(const size_t & facenum) {
   Teuchos::TimeMonitor localtimer(*computeSolnFaceTimer);
   
   // Update the face integration points and basis in workset
-  if (cellData->storeAll) {
+  if (storeAll) {
     wkset->wts_side = wts_face[facenum];
     wkset->h = hsize;
     wkset->setIP(ip_face[facenum]," side");
@@ -1127,7 +1188,7 @@ View_Sc3 cell::getMass() {
   auto cwts = wts;
   for (size_type n=0; n<numDOF.extent(0); n++) {
     View_Sc4 cbasis;
-    if (cellData->storeAll) {
+    if (storeAll) {
       cbasis = basis[wkset->usebasis[n]];
     }
     else { // goes through this more than once, but really shouldn't be used much anyways
@@ -1190,7 +1251,7 @@ View_Sc3 cell::getWeightedMass(vector<ScalarT> & masswts) {
   auto numDOF = cellData->numDOF;
   for (size_type n=0; n<numDOF.extent(0); n++) {
     View_Sc4 cbasis;
-    if (cellData->storeAll) {
+    if (storeAll) {
       cbasis = basis[wkset->usebasis[n]];
       cwts = wts;
     }
@@ -1377,7 +1438,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getSolutionAtNodes(const int & var
 
 size_t cell::getVolumetricStorage() {
   size_t mystorage = 0;
-  if (cellData->storeAll) {
+  if (storeAll) {
     size_t scalarcost = 8; // 8 bytes per double
     for (size_t k=0; k<ip.size(); ++k) {
       mystorage += scalarcost*ip[k].size();
@@ -1408,7 +1469,7 @@ size_t cell::getVolumetricStorage() {
 
 size_t cell::getFaceStorage() {
   size_t mystorage = 0;
-  if (cellData->storeAll) {
+  if (storeAll) {
     size_t scalarcost = 8; // 8 bytes per double
     for (size_t f=0; f<ip_face.size(); ++f) {
       for (size_t k=0; k<ip_face[f].size(); ++k) {

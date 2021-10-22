@@ -333,7 +333,7 @@ void SubGridFEM::setUpSubgridModels() {
       
       newbcells.push_back(Teuchos::rcp(new BoundaryCell(cellData,currnodes,eIndex,sideIndex,
                                                         sideID, sidename, newbcells.size(),
-                                                        cellLIDs, sideinfo, sub_disc)));//, orient_drv)));
+                                                        cellLIDs, sideinfo, sub_disc, true)));//, orient_drv)));
       
       prog += currElem;
     }
@@ -519,7 +519,7 @@ void SubGridFEM::setUpSubgridModels() {
       }
       newcells.push_back(Teuchos::rcp(new cell(sub_assembler->cellData[0],
                                                newnodes, localID,
-                                               LIDs, subsideinfo, sub_disc)));
+                                               LIDs, subsideinfo, sub_disc, true)));
       
       //////////////////////////////////////////////////////////////
       // New boundary cells (more complicated than interior cells)
@@ -596,7 +596,7 @@ void SubGridFEM::setUpSubgridModels() {
                 
         newbcells.push_back(Teuchos::rcp(new BoundaryCell(sub_assembler->cellData[0], currnodes,
                                                           localID, sideID, sidenum, unique_names[s],
-                                                          newbcells.size(), LIDs, subsideinfo, sub_disc)));//, orientation)));
+                                                          newbcells.size(), LIDs, subsideinfo, sub_disc, true)));//, orientation)));
         
       
         newbcells[s]->addAuxVars(macro_varlist);

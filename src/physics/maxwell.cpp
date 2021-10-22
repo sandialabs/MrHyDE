@@ -405,3 +405,6 @@ void maxwell::setWorkset(Teuchos::RCP<workset> & wkset_) {
     //  B2num = i;
   }
 }
+
+
+void maxwell::computePlanewave()

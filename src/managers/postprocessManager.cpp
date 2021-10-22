@@ -91,7 +91,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   write_HFACE_variables = settings->sublist("Postprocess").get("write HFACE variables",false);
   exodus_filename = settings->sublist("Postprocess").get<string>("output file","output")+".exo";
   write_optimization_solution = settings->sublist("Postprocess").get("create optimization movie",false);
-  
+  write_cell_number = settings->sublist("Postprocess").get("write cell number",false);
   compute_objective = settings->sublist("Postprocess").get("compute objective",false);
   discrete_objective_scale_factor = settings->sublist("Postprocess").get("scale factor for discrete objective",1.0);
   cellfield_reduction = settings->sublist("Postprocess").get<string>("extra cell field reduction","mean");
@@ -3130,6 +3130,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
           }
           Kokkos::deep_copy(soln_computed, soln_dev);
           
+          /*
           if (var == "dx") {
             mesh->stk_mesh->setSolutionFieldData("disp"+append+"x", blockID, myElements, soln_computed);
           }
@@ -3139,6 +3140,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
           if (var == "dz" || var == "H") {
             mesh->stk_mesh->setSolutionFieldData("disp"+append+"z", blockID, myElements, soln_computed);
           }
+          */
           
           mesh->stk_mesh->setSolutionFieldData(var+append, blockID, myElements, soln_computed);
         }
@@ -3166,9 +3168,13 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
           auto soln_y = Kokkos::create_mirror_view(soln_y_dev);
           auto soln_z = Kokkos::create_mirror_view(soln_z_dev);
           std::string var = varlist[b][n];
+          View_Sc2 sol("average solution",assembler->cells[b][0]->numElem,spaceDim);
+          
           for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
             auto eID = assembler->cells[b][e]->localElemID;
-            auto sol = Kokkos::subview(assembler->cells[b][e]->u_avg, Kokkos::ALL(), n, Kokkos::ALL());
+            
+            assembler->cells[b][e]->computeSolutionAverage(var,sol);
+            //auto sol = Kokkos::subview(assembler->cells[b][e]->u_avg, Kokkos::ALL(), n, Kokkos::ALL());
             parallel_for("postproc plot HDIV/HCURL",
                          RangePolicy<AssemblyExec>(0,eID.extent(0)),
                          KOKKOS_LAMBDA (const int elem ) {
@@ -3209,7 +3215,9 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
               assembler->cells[b][c]->updateWorksetFace(face);
               auto wts = assembler->wkset[b]->wts_side;
               auto sol = assembler->wkset[b]->getData(varlist[b][n]+" side");
-              parallel_for("postproc plot HFACE",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+              parallel_for("postproc plot HFACE",
+                           RangePolicy<AssemblyExec>(0,eID.extent(0)),
+                           KOKKOS_LAMBDA (const int elem ) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                   face_measure_dev(eID(elem)) += wts(elem,pt);
 #ifndef MrHyDE_NO_AD
@@ -3221,7 +3229,9 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
               });
             }
           }
-          parallel_for("postproc plot HFACE 2",RangePolicy<AssemblyExec>(0,soln_faceavg_dev.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+          parallel_for("postproc plot HFACE 2",
+                       RangePolicy<AssemblyExec>(0,soln_faceavg_dev.extent(0)),
+                       KOKKOS_LAMBDA (const int elem ) {
             soln_faceavg_dev(elem) *= 1.0/face_measure_dev(elem);
           });
           Kokkos::deep_copy(soln_faceavg, soln_faceavg_dev);
@@ -3538,19 +3548,21 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
       // Cell number
       ////////////////////////////////////////////////////////////////
       
-      Kokkos::View<ScalarT*,AssemblyDevice> cellnum_dev("cell number",myElements.size());
-      auto cellnum = Kokkos::create_mirror_view(cellnum_dev);
-      
-      for (size_t k=0; k<assembler->cells[b].size(); k++) {
-        auto eID = assembler->cells[b][k]->localElemID;
-        parallel_for("postproc plot param HVOL",
-                     RangePolicy<AssemblyExec>(0,eID.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
-          cellnum_dev(eID(elem)) = k; // TMW: is this what we want?
-        });
+      if (write_cell_number) {
+        Kokkos::View<ScalarT*,AssemblyDevice> cellnum_dev("cell number",myElements.size());
+        auto cellnum = Kokkos::create_mirror_view(cellnum_dev);
+        
+        for (size_t k=0; k<assembler->cells[b].size(); k++) {
+          auto eID = assembler->cells[b][k]->localElemID;
+          parallel_for("postproc plot param HVOL",
+                       RangePolicy<AssemblyExec>(0,eID.extent(0)),
+                       KOKKOS_LAMBDA (const int elem ) {
+            cellnum_dev(eID(elem)) = k; // TMW: is this what we want?
+          });
+        }
+        Kokkos::deep_copy(cellnum, cellnum_dev);
+        mesh->stk_mesh->setCellFieldData("cell number", blockID, myElements, cellnum);
       }
-      Kokkos::deep_copy(cellnum, cellnum_dev);
-      mesh->stk_mesh->setCellFieldData("cell number", blockID, myElements, cellnum);
       
     }
   }

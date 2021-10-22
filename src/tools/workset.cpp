@@ -2219,7 +2219,11 @@ bool workset::isVar(const string & var, int & index) {
       found = true;
       index = varindex;
     }
+    else {
+      varindex++;
+    }
   }
+  
   return found;
 }
 

@@ -40,7 +40,9 @@ ANONYMOUS:
     allow backtracking: false
   Analysis: 
     analysis type: forward
-  Postprocess: 
+  Postprocess:
+    write solution: false
+    write frequency: 1
     compute errors: true
     eblock-0_0_0:
       True solutions:

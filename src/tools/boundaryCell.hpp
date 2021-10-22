@@ -50,7 +50,8 @@ namespace MrHyDE {
                  const int & cellID_,
                  LIDView LIDs_,
                  Kokkos::View<int****,HostDevice> sideinfo_,
-                 Teuchos::RCP<DiscretizationInterface> & disc_);
+                 Teuchos::RCP<DiscretizationInterface> & disc_,
+                 const bool & storeAll_);
                  
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -326,6 +327,7 @@ namespace MrHyDE {
     vector<View_Sc2> ip, normals, tangents;
     View_Sc2 wts;
     View_Sc1 hsize;
+    bool storeAll;
     
     Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
     string sidename;

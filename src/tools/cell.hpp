@@ -44,7 +44,8 @@ namespace MrHyDE {
          const Kokkos::View<LO*,AssemblyDevice> localID_,
          LIDView LIDs_,
          Kokkos::View<int****,HostDevice> sideinfo_,
-         Teuchos::RCP<DiscretizationInterface> & disc_);
+         Teuchos::RCP<DiscretizationInterface> & disc_,
+         const bool & storeAll_);
          
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -260,6 +261,8 @@ namespace MrHyDE {
     
     void computeSolAvg();
     
+    void computeSolutionAverage(const string & var, View_Sc2 sol);
+    
     Kokkos::View<ScalarT***,AssemblyDevice> getSolutionAtNodes(const int & var);
     
     size_t getVolumetricStorage();
@@ -319,7 +322,7 @@ namespace MrHyDE {
     vector<vector<DRV> > auxside_basis, auxside_basisGrad;
     
     // Sensor information
-    bool useSensors, usealtsol = false;
+    bool storeAll, useSensors, usealtsol = false;
     size_t numSensors;
     vector<Kokkos::View<ScalarT**,HostDevice> > sensorLocations, sensorData;
     View_Sc3 sensorPoints;
