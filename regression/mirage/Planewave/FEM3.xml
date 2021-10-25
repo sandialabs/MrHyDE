@@ -1,0 +1,44 @@
+<ParameterList name="FEM3">
+  <Parameter name="Mesh xml" type="string" value="planewave3DRegTest.xml"/>
+  <Parameter name="Closure model xml" type="string" value="closureModelsPlanewavePML.xml"/>
+  <Parameter name="Linear solver xml" type="string" value="../../example/driver/xml/solver/solverMueLuRefMaxwell.xml"/>
+  <ParameterList name="Solver Options">
+    <Parameter name="Linear algebra" type="string" value="Tpetra"/>
+    <Parameter name="Solver" type="string" value="MueLu-RefMaxwell"/>
+    <Parameter name="Matrix output" type="bool" value="false"/>
+    <Parameter name="Do solve timings" type="bool" value="false"/>
+    <Parameter name="Recompute Jacobians" type="bool" value="false"/>
+    <Parameter name="Use ROL integrator" type="bool" value="false"/>
+  </ParameterList>
+  <ParameterList name="Discretization Options">
+    <Parameter name="Basis order" type="int" value="1"/>
+    <Parameter name="Workset size" type="int" value="100"/>
+    <Parameter name="Num time steps" type="int" value="200"/>
+    <Parameter name="Final time" type="double" value="2.0e-13"/>
+    <Parameter name="Transient order" type="int" value="2"/>
+  </ParameterList>
+  <ParameterList name="Postprocess Options">
+    <Parameter name="Exodus output" type="bool" value="true"/>
+    <Parameter name="Print timers" type="bool" value="true"/>
+    <Parameter name="Stacked timer" type="bool" value="false"/>
+    <ParameterList name="Text Output">
+    </ParameterList>
+  </ParameterList>
+  <ParameterList name="Optimization Options">
+    <Parameter name="Run optimization" type="bool" value="false"/>
+    <Parameter name="Perform optimization verification" type="bool" value="false"/>
+    <Parameter name="Write optimization history" type="bool" value="false"/>
+    <Parameter name="Use optimization bounds" type="bool" value="false"/>
+    <Parameter name="Stationary controls" type="bool" value="false"/>
+    <Parameter name="Objective theta" type="double" value="0.0"/>
+    <Parameter name="Objective alpha" type="double" value="0.0"/>
+    <Parameter name="Objective h" type="double" value="1.0"/>
+    <Parameter name="Objective start index" type="int" value="0"/>
+    <Parameter name="Optimization changing ops" type="bool" value="false"/>
+    <Parameter name="Verbose dynamic constraint" type="bool" value="true"/>
+  </ParameterList>
+  <ParameterList name="Physics Options">
+  </ParameterList>
+  <ParameterList name="Boundary Conditions">
+  </ParameterList>
+</ParameterList>

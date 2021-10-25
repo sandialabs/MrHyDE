@@ -1,0 +1,55 @@
+<ParameterList name="Closure Models">
+  <ParameterList name="electromagnetics0">
+    <ParameterList name="CURRENT">
+      <Parameter name="Type"                    type="string" value="PLANEWAVE PULSE"/>
+      <Parameter name="WAVELENGTH_CENTER"       type="double" value="10.0e-6"/>
+      <Parameter name="WAVELENGTH_BAND"         type="double" value="1.0e-6"/>
+      <Parameter name="USE_WAVELENGTH_INSTEAD_OF_FREQUENCY"         type="bool" value="true"/>
+      <Parameter name="PULSE_TIME_OFFSET"       type="double" value="150e-15"/>
+      <Parameter name="PULSE_LENGTH_MULTIPLIER" type="double" value="0.10"/>
+      <Parameter name="PULSE_AMPLITUDE"         type="double" value="1e0"/>
+      <Parameter name="X_MIN"                   type="double" value="-1e100"/>
+      <Parameter name="X_MAX"                   type="double" value="1e100"/>
+      <Parameter name="Y_MIN"                   type="double" value="-1e100"/>
+      <Parameter name="Y_MAX"                   type="double" value="1e100"/>
+      <Parameter name="Z_MIN"                   type="double" value="-1.599e-6"/>
+      <Parameter name="Z_MAX"                   type="double" value="1.599e-6"/>
+    </ParameterList>
+    <ParameterList name="PERMITTIVITY">
+      <Parameter name="Value" type="double" value="8.854187817e-12"/>
+    </ParameterList>
+    <ParameterList name="INVERSE_PERMEABILITY">
+      <Parameter name="Value" type="double" value="795774.7154822217"/>
+    </ParameterList>
+    <ParameterList name="PML ABSORBER">
+      <Parameter name="Type" type="string" value="PML ABSORBER"/>
+      <Parameter name="sigma" type="double" value="0.0"/>
+      <Parameter name="PML type" type="string" value="polynomial"/>
+      <ParameterList name="PML zmax">
+        <Parameter name="start location" type="double" value="32.0e-6"/>
+        <Parameter name="end location"   type="double" value="40.0e-6"/>
+        <Parameter name="exp tolerance"  type="double" value="1.0"/>
+        <Parameter name="poly power"     type="double" value="3.0"/>
+        <Parameter name="max sigma"      type="double" value="1.0e4"/>
+      </ParameterList>
+      <ParameterList name="PML zmin">
+        <Parameter name="start location" type="double" value="-32.0e-6"/>
+        <Parameter name="end location"   type="double" value="-40.0e-6"/>
+        <Parameter name="exp tolerance"  type="double" value="1.0"/>
+        <Parameter name="poly power"     type="double" value="3.0"/>
+        <Parameter name="max sigma"      type="double" value="1.0e4"/>
+      </ParameterList>
+    </ParameterList>
+    <ParameterList name="EM_ENERGY">
+      <Parameter name="Type" type="string" value="ELECTROMAGNETIC ENERGY"/>
+    </ParameterList>
+  </ParameterList>
+  <ParameterList name="electromagnetics_aux0">
+    <ParameterList name="PERMITTIVITY">
+      <Parameter name="Value" type="double" value="8.854187817e-12"/>
+    </ParameterList>
+    <ParameterList name="INVERSE_PERMEABILITY">
+      <Parameter name="Value" type="double" value="795774.7154822217"/>
+    </ParameterList>
+  </ParameterList>
+</ParameterList>
