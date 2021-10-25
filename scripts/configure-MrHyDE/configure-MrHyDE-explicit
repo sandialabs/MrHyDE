@@ -1,0 +1,47 @@
+EXTRA_ARGS=$@
+
+# Machine name: s1060545
+# Machine type: mac laptop OS Catalina
+# Build type: serial
+
+# Modules installed using Homebrew
+#  1) zlib-1.2.11                                     6) hdf5-mpi-1.12.0_1 
+#  2) pnetcdf-1.12.1_1                                7) libx11-1.6.9  
+#  3) gcc-10.2.0                                      8) netcdf-4.7.4_1 
+#  4) open-mpi-4.0.5                                  9) cmake-3.18.4 
+#  5) boost-1.73.0                                   10) ninja-1.10.1 
+
+# Notes
+#  1) Installing pnetcdf also installed gcc-10.20 and open-mpi-4.0.5.
+#  2) Installng pnetcdf also installed hdf5.  This did not appear to build properly, so I then installed netcdf and hdf5-mpi.  I believe only netcdf and hdf5-mpi are actually used.
+#  3) This build uses gcc-10.2.0 instead of clang.  To make sure clang is not used I set the following in ~/.bash_profile:
+#       alias gcc=gcc-10
+#       alias g++=g++-10
+#       alias c++=g++
+#       alias gfortran=gfortran-10
+#       export OMPI_CC=gcc-10
+#       export OMPI_CXX=g++-10
+#       export OMPI_FC=gfortran-10
+ 
+rm CMakeCache.txt
+rm -rf CMakeFiles/
+
+TRILINOS_HOME='/Users/tmwilde/Software/Trilinos'
+
+TRILINOS_INSTALL='/Users/tmwilde/Software/Trilinos/trilinos-gcc-minimal2'
+
+MRHYDE_HOME='/Users/tmwilde/Software/MrHyDE'
+
+MRHYDE_INSTALL='/Users/tmwilde/Software/MyHyDE/install'
+
+cmake \
+-GNinja \
+-D Trilinos_SRC_DIR=${TRILINOS_HOME} \
+-D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
+-D CMAKE_INSTALL_PREFIX:PATH=${MRHYDE_INSTALL} \
+-D CMAKE_CXX_FLAGS:STRING="-Wall" \
+-D MrHyDE_ENABLE_SANDBOX=ON \
+-D MrHyDE_MAX_DERIVS=1 \
+-D MrHyDE_DISABLE_AD=ON \
+${EXTRA-ARGS} \
+${MRHYDE_HOME}
