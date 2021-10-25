@@ -15,30 +15,30 @@
 
 using namespace MrHyDE;
 
-porousWeakGalerkin::porousWeakGalerkin(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-: physicsbase(settings, isaux_)
+porousWeakGalerkin::porousWeakGalerkin(Teuchos::ParameterList & settings, const int & dimension_)
+: physicsbase(settings, dimension_)
 {
   
   label = "porousWeakGalerkin";
-  include_face = settings->sublist("Physics").get<bool>("Include face terms","true");
-  useAC = settings->sublist("Physics").get<bool>("useAC",false);
+  include_face = settings.get<bool>("Include face terms","true");
+  useAC = settings.get<bool>("useAC",false);
   
-  if (settings->sublist("Physics").isSublist("Active variables")) {
-    if (settings->sublist("Physics").sublist("Active variables").isParameter("pint")) {
+  if (settings.isSublist("Active variables")) {
+    if (settings.sublist("Active variables").isParameter("pint")) {
       myvars.push_back("pint");
-      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("pint","HVOL"));
+      mybasistypes.push_back(settings.sublist("Active variables").get<string>("pint","HVOL"));
     }
-    if (settings->sublist("Physics").sublist("Active variables").isParameter("pbndry")) {
+    if (settings.sublist("Active variables").isParameter("pbndry")) {
       myvars.push_back("pbndry");
-      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("pbndry","HFACE")); // TODO: turn into HFACE-DG
+      mybasistypes.push_back(settings.sublist("Active variables").get<string>("pbndry","HFACE")); // TODO: turn into HFACE-DG
     }
-    if (settings->sublist("Physics").sublist("Active variables").isParameter("u")) {
+    if (settings.sublist("Active variables").isParameter("u")) {
       myvars.push_back("u");
-      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("u","HDIV-DG"));
+      mybasistypes.push_back(settings.sublist("Active variables").get<string>("u","HDIV-DG"));
     }
-    if (settings->sublist("Physics").sublist("Active variables").isParameter("t")) {
+    if (settings.sublist("Active variables").isParameter("t")) {
       myvars.push_back("t");
-      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("t","HDIV-DG"));
+      mybasistypes.push_back(settings.sublist("Active variables").get<string>("t","HDIV-DG"));
     }
   }
   else {
@@ -59,7 +59,7 @@ porousWeakGalerkin::porousWeakGalerkin(Teuchos::RCP<Teuchos::ParameterList> & se
     }
   }
   
-  usePermData = settings->sublist("Physics").get<bool>("use permeability data",false);
+  usePermData = settings.get<bool>("use permeability data",false);
   
   dxnum = 0;
   dynum = 0;

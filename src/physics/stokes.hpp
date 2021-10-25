@@ -36,7 +36,7 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    stokes(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_);
+    stokes(Teuchos::ParameterList & settings, const int & dimension_);
     
     // ========================================================================================
     // ========================================================================================

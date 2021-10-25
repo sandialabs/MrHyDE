@@ -1517,7 +1517,7 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
   
   u->update(1.0, *du_over, 1.0);
   
-  if (verbosity > 11) {
+  if (verbosity>=10) {
     Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> unorm(1);
     u->norm2(unorm);
     if (Comm->getRank() == 0) {

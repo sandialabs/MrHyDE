@@ -50,6 +50,30 @@ namespace MrHyDE {
       workset_data_index = 0;
     }
     
+    Branch(const double value_) {
+      std::stringstream stream;
+      stream << std::fixed << std::setprecision(16) << value_;
+      expression = stream.str();
+      
+      // default settings are all false
+      isLeaf = true;
+      isDecomposed = true;
+      isFunc = false;
+      isView = false;
+      isAD = false;
+      isWorksetData = false;
+      isConstant = true;
+      isParameter = false;
+      isTime = false;
+      
+      funcIndex = 0;
+      paramIndex = 0;
+      
+      workset_data_index = 0;
+      
+      data_Sc = value_;
+    }
+    
     void print() {
     
       std::cout << "-- Printing metadata for branch: " << expression << std::endl;
@@ -97,6 +121,14 @@ namespace MrHyDE {
       name = name_;
       expression = expression_;
       branches.push_back(Branch(expression));
+    }
+    
+    Tree(const string & name_, double & value_) {
+      name = name_;
+      std::stringstream stream;
+      stream << std::fixed << std::setprecision(16) << value_;
+      expression = stream.str();
+      branches.push_back(Branch(value_));
     }
     
     void setupVista() {
@@ -172,6 +204,10 @@ namespace MrHyDE {
     
     void addTree(const string & name, const string & expression) {
       trees.push_back(Tree(name,expression));
+    }
+    
+    void addTree(const string & name, double & value) {
+      trees.push_back(Tree(name,value));
     }
     
     std::string location;

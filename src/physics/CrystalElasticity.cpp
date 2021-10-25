@@ -15,13 +15,13 @@
 
 using namespace MrHyDE;
 
-CrystalElastic::CrystalElastic( Teuchos::RCP<Teuchos::ParameterList> & settings , const int & numElem_)
+CrystalElastic::CrystalElastic(Teuchos::ParameterList & settings,
+                               const int & dimension_)
 {
   
-  dimension = settings->sublist("Mesh").get<int>("dimension",3);
-  numElem = numElem_;//settings->sublist("Solver").get<int>("Workset size",1);
+  dimension = dimension_;
    
-  Teuchos::ParameterList cesettings = settings->sublist("Physics").sublist("Crystal elastic parameters");
+  Teuchos::ParameterList cesettings = settings.sublist("Crystal elastic parameters");
   e_ref = cesettings.get<ScalarT>("T_ambient",0.0);
   alpha_T = cesettings.get<ScalarT>("alpha_T",1.0e-6);
   
@@ -38,9 +38,6 @@ CrystalElastic::CrystalElastic( Teuchos::RCP<Teuchos::ParameterList> & settings 
   
   // Elastic tensor in lattice frame
   C = View_Sc4("CE-C",3,3,3,3);
-  
-  // Elastic tensor in rotated frame
-  Cr = View_Sc5("CE-Cr",numElem,3,3,3,3);
   
   // default to cubic symmetry
   c11_ = cesettings.get<ScalarT>("C11",2.0*mu+lambda);

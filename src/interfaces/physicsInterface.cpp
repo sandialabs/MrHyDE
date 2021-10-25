@@ -278,7 +278,9 @@ void PhysicsInterface::importPhysics(const bool & isaux) {
     }
     
     physicsImporter physimp = physicsImporter();
-    currmodules = physimp.import(enabled_modules, settings, isaux, Commptr);
+    blockPhysSettings[b].set<int>("verbosity",settings->get<int>("verbosity",0));
+    currmodules = physimp.import(enabled_modules, blockPhysSettings[b],
+                                 spaceDim, Commptr);
     
     if (isaux) {
       aux_modules.push_back(currmodules);

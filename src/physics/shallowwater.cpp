@@ -19,8 +19,8 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-shallowwater::shallowwater(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-  : physicsbase(settings, isaux_)
+shallowwater::shallowwater(Teuchos::ParameterList & settings, const int & dimension_)
+  : physicsbase(settings, dimension_)
 {
   
   label = "shallowwater";
@@ -35,7 +35,7 @@ shallowwater::shallowwater(Teuchos::RCP<Teuchos::ParameterList> & settings, cons
   
   //gravity = settings->sublist("Physics").get<ScalarT>("gravity",9.8);
   
-  formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
+  formparam = settings.get<ScalarT>("form_param",1.0);
   
 }
 

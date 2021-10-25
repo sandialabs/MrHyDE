@@ -13,12 +13,12 @@ ANONYMOUS:
     NX: 10
     NY: 10
   Physics:  
-    Active variables:
-      pint: HGRAD-DG
-      u: HDIV-DG
-      t: HDIV-DG
-      pbndry: HFACE
     eblock-0_0: 
+      Active variables:
+        pint: HGRAD-DG
+        u: HDIV-DG
+        t: HDIV-DG
+        pbndry: HFACE
       modules: porous weak Galerkin
       assemble face terms: true
       Dirichlet conditions:

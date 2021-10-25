@@ -35,7 +35,7 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    maxwells_fp(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_);
+    maxwells_fp(Teuchos::ParameterList & settings, const int & dimension_);
     
     // ========================================================================================
     // ========================================================================================

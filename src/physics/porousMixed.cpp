@@ -14,28 +14,28 @@
 #include "porousMixed.hpp"
 using namespace MrHyDE;
 
-porousMixed::porousMixed(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-  : physicsbase(settings, isaux_)
+porousMixed::porousMixed(Teuchos::ParameterList & settings, const int & dimension_)
+  : physicsbase(settings, dimension_)
 {
   
   label = "porousMixed";
-  int spaceDim = settings->sublist("Mesh").get<int>("dimension",2);
+  int spaceDim = dimension_;
   
-  if (settings->sublist("Physics").isSublist("Active variables")) {
-    if (settings->sublist("Physics").sublist("Active variables").isParameter("p")) {
+  if (settings.isSublist("Active variables")) {
+    if (settings.sublist("Active variables").isParameter("p")) {
       myvars.push_back("p");
-      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("p","HVOL"));
+      mybasistypes.push_back(settings.sublist("Active variables").get<string>("p","HVOL"));
     }
-    if (settings->sublist("Physics").sublist("Active variables").isParameter("u")) {
+    if (settings.sublist("Active variables").isParameter("u")) {
       myvars.push_back("u");
-      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("u","HDIV"));
+      mybasistypes.push_back(settings.sublist("Active variables").get<string>("u","HDIV"));
     }
   }
   else {
     myvars.push_back("p");
     myvars.push_back("u");
     
-    if (spaceDim == 1) { // to avoid the error in 1D HDIV
+    if (dimension_ == 1) { // to avoid the error in 1D HDIV
       mybasistypes.push_back("HVOL");
       mybasistypes.push_back("HGRAD");
     }
@@ -45,16 +45,16 @@ porousMixed::porousMixed(Teuchos::RCP<Teuchos::ParameterList> & settings, const 
     }
   }
   
-  usePermData = settings->sublist("Physics").get<bool>("use permeability data",false);
-  useWells = settings->sublist("Physics").get<bool>("use well source",false);
+  usePermData = settings.get<bool>("use permeability data",false);
+  useWells = settings.get<bool>("use well source",false);
   dxnum = 0;
   dynum = 0;
   dznum = 0;
   
-  useKL = settings->sublist("Physics").get<bool>("use KL expansion",false);
+  useKL = settings.get<bool>("use KL expansion",false);
   if (useKL) {
-    if (settings->sublist("Physics").isSublist("KL parameters")) {
-      auto KLlist = settings->sublist("Physics").sublist("KL parameters");
+    if (settings.isSublist("KL parameters")) {
+      auto KLlist = settings.sublist("KL parameters");
       permKLx = klexpansion(KLlist.sublist("x-direction").get<int>("N"),
                             KLlist.sublist("x-direction").get<double>("L"),
                             KLlist.sublist("x-direction").get<double>("sigma"),

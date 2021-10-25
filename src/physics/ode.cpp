@@ -19,8 +19,8 @@ using namespace MrHyDE;
 // ========================================================================================
 // ========================================================================================
 
-ODE::ODE(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-  : physicsbase(settings, isaux_)
+ODE::ODE(Teuchos::ParameterList & settings, const int & dimension_)
+  : physicsbase(settings, dimension_)
 {
   
   label = "ode";

@@ -19,17 +19,16 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-thermal::thermal(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-  : physicsbase(settings, isaux_)
+thermal::thermal(Teuchos::ParameterList & settings, const int & dimension_)
+  : physicsbase(settings, dimension_)
 {
   
   // Standard data
-  isaux = isaux_;
   label = "thermal";
-  if (settings->sublist("Physics").isSublist("Active variables")) {
-    if (settings->sublist("Physics").sublist("Active variables").isParameter("e")) {
+  if (settings.isSublist("Active variables")) {
+    if (settings.sublist("Active variables").isParameter("e")) {
       myvars.push_back("e");
-      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("e","HGRAD"));
+      mybasistypes.push_back(settings.sublist("Active variables").get<string>("e","HGRAD"));
     }
   }
   else {
@@ -37,10 +36,10 @@ thermal::thermal(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & i
     mybasistypes.push_back("HGRAD");
   }
   // Extra data
-  formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
+  formparam = settings.get<ScalarT>("form_param",1.0);
   have_nsvel = false;
   // Solely for testing purposes
-  test_IQs = settings->sublist("Physics").get<bool>("test integrated quantities",false);
+  test_IQs = settings.get<bool>("test integrated quantities",false);
 
 }
 

@@ -28,14 +28,9 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    llamas(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) {
+    llamas(Teuchos::ParameterList & settings, const int & dimension_) {
       
       label = "llamas";
-      
-      isaux = isaux_;
-      if (isaux) {
-        prefix = "aux ";
-      }
       
       myvars.push_back("llama");
       mybasistypes.push_back("HGRAD");

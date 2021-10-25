@@ -71,29 +71,31 @@ int FunctionManager::addFunction(const string & fname, string & expression, cons
   }
   return findex;
   
-  /*
-   for (size_t k=0; k<functions.size(); k++) {
-   if (functions[k].function_name == fname && functions[k].location == location) {
-   found = true;
-   findex = k;
-   }
-   }
-   if (!found) {
-   int dim1 = 0;
-   if (location == "ip") {
-   dim1 = numip;
-   }
-   else if (location == "side ip") {
-   dim1 = numip_side;
-   }
-   else if (location == "point") {
-   dim1 = 1;
-   }
-   functions.push_back(function_class(fname, expression, numElem, dim1, location));
-   findex = functions.size()-1;
-   }
-   return findex;
-   */
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+// Add a user defined function
+//////////////////////////////////////////////////////////////////////////////////////
+
+int FunctionManager::addFunction(const string & fname, double & value, const string & location) {
+  bool found = false;
+  int findex = 0;
+  
+  for (size_t k=0; k<forests.size(); k++) {
+    if (forests[k].location == location) {
+      for (size_t j=0; j<forests[k].trees.size(); ++j) {
+        if (forests[k].trees[j].name == fname) {
+          found = true;
+          findex = j;
+        }
+      }
+      if (!found) {
+        forests[k].addTree(fname, value);
+        findex = forests[k].trees.size()-1;
+      }
+    }
+  }
+  return findex;
   
 }
 

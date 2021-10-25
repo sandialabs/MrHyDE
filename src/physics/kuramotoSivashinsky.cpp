@@ -18,8 +18,8 @@ using namespace MrHyDE;
 // ========================================================================================
 // ========================================================================================
 
-KuramotoSivashinsky::KuramotoSivashinsky(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-  : physicsbase(settings, isaux_)
+KuramotoSivashinsky::KuramotoSivashinsky(Teuchos::ParameterList & settings, const int & dimension_)
+  : physicsbase(settings, dimension_)
 {
   
   label = "Kuramoto-Sivashinsky";

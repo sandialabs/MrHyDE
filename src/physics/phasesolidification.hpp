@@ -32,16 +32,16 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    phasesolidification(Teuchos::RCP<Teuchos::ParameterList> & settings,
+    phasesolidification(Teuchos::ParameterList & settings, const int & dimension_,
                         const Teuchos::RCP<Epetra_MpiComm> & Comm_, const int & numip_,
                         const size_t & numip_side_) :
     Comm(Comm_), numip(numip_), numip_side(numip_side_) {
       
-      spaceDim = settings->sublist("Mesh").get<int>("dimension",2);
-      numphases = settings->sublist("Physics").get<int>("number_phases",1);
-      numdisks = settings->sublist("Physics").get<int>("numdisks",3);
-      disksize = settings->sublist("Physics").get<ScalarT>("disksize",10.0);
-      uniform = settings->sublist("Physics").get<bool>("uniform",true);
+      spaceDim = dimension_;
+      numphases = settings.get<int>("number_phases",1);
+      numdisks = settings.get<int>("numdisks",3);
+      disksize = settings.get<ScalarT>("disksize",10.0);
+      uniform = settings.get<bool>("uniform",true);
       
       for (size_t i=0; i<numphases; i++) {
         e_num.push_back(i);
@@ -49,7 +49,7 @@ namespace MrHyDE {
       
       PI = 3.141592653589793238463;
       
-      if (settings->sublist("Solver").get<int>("solver",0) == 1)
+      if (settings.get<bool>("is transient",false) == 1)
         isTD = true;
       else
         isTD = false;

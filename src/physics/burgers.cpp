@@ -18,8 +18,8 @@ using namespace MrHyDE;
 // ========================================================================================
 // ========================================================================================
 
-Burgers::Burgers(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-  : physicsbase(settings, isaux_)
+Burgers::Burgers(Teuchos::ParameterList & settings, const int & dimension_)
+  : physicsbase(settings, dimension_)
 {
   
   label = "Burgers";

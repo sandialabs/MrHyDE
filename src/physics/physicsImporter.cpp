@@ -39,8 +39,8 @@
 using namespace MrHyDE;
 
 vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & module_list,
-                                                           Teuchos::RCP<Teuchos::ParameterList> & settings,
-                                                           const bool & isaux,
+                                                           Teuchos::ParameterList & settings,
+                                                           const int & dimension,
                                                            Teuchos::RCP<MpiComm> & Commptr) {
   
   vector<Teuchos::RCP<physicsbase> > modules;
@@ -50,107 +50,107 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
     
     // Porous media (single phase slightly compressible)
     if (modname == "porous") {
-      modules.push_back(Teuchos::rcp(new porous(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new porous(settings, dimension) ) );
     }
     
     // Porous media with HDIV basis
     if (modname == "porous mixed") {
-      modules.push_back(Teuchos::rcp(new porousMixed(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new porousMixed(settings, dimension) ) );
     }
     
     // Hybridized porous media with HDIV basis
     if (modname == "porous mixed hybridized") {
-      modules.push_back(Teuchos::rcp(new porousMixedHybrid(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new porousMixedHybrid(settings, dimension) ) );
     }
     
     // weak Galerkin porous media with HDIV basis
     if (modname == "porous weak Galerkin") {
-      modules.push_back(Teuchos::rcp(new porousWeakGalerkin(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new porousWeakGalerkin(settings, dimension) ) );
     }
         
     // Convection diffusion
     if (modname == "cdr" || modname == "CDR") {
-      modules.push_back(Teuchos::rcp(new cdr(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new cdr(settings, dimension) ) );
     }
     
     // Thermal
     if (modname == "thermal") {
-      modules.push_back(Teuchos::rcp(new thermal(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new thermal(settings, dimension) ) );
     }
     
     // Shallow Water
     if (modname == "shallow water") {
-      modules.push_back(Teuchos::rcp(new shallowwater(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new shallowwater(settings, dimension) ) );
     }
     
     // Maxwell
     if (modname == "maxwell") {
-      modules.push_back(Teuchos::rcp(new maxwell(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new maxwell(settings, dimension) ) );
     }
     
     // Multiple Species PhaseField
     if (modname == "msphasefield") {
-      modules.push_back(Teuchos::rcp(new msphasefield(settings, isaux, Commptr) ) );
+      modules.push_back(Teuchos::rcp(new msphasefield(settings, dimension, Commptr) ) );
     }
     
     // Stokes
     if (modname == "stokes" || modname == "Stokes") {
-      modules.push_back(Teuchos::rcp(new stokes(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new stokes(settings, dimension) ) );
     }
     
     // Navier Stokes
     if (modname == "navier stokes" || modname == "Navier Stokes") {
-      modules.push_back(Teuchos::rcp(new navierstokes(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new navierstokes(settings, dimension) ) );
     }
     
     // Linear Elasticity
     if (modname == "linearelasticity" || modname == "linear elasticity") {
-      modules.push_back(Teuchos::rcp(new linearelasticity(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new linearelasticity(settings, dimension) ) );
     }
     
     // Helmholtz
     if (modname == "helmholtz") {
-      modules.push_back(Teuchos::rcp(new helmholtz(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new helmholtz(settings, dimension) ) );
     }
     
     // Maxwell's (potential of electric field, curl-curl frequency domain (Boyse et al (1992))
     if (modname == "maxwells_freq_pot"){
-      modules.push_back(Teuchos::rcp(new maxwells_fp(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new maxwells_fp(settings, dimension) ) );
     }
     
     // Scalar ODE for testing time integrators independent of spatial discretizations
     if (modname == "ODE"){
-      modules.push_back(Teuchos::rcp(new ODE(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new ODE(settings, dimension) ) );
     }
     
     // Scalar Burgers equation
     if (modname == "Burgers"){
-      modules.push_back(Teuchos::rcp(new Burgers(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new Burgers(settings, dimension) ) );
     }
 
     // Kuramoto-Sivashinsky equation
     if (modname == "Kuramoto-Sivashinsky"){
-      modules.push_back(Teuchos::rcp(new KuramotoSivashinsky(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new KuramotoSivashinsky(settings, dimension) ) );
     }
     
     // Llamas equation
     if (modname == "llamas"){
-      modules.push_back(Teuchos::rcp(new llamas(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new llamas(settings, dimension) ) );
     }
 
     // Variable-density Navier-Stokes 
     if (modname == "VDNS"){
-      modules.push_back(Teuchos::rcp(new VDNS(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new VDNS(settings, dimension) ) );
     }
     
     // Compressible Navier-Stokes
     //if (modname == "CNS" || modname == "cns"){
-    //  modules.push_back(Teuchos::rcp(new cns(settings, isaux) ) );
+    //  modules.push_back(Teuchos::rcp(new cns(settings, dimension) ) );
     //}
 
     // Physics for Mirage
     if (modname == "Mirage" || modname == "mirage"){
-      modules.push_back(Teuchos::rcp(new mirage(settings, isaux) ) );
+      modules.push_back(Teuchos::rcp(new mirage(settings, dimension) ) );
     }
     
   }

@@ -36,7 +36,7 @@ namespace MrHyDE {
     
     ~maxwell() {};
     
-    maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_);
+    maxwell(Teuchos::ParameterList & settings, const int & dimension_);
     
     // ========================================================================================
     // ========================================================================================

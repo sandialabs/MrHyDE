@@ -20,12 +20,12 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-VDNS::VDNS(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-  : physicsbase(settings, isaux_)
+VDNS::VDNS(Teuchos::ParameterList & settings, const int & dimension_)
+  : physicsbase(settings, dimension_)
 {
   
   label = "VDNS";
-  int spaceDim = settings->sublist("Mesh").get<int>("dimension",2);
+  int spaceDim = dimension_;
   
   myvars.push_back("ux");
   myvars.push_back("pr");
@@ -50,14 +50,14 @@ VDNS::VDNS(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
   }
   
   // Params from input file
-  useSUPG = settings->sublist("Physics").get<bool>("useSUPG",false);
-  usePSPG = settings->sublist("Physics").get<bool>("usePSPG",false);
-  useGRADDIV = settings->sublist("Physics").get<bool>("useGRADDIV",false);
+  useSUPG = settings.get<bool>("useSUPG",false);
+  usePSPG = settings.get<bool>("usePSPG",false);
+  useGRADDIV = settings.get<bool>("useGRADDIV",false);
   // If false, the background thermodynamic pressure changes over time
-  openSystem = settings->sublist("Physics").get<bool>("open system",true);
+  openSystem = settings.get<bool>("open system",true);
   // If true, the constraint on the background pressure is different (for a closed domain)
   // see below
-  inoutflow = settings->sublist("Physics").get<bool>("in/outflow",false);
+  inoutflow = settings.get<bool>("in/outflow",false);
   
 }
 

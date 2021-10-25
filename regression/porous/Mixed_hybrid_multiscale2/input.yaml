@@ -13,9 +13,9 @@ ANONYMOUS:
     NX: 8
     NY: 8
   Physics:
-    Active variables:
-      lambda: HFACE
     eblock-0_0: 
+      Active variables:
+        lambda: HFACE
       modules: porous mixed hybridized
       assemble face terms: true
       Dirichlet conditions:

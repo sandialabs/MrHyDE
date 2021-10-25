@@ -59,7 +59,7 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    VDNS(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_);
+    VDNS(Teuchos::ParameterList & settings, const int & dimension_);
     
     // ========================================================================================
     // ========================================================================================

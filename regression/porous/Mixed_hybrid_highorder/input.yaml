@@ -13,11 +13,11 @@ ANONYMOUS:
     NX: 8
     NY: 8
   Physics: 
-    Active variables:
-      p: HGRAD-DG
-      u: HDIV-DG
-      lambda: HFACE
     eblock-0_0: 
+      Active variables:
+        p: HGRAD-DG
+        u: HDIV-DG
+        lambda: HFACE
       modules: porous mixed hybridized
       assemble face terms: true
       Dirichlet conditions:

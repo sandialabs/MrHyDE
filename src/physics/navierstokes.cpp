@@ -21,12 +21,12 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-navierstokes::navierstokes(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-  : physicsbase(settings, isaux_)
+navierstokes::navierstokes(Teuchos::ParameterList & settings, const int & dimension_)
+  : physicsbase(settings, dimension_)
 {
   
   label = "navierstokes";
-  int spaceDim = settings->sublist("Mesh").get<int>("dimension",2);
+  int spaceDim = dimension_;
   
   myvars.push_back("ux");
   myvars.push_back("pr");
@@ -47,10 +47,10 @@ navierstokes::navierstokes(Teuchos::RCP<Teuchos::ParameterList> & settings, cons
   }
   
   
-  useSUPG = settings->sublist("Physics").get<bool>("useSUPG",false);
-  usePSPG = settings->sublist("Physics").get<bool>("usePSPG",false);
-  T_ambient = settings->sublist("Physics").get<ScalarT>("T_ambient",0.0);
-  beta = settings->sublist("Physics").get<ScalarT>("beta",1.0);
+  useSUPG = settings.get<bool>("useSUPG",false);
+  usePSPG = settings.get<bool>("usePSPG",false);
+  T_ambient = settings.get<ScalarT>("T_ambient",0.0);
+  beta = settings.get<ScalarT>("beta",1.0);
   model_params = Kokkos::View<ScalarT*,AssemblyDevice>("NS params on device",2);
   auto host_params = create_mirror_view(model_params);
   host_params(0) = T_ambient;

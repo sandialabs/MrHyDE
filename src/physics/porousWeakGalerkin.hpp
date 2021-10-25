@@ -57,7 +57,7 @@ namespace MrHyDE {
     
     ~porousWeakGalerkin() {};
     
-    porousWeakGalerkin(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_);
+    porousWeakGalerkin(Teuchos::ParameterList & settings, const int & dimension_);
     
     // ========================================================================================
     // ========================================================================================

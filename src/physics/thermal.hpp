@@ -38,7 +38,7 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    thermal(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_) ;
+    thermal(Teuchos::ParameterList & settings, const int & dimension_) ;
     
     // ========================================================================================
     // ========================================================================================

@@ -36,7 +36,7 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    navierstokes(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_);
+    navierstokes(Teuchos::ParameterList & settings, const int & dimension_);
     
     // ========================================================================================
     // ========================================================================================

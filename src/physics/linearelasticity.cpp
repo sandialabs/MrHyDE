@@ -20,20 +20,13 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-  : physicsbase(settings, isaux_)
+linearelasticity::linearelasticity(Teuchos::ParameterList & settings, const int & dimension_)
+  : physicsbase(settings, dimension_)
 {
   
   label = "linearelasticity";
   
-  spaceDim = 0;
-  spaceDim = settings->sublist("Mesh").get<int>("dim",0);
-  if (spaceDim == 0) {
-    spaceDim = settings->sublist("Mesh").get<int>("dimension",0);
-  }
-  if (spaceDim == 0) {
-    //
-  }
+  spaceDim = dimension_;
   
   if (spaceDim == 1) {
     myvars = {"dx"};
@@ -48,25 +41,23 @@ linearelasticity::linearelasticity(Teuchos::RCP<Teuchos::ParameterList> & settin
     mybasistypes = {"HGRAD","HGRAD","HGRAD"};
   }
   
-  useCE = settings->sublist("Physics").get<bool>("use crystal elasticity",false);
-  int numElem = settings->sublist("Solver").get<int>("workset size",100);
+  useCE = settings.get<bool>("use crystal elasticity",false);
   if (useCE) {
-    crystalelast = Teuchos::rcp(new CrystalElastic(settings, numElem));
+    crystalelast = Teuchos::rcp(new CrystalElastic(settings, spaceDim));
   }
   
-  
-  incplanestress = settings->sublist("Physics").get<bool>("incplanestress",false);
-  useLame = settings->sublist("Physics").get<bool>("use Lame parameters",true);
-  addBiot = settings->sublist("Physics").get<bool>("Biot",false);
+  incplanestress = settings.get<bool>("incplanestress",false);
+  useLame = settings.get<bool>("use Lame parameters",true);
+  addBiot = settings.get<bool>("Biot",false);
   
   modelparams = Kokkos::View<ScalarT*,AssemblyDevice>("parameters for LE",5); 
   auto modelparams_host = Kokkos::create_mirror_view(modelparams); 
  
-  modelparams_host(0) = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
-  modelparams_host(1) = settings->sublist("Physics").get<ScalarT>("penalty",10.0);
-  modelparams_host(2) = settings->sublist("Physics").get<ScalarT>("Biot alpha",0.0);
-  modelparams_host(3) = settings->sublist("Physics").get<ScalarT>("T_ambient",0.0);
-  modelparams_host(4) = settings->sublist("Physics").get<ScalarT>("alpha_T",1.0e-6);
+  modelparams_host(0) = settings.get<ScalarT>("form_param",1.0);
+  modelparams_host(1) = settings.get<ScalarT>("penalty",10.0);
+  modelparams_host(2) = settings.get<ScalarT>("Biot alpha",0.0);
+  modelparams_host(3) = settings.get<ScalarT>("T_ambient",0.0);
+  modelparams_host(4) = settings.get<ScalarT>("alpha_T",1.0e-6);
   
   Kokkos::deep_copy(modelparams, modelparams_host);
 }
@@ -94,6 +85,7 @@ void linearelasticity::defineFunctions(Teuchos::ParameterList & fs,
                          functionManager->numip_side, spaceDim, spaceDim);
   
 }
+
 // ========================================================================================
 // ========================================================================================
 

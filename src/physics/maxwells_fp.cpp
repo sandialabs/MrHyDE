@@ -18,13 +18,12 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-maxwells_fp::maxwells_fp(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-  : physicsbase(settings, isaux_)
+maxwells_fp::maxwells_fp(Teuchos::ParameterList & settings, const int & dimension_)
+  : physicsbase(settings, dimension_)
 {
   
   //potential approach to frequency-domain Maxwell's (see Boyse et al (1992)); uses -iwt convention
-  
-  int spaceDim = settings->sublist("Mesh").get<int>("dimension",3);
+  int spaceDim = dimension_;
   if (spaceDim < 2)
     cout << "Not all aspects may be well-defined in 1D..." << endl;
   
@@ -53,16 +52,10 @@ maxwells_fp::maxwells_fp(Teuchos::RCP<Teuchos::ParameterList> & settings, const 
     mybasistypes.push_back("HGRAD");
   }
   
-  essScale = settings->sublist("Physics").get<ScalarT>("weak ess BC scaling",100.0);
-  calcE = settings->sublist("Physics").get<bool>("Calculate electric field",false);
+  essScale = settings.get<ScalarT>("weak ess BC scaling",100.0);
+  calcE = settings.get<bool>("Calculate electric field",false);
   
-  test = settings->sublist("Physics").get<int>("test",0);
-  //test == 1: convergence study with manufactured solution
-  //            (regular Dirichlet boundary conditions for all, to test interior residual; complex but constant mu, epsilon)
-  //test == 2: convergence study with manufactured solution (regular Dirichlet boundary conditions for all, to test interior residual)
-  //            (regular Dirichlet boundary conditions for all, to test interior residual; complex and spatially varying mu, epsilon)
-  //test == 3: convergence study with manufactured solution (with boundary condition type 1)
-  //test == 4: attempt to replicate Fig 1 in Paulsen et all (1992)
+  test = settings.get<int>("test",0);
   
 }
 
@@ -1107,7 +1100,5 @@ void maxwells_fp::updateParameters(const vector<Teuchos::RCP<vector<AD> > > & pa
       source_params = *(params[p]);
     else if (paramnames[p] == "maxwells_fp_boundary")
       boundary_params = *(params[p]);
-    else if(verbosity > 0) //false alarms if multiple physics modules used...
-      cout << "Parameter not used in msconvdiff: " << paramnames[p] << endl;
   }
 }

@@ -16,6 +16,10 @@ ANONYMOUS:
     numdisks: 1
     disksize: 1.0e+01
     uniform: true
+    xmin: 0.0
+    xmax: 1.0e+02
+    ymin: 0.0
+    ymax: 1.0e+02
     initialType: test
     modules: msphasefield
     e_DBCs: bottom

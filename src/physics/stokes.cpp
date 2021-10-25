@@ -19,12 +19,12 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-stokes::stokes(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-  : physicsbase(settings, isaux_)
+stokes::stokes(Teuchos::ParameterList & settings, const int & dimension_)
+  : physicsbase(settings, dimension_)
 {
   
   label = "stokes";
-  int spaceDim = settings->sublist("Mesh").get<int>("dimension",2);
+  int spaceDim = dimension_;
   
   myvars.push_back("ux");
   myvars.push_back("pr");
@@ -45,8 +45,8 @@ stokes::stokes(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isa
   }
   
   
-  useLSIC = settings->sublist("Physics").get<bool>("useLSIC",false);
-  usePSPG = settings->sublist("Physics").get<bool>("usePSPG",false);
+  useLSIC = settings.get<bool>("useLSIC",false);
+  usePSPG = settings.get<bool>("usePSPG",false);
   
 }
 

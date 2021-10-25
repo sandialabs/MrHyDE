@@ -17,16 +17,11 @@ using namespace MrHyDE;
 // ========================================================================================
 // ========================================================================================
 
-cdr::cdr(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-  : physicsbase(settings, isaux_)
+cdr::cdr(Teuchos::ParameterList & settings, const int & dimension_)
+  : physicsbase(settings, dimension_)
 {
   
   label = "cdr";
-  
-  isaux = isaux_;
-  if (isaux) {
-    prefix = "aux ";
-  }
   
   myvars.push_back("c");
   mybasistypes.push_back("HGRAD");

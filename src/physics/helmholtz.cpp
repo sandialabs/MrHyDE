@@ -18,12 +18,12 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-helmholtz::helmholtz(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-  : physicsbase(settings, isaux_)
+helmholtz::helmholtz(Teuchos::ParameterList & settings, const int & dimension_)
+  : physicsbase(settings, dimension_)
 {
   
   label = "helmholtz";
-  fractional = settings->sublist("Physics").get<bool>("fractional",false);
+  fractional = settings.get<bool>("fractional",false);
   
   myvars.push_back("ureal");
   myvars.push_back("uimag");

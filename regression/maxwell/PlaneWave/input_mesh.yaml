@@ -2,7 +2,7 @@
 ---
 ANONYMOUS:
   Mesh: 
-    dim: 3
+    dimension: 3
     shape: hex
     xmin: -10.0e-6
     xmax: 10.0e-6

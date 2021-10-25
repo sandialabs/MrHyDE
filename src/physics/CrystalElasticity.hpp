@@ -26,7 +26,8 @@ namespace MrHyDE {
     CrystalElastic() {} ;
     ~CrystalElastic() {};
     
-    CrystalElastic( Teuchos::RCP<Teuchos::ParameterList> & settings , const int & numElem_);
+    CrystalElastic(Teuchos::ParameterList & settings,
+                   const int & dimension_);
     
     //----------------------------------------------------------------------------
 
@@ -46,7 +47,7 @@ namespace MrHyDE {
     void computeRotatedTensor(Teuchos::RCP<workset> & wkset);
     
     // Public Data
-    int dimension, numElem;
+    int dimension;
     bool allow_rotations;
     ScalarT c11_,c22_,c33_,c44_,c55_,c66_,c12_,c13_,c23_,c15_,c25_,c35_,c46_;
     View_Sc4 C; // lattice stiffness tensor (does not depend on elements)

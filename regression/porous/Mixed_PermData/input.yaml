@@ -15,8 +15,8 @@ ANONYMOUS:
     data file: perm
     data points file: perm_xy
   Physics:
-    use permeability data: true 
     eblock-0_0: 
+      use permeability data: true 
       modules: porous mixed
       Dirichlet conditions:
         p:

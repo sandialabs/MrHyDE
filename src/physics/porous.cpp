@@ -14,15 +14,15 @@
 #include "porous.hpp"
 using namespace MrHyDE;
 
-porous::porous(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-  : physicsbase(settings, isaux_)
+porous::porous(Teuchos::ParameterList & settings, const int & dimension_)
+  : physicsbase(settings, dimension_)
 {
   
   // Standard data
   label = "porous";
   myvars.push_back("p");
   mybasistypes.push_back("HGRAD");
-  formparam = settings->sublist("Physics").get<ScalarT>("form_param",1.0);
+  formparam = settings.get<ScalarT>("form_param",1.0);
 }
 
 // ========================================================================================

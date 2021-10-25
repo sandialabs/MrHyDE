@@ -21,18 +21,18 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-msphasefield::msphasefield(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_,
+msphasefield::msphasefield(Teuchos::ParameterList & settings, const int & dimension_,
                            const Teuchos::RCP<MpiComm> & Comm_)
-  : physicsbase(settings, isaux_),
+  : physicsbase(settings, dimension_),
   Comm(Comm_)
 {
   
-  numphases = settings->sublist("Physics").get<int>("number_phases",1);
-  numdisks = settings->sublist("Physics").get<int>("numdisks",3);
-  disksize = settings->sublist("Physics").get<ScalarT>("disksize",10.0);
-  initialType = settings->sublist("Physics").get<string>("initialType","default");
-  uniform = settings->sublist("Physics").get<bool>("uniform",true);
-  variableMobility = settings->sublist("Physics").get<bool>("variableMobility",false);
+  numphases = settings.get<int>("number_phases",1);
+  numdisks = settings.get<int>("numdisks",3);
+  disksize = settings.get<ScalarT>("disksize",10.0);
+  initialType = settings.get<string>("initialType","default");
+  uniform = settings.get<bool>("uniform",true);
+  variableMobility = settings.get<bool>("variableMobility",false);
   //systematic = settings->sublist("Physics").get<bool>("systematic",true);
   
   string name = "phi";
@@ -53,10 +53,10 @@ msphasefield::msphasefield(Teuchos::RCP<Teuchos::ParameterList> & settings, cons
   
   
   if(initialType=="systematic") {       // extend to 3d
-    xmax = settings->sublist("Mesh").get<ScalarT>("xmax",2);
-    xmin = settings->sublist("Mesh").get<ScalarT>("xmin",2);
-    ymax = settings->sublist("Mesh").get<ScalarT>("ymax",2);
-    ymin = settings->sublist("Mesh").get<ScalarT>("ymin",2);
+    xmax = settings.get<ScalarT>("xmax",2);
+    xmin = settings.get<ScalarT>("xmin",2);
+    ymax = settings.get<ScalarT>("ymax",2);
+    ymin = settings.get<ScalarT>("ymin",2);
     
     // works only for power of 2
     int deldisks = pow(numdisks,0.5);

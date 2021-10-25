@@ -13,9 +13,9 @@ ANONYMOUS:
     NX: 10
     NY: 10
   Physics: 
-    Active variables:
-      p: HFACE
     eblock-0_0: 
+      Active variables:
+        p: HFACE
       modules: porous mixed
       assemble face terms: true
       Dirichlet conditions:

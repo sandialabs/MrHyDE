@@ -5,7 +5,6 @@
 *.exo.*
 *.log
 *.bak
-*.xml
 *._*
 *~
 *-Host.memspace_usage

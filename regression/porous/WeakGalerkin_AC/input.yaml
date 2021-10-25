@@ -13,8 +13,8 @@ ANONYMOUS:
     NX: 10
     NY: 10
   Physics: 
-    useAC: true
     eblock-0_0: 
+      useAC: true
       modules: porous weak Galerkin
       assemble face terms: true
       Dirichlet conditions:

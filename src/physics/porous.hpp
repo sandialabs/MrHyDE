@@ -29,7 +29,7 @@ namespace MrHyDE {
     
     ~porous() {};
     
-    porous(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_);
+    porous(Teuchos::ParameterList & settings, const int & dimension_);
     
     // ========================================================================================
     // ========================================================================================

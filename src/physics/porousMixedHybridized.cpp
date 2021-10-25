@@ -14,25 +14,25 @@
 #include "porousMixedHybridized.hpp"
 using namespace MrHyDE;
 
-porousMixedHybrid::porousMixedHybrid(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-  : physicsbase(settings, isaux_)
+porousMixedHybrid::porousMixedHybrid(Teuchos::ParameterList & settings, const int & dimension_)
+  : physicsbase(settings, dimension_)
 {
   
   label = "porousMixedHybrid";
   include_face = true;
   
-  if (settings->sublist("Physics").isSublist("Active variables")) {
-    if (settings->sublist("Physics").sublist("Active variables").isParameter("p")) {
+  if (settings.isSublist("Active variables")) {
+    if (settings.sublist("Active variables").isParameter("p")) {
       myvars.push_back("p");
-      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("p","HVOL"));
+      mybasistypes.push_back(settings.sublist("Active variables").get<string>("p","HVOL"));
     }
-    if (settings->sublist("Physics").sublist("Active variables").isParameter("u")) {
+    if (settings.sublist("Active variables").isParameter("u")) {
       myvars.push_back("u");
-      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("u","HDIV-DG"));
+      mybasistypes.push_back(settings.sublist("Active variables").get<string>("u","HDIV-DG"));
     }
-    if (settings->sublist("Physics").sublist("Active variables").isParameter("lambda")) {
+    if (settings.sublist("Active variables").isParameter("lambda")) {
       myvars.push_back("lambda");
-      mybasistypes.push_back(settings->sublist("Physics").sublist("Active variables").get<string>("lambda","HFACE"));
+      mybasistypes.push_back(settings.sublist("Active variables").get<string>("lambda","HFACE"));
     }
   }
   else {
@@ -43,7 +43,7 @@ porousMixedHybrid::porousMixedHybrid(Teuchos::RCP<Teuchos::ParameterList> & sett
     mybasistypes.push_back("HDIV-DG");
     mybasistypes.push_back("HFACE");
   }
-  usePermData = settings->sublist("Physics").get<bool>("use permeability data",false);
+  usePermData = settings.get<bool>("use permeability data",false);
   
   dxnum = 0;
   dynum = 0;

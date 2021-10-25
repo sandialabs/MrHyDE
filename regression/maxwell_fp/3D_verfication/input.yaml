@@ -35,7 +35,7 @@ ANONYMOUS:
           all boundaries: '0.0'
         phii:
           all boundaries: '0.0'
-    test: 2
+      test: 2
   Discretization:
     eblock-0_0_0:
       order:

@@ -36,7 +36,7 @@ namespace MrHyDE {
     
     ~porousMixedHybrid() {};
     
-    porousMixedHybrid(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_);
+    porousMixedHybrid(Teuchos::ParameterList & settings, const int & dimension_);
     
     // ========================================================================================
     // ========================================================================================

@@ -37,8 +37,8 @@ namespace MrHyDE {
     // ========================================================================================
     
     vector<Teuchos::RCP<physicsbase> > import(vector<string> & module_list,
-                                              Teuchos::RCP<Teuchos::ParameterList> & settings,
-                                              const bool & isaux,
+                                              Teuchos::ParameterList & settings,
+                                              const int & dimension,
                                               Teuchos::RCP<MpiComm> & Commptr);
   };
   

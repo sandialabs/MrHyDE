@@ -14,37 +14,25 @@
 #include "maxwell.hpp"
 using namespace MrHyDE;
 
-maxwell::maxwell(Teuchos::RCP<Teuchos::ParameterList> & settings, const bool & isaux_)
-: physicsbase(settings, isaux_)
+maxwell::maxwell(Teuchos::ParameterList & settings, const int & dimension_)
+: physicsbase(settings, dimension_)
 {
   
   label = "maxwell";
   
-  spaceDim = 0;
-  spaceDim = settings->sublist("Mesh").get<int>("dim",0);
-  if (spaceDim == 0) {
-    spaceDim = settings->sublist("Mesh").get<int>("dimension",0);
-  }
-  if (spaceDim == 0) {
-    //
-  }
-  
+  spaceDim = dimension_;
   myvars.push_back("E");
   myvars.push_back("B");
   
   mybasistypes.push_back("HCURL");
   if (spaceDim == 2) {
     mybasistypes.push_back("HVOL");
-    //myvars.push_back("E2");
-    //myvars.push_back("B2");
-    //mybasistypes.push_back("HGRAD");
-    //mybasistypes.push_back("HDIV");
   }
   else if (spaceDim == 3) {
     mybasistypes.push_back("HDIV");
   }
   
-  useLeapFrog = settings->sublist("Physics").get<bool>("use leap frog",false);
+  useLeapFrog = settings.get<bool>("use leap frog",false);
 }
 
 // ========================================================================================
