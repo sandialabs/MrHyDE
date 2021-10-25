@@ -133,7 +133,6 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   numVars = phys->numVars; //
   varlist = phys->varlist;
   
-  
   // Create cells/boundary cells
   this->createCells();
   
@@ -680,14 +679,14 @@ void AssemblyManager<Node>::setInitial(vector_RCP & rhs, matrix_RCP & mass, cons
   
   auto offsets = wkset[block]->offsets;
   auto numDOF = cellData[block]->numDOF;
-  
+
   for (size_t e=0; e<cells[cellblock].size(); e++) {
-    
+
     auto LIDs = cells[cellblock][e]->LIDs;
     
     auto localrhs = cells[cellblock][e]->getInitial(true, useadjoint);
     auto localmass = cells[cellblock][e]->getMass();
-    
+
     parallel_for("assembly insert Jac",
                  RangePolicy<LA_exec>(0,LIDs.extent(0)),
                  KOKKOS_LAMBDA (const int elem ) {
@@ -995,6 +994,104 @@ void AssemblyManager<Node>::setDirichlet(vector_RCP & rhs, matrix_RCP & mass,
   
 }
 
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void AssemblyManager<Node>::setInitialFace(vector_RCP & rhs, matrix_RCP & mass,
+                                           const bool & lumpmass) {
+  
+//  // TODO TIMERS BROKEN
+//  //Teuchos::TimeMonitor localtimer(*setdbctimer);
+//  
+  if (debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting AssemblyManager::setInitialFace ..." << endl;
+    }
+  }
+  
+  auto localMatrix = mass->getLocalMatrix();
+  
+  for (size_t b=0; b<cells.size(); b++) {
+    for (size_t e=0; e<cells[b].size(); e++) {
+      int numElem = cells[b][e]->numElem;
+      auto LIDs = cells[b][e]->LIDs_host;
+      // Get the requested IC from the cell
+      auto localrhs = cells[b][e]->getInitialFace(true);
+      // Create the mass matrix
+      auto localmass = cells[b][e]->getMassFace();
+      auto host_rhs = Kokkos::create_mirror_view(localrhs);
+      auto host_mass = Kokkos::create_mirror_view(localmass);
+      Kokkos::deep_copy(host_rhs,localrhs);
+      Kokkos::deep_copy(host_mass,localmass);
+      
+      size_t numVals = LIDs.extent(1);
+      // assemble into global matrix
+      for (int c=0; c<numElem; c++) {
+        for( size_t row=0; row<LIDs.extent(1); row++ ) {
+          LO rowIndex = LIDs(c,row);
+            ScalarT val = host_rhs(c,row);
+            rhs->sumIntoLocalValue(rowIndex,0, val);
+            if (lumpmass) {
+              LO cols[1];
+              ScalarT vals[1];
+              
+              ScalarT totalval = 0.0;
+              for( size_t col=0; col<LIDs.extent(1); col++ ) {
+                cols[0] = LIDs(c,col);
+                totalval += host_mass(c,row,col);
+              }
+              vals[0] = totalval;
+              localMatrix.sumIntoValues(rowIndex, cols, 1, vals, true, false);
+            }
+            else {
+              LO cols[maxDerivs];
+              ScalarT vals[maxDerivs];
+              for( size_t col=0; col<LIDs.extent(1); col++ ) {
+                cols[col] = LIDs(c,col);
+                vals[col] = host_mass(c,row,col);
+              }
+              localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, false);
+              
+          }
+        }
+      }
+    }
+  }
+
+  // make sure we don't have any rows of all zeroes
+  // TODO I don't think this can ever happen?
+  // at least globally
+  
+  typedef typename Node::execution_space LA_exec;
+  size_t numrows = mass->getNodeNumRows();
+  
+  parallel_for("assembly insert Jac",
+               RangePolicy<LA_exec>(0,numrows),
+               KOKKOS_LAMBDA (const size_t row ) {
+    auto rowdata = localMatrix.row(row);
+    ScalarT abssum = 0.0;
+    for (int col=0; col<rowdata.length; ++col ) {
+      abssum += abs(rowdata.value(col));
+    }
+    ScalarT val[1];
+    LO cols[1];
+    if (abssum<1.0e-14) { // needs to be generalized!
+      val[0] = 1.0;
+      cols[0] = row;
+      localMatrix.replaceValues(row,cols,1,val,false,false);
+    }
+  });
+
+  mass->fillComplete();
+  
+  if (debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished AssemblyManager::setInitialFace ..." << endl;
+    }
+  }
+  
+}
 
 // ========================================================================================
 // Wrapper to the main assembly routine to assemble over all blocks (most common use case)

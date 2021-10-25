@@ -199,12 +199,34 @@ namespace MrHyDE {
     View_Sc2 getInitial(const bool & project, const bool & isAdjoint);
     
     ///////////////////////////////////////////////////////////////////////////////////////
+    // Get the initial condition on the faces
+    ///////////////////////////////////////////////////////////////////////////////////////
+
+    /* @brief Project the initial condition on the faces
+     *
+     * @param[in] project  Flag for L2 projection
+     *
+     * @returns View_Sc2 of projected data
+     *
+     * @warning BWR -- under development, can only project, etc. 
+     */
+    
+    View_Sc2 getInitialFace(const bool & project);
+
+    ///////////////////////////////////////////////////////////////////////////////////////
     // Get the mass matrix
     ///////////////////////////////////////////////////////////////////////////////////////
     
     View_Sc3 getMass();
     
     View_Sc3 getWeightedMass(vector<ScalarT> & masswts);
+
+    /* @brief Assemble the local mass matrix on faces
+     *
+     * @warning BWR -- under development. Will (and should) only work for HFACE vars
+     */
+
+    View_Sc3 getMassFace();
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Subgrid Plotting

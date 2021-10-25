@@ -3328,7 +3328,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
                 int seedwhat = 0;
                 assembler->wkset[b]->computeAuxSolnSteadySeeded(assembler->cells[b][c]->aux, seedwhat);
                 assembler->cells[b][c]->computeAuxSolnFaceIP(face);
-                auto wts = assembler->wkset[b]->wts_side;
+                auto wts = assembler->wkset[b]->wts_side; // face weights stored here after workset update
                 auto sol = assembler->wkset[b]->getData(var+" face");
                 parallel_for("postproc plot HFACE",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
                   for( size_t pt=0; pt<wts.extent(1); pt++ ) {

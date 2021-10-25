@@ -790,6 +790,9 @@ void SolverManager<Node>::projectDirichlet() {
       //KokkosTools::print(glrhs,"L2-projections RHS for DBCs");
     }
     
+    // TODO BWR -- couldn't think of a good way to protect against
+    // the preconditioner failing for HFACE, will need to be handled
+    // explicitly in the input file for now (State boundary L2 linear solver)
     linalg->linearSolverBoundaryL2(glmass, glrhs, glfixedDOF_soln);
     linalg->importVectorToOverlapped(fixedDOF_soln, glfixedDOF_soln);
     
@@ -803,7 +806,7 @@ void SolverManager<Node>::projectDirichlet() {
 }
 
 // ========================================================================================
-/* given the parameters, solve the forward  problem */
+/* given the parameters, solve the forward problem */
 // ========================================================================================
 
 template<class Node>
@@ -829,6 +832,7 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
       have_static_Dirichlet_data = true;
     }
   }
+
   vector_RCP u = this->setInitial();
     
   if (solver_type == "steady-state") {
@@ -1751,6 +1755,34 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > SolverManager<Node>::setI
         linalg->importVectorToOverlapped(initial, glinitial);
         linalg->resetJacobian();
       }
+      else if (initial_type == "L2-projection-HFACE") {
+        // Similar to above, but the basis support only exists on the mesh skeleton
+        // The use case is setting the IC at the coarse-scale
+        vector_RCP rhs = linalg->getNewOverlappedVector();
+        matrix_RCP mass = linalg->getNewOverlappedMatrix();
+        vector_RCP glrhs = linalg->getNewVector();
+        matrix_RCP glmass = linalg->getNewMatrix();
+
+        assembler->setInitialFace(rhs, mass, is_adjoint);
+
+        linalg->exportMatrixFromOverlapped(glmass, mass);
+        linalg->exportVectorFromOverlapped(glrhs, rhs);
+        linalg->fillComplete(glmass);
+
+        // With HFACE we ensure the preconditioner is not 
+        // used for this projection (mass matrix is nearly the identity
+        // and can cause issues)
+        auto origPreconFlag = linalg->options_L2->usePreconditioner;
+        linalg->options_L2->usePreconditioner = false;
+        // do the solve
+        linalg->linearSolverL2(glmass, glrhs, glinitial);
+        // set back to original
+        linalg->options_L2->usePreconditioner = origPreconFlag;
+
+        linalg->importVectorToOverlapped(initial, glinitial);
+        linalg->resetJacobian(); // TODO not sure of this
+
+      } 
       else if (initial_type == "interpolation") {
         
         assembler->setInitial(initial, is_adjoint);
