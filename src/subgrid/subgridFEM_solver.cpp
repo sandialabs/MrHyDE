@@ -145,7 +145,7 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
   
   Kokkos::deep_copy(subgradient, 0.0);
   
-  if (abs(current_time - final_time) < 1.0e-12)
+  if (std::abs(current_time - final_time) < 1.0e-12)
     is_final_time = true;
   else
     is_final_time = false;

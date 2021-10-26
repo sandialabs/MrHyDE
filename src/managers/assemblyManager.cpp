@@ -666,6 +666,8 @@ void AssemblyManager<Node>::setInitial(vector_RCP & rhs, matrix_RCP & mass, cons
                                        const size_t & block, const size_t & cellblock) {
 
   typedef typename Node::execution_space LA_exec;
+  using namespace std;
+  
   bool use_atomics_ = false;
   if (LA_exec::concurrency() > 1) {
     use_atomics_ = true;
@@ -1003,7 +1005,9 @@ void AssemblyManager<Node>::setInitialFace(vector_RCP & rhs, matrix_RCP & mass,
   
 //  // TODO TIMERS BROKEN
 //  //Teuchos::TimeMonitor localtimer(*setdbctimer);
-//  
+//
+  
+  using namespace std;
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::setInitialFace ..." << endl;

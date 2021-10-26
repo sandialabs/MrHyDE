@@ -83,9 +83,9 @@ namespace MrHyDE {
     bool extract(Teuchos::RCP<V> & vec, const size_t & index, const ScalarT & currtime) {
       Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
       bool found = false;
-      if (abs(currtime)>1.0e-16) { // ok to use relative tolerance
+      if (std::abs(currtime)>1.0e-16) { // ok to use relative tolerance
         for (size_t j=0; j<times[index].size(); j++) {
-          if (abs(times[index][j] - currtime)/currtime < timeRelTOL) {
+          if (std::abs(times[index][j] - currtime)/currtime < timeRelTOL) {
             vec = data[index][j];
             found = true;
           }
@@ -93,7 +93,7 @@ namespace MrHyDE {
       }
       else { // use as absolute tolerance
         for (size_t j=0; j<times[index].size(); j++) {
-          if (abs(times[index][j] - currtime) < timeRelTOL) {
+          if (std::abs(times[index][j] - currtime) < timeRelTOL) {
             vec = data[index][j];
             found = true;
           }
@@ -109,9 +109,9 @@ namespace MrHyDE {
       Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
       bool found = false;
       
-      if (abs(currtime)>1.0e-16) { // ok to use relative tolerance
+      if (std::abs(currtime)>1.0e-16) { // ok to use relative tolerance
         for (size_t j=0; j<times[index].size(); j++) {
-          if (abs(times[index][j] - currtime)/currtime < timeRelTOL) {
+          if (std::abs(times[index][j] - currtime)/currtime < timeRelTOL) {
             vec = data[index][j];
             timeindex = j;
             found = true;
@@ -120,7 +120,7 @@ namespace MrHyDE {
       }
       else {
         for (size_t j=0; j<times[index].size(); j++) {
-          if (abs(times[index][j] - currtime) < timeRelTOL) {
+          if (std::abs(times[index][j] - currtime) < timeRelTOL) {
             vec = data[index][j];
             timeindex = j;
             found = true;
@@ -137,7 +137,7 @@ namespace MrHyDE {
       Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
       bool found = false;
       for (size_t j=0; j<times[index].size(); j++) {
-        if (abs(times[index][j] - currtime)/currtime < timeRelTOL) {
+        if (std::abs(times[index][j] - currtime)/currtime < timeRelTOL) {
           found = true;
           if (j>0) {
             vec = data[index][j-1];
@@ -159,7 +159,7 @@ namespace MrHyDE {
       Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
       bool found = false;
       for (size_t j=0; j<times[index].size(); j++) {
-        if (abs(times[index][j] - currtime)/currtime < timeRelTOL) {
+        if (std::abs(times[index][j] - currtime)/currtime < timeRelTOL) {
           found = true;
           if (j<(times[index].size()-1)) {
             vec = data[index][j+1];
@@ -206,14 +206,14 @@ namespace MrHyDE {
         size_t timeindex;
         bool foundtime = false;
         for (size_t j=0; j<times[index].size(); j++) {
-          if (abs(currtime)>1.0e-16) { // ok to use relative tolerance
-            if (abs(times[index][j] - currtime)/currtime < timeRelTOL) {
+          if (std::abs(currtime)>1.0e-16) { // ok to use relative tolerance
+            if (std::abs(times[index][j] - currtime)/currtime < timeRelTOL) {
               foundtime = true;
               timeindex = j;
             }
           }
           else { // use as absolute tolerance
-            if (abs(times[index][j] - currtime) < timeRelTOL) {
+            if (std::abs(times[index][j] - currtime) < timeRelTOL) {
               foundtime = true;
               timeindex = j;
             }

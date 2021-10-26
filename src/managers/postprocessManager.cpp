@@ -1724,7 +1724,7 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
         size_t tindex = 0;
         bool foundtime = false;
         for (size_type t=0; t<objectives[r].sensor_times.extent(0); ++t) {
-          if (abs(current_time - objectives[r].sensor_times(t)) < 1.0e-12) {
+          if (std::abs(current_time - objectives[r].sensor_times(t)) < 1.0e-12) {
             foundtime = true;
             tindex = t;
           }
@@ -2712,7 +2712,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(vector_RCP & current_so
         size_t tindex = 0;
         bool foundtime = false;
         for (size_type t=0; t<objectives[r].sensor_times.extent(0); ++t) {
-          if (abs(current_time - objectives[r].sensor_times(t)) < 1.0e-12) {
+          if (std::abs(current_time - objectives[r].sensor_times(t)) < 1.0e-12) {
             foundtime = true;
             tindex = t;
           }
