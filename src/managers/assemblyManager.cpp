@@ -73,9 +73,9 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   // check if we need to assembly volumetric, boundary and face terms
   for (size_t b=0; b<blocknames.size(); b++) {
     if (settings->sublist("Physics").isSublist(blocknames[b])) {
-      assemble_volume_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).get<bool>("assemble volume terms",true));
-      assemble_boundary_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).get<bool>("assemble boundary terms",true));
-      assemble_face_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).get<bool>("assemble face terms",false));
+      assemble_volume_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).template get<bool>("assemble volume terms",true));
+      assemble_boundary_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).template get<bool>("assemble boundary terms",true));
+      assemble_face_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).template get<bool>("assemble face terms",false));
     }
     else { // meaning all blocks use the same physics settings
       assemble_volume_terms.push_back(settings->sublist("Physics").get<bool>("assemble volume terms",true));
@@ -100,7 +100,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
     }
     else {
       if (settings->sublist("Physics").isSublist(blocknames[b])) {
-        build_volume_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).get<bool>("build volume terms",true));
+        build_volume_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).template get<bool>("build volume terms",true));
       }
       else { // meaning all blocks use the same physics settings
         build_volume_terms.push_back(settings->sublist("Physics").get<bool>("build volume terms",true));
@@ -111,7 +111,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
     }
     else {
       if (settings->sublist("Physics").isSublist(blocknames[b])) {
-        build_boundary_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).get<bool>("build boundary terms",true));
+        build_boundary_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).template get<bool>("build boundary terms",true));
       }
       else { // meaning all blocks use the same physics settings
         build_boundary_terms.push_back(settings->sublist("Physics").get<bool>("build boundary terms",true));
@@ -122,7 +122,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
     }
     else {
       if (settings->sublist("Physics").isSublist(blocknames[b])) {
-        build_face_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).get<bool>("build face terms",false));
+        build_face_terms.push_back(settings->sublist("Physics").sublist(blocknames[b]).template get<bool>("build face terms",false));
       }
       else { // meaning all blocks use the same physics settings
         build_face_terms.push_back(settings->sublist("Physics").get<bool>("build face terms",false));

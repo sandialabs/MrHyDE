@@ -732,7 +732,7 @@ void SolverManager<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & 
           ScalarT value = 0.0;
           if (dbc_settings.isSublist(varlist[b][var])) {
             if (dbc_settings.sublist(varlist[b][var]).isParameter("all boundaries")) {
-              value = dbc_settings.sublist(varlist[b][var]).get<ScalarT>("all boundaries");
+              value = dbc_settings.sublist(varlist[b][var]).template get<ScalarT>("all boundaries");
             }
             else {
               Teuchos::ParameterList currdbcs = dbc_settings.sublist(varlist[b][var]);
