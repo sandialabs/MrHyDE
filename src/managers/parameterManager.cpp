@@ -18,11 +18,13 @@
 
 using namespace MrHyDE;
 
+/*
 // Explicit template instantiations
 template class MrHyDE::ParameterManager<SolverNode>;
 #if MrHyDE_REQ_SUBGRID_ETI
   template class MrHyDE::ParameterManager<SubgridSolverNode>;
 #endif
+*/
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -1064,3 +1066,10 @@ void ParameterManager<Node>::purgeMemory() {
     mesh.reset();
   }
 }
+
+
+// Explicit template instantiations
+template class MrHyDE::ParameterManager<SolverNode>;
+#if MrHyDE_REQ_SUBGRID_ETI
+  template class MrHyDE::ParameterManager<SubgridSolverNode>;
+#endif

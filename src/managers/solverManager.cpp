@@ -15,11 +15,13 @@
 
 using namespace MrHyDE;
 
+/*
 // Explicit template instantiations
 template class MrHyDE::SolverManager<SolverNode>;
 #if MrHyDE_REQ_SUBGRID_ETI
 template class MrHyDE::SolverManager<SubgridSolverNode>;
 #endif
+*/
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -1872,3 +1874,8 @@ void SolverManager<Node>::finalizeMultiscale() {
   
 }
 
+// Explicit template instantiations
+template class MrHyDE::SolverManager<SolverNode>;
+#if MrHyDE_REQ_SUBGRID_ETI
+template class MrHyDE::SolverManager<SubgridSolverNode>;
+#endif

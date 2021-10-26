@@ -16,10 +16,12 @@
 
 using namespace MrHyDE;
 
+/*
 template class MrHyDE::AssemblyManager<SolverNode>;
 #if MrHyDE_REQ_SUBGRID_ETI
   template class MrHyDE::AssemblyManager<SubgridSolverNode>;
 #endif
+*/
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -2005,3 +2007,8 @@ void AssemblyManager<Node>::purgeMemory() {
   
 }
 
+
+template class MrHyDE::AssemblyManager<SolverNode>;
+#if MrHyDE_REQ_SUBGRID_ETI
+  template class MrHyDE::AssemblyManager<SubgridSolverNode>;
+#endif

@@ -15,12 +15,13 @@
 
 using namespace MrHyDE;
 
+/*
 // Explicit template instantiations
 template class MrHyDE::PostprocessManager<SolverNode>;
 #if MrHyDE_REQ_SUBGRID_ETI
   template class MrHyDE::PostprocessManager<SubgridSolverNode>;
 #endif
-
+*/
 
 // ========================================================================================
 /* Minimal constructor to set up the problem */
@@ -4366,3 +4367,9 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
   
 }
 
+
+// Explicit template instantiations
+template class MrHyDE::PostprocessManager<SolverNode>;
+#if MrHyDE_REQ_SUBGRID_ETI
+  template class MrHyDE::PostprocessManager<SubgridSolverNode>;
+#endif
