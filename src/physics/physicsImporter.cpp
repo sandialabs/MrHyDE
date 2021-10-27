@@ -14,6 +14,7 @@
 #include "physicsImporter.hpp"
 
 // Enabled physics modules:
+#include "physics_test.hpp"
 #include "porous.hpp"
 #include "porousMixed.hpp"
 #include "porousMixedHybridized.hpp"
@@ -48,6 +49,11 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
   for (size_t mod=0; mod<module_list.size(); mod++) {
     string modname = module_list[mod];
     
+    // Test module which procedurally assembles and dumps basis functions based on parameterlist settings
+    if (modname == "physicsTest") {
+      modules.push_back(Teuchos::rcp(new physicsTest(settings, dimension) ) );
+    }
+
     // Porous media (single phase slightly compressible)
     if (modname == "porous") {
       modules.push_back(Teuchos::rcp(new porous(settings, dimension) ) );
