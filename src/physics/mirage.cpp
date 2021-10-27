@@ -1020,13 +1020,13 @@ void mirage::isotropicPML() {
           }
         }
         if (iPML_have_ymax) {
-          if (y > iPML_xmax_start) {
+          if (y > iPML_ymax_start) {
             alpha = iPML_sigma_ymax/pow(abs(iPML_ymax_end-iPML_ymax_start), iPML_pow_ymax);
             sigmaplus += alpha*pow(abs(y-iPML_ymax_start), iPML_pow_ymax);
           }
         }
         if (iPML_have_ymin) {
-          if (y < iPML_xmin_start) {
+          if (y < iPML_ymin_start) {
             alpha = iPML_sigma_ymin/pow(abs(iPML_ymin_end-iPML_ymin_start), iPML_pow_ymin);
             sigmaplus += alpha*pow(abs(y-iPML_ymin_start), iPML_pow_ymin);
           }
