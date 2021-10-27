@@ -59,7 +59,7 @@ STATUS_MrHyDE_BUILD=0
 # start with Trilinos
 echo "Starting Trilinos..."
 cd ${TRILINOS_SOURCE_PREFIX}
-if [ ${SCRIPT_MODE} -eq 1]; then
+if [ ${SCRIPT_MODE} -eq 1 ]; then
   git clone https://github.com/Trilinos/trilinos.git Trilinos-source
 fi
 
@@ -70,7 +70,7 @@ if [ $? -eq 0 ]; then
   cd ${TRILINOS_SOURCE}
 
   # if in clean mode, switch to develop immediately. otherwise fetch and pull origin
-  if [ ${SCRIPT_MODE} -eq 1]; then
+  if [ ${SCRIPT_MODE} -eq 1 ]; then
     git checkout develop
   else
     git checkout develop
@@ -122,14 +122,15 @@ fi
 # if not in clean mode, this checks if the directory change was successful, which it should always be
 if [ $? -eq 0 ]; then
 
+  cd ${MrHyDE_SOURCE}
+
   # if not in clean mode, fetch and pull origin
-  if [ ${SCRIPT_MODE} -eq 0]; then
+  if [ ${SCRIPT_MODE} -eq 0 ]; then
     git checkout master
     git fetch origin
     git pull origin master
   fi
 
-  cd ${MrHyDE_SOURCE}
   MrHyDE_COMMIT=$(git show | grep commit | tr " " "\n" | tail -1)
 
   cd ${MrHyDE_SOURCE_PREFIX}
