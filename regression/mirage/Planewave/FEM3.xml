@@ -1,7 +1,7 @@
 <ParameterList name="FEM3">
   <Parameter name="Mesh xml" type="string" value="planewave3DRegTest.xml"/>
   <Parameter name="Closure model xml" type="string" value="closureModelsPlanewavePML.xml"/>
-  <Parameter name="Linear solver xml" type="string" value="../../example/driver/xml/solver/solverMueLuRefMaxwell.xml"/>
+  <Parameter name="Linear solver xml" type="string" value="solverMueLuRefMaxwell.xml"/>
   <ParameterList name="Solver Options">
     <Parameter name="Linear algebra" type="string" value="Tpetra"/>
     <Parameter name="Solver" type="string" value="MueLu-RefMaxwell"/>
@@ -19,6 +19,7 @@
   </ParameterList>
   <ParameterList name="Postprocess Options">
     <Parameter name="Exodus output" type="bool" value="true"/>
+    <Parameter name="Exodus output frequency" type="int" value="10"/>
     <Parameter name="Print timers" type="bool" value="true"/>
     <Parameter name="Stacked timer" type="bool" value="false"/>
     <ParameterList name="Text Output">
