@@ -153,6 +153,9 @@ mirage::mirage(Teuchos::ParameterList & settings, const int & dimension_)
         iPML_xmax_start = pmlsettings.sublist("PML xmax").get("start location",double(0.0));
         iPML_xmax_end   = pmlsettings.sublist("PML xmax").get("end location",double(1.0));
       }
+      else {
+        iPML_have_xmax  = false;
+      }
       if (pmlsettings.isSublist("PML xmin")) {
         iPML_have_xmin  = true;
         iPML_tol_xmin   = pmlsettings.sublist("PML xmin").get("exp tolerance",double(1e-3));
@@ -160,6 +163,9 @@ mirage::mirage(Teuchos::ParameterList & settings, const int & dimension_)
         iPML_sigma_xmin = pmlsettings.sublist("PML xmin").get("max sigma",double(0.0));
         iPML_xmin_start = pmlsettings.sublist("PML xmin").get("start location",double(0.0));
         iPML_xmin_end   = pmlsettings.sublist("PML xmin").get("end location",double(-1.0));
+      }
+      else {
+        iPML_have_xmin  = false;
       }
       if (pmlsettings.isSublist("PML ymax")) {
         iPML_have_ymax  = true;
@@ -169,6 +175,9 @@ mirage::mirage(Teuchos::ParameterList & settings, const int & dimension_)
         iPML_ymax_start = pmlsettings.sublist("PML ymax").get("start location",double(0.0));
         iPML_ymax_end   = pmlsettings.sublist("PML ymax").get("end location",double(1.0));
       }
+      else {
+        iPML_have_ymax  = false;
+      }
       if (pmlsettings.isSublist("PML ymin")) {
         iPML_have_ymin  = true;
         iPML_tol_ymin   = pmlsettings.sublist("PML ymin").get("exp tolerance",double(1e-3));
@@ -176,6 +185,9 @@ mirage::mirage(Teuchos::ParameterList & settings, const int & dimension_)
         iPML_sigma_ymin = pmlsettings.sublist("PML ymin").get("max sigma",double(0.0));
         iPML_ymin_start = pmlsettings.sublist("PML ymin").get("start location",double(0.0));
         iPML_ymin_end   = pmlsettings.sublist("PML ymin").get("end location",double(-1.0));
+      }
+      else {
+        iPML_have_ymin  = false;
       }
       if (pmlsettings.isSublist("PML zmax")) {
         iPML_have_zmax  = true;
@@ -190,6 +202,9 @@ mirage::mirage(Teuchos::ParameterList & settings, const int & dimension_)
         iPML_zmax_y2    = pmlsettings.sublist("PML zmax").get("y2",double(1e100));
         iPML_zmax_exclude = pmlsettings.sublist("PML zmax").get("exclude",false);
       }
+      else {
+        iPML_have_zmax  = false;
+      }
       if (pmlsettings.isSublist("PML zmin")) {
         iPML_have_zmin    = true;
         iPML_tol_zmin     = pmlsettings.sublist("PML zmin").get("exp tolerance",double(1e-3));
@@ -202,6 +217,9 @@ mirage::mirage(Teuchos::ParameterList & settings, const int & dimension_)
         iPML_zmin_y1      = pmlsettings.sublist("PML zmin").get("y1",double(-1e100));
         iPML_zmin_y2      = pmlsettings.sublist("PML zmin").get("y2",double(1e100));
         iPML_zmin_exclude = pmlsettings.sublist("PML zmin").get("exclude",false);
+      }
+      else {
+        iPML_have_zmin  = false;
       }
       
     }
@@ -222,6 +240,9 @@ mirage::mirage(Teuchos::ParameterList & settings, const int & dimension_)
         aPML_xmax_start = pmlsettings.sublist("PML xmax").get("start location",double(0.0));
         aPML_xmax_end   = pmlsettings.sublist("PML xmax").get("end location",double(1.0));
       }
+      else {
+        aPML_have_xmax  = false;
+      }
       if (pmlsettings.isSublist("PML xmin")) {
         aPML_have_xmin  = true;
         aPML_tol_xmin   = pmlsettings.sublist("PML xmin").get("exp tolerance",double(1e-3));
@@ -229,6 +250,9 @@ mirage::mirage(Teuchos::ParameterList & settings, const int & dimension_)
         aPML_sigma_xmin = pmlsettings.sublist("PML xmin").get("max sigma",double(0.0));
         aPML_xmin_start = pmlsettings.sublist("PML xmin").get("start location",double(0.0));
         aPML_xmin_end   = pmlsettings.sublist("PML xmin").get("end location",double(-1.0));
+      }
+      else {
+        aPML_have_xmin  = false;
       }
       if (pmlsettings.isSublist("PML ymax")) {
         aPML_have_ymax  = true;
@@ -238,6 +262,9 @@ mirage::mirage(Teuchos::ParameterList & settings, const int & dimension_)
         aPML_ymax_start = pmlsettings.sublist("PML ymax").get("start location",double(0.0));
         aPML_ymax_end   = pmlsettings.sublist("PML ymax").get("end location",double(1.0));
       }
+      else {
+        aPML_have_ymax  = false;
+      }
       if (pmlsettings.isSublist("PML ymin")) {
         aPML_have_ymin  = true;
         aPML_tol_ymin   = pmlsettings.sublist("PML ymin").get("exp tolerance",double(1e-3));
@@ -245,6 +272,9 @@ mirage::mirage(Teuchos::ParameterList & settings, const int & dimension_)
         aPML_sigma_ymin = pmlsettings.sublist("PML ymin").get("max sigma",double(0.0));
         aPML_ymin_start = pmlsettings.sublist("PML ymin").get("start location",double(0.0));
         aPML_ymin_end   = pmlsettings.sublist("PML ymin").get("end location",double(-1.0));
+      }
+      else {
+        aPML_have_ymin  = false;
       }
       if (pmlsettings.isSublist("PML zmax")) {
         aPML_have_zmax  = true;
@@ -259,6 +289,9 @@ mirage::mirage(Teuchos::ParameterList & settings, const int & dimension_)
         aPML_zmax_y2    = pmlsettings.sublist("PML zmax").get("y2",double(1e100));
         aPML_zmax_exclude = pmlsettings.sublist("PML zmax").get("exclude",false);
       }
+      else {
+        aPML_have_zmax  = false;
+      }
       if (pmlsettings.isSublist("PML zmin")) {
         aPML_have_zmin    = true;
         aPML_tol_zmin     = pmlsettings.sublist("PML zmin").get("exp tolerance",double(1e-3));
@@ -271,6 +304,9 @@ mirage::mirage(Teuchos::ParameterList & settings, const int & dimension_)
         aPML_zmin_y1      = pmlsettings.sublist("PML zmin").get("y1",double(-1e100));
         aPML_zmin_y2      = pmlsettings.sublist("PML zmin").get("y2",double(1e100));
         aPML_zmin_exclude = pmlsettings.sublist("PML zmin").get("exclude",false);
+      }
+      else {
+        aPML_have_zmin  = false;
       }
       
     }
@@ -767,6 +803,8 @@ void mirage::setWorkset(Teuchos::RCP<workset> & wkset_) {
 
 void mirage::planewaveSource() {
   
+  Teuchos::TimeMonitor resideval(*planewaveTimer);
+  
   double time = wkset->time;
   double signal = 0;
   
@@ -884,6 +922,8 @@ void mirage::planewaveSource() {
 
 void mirage::isotropicPML() {
   
+  Teuchos::TimeMonitor resideval(*iPMLTimer);
+  
   int dimension = wkset->dimension;
   
   auto ip_x = wkset->getDataSc("x");
@@ -895,110 +935,146 @@ void mirage::isotropicPML() {
   
   using namespace std;
   
-  parallel_for("mirage current x",
-               RangePolicy<AssemblyExec>(0,wkset->numElem),
-               KOKKOS_LAMBDA (const int elem ) {
-    for (size_type point = 0; point < iPML.extent(1); ++point) {
-      double alpha(0.0), s(0.0);
-      
-      const double x = ip_x(elem,point);
-      const double y = ip_y(elem,point);
-      
-      double sigmaplus = 0.0;
-      if (iPML_type == "exponential") {
+  if (iPML_type == "exponential") {
+  
+    parallel_for("mirage current x",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
+      for (size_type point = 0; point < iPML.extent(1); ++point) {
+        double alpha(0.0), s(0.0);
+        
+        const double x = ip_x(elem,point);
+        const double y = ip_y(elem,point);
+        
+        double sigmaplus = 0.0;
         if (iPML_have_xmax) {
-          alpha = (log(iPML_sigma_xmax)-log(iPML_tol_xmax))/(iPML_xmax_end-iPML_xmax_start);
-          s = iPML_xmax_start - log(iPML_tol_xmax)/alpha;
-          sigmaplus += exp(alpha*(x-s));
+          if (x > iPML_xmax_start) {
+            alpha = (log(iPML_sigma_xmax)-log(iPML_tol_xmax))/(iPML_xmax_end-iPML_xmax_start);
+            s = iPML_xmax_start - log(iPML_tol_xmax)/alpha;
+            sigmaplus += exp(alpha*(x-s));
+          }
         }
         if (iPML_have_xmin) {
-          alpha = (log(iPML_sigma_xmin)-log(iPML_tol_xmin))/(iPML_xmin_end-iPML_xmin_start);
-          s = iPML_xmin_start - log(iPML_tol_xmin)/alpha;
-          sigmaplus += exp(alpha*(x-s));
+          if (x < iPML_xmin_start) {
+            alpha = (log(iPML_sigma_xmin)-log(iPML_tol_xmin))/(iPML_xmin_end-iPML_xmin_start);
+            s = iPML_xmin_start - log(iPML_tol_xmin)/alpha;
+            sigmaplus += exp(alpha*(x-s));
+          }
         }
         if (iPML_have_ymax) {
-          alpha = (log(iPML_sigma_ymax)-log(iPML_tol_ymax))/(iPML_ymax_end-iPML_ymax_start);
-          s = iPML_ymax_start - log(iPML_tol_ymax)/alpha;
-          sigmaplus += exp(alpha*(y-s));
+          if (y > iPML_ymax_start) {
+            alpha = (log(iPML_sigma_ymax)-log(iPML_tol_ymax))/(iPML_ymax_end-iPML_ymax_start);
+            s = iPML_ymax_start - log(iPML_tol_ymax)/alpha;
+            sigmaplus += exp(alpha*(y-s));
+          }
         }
         if (iPML_have_ymin) {
-          alpha = (log(iPML_sigma_ymin)-log(iPML_tol_ymin))/(iPML_ymin_end-iPML_ymin_start);
-          s = iPML_ymin_start - log(iPML_tol_ymin)/alpha;
-          sigmaplus += exp(alpha*(y-s));
+          if (y < iPML_ymin_start) {
+            alpha = (log(iPML_sigma_ymin)-log(iPML_tol_ymin))/(iPML_ymin_end-iPML_ymin_start);
+            s = iPML_ymin_start - log(iPML_tol_ymin)/alpha;
+            sigmaplus += exp(alpha*(y-s));
+          }
         }
         if (iPML_have_zmax) {
           const double z = ip_z(elem,point);
-          alpha = (log(iPML_sigma_zmax)-log(iPML_tol_zmax))/(iPML_zmax_end-iPML_zmax_start);
-          s = iPML_zmax_start - log(iPML_tol_zmax)/alpha;
-          sigmaplus += exp(alpha*(z-s));
+          if (z > iPML_zmax_start) {
+            alpha = (log(iPML_sigma_zmax)-log(iPML_tol_zmax))/(iPML_zmax_end-iPML_zmax_start);
+            s = iPML_zmax_start - log(iPML_tol_zmax)/alpha;
+            sigmaplus += exp(alpha*(z-s));
+          }
         }
         if (iPML_have_zmin) {
           const double z = ip_z(elem,point);
-          alpha = (log(iPML_sigma_zmin)-log(iPML_tol_zmin))/(iPML_zmin_end-iPML_zmin_start);
-          s = iPML_zmin_start - log(iPML_tol_zmin)/alpha;
-          sigmaplus += exp(alpha*(z-s));
+          if (z < iPML_zmin_start) {
+            alpha = (log(iPML_sigma_zmin)-log(iPML_tol_zmin))/(iPML_zmin_end-iPML_zmin_start);
+            s = iPML_zmin_start - log(iPML_tol_zmin)/alpha;
+            sigmaplus += exp(alpha*(z-s));
+          }
         }
+        iPML(elem,point) = iPML_sigma + sigmaplus;
       }
-      else if (iPML_type == "polynomial") {
+    });
+  }
+  else if (iPML_type == "polynomial") {
+    parallel_for("mirage current x",
+                 RangePolicy<AssemblyExec>(0,wkset->numElem),
+                 KOKKOS_LAMBDA (const int elem ) {
+      for (size_type point = 0; point < iPML.extent(1); ++point) {
+        double alpha(0.0);
+        
+        const double x = ip_x(elem,point);
+        const double y = ip_y(elem,point);
+        
+        double sigmaplus = 0.0;
+    
         if (iPML_have_xmax) {
-          alpha = iPML_sigma_xmax/pow(abs(iPML_xmax_end-iPML_xmax_start), iPML_pow_xmax);
-          s = static_cast<double>(x > iPML_xmax_start);
-          sigmaplus += alpha*pow(abs(x-iPML_xmax_start), iPML_pow_xmax)*s;
+          if (x > iPML_xmax_start) {
+            alpha = iPML_sigma_xmax/pow(abs(iPML_xmax_end-iPML_xmax_start), iPML_pow_xmax);
+            sigmaplus += alpha*pow(abs(x-iPML_xmax_start), iPML_pow_xmax);
+          }
         }
         if (iPML_have_xmin) {
-          alpha = iPML_sigma_xmin/pow(abs(iPML_xmin_end-iPML_xmin_start), iPML_pow_xmin);
-          s = static_cast<double>(x < iPML_xmin_start);
-          sigmaplus += alpha*pow(abs(x-iPML_xmin_start), iPML_pow_xmin)*s;
+          if (x < iPML_xmin_start) {
+            alpha = iPML_sigma_xmin/pow(abs(iPML_xmin_end-iPML_xmin_start), iPML_pow_xmin);
+            sigmaplus += alpha*pow(abs(x-iPML_xmin_start), iPML_pow_xmin);
+          }
         }
         if (iPML_have_ymax) {
-          alpha = iPML_sigma_ymax/pow(abs(iPML_ymax_end-iPML_ymax_start), iPML_pow_ymax);
-          s = static_cast<double>(y > iPML_ymax_start);
-          sigmaplus += alpha*pow(abs(y-iPML_ymax_start), iPML_pow_ymax)*s;
+          if (y > iPML_xmax_start) {
+            alpha = iPML_sigma_ymax/pow(abs(iPML_ymax_end-iPML_ymax_start), iPML_pow_ymax);
+            sigmaplus += alpha*pow(abs(y-iPML_ymax_start), iPML_pow_ymax);
+          }
         }
         if (iPML_have_ymin) {
-          alpha = iPML_sigma_ymin/pow(abs(iPML_ymin_end-iPML_ymin_start), iPML_pow_ymin);
-          s = static_cast<double>(y < iPML_ymin_start);
-          sigmaplus += alpha*pow(abs(y-iPML_ymin_start), iPML_pow_ymin)*s;
+          if (y < iPML_xmin_start) {
+            alpha = iPML_sigma_ymin/pow(abs(iPML_ymin_end-iPML_ymin_start), iPML_pow_ymin);
+            sigmaplus += alpha*pow(abs(y-iPML_ymin_start), iPML_pow_ymin);
+          }
         }
         if (iPML_have_zmax) {
           const double z = ip_z(elem,point);
-          alpha = iPML_sigma_zmax/pow(abs(iPML_zmax_end-iPML_zmax_start), iPML_pow_zmax);
-          s = static_cast<double>(z > iPML_zmax_start);
-          if (iPML_zmax_exclude) {
-            if (!( (x>iPML_zmax_x1) && (x<iPML_zmax_x2) && (y>iPML_zmax_y1) && (y<iPML_zmax_y2) )) {
-              sigmaplus += alpha*pow(abs(z-iPML_zmax_start), iPML_pow_zmax)*s;
-            }
-          } else {
-            if ( (x>iPML_zmax_x1) && (x<iPML_zmax_x2) && (y>iPML_zmax_y1) && (y<iPML_zmax_y2) ) {
-              sigmaplus += alpha*pow(abs(z-iPML_zmax_start), iPML_pow_zmax)*s;
+          if (z > iPML_zmax_start) {
+            alpha = iPML_sigma_zmax/pow(abs(iPML_zmax_end-iPML_zmax_start), iPML_pow_zmax);
+            if (iPML_zmax_exclude) {
+              if (!( (x>iPML_zmax_x1) && (x<iPML_zmax_x2) && (y>iPML_zmax_y1) && (y<iPML_zmax_y2) )) {
+                sigmaplus += alpha*pow(abs(z-iPML_zmax_start), iPML_pow_zmax);
+              }
+            } else {
+              if ( (x>iPML_zmax_x1) && (x<iPML_zmax_x2) && (y>iPML_zmax_y1) && (y<iPML_zmax_y2) ) {
+                sigmaplus += alpha*pow(abs(z-iPML_zmax_start), iPML_pow_zmax);
+              }
             }
           }
         }
         if (iPML_have_zmin) {
           const double z = ip_z(elem,point);
-          alpha = iPML_sigma_zmin/pow(abs(iPML_zmin_end-iPML_zmin_start), iPML_pow_zmin);
-          s = static_cast<double>(z < iPML_zmin_start);
-          if (iPML_zmin_exclude) {
-            if (!( (x>iPML_zmin_x1) && (x<iPML_zmin_x2) && (y>iPML_zmin_y1) && (y<iPML_zmin_y2) )) {
-              sigmaplus += alpha*pow(abs(z-iPML_zmin_start), iPML_pow_zmin)*s;
-            }
-          } else {
-            if ( (x>iPML_zmin_x1) && (x<iPML_zmin_x2) && (y>iPML_zmin_y1) && (y<iPML_zmin_y2) ) {
-              sigmaplus += alpha*pow(abs(z-iPML_zmin_start), iPML_pow_zmin)*s;
+          if (z < iPML_zmin_start) {
+            alpha = iPML_sigma_zmin/pow(abs(iPML_zmin_end-iPML_zmin_start), iPML_pow_zmin);
+            if (iPML_zmin_exclude) {
+              if (!( (x>iPML_zmin_x1) && (x<iPML_zmin_x2) && (y>iPML_zmin_y1) && (y<iPML_zmin_y2) )) {
+                sigmaplus += alpha*pow(abs(z-iPML_zmin_start), iPML_pow_zmin);
+              }
+            } else {
+              if ( (x>iPML_zmin_x1) && (x<iPML_zmin_x2) && (y>iPML_zmin_y1) && (y<iPML_zmin_y2) ) {
+                sigmaplus += alpha*pow(abs(z-iPML_zmin_start), iPML_pow_zmin);
+              }
             }
           }
         }
+        iPML(elem,point) = iPML_sigma + sigmaplus;
+        
       }
       
-      iPML(elem,point) = iPML_sigma + sigmaplus;
-    }
-  });
+    });
+  }
 }
 
 // ========================================================================================
 // ========================================================================================
 
 void mirage::anisotropicPML() {
+  
+  Teuchos::TimeMonitor resideval(*aPMLTimer);
   
   int dimension = wkset->dimension;
   
@@ -1026,84 +1102,102 @@ void mirage::anisotropicPML() {
       
       if (aPML_type == "exponential") {
         if (aPML_have_xmax) {
-          alpha = (log(aPML_sigma_xmax)-log(aPML_tol_xmax))/(aPML_xmax_end-aPML_xmax_start);
-          s = aPML_xmax_start - log(aPML_tol_xmax)/alpha;
-          sigmaplusx += exp(alpha*(x-s));
+          if (x > aPML_xmax_start) {
+            alpha = (log(aPML_sigma_xmax)-log(aPML_tol_xmax))/(aPML_xmax_end-aPML_xmax_start);
+            s = aPML_xmax_start - log(aPML_tol_xmax)/alpha;
+            sigmaplusx += exp(alpha*(x-s));
+          }
         }
         if (aPML_have_xmin) {
-          alpha = (log(aPML_sigma_xmin)-log(aPML_tol_xmin))/(aPML_xmin_end-aPML_xmin_start);
-          s = aPML_xmin_start - log(aPML_tol_xmin)/alpha;
-          sigmaplusx += exp(alpha*(x-s));
+          if (x < aPML_xmin_start) {
+            alpha = (log(aPML_sigma_xmin)-log(aPML_tol_xmin))/(aPML_xmin_end-aPML_xmin_start);
+            s = aPML_xmin_start - log(aPML_tol_xmin)/alpha;
+            sigmaplusx += exp(alpha*(x-s));
+          }
         }
         if (aPML_have_ymax) {
-          alpha = (log(aPML_sigma_ymax)-log(aPML_tol_ymax))/(aPML_ymax_end-aPML_ymax_start);
-          s = aPML_ymax_start - log(aPML_tol_ymax)/alpha;
-          sigmaplusy += exp(alpha*(y-s));
+          if (y > aPML_ymax_start) {
+            alpha = (log(aPML_sigma_ymax)-log(aPML_tol_ymax))/(aPML_ymax_end-aPML_ymax_start);
+            s = aPML_ymax_start - log(aPML_tol_ymax)/alpha;
+            sigmaplusy += exp(alpha*(y-s));
+          }
         }
         if (aPML_have_ymin) {
-          alpha = (log(aPML_sigma_ymin)-log(aPML_tol_ymin))/(aPML_ymin_end-aPML_ymin_start);
-          s = aPML_ymin_start - log(aPML_tol_ymin)/alpha;
-          sigmaplusy += exp(alpha*(y-s));
+          if (y < aPML_ymin_start) {
+            alpha = (log(aPML_sigma_ymin)-log(aPML_tol_ymin))/(aPML_ymin_end-aPML_ymin_start);
+            s = aPML_ymin_start - log(aPML_tol_ymin)/alpha;
+            sigmaplusy += exp(alpha*(y-s));
+          }
         }
         if (aPML_have_zmax) {
           const double z = ip_z(elem,point);
-          alpha = (log(aPML_sigma_zmax)-log(aPML_tol_zmax))/(aPML_zmax_end-aPML_zmax_start);
-          s = aPML_zmax_start - log(aPML_tol_zmax)/alpha;
-          sigmaplusz += exp(alpha*(z-s));
+          if (z > aPML_zmax_start) {
+            alpha = (log(aPML_sigma_zmax)-log(aPML_tol_zmax))/(aPML_zmax_end-aPML_zmax_start);
+            s = aPML_zmax_start - log(aPML_tol_zmax)/alpha;
+            sigmaplusz += exp(alpha*(z-s));
+          }
         }
         if (aPML_have_zmin) {
           const double z = ip_z(elem,point);
-          alpha = (log(aPML_sigma_zmin)-log(aPML_tol_zmin))/(aPML_zmin_end-aPML_zmin_start);
-          s = aPML_zmin_start - log(aPML_tol_zmin)/alpha;
-          sigmaplusz += exp(alpha*(z-s));
+          if (z < aPML_zmin_start) {
+            alpha = (log(aPML_sigma_zmin)-log(aPML_tol_zmin))/(aPML_zmin_end-aPML_zmin_start);
+            s = aPML_zmin_start - log(aPML_tol_zmin)/alpha;
+            sigmaplusz += exp(alpha*(z-s));
+          }
         }
       }
       else if (aPML_type == "polynomial") {
         if (aPML_have_xmax) {
-          alpha = aPML_sigma_xmax/pow(abs(aPML_xmax_end-aPML_xmax_start), aPML_pow_xmax);
-          s = static_cast<double>(x > aPML_xmax_start);
-          sigmaplusx += alpha*pow(abs(x-aPML_xmax_start), aPML_pow_xmax)*s;
+          if (x > aPML_xmax_start) {
+            alpha = aPML_sigma_xmax/pow(abs(aPML_xmax_end-aPML_xmax_start), aPML_pow_xmax);
+            sigmaplusx += alpha*pow(abs(x-aPML_xmax_start), aPML_pow_xmax);
+          }
         }
         if (aPML_have_xmin) {
-          alpha = aPML_sigma_xmin/pow(abs(aPML_xmin_end-aPML_xmin_start), aPML_pow_xmin);
-          s = static_cast<double>(x < aPML_xmin_start);
-          sigmaplusx += alpha*pow(abs(x-aPML_xmin_start), aPML_pow_xmin)*s;
+          if (x < aPML_xmin_start) {
+            alpha = aPML_sigma_xmin/pow(abs(aPML_xmin_end-aPML_xmin_start), aPML_pow_xmin);
+            sigmaplusx += alpha*pow(abs(x-aPML_xmin_start), aPML_pow_xmin);
+          }
         }
         if (aPML_have_ymax) {
-          alpha = aPML_sigma_ymax/pow(abs(aPML_ymax_end-aPML_ymax_start), aPML_pow_ymax);
-          s = static_cast<double>(y > aPML_ymax_start);
-          sigmaplusy += alpha*pow(abs(y-aPML_ymax_start), aPML_pow_ymax)*s;
+          if (y > aPML_ymax_start) {
+            alpha = aPML_sigma_ymax/pow(abs(aPML_ymax_end-aPML_ymax_start), aPML_pow_ymax);
+            sigmaplusy += alpha*pow(abs(y-aPML_ymax_start), aPML_pow_ymax);
+          }
         }
         if (aPML_have_ymin) {
-          alpha = aPML_sigma_ymin/pow(abs(aPML_ymin_end-aPML_ymin_start), aPML_pow_ymin);
-          s = static_cast<double>(y < aPML_ymin_start);
-          sigmaplusy += alpha*pow(abs(y-aPML_ymin_start), aPML_pow_ymin)*s;
+          if (y < aPML_ymin_start) {
+            alpha = aPML_sigma_ymin/pow(abs(aPML_ymin_end-aPML_ymin_start), aPML_pow_ymin);
+            sigmaplusy += alpha*pow(abs(y-aPML_ymin_start), aPML_pow_ymin);
+          }
         }
         if (aPML_have_zmax) {
           const double z = ip_z(elem,point);
-          alpha = aPML_sigma_zmax/pow(abs(aPML_zmax_end-aPML_zmax_start), aPML_pow_zmax);
-          s = static_cast<double>(z > aPML_zmax_start);
-          if (aPML_zmax_exclude) {
-            if (!( (x>aPML_zmax_x1) && (x<aPML_zmax_x2) && (y>aPML_zmax_y1) && (y<aPML_zmax_y2) )) {
-              sigmaplusz += alpha*pow(abs(z-aPML_zmax_start), aPML_pow_zmax)*s;
-            }
-          } else {
-            if ( (x>aPML_zmax_x1) && (x<aPML_zmax_x2) && (y>aPML_zmax_y1) && (y<aPML_zmax_y2) ) {
-              sigmaplusz += alpha*pow(abs(z-aPML_zmax_start), aPML_pow_zmax)*s;
+          if (z > aPML_zmax_start) {
+            alpha = aPML_sigma_zmax/pow(abs(aPML_zmax_end-aPML_zmax_start), aPML_pow_zmax);
+            if (aPML_zmax_exclude) {
+              if (!( (x>aPML_zmax_x1) && (x<aPML_zmax_x2) && (y>aPML_zmax_y1) && (y<aPML_zmax_y2) )) {
+                sigmaplusz += alpha*pow(abs(z-aPML_zmax_start), aPML_pow_zmax);
+              }
+            } else {
+              if ( (x>aPML_zmax_x1) && (x<aPML_zmax_x2) && (y>aPML_zmax_y1) && (y<aPML_zmax_y2) ) {
+                sigmaplusz += alpha*pow(abs(z-aPML_zmax_start), aPML_pow_zmax);
+              }
             }
           }
         }
         if (aPML_have_zmin) {
           const double z = ip_z(elem,point);
-          alpha = aPML_sigma_zmin/pow(abs(aPML_zmin_end-aPML_zmin_start), aPML_pow_zmin);
-          s = static_cast<double>(z < aPML_zmin_start);
-          if (aPML_zmin_exclude) {
-            if (!( (x>aPML_zmin_x1) && (x<aPML_zmin_x2) && (y>aPML_zmin_y1) && (y<aPML_zmin_y2) )) {
-              sigmaplusz += alpha*pow(abs(z-aPML_zmin_start), aPML_pow_zmin)*s;
-            }
-          } else {
-            if ( (x>aPML_zmin_x1) && (x<aPML_zmin_x2) && (y>aPML_zmin_y1) && (y<aPML_zmin_y2) ) {
-              sigmaplusz += alpha*pow(abs(z-aPML_zmin_start), aPML_pow_zmin)*s;
+          if (z < aPML_zmin_start) {
+            alpha = aPML_sigma_zmin/pow(abs(aPML_zmin_end-aPML_zmin_start), aPML_pow_zmin);
+            if (aPML_zmin_exclude) {
+              if (!( (x>aPML_zmin_x1) && (x<aPML_zmin_x2) && (y>aPML_zmin_y1) && (y<aPML_zmin_y2) )) {
+                sigmaplusz += alpha*pow(abs(z-aPML_zmin_start), aPML_pow_zmin);
+              }
+            } else {
+              if ( (x>aPML_zmin_x1) && (x<aPML_zmin_x2) && (y>aPML_zmin_y1) && (y<aPML_zmin_y2) ) {
+                sigmaplusz += alpha*pow(abs(z-aPML_zmin_start), aPML_pow_zmin);
+              }
             }
           }
         }

@@ -111,6 +111,10 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> fluxFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::mirage::computeFlux() - function evaluation");
     Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::mirage::computeFlux() - evaluation of flux");
     
+    Teuchos::RCP<Teuchos::Time> iPMLTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::mirage::isotropicPML()");
+    Teuchos::RCP<Teuchos::Time> aPMLTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::mirage::anisotropicPML()");
+    Teuchos::RCP<Teuchos::Time> planewaveTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::mirage::planewaveSource()");
+    
   };
   
 }
