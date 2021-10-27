@@ -291,7 +291,7 @@ namespace MrHyDE {
     
     bool write_solution = mirage_settings->sublist("Postprocess Options").get<bool>("Exodus output",true);
     settings->sublist("Postprocess").set<bool>("write solution",write_solution);
-    settings->sublist("Postprocess").set<int>("write frequency",1); // hard coded for the moment
+    settings->sublist("Postprocess").set<int>("write frequency",mirage_settings->sublist("Postprocess Options").get("Exodus output frequency",1));
     
     if (mirage_settings->sublist("Postprocess Options").get<bool>("Print timers",true)) {
       settings->set<int>("verbosity",10);
