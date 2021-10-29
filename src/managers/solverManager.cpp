@@ -137,7 +137,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   }
   fully_explicit = settings->sublist("Solver").get<bool>("fully explicit",false);
   
-  if (fully_explicit) {
+  if (fully_explicit && Comm->getRank() == 0) {
     cout << "WARNING: the fully explicit method is requested.  This is an experimental capability and may not work with all time integration methods" << endl;
   }
   
