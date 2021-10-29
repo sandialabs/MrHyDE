@@ -119,6 +119,8 @@ namespace MrHyDE {
 
     void getWeightedMass(matrix_RCP & mass, vector_RCP & massdiag);
     
+    void getWeightVector(vector_RCP & wts);
+    
     // ========================================================================================
     // ========================================================================================
     

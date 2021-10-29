@@ -101,6 +101,8 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
 
   compute_integrated_quantities = settings->sublist("Postprocess").get("compute integrated quantities",false);
  
+  compute_weighted_norm = settings->sublist("Postprocess").get<bool>("compute weighted norm",false);
+  
   soln = Teuchos::rcp(new SolutionStorage<Node>(settings));
   string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
   save_solution = false;
@@ -493,7 +495,7 @@ void PostprocessManager<Node>::record(vector_RCP & current_soln, const ScalarT &
   if (compute_error) {
     this->computeError(current_time);
   }
-  if (compute_response || compute_objective) {
+  if ((compute_response || compute_objective) && write_this_step) {
     this->computeObjective(current_soln, current_time, objectiveval);
   }
   if (write_solution && write_this_step) {
@@ -507,6 +509,9 @@ void PostprocessManager<Node>::record(vector_RCP & current_soln, const ScalarT &
   }
   if (compute_integrated_quantities) {
     this->computeIntegratedQuantities(current_time);
+  }
+  if (compute_weighted_norm && write_this_step) {
+    this->computeWeightedNorm(current_soln);
   }
 }
 
@@ -564,6 +569,27 @@ void PostprocessManager<Node>::report() {
         }
         respOUT.close();
       }
+      else if (objectives[obj].type == "integrated response") {
+        if (objectives[obj].save_data) {
+          string respfile = objectives[obj].response_file;
+          std::ofstream respOUT(respfile.c_str());
+          for (size_t tt=0; tt<objectives[obj].response_times.size(); ++tt) {
+          
+            if (Comm->getRank() == 0) {
+              respOUT << objectives[obj].response_times[tt] << "  ";
+            }
+            double localval = objectives[obj].scalar_response_data[tt];
+            double globalval = 0.0;
+            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
+            if (Comm->getRank() == 0) {
+              respOUT << globalval;
+              respOUT << endl;
+            }
+          }
+          respOUT.close();
+        }
+      }
+      
     }
   }
   
@@ -742,6 +768,19 @@ void PostprocessManager<Node>::report() {
       }
     }
     
+  }
+  
+  if (compute_weighted_norm) {
+    if (Comm->getRank() == 0) {
+      string respfile = "weighted_norms.out";
+      std::ofstream respOUT;
+      respOUT.open(respfile);
+      for (size_t k=0; k<weighted_norms.size(); ++k) {
+        respOUT << weighted_norms[k] << endl;
+      }
+      respOUT << endl;
+      respOUT.close();
+    }
   }
 }
 
@@ -1384,9 +1423,67 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
 // ========================================================================================
 
 template<class Node>
+void PostprocessManager<Node>::computeWeightedNorm(vector_RCP & current_soln) {
+  
+  if (debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting PostprocessManager::computeWeightedNorm()" << endl;
+    }
+  }
+  
+  Teuchos::TimeMonitor localtimer(*computeWeightedNormTimer);
+  
+  typedef typename Node::execution_space LA_exec;
+  typedef typename Node::device_type     LA_device;
+  
+  // current_soln is an overlapped vector ... we want
+  vector_RCP soln = linalg->getNewVector();
+  soln->putScalar(0.0);
+  soln->doExport(*current_soln, *(linalg->exporter), Tpetra::REPLACE);
+  
+  if (!have_norm_weights) {
+    vector_RCP wts_over = linalg->getNewOverlappedVector();
+    assembler->getWeightVector(wts_over);
+    norm_wts = linalg->getNewVector();
+    norm_wts->putScalar(0.0);
+    norm_wts->doExport(*wts_over, *(linalg->exporter), Tpetra::REPLACE);
+    have_norm_weights = true;
+  }
+  
+  vector_RCP prod = linalg->getNewVector();
+  
+  auto wts_view = norm_wts->template getLocalView<LA_device>();
+  auto prod_view = prod->template getLocalView<LA_device>();
+  auto soln_view = soln->template getLocalView<LA_device>();
+  parallel_for("assembly insert Jac",
+               RangePolicy<LA_exec>(0,prod_view.extent(0)),
+               KOKKOS_LAMBDA (const int k ) {
+    prod_view(k,0) = wts_view(k,0)*soln_view(k,0)*soln_view(k,0);
+  });
+    
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> l1norm(1);
+  prod->norm1(l1norm);
+  if (verbosity >= 10 && Comm->getRank() == 0) {
+    cout << "Weighted norm of solution: " << l1norm[0] << endl;
+  }
+  weighted_norms.push_back(l1norm[0]);
+  
+  if (debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished PostprocessManager::computeWeightedNorm()" << endl;
+    }
+  }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
 void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
                                                 const ScalarT & current_time,
                                                 DFAD & objectiveval) {
+  
+  Teuchos::TimeMonitor localtimer(*objectiveTimer);
   
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -1575,11 +1672,7 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
       for (size_t e=0; e<assembler->cells[block].size(); e++) {
         
         auto wts = assembler->cells[block][e]->wts;
-        
-        //assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 0);
-        //assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 0);
-        //assembler->cells[block][e]->computeSolnVolIP();
-        
+            
         assembler->cells[block][e]->updateWorkset(0,true);
         
         auto obj_dev = functionManagers[block]->evaluate(objectives[r].name+" response","ip");
@@ -1618,6 +1711,8 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
         auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
         Kokkos::deep_copy(objsum_host,objsum_dev);
         
+        
+        
         // Update the objective function value
         //totaldiff[r] += objectives[r].weight*objsum_host(0);
         totaldiff[r] += objsum_host(0);
@@ -1629,6 +1724,20 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
         }
       }
       
+      if (compute_response) {
+        if (objectives[r].save_data) {
+          objectives[r].response_times.push_back(current_time);
+          objectives[r].scalar_response_data.push_back(totaldiff[r]);
+          if (verbosity >= 10) {
+            double localval = totaldiff[r];
+            double globalval = 0.0;
+            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
+            if (Comm->getRank() == 0) {
+              cout << objectives[r].name << ": " << globalval << endl;
+            }
+          }
+        }
+      }
       
       // Next, deriv w.r.t discretized params
       if (params->globalParamUnknowns > 0) {

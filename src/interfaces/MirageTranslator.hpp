@@ -214,6 +214,10 @@ namespace MrHyDE {
       double epsval = physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("Value");
       physics_list->sublist("Mass weights").set<double>("E",epsval);
       physics_list->sublist("Mass weights").set<double>("B",1.0);
+      
+      double invmuval = physics_list->sublist("Mirage settings").sublist("INVERSE_PERMEABILITY").get<double>("Value");
+      physics_list->sublist("Norm weights").set<double>("E",epsval);
+      physics_list->sublist("Norm weights").set<double>("B",invmuval);
     }
     else {
       for (size_t b=0; b<blocknames.size(); ++b) {
@@ -296,6 +300,15 @@ namespace MrHyDE {
     if (mirage_settings->sublist("Postprocess Options").get<bool>("Print timers",true)) {
       settings->set<int>("verbosity",10);
     }
+    settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<string>("type","integrated response");
+    string energy = "epsilon*(E[x]^2+E[y]^2+E[z]^2 + 1.0/mu*(B[x]^2+B[y]^2+B[z]^2)";
+    settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<string>("response",energy);
+    settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<double>("target",0.0);
+    settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<double>("weight",1.0);
+    settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<bool>("save response data",true);
+    settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<string>("response file","EM_Energy.out");
+    settings->sublist("Postprocess").set<bool>("compute responses",true);
+    settings->sublist("Postprocess").set<bool>("compute weighted norm",true);
     
     settings->print();
     

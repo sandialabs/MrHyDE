@@ -124,6 +124,7 @@ namespace MrHyDE {
     bool save_data;
     vector<regularization> regularizations;
     vector<ScalarT> response_times;
+    vector<ScalarT> scalar_response_data;
     vector<Kokkos::View<ScalarT*,HostDevice> > response_data;
     
     // Data specific to sensors
@@ -351,6 +352,8 @@ namespace MrHyDE {
     void computeObjectiveGradState(vector_RCP & current_soln, const ScalarT & current_time,
                                    const ScalarT & deltat, vector_RCP & grad);
 
+    void computeWeightedNorm(vector_RCP & current_soln);
+    
     // ========================================================================================
     // ========================================================================================
 
@@ -466,8 +469,11 @@ namespace MrHyDE {
     bool compute_objective, compute_flux_response, compute_integrated_quantities;
     ScalarT discrete_objective_scale_factor;
     vector<vector<string> > extrafields_list, extracellfields_list, derivedquantities_list;
+    vector<ScalarT> weighted_norms;
+    vector_RCP norm_wts;
+    bool have_norm_weights = false;
     
-    bool compute_response, compute_error, compute_subgrid_error, compute_aux_error;
+    bool compute_response, compute_error, compute_subgrid_error, compute_aux_error, compute_weighted_norm;
     bool write_solution, write_aux_solution, write_subgrid_solution, write_HFACE_variables, write_optimization_solution;
     int write_frequency, write_cell_number;  ///< Solution write frequency (1/timesteps) 
     std::string exodus_filename, cellfield_reduction;
@@ -501,6 +507,8 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> computeErrorTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::computeError");
     Teuchos::RCP<Teuchos::Time> writeSolutionTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::writeSolution");
     Teuchos::RCP<Teuchos::Time> writeSolutionSolIPTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::writeSolution - solution to ip");
+    Teuchos::RCP<Teuchos::Time> objectiveTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::computeObjective()");
+    Teuchos::RCP<Teuchos::Time> computeWeightedNormTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::computeWeightedNorm()");
   };
   
 }

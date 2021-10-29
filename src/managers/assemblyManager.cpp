@@ -881,6 +881,64 @@ void AssemblyManager<Node>::getWeightedMass(matrix_RCP & mass,
 // ========================================================================================
 
 template<class Node>
+void AssemblyManager<Node>::getWeightVector(vector_RCP & wts) {
+  
+  Teuchos::TimeMonitor localtimer(*setinittimer);
+  
+  typedef typename Node::execution_space LA_exec;
+  
+  if (debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting AssemblyManager::getWeightVector ..." << endl;
+    }
+  }
+  
+  auto wts_view = wts->template getLocalView<LA_device>();
+  
+  vector<vector<ScalarT> > normwts = phys->normwts;
+  
+  for (size_t b=0; b<cells.size(); b++) {
+    
+    auto offsets = wkset[b]->offsets;
+    auto numDOF = cellData[b]->numDOF;
+    
+    for (size_t e=0; e<cells[b].size(); e++) {
+      
+      for (size_type n=0; n<numDOF.extent(0); ++n) {
+      
+        ScalarT val = normwts[b][n];
+        auto LIDs = cells[b][e]->LIDs;
+        parallel_for("assembly insert Jac",
+                     RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                     KOKKOS_LAMBDA (const int elem ) {
+          
+          int row = 0;
+          LO rowIndex = 0;
+          
+          for (int j=0; j<numDOF(n); j++) {
+            row = offsets(n,j);
+            rowIndex = LIDs(elem,row);
+            wts_view(rowIndex,0) = val;
+          }
+          
+        });
+      }
+       
+    }
+  }
+  
+  if (debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished AssemblyManager::getWeightVector ..." << endl;
+    }
+  }
+  
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
 void AssemblyManager<Node>::setInitial(vector_RCP & initial, const bool & useadjoint) {
 
   for (size_t b=0; b<cells.size(); b++) {
