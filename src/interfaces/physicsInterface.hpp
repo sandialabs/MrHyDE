@@ -205,7 +205,7 @@ namespace MrHyDE {
     vector<vector<bool> > useSubgrid, aux_useSubgrid;
     vector<vector<bool> > useDG, aux_useDG;
     //bool haveDirichlet;
-    vector<vector<ScalarT> > masswts;
+    vector<vector<ScalarT> > masswts, normwts;
     
     vector<vector<string> > varlist, aux_varlist;
     vector<vector<int> > varowned, aux_varowned;

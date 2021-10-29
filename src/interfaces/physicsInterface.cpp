@@ -210,6 +210,18 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & 
     }
     masswts.push_back(cmwts);
     
+    // Add norm weights
+    Teuchos::ParameterList nwts_list = blockPhysSettings[b].sublist("Norm weights");
+    vector<ScalarT> cnwts;
+    for (size_t j=0; j<varlist[b].size(); j++) {
+      ScalarT wval = 1.0;
+      if (nwts_list.isType<ScalarT>(varlist[b][j])) {
+        wval = nwts_list.get<ScalarT>(varlist[b][j]);
+      }
+      cnwts.push_back(wval);
+    }
+    normwts.push_back(cnwts);
+    
   }
   
   for (size_t b=0; b<blocknames.size(); b++) {
