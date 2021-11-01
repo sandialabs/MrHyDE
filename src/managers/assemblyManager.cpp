@@ -59,7 +59,11 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   
   use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("use measurements as DBCs", false);
   
-  assembly_partitioning = settings->sublist("Solver").get<string>("assembly partitioning","sequential"); // "neighbor-avoiding"
+  assembly_partitioning = settings->sublist("Solver").get<string>("assembly partitioning","sequential");
+  
+  if (settings->isSublist("Subgrid")) {
+    assembly_partitioning = "subgrid-preserving";
+  }
   
   string solver_type = settings->sublist("Solver").get<string>("solver","none"); // or "transient"
   isTransient = false;
@@ -294,7 +298,7 @@ void AssemblyManager<Node>::createCells() {
       
       blockCellData->numDOF = numDOF_KV;
       blockCellData->numDOF_host = numDOF_host;
-      
+           
       
       //////////////////////////////////////////////////////////////////////////////////
       // Boundary cells
@@ -302,7 +306,7 @@ void AssemblyManager<Node>::createCells() {
       
       if (build_boundary_terms[b]) {
         // TMW: this is just for ease of use
-        int numBoundaryElem = settings->sublist("Solver").get<int>("workset size",100);
+        int numBoundaryElem = elemPerCell;//settings->sublist("Solver").get<int>("workset size",100);
         
         ///////////////////////////////////////////////////////////////////////////////////
         // Rules for grouping elements into boundary cells
@@ -404,65 +408,28 @@ void AssemblyManager<Node>::createCells() {
           }
         }
       }
-    
+      
       //////////////////////////////////////////////////////////////////////////////////
       // Cells
       //////////////////////////////////////////////////////////////////////////////////
       
       LO prog = 0;
+      vector<vector<LO> > groups;
       
       if (assembly_partitioning == "sequential") {
         while (prog < numTotalElem) {
-          LO currElem = elemPerCell;  // Avoid faults in last iteration
+          
+          vector<LO> newgroup;
+          
+          LO currElem = elemPerCell;
           if (prog+currElem > numTotalElem){
             currElem = numTotalElem-prog;
           }
-          bool storeThis = storeAll;
-          
-          if (!storeAll) {
-            if (static_cast<double>(processedElem)/static_cast<double>(numTotalElem) < storageProportion) {
-              storeThis = true;
-            }
+          for (LO e=prog; e<prog+currElem; ++e) {
+            newgroup.push_back(e);
           }
-          processedElem += currElem;
-          
-          Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
-          DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
-          LIDView cellLIDs("LIDs on device",currElem,LIDs.extent(1));
-          
-          auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
-          Kokkos::View<LO*,HostDevice> host_eIndex2("element indices on host",currElem);
-          
-          auto currnodes_host = create_mirror_view(currnodes);
-          auto nodes_sub = Kokkos::subview(blocknodes,std::make_pair(prog, prog+currElem), Kokkos::ALL(), Kokkos::ALL());
-          
-          deep_copy(currnodes_host,nodes_sub);
-          deep_copy(currnodes,currnodes_host);
-          
-          for (size_t e=0; e<host_eIndex.extent(0); e++) {
-            host_eIndex(e) = prog+static_cast<LO>(e);//disc->myElements[b][prog+e]; // TMW: why here?;prog+e;
-          }
-          
-          Kokkos::deep_copy(eIndex,host_eIndex);
-          Kokkos::deep_copy(host_eIndex2,host_eIndex);
-          // This subview only works if the cells use a continuous ordering of elements
-          // Considering generalizing this to reduce atomic overhead, so performing manual deep copy for now
-          //LIDView cellLIDs = Kokkos::subview(LIDs, std::make_pair(prog,prog+currElem), Kokkos::ALL());
-          LO progend = prog + static_cast<LO>(cellLIDs.extent(0));
-          auto celem = Kokkos::subview(eIDs, std::make_pair(prog,progend));
-          parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
-            LO elemID = celem(e);//disc->myElements[b][prog+e]; // TMW: why here?
-            for (size_type j=0; j<LIDs.extent(1); j++) {
-              cellLIDs(e,j) = LIDs(elemID,j);
-            }
-          });
-          
-          // Set the side information (soon to be removed)-
-          Kokkos::View<int****,HostDevice> sideinfo = disc->getSideInfo(b,host_eIndex2);
-          
-          blockcells.push_back(Teuchos::rcp(new cell(blockCellData, currnodes, eIndex,
-                                                     cellLIDs, sideinfo, disc, storeThis)));
-          prog += elemPerCell;
+          groups.push_back(newgroup);
+          prog += currElem;
         }
       }
       else if (assembly_partitioning == "random") { // not implemented yet
@@ -471,11 +438,147 @@ void AssemblyManager<Node>::createCells() {
       else if (assembly_partitioning == "neighbor-avoiding") { // not implemented yet
         // need neighbor information
       }
-      else if (assembly_partitioning == "boundary-preserving") { // not implemented yet
+      else if (assembly_partitioning == "subgrid-preserving") {
+        
+        ///////////////////////////////////////////////////////////////////////////////////
+        // Rules for subgrid-preserving grouping
+        //
+        // 1.  All elements must be on the same processor
+        // 2.  All elements must either be interior, or
+        // 3.  All elements must have the same boundary edges/faces (this is the key difference)
+        // 4.  No more than elemPerCell (= numElem) in a group
+        ///////////////////////////////////////////////////////////////////////////////////
+        
+        if (bcells.size() > 0) {
+          Kokkos::View<bool*> beenadded("been processed",numTotalElem);
+          deep_copy(beenadded,false);
+          
+          Kokkos::View<bool**> onbndry("onbndry",numTotalElem,bcells.size());
+          deep_copy(onbndry,false);
+          
+          for (size_t bc=0; bc<bcells.size(); ++bc) {
+            auto eind = create_mirror_view(bcells[bc]->localElemID);
+            deep_copy(eind,bcells[bc]->localElemID);
+            
+            for (size_type e=0; e<eind.extent(0); ++e) {
+              onbndry(eind(e),bc) = true;
+            }
+          }
+          
+          
+          LO numAdded=0;
+          while (numAdded < numTotalElem) {
+            vector<LO> newgroup;
+            bool foundind = false;
+            LO refind = 0;
+            while (!foundind && refind<numTotalElem) {
+              if (!beenadded(refind)) {
+                foundind = true;
+              }
+              else {
+                refind++;
+              }
+            }
+            newgroup.push_back(refind);
+            beenadded(refind) = true;
+            numAdded++;
+            for (LO j=refind+1; j<numTotalElem; ++j) {
+              bool matches = true;
+              for (size_type k=0; k<onbndry.extent(1); ++k) {
+                if (onbndry(j,k) != onbndry(refind,k)) {
+                  matches = false;
+                }
+              }
+              if (matches && static_cast<LO>(newgroup.size()) < elemPerCell) {
+                newgroup.push_back(j);
+                beenadded(j) = true;
+                numAdded++;
+              }
+            }
+            groups.push_back(newgroup);
+          }
+          
+          size_t mxgrp_ind = 0;
+          size_t mxgrp = 0;
+          for (size_t grp=0; grp<groups.size(); ++grp) {
+            if (groups[grp].size() > mxgrp) {
+              mxgrp = groups[grp].size();
+              mxgrp_ind = grp;
+            }
+          }
+          groups[0].swap(groups[mxgrp_ind]);
+        }
+        else {
+          while (prog < numTotalElem) {
+            
+            vector<LO> newgroup;
+            
+            LO currElem = elemPerCell;
+            if (prog+currElem > numTotalElem){
+              currElem = numTotalElem-prog;
+            }
+            for (LO e=prog; e<prog+currElem; ++e) {
+              newgroup.push_back(e);
+            }
+            groups.push_back(newgroup);
+            prog += currElem;
+          }
+        }
         
       }
       
+      elemPerCell = std::min(elemPerCell, static_cast<LO>(groups[0].size()));
+      
+      // Add the cells correspondng to the groups
+      for (size_t grp=0; grp<groups.size(); ++grp) {
+        LO currElem = groups[grp].size();
+        
+        bool storeThis = storeAll;
+        if (!storeAll) {
+          if (static_cast<double>(processedElem)/static_cast<double>(numTotalElem) < storageProportion) {
+            storeThis = true;
+          }
+        }
+        processedElem += currElem;
+        
+        Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
+        DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
+        LIDView cellLIDs("LIDs on device",currElem,LIDs.extent(1));
+        
+        auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
+        Kokkos::View<LO*,HostDevice> host_eIndex2("element indices on host",currElem);
+        
+        for (LO e=0; e<currElem; ++e) {
+          host_eIndex(e) = groups[grp][e];
+        }
+        Kokkos::deep_copy(eIndex,host_eIndex);
+        Kokkos::deep_copy(host_eIndex2,host_eIndex);
+        
+        
+        parallel_for("assembly copy nodes",
+                     RangePolicy<AssemblyExec>(0,eIndex.extent(0)),
+                     KOKKOS_LAMBDA (const int e ) {
+          LO elemID = eIndex(e);
+          for (size_type j=0; j<LIDs.extent(1); j++) {
+            cellLIDs(e,j) = LIDs(eIDs(elemID),j);
+          }
+          for (size_type pt=0; pt<currnodes.extent(1); ++pt) {
+            for (size_type dim=0; dim<currnodes.extent(2); ++dim) {
+              currnodes(e,pt,dim) = blocknodes(elemID,pt,dim);
+            }
+          }
+        });
+        
+        // Set the side information (soon to be removed)-
+        Kokkos::View<int****,HostDevice> sideinfo = disc->getSideInfo(b,host_eIndex2);
+        
+        blockcells.push_back(Teuchos::rcp(new cell(blockCellData, currnodes, eIndex,
+                                                   cellLIDs, sideinfo, disc, storeThis)));
+        prog += elemPerCell;
+        
+      }
     }
+    
     else {
       blockCellData = Teuchos::rcp( new CellMetaData());
     }
@@ -551,7 +654,7 @@ void AssemblyManager<Node>::createWorkset() {
       info.push_back(cellData[b]->numDOF.extent(0));
       info.push_back((int)cellData[b]->numDiscParams);
       info.push_back(cellData[b]->numAuxDOF.extent(0));
-      info.push_back(cells[b][0]->numElem);
+      info.push_back(cellData[b]->numElem);
       info.push_back(cellData[b]->numip);
       info.push_back(cellData[b]->numsideip);
       wkset.push_back(Teuchos::rcp( new workset(info,

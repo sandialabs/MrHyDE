@@ -3278,7 +3278,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
           auto soln_y = Kokkos::create_mirror_view(soln_y_dev);
           auto soln_z = Kokkos::create_mirror_view(soln_z_dev);
           std::string var = varlist[b][n];
-          View_Sc2 sol("average solution",assembler->cells[b][0]->numElem,spaceDim);
+          View_Sc2 sol("average solution",assembler->cellData[b]->numElem,spaceDim);
           
           for( size_t e=0; e<assembler->cells[b].size(); e++ ) {
             auto eID = assembler->cells[b][e]->localElemID;
