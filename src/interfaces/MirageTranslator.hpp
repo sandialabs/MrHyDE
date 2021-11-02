@@ -164,10 +164,21 @@ namespace MrHyDE {
     }
     
     if (mirage_settings->sublist("Mesh").get<bool>("build-tet-mesh",false)) {
-      mesh_list->set("shape","tet");
+      
+      if (mirage_dim == 2) {
+        mesh_list->set("shape","tri");
+      }
+      else {
+        mesh_list->set("shape","tet");
+      }
     }
     else {
-      mesh_list->set("shape","hex");
+      if (mirage_dim == 2) {
+        mesh_list->set("shape","quad");
+      }
+      else {
+        mesh_list->set("shape","hex");
+      }
     }
     
     if (mirage_settings->sublist("Mesh").isSublist("Periodic BCs")) {
@@ -221,12 +232,29 @@ namespace MrHyDE {
     }
     else {
       for (size_t b=0; b<blocknames.size(); ++b) {
-        string cmname = mirage_settings->sublist("Closure Models").get<string>(blocknames[b]);
+        string cmname = mirage_settings->sublist("Closure Models").sublist("Mapping to Blocks").get<string>(blocknames[b]);
         physics_list->sublist(blocknames[b]).set("modules","mirage");
+        physics_list->sublist(blocknames[b]).set("use leap frog",true);
         physics_list->sublist(blocknames[b]).sublist("Mirage settings").setParameters(mirage_settings->sublist("Closure Models").sublist(cmname));
         physics_list->sublist(blocknames[b]).sublist("Initial Conditions").set<bool>("scalar data",true);
         physics_list->sublist(blocknames[b]).sublist("Initial Conditions").set<double>("E",0.0);
         physics_list->sublist(blocknames[b]).sublist("Initial Conditions").set<double>("B",0.0);
+        
+        double epsval = 1.0e-11;
+        if (physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("PERMITTIVITY").isParameter("Value") ) {
+          epsval = physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("Value");
+        }
+        else if (physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("PERMITTIVITY").isParameter("epsilon") ) {
+          epsval = physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("epsilon");
+        }
+        cout << epsval << endl;
+        
+        physics_list->sublist(blocknames[b]).sublist("Mass weights").set<double>("E",epsval);
+        physics_list->sublist(blocknames[b]).sublist("Mass weights").set<double>("B",1.0);
+        
+        double invmuval = physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("INVERSE_PERMEABILITY").get<double>("Value");
+        physics_list->sublist(blocknames[b]).sublist("Norm weights").set<double>("E",epsval);
+        physics_list->sublist(blocknames[b]).sublist("Norm weights").set<double>("B",invmuval);
       }
     }
     
@@ -241,13 +269,23 @@ namespace MrHyDE {
     if (blocknames.size() == 0) {
       disc_list->set<int>("quadrature",2);
       disc_list->sublist("order").set<int>("E",mirage_settings->sublist("Solver Options").get<int>("Basis order",1));
-      disc_list->sublist("order").set<int>("B",mirage_settings->sublist("Solver Options").get<int>("Basis order",1));
+      if (mirage_dim == 2) {
+        disc_list->sublist("order").set<int>("B",0);
+      }
+      else {
+        disc_list->sublist("order").set<int>("B",mirage_settings->sublist("Solver Options").get<int>("Basis order",1));
+      }
     }
     else {
       for (size_t b=0; b<blocknames.size(); ++b) {
         disc_list->sublist(blocknames[b]).set<int>("quadrature",2);
         disc_list->sublist(blocknames[b]).sublist("order").set<int>("E",mirage_settings->sublist("Solver Options").get<int>("Basis order",1));
-        disc_list->sublist(blocknames[b]).sublist("order").set<int>("B",mirage_settings->sublist("Solver Options").get<int>("Basis order",1));
+        if (mirage_dim == 2) {
+          disc_list->sublist("order").set<int>("B",0);
+        }
+        else {
+          disc_list->sublist(blocknames[b]).sublist("order").set<int>("B",mirage_settings->sublist("Solver Options").get<int>("Basis order",1));
+        }
       }
     }
     
@@ -299,9 +337,13 @@ namespace MrHyDE {
     
     if (mirage_settings->sublist("Postprocess Options").get<bool>("Print timers",true)) {
       settings->set<int>("verbosity",10);
+      //settings->set<int>("debug level",2);
     }
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<string>("type","integrated response");
-    string energy = "epsilon*(E[x]^2+E[y]^2+E[z]^2 + 1.0/mu*(B[x]^2+B[y]^2+B[z]^2)";
+    string energy = "epsilon*(E[x]^2+E[y]^2+E[z]^2) + 1.0/mu*(B[x]^2+B[y]^2+B[z]^2)";
+    if (mirage_dim == 2) {
+      energy = "epsilon*(E[x]^2+E[y]^2) + 1.0/mu*(B^2)";
+    }
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<string>("response",energy);
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<double>("target",0.0);
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<double>("weight",1.0);
