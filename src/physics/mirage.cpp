@@ -631,9 +631,10 @@ void mirage::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD f0 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEx_dt(elem,pt) + (sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
-            AD f1 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEy_dt(elem,pt) + (sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
-            AD c0 = -1.0/mu(elem,pt)*B(elem,pt)*wts(elem,pt);
+            AD ers = epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt);
+            AD f0 = (dEx_dt(elem,pt) + 1.0/ers*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
+            AD f1 = (dEy_dt(elem,pt) + 1.0/ers*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
+            AD c0 = -1.0/(ers*mu(elem,pt))*B(elem,pt)*wts(elem,pt);
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0) + f1*basis(elem,dof,pt,1);
             }
@@ -645,8 +646,9 @@ void mirage::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = iPML(elem,pt)*Ex(elem,pt)*wts(elem,pt);
-              AD f1 = iPML(elem,pt)*Ey(elem,pt)*wts(elem,pt);
+              AD ers = epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt);
+              AD f0 = iPML(elem,pt)/ers*Ex(elem,pt)*wts(elem,pt);
+              AD f1 = iPML(elem,pt)/ers*Ey(elem,pt)*wts(elem,pt);
               for (size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
                 res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
@@ -655,6 +657,7 @@ void mirage::volumeResidual() {
           });
         }
       }
+      
     }
     else if (spaceDim == 3) {
       
@@ -678,6 +681,15 @@ void mirage::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD ers = epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt);
+            AD f0 = (dEx_dt(elem,pt) + 1.0/ers*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
+            AD f1 = (dEy_dt(elem,pt) + 1.0/ers*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
+            AD f2 = (dEz_dt(elem,pt) + 1.0/ers*(sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
+            
+            AD c0 = -1.0/(ers*mu(elem,pt))*Bx(elem,pt)*wts(elem,pt);
+            AD c1 = -1.0/(ers*mu(elem,pt))*By(elem,pt)*wts(elem,pt);
+            AD c2 = -1.0/(ers*mu(elem,pt))*Bz(elem,pt)*wts(elem,pt);
+            /*
             AD f0 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEx_dt(elem,pt) + (sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
             AD f1 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEy_dt(elem,pt) + (sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
             AD f2 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEz_dt(elem,pt) + (sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
@@ -685,6 +697,7 @@ void mirage::volumeResidual() {
             AD c0 = -1.0/mu(elem,pt)*Bx(elem,pt)*wts(elem,pt);
             AD c1 = -1.0/mu(elem,pt)*By(elem,pt)*wts(elem,pt);
             AD c2 = -1.0/mu(elem,pt)*Bz(elem,pt)*wts(elem,pt);
+             */
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0);
               res(elem,off(dof)) += f1*basis(elem,dof,pt,1) + c1*basis_curl(elem,dof,pt,1);
@@ -698,9 +711,10 @@ void mirage::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = iPML(elem,pt)*Ex(elem,pt)*wts(elem,pt);
-              AD f1 = iPML(elem,pt)*Ey(elem,pt)*wts(elem,pt);
-              AD f2 = iPML(elem,pt)*Ez(elem,pt)*wts(elem,pt);
+              AD ers = epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt);
+              AD f0 = iPML(elem,pt)/ers*Ex(elem,pt)*wts(elem,pt);
+              AD f1 = iPML(elem,pt)/ers*Ey(elem,pt)*wts(elem,pt);
+              AD f2 = iPML(elem,pt)/ers*Ez(elem,pt)*wts(elem,pt);
               for (size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
                 res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
@@ -715,9 +729,10 @@ void mirage::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = aPML_xx(elem,pt)*Ex(elem,pt)*wts(elem,pt);
-              AD f1 = aPML_yy(elem,pt)*Ey(elem,pt)*wts(elem,pt);
-              AD f2 = aPML_zz(elem,pt)*Ez(elem,pt)*wts(elem,pt);
+              AD ers = epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt);
+              AD f0 = aPML_xx(elem,pt)/ers*Ex(elem,pt)*wts(elem,pt);
+              AD f1 = aPML_yy(elem,pt)/ers*Ey(elem,pt)*wts(elem,pt);
+              AD f2 = aPML_zz(elem,pt)/ers*Ez(elem,pt)*wts(elem,pt);
               for (size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
                 res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
@@ -726,6 +741,32 @@ void mirage::volumeResidual() {
             }
           });
         }
+      }
+      else {
+        // TMW: This might need to be uncommented for certain integration methods
+        /*
+        auto basis = wkset->basis[E_basis];
+        auto dEx_dt = wkset->getData("E_t[x]");
+        auto dEy_dt = wkset->getData("E_t[y]");
+        auto dEz_dt = wkset->getData("E_t[z]");
+        auto off = subview(wkset->offsets, Enum, ALL());
+        auto wts = wkset->wts;
+        auto res = wkset->res;
+        parallel_for("Maxwells B volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD f0 = dEx_dt(elem,pt)*wts(elem,pt);
+            AD f1 = dEy_dt(elem,pt)*wts(elem,pt);
+            AD f2 = dEz_dt(elem,pt)*wts(elem,pt);
+            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
+              res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
+              res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
+            }
+          }
+        });
+        */
       }
     }
   }

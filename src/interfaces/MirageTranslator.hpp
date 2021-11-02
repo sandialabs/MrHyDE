@@ -126,6 +126,8 @@ namespace MrHyDE {
     //   8. Postprocess
     //////////////////////////////////////////////////////////////////////////////////////////
     
+    bool use_explicit = mirage_settings->sublist("Discretization Options").get<bool>("Use explicit integration",true);
+    
     //----------------------------------------
     // Mesh block
     //----------------------------------------
@@ -208,7 +210,9 @@ namespace MrHyDE {
     
     if (blocknames.size() == 0) {
       physics_list->set("modules","mirage");
-      physics_list->set("use leap frog",true);
+      if (use_explicit) {
+        physics_list->set("use leap frog",true);
+      }
       if (mirage_settings->sublist("Closure Models").isSublist("electromagnetics")) {
         physics_list->sublist("Mirage settings").setParameters(mirage_settings->sublist("Closure Models").sublist("electromagnetics"));
       }
@@ -223,7 +227,7 @@ namespace MrHyDE {
       physics_list->sublist("Initial Conditions").set<double>("B",0.0);
       
       double epsval = physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("Value");
-      physics_list->sublist("Mass weights").set<double>("E",epsval);
+      physics_list->sublist("Mass weights").set<double>("E",1.0);
       physics_list->sublist("Mass weights").set<double>("B",1.0);
       
       double invmuval = physics_list->sublist("Mirage settings").sublist("INVERSE_PERMEABILITY").get<double>("Value");
@@ -234,7 +238,9 @@ namespace MrHyDE {
       for (size_t b=0; b<blocknames.size(); ++b) {
         string cmname = mirage_settings->sublist("Closure Models").sublist("Mapping to Blocks").get<string>(blocknames[b]);
         physics_list->sublist(blocknames[b]).set("modules","mirage");
-        physics_list->sublist(blocknames[b]).set("use leap frog",true);
+        if (use_explicit) {
+          physics_list->sublist(blocknames[b]).set("use leap frog",true);
+        }
         physics_list->sublist(blocknames[b]).sublist("Mirage settings").setParameters(mirage_settings->sublist("Closure Models").sublist(cmname));
         physics_list->sublist(blocknames[b]).sublist("Initial Conditions").set<bool>("scalar data",true);
         physics_list->sublist(blocknames[b]).sublist("Initial Conditions").set<double>("E",0.0);
@@ -247,9 +253,8 @@ namespace MrHyDE {
         else if (physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("PERMITTIVITY").isParameter("epsilon") ) {
           epsval = physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("epsilon");
         }
-        cout << epsval << endl;
         
-        physics_list->sublist(blocknames[b]).sublist("Mass weights").set<double>("E",epsval);
+        physics_list->sublist(blocknames[b]).sublist("Mass weights").set<double>("E",1.0);
         physics_list->sublist(blocknames[b]).sublist("Mass weights").set<double>("B",1.0);
         
         double invmuval = physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("INVERSE_PERMEABILITY").get<double>("Value");
@@ -309,17 +314,30 @@ namespace MrHyDE {
     // Solver block
     // For now, we are assuming that explicit integration has been requested somehow
     //----------------------------------------
-    
     settings->sublist("Solver").set<string>("solver","transient");
     settings->sublist("Solver").set<int>("transient BDF order",1);
-    settings->sublist("Solver").set<string>("transient Butcher tableau","leap-frog");
-    settings->sublist("Solver").set<bool>("lump mass",true);
-    settings->sublist("Solver").set<bool>("fully explicit",true);
-    settings->sublist("Solver").set<bool>("minimize memory",true);
-    settings->sublist("Solver").set<bool>("store all cell data",true);
     settings->sublist("Solver").set<int>("workset size",mirage_settings->sublist("Discretization Options").get<int>("Workset size",100));
     settings->sublist("Solver").set<double>("final time",mirage_settings->sublist("Discretization Options").get<double>("Final time",0.0));
     settings->sublist("Solver").set<int>("number of steps",mirage_settings->sublist("Discretization Options").get<int>("Num time steps",1));
+  
+    if (use_explicit) {
+      settings->sublist("Solver").set<string>("transient Butcher tableau","leap-frog");
+      settings->sublist("Solver").set<bool>("lump mass",true);
+      settings->sublist("Solver").set<bool>("fully explicit",true);
+      settings->sublist("Solver").set<bool>("minimize memory",true);
+      settings->sublist("Solver").set<bool>("store all cell data",true);
+    }
+    else {
+      settings->sublist("Solver").set<string>("transient Butcher tableau","DIRK-1,2");
+      settings->sublist("Solver").set<double>("nonlinear TOL",1.0e-07);
+      settings->sublist("Solver").set<double>("linear TOL",1.0e-7);
+      settings->sublist("Solver").set<int>("max nonlinear iters",1);
+      settings->sublist("Solver").set<int>("max linear iters",200);
+      settings->sublist("Solver").set<bool>("use preconditioner",true);
+      settings->sublist("Solver").set<bool>("reuse preconditioner",true);
+      settings->sublist("Solver").set<string>("preconditioner type","domain decomposition");
+      settings->sublist("Solver").set<string>("preconditioner reuse type","full");
+    }
     
     //----------------------------------------
     // Analysis block
