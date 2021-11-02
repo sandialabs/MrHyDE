@@ -43,7 +43,13 @@ if its.opts.preprocess:
   if its.opts.verbose != 'none': print('---> Preprocessing %s' % (root))
   status += its.call('echo "  No preprocessing, yet."')
 
-status += its.call('mpiexec -n 1 ../../mrhyde >& mrhyde.log')
+status += its.call('mpiexec -n 1 ../../mrhyde inputProjectionQuadDeg1Quadr2.yaml >& mrhyde.log')
+status += its.call('mpiexec -n 1 ../../mrhyde inputLaplaceQuadDeg1Quadr2.yaml >> mrhyde.log')
+status += its.call('mpiexec -n 1 ../../mrhyde inputProjectionHexDeg1Quadr2.yaml >> mrhyde.log')
+status += its.call('mpiexec -n 1 ../../mrhyde inputLaplaceHexDeg1Quadr2.yaml >> mrhyde.log')
+status += its.call('diff -y %s.log %s.gold' % (root, root))
+
+
 
 hostname = os.getenv('HOSTNAME')
 if hostname != None:

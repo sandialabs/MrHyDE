@@ -29,9 +29,6 @@ namespace MrHyDE {
    *   - HDIV_AC discretization with projection operator
    *   - HCURL discretization with projection operator
    * 
-   * Currently the only variable name that is supported is "p", but at this time I'm
-   * unsure whether I will remove this functionality or not.
-   * 
    * This class is meant to be used only as a unit tester for discretizations, 
    * quadratures, and operators on a single core (outputs currently have a race condition),
    * and should not be run on GPU configurations.
