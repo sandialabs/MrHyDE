@@ -51,7 +51,7 @@ void physicsTest::volumeResidual() {
 
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
-  if(mybasistypes[0] == "HGRAD" || "HFACE" || "HVOL") { // If we're working with scalar-valued basis functions
+  if(mybasistypes[0] == "HGRAD" || mybasistypes[0] == "HFACE" || mybasistypes[0] == "HVOL") { // If we're working with scalar-valued basis functions
     auto psol = wkset->getData("p");
   
     if(myoperators[0] == "projection") {
