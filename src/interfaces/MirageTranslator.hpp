@@ -137,7 +137,7 @@ namespace MrHyDE {
     int mirage_dim = mirage_settings->sublist("Mesh").get<int>("spatialDim",3);
     
     mesh_list->set("dimension",mirage_dim);
-    if (mirage_settings->sublist("mesh").get<string>("filename","") != "") { // read in mesh if provided
+    if (mirage_settings->sublist("Mesh").get<string>("filename","") != "") { // read in mesh if provided
       mesh_list->set("mesh file", mirage_settings->sublist("mesh").get<string>("filename",""));
     }
     else { // otherwise build panzer inline mesh
@@ -163,26 +163,25 @@ namespace MrHyDE {
         mesh_list->set("Zprocs",mirage_settings->sublist("Mesh").get<int>("z-procs",1));
         mesh_list->set("NZ",mirage_settings->sublist("Mesh").get<int>("z-elements",2));
       }
-    }
     
-    if (mirage_settings->sublist("Mesh").get<bool>("build-tet-mesh",false)) {
-      
-      if (mirage_dim == 2) {
-        mesh_list->set("shape","tri");
+      if (mirage_settings->sublist("Mesh").get<bool>("build-tet-mesh",false)) {
+        
+        if (mirage_dim == 2) {
+          mesh_list->set("shape","tri");
+        }
+        else {
+          mesh_list->set("shape","tet");
+        }
       }
       else {
-        mesh_list->set("shape","tet");
+        if (mirage_dim == 2) {
+          mesh_list->set("shape","quad");
+        }
+        else {
+          mesh_list->set("shape","hex");
+        }
       }
     }
-    else {
-      if (mirage_dim == 2) {
-        mesh_list->set("shape","quad");
-      }
-      else {
-        mesh_list->set("shape","hex");
-      }
-    }
-    
     if (mirage_settings->sublist("Mesh").isSublist("Periodic BCs")) {
       Teuchos::ParameterList pbcs = mirage_settings->sublist("Mesh").sublist("Periodic BCs");
       mesh_list->sublist("Periodic BCs").setParameters(pbcs);
