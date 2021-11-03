@@ -2,6 +2,15 @@
   <Parameter name="Mesh xml" type="string" value="planewave3DRegTest.xml"/>
   <Parameter name="Closure model xml" type="string" value="closureModelsPlanewavePML.xml"/>
   <Parameter name="Linear solver xml" type="string" value="solverMueLuRefMaxwell.xml"/>
+  <ParameterList name="MrHyDE Options">
+    <Parameter name="Use explicit integration" type="bool" value="true"/>
+    <Parameter name="lump mass" type="bool" value="false"/>
+    <Parameter name="Belos solver" type="string" value="Pseudo Block CG"/>
+    <Parameter name="debug level" type="int" value="0"/>
+    <Parameter name="use preconditioner" type="bool" value="true"/>
+    <Parameter name="use direct solver" type="bool" value="false"/>
+    <Parameter name="preconditioner type" type="string" value="Ifpack2"/>
+  </ParameterList>
   <ParameterList name="Solver Options">
     <Parameter name="Linear algebra" type="string" value="Tpetra"/>
     <Parameter name="Solver" type="string" value="MueLu-RefMaxwell"/>
@@ -13,8 +22,8 @@
   <ParameterList name="Discretization Options">
     <Parameter name="Basis order" type="int" value="1"/>
     <Parameter name="Workset size" type="int" value="100"/>
-    <Parameter name="Num time steps" type="int" value="200"/>
-    <Parameter name="Final time" type="double" value="2.0e-13"/>
+    <Parameter name="Num time steps" type="int" value="100"/>
+    <Parameter name="Final time" type="double" value="1.0e-13"/>
     <Parameter name="Transient order" type="int" value="2"/>
   </ParameterList>
   <ParameterList name="Postprocess Options">

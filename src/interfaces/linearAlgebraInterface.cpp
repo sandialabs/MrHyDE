@@ -26,16 +26,6 @@
 
 using namespace MrHyDE;
 
-/*
-// Explicit template instantiations
-template class MrHyDE::LinearAlgebraInterface<SolverNode>;
-template class MrHyDE::SolverOptions<SolverNode>;
-#if MrHyDE_REQ_SUBGRID_ETI
-template class MrHyDE::LinearAlgebraInterface<SubgridSolverNode>;
-template class MrHyDE::SolverOptions<SubgridSolverNode>;
-#endif
-*/
-
 // ========================================================================================
 // Constructor  
 // ========================================================================================
@@ -224,8 +214,12 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     exporter = Teuchos::rcp(new LA_Export(overlapped_map, owned_map));
     importer = Teuchos::rcp(new LA_Import(owned_map, overlapped_map));
     
-    if (!settings->sublist("Solver").get<bool>("minimize memory",false)) {
+    bool allocate_matrices = true;
+    if (settings->sublist("Solver").get<bool>("lump mass",false) && settings->sublist("Solver").get<bool>("fully explicit",false) ) {
+      allocate_matrices = false;
+    }
     
+    if (allocate_matrices) {
       vector<size_t> maxEntriesPerRow(overlapped_map->getNodeNumElements(), 0);
       for (size_t b=0; b<blocknames.size(); b++) {
         vector<size_t> EIDs = disc->myElements[b];
@@ -481,6 +475,7 @@ void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<SolverOptions<Node>
         }
       }
     }
+    
     Problem->setProblem();
     
     Teuchos::RCP<Teuchos::ParameterList> belosList = this->getBelosParameterList(opt->belosSublist);

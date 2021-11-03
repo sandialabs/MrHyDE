@@ -16,13 +16,6 @@
 
 using namespace MrHyDE;
 
-/*
-template class MrHyDE::AssemblyManager<SolverNode>;
-#if MrHyDE_REQ_SUBGRID_ETI
-  template class MrHyDE::AssemblyManager<SubgridSolverNode>;
-#endif
-*/
-
 // ========================================================================================
 /* Constructor to set up the problem */
 // ========================================================================================
@@ -946,8 +939,8 @@ void AssemblyManager<Node>::getWeightedMass(matrix_RCP & mass,
           
           const size_type numVals = LIDs.extent(1);
           int col = 0;
-          LO cols[maxDerivs];
-          ScalarT vals[maxDerivs];
+          LO cols[64]; //cols[maxDerivs];
+          ScalarT vals[64]; //vals[maxDerivs];
           for (size_type n=0; n<numDOF.extent(0); ++n) {
             for (int j=0; j<numDOF(n); j++) {
               row = offsets(n,j);

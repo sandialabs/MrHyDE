@@ -1454,7 +1454,7 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
   }
   
   bool build_jacobian = false;
-   
+  
   if (!haveExplicitMass) {
     matrix_RCP mass;
     if (!assembler->lump_mass) {
@@ -1464,7 +1464,6 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
     vector_RCP diagMass_over = linalg->getNewOverlappedVector();
     assembler->getWeightedMass(mass,diagMass_over);
     linalg->exportVectorFromOverlapped(diagMass, diagMass_over);
-    
     if (!assembler->lump_mass) {
       matrix_RCP glmass = linalg->getNewMatrix();
       linalg->exportMatrixFromOverlapped(glmass, mass);
@@ -1476,6 +1475,7 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
     haveExplicitMass = true;
     
   }
+  
   
   // *********************** COMPUTE THE RESIDUAL **************************
     

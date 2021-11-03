@@ -126,7 +126,7 @@ namespace MrHyDE {
     //   8. Postprocess
     //////////////////////////////////////////////////////////////////////////////////////////
     
-    bool use_explicit = mirage_settings->sublist("Discretization Options").get<bool>("Use explicit integration",true);
+    bool use_explicit = mirage_settings->sublist("MrHyDE Options").get<bool>("Use explicit integration",true);
     
     //----------------------------------------
     // Mesh block
@@ -321,24 +321,37 @@ namespace MrHyDE {
     settings->sublist("Solver").set<double>("final time",mirage_settings->sublist("Discretization Options").get<double>("Final time",0.0));
     settings->sublist("Solver").set<int>("number of steps",mirage_settings->sublist("Discretization Options").get<int>("Num time steps",1));
   
+    // The explicit solver may use a mass solve, so we check these parameters for both implicit and explicit
+    settings->sublist("Solver").set<double>("linear TOL",
+                                            mirage_settings->sublist("MrHyDE Options").get<double>("linear TOL",1.0e-7));
+    settings->sublist("Solver").set<int>("max linear iters",
+                                         mirage_settings->sublist("MrHyDE Options").get<int>("max linear iters",50));
+    settings->sublist("Solver").set<string>("Belos solver",
+                                            mirage_settings->sublist("MrHyDE Options").get<string>("Belos solver","Block CG"));
+    settings->sublist("Solver").set<bool>("use preconditioner",
+                                          mirage_settings->sublist("MrHyDE Options").get<bool>("use preconditioner",true));
+    settings->sublist("Solver").set<bool>("use direct solver",
+                                          mirage_settings->sublist("MrHyDE Options").get<bool>("use direct solver",false));
+    settings->sublist("Solver").set<bool>("reuse preconditioner",
+                                          mirage_settings->sublist("MrHyDE Options").get<bool>("reuse preconditioner",true));
+    settings->sublist("Solver").set<string>("preconditioner type",
+                                            mirage_settings->sublist("MrHyDE Options").get<string>("preconditioner type","domain decomposition"));
+    settings->sublist("Solver").set<string>("preconditioner reuse type",mirage_settings->sublist("MrHyDE Options").get<string>("preconditioner reuse type","full"));
+    settings->sublist("Solver").set<string>("Belos implicit residual scaling","Norm of Initial Residual");
+    // Also: "Norm of Preconditioned Initial Residual" or "Norm of Initial Residual"
+    
     if (use_explicit) {
       settings->sublist("Solver").set<string>("transient Butcher tableau","leap-frog");
-      settings->sublist("Solver").set<bool>("lump mass",true);
+      settings->sublist("Solver").set<bool>("lump mass",mirage_settings->sublist("MrHyDE Options").get<bool>("lump mass",true));
       settings->sublist("Solver").set<bool>("fully explicit",true);
-      settings->sublist("Solver").set<bool>("minimize memory",true);
+      //settings->sublist("Solver").set<bool>("minimize memory",mirage_settings->sublist("MrHyDE Options").get<bool>("lump mass",true));
       settings->sublist("Solver").set<bool>("store all cell data",true);
     }
     else {
-      settings->sublist("Solver").set<string>("transient Butcher tableau","DIRK-1,2");
+      settings->sublist("Solver").set<string>("transient Butcher tableau",mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","DIRK-1,2"));
       settings->sublist("Solver").set<double>("nonlinear TOL",1.0e-07);
-      settings->sublist("Solver").set<double>("linear TOL",1.0e-7);
       settings->sublist("Solver").set<int>("max nonlinear iters",1);
-      settings->sublist("Solver").set<int>("max linear iters",200);
-      settings->sublist("Solver").set<bool>("use preconditioner",true);
-      settings->sublist("Solver").set<bool>("use direct solver",mirage_settings->sublist("Discretization Options").get<bool>("use direct solver",false));
-      settings->sublist("Solver").set<bool>("reuse preconditioner",true);
-      settings->sublist("Solver").set<string>("preconditioner type","domain decomposition");
-      settings->sublist("Solver").set<string>("preconditioner reuse type","full");
+      
     }
     
     //----------------------------------------
@@ -357,7 +370,7 @@ namespace MrHyDE {
     
     if (mirage_settings->sublist("Postprocess Options").get<bool>("Print timers",true)) {
       settings->set<int>("verbosity",10);
-      settings->set<int>("debug level",mirage_settings->get<int>("debug level",0));
+      settings->set<int>("debug level",mirage_settings->sublist("MrHyDE Options").get<int>("debug level",0));
     }
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<string>("type","integrated response");
     string energy = "epsilon*(E[x]^2+E[y]^2+E[z]^2) + 1.0/mu*(B[x]^2+B[y]^2+B[z]^2)";
