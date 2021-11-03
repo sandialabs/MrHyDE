@@ -138,7 +138,8 @@ namespace MrHyDE {
     
     mesh_list->set("dimension",mirage_dim);
     if (mirage_settings->sublist("Mesh").get<string>("filename","") != "") { // read in mesh if provided
-      mesh_list->set("mesh file", mirage_settings->sublist("mesh").get<string>("filename",""));
+      mesh_list->set("mesh file", mirage_settings->sublist("Mesh").get<string>("filename",""));
+      mesh_list->set("source", "Exodus");
     }
     else { // otherwise build panzer inline mesh
       mesh_list->set("xmin",mirage_settings->sublist("Mesh").get<double>("x-min",0.0));
@@ -163,25 +164,26 @@ namespace MrHyDE {
         mesh_list->set("Zprocs",mirage_settings->sublist("Mesh").get<int>("z-procs",1));
         mesh_list->set("NZ",mirage_settings->sublist("Mesh").get<int>("z-elements",2));
       }
+    }
     
-      if (mirage_settings->sublist("Mesh").get<bool>("build-tet-mesh",false)) {
-        
-        if (mirage_dim == 2) {
-          mesh_list->set("shape","tri");
-        }
-        else {
-          mesh_list->set("shape","tet");
-        }
+    if (mirage_settings->sublist("Mesh").get<bool>("build-tet-mesh",false)) {
+      
+      if (mirage_dim == 2) {
+        mesh_list->set("shape","tri");
       }
       else {
-        if (mirage_dim == 2) {
-          mesh_list->set("shape","quad");
-        }
-        else {
-          mesh_list->set("shape","hex");
-        }
+        mesh_list->set("shape","tet");
       }
     }
+    else {
+      if (mirage_dim == 2) {
+        mesh_list->set("shape","quad");
+      }
+      else {
+        mesh_list->set("shape","hex");
+      }
+    }
+    
     if (mirage_settings->sublist("Mesh").isSublist("Periodic BCs")) {
       Teuchos::ParameterList pbcs = mirage_settings->sublist("Mesh").sublist("Periodic BCs");
       mesh_list->sublist("Periodic BCs").setParameters(pbcs);
@@ -333,6 +335,7 @@ namespace MrHyDE {
       settings->sublist("Solver").set<int>("max nonlinear iters",1);
       settings->sublist("Solver").set<int>("max linear iters",200);
       settings->sublist("Solver").set<bool>("use preconditioner",true);
+      settings->sublist("Solver").set<bool>("use direct solver",mirage_settings->sublist("Discretization Options").get<bool>("use direct solver",false));
       settings->sublist("Solver").set<bool>("reuse preconditioner",true);
       settings->sublist("Solver").set<string>("preconditioner type","domain decomposition");
       settings->sublist("Solver").set<string>("preconditioner reuse type","full");
@@ -354,7 +357,7 @@ namespace MrHyDE {
     
     if (mirage_settings->sublist("Postprocess Options").get<bool>("Print timers",true)) {
       settings->set<int>("verbosity",10);
-      //settings->set<int>("debug level",2);
+      settings->set<int>("debug level",mirage_settings->get<int>("debug level",0));
     }
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<string>("type","integrated response");
     string energy = "epsilon*(E[x]^2+E[y]^2+E[z]^2) + 1.0/mu*(B[x]^2+B[y]^2+B[z]^2)";
