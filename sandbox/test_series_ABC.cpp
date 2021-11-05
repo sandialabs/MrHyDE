@@ -16,7 +16,7 @@ int main(int argc, char * argv[]) {
     int numip = 4;
     int dimension = 3;
     int numdof = 12;
-    int numTerms = 10000;
+    int numTerms = 100;
     typedef double EvalT;
     
     ////////////////////////////////////////////////
@@ -67,7 +67,7 @@ int main(int argc, char * argv[]) {
       
       
       timer.reset();
-      for (size_type elem=0; elem<numElem; ++elem) {
+      for (int elem=0; elem<numElem; ++elem) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (int term=0; term<numTerms; ++term) {
             Ex(elem,pt) += A(term,0)*(std::sin(k(term)*x(elem,pt)*time) + std::cos(k(term)*x(elem,pt)*time));
