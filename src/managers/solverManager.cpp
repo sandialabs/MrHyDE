@@ -1051,13 +1051,14 @@ void SolverManager<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vect
         cout << "*******************************************************" << endl << endl << endl;
       }
       
-      u_prev->update(1.0,*u,0.0);
+      u_prev->assign(*u);
       auto BDF_wts = assembler->wkset[0]->BDF_wts;
       int status = 1;
       for (int stage = 0; stage<numstages; stage++) {
         // Need a stage solution
         // Set the initial guess for stage solution
-        u_stage->update(1.0,*u,0.0);
+        //u_stage->update(1.0,*u,0.0);
+        u_stage->assign(*u_prev);
         
         assembler->updateStageNumber(stage); // could probably just += 1 in wksets
         
@@ -1508,10 +1509,10 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
   
   if (!assembler->lump_mass) {
     res->scale(wt);
-    //linalg->linearSolverL2(explicitMass, res, du);
-    linalg->PCG(explicitMass, res, du, diagMass,
-                settings->sublist("Solver").get("linear TOL",1.0e-2),
-                settings->sublist("Solver").get("max linear iters",100));
+    linalg->linearSolverL2(explicitMass, res, du);
+    //linalg->PCG(explicitMass, res, du, diagMass,
+    //            settings->sublist("Solver").get("linear TOL",1.0e-2),
+    //            settings->sublist("Solver").get("max linear iters",100));
   }
   else {
     typedef typename Node::execution_space LA_exec;

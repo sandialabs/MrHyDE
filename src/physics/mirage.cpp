@@ -374,25 +374,19 @@ void mirage::volumeResidual() {
     if (spaceDim == 2) {
       // (dB/dt + curl E,V) = 0
       
-      auto basis = wkset->basis[B_basis];
-      auto dB_dt = wkset->getData("B_t");
-      
-      auto off = subview(wkset->offsets, Bnum, ALL());
-      auto wts = wkset->wts;
-      auto res = wkset->res;
-      
-      //cout << "useLF = " << useLeapFrog << endl;
-      //cout << "basis = " << basis.extent(0) << " " << basis.extent(1) << " " << basis.extent(2) << endl;
-      //cout << "numElem = " << wkset->numElem << endl;
-      
       if (useLeapFrog) {
         if (stage == 0) {
+          auto basis = wkset->basis[B_basis];
+          auto off = subview(wkset->offsets, Bnum, ALL());
+          auto wts = wkset->wts;
+          auto res = wkset->res;
+          
           auto curlE = wkset->getData("curl(E)[x]");
           parallel_for("Maxwells B volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = (dB_dt(elem,pt) + curlE(elem,pt))*wts(elem,pt);
+              AD f0 = curlE(elem,pt)*wts(elem,pt);
               for (size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
               }
@@ -413,20 +407,14 @@ void mirage::volumeResidual() {
             });
           }
         }
-        else {
-          parallel_for("Maxwells B volume resid",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = dB_dt(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-              }
-            }
-          });
-        }
       }
       else {
+        auto basis = wkset->basis[B_basis];
+        auto dB_dt = wkset->getData("B_t");
+        auto off = subview(wkset->offsets, Bnum, ALL());
+        auto wts = wkset->wts;
+        auto res = wkset->res;
+        
         auto curlE = wkset->getData("curl(E)[x]");
         parallel_for("Maxwells B volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -459,16 +447,14 @@ void mirage::volumeResidual() {
       
       // (dB/dt + curl E,V) = 0
       
-      auto off = subview(wkset->offsets, Bnum, ALL());
-      auto wts = wkset->wts;
-      auto res = wkset->res;
-      auto basis = wkset->basis[B_basis];
-      auto dBx_dt = wkset->getData("B_t[x]");
-      auto dBy_dt = wkset->getData("B_t[y]");
-      auto dBz_dt = wkset->getData("B_t[z]");
       
       if (useLeapFrog) {
         if (stage == 0) {
+          auto off = subview(wkset->offsets, Bnum, ALL());
+          auto wts = wkset->wts;
+          auto res = wkset->res;
+          auto basis = wkset->basis[B_basis];
+              
           auto curlE_x = wkset->getData("curl(E)[x]");
           auto curlE_y = wkset->getData("curl(E)[y]");
           auto curlE_z = wkset->getData("curl(E)[z]");
@@ -477,9 +463,9 @@ void mirage::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = (dBx_dt(elem,pt) + curlE_x(elem,pt))*wts(elem,pt);
-              AD f1 = (dBy_dt(elem,pt) + curlE_y(elem,pt))*wts(elem,pt);
-              AD f2 = (dBz_dt(elem,pt) + curlE_z(elem,pt))*wts(elem,pt);
+              AD f0 = curlE_x(elem,pt)*wts(elem,pt);
+              AD f1 = curlE_y(elem,pt)*wts(elem,pt);
+              AD f2 = curlE_z(elem,pt)*wts(elem,pt);
               for (size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
                 res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
@@ -529,25 +515,17 @@ void mirage::volumeResidual() {
             });
           }
         }
-        else {
-          parallel_for("Maxwells B volume resid",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = dBx_dt(elem,pt)*wts(elem,pt);
-              AD f1 = dBy_dt(elem,pt)*wts(elem,pt);
-              AD f2 = dBz_dt(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-                res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
-                res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
-              }
-            }
-          });
-          
-        }
       }
       else {
+        auto off = subview(wkset->offsets, Bnum, ALL());
+        auto wts = wkset->wts;
+        auto res = wkset->res;
+        auto basis = wkset->basis[B_basis];
+        
+        auto dBx_dt = wkset->getData("B_t[x]");
+        auto dBy_dt = wkset->getData("B_t[y]");
+        auto dBz_dt = wkset->getData("B_t[z]");
+        
         auto curlE_x = wkset->getData("curl(E)[x]");
         auto curlE_y = wkset->getData("curl(E)[y]");
         auto curlE_z = wkset->getData("curl(E)[z]");
@@ -664,9 +642,6 @@ void mirage::volumeResidual() {
       if (!useLeapFrog || stage == 1) {
         auto basis = wkset->basis[E_basis];
         auto basis_curl = wkset->basis_curl[E_basis];
-        auto dEx_dt = wkset->getData("E_t[x]");
-        auto dEy_dt = wkset->getData("E_t[y]");
-        auto dEz_dt = wkset->getData("E_t[z]");
         auto Bx = wkset->getData("B[x]");
         auto By = wkset->getData("B[y]");
         auto Bz = wkset->getData("B[z]");
@@ -682,22 +657,14 @@ void mirage::volumeResidual() {
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD ers = epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt);
-            AD f0 = (dEx_dt(elem,pt) + 1.0/ers*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
-            AD f1 = (dEy_dt(elem,pt) + 1.0/ers*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
-            AD f2 = (dEz_dt(elem,pt) + 1.0/ers*(sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
+            AD f0 = (1.0/ers*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
+            AD f1 = (1.0/ers*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
+            AD f2 = (1.0/ers*(sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
             
             AD c0 = -1.0/(ers*mu(elem,pt))*Bx(elem,pt)*wts(elem,pt);
             AD c1 = -1.0/(ers*mu(elem,pt))*By(elem,pt)*wts(elem,pt);
             AD c2 = -1.0/(ers*mu(elem,pt))*Bz(elem,pt)*wts(elem,pt);
-            /*
-            AD f0 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEx_dt(elem,pt) + (sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
-            AD f1 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEy_dt(elem,pt) + (sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
-            AD f2 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEz_dt(elem,pt) + (sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
             
-            AD c0 = -1.0/mu(elem,pt)*Bx(elem,pt)*wts(elem,pt);
-            AD c1 = -1.0/mu(elem,pt)*By(elem,pt)*wts(elem,pt);
-            AD c2 = -1.0/mu(elem,pt)*Bz(elem,pt)*wts(elem,pt);
-             */
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0);
               res(elem,off(dof)) += f1*basis(elem,dof,pt,1) + c1*basis_curl(elem,dof,pt,1);
