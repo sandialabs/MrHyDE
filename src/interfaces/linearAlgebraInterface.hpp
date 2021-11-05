@@ -316,6 +316,9 @@ namespace MrHyDE {
     
     void linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
     
+    void PCG(matrix_RCP & J, vector_RCP & b, vector_RCP & x, vector_RCP & Minv,
+             const double & tol, const int & maxiter);
+    
     // ========================================================================================
     // Linear solver on Tpetra stack for Jacobians of discretized parameters
     // ========================================================================================
@@ -390,6 +393,7 @@ namespace MrHyDE {
     Teuchos::RCP<LA_Import> importer, param_importer, aux_importer;
     
     matrix_RCP matrix, overlapped_matrix;
+    vector_RCP q_pcg, z_pcg, p_pcg, r_pcg;
     
     // Linear solvers and preconditioner settings
     int maxLinearIters, maxKrylovVectors;
@@ -405,6 +409,7 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> fillcompletetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::fillComplete*()");
     Teuchos::RCP<Teuchos::Time> exporttimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::export*()");
     Teuchos::RCP<Teuchos::Time> importtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::import*()");
+    Teuchos::RCP<Teuchos::Time> PCGtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::PCG()");
     
     
   };

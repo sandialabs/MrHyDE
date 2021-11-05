@@ -141,8 +141,6 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
     cout << "WARNING: the fully explicit method is requested.  This is an experimental capability and may not work with all time integration methods" << endl;
   }
   
-  haveExplicitMass = false;
-  
   initial_type = settings->sublist("Solver").get<string>("initial type","L2-projection");
   
   // needed information from the mesh
@@ -265,6 +263,36 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
       }
       scalarInitialValues.push_back(blockInitialValues);
     }
+  }
+  
+  //---------------------------------------------------
+  // Mass matrix (lumped and maybe full) for explicit
+  //---------------------------------------------------
+  
+  if (fully_explicit) {
+    matrix_RCP mass;
+    if (!assembler->lump_mass) {
+      mass = linalg->getNewOverlappedMatrix();
+    }
+    diagMass = linalg->getNewVector();
+    vector_RCP diagMass_over = linalg->getNewOverlappedVector();
+    assembler->getWeightedMass(mass,diagMass_over);
+    linalg->exportVectorFromOverlapped(diagMass, diagMass_over);
+    if (!assembler->lump_mass) {
+      matrix_RCP glmass = linalg->getNewMatrix();
+      linalg->exportMatrixFromOverlapped(glmass, mass);
+      linalg->fillComplete(glmass);
+      explicitMass = glmass;
+    }
+    linalg->resetJacobian(); // doesn't actually erase the mass matrix ... just sets a recompute flag
+    linalg->overlapped_graph.reset();
+    linalg->overlapped_matrix.reset();
+    
+    //diagMass->reciprocal(*diagMass);
+    linalg->q_pcg = linalg->getNewVector();
+    linalg->z_pcg = linalg->getNewVector();
+    linalg->p_pcg = linalg->getNewVector();
+    linalg->r_pcg = linalg->getNewVector();
   }
   
   if (debug_level > 0) {
@@ -1455,28 +1483,6 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
   
   bool build_jacobian = false;
   
-  if (!haveExplicitMass) {
-    matrix_RCP mass;
-    if (!assembler->lump_mass) {
-      mass = linalg->getNewOverlappedMatrix();
-    }
-    diagMass = linalg->getNewVector();
-    vector_RCP diagMass_over = linalg->getNewOverlappedVector();
-    assembler->getWeightedMass(mass,diagMass_over);
-    linalg->exportVectorFromOverlapped(diagMass, diagMass_over);
-    if (!assembler->lump_mass) {
-      matrix_RCP glmass = linalg->getNewMatrix();
-      linalg->exportMatrixFromOverlapped(glmass, mass);
-      linalg->fillComplete(glmass);
-      explicitMass = glmass;
-    }
-    linalg->resetJacobian(); // doesn't actually erase the mass matrix ... just sets a recompute flag
-    
-    haveExplicitMass = true;
-    
-  }
-  
-  
   // *********************** COMPUTE THE RESIDUAL **************************
     
   res_over->putScalar(0.0);
@@ -1502,7 +1508,10 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
   
   if (!assembler->lump_mass) {
     res->scale(wt);
-    linalg->linearSolverL2(explicitMass, res, du);
+    //linalg->linearSolverL2(explicitMass, res, du);
+    linalg->PCG(explicitMass, res, du, diagMass,
+                settings->sublist("Solver").get("linear TOL",1.0e-2),
+                settings->sublist("Solver").get("max linear iters",100));
   }
   else {
     typedef typename Node::execution_space LA_exec;

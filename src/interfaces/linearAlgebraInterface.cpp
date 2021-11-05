@@ -659,6 +659,73 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterfa
 }
 
 // ========================================================================================
+// Specialized PCG
+// ========================================================================================
+
+template<class Node>
+void LinearAlgebraInterface<Node>::PCG(matrix_RCP & J, vector_RCP & b, vector_RCP & x,
+                                       vector_RCP & M, const double & tol, const int & maxiter) {
+  
+  Teuchos::TimeMonitor localtimer(*PCGtimer);
+  
+  typedef typename Node::execution_space LA_exec;
+  
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> dotprod(1);
+  
+  double rho = 1.0, rho1 = 0.0, alpha = 0.0, beta = 1.0, pq = 0.0;
+  
+  p_pcg->putScalar(0.0);
+  q_pcg->putScalar(0.0);
+  r_pcg->putScalar(0.0);
+  z_pcg->putScalar(0.0);
+  
+  int iter=0;
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
+  J->apply(*x,*q_pcg);
+  r_pcg->assign(*b);
+  r_pcg->update(-1.0,*q_pcg,1.0);
+  
+  r_pcg->norm2(rnorm);
+  double r0 = rnorm[0];
+  
+  auto M_view = M->template getLocalView<LA_device>();
+  auto r_view = r_pcg->template getLocalView<LA_device>();
+  auto z_view = z_pcg->template getLocalView<LA_device>();
+  
+  while (iter<maxiter && rnorm[0]/r0>tol) {
+    parallel_for("PCG apply prec",
+                 RangePolicy<LA_exec>(0,z_view.extent(0)),
+                 KOKKOS_LAMBDA (const int k ) {
+      z_view(k,0) = r_view(k,0)/M_view(k,0);
+    });
+    
+    rho1 = rho;
+    r_pcg->dot(*z_pcg, dotprod);
+    rho = dotprod[0];
+    if (iter == 0) {
+      p_pcg->assign(*z_pcg);
+    }
+    else {
+      beta = rho/rho1;
+      p_pcg->update(1.0,*z_pcg,beta);
+    }
+    
+    J->apply(*p_pcg,*q_pcg);
+    
+    p_pcg->dot(*q_pcg,dotprod);
+    pq = dotprod[0];
+    alpha = rho/pq;
+    
+    x->update(alpha,*p_pcg,1.0);
+    r_pcg->update(-1.0*alpha,*q_pcg,1.0);
+    r_pcg->norm2(rnorm);
+    
+    iter++;
+  }
+  cout << "PCG Iter: " << iter << "   " << "rnorm = " << rnorm[0]/r0 << endl;
+}
+
+// ========================================================================================
 // ========================================================================================
 
 // Explicit template instantiations

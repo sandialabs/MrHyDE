@@ -898,38 +898,38 @@ void AssemblyManager<Node>::getWeightedMass(matrix_RCP & mass,
       
       Kokkos::View<ScalarT***,AssemblyDevice> localmass = cells[b][e]->getWeightedMass(phys->masswts[b]);
       
-      if (lump_mass_) {
-        parallel_for("assembly insert Jac",
-                     RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
-          
-          int row = 0;
-          LO rowIndex = 0;
-          
-          for (size_type n=0; n<numDOF.extent(0); ++n) {
-            for (int j=0; j<numDOF(n); j++) {
-              row = offsets(n,j);
-              rowIndex = LIDs(elem,row);
-              ScalarT val = 0.0;
-              for (size_type m=0; m<numDOF.extent(0); m++) {
-                for (int k=0; k<numDOF(m); k++) {
-                  int col = offsets(m,k);
-                  val += localmass(elem,row,col);
-                }
+      
+      parallel_for("assembly insert Jac",
+                   RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
+        
+        int row = 0;
+        LO rowIndex = 0;
+        
+        for (size_type n=0; n<numDOF.extent(0); ++n) {
+          for (int j=0; j<numDOF(n); j++) {
+            row = offsets(n,j);
+            rowIndex = LIDs(elem,row);
+            ScalarT val = 0.0;
+            for (size_type m=0; m<numDOF.extent(0); m++) {
+              for (int k=0; k<numDOF(m); k++) {
+                int col = offsets(m,k);
+                val += localmass(elem,row,col);
               }
-              
-              if (use_atomics_) {
-                Kokkos::atomic_add(&(diag_view(rowIndex,0)), val);
-              }
-              else {
-                diag_view(rowIndex,0) += val;
-              }
-              
             }
+            
+            if (use_atomics_) {
+              Kokkos::atomic_add(&(diag_view(rowIndex,0)), val);
+            }
+            else {
+              diag_view(rowIndex,0) += val;
+            }
+            
           }
-        });
-      }
-      else {
+        }
+      });
+      
+      if (!lump_mass_) {
         parallel_for("assembly insert Jac",
                      RangePolicy<LA_exec>(0,LIDs.extent(0)),
                      KOKKOS_LAMBDA (const int elem ) {
