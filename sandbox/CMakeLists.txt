@@ -47,3 +47,7 @@ test_functions.cpp
 ../src/interfaces/discretizationInterface.cpp 
 ../src/managers/functionManager.cpp)
 TARGET_LINK_LIBRARIES(test_functions ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+
+ADD_EXECUTABLE(test_series_ABC
+test_series_ABC.cpp)
+TARGET_LINK_LIBRARIES(test_series_ABC ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
