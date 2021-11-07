@@ -15,14 +15,6 @@
 
 using namespace MrHyDE;
 
-/*
-// Explicit template instantiations
-template class MrHyDE::SolverManager<SolverNode>;
-#if MrHyDE_REQ_SUBGRID_ETI
-template class MrHyDE::SolverManager<SubgridSolverNode>;
-#endif
-*/
-
 // ========================================================================================
 /* Constructor to set up the problem */
 // ========================================================================================
@@ -271,24 +263,86 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   
   if (fully_explicit) {
     matrix_RCP mass;
+    
     if (!assembler->lump_mass) {
-      mass = linalg->getNewOverlappedMatrix();
+      
+      typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
+      typedef Tpetra::CrsGraph<LO,GO,Node>            LA_CrsGraph;
+      
+      vector<size_t> maxEntriesPerRow(linalg->overlapped_map->getNodeNumElements(), 0);
+      for (size_t b=0; b<assembler->cells.size(); b++) {
+        auto offsets = assembler->wkset[b]->offsets;
+        auto numDOF = assembler->cellData[b]->numDOF;
+        for (size_t e=0; e<assembler->cells[b].size(); e++) {
+          auto LIDs = assembler->cells[b][e]->LIDs_host;
+          
+          for (size_type elem=0; elem<LIDs.extent(0); ++elem) {
+            for (size_type n=0; n<numDOF.extent(0); ++n) {
+              for (int j=0; j<numDOF(n); j++) {
+                int row = offsets(n,j);
+                LO rowIndex = LIDs(elem,row);
+                maxEntriesPerRow[rowIndex] += static_cast<size_t>(numDOF(n));
+              }
+            }
+          }
+        }
+      }
+      
+      //size_t maxEntries = 0;
+      //for (size_t m=0; m<maxEntriesPerRow.size(); ++m) {
+      //  maxEntries = std::max(maxEntries, maxEntriesPerRow[m]);
+      //}
+      
+      //maxEntries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
+      //                                                                      static_cast<int>(maxEntries)));
+      
+      Teuchos::RCP<LA_CrsGraph> overlapped_graph = Teuchos::rcp(new LA_CrsGraph(linalg->overlapped_map,
+                                                                                maxEntriesPerRow,
+                                                                                Tpetra::StaticProfile));
+    
+      for (size_t b=0; b<assembler->cells.size(); b++) {
+        auto offsets = assembler->wkset[b]->offsets;
+        auto numDOF = assembler->cellData[b]->numDOF;
+        for (size_t e=0; e<assembler->cells[b].size(); e++) {
+          auto LIDs = assembler->cells[b][e]->LIDs_host;
+          
+          parallel_for("assembly insert Jac",
+                       RangePolicy<HostExec>(0,LIDs.extent(0)),
+                       KOKKOS_LAMBDA (const int elem ) {
+            for (size_type n=0; n<numDOF.extent(0); ++n) {
+              for (int j=0; j<numDOF(n); j++) {
+                vector<GO> cols;
+                int row = offsets(n,j);
+                GO rowIndex = linalg->overlapped_map->getGlobalElement(LIDs(elem,row));
+                for (int k=0; k<numDOF(n); k++) {
+                  int col = offsets(n,k);
+                  GO gcol = linalg->overlapped_map->getGlobalElement(LIDs(elem,col));
+                  cols.push_back(gcol);
+                }
+                overlapped_graph->insertGlobalIndices(rowIndex,cols);
+              }
+            }
+          });
+        }
+      }
+      overlapped_graph->fillComplete();
+      explicitMass = Teuchos::rcp(new LA_CrsMatrix(linalg->owned_map, maxEntriesPerRow, Tpetra::StaticProfile));
+      mass = Teuchos::rcp(new LA_CrsMatrix(overlapped_graph));
     }
+    
     diagMass = linalg->getNewVector();
     vector_RCP diagMass_over = linalg->getNewOverlappedVector();
     assembler->getWeightedMass(mass,diagMass_over);
     linalg->exportVectorFromOverlapped(diagMass, diagMass_over);
     if (!assembler->lump_mass) {
-      matrix_RCP glmass = linalg->getNewMatrix();
-      linalg->exportMatrixFromOverlapped(glmass, mass);
-      linalg->fillComplete(glmass);
-      explicitMass = glmass;
+      linalg->exportMatrixFromOverlapped(explicitMass, mass);
+      mass.reset();
+      linalg->fillComplete(explicitMass);
+      //explicitMass = glmass;
     }
-    linalg->resetJacobian(); // doesn't actually erase the mass matrix ... just sets a recompute flag
-    linalg->overlapped_graph.reset();
-    linalg->overlapped_matrix.reset();
     
-    //diagMass->reciprocal(*diagMass);
+    //linalg->resetJacobian(); // doesn't actually erase the mass matrix ... just sets a recompute flag
+    
     linalg->q_pcg = linalg->getNewVector();
     linalg->z_pcg = linalg->getNewVector();
     linalg->p_pcg = linalg->getNewVector();
@@ -1509,10 +1563,10 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
   
   if (!assembler->lump_mass) {
     res->scale(wt);
-    linalg->linearSolverL2(explicitMass, res, du);
-    //linalg->PCG(explicitMass, res, du, diagMass,
-    //            settings->sublist("Solver").get("linear TOL",1.0e-2),
-    //            settings->sublist("Solver").get("max linear iters",100));
+    //linalg->linearSolverL2(explicitMass, res, du);
+    linalg->PCG(explicitMass, res, du, diagMass,
+                settings->sublist("Solver").get("linear TOL",1.0e-2),
+                settings->sublist("Solver").get("max linear iters",100));
   }
   else {
     typedef typename Node::execution_space LA_exec;
@@ -1528,8 +1582,6 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
     });
   }
   linalg->importVectorToOverlapped(du_over, du);
-  
-  //KokkosTools::print(du_over);
   
   u->update(1.0, *du_over, 1.0);
   

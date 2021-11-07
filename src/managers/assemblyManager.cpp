@@ -588,6 +588,58 @@ void AssemblyManager<Node>::createCells() {
   
   if (verbosity > 5) {
     
+    // Volumetric elements
+    size_t numelements = 0;
+    double minsize = 1e100;
+    double maxsize = 0.0;
+    for (size_t b=0; b<cells.size(); ++b) {
+      for (size_t c=0; c<cells[b].size(); ++c) {
+        numelements += cells[b][c]->numElem;
+        if (cells[b][c]->storeAll) {
+          auto wts = cells[b][c]->wts;
+          auto host_wts = create_mirror_view(wts);
+          deep_copy(host_wts,wts);
+          for (size_type e=0; e<host_wts.extent(0); ++e) {
+            double currsize = 0.0;
+            for (size_type pt=0; pt<host_wts.extent(1); ++pt) {
+              currsize += host_wts(e,pt);
+            }
+            maxsize = std::max(currsize,maxsize);
+            minsize = std::min(currsize,minsize);
+          }
+        }
+      }
+    }
+    cout << " - Processor " << Comm->getRank() << " has " << numelements << " elements" << endl;
+    cout << " - Processor " << Comm->getRank() << " min element size " << minsize << endl;
+    cout << " - Processor " << Comm->getRank() << " max element size " << maxsize << endl;
+    
+    // Boundary elements
+    size_t numbndryelements = 0;
+    double minbsize = 1e100;
+    double maxbsize = 0.0;
+    for (size_t b=0; b<boundaryCells.size(); ++b) {
+      for (size_t c=0; c<boundaryCells[b].size(); ++c) {
+        numbndryelements += boundaryCells[b][c]->numElem;
+        if (boundaryCells[b][c]->storeAll) {
+          auto wts = boundaryCells[b][c]->wts;
+          auto host_wts = create_mirror_view(wts);
+          deep_copy(host_wts,wts);
+          for (size_type e=0; e<host_wts.extent(0); ++e) {
+            double currsize = 0.0;
+            for (size_type pt=0; pt<host_wts.extent(1); ++pt) {
+              currsize += host_wts(e,pt);
+            }
+            maxbsize = std::max(currsize,maxbsize);
+            minbsize = std::min(currsize,minbsize);
+          }
+        }
+      }
+    }
+    cout << " - Processor " << Comm->getRank() << " has " << numbndryelements << " boundary elements" << endl;
+    cout << " - Processor " << Comm->getRank() << " min boundary element size " << minbsize << endl;
+    cout << " - Processor " << Comm->getRank() << " max bondary element size " << maxbsize << endl;
+    
     // Volumetric ip/basis
     size_t cellstorage = 0;
     for (size_t b=0; b<cells.size(); ++b) {
@@ -911,11 +963,10 @@ void AssemblyManager<Node>::getWeightedMass(matrix_RCP & mass,
             row = offsets(n,j);
             rowIndex = LIDs(elem,row);
             ScalarT val = 0.0;
-            for (size_type m=0; m<numDOF.extent(0); m++) {
-              for (int k=0; k<numDOF(m); k++) {
-                int col = offsets(m,k);
-                val += localmass(elem,row,col);
-              }
+            
+            for (int k=0; k<numDOF(n); k++) {
+              int col = offsets(n,k);
+              val += localmass(elem,row,col);
             }
             
             if (use_atomics_) {
@@ -937,21 +988,20 @@ void AssemblyManager<Node>::getWeightedMass(matrix_RCP & mass,
           int row = 0;
           LO rowIndex = 0;
           
-          const size_type numVals = LIDs.extent(1);
           int col = 0;
-          LO cols[64]; //cols[maxDerivs];
-          ScalarT vals[64]; //vals[maxDerivs];
+          LO cols[64];
+          ScalarT vals[64];
           for (size_type n=0; n<numDOF.extent(0); ++n) {
+            const size_type numVals = numDOF(n);
             for (int j=0; j<numDOF(n); j++) {
               row = offsets(n,j);
               rowIndex = LIDs(elem,row);
-              for (size_type m=0; m<numDOF.extent(0); m++) {
-                for (int k=0; k<numDOF(m); k++) {
-                  col = offsets(m,k);
-                  vals[col] = localmass(elem,row,col);
-                  cols[col] = LIDs(elem,col);
-                }
+              for (int k=0; k<numDOF(n); k++) {
+                col = offsets(n,k);
+                vals[k] = localmass(elem,row,col);
+                cols[k] = LIDs(elem,col);
               }
+              
               localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_);
             }
           }

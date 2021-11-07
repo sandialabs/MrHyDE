@@ -215,7 +215,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     importer = Teuchos::rcp(new LA_Import(owned_map, overlapped_map));
     
     bool allocate_matrices = true;
-    if (settings->sublist("Solver").get<bool>("lump mass",false) && settings->sublist("Solver").get<bool>("fully explicit",false) ) {
+    if (settings->sublist("Solver").get<bool>("fully explicit",false) ) {
       allocate_matrices = false;
     }
     
@@ -443,9 +443,20 @@ void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<SolverOptions<Node>
       else if (opt->precType == "Ifpack2") {
         if (!opt->reusePreconditioner || !opt->havePreconditioner) {
           Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist(opt->precSublist);
-          //ifpackList.set("relaxation: type","Jacobi");
+          string method = settings->sublist("Solver").get("preconditioner variant","RELAXATION");
+          // TMW: keeping these here for reference, but these can be set from input file
+          //ifpackList.set("relaxation: type","Symmetric Gauss-Seidel");
           //ifpackList.set("relaxation: sweeps",1);
-          opt->M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("RELAXATION", J);
+          //ifpackList.set("chebyshev: degree",2);
+          //opt->M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("RELAXATION", J);
+          //opt->M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("CHEBYSHEV", J);
+          //ifpackList.set("fact: iluk level-of-fill",0);
+          //ifpackList.set("fact: ilut level-of-fill",1.0);
+          //ifpackList.set("fact: absolute threshold",0.0);
+          //ifpackList.set("fact: relative threshold",1.0);
+          //ifpackList.set("fact: relax value",0.0);
+          //opt->M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("RILUK", J);
+          opt->M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > (method, J);
           opt->M_dd->setParameters(ifpackList);
           opt->M_dd->initialize();
           opt->M_dd->compute();
@@ -722,7 +733,8 @@ void LinearAlgebraInterface<Node>::PCG(matrix_RCP & J, vector_RCP & b, vector_RC
     
     iter++;
   }
-  cout << "PCG Iter: " << iter << "   " << "rnorm = " << rnorm[0]/r0 << endl;
+  cout << " ******* PCG Convergence Information: " << endl;
+  cout << " *******     Iter: " << iter << "   " << "rnorm = " << rnorm[0]/r0 << endl;
 }
 
 // ========================================================================================
