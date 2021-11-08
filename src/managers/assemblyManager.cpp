@@ -583,7 +583,9 @@ void AssemblyManager<Node>::createCells() {
   }
   
   // ==============================================
-  // Inform the user how much memory is utilized by cells/bcells
+  // Inform the user how many cells/bcells are on
+  // each processor and much memory is utilized by
+  // the cells/bcells
   // ==============================================
   
   if (verbosity > 5) {
@@ -611,8 +613,8 @@ void AssemblyManager<Node>::createCells() {
       }
     }
     cout << " - Processor " << Comm->getRank() << " has " << numelements << " elements" << endl;
-    cout << " - Processor " << Comm->getRank() << " min element size " << minsize << endl;
-    cout << " - Processor " << Comm->getRank() << " max element size " << maxsize << endl;
+    cout << " - Processor " << Comm->getRank() << " min element size: " << minsize << endl;
+    cout << " - Processor " << Comm->getRank() << " max element size: " << maxsize << endl;
     
     // Boundary elements
     size_t numbndryelements = 0;
@@ -637,8 +639,8 @@ void AssemblyManager<Node>::createCells() {
       }
     }
     cout << " - Processor " << Comm->getRank() << " has " << numbndryelements << " boundary elements" << endl;
-    cout << " - Processor " << Comm->getRank() << " min boundary element size " << minbsize << endl;
-    cout << " - Processor " << Comm->getRank() << " max bondary element size " << maxbsize << endl;
+    cout << " - Processor " << Comm->getRank() << " min boundary element size: " << minbsize << endl;
+    cout << " - Processor " << Comm->getRank() << " max bondary element size: " << maxbsize << endl;
     
     // Volumetric ip/basis
     size_t cellstorage = 0;

@@ -733,8 +733,10 @@ void LinearAlgebraInterface<Node>::PCG(matrix_RCP & J, vector_RCP & b, vector_RC
     
     iter++;
   }
-  cout << " ******* PCG Convergence Information: " << endl;
-  cout << " *******     Iter: " << iter << "   " << "rnorm = " << rnorm[0]/r0 << endl;
+  if (verbosity >= 10 && Comm->getRank() == 0) {
+    cout << " ******* PCG Convergence Information: " << endl;
+    cout << " *******     Iter: " << iter << "   " << "rnorm = " << rnorm[0]/r0 << endl;
+  }
 }
 
 // ========================================================================================
