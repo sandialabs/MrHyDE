@@ -704,11 +704,15 @@ void LinearAlgebraInterface<Node>::PCG(matrix_RCP & J, vector_RCP & b, vector_RC
   auto z_view = z_pcg->template getLocalView<LA_device>();
   
   while (iter<maxiter && rnorm[0]/r0>tol) {
-    parallel_for("PCG apply prec",
-                 RangePolicy<LA_exec>(0,z_view.extent(0)),
-                 KOKKOS_LAMBDA (const int k ) {
-      z_view(k,0) = r_view(k,0)/M_view(k,0);
-    });
+    
+    {
+      Teuchos::TimeMonitor localtimer(*PCGApplyPrectimer);
+      parallel_for("PCG apply prec",
+                   RangePolicy<LA_exec>(0,z_view.extent(0)),
+                   KOKKOS_LAMBDA (const int k ) {
+        z_view(k,0) = r_view(k,0)/M_view(k,0);
+      });
+    }
     
     rho1 = rho;
     r_pcg->dot(*z_pcg, dotprod);
@@ -721,7 +725,10 @@ void LinearAlgebraInterface<Node>::PCG(matrix_RCP & J, vector_RCP & b, vector_RC
       p_pcg->update(1.0,*z_pcg,beta);
     }
     
-    J->apply(*p_pcg,*q_pcg);
+    {
+      Teuchos::TimeMonitor localtimer(*PCGApplyOptimer);
+      J->apply(*p_pcg,*q_pcg);
+    }
     
     p_pcg->dot(*q_pcg,dotprod);
     pq = dotprod[0];
