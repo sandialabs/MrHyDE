@@ -288,16 +288,16 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
         }
       }
       
-      //size_t maxEntries = 0;
-      //for (size_t m=0; m<maxEntriesPerRow.size(); ++m) {
-      //  maxEntries = std::max(maxEntries, maxEntriesPerRow[m]);
-      //}
+      size_t maxEntries = 0;
+      for (size_t m=0; m<maxEntriesPerRow.size(); ++m) {
+        maxEntries = std::max(maxEntries, maxEntriesPerRow[m]);
+      }
       
-      //maxEntries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
-      //                                                                      static_cast<int>(maxEntries)));
+      maxEntries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
+                                                                            static_cast<int>(maxEntries)));
       
       Teuchos::RCP<LA_CrsGraph> overlapped_graph = Teuchos::rcp(new LA_CrsGraph(linalg->overlapped_map,
-                                                                                maxEntriesPerRow,
+                                                                                maxEntries,
                                                                                 Tpetra::StaticProfile));
     
       for (size_t b=0; b<assembler->cells.size(); b++) {
@@ -326,7 +326,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
         }
       }
       overlapped_graph->fillComplete();
-      explicitMass = Teuchos::rcp(new LA_CrsMatrix(linalg->owned_map, maxEntriesPerRow, Tpetra::StaticProfile));
+      explicitMass = Teuchos::rcp(new LA_CrsMatrix(linalg->owned_map, maxEntries, Tpetra::StaticProfile));
       mass = Teuchos::rcp(new LA_CrsMatrix(overlapped_graph));
     }
     
