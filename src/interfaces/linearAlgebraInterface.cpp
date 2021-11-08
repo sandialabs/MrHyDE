@@ -692,7 +692,11 @@ void LinearAlgebraInterface<Node>::PCG(matrix_RCP & J, vector_RCP & b, vector_RC
   
   int iter=0;
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
-  J->apply(*x,*q_pcg);
+  {
+    Teuchos::TimeMonitor localtimer(*PCGApplyOptimer);
+    J->apply(*x,*q_pcg);
+  }
+  
   r_pcg->assign(*b);
   r_pcg->update(-1.0,*q_pcg,1.0);
   
