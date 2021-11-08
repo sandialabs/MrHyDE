@@ -297,7 +297,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
                                                                             static_cast<int>(maxEntries)));
       
       Teuchos::RCP<LA_CrsGraph> overlapped_graph = Teuchos::rcp(new LA_CrsGraph(linalg->overlapped_map,
-                                                                                maxEntries,
+                                                                                maxEntriesPerRow,
                                                                                 Tpetra::StaticProfile));
     
       for (size_t b=0; b<assembler->cells.size(); b++) {
@@ -326,7 +326,20 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
         }
       }
       overlapped_graph->fillComplete();
-      explicitMass = Teuchos::rcp(new LA_CrsMatrix(linalg->owned_map, maxEntries, Tpetra::StaticProfile));
+      
+      vector<GO> owned;
+      disc->DOF->getOwnedIndices(owned);
+      vector<size_t> maxOwnedEntriesPerRow(linalg->owned_map->getNodeNumElements(), 0);
+      for (size_t i=0; i<owned.size(); ++i) {
+        LO ind1 = linalg->overlapped_map->getLocalElement(owned[i]);
+        LO ind2 = linalg->owned_map->getLocalElement(owned[i]);
+        maxOwnedEntriesPerRow[ind2] = maxEntriesPerRow[ind1];
+      }
+      
+      explicitMass = Teuchos::rcp(new LA_CrsMatrix(linalg->owned_map,
+                                                   maxOwnedEntriesPerRow,
+                                                   Tpetra::StaticProfile));
+      
       mass = Teuchos::rcp(new LA_CrsMatrix(overlapped_graph));
     }
     
@@ -338,7 +351,6 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
       linalg->exportMatrixFromOverlapped(explicitMass, mass);
       mass.reset();
       linalg->fillComplete(explicitMass);
-      //explicitMass = glmass;
     }
     
     //linalg->resetJacobian(); // doesn't actually erase the mass matrix ... just sets a recompute flag
