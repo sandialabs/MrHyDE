@@ -536,7 +536,7 @@ void PostprocessManager<Node>::report() {
     
     for (size_t obj=0; obj<objectives.size(); ++obj) {
       if (objectives[obj].type == "sensors") {
-        string respfile = objectives[obj].response_file;
+        string respfile = objectives[obj].response_file+".out";
         std::ofstream respOUT(respfile.c_str());
         respOUT.precision(16);
         if (Comm->getRank() == 0) {
@@ -571,7 +571,7 @@ void PostprocessManager<Node>::report() {
       }
       else if (objectives[obj].type == "integrated response") {
         if (objectives[obj].save_data) {
-          string respfile = objectives[obj].response_file;
+          string respfile = objectives[obj].response_file+"."+blocknames[objectives[obj].block]+".out";
           std::ofstream respOUT(respfile.c_str());
           for (size_t tt=0; tt<objectives[obj].response_times.size(); ++tt) {
           
@@ -1714,12 +1714,10 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
         
         
         // Update the objective function value
-        //totaldiff[r] += objectives[r].weight*objsum_host(0);
         totaldiff[r] += objsum_host(0);
         
         // Update the gradients w.r.t scalar active parameters
         for (int p=0; p<params->num_active_params; p++) {
-          //gradients[r][p] += objectives[r].weight*objsum_host(p+1);
           gradients[r][p] += objsum_host(p+1);
         }
       }
@@ -1733,7 +1731,7 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
             double globalval = 0.0;
             Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
             if (Comm->getRank() == 0) {
-              cout << objectives[r].name << ": " << globalval << endl;
+              cout << objectives[r].name << " on block " << blocknames[objectives[r].block] << ": " << globalval << endl;
             }
           }
         }
@@ -1747,10 +1745,6 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
         for (size_t e=0; e<assembler->cells[block].size(); e++) {
           
           auto wts = assembler->cells[block][e]->wts;
-          
-          //assembler->wkset[block]->computeSolnSteadySeeded(assembler->cells[block][e]->u, 0);
-          //assembler->wkset[block]->computeParamSteadySeeded(assembler->cells[block][e]->param, 3);
-          //assembler->cells[block][e]->computeSolnVolIP();
           
           assembler->cells[block][e]->updateWorkset(3,true);
           

@@ -89,14 +89,14 @@ namespace MrHyDE {
         save_data = objsettings.get<bool>("save sensor data",false);
         response = objsettings.get<string>("response","0.0");
         functionManager_->addFunction(name+" response",response,"point");
-        response_file = objsettings.get<string>("response file","sensor."+name+".out");
+        response_file = objsettings.get<string>("response file","sensor."+name);
       }
       else if (type == "integrated response") {
         response = objsettings.get<string>("response","0.0");
         target = objsettings.get<ScalarT>("target",0.0);
         functionManager_->addFunction(name+" response",response,"ip");
         save_data = objsettings.get<bool>("save response data",false);
-        response_file = objsettings.get<string>("response file","response."+name+".out");
+        response_file = objsettings.get<string>("response file","response."+name);
       }
       else if (type == "integrated control") {
         function = objsettings.get<string>("function","0.0");

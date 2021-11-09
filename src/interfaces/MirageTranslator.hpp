@@ -382,7 +382,7 @@ namespace MrHyDE {
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<double>("target",0.0);
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<double>("weight",1.0);
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<bool>("save response data",true);
-    settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<string>("response file","EM_Energy.out");
+    settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<string>("response file","EM_Energy");
     settings->sublist("Postprocess").set<bool>("compute responses",true);
     settings->sublist("Postprocess").set<bool>("compute weighted norm",true);
     
