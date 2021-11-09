@@ -374,9 +374,9 @@ namespace MrHyDE {
       settings->set<int>("debug level",mirage_settings->sublist("MrHyDE Options").get<int>("debug level",0));
     }
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<string>("type","integrated response");
-    string energy = "epsilon*(E[x]^2+E[y]^2+E[z]^2) + 1.0/mu*(B[x]^2+B[y]^2+B[z]^2)";
+    string energy = "0.5*epsilon*(E[x]^2+E[y]^2+E[z]^2) + 0.5/mu*(B[x]^2+B[y]^2+B[z]^2)";
     if (mirage_dim == 2) {
-      energy = "epsilon*(E[x]^2+E[y]^2) + 1.0/mu*(B^2)";
+      energy = "0.5*epsilon*(E[x]^2+E[y]^2) + 0.5/mu*(B^2)";
     }
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<string>("response",energy);
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<double>("target",0.0);
