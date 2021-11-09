@@ -1,0 +1,83 @@
+<ParameterList name="Closure Models">
+  <ParameterList name="Mapping to Blocks">
+    <Parameter name="eblock-0_0"              type="string" value="electromagnetics0"/>
+  </ParameterList>
+  <ParameterList name="Mapping to Aux Blocks">
+    <Parameter name="eblock-0_0"              type="string" value="electromagnetics_aux0"/>
+  </ParameterList>
+  <ParameterList name="electromagnetics0">
+    <ParameterList name="CURRENT">
+      <Parameter name="Type"                    type="string" value="PLANEWAVE PULSE"/>
+      <Parameter name="BANDWIDTH_SENSE"         type="string" value="FWHM"/>
+      <Parameter name="WAVELENGTH_CENTER"       type="double" value="2e-5"/>
+      <Parameter name="WAVELENGTH_BAND"         type="double" value="1e-5"/>
+      <Parameter name="USE_CONTINUOUS_WAVE_GENERATOR" type="bool" value="true"/>
+      <Parameter name="USE_WAVELENGTH_INSTEAD_OF_FREQUENCY"       type="bool" value="true"/>
+      <Parameter name="PULSE_TIME_OFFSET"       type="double" value="0.0e-15"/>
+      <Parameter name="PULSE_LENGTH_MULTIPLIER" type="double" value="0.10"/>
+      <Parameter name="PULSE_AMPLITUDE"         type="double" value="1e0"/>
+      <Parameter name="X_MIN"                   type="double" value="-1e100"/>
+      <Parameter name="X_MAX"                   type="double" value="1e100"/>
+      <Parameter name="Y_MIN"                   type="double" value="-1.599e-6"/>
+      <Parameter name="Y_MAX"                   type="double" value="1.599e-6"/>
+      <Parameter name="ACTIVATE_CURRENT_X_COMPONENT" type="bool" value="true"/>
+      <Parameter name="ACTIVATE_CURRENT_Y_COMPONENT" type="bool" value="false"/>
+    </ParameterList>
+    <ParameterList name="PERMITTIVITY">
+      <Parameter name="Type"                    type="string" value="PERMITTIVITY"/>
+      <Parameter name="epsilon" type="double" value="8.85e-12"/>
+      <Parameter name="DoF Name" type="string" value="E_edge"/>
+    </ParameterList>
+    <ParameterList name="REFRACTIVE_INDEX">
+      <Parameter name="Value" type="double" value="1.0"/>
+    </ParameterList>
+    <ParameterList name="INVERSE_PERMEABILITY">
+      <Parameter name="Value" type="double" value="795774.7154822217"/>
+    </ParameterList>
+    <ParameterList name="CONDUCTIVITY">
+      <Parameter name="Value" type="double" value="0.0"/>
+    </ParameterList>
+    <ParameterList name="PML ABSORBER">
+      <Parameter name="Type" type="string" value="PML ABSORBER"/>
+      <Parameter name="sigma" type="double" value="0.0"/>
+      <Parameter name="PML type" type="string" value="polynomial"/>
+      <ParameterList name="PML ymax">
+        <Parameter name="start location" type="double" value="32.0e-6"/>
+        <Parameter name="end location"   type="double" value="40.0e-6"/>
+        <Parameter name="exp tolerance"  type="double" value="1.0"/>
+        <Parameter name="poly power"     type="double" value="3.0"/>
+        <Parameter name="max sigma"      type="double" value="1.0e4"/>
+      </ParameterList>
+      <ParameterList name="PML ymin">
+        <Parameter name="start location" type="double" value="-32.0e-6"/>
+        <Parameter name="end location"   type="double" value="-40.0e-6"/>
+        <Parameter name="exp tolerance"  type="double" value="1.0"/>
+        <Parameter name="poly power"     type="double" value="3.0"/>
+        <Parameter name="max sigma"      type="double" value="1.0e4"/>
+      </ParameterList>
+    </ParameterList>
+    <ParameterList name="EM_ENERGY">
+      <Parameter name="Type" type="string" value="ELECTROMAGNETIC ENERGY"/>
+    </ParameterList>
+    <ParameterList name="ELLIPSOID">
+      <Parameter name="Type" type="string" value="ELLIPSOID"/>
+      <Parameter name="x center" type="double" value="0.0"/>
+      <Parameter name="y center" type="double" value="0.0"/>
+      <Parameter name="z center" type="double" value="20.0e-6"/>
+      <Parameter name="x radius" type="double" value="4.0e-6"/>
+      <Parameter name="y radius" type="double" value="4.0e-6"/>
+      <Parameter name="z radius" type="double" value="10.0e-6"/>
+    </ParameterList>
+    <ParameterList name="EM_ENERGY_ELLIPSOID">
+      <Parameter name="Type" type="string" value="ELECTROMAGNETIC ENERGY ELLIPSOID"/>
+    </ParameterList>
+  </ParameterList>
+  <ParameterList name="electromagnetics_aux0">
+    <ParameterList name="PERMITTIVITY">
+      <Parameter name="Value" type="double" value="8.0e-12"/>
+    </ParameterList>
+    <ParameterList name="INVERSE_PERMEABILITY">
+      <Parameter name="Value" type="double" value="795774.7154822217"/>
+    </ParameterList>
+  </ParameterList>
+</ParameterList>

@@ -1,0 +1,19 @@
+<ParameterList name="Mesh">
+  <Parameter name="x-elements" type="int" value="200"/>
+  <Parameter name="y-elements" type="int" value="200"/>
+  <Parameter name="x-procs" type="int" value="2"/>
+  <Parameter name="y-procs" type="int" value="2"/>
+  <Parameter name="x-blocks" type="int" value="1"/>
+  <Parameter name="y-blocks" type="int" value="1"/>
+  <Parameter name="x-min" type="double" value="-40.0e-6"/>
+  <Parameter name="y-min" type="double" value="-40.0e-6"/>
+  <Parameter name="x-max" type="double" value="40.0e-6"/>
+  <Parameter name="y-max" type="double" value="40.0e-6"/>
+  <Parameter name="filename" type="string" value=""/>
+  <Parameter name="build-tet-mesh" type="bool" value="false"/>
+  <Parameter name="spatialDim" type="int" value="2"/>
+  <ParameterList name="Periodic BCs">
+    <Parameter name="Count" type="int" value="1"/>
+    <Parameter name="Periodic Condition 1" type="string" value="y-all 1e-8: left;right"/>
+  </ParameterList>
+</ParameterList>

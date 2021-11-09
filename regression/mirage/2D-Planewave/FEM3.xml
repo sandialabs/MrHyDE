@@ -1,0 +1,49 @@
+<ParameterList name="FEM3">
+  <Parameter name="Mesh xml" type="string" value="meshPlanewave2D.xml"/>
+  <Parameter name="Closure model xml" type="string" value="closureModelsPlanewave2D.xml"/>
+  <Parameter name="Linear solver xml" type="string" value="solverMueLuRefMaxwell.xml"/>
+  
+  <ParameterList name="MrHyDE Options">
+    <Parameter name="Use explicit integration" type="bool" value="true"/>
+    <Parameter name="lump mass" type="bool" value="true"/>
+    <Parameter name="Belos solver" type="string" value="Pseudo Block CG"/>
+    <Parameter name="debug level" type="int" value="0"/>
+    <Parameter name="use preconditioner" type="bool" value="true"/>
+    <Parameter name="use direct solver" type="bool" value="false"/>
+    <Parameter name="preconditioner type" type="string" value="Ifpack2"/>
+  </ParameterList>
+  
+  <ParameterList name="Solver Options">
+    <Parameter name="Linear algebra" type="string" value="Tpetra"/>
+    <Parameter name="Solver" type="string" value="MueLu-RefMaxwell"/>
+    <Parameter name="Matrix output" type="bool" value="false"/>
+    <Parameter name="Do solve timings" type="bool" value="false"/>
+    <Parameter name="Recompute Jacobians" type="bool" value="false"/>
+    <Parameter name="Use ROL integrator" type="bool" value="false"/>
+  </ParameterList>
+  
+  <ParameterList name="Discretization Options">
+    <Parameter name="Basis order" type="int" value="1"/>
+    <Parameter name="Workset size" type="int" value="100"/>
+    <Parameter name="Num time steps" type="int" value="2000"/>
+    <Parameter name="Final time" type="double" value="1.0e-12"/>
+    <Parameter name="Transient order" type="int" value="2"/>
+  </ParameterList>
+  
+  <ParameterList name="Postprocess Options">
+    <Parameter name="Exodus output" type="bool" value="true"/>
+    <Parameter name="Exodus output frequency" type="int" value="20"/>
+    <Parameter name="Print timers" type="bool" value="true"/>
+    <Parameter name="Stacked timer" type="bool" value="false"/>
+    <ParameterList name="Text Output">
+    </ParameterList>
+  </ParameterList>
+  
+  <ParameterList name="Physics Options">
+  </ParameterList>
+  
+  <ParameterList name="Boundary Conditions">
+    <Parameter name="top" type="string" value="PMC"/>
+    <Parameter name="bottom" type="string" value="PMC"/>
+  </ParameterList>
+</ParameterList>
