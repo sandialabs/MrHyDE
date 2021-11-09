@@ -80,6 +80,8 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
     }
   }
   
+  use_custom_PCG = settings->sublist("Solver").get<bool>("use custom PCG",false);
+  
   time_order = settings->sublist("Solver").get<int>("time order",1);
   NLtol = settings->sublist("Solver").get<ScalarT>("nonlinear TOL",1.0E-6);
   NLabstol = settings->sublist("Solver").get<ScalarT>("absolute nonlinear TOL",std::min(NLtol,1.0E-6));
@@ -1575,10 +1577,15 @@ int SolverManager<Node>::explicitSolver(vector_RCP & u, vector_RCP & phi, const 
   
   if (!assembler->lump_mass) {
     res->scale(wt);
-    //linalg->linearSolverL2(explicitMass, res, du);
-    linalg->PCG(explicitMass, res, du, diagMass,
-                settings->sublist("Solver").get("linear TOL",1.0e-2),
-                settings->sublist("Solver").get("max linear iters",100));
+    if (use_custom_PCG) {
+      linalg->PCG(explicitMass, res, du, diagMass,
+                  settings->sublist("Solver").get("linear TOL",1.0e-2),
+                  settings->sublist("Solver").get("max linear iters",100));
+    }
+    else {
+      linalg->linearSolverL2(explicitMass, res, du);
+    }
+    
   }
   else {
     typedef typename Node::execution_space LA_exec;

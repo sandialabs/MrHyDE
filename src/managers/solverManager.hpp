@@ -166,7 +166,7 @@ namespace MrHyDE {
     string solver_type, initial_type;
     vector<string> solve_order;
     
-    bool line_search, useL2proj, discretized_stochastic, fully_explicit;
+    bool line_search, useL2proj, discretized_stochastic, fully_explicit, use_custom_PCG;
     bool isInitial, isTransient, is_adjoint, is_final_time, usestrongDBCs;
     bool compute_objective, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
     bool scalarDirichletData, staticDirichletData, scalarInitialData;

@@ -335,7 +335,7 @@ namespace MrHyDE {
     settings->sublist("Solver").set<bool>("reuse preconditioner",
                                           mirage_settings->sublist("MrHyDE Options").get<bool>("reuse preconditioner",true));
     settings->sublist("Solver").set<string>("preconditioner type",
-                                            mirage_settings->sublist("MrHyDE Options").get<string>("preconditioner type","domain decomposition"));
+                                            mirage_settings->sublist("MrHyDE Options").get<string>("preconditioner type","Ifpack2"));
     settings->sublist("Solver").set<string>("preconditioner reuse type",mirage_settings->sublist("MrHyDE Options").get<string>("preconditioner reuse type","full"));
     settings->sublist("Solver").set<string>("Belos implicit residual scaling","Norm of Initial Residual");
     // Also: "Norm of Preconditioned Initial Residual" or "Norm of Initial Residual"
@@ -343,6 +343,7 @@ namespace MrHyDE {
     if (use_explicit) {
       settings->sublist("Solver").set<string>("transient Butcher tableau","leap-frog");
       settings->sublist("Solver").set<bool>("lump mass",mirage_settings->sublist("MrHyDE Options").get<bool>("lump mass",true));
+      settings->sublist("Solver").set<bool>("use custom PCG",mirage_settings->sublist("MrHyDE Options").get<bool>("use custom PCG",false));
       settings->sublist("Solver").set<bool>("fully explicit",true);
       //settings->sublist("Solver").set<bool>("minimize memory",mirage_settings->sublist("MrHyDE Options").get<bool>("lump mass",true));
       settings->sublist("Solver").set<bool>("store all cell data",true);
