@@ -355,6 +355,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
       linalg->fillComplete(explicitMass);
     }
     
+    //KokkosTools::print(diagMass);
     //linalg->resetJacobian(); // doesn't actually erase the mass matrix ... just sets a recompute flag
     
     linalg->q_pcg = linalg->getNewVector();

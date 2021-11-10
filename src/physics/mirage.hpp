@@ -61,7 +61,7 @@ namespace MrHyDE {
   private:
     
     int Enum, Bnum, spaceDim;
-    bool useLeapFrog;
+    bool use_explicit, use_leap_frog;
     
     // Planewave current source parameters
     bool use_planewave_source, current_cont_wave_, current_xcomponent_, current_ycomponent_, current_zcomponent_;

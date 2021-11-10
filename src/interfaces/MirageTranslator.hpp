@@ -209,10 +209,17 @@ namespace MrHyDE {
     
     Teuchos::RCP<Teuchos::ParameterList> physics_list = Teuchos::rcp( new Teuchos::ParameterList() );
     
+    double maxperm = -1.0;
+    double minperm = -1.0;
+    
     if (blocknames.size() == 0) {
       physics_list->set("modules","mirage");
-      if (use_explicit) {
-        physics_list->set("use leap frog",true);
+      physics_list->set("use fully explicit",use_explicit);
+      if (mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","leap-frog") == "leap-frog") {
+        physics_list->set("use leap-frog",true);
+      }
+      else {
+        physics_list->set("use leap-frog",false);
       }
       if (mirage_settings->sublist("Closure Models").isSublist("electromagnetics")) {
         physics_list->sublist("Mirage settings").setParameters(mirage_settings->sublist("Closure Models").sublist("electromagnetics"));
@@ -227,8 +234,29 @@ namespace MrHyDE {
       physics_list->sublist("Initial Conditions").set<double>("E",0.0);
       physics_list->sublist("Initial Conditions").set<double>("B",0.0);
       
-      double epsval = physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("Value");
-      physics_list->sublist("Mass weights").set<double>("E",1.0);
+      double epsval = 1.0e-11;
+      if (physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").isParameter("Value") ) {
+        epsval = physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("Value");
+      }
+      else if (physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").isParameter("epsilon") ) {
+        epsval = physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("epsilon");
+      }
+      
+      if (minperm < 0 || epsval<minperm) {
+        minperm = epsval;
+      }
+      if (maxperm < 0 || epsval>maxperm) {
+        maxperm = epsval;
+      }
+      
+      double rival = 1.0;
+      if (physics_list->sublist("Mirage settings").isSublist("REFRACTIVE_INDEX")) {
+        if (physics_list->sublist("Mirage settings").sublist("REFRACTIVE_INDEX").isParameter("Value") ) {
+          rival = physics_list->sublist("Mirage settings").sublist("REFRACTIVE_INDEX").get<double>("Value");
+        }
+      }
+      
+      physics_list->sublist("Mass weights").set<double>("E",rival*rival);
       physics_list->sublist("Mass weights").set<double>("B",1.0);
       
       double invmuval = physics_list->sublist("Mirage settings").sublist("INVERSE_PERMEABILITY").get<double>("Value");
@@ -239,9 +267,14 @@ namespace MrHyDE {
       for (size_t b=0; b<blocknames.size(); ++b) {
         string cmname = mirage_settings->sublist("Closure Models").sublist("Mapping to Blocks").get<string>(blocknames[b]);
         physics_list->sublist(blocknames[b]).set("modules","mirage");
-        if (use_explicit) {
-          physics_list->sublist(blocknames[b]).set("use leap frog",true);
+        physics_list->sublist(blocknames[b]).set("use fully explicit",use_explicit);
+        if (mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","leap-frog") == "leap-frog") {
+          physics_list->sublist(blocknames[b]).set("use leap-frog",true);
         }
+        else {
+          physics_list->sublist(blocknames[b]).set("use leap-frog",false);
+        }
+        
         physics_list->sublist(blocknames[b]).sublist("Mirage settings").setParameters(mirage_settings->sublist("Closure Models").sublist(cmname));
         physics_list->sublist(blocknames[b]).sublist("Initial Conditions").set<bool>("scalar data",true);
         physics_list->sublist(blocknames[b]).sublist("Initial Conditions").set<double>("E",0.0);
@@ -255,13 +288,32 @@ namespace MrHyDE {
           epsval = physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("epsilon");
         }
         
-        physics_list->sublist(blocknames[b]).sublist("Mass weights").set<double>("E",1.0);
+        if (minperm < 0 || epsval<minperm) {
+          minperm = epsval;
+        }
+        if (maxperm < 0 || epsval>maxperm) {
+          maxperm = epsval;
+        }
+        
+        double rival = 1.0;
+        if (physics_list->sublist(blocknames[b]).sublist("Mirage settings").isSublist("REFRACTIVE_INDEX")) {
+          if (physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("REFRACTIVE_INDEX").isParameter("Value") ) {
+            rival = physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("REFRACTIVE_INDEX").get<double>("Value");
+          }
+        }
+        
+        physics_list->sublist(blocknames[b]).sublist("Mass weights").set<double>("E",rival*rival);
         physics_list->sublist(blocknames[b]).sublist("Mass weights").set<double>("B",1.0);
         
         double invmuval = physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("INVERSE_PERMEABILITY").get<double>("Value");
         physics_list->sublist(blocknames[b]).sublist("Norm weights").set<double>("E",epsval);
         physics_list->sublist(blocknames[b]).sublist("Norm weights").set<double>("B",invmuval);
       }
+    }
+    
+    // Safeguard against using discontinuous permittivity
+    if (maxperm/minperm > 1.1) {
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: discontinuous permittivities detected.  Please use REFRACTIVE_INDEX to define multiple materials.");
     }
     
     settings->sublist("Physics").setParameters(*physics_list);
@@ -326,32 +378,38 @@ namespace MrHyDE {
                                             mirage_settings->sublist("MrHyDE Options").get<double>("linear TOL",1.0e-7));
     settings->sublist("Solver").set<int>("max linear iters",
                                          mirage_settings->sublist("MrHyDE Options").get<int>("max linear iters",50));
-    settings->sublist("Solver").set<string>("Belos solver",
-                                            mirage_settings->sublist("MrHyDE Options").get<string>("Belos solver","Block CG"));
-    settings->sublist("Solver").set<bool>("use preconditioner",
-                                          mirage_settings->sublist("MrHyDE Options").get<bool>("use preconditioner",true));
     settings->sublist("Solver").set<bool>("use direct solver",
                                           mirage_settings->sublist("MrHyDE Options").get<bool>("use direct solver",false));
     settings->sublist("Solver").set<bool>("reuse preconditioner",
                                           mirage_settings->sublist("MrHyDE Options").get<bool>("reuse preconditioner",true));
-    settings->sublist("Solver").set<string>("preconditioner type",
-                                            mirage_settings->sublist("MrHyDE Options").get<string>("preconditioner type","Ifpack2"));
+    settings->sublist("Solver").set<bool>("reuse Jacobian",
+                                          mirage_settings->sublist("MrHyDE Options").get<bool>("reuse Jacobian",true));
     settings->sublist("Solver").set<string>("preconditioner reuse type",mirage_settings->sublist("MrHyDE Options").get<string>("preconditioner reuse type","full"));
     settings->sublist("Solver").set<string>("Belos implicit residual scaling","Norm of Initial Residual");
-    // Also: "Norm of Preconditioned Initial Residual" or "Norm of Initial Residual"
     
     if (use_explicit) {
-      settings->sublist("Solver").set<string>("transient Butcher tableau","leap-frog");
+      settings->sublist("Solver").set<string>("transient Butcher tableau",mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","leap-frog"));
       settings->sublist("Solver").set<bool>("lump mass",mirage_settings->sublist("MrHyDE Options").get<bool>("lump mass",true));
+      settings->sublist("Solver").set<string>("Belos solver",
+                                              mirage_settings->sublist("MrHyDE Options").get<string>("Belos solver","Block CG"));
+      settings->sublist("Solver").set<bool>("use preconditioner",
+                                            mirage_settings->sublist("MrHyDE Options").get<bool>("use preconditioner",true));
       settings->sublist("Solver").set<bool>("use custom PCG",mirage_settings->sublist("MrHyDE Options").get<bool>("use custom PCG",false));
+      settings->sublist("Solver").set<string>("preconditioner type",
+                                              mirage_settings->sublist("MrHyDE Options").get<string>("preconditioner type","Ifpack2"));
       settings->sublist("Solver").set<bool>("fully explicit",true);
-      //settings->sublist("Solver").set<bool>("minimize memory",mirage_settings->sublist("MrHyDE Options").get<bool>("lump mass",true));
       settings->sublist("Solver").set<bool>("store all cell data",true);
     }
     else {
       settings->sublist("Solver").set<string>("transient Butcher tableau",mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","DIRK-1,2"));
       settings->sublist("Solver").set<double>("nonlinear TOL",1.0e-07);
       settings->sublist("Solver").set<int>("max nonlinear iters",1);
+      settings->sublist("Solver").set<string>("Belos solver",
+                                              mirage_settings->sublist("MrHyDE Options").get<string>("Belos solver","Block GMRES"));
+      settings->sublist("Solver").set<bool>("use preconditioner",
+                                            mirage_settings->sublist("MrHyDE Options").get<bool>("use preconditioner",true));
+      settings->sublist("Solver").set<string>("preconditioner type",
+                                              mirage_settings->sublist("MrHyDE Options").get<string>("preconditioner type","domain decomposition"));
       
     }
     
@@ -374,9 +432,9 @@ namespace MrHyDE {
       settings->set<int>("debug level",mirage_settings->sublist("MrHyDE Options").get<int>("debug level",0));
     }
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<string>("type","integrated response");
-    string energy = "0.5*epsilon*(E[x]^2+E[y]^2+E[z]^2) + 0.5/mu*(B[x]^2+B[y]^2+B[z]^2)";
+    string energy = "0.5*epsilon*(rindex^2)*(E[x]^2+E[y]^2+E[z]^2) + 0.5/mu*(B[x]^2+B[y]^2+B[z]^2)";
     if (mirage_dim == 2) {
-      energy = "0.5*epsilon*(E[x]^2+E[y]^2) + 0.5/mu*(B^2)";
+      energy = "0.5*epsilon*(rindex^2)*(E[x]^2+E[y]^2) + 0.5/mu*(B^2)";
     }
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<string>("response",energy);
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<double>("target",0.0);
