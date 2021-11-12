@@ -40,7 +40,13 @@ using std::endl;
 
 #define MRHYDE_VERSION "1.0"
 
+
+#if defined(MrHyDE_SINGLE_PRECISION)
+typedef float ScalarT;
+#else
 typedef double ScalarT;
+#endif
+
 typedef int LO; // same as panzer::LocalOrdinal
 typedef panzer::GlobalOrdinal GO;
 
@@ -139,7 +145,7 @@ typedef Kokkos::Device<HostExec,HostMem> HostDevice;
 typedef Kokkos::Device<AssemblyExec,AssemblyMem> AssemblyDevice;
 
 // Kokkos object typedefs (preferable to use Kokkos::View<*,Device>)
-typedef Kokkos::DynRankView<ScalarT,PHX::Device> DRV; // for interacting with Intrepid2/Panzer
+typedef Kokkos::DynRankView<double,PHX::Device> DRV; // for interacting with Intrepid2/Panzer
 typedef Kokkos::View<LO**,AssemblyDevice> LIDView;
 typedef Kokkos::View<LO**,HostDevice> LIDView_host;
 typedef Kokkos::View<ScalarT*>::size_type size_type;
@@ -166,6 +172,6 @@ typedef View_Sc4 View_AD4;
 
 // Intrepid and shards typedefs
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
-typedef Teuchos::RCP<Intrepid2::Basis<PHX::Device::execution_space, ScalarT, ScalarT > > basis_RCP;
+typedef Teuchos::RCP<Intrepid2::Basis<PHX::Device::execution_space, double, double > > basis_RCP;
 
 #endif

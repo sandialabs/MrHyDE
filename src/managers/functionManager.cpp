@@ -77,7 +77,7 @@ int FunctionManager::addFunction(const string & fname, string & expression, cons
 // Add a user defined function
 //////////////////////////////////////////////////////////////////////////////////////
 
-int FunctionManager::addFunction(const string & fname, double & value, const string & location) {
+int FunctionManager::addFunction(const string & fname, ScalarT & value, const string & location) {
   bool found = false;
   int findex = 0;
   
@@ -502,130 +502,6 @@ void FunctionManager::checkDepDataType(const int & findex, const int & tindex, c
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
-// Evaluate a function (probably will be deprecated)
-//////////////////////////////////////////////////////////////////////////////////////
-
-/*
-View_AD2 FunctionManager::evaluate(const string & fname, const string & location) {
-  //Teuchos::TimeMonitor ttimer(*evaluateExtTimer);
-  
-  bool ffound = false, tfound = false;
-  size_t fiter=0, titer=0;
-  while(!ffound && fiter<forests.size()) {
-    if (forests[fiter].location == location) {
-      ffound = true;
-      tfound = false;
-      while (!tfound && titer<forests[fiter].trees.size()) {
-        if (fname == forests[fiter].trees[titer].name) {
-          tfound = true;
-          if (!forests[fiter].trees[titer].branches[0].isDecomposed) {
-            this->decomposeFunctions();
-          }
-          if (!forests[fiter].trees[titer].branches[0].isConstant) {
-            this->evaluate(fiter,titer,0);
-          }
-        }
-        else {
-          titer++;
-        }
-      }
-    }
-    else {
-      fiter++;
-    }
-  }
-  
-  if (!ffound || !tfound) { // meaning that the requested function was not registered at this location
-    TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: function manager could not evaluate: " + fname + " at " + location);
-  }
-  
-  
-  //View_AD2 output = forests[fiter].trees[titer].branches[0].viewdata;
-  View_AD2 output;
-  bool alreadyfilled = false;
-  if (forests[fiter].trees[titer].branches[0].isAD) {
-    if (forests[fiter].trees[titer].branches[0].isView) {
-      if (!forests[fiter].trees[titer].branches[0].isParameter) {
-        output = forests[fiter].trees[titer].branches[0].viewdata;
-        alreadyfilled = true;
-      }
-    }
-  }
-  
-  if (!alreadyfilled) {
-    //Teuchos::TimeMonitor ttimer(*evaluateCopyTimer);
-    
-    output = forests[fiter].trees[titer].branches[0].viewdata;
-    //output = View_AD2("data",forests[fiter].dim0,forests[fiter].dim1);
-    if (output.extent(0) == 0) {
-      output = View_AD2("data for "+forests[fiter].trees[titer].branches[0].expression,
-                        forests[fiter].dim0,forests[fiter].dim1);
-      forests[fiter].trees[titer].branches[0].viewdata = output;
-      if (forests[fiter].trees[titer].branches[0].isConstant) {
-        deep_copy(output,forests[fiter].trees[titer].branches[0].data_Sc);
-      }
-    }
-    
-    if (forests[fiter].trees[titer].branches[0].isAD) {
-      if (forests[fiter].trees[titer].branches[0].isView) {
-        if (forests[fiter].trees[titer].branches[0].isParameter) {
-          int pind = forests[fiter].trees[titer].branches[0].paramIndex;
-          auto pdata = forests[fiter].trees[titer].branches[0].param_data;
-          //output = View_AD2("data",forests[fiter].dim0,forests[fiter].dim1);
-          parallel_for("funcman copy double to AD",
-                       TeamPolicy<AssemblyExec>(output.extent(0), Kokkos::AUTO, VectorSize),
-                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-            int elem = team.league_rank();
-            for (size_type pt=team.team_rank(); pt<output.extent(1); pt+=team.team_size() ) {
-              output(elem,pt) = pdata(pind);
-            }
-          });
-        }
-        //else {
-        //  output = forests[fiter].trees[titer].branches[0].viewdata;
-        //}
-      }
-      else {
-        AD val = forests[fiter].trees[titer].branches[0].data;
-        // Can this be a deep_copy?
-        //output = View_AD2("data",forests[fiter].dim0,forests[fiter].dim1);
-        parallel_for("funcman copy double to AD",
-                     TeamPolicy<AssemblyExec>(output.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<output.extent(1); pt+=team.team_size() ) {
-            output(elem,pt) = val;
-          }
-        });
-      }
-    }
-    else {
-      //output = View_AD2("output data",forests[fiter].dim0, forests[fiter].dim1);
-      if (forests[fiter].trees[titer].branches[0].isView) {
-        auto doutput = forests[fiter].trees[titer].branches[0].viewdata_Sc;
-        parallel_for("funcman copy double to AD",
-                     TeamPolicy<AssemblyExec>(output.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<output.extent(1); pt+=team.team_size() ) {
-            output(elem,pt) = doutput(elem,pt);
-          }
-        });
-      }
-      else {
-        if (!forests[fiter].trees[titer].branches[0].isConstant) {
-          ScalarT data = forests[fiter].trees[titer].branches[0].data_Sc;
-          deep_copy(output,data);
-        }
-      }
-    }
-  }
-  return output;
-  
-}
-*/
-
-//////////////////////////////////////////////////////////////////////////////////////
 // Evaluate a function
 //////////////////////////////////////////////////////////////////////////////////////
 
@@ -1023,7 +899,7 @@ void FunctionManager::evaluateOpVToV(T1 data, T2 tdata, const string & op) {
   else if (op == "mean") { // mean over rows ... usually corr. to mean over element/face
     parallel_for("funcman evaluate mean",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
-      double scale = (double)dim1;
+      ScalarT scale = (ScalarT)dim1;
       data(e,0) = tdata(e,0)/scale;
       for (unsigned int n=0; n<dim1; n++) {
         data(e,0) += tdata(e,n)/scale;

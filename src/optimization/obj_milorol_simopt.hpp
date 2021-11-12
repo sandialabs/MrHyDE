@@ -152,8 +152,10 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
     Real gtol = std::sqrt(ROL::ROL_EPSILON<Real>());
     // Compute step length
     Real h = tol;
+    Real one = 1.0;
+    
     if (v.norm() > std::sqrt(ROL::ROL_EPSILON<Real>())) {
-      h = std::max(1.0,u.norm()/v.norm())*tol;
+      h = std::max(one, u.norm()/v.norm())*tol;
     }
     // Evaluate gradient of first component at (u+hv,z)
     Teuchos::RCP<ROL::Vector<Real> > unew = u.clone();
@@ -167,8 +169,8 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
     this->update(u,z);
     this->gradient_1(*g,u,z,gtol);
     // Compute Newton quotient
-    hv.axpy(-1.0,*g);
-    hv.scale(1.0/h);
+    hv.axpy(-one,*g);
+    hv.scale(one/h);
   }
   
   void hessVec_12( ROL::Vector<Real> &hv, const ROL::Vector<Real> &v,
@@ -176,8 +178,10 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
     Real gtol = std::sqrt(ROL::ROL_EPSILON<Real>());
     // Compute step length
     Real h = tol;
+    Real one = 1.0;
+    
     if (v.norm() > std::sqrt(ROL::ROL_EPSILON<Real>())) {
-      h = std::max(1.0,u.norm()/v.norm())*tol;
+      h = std::max(one,u.norm()/v.norm())*tol;
     }
     // Evaluate gradient of first component at (u,z+hv)
     Teuchos::RCP<ROL::Vector<Real> > znew = z.clone();
@@ -191,8 +195,8 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
     this->update(u,z);
     this->gradient_1(*g,u,z,gtol);
     // Compute Newton quotient
-    hv.axpy(-1.0,*g);
-    hv.scale(1.0/h);
+    hv.axpy(-one,*g);
+    hv.scale(one/h);
   }
   
   void hessVec_21( ROL::Vector<Real> &hv, const ROL::Vector<Real> &v,
@@ -200,8 +204,9 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
     Real gtol = std::sqrt(ROL::ROL_EPSILON<Real>());
     // Compute step length
     Real h = tol;
+    Real one = 1.0;
     if (v.norm() > std::sqrt(ROL::ROL_EPSILON<Real>())) {
-      h = std::max(1.0,u.norm()/v.norm())*tol;
+      h = std::max(one,u.norm()/v.norm())*tol;
     }
     // Evaluate gradient of first component at (u+hv,z)
     Teuchos::RCP<ROL::Vector<Real> > unew = u.clone();
@@ -215,8 +220,8 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
     this->update(u,z);
     this->gradient_2(*g,u,z,gtol);
     // Compute Newton quotient
-    hv.axpy(-1.0,*g);
-    hv.scale(1.0/h);
+    hv.axpy(-one,*g);
+    hv.scale(one/h);
   }
   
   void hessVec_22( ROL::Vector<Real> &hv, const ROL::Vector<Real> &v,
@@ -224,8 +229,9 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
     Real gtol = std::sqrt(ROL::ROL_EPSILON<Real>());
     // Compute step length
     Real h = tol;
+    Real one = 1.0;
     if (v.norm() > std::sqrt(ROL::ROL_EPSILON<Real>())) {
-      h = std::max(1.0,u.norm()/v.norm())*tol;
+      h = std::max(one,u.norm()/v.norm())*tol;
     }
     // Evaluate gradient of first component at (u,z+hv)
     Teuchos::RCP<ROL::Vector<Real> > znew = z.clone();
@@ -239,8 +245,8 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
     this->update(u,z);
     this->gradient_2(*g,u,z,gtol);
     // Compute Newton quotient
-    hv.axpy(-1.0,*g);
-    hv.scale(1.0/h);
+    hv.axpy(-one,*g);
+    hv.scale(one/h);
   }
   
   void hessVec( ROL::Vector<Real> &hv, const ROL::Vector<Real> &v, const ROL::Vector<Real> &x, Real &tol ) {
@@ -300,6 +306,8 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
     ROL::StdVector<Real> x = Teuchos::dyn_cast<ROL::StdVector<Real> >(const_cast<ROL::Vector<Real> &>(xin));
     int paramDim = x.getVector()->size();
     
+    Real one = 1.0;
+    
     Teuchos::RCP<ROL::StdVector<Real> > g = Teuchos::rcp(new ROL::StdVector<Real>(Teuchos::rcp(new vector<Real>(paramDim,0.0))));
     ScalarT gtol = sqrt(ROL::ROL_EPSILON<Real>());
     this->gradient(*g,x,gtol);
@@ -308,7 +316,7 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
     vector<vector<ScalarT> > hessStash(paramDim);
     
     //Real h = 1.e-3*x.norm(); //step length
-    Real h = std::max(1.0,x.norm())*sqrt(ROL::ROL_EPSILON<Real>()); ///step length...more like what ROL has...
+    Real h = std::max(one, x.norm())*sqrt(ROL::ROL_EPSILON<Real>()); ///step length...more like what ROL has...
     
     //perturb each component
     for(int i=0; i<x.dimension(); i++){
@@ -322,8 +330,8 @@ class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
       this->gradient(*gnew,*xnew,gtol);
       
       //i-th column (or row...) of Hessian
-      gnew->axpy(-1.0,*g);
-      gnew->scale(1.0/h);
+      gnew->axpy(-one,*g);
+      gnew->scale(one/h);
       Teuchos::RCP<vector<ScalarT> > gnewv = gnew->getVector();
       
       vector<ScalarT> row(paramDim);

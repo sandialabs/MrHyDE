@@ -5,7 +5,7 @@
       <Parameter name="WAVELENGTH_CENTER"       type="double" value="10.0e-6"/>
       <Parameter name="WAVELENGTH_BAND"         type="double" value="1.0e-6"/>
       <Parameter name="USE_WAVELENGTH_INSTEAD_OF_FREQUENCY"         type="bool" value="true"/>
-      <Parameter name="PULSE_TIME_OFFSET"       type="double" value="150e-15"/>
+      <Parameter name="PULSE_TIME_OFFSET"       type="double" value="150e-18"/>
       <Parameter name="PULSE_LENGTH_MULTIPLIER" type="double" value="0.10"/>
       <Parameter name="PULSE_AMPLITUDE"         type="double" value="1e0"/>
       <Parameter name="X_MIN"                   type="double" value="-1e100"/>

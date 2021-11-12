@@ -1,6 +1,7 @@
 %YAML 1.1
 ---
 ANONYMOUS:
+  debug level: 0
   Mesh:
     dimension: 3
     element type: hex
@@ -31,7 +32,7 @@ ANONYMOUS:
   Solver:
     workset size: 8
     solver: steady-state
-  Analysis: 
+  Analysis:
     analysis type: forward
   Postprocess: 
     compute errors: true

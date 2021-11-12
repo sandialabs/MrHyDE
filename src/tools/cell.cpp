@@ -1527,7 +1527,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> cell::getSolutionAtNodes(const int & var
 size_t cell::getVolumetricStorage() {
   size_t mystorage = 0;
   if (storeAll) {
-    size_t scalarcost = 8; // 8 bytes per double
+    size_t scalarcost = sizeof(ScalarT); // 8 bytes per double
     for (size_t k=0; k<ip.size(); ++k) {
       mystorage += scalarcost*ip[k].size();
     }
@@ -1558,7 +1558,7 @@ size_t cell::getVolumetricStorage() {
 size_t cell::getFaceStorage() {
   size_t mystorage = 0;
   if (storeAll) {
-    size_t scalarcost = 8; // 8 bytes per double
+    size_t scalarcost = sizeof(ScalarT); // 8 bytes per double
     for (size_t f=0; f<ip_face.size(); ++f) {
       for (size_t k=0; k<ip_face[f].size(); ++k) {
         mystorage += scalarcost*ip_face[f][k].size();

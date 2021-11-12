@@ -435,16 +435,16 @@ void workset::resetResidual() {
   //Kokkos::deep_copy(res,0.0);
   
   size_t maxRes_ = maxRes;
-  
+  ScalarT zero = 0.0;
 #ifndef MrHyDE_NO_AD
   parallel_for("wkset reset res",
                TeamPolicy<AssemblyExec>(res.extent(0), Kokkos::AUTO),
                KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
     int elem = team.league_rank();
     for (size_type dof=team.team_rank(); dof<maxRes_; dof+=team.team_size() ) {
-      res(elem,dof).val() = 0.0;
+      res(elem,dof).val() = zero;
       for (size_type d=0; d<maxRes_; ++d) {
-        res(elem,dof).fastAccessDx(d) = 0.0;
+        res(elem,dof).fastAccessDx(d) = zero;
       }
     }
   });
@@ -454,7 +454,7 @@ void workset::resetResidual() {
                KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
     int elem = team.league_rank();
     for (size_type dof=team.team_rank(); dof<maxRes_; dof+=team.team_size() ) {
-      res(elem,dof) = 0.0;
+      res(elem,dof) = zero;
     }
   });
 #endif
@@ -480,6 +480,8 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
   auto b_b = butcher_b;
   auto BDF = BDF_wts;
 
+  ScalarT one = 1.0;
+  ScalarT zero = 0.0;
   // Seed the current stage solution
   if (seedwhat == 1) {
     for (size_type var=0; var<u.extent(1); var++ ) {
@@ -495,7 +497,7 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
         int elem = team.league_rank();
         ScalarT beta_u, beta_t;
         ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-        ScalarT timewt = 1.0/dt/b_b(stage);
+        ScalarT timewt = one/dt/b_b(stage);
         ScalarT alpha_t = BDF(0)*timewt;
         for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
       
@@ -506,14 +508,14 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
           AD stageval = cu(elem,dof);
 #endif
           // Compute the evaluating solution
-          beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
+          beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
           for (int s=0; s<stage; s++) {
             beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
           }
           u_AD(elem,dof) = alpha_u*stageval+beta_u;
           
           // Compute the time derivative
-          beta_t = 0.0;
+          beta_t = zero;
           for (size_type s=1; s<BDF.extent(0); s++) {
             beta_t += BDF(s)*cu_prev(elem,dof,s-1);
           }
@@ -539,7 +541,7 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
         int elem = team.league_rank();
         AD beta_u, beta_t;
         ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-        ScalarT timewt = 1.0/dt/b_b(stage);
+        ScalarT timewt = one/dt/b_b(stage);
         ScalarT alpha_t = BDF(0)*timewt;
         for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
           
@@ -556,15 +558,15 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
 #endif
           }
           
-          beta_u = (1.0-alpha_u)*u_prev_val;
+          beta_u = (one-alpha_u)*u_prev_val;
           for (int s=0; s<stage; s++) {
             beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - u_prev_val);
           }
           u_AD(elem,dof) = alpha_u*stageval+beta_u;
           
           // Compute and seed the time derivative
-          beta_t = 0.0;
-          for (size_type s=1; s<BDF.extent(0); s++) {
+          beta_t = zero;
+          for (int s=1; s<BDF.extent_int(0); s++) {
             AD u_prev_val = cu_prev(elem,dof,s-1);
             if (index == (s-1)) {
 #ifndef MrHyDE_NO_AD
@@ -595,7 +597,7 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
         int elem = team.league_rank();
         AD beta_u, beta_t;
         ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-        ScalarT timewt = 1.0/dt/b_b(stage);
+        ScalarT timewt = one/dt/b_b(stage);
         ScalarT alpha_t = BDF(0)*timewt;
         for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
           
@@ -605,7 +607,7 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
           // Compute the evaluating solution
           ScalarT u_prev_val = cu_prev(elem,dof,0);
           
-          beta_u = (1.0-alpha_u)*u_prev_val;
+          beta_u = (one-alpha_u)*u_prev_val;
           for (int s=0; s<stage; s++) {
             AD u_stage_val = cu_stage(elem,dof,s);
             if (index == s) {
@@ -620,7 +622,7 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
           u_AD(elem,dof) = alpha_u*stageval+beta_u;
           
           // Compute and seed the time derivative
-          beta_t = 0.0;
+          beta_t = zero;
           for (size_type s=1; s<BDF.extent(0); s++) {
             ScalarT u_prev_val = cu_prev(elem,dof,s-1);
             beta_t += BDF(s)*u_prev_val;
@@ -646,21 +648,21 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
         int elem = team.league_rank();
         ScalarT beta_u, beta_t;
         ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-        ScalarT timewt = 1.0/dt/b_b(stage);
+        ScalarT timewt = one/dt/b_b(stage);
         ScalarT alpha_t = BDF(0)*timewt;
         for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
           // Get the stage solution
           ScalarT stageval = cu(elem,dof);
           
           // Compute the evaluating solution
-          beta_u = (1.0-alpha_u)*cu_prev(elem,dof,0);
+          beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
           for (int s=0; s<stage; s++) {
             beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
           }
           u_AD(elem,dof) = alpha_u*stageval+beta_u;
           
           // Compute the time derivative
-          beta_t = 0.0;
+          beta_t = zero;
           for (size_type s=1; s<BDF.extent(0); s++) {
             beta_t += BDF(s)*cu_prev(elem,dof,s-1);
           }

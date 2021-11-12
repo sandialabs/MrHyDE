@@ -18,7 +18,7 @@
 #include "CDBatchManager.hpp"
 #include "obj_milorol.hpp"
 #include "ROL_StdVector.hpp"
-#include "obj_milorol_simopt.hpp"
+//#include "obj_milorol_simopt.hpp"
 #include "ROL_LineSearchStep.hpp"
 #include "ROL_Algorithm.hpp"
 #include "ROL_Bounds.hpp"
@@ -416,7 +416,7 @@ void AnalysisManager::run() {
       //std::cout << "Generating data ... " << std::endl;
       DFAD objfun = 0.0;
       if (params->isParameter("datagen")) {
-        vector<double> pval = {1.0};
+        vector<ScalarT> pval = {1.0};
         params->setParam(pval,"datagen");
       }
       postproc->response_type = "none";
@@ -434,7 +434,7 @@ void AnalysisManager::run() {
       }
       //std::cout << "Finished storing data" << std::endl;
       if (params->isParameter("datagen")) {
-        vector<double> pval = {0.0};
+        vector<ScalarT> pval = {0.0};
         params->setParam(pval,"datagen");
       }
       postproc->response_type = "discrete";
@@ -532,6 +532,7 @@ void AnalysisManager::run() {
     }
   } //ROL
   else if (analysis_type == "ROL_SIMOPT") {
+    /*
     typedef ScalarT RealT;
     typedef ROL::Vector<RealT> V;
     typedef ROL::StdVector<RealT> SV;
@@ -611,20 +612,20 @@ void AnalysisManager::run() {
     Teuchos::RCP<ROL::Bounds<RealT> > con;
     bool bound_vars = ROLsettings.sublist("General").get("Bound Optimization Variables",false);
     if(bound_vars){
-      /*
-       bool use_scale = ROLsettings.get("Use Scaling For Epsilon-Active Sets",false);
-       RealT scale;
-       if(use_scale){
-       RealT tol = 1.e-12; //should probably be read in, though we're not using inexact gradients yet anyways...
-       Teuchos::RCP<vector<RealT> > g0_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
-       ROL::StdVector<RealT> g0p(g0_rcp);
-       (*obj).gradient(g0p,x,tol);
-       scale = 1.0e-2/g0p.norm();
-       }
-       else {
-       scale = 1.0;
-       }
-       */
+      
+      //bool use_scale = ROLsettings.get("Use Scaling For Epsilon-Active Sets",false);
+      //RealT scale;
+      //if(use_scale){
+      //  RealT tol = 1.e-12; //should probably be read in, though we're not using inexact gradients yet anyways...
+      //  Teuchos::RCP<vector<RealT> > g0_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
+      //  ROL::StdVector<RealT> g0p(g0_rcp);
+      //  (*obj).gradient(g0p,x,tol);
+      //  scale = 1.0e-2/g0p.norm();
+      //}
+      //else {
+      //  scale = 1.0;
+      //}
+      
       // TMW: where is scale used?
       
       //initialize max and min vectors for bounds
@@ -735,7 +736,7 @@ void AnalysisManager::run() {
       DFAD val = 0.0;
       solve->forwardModel(val);
       //postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
-    }
+    }*/
   } //ROL_SIMOPT
   else { // don't solve anything, but produce visualization
     std::cout << "Unknown analysis option: " << analysis_type << std::endl;

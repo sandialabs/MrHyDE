@@ -45,7 +45,7 @@ public:
   }
 
   Real dot( const ROL::Vector<Real> & x ) const {
-    ScalarT val[1];
+    Real val[1];
     Epetra_MultiVector tmp(*(this->epetra_vec_)); 
     tmp.PutScalar(0.0);
     (this->M_)->Multiply(false,*(this->epetra_vec_),tmp);
@@ -56,7 +56,7 @@ public:
   }
 
   Real norm() const {
-    ScalarT val[1];
+    Real val[1];
     Epetra_MultiVector tmp(*(this->epetra_vec_)); 
     tmp.PutScalar(0.0);
     (this->M_)->Multiply(false,*(this->epetra_vec_),tmp);

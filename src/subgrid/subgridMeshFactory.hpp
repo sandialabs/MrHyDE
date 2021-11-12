@@ -19,8 +19,6 @@
 #include "trilinos.hpp"
 #include "preferences.hpp"
 
-typedef double ScalarT;
-
 namespace panzer_stk {
   
   class STK_Interface;

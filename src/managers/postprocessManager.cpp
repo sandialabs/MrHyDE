@@ -4266,11 +4266,11 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
     // Create a bounding box for the element
     // This serves as a preprocessing check to avoid unnecessary inclusion checks
     // If a sensor point is not in the box, then it is not in the element
-    Kokkos::View<ScalarT**[2],HostDevice> nodebox("bounding box",nodes_host.extent(0),spaceDim);
+    Kokkos::View<double**[2],HostDevice> nodebox("bounding box",nodes_host.extent(0),spaceDim);
     for (size_type p=0; p<nodes_host.extent(0); ++p) {
       for (size_type dim=0; dim<nodes_host.extent(2); ++dim) {
-        ScalarT dmin = 1.0e300;
-        ScalarT dmax = -1.0e300;
+        double dmin = 1.0e300;
+        double dmax = -1.0e300;
         for (size_type k=0; k<nodes_host.extent(1); ++k) {
           dmin = std::min(dmin,nodes_host(p,k,dim));
           dmax = std::max(dmax,nodes_host(p,k,dim));

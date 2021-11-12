@@ -398,7 +398,7 @@ namespace MrHyDE {
       settings->sublist("Solver").set<string>("preconditioner type",
                                               mirage_settings->sublist("MrHyDE Options").get<string>("preconditioner type","Ifpack2"));
       settings->sublist("Solver").set<bool>("fully explicit",true);
-      settings->sublist("Solver").set<bool>("store all cell data",true);
+      settings->sublist("Solver").set<bool>("store all cell data",mirage_settings->sublist("MrHyDE Options").get<bool>("store basis functions",true));
     }
     else {
       settings->sublist("Solver").set<string>("transient Butcher tableau",mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","DIRK-1,2"));
@@ -441,8 +441,8 @@ namespace MrHyDE {
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<double>("weight",1.0);
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<bool>("save response data",true);
     settings->sublist("Postprocess").sublist("Objective functions").sublist("EM Energy").set<string>("response file","EM_Energy");
-    settings->sublist("Postprocess").set<bool>("compute responses",true);
-    settings->sublist("Postprocess").set<bool>("compute weighted norm",true);
+    settings->sublist("Postprocess").set<bool>("compute responses",mirage_settings->sublist("MrHyDE Options").get<bool>("compute energy",true));
+    settings->sublist("Postprocess").set<bool>("compute weighted norm",mirage_settings->sublist("MrHyDE Options").get<bool>("compute discrete energy",false));
     
     settings->print();
     

@@ -115,9 +115,9 @@ namespace panzer_stk{
     // build the nodes
     for (size_t b=0; b<nodes.size(); b++) {
       for (size_type e=0; e<nodes[b].extent(0); e++) {
-        vector<ScalarT> newnode;
+        vector<double> newnode;
         for (size_type n=0; n<nodes[b].extent(1); n++) {
-          newnode.push_back(nodes[b](e,n));
+          newnode.push_back(static_cast<double>(nodes[b](e,n)));
         }
         mesh.addNode(nprog+1,newnode);
         nprog++;

@@ -50,7 +50,7 @@ namespace MrHyDE {
       workset_data_index = 0;
     }
     
-    Branch(const double value_) {
+    Branch(const ScalarT value_) {
       std::stringstream stream;
       stream << std::fixed << std::setprecision(16) << value_;
       expression = stream.str();
@@ -123,7 +123,7 @@ namespace MrHyDE {
       branches.push_back(Branch(expression));
     }
     
-    Tree(const string & name_, double & value_) {
+    Tree(const string & name_, ScalarT & value_) {
       name = name_;
       std::stringstream stream;
       stream << std::fixed << std::setprecision(16) << value_;
@@ -206,7 +206,7 @@ namespace MrHyDE {
       trees.push_back(Tree(name,expression));
     }
     
-    void addTree(const string & name, double & value) {
+    void addTree(const string & name, ScalarT & value) {
       trees.push_back(Tree(name,value));
     }
     

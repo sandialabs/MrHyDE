@@ -44,7 +44,7 @@ namespace MrHyDE {
       function = regsettings.get<string>("function","0.0");
       location = regsettings.get<string>("location","volume");
       boundary_name = regsettings.get<string>("boundary name","");
-      weight = regsettings.get<ScalarT>("weight",1.0);
+      weight = regsettings.get<double>("weight",1.0);
       objective_name = regsettings.get<string>("objective name","");
       
       if (type == "integrated") {
@@ -74,7 +74,7 @@ namespace MrHyDE {
       name = name_;
       block = block_;
       type = objsettings.get<string>("type","none");
-      weight = objsettings.get<ScalarT>("weight",1.0);
+      weight = objsettings.get<double>("weight",1.0);
       
       sensor_points_file = "";
       sensor_data_file = "";
@@ -93,7 +93,7 @@ namespace MrHyDE {
       }
       else if (type == "integrated response") {
         response = objsettings.get<string>("response","0.0");
-        target = objsettings.get<ScalarT>("target",0.0);
+        target = objsettings.get<double>("target",0.0);
         functionManager_->addFunction(name+" response",response,"ip");
         save_data = objsettings.get<bool>("save response data",false);
         response_file = objsettings.get<string>("response file","response."+name);

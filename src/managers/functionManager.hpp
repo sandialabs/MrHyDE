@@ -39,7 +39,7 @@ namespace MrHyDE {
     
     int addFunction(const std::string & fname, std::string & expression, const std::string & location);
     
-    int addFunction(const string & fname, double & value, const string & location);
+    int addFunction(const string & fname, ScalarT & value, const string & location);
 
     //////////////////////////////////////////////////////////////////////////////////////
     // Set the lists of variables, parameters and discretized parameters

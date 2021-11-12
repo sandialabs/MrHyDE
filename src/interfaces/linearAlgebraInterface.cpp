@@ -51,7 +51,7 @@ Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
   verbosity = settings->get<int>("verbosity",0);
   
   // Generic Belos Settings - can be overridden by defining Belos sublists
-  linearTOL = settings->sublist("Solver").get<ScalarT>("linear TOL",1.0E-7);
+  linearTOL = settings->sublist("Solver").get<double>("linear TOL",1.0E-7);
   maxLinearIters = settings->sublist("Solver").get<int>("max linear iters",100);
   maxKrylovVectors = settings->sublist("Solver").get<int>("krylov vectors",100);
   belos_residual_scaling = settings->sublist("Solver").get<string>("Belos implicit residual scaling","None");
@@ -675,7 +675,7 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterfa
 
 template<class Node>
 void LinearAlgebraInterface<Node>::PCG(matrix_RCP & J, vector_RCP & b, vector_RCP & x,
-                                       vector_RCP & M, const double & tol, const int & maxiter) {
+                                       vector_RCP & M, const ScalarT & tol, const int & maxiter) {
   
   Teuchos::TimeMonitor localtimer(*PCGtimer);
   
@@ -683,12 +683,13 @@ void LinearAlgebraInterface<Node>::PCG(matrix_RCP & J, vector_RCP & b, vector_RC
   
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> dotprod(1);
   
-  double rho = 1.0, rho1 = 0.0, alpha = 0.0, beta = 1.0, pq = 0.0;
+  ScalarT rho = 1.0, rho1 = 0.0, alpha = 0.0, beta = 1.0, pq = 0.0;
+  ScalarT one = 1.0, zero = 0.0;
   
-  p_pcg->putScalar(0.0);
-  q_pcg->putScalar(0.0);
-  r_pcg->putScalar(0.0);
-  z_pcg->putScalar(0.0);
+  p_pcg->putScalar(zero);
+  q_pcg->putScalar(zero);
+  r_pcg->putScalar(zero);
+  z_pcg->putScalar(zero);
   
   int iter=0;
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
@@ -698,10 +699,10 @@ void LinearAlgebraInterface<Node>::PCG(matrix_RCP & J, vector_RCP & b, vector_RC
   }
   
   r_pcg->assign(*b);
-  r_pcg->update(-1.0,*q_pcg,1.0);
+  r_pcg->update(-one,*q_pcg,one);
   
   r_pcg->norm2(rnorm);
-  double r0 = rnorm[0];
+  ScalarT r0 = rnorm[0];
   
   auto M_view = M->template getLocalView<LA_device>();
   auto r_view = r_pcg->template getLocalView<LA_device>();
@@ -726,7 +727,7 @@ void LinearAlgebraInterface<Node>::PCG(matrix_RCP & J, vector_RCP & b, vector_RC
     }
     else {
       beta = rho/rho1;
-      p_pcg->update(1.0,*z_pcg,beta);
+      p_pcg->update(one,*z_pcg,beta);
     }
     
     {
@@ -738,8 +739,8 @@ void LinearAlgebraInterface<Node>::PCG(matrix_RCP & J, vector_RCP & b, vector_RC
     pq = dotprod[0];
     alpha = rho/pq;
     
-    x->update(alpha,*p_pcg,1.0);
-    r_pcg->update(-1.0*alpha,*q_pcg,1.0);
+    x->update(alpha,*p_pcg,one);
+    r_pcg->update(-one*alpha,*q_pcg,one);
     r_pcg->norm2(rnorm);
     
     iter++;

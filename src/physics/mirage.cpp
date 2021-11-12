@@ -84,12 +84,12 @@ mirage::mirage(Teuchos::ParameterList & settings, const int & dimension_)
       // Extract the CURRENT sublist
       Teuchos::ParameterList csettings = msettings.sublist("CURRENT");
       
-      double epsilon_     = csettings.get("PERMITTIVITY", double(8.854187817e-12));
-      double mu_          = csettings.get("PERMEABILITY", double(1.2566370614e-6));
+      ScalarT epsilon_     = csettings.get("PERMITTIVITY", double(8.854187817e-12));
+      ScalarT mu_          = csettings.get("PERMEABILITY", double(1.2566370614e-6));
       bool use_wl_        = csettings.get("USE_WAVELENGTH_INSTEAD_OF_FREQUENCY", false);
       current_cont_wave_  = csettings.get("USE_CONTINUOUS_WAVE_GENERATOR", false);
-      double wl_center_   = csettings.get("WAVELENGTH_CENTER", double(4e-6));
-      double wl_band_     = csettings.get("WAVELENGTH_BAND", double(2e-6));
+      ScalarT wl_center_   = csettings.get("WAVELENGTH_CENTER", double(4e-6));
+      ScalarT wl_band_     = csettings.get("WAVELENGTH_BAND", double(2e-6));
       current_fr_center_  = csettings.get("FREQUENCY_CENTER", double(75e12));
       current_fr_band_    = csettings.get("FREQUENCY_BAND", double(40e12));
       string bw_sense_    = csettings.get("BANDWIDTH_SENSE", "FWHM");
@@ -105,7 +105,7 @@ mirage::mirage(Teuchos::ParameterList & settings, const int & dimension_)
       current_ycomponent_ = csettings.get("ACTIVATE_CURRENT_Y_COMPONENT", false);
       current_zcomponent_ = csettings.get("ACTIVATE_CURRENT_Z_COMPONENT", false);
       
-      double c_         = std::sqrt(1.0/epsilon_/mu_);                                         // speed of light
+      ScalarT c_         = std::sqrt(1.0/epsilon_/mu_);                                         // speed of light
       if (use_wl_) {
         current_fr_center_ = c_ / wl_center_;                                                   // center frequency
         current_fr_band_   = c_ / (std::pow(wl_center_,2) - std::pow(wl_band_,2)/4) * wl_band_; // bandwidth in terms of frequency, i.e.,
@@ -386,6 +386,8 @@ void mirage::volumeResidual() {
     include_dEdt = false;
   }
   
+  ScalarT one = 1.0;
+  
   {
     if (spaceDim == 2) {
       // (dB/dt + curl E,V) = 0
@@ -437,41 +439,7 @@ void mirage::volumeResidual() {
           });
         }
       }
-      /*
-      else {
-        auto basis = wkset->basis[B_basis];
-        auto dB_dt = wkset->getData("B_t");
-        auto off = subview(wkset->offsets, Bnum, ALL());
-        auto wts = wkset->wts;
-        auto res = wkset->res;
-        
-        auto curlE = wkset->getData("curl(E)[x]");
-        parallel_for("Maxwells B volume resid",
-                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int elem ) {
-          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD f0 = (dB_dt(elem,pt) + curlE(elem,pt))*wts(elem,pt);
-            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-              res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-            }
-          }
-        });
-        
-        if (use_iPML) {
-          this->isotropicPML();
-          auto B = wkset->getData("B");
-          parallel_for("mirage isoPML",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = PML_B_factor*iPML(elem,pt)*B(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-              }
-            }
-          });
-        }
-      }*/
+      
     }
     else if (spaceDim == 3) {
       
@@ -566,76 +534,6 @@ void mirage::volumeResidual() {
         }
         
       }
-      /*
-      else {
-        auto off = subview(wkset->offsets, Bnum, ALL());
-        auto wts = wkset->wts;
-        auto res = wkset->res;
-        auto basis = wkset->basis[B_basis];
-        
-        auto dBx_dt = wkset->getData("B_t[x]");
-        auto dBy_dt = wkset->getData("B_t[y]");
-        auto dBz_dt = wkset->getData("B_t[z]");
-        
-        auto curlE_x = wkset->getData("curl(E)[x]");
-        auto curlE_y = wkset->getData("curl(E)[y]");
-        auto curlE_z = wkset->getData("curl(E)[z]");
-        
-        parallel_for("Maxwells B volume resid",
-                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int elem ) {
-          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD f0 = (dBx_dt(elem,pt) + curlE_x(elem,pt))*wts(elem,pt);
-            AD f1 = (dBy_dt(elem,pt) + curlE_y(elem,pt))*wts(elem,pt);
-            AD f2 = (dBz_dt(elem,pt) + curlE_z(elem,pt))*wts(elem,pt);
-            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-              res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-              res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
-              res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
-            }
-          }
-        });
-        if (use_iPML) {
-          this->isotropicPML();
-          auto Bx = wkset->getData("B[x]");
-          auto By = wkset->getData("B[y]");
-          auto Bz = wkset->getData("B[z]");
-          parallel_for("Maxwells B volume resid",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = PML_B_factor*iPML(elem,pt)*Bx(elem,pt)*wts(elem,pt);
-              AD f1 = PML_B_factor*iPML(elem,pt)*By(elem,pt)*wts(elem,pt);
-              AD f2 = PML_B_factor*iPML(elem,pt)*Bz(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-                res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
-                res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
-              }
-            }
-          });
-        }
-        if (use_aPML) {
-          this->anisotropicPML();
-          auto Bx = wkset->getData("B[x]");
-          auto By = wkset->getData("B[y]");
-          auto Bz = wkset->getData("B[z]");
-          parallel_for("Maxwells B volume resid",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = PML_B_factor*aPML_xx(elem,pt)*Bx(elem,pt)*wts(elem,pt);
-              AD f1 = PML_B_factor*aPML_yy(elem,pt)*By(elem,pt)*wts(elem,pt);
-              AD f2 = PML_B_factor*aPML_zz(elem,pt)*Bz(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-                res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
-                res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
-              }
-            }
-          });
-        }
-      }*/
     }
   }
   
@@ -659,9 +557,9 @@ void mirage::volumeResidual() {
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD eps = epsilon(elem,pt);
-            AD f0 = 1.0/eps*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt))*wts(elem,pt);
-            AD f1 = 1.0/eps*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt))*wts(elem,pt);
-            AD c0 = -1.0/(eps*mu(elem,pt))*B(elem,pt)*wts(elem,pt);
+            AD f0 = one/eps*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt))*wts(elem,pt);
+            AD f1 = one/eps*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt))*wts(elem,pt);
+            AD c0 = -one/(eps*mu(elem,pt))*B(elem,pt)*wts(elem,pt);
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0) + f1*basis(elem,dof,pt,1);
             }
@@ -691,50 +589,8 @@ void mirage::volumeResidual() {
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               AD eps = epsilon(elem,pt);
-              AD f0 = 1.0/eps*iPML(elem,pt)*Ex(elem,pt)*wts(elem,pt);
-              AD f1 = 1.0/eps*iPML(elem,pt)*Ey(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-                res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
-              }
-            }
-          });
-        }
-      }/*
-      else {
-        auto basis = wkset->basis[E_basis];
-        auto basis_curl = wkset->basis_curl[E_basis];
-        auto dEx_dt = wkset->getData("E_t[x]");
-        auto dEy_dt = wkset->getData("E_t[y]");
-        auto B = wkset->getData("B");
-        auto Ex = wkset->getData("E[x]");
-        auto Ey = wkset->getData("E[y]");
-        auto off = subview(wkset->offsets, Enum, ALL());
-        auto wts = wkset->wts;
-        auto res = wkset->res;
-        parallel_for("Maxwells E volume resid",
-                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int elem ) {
-          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD ris = epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt);
-            AD eps = epsilon(elem,pt);
-            AD f0 = (ris*dEx_dt(elem,pt) + 1.0/eps*sigma(elem,pt)*Ex(elem,pt) + 1.0/eps*current_x(elem,pt))*wts(elem,pt);
-            AD f1 = (ris*dEx_dt(elem,pt) + 1.0/eps*sigma(elem,pt)*Ey(elem,pt) + 1.0/eps*current_y(elem,pt))*wts(elem,pt);
-            AD c0 = -1.0/(eps*mu(elem,pt))*B(elem,pt)*wts(elem,pt);
-            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-              res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0) + f1*basis(elem,dof,pt,1);
-            }
-          }
-        });
-        if (use_iPML) {
-          this->isotropicPML();
-          parallel_for("mirage isoPML",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD eps = epsilon(elem,pt);
-              AD f0 = 1.0/eps*iPML(elem,pt)*Ex(elem,pt)*wts(elem,pt);
-              AD f1 = 1.0/eps*iPML(elem,pt)*Ey(elem,pt)*wts(elem,pt);
+              AD f0 = one/eps*iPML(elem,pt)*Ex(elem,pt)*wts(elem,pt);
+              AD f1 = one/eps*iPML(elem,pt)*Ey(elem,pt)*wts(elem,pt);
               for (size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
                 res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
@@ -743,7 +599,6 @@ void mirage::volumeResidual() {
           });
         }
       }
-      */
     }
     else if (spaceDim == 3) {
       
@@ -765,13 +620,13 @@ void mirage::volumeResidual() {
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             AD eps = epsilon(elem,pt);
-            AD f0 = 1.0/eps*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt))*wts(elem,pt);
-            AD f1 = 1.0/eps*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt))*wts(elem,pt);
-            AD f2 = 1.0/eps*(sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt))*wts(elem,pt);
+            AD f0 = one/eps*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt))*wts(elem,pt);
+            AD f1 = one/eps*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt))*wts(elem,pt);
+            AD f2 = one/eps*(sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt))*wts(elem,pt);
             
-            AD c0 = -1.0/(eps*mu(elem,pt))*Bx(elem,pt)*wts(elem,pt);
-            AD c1 = -1.0/(eps*mu(elem,pt))*By(elem,pt)*wts(elem,pt);
-            AD c2 = -1.0/(eps*mu(elem,pt))*Bz(elem,pt)*wts(elem,pt);
+            AD c0 = -one/(eps*mu(elem,pt))*Bx(elem,pt)*wts(elem,pt);
+            AD c1 = -one/(eps*mu(elem,pt))*By(elem,pt)*wts(elem,pt);
+            AD c2 = -one/(eps*mu(elem,pt))*Bz(elem,pt)*wts(elem,pt);
             
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0);
@@ -808,9 +663,9 @@ void mirage::volumeResidual() {
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               AD eps = epsilon(elem,pt);
-              AD f0 = 1.0/eps*iPML(elem,pt)*Ex(elem,pt)*wts(elem,pt);
-              AD f1 = 1.0/eps*iPML(elem,pt)*Ey(elem,pt)*wts(elem,pt);
-              AD f2 = 1.0/eps*iPML(elem,pt)*Ez(elem,pt)*wts(elem,pt);
+              AD f0 = one/eps*iPML(elem,pt)*Ex(elem,pt)*wts(elem,pt);
+              AD f1 = one/eps*iPML(elem,pt)*Ey(elem,pt)*wts(elem,pt);
+              AD f2 = one/eps*iPML(elem,pt)*Ez(elem,pt)*wts(elem,pt);
               for (size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
                 res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
@@ -826,88 +681,9 @@ void mirage::volumeResidual() {
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               AD eps = epsilon(elem,pt);
-              AD f0 = 1.0/eps*aPML_xx(elem,pt)*Ex(elem,pt)*wts(elem,pt);
-              AD f1 = 1.0/eps*aPML_yy(elem,pt)*Ey(elem,pt)*wts(elem,pt);
-              AD f2 = 1.0/eps*aPML_zz(elem,pt)*Ez(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-                res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
-                res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
-              }
-            }
-          });
-        }
-      }/*
-      else {
-        
-        auto basis = wkset->basis[E_basis];
-        auto basis_curl = wkset->basis_curl[E_basis];
-        auto Bx = wkset->getData("B[x]");
-        auto By = wkset->getData("B[y]");
-        auto Bz = wkset->getData("B[z]");
-        auto Ex = wkset->getData("E[x]");
-        auto Ey = wkset->getData("E[y]");
-        auto Ez = wkset->getData("E[z]");
-        auto dEx_dt = wkset->getData("E_t[x]");
-        auto dEy_dt = wkset->getData("E_t[y]");
-        auto dEz_dt = wkset->getData("E_t[z]");
-        
-        auto off = subview(wkset->offsets, Enum, ALL());
-        auto wts = wkset->wts;
-        auto res = wkset->res;
-      
-        parallel_for("Maxwells E volume resid",
-                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int elem ) {
-          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            
-            AD eps = epsilon(elem,pt);
-            AD ris = rindex(elem,pt)*rindex(elem,pt);
-            
-            AD f0 = (ris*dEx_dt(elem,pt) + 1.0/eps*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
-            AD f1 = (ris*dEy_dt(elem,pt) + 1.0/eps*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
-            AD f2 = (ris*dEz_dt(elem,pt) + 1.0/eps*(sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
-            
-            AD c0 = -1.0/(eps*mu(elem,pt))*Bx(elem,pt)*wts(elem,pt);
-            AD c1 = -1.0/(eps*mu(elem,pt))*By(elem,pt)*wts(elem,pt);
-            AD c2 = -1.0/(eps*mu(elem,pt))*Bz(elem,pt)*wts(elem,pt);
-            
-            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-              res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0);
-              res(elem,off(dof)) += f1*basis(elem,dof,pt,1) + c1*basis_curl(elem,dof,pt,1);
-              res(elem,off(dof)) += f2*basis(elem,dof,pt,2) + c2*basis_curl(elem,dof,pt,2);
-            }
-          }
-        });
-        if (use_iPML) {
-          this->isotropicPML();
-          parallel_for("mirage isoPML",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD eps = epsilon(elem,pt);
-              AD f0 = 1.0/eps*iPML(elem,pt)*Ex(elem,pt)*wts(elem,pt);
-              AD f1 = 1.0/eps*iPML(elem,pt)*Ey(elem,pt)*wts(elem,pt);
-              AD f2 = 1.0/eps*iPML(elem,pt)*Ez(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-                res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
-                res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
-              }
-            }
-          });
-        }
-        if (use_aPML) {
-          this->anisotropicPML();
-          parallel_for("mirage anisoPML",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD eps = epsilon(elem,pt);
-              AD f0 = 1.0/eps*aPML_xx(elem,pt)*Ex(elem,pt)*wts(elem,pt);
-              AD f1 = 1.0/eps*aPML_yy(elem,pt)*Ey(elem,pt)*wts(elem,pt);
-              AD f2 = 1.0/eps*aPML_zz(elem,pt)*Ez(elem,pt)*wts(elem,pt);
-              
+              AD f0 = one/eps*aPML_xx(elem,pt)*Ex(elem,pt)*wts(elem,pt);
+              AD f1 = one/eps*aPML_yy(elem,pt)*Ey(elem,pt)*wts(elem,pt);
+              AD f2 = one/eps*aPML_zz(elem,pt)*Ez(elem,pt)*wts(elem,pt);
               for (size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
                 res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
@@ -917,7 +693,6 @@ void mirage::volumeResidual() {
           });
         }
       }
-        */
     }
   }
 }
@@ -964,7 +739,7 @@ void mirage::boundaryResidual() {
     auto off = subview(wkset->offsets, Enum, ALL());
     auto basis = wkset->basis_side[wkset->usebasis[Enum]];
     
-    double gamma = -0.9944;
+    ScalarT gamma = -0.9944;
     if (bcs(Bnum,cside) == "Neumann") { // Really ABC
       // Contributes -<nxnxE,V> along boundary in B equation
       
@@ -1043,12 +818,12 @@ void mirage::planewaveSource() {
   
   Teuchos::TimeMonitor resideval(*planewaveTimer);
   
-  double time = wkset->time;
-  double signal = 0;
+  ScalarT time = wkset->time;
+  ScalarT signal = 0;
   
   if (current_cont_wave_) {
     // Planewave waveform with Gaussian ramp-up (continuous cosine wave).
-    double atmax = (time >= current_offset_) ? 1.0 : 0.0;
+    ScalarT atmax = (time >= current_offset_) ? 1.0 : 0.0;
     signal = current_amplitude_ * std::cos(  2.0*PI*current_fr_center_*(time-current_offset_) )
                         * (std::exp( -2.0*std::pow(PI*current_sigma_*(time-current_offset_), 2) ) * (1-atmax) + atmax);
   }
@@ -1058,11 +833,11 @@ void mirage::planewaveSource() {
                         * std::exp( -2.0*std::pow(PI*current_sigma_*(time-current_offset_), 2) );
   }
 
-  double xmin_ = current_xmin_, xmax_ = current_xmax_;
-  double ymin_ = current_ymin_, ymax_ = current_ymax_;
+  ScalarT xmin_ = current_xmin_, xmax_ = current_xmax_;
+  ScalarT ymin_ = current_ymin_, ymax_ = current_ymax_;
   
   if (wkset->dimension == 3) {
-    double zmin_ = current_zmin_, zmax_ = current_zmax_;
+    ScalarT zmin_ = current_zmin_, zmax_ = current_zmax_;
     auto ip_x = wkset->getDataSc("x");
     auto ip_y = wkset->getDataSc("y");
     auto ip_z = wkset->getDataSc("z");
@@ -1072,9 +847,9 @@ void mirage::planewaveSource() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type point = 0; point < current_x.extent(1); ++point) {
-          const double x = ip_x(elem,point);
-          const double y = ip_y(elem,point);
-          const double z = ip_z(elem,point);
+          const ScalarT x = ip_x(elem,point);
+          const ScalarT y = ip_y(elem,point);
+          const ScalarT z = ip_z(elem,point);
           current_x(elem,point) = 0.0;
           if ((x>xmin_) && (x<xmax_) && (y>ymin_) && (y<ymax_) && (z>zmin_) && (z<zmax_)) {
             current_x(elem,point) = signal;
@@ -1089,9 +864,9 @@ void mirage::planewaveSource() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type point = 0; point < current_x.extent(1); ++point) {
-          const double x = ip_x(elem,point);
-          const double y = ip_y(elem,point);
-          const double z = ip_z(elem,point);
+          const ScalarT x = ip_x(elem,point);
+          const ScalarT y = ip_y(elem,point);
+          const ScalarT z = ip_z(elem,point);
           current_y(elem,point) = 0.0;
           if ((x>xmin_) && (x<xmax_) && (y>ymin_) && (y<ymax_) && (z>zmin_) && (z<zmax_)) {
             current_y(elem,point) = signal;
@@ -1106,9 +881,9 @@ void mirage::planewaveSource() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type point = 0; point < current_x.extent(1); ++point) {
-          const double x = ip_x(elem,point);
-          const double y = ip_y(elem,point);
-          const double z = ip_z(elem,point);
+          const ScalarT x = ip_x(elem,point);
+          const ScalarT y = ip_y(elem,point);
+          const ScalarT z = ip_z(elem,point);
           current_z(elem,point) = 0.0;
           if ((x>xmin_) && (x<xmax_) && (y>ymin_) && (y<ymax_) && (z>zmin_) && (z<zmax_)) {
             current_z(elem,point) = signal;
@@ -1127,8 +902,8 @@ void mirage::planewaveSource() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type point = 0; point < current_x.extent(1); ++point) {
-          const double x = ip_x(elem,point);
-          const double y = ip_y(elem,point);
+          const ScalarT x = ip_x(elem,point);
+          const ScalarT y = ip_y(elem,point);
           current_x(elem,point) = 0.0;
           if ((x>xmin_) && (x<xmax_) && (y>ymin_) && (y<ymax_) ) {
             current_x(elem,point) = signal;
@@ -1142,8 +917,8 @@ void mirage::planewaveSource() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type point = 0; point < current_x.extent(1); ++point) {
-          const double x = ip_x(elem,point);
-          const double y = ip_y(elem,point);
+          const ScalarT x = ip_x(elem,point);
+          const ScalarT y = ip_y(elem,point);
           current_y(elem,point) = 0.0;
           if ((x>xmin_) && (x<xmax_) && (y>ymin_) && (y<ymax_) ) {
             current_y(elem,point) = signal;
@@ -1179,12 +954,12 @@ void mirage::isotropicPML() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type point = 0; point < iPML.extent(1); ++point) {
-        double alpha(0.0), s(0.0);
+        ScalarT alpha(0.0), s(0.0);
         
-        const double x = ip_x(elem,point);
-        const double y = ip_y(elem,point);
+        const ScalarT x = ip_x(elem,point);
+        const ScalarT y = ip_y(elem,point);
         
-        double sigmaplus = 0.0;
+        ScalarT sigmaplus = 0.0;
         if (iPML_have_xmax) {
           if (x > iPML_xmax_start) {
             alpha = (log(iPML_sigma_xmax)-log(iPML_tol_xmax))/(iPML_xmax_end-iPML_xmax_start);
@@ -1214,7 +989,7 @@ void mirage::isotropicPML() {
           }
         }
         if (iPML_have_zmax) {
-          const double z = ip_z(elem,point);
+          const ScalarT z = ip_z(elem,point);
           if (z > iPML_zmax_start) {
             alpha = (log(iPML_sigma_zmax)-log(iPML_tol_zmax))/(iPML_zmax_end-iPML_zmax_start);
             s = iPML_zmax_start - log(iPML_tol_zmax)/alpha;
@@ -1222,7 +997,7 @@ void mirage::isotropicPML() {
           }
         }
         if (iPML_have_zmin) {
-          const double z = ip_z(elem,point);
+          const ScalarT z = ip_z(elem,point);
           if (z < iPML_zmin_start) {
             alpha = (log(iPML_sigma_zmin)-log(iPML_tol_zmin))/(iPML_zmin_end-iPML_zmin_start);
             s = iPML_zmin_start - log(iPML_tol_zmin)/alpha;
@@ -1238,12 +1013,12 @@ void mirage::isotropicPML() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type point = 0; point < iPML.extent(1); ++point) {
-        double alpha(0.0);
+        ScalarT alpha(0.0);
         
-        const double x = ip_x(elem,point);
-        const double y = ip_y(elem,point);
+        const ScalarT x = ip_x(elem,point);
+        const ScalarT y = ip_y(elem,point);
         
-        double sigmaplus = 0.0;
+        ScalarT sigmaplus = 0.0;
     
         if (iPML_have_xmax) {
           if (x > iPML_xmax_start) {
@@ -1270,7 +1045,7 @@ void mirage::isotropicPML() {
           }
         }
         if (iPML_have_zmax) {
-          const double z = ip_z(elem,point);
+          const ScalarT z = ip_z(elem,point);
           if (z > iPML_zmax_start) {
             alpha = iPML_sigma_zmax/pow(abs(iPML_zmax_end-iPML_zmax_start), iPML_pow_zmax);
             if (iPML_zmax_exclude) {
@@ -1285,7 +1060,7 @@ void mirage::isotropicPML() {
           }
         }
         if (iPML_have_zmin) {
-          const double z = ip_z(elem,point);
+          const ScalarT z = ip_z(elem,point);
           if (z < iPML_zmin_start) {
             alpha = iPML_sigma_zmin/pow(abs(iPML_zmin_end-iPML_zmin_start), iPML_pow_zmin);
             if (iPML_zmin_exclude) {
@@ -1329,14 +1104,14 @@ void mirage::anisotropicPML() {
                RangePolicy<AssemblyExec>(0,wkset->numElem),
                KOKKOS_LAMBDA (const int elem ) {
     for (size_type point = 0; point < iPML.extent(1); ++point) {
-      double alpha(0.0), s(0.0);
+      ScalarT alpha(0.0), s(0.0);
       
-      const double x = ip_x(elem,point);
-      const double y = ip_y(elem,point);
+      const ScalarT x = ip_x(elem,point);
+      const ScalarT y = ip_y(elem,point);
       
-      double sigmaplusx = 0.0;
-      double sigmaplusy = 0.0;
-      double sigmaplusz = 0.0;
+      ScalarT sigmaplusx = 0.0;
+      ScalarT sigmaplusy = 0.0;
+      ScalarT sigmaplusz = 0.0;
       
       if (aPML_type == "exponential") {
         if (aPML_have_xmax) {
@@ -1368,7 +1143,7 @@ void mirage::anisotropicPML() {
           }
         }
         if (aPML_have_zmax) {
-          const double z = ip_z(elem,point);
+          const ScalarT z = ip_z(elem,point);
           if (z > aPML_zmax_start) {
             alpha = (log(aPML_sigma_zmax)-log(aPML_tol_zmax))/(aPML_zmax_end-aPML_zmax_start);
             s = aPML_zmax_start - log(aPML_tol_zmax)/alpha;
@@ -1376,7 +1151,7 @@ void mirage::anisotropicPML() {
           }
         }
         if (aPML_have_zmin) {
-          const double z = ip_z(elem,point);
+          const ScalarT z = ip_z(elem,point);
           if (z < aPML_zmin_start) {
             alpha = (log(aPML_sigma_zmin)-log(aPML_tol_zmin))/(aPML_zmin_end-aPML_zmin_start);
             s = aPML_zmin_start - log(aPML_tol_zmin)/alpha;
@@ -1410,7 +1185,7 @@ void mirage::anisotropicPML() {
           }
         }
         if (aPML_have_zmax) {
-          const double z = ip_z(elem,point);
+          const ScalarT z = ip_z(elem,point);
           if (z > aPML_zmax_start) {
             alpha = aPML_sigma_zmax/pow(abs(aPML_zmax_end-aPML_zmax_start), aPML_pow_zmax);
             if (aPML_zmax_exclude) {
@@ -1425,7 +1200,7 @@ void mirage::anisotropicPML() {
           }
         }
         if (aPML_have_zmin) {
-          const double z = ip_z(elem,point);
+          const ScalarT z = ip_z(elem,point);
           if (z < aPML_zmin_start) {
             alpha = aPML_sigma_zmin/pow(abs(aPML_zmin_end-aPML_zmin_start), aPML_pow_zmin);
             if (aPML_zmin_exclude) {

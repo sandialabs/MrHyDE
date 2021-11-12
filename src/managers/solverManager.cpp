@@ -45,11 +45,11 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   // Get the required information from the settings
   spaceDim = mesh->stk_mesh->getDimension();
   isInitial = false;
-  initial_time = settings->sublist("Solver").get<ScalarT>("initial time",0.0);
+  initial_time = settings->sublist("Solver").get<double>("initial time",0.0);
   current_time = initial_time;
-  final_time = settings->sublist("Solver").get<ScalarT>("final time",1.0);
+  final_time = settings->sublist("Solver").get<double>("final time",1.0);
   if (settings->sublist("Solver").isParameter("delta t")) {
-    deltat = settings->sublist("Solver").get<ScalarT>("delta t",1.0);
+    deltat = settings->sublist("Solver").get<double>("delta t",1.0);
   }
   else {
     int numTimesteps = settings->sublist("Solver").get<int>("number of steps",1);
@@ -83,8 +83,8 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   use_custom_PCG = settings->sublist("Solver").get<bool>("use custom PCG",false);
   
   time_order = settings->sublist("Solver").get<int>("time order",1);
-  NLtol = settings->sublist("Solver").get<ScalarT>("nonlinear TOL",1.0E-6);
-  NLabstol = settings->sublist("Solver").get<ScalarT>("absolute nonlinear TOL",std::min(NLtol,1.0E-6));
+  NLtol = settings->sublist("Solver").get<double>("nonlinear TOL",1.0E-6);
+  NLabstol = settings->sublist("Solver").get<double>("absolute nonlinear TOL",std::min((double)NLtol,(double)1.0E-6));
   maxNLiter = settings->sublist("Solver").get<int>("max nonlinear iters",10);
   useRelativeTOL = settings->sublist("Solver").get<bool>("use relative TOL",true);
   useAbsoluteTOL = settings->sublist("Solver").get<bool>("use absolute TOL",false);

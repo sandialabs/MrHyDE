@@ -1,6 +1,6 @@
 <ParameterList name="Mesh">
-  <Parameter name="x-elements" type="int" value="2"/>
-  <Parameter name="y-elements" type="int" value="2"/>
+  <Parameter name="x-elements" type="int" value="8"/>
+  <Parameter name="y-elements" type="int" value="8"/>
   <Parameter name="z-elements" type="int" value="100"/>
   <Parameter name="x-procs" type="int" value="1"/>
   <Parameter name="y-procs" type="int" value="1"/>

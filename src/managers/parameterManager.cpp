@@ -235,7 +235,7 @@ void ParameterManager<Node>::setupParameters() {
 
 template<class Node>
 void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cell> > > & cells,
-                                                  vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells) {
+                                                        vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells) {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -271,9 +271,13 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern;
     
     for (size_t b=0; b<blocknames.size(); b++) {
+      auto cellTopo = mesh->getCellTopology(blocknames[b]);
       for (size_t j=0; j<discretized_param_names.size(); j++) {
+        basis_RCP cbasis = disc->getBasis(spaceDim, cellTopo,
+                                          disc_types[disc_usebasis[j]],
+                                          disc_orders[disc_usebasis[j]]);
         
-        Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(discretized_param_basis[disc_usebasis[j]]));
+        Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(cbasis));
         paramDOF->addField(blocknames[b], discretized_param_names[j], Pattern);
       }
     }

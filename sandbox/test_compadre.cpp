@@ -62,25 +62,25 @@ int main(int argc, char * argv[]) {
   unsigned int nz = 100;
 
   // coordinates of domain
-  double xmin = 0., xmax = 1.;
-  double ymin = 0., ymax = 1.;
-  double zmin = 0., zmax = 1.;
+  ScalarT xmin = 0., xmax = 1.;
+  ScalarT ymin = 0., ymax = 1.;
+  ScalarT zmin = 0., zmax = 1.;
 
   // DO NOT MODIFY BEYOND HERE
   unsigned int numElem = nx*ny*nz;
 
   // step between elements
-  double dx = (xmax-xmin)/nx;
-  double dy = (ymax-ymin)/ny;
-  double dz = (zmax-zmin)/nz;
+  ScalarT dx = (xmax-xmin)/nx;
+  ScalarT dy = (ymax-ymin)/ny;
+  ScalarT dz = (zmax-zmin)/nz;
 
   // centers are offset by exactly 1/2*width
-  double offset_x = dx/2.;
-  double offset_y = dy/2.;
-  double offset_z = dz/2.;
+  ScalarT offset_x = dx/2.;
+  ScalarT offset_y = dy/2.;
+  ScalarT offset_z = dz/2.;
 
   // compute "centers" of cells on this hypothetical mesh
-  Kokkos::View<double**, HostDevice> centers("centers",numElem,spaceDim);
+  Kokkos::View<ScalarT**, HostDevice> centers("centers",numElem,spaceDim);
   for (unsigned int ix=0; ix<nx; ix++) {
     for (unsigned int iy=0; iy<ny; iy++) {
       for (unsigned int iz=0; iz<nz; iz++) {
@@ -136,8 +136,8 @@ int main(int argc, char * argv[]) {
   Kokkos::View<int*> cnode_compadre("cnode_compadre",numElem);
   Teuchos::Time compadreTimer("compadre approach",true);
   {
-    Kokkos::View<double**, AssemblyDevice> sensor_coords = mesh_data->getPoints();
-    Kokkos::View<double*, AssemblyDevice> distance("distance",numElem);
+    Kokkos::View<ScalarT**, AssemblyDevice> sensor_coords = mesh_data->getPoints();
+    Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
     auto neighborlists = CompadreTools_constructNeighborLists(sensor_coords, centers, distance);
     cnode_compadre = neighborlists.getNeighborLists();
   }

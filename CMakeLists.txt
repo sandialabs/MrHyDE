@@ -121,6 +121,12 @@ IF(MrHyDE_DISABLE_AD)
   ADD_DEFINITIONS(-DMrHyDE_NO_AD)
 ENDIF()
 
+IF(MrHyDE_SINGLE_PRECISION)
+  MESSAGE("-- Running with single precision based on input flag")
+  MESSAGE("-- CAUTION: I HOPE YOU KNOW WHAT YOU ARE DOING")
+  ADD_DEFINITIONS(-DMrHyDE_SINGLE_PRECISION)
+ENDIF()
+
 IF(MrHyDE_VECTOR_SIZE)
   MESSAGE("-- Setting vector size to ${MrHyDE_VECTOR_SIZE} based on input flag")
   add_definitions(-DMrHyDE_SET_VECTOR_SIZE=${MrHyDE_VECTOR_SIZE})

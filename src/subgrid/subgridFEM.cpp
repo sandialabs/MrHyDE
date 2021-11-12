@@ -1021,7 +1021,7 @@ void SubGridFEM::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
         }
       }
       if (compute_sens) {
-        double nexttime = 0.0;
+        ScalarT nexttime = 0.0;
         bool foundadj = adjsoln->extractNext(prev_adjsoln,usernum,time,nexttime);
         if (!foundadj) {
           // throw error

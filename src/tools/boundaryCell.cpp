@@ -699,7 +699,7 @@ void BoundaryCell::updateData() {
 size_t BoundaryCell::getStorage() {
   size_t mystorage = 0;
   if (storeAll) {
-    size_t scalarcost = 8; // 8 bytes per double
+    size_t scalarcost = sizeof(ScalarT); // 8 bytes per double
     
     for (size_t k=0; k<ip.size(); ++k) {
       mystorage += scalarcost*ip[k].size();

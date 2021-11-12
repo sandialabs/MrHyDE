@@ -1109,7 +1109,8 @@ void SubGridFEM_Solver::updateResSens(ResViewType res, DataViewType data, LIDVie
       for (size_type row=0; row<LIDs.extent(1); row++ ) {
         LO rowIndex = LIDs(elem,row);
         for (size_type col=0; col<data.extent(2); col++ ) {
-          Kokkos::atomic_add(&(res(rowIndex,col)),-1.0*data(elem,row,col));
+          ScalarT mult = -1.0;
+          Kokkos::atomic_add(&(res(rowIndex,col)),mult*data(elem,row,col));
         }
       }
     });

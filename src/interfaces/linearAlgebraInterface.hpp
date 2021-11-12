@@ -317,7 +317,7 @@ namespace MrHyDE {
     void linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
     
     void PCG(matrix_RCP & J, vector_RCP & b, vector_RCP & x, vector_RCP & Minv,
-             const double & tol, const int & maxiter);
+             const ScalarT & tol, const int & maxiter);
     
     // ========================================================================================
     // Linear solver on Tpetra stack for Jacobians of discretized parameters
