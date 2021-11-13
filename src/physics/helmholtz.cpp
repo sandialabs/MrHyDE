@@ -195,14 +195,14 @@ void helmholtz::volumeResidual() {
           - (source_i(e,k)*vr - source_r(e,k)*vi))*wts(e,k);
         }
         else {
-          omegar(e,k) = sqrt(omega2r(e,k));
-          omegai(e,k) = sqrt(omega2i(e,k));
+          AD omegar_val = sqrt(omega2r(e,k));
+          AD omegai_val = sqrt(omega2i(e,k));
           int resindex = offsets(ur_num,i);
           
-          res(e,resindex) += (alphaHr(e,k)*pow(omegar(e,k),2.0*freqExp(e,k))*(ur*vr + ui*vi)
-          + alphaHr(e,k)*pow(omegar(e,k),2.0*freqExp(e,k))*(-ui*vr + ur*vi)
-          + alphaHi(e,k)*pow(omegai(e,k),2.0*freqExp(e,k))*(-ui*vr + ur*vi)
-          + alphaHi(e,k)*pow(omegai(e,k),2.0*freqExp(e,k))*(-ur*vr - ui*vi)
+          res(e,resindex) += (alphaHr(e,k)*pow(omegar_val,2.0*freqExp(e,k))*(ur*vr + ui*vi)
+          + alphaHr(e,k)*pow(omegar_val,2.0*freqExp(e,k))*(-ui*vr + ur*vi)
+          + alphaHi(e,k)*pow(omegai_val,2.0*freqExp(e,k))*(-ui*vr + ur*vi)
+          + alphaHi(e,k)*pow(omegai_val,2.0*freqExp(e,k))*(-ur*vr - ui*vi)
           + (c2r_x(e,k)*(durdx*dvrdx + duidx*dvidx)
              + c2r_y(e,k)*(durdy*dvrdy + duidy*dvidy)
              + c2r_z(e,k)*(durdz*dvrdz + duidz*dvidz)
@@ -213,10 +213,10 @@ void helmholtz::volumeResidual() {
           
           resindex = offsets(ui_num,i);
           
-          res(e,resindex) += (alphaHr(e,k)*pow(omegar(e,k),2.0*freqExp(e,k))*(ui*vr - ur*vi)
-          + alphaHr(e,k)*pow(omegar(e,k),2.0*freqExp(e,k))*(ur*vr + ui*vi)
-          + alphaHi(e,k)*pow(omegai(e,k),2.0*freqExp(e,k))*(ur*vr + ui*vi)
-          + alphaHi(e,k)*pow(omegai(e,k),2.0*freqExp(e,k))*(-ui*vr + ur*vi)
+          res(e,resindex) += (alphaHr(e,k)*pow(omegar_val,2.0*freqExp(e,k))*(ui*vr - ur*vi)
+          + alphaHr(e,k)*pow(omegar_val,2.0*freqExp(e,k))*(ur*vr + ui*vi)
+          + alphaHi(e,k)*pow(omegai_val,2.0*freqExp(e,k))*(ur*vr + ui*vi)
+          + alphaHi(e,k)*pow(omegai_val,2.0*freqExp(e,k))*(-ui*vr + ur*vi)
           + (c2r_x(e,k)*(duidx*dvrdx - durdx*dvidx)
              + c2r_y(e,k)*(duidy*dvrdy - durdy*dvidy)
              + c2r_z(e,k)*(duidz*dvrdz - durdz*dvidz)

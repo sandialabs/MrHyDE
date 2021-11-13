@@ -22,15 +22,38 @@ mirage::mirage(Teuchos::ParameterList & settings, const int & dimension_)
   
   spaceDim = dimension_;
   
-  myvars.push_back("E");
-  myvars.push_back("B");
+  include_Beqn = false;
+  include_Eeqn = false;
   
-  mybasistypes.push_back("HCURL");
-  if (spaceDim == 2) {
-    mybasistypes.push_back("HVOL");
+  if (settings.isParameter("active variables")) {
+    string active = settings.get<string>("active variables");
+    std::size_t foundE = active.find("E");
+    if (foundE!=std::string::npos) {
+      include_Eeqn = true;
+    }
+    std::size_t foundB = active.find("B");
+    if (foundB!=std::string::npos) {
+      include_Beqn = true;
+    }
   }
-  else if (spaceDim == 3) {
-    mybasistypes.push_back("HDIV");
+  else {
+    include_Beqn = true;
+    include_Eeqn = true;
+  }
+  
+  if (include_Eeqn) {
+    myvars.push_back("E");
+    mybasistypes.push_back("HCURL");
+  }
+  
+  if (include_Beqn) {
+    myvars.push_back("B");
+    if (spaceDim == 2) {
+      mybasistypes.push_back("HVOL");
+    }
+    else if (spaceDim == 3) {
+      mybasistypes.push_back("HDIV");
+    }
   }
   
   use_explicit = settings.get<bool>("use fully explicit",false);
@@ -324,9 +347,15 @@ void mirage::defineFunctions(Teuchos::ParameterList & fs,
   functionManager = functionManager_;
   
   // The function manager knows the appropriate dimensions
-  current_x = View_Sc2("mirage current x",functionManager->numElem, functionManager->numip);
-  current_y = View_Sc2("mirage current y",functionManager->numElem, functionManager->numip);
-  current_z = View_Sc2("mirage current z",functionManager->numElem, functionManager->numip);
+  if (include_Eeqn) {
+    current_x = View_Sc2("mirage current x",functionManager->numElem, functionManager->numip);
+    current_y = View_Sc2("mirage current y",functionManager->numElem, functionManager->numip);
+    current_z = View_Sc2("mirage current z",functionManager->numElem, functionManager->numip);
+    functionManager->addFunction("mu",mirage_mu,"ip");
+    functionManager->addFunction("rindex",mirage_ri,"ip");
+    functionManager->addFunction("epsilon",mirage_epsilon,"ip");
+    functionManager->addFunction("sigma",mirage_sigma,"ip");
+  }
   
   // Add PML views/functions
   if (use_iPML) {
@@ -338,48 +367,28 @@ void mirage::defineFunctions(Teuchos::ParameterList & fs,
     aPML_yy = View_Sc2("mirage aPML_yy",functionManager->numElem, functionManager->numip);
     aPML_zz = View_Sc2("mirage aPML_zz",functionManager->numElem, functionManager->numip);
   }
-  
-  functionManager->addFunction("mu",mirage_mu,"ip");
-  functionManager->addFunction("rindex",mirage_ri,"ip");
-  functionManager->addFunction("epsilon",mirage_epsilon,"ip");
-  functionManager->addFunction("sigma",mirage_sigma,"ip");
-  
 }
 
 // ========================================================================================
 // ========================================================================================
 
 void mirage::volumeResidual() {
-  
-  int E_basis = wkset->usebasis[Enum];
-  int B_basis = wkset->usebasis[Bnum];
-  
-  Vista mu, epsilon, sigma, rindex;
-  
-  {
-    Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    if (use_planewave_source) {
-      this->planewaveSource();
-    }
-    mu = functionManager->evaluate("mu","ip");
-    epsilon = functionManager->evaluate("epsilon","ip");
-    rindex = functionManager->evaluate("rindex","ip");
-    sigma = functionManager->evaluate("sigma","ip");
-  }
-  
+    
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
   int stage = wkset->current_stage;
   
-  bool include_Beqn = true, include_Eeqn = true;
   if (use_leap_frog) {
     if (stage == 0) { // only add Eeqn on stage 1
       include_Eeqn = false;
+      include_Beqn = true;
     }
     if (stage == 1) { // only add Beqn on stage 0
+      include_Eeqn = true;
       include_Beqn = false;
     }
   }
+  
   bool include_dBdt = true, include_dEdt = true;
   if (use_leap_frog) {
     include_dBdt = false;
@@ -388,81 +397,92 @@ void mirage::volumeResidual() {
   
   ScalarT one = 1.0;
   
-  {
+  if (include_Beqn) {
+    // (dB/dt + curl E,V) = 0
+    
+    int B_basis = wkset->usebasis[Bnum];
+    auto basis = wkset->basis[B_basis];
+    auto off = subview(wkset->offsets, Bnum, ALL());
+    auto wts = wkset->wts;
+    auto res = wkset->res;
+  
     if (spaceDim == 2) {
-      // (dB/dt + curl E,V) = 0
       
-      if (include_Beqn) {
-        auto basis = wkset->basis[B_basis];
-        auto off = subview(wkset->offsets, Bnum, ALL());
-        auto wts = wkset->wts;
-        auto res = wkset->res;
-        
-        auto curlE = wkset->getData("curl(E)[x]");
+      auto curlE = wkset->getData("curl(E)[x]");
+      parallel_for("Maxwells B volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          AD f0 = curlE(elem,pt)*wts(elem,pt);
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
+          }
+        }
+      });
+      
+      if (include_dBdt) {
+        auto dB_dt = wkset->getData("B_t");
         parallel_for("Maxwells B volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD f0 = curlE(elem,pt)*wts(elem,pt);
+            AD f0 = dB_dt(elem,pt)*wts(elem,pt);
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
             }
           }
         });
-        
-        if (include_dBdt) {
-          auto dB_dt = wkset->getData("B_t");
-          parallel_for("Maxwells B volume resid",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = dB_dt(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-              }
+      }
+      
+      if (use_iPML) {
+        this->isotropicPML();
+        auto B = wkset->getData("B");
+        parallel_for("mirage isoPML",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD f0 = PML_B_factor*iPML(elem,pt)*B(elem,pt)*wts(elem,pt);
+            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
             }
-          });
-        }
-        
-        if (use_iPML) {
-          this->isotropicPML();
-          auto B = wkset->getData("B");
-          parallel_for("mirage isoPML",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = PML_B_factor*iPML(elem,pt)*B(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-              }
-            }
-          });
-        }
+          }
+        });
       }
       
     }
     else if (spaceDim == 3) {
       
-      // (dB/dt + curl E,V) = 0
+      auto curlE_x = wkset->getData("curl(E)[x]");
+      auto curlE_y = wkset->getData("curl(E)[y]");
+      auto curlE_z = wkset->getData("curl(E)[z]");
       
+      parallel_for("Maxwells B volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          AD f0 = curlE_x(elem,pt)*wts(elem,pt);
+          AD f1 = curlE_y(elem,pt)*wts(elem,pt);
+          AD f2 = curlE_z(elem,pt)*wts(elem,pt);
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
+            res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
+            res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
+          }
+        }
+      });
       
-      if (include_Beqn) {
-        auto off = subview(wkset->offsets, Bnum, ALL());
-        auto wts = wkset->wts;
-        auto res = wkset->res;
-        auto basis = wkset->basis[B_basis];
-        
-        auto curlE_x = wkset->getData("curl(E)[x]");
-        auto curlE_y = wkset->getData("curl(E)[y]");
-        auto curlE_z = wkset->getData("curl(E)[z]");
+      if (include_dBdt) {
+        auto dBx_dt = wkset->getData("B_t[x]");
+        auto dBy_dt = wkset->getData("B_t[y]");
+        auto dBz_dt = wkset->getData("B_t[z]");
         
         parallel_for("Maxwells B volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD f0 = curlE_x(elem,pt)*wts(elem,pt);
-            AD f1 = curlE_y(elem,pt)*wts(elem,pt);
-            AD f2 = curlE_z(elem,pt)*wts(elem,pt);
+            AD f0 = dBx_dt(elem,pt)*wts(elem,pt);
+            AD f1 = dBy_dt(elem,pt)*wts(elem,pt);
+            AD f2 = dBz_dt(elem,pt)*wts(elem,pt);
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
               res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
@@ -470,228 +490,216 @@ void mirage::volumeResidual() {
             }
           }
         });
-        
-        if (include_dBdt) {
-          auto dBx_dt = wkset->getData("B_t[x]");
-          auto dBy_dt = wkset->getData("B_t[y]");
-          auto dBz_dt = wkset->getData("B_t[z]");
-          
-          parallel_for("Maxwells B volume resid",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = dBx_dt(elem,pt)*wts(elem,pt);
-              AD f1 = dBy_dt(elem,pt)*wts(elem,pt);
-              AD f2 = dBz_dt(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-                res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
-                res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
-              }
-            }
-          });
-        }
-          
-        if (use_iPML) {
-          this->isotropicPML();
-          auto Bx = wkset->getData("B[x]");
-          auto By = wkset->getData("B[y]");
-          auto Bz = wkset->getData("B[z]");
-          parallel_for("mirage isoPML",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = PML_B_factor*iPML(elem,pt)*Bx(elem,pt)*wts(elem,pt);
-              AD f1 = PML_B_factor*iPML(elem,pt)*By(elem,pt)*wts(elem,pt);
-              AD f2 = PML_B_factor*iPML(elem,pt)*Bz(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-                res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
-                res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
-              }
-            }
-          });
-        }
-        if (use_aPML) {
-          this->anisotropicPML();
-          auto Bx = wkset->getData("B[x]");
-          auto By = wkset->getData("B[y]");
-          auto Bz = wkset->getData("B[z]");
-          parallel_for("mirage anisoPML",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = PML_B_factor*aPML_xx(elem,pt)*Bx(elem,pt)*wts(elem,pt);
-              AD f1 = PML_B_factor*aPML_yy(elem,pt)*By(elem,pt)*wts(elem,pt);
-              AD f2 = PML_B_factor*aPML_zz(elem,pt)*Bz(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-                res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
-                res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
-              }
-            }
-          });
-        }
-        
       }
-    }
-  }
-  
-  {
-    // (eps*dE/dt,V) - (1/mu B, curl V) + (sigma E,V) = -(current,V)
-    // Rewritten as: (eps*dEdt + sigma E + current, V) - (1/mu B, curl V) = 0
-    
-    if (spaceDim == 2) {
-      if (include_Eeqn) {
-        auto basis = wkset->basis[E_basis];
-        auto basis_curl = wkset->basis_curl[E_basis];
-        
-        auto B = wkset->getData("B");
-        auto Ex = wkset->getData("E[x]");
-        auto Ey = wkset->getData("E[y]");
-        auto off = subview(wkset->offsets, Enum, ALL());
-        auto wts = wkset->wts;
-        auto res = wkset->res;
-        parallel_for("Maxwells E volume resid",
-                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int elem ) {
-          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD eps = epsilon(elem,pt);
-            AD f0 = one/eps*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt))*wts(elem,pt);
-            AD f1 = one/eps*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt))*wts(elem,pt);
-            AD c0 = -one/(eps*mu(elem,pt))*B(elem,pt)*wts(elem,pt);
-            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-              res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0) + f1*basis(elem,dof,pt,1);
-            }
-          }
-        });
-        
-        if (include_dEdt) {
-          auto dEx_dt = wkset->getData("E_t[x]");
-          auto dEy_dt = wkset->getData("E_t[y]");
-          parallel_for("Maxwells E volume resid",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD ris = rindex(elem,pt)*rindex(elem,pt);
-              AD f0 = ris*dEx_dt(elem,pt)*wts(elem,pt);
-              AD f1 = ris*dEx_dt(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + f1*basis(elem,dof,pt,1);
-              }
-            }
-          });
-        }
-        if (use_iPML) {
-          this->isotropicPML();
-          parallel_for("mirage isoPML",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD eps = epsilon(elem,pt);
-              AD f0 = one/eps*iPML(elem,pt)*Ex(elem,pt)*wts(elem,pt);
-              AD f1 = one/eps*iPML(elem,pt)*Ey(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-                res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
-              }
-            }
-          });
-        }
-      }
-    }
-    else if (spaceDim == 3) {
       
-      if (include_Eeqn) {
-        auto basis = wkset->basis[E_basis];
-        auto basis_curl = wkset->basis_curl[E_basis];
+      if (use_iPML) {
+        this->isotropicPML();
         auto Bx = wkset->getData("B[x]");
         auto By = wkset->getData("B[y]");
         auto Bz = wkset->getData("B[z]");
-        auto Ex = wkset->getData("E[x]");
-        auto Ey = wkset->getData("E[y]");
-        auto Ez = wkset->getData("E[z]");
-        auto off = subview(wkset->offsets, Enum, ALL());
-        auto wts = wkset->wts;
-        auto res = wkset->res;
-        
+        parallel_for("mirage isoPML",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD f0 = PML_B_factor*iPML(elem,pt)*Bx(elem,pt)*wts(elem,pt);
+            AD f1 = PML_B_factor*iPML(elem,pt)*By(elem,pt)*wts(elem,pt);
+            AD f2 = PML_B_factor*iPML(elem,pt)*Bz(elem,pt)*wts(elem,pt);
+            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
+              res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
+              res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
+            }
+          }
+        });
+      }
+      if (use_aPML) {
+        this->anisotropicPML();
+        auto Bx = wkset->getData("B[x]");
+        auto By = wkset->getData("B[y]");
+        auto Bz = wkset->getData("B[z]");
+        parallel_for("mirage anisoPML",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD f0 = PML_B_factor*aPML_xx(elem,pt)*Bx(elem,pt)*wts(elem,pt);
+            AD f1 = PML_B_factor*aPML_yy(elem,pt)*By(elem,pt)*wts(elem,pt);
+            AD f2 = PML_B_factor*aPML_zz(elem,pt)*Bz(elem,pt)*wts(elem,pt);
+            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
+              res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
+              res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
+            }
+          }
+        });
+      }
+      
+    }
+  }
+  
+  if (include_Eeqn) {
+    // (eps*dE/dt,V) - (1/mu B, curl V) + (sigma E,V) = -(current,V)
+    // Rewritten as: (eps*dEdt + sigma E + current, V) - (1/mu B, curl V) = 0
+    
+    Vista mu, epsilon, sigma, rindex;
+    
+    {
+      Teuchos::TimeMonitor funceval(*volumeResidualFunc);
+      if (use_planewave_source) {
+        this->planewaveSource();
+      }
+      mu = functionManager->evaluate("mu","ip");
+      epsilon = functionManager->evaluate("epsilon","ip");
+      rindex = functionManager->evaluate("rindex","ip");
+      sigma = functionManager->evaluate("sigma","ip");
+    }
+    
+    int E_basis = wkset->usebasis[Enum];
+    auto basis = wkset->basis[E_basis];
+    auto basis_curl = wkset->basis_curl[E_basis];
+  
+    auto off = subview(wkset->offsets, Enum, ALL());
+    auto wts = wkset->wts;
+    auto res = wkset->res;
+
+    if (spaceDim == 2) {
+      
+      auto B = wkset->getData("B");
+      auto Ex = wkset->getData("E[x]");
+      auto Ey = wkset->getData("E[y]");
+  
+      parallel_for("Maxwells E volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          AD eps = epsilon(elem,pt);
+          AD f0 = one/eps*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt))*wts(elem,pt);
+          AD f1 = one/eps*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt))*wts(elem,pt);
+          AD c0 = -one/(eps*mu(elem,pt))*B(elem,pt)*wts(elem,pt);
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0) + f1*basis(elem,dof,pt,1);
+          }
+        }
+      });
+      
+      if (include_dEdt) {
+        auto dEx_dt = wkset->getData("E_t[x]");
+        auto dEy_dt = wkset->getData("E_t[y]");
         parallel_for("Maxwells E volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD eps = epsilon(elem,pt);
-            AD f0 = one/eps*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt))*wts(elem,pt);
-            AD f1 = one/eps*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt))*wts(elem,pt);
-            AD f2 = one/eps*(sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt))*wts(elem,pt);
-            
-            AD c0 = -one/(eps*mu(elem,pt))*Bx(elem,pt)*wts(elem,pt);
-            AD c1 = -one/(eps*mu(elem,pt))*By(elem,pt)*wts(elem,pt);
-            AD c2 = -one/(eps*mu(elem,pt))*Bz(elem,pt)*wts(elem,pt);
-            
+            AD ris = rindex(elem,pt)*rindex(elem,pt);
+            AD f0 = ris*dEx_dt(elem,pt)*wts(elem,pt);
+            AD f1 = ris*dEx_dt(elem,pt)*wts(elem,pt);
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-              res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0);
-              res(elem,off(dof)) += f1*basis(elem,dof,pt,1) + c1*basis_curl(elem,dof,pt,1);
-              res(elem,off(dof)) += f2*basis(elem,dof,pt,2) + c2*basis_curl(elem,dof,pt,2);
+              res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + f1*basis(elem,dof,pt,1);
             }
           }
         });
-        
-        if (include_dEdt) {
-          auto dEx_dt = wkset->getData("E_t[x]");
-          auto dEy_dt = wkset->getData("E_t[y]");
-          auto dEz_dt = wkset->getData("E_t[z]");
-          parallel_for("Maxwells E volume resid",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD ris = rindex(elem,pt)*rindex(elem,pt);
-              AD f0 = ris*dEx_dt(elem,pt)*wts(elem,pt);
-              AD f1 = ris*dEy_dt(elem,pt)*wts(elem,pt);
-              AD f2 = ris*dEz_dt(elem,pt)*wts(elem,pt);
-              
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + f1*basis(elem,dof,pt,1) + f2*basis(elem,dof,pt,2);
-              }
+      }
+      if (use_iPML) {
+        this->isotropicPML();
+        parallel_for("mirage isoPML",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD eps = epsilon(elem,pt);
+            AD f0 = one/eps*iPML(elem,pt)*Ex(elem,pt)*wts(elem,pt);
+            AD f1 = one/eps*iPML(elem,pt)*Ey(elem,pt)*wts(elem,pt);
+            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
+              res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
             }
-          });
+          }
+        });
+      }
+      
+    }
+    else if (spaceDim == 3) {
+      
+      auto Bx = wkset->getData("B[x]");
+      auto By = wkset->getData("B[y]");
+      auto Bz = wkset->getData("B[z]");
+      auto Ex = wkset->getData("E[x]");
+      auto Ey = wkset->getData("E[y]");
+      auto Ez = wkset->getData("E[z]");
+      
+      parallel_for("Maxwells E volume resid",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          AD eps = epsilon(elem,pt);
+          AD f0 = one/eps*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt))*wts(elem,pt);
+          AD f1 = one/eps*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt))*wts(elem,pt);
+          AD f2 = one/eps*(sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt))*wts(elem,pt);
+          
+          AD c0 = -one/(eps*mu(elem,pt))*Bx(elem,pt)*wts(elem,pt);
+          AD c1 = -one/(eps*mu(elem,pt))*By(elem,pt)*wts(elem,pt);
+          AD c2 = -one/(eps*mu(elem,pt))*Bz(elem,pt)*wts(elem,pt);
+          
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0);
+            res(elem,off(dof)) += f1*basis(elem,dof,pt,1) + c1*basis_curl(elem,dof,pt,1);
+            res(elem,off(dof)) += f2*basis(elem,dof,pt,2) + c2*basis_curl(elem,dof,pt,2);
+          }
         }
-        
-        if (use_iPML) {
-          this->isotropicPML();
-          parallel_for("mirage isoPML",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD eps = epsilon(elem,pt);
-              AD f0 = one/eps*iPML(elem,pt)*Ex(elem,pt)*wts(elem,pt);
-              AD f1 = one/eps*iPML(elem,pt)*Ey(elem,pt)*wts(elem,pt);
-              AD f2 = one/eps*iPML(elem,pt)*Ez(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-                res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
-                res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
-              }
+      });
+      
+      if (include_dEdt) {
+        auto dEx_dt = wkset->getData("E_t[x]");
+        auto dEy_dt = wkset->getData("E_t[y]");
+        auto dEz_dt = wkset->getData("E_t[z]");
+        parallel_for("Maxwells E volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD ris = rindex(elem,pt)*rindex(elem,pt);
+            AD f0 = ris*dEx_dt(elem,pt)*wts(elem,pt);
+            AD f1 = ris*dEy_dt(elem,pt)*wts(elem,pt);
+            AD f2 = ris*dEz_dt(elem,pt)*wts(elem,pt);
+            
+            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + f1*basis(elem,dof,pt,1) + f2*basis(elem,dof,pt,2);
             }
-          });
-        }
-        if (use_aPML) {
-          this->anisotropicPML();
-          parallel_for("mirage anisoPML",
-                       RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD eps = epsilon(elem,pt);
-              AD f0 = one/eps*aPML_xx(elem,pt)*Ex(elem,pt)*wts(elem,pt);
-              AD f1 = one/eps*aPML_yy(elem,pt)*Ey(elem,pt)*wts(elem,pt);
-              AD f2 = one/eps*aPML_zz(elem,pt)*Ez(elem,pt)*wts(elem,pt);
-              for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-                res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
-                res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
-                res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
-              }
+          }
+        });
+      }
+      
+      if (use_iPML) {
+        this->isotropicPML();
+        parallel_for("mirage isoPML",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD eps = epsilon(elem,pt);
+            AD f0 = one/eps*iPML(elem,pt)*Ex(elem,pt)*wts(elem,pt);
+            AD f1 = one/eps*iPML(elem,pt)*Ey(elem,pt)*wts(elem,pt);
+            AD f2 = one/eps*iPML(elem,pt)*Ez(elem,pt)*wts(elem,pt);
+            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
+              res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
+              res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
             }
-          });
-        }
+          }
+        });
+      }
+      if (use_aPML) {
+        this->anisotropicPML();
+        parallel_for("mirage anisoPML",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD eps = epsilon(elem,pt);
+            AD f0 = one/eps*aPML_xx(elem,pt)*Ex(elem,pt)*wts(elem,pt);
+            AD f1 = one/eps*aPML_yy(elem,pt)*Ey(elem,pt)*wts(elem,pt);
+            AD f2 = one/eps*aPML_zz(elem,pt)*Ez(elem,pt)*wts(elem,pt);
+            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
+              res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
+              res(elem,off(dof)) += f2*basis(elem,dof,pt,2);
+            }
+          }
+        });
       }
     }
   }

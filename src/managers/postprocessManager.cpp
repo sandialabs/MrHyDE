@@ -2056,13 +2056,14 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
             
             assembler->cells[block][e]->updateWorkset(3,true);
             
-            auto regvals = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"ip");
+            auto regvals_tmp = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"ip");
+            View_AD2 regvals("regvals",wts.extent(0),wts.extent(1));
             
             parallel_for("cell objective",
                          RangePolicy<AssemblyExec>(0,wts.extent(0)),
                          KOKKOS_LAMBDA (const size_type elem ) {
               for (size_type pt=0; pt<wts.extent(1); ++pt) {
-                regvals(elem,pt) *= wts(elem,pt);
+                regvals(elem,pt) = wts(elem,pt)*regvals_tmp(elem,pt);
               }
             });
             
@@ -2119,13 +2120,14 @@ void PostprocessManager<Node>::computeObjective(vector_RCP & current_soln,
               
               assembler->boundaryCells[block][e]->updateWorkset(3,true);
               
-              auto regvals = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"side ip");
+              auto regvals_tmp = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"side ip");
+              View_AD2 regvals("regvals",wts.extent(0),wts.extent(1));
               
               parallel_for("cell objective",
                            RangePolicy<AssemblyExec>(0,wts.extent(0)),
                            KOKKOS_LAMBDA (const size_type elem ) {
                 for (size_type pt=0; pt<wts.extent(1); ++pt) {
-                  regvals(elem,pt) *= wts(elem,pt);
+                  regvals(elem,pt) = wts(elem,pt)*regvals_tmp(elem,pt);
                 }
               });
               

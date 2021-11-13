@@ -26,7 +26,8 @@ int main(int argc, char * argv[]) {
     std::cout << "Team size: " << TeamSize << std::endl;
   
 #define numDerivs 32
-    typedef Sacado::Fad::SFad<ScalarT,numDerivs> EvalT;
+    //typedef Sacado::Fad::SFad<ScalarT,numDerivs> EvalT;
+    typedef ScalarT EvalT;
     
 #define VSize 32
     std::cout << "Vector size: " << VSize << std::endl;
@@ -42,38 +43,38 @@ int main(int argc, char * argv[]) {
     
     Kokkos::Timer timer;
  
-    Kokkos::View<ScalarT****,AssemblyDevice> basis("basis",numElem,numdof,numip,dimension);
-    Kokkos::View<ScalarT****,AssemblyDevice> basis_grad("basis",numElem,numdof,numip,dimension);
+    Kokkos::View<EvalT****,AssemblyDevice> basis("basis",numElem,numdof,numip,dimension);
+    Kokkos::View<EvalT****,AssemblyDevice> basis_grad("basis",numElem,numdof,numip,dimension);
     
     Kokkos::deep_copy(basis,1.0);
     Kokkos::deep_copy(basis_grad,2.0);
     
-    Kokkos::View<EvalT**,CL,AssemblyDevice> dT_dx("dTdx",numElem,numip,numDerivs);
-    Kokkos::View<EvalT**,CL,AssemblyDevice> dT_dy("dTdy",numElem,numip,numDerivs);
-    Kokkos::View<EvalT**,CL,AssemblyDevice> diff("diff",numElem,numip,numDerivs);
-    Kokkos::View<EvalT**,CL,AssemblyDevice> source("src",numElem,numip,numDerivs);
+    Kokkos::View<EvalT**,CL,AssemblyDevice> dT_dx("dTdx",numElem,numip);
+    Kokkos::View<EvalT**,CL,AssemblyDevice> dT_dy("dTdy",numElem,numip);
+    Kokkos::View<EvalT**,CL,AssemblyDevice> diff("diff",numElem,numip);
+    Kokkos::View<EvalT**,CL,AssemblyDevice> source("src",numElem,numip);
     Kokkos::View<ScalarT**,AssemblyDevice> wts("wts",numElem,numip);
     
     parallel_for("Thermal volume resid 2D",
                  RangePolicy<AssemblyExec>(0,basis.extent(0)),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<dT_dx.extent(1); ++pt) {
-        dT_dx(elem,pt) = EvalT(numDerivs,pt,100.0);
-        dT_dy(elem,pt) = EvalT(numDerivs,pt,-100.0);
+        dT_dx(elem,pt) = 100.0;//EvalT(numDerivs,pt,100.0);
+        dT_dy(elem,pt) = -100.0;//EvalT(numDerivs,pt,-100.0);
       }
     });
     Kokkos::deep_copy(diff,1.0);
     Kokkos::deep_copy(source,1.0);
     Kokkos::deep_copy(wts,1.0);
     
-    Kokkos::View<EvalT**,CL,AssemblyDevice> res("res",numElem,numdof,numDerivs);
-    Kokkos::View<EvalT**,CL,AssemblyDevice> res2("res2",numElem,numdof,numDerivs);
+    Kokkos::View<EvalT**,CL,AssemblyDevice> res("res",numElem,numdof);
+    Kokkos::View<EvalT**,CL,AssemblyDevice> res2("res2",numElem,numdof);
     
-    Kokkos::View<ScalarT***,AssemblyDevice> rJdiff("error",numElem,numdof,numDerivs+1);
+    //Kokkos::View<ScalarT***,AssemblyDevice> rJdiff("error",numElem,numdof,numDerivs+1);
    
     int scratch_concurrency = std::min(AssemblyExec::concurrency(),numElem);
     
-    Kokkos::View<EvalT***,CL,AssemblyDevice> scratch("scratch vals",scratch_concurrency,numip,3,numDerivs);
+    Kokkos::View<EvalT***,CL,AssemblyDevice> scratch("scratch vals",scratch_concurrency,numip,3);
 
     std::cout << "scratch_concurrency = " << scratch_concurrency << endl;
          
@@ -212,6 +213,7 @@ int main(int argc, char * argv[]) {
     // Verify that the baseline and latest hierarchical got the same answer 
     ////////////////////////////////////////////////
  
+    /*
     parallel_for("Thermal volume resid 2D",
                  RangePolicy<AssemblyExec>(0,rJdiff.extent(0)),
                  KOKKOS_LAMBDA (const int elem ) {
@@ -239,12 +241,12 @@ int main(int argc, char * argv[]) {
     }
     std::cout << "value error: " << valerror << std::endl;
     std::cout << "deriv error: " << deriverror << std::endl;
-    
+    */
 
     ////////////////////////////////////////////////
     // Another key kernel
     ////////////////////////////////////////////////
-
+/*
     Kokkos::View<ScalarT****,AssemblyDevice> cbasis("basis",numElem,numdof,numip,dimension);
     Kokkos::View<ScalarT****,AssemblyDevice> cbasis_grad("basis",numElem,numdof,numip,dimension);
     
@@ -283,7 +285,7 @@ int main(int argc, char * argv[]) {
     
     Kokkos::View<ScalarT**,CL,AssemblyDevice> sol2diff("error",numElem,numDerivs+1);
     Kokkos::View<ScalarT**,CL,AssemblyDevice> sol3diff("error",numElem,numDerivs+1);
-    
+  */
     ////////////////////////////////////////////////
     // Baseline (current implementation in MrHyDE)
     ////////////////////////////////////////////////
@@ -349,6 +351,7 @@ int main(int argc, char * argv[]) {
     // Hierarchical modified
     ////////////////////////////////////////////////
     
+    /*
     timer.reset();
     parallel_for("wkset soln ip HGRAD",
                  TeamPolicy(cbasis.extent(0), Kokkos::AUTO, VSize),
@@ -403,7 +406,8 @@ int main(int argc, char * argv[]) {
     Kokkos::fence();
     printf("Btime 2:   %e \n", timer.seconds());
 
-
+*/
+    
     ////////////////////////////////////////////////
     // Verify the results
     ////////////////////////////////////////////////
