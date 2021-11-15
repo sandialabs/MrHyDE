@@ -1862,9 +1862,6 @@ void DiscretizationInterface::buildDOFManagers() {
         }
       }
     }
-    if (settings->sublist("Physics").isParameter("field order")) {
-      //DOF->setFieldOrder(settings->sublist("Physics").get<string>("field order",""));
-    }
     
     DOF->buildGlobalUnknowns();
 #ifndef MrHyDE_NO_AD

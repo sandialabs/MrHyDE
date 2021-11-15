@@ -1163,7 +1163,7 @@ void SolverManager<Node>::transientSolver(vector_RCP & initial, DFAD & obj, vect
         if (!fnd) {
           // throw error
         }
-        if(Comm->getRank() == 0 && verbosity > 0) {
+        if (Comm->getRank() == 0 && verbosity > 0) {
           cout << endl << endl << "*******************************************************" << endl;
           cout << endl << "**** Cutting Time Step " << endl;
           cout << "**** Current time is " << current_time << endl << endl;
