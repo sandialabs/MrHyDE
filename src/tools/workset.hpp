@@ -30,6 +30,7 @@ namespace MrHyDE {
     ~SolutionField() {};
     
     SolutionField(const string & expression_,
+                  const size_t & set_index_,
                   const string & vartype_,
                   const int & varindex_,
                   const string & basistype_,
@@ -43,6 +44,7 @@ namespace MrHyDE {
       
       expression = expression_;
       variable_type = vartype_; // solution, aux, param
+      set_index = set_index_;
       variable_index = varindex_;
       basis_type = basistype_; // HGRAD, HVOL, HDIV, HCURL, HFACE
       basis_index = basis_index_;
@@ -56,6 +58,7 @@ namespace MrHyDE {
     }
     
     string expression, variable_type, basis_type, derivative_type;
+    size_t set_index;
     int variable_index, basis_index, component;
     bool isUpdated, isOnSide, isPoint;
     View_AD2 data;

@@ -68,6 +68,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   NLtol = settings->sublist("Solver").get<double>("nonlinear TOL",1.0E-6);
   NLabstol = settings->sublist("Solver").get<double>("absolute nonlinear TOL",std::min((double)NLtol,(double)1.0E-6));
   maxNLiter = settings->sublist("Solver").get<int>("max nonlinear iters",10);
+  subcycles = settings->sublist("Solver").get<int>("max subcycles",1);
   useRelativeTOL = settings->sublist("Solver").get<bool>("use relative TOL",true);
   useAbsoluteTOL = settings->sublist("Solver").get<bool>("use absolute TOL",false);
   allowBacktracking = settings->sublist("Solver").get<bool>("allow backtracking",true);
@@ -1024,7 +1025,6 @@ void SolverManager<Node>::steadySolver(DFAD & objective, vector<vector_RCP> & u)
       cout << "**** Starting SolverManager::steadySolver ..." << endl;
     }
   }
-  int subcycles = 1; // Hard coded for testing
   
   for (int ss=0; ss<subcycles; ++ss) {
     for (size_t set=0; set<setnames.size(); ++set) {
@@ -1153,7 +1153,6 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     int maxCuts = 5; // TMW: make this a user-defined input
     double timetol = end_time*1.0e-6; // just need to get close enough to final time
     bool write_this_step = false;
-    int subcycles = 1;
     
     vector<vector_RCP> u_prev, u_stage;
     for (size_t set=0; set<initial.size(); ++set) {
